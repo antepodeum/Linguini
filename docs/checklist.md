@@ -120,22 +120,30 @@ Checkpoint acceptance:
 
 ## 1. Project model and discovery
 
-- [ ] Implement `linguini.toml` parser
-  - Note:
-- [ ] Validate required config fields
-  - Note:
-- [ ] Implement schema path discovery
-  - Note:
-- [ ] Implement locale path discovery
-  - Note:
-- [ ] Parse locale file names as BCP 47-like tags
-  - Note:
-- [ ] Derive schema namespaces from paths
-  - Note:
-- [ ] Derive locale namespaces from paths
-  - Note:
-- [ ] Implement top-down scope path collection
-  - Note:
+- [x] Implement `linguini.toml` parser
+  - Note: completed on 2026-05-12. Added minimal parser for required project and paths sections.
+  - Evidence: crates/linguini-config/src/parser.rs; `cargo test --workspace`
+- [x] Validate required config fields
+  - Note: completed on 2026-05-12. Added validation for required fields, default locale membership, and locale tag shape.
+  - Evidence: crates/linguini-config/src/model.rs; `cargo test --workspace`
+- [x] Implement schema path discovery
+  - Note: completed on 2026-05-12. Added recursive `.lqs` discovery under the configured schema root.
+  - Evidence: crates/linguini-config/src/discovery.rs; `cargo test --workspace`
+- [x] Implement locale path discovery
+  - Note: completed on 2026-05-12. Added recursive `.lgl` discovery under the configured locale root.
+  - Evidence: crates/linguini-config/src/discovery.rs; `cargo test --workspace`
+- [x] Parse locale file names as BCP 47-like tags
+  - Note: completed on 2026-05-12. Locale discovery validates file stems such as `ru`, `en-US`, and `zh-Hant`.
+  - Evidence: crates/linguini-config/src/model.rs; `cargo test --workspace`
+- [x] Derive schema namespaces from paths
+  - Note: completed on 2026-05-12. Schema namespaces include relative parent directories and file stem.
+  - Evidence: crates/linguini-config/src/discovery.rs; `cargo test --workspace`
+- [x] Derive locale namespaces from paths
+  - Note: completed on 2026-05-12. Locale namespaces use relative parent directories and exclude the final locale file.
+  - Evidence: crates/linguini-config/src/discovery.rs; `cargo test --workspace`
+- [x] Implement top-down scope path collection
+  - Note: completed on 2026-05-12. Added root-to-leaf locale scope chain construction for nested locale files.
+  - Evidence: crates/linguini-config/src/discovery.rs; `cargo test --workspace`
 - [ ] Implement `linguini init`
   - Note:
 
