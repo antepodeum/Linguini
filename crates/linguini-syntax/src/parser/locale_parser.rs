@@ -1,14 +1,15 @@
 use chumsky::{input::IterInput, input::ValueInput, prelude::*};
 
 use crate::{
-    lex, BranchPattern, Expression, FormAttribute, FormDeclaration, FormEntry, FormVariant,
-    FunctionBranch, FunctionDeclaration, LocaleDeclaration, LocaleFile, LocaleValue, MapBranch,
-    MessageImplementation, MessageImplementationGroup, Name, Placeholder, RawText, Span, TextPart,
-    TextPattern, TokenKind,
+    lex, lex_with_recovery, BranchPattern, Expression, FormAttribute, FormDeclaration, FormEntry,
+    FormVariant, FunctionBranch, FunctionDeclaration, LocaleDeclaration, LocaleFile, LocaleValue,
+    MapBranch, MessageImplementation, MessageImplementationGroup, Name, Placeholder, RawText, Span,
+    TextPart, TextPattern, TokenKind,
 };
 
 use super::{
-    annotation, doc_comment, enum_declaration, keyword, name, strip_trivia, Extra, ParseError,
+    annotation, doc_comment, enum_declaration, keyword, name, parse_error_from_rich, strip_trivia,
+    Extra, ParseError, ParseOutput,
 };
 
 pub fn parse_locale(source: &str) -> Result<LocaleFile, Vec<ParseError>> {
@@ -30,14 +31,33 @@ pub fn parse_locale(source: &str) -> Result<LocaleFile, Vec<ParseError>> {
     if errors.is_empty() {
         Ok(ast.expect("parser produced an AST without errors"))
     } else {
-        Err(errors
-            .into_iter()
-            .map(|error| ParseError {
-                message: format!("{error:?}"),
-                span: *error.span(),
-            })
-            .collect())
+        Err(errors.into_iter().map(parse_error_from_rich).collect())
     }
+}
+
+pub fn parse_locale_with_recovery(source: &str) -> ParseOutput<LocaleFile> {
+    let lexed = lex_with_recovery(source);
+    let mut errors: Vec<_> = lexed
+        .errors
+        .into_iter()
+        .map(|error| ParseError {
+            message: error.message,
+            span: error.span,
+        })
+        .collect();
+    let syntax_tokens: Vec<_> = strip_trivia(lexed.tokens)
+        .into_iter()
+        .filter(|token| !matches!(token.kind, TokenKind::Error(_)))
+        .map(|token| (token.kind, token.span))
+        .collect();
+    let eof = Span::new(source.len(), source.len());
+    let (ast, parse_errors) = locale_parser()
+        .parse(IterInput::new(syntax_tokens.into_iter(), eof))
+        .into_output_errors();
+
+    errors.extend(parse_errors.into_iter().map(parse_error_from_rich));
+
+    ParseOutput { ast, errors }
 }
 
 fn locale_parser<'tokens, I>() -> impl Parser<'tokens, I, LocaleFile, Extra<'tokens>> + Clone

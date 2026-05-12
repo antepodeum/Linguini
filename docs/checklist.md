@@ -262,16 +262,18 @@ Checkpoint acceptance:
 - [x] Preserve source spans for all AST nodes
   - Note: completed on 2026-05-12. Schema and locale AST structs carry byte spans on files, declarations, text parts, placeholders, expressions, branches, and annotations.
   - Evidence: crates/linguini-syntax/src/ast.rs; `cargo test -p linguini-syntax`
-- [ ] Add parser recovery
-  - Note:
+- [x] Add parser recovery
+  - Note: completed on 2026-05-12. Added recovered parser entry points that return partial AST output plus collected lex and parse diagnostics.
+  - Evidence: crates/linguini-syntax/src/parser.rs; crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`
 
 Checkpoint acceptance:
 
 - [x] All valid fixtures parse
   - Note: completed on 2026-05-12. Parser tests cover committed schema and locale golden fixtures.
   - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
-- [ ] Invalid fixtures produce diagnostics
-  - Note:
+- [x] Invalid fixtures produce diagnostics
+  - Note: completed on 2026-05-12. Added invalid schema and locale fixtures with tests asserting parser diagnostics and strict parser failure.
+  - Evidence: tests/fixtures/invalid/schema/missing-message-paren.lqs; tests/fixtures/invalid/locale/broken-placeholder.lgl; `cargo test -p linguini-syntax`
 - [x] Parser does not require semantic information
   - Note: completed on 2026-05-12. Locale parser preserves selector, plural, formatter, call, and form syntax without resolving types, variants, or CLDR categories.
   - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`

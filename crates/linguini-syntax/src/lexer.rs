@@ -58,11 +58,15 @@ pub fn lex_with_recovery(source: &str) -> LexOutput {
 }
 
 pub fn lex_schema(source: &str) -> Result<Vec<Token>, LexError> {
-    let output = Lexer::new(source).with_raw_after_equals(false).lex();
+    let output = lex_schema_with_recovery(source);
     match output.errors.into_iter().next() {
         Some(error) => Err(error),
         None => Ok(output.tokens),
     }
+}
+
+pub fn lex_schema_with_recovery(source: &str) -> LexOutput {
+    Lexer::new(source).with_raw_after_equals(false).lex()
 }
 
 struct Lexer<'src> {

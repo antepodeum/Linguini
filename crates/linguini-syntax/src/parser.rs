@@ -3,12 +3,13 @@ use chumsky::{input::IterInput, input::ValueInput, prelude::*};
 mod locale_parser;
 
 use crate::{
-    lex_schema, Annotation, AnnotationArgument, DocComment, EnumDeclaration, MessageGroup,
-    MessageSignature, Name, Parameter, SchemaDeclaration, SchemaFile, Span, StringLiteral,
-    TokenKind, TypeAliasDeclaration,
+    lex_schema, lex_schema_with_recovery, Annotation, AnnotationArgument, DocComment,
+    EnumDeclaration, MessageGroup, MessageSignature, Name, Parameter, SchemaDeclaration,
+    SchemaFile, Span, StringLiteral, TokenKind, TypeAliasDeclaration,
 };
 
 pub use locale_parser::parse_locale;
+pub use locale_parser::parse_locale_with_recovery;
 
 type Extra<'tokens> = extra::Err<Rich<'tokens, TokenKind, Span>>;
 
@@ -16,6 +17,12 @@ type Extra<'tokens> = extra::Err<Rich<'tokens, TokenKind, Span>>;
 pub struct ParseError {
     pub message: String,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseOutput<T> {
+    pub ast: Option<T>,
+    pub errors: Vec<ParseError>,
 }
 
 pub fn parse_schema(source: &str) -> Result<SchemaFile, Vec<ParseError>> {
@@ -37,13 +44,39 @@ pub fn parse_schema(source: &str) -> Result<SchemaFile, Vec<ParseError>> {
     if errors.is_empty() {
         Ok(ast.expect("parser produced an AST without errors"))
     } else {
-        Err(errors
-            .into_iter()
-            .map(|error| ParseError {
-                message: format!("{error:?}"),
-                span: *error.span(),
-            })
-            .collect())
+        Err(errors.into_iter().map(parse_error_from_rich).collect())
+    }
+}
+
+pub fn parse_schema_with_recovery(source: &str) -> ParseOutput<SchemaFile> {
+    let lexed = lex_schema_with_recovery(source);
+    let mut errors: Vec<_> = lexed
+        .errors
+        .into_iter()
+        .map(|error| ParseError {
+            message: error.message,
+            span: error.span,
+        })
+        .collect();
+    let syntax_tokens: Vec<_> = strip_trivia(lexed.tokens)
+        .into_iter()
+        .filter(|token| !matches!(token.kind, TokenKind::Error(_)))
+        .map(|token| (token.kind, token.span))
+        .collect();
+    let eof = Span::new(source.len(), source.len());
+    let (ast, parse_errors) = schema_parser()
+        .parse(IterInput::new(syntax_tokens.into_iter(), eof))
+        .into_output_errors();
+
+    errors.extend(parse_errors.into_iter().map(parse_error_from_rich));
+
+    ParseOutput { ast, errors }
+}
+
+fn parse_error_from_rich(error: Rich<'_, TokenKind, Span>) -> ParseError {
+    ParseError {
+        message: format!("{error:?}"),
+        span: *error.span(),
     }
 }
 

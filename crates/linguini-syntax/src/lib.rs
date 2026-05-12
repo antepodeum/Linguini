@@ -13,16 +13,21 @@ pub use ast::{
     MessageImplementationGroup, MessageSignature, Name, Parameter, Placeholder, RawText,
     SchemaDeclaration, SchemaFile, StringLiteral, TextPart, TextPattern, TypeAliasDeclaration,
 };
-pub use lexer::{lex, lex_schema, lex_with_recovery, LexError, LexOutput};
-pub use parser::{parse_locale, parse_schema, ParseError};
+pub use lexer::{
+    lex, lex_schema, lex_schema_with_recovery, lex_with_recovery, LexError, LexOutput,
+};
+pub use parser::{
+    parse_locale, parse_locale_with_recovery, parse_schema, parse_schema_with_recovery, ParseError,
+    ParseOutput,
+};
 pub use token::{Span, Token, TokenKind};
 
 #[cfg(test)]
 mod tests {
     use super::{
-        lex, lex_schema, lex_with_recovery, parse_locale, parse_schema, BranchPattern, FormEntry,
-        LocaleDeclaration, LocaleValue, SchemaDeclaration, Span, TextPart, Token, TokenKind,
-        LOCALE_EXTENSION, SCHEMA_EXTENSION,
+        lex, lex_schema, lex_with_recovery, parse_locale, parse_locale_with_recovery, parse_schema,
+        parse_schema_with_recovery, BranchPattern, FormEntry, LocaleDeclaration, LocaleValue,
+        SchemaDeclaration, Span, TextPart, Token, TokenKind, LOCALE_EXTENSION, SCHEMA_EXTENSION,
     };
 
     #[test]
@@ -240,6 +245,17 @@ mod tests {
     }
 
     #[test]
+    fn schema_parser_recovery_reports_invalid_fixture_diagnostics() {
+        let source =
+            include_str!("../../../tests/fixtures/invalid/schema/missing-message-paren.lqs");
+        let output = parse_schema_with_recovery(source);
+
+        assert!(!output.errors.is_empty());
+        assert!(output.errors.iter().any(|error| error.span.start >= 25));
+        assert!(parse_schema(source).is_err());
+    }
+
+    #[test]
     fn parses_schema_docs_type_alias_annotations_and_groups() {
         let source = r#"/// money amount
 type Money = Decimal @currency
@@ -314,6 +330,16 @@ email_input {
             }
             other => panic!("expected message, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn locale_parser_recovery_reports_invalid_fixture_diagnostics() {
+        let source = include_str!("../../../tests/fixtures/invalid/locale/broken-placeholder.lgl");
+        let output = parse_locale_with_recovery(source);
+
+        assert!(!output.errors.is_empty());
+        assert_eq!(output.errors[0].message, "unterminated placeholder");
+        assert!(parse_locale(source).is_err());
     }
 
     #[test]
