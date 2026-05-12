@@ -15,6 +15,7 @@ name = "linguini-cli"
 version = "0.1.0"
 dependencies = [
  "linguini-config",
+ "linguini-test-support",
 ]
 
 [[package]]

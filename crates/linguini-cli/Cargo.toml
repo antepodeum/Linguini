@@ -13,3 +13,5 @@ path = "src/main.rs"
 [dependencies]
 linguini-config = { path = "../linguini-config" }
 
+[dev-dependencies]
+linguini-test-support = { path = "../linguini-test-support" }

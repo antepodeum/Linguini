@@ -144,19 +144,24 @@ Checkpoint acceptance:
 - [x] Implement top-down scope path collection
   - Note: completed on 2026-05-12. Added root-to-leaf locale scope chain construction for nested locale files.
   - Evidence: crates/linguini-config/src/discovery.rs; `cargo test --workspace`
-- [ ] Implement `linguini init`
-  - Note:
+- [x] Implement `linguini init`
+  - Note: completed on 2026-05-12. Added minimal init command that creates config plus schema and locale directories.
+  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test --workspace`
 
 Checkpoint acceptance:
 
-- [ ] `linguini init` creates a valid project
-  - Note:
-- [ ] `linguini check` lists discovered schema files
-  - Note:
-- [ ] `linguini check` lists discovered locale files
-  - Note:
-- [ ] `locale/shop/delivery/ru.lgl` sees parent scope files
-  - Note:
+- [x] `linguini init` creates a valid project
+  - Note: completed on 2026-05-12. CLI test verifies the generated config and directory structure.
+  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test --workspace`
+- [x] `linguini check` lists discovered schema files
+  - Note: completed on 2026-05-12. Check command output includes discovered schema paths and namespaces.
+  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test --workspace`
+- [x] `linguini check` lists discovered locale files
+  - Note: completed on 2026-05-12. Check command output includes discovered locale paths, locale tags, and namespaces.
+  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test --workspace`
+- [x] `locale/shop/delivery/ru.lgl` sees parent scope files
+  - Note: completed on 2026-05-12. Scope-chain helper returns root, parent, and leaf locale files in top-down order.
+  - Evidence: crates/linguini-config/src/discovery.rs; `cargo test --workspace`
 
 ---
 
