@@ -17,6 +17,28 @@ impl Span {
     }
 }
 
+impl chumsky::span::Span for Span {
+    type Context = ();
+    type Offset = usize;
+
+    fn new(_: Self::Context, range: std::ops::Range<Self::Offset>) -> Self {
+        Self {
+            start: range.start,
+            end: range.end,
+        }
+    }
+
+    fn context(&self) -> Self::Context {}
+
+    fn start(&self) -> Self::Offset {
+        self.start
+    }
+
+    fn end(&self) -> Self::Offset {
+        self.end
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,

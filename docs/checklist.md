@@ -220,18 +220,23 @@ Checkpoint acceptance:
 
 ## 3. Parser
 
-- [ ] Implement schema parser
-  - Note:
+- [x] Implement schema parser
+  - Note: completed on 2026-05-12. Added Chumsky-based schema AST parser entry point over token streams.
+  - Evidence: crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`; `cargo test --workspace`
 - [ ] Implement locale parser
   - Note:
-- [ ] Parse enums
-  - Note:
-- [ ] Parse custom scalar types
-  - Note:
-- [ ] Parse message signatures
-  - Note:
-- [ ] Parse grouped messages
-  - Note:
+- [x] Parse enums
+  - Note: completed on 2026-05-12. Schema parser accepts public enum declarations and variants.
+  - Evidence: crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
+- [x] Parse custom scalar types
+  - Note: completed on 2026-05-12. Schema parser accepts `type` aliases with formatter annotations.
+  - Evidence: crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
+- [x] Parse message signatures
+  - Note: completed on 2026-05-12. Schema parser accepts message parameters with name, type, and source spans.
+  - Evidence: crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
+- [x] Parse grouped messages
+  - Note: completed on 2026-05-12. Schema parser accepts grouped message signatures.
+  - Evidence: crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
 - [ ] Parse forms
   - Note:
 - [ ] Parse selector maps

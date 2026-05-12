@@ -57,10 +57,19 @@ pub fn lex_with_recovery(source: &str) -> LexOutput {
     Lexer::new(source).lex()
 }
 
+pub fn lex_schema(source: &str) -> Result<Vec<Token>, LexError> {
+    let output = Lexer::new(source).with_raw_after_equals(false).lex();
+    match output.errors.into_iter().next() {
+        Some(error) => Err(error),
+        None => Ok(output.tokens),
+    }
+}
+
 struct Lexer<'src> {
     source: &'src str,
     offset: usize,
     mode: Mode,
+    raw_after_equals: bool,
     tokens: Vec<Token>,
     errors: Vec<LexError>,
 }
@@ -71,9 +80,15 @@ impl<'src> Lexer<'src> {
             source,
             offset: 0,
             mode: Mode::Code,
+            raw_after_equals: true,
             tokens: Vec::new(),
             errors: Vec::new(),
         }
+    }
+
+    fn with_raw_after_equals(mut self, raw_after_equals: bool) -> Self {
+        self.raw_after_equals = raw_after_equals;
+        self
     }
 
     fn lex(mut self) -> LexOutput {
@@ -110,7 +125,7 @@ impl<'src> Lexer<'src> {
 
     fn try_next_lexeme(&self) -> Result<Lexeme, LexError> {
         let lexeme = match self.mode {
-            Mode::Code => parse_at(code_token(), self.source, self.offset)?,
+            Mode::Code => parse_at(code_token(self.raw_after_equals), self.source, self.offset)?,
             Mode::RawText => parse_at(raw_text_token(false), self.source, self.offset)?,
             Mode::MultilineText => parse_at(raw_text_token(true), self.source, self.offset)?,
             Mode::Placeholder(resume) => {
@@ -169,7 +184,7 @@ fn local_to_source_span(span: Span, source: &str, offset: usize) -> Span {
     Span::new(offset + span.start, offset + span.end)
 }
 
-fn code_token<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
+fn code_token<'src>(raw_after_equals: bool) -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
     choice((
         newline(),
         doc_comment(),
@@ -179,7 +194,7 @@ fn code_token<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
         horizontal_whitespace(),
         string_literal(),
         ident_like(),
-        punctuation(),
+        punctuation(raw_after_equals),
     ))
 }
 
@@ -267,7 +282,7 @@ fn ident_like<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
         })
 }
 
-fn punctuation<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
+fn punctuation<'src>(raw_after_equals: bool) -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
     choice((
         just('{').to((TokenKind::LBrace, None)),
         just('}').to((TokenKind::RBrace, None)),
@@ -275,7 +290,7 @@ fn punctuation<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
         just(')').to((TokenKind::RParen, None)),
         just(',').to((TokenKind::Comma, None)),
         just(':').to((TokenKind::Colon, None)),
-        just('=').to((TokenKind::Equals, Some(Mode::RawText))),
+        just('=').to((TokenKind::Equals, raw_after_equals.then_some(Mode::RawText))),
         just('.').to((TokenKind::Dot, None)),
         just('@').to((TokenKind::At, None)),
     ))

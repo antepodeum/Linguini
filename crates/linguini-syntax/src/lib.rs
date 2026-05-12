@@ -1,16 +1,24 @@
+mod ast;
 mod lexer;
+mod parser;
 mod token;
 
 pub const SCHEMA_EXTENSION: &str = "lqs";
 pub const LOCALE_EXTENSION: &str = "lgl";
 
-pub use lexer::{lex, lex_with_recovery, LexError, LexOutput};
+pub use ast::{
+    Annotation, AnnotationArgument, DocComment, EnumDeclaration, MessageGroup, MessageSignature,
+    Name, Parameter, SchemaDeclaration, SchemaFile, StringLiteral, TypeAliasDeclaration,
+};
+pub use lexer::{lex, lex_schema, lex_with_recovery, LexError, LexOutput};
+pub use parser::{parse_schema, ParseError};
 pub use token::{Span, Token, TokenKind};
 
 #[cfg(test)]
 mod tests {
     use super::{
-        lex, lex_with_recovery, Span, Token, TokenKind, LOCALE_EXTENSION, SCHEMA_EXTENSION,
+        lex, lex_schema, lex_with_recovery, parse_schema, SchemaDeclaration, Span, Token,
+        TokenKind, LOCALE_EXTENSION, SCHEMA_EXTENSION,
     };
 
     #[test]
@@ -119,6 +127,20 @@ mod tests {
     }
 
     #[test]
+    fn schema_lexer_keeps_type_alias_rhs_in_code_mode() {
+        let tokens =
+            lex_schema("type ShortDate = Date @date(style = \"short\")\n").expect("source lexes");
+        let kinds: Vec<_> = tokens.into_iter().map(|token| token.kind).collect();
+
+        assert!(kinds.contains(&TokenKind::Ident("Date".into())));
+        assert!(kinds.contains(&TokenKind::At));
+        assert!(kinds.contains(&TokenKind::String("short".into())));
+        assert!(!kinds
+            .iter()
+            .any(|kind| matches!(kind, TokenKind::RawText(_))));
+    }
+
+    #[test]
     fn reports_byte_spans() {
         let tokens = lex("x = й\n").expect("source lexes");
         assert_eq!(tokens[0].span, Span::new(0, 1));
@@ -181,6 +203,70 @@ mod tests {
             render_tokens(&tokens),
             include_str!("../../../tests/fixtures/golden/snapshots/lexer-locale.tokens")
         );
+    }
+
+    #[test]
+    fn parses_schema_fixture() {
+        let source = include_str!("../../../tests/fixtures/golden/schema/shop.lqs");
+        let schema = parse_schema(source).expect("schema fixture parses");
+
+        assert_eq!(schema.declarations.len(), 2);
+        match &schema.declarations[0] {
+            SchemaDeclaration::Enum(declaration) => {
+                assert_eq!(declaration.name.value, "Fruit");
+                assert_eq!(declaration.variants.len(), 2);
+            }
+            other => panic!("expected enum, got {other:?}"),
+        }
+        match &schema.declarations[1] {
+            SchemaDeclaration::Message(declaration) => {
+                assert_eq!(declaration.name.value, "delivery");
+                assert_eq!(declaration.parameters[0].name.value, "fruit");
+                assert_eq!(declaration.parameters[0].ty.value, "Fruit");
+            }
+            other => panic!("expected message, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_schema_docs_type_alias_annotations_and_groups() {
+        let source = r#"/// money amount
+type Money = Decimal @currency
+
+type ShortDate = Date @date(style = "short")
+
+email_input {
+  label()
+  placeholder()
+}
+"#;
+        let schema = parse_schema(source).expect("schema parses");
+
+        assert_eq!(schema.declarations.len(), 3);
+        match &schema.declarations[0] {
+            SchemaDeclaration::TypeAlias(declaration) => {
+                assert_eq!(declaration.docs[0].text, " money amount");
+                assert_eq!(declaration.name.value, "Money");
+                assert_eq!(declaration.target.value, "Decimal");
+                assert_eq!(declaration.annotations[0].name.value, "currency");
+            }
+            other => panic!("expected type alias, got {other:?}"),
+        }
+        match &schema.declarations[1] {
+            SchemaDeclaration::TypeAlias(declaration) => {
+                assert_eq!(declaration.annotations[0].arguments[0].name.value, "style");
+                assert_eq!(declaration.annotations[0].arguments[0].value.value, "short");
+            }
+            other => panic!("expected type alias, got {other:?}"),
+        }
+        match &schema.declarations[2] {
+            SchemaDeclaration::Group(declaration) => {
+                assert_eq!(declaration.name.value, "email_input");
+                assert_eq!(declaration.messages.len(), 2);
+                assert_eq!(declaration.messages[0].name.value, "label");
+            }
+            other => panic!("expected group, got {other:?}"),
+        }
     }
 
     fn render_tokens(tokens: &[Token]) -> String {

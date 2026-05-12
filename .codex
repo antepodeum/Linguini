@@ -5,27 +5,33 @@ Completed slice:
 - Added token/span model and lexer tests for schema fixture, locale fixture, raw text, multiline text, placeholders, comments, doc comments, and byte spans.
 - Added lexer recovery via `lex_with_recovery`, preserving strict `lex` behavior for callers that want the first error.
 - Added committed snapshot-style lexer token fixtures for schema and locale golden files.
-- Added spec/checklist rule requiring this `.codex` handoff to be kept current for future LLM continuation.
+- Added schema parser AST and `parse_schema` entry point for enums, custom scalar aliases, schema formatter annotations, message signatures, grouped messages, and doc comments.
+- Added schema-specific `lex_schema` so schema `type Name = Target @annotation` stays in code mode while locale `=` retains raw-text behavior.
+- Updated parser checklist items for the completed schema slice.
 
 Implementation decisions:
 - Lexer uses `chumsky = "0.13.0"`.
 - Public spans are byte offsets.
 - Raw text after `=` and `=>` currently includes leading spaces, matching "text after delimiter" literally.
+- `lex_schema` disables raw-text transition after `=` because schema custom scalar aliases use code syntax after equals.
 - Mode transitions are coordinated in Rust, while token recognition is done with Chumsky parsers.
 - `TokenKind::Error` represents recovered invalid source characters.
 - Placeholder mode tokenizes code punctuation without letting `=` switch into raw text.
 - Multiline raw text currently treats `"` as a delimiter boundary so triple quotes can be recognized; escaped/ordinary quotes in raw text are deferred.
+- Parser trivia stripping removes whitespace, newlines, and ordinary comments, but preserves doc comments as AST nodes.
+- Schema parser is syntax-only and does not resolve type names or formatter semantics.
 
 Tests last run:
 - `cargo test -p linguini-syntax`
 - `cargo fmt --all --check`
-- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lexer.rs` has 407 lines; below 500-line failure threshold)
+- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lexer.rs` has 422 lines; below 500-line failure threshold)
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
 
 Known deferred work:
-- Parser implementation has not started.
+- Locale parser implementation has not started.
+- Parser recovery is not implemented yet.
 - Raw text quote handling should be revisited when parser fixtures cover quoted localized text.
 
 Next recommended task:
-- Start the parser over the recovered token stream, beginning with schema enums, custom scalar types, message signatures, and grouped messages.
+- Implement the locale parser for message implementations, placeholders, forms, selector maps, plural-map-shaped branches, and local functions.
