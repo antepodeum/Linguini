@@ -70,7 +70,21 @@ Optional development/reference crates:
 
 Generated target code must not depend on Rust crates.
 
-### 2.3 Rust workspace layout
+### 2.3 Repository state handoff
+
+Keep a concise repository state handoff in `.codex`.
+
+The handoff must be updated before ending or committing a completed implementation slice. It must let a future LLM continue without rediscovering basic state.
+
+Include:
+
+- current completed slice
+- important implementation decisions
+- tests last run
+- known blockers or deferred work
+- next recommended task
+
+### 2.4 Rust workspace layout
 
 ```txt
 crates/

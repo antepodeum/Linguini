@@ -1,0 +1,25 @@
+Repository state handoff - 2026-05-12
+
+Completed slice:
+- Added Chumsky 0.13.0-based lexer foundation in `linguini-syntax`.
+- Added token/span model and lexer tests for schema fixture, locale fixture, raw text, multiline text, placeholders, comments, doc comments, and byte spans.
+- Added spec/checklist rule requiring this `.codex` handoff to be kept current for future LLM continuation.
+
+Implementation decisions:
+- Lexer uses `chumsky = "0.13.0"`.
+- Public spans are byte offsets.
+- Raw text after `=` and `=>` currently includes leading spaces, matching "text after delimiter" literally.
+- Mode transitions are coordinated in Rust, while token recognition is done with Chumsky parsers.
+- Multiline raw text currently treats `"` as a delimiter boundary so triple quotes can be recognized; escaped/ordinary quotes in raw text are deferred.
+
+Tests last run:
+- `cargo test -p linguini-syntax`
+
+Known deferred work:
+- Lexer error recovery is not complete.
+- Lexer snapshot tests are not added yet.
+- Parser implementation has not started.
+- Raw text quote handling should be revisited when parser fixtures cover quoted localized text.
+
+Next recommended task:
+- Add lexer recovery and snapshot/golden tests, then start the Chumsky parser over the token stream.

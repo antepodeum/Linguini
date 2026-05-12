@@ -53,6 +53,9 @@ A task is not complete until its tests are committed and the relevant command is
 - [x] Add snapshot test setup
   - Note: completed on 2026-05-12. Added snapshot-style testing policy and committed golden fixture layout; external insta dependency is deferred until dependency fetching is introduced.
   - Evidence: docs/testing.md; tests/fixtures/golden
+- [x] Add repository state handoff rule for future LLM continuation
+  - Note: completed on 2026-05-12. Spec now requires `.codex` to record completed slice, decisions, tests, blockers, and next task.
+  - Evidence: docs/spec.md; .codex
 
 Checkpoint acceptance:
 
@@ -167,22 +170,30 @@ Checkpoint acceptance:
 
 ## 2. Lexer
 
-- [ ] Define token model with spans
-  - Note:
-- [ ] Implement code mode
-  - Note:
-- [ ] Implement raw text mode after `=`
-  - Note:
-- [ ] Implement raw text mode after `=>`
-  - Note:
-- [ ] Implement multiline text mode
-  - Note:
-- [ ] Implement placeholder mode
-  - Note:
-- [ ] Implement ordinary comments
-  - Note:
-- [ ] Implement doc comments
-  - Note:
+- [x] Define token model with spans
+  - Note: completed on 2026-05-12. Added public token, token kind, and byte span model in `linguini-syntax`.
+  - Evidence: crates/linguini-syntax/src/token.rs; `cargo test -p linguini-syntax`
+- [x] Implement code mode
+  - Note: completed on 2026-05-12. Added Chumsky-based code token parser for identifiers, locale tags, punctuation, strings, comments, and newlines.
+  - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
+- [x] Implement raw text mode after `=`
+  - Note: completed on 2026-05-12. `=` transitions to raw text mode and tokenizes text until newline or placeholder.
+  - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
+- [x] Implement raw text mode after `=>`
+  - Note: completed on 2026-05-12. `=>` transitions to raw text mode for selector and plural branch text.
+  - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
+- [x] Implement multiline text mode
+  - Note: completed on 2026-05-12. Triple quotes enter and leave multiline raw text mode.
+  - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
+- [x] Implement placeholder mode
+  - Note: completed on 2026-05-12. Raw and multiline text can enter `{...}` placeholder code mode and resume the previous text mode.
+  - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
+- [x] Implement ordinary comments
+  - Note: completed on 2026-05-12. Added `//` comment tokenization.
+  - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
+- [x] Implement doc comments
+  - Note: completed on 2026-05-12. Added `///` doc comment tokenization before ordinary comments.
+  - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
 - [ ] Add lexer error recovery
   - Note:
 - [ ] Add lexer snapshot tests
@@ -190,14 +201,18 @@ Checkpoint acceptance:
 
 Checkpoint acceptance:
 
-- [ ] Lexer handles `.lqs` examples
-  - Note:
-- [ ] Lexer handles `.lgl` examples
-  - Note:
-- [ ] Lexer reports spans correctly
-  - Note:
-- [ ] Lexer supports Cyrillic raw text
-  - Note:
+- [x] Lexer handles `.lqs` examples
+  - Note: completed on 2026-05-12. Schema golden fixture lexes with expected declaration tokens.
+  - Evidence: tests/fixtures/golden/schema/shop.lqs; `cargo test -p linguini-syntax`
+- [x] Lexer handles `.lgl` examples
+  - Note: completed on 2026-05-12. Locale golden fixture lexes with raw text output.
+  - Evidence: tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
+- [x] Lexer reports spans correctly
+  - Note: completed on 2026-05-12. Unit test verifies byte spans including Cyrillic raw text.
+  - Evidence: crates/linguini-syntax/src/lib.rs; `cargo test -p linguini-syntax`
+- [x] Lexer supports Cyrillic raw text
+  - Note: completed on 2026-05-12. Russian fixture keeps Cyrillic text in raw text tokens.
+  - Evidence: tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
 
 ---
 

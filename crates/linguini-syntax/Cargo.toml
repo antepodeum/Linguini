@@ -7,4 +7,4 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-
+chumsky = "0.13.0"
