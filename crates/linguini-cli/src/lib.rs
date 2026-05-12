@@ -1,6 +1,8 @@
+use linguini_analyzer::{render_diagnostics, Diagnostic};
 use linguini_config::{
     discover_locale_files, discover_schema_files, parse_config, DEFAULT_CONFIG_FILE,
 };
+use linguini_syntax::{parse_locale_with_recovery, parse_schema_with_recovery};
 use std::fmt::{self, Display};
 use std::fs;
 use std::io;
@@ -11,6 +13,7 @@ pub type CliResult<T> = Result<T, CliError>;
 #[derive(Debug)]
 pub enum CliError {
     Config(linguini_config::ConfigError),
+    Diagnostics(String),
     Io { path: PathBuf, source: io::Error },
     MissingCommand,
     UnknownCommand(String),
@@ -20,6 +23,7 @@ impl Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Config(error) => Display::fmt(error, f),
+            Self::Diagnostics(output) => f.write_str(output),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
             Self::MissingCommand => write!(f, "missing command"),
             Self::UnknownCommand(command) => write!(f, "unknown command `{command}`"),
@@ -78,25 +82,52 @@ pub fn check_project(root: &Path) -> CliResult<String> {
     let locale_root = root.join(&config.paths.locale);
     let schema_files = discover_schema_files(schema_root)?;
     let locale_files = discover_locale_files(locale_root)?;
+    let mut diagnostic_output = String::new();
 
     let mut output = String::new();
     output.push_str("schema files:\n");
-    for file in schema_files {
+    for file in &schema_files {
         output.push_str(&format!(
             "- {} [{}]\n",
             path_for_output(root, &file.path),
             file.namespace
         ));
+        let source = read_file(&file.path)?;
+        let parsed = parse_schema_with_recovery(&source);
+        if !parsed.errors.is_empty() {
+            diagnostic_output.push_str(&render_parse_errors(
+                root,
+                &file.path,
+                &source,
+                "schema syntax error",
+                parsed.errors,
+            ));
+        }
     }
 
     output.push_str("locale files:\n");
-    for file in locale_files {
+    for file in &locale_files {
         output.push_str(&format!(
             "- {} [{}:{}]\n",
             path_for_output(root, &file.path),
             file.locale,
             file.namespace
         ));
+        let source = read_file(&file.path)?;
+        let parsed = parse_locale_with_recovery(&source);
+        if !parsed.errors.is_empty() {
+            diagnostic_output.push_str(&render_parse_errors(
+                root,
+                &file.path,
+                &source,
+                "locale syntax error",
+                parsed.errors,
+            ));
+        }
+    }
+
+    if !diagnostic_output.is_empty() {
+        return Err(CliError::Diagnostics(diagnostic_output));
     }
 
     Ok(output)
@@ -143,6 +174,24 @@ fn write_file(path: &Path, contents: &str) -> CliResult<()> {
     })
 }
 
+fn render_parse_errors(
+    root: &Path,
+    path: &Path,
+    source: &str,
+    note: &str,
+    errors: Vec<linguini_syntax::ParseError>,
+) -> String {
+    let relative_path = path_for_output(root, path);
+    let diagnostics: Vec<_> = errors
+        .into_iter()
+        .map(|error| Diagnostic::error(error.message, error.span).with_note(note))
+        .collect();
+
+    render_diagnostics(&relative_path, source, &diagnostics).unwrap_or_else(|error| {
+        format!("failed to render diagnostics for {relative_path}: {error}")
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{check_project, init_project};
@@ -176,5 +225,22 @@ mod tests {
 
         assert!(output.contains("linguini/schema/shop/delivery.lqs [shop.delivery]"));
         assert!(output.contains("linguini/locale/shop/delivery/en.lgl [en:shop.delivery]"));
+    }
+
+    #[test]
+    fn check_reports_schema_syntax_diagnostics() {
+        let project = temp_project_dir("check_reports_schema_syntax_diagnostics");
+        init_project(project.path()).expect("init project");
+
+        let schema_dir = project.path().join("linguini/schema/shop");
+        fs::create_dir_all(&schema_dir).expect("schema dir");
+        fs::write(schema_dir.join("broken.lqs"), "delivery(fruit: Fruit\n").expect("schema file");
+
+        let error = check_project(project.path()).expect_err("check fails");
+        let rendered = error.to_string();
+
+        assert!(rendered.contains("Error:"));
+        assert!(rendered.contains("linguini/schema/shop/broken.lqs"));
+        assert!(rendered.contains("schema syntax error"));
     }
 }

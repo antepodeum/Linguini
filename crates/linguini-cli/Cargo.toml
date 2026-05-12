@@ -11,7 +11,9 @@ name = "linguini"
 path = "src/main.rs"
 
 [dependencies]
+linguini-analyzer = { path = "../linguini-analyzer" }
 linguini-config = { path = "../linguini-config" }
+linguini-syntax = { path = "../linguini-syntax" }
 
 [dev-dependencies]
 linguini-test-support = { path = "../linguini-test-support" }

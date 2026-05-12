@@ -282,25 +282,32 @@ Checkpoint acceptance:
 
 ## 4. Diagnostics
 
-- [ ] Add Ariadne renderer
-  - Note:
-- [ ] Add diagnostic severity levels
-  - Note:
-- [ ] Add related spans
-  - Note:
-- [ ] Add quick-fix hint model
-  - Note:
-- [ ] Add CLI diagnostic output tests
-  - Note:
+- [x] Add Ariadne renderer
+  - Note: completed on 2026-05-12. Added Ariadne-backed ASCII, no-color diagnostic rendering with byte-span support.
+  - Evidence: crates/linguini-analyzer/src/diagnostic.rs; `cargo test -p linguini-analyzer -p linguini-cli`
+- [x] Add diagnostic severity levels
+  - Note: completed on 2026-05-12. Added error, warning, and advice severity mapping to Ariadne report kinds.
+  - Evidence: crates/linguini-analyzer/src/diagnostic.rs; `cargo test -p linguini-analyzer -p linguini-cli`
+- [x] Add related spans
+  - Note: completed on 2026-05-12. Added related span model and renderer labels.
+  - Evidence: crates/linguini-analyzer/src/diagnostic.rs; tests/fixtures/golden/snapshots/diagnostic-schema-syntax.txt; `cargo test -p linguini-analyzer`
+- [x] Add quick-fix hint model
+  - Note: completed on 2026-05-12. Added quick-fix hint and replacement model; renderer emits hints as help text.
+  - Evidence: crates/linguini-analyzer/src/diagnostic.rs; tests/fixtures/golden/snapshots/diagnostic-schema-syntax.txt; `cargo test -p linguini-analyzer`
+- [x] Add CLI diagnostic output tests
+  - Note: completed on 2026-05-12. `linguini check` now parses discovered schema and locale files and reports syntax diagnostics.
+  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cli`
 
 Checkpoint acceptance:
 
-- [ ] Syntax errors show highlighted spans
-  - Note:
+- [x] Syntax errors show highlighted spans
+  - Note: completed on 2026-05-12. CLI syntax diagnostics are rendered with Ariadne source highlights.
+  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cli`
 - [ ] Analyzer errors show related declarations
   - Note:
-- [ ] Diagnostics are stable in snapshots
-  - Note:
+- [x] Diagnostics are stable in snapshots
+  - Note: completed on 2026-05-12. Added committed golden diagnostic snapshot for primary, related, note, and quick-fix output.
+  - Evidence: tests/fixtures/golden/snapshots/diagnostic-schema-syntax.txt; `cargo test -p linguini-analyzer`
 
 ---
 

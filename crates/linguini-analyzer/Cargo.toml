@@ -7,4 +7,5 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-
+ariadne = "0.6.0"
+linguini-syntax = { path = "../linguini-syntax" }

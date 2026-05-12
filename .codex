@@ -1,6 +1,10 @@
 Repository state handoff - 2026-05-12
 
 Completed slice:
+- Added analyzer diagnostic model with severity, related spans, notes, quick-fix hints, and replacement payloads.
+- Added Ariadne renderer with deterministic ASCII/no-color output and byte-span indexing.
+- Wired `linguini check` to parse discovered schema and locale files and return rendered syntax diagnostics when parsing fails.
+- Added CLI diagnostic output test and committed diagnostic golden snapshot.
 - Added Chumsky 0.13.0-based lexer foundation in `linguini-syntax`, including token/span model, lexer recovery, schema-specific lexing, and committed token snapshots.
 - Added schema parser AST and `parse_schema` entry point for enums, custom scalar aliases, schema formatter annotations, message signatures, grouped messages, and doc comments.
 - Added locale parser AST and `parse_locale` entry point for local enums, forms, selector maps, plural-map-shaped branches, local functions, public/grouped message implementations, placeholders, dotted/call expressions, and placeholder formatter annotations.
@@ -11,6 +15,9 @@ Completed slice:
 - Updated parser and fixture checklist items through parser recovery and invalid fixture diagnostics.
 
 Implementation decisions:
+- Diagnostic rendering lives in `linguini-analyzer` so syntax and future semantic checks share one model.
+- CLI syntax diagnostics convert parser recovery errors into analyzer diagnostics with a syntax-error note.
+- Ariadne renderer uses ASCII and disabled color to keep tests stable across environments.
 - Lexer uses `chumsky = "0.13.0"`.
 - Public spans are byte offsets.
 - Raw text after `=` and `=>` currently includes leading spaces, matching "text after delimiter" literally.
@@ -27,6 +34,12 @@ Implementation decisions:
 - Form map bodies cover branch maps used by selector and plural-shaped examples, and recursive object-shaped nested attributes used by forms.
 
 Tests last run:
+- `cargo test -p linguini-analyzer -p linguini-cli`
+- `cargo fmt --all`
+- `cargo fmt --all --check`
+- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 469 lines and `crates/linguini-syntax/src/lexer.rs` has 426 lines; both below 500-line failure threshold)
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`
 - `cargo test -p linguini-syntax`
 - `cargo test -p linguini-syntax` after fixture expansion and nested form attribute parsing.
 - `wc -l crates/linguini-syntax/src/parser.rs crates/linguini-syntax/src/parser/locale_parser.rs crates/linguini-syntax/src/ast.rs crates/linguini-syntax/src/lib.rs`
@@ -37,8 +50,9 @@ Tests last run:
 - `cargo test -p linguini-syntax` after parser recovery and invalid fixture diagnostics.
 
 Known deferred work:
+- Analyzer-related declaration diagnostics need real schema symbol table errors before checklist acceptance can be completed.
 - Raw text quote handling should be revisited when parser fixtures cover quoted localized text.
 - Parser recovery currently reports diagnostics and optional full AST output; it does not insert error AST nodes for malformed declarations.
 
 Next recommended task:
-- Begin diagnostics layer with Ariadne renderer and stable diagnostic output tests, then move to schema symbol table registration.
+- Begin schema symbol table registration: enums, variants, custom scalar types, messages, groups, docs, duplicate declarations, and unknown type reporting.

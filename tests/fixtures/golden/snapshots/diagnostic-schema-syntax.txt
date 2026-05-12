@@ -1,0 +1,13 @@
+Error: unknown type `Color`
+   ,-[ shop.lqs:1:14 ]
+   |
+ 1 | paint(color: Color)
+   | ^^|^^        ^^|^^  
+   |   `----------------- while checking this message
+   |                |    
+   |                `---- unknown type `Color`
+   | 
+   | Help: quick fix: declare enum Color
+   | 
+   | Note: schema types must be declared before use
+---'
