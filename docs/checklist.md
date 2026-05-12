@@ -411,12 +411,15 @@ Checkpoint acceptance:
 - [x] Validate unknown public messages
   - Note: completed on 2026-05-12. Analyzer reports locale message implementations not present in the schema.
   - Evidence: crates/linguini-analyzer/src/message_coverage.rs; `cargo test -p linguini-analyzer`
-- [ ] Validate form enum coverage
-  - Note:
-- [ ] Validate selector enum coverage
-  - Note:
-- [ ] Validate `other` branch requirement
-  - Note:
+- [x] Validate form enum coverage
+  - Note: completed on 2026-05-12. Added generic branch coverage analyzer for enum-backed form coverage checks.
+  - Evidence: crates/linguini-analyzer/src/branch_coverage.rs; `cargo test -p linguini-analyzer`
+- [x] Validate selector enum coverage
+  - Note: completed on 2026-05-12. Branch coverage analyzer accepts selector subjects and reports missing enum branches with related variant spans.
+  - Evidence: crates/linguini-analyzer/src/branch_coverage.rs; `cargo test -p linguini-analyzer`
+- [x] Validate `other` branch requirement
+  - Note: completed on 2026-05-12. Added analyzer helper that requires an `other` fallback branch.
+  - Evidence: crates/linguini-analyzer/src/branch_coverage.rs; `cargo test -p linguini-analyzer`
 - [ ] Validate placeholder variables
   - Note:
 - [ ] Validate form property access

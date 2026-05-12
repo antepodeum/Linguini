@@ -1,6 +1,8 @@
 Repository state handoff - 2026-05-12
 
 Completed slice:
+- Added analyzer branch coverage checks for enum-backed form and selector maps.
+- Added analyzer `other` fallback branch validation.
 - Added analyzer public message coverage checks for matching schema messages to locale implementations.
 - Added missing public message diagnostics.
 - Added unknown public message implementation diagnostics.
@@ -24,6 +26,7 @@ Completed slice:
 - Updated parser and fixture checklist items through parser recovery and invalid fixture diagnostics.
 
 Implementation decisions:
+- Branch coverage analyzer is generic over subject/enum/branches so form maps and selector maps can share it.
 - Analyzer message coverage API is dependency-light to avoid a crate cycle: callers pass message names and spans from schema/locale symbol tables.
 - Locale scope loading takes an ordered path/source list; `linguini-config` remains responsible for computing the top-down path chain.
 - Locale grouped messages are registered both by group name and `group.message` key.
@@ -76,6 +79,7 @@ Tests last run:
 - `cargo test -p linguini-syntax` after parser recovery and invalid fixture diagnostics.
 
 Known deferred work:
+- Branch coverage helpers are not wired into full AST traversal yet.
 - Analyzer message coverage is not wired into `linguini check` yet; CLI currently reports syntax diagnostics only.
 - Locale scope symbols currently store declaration metadata only; variant/function/form internals remain for analyzer-specific checks.
 - Schema symbol table currently validates one parsed schema AST at a time; project-wide namespace merging remains future analyzer work.
@@ -83,4 +87,4 @@ Known deferred work:
 - Parser recovery currently reports diagnostics and optional full AST output; it does not insert error AST nodes for malformed declarations.
 
 Next recommended task:
-- Continue analyzer checks with form enum coverage, selector enum coverage, and `other` branch validation.
+- Continue analyzer checks with placeholder variables, form property access, function calls, function arity, and tuple patterns.

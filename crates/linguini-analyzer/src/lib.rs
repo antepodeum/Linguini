@@ -1,6 +1,10 @@
+mod branch_coverage;
 mod diagnostic;
 mod message_coverage;
 
+pub use branch_coverage::{
+    analyze_branch_coverage, require_other_branch, BranchCoverage, NamedSpan,
+};
 pub use diagnostic::{
     render_diagnostics, Diagnostic, DiagnosticSeverity, QuickFix, RelatedSpan, RenderError,
     Replacement,
@@ -12,7 +16,8 @@ pub const CRATE_PURPOSE: &str = "semantic analysis";
 #[cfg(test)]
 mod tests {
     use super::{
-        analyze_message_coverage, render_diagnostics, Diagnostic, PublicMessage, QuickFix,
+        analyze_branch_coverage, analyze_message_coverage, render_diagnostics,
+        require_other_branch, BranchCoverage, Diagnostic, NamedSpan, PublicMessage, QuickFix,
     };
     use linguini_syntax::Span;
 
@@ -64,5 +69,52 @@ mod tests {
             diagnostics[0].message,
             "unknown public message implementation `delivery`"
         );
+    }
+
+    #[test]
+    fn branch_coverage_reports_missing_enum_variant() {
+        let diagnostics = analyze_branch_coverage(BranchCoverage {
+            subject: "form `Fruit.nom`",
+            enum_name: "Fruit",
+            variants: vec![
+                NamedSpan::new("apple", Span::new(5, 10)),
+                NamedSpan::new("pear", Span::new(13, 17)),
+            ],
+            branches: vec![NamedSpan::new("apple", Span::new(30, 35))],
+            span: Span::new(20, 40),
+        });
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "form `Fruit.nom` for enum `Fruit` is missing branch `pear`"
+        );
+        assert_eq!(diagnostics[0].related.len(), 1);
+    }
+
+    #[test]
+    fn required_other_branch_reports_missing_fallback() {
+        let diagnostics = require_other_branch(
+            "plural map `Fruit.nom`",
+            &[NamedSpan::new("one", Span::new(0, 3))],
+            Span::new(0, 12),
+        );
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "plural map `Fruit.nom` is missing required `other` branch"
+        );
+    }
+
+    #[test]
+    fn required_other_branch_accepts_fallback() {
+        let diagnostics = require_other_branch(
+            "plural map `Fruit.nom`",
+            &[NamedSpan::new("other", Span::new(0, 5))],
+            Span::new(0, 12),
+        );
+
+        assert!(diagnostics.is_empty());
     }
 }
