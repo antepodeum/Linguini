@@ -402,12 +402,15 @@ Checkpoint acceptance:
 
 ## 7. Analyzer
 
-- [ ] Match locale messages to schema messages
-  - Note:
-- [ ] Validate missing public messages
-  - Note:
-- [ ] Validate unknown public messages
-  - Note:
+- [x] Match locale messages to schema messages
+  - Note: completed on 2026-05-12. Added analyzer message coverage API that compares schema public messages with locale implementations.
+  - Evidence: crates/linguini-analyzer/src/message_coverage.rs; `cargo test -p linguini-analyzer`
+- [x] Validate missing public messages
+  - Note: completed on 2026-05-12. Analyzer reports schema messages missing from a locale.
+  - Evidence: crates/linguini-analyzer/src/message_coverage.rs; `cargo test -p linguini-analyzer`
+- [x] Validate unknown public messages
+  - Note: completed on 2026-05-12. Analyzer reports locale message implementations not present in the schema.
+  - Evidence: crates/linguini-analyzer/src/message_coverage.rs; `cargo test -p linguini-analyzer`
 - [ ] Validate form enum coverage
   - Note:
 - [ ] Validate selector enum coverage
