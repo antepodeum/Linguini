@@ -194,10 +194,12 @@ Checkpoint acceptance:
 - [x] Implement doc comments
   - Note: completed on 2026-05-12. Added `///` doc comment tokenization before ordinary comments.
   - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
-- [ ] Add lexer error recovery
-  - Note:
-- [ ] Add lexer snapshot tests
-  - Note:
+- [x] Add lexer error recovery
+  - Note: completed on 2026-05-12. Added recovering lexer output that records invalid tokens and continues while preserving strict `lex` errors.
+  - Evidence: crates/linguini-syntax/src/lexer.rs; `cargo test -p linguini-syntax`
+- [x] Add lexer snapshot tests
+  - Note: completed on 2026-05-12. Added committed snapshot-style token expectations for schema and locale golden fixtures.
+  - Evidence: tests/fixtures/golden/snapshots; `cargo test -p linguini-syntax`
 
 Checkpoint acceptance:
 

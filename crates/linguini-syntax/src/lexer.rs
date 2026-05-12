@@ -10,6 +10,12 @@ pub struct LexError {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LexOutput {
+    pub tokens: Vec<Token>,
+    pub errors: Vec<LexError>,
+}
+
 impl LexError {
     fn new(message: impl Into<String>, span: Span) -> Self {
         Self {
@@ -40,6 +46,14 @@ struct Lexeme {
 }
 
 pub fn lex(source: &str) -> Result<Vec<Token>, LexError> {
+    let output = lex_with_recovery(source);
+    match output.errors.into_iter().next() {
+        Some(error) => Err(error),
+        None => Ok(output.tokens),
+    }
+}
+
+pub fn lex_with_recovery(source: &str) -> LexOutput {
     Lexer::new(source).lex()
 }
 
@@ -48,6 +62,7 @@ struct Lexer<'src> {
     offset: usize,
     mode: Mode,
     tokens: Vec<Token>,
+    errors: Vec<LexError>,
 }
 
 impl<'src> Lexer<'src> {
@@ -57,18 +72,15 @@ impl<'src> Lexer<'src> {
             offset: 0,
             mode: Mode::Code,
             tokens: Vec::new(),
+            errors: Vec::new(),
         }
     }
 
-    fn lex(mut self) -> Result<Vec<Token>, LexError> {
+    fn lex(mut self) -> LexOutput {
         while self.offset < self.source.len() {
-            let lexeme = match self.mode {
-                Mode::Code => parse_at(code_token(), self.source, self.offset)?,
-                Mode::RawText => parse_at(raw_text_token(false), self.source, self.offset)?,
-                Mode::MultilineText => parse_at(raw_text_token(true), self.source, self.offset)?,
-                Mode::Placeholder(resume) => {
-                    parse_at(placeholder_token(resume), self.source, self.offset)?
-                }
+            let lexeme = match self.try_next_lexeme() {
+                Ok(lexeme) => lexeme,
+                Err(error) => self.recover_invalid_token(error),
             };
 
             self.offset = lexeme.token.span.end;
@@ -79,15 +91,50 @@ impl<'src> Lexer<'src> {
         }
 
         match self.mode {
-            Mode::Code | Mode::RawText => Ok(self.tokens),
-            Mode::MultilineText => Err(LexError::new(
+            Mode::Code | Mode::RawText => {}
+            Mode::MultilineText => self.errors.push(LexError::new(
                 "unterminated multiline text",
                 Span::new(self.offset, self.offset),
             )),
-            Mode::Placeholder(_) => Err(LexError::new(
+            Mode::Placeholder(_) => self.errors.push(LexError::new(
                 "unterminated placeholder",
                 Span::new(self.offset, self.offset),
             )),
+        }
+
+        LexOutput {
+            tokens: self.tokens,
+            errors: self.errors,
+        }
+    }
+
+    fn try_next_lexeme(&self) -> Result<Lexeme, LexError> {
+        let lexeme = match self.mode {
+            Mode::Code => parse_at(code_token(), self.source, self.offset)?,
+            Mode::RawText => parse_at(raw_text_token(false), self.source, self.offset)?,
+            Mode::MultilineText => parse_at(raw_text_token(true), self.source, self.offset)?,
+            Mode::Placeholder(resume) => {
+                parse_at(placeholder_token(resume), self.source, self.offset)?
+            }
+        };
+
+        Ok(lexeme)
+    }
+
+    fn recover_invalid_token(&mut self, error: LexError) -> Lexeme {
+        let start = self.offset;
+        let text = self.source[start..]
+            .chars()
+            .next()
+            .expect("recovery only runs before EOF")
+            .to_string();
+        let end = start + text.len();
+        let span = Span::new(start, end);
+        self.errors.push(LexError::new(error.message, span));
+
+        Lexeme {
+            token: Token::new(TokenKind::Error(text), span),
+            next_mode: None,
         }
     }
 }
@@ -147,7 +194,12 @@ fn placeholder_token<'src>(
     choice((
         newline(),
         literal_token("}", TokenKind::RBrace, Some(end_mode)),
-        code_token(),
+        doc_comment(),
+        comment(),
+        horizontal_whitespace(),
+        string_literal(),
+        ident_like(),
+        placeholder_punctuation(),
     ))
 }
 
@@ -230,6 +282,23 @@ fn punctuation<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
     .map(|(kind, next_mode)| Lexeme {
         token: Token::new(kind, Span::new(0, 1)),
         next_mode,
+    })
+}
+
+fn placeholder_punctuation<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
+    choice((
+        just('{').to(TokenKind::LBrace),
+        just('(').to(TokenKind::LParen),
+        just(')').to(TokenKind::RParen),
+        just(',').to(TokenKind::Comma),
+        just(':').to(TokenKind::Colon),
+        just('=').to(TokenKind::Equals),
+        just('.').to(TokenKind::Dot),
+        just('@').to(TokenKind::At),
+    ))
+    .map(|kind| Lexeme {
+        token: Token::new(kind, Span::new(0, 1)),
+        next_mode: None,
     })
 }
 

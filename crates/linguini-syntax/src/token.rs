@@ -35,6 +35,7 @@ pub enum TokenKind {
     LocaleTag(String),
     String(String),
     RawText(String),
+    Error(String),
     LBrace,
     RBrace,
     LParen,

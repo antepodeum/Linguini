@@ -1,0 +1,6 @@
+Ident("delivery") @ 0..8
+Whitespace @ 8..9
+Equals @ 9..10
+RawText(" Доставлено") @ 10..31
+Newline @ 31..32
+Newline @ 32..33

@@ -4,12 +4,14 @@ mod token;
 pub const SCHEMA_EXTENSION: &str = "lqs";
 pub const LOCALE_EXTENSION: &str = "lgl";
 
-pub use lexer::{lex, LexError};
+pub use lexer::{lex, lex_with_recovery, LexError, LexOutput};
 pub use token::{Span, Token, TokenKind};
 
 #[cfg(test)]
 mod tests {
-    use super::{lex, Span, TokenKind, LOCALE_EXTENSION, SCHEMA_EXTENSION};
+    use super::{
+        lex, lex_with_recovery, Span, Token, TokenKind, LOCALE_EXTENSION, SCHEMA_EXTENSION,
+    };
 
     #[test]
     fn dsl_extensions_match_spec() {
@@ -122,5 +124,74 @@ mod tests {
         assert_eq!(tokens[0].span, Span::new(0, 1));
         assert_eq!(tokens[2].span, Span::new(2, 3));
         assert_eq!(tokens[3].span, Span::new(3, 6));
+    }
+
+    #[test]
+    fn recovers_after_invalid_code_token() {
+        let output = lex_with_recovery("first # bad\nsecond()\n");
+
+        assert_eq!(output.errors.len(), 1);
+        assert_eq!(output.errors[0].span, Span::new(6, 7));
+        assert!(output
+            .tokens
+            .iter()
+            .any(|token| token.kind == TokenKind::Error("#".into())));
+        assert!(output
+            .tokens
+            .iter()
+            .any(|token| token.kind == TokenKind::Ident("second".into())));
+    }
+
+    #[test]
+    fn strict_lex_reports_first_recovery_error() {
+        let error = lex("first # bad\n").expect_err("invalid token is reported");
+
+        assert_eq!(error.span, Span::new(6, 7));
+    }
+
+    #[test]
+    fn reports_unterminated_placeholder_with_recovered_prefix() {
+        let output = lex_with_recovery("value = {name\nnext = ok\n");
+
+        assert!(output
+            .tokens
+            .iter()
+            .any(|token| token.kind == TokenKind::Ident("next".into())));
+        assert_eq!(output.errors.len(), 1);
+        assert_eq!(output.errors[0].message, "unterminated placeholder");
+    }
+
+    #[test]
+    fn lexer_schema_snapshot_matches_committed_fixture() {
+        let source = include_str!("../../../tests/fixtures/golden/schema/shop.lqs");
+        let tokens = lex(source).expect("schema fixture lexes");
+
+        assert_eq!(
+            render_tokens(&tokens),
+            include_str!("../../../tests/fixtures/golden/snapshots/lexer-schema.tokens")
+        );
+    }
+
+    #[test]
+    fn lexer_locale_snapshot_matches_committed_fixture() {
+        let source = include_str!("../../../tests/fixtures/golden/locale/ru.lgl");
+        let tokens = lex(source).expect("locale fixture lexes");
+
+        assert_eq!(
+            render_tokens(&tokens),
+            include_str!("../../../tests/fixtures/golden/snapshots/lexer-locale.tokens")
+        );
+    }
+
+    fn render_tokens(tokens: &[Token]) -> String {
+        tokens
+            .iter()
+            .map(|token| {
+                format!(
+                    "{:?} @ {}..{}\n",
+                    token.kind, token.span.start, token.span.end
+                )
+            })
+            .collect()
     }
 }
