@@ -79,9 +79,9 @@ Checkpoint acceptance:
 - [ ] Add unit test structure for every core crate
   - Note:
   - Evidence:
-- [ ] Add golden fixture directory for `.lqs` and `.lgl` projects
-  - Note:
-  - Evidence:
+- [x] Add golden fixture directory for `.lqs` and `.lgl` projects
+  - Note: completed on 2026-05-12. Expanded schema and Russian locale golden fixtures to cover enums, formatter annotations, docs, forms, selector maps, plural-shaped maps, nested form attributes, helper functions, messages, placeholders, and grouped messages.
+  - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
 - [ ] Add `insta` snapshot review workflow
   - Note:
   - Evidence:
@@ -241,6 +241,9 @@ Checkpoint acceptance:
 - [x] Parse forms
   - Note: completed on 2026-05-12. Locale parser accepts `form` declarations with variants, attributes, and branch-bearing map attributes.
   - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`
+- [x] Parse nested form attributes
+  - Note: completed on 2026-05-12. Locale parser now accepts recursive object-shaped form attributes such as `display { short = ... }`.
+  - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
 - [x] Parse selector maps
   - Note: completed on 2026-05-12. Locale parser accepts selector-qualified form variants such as `small:gender` with branch maps.
   - Evidence: crates/linguini-syntax/src/lib.rs; `cargo test -p linguini-syntax`

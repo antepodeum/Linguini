@@ -100,7 +100,7 @@ where
     name()
         .then(just(TokenKind::Colon).ignore_then(name()).or_not())
         .then(
-            form_entry()
+            form_entry_parser()
                 .repeated()
                 .collect::<Vec<_>>()
                 .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace)),
@@ -113,36 +113,42 @@ where
         })
 }
 
-fn form_entry<'tokens, I>() -> impl Parser<'tokens, I, FormEntry, Extra<'tokens>> + Clone
+fn form_entry_parser<'tokens, I>() -> impl Parser<'tokens, I, FormEntry, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    choice((
-        map_branch().map(FormEntry::Branch),
-        form_attribute().map(FormEntry::Attribute),
-    ))
-}
+    recursive(|entry| {
+        let branch = map_branch().map(FormEntry::Branch);
+        let attribute = name()
+            .then(choice((
+                just(TokenKind::Equals)
+                    .ignore_then(text_pattern())
+                    .map(LocaleValue::Text),
+                choice((
+                    map_branch()
+                        .repeated()
+                        .at_least(1)
+                        .collect::<Vec<_>>()
+                        .map(LocaleValue::Map),
+                    entry
+                        .clone()
+                        .repeated()
+                        .at_least(1)
+                        .collect::<Vec<_>>()
+                        .map(LocaleValue::Object),
+                ))
+                .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace)),
+            )))
+            .map_with(|(name, value), extra| {
+                FormEntry::Attribute(FormAttribute {
+                    name,
+                    value,
+                    span: extra.span(),
+                })
+            });
 
-fn form_attribute<'tokens, I>() -> impl Parser<'tokens, I, FormAttribute, Extra<'tokens>> + Clone
-where
-    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
-{
-    name()
-        .then(choice((
-            just(TokenKind::Equals)
-                .ignore_then(text_pattern())
-                .map(LocaleValue::Text),
-            map_branch()
-                .repeated()
-                .collect::<Vec<_>>()
-                .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace))
-                .map(LocaleValue::Map),
-        )))
-        .map_with(|(name, value), extra| FormAttribute {
-            name,
-            value,
-            span: extra.span(),
-        })
+        choice((branch, attribute))
+    })
 }
 
 fn function_declaration<'tokens, I>(

@@ -1,6 +1,612 @@
-Ident("delivery") @ 0..8
-Whitespace @ 8..9
-Equals @ 9..10
-RawText(" Доставлено") @ 10..31
-Newline @ 31..32
-Newline @ 32..33
+Ident("enum") @ 0..4
+Whitespace @ 4..5
+Ident("gender") @ 5..11
+Whitespace @ 11..12
+LBrace @ 12..13
+Newline @ 13..14
+Whitespace @ 14..16
+Ident("male") @ 16..20
+Newline @ 20..21
+Whitespace @ 21..23
+Ident("female") @ 23..29
+Newline @ 29..30
+Whitespace @ 30..32
+Ident("neuter") @ 32..38
+Newline @ 38..39
+Whitespace @ 39..41
+Ident("other") @ 41..46
+Newline @ 46..47
+RBrace @ 47..48
+Newline @ 48..49
+Newline @ 49..50
+Ident("form") @ 50..54
+Whitespace @ 54..55
+Ident("Fruit") @ 55..60
+Whitespace @ 60..61
+LBrace @ 61..62
+Newline @ 62..63
+Whitespace @ 63..65
+Ident("apple") @ 65..70
+Whitespace @ 70..71
+LBrace @ 71..72
+Newline @ 72..73
+Whitespace @ 73..77
+Ident("gender") @ 77..83
+Whitespace @ 83..84
+Equals @ 84..85
+RawText(" neuter") @ 85..92
+Newline @ 92..93
+Whitespace @ 93..97
+Ident("emoji") @ 97..102
+Whitespace @ 102..103
+Equals @ 103..104
+RawText(" 🍎") @ 104..109
+Newline @ 109..110
+Newline @ 110..111
+Whitespace @ 111..115
+Ident("nom") @ 115..118
+Whitespace @ 118..119
+LBrace @ 119..120
+Newline @ 120..121
+Whitespace @ 121..127
+Ident("one") @ 127..130
+Whitespace @ 130..131
+Arrow @ 131..133
+RawText(" яблоко") @ 133..146
+Newline @ 146..147
+Whitespace @ 147..153
+Ident("few") @ 153..156
+Whitespace @ 156..157
+Arrow @ 157..159
+RawText(" яблока") @ 159..172
+Newline @ 172..173
+Whitespace @ 173..179
+Ident("many") @ 179..183
+Whitespace @ 183..184
+Arrow @ 184..186
+RawText(" яблок") @ 186..197
+Newline @ 197..198
+Whitespace @ 198..204
+Ident("other") @ 204..209
+Whitespace @ 209..210
+Arrow @ 210..212
+RawText(" яблока") @ 212..225
+Newline @ 225..226
+Whitespace @ 226..230
+RBrace @ 230..231
+Newline @ 231..232
+Newline @ 232..233
+Whitespace @ 233..237
+Ident("gen") @ 237..240
+Whitespace @ 240..241
+LBrace @ 241..242
+Newline @ 242..243
+Whitespace @ 243..249
+Ident("one") @ 249..252
+Whitespace @ 252..253
+Arrow @ 253..255
+RawText(" яблока") @ 255..268
+Newline @ 268..269
+Whitespace @ 269..275
+Ident("few") @ 275..278
+Whitespace @ 278..279
+Arrow @ 279..281
+RawText(" яблок") @ 281..292
+Newline @ 292..293
+Whitespace @ 293..299
+Ident("many") @ 299..303
+Whitespace @ 303..304
+Arrow @ 304..306
+RawText(" яблок") @ 306..317
+Newline @ 317..318
+Whitespace @ 318..324
+Ident("other") @ 324..329
+Whitespace @ 329..330
+Arrow @ 330..332
+RawText(" яблока") @ 332..345
+Newline @ 345..346
+Whitespace @ 346..350
+RBrace @ 350..351
+Newline @ 351..352
+Newline @ 352..353
+Whitespace @ 353..357
+Ident("display") @ 357..364
+Whitespace @ 364..365
+LBrace @ 365..366
+Newline @ 366..367
+Whitespace @ 367..373
+Ident("short") @ 373..378
+Whitespace @ 378..379
+Equals @ 379..380
+RawText(" ябл.") @ 380..388
+Newline @ 388..389
+Whitespace @ 389..395
+Ident("long") @ 395..399
+Whitespace @ 399..400
+Equals @ 400..401
+RawText(" спелое яблоко") @ 401..427
+Newline @ 427..428
+Whitespace @ 428..432
+RBrace @ 432..433
+Newline @ 433..434
+Whitespace @ 434..436
+RBrace @ 436..437
+Newline @ 437..438
+Newline @ 438..439
+Whitespace @ 439..441
+Ident("pear") @ 441..445
+Whitespace @ 445..446
+LBrace @ 446..447
+Newline @ 447..448
+Whitespace @ 448..452
+Ident("gender") @ 452..458
+Whitespace @ 458..459
+Equals @ 459..460
+RawText(" female") @ 460..467
+Newline @ 467..468
+Whitespace @ 468..472
+Ident("emoji") @ 472..477
+Whitespace @ 477..478
+Equals @ 478..479
+RawText(" 🍐") @ 479..484
+Newline @ 484..485
+Newline @ 485..486
+Whitespace @ 486..490
+Ident("nom") @ 490..493
+Whitespace @ 493..494
+LBrace @ 494..495
+Newline @ 495..496
+Whitespace @ 496..502
+Ident("one") @ 502..505
+Whitespace @ 505..506
+Arrow @ 506..508
+RawText(" груша") @ 508..519
+Newline @ 519..520
+Whitespace @ 520..526
+Ident("few") @ 526..529
+Whitespace @ 529..530
+Arrow @ 530..532
+RawText(" груши") @ 532..543
+Newline @ 543..544
+Whitespace @ 544..550
+Ident("many") @ 550..554
+Whitespace @ 554..555
+Arrow @ 555..557
+RawText(" груш") @ 557..566
+Newline @ 566..567
+Whitespace @ 567..573
+Ident("other") @ 573..578
+Whitespace @ 578..579
+Arrow @ 579..581
+RawText(" груши") @ 581..592
+Newline @ 592..593
+Whitespace @ 593..597
+RBrace @ 597..598
+Newline @ 598..599
+Newline @ 599..600
+Whitespace @ 600..604
+Ident("gen") @ 604..607
+Whitespace @ 607..608
+LBrace @ 608..609
+Newline @ 609..610
+Whitespace @ 610..616
+Ident("one") @ 616..619
+Whitespace @ 619..620
+Arrow @ 620..622
+RawText(" груши") @ 622..633
+Newline @ 633..634
+Whitespace @ 634..640
+Ident("few") @ 640..643
+Whitespace @ 643..644
+Arrow @ 644..646
+RawText(" груш") @ 646..655
+Newline @ 655..656
+Whitespace @ 656..662
+Ident("many") @ 662..666
+Whitespace @ 666..667
+Arrow @ 667..669
+RawText(" груш") @ 669..678
+Newline @ 678..679
+Whitespace @ 679..685
+Ident("other") @ 685..690
+Whitespace @ 690..691
+Arrow @ 691..693
+RawText(" груши") @ 693..704
+Newline @ 704..705
+Whitespace @ 705..709
+RBrace @ 709..710
+Newline @ 710..711
+Whitespace @ 711..713
+RBrace @ 713..714
+Newline @ 714..715
+Newline @ 715..716
+Whitespace @ 716..718
+Ident("orange") @ 718..724
+Whitespace @ 724..725
+LBrace @ 725..726
+Newline @ 726..727
+Whitespace @ 727..731
+Ident("gender") @ 731..737
+Whitespace @ 737..738
+Equals @ 738..739
+RawText(" male") @ 739..744
+Newline @ 744..745
+Whitespace @ 745..749
+Ident("emoji") @ 749..754
+Whitespace @ 754..755
+Equals @ 755..756
+RawText(" 🍊") @ 756..761
+Newline @ 761..762
+Newline @ 762..763
+Whitespace @ 763..767
+Ident("nom") @ 767..770
+Whitespace @ 770..771
+LBrace @ 771..772
+Newline @ 772..773
+Whitespace @ 773..779
+Ident("one") @ 779..782
+Whitespace @ 782..783
+Arrow @ 783..785
+RawText(" апельсин") @ 785..802
+Newline @ 802..803
+Whitespace @ 803..809
+Ident("few") @ 809..812
+Whitespace @ 812..813
+Arrow @ 813..815
+RawText(" апельсина") @ 815..834
+Newline @ 834..835
+Whitespace @ 835..841
+Ident("many") @ 841..845
+Whitespace @ 845..846
+Arrow @ 846..848
+RawText(" апельсинов") @ 848..869
+Newline @ 869..870
+Whitespace @ 870..876
+Ident("other") @ 876..881
+Whitespace @ 881..882
+Arrow @ 882..884
+RawText(" апельсина") @ 884..903
+Newline @ 903..904
+Whitespace @ 904..908
+RBrace @ 908..909
+Newline @ 909..910
+Newline @ 910..911
+Whitespace @ 911..915
+Ident("gen") @ 915..918
+Whitespace @ 918..919
+LBrace @ 919..920
+Newline @ 920..921
+Whitespace @ 921..927
+Ident("one") @ 927..930
+Whitespace @ 930..931
+Arrow @ 931..933
+RawText(" апельсина") @ 933..952
+Newline @ 952..953
+Whitespace @ 953..959
+Ident("few") @ 959..962
+Whitespace @ 962..963
+Arrow @ 963..965
+RawText(" апельсинов") @ 965..986
+Newline @ 986..987
+Whitespace @ 987..993
+Ident("many") @ 993..997
+Whitespace @ 997..998
+Arrow @ 998..1000
+RawText(" апельсинов") @ 1000..1021
+Newline @ 1021..1022
+Whitespace @ 1022..1028
+Ident("other") @ 1028..1033
+Whitespace @ 1033..1034
+Arrow @ 1034..1036
+RawText(" апельсина") @ 1036..1055
+Newline @ 1055..1056
+Whitespace @ 1056..1060
+RBrace @ 1060..1061
+Newline @ 1061..1062
+Whitespace @ 1062..1064
+RBrace @ 1064..1065
+Newline @ 1065..1066
+RBrace @ 1066..1067
+Newline @ 1067..1068
+Newline @ 1068..1069
+Ident("form") @ 1069..1073
+Whitespace @ 1073..1074
+Ident("Size") @ 1074..1078
+Whitespace @ 1078..1079
+LBrace @ 1079..1080
+Newline @ 1080..1081
+Whitespace @ 1081..1083
+Ident("small") @ 1083..1088
+Colon @ 1088..1089
+Ident("gender") @ 1089..1095
+Whitespace @ 1095..1096
+LBrace @ 1096..1097
+Newline @ 1097..1098
+Whitespace @ 1098..1102
+Ident("male") @ 1102..1106
+Whitespace @ 1106..1107
+Arrow @ 1107..1109
+RawText(" маленький") @ 1109..1128
+Newline @ 1128..1129
+Whitespace @ 1129..1133
+Ident("female") @ 1133..1139
+Whitespace @ 1139..1140
+Arrow @ 1140..1142
+RawText(" маленькая") @ 1142..1161
+Newline @ 1161..1162
+Whitespace @ 1162..1166
+Ident("neuter") @ 1166..1172
+Whitespace @ 1172..1173
+Arrow @ 1173..1175
+RawText(" маленькое") @ 1175..1194
+Newline @ 1194..1195
+Whitespace @ 1195..1199
+Ident("other") @ 1199..1204
+Whitespace @ 1204..1205
+Arrow @ 1205..1207
+RawText(" маленький") @ 1207..1226
+Newline @ 1226..1227
+Whitespace @ 1227..1229
+RBrace @ 1229..1230
+Newline @ 1230..1231
+Newline @ 1231..1232
+Whitespace @ 1232..1234
+Ident("big") @ 1234..1237
+Colon @ 1237..1238
+Ident("gender") @ 1238..1244
+Whitespace @ 1244..1245
+LBrace @ 1245..1246
+Newline @ 1246..1247
+Whitespace @ 1247..1251
+Ident("male") @ 1251..1255
+Whitespace @ 1255..1256
+Arrow @ 1256..1258
+RawText(" большой") @ 1258..1273
+Newline @ 1273..1274
+Whitespace @ 1274..1278
+Ident("female") @ 1278..1284
+Whitespace @ 1284..1285
+Arrow @ 1285..1287
+RawText(" большая") @ 1287..1302
+Newline @ 1302..1303
+Whitespace @ 1303..1307
+Ident("neuter") @ 1307..1313
+Whitespace @ 1313..1314
+Arrow @ 1314..1316
+RawText(" большое") @ 1316..1331
+Newline @ 1331..1332
+Whitespace @ 1332..1336
+Ident("other") @ 1336..1341
+Whitespace @ 1341..1342
+Arrow @ 1342..1344
+RawText(" большой") @ 1344..1359
+Newline @ 1359..1360
+Whitespace @ 1360..1362
+RBrace @ 1362..1363
+Newline @ 1363..1364
+RBrace @ 1364..1365
+Newline @ 1365..1366
+Newline @ 1366..1367
+Ident("fn") @ 1367..1369
+Whitespace @ 1369..1370
+Ident("delivered") @ 1370..1379
+LParen @ 1379..1380
+Ident("gender") @ 1380..1386
+RParen @ 1386..1387
+Whitespace @ 1387..1388
+LBrace @ 1388..1389
+Newline @ 1389..1390
+Whitespace @ 1390..1392
+Ident("male") @ 1392..1396
+Whitespace @ 1396..1397
+Arrow @ 1397..1399
+RawText(" Доставлен") @ 1399..1418
+Newline @ 1418..1419
+Whitespace @ 1419..1421
+Ident("female") @ 1421..1427
+Whitespace @ 1427..1428
+Arrow @ 1428..1430
+RawText(" Доставлена") @ 1430..1451
+Newline @ 1451..1452
+Whitespace @ 1452..1454
+Ident("neuter") @ 1454..1460
+Whitespace @ 1460..1461
+Arrow @ 1461..1463
+RawText(" Доставлено") @ 1463..1484
+Newline @ 1484..1485
+Whitespace @ 1485..1487
+Ident("other") @ 1487..1492
+Whitespace @ 1492..1493
+Arrow @ 1493..1495
+RawText(" Доставлено") @ 1495..1516
+Newline @ 1516..1517
+RBrace @ 1517..1518
+Newline @ 1518..1519
+Newline @ 1519..1520
+Ident("fn") @ 1520..1522
+Whitespace @ 1522..1523
+Ident("adjective") @ 1523..1532
+LParen @ 1532..1533
+Ident("size") @ 1533..1537
+Comma @ 1537..1538
+Whitespace @ 1538..1539
+Ident("gender") @ 1539..1545
+RParen @ 1545..1546
+Whitespace @ 1546..1547
+LBrace @ 1547..1548
+Newline @ 1548..1549
+Whitespace @ 1549..1551
+Ident("small") @ 1551..1556
+Comma @ 1556..1557
+Whitespace @ 1557..1558
+Ident("male") @ 1558..1562
+Whitespace @ 1562..1563
+Arrow @ 1563..1565
+RawText(" маленький") @ 1565..1584
+Newline @ 1584..1585
+Whitespace @ 1585..1587
+Ident("small") @ 1587..1592
+Comma @ 1592..1593
+Whitespace @ 1593..1594
+Ident("female") @ 1594..1600
+Whitespace @ 1600..1601
+Arrow @ 1601..1603
+RawText(" маленькая") @ 1603..1622
+Newline @ 1622..1623
+Whitespace @ 1623..1625
+Ident("small") @ 1625..1630
+Comma @ 1630..1631
+Whitespace @ 1631..1632
+Ident("neuter") @ 1632..1638
+Whitespace @ 1638..1639
+Arrow @ 1639..1641
+RawText(" маленькое") @ 1641..1660
+Newline @ 1660..1661
+Whitespace @ 1661..1663
+Ident("big") @ 1663..1666
+Comma @ 1666..1667
+Whitespace @ 1667..1668
+Ident("male") @ 1668..1672
+Whitespace @ 1672..1673
+Arrow @ 1673..1675
+RawText(" большой") @ 1675..1690
+Newline @ 1690..1691
+Whitespace @ 1691..1693
+Ident("big") @ 1693..1696
+Comma @ 1696..1697
+Whitespace @ 1697..1698
+Ident("female") @ 1698..1704
+Whitespace @ 1704..1705
+Arrow @ 1705..1707
+RawText(" большая") @ 1707..1722
+Newline @ 1722..1723
+Whitespace @ 1723..1725
+Ident("big") @ 1725..1728
+Comma @ 1728..1729
+Whitespace @ 1729..1730
+Ident("neuter") @ 1730..1736
+Whitespace @ 1736..1737
+Arrow @ 1737..1739
+RawText(" большое") @ 1739..1754
+Newline @ 1754..1755
+Whitespace @ 1755..1757
+Ident("else") @ 1757..1761
+Whitespace @ 1761..1762
+Arrow @ 1762..1764
+RawText(" обычное") @ 1764..1779
+Newline @ 1779..1780
+RBrace @ 1780..1781
+Newline @ 1781..1782
+Newline @ 1782..1783
+DocComment(" Product delivery sentence.") @ 1783..1813
+Newline @ 1813..1814
+Ident("delivery") @ 1814..1822
+Whitespace @ 1822..1823
+Equals @ 1823..1824
+RawText(" ") @ 1824..1825
+LBrace @ 1825..1826
+Ident("delivered") @ 1826..1835
+LParen @ 1835..1836
+Ident("fruit") @ 1836..1841
+Dot @ 1841..1842
+Ident("gender") @ 1842..1848
+RParen @ 1848..1849
+RBrace @ 1849..1850
+RawText(" ") @ 1850..1851
+LBrace @ 1851..1852
+Ident("adjective") @ 1852..1861
+LParen @ 1861..1862
+Ident("size") @ 1862..1866
+Comma @ 1866..1867
+Whitespace @ 1867..1868
+Ident("fruit") @ 1868..1873
+Dot @ 1873..1874
+Ident("gender") @ 1874..1880
+RParen @ 1880..1881
+RBrace @ 1881..1882
+RawText(" ") @ 1882..1883
+LBrace @ 1883..1884
+Ident("fruit") @ 1884..1889
+Dot @ 1889..1890
+Ident("nom") @ 1890..1893
+LParen @ 1893..1894
+Ident("count") @ 1894..1899
+RParen @ 1899..1900
+RBrace @ 1900..1901
+Newline @ 1901..1902
+Newline @ 1902..1903
+Ident("counted") @ 1903..1910
+Whitespace @ 1910..1911
+Equals @ 1911..1912
+RawText(" В корзине ") @ 1912..1931
+LBrace @ 1931..1932
+Ident("count") @ 1932..1937
+RBrace @ 1937..1938
+RawText(" ") @ 1938..1939
+LBrace @ 1939..1940
+Ident("fruit") @ 1940..1945
+Dot @ 1945..1946
+Ident("gen") @ 1946..1949
+LParen @ 1949..1950
+Ident("count") @ 1950..1955
+RParen @ 1955..1956
+RBrace @ 1956..1957
+Newline @ 1957..1958
+Newline @ 1958..1959
+Ident("price") @ 1959..1964
+Whitespace @ 1964..1965
+Equals @ 1965..1966
+RawText(" Цена ") @ 1966..1976
+LBrace @ 1976..1977
+Ident("amount") @ 1977..1983
+Whitespace @ 1983..1984
+At @ 1984..1985
+Ident("currency") @ 1985..1993
+LParen @ 1993..1994
+Ident("code") @ 1994..1998
+Whitespace @ 1998..1999
+Equals @ 1999..2000
+Whitespace @ 2000..2001
+String("RUB") @ 2001..2006
+RParen @ 2006..2007
+RBrace @ 2007..2008
+RawText(" на ") @ 2008..2014
+LBrace @ 2014..2015
+Ident("date") @ 2015..2019
+Whitespace @ 2019..2020
+At @ 2020..2021
+Ident("date") @ 2021..2025
+LParen @ 2025..2026
+Ident("style") @ 2026..2031
+Whitespace @ 2031..2032
+Equals @ 2032..2033
+Whitespace @ 2033..2034
+String("short") @ 2034..2041
+RParen @ 2041..2042
+RBrace @ 2042..2043
+Newline @ 2043..2044
+Newline @ 2044..2045
+Ident("email_input") @ 2045..2056
+Whitespace @ 2056..2057
+LBrace @ 2057..2058
+Newline @ 2058..2059
+Whitespace @ 2059..2061
+Ident("label") @ 2061..2066
+Whitespace @ 2066..2067
+Equals @ 2067..2068
+RawText(" Email") @ 2068..2074
+Newline @ 2074..2075
+Whitespace @ 2075..2077
+Ident("placeholder") @ 2077..2088
+Whitespace @ 2088..2089
+Equals @ 2089..2090
+RawText(" name@example.com") @ 2090..2107
+Newline @ 2107..2108
+Whitespace @ 2108..2110
+Ident("aria") @ 2110..2114
+Whitespace @ 2114..2115
+Equals @ 2115..2116
+RawText(" Адрес электронной почты") @ 2116..2161
+Newline @ 2161..2162
+RBrace @ 2162..2163
+Newline @ 2163..2164

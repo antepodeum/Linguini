@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn lexes_schema_fixture_tokens() {
         let source = include_str!("../../../tests/fixtures/golden/schema/shop.lqs");
-        let tokens = lex(source).expect("schema fixture lexes");
+        let tokens = lex_schema(source).expect("schema fixture lexes");
         let kinds: Vec<_> = tokens.iter().map(|token| &token.kind).collect();
 
         assert!(kinds.contains(&&TokenKind::Ident("enum".into())));
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn lexer_schema_snapshot_matches_committed_fixture() {
         let source = include_str!("../../../tests/fixtures/golden/schema/shop.lqs");
-        let tokens = lex(source).expect("schema fixture lexes");
+        let tokens = lex_schema(source).expect("schema fixture lexes");
 
         assert_eq!(
             render_tokens(&tokens),
@@ -214,21 +214,28 @@ mod tests {
         let source = include_str!("../../../tests/fixtures/golden/schema/shop.lqs");
         let schema = parse_schema(source).expect("schema fixture parses");
 
-        assert_eq!(schema.declarations.len(), 2);
+        assert_eq!(schema.declarations.len(), 8);
         match &schema.declarations[0] {
             SchemaDeclaration::Enum(declaration) => {
                 assert_eq!(declaration.name.value, "Fruit");
-                assert_eq!(declaration.variants.len(), 2);
+                assert_eq!(declaration.variants.len(), 3);
             }
             other => panic!("expected enum, got {other:?}"),
         }
-        match &schema.declarations[1] {
+        match &schema.declarations[4] {
             SchemaDeclaration::Message(declaration) => {
                 assert_eq!(declaration.name.value, "delivery");
                 assert_eq!(declaration.parameters[0].name.value, "fruit");
                 assert_eq!(declaration.parameters[0].ty.value, "Fruit");
             }
             other => panic!("expected message, got {other:?}"),
+        }
+        match &schema.declarations[7] {
+            SchemaDeclaration::Group(declaration) => {
+                assert_eq!(declaration.name.value, "email_input");
+                assert_eq!(declaration.messages.len(), 3);
+            }
+            other => panic!("expected group, got {other:?}"),
         }
     }
 
@@ -278,11 +285,32 @@ email_input {
         let source = include_str!("../../../tests/fixtures/golden/locale/ru.lgl");
         let locale = parse_locale(source).expect("locale fixture parses");
 
-        assert_eq!(locale.declarations.len(), 1);
-        match &locale.declarations[0] {
+        assert_eq!(locale.declarations.len(), 9);
+        match &locale.declarations[1] {
+            LocaleDeclaration::Form(form) => {
+                assert_eq!(form.name.value, "Fruit");
+                assert_eq!(form.variants.len(), 3);
+                let apple_display = &form.variants[0].entries[4];
+                match apple_display {
+                    FormEntry::Attribute(attribute) => match &attribute.value {
+                        LocaleValue::Object(entries) => assert_eq!(entries.len(), 2),
+                        other => panic!("expected nested object, got {other:?}"),
+                    },
+                    other => panic!("expected nested display attribute, got {other:?}"),
+                }
+            }
+            other => panic!("expected form, got {other:?}"),
+        }
+        match &locale.declarations[5] {
             LocaleDeclaration::Message(message) => {
                 assert_eq!(message.name.value, "delivery");
-                assert_eq!(message.value.parts.len(), 1);
+                let placeholders = message
+                    .value
+                    .parts
+                    .iter()
+                    .filter(|part| matches!(part, TextPart::Placeholder(_)))
+                    .count();
+                assert_eq!(placeholders, 3);
             }
             other => panic!("expected message, got {other:?}"),
         }

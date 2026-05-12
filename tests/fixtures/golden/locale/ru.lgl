@@ -1,2 +1,116 @@
-delivery = Доставлено
+enum gender {
+  male
+  female
+  neuter
+  other
+}
 
+form Fruit {
+  apple {
+    gender = neuter
+    emoji = 🍎
+
+    nom {
+      one => яблоко
+      few => яблока
+      many => яблок
+      other => яблока
+    }
+
+    gen {
+      one => яблока
+      few => яблок
+      many => яблок
+      other => яблока
+    }
+
+    display {
+      short = ябл.
+      long = спелое яблоко
+    }
+  }
+
+  pear {
+    gender = female
+    emoji = 🍐
+
+    nom {
+      one => груша
+      few => груши
+      many => груш
+      other => груши
+    }
+
+    gen {
+      one => груши
+      few => груш
+      many => груш
+      other => груши
+    }
+  }
+
+  orange {
+    gender = male
+    emoji = 🍊
+
+    nom {
+      one => апельсин
+      few => апельсина
+      many => апельсинов
+      other => апельсина
+    }
+
+    gen {
+      one => апельсина
+      few => апельсинов
+      many => апельсинов
+      other => апельсина
+    }
+  }
+}
+
+form Size {
+  small:gender {
+    male => маленький
+    female => маленькая
+    neuter => маленькое
+    other => маленький
+  }
+
+  big:gender {
+    male => большой
+    female => большая
+    neuter => большое
+    other => большой
+  }
+}
+
+fn delivered(gender) {
+  male => Доставлен
+  female => Доставлена
+  neuter => Доставлено
+  other => Доставлено
+}
+
+fn adjective(size, gender) {
+  small, male => маленький
+  small, female => маленькая
+  small, neuter => маленькое
+  big, male => большой
+  big, female => большая
+  big, neuter => большое
+  else => обычное
+}
+
+/// Product delivery sentence.
+delivery = {delivered(fruit.gender)} {adjective(size, fruit.gender)} {fruit.nom(count)}
+
+counted = В корзине {count} {fruit.gen(count)}
+
+price = Цена {amount @currency(code = "RUB")} на {date @date(style = "short")}
+
+email_input {
+  label = Email
+  placeholder = name@example.com
+  aria = Адрес электронной почты
+}
