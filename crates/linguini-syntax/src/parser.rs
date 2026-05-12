@@ -1,10 +1,14 @@
 use chumsky::{input::IterInput, input::ValueInput, prelude::*};
 
+mod locale_parser;
+
 use crate::{
     lex_schema, Annotation, AnnotationArgument, DocComment, EnumDeclaration, MessageGroup,
     MessageSignature, Name, Parameter, SchemaDeclaration, SchemaFile, Span, StringLiteral,
     TokenKind, TypeAliasDeclaration,
 };
+
+pub use locale_parser::parse_locale;
 
 type Extra<'tokens> = extra::Err<Rich<'tokens, TokenKind, Span>>;
 

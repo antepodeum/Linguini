@@ -7,18 +7,22 @@ pub const SCHEMA_EXTENSION: &str = "lqs";
 pub const LOCALE_EXTENSION: &str = "lgl";
 
 pub use ast::{
-    Annotation, AnnotationArgument, DocComment, EnumDeclaration, MessageGroup, MessageSignature,
-    Name, Parameter, SchemaDeclaration, SchemaFile, StringLiteral, TypeAliasDeclaration,
+    Annotation, AnnotationArgument, BranchPattern, DocComment, EnumDeclaration, Expression,
+    FormAttribute, FormDeclaration, FormEntry, FormVariant, FunctionBranch, FunctionDeclaration,
+    LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, MessageGroup, MessageImplementation,
+    MessageImplementationGroup, MessageSignature, Name, Parameter, Placeholder, RawText,
+    SchemaDeclaration, SchemaFile, StringLiteral, TextPart, TextPattern, TypeAliasDeclaration,
 };
 pub use lexer::{lex, lex_schema, lex_with_recovery, LexError, LexOutput};
-pub use parser::{parse_schema, ParseError};
+pub use parser::{parse_locale, parse_schema, ParseError};
 pub use token::{Span, Token, TokenKind};
 
 #[cfg(test)]
 mod tests {
     use super::{
-        lex, lex_schema, lex_with_recovery, parse_schema, SchemaDeclaration, Span, Token,
-        TokenKind, LOCALE_EXTENSION, SCHEMA_EXTENSION,
+        lex, lex_schema, lex_with_recovery, parse_locale, parse_schema, BranchPattern, FormEntry,
+        LocaleDeclaration, LocaleValue, SchemaDeclaration, Span, TextPart, Token, TokenKind,
+        LOCALE_EXTENSION, SCHEMA_EXTENSION,
     };
 
     #[test]
@@ -264,6 +268,134 @@ email_input {
                 assert_eq!(declaration.name.value, "email_input");
                 assert_eq!(declaration.messages.len(), 2);
                 assert_eq!(declaration.messages[0].name.value, "label");
+            }
+            other => panic!("expected group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_locale_fixture() {
+        let source = include_str!("../../../tests/fixtures/golden/locale/ru.lgl");
+        let locale = parse_locale(source).expect("locale fixture parses");
+
+        assert_eq!(locale.declarations.len(), 1);
+        match &locale.declarations[0] {
+            LocaleDeclaration::Message(message) => {
+                assert_eq!(message.name.value, "delivery");
+                assert_eq!(message.value.parts.len(), 1);
+            }
+            other => panic!("expected message, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_locale_forms_functions_messages_and_placeholders() {
+        let source = r#"enum gender {
+  male
+  female
+  neuter
+  other
+}
+
+form Fruit {
+  apple {
+    gender = neuter
+    nom {
+      one => яблоко
+      few => яблока
+      many => яблок
+      other => яблока
+    }
+  }
+}
+
+form Size {
+  small:gender {
+    male => маленький
+    female => маленькая
+    neuter => маленькое
+    other => маленький
+  }
+}
+
+fn adjective(size, gender) {
+  small, male => маленький
+  else => обычное
+}
+
+delivery = {adjective(size, fruit.gender)} {fruit.nom(count)} {amount @currency(code = "USD")}
+
+email_input {
+  label = Email
+}
+"#;
+        let locale = parse_locale(source).expect("locale parses");
+
+        assert_eq!(locale.declarations.len(), 6);
+        match &locale.declarations[1] {
+            LocaleDeclaration::Form(form) => {
+                assert_eq!(form.name.value, "Fruit");
+                assert_eq!(form.variants[0].name.value, "apple");
+                assert_eq!(form.variants[0].entries.len(), 2);
+                match &form.variants[0].entries[1] {
+                    FormEntry::Attribute(attribute) => match &attribute.value {
+                        LocaleValue::Map(branches) => assert_eq!(branches.len(), 4),
+                        other => panic!("expected map value, got {other:?}"),
+                    },
+                    other => panic!("expected form attribute, got {other:?}"),
+                }
+            }
+            other => panic!("expected form, got {other:?}"),
+        }
+        match &locale.declarations[2] {
+            LocaleDeclaration::Form(form) => {
+                assert_eq!(
+                    form.variants[0]
+                        .selector
+                        .as_ref()
+                        .expect("selector exists")
+                        .value,
+                    "gender"
+                );
+                assert!(matches!(form.variants[0].entries[0], FormEntry::Branch(_)));
+            }
+            other => panic!("expected selector form, got {other:?}"),
+        }
+        match &locale.declarations[3] {
+            LocaleDeclaration::Function(function) => {
+                assert_eq!(function.name.value, "adjective");
+                assert_eq!(function.parameters.len(), 2);
+                assert!(matches!(
+                    function.branches[1].pattern,
+                    BranchPattern::Else(_)
+                ));
+            }
+            other => panic!("expected function, got {other:?}"),
+        }
+        match &locale.declarations[4] {
+            LocaleDeclaration::Message(message) => {
+                let placeholders = message
+                    .value
+                    .parts
+                    .iter()
+                    .filter(|part| matches!(part, TextPart::Placeholder(_)))
+                    .count();
+                assert_eq!(placeholders, 3);
+                let annotated_amount = message.value.parts.iter().any(|part| match part {
+                    TextPart::Placeholder(placeholder) => {
+                        placeholder.expression.path[0].value == "amount"
+                            && placeholder.expression.annotations[0].name.value == "currency"
+                    }
+                    TextPart::Text(_) => false,
+                });
+                assert!(annotated_amount);
+            }
+            other => panic!("expected message, got {other:?}"),
+        }
+        match &locale.declarations[5] {
+            LocaleDeclaration::Group(group) => {
+                assert_eq!(group.name.value, "email_input");
+                assert_eq!(group.messages[0].name.value, "label");
             }
             other => panic!("expected group, got {other:?}"),
         }

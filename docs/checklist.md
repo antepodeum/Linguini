@@ -223,8 +223,9 @@ Checkpoint acceptance:
 - [x] Implement schema parser
   - Note: completed on 2026-05-12. Added Chumsky-based schema AST parser entry point over token streams.
   - Evidence: crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`; `cargo test --workspace`
-- [ ] Implement locale parser
-  - Note:
+- [x] Implement locale parser
+  - Note: completed on 2026-05-12. Added `.lgl` parser entry point and locale AST for declarations, forms, functions, messages, text, placeholders, and spans.
+  - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`
 - [x] Parse enums
   - Note: completed on 2026-05-12. Schema parser accepts public enum declarations and variants.
   - Evidence: crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
@@ -237,31 +238,40 @@ Checkpoint acceptance:
 - [x] Parse grouped messages
   - Note: completed on 2026-05-12. Schema parser accepts grouped message signatures.
   - Evidence: crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
-- [ ] Parse forms
-  - Note:
-- [ ] Parse selector maps
-  - Note:
-- [ ] Parse plural-map-shaped branches
-  - Note:
-- [ ] Parse local functions
-  - Note:
-- [ ] Parse placeholders
-  - Note:
-- [ ] Parse formatter annotations
-  - Note:
-- [ ] Preserve source spans for all AST nodes
-  - Note:
+- [x] Parse forms
+  - Note: completed on 2026-05-12. Locale parser accepts `form` declarations with variants, attributes, and branch-bearing map attributes.
+  - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`
+- [x] Parse selector maps
+  - Note: completed on 2026-05-12. Locale parser accepts selector-qualified form variants such as `small:gender` with branch maps.
+  - Evidence: crates/linguini-syntax/src/lib.rs; `cargo test -p linguini-syntax`
+- [x] Parse plural-map-shaped branches
+  - Note: completed on 2026-05-12. Locale parser accepts branch maps with CLDR-shaped keys such as `one`, `few`, `many`, and `other` without semantic validation.
+  - Evidence: crates/linguini-syntax/src/lib.rs; `cargo test -p linguini-syntax`
+- [x] Parse local functions
+  - Note: completed on 2026-05-12. Locale parser accepts `fn` declarations with positional parameters, tuple branches, and `else` fallback branches.
+  - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`
+- [x] Parse placeholders
+  - Note: completed on 2026-05-12. Text parser accepts placeholder expressions for names, dotted paths, and calls with nested arguments.
+  - Evidence: crates/linguini-syntax/src/lib.rs; `cargo test -p linguini-syntax`
+- [x] Parse formatter annotations
+  - Note: completed on 2026-05-12. Parser accepts schema annotations and placeholder formatter annotations with string arguments.
+  - Evidence: crates/linguini-syntax/src/parser.rs; crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`
+- [x] Preserve source spans for all AST nodes
+  - Note: completed on 2026-05-12. Schema and locale AST structs carry byte spans on files, declarations, text parts, placeholders, expressions, branches, and annotations.
+  - Evidence: crates/linguini-syntax/src/ast.rs; `cargo test -p linguini-syntax`
 - [ ] Add parser recovery
   - Note:
 
 Checkpoint acceptance:
 
-- [ ] All valid fixtures parse
-  - Note:
+- [x] All valid fixtures parse
+  - Note: completed on 2026-05-12. Parser tests cover committed schema and locale golden fixtures.
+  - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
 - [ ] Invalid fixtures produce diagnostics
   - Note:
-- [ ] Parser does not require semantic information
-  - Note:
+- [x] Parser does not require semantic information
+  - Note: completed on 2026-05-12. Locale parser preserves selector, plural, formatter, call, and form syntax without resolving types, variants, or CLDR categories.
+  - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`
 
 ---
 

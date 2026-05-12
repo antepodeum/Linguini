@@ -1,13 +1,10 @@
 Repository state handoff - 2026-05-12
 
 Completed slice:
-- Added Chumsky 0.13.0-based lexer foundation in `linguini-syntax`.
-- Added token/span model and lexer tests for schema fixture, locale fixture, raw text, multiline text, placeholders, comments, doc comments, and byte spans.
-- Added lexer recovery via `lex_with_recovery`, preserving strict `lex` behavior for callers that want the first error.
-- Added committed snapshot-style lexer token fixtures for schema and locale golden files.
+- Added Chumsky 0.13.0-based lexer foundation in `linguini-syntax`, including token/span model, lexer recovery, schema-specific lexing, and committed token snapshots.
 - Added schema parser AST and `parse_schema` entry point for enums, custom scalar aliases, schema formatter annotations, message signatures, grouped messages, and doc comments.
-- Added schema-specific `lex_schema` so schema `type Name = Target @annotation` stays in code mode while locale `=` retains raw-text behavior.
-- Updated parser checklist items for the completed schema slice.
+- Added locale parser AST and `parse_locale` entry point for local enums, forms, selector maps, plural-map-shaped branches, local functions, public/grouped message implementations, placeholders, dotted/call expressions, and placeholder formatter annotations.
+- Updated parser checklist items through the locale parser slice.
 
 Implementation decisions:
 - Lexer uses `chumsky = "0.13.0"`.
@@ -20,18 +17,22 @@ Implementation decisions:
 - Multiline raw text currently treats `"` as a delimiter boundary so triple quotes can be recognized; escaped/ordinary quotes in raw text are deferred.
 - Parser trivia stripping removes whitespace, newlines, and ordinary comments, but preserves doc comments as AST nodes.
 - Schema parser is syntax-only and does not resolve type names or formatter semantics.
+- Locale parser is syntax-only and does not resolve schema messages, form variants, selector enums, CLDR plural categories, formatter compatibility, or function arity.
+- Locale `name = value` attributes are parsed as text patterns because the lexer intentionally enters raw-text mode after `=`; scalar-vs-text meaning is deferred to semantic analysis.
+- Form map bodies currently cover branch maps used by selector and plural-shaped examples; recursive nested form attributes remain deferred.
 
 Tests last run:
 - `cargo test -p linguini-syntax`
+- `wc -l crates/linguini-syntax/src/parser.rs crates/linguini-syntax/src/parser/locale_parser.rs crates/linguini-syntax/src/ast.rs crates/linguini-syntax/src/lib.rs`
 - `cargo fmt --all --check`
-- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lexer.rs` has 422 lines; below 500-line failure threshold)
+- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 415 lines and `crates/linguini-syntax/src/lexer.rs` has 422 lines; both below 500-line failure threshold)
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
 
 Known deferred work:
-- Locale parser implementation has not started.
 - Parser recovery is not implemented yet.
 - Raw text quote handling should be revisited when parser fixtures cover quoted localized text.
+- Locale parser does not yet parse recursive nested form attributes beyond branch maps.
 
 Next recommended task:
-- Implement the locale parser for message implementations, placeholders, forms, selector maps, plural-map-shaped branches, and local functions.
+- Add parser recovery and invalid fixture diagnostics, or begin schema symbol table registration if staying strictly after parser checkpoint blockers.
