@@ -7,4 +7,5 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-
+linguini-analyzer = { path = "../linguini-analyzer" }
+linguini-syntax = { path = "../linguini-syntax" }

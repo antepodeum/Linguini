@@ -162,6 +162,10 @@ version = "0.1.0"
 [[package]]
 name = "linguini-schema"
 version = "0.1.0"
+dependencies = [
+ "linguini-analyzer",
+ "linguini-syntax",
+]
 
 [[package]]
 name = "linguini-syntax"

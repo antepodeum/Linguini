@@ -303,8 +303,9 @@ Checkpoint acceptance:
 - [x] Syntax errors show highlighted spans
   - Note: completed on 2026-05-12. CLI syntax diagnostics are rendered with Ariadne source highlights.
   - Evidence: crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cli`
-- [ ] Analyzer errors show related declarations
-  - Note:
+- [x] Analyzer errors show related declarations
+  - Note: completed on 2026-05-12. Schema duplicate-declaration diagnostics include the first declaration as a related span.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
 - [x] Diagnostics are stable in snapshots
   - Note: completed on 2026-05-12. Added committed golden diagnostic snapshot for primary, related, note, and quick-fix output.
   - Evidence: tests/fixtures/golden/snapshots/diagnostic-schema-syntax.txt; `cargo test -p linguini-analyzer`
@@ -313,31 +314,42 @@ Checkpoint acceptance:
 
 ## 5. Schema symbol table
 
-- [ ] Register schema enums
-  - Note:
-- [ ] Register enum variants
-  - Note:
-- [ ] Register custom scalar types
-  - Note:
-- [ ] Register public messages
-  - Note:
-- [ ] Register grouped messages
-  - Note:
-- [ ] Store schema doc comments
-  - Note:
-- [ ] Detect duplicate declarations
-  - Note:
-- [ ] Resolve type references
-  - Note:
+- [x] Register schema enums
+  - Note: completed on 2026-05-12. Added schema symbol table entries for public enums.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Register enum variants
+  - Note: completed on 2026-05-12. Enum symbols store variant names and source spans.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Register custom scalar types
+  - Note: completed on 2026-05-12. Type alias symbols store custom scalar names, targets, docs, and spans.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Register public messages
+  - Note: completed on 2026-05-12. Message symbols store public message signatures and parameter types.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Register grouped messages
+  - Note: completed on 2026-05-12. Grouped messages are registered under `group.message` keys with group metadata.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Store schema doc comments
+  - Note: completed on 2026-05-12. Symbol table stores doc text for enums, type aliases, messages, and groups.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Detect duplicate declarations
+  - Note: completed on 2026-05-12. Duplicate top-level schema declarations produce diagnostics with related first-declaration spans.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Resolve type references
+  - Note: completed on 2026-05-12. Symbol table validates type aliases and message parameter types against builtins and declared types.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
 
 Checkpoint acceptance:
 
-- [ ] Unknown schema type is reported
-  - Note:
-- [ ] Duplicate enum is reported
-  - Note:
-- [ ] Doc comments are available to analyzer and LSP
-  - Note:
+- [x] Unknown schema type is reported
+  - Note: completed on 2026-05-12. Unknown message parameter and type alias targets produce schema type diagnostics.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Duplicate enum is reported
+  - Note: completed on 2026-05-12. Duplicate enum declarations are rejected by the top-level duplicate declaration check.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
+- [x] Doc comments are available to analyzer and LSP
+  - Note: completed on 2026-05-12. Symbol structs expose stored doc comments for downstream analyzer and LSP use.
+  - Evidence: crates/linguini-schema/src/lib.rs; `cargo test -p linguini-schema`
 
 ---
 

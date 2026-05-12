@@ -1,6 +1,9 @@
 Repository state handoff - 2026-05-12
 
 Completed slice:
+- Added schema symbol table in `linguini-schema` for enums, variants, type aliases, public messages, grouped messages, groups, docs, and spans.
+- Added schema duplicate declaration diagnostics with related first-declaration spans.
+- Added schema type-reference validation against builtins and declared schema types.
 - Added analyzer diagnostic model with severity, related spans, notes, quick-fix hints, and replacement payloads.
 - Added Ariadne renderer with deterministic ASCII/no-color output and byte-span indexing.
 - Wired `linguini check` to parse discovered schema and locale files and return rendered syntax diagnostics when parsing fails.
@@ -15,6 +18,8 @@ Completed slice:
 - Updated parser and fixture checklist items through parser recovery and invalid fixture diagnostics.
 
 Implementation decisions:
+- Schema symbol table stores grouped messages under `group.message` keys and group metadata separately.
+- Builtin schema types currently recognized by symbol resolution: `String`, `Number`, `Decimal`, `Date`, and `Boolean`.
 - Diagnostic rendering lives in `linguini-analyzer` so syntax and future semantic checks share one model.
 - CLI syntax diagnostics convert parser recovery errors into analyzer diagnostics with a syntax-error note.
 - Ariadne renderer uses ASCII and disabled color to keep tests stable across environments.
@@ -34,6 +39,7 @@ Implementation decisions:
 - Form map bodies cover branch maps used by selector and plural-shaped examples, and recursive object-shaped nested attributes used by forms.
 
 Tests last run:
+- `cargo test -p linguini-schema`
 - `cargo test -p linguini-analyzer -p linguini-cli`
 - `cargo fmt --all`
 - `cargo fmt --all --check`
@@ -50,9 +56,9 @@ Tests last run:
 - `cargo test -p linguini-syntax` after parser recovery and invalid fixture diagnostics.
 
 Known deferred work:
-- Analyzer-related declaration diagnostics need real schema symbol table errors before checklist acceptance can be completed.
+- Schema symbol table currently validates one parsed schema AST at a time; project-wide namespace merging remains future analyzer work.
 - Raw text quote handling should be revisited when parser fixtures cover quoted localized text.
 - Parser recovery currently reports diagnostics and optional full AST output; it does not insert error AST nodes for malformed declarations.
 
 Next recommended task:
-- Begin schema symbol table registration: enums, variants, custom scalar types, messages, groups, docs, duplicate declarations, and unknown type reporting.
+- Begin locale scope model: load scope files, merge declarations in order, register local enums/functions/forms/messages, and enforce explicit override for shadowing.
