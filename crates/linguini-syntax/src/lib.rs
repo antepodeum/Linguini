@@ -455,6 +455,21 @@ email_input {
         }
     }
 
+    #[test]
+    fn parses_locale_override_declaration() {
+        let locale = parse_locale("override enum gender { other }\n").expect("locale parses");
+
+        match &locale.declarations[0] {
+            LocaleDeclaration::Override(declaration) => match declaration.as_ref() {
+                LocaleDeclaration::Enum(declaration) => {
+                    assert_eq!(declaration.name.value, "gender")
+                }
+                other => panic!("expected enum override, got {other:?}"),
+            },
+            other => panic!("expected override, got {other:?}"),
+        }
+    }
+
     fn render_tokens(tokens: &[Token]) -> String {
         tokens
             .iter()

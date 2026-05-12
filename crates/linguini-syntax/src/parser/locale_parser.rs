@@ -82,15 +82,28 @@ where
         .repeated()
         .collect::<Vec<_>>()
         .then(choice((
-            enum_declaration().map(LocaleDeclaration::Enum),
-            form_declaration().map(LocaleDeclaration::Form),
-            function_declaration().map(LocaleDeclaration::Function),
-            group_or_message(),
+            keyword("override")
+                .ignore_then(declaration_body())
+                .map(|declaration| LocaleDeclaration::Override(Box::new(declaration))),
+            declaration_body(),
         )))
         .map(|(docs, mut declaration)| {
             declaration.set_docs(docs);
             declaration
         })
+}
+
+fn declaration_body<'tokens, I>(
+) -> impl Parser<'tokens, I, LocaleDeclaration, Extra<'tokens>> + Clone
+where
+    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
+{
+    choice((
+        enum_declaration().map(LocaleDeclaration::Enum),
+        form_declaration().map(LocaleDeclaration::Form),
+        function_declaration().map(LocaleDeclaration::Function),
+        group_or_message(),
+    ))
 }
 
 fn form_declaration<'tokens, I>() -> impl Parser<'tokens, I, FormDeclaration, Extra<'tokens>> + Clone
@@ -389,6 +402,7 @@ impl LocaleDeclarationDocs for LocaleDeclaration {
             LocaleDeclaration::Function(declaration) => declaration.docs = docs,
             LocaleDeclaration::Message(declaration) => declaration.docs = docs,
             LocaleDeclaration::Group(declaration) => declaration.docs = docs,
+            LocaleDeclaration::Override(declaration) => declaration.set_docs(docs),
         }
     }
 }

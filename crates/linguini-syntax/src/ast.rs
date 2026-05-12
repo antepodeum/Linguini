@@ -39,6 +39,7 @@ pub enum LocaleDeclaration {
     Function(FunctionDeclaration),
     Message(MessageImplementation),
     Group(MessageImplementationGroup),
+    Override(Box<LocaleDeclaration>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -355,35 +355,48 @@ Checkpoint acceptance:
 
 ## 6. Locale scope model
 
-- [ ] Load root locale scope file
-  - Note:
-- [ ] Load parent directory scope files
-  - Note:
-- [ ] Merge scope declarations in order
-  - Note:
-- [ ] Implement explicit `override`
-  - Note:
-- [ ] Register local enums
-  - Note:
-- [ ] Register local functions
-  - Note:
-- [ ] Register forms
-  - Note:
-- [ ] Register message implementations
-  - Note:
-- [ ] Detect duplicate declarations
-  - Note:
-- [ ] Detect invalid shadowing
-  - Note:
+- [x] Load root locale scope file
+  - Note: completed on 2026-05-12. Added path-based locale scope loader that reads and parses root scope files.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Load parent directory scope files
+  - Note: completed on 2026-05-12. Scope loading accepts root-to-child path chains from project discovery.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Merge scope declarations in order
+  - Note: completed on 2026-05-12. Locale scope merges source files by input order and records source index/path.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Implement explicit `override`
+  - Note: completed on 2026-05-12. Parser accepts `override` locale declarations and scope loading permits explicit replacement.
+  - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; crates/linguini-locale/src/lib.rs; `cargo test -p linguini-syntax -p linguini-locale`
+- [x] Register local enums
+  - Note: completed on 2026-05-12. Locale scope registers enum declarations with docs, spans, and source metadata.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Register local functions
+  - Note: completed on 2026-05-12. Locale scope registers local function declarations from parent and child files.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Register forms
+  - Note: completed on 2026-05-12. Locale scope registers form declarations.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Register message implementations
+  - Note: completed on 2026-05-12. Locale scope registers standalone and grouped message implementations.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Detect duplicate declarations
+  - Note: completed on 2026-05-12. Same-file duplicate locale declarations produce diagnostics with related first spans.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Detect invalid shadowing
+  - Note: completed on 2026-05-12. Child declarations that shadow parent declarations without `override` produce diagnostics.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
 
 Checkpoint acceptance:
 
-- [ ] Child locale files can use parent local enums
-  - Note:
-- [ ] Child locale files can use parent functions
-  - Note:
-- [ ] Invalid shadowing is reported
-  - Note:
+- [x] Child locale files can use parent local enums
+  - Note: completed on 2026-05-12. Root enum symbols remain visible after parent and child files are merged.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Child locale files can use parent functions
+  - Note: completed on 2026-05-12. Parent function symbols remain visible to child scope output.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
+- [x] Invalid shadowing is reported
+  - Note: completed on 2026-05-12. Shadowing without `override` reports a diagnostic with parent related span.
+  - Evidence: crates/linguini-locale/src/lib.rs; `cargo test -p linguini-locale`
 
 ---
 

@@ -1,6 +1,9 @@
 Repository state handoff - 2026-05-12
 
 Completed slice:
+- Added locale `override` syntax parsing for explicitly replacing parent scope declarations.
+- Added locale scope loader for root-to-child source chains, registering local enums, functions, forms, standalone messages, and grouped messages.
+- Added duplicate declaration and invalid shadowing diagnostics for locale scope merging.
 - Added schema symbol table in `linguini-schema` for enums, variants, type aliases, public messages, grouped messages, groups, docs, and spans.
 - Added schema duplicate declaration diagnostics with related first-declaration spans.
 - Added schema type-reference validation against builtins and declared schema types.
@@ -18,6 +21,9 @@ Completed slice:
 - Updated parser and fixture checklist items through parser recovery and invalid fixture diagnostics.
 
 Implementation decisions:
+- Locale scope loading takes an ordered path/source list; `linguini-config` remains responsible for computing the top-down path chain.
+- Locale grouped messages are registered both by group name and `group.message` key.
+- `override` wraps the inner locale declaration in the syntax AST and transfers doc comments to that inner declaration.
 - Schema symbol table stores grouped messages under `group.message` keys and group metadata separately.
 - Builtin schema types currently recognized by symbol resolution: `String`, `Number`, `Decimal`, `Date`, and `Boolean`.
 - Diagnostic rendering lives in `linguini-analyzer` so syntax and future semantic checks share one model.
@@ -39,6 +45,11 @@ Implementation decisions:
 - Form map bodies cover branch maps used by selector and plural-shaped examples, and recursive object-shaped nested attributes used by forms.
 
 Tests last run:
+- `cargo test -p linguini-syntax -p linguini-locale`
+- `cargo fmt --all --check`
+- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 484 lines, `crates/linguini-syntax/src/lexer.rs` has 426 lines, and `crates/linguini-syntax/src/parser/locale_parser.rs` has 408 lines; all below 500-line failure threshold)
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`
 - `cargo test -p linguini-schema`
 - `cargo test -p linguini-analyzer -p linguini-cli`
 - `cargo fmt --all`
@@ -56,9 +67,10 @@ Tests last run:
 - `cargo test -p linguini-syntax` after parser recovery and invalid fixture diagnostics.
 
 Known deferred work:
+- Locale scope symbols currently store declaration metadata only; variant/function/form internals remain for analyzer-specific checks.
 - Schema symbol table currently validates one parsed schema AST at a time; project-wide namespace merging remains future analyzer work.
 - Raw text quote handling should be revisited when parser fixtures cover quoted localized text.
 - Parser recovery currently reports diagnostics and optional full AST output; it does not insert error AST nodes for malformed declarations.
 
 Next recommended task:
-- Begin locale scope model: load scope files, merge declarations in order, register local enums/functions/forms/messages, and enforce explicit override for shadowing.
+- Begin analyzer checks: match locale messages to schema messages, report missing/unknown public messages, then form and branch coverage checks.
