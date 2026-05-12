@@ -1,0 +1,10 @@
+[project]
+name = "basic"
+default_locale = "ru"
+locales = ["ru"]
+
+[paths]
+schema = "linguini/schema"
+locale = "linguini/locale"
+cache = ".linguini/cache"
+

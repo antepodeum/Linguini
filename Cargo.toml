@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/linguini-analyzer",
+  "crates/linguini-cldr",
+  "crates/linguini-cli",
+  "crates/linguini-codegen-js",
+  "crates/linguini-codegen-rust",
+  "crates/linguini-codegen-ts",
+  "crates/linguini-config",
+  "crates/linguini-format",
+  "crates/linguini-ir",
+  "crates/linguini-locale",
+  "crates/linguini-lsp",
+  "crates/linguini-package",
+  "crates/linguini-schema",
+  "crates/linguini-syntax",
+  "crates/linguini-test-support",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/artemy/Linguini"
+rust-version = "1.76"
+
+[workspace.metadata.linguini.planned_dependencies]
+cli = ["clap"]
+config = ["serde", "toml"]
+json = ["serde_json"]
+parser = ["chumsky"]
+diagnostics = ["ariadne", "thiserror"]
+paths = ["camino"]
+discovery = ["ignore", "globwalk"]
+maps = ["indexmap"]
+lsp = ["tower-lsp-server", "lsp-types", "tokio"]
+tests = ["insta", "assert_cmd", "predicates", "tempfile", "proptest"]
+tracing = ["tracing", "tracing-subscriber"]
+

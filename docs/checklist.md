@@ -29,39 +29,50 @@ A task is not complete until its tests are committed and the relevant command is
 
 ## 0. Repository and engineering rules
 
-- [ ] Create Rust workspace
-  - Note:
-- [ ] Add crates listed in the technical specification
-  - Note:
-- [ ] Add CI
-  - Note:
-- [ ] Add file-size check: warn at 400 LOC, fail at 500 LOC
-  - Note:
-- [ ] Add generated/vendor exclusions for file-size check
-  - Note:
-- [ ] Add formatting/linting pipeline
-  - Note:
-- [ ] Add test fixture directory
-  - Note:
-- [ ] Add snapshot test setup
-  - Note:
+- [x] Create Rust workspace
+  - Note: completed on 2026-05-12. Added Cargo workspace with CLI, core, codegen, LSP, package, and test-support crates.
+  - Evidence: Cargo.toml; `cargo test --workspace`
+- [x] Add crates listed in the technical specification
+  - Note: completed on 2026-05-12. Added workspace members for every crate named in the specification and recorded planned external crates in workspace metadata.
+  - Evidence: Cargo.toml; crates/
+- [x] Add CI
+  - Note: completed on 2026-05-12. Added GitHub Actions workflow for formatting, file-size, clippy, and tests.
+  - Evidence: .github/workflows/ci.yml
+- [x] Add file-size check: warn at 400 LOC, fail at 500 LOC
+  - Note: completed on 2026-05-12. Added source file-size gate with configurable warning and failure limits.
+  - Evidence: scripts/check-file-size.sh
+- [x] Add generated/vendor exclusions for file-size check
+  - Note: completed on 2026-05-12. Excluded target, vendor, generated, and snapshot paths from file-size enforcement.
+  - Evidence: scripts/check-file-size.sh
+- [x] Add formatting/linting pipeline
+  - Note: completed on 2026-05-12. Added rustfmt config and CI commands for rustfmt and clippy.
+  - Evidence: rustfmt.toml; .github/workflows/ci.yml; `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] Add test fixture directory
+  - Note: completed on 2026-05-12. Added golden fixture roots for schema, locale, and project fixtures.
+  - Evidence: tests/fixtures/golden
+- [x] Add snapshot test setup
+  - Note: completed on 2026-05-12. Added snapshot-style testing policy and committed golden fixture layout; external insta dependency is deferred until dependency fetching is introduced.
+  - Evidence: docs/testing.md; tests/fixtures/golden
 
 Checkpoint acceptance:
 
-- [ ] `cargo test` runs successfully
-  - Note:
-- [ ] CI fails on source files above 500 LOC
-  - Note:
-- [ ] Workspace has no large catch-all implementation files
-  - Note:
+- [x] `cargo test` runs successfully
+  - Note: completed on 2026-05-12. Workspace tests pass across all scaffolded crates.
+  - Evidence: `cargo test --workspace`
+- [x] CI fails on source files above 500 LOC
+  - Note: completed on 2026-05-12. CI runs the source file-size gate with a 500-line failure threshold.
+  - Evidence: .github/workflows/ci.yml; scripts/check-file-size.sh
+- [x] Workspace has no large catch-all implementation files
+  - Note: completed on 2026-05-12. Initial workspace crates are split by responsibility and pass the file-size gate.
+  - Evidence: `./scripts/check-file-size.sh`
 
 ---
 
 ## 0.1 Testing policy and gates
 
-- [ ] Add mandatory test policy to repository docs
-  - Note:
-  - Evidence:
+- [x] Add mandatory test policy to repository docs
+  - Note: completed on 2026-05-12. Documented required gates and checklist evidence rule.
+  - Evidence: docs/testing.md
 - [ ] Add unit test structure for every core crate
   - Note:
   - Evidence:
