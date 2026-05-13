@@ -1,3 +1,4 @@
+mod decl;
 mod emit;
 mod expr;
 mod names;
@@ -45,12 +46,24 @@ pub fn generate_typescript_files(
             contents: generate_shared_module(),
         },
         TypeScriptGeneratedFile {
+            path: "shared.d.ts".to_owned(),
+            contents: decl::generate_shared_declaration(),
+        },
+        TypeScriptGeneratedFile {
             path: format!("locales/{}.ts", options.locale),
             contents: generate_typescript_module(schema, locale, options),
         },
         TypeScriptGeneratedFile {
+            path: format!("locales/{}.d.ts", options.locale),
+            contents: decl::generate_locale_declaration(schema),
+        },
+        TypeScriptGeneratedFile {
             path: "index.ts".to_owned(),
             contents: generate_index_module(options),
+        },
+        TypeScriptGeneratedFile {
+            path: "index.d.ts".to_owned(),
+            contents: decl::generate_index_declaration(options),
         },
     ]
 }

@@ -38,12 +38,16 @@ Generated TypeScript is organized as:
 
 ```txt
 shared.ts
+shared.d.ts
 index.ts
+index.d.ts
 locales/ru.ts
+locales/ru.d.ts
 locales/en.ts
+locales/en.d.ts
 ```
 
-`shared.ts` contains runtime helpers shared by locales. Locale files export tree-shakable message functions and a default locale object. `index.ts` imports locale modules and owns language selection.
+`shared.ts` contains runtime helpers shared by locales. Locale files export tree-shakable message functions, inline locale plural helpers, and a default locale object. `index.ts` imports locale modules and owns language selection. Declaration files mirror this tree.
 
 Use generated TypeScript per request:
 

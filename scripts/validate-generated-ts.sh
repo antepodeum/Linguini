@@ -34,3 +34,20 @@ for (const [actual, expected] of expectations) {
   }
 }
 JS
+
+mkdir -p "$tmpdir/types/locales"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts/shared.d.ts" "$tmpdir/types/shared.d.ts"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts/index.d.ts" "$tmpdir/types/index.d.ts"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts/locales/ru.d.ts" "$tmpdir/types/locales/ru.d.ts"
+cat > "$tmpdir/types/consumer.ts" <<'TS'
+import { configureLinguini, createLinguini, type Linguini } from "./index";
+
+const direct: Linguini = createLinguini("ru");
+const configured = configureLinguini({ language: () => "ru" });
+
+direct.delivery("apple", "small", 1);
+configured.lgl.price(12, "13.05.2026");
+TS
+
+tsc --strict --target ES2020 --module commonjs --noEmit \
+  "$tmpdir/types/consumer.ts"

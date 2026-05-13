@@ -611,8 +611,9 @@ Checkpoint acceptance:
   - Evidence: crates/linguini-codegen-ts/src/lib.rs; tests/fixtures/golden/snapshots/codegen-ts-plural-ru.ts; tests/fixtures/golden/snapshots/ts/locales/ru.ts; `cargo test -p linguini-codegen-ts`
 - [ ] Generate formatter helpers
   - Note:
-- [ ] Generate `.d.ts`
-  - Note:
+- [x] Generate `.d.ts`
+  - Note: completed on 2026-05-13. TypeScript backend emits declaration files for shared helpers, locale modules, and the index API.
+  - Evidence: tests/fixtures/golden/snapshots/ts/index.d.ts; tests/fixtures/golden/snapshots/ts/locales/ru.d.ts; `bash scripts/validate-generated-ts.sh`
 - [ ] Add tree-shaking mode
   - Note:
 - [x] Add deterministic output tests
