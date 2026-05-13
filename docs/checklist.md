@@ -121,9 +121,9 @@ Checkpoint acceptance:
 - [x] Add generated Rust validation fixture
   - Note: completed on 2026-05-13. Added generated Rust fixture crate and validation script covering delivery, plural output, and grouped message values.
   - Evidence: tests/fixtures/golden/snapshots/rust; scripts/validate-generated-rust.sh; `./scripts/validate-generated-rust.sh`
-- [ ] Add regression-test rule to contribution docs
-  - Note:
-  - Evidence:
+- [x] Add regression-test rule to contribution docs
+  - Note: completed on 2026-05-13. Added contribution guidance requiring focused regression tests for bug fixes and recorded gate evidence before checklist completion.
+  - Evidence: CONTRIBUTING.md; scripts/check-spec-gates.sh; `./scripts/check-spec-gates.sh`
 - [ ] Add coverage measurement command for core crates
   - Note:
   - Evidence:

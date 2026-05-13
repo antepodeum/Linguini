@@ -87,6 +87,8 @@ for dependency in "${required_stack[@]}"; do
 done
 
 require_file ".codex"
+require_file "CONTRIBUTING.md"
+require_text "CONTRIBUTING.md" "Bug fixes require a focused regression test" "regression-test rule"
 for heading in \
   "Completed slice:" \
   "Implementation decisions:" \
