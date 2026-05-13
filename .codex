@@ -1,38 +1,31 @@
 Completed slice:
-- 2026-05-13: Completed testing-policy gate slice and CLDR required-file fetch slice.
+- 2026-05-13: Completed CLDR compiled-table slice and official `cldr-json` fetch path correction.
 
 Implementation decisions:
-- Unit-test structure is enforced per workspace crate by `scripts/check-unit-test-structure.sh`.
-- Golden `.lqs` and `.lgl` fixtures are treated as complete valid programs; diagnostic fragments must live under `tests/fixtures/invalid`.
-- Snapshot review uses `scripts/review-snapshots.sh --check` in CI and `scripts/review-snapshots.sh review` with `cargo-insta` installed for interactive review.
-- CLI integration tests live under `crates/linguini-cli/tests` and exercise the compiled `linguini` binary with `assert_cmd`, `predicates`, and `tempfile`.
-- JavaScript generated-output fixture is a committed ESM file tree validated by `scripts/validate-generated-js.sh`; this does not mark JS backend codegen tasks complete.
-- Rust generated-output fixture is a committed crate validated by `scripts/validate-generated-rust.sh`; this does not mark Rust backend codegen tasks complete.
-- `CONTRIBUTING.md` now requires focused regression tests for bug fixes.
-- Coverage command is `scripts/coverage.sh`; latest report generated at `target/coverage/lcov.info` and `target/coverage/html/html`.
-- CI now runs unit/CLI tests, snapshot checks, and generated-output validation for TypeScript, JavaScript, and Rust.
-- CLDR fetch copies only `common/supplemental/plurals.json` plus configured locale `numbers.json` and `ca-gregorian.json`; full staged CLDR trees are not vendored into cache.
-- Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, and `crates/linguini-cldr/src/data.rs`.
+- CLDR fetch defaults to `https://github.com/unicode-org/cldr-json` and uses sparse checkout for only required files.
+- Supported upstream paths are `cldr-json/cldr-core/supplemental/plurals.json`, `cldr-json/cldr-numbers-full/main/{locale}/numbers.json`, and `cldr-json/cldr-dates-full/main/{locale}/ca-gregorian.json`.
+- Local staged CLDR import remains for tests and offline development, but it expects the same `cldr-json/...` subtree shape.
+- Runtime CLDR production lookup lives in typed tables under `crates/linguini-cldr/src/data/compiled.rs`; JSON loaders are ingestion/cache-only.
+- CLDR Rust source generation moved to proc-macro crate `linguini-cldr-macros`, using `syn` for macro input parsing and `quote` for compile errors.
+- `crates/linguini-cldr/src/data.rs` was split into `data/` modules and cache tests were moved to keep source files below the hard file-size limit.
+- Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, and `crates/linguini-syntax/src/parser/locale_parser.rs`.
 
 Tests last run:
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
+- `cargo test -p linguini-cldr -p linguini-cldr-macros -p linguini-cli`
 - `./scripts/check-file-size.sh`
 - `./scripts/check-unit-test-structure.sh`
 - `./scripts/check-syntax-fixtures.sh`
 - `./scripts/review-snapshots.sh --check`
 - `./scripts/check-spec-gates.sh`
-- `cargo test -p linguini-cli`
 - `./scripts/validate-generated-js.sh`
 - `./scripts/validate-generated-rust.sh`
-- `./scripts/coverage.sh --help`
 - `bash scripts/validate-generated-ts.sh`
-- `./scripts/coverage.sh`
-- `cargo test -p linguini-cldr -p linguini-cli`
 
 Known deferred work:
-- Next unfinished checklist item is `Generate compiled Rust CLDR tables from cldr-json`.
+- Next unfinished checklist item is `Ensure IR has no unresolved references`.
 
 Next recommended task:
-- Generate typed compiled CLDR tables and remove production runtime JSON parsing.
+- Continue Section 10 IR by adding unresolved-reference validation before moving deeper into codegen.

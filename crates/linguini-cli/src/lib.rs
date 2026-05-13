@@ -1,5 +1,8 @@
 use linguini_analyzer::{render_diagnostics, Diagnostic};
-use linguini_cldr::{cache_root, fetch_cldr_from_dir_for_locales, inspect_cache};
+use linguini_cldr::{
+    cache_root, fetch_cldr_from_dir_for_locales, fetch_cldr_from_official_repo_for_locales,
+    inspect_cache, require_offline_cache, OFFICIAL_CLDR_JSON_REPO,
+};
 use linguini_config::{
     discover_locale_files, discover_schema_files, parse_config, DEFAULT_CONFIG_FILE,
 };
@@ -61,6 +64,7 @@ pub fn run(
     match args.next().as_deref() {
         Some("init") => init_project(&root),
         Some("check") => check_project(&root),
+        Some("build") => build_project(&root),
         Some("cldr") => cldr_command(&root, args.collect()),
         Some(command) => Err(CliError::UnknownCommand(command.to_owned())),
         None => Err(CliError::MissingCommand),
@@ -71,10 +75,8 @@ pub fn cldr_command(root: &Path, args: Vec<String>) -> CliResult<String> {
     match args.first().map(String::as_str) {
         Some("status") => cldr_status(root),
         Some("fetch") => {
-            let Some(source_dir) = args.get(1) else {
-                return Err(CliError::MissingCommand);
-            };
-            cldr_fetch(root, Path::new(source_dir))
+            let source = args.get(1).map(String::as_str);
+            cldr_fetch(root, source)
         }
         Some(command) => Err(CliError::UnknownCommand(format!("cldr {command}"))),
         None => Err(CliError::MissingCommand),
@@ -99,20 +101,35 @@ pub fn cldr_status(root: &Path) -> CliResult<String> {
     Ok(output)
 }
 
-pub fn cldr_fetch(root: &Path, source_dir: &Path) -> CliResult<String> {
+pub fn cldr_fetch(root: &Path, source: Option<&str>) -> CliResult<String> {
     let config = read_project_config(root)?;
     let cache = cache_root(root, &config.paths.cache);
-    let status = fetch_cldr_from_dir_for_locales(
-        source_dir,
-        &cache,
-        config.project.locales.iter().map(String::as_str),
-    )?;
+    let locales: Vec<_> = config.project.locales.iter().map(String::as_str).collect();
+    let (status, source_label) = match source {
+        None | Some(OFFICIAL_CLDR_JSON_REPO) => (
+            fetch_cldr_from_official_repo_for_locales(&cache, locales)?,
+            OFFICIAL_CLDR_JSON_REPO.to_owned(),
+        ),
+        Some(source_dir) => (
+            fetch_cldr_from_dir_for_locales(Path::new(source_dir), &cache, locales)?,
+            source_dir.to_owned(),
+        ),
+    };
 
     Ok(format!(
-        "fetched CLDR data into {}\nusable: {}\n",
+        "fetched CLDR data from {source_label}\ninto {}\nusable: {}\n",
         path_for_output(root, &status.root),
         status.is_usable()
     ))
+}
+
+pub fn build_project(root: &Path) -> CliResult<String> {
+    let config = read_project_config(root)?;
+    let cache = cache_root(root, &config.paths.cache);
+    require_offline_cache(&cache)?;
+    let check_output = check_project(root)?;
+
+    Ok(format!("{check_output}build: ok\n"))
 }
 
 pub fn init_project(root: &Path) -> CliResult<String> {
@@ -256,7 +273,7 @@ fn render_parse_errors(
 
 #[cfg(test)]
 mod tests {
-    use super::{check_project, cldr_fetch, cldr_status, init_project};
+    use super::{build_project, check_project, cldr_fetch, cldr_status, init_project};
     use linguini_test_support::temp_project_dir;
     use std::fs;
 
@@ -321,19 +338,34 @@ mod tests {
     fn cldr_fetch_imports_staged_cldr_json_cache() {
         let project = temp_project_dir("cldr_fetch_imports_staged_cldr_json_cache");
         init_project(project.path()).expect("init project");
-        let supplemental = project.path().join("cldr-json/common/supplemental");
-        let main = project.path().join("cldr-json/common/main/en");
+        let source = project.path().join("source");
+        let supplemental = source.join("cldr-json/cldr-core/supplemental");
+        let numbers = source.join("cldr-json/cldr-numbers-full/main/en");
+        let dates = source.join("cldr-json/cldr-dates-full/main/en");
         fs::create_dir_all(&supplemental).expect("supplemental dir");
-        fs::create_dir_all(&main).expect("main dir");
+        fs::create_dir_all(&numbers).expect("numbers dir");
+        fs::create_dir_all(&dates).expect("dates dir");
         fs::write(supplemental.join("plurals.json"), "{}\n").expect("plural data");
-        fs::write(main.join("numbers.json"), "{}\n").expect("numbers data");
-        fs::write(main.join("ca-gregorian.json"), "{}\n").expect("calendar data");
+        fs::write(numbers.join("numbers.json"), "{}\n").expect("numbers data");
+        fs::write(dates.join("ca-gregorian.json"), "{}\n").expect("calendar data");
 
-        let output = cldr_fetch(project.path(), &project.path().join("cldr-json")).expect("fetch");
+        let output =
+            cldr_fetch(project.path(), Some(source.to_string_lossy().as_ref())).expect("fetch");
 
+        assert!(output.contains("source"));
         assert!(output.contains("usable: true"));
         assert!(cldr_status(project.path())
             .expect("cldr status")
             .contains("usable: true"));
+    }
+
+    #[test]
+    fn build_requires_offline_cldr_cache_without_fetching() {
+        let project = temp_project_dir("build_requires_offline_cldr_cache");
+        init_project(project.path()).expect("init project");
+
+        let error = build_project(project.path()).expect_err("missing cache");
+
+        assert!(error.to_string().contains("run `linguini cldr fetch`"));
     }
 }

@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "crates/linguini-analyzer",
   "crates/linguini-cldr",
+  "crates/linguini-cldr-macros",
   "crates/linguini-cli",
   "crates/linguini-codegen-js",
   "crates/linguini-codegen-rust",
@@ -33,7 +34,7 @@ diagnostics = ["ariadne", "thiserror"]
 paths = ["camino"]
 discovery = ["ignore", "globwalk"]
 maps = ["indexmap"]
+macros = ["syn", "quote"]
 lsp = ["tower-lsp-server", "lsp-types", "tokio"]
 tests = ["insta", "assert_cmd", "predicates", "tempfile", "proptest"]
 tracing = ["tracing", "tracing-subscriber"]
-

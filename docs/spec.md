@@ -95,6 +95,7 @@ crates/
   linguini-locale/
   linguini-analyzer/
   linguini-cldr/
+  linguini-cldr-macros/
   linguini-ir/
   linguini-codegen-ts/
   linguini-codegen-js/
@@ -116,6 +117,7 @@ Responsibilities:
 | `linguini-locale`       | locale AST model and path-based scope loading          |
 | `linguini-analyzer`     | semantic analysis, type checking, diagnostics          |
 | `linguini-cldr`         | CLDR ingestion, caching, plural parser, formatter data |
+| `linguini-cldr-macros`  | procedural macros for compiled CLDR Rust table output  |
 | `linguini-ir`           | target-independent localization IR                     |
 | `linguini-codegen-ts`   | TypeScript output                                      |
 | `linguini-codegen-js`   | JavaScript output                                      |
@@ -600,7 +602,21 @@ Required CLDR domains:
 
 CLDR ingestion must be selective. Fetch/update commands must download or copy only the CLDR JSON files required for the configured locales and enabled formatter domains. They must not fetch, vendor, or require the entire `cldr-json` repository when a smaller file set is sufficient.
 
-Production binaries must contain the CLDR rules they need as compiled data, not as runtime JSON files and not as raw `include_str!` JSON blobs that are parsed at startup. The `linguini-cldr` crate must provide a macro/code-generation step that reads the required files from the `cldr-json` repository layout and emits Rust source for compact, typed CLDR rule/data tables. Runtime code must use those generated tables directly.
+Production binaries must contain the CLDR rules they need as compiled data, not as runtime JSON files and not as raw `include_str!` JSON blobs that are parsed at startup. The `linguini-cldr-macros` crate must provide a procedural macro/code-generation step, using `syn` and `quote`, that reads the required files from the `cldr-json` repository layout and emits Rust source for compact, typed CLDR rule/data tables. Runtime code must use those generated tables directly.
+
+The upstream repository URL is:
+
+```txt
+https://github.com/unicode-org/cldr-json
+```
+
+The required upstream file paths currently used by Linguini are:
+
+```txt
+cldr-json/cldr-core/supplemental/plurals.json
+cldr-json/cldr-numbers-full/main/{locale}/numbers.json
+cldr-json/cldr-dates-full/main/{locale}/ca-gregorian.json
+```
 
 ### 7.2 CLDR cache
 

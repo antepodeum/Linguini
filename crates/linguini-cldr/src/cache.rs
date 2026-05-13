@@ -2,28 +2,55 @@ use std::fmt::{self, Display};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub type CldrCacheResult<T> = Result<T, CldrCacheError>;
 
 const DATA_DIR: &str = "data";
 const MANIFEST_FILE: &str = "manifest.txt";
-pub(crate) const PLURALS_FILE: &str = "data/common/supplemental/plurals.json";
+pub(crate) const PLURALS_FILE: &str = "data/cldr-json/cldr-core/supplemental/plurals.json";
+pub const OFFICIAL_CLDR_JSON_REPO: &str = "https://github.com/unicode-org/cldr-json";
 
 #[derive(Debug)]
 pub enum CldrCacheError {
-    Io { path: PathBuf, source: io::Error },
+    Command {
+        program: String,
+        args: Vec<String>,
+        status: Option<i32>,
+    },
+    Io {
+        path: PathBuf,
+        source: io::Error,
+    },
     MissingCache(PathBuf),
-    Parse { path: PathBuf, message: String },
+    Parse {
+        path: PathBuf,
+        message: String,
+    },
 }
 
 impl Display for CldrCacheError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Command {
+                program,
+                args,
+                status,
+            } => {
+                let joined_args = args.join(" ");
+                write!(
+                    f,
+                    "`{program} {joined_args}` failed with status {}",
+                    status
+                        .map(|code| code.to_string())
+                        .unwrap_or_else(|| "unknown".to_owned())
+                )
+            }
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
             Self::MissingCache(path) => write!(
                 f,
-                "missing CLDR cache at `{}`; run `linguini cldr fetch <cldr-json-dir>`",
+                "missing CLDR cache at `{}`; run `linguini cldr fetch`",
                 path.display()
             ),
             Self::Parse { path, message } => write!(f, "{}: {message}", path.display()),
@@ -130,8 +157,84 @@ pub fn fetch_cldr_from_dir_for_locales<'a>(
     require_offline_cache(cache_root)
 }
 
+pub fn fetch_cldr_from_official_repo_for_locales<'a>(
+    cache_root: impl AsRef<Path>,
+    locales: impl IntoIterator<Item = &'a str>,
+) -> CldrCacheResult<CacheStatus> {
+    let cache_root = cache_root.as_ref();
+    let locales: Vec<_> = locales.into_iter().collect();
+    let source_dir = cache_root.join("source/cldr-json");
+
+    if source_dir.exists() {
+        fs::remove_dir_all(&source_dir).map_err(|source| CldrCacheError::Io {
+            path: source_dir.clone(),
+            source,
+        })?;
+    }
+    if let Some(parent) = source_dir.parent() {
+        create_dir_all(parent)?;
+    }
+
+    let source_dir_arg = source_dir.to_string_lossy().into_owned();
+    run_git([
+        "clone",
+        "--filter=blob:none",
+        "--no-checkout",
+        "--depth=1",
+        OFFICIAL_CLDR_JSON_REPO,
+        source_dir_arg.as_str(),
+    ])?;
+
+    let sparse_paths = required_cldr_json_paths(&locales);
+    let mut sparse_args = vec!["-C", source_dir_arg.as_str()];
+    sparse_args.extend(["sparse-checkout", "set", "--no-cone"]);
+    sparse_args.extend(sparse_paths.iter().map(String::as_str));
+    run_git(sparse_args)?;
+    run_git(["-C", source_dir_arg.as_str(), "checkout"])?;
+
+    fetch_cldr_from_dir_for_locales(&source_dir, cache_root, locales)
+}
+
+pub fn required_cldr_json_paths(locales: &[&str]) -> Vec<String> {
+    let mut paths = vec!["cldr-json/cldr-core/supplemental/plurals.json".to_owned()];
+    for locale in locales {
+        paths.push(format!(
+            "cldr-json/cldr-numbers-full/main/{locale}/numbers.json"
+        ));
+        paths.push(format!(
+            "cldr-json/cldr-dates-full/main/{locale}/ca-gregorian.json"
+        ));
+    }
+    paths
+}
+
+fn run_git<'a>(args: impl IntoIterator<Item = &'a str>) -> CldrCacheResult<()> {
+    let args: Vec<String> = args.into_iter().map(ToOwned::to_owned).collect();
+    let status = Command::new("git")
+        .args(&args)
+        .status()
+        .map_err(|source| CldrCacheError::Io {
+            path: PathBuf::from("git"),
+            source,
+        })?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(CldrCacheError::Command {
+            program: "git".to_owned(),
+            args,
+            status: status.code(),
+        })
+    }
+}
+
 fn copy_required_files(source: &Path, destination: &Path, locales: &[&str]) -> CldrCacheResult<()> {
-    copy_relative_file(source, destination, "common/supplemental/plurals.json")?;
+    copy_relative_file(
+        source,
+        destination,
+        "cldr-json/cldr-core/supplemental/plurals.json",
+    )?;
 
     if locales.is_empty() {
         copy_required_locale_files_for_all_locales(source, destination)?;
@@ -148,7 +251,7 @@ fn copy_required_locale_files_for_all_locales(
     source: &Path,
     destination: &Path,
 ) -> CldrCacheResult<()> {
-    let main = source.join("common/main");
+    let main = source.join("cldr-json/cldr-numbers-full/main");
     if !main.exists() {
         return Ok(());
     }
@@ -175,12 +278,12 @@ fn copy_required_locale_files(
     copy_relative_file(
         source,
         destination,
-        format!("common/main/{locale}/numbers.json"),
+        format!("cldr-json/cldr-numbers-full/main/{locale}/numbers.json"),
     )?;
     copy_relative_file(
         source,
         destination,
-        format!("common/main/{locale}/ca-gregorian.json"),
+        format!("cldr-json/cldr-dates-full/main/{locale}/ca-gregorian.json"),
     )
 }
 
@@ -236,71 +339,5 @@ fn write_file(path: impl AsRef<Path>, contents: &str) -> CldrCacheResult<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        cache_root, fetch_cldr_from_dir, fetch_cldr_from_dir_for_locales, inspect_cache,
-        require_offline_cache,
-    };
-    use linguini_test_support::temp_project_dir;
-    use std::fs;
-
-    #[test]
-    fn cache_root_resolves_relative_path_under_project() {
-        let project = temp_project_dir("cldr_cache_root");
-        let root = cache_root(project.path(), ".linguini/cache");
-
-        assert_eq!(root, project.path().join(".linguini/cache"));
-    }
-
-    #[test]
-    fn cache_status_reports_missing_cache() {
-        let project = temp_project_dir("cldr_missing_cache");
-        let status = inspect_cache(project.path().join(".linguini/cache"));
-
-        assert!(!status.is_usable());
-        assert!(!status.cache_dir_exists);
-    }
-
-    #[test]
-    fn fetch_from_dir_populates_offline_cache() {
-        let project = temp_project_dir("cldr_fetch_from_dir");
-        write_required_source_files(project.path(), "ru");
-
-        let cache = project.path().join(".linguini/cache");
-        let status = fetch_cldr_from_dir(project.path().join("source"), &cache).expect("fetch");
-
-        assert!(status.is_usable());
-        assert!(require_offline_cache(&cache).is_ok());
-    }
-
-    #[test]
-    fn fetch_for_locales_copies_only_required_json_files() {
-        let project = temp_project_dir("cldr_fetch_required_only");
-        write_required_source_files(project.path(), "ru");
-        let extra_dir = project.path().join("source/common/main/ru");
-        fs::write(extra_dir.join("characters.json"), "{}\n").expect("extra data");
-
-        let cache = project.path().join(".linguini/cache");
-        fetch_cldr_from_dir_for_locales(project.path().join("source"), &cache, ["ru"])
-            .expect("fetch");
-
-        assert!(cache
-            .join("data/common/supplemental/plurals.json")
-            .is_file());
-        assert!(cache.join("data/common/main/ru/numbers.json").is_file());
-        assert!(cache
-            .join("data/common/main/ru/ca-gregorian.json")
-            .is_file());
-        assert!(!cache.join("data/common/main/ru/characters.json").exists());
-    }
-
-    fn write_required_source_files(root: &std::path::Path, locale: &str) {
-        let supplemental = root.join("source/common/supplemental");
-        let main = root.join("source/common/main").join(locale);
-        fs::create_dir_all(&supplemental).expect("supplemental dir");
-        fs::create_dir_all(&main).expect("main dir");
-        fs::write(supplemental.join("plurals.json"), "{}\n").expect("plural data");
-        fs::write(main.join("numbers.json"), "{}\n").expect("numbers data");
-        fs::write(main.join("ca-gregorian.json"), "{}\n").expect("calendar data");
-    }
-}
+#[path = "cache_tests.rs"]
+mod tests;
