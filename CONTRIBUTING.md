@@ -15,6 +15,8 @@ cargo test --workspace
 ./scripts/check-spec-gates.sh
 ```
 
+Coverage can be measured with `./scripts/coverage.sh` after installing `cargo-llvm-cov`.
+
 Bug fixes require a focused regression test committed with the fix. The test must fail against the
 buggy behavior and pass after the fix. Prefer the narrowest layer that proves the behavior: unit
 test for isolated logic, fixture or snapshot for DSL behavior, CLI integration test for command

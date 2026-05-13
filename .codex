@@ -1,5 +1,5 @@
 Completed slice:
-- 2026-05-13: Added crate-level unit test structure checks, complete syntax fixture gates, snapshot review workflow, CLI integration harness, generated JavaScript validation fixture, generated Rust validation fixture, and contribution regression-test rule for testing-policy progress.
+- 2026-05-13: Added crate-level unit test structure checks, complete syntax fixture gates, snapshot review workflow, CLI integration harness, generated JavaScript validation fixture, generated Rust validation fixture, contribution regression-test rule, and coverage command for testing-policy progress.
 
 Implementation decisions:
 - Unit-test structure is enforced per workspace crate by `scripts/check-unit-test-structure.sh`.
@@ -9,6 +9,7 @@ Implementation decisions:
 - JavaScript generated-output fixture is a committed ESM file tree validated by `scripts/validate-generated-js.sh`; this does not mark JS backend codegen tasks complete.
 - Rust generated-output fixture is a committed crate validated by `scripts/validate-generated-rust.sh`; this does not mark Rust backend codegen tasks complete.
 - `CONTRIBUTING.md` now requires focused regression tests for bug fixes.
+- Coverage command is `scripts/coverage.sh` and requires `cargo-llvm-cov`; coverage report checkpoint remains unchecked until a report is generated.
 - Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, and `crates/linguini-cldr/src/data.rs`.
 
 Tests last run:
@@ -23,9 +24,10 @@ Tests last run:
 - `cargo test -p linguini-cli`
 - `./scripts/validate-generated-js.sh`
 - `./scripts/validate-generated-rust.sh`
+- `./scripts/coverage.sh --help`
 
 Known deferred work:
-- Coverage command and full CI suite gate remain unchecked.
+- Coverage report generation and full CI suite gate remain unchecked.
 
 Next recommended task:
-- Add coverage measurement command for core crates.
+- Add CI job that runs unit, snapshot, CLI, and generated-output tests.

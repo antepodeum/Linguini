@@ -124,9 +124,9 @@ Checkpoint acceptance:
 - [x] Add regression-test rule to contribution docs
   - Note: completed on 2026-05-13. Added contribution guidance requiring focused regression tests for bug fixes and recorded gate evidence before checklist completion.
   - Evidence: CONTRIBUTING.md; scripts/check-spec-gates.sh; `./scripts/check-spec-gates.sh`
-- [ ] Add coverage measurement command for core crates
-  - Note:
-  - Evidence:
+- [x] Add coverage measurement command for core crates
+  - Note: completed on 2026-05-13. Added a `cargo-llvm-cov` coverage command that writes LCOV and HTML reports while excluding generated, vendor, target, and snapshot paths.
+  - Evidence: scripts/coverage.sh; CONTRIBUTING.md; `./scripts/coverage.sh --help`; `./scripts/check-spec-gates.sh`
 - [ ] Add CI job that runs unit, snapshot, CLI, and generated-output tests
   - Note:
   - Evidence:
