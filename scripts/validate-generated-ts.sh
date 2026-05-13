@@ -5,22 +5,27 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmpdir="$(mktemp -d /tmp/linguini-ts-run-XXXXXX)"
 trap 'rm -rf "$tmpdir"' EXIT
 
-cp "$repo_root/tests/fixtures/golden/snapshots/codegen-ts-plural-ru.ts" "$tmpdir/plurals.ts"
-cp "$repo_root/tests/fixtures/golden/snapshots/codegen-ts-module-ru.ts" "$tmpdir/ru.ts"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts/shared.ts" "$tmpdir/shared.ts"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts/index.ts" "$tmpdir/index.ts"
+mkdir -p "$tmpdir/locales"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts/locales/ru.ts" "$tmpdir/locales/ru.ts"
 
 tsc --strict --target ES2020 --module commonjs --outDir "$tmpdir/out" \
-  "$tmpdir/plurals.ts" \
-  "$tmpdir/ru.ts"
+  "$tmpdir/shared.ts" \
+  "$tmpdir/locales/ru.ts" \
+  "$tmpdir/index.ts"
 
-node - "$tmpdir/out/ru.js" <<'JS'
+node - "$tmpdir/out/index.js" "$tmpdir/out/locales/ru.js" <<'JS'
 const m = require(process.argv[2]);
+const ru = require(process.argv[3]);
 
 const expectations = [
-  [m.counted(1, "apple"), "В корзине 1 яблока"],
-  [m.counted(5, "orange"), "В корзине 5 апельсинов"],
-  [m.delivery("apple", "small", 1), "Доставлено маленькое яблоко"],
-  [m.email_input.label, "Email"],
+  [ru.counted(1, "apple"), "В корзине 1 яблока"],
+  [ru.counted(5, "orange"), "В корзине 5 апельсинов"],
+  [ru.delivery("apple", "small", 1), "Доставлено маленькое яблоко"],
+  [ru.email_input.label, "Email"],
   [m.createLinguini("ru").email_input.aria, "Адрес электронной почты"],
+  [m.configureLinguini({ language: "ru" }).lgl.price(12, "13.05.2026"), "Цена 12 на 13.05.2026"],
 ];
 
 for (const [actual, expected] of expectations) {

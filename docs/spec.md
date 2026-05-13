@@ -854,7 +854,12 @@ Generated output:
 Example:
 
 ```ts
-import { pluralRu } from "./plurals";
+// shared.ts
+export function selectBranch(key: string, branches: Record<string, string>): string
+
+// locales/ru.ts
+import { selectBranch } from "../shared";
+import { pluralRu } from "../plurals";
 
 export function delivery(fruit: Fruit, size: Size, count: number): string
 export function counted(count: number, fruit: Fruit): string
@@ -865,15 +870,22 @@ export const email_input = {
   aria: "Адрес электронной почты",
 } as const;
 
-export const ru = {
+const lgl = {
   delivery,
   counted,
   email_input,
 } as const;
 
-export const locales = { ru } as const;
-export type Locale = keyof typeof locales;
-export function createLinguini(locale: Locale): (typeof locales)[Locale]
+export default lgl;
+
+// index.ts
+import ru from "./locales/ru";
+
+export type Linguini = typeof ru;
+export function createLinguini(language: "ru"): Linguini
+export function configureLinguini(options: {
+  language: "ru" | (() => "ru");
+}): { readonly lgl: Linguini }
 ```
 
 ### 11.3 JavaScript output

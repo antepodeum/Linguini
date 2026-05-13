@@ -301,7 +301,7 @@ email_input {
         let source = include_str!("../../../tests/fixtures/golden/locale/ru.lgl");
         let locale = parse_locale(source).expect("locale fixture parses");
 
-        assert_eq!(locale.declarations.len(), 9);
+        assert_eq!(locale.declarations.len(), 8);
         match &locale.declarations[1] {
             LocaleDeclaration::Form(form) => {
                 assert_eq!(form.name.value, "Fruit");
@@ -317,7 +317,7 @@ email_input {
             }
             other => panic!("expected form, got {other:?}"),
         }
-        match &locale.declarations[5] {
+        match &locale.declarations[4] {
             LocaleDeclaration::Message(message) => {
                 assert_eq!(message.name.value, "delivery");
                 let placeholders = message

@@ -35,16 +35,9 @@ IrModule {
                         Placeholder(
                             IrExpression {
                                 path: [
-                                    "adjective",
+                                    "size",
                                 ],
                                 arguments: [
-                                    IrExpression {
-                                        path: [
-                                            "size",
-                                        ],
-                                        arguments: [],
-                                        formatters: [],
-                                    },
                                     IrExpression {
                                         path: [
                                             "fruit",
@@ -877,116 +870,6 @@ IrModule {
                         parts: [
                             Text(
                                 "Доставлено",
-                            ),
-                        ],
-                    },
-                },
-            ],
-        },
-        IrFunction {
-            name: "adjective",
-            docs: [],
-            parameters: [
-                "size",
-                "gender",
-            ],
-            branches: [
-                IrFunctionBranch {
-                    pattern: Names(
-                        [
-                            "small",
-                            "male",
-                        ],
-                    ),
-                    value: IrText {
-                        parts: [
-                            Text(
-                                "маленький",
-                            ),
-                        ],
-                    },
-                },
-                IrFunctionBranch {
-                    pattern: Names(
-                        [
-                            "small",
-                            "female",
-                        ],
-                    ),
-                    value: IrText {
-                        parts: [
-                            Text(
-                                "маленькая",
-                            ),
-                        ],
-                    },
-                },
-                IrFunctionBranch {
-                    pattern: Names(
-                        [
-                            "small",
-                            "neuter",
-                        ],
-                    ),
-                    value: IrText {
-                        parts: [
-                            Text(
-                                "маленькое",
-                            ),
-                        ],
-                    },
-                },
-                IrFunctionBranch {
-                    pattern: Names(
-                        [
-                            "big",
-                            "male",
-                        ],
-                    ),
-                    value: IrText {
-                        parts: [
-                            Text(
-                                "большой",
-                            ),
-                        ],
-                    },
-                },
-                IrFunctionBranch {
-                    pattern: Names(
-                        [
-                            "big",
-                            "female",
-                        ],
-                    ),
-                    value: IrText {
-                        parts: [
-                            Text(
-                                "большая",
-                            ),
-                        ],
-                    },
-                },
-                IrFunctionBranch {
-                    pattern: Names(
-                        [
-                            "big",
-                            "neuter",
-                        ],
-                    ),
-                    value: IrText {
-                        parts: [
-                            Text(
-                                "большое",
-                            ),
-                        ],
-                    },
-                },
-                IrFunctionBranch {
-                    pattern: Else,
-                    value: IrText {
-                        parts: [
-                            Text(
-                                "обычное",
                             ),
                         ],
                     },

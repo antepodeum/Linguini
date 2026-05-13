@@ -89,8 +89,8 @@ Checkpoint acceptance:
   - Note:
   - Evidence:
 - [x] Add generated TypeScript validation fixture
-  - Note: completed on 2026-05-13. Added deterministic generated TypeScript module fixture for Russian schema/locale output.
-  - Evidence: tests/fixtures/golden/snapshots/codegen-ts-module-ru.ts; `cargo test -p linguini-codegen-ts`
+  - Note: completed on 2026-05-13. Added deterministic generated TypeScript file-tree fixtures for Russian schema/locale output.
+  - Evidence: tests/fixtures/golden/snapshots/ts; `cargo test -p linguini-codegen-ts`
 - [ ] Add generated JavaScript validation fixture
   - Note:
   - Evidence:
@@ -595,20 +595,20 @@ Checkpoint acceptance:
 ## 11. TypeScript codegen
 
 - [x] Generate TypeScript enums
-  - Note: completed on 2026-05-13. TypeScript backend emits schema enum unions such as `Fruit` and `Size`.
-  - Evidence: crates/linguini-codegen-ts/src/module.rs; tests/fixtures/golden/snapshots/codegen-ts-module-ru.ts; `cargo test -p linguini-codegen-ts`
+  - Note: completed on 2026-05-13. TypeScript backend emits schema enum unions such as `Fruit` and `Size` in locale modules.
+  - Evidence: crates/linguini-codegen-ts/src/module; tests/fixtures/golden/snapshots/ts/locales/ru.ts; `cargo test -p linguini-codegen-ts`
 - [x] Generate typed message functions
   - Note: completed on 2026-05-13. TypeScript backend emits exported message functions with schema-derived parameter types and locale bodies.
-  - Evidence: crates/linguini-codegen-ts/src/module.rs; tests/fixtures/golden/snapshots/codegen-ts-module-ru.ts; `cargo test -p linguini-codegen-ts`
+  - Evidence: crates/linguini-codegen-ts/src/module; tests/fixtures/golden/snapshots/ts/locales/ru.ts; `cargo test -p linguini-codegen-ts`
 - [x] Generate forms
-  - Note: completed on 2026-05-13. TypeScript backend emits form objects with plural-map attributes, nested attributes, and selector branch functions.
-  - Evidence: crates/linguini-codegen-ts/src/module.rs; tests/fixtures/golden/snapshots/codegen-ts-module-ru.ts; `cargo test -p linguini-codegen-ts`
+  - Note: completed on 2026-05-13. TypeScript backend emits form objects with plural-map attributes, nested attributes, and selector branch functions; selector-form calls use `SizeForms[size](...)`.
+  - Evidence: crates/linguini-codegen-ts/src/module; tests/fixtures/golden/snapshots/ts/locales/ru.ts; `cargo test -p linguini-codegen-ts`
 - [x] Generate local functions
   - Note: completed on 2026-05-13. TypeScript backend emits local helper functions from locale tuple and else branches.
-  - Evidence: crates/linguini-codegen-ts/src/module.rs; tests/fixtures/golden/snapshots/codegen-ts-module-ru.ts; `cargo test -p linguini-codegen-ts`
+  - Evidence: crates/linguini-codegen-ts/src/module; tests/fixtures/golden/snapshots/ts/locales/ru.ts; `cargo test -p linguini-codegen-ts`
 - [x] Generate plural functions
-  - Note: completed on 2026-05-13. Added TypeScript plural category function generation from CLDR plural rules with operand helper output.
-  - Evidence: crates/linguini-codegen-ts/src/lib.rs; tests/fixtures/golden/snapshots/codegen-ts-plural-ru.ts; `cargo test -p linguini-codegen-ts`
+  - Note: completed on 2026-05-13. Added TypeScript plural category function generation from CLDR plural rules; generated locale modules inline their locale plural helper.
+  - Evidence: crates/linguini-codegen-ts/src/lib.rs; tests/fixtures/golden/snapshots/codegen-ts-plural-ru.ts; tests/fixtures/golden/snapshots/ts/locales/ru.ts; `cargo test -p linguini-codegen-ts`
 - [ ] Generate formatter helpers
   - Note:
 - [ ] Generate `.d.ts`
@@ -616,13 +616,13 @@ Checkpoint acceptance:
 - [ ] Add tree-shaking mode
   - Note:
 - [x] Add deterministic output tests
-  - Note: completed on 2026-05-13. Added generated TypeScript module snapshot covering enums, aliases, forms, local functions, and messages.
-  - Evidence: tests/fixtures/golden/snapshots/codegen-ts-module-ru.ts; `cargo test -p linguini-codegen-ts`
+  - Note: completed on 2026-05-13. Added generated TypeScript file-tree snapshots covering shared helpers, locale modules, index API, enums, aliases, forms, local functions, and messages.
+  - Evidence: tests/fixtures/golden/snapshots/ts; `cargo test -p linguini-codegen-ts`
 
 Checkpoint acceptance:
 
 - [x] Generated TS compiles
-  - Note: completed on 2026-05-13. Generated plural helper and generated locale module compile as separate TypeScript files with a real import.
+  - Note: completed on 2026-05-13. Generated shared helper, index module, and locale module compile as separate TypeScript files; locale module contains its plural helper.
   - Evidence: `bash scripts/validate-generated-ts.sh`
 - [x] Delivery example returns expected Russian strings
   - Note: completed on 2026-05-13. Compiled generated TypeScript and checked `delivery("apple", "small", 1)` in Node.

@@ -423,190 +423,112 @@ Newline @ 1516..1517
 RBrace @ 1517..1518
 Newline @ 1518..1519
 Newline @ 1519..1520
-Ident("fn") @ 1520..1522
-Whitespace @ 1522..1523
-Ident("adjective") @ 1523..1532
-LParen @ 1532..1533
-Ident("size") @ 1533..1537
-Comma @ 1537..1538
-Whitespace @ 1538..1539
-Ident("gender") @ 1539..1545
-RParen @ 1545..1546
-Whitespace @ 1546..1547
-LBrace @ 1547..1548
-Newline @ 1548..1549
-Whitespace @ 1549..1551
-Ident("small") @ 1551..1556
-Comma @ 1556..1557
-Whitespace @ 1557..1558
-Ident("male") @ 1558..1562
-Whitespace @ 1562..1563
-Arrow @ 1563..1565
-RawText(" маленький") @ 1565..1584
-Newline @ 1584..1585
-Whitespace @ 1585..1587
-Ident("small") @ 1587..1592
-Comma @ 1592..1593
-Whitespace @ 1593..1594
-Ident("female") @ 1594..1600
-Whitespace @ 1600..1601
-Arrow @ 1601..1603
-RawText(" маленькая") @ 1603..1622
-Newline @ 1622..1623
-Whitespace @ 1623..1625
-Ident("small") @ 1625..1630
-Comma @ 1630..1631
-Whitespace @ 1631..1632
-Ident("neuter") @ 1632..1638
-Whitespace @ 1638..1639
-Arrow @ 1639..1641
-RawText(" маленькое") @ 1641..1660
-Newline @ 1660..1661
-Whitespace @ 1661..1663
-Ident("big") @ 1663..1666
-Comma @ 1666..1667
-Whitespace @ 1667..1668
-Ident("male") @ 1668..1672
-Whitespace @ 1672..1673
-Arrow @ 1673..1675
-RawText(" большой") @ 1675..1690
-Newline @ 1690..1691
-Whitespace @ 1691..1693
-Ident("big") @ 1693..1696
-Comma @ 1696..1697
-Whitespace @ 1697..1698
-Ident("female") @ 1698..1704
-Whitespace @ 1704..1705
-Arrow @ 1705..1707
-RawText(" большая") @ 1707..1722
-Newline @ 1722..1723
-Whitespace @ 1723..1725
-Ident("big") @ 1725..1728
-Comma @ 1728..1729
-Whitespace @ 1729..1730
-Ident("neuter") @ 1730..1736
-Whitespace @ 1736..1737
-Arrow @ 1737..1739
-RawText(" большое") @ 1739..1754
-Newline @ 1754..1755
-Whitespace @ 1755..1757
-Ident("else") @ 1757..1761
-Whitespace @ 1761..1762
-Arrow @ 1762..1764
-RawText(" обычное") @ 1764..1779
-Newline @ 1779..1780
-RBrace @ 1780..1781
-Newline @ 1781..1782
-Newline @ 1782..1783
-DocComment(" Product delivery sentence.") @ 1783..1813
-Newline @ 1813..1814
-Ident("delivery") @ 1814..1822
-Whitespace @ 1822..1823
-Equals @ 1823..1824
-RawText(" ") @ 1824..1825
-LBrace @ 1825..1826
-Ident("delivered") @ 1826..1835
-LParen @ 1835..1836
-Ident("fruit") @ 1836..1841
-Dot @ 1841..1842
-Ident("gender") @ 1842..1848
-RParen @ 1848..1849
-RBrace @ 1849..1850
-RawText(" ") @ 1850..1851
-LBrace @ 1851..1852
-Ident("adjective") @ 1852..1861
-LParen @ 1861..1862
-Ident("size") @ 1862..1866
-Comma @ 1866..1867
-Whitespace @ 1867..1868
-Ident("fruit") @ 1868..1873
-Dot @ 1873..1874
-Ident("gender") @ 1874..1880
-RParen @ 1880..1881
-RBrace @ 1881..1882
-RawText(" ") @ 1882..1883
-LBrace @ 1883..1884
-Ident("fruit") @ 1884..1889
-Dot @ 1889..1890
-Ident("nom") @ 1890..1893
-LParen @ 1893..1894
-Ident("count") @ 1894..1899
-RParen @ 1899..1900
-RBrace @ 1900..1901
-Newline @ 1901..1902
-Newline @ 1902..1903
-Ident("counted") @ 1903..1910
-Whitespace @ 1910..1911
-Equals @ 1911..1912
-RawText(" В корзине ") @ 1912..1931
-LBrace @ 1931..1932
-Ident("count") @ 1932..1937
-RBrace @ 1937..1938
-RawText(" ") @ 1938..1939
-LBrace @ 1939..1940
-Ident("fruit") @ 1940..1945
-Dot @ 1945..1946
-Ident("gen") @ 1946..1949
-LParen @ 1949..1950
-Ident("count") @ 1950..1955
-RParen @ 1955..1956
-RBrace @ 1956..1957
-Newline @ 1957..1958
-Newline @ 1958..1959
-Ident("price") @ 1959..1964
-Whitespace @ 1964..1965
-Equals @ 1965..1966
-RawText(" Цена ") @ 1966..1976
-LBrace @ 1976..1977
-Ident("amount") @ 1977..1983
-Whitespace @ 1983..1984
-At @ 1984..1985
-Ident("currency") @ 1985..1993
-LParen @ 1993..1994
-Ident("code") @ 1994..1998
-Whitespace @ 1998..1999
-Equals @ 1999..2000
-Whitespace @ 2000..2001
-String("RUB") @ 2001..2006
-RParen @ 2006..2007
-RBrace @ 2007..2008
-RawText(" на ") @ 2008..2014
-LBrace @ 2014..2015
-Ident("date") @ 2015..2019
-Whitespace @ 2019..2020
-At @ 2020..2021
-Ident("date") @ 2021..2025
-LParen @ 2025..2026
-Ident("style") @ 2026..2031
-Whitespace @ 2031..2032
-Equals @ 2032..2033
-Whitespace @ 2033..2034
-String("short") @ 2034..2041
-RParen @ 2041..2042
-RBrace @ 2042..2043
-Newline @ 2043..2044
-Newline @ 2044..2045
-Ident("email_input") @ 2045..2056
-Whitespace @ 2056..2057
-LBrace @ 2057..2058
-Newline @ 2058..2059
-Whitespace @ 2059..2061
-Ident("label") @ 2061..2066
-Whitespace @ 2066..2067
-Equals @ 2067..2068
-RawText(" Email") @ 2068..2074
-Newline @ 2074..2075
-Whitespace @ 2075..2077
-Ident("placeholder") @ 2077..2088
-Whitespace @ 2088..2089
-Equals @ 2089..2090
-RawText(" name@example.com") @ 2090..2107
-Newline @ 2107..2108
-Whitespace @ 2108..2110
-Ident("aria") @ 2110..2114
-Whitespace @ 2114..2115
-Equals @ 2115..2116
-RawText(" Адрес электронной почты") @ 2116..2161
-Newline @ 2161..2162
-RBrace @ 2162..2163
-Newline @ 2163..2164
+DocComment(" Product delivery sentence.") @ 1520..1550
+Newline @ 1550..1551
+Ident("delivery") @ 1551..1559
+Whitespace @ 1559..1560
+Equals @ 1560..1561
+RawText(" ") @ 1561..1562
+LBrace @ 1562..1563
+Ident("delivered") @ 1563..1572
+LParen @ 1572..1573
+Ident("fruit") @ 1573..1578
+Dot @ 1578..1579
+Ident("gender") @ 1579..1585
+RParen @ 1585..1586
+RBrace @ 1586..1587
+RawText(" ") @ 1587..1588
+LBrace @ 1588..1589
+Ident("size") @ 1589..1593
+LParen @ 1593..1594
+Ident("fruit") @ 1594..1599
+Dot @ 1599..1600
+Ident("gender") @ 1600..1606
+RParen @ 1606..1607
+RBrace @ 1607..1608
+RawText(" ") @ 1608..1609
+LBrace @ 1609..1610
+Ident("fruit") @ 1610..1615
+Dot @ 1615..1616
+Ident("nom") @ 1616..1619
+LParen @ 1619..1620
+Ident("count") @ 1620..1625
+RParen @ 1625..1626
+RBrace @ 1626..1627
+Newline @ 1627..1628
+Newline @ 1628..1629
+Ident("counted") @ 1629..1636
+Whitespace @ 1636..1637
+Equals @ 1637..1638
+RawText(" В корзине ") @ 1638..1657
+LBrace @ 1657..1658
+Ident("count") @ 1658..1663
+RBrace @ 1663..1664
+RawText(" ") @ 1664..1665
+LBrace @ 1665..1666
+Ident("fruit") @ 1666..1671
+Dot @ 1671..1672
+Ident("gen") @ 1672..1675
+LParen @ 1675..1676
+Ident("count") @ 1676..1681
+RParen @ 1681..1682
+RBrace @ 1682..1683
+Newline @ 1683..1684
+Newline @ 1684..1685
+Ident("price") @ 1685..1690
+Whitespace @ 1690..1691
+Equals @ 1691..1692
+RawText(" Цена ") @ 1692..1702
+LBrace @ 1702..1703
+Ident("amount") @ 1703..1709
+Whitespace @ 1709..1710
+At @ 1710..1711
+Ident("currency") @ 1711..1719
+LParen @ 1719..1720
+Ident("code") @ 1720..1724
+Whitespace @ 1724..1725
+Equals @ 1725..1726
+Whitespace @ 1726..1727
+String("RUB") @ 1727..1732
+RParen @ 1732..1733
+RBrace @ 1733..1734
+RawText(" на ") @ 1734..1740
+LBrace @ 1740..1741
+Ident("date") @ 1741..1745
+Whitespace @ 1745..1746
+At @ 1746..1747
+Ident("date") @ 1747..1751
+LParen @ 1751..1752
+Ident("style") @ 1752..1757
+Whitespace @ 1757..1758
+Equals @ 1758..1759
+Whitespace @ 1759..1760
+String("short") @ 1760..1767
+RParen @ 1767..1768
+RBrace @ 1768..1769
+Newline @ 1769..1770
+Newline @ 1770..1771
+Ident("email_input") @ 1771..1782
+Whitespace @ 1782..1783
+LBrace @ 1783..1784
+Newline @ 1784..1785
+Whitespace @ 1785..1787
+Ident("label") @ 1787..1792
+Whitespace @ 1792..1793
+Equals @ 1793..1794
+RawText(" Email") @ 1794..1800
+Newline @ 1800..1801
+Whitespace @ 1801..1803
+Ident("placeholder") @ 1803..1814
+Whitespace @ 1814..1815
+Equals @ 1815..1816
+RawText(" name@example.com") @ 1816..1833
+Newline @ 1833..1834
+Whitespace @ 1834..1836
+Ident("aria") @ 1836..1840
+Whitespace @ 1840..1841
+Equals @ 1841..1842
+RawText(" Адрес электронной почты") @ 1842..1887
+Newline @ 1887..1888
+RBrace @ 1888..1889
+Newline @ 1889..1890

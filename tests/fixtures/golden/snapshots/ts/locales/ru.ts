@@ -1,4 +1,29 @@
-import { pluralRu } from "./plurals";
+import { selectBranch } from "../shared";
+
+function pluralRu(value: number | string): string {
+  const operands = pluralOperands(value);
+  if (((operands.v === 0) && ((operands.i % 10) === 1) && !((operands.i % 100) === 11))) return "one";
+  if (((operands.v === 0) && (((operands.i % 10) >= 2 && (operands.i % 10) <= 4)) && !(((operands.i % 100) >= 12 && (operands.i % 100) <= 14)))) return "few";
+  if (((operands.v === 0) && ((operands.i % 10) === 0)) || ((operands.v === 0) && (((operands.i % 10) >= 5 && (operands.i % 10) <= 9))) || ((operands.v === 0) && (((operands.i % 100) >= 11 && (operands.i % 100) <= 14)))) return "many";
+  return "other";
+}
+
+function pluralOperands(value: number | string) {
+  const source = String(value).replace(/^[+-]/, "");
+  const [integer, fraction = ""] = source.split(".");
+  const trimmedFraction = fraction.replace(/0+$/, "");
+
+  return {
+    n: Number(source),
+    i: Number(integer),
+    v: fraction.length,
+    w: trimmedFraction.length,
+    f: fraction === "" ? 0 : Number(fraction),
+    t: trimmedFraction === "" ? 0 : Number(trimmedFraction),
+    c: 0,
+    e: 0,
+  };
+}
 
 export type Fruit = "apple" | "pear" | "orange";
 
@@ -27,19 +52,9 @@ function delivered(gender: string): string {
   return "";
 }
 
-function adjective(size: string, gender: string): string {
-  if (size === "small" && gender === "male") return "маленький";
-  if (size === "small" && gender === "female") return "маленькая";
-  if (size === "small" && gender === "neuter") return "маленькое";
-  if (size === "big" && gender === "male") return "большой";
-  if (size === "big" && gender === "female") return "большая";
-  if (size === "big" && gender === "neuter") return "большое";
-  return "обычное";
-}
-
 /**  Displayed on the product delivery confirmation card. */
 export function delivery(fruit: Fruit, size: Size, count: number): string {
-  return String(delivered(FruitForms[fruit].gender)) + " " + String(adjective(size, FruitForms[fruit].gender)) + " " + String(FruitForms[fruit].nom(count));
+  return String(delivered(FruitForms[fruit].gender)) + " " + String(SizeForms[size](FruitForms[fruit].gender)) + " " + String(FruitForms[fruit].nom(count));
 }
 
 /**  Shown near cart item count. */
@@ -57,21 +72,11 @@ export const email_input = {
   aria: "Адрес электронной почты",
 } as const;
 
-export const ru = {
+const lgl = {
   delivery,
   counted,
   price,
   email_input,
 } as const;
 
-export const locales = { ru } as const;
-
-export type Locale = keyof typeof locales;
-
-export function createLinguini(locale: Locale): (typeof locales)[Locale] {
-  return locales[locale];
-}
-
-function selectBranch(key: string, branches: Record<string, string>): string {
-  return branches[key] ?? branches.other ?? "";
-}
+export default lgl;

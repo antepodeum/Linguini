@@ -19,13 +19,32 @@ pub struct ModuleExports {
 
 pub fn emit_imports(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     if !module.forms.is_empty() {
-        if let Some(path) = &options.plural_import {
-            output.push_str(&format!(
-                "import {{ {} }} from \"{}\";\n\n",
-                options.plural_function,
-                escape_string(path)
-            ));
+        output.push_str("import { selectBranch } from \"../shared\";\n");
+        if options.plural_source.is_none() {
+            if let Some(path) = &options.plural_import {
+                output.push_str(&format!(
+                    "import {{ {} }} from \"{}\";\n\n",
+                    options.plural_function,
+                    escape_string(path)
+                ));
+            } else {
+                output.push('\n');
+            }
+        } else {
+            output.push('\n');
         }
+    }
+}
+
+pub fn emit_plural_helpers(options: &TypeScriptOptions, output: &mut String) {
+    if let Some(source) = &options.plural_source {
+        let source = source.replacen(
+            &format!("export function {}", options.plural_function),
+            &format!("function {}", options.plural_function),
+            1,
+        );
+        output.push_str(source.trim_end());
+        output.push_str("\n\n");
     }
 }
 
@@ -139,35 +158,45 @@ pub fn emit_messages(schema: &IrModule, locale: &IrModule, output: &mut String) 
     exports
 }
 
-pub fn emit_locale_facade(
-    exports: &ModuleExports,
-    options: &TypeScriptOptions,
-    output: &mut String,
-) {
-    output.push_str(&format!("export const {} = {{\n", options.locale));
-    for name in exports.top_level.iter().chain(exports.groups.iter()) {
-        output.push_str(&format!("  {name},\n"));
-    }
-    output.push_str("} as const;\n\n");
-    output.push_str(&format!(
-        "export const locales = {{ {} }} as const;\n\n",
-        options.locale
-    ));
-    output.push_str("export type Locale = keyof typeof locales;\n\n");
-    output.push_str("export function createLinguini(locale: Locale): (typeof locales)[Locale] {\n");
-    output.push_str("  return locales[locale];\n");
+pub fn emit_shared(output: &mut String) {
+    output.push_str("export function selectBranch(\n");
+    output.push_str("  key: string,\n");
+    output.push_str("  branches: Record<string, string>,\n");
+    output.push_str("): string {\n");
+    output.push_str("  return branches[key] ?? branches.other ?? \"\";\n");
     output.push_str("}\n");
 }
 
-pub fn emit_branch_helper(module: &IrModule, output: &mut String) {
-    if module.forms.is_empty() {
-        return;
-    }
-
+pub fn emit_index(options: &TypeScriptOptions, output: &mut String) {
+    let locale = safe_identifier(&options.locale);
+    let locale_path = escape_string(&options.locale);
+    let locale_literal = string_literal(&options.locale);
+    output.push_str(&format!(
+        "import {locale} from \"./locales/{locale_path}\";\n\n"
+    ));
+    output.push_str(&format!(
+        "const localeModules = {{ {locale} }} as const;\n\n"
+    ));
+    output.push_str("type LinguiniLanguage = keyof typeof localeModules;\n");
+    output.push_str("export type Linguini = (typeof localeModules)[LinguiniLanguage];\n\n");
+    output.push_str(&format!(
+        "type LinguiniLanguageInput = LinguiniLanguage | {locale_literal};\n\n"
+    ));
+    output
+        .push_str("export function createLinguini(language: LinguiniLanguageInput): Linguini {\n");
+    output.push_str("  return localeModules[language as LinguiniLanguage];\n");
+    output.push_str("}\n\n");
+    output.push_str("export function configureLinguini(options: {\n");
+    output.push_str("  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n");
+    output.push_str("}): { readonly lgl: Linguini } {\n");
+    output.push_str("  return {\n");
+    output.push_str("    get lgl() {\n");
     output.push_str(
-        "\nfunction selectBranch(key: string, branches: Record<string, string>): string {\n",
+        "      const language = typeof options.language === \"function\" ? options.language() : options.language;\n",
     );
-    output.push_str("  return branches[key] ?? branches.other ?? \"\";\n");
+    output.push_str("      return createLinguini(language);\n");
+    output.push_str("    },\n");
+    output.push_str("  };\n");
     output.push_str("}\n");
 }
 

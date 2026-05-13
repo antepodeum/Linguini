@@ -98,6 +98,20 @@ fn expression_value(expression: &IrExpression, context: &BTreeMap<String, String
     }
 
     if !expression.arguments.is_empty() {
+        if let [root] = expression.path.as_slice() {
+            if let Some(ty) = context.get(root) {
+                return format!(
+                    "{ty}Forms[{root}]({})",
+                    expression
+                        .arguments
+                        .iter()
+                        .map(|argument| expression_value(argument, context))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+        }
+
         if let [root, property] = expression.path.as_slice() {
             if let Some(ty) = context.get(root) {
                 return format!(

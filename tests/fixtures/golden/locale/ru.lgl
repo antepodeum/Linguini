@@ -92,18 +92,8 @@ fn delivered(gender) {
   other => Доставлено
 }
 
-fn adjective(size, gender) {
-  small, male => маленький
-  small, female => маленькая
-  small, neuter => маленькое
-  big, male => большой
-  big, female => большая
-  big, neuter => большое
-  else => обычное
-}
-
 /// Product delivery sentence.
-delivery = {delivered(fruit.gender)} {adjective(size, fruit.gender)} {fruit.nom(count)}
+delivery = {delivered(fruit.gender)} {size(fruit.gender)} {fruit.nom(count)}
 
 counted = В корзине {count} {fruit.gen(count)}
 
