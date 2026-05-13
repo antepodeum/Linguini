@@ -29,6 +29,15 @@ A task is not complete until its tests are committed and the relevant command is
 
 ## 0. Repository and engineering rules
 
+- [ ] Add sequential stage gate enforcement
+  - Note:
+  - Evidence:
+- [ ] Add technology-stack conformance check
+  - Note:
+  - Evidence:
+- [ ] Add anti-simplification completion gate
+  - Note:
+  - Evidence:
 - [x] Create Rust workspace
   - Note: completed on 2026-05-12. Added Cargo workspace with CLI, core, codegen, LSP, package, and test-support crates.
   - Evidence: Cargo.toml; `cargo test --workspace`
@@ -59,6 +68,15 @@ A task is not complete until its tests are committed and the relevant command is
 
 Checkpoint acceptance:
 
+- [ ] Work cannot move to the next checklist part until the previous part is fully complete
+  - Note:
+  - Evidence:
+- [ ] Implementation choices match the specified Rust workspace and crate stack
+  - Note:
+  - Evidence:
+- [ ] No completed item omits specified behavior or uses a simplified substitute without updating the spec
+  - Note:
+  - Evidence:
 - [x] `cargo test` runs successfully
   - Note: completed on 2026-05-12. Workspace tests pass across all scaffolded crates.
   - Evidence: `cargo test --workspace`
@@ -82,6 +100,12 @@ Checkpoint acceptance:
 - [x] Add golden fixture directory for `.lqs` and `.lgl` projects
   - Note: completed on 2026-05-12. Expanded schema and Russian locale golden fixtures to cover enums, formatter annotations, docs, forms, selector maps, plural-shaped maps, nested form attributes, helper functions, messages, placeholders, and grouped messages.
   - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
+- [ ] Add behavior-complete syntax fixtures
+  - Note:
+  - Evidence:
+- [ ] Reject fragment-only syntax fixtures unless they are explicit invalid diagnostic fixtures
+  - Note:
+  - Evidence:
 - [ ] Add `insta` snapshot review workflow
   - Note:
   - Evidence:
@@ -110,6 +134,9 @@ Checkpoint acceptance:
 Checkpoint acceptance:
 
 - [ ] No implementation task can be marked complete without test evidence
+  - Note:
+  - Evidence:
+- [ ] `.lqs` and `.lgl` golden fixtures are complete realistic programs
   - Note:
   - Evidence:
 - [ ] CI runs the full required test suite
@@ -491,10 +518,26 @@ Checkpoint acceptance:
 - [x] Add offline build mode
   - Note: completed on 2026-05-13. Added `require_offline_cache` so build/check paths can fail without downloading when CLDR cache is absent or incomplete.
   - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
+- [ ] Fetch only required CLDR JSON files
+  - Note:
+  - Evidence:
+- [ ] Generate compiled Rust CLDR tables from `cldr-json`
+  - Note:
+  - Evidence:
+- [ ] Remove runtime CLDR JSON parsing from production paths
+  - Note:
+  - Evidence:
+- [ ] Ensure CLDR data is embedded as typed compiled data, not raw `include_str!` JSON blobs
+  - Note:
+  - Evidence:
 
 Checkpoint acceptance:
 
 - [ ] Normal `linguini build` does not download CLDR
+  - Note:
+- [ ] CLDR fetch/update does not download or vendor the full `cldr-json` repository
+  - Note:
+- [ ] Production binary can evaluate required CLDR rules without runtime JSON files
   - Note:
 - [x] Cached CLDR data is reused
   - Note: completed on 2026-05-13. Plural rules are loaded from the existing cache path without fetching.
@@ -619,6 +662,10 @@ Checkpoint acceptance:
 - [x] Add deterministic output tests
   - Note: completed on 2026-05-13. Added generated TypeScript file-tree snapshots covering shared helpers, locale modules, index API, enums, aliases, forms, local functions, and messages.
   - Evidence: tests/fixtures/golden/snapshots/ts; `cargo test -p linguini-codegen-ts`
+- [ ] Generate facade with switchable active language source
+  - Note:
+- [ ] Add SvelteKit-compatible locale provider example for cookies, route data, or UI language
+  - Note:
 
 Checkpoint acceptance:
 
@@ -631,6 +678,8 @@ Checkpoint acceptance:
 - [x] Counted example returns expected plural strings
   - Note: completed on 2026-05-13. Compiled generated TypeScript and checked Russian `counted` plural output for `1 apple` and `5 orange`.
   - Evidence: `bash scripts/validate-generated-ts.sh`
+- [ ] Application code can call `lgl.*(...)` while changing one locale source variable to switch output language
+  - Note:
 
 ---
 
@@ -646,12 +695,16 @@ Checkpoint acceptance:
   - Note:
 - [ ] Add deterministic output tests
   - Note:
+- [ ] Generate facade with switchable active language source
+  - Note:
 
 Checkpoint acceptance:
 
 - [ ] Generated JS runs in Node
   - Note:
 - [ ] Output has no TypeScript dependency
+  - Note:
+- [ ] Application code can call `lgl.*(...)` while changing one locale source variable to switch output language
   - Note:
 
 ---
@@ -674,6 +727,8 @@ Checkpoint acceptance:
   - Note:
 - [ ] Add deterministic output tests
   - Note:
+- [ ] Generate facade/provider API with switchable active language source
+  - Note:
 
 Checkpoint acceptance:
 
@@ -682,6 +737,8 @@ Checkpoint acceptance:
 - [ ] Delivery example returns expected Russian strings
   - Note:
 - [ ] Static messages return `&'static str` where possible
+  - Note:
+- [ ] Caller code can switch output language through one facade/provider value instead of per-message locale arguments
   - Note:
 
 ---

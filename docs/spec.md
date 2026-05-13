@@ -598,6 +598,10 @@ Required CLDR domains:
 - date-time formatting
 - unit formatting, later stage
 
+CLDR ingestion must be selective. Fetch/update commands must download or copy only the CLDR JSON files required for the configured locales and enabled formatter domains. They must not fetch, vendor, or require the entire `cldr-json` repository when a smaller file set is sufficient.
+
+Production binaries must contain the CLDR rules they need as compiled data, not as runtime JSON files and not as raw `include_str!` JSON blobs that are parsed at startup. The `linguini-cldr` crate must provide a macro/code-generation step that reads the required files from the `cldr-json` repository layout and emits Rust source for compact, typed CLDR rule/data tables. Runtime code must use those generated tables directly.
+
 ### 7.2 CLDR cache
 
 CLDR data must be cached on the developer machine.
@@ -888,6 +892,8 @@ export function configureLinguini(options: {
 }): { readonly lgl: Linguini }
 ```
 
+The public generated API must be structured so application code can switch the active output language by changing one locale source variable or provider, without changing every message call site. For example, a SvelteKit application must be able to connect that source variable to cookies, route data, or the UI language, while user code continues to call `lgl.delivered(...)` or another generated facade method. The same principle applies to JavaScript and Rust targets: locale selection belongs at the generated facade/provider boundary, not in every message call.
+
 ### 11.3 JavaScript output
 
 Generated output:
@@ -1116,6 +1122,7 @@ Required module boundaries:
 
 Required:
 
+- implementation must follow the technology stack in this specification unless the specification is explicitly updated first
 - no large catch-all modules
 - no business logic in `main.rs`
 - no target-specific logic in analyzer
@@ -1124,6 +1131,7 @@ Required:
 - deterministic output
 - no feature is complete until its automated tests are committed
 - no bug fix is accepted without a regression test
+- no implementation slice may simplify, skip, or omit specified behavior in order to mark a stage complete
 
 ### 17.4 Testing policy
 
@@ -1148,6 +1156,8 @@ Coverage requirements:
 - coverage percentage is a guardrail, not a replacement for semantic tests;
 - generated files and vendored files are excluded from coverage metrics;
 - every semantic rule in this specification must have at least one test fixture.
+
+Syntax fixtures must be behavior-complete, valid Linguini programs or intentionally invalid programs with a precise diagnostic purpose. Golden `.lqs` and `.lgl` fixtures must exercise complete declarations and realistic message bodies, not abbreviated fragments that only satisfy the current parser shape.
 
 Generated output validation:
 
@@ -1175,6 +1185,10 @@ A checklist item may be marked complete only when:
 3. the relevant test command is recorded as evidence;
 4. diagnostics or generated outputs have snapshots when applicable.
 
+Sequential delivery rule:
+
+Work may move from one stage or checklist part to the next only after the previous part is fully complete, including tests, snapshots, generated-output validation, and recorded evidence. If a later part is worked on early for dependency discovery, it must not be marked complete and must not be used to bypass unfinished acceptance criteria in the earlier part.
+
 ### 17.5 Documentation
 
 Each public crate must provide:
@@ -1187,6 +1201,8 @@ Each public crate must provide:
 ---
 
 ## 18. Delivery Plan
+
+The delivery plan is sequential. A stage is complete only when all of its checkpoint results and checklist acceptance items are complete with evidence. Moving to the next stage before that point is not allowed except for short exploratory spikes that are explicitly left incomplete.
 
 ### Stage 1: Project model and file discovery
 
