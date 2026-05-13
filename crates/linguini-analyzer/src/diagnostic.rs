@@ -63,6 +63,17 @@ impl Diagnostic {
         }
     }
 
+    pub fn warning(message: impl Into<String>, span: Span) -> Self {
+        Self {
+            severity: DiagnosticSeverity::Warning,
+            message: message.into(),
+            span,
+            note: None,
+            related: Vec::new(),
+            quick_fixes: Vec::new(),
+        }
+    }
+
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.note = Some(note.into());
         self
@@ -96,9 +107,18 @@ pub fn render_diagnostics(
     source: &str,
     diagnostics: &[Diagnostic],
 ) -> Result<String, RenderError> {
+    render_diagnostics_with_color(path, source, diagnostics, false)
+}
+
+pub fn render_diagnostics_with_color(
+    path: &str,
+    source: &str,
+    diagnostics: &[Diagnostic],
+    color: bool,
+) -> Result<String, RenderError> {
     let source = Source::from(source);
     let config = Config::default()
-        .with_color(false)
+        .with_color(color)
         .with_char_set(CharSet::Ascii)
         .with_index_type(IndexType::Byte);
     let mut output = Vec::new();

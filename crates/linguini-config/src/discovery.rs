@@ -162,6 +162,18 @@ mod tests {
         assert_eq!(namespace, "shop.forms.fruit");
     }
 
+
+    #[test]
+    fn derives_locale_namespace_matching_schema_file_layout() {
+        let namespace = namespace_from_path(
+            Path::new("locales"),
+            Path::new("locales/shop/ru.lgl"),
+            false,
+        );
+
+        assert_eq!(namespace, "shop");
+    }
+
     #[test]
     fn builds_top_down_locale_scope_chain() {
         let chain = locale_scope_chain("linguini/locale", "linguini/locale/shop/delivery/ru.lgl");

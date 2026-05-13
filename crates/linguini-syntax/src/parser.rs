@@ -74,9 +74,35 @@ pub fn parse_schema_with_recovery(source: &str) -> ParseOutput<SchemaFile> {
 }
 
 fn parse_error_from_rich(error: Rich<'_, TokenKind, Span>) -> ParseError {
+    let found = error
+        .found()
+        .map(ToString::to_string)
+        .unwrap_or_else(|| "end of input".to_owned());
+    let expected = join_expected(
+        error
+            .expected()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+    );
+
     ParseError {
-        message: format!("{error:?}"),
+        message: format!("found {found} expected {expected}"),
         span: *error.span(),
+    }
+}
+
+fn join_expected(mut expected: Vec<String>) -> String {
+    expected.sort();
+    expected.dedup();
+
+    let Some(last) = expected.pop() else {
+        return "a valid syntax element".to_owned();
+    };
+
+    if expected.is_empty() {
+        last
+    } else {
+        format!("{}, or {last}", expected.join(", "))
     }
 }
 

@@ -1,6 +1,7 @@
 mod branch_coverage;
 mod diagnostic;
 mod expression;
+mod locale;
 mod message_coverage;
 mod reference;
 
@@ -8,12 +9,16 @@ pub use branch_coverage::{
     analyze_branch_coverage, require_other_branch, BranchCoverage, NamedSpan,
 };
 pub use diagnostic::{
-    render_diagnostics, Diagnostic, DiagnosticSeverity, QuickFix, RelatedSpan, RenderError,
-    Replacement,
+    render_diagnostics, render_diagnostics_with_color, Diagnostic, DiagnosticSeverity, QuickFix,
+    RelatedSpan, RenderError, Replacement,
 };
 pub use expression::{
     analyze_expressions, analyze_function_patterns, ExpressionAnalysis, FormProperty,
     FormSignature, FunctionSignature, MessageToAnalyze, Variable,
+};
+pub use locale::{
+    analyze_locale_coverage, analyze_locale_file, analyze_locale_message_coverage,
+    locale_public_messages, schema_public_messages, ImplementedLocaleMessage, RequiredLocaleMessage,
 };
 pub use message_coverage::{analyze_message_coverage, PublicMessage};
 pub use reference::{detect_reference_cycles, ReferenceNode};
@@ -24,12 +29,13 @@ pub const CRATE_PURPOSE: &str = "semantic analysis";
 mod tests {
     use super::{
         analyze_branch_coverage, analyze_expressions, analyze_function_patterns,
+        analyze_locale_coverage, analyze_locale_file, analyze_locale_message_coverage,
         analyze_message_coverage, detect_reference_cycles, render_diagnostics,
         require_other_branch, BranchCoverage, Diagnostic, ExpressionAnalysis, FormProperty,
         FormSignature, FunctionSignature, MessageToAnalyze, NamedSpan, PublicMessage, QuickFix,
-        ReferenceNode, Variable,
+        ReferenceNode, RequiredLocaleMessage, Variable,
     };
-    use linguini_syntax::{parse_locale, Span};
+    use linguini_syntax::{parse_locale, parse_schema, Span};
 
     #[test]
     fn renders_primary_span_related_span_note_and_quick_fix() {
@@ -44,6 +50,56 @@ mod tests {
         assert_eq!(
             rendered,
             include_str!("../../../tests/fixtures/golden/snapshots/diagnostic-schema-syntax.txt")
+        );
+    }
+
+    #[test]
+    fn locale_analysis_does_not_warn_about_empty_files_without_schema_context() {
+        let locale = parse_locale("").expect("empty locale is syntactically valid");
+        let diagnostics = analyze_locale_file(&locale);
+
+        assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn locale_coverage_reports_missing_schema_message() {
+        let schema = parse_schema("delivery()\ncounted()\n").expect("schema parses");
+        let locale = parse_locale("delivery = Delivered\n").expect("locale parses");
+        let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "missing locale implementation for schema message `counted`"
+        );
+    }
+
+    #[test]
+    fn locale_coverage_reports_missing_grouped_schema_message() {
+        let schema = parse_schema("email_input {\n  label()\n  placeholder()\n}\n")
+            .expect("schema parses");
+        let locale = parse_locale("email_input {\n  label = Email\n}\n").expect("locale parses");
+        let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "missing locale implementation for schema message `email_input.placeholder`"
+        );
+    }
+
+    #[test]
+    fn locale_message_coverage_uses_locale_span_for_missing_messages() {
+        let diagnostics = analyze_locale_message_coverage(
+            &[RequiredLocaleMessage::new("delivery", Span::new(10, 18))],
+            &[],
+            Span::new(0, 0),
+        );
+
+        assert_eq!(diagnostics[0].span, Span::new(0, 0));
+        assert_eq!(
+            diagnostics[0].message,
+            "missing locale implementation for schema message `delivery`"
         );
     }
 

@@ -1,21 +1,39 @@
 use clap::{Parser, Subcommand};
-use linguini_analyzer::{render_diagnostics, Diagnostic};
+use linguini_analyzer::{
+    analyze_locale_coverage, analyze_locale_file, render_diagnostics_with_color, Diagnostic,
+};
 use linguini_codegen_ts::{generate_plural_function, generate_typescript_files, TypeScriptOptions};
 use linguini_config::{
     discover_locale_files, discover_schema_files, parse_config, LinguiniConfig,
+    LocaleFile as DiscoveredLocaleFile, SchemaFile as DiscoveredSchemaFile,
     TypeScriptTargetConfig, DEFAULT_CONFIG_FILE,
 };
 use linguini_ir::{ensure_no_unresolved_references, lower_locale, lower_schema, IrModule};
 use linguini_syntax::{
     parse_locale, parse_locale_with_recovery, parse_schema, parse_schema_with_recovery,
+    LocaleFile as LocaleAst, SchemaFile as SchemaAst,
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{self, Display};
 use std::fs;
-use std::io;
+use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 
 pub type CliResult<T> = Result<T, CliError>;
+
+#[derive(Debug, Clone)]
+struct ParsedSchemaSource {
+    file: DiscoveredSchemaFile,
+    source: String,
+    ast: SchemaAst,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedLocaleSource {
+    file: DiscoveredLocaleFile,
+    source: String,
+    ast: LocaleAst,
+}
 
 #[derive(Debug)]
 pub enum CliError {
@@ -93,8 +111,8 @@ pub fn build_project(root: &Path) -> CliResult<String> {
 }
 
 pub fn init_project(root: &Path) -> CliResult<String> {
-    let schema_dir = root.join("linguini/schema");
-    let locale_dir = root.join("linguini/locale");
+    let schema_dir = root.join("schema");
+    let locale_dir = root.join("locales");
     create_dir_all(&schema_dir)?;
     create_dir_all(&locale_dir)?;
 
@@ -105,17 +123,18 @@ pub fn init_project(root: &Path) -> CliResult<String> {
 
     Ok(format!(
         "created {}\ncreated {}\ncreated {}\n",
-        DEFAULT_CONFIG_FILE, "linguini/schema", "linguini/locale"
+        DEFAULT_CONFIG_FILE, "schema", "locales"
     ))
 }
 
 pub fn check_project(root: &Path) -> CliResult<String> {
     let config = read_project_config(root)?;
-    let schema_root = root.join(&config.paths.schema);
-    let locale_root = root.join(&config.paths.locale);
-    let schema_files = discover_schema_files(schema_root)?;
-    let locale_files = discover_locale_files(locale_root)?;
-    let mut diagnostic_output = String::new();
+    let schema_files = discover_schema_files(root.join(&config.paths.schema))?;
+    let locale_files = discover_locale_files(root.join(&config.paths.locale))?;
+    let mut parsed_schema_files = Vec::new();
+    let mut parsed_locale_files = Vec::new();
+    let mut error_output = String::new();
+    let mut warning_output = String::new();
 
     let mut output = String::new();
     output.push_str("schema files:\n");
@@ -128,13 +147,20 @@ pub fn check_project(root: &Path) -> CliResult<String> {
         let source = read_file(&file.path)?;
         let parsed = parse_schema_with_recovery(&source);
         if !parsed.errors.is_empty() {
-            diagnostic_output.push_str(&render_parse_errors(
+            error_output.push_str(&render_parse_errors(
                 root,
                 &file.path,
                 &source,
                 "schema syntax error",
                 parsed.errors,
             ));
+        }
+        if let Some(ast) = parsed.ast {
+            parsed_schema_files.push(ParsedSchemaSource {
+                file: file.clone(),
+                source,
+                ast,
+            });
         }
     }
 
@@ -149,18 +175,48 @@ pub fn check_project(root: &Path) -> CliResult<String> {
         let source = read_file(&file.path)?;
         let parsed = parse_locale_with_recovery(&source);
         if !parsed.errors.is_empty() {
-            diagnostic_output.push_str(&render_parse_errors(
+            error_output.push_str(&render_parse_errors(
                 root,
                 &file.path,
                 &source,
                 "locale syntax error",
                 parsed.errors,
             ));
+        } else if let Some(locale) = parsed.ast.as_ref() {
+            let diagnostics = analyze_locale_file(locale);
+            if !diagnostics.is_empty() {
+                warning_output.push_str(&render_file_diagnostics(
+                    root,
+                    &file.path,
+                    &source,
+                    &diagnostics,
+                ));
+            }
+        }
+        if let Some(ast) = parsed.ast {
+            parsed_locale_files.push(ParsedLocaleSource {
+                file: file.clone(),
+                source,
+                ast,
+            });
         }
     }
 
-    if !diagnostic_output.is_empty() {
-        return Err(CliError::Diagnostics(diagnostic_output));
+    if error_output.is_empty() {
+        error_output.push_str(&render_project_coverage_diagnostics(
+            root,
+            &config,
+            &parsed_schema_files,
+            &parsed_locale_files,
+        )?);
+    }
+
+    if !error_output.is_empty() {
+        return Err(CliError::Diagnostics(error_output));
+    }
+
+    if !warning_output.is_empty() {
+        output.push_str(&warning_output);
     }
 
     Ok(output)
@@ -179,35 +235,44 @@ fn generate_typescript_target(
     config: &LinguiniConfig,
     target: &TypeScriptTargetConfig,
 ) -> CliResult<String> {
-    let schema = load_schema_ir(root, config)?;
-    let locale_files = discover_locale_files(root.join(&config.paths.locale))?;
+    let schema_files = load_schema_sources(root, config)?;
+    let schema_namespaces: BTreeSet<_> = schema_files
+        .iter()
+        .map(|schema| schema.file.namespace.clone())
+        .collect();
+    let schema = merge_schema_ir(&schema_files);
+    let locale_files = load_locale_sources(root, config)?;
+    let locale_index = locale_index(&locale_files);
     let out_dir = root.join(&target.out);
     let mut output = String::from("generated files:\n");
     let mut written_shared = BTreeSet::new();
     let mut generated_locales = Vec::new();
 
+    reject_locale_files_without_schema_namespace(root, &schema_namespaces, &locale_files)?;
+
     for locale in &config.project.locales {
         let mut locale_ir = IrModule::default();
-        let mut matched_locale_files = Vec::new();
-        for file in locale_files.iter().filter(|file| &file.locale == locale) {
-            matched_locale_files.push(path_for_output(root, &file.path));
-            let source = read_file(&file.path)?;
-            let parsed = parse_locale(&source).map_err(|errors| {
-                CliError::Diagnostics(render_parse_errors(
-                    root,
-                    &file.path,
-                    &source,
-                    "locale syntax error",
-                    errors,
-                ))
-            })?;
-            merge_module(&mut locale_ir, lower_locale(&parsed));
-        }
 
-        if matched_locale_files.is_empty() {
-            return Err(CliError::Diagnostics(format!(
-                "missing locale files for configured locale `{locale}`\n"
-            )));
+        for schema_file in &schema_files {
+            let Some(locale_file) = locale_index.get(&(schema_file.file.namespace.clone(), locale.clone())) else {
+                return Err(CliError::Diagnostics(format!(
+                    "missing locale file `{}` for schema namespace `{}` and locale `{locale}`\n",
+                    path_for_output(root, &expected_locale_path(root, config, &schema_file.file.namespace, locale)),
+                    schema_file.file.namespace
+                )));
+            };
+
+            let diagnostics = analyze_locale_coverage(&schema_file.ast, &locale_file.ast);
+            if !diagnostics.is_empty() {
+                return Err(CliError::Diagnostics(render_file_diagnostics(
+                    root,
+                    &locale_file.file.path,
+                    &locale_file.source,
+                    &diagnostics,
+                )));
+            }
+
+            merge_module(&mut locale_ir, lower_locale(&locale_file.ast));
         }
 
         if let Err(errors) = ensure_no_unresolved_references(&schema, &locale_ir) {
@@ -280,11 +345,11 @@ fn generate_typescript_target(
     Ok(output)
 }
 
-fn load_schema_ir(root: &Path, config: &LinguiniConfig) -> CliResult<IrModule> {
-    let mut schema = IrModule::default();
+fn load_schema_sources(root: &Path, config: &LinguiniConfig) -> CliResult<Vec<ParsedSchemaSource>> {
+    let mut parsed = Vec::new();
     for file in discover_schema_files(root.join(&config.paths.schema))? {
         let source = read_file(&file.path)?;
-        let parsed = parse_schema(&source).map_err(|errors| {
+        let ast = parse_schema(&source).map_err(|errors| {
             CliError::Diagnostics(render_parse_errors(
                 root,
                 &file.path,
@@ -293,9 +358,165 @@ fn load_schema_ir(root: &Path, config: &LinguiniConfig) -> CliResult<IrModule> {
                 errors,
             ))
         })?;
-        merge_module(&mut schema, lower_schema(&parsed));
+        parsed.push(ParsedSchemaSource { file, source, ast });
     }
-    Ok(schema)
+    Ok(parsed)
+}
+
+fn load_locale_sources(root: &Path, config: &LinguiniConfig) -> CliResult<Vec<ParsedLocaleSource>> {
+    let mut parsed = Vec::new();
+    for file in discover_locale_files(root.join(&config.paths.locale))? {
+        let source = read_file(&file.path)?;
+        let ast = parse_locale(&source).map_err(|errors| {
+            CliError::Diagnostics(render_parse_errors(
+                root,
+                &file.path,
+                &source,
+                "locale syntax error",
+                errors,
+            ))
+        })?;
+        parsed.push(ParsedLocaleSource { file, source, ast });
+    }
+    Ok(parsed)
+}
+
+fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> IrModule {
+    let mut schema = IrModule::default();
+    for file in schema_files {
+        merge_module(&mut schema, lower_schema(&file.ast));
+    }
+    schema
+}
+
+fn locale_index<'a>(
+    locale_files: &'a [ParsedLocaleSource],
+) -> BTreeMap<(String, String), &'a ParsedLocaleSource> {
+    locale_files
+        .iter()
+        .map(|file| {
+            (
+                (file.file.namespace.clone(), file.file.locale.clone()),
+                file,
+            )
+        })
+        .collect()
+}
+
+fn render_project_coverage_diagnostics(
+    root: &Path,
+    config: &LinguiniConfig,
+    schema_files: &[ParsedSchemaSource],
+    locale_files: &[ParsedLocaleSource],
+) -> CliResult<String> {
+    let schema_namespaces: BTreeSet<_> = schema_files
+        .iter()
+        .map(|schema| schema.file.namespace.clone())
+        .collect();
+    let locale_index = locale_index(locale_files);
+    let mut output = String::new();
+
+    for schema_file in schema_files {
+        for locale in &config.project.locales {
+            match locale_index.get(&(schema_file.file.namespace.clone(), locale.clone())) {
+                Some(locale_file) => {
+                    let diagnostics = analyze_locale_coverage(&schema_file.ast, &locale_file.ast);
+                    if !diagnostics.is_empty() {
+                        output.push_str(&render_file_diagnostics(
+                            root,
+                            &locale_file.file.path,
+                            &locale_file.source,
+                            &diagnostics,
+                        ));
+                    }
+                }
+                None => {
+                    let expected = expected_locale_path(root, config, &schema_file.file.namespace, locale);
+                    let diagnostic = Diagnostic::error(
+                        format!(
+                            "missing locale file for schema namespace `{}` and locale `{locale}`",
+                            schema_file.file.namespace
+                        ),
+                        schema_file.ast.span,
+                    )
+                    .with_note(format!("create {}", path_for_output(root, &expected)));
+                    output.push_str(&render_file_diagnostics(
+                        root,
+                        &schema_file.file.path,
+                        &schema_file.source,
+                        &[diagnostic],
+                    ));
+                }
+            }
+        }
+    }
+
+    for locale_file in locale_files {
+        if !schema_namespaces.contains(&locale_file.file.namespace) {
+            let diagnostic = Diagnostic::error(
+                format!(
+                    "locale namespace `{}` does not match any schema file",
+                    namespace_display(&locale_file.file.namespace)
+                ),
+                locale_file.ast.span,
+            )
+            .with_note("place locale files under locales/<schema-namespace>/<locale>.lgl");
+            output.push_str(&render_file_diagnostics(
+                root,
+                &locale_file.file.path,
+                &locale_file.source,
+                &[diagnostic],
+            ));
+        }
+    }
+
+    Ok(output)
+}
+
+fn reject_locale_files_without_schema_namespace(
+    root: &Path,
+    schema_namespaces: &BTreeSet<String>,
+    locale_files: &[ParsedLocaleSource],
+) -> CliResult<()> {
+    for locale_file in locale_files {
+        if !schema_namespaces.contains(&locale_file.file.namespace) {
+            return Err(CliError::Diagnostics(render_file_diagnostics(
+                root,
+                &locale_file.file.path,
+                &locale_file.source,
+                &[Diagnostic::error(
+                    format!(
+                        "locale namespace `{}` does not match any schema file",
+                        namespace_display(&locale_file.file.namespace)
+                    ),
+                    locale_file.ast.span,
+                )
+                .with_note("place locale files under locales/<schema-namespace>/<locale>.lgl")],
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn expected_locale_path(
+    root: &Path,
+    config: &LinguiniConfig,
+    namespace: &str,
+    locale: &str,
+) -> PathBuf {
+    let mut path = root.join(&config.paths.locale);
+    for part in namespace.split('.').filter(|part| !part.is_empty()) {
+        path.push(part);
+    }
+    path.join(format!("{locale}.lgl"))
+}
+
+fn namespace_display(namespace: &str) -> String {
+    if namespace.is_empty() {
+        "<root>".to_owned()
+    } else {
+        namespace.to_owned()
+    }
 }
 
 fn merge_module(target: &mut IrModule, source: IrModule) {
@@ -439,8 +660,8 @@ default_locale = "en"
 locales = ["en"]
 
 [paths]
-schema = "linguini/schema"
-locale = "linguini/locale"
+schema = "schema"
+locale = "locales"
 
 [targets.ts]
 out = "src/generated/linguini"
@@ -484,15 +705,28 @@ fn render_parse_errors(
     note: &str,
     errors: Vec<linguini_syntax::ParseError>,
 ) -> String {
-    let relative_path = path_for_output(root, path);
     let diagnostics: Vec<_> = errors
         .into_iter()
         .map(|error| Diagnostic::error(error.message, error.span).with_note(note))
         .collect();
 
-    render_diagnostics(&relative_path, source, &diagnostics).unwrap_or_else(|error| {
-        format!("failed to render diagnostics for {relative_path}: {error}")
-    })
+    render_file_diagnostics(root, path, source, &diagnostics)
+}
+
+fn render_file_diagnostics(
+    root: &Path,
+    path: &Path,
+    source: &str,
+    diagnostics: &[Diagnostic],
+) -> String {
+    let relative_path = path_for_output(root, path);
+    render_diagnostics_with_color(
+        &relative_path,
+        source,
+        diagnostics,
+        std::io::stderr().is_terminal(),
+    )
+    .unwrap_or_else(|error| format!("failed to render diagnostics for {relative_path}: {error}"))
 }
 
 #[cfg(test)]
@@ -523,8 +757,8 @@ mod tests {
         init_project(project.path()).expect("init project");
 
         assert!(project.path().join("linguini.toml").exists());
-        assert!(project.path().join("linguini/schema").is_dir());
-        assert!(project.path().join("linguini/locale").is_dir());
+        assert!(project.path().join("schema").is_dir());
+        assert!(project.path().join("locales").is_dir());
         let config = fs::read_to_string(project.path().join("linguini.toml")).expect("config");
         assert!(!config.contains("cache"));
         assert!(config.contains("[targets.ts]"));
@@ -536,8 +770,8 @@ mod tests {
         let project = temp_project_dir("check_lists_discovered_files");
         init_project(project.path()).expect("init project");
 
-        let schema_dir = project.path().join("linguini/schema/shop");
-        let locale_dir = project.path().join("linguini/locale/shop/delivery");
+        let schema_dir = project.path().join("schema/shop");
+        let locale_dir = project.path().join("locales/shop/delivery");
         fs::create_dir_all(&schema_dir).expect("schema dir");
         fs::create_dir_all(&locale_dir).expect("locale dir");
         fs::write(schema_dir.join("delivery.lqs"), "delivery()\n").expect("schema file");
@@ -545,8 +779,8 @@ mod tests {
 
         let output = check_project(project.path()).expect("check project");
 
-        assert!(output.contains("linguini/schema/shop/delivery.lqs [shop.delivery]"));
-        assert!(output.contains("linguini/locale/shop/delivery/en.lgl [en:shop.delivery]"));
+        assert!(output.contains("schema/shop/delivery.lqs [shop.delivery]"));
+        assert!(output.contains("locales/shop/delivery/en.lgl [en:shop.delivery]"));
     }
 
     #[test]
@@ -554,7 +788,7 @@ mod tests {
         let project = temp_project_dir("check_reports_schema_syntax_diagnostics");
         init_project(project.path()).expect("init project");
 
-        let schema_dir = project.path().join("linguini/schema/shop");
+        let schema_dir = project.path().join("schema/shop");
         fs::create_dir_all(&schema_dir).expect("schema dir");
         fs::write(schema_dir.join("broken.lqs"), "delivery(fruit: Fruit\n").expect("schema file");
 
@@ -562,8 +796,45 @@ mod tests {
         let rendered = error.to_string();
 
         assert!(rendered.contains("Error:"));
-        assert!(rendered.contains("linguini/schema/shop/broken.lqs"));
+        assert!(rendered.contains("schema/shop/broken.lqs"));
         assert!(rendered.contains("schema syntax error"));
+    }
+
+    #[test]
+    fn check_reports_missing_schema_message_for_empty_locale_file() {
+        let project = temp_project_dir("check_reports_missing_schema_message");
+        init_project(project.path()).expect("init project");
+
+        let schema_dir = project.path().join("schema/shop");
+        let locale_dir = project.path().join("locales/shop/delivery");
+        fs::create_dir_all(&schema_dir).expect("schema dir");
+        fs::create_dir_all(&locale_dir).expect("locale dir");
+        fs::write(schema_dir.join("delivery.lqs"), "delivery()\n").expect("schema file");
+        fs::write(locale_dir.join("en.lgl"), "").expect("locale file");
+
+        let error = check_project(project.path()).expect_err("check fails on missing message");
+        let rendered = error.to_string();
+
+        assert!(rendered.contains("missing locale implementation for schema message `delivery`"));
+        assert!(rendered.contains("locales/shop/delivery/en.lgl"));
+        assert!(!rendered.contains("locale file contains no declarations"));
+    }
+
+    #[test]
+    fn check_rejects_root_locale_file_for_schema_namespace() {
+        let project = temp_project_dir("check_rejects_root_locale_file");
+        init_project(project.path()).expect("init project");
+
+        fs::write(project.path().join("schema/shop.lqs"), "delivery()\n").expect("schema file");
+        fs::write(project.path().join("locales/en.lgl"), "delivery = Delivered\n")
+            .expect("locale file");
+
+        let error = check_project(project.path()).expect_err("check fails on misplaced locale");
+        let rendered = error.to_string();
+
+        assert!(rendered.contains("missing locale file for schema namespace `shop` and locale `en`"));
+        assert!(rendered.contains("create locales/shop/en.lgl"));
+        assert!(rendered.contains("locale namespace `<root>` does not match any schema file"));
     }
 
     #[test]
@@ -571,8 +842,8 @@ mod tests {
         let project = temp_project_dir("build_generates_typescript");
         init_project(project.path()).expect("init project");
 
-        let schema_dir = project.path().join("linguini/schema/shop");
-        let locale_dir = project.path().join("linguini/locale/shop/delivery");
+        let schema_dir = project.path().join("schema/shop");
+        let locale_dir = project.path().join("locales/shop/delivery");
         fs::create_dir_all(&schema_dir).expect("schema dir");
         fs::create_dir_all(&locale_dir).expect("locale dir");
         fs::write(schema_dir.join("delivery.lqs"), "delivery(count: Number)\n").expect("schema file");

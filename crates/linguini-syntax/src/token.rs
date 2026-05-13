@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
     pub start: usize,
@@ -73,4 +75,31 @@ pub enum TokenKind {
     Whitespace,
     Comment(String),
     DocComment(String),
+}
+
+impl fmt::Display for TokenKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ident(value) => write!(f, "identifier `{value}`"),
+            Self::LocaleTag(value) => write!(f, "locale tag `{value}`"),
+            Self::String(_) => f.write_str("string literal"),
+            Self::RawText(_) => f.write_str("text"),
+            Self::Error(value) => write!(f, "invalid token `{value}`"),
+            Self::LBrace => f.write_str("`{`"),
+            Self::RBrace => f.write_str("`}`"),
+            Self::LParen => f.write_str("`(`"),
+            Self::RParen => f.write_str("`)`"),
+            Self::Comma => f.write_str("`,`"),
+            Self::Colon => f.write_str("`:`"),
+            Self::Equals => f.write_str("`=`"),
+            Self::Arrow => f.write_str("`=>`"),
+            Self::Dot => f.write_str("`.`"),
+            Self::At => f.write_str("`@`"),
+            Self::TripleQuote => f.write_str("`\"\"\"`"),
+            Self::Newline => f.write_str("newline"),
+            Self::Whitespace => f.write_str("whitespace"),
+            Self::Comment(_) => f.write_str("comment"),
+            Self::DocComment(_) => f.write_str("doc comment"),
+        }
+    }
 }
