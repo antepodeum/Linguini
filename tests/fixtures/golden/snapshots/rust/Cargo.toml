@@ -1,0 +1,9 @@
+[package]
+name = "linguini-generated-rust-fixture"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "linguini_generated"
+path = "src/lib.rs"

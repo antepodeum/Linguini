@@ -13,6 +13,7 @@ Required gates:
 - `./scripts/check-syntax-fixtures.sh`
 - `./scripts/review-snapshots.sh --check`
 - `./scripts/validate-generated-js.sh`
+- `./scripts/validate-generated-rust.sh`
 
 Golden Linguini projects live under `tests/fixtures/golden`. Snapshot-style tests should compare
 stable output with committed expected files, and may move to `insta` once external dependencies are

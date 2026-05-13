@@ -25,6 +25,8 @@ jobs:
         run: ./scripts/review-snapshots.sh --check
       - name: Validate generated JavaScript
         run: ./scripts/validate-generated-js.sh
+      - name: Validate generated Rust
+        run: ./scripts/validate-generated-rust.sh
       - name: Check spec gates
         run: ./scripts/check-spec-gates.sh
       - name: Clippy

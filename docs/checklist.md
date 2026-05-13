@@ -118,9 +118,9 @@ Checkpoint acceptance:
 - [x] Add generated JavaScript validation fixture
   - Note: completed on 2026-05-13. Added ESM JavaScript generated-output fixture and Node validation script covering delivery, plural output, formatter output, and facade access.
   - Evidence: tests/fixtures/golden/snapshots/js; scripts/validate-generated-js.sh; `./scripts/validate-generated-js.sh`
-- [ ] Add generated Rust validation fixture
-  - Note:
-  - Evidence:
+- [x] Add generated Rust validation fixture
+  - Note: completed on 2026-05-13. Added generated Rust fixture crate and validation script covering delivery, plural output, and grouped message values.
+  - Evidence: tests/fixtures/golden/snapshots/rust; scripts/validate-generated-rust.sh; `./scripts/validate-generated-rust.sh`
 - [ ] Add regression-test rule to contribution docs
   - Note:
   - Evidence:
