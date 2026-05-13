@@ -1,0 +1,103 @@
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct IrModule {
+    pub messages: Vec<IrMessage>,
+    pub forms: Vec<IrForm>,
+    pub functions: Vec<IrFunction>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrMessage {
+    pub name: String,
+    pub docs: Vec<String>,
+    pub parameters: Vec<IrParameter>,
+    pub body: Option<IrText>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrParameter {
+    pub name: String,
+    pub ty: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrForm {
+    pub name: String,
+    pub docs: Vec<String>,
+    pub variants: Vec<IrFormVariant>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrFormVariant {
+    pub name: String,
+    pub selector: Option<String>,
+    pub entries: Vec<IrFormEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrFormEntry {
+    Attribute { name: String, value: IrValue },
+    Branch(IrBranch),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrValue {
+    Text(IrText),
+    Map(Vec<IrBranch>),
+    Object(Vec<IrFormEntry>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrFunction {
+    pub name: String,
+    pub docs: Vec<String>,
+    pub parameters: Vec<String>,
+    pub branches: Vec<IrFunctionBranch>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrFunctionBranch {
+    pub pattern: IrBranchPattern,
+    pub value: IrText,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrBranchPattern {
+    Names(Vec<String>),
+    Else,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrBranch {
+    pub keys: Vec<String>,
+    pub value: IrText,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrText {
+    pub parts: Vec<IrTextPart>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrTextPart {
+    Text(String),
+    Placeholder(IrExpression),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrExpression {
+    pub path: Vec<String>,
+    pub arguments: Vec<IrExpression>,
+    pub formatters: Vec<IrFormatter>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrFormatter {
+    pub name: String,
+    pub arguments: Vec<IrFormatterArgument>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrFormatterArgument {
+    pub name: String,
+    pub value: String,
+}

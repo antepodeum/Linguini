@@ -1,6 +1,11 @@
 Repository state handoff - 2026-05-13
 
 Completed slice:
+- Added modular IR crate split into `model.rs`, `lower.rs`, and `tests.rs`.
+- Added IR nodes for messages, parameters, forms, form variants, form entries, branches, functions, text parts, expressions, and formatter annotations.
+- Added schema-to-IR lowering for standalone and grouped message signatures.
+- Added locale-to-IR lowering for standalone/grouped messages, forms, selector/plural maps, nested form objects, local functions, placeholders, and formatter annotations.
+- Added full stable IR debug snapshots for schema and Russian locale fixtures.
 - Added CLDR plural operand extraction for `n i v w f t c e`, including visible fraction digit handling.
 - Added CLDR plural rule evaluation and category selection APIs.
 - Added English, Russian, and Arabic-shaped plural evaluation coverage.
@@ -40,6 +45,8 @@ Completed slice:
 - Updated parser and fixture checklist items through parser recovery and invalid fixture diagnostics.
 
 Implementation decisions:
+- IR source is intentionally modular to keep implementation files below file-size gate; full snapshots stay in `tests/fixtures/golden/snapshots`, which the repository file-size gate excludes.
+- IR lowering is currently syntax-backed and preserves parsed structure; semantic resolved-reference IR remains deferred.
 - CLDR fetch currently imports a local/staged `cldr-json` directory into cache. Network download/update remains deferred.
 - CLDR cache usability currently requires manifest, data directory, and `common/supplemental/plurals.json`.
 - CLDR JSON loading uses a narrow string-object extractor for plural rules to avoid adding a JSON dependency before dependency-fetch policy is settled.
@@ -72,6 +79,8 @@ Implementation decisions:
 - Form map bodies cover branch maps used by selector and plural-shaped examples, and recursive object-shaped nested attributes used by forms.
 
 Tests last run:
+- `cargo test -p linguini-ir`
+- `env LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-ir`
 - `cargo fmt --all --check`
 - `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 484 lines, `crates/linguini-syntax/src/lexer.rs` has 426 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 408 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
 - `cargo clippy --workspace --all-targets -- -D warnings`
@@ -106,6 +115,7 @@ Tests last run:
 - `cargo test -p linguini-syntax` after parser recovery and invalid fixture diagnostics.
 
 Known deferred work:
+- IR unresolved-reference validation is not implemented yet; current IR lowering preserves syntax references.
 - `linguini cldr update` and `linguini cldr clean` are not implemented.
 - CLDR network fetch is not implemented; current fetch command imports a local staged CLDR JSON directory.
 - Formatting data is loaded but not yet lowered into target-language helpers.
@@ -118,4 +128,4 @@ Known deferred work:
 - Parser recovery currently reports diagnostics and optional full AST output; it does not insert error AST nodes for malformed declarations.
 
 Next recommended task:
-- Start IR lowering: define IR nodes, lower schema/locale messages, and add stable IR snapshots for delivery and counted examples.
+- Add semantic IR validation so lowered IR has no unresolved references, then start TypeScript enum/message generation.

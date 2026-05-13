@@ -557,29 +557,38 @@ Checkpoint acceptance:
 
 ## 10. IR
 
-- [ ] Define IR nodes
-  - Note:
-- [ ] Lower schema messages to IR
-  - Note:
-- [ ] Lower locale messages to IR
-  - Note:
-- [ ] Lower forms to IR
-  - Note:
-- [ ] Lower local functions to IR
-  - Note:
-- [ ] Lower plural maps to IR
-  - Note:
-- [ ] Lower formatting operations to IR
-  - Note:
+- [x] Define IR nodes
+  - Note: completed on 2026-05-13. Added modular IR model for messages, parameters, forms, functions, branches, text parts, expressions, and formatters.
+  - Evidence: crates/linguini-ir/src/model.rs; `cargo test -p linguini-ir`
+- [x] Lower schema messages to IR
+  - Note: completed on 2026-05-13. Schema message signatures and grouped message signatures lower to IR messages with docs and parameters.
+  - Evidence: crates/linguini-ir/src/lower.rs; tests/fixtures/golden/snapshots/ir-schema-shop.txt; `cargo test -p linguini-ir`
+- [x] Lower locale messages to IR
+  - Note: completed on 2026-05-13. Locale standalone and grouped message bodies lower to IR text parts and placeholders.
+  - Evidence: crates/linguini-ir/src/lower.rs; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
+- [x] Lower forms to IR
+  - Note: completed on 2026-05-13. Locale forms lower variants, selectors, attributes, branch entries, and nested objects.
+  - Evidence: crates/linguini-ir/src/lower.rs; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
+- [x] Lower local functions to IR
+  - Note: completed on 2026-05-13. Locale functions lower parameters, tuple branches, else branches, and text bodies.
+  - Evidence: crates/linguini-ir/src/lower.rs; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
+- [x] Lower plural maps to IR
+  - Note: completed on 2026-05-13. Form branch maps with CLDR category keys lower to IR map branches without losing keys or text.
+  - Evidence: crates/linguini-ir/src/lower.rs; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
+- [x] Lower formatting operations to IR
+  - Note: completed on 2026-05-13. Placeholder formatter annotations lower to IR formatter nodes with named arguments.
+  - Evidence: crates/linguini-ir/src/lower.rs; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
 - [ ] Ensure IR has no unresolved references
   - Note:
 
 Checkpoint acceptance:
 
-- [ ] IR snapshot for delivery example is stable
-  - Note:
-- [ ] IR snapshot for counted example is stable
-  - Note:
+- [x] IR snapshot for delivery example is stable
+  - Note: completed on 2026-05-13. Full IR snapshot includes delivery schema signature and Russian locale implementation with function/form placeholders.
+  - Evidence: tests/fixtures/golden/snapshots/ir-schema-shop.txt; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
+- [x] IR snapshot for counted example is stable
+  - Note: completed on 2026-05-13. Full IR snapshot includes counted schema signature and Russian plural-form locale implementation.
+  - Evidence: tests/fixtures/golden/snapshots/ir-schema-shop.txt; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
 
 ---
 

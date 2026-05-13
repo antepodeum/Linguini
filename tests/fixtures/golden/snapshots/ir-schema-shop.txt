@@ -1,0 +1,73 @@
+IrModule {
+    messages: [
+        IrMessage {
+            name: "delivery",
+            docs: [
+                " Displayed on the product delivery confirmation card.",
+            ],
+            parameters: [
+                IrParameter {
+                    name: "fruit",
+                    ty: "Fruit",
+                },
+                IrParameter {
+                    name: "size",
+                    ty: "Size",
+                },
+            ],
+            body: None,
+        },
+        IrMessage {
+            name: "counted",
+            docs: [
+                " Shown near cart item count.",
+            ],
+            parameters: [
+                IrParameter {
+                    name: "count",
+                    ty: "Number",
+                },
+                IrParameter {
+                    name: "fruit",
+                    ty: "Fruit",
+                },
+            ],
+            body: None,
+        },
+        IrMessage {
+            name: "price",
+            docs: [],
+            parameters: [
+                IrParameter {
+                    name: "amount",
+                    ty: "Money",
+                },
+                IrParameter {
+                    name: "date",
+                    ty: "ShortDate",
+                },
+            ],
+            body: None,
+        },
+        IrMessage {
+            name: "email_input.label",
+            docs: [],
+            parameters: [],
+            body: None,
+        },
+        IrMessage {
+            name: "email_input.placeholder",
+            docs: [],
+            parameters: [],
+            body: None,
+        },
+        IrMessage {
+            name: "email_input.aria",
+            docs: [],
+            parameters: [],
+            body: None,
+        },
+    ],
+    forms: [],
+    functions: [],
+}

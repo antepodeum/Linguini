@@ -153,6 +153,9 @@ version = "0.1.0"
 [[package]]
 name = "linguini-ir"
 version = "0.1.0"
+dependencies = [
+ "linguini-syntax",
+]
 
 [[package]]
 name = "linguini-locale"

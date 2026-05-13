@@ -1,0 +1,998 @@
+IrModule {
+    messages: [
+        IrMessage {
+            name: "delivery",
+            docs: [
+                " Product delivery sentence.",
+            ],
+            parameters: [],
+            body: Some(
+                IrText {
+                    parts: [
+                        Text(
+                            " ",
+                        ),
+                        Placeholder(
+                            IrExpression {
+                                path: [
+                                    "delivered",
+                                ],
+                                arguments: [
+                                    IrExpression {
+                                        path: [
+                                            "fruit",
+                                            "gender",
+                                        ],
+                                        arguments: [],
+                                        formatters: [],
+                                    },
+                                ],
+                                formatters: [],
+                            },
+                        ),
+                        Text(
+                            " ",
+                        ),
+                        Placeholder(
+                            IrExpression {
+                                path: [
+                                    "adjective",
+                                ],
+                                arguments: [
+                                    IrExpression {
+                                        path: [
+                                            "size",
+                                        ],
+                                        arguments: [],
+                                        formatters: [],
+                                    },
+                                    IrExpression {
+                                        path: [
+                                            "fruit",
+                                            "gender",
+                                        ],
+                                        arguments: [],
+                                        formatters: [],
+                                    },
+                                ],
+                                formatters: [],
+                            },
+                        ),
+                        Text(
+                            " ",
+                        ),
+                        Placeholder(
+                            IrExpression {
+                                path: [
+                                    "fruit",
+                                    "nom",
+                                ],
+                                arguments: [
+                                    IrExpression {
+                                        path: [
+                                            "count",
+                                        ],
+                                        arguments: [],
+                                        formatters: [],
+                                    },
+                                ],
+                                formatters: [],
+                            },
+                        ),
+                    ],
+                },
+            ),
+        },
+        IrMessage {
+            name: "counted",
+            docs: [],
+            parameters: [],
+            body: Some(
+                IrText {
+                    parts: [
+                        Text(
+                            " В корзине ",
+                        ),
+                        Placeholder(
+                            IrExpression {
+                                path: [
+                                    "count",
+                                ],
+                                arguments: [],
+                                formatters: [],
+                            },
+                        ),
+                        Text(
+                            " ",
+                        ),
+                        Placeholder(
+                            IrExpression {
+                                path: [
+                                    "fruit",
+                                    "gen",
+                                ],
+                                arguments: [
+                                    IrExpression {
+                                        path: [
+                                            "count",
+                                        ],
+                                        arguments: [],
+                                        formatters: [],
+                                    },
+                                ],
+                                formatters: [],
+                            },
+                        ),
+                    ],
+                },
+            ),
+        },
+        IrMessage {
+            name: "price",
+            docs: [],
+            parameters: [],
+            body: Some(
+                IrText {
+                    parts: [
+                        Text(
+                            " Цена ",
+                        ),
+                        Placeholder(
+                            IrExpression {
+                                path: [
+                                    "amount",
+                                ],
+                                arguments: [],
+                                formatters: [
+                                    IrFormatter {
+                                        name: "currency",
+                                        arguments: [
+                                            IrFormatterArgument {
+                                                name: "code",
+                                                value: "RUB",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ),
+                        Text(
+                            " на ",
+                        ),
+                        Placeholder(
+                            IrExpression {
+                                path: [
+                                    "date",
+                                ],
+                                arguments: [],
+                                formatters: [
+                                    IrFormatter {
+                                        name: "date",
+                                        arguments: [
+                                            IrFormatterArgument {
+                                                name: "style",
+                                                value: "short",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ),
+                    ],
+                },
+            ),
+        },
+        IrMessage {
+            name: "email_input.label",
+            docs: [],
+            parameters: [],
+            body: Some(
+                IrText {
+                    parts: [
+                        Text(
+                            " Email",
+                        ),
+                    ],
+                },
+            ),
+        },
+        IrMessage {
+            name: "email_input.placeholder",
+            docs: [],
+            parameters: [],
+            body: Some(
+                IrText {
+                    parts: [
+                        Text(
+                            " name@example.com",
+                        ),
+                    ],
+                },
+            ),
+        },
+        IrMessage {
+            name: "email_input.aria",
+            docs: [],
+            parameters: [],
+            body: Some(
+                IrText {
+                    parts: [
+                        Text(
+                            " Адрес электронной почты",
+                        ),
+                    ],
+                },
+            ),
+        },
+    ],
+    forms: [
+        IrForm {
+            name: "Fruit",
+            docs: [],
+            variants: [
+                IrFormVariant {
+                    name: "apple",
+                    selector: None,
+                    entries: [
+                        Attribute {
+                            name: "gender",
+                            value: Text(
+                                IrText {
+                                    parts: [
+                                        Text(
+                                            " neuter",
+                                        ),
+                                    ],
+                                },
+                            ),
+                        },
+                        Attribute {
+                            name: "emoji",
+                            value: Text(
+                                IrText {
+                                    parts: [
+                                        Text(
+                                            " 🍎",
+                                        ),
+                                    ],
+                                },
+                            ),
+                        },
+                        Attribute {
+                            name: "nom",
+                            value: Map(
+                                [
+                                    IrBranch {
+                                        keys: [
+                                            "one",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " яблоко",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "few",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " яблока",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "many",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " яблок",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "other",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " яблока",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ],
+                            ),
+                        },
+                        Attribute {
+                            name: "gen",
+                            value: Map(
+                                [
+                                    IrBranch {
+                                        keys: [
+                                            "one",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " яблока",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "few",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " яблок",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "many",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " яблок",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "other",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " яблока",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ],
+                            ),
+                        },
+                        Attribute {
+                            name: "display",
+                            value: Object(
+                                [
+                                    Attribute {
+                                        name: "short",
+                                        value: Text(
+                                            IrText {
+                                                parts: [
+                                                    Text(
+                                                        " ябл.",
+                                                    ),
+                                                ],
+                                            },
+                                        ),
+                                    },
+                                    Attribute {
+                                        name: "long",
+                                        value: Text(
+                                            IrText {
+                                                parts: [
+                                                    Text(
+                                                        " спелое яблоко",
+                                                    ),
+                                                ],
+                                            },
+                                        ),
+                                    },
+                                ],
+                            ),
+                        },
+                    ],
+                },
+                IrFormVariant {
+                    name: "pear",
+                    selector: None,
+                    entries: [
+                        Attribute {
+                            name: "gender",
+                            value: Text(
+                                IrText {
+                                    parts: [
+                                        Text(
+                                            " female",
+                                        ),
+                                    ],
+                                },
+                            ),
+                        },
+                        Attribute {
+                            name: "emoji",
+                            value: Text(
+                                IrText {
+                                    parts: [
+                                        Text(
+                                            " 🍐",
+                                        ),
+                                    ],
+                                },
+                            ),
+                        },
+                        Attribute {
+                            name: "nom",
+                            value: Map(
+                                [
+                                    IrBranch {
+                                        keys: [
+                                            "one",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " груша",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "few",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " груши",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "many",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " груш",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "other",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " груши",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ],
+                            ),
+                        },
+                        Attribute {
+                            name: "gen",
+                            value: Map(
+                                [
+                                    IrBranch {
+                                        keys: [
+                                            "one",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " груши",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "few",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " груш",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "many",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " груш",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "other",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " груши",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ],
+                            ),
+                        },
+                    ],
+                },
+                IrFormVariant {
+                    name: "orange",
+                    selector: None,
+                    entries: [
+                        Attribute {
+                            name: "gender",
+                            value: Text(
+                                IrText {
+                                    parts: [
+                                        Text(
+                                            " male",
+                                        ),
+                                    ],
+                                },
+                            ),
+                        },
+                        Attribute {
+                            name: "emoji",
+                            value: Text(
+                                IrText {
+                                    parts: [
+                                        Text(
+                                            " 🍊",
+                                        ),
+                                    ],
+                                },
+                            ),
+                        },
+                        Attribute {
+                            name: "nom",
+                            value: Map(
+                                [
+                                    IrBranch {
+                                        keys: [
+                                            "one",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " апельсин",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "few",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " апельсина",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "many",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " апельсинов",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "other",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " апельсина",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ],
+                            ),
+                        },
+                        Attribute {
+                            name: "gen",
+                            value: Map(
+                                [
+                                    IrBranch {
+                                        keys: [
+                                            "one",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " апельсина",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "few",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " апельсинов",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "many",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " апельсинов",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                    IrBranch {
+                                        keys: [
+                                            "other",
+                                        ],
+                                        value: IrText {
+                                            parts: [
+                                                Text(
+                                                    " апельсина",
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ],
+                            ),
+                        },
+                    ],
+                },
+            ],
+        },
+        IrForm {
+            name: "Size",
+            docs: [],
+            variants: [
+                IrFormVariant {
+                    name: "small",
+                    selector: Some(
+                        "gender",
+                    ),
+                    entries: [
+                        Branch(
+                            IrBranch {
+                                keys: [
+                                    "male",
+                                ],
+                                value: IrText {
+                                    parts: [
+                                        Text(
+                                            " маленький",
+                                        ),
+                                    ],
+                                },
+                            },
+                        ),
+                        Branch(
+                            IrBranch {
+                                keys: [
+                                    "female",
+                                ],
+                                value: IrText {
+                                    parts: [
+                                        Text(
+                                            " маленькая",
+                                        ),
+                                    ],
+                                },
+                            },
+                        ),
+                        Branch(
+                            IrBranch {
+                                keys: [
+                                    "neuter",
+                                ],
+                                value: IrText {
+                                    parts: [
+                                        Text(
+                                            " маленькое",
+                                        ),
+                                    ],
+                                },
+                            },
+                        ),
+                        Branch(
+                            IrBranch {
+                                keys: [
+                                    "other",
+                                ],
+                                value: IrText {
+                                    parts: [
+                                        Text(
+                                            " маленький",
+                                        ),
+                                    ],
+                                },
+                            },
+                        ),
+                    ],
+                },
+                IrFormVariant {
+                    name: "big",
+                    selector: Some(
+                        "gender",
+                    ),
+                    entries: [
+                        Branch(
+                            IrBranch {
+                                keys: [
+                                    "male",
+                                ],
+                                value: IrText {
+                                    parts: [
+                                        Text(
+                                            " большой",
+                                        ),
+                                    ],
+                                },
+                            },
+                        ),
+                        Branch(
+                            IrBranch {
+                                keys: [
+                                    "female",
+                                ],
+                                value: IrText {
+                                    parts: [
+                                        Text(
+                                            " большая",
+                                        ),
+                                    ],
+                                },
+                            },
+                        ),
+                        Branch(
+                            IrBranch {
+                                keys: [
+                                    "neuter",
+                                ],
+                                value: IrText {
+                                    parts: [
+                                        Text(
+                                            " большое",
+                                        ),
+                                    ],
+                                },
+                            },
+                        ),
+                        Branch(
+                            IrBranch {
+                                keys: [
+                                    "other",
+                                ],
+                                value: IrText {
+                                    parts: [
+                                        Text(
+                                            " большой",
+                                        ),
+                                    ],
+                                },
+                            },
+                        ),
+                    ],
+                },
+            ],
+        },
+    ],
+    functions: [
+        IrFunction {
+            name: "delivered",
+            docs: [],
+            parameters: [
+                "gender",
+            ],
+            branches: [
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "male",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " Доставлен",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "female",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " Доставлена",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "neuter",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " Доставлено",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "other",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " Доставлено",
+                            ),
+                        ],
+                    },
+                },
+            ],
+        },
+        IrFunction {
+            name: "adjective",
+            docs: [],
+            parameters: [
+                "size",
+                "gender",
+            ],
+            branches: [
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "male",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " маленький",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "female",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " маленькая",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "neuter",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " маленькое",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "male",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " большой",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "female",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " большая",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "neuter",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " большое",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Else,
+                    value: IrText {
+                        parts: [
+                            Text(
+                                " обычное",
+                            ),
+                        ],
+                    },
+                },
+            ],
+        },
+    ],
+}
