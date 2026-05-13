@@ -109,9 +109,9 @@ Checkpoint acceptance:
 - [x] Add `insta` snapshot review workflow
   - Note: completed on 2026-05-13. Added a snapshot review script with CI check mode for committed snapshot tests and interactive `cargo-insta` review mode for accepted snapshot updates.
   - Evidence: scripts/review-snapshots.sh; docs/testing.md; .github/workflows/ci.yml; `./scripts/review-snapshots.sh --check`
-- [ ] Add CLI integration test harness with `assert_cmd` and `tempfile`
-  - Note:
-  - Evidence:
+- [x] Add CLI integration test harness with `assert_cmd` and `tempfile`
+  - Note: completed on 2026-05-13. Added binary-level CLI integration tests covering init, check discovery output, syntax diagnostics on stderr, and CLDR status.
+  - Evidence: crates/linguini-cli/tests/cli.rs; crates/linguini-cli/Cargo.toml; `cargo test -p linguini-cli`
 - [x] Add generated TypeScript validation fixture
   - Note: completed on 2026-05-13. Added deterministic generated TypeScript file-tree fixtures for Russian schema/locale output.
   - Evidence: tests/fixtures/golden/snapshots/ts; `cargo test -p linguini-codegen-ts`

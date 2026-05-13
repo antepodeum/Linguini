@@ -17,4 +17,7 @@ linguini-config = { path = "../linguini-config" }
 linguini-syntax = { path = "../linguini-syntax" }
 
 [dev-dependencies]
+assert_cmd = "2.1.2"
 linguini-test-support = { path = "../linguini-test-support" }
+predicates = "3.1.4"
+tempfile = "3.27.0"
