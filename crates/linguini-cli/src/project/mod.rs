@@ -13,7 +13,7 @@ pub use check::check_project;
 pub use codegen::build_project;
 pub(crate) use fixes::fix_project;
 pub use io::init_project;
-pub(crate) use test_data::generate_test_data;
+pub(crate) use test_data::generate_project_data;
 
 #[derive(Debug, Clone)]
 pub(crate) struct ParsedSchemaSource {

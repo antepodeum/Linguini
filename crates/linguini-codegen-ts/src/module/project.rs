@@ -25,34 +25,32 @@ pub fn generate_project_index(locales: &[TypeScriptLocaleModule]) -> String {
     output.push_str("type LinguiniLanguage = keyof typeof localeModules;\n");
     output.push_str("export type Linguini = (typeof localeModules)[LinguiniLanguage];\n\n");
     output.push_str("type LinguiniLanguageInput = LinguiniLanguage;\n\n");
-    output.push_str("let currentLanguage: () => LinguiniLanguageInput = () => ");
-    output.push_str(&default_language_literal(locales));
-    output.push_str(";\n\n");
-    output.push_str("function resolveLinguiniLanguage(): LinguiniLanguageInput {\n");
-    output.push_str("  return currentLanguage();\n");
-    output.push_str("}\n\n");
     output
         .push_str("export function createLinguini(language: LinguiniLanguageInput): Linguini {\n");
     output.push_str("  return localeModules[language as LinguiniLanguage];\n");
+    output.push_str("}\n\n");
+    output.push_str("export function createLinguiniProvider(options: {\n");
+    output.push_str("  resolveLanguage: () => LinguiniLanguageInput;\n");
+    output.push_str("}): Linguini {\n");
+    output.push_str("  return new Proxy({} as Linguini, {\n");
+    output.push_str("    get(_target, property) {\n");
+    output.push_str(
+        "      return createLinguini(options.resolveLanguage())[property as keyof Linguini];\n",
+    );
+    output.push_str("    },\n");
+    output.push_str("  });\n");
     output.push_str("}\n\n");
     output.push_str("export function configureLinguini(options: {\n");
     output.push_str("  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n");
     output.push_str("}): Linguini {\n");
     output.push_str("  if (typeof options.language === \"function\") {\n");
-    output.push_str("    currentLanguage = options.language;\n");
-    output.push_str("  } else {\n");
-    output.push_str("    const language = options.language;\n");
-    output.push_str("    currentLanguage = () => language;\n");
+    output.push_str("    return createLinguiniProvider({ resolveLanguage: options.language });\n");
     output.push_str("  }\n");
-    output.push_str("  return lgl;\n");
+    output.push_str("  return createLinguini(options.language);\n");
     output.push_str("}\n\n");
-    output.push_str("export const lgl: Linguini = new Proxy({} as Linguini, {\n");
-    output.push_str("  get(_target, property) {\n");
-    output.push_str(
-        "    return createLinguini(resolveLinguiniLanguage())[property as keyof Linguini];\n",
-    );
-    output.push_str("  },\n");
-    output.push_str("});\n");
+    output.push_str("export const lgl: Linguini = createLinguini(");
+    output.push_str(&default_language_literal(locales));
+    output.push_str(");\n");
     output
 }
 
@@ -83,6 +81,9 @@ pub fn generate_project_index_declaration(locales: &[TypeScriptLocaleModule]) ->
     output.push_str(
         "export declare function createLinguini(language: LinguiniLanguageInput): Linguini;\n\n",
     );
+    output.push_str("export declare function createLinguiniProvider(options: {\n");
+    output.push_str("  resolveLanguage: () => LinguiniLanguageInput;\n");
+    output.push_str("}): Linguini;\n\n");
     output.push_str("export declare function configureLinguini(options: {\n");
     output.push_str("  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n");
     output.push_str("}): Linguini;\n\n");

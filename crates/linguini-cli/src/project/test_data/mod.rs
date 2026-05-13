@@ -34,7 +34,7 @@ impl SampleValue {
     }
 }
 
-pub(crate) fn generate_test_data(root: &Path) -> CliResult<String> {
+pub(crate) fn generate_project_data(root: &Path) -> CliResult<String> {
     let config = read_project_config(root)?;
     let schema = load_merged_schema(root, &config)?;
     let locales = load_locale_sources(root, &config)?;
@@ -59,7 +59,7 @@ pub(crate) fn generate_test_data(root: &Path) -> CliResult<String> {
         locale_modules.insert(locale.clone(), module);
     }
 
-    Ok(render_test_data(&schema, &locale_modules))
+    Ok(render_generated_data(&schema, &locale_modules))
 }
 
 fn load_merged_schema(root: &Path, config: &LinguiniConfig) -> CliResult<IrModule> {
@@ -70,7 +70,7 @@ fn load_merged_schema(root: &Path, config: &LinguiniConfig) -> CliResult<IrModul
     Ok(schema)
 }
 
-fn render_test_data(schema: &IrModule, locales: &BTreeMap<String, IrModule>) -> String {
+fn render_generated_data(schema: &IrModule, locales: &BTreeMap<String, IrModule>) -> String {
     let mut output = String::new();
     output.push_str("{\n  \"locales\": {\n");
 
@@ -108,13 +108,13 @@ fn render_message_cases(
         if index > 0 {
             output.push(',');
         }
-        output.push_str("\n          { \"args\": ");
-        output.push_str(&json_args(inputs));
-        output.push_str(", \"output\": ");
+        output.push_str("\n          {\n            \"args\": ");
+        output.push_str(&pretty_json_args(inputs, 12));
+        output.push_str(",\n            \"output\": ");
         output.push_str(&json_string(
             &renderer.render_message(&message.name, inputs),
         ));
-        output.push_str(" }");
+        output.push_str("\n          }");
     }
     if !cases.is_empty() {
         output.push('\n');
@@ -176,13 +176,19 @@ fn resolve_type(schema: &IrModule, ty: &str) -> String {
         .unwrap_or_else(|| ty.to_owned())
 }
 
-fn json_args(inputs: &BTreeMap<String, SampleValue>) -> String {
+fn pretty_json_args(inputs: &BTreeMap<String, SampleValue>, indent: usize) -> String {
+    if inputs.is_empty() {
+        return "{}".to_owned();
+    }
+
+    let base_indent = " ".repeat(indent);
+    let item_indent = " ".repeat(indent + 2);
     let items = inputs
         .iter()
-        .map(|(name, value)| format!("{}: {}", json_string(name), value.as_json()))
+        .map(|(name, value)| format!("{item_indent}{}: {}", json_string(name), value.as_json()))
         .collect::<Vec<_>>()
-        .join(", ");
-    format!("{{ {items} }}")
+        .join(",\n");
+    format!("{{\n{items}\n{base_indent}}}")
 }
 
 pub(super) fn json_string(value: &str) -> String {
@@ -210,7 +216,7 @@ mod tests {
     use linguini_syntax::{parse_locale, parse_schema};
 
     #[test]
-    fn test_data_covers_every_enum_and_number_sample() {
+    fn generated_data_covers_every_enum_and_number_sample() {
         let schema = lower_schema(
             &parse_schema("enum Fruit { apple pear }\ndelivery(fruit: Fruit, count: Number)\n")
                 .expect("schema"),
@@ -224,7 +230,7 @@ mod tests {
         let mut locales = BTreeMap::new();
         locales.insert("en".to_owned(), locale);
 
-        let json = render_test_data(&schema, &locales);
+        let json = render_generated_data(&schema, &locales);
 
         assert!(json.contains("\"fruit\": \"apple\""));
         assert!(json.contains("\"fruit\": \"pear\""));

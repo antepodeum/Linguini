@@ -78,6 +78,9 @@ impl<'a> Renderer<'a> {
             [root, property] if !args.is_empty() && context.contains_key(root) => {
                 self.eval_form_call(root, Some(property), &args, context, inputs)
             }
+            [function] if function == "plural" && args.len() == 1 => {
+                plural_key(self.locale, &args[0])
+            }
             [function] if !args.is_empty() => self.eval_function(function, &args, context, inputs),
             [root] => inputs
                 .get(root)

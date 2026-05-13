@@ -36,22 +36,50 @@ const SizeForms = {
   big: (gender) => selectBranch(gender, { male: "большой", female: "большая", neuter: "большое", other: "большой" }),
 };
 
-function delivered(gender) {
-  if (gender === "male") return "Доставлен";
-  if (gender === "female") return "Доставлена";
-  if (gender === "neuter") return "Доставлено";
-  if (gender === "other") return "Доставлено";
-  return "";
+function delivered(gender, plural) {
+  if (gender === "male" && plural === "one") return "Доставлен";
+  if (gender === "female" && plural === "one") return "Доставлена";
+  if (gender === "neuter" && plural === "one") return "Доставлено";
+  if (gender === "other" && plural === "one") return "Доставлено";
+  return "Доставлено";
+}
+
+function size_label(size, gender, plural) {
+  if (size === "small" && gender === "male" && plural === "one") return "маленький";
+  if (size === "small" && gender === "female" && plural === "one") return "маленькая";
+  if (size === "small" && gender === "neuter" && plural === "one") return "маленькое";
+  if (size === "small" && gender === "other" && plural === "one") return "маленький";
+  if (size === "small" && gender === "female" && plural === "few") return "маленькие";
+  if (size === "small" && gender === "male" && plural === "few") return "маленьких";
+  if (size === "small" && gender === "neuter" && plural === "few") return "маленьких";
+  if (size === "small" && gender === "other" && plural === "few") return "маленьких";
+  if (size === "small" && gender === "male" && plural === "many") return "маленьких";
+  if (size === "small" && gender === "female" && plural === "many") return "маленьких";
+  if (size === "small" && gender === "neuter" && plural === "many") return "маленьких";
+  if (size === "small" && gender === "other" && plural === "many") return "маленьких";
+  if (size === "big" && gender === "male" && plural === "one") return "большой";
+  if (size === "big" && gender === "female" && plural === "one") return "большая";
+  if (size === "big" && gender === "neuter" && plural === "one") return "большое";
+  if (size === "big" && gender === "other" && plural === "one") return "большой";
+  if (size === "big" && gender === "female" && plural === "few") return "большие";
+  if (size === "big" && gender === "male" && plural === "few") return "больших";
+  if (size === "big" && gender === "neuter" && plural === "few") return "больших";
+  if (size === "big" && gender === "other" && plural === "few") return "больших";
+  if (size === "big" && gender === "male" && plural === "many") return "больших";
+  if (size === "big" && gender === "female" && plural === "many") return "больших";
+  if (size === "big" && gender === "neuter" && plural === "many") return "больших";
+  if (size === "big" && gender === "other" && plural === "many") return "больших";
+  return "обычные";
 }
 
 /**  Displayed on the product delivery confirmation card. */
 export function delivery(fruit, size, count) {
-  return String(delivered(FruitForms[fruit].gender)) + " " + String(SizeForms[size](FruitForms[fruit].gender)) + " " + String(FruitForms[fruit].nom(count));
+  return String(delivered(FruitForms[fruit].gender, pluralRu(count))) + " " + String(size_label(size, FruitForms[fruit].gender, pluralRu(count))) + " " + String(FruitForms[fruit].nom(count));
 }
 
 /**  Shown near cart item count. */
 export function counted(count, fruit) {
-  return "В корзине " + String(count) + " " + String(FruitForms[fruit].gen(count));
+  return "В корзине " + String(count) + " " + String(FruitForms[fruit].nom(count));
 }
 
 export function price(amount, date) {

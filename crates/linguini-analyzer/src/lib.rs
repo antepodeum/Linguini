@@ -307,6 +307,30 @@ mod tests {
     }
 
     #[test]
+    fn expression_analysis_accepts_builtin_plural_call() {
+        let locale = parse_locale("delivery = {size(fruit.gender, plural(count))}\n")
+            .expect("locale parses");
+        let diagnostics = analyze_expressions(ExpressionAnalysis {
+            messages: vec![MessageToAnalyze::new(
+                "delivery",
+                message_value(&locale, "delivery"),
+                vec![
+                    Variable::new("count", "Number", Span::new(0, 0)),
+                    Variable::new("fruit", "Fruit", Span::new(0, 0)),
+                ],
+            )],
+            functions: vec![FunctionSignature::new("size", 2, Span::new(0, 0))],
+            forms: vec![FormSignature::new(
+                "Fruit",
+                vec![FormProperty::new("gender", Span::new(0, 0))],
+                Span::new(0, 0),
+            )],
+        });
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
+
+    #[test]
     fn function_pattern_analysis_reports_tuple_arity() {
         let locale = parse_locale("fn choose(gender, size) {\n  male => ok\n  else => ok\n}\n")
             .expect("locale parses");

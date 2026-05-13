@@ -105,17 +105,36 @@ fn expression_string(
     context: &BTreeMap<String, String>,
     options: &TypeScriptOptions,
 ) -> String {
-    let value = expression_value(expression, context);
+    let value = expression_value(expression, context, options);
     let formatted = apply_formatters(value, &expression.formatters, options);
     format!("String({formatted})")
 }
 
-fn expression_value(expression: &IrExpression, context: &BTreeMap<String, String>) -> String {
+fn expression_value(
+    expression: &IrExpression,
+    context: &BTreeMap<String, String>,
+    options: &TypeScriptOptions,
+) -> String {
     if expression.path.is_empty() {
         return "\"\"".to_owned();
     }
 
     if !expression.arguments.is_empty() {
+        if let [root] = expression.path.as_slice() {
+            if root == "plural" {
+                return format!(
+                    "{}({})",
+                    options.plural_function,
+                    expression
+                        .arguments
+                        .iter()
+                        .map(|argument| expression_value(argument, context, options))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+        }
+
         if let [root] = expression.path.as_slice() {
             if let Some(ty) = context.get(root) {
                 return format!(
@@ -123,7 +142,7 @@ fn expression_value(expression: &IrExpression, context: &BTreeMap<String, String
                     expression
                         .arguments
                         .iter()
-                        .map(|argument| expression_value(argument, context))
+                        .map(|argument| expression_value(argument, context, options))
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -137,7 +156,7 @@ fn expression_value(expression: &IrExpression, context: &BTreeMap<String, String
                     expression
                         .arguments
                         .iter()
-                        .map(|argument| expression_value(argument, context))
+                        .map(|argument| expression_value(argument, context, options))
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -150,7 +169,7 @@ fn expression_value(expression: &IrExpression, context: &BTreeMap<String, String
             expression
                 .arguments
                 .iter()
-                .map(|argument| expression_value(argument, context))
+                .map(|argument| expression_value(argument, context, options))
                 .collect::<Vec<_>>()
                 .join(", ")
         );

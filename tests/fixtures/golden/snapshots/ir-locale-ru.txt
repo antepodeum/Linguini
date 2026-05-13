@@ -25,6 +25,21 @@ IrModule {
                                         arguments: [],
                                         formatters: [],
                                     },
+                                    IrExpression {
+                                        path: [
+                                            "plural",
+                                        ],
+                                        arguments: [
+                                            IrExpression {
+                                                path: [
+                                                    "count",
+                                                ],
+                                                arguments: [],
+                                                formatters: [],
+                                            },
+                                        ],
+                                        formatters: [],
+                                    },
                                 ],
                                 formatters: [],
                             },
@@ -35,15 +50,37 @@ IrModule {
                         Placeholder(
                             IrExpression {
                                 path: [
-                                    "size",
+                                    "size_label",
                                 ],
                                 arguments: [
+                                    IrExpression {
+                                        path: [
+                                            "size",
+                                        ],
+                                        arguments: [],
+                                        formatters: [],
+                                    },
                                     IrExpression {
                                         path: [
                                             "fruit",
                                             "gender",
                                         ],
                                         arguments: [],
+                                        formatters: [],
+                                    },
+                                    IrExpression {
+                                        path: [
+                                            "plural",
+                                        ],
+                                        arguments: [
+                                            IrExpression {
+                                                path: [
+                                                    "count",
+                                                ],
+                                                arguments: [],
+                                                formatters: [],
+                                            },
+                                        ],
                                         formatters: [],
                                     },
                                 ],
@@ -101,7 +138,7 @@ IrModule {
                             IrExpression {
                                 path: [
                                     "fruit",
-                                    "gen",
+                                    "nom",
                                 ],
                                 arguments: [
                                     IrExpression {
@@ -816,12 +853,14 @@ IrModule {
             docs: [],
             parameters: [
                 "gender",
+                "plural",
             ],
             branches: [
                 IrFunctionBranch {
                     pattern: Names(
                         [
                             "male",
+                            "one",
                         ],
                     ),
                     value: IrText {
@@ -836,6 +875,7 @@ IrModule {
                     pattern: Names(
                         [
                             "female",
+                            "one",
                         ],
                     ),
                     value: IrText {
@@ -850,6 +890,7 @@ IrModule {
                     pattern: Names(
                         [
                             "neuter",
+                            "one",
                         ],
                     ),
                     value: IrText {
@@ -864,12 +905,428 @@ IrModule {
                     pattern: Names(
                         [
                             "other",
+                            "one",
                         ],
                     ),
                     value: IrText {
                         parts: [
                             Text(
                                 "Доставлено",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Else,
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "Доставлено",
+                            ),
+                        ],
+                    },
+                },
+            ],
+        },
+        IrFunction {
+            name: "size_label",
+            docs: [],
+            parameters: [
+                "size",
+                "gender",
+                "plural",
+            ],
+            branches: [
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "male",
+                            "one",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленький",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "female",
+                            "one",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленькая",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "neuter",
+                            "one",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленькое",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "other",
+                            "one",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленький",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "female",
+                            "few",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленькие",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "male",
+                            "few",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленьких",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "neuter",
+                            "few",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленьких",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "other",
+                            "few",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленьких",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "male",
+                            "many",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленьких",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "female",
+                            "many",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленьких",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "neuter",
+                            "many",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленьких",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "small",
+                            "other",
+                            "many",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "маленьких",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "male",
+                            "one",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "большой",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "female",
+                            "one",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "большая",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "neuter",
+                            "one",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "большое",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "other",
+                            "one",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "большой",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "female",
+                            "few",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "большие",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "male",
+                            "few",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "больших",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "neuter",
+                            "few",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "больших",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "other",
+                            "few",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "больших",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "male",
+                            "many",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "больших",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "female",
+                            "many",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "больших",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "neuter",
+                            "many",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "больших",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Names(
+                        [
+                            "big",
+                            "other",
+                            "many",
+                        ],
+                    ),
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "больших",
+                            ),
+                        ],
+                    },
+                },
+                IrFunctionBranch {
+                    pattern: Else,
+                    value: IrText {
+                        parts: [
+                            Text(
+                                "обычные",
                             ),
                         ],
                     },

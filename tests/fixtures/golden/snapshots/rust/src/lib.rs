@@ -54,39 +54,30 @@ impl Fruit {
         }
     }
 
-    fn gen(self, count: u64) -> &'static str {
-        match (self, plural_ru(count)) {
-            (Self::Apple, "one") => "яблока",
-            (Self::Apple, "few" | "many") => "яблок",
-            (Self::Pear, "one") => "груши",
-            (Self::Pear, "few" | "many") => "груш",
-            (Self::Orange, "one") => "апельсина",
-            (Self::Orange, "few" | "many") => "апельсинов",
-            (Self::Apple, _) => "яблока",
-            (Self::Pear, _) => "груши",
-            (Self::Orange, _) => "апельсина",
-        }
+}
+
+fn delivered(gender: Gender, plural: &str) -> &'static str {
+    match (gender, plural) {
+        (Gender::Male, "one") => "Доставлен",
+        (Gender::Female, "one") => "Доставлена",
+        (Gender::Neuter, "one") => "Доставлено",
+        _ => "Доставлено",
     }
 }
 
-impl Size {
-    fn select(self, gender: Gender) -> &'static str {
-        match (self, gender) {
-            (Self::Small, Gender::Male) => "маленький",
-            (Self::Small, Gender::Female) => "маленькая",
-            (Self::Small, Gender::Neuter) => "маленькое",
-            (Self::Big, Gender::Male) => "большой",
-            (Self::Big, Gender::Female) => "большая",
-            (Self::Big, Gender::Neuter) => "большое",
-        }
-    }
-}
-
-fn delivered(gender: Gender) -> &'static str {
-    match gender {
-        Gender::Male => "Доставлен",
-        Gender::Female => "Доставлена",
-        Gender::Neuter => "Доставлено",
+fn size_label(size: Size, gender: Gender, plural: &str) -> &'static str {
+    match (size, gender, plural) {
+        (Size::Small, Gender::Male, "one") => "маленький",
+        (Size::Small, Gender::Female, "one") => "маленькая",
+        (Size::Small, Gender::Neuter, "one") => "маленькое",
+        (Size::Small, Gender::Female, "few") => "маленькие",
+        (Size::Small, _, "few" | "many") => "маленьких",
+        (Size::Big, Gender::Male, "one") => "большой",
+        (Size::Big, Gender::Female, "one") => "большая",
+        (Size::Big, Gender::Neuter, "one") => "большое",
+        (Size::Big, Gender::Female, "few") => "большие",
+        (Size::Big, _, "few" | "many") => "больших",
+        _ => "обычные",
     }
 }
 
@@ -107,16 +98,17 @@ fn plural_ru(value: u64) -> &'static str {
 
 pub fn delivery(fruit: Fruit, size: Size, count: u64) -> String {
     let form = fruit.form();
+    let plural = plural_ru(count);
     format!(
         "{} {} {}",
-        delivered(form.gender),
-        size.select(form.gender),
+        delivered(form.gender, plural),
+        size_label(size, form.gender, plural),
         fruit.nom(count)
     )
 }
 
 pub fn counted(count: u64, fruit: Fruit) -> String {
-    format!("В корзине {} {}", count, fruit.gen(count))
+    format!("В корзине {} {}", count, fruit.nom(count))
 }
 
 pub struct EmailInput;

@@ -44,6 +44,9 @@ pub fn generate_index_declaration(options: &TypeScriptOptions) -> String {
     output.push_str(
         "export declare function createLinguini(language: LinguiniLanguageInput): Linguini;\n\n",
     );
+    output.push_str("export declare function createLinguiniProvider(options: {\n");
+    output.push_str("  resolveLanguage: () => LinguiniLanguageInput;\n");
+    output.push_str("}): Linguini;\n\n");
     output.push_str("export declare function configureLinguini(options: {\n");
     output.push_str("  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n");
     output.push_str("}): Linguini;\n\n");

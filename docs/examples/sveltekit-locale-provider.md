@@ -3,11 +3,11 @@
 Generated `index.ts` exposes direct locale facades:
 
 ```ts
-import { configureLinguini, createLinguini, lgl } from "$lib/generated/linguini";
+import { createLinguini, createLinguiniProvider, lgl } from "$lib/generated/linguini";
 
 lgl.delivery("apple", "small", 1);
 createLinguini("ru").delivery("apple", "small", 1);
-configureLinguini({ language: () => "ru" }).delivery("apple", "small", 1);
+createLinguiniProvider({ resolveLanguage: () => "ru" }).delivery("apple", "small", 1);
 ```
 
 SSR hooks can resolve language from a cookie first, then known request headers:
@@ -63,6 +63,20 @@ import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = ({ locals }) => {
   return { language: locals.language };
+};
+```
+
+Server modules can use the same resolved value directly:
+
+```ts
+// src/routes/api/preview/+server.ts
+import { json } from "@sveltejs/kit";
+import { createLinguini } from "$lib/generated/linguini";
+import type { RequestHandler } from "./$types";
+
+export const GET: RequestHandler = ({ locals }) => {
+  const lgl = createLinguini(locals.language);
+  return json({ title: lgl.delivery("apple", "small", 1) });
 };
 ```
 

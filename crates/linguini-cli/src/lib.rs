@@ -63,7 +63,7 @@ enum CliCommand {
     /// Build the localization project and write configured codegen outputs
     Build,
     /// Generate rendered sample data for configured locales and enum variants
-    TestData,
+    Generate,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Args)]
@@ -90,6 +90,6 @@ pub fn run(
         CliCommand::Check => check_project(&root),
         CliCommand::Fix(args) => project::fix_project(&root, &args),
         CliCommand::Build => build_project(&root),
-        CliCommand::TestData => project::generate_test_data(&root),
+        CliCommand::Generate => project::generate_project_data(&root),
     }
 }

@@ -63,10 +63,10 @@ export function render(requestLanguage: "ru") {
 For frameworks where language is read from request context:
 
 ```ts
-import { configureLinguini, lgl } from "./generated";
+import { createLinguiniProvider } from "./generated";
 
-configureLinguini({
-  language: () => getRequestLanguage(),
+const lgl = createLinguiniProvider({
+  resolveLanguage: () => getRequestLanguage(),
 });
 
 export function renderPrice() {

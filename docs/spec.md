@@ -491,6 +491,18 @@ fn delivered(gender) {
 }
 ```
 
+Locale expressions may call the built-in `plural(number)` helper to pass the
+current CLDR plural category into tuple functions.
+
+```lgl
+fn adjective(size, gender, plural) {
+  small, neuter, one => маленькое
+  small, neuter, few => маленьких
+  small, neuter, many => маленьких
+  else => обычное
+}
+```
+
 Multi-argument functions use tuple patterns.
 
 ```lgl
@@ -894,9 +906,10 @@ import ru from "./locales/ru";
 
 export type Linguini = typeof ru;
 export function createLinguini(language: "ru"): Linguini
-export function configureLinguini(options: {
-  language: "ru" | (() => "ru");
-}): { readonly lgl: Linguini }
+export function createLinguiniProvider(options: {
+  resolveLanguage: () => "ru";
+}): Linguini
+export const lgl: Linguini
 ```
 
 The public generated API must be structured so application code can switch the active output language by changing one locale source variable or provider, without changing every message call site. For example, a SvelteKit application must be able to connect that source variable to cookies, route data, or the UI language, while user code continues to call `lgl.delivered(...)` or another generated facade method. The same principle applies to JavaScript and Rust targets: locale selection belongs at the generated facade/provider boundary, not in every message call.
@@ -949,7 +962,7 @@ Required commands:
 linguini init
 linguini check
 linguini build
-linguini test-data
+linguini generate
 linguini format
 linguini fill
 linguini status
@@ -980,7 +993,7 @@ Runs full analysis without code generation.
 
 Runs analysis and code generation.
 
-### 12.4 `test-data`
+### 12.4 `generate`
 
 Generates rendered JSON sample data for each configured locale.
 

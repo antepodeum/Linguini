@@ -1,4 +1,4 @@
-use super::{build_project, check_project, init_project, project::generate_test_data, Cli};
+use super::{build_project, check_project, init_project, project::generate_project_data, Cli};
 use clap::CommandFactory;
 use linguini_test_support::temp_project_dir;
 use std::fs;
@@ -15,7 +15,7 @@ fn cli_argument_parser_is_clap_backed() {
     assert!(subcommands.contains(&"check".to_owned()));
     assert!(subcommands.contains(&"fix".to_owned()));
     assert!(subcommands.contains(&"build".to_owned()));
-    assert!(subcommands.contains(&"test-data".to_owned()));
+    assert!(subcommands.contains(&"generate".to_owned()));
     assert!(!subcommands.contains(&"cldr".to_owned()));
 }
 
@@ -235,8 +235,8 @@ fn build_replaces_existing_generated_tree() {
 }
 
 #[test]
-fn test_data_renders_locale_enum_and_plural_matrix() {
-    let project = temp_project_dir("test_data_renders_locale_enum_and_plural_matrix");
+fn generate_renders_locale_enum_and_plural_matrix() {
+    let project = temp_project_dir("generate_renders_locale_enum_and_plural_matrix");
     init_project(project.path()).expect("init project");
 
     let schema_dir = project.path().join("schema");
@@ -254,7 +254,7 @@ fn test_data_renders_locale_enum_and_plural_matrix() {
     )
     .expect("locale file");
 
-    let output = generate_test_data(project.path()).expect("test data");
+    let output = generate_project_data(project.path()).expect("generated data");
 
     assert!(output.contains("\"locales\""));
     assert!(output.contains("\"en\""));

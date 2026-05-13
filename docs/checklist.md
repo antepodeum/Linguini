@@ -669,7 +669,7 @@ Checkpoint acceptance:
   - Note: completed on 2026-05-13. Added generated TypeScript file-tree snapshots covering shared helpers, locale modules, index API, enums, aliases, forms, local functions, and messages.
   - Evidence: tests/fixtures/golden/snapshots/ts; `cargo test -p linguini-codegen-ts`
 - [x] Generate facade with switchable active language source
-  - Note: completed on 2026-05-13. Generated TypeScript index exposes `createLinguini` and `configureLinguini` with a language value or language getter.
+  - Note: completed on 2026-05-13. Generated TypeScript index exposes `createLinguini`, `createLinguiniProvider`, and a default `lgl` facade.
   - Evidence: crates/linguini-codegen-ts/src/module/project.rs; tests/fixtures/golden/snapshots/ts/index.ts; `cargo test -p linguini-codegen-ts`
 - [x] Add SvelteKit-compatible locale provider example for cookies, route data, or UI language
   - Note: completed on 2026-05-13. Added a SvelteKit provider example showing route data/cookie-driven language state while components keep `lgl.*(...)` calls.
@@ -687,7 +687,7 @@ Checkpoint acceptance:
   - Note: completed on 2026-05-13. Compiled generated TypeScript and checked Russian `counted` plural output for `1 apple` and `5 orange`.
   - Evidence: `bash scripts/validate-generated-ts.sh`
 - [x] Application code can call `lgl.*(...)` while changing one locale source variable to switch output language
-  - Note: completed on 2026-05-13. TypeScript facade supports a language getter, and the SvelteKit example wires one source variable to `linguini.lgl`.
+  - Note: completed on 2026-05-13. TypeScript facade supports explicit locale factories/providers, and the SvelteKit example wires per-request context to `lgl.*` calls.
   - Evidence: crates/linguini-codegen-ts/src/module/project.rs; docs/examples/sveltekit-locale-provider.md; `cargo test -p linguini-codegen-ts`
 
 ---
@@ -926,8 +926,8 @@ Checkpoint acceptance:
 
 ## 20. Real-project validation
 
-- [x] Add rendered locale test-data command
-  - Note: completed on 2026-05-13. Added `linguini test-data` JSON output that renders every configured locale across enum variants and representative numeric plural values.
+- [x] Add rendered locale generate command
+  - Note: completed on 2026-05-13. Added `linguini generate` pretty JSON output that renders every configured locale across enum variants and representative numeric plural values.
   - Evidence: crates/linguini-cli/src/project/test_data; crates/linguini-cli/tests/cli.rs; `cargo test -p linguini-cli`
 - [ ] Test in a TypeScript app
   - Note:

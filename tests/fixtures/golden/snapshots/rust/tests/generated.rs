@@ -10,7 +10,9 @@ fn delivery_example_returns_expected_russian_string() {
 
 #[test]
 fn counted_example_returns_expected_plural_strings() {
-    assert_eq!(counted(1, Fruit::Apple), "В корзине 1 яблока");
+    assert_eq!(counted(0, Fruit::Apple), "В корзине 0 яблок");
+    assert_eq!(counted(1, Fruit::Apple), "В корзине 1 яблоко");
+    assert_eq!(counted(2, Fruit::Pear), "В корзине 2 груши");
     assert_eq!(counted(5, Fruit::Orange), "В корзине 5 апельсинов");
 }
 

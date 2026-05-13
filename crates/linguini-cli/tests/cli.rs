@@ -20,7 +20,7 @@ fn help_is_generated_by_cli_argument_parser() {
         .stdout(contains("check"))
         .stdout(contains("fix"))
         .stdout(contains("build"))
-        .stdout(contains("test-data"))
+        .stdout(contains("generate"))
         .stderr("");
 }
 
@@ -337,7 +337,7 @@ fn build_command_generates_typescript_and_does_not_require_cldr_cache() {
 }
 
 #[test]
-fn test_data_command_outputs_rendered_locale_matrix() {
+fn generate_command_outputs_rendered_locale_matrix() {
     let project = TempDir::new().expect("temp project");
     linguini()
         .current_dir(project.path())
@@ -362,7 +362,7 @@ fn test_data_command_outputs_rendered_locale_matrix() {
 
     linguini()
         .current_dir(project.path())
-        .arg("test-data")
+        .arg("generate")
         .assert()
         .success()
         .stdout(contains("\"locales\""))

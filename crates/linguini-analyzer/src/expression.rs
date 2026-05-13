@@ -280,6 +280,19 @@ fn analyze_call(
 ) {
     if expression.path.len() == 1 {
         let name = &expression.path[0];
+        if name.value == "plural" {
+            if expression.arguments.len() != 1 {
+                diagnostics.push(Diagnostic::error(
+                    format!(
+                        "function `plural` expects 1 argument(s), got {}",
+                        expression.arguments.len()
+                    ),
+                    expression.span,
+                ));
+            }
+            return;
+        }
+
         let Some(function) = functions.get(name.value.as_str()) else {
             diagnostics.push(Diagnostic::error(
                 format!("unknown function `{}`", name.value),

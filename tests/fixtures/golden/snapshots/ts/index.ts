@@ -7,30 +7,27 @@ export type Linguini = (typeof localeModules)[LinguiniLanguage];
 
 type LinguiniLanguageInput = LinguiniLanguage | "ru";
 
-let currentLanguage: () => LinguiniLanguageInput = () => "ru";
-
-function resolveLinguiniLanguage(): LinguiniLanguageInput {
-  return currentLanguage();
-}
-
 export function createLinguini(language: LinguiniLanguageInput): Linguini {
   return localeModules[language as LinguiniLanguage];
+}
+
+export function createLinguiniProvider(options: {
+  resolveLanguage: () => LinguiniLanguageInput;
+}): Linguini {
+  return new Proxy({} as Linguini, {
+    get(_target, property) {
+      return createLinguini(options.resolveLanguage())[property as keyof Linguini];
+    },
+  });
 }
 
 export function configureLinguini(options: {
   language: LinguiniLanguageInput | (() => LinguiniLanguageInput);
 }): Linguini {
   if (typeof options.language === "function") {
-    currentLanguage = options.language;
-  } else {
-    const language = options.language;
-    currentLanguage = () => language;
+    return createLinguiniProvider({ resolveLanguage: options.language });
   }
-  return lgl;
+  return createLinguini(options.language);
 }
 
-export const lgl: Linguini = new Proxy({} as Linguini, {
-  get(_target, property) {
-    return createLinguini(resolveLinguiniLanguage())[property as keyof Linguini];
-  },
-});
+export const lgl: Linguini = createLinguini("ru");

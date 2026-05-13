@@ -20,12 +20,16 @@ const m = require(process.argv[2]);
 const ru = require(process.argv[3]);
 
 const expectations = [
-  [ru.counted(1, "apple"), "В корзине 1 яблока"],
+  [ru.counted(0, "apple"), "В корзине 0 яблок"],
+  [ru.counted(1, "apple"), "В корзине 1 яблоко"],
+  [ru.counted(2, "pear"), "В корзине 2 груши"],
   [ru.counted(5, "orange"), "В корзине 5 апельсинов"],
   [ru.delivery("apple", "small", 1), "Доставлено маленькое яблоко"],
+  [ru.delivery("apple", "small", 5), "Доставлено маленьких яблок"],
+  [ru.delivery("pear", "big", 2), "Доставлено большие груши"],
   [ru.email_input.label, "Email"],
   [m.createLinguini("ru").email_input.aria, "Адрес электронной почты"],
-  [m.configureLinguini({ language: "ru" }).price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
+  [m.createLinguiniProvider({ resolveLanguage: () => "ru" }).price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
   [m.lgl.price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
 ];
 
@@ -41,10 +45,10 @@ cp "$repo_root/tests/fixtures/golden/snapshots/ts/shared.d.ts" "$tmpdir/types/sh
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/index.d.ts" "$tmpdir/types/index.d.ts"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/locales/ru.d.ts" "$tmpdir/types/locales/ru.d.ts"
 cat > "$tmpdir/types/consumer.ts" <<'TS'
-import { configureLinguini, createLinguini, lgl, type Linguini } from "./index";
+import { createLinguini, createLinguiniProvider, lgl, type Linguini } from "./index";
 
 const direct: Linguini = createLinguini("ru");
-const configured = configureLinguini({ language: () => "ru" });
+const configured = createLinguiniProvider({ resolveLanguage: () => "ru" });
 
 direct.delivery("apple", "small", 1);
 configured.price(12, "13.05.2026");

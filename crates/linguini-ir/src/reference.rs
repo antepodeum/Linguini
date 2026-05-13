@@ -100,7 +100,8 @@ fn check_expression(
 
     let resolved = variables.contains(root)
         || context.forms.contains(root)
-        || context.functions.contains(root);
+        || context.functions.contains(root)
+        || root == "plural";
 
     if !resolved {
         errors.push(IrReferenceError {

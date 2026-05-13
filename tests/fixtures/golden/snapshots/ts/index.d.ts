@@ -9,6 +9,10 @@ type LinguiniLanguageInput = LinguiniLanguage | "ru";
 
 export declare function createLinguini(language: LinguiniLanguageInput): Linguini;
 
+export declare function createLinguiniProvider(options: {
+  resolveLanguage: () => LinguiniLanguageInput;
+}): Linguini;
+
 export declare function configureLinguini(options: {
   language: LinguiniLanguageInput | (() => LinguiniLanguageInput);
 }): Linguini;
