@@ -11,3 +11,6 @@ pub use model::{LinguiniConfig, PathsConfig, ProjectConfig};
 pub use parser::parse_config;
 
 pub const DEFAULT_CONFIG_FILE: &str = "linguini.toml";
+
+#[cfg(test)]
+mod tests;

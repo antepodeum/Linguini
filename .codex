@@ -1,165 +1,21 @@
-Repository state handoff - 2026-05-13
-
 Completed slice:
-- Added TypeScript shared formatter helpers for currency and date output.
-- Wired placeholder formatter annotations to generated TypeScript message expressions.
-- Updated generated TypeScript snapshots and runtime validation for formatted Russian currency output.
-- Split TypeScript formatter-use detection into `module/formatters.rs` to keep `emit.rs` below the 400-line warning threshold.
-- Added repository spec gate script for completed-checklist evidence, required crate stack conformance, CI gate wiring, handoff shape, anti-simplification completion claims, and thin `main.rs` boundaries.
-- Wired `./scripts/check-spec-gates.sh` into CI after the file-size check.
-- Marked repository engineering gate checklist items complete with command evidence.
-- Added TypeScript module generation for schema enum unions, schema type aliases, typed message functions, locale forms, selector/plural branches, local functions, and grouped messages.
-- Added generated Russian TypeScript module golden snapshot and compile/runtime validation via real two-file `tsc` plus Node smoke checks.
-- Fixed TypeScript module snapshot to import plural helpers instead of relying on concatenated compile tests.
-- TypeScript grouped schema messages now emit nested objects such as `email_input.label`, not flattened `email_input_label` functions.
-- TypeScript output now emits a locale facade with `{ ru }`, `locales`, `Locale`, and `createLinguini(locale)`.
-- Split the TypeScript module generator into `module/emit.rs`, `module/expr.rs`, and `module/names.rs`.
-- Extended IR with schema enums and type aliases so target codegen can emit public enum and custom scalar types.
-- Fixed `.lgl` raw text semantics: unquoted text after `=` or `=>` trims outer edge whitespace; quoted raw text preserves spaces inside quotes.
-- Added parser coverage for raw text trimming and quoted preservation.
-- Updated spec language for raw text trimming and aligned delivery signature with explicit `count: Number`.
-- Added modular IR crate split into `model.rs`, `lower.rs`, and `tests.rs`.
-- Added IR nodes for messages, parameters, forms, form variants, form entries, branches, functions, text parts, expressions, and formatter annotations.
-- Added schema-to-IR lowering for standalone and grouped message signatures.
-- Added locale-to-IR lowering for standalone/grouped messages, forms, selector/plural maps, nested form objects, local functions, placeholders, and formatter annotations.
-- Added full stable IR debug snapshots for schema and Russian locale fixtures.
-- Added CLDR plural operand extraction for `n i v w f t c e`, including visible fraction digit handling.
-- Added CLDR plural rule evaluation and category selection APIs.
-- Added English, Russian, and Arabic-shaped plural evaluation coverage.
-- Added deterministic TypeScript plural category function generation from CLDR plural rules.
-- Added committed TypeScript plural function golden snapshot.
-- Added CLDR cache root resolution, cache status inspection, cache manifest/data/plural-rule checks, and offline cache requirement API.
-- Added `linguini cldr status`.
-- Added `linguini cldr fetch <cldr-json-dir>` to import staged CLDR JSON into configured cache without normal-build downloads.
-- Added cached CLDR plural-rule loading from `common/supplemental/plurals.json`.
-- Added cached CLDR number formatting loaders for Latin decimal/group symbols plus decimal and percent patterns.
-- Added cached CLDR currency formatting loader for standard and accounting patterns.
-- Added cached CLDR Gregorian date/time/date-time format width loaders.
-- Added CLDR plural expression AST and parser for operands `n i v w f t c e`, `or`, `and`, `not`, equality/inequality, modulo, ranges, comma lists, `in`, and `within`.
-- Added English, Russian, and Arabic-shaped parser coverage.
-- Added analyzer branch coverage checks for enum-backed form and selector maps.
-- Added analyzer `other` fallback branch validation.
-- Added analyzer public message coverage checks for matching schema messages to locale implementations.
-- Added missing public message diagnostics.
-- Added unknown public message implementation diagnostics.
-- Added locale `override` syntax parsing for explicitly replacing parent scope declarations.
-- Added locale scope loader for root-to-child source chains, registering local enums, functions, forms, standalone messages, and grouped messages.
-- Added duplicate declaration and invalid shadowing diagnostics for locale scope merging.
-- Added schema symbol table in `linguini-schema` for enums, variants, type aliases, public messages, grouped messages, groups, docs, and spans.
-- Added schema duplicate declaration diagnostics with related first-declaration spans.
-- Added schema type-reference validation against builtins and declared schema types.
-- Added analyzer diagnostic model with severity, related spans, notes, quick-fix hints, and replacement payloads.
-- Added Ariadne renderer with deterministic ASCII/no-color output and byte-span indexing.
-- Wired `linguini check` to parse discovered schema and locale files and return rendered syntax diagnostics when parsing fails.
-- Added CLI diagnostic output test and committed diagnostic golden snapshot.
-- Added Chumsky 0.13.0-based lexer foundation in `linguini-syntax`, including token/span model, lexer recovery, schema-specific lexing, and committed token snapshots.
-- Added schema parser AST and `parse_schema` entry point for enums, custom scalar aliases, schema formatter annotations, message signatures, grouped messages, and doc comments.
-- Added locale parser AST and `parse_locale` entry point for local enums, forms, selector maps, plural-map-shaped branches, local functions, public/grouped message implementations, placeholders, dotted/call expressions, and placeholder formatter annotations.
-- Added recursive nested form attribute parsing for object-shaped attributes inside locale forms.
-- Added parser recovery entry points for schema and locale parsing. They return `ParseOutput<T>` with optional AST plus collected lex and parse diagnostics.
-- Added invalid schema and locale fixtures that assert diagnostics are produced while strict parser APIs still fail.
-- Expanded golden schema and Russian locale fixtures from minimal examples to spec-shaped fixtures covering docs, formatter annotations, forms, selector maps, plural-shaped maps, nested form attributes, helper functions, placeholders, and grouped messages.
-- Updated parser and fixture checklist items through parser recovery and invalid fixture diagnostics.
+- 2026-05-13: Added crate-level unit test structure checks and complete syntax fixture gates for testing-policy progress.
 
 Implementation decisions:
-- TypeScript formatter helpers use `Intl.NumberFormat` for currency; date helper preserves string date values and formats `Date` or numeric values with `Intl.DateTimeFormat`.
-- TypeScript formatter imports are emitted only when locale IR contains placeholder formatter annotations.
-- Formatter-use scanning lives in a separate codegen module so emit logic stays below file-size warning limits.
-- Spec gate is intentionally non-destructive against existing historical checklist order; it enforces evidence and completion-shape rules without unchecking already-recorded work.
-- Anti-simplification gate rejects explicit completed-item claims of skipped, omitted, fragment-only, or simplified-substitute behavior.
-- IR source is intentionally modular to keep implementation files below file-size gate; full snapshots stay in `tests/fixtures/golden/snapshots`, which the repository file-size gate excludes.
-- IR lowering is currently syntax-backed and preserves parsed structure; semantic resolved-reference IR remains deferred.
-- CLDR fetch currently imports a local/staged `cldr-json` directory into cache. Network download/update remains deferred.
-- CLDR cache usability currently requires manifest, data directory, and `common/supplemental/plurals.json`.
-- CLDR JSON loading uses a narrow string-object extractor for plural rules to avoid adding a JSON dependency before dependency-fetch policy is settled.
-- Formatting data loaders use the same narrow JSON extractor and currently target CLDR `latn` number systems plus Gregorian calendars.
-- Plural AST stores OR as top-level condition list and AND as relation list inside each condition.
-- Empty CLDR plural rule strings parse as true/default rules with no conditions.
-- Branch coverage analyzer is generic over subject/enum/branches so form maps and selector maps can share it.
-- Analyzer message coverage API is dependency-light to avoid a crate cycle: callers pass message names and spans from schema/locale symbol tables.
-- Locale scope loading takes an ordered path/source list; `linguini-config` remains responsible for computing the top-down path chain.
-- Locale grouped messages are registered both by group name and `group.message` key.
-- `override` wraps the inner locale declaration in the syntax AST and transfers doc comments to that inner declaration.
-- Schema symbol table stores grouped messages under `group.message` keys and group metadata separately.
-- Builtin schema types currently recognized by symbol resolution: `String`, `Number`, `Decimal`, `Date`, and `Boolean`.
-- Diagnostic rendering lives in `linguini-analyzer` so syntax and future semantic checks share one model.
-- CLI syntax diagnostics convert parser recovery errors into analyzer diagnostics with a syntax-error note.
-- Ariadne renderer uses ASCII and disabled color to keep tests stable across environments.
-- Lexer uses `chumsky = "0.13.0"`.
-- Public spans are byte offsets.
-- Raw text after `=` and `=>` trims unquoted outer edge whitespace. Quoted raw text after the delimiter preserves spaces inside quotes.
-- `lex_schema` disables raw-text transition after `=` because schema custom scalar aliases use code syntax after equals.
-- Mode transitions are coordinated in Rust, while token recognition is done with Chumsky parsers.
-- `TokenKind::Error` represents recovered invalid source characters.
-- Placeholder mode tokenizes code punctuation without letting `=` switch into raw text.
-- Multiline raw text currently treats `"` as a delimiter boundary so triple quotes can be recognized; escaped/ordinary quotes in raw text are deferred.
-- Parser trivia stripping removes whitespace, newlines, and ordinary comments, but preserves doc comments as AST nodes.
-- Recovered parser APIs use recovered lexing, drop `TokenKind::Error` tokens, then preserve all lex and parse errors in order.
-- Schema parser is syntax-only and does not resolve type names or formatter semantics.
-- Locale parser is syntax-only and does not resolve schema messages, form variants, selector enums, CLDR plural categories, formatter compatibility, or function arity.
-- Locale `name = value` attributes are parsed as text patterns because the lexer intentionally enters raw-text mode after `=`; scalar-vs-text meaning is deferred to semantic analysis.
-- Form map bodies cover branch maps used by selector and plural-shaped examples, and recursive object-shaped nested attributes used by forms.
+- Unit-test structure is enforced per workspace crate by `scripts/check-unit-test-structure.sh`.
+- Golden `.lqs` and `.lgl` fixtures are treated as complete valid programs; diagnostic fragments must live under `tests/fixtures/invalid`.
+- Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, and `crates/linguini-cldr/src/data.rs`.
 
 Tests last run:
-- `LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-codegen-ts`
-- `bash scripts/validate-generated-ts.sh`
-- `./scripts/check-spec-gates.sh`
-- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 498 lines, `crates/linguini-syntax/src/lexer.rs` has 459 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 483 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
 - `cargo fmt --all --check`
-- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 498 lines, `crates/linguini-syntax/src/lexer.rs` has 459 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 483 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
-- `cargo test -p linguini-codegen-ts`
-- `LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-syntax -p linguini-ir -p linguini-codegen-ts`
-- `bash scripts/validate-generated-ts.sh`
-- `cargo test -p linguini-ir`
-- `env LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-ir`
-- `cargo fmt --all --check`
-- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 484 lines, `crates/linguini-syntax/src/lexer.rs` has 426 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 408 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
-- `cargo test -p linguini-cldr -p linguini-codegen-ts`
-- `cargo test -p linguini-cldr`
-- `cargo test -p linguini-cldr -p linguini-cli`
-- `cargo test -p linguini-analyzer`
-- `cargo fmt --all`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
-- `cargo fmt --all --check`
-- `cargo test -p linguini-syntax -p linguini-locale`
-- `cargo fmt --all --check`
-- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 484 lines, `crates/linguini-syntax/src/lexer.rs` has 426 lines, and `crates/linguini-syntax/src/parser/locale_parser.rs` has 408 lines; all below 500-line failure threshold)
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
-- `cargo test -p linguini-schema`
-- `cargo test -p linguini-analyzer -p linguini-cli`
-- `cargo fmt --all`
-- `cargo fmt --all --check`
-- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 469 lines and `crates/linguini-syntax/src/lexer.rs` has 426 lines; both below 500-line failure threshold)
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
-- `cargo test -p linguini-syntax`
-- `cargo test -p linguini-syntax` after fixture expansion and nested form attribute parsing.
-- `wc -l crates/linguini-syntax/src/parser.rs crates/linguini-syntax/src/parser/locale_parser.rs crates/linguini-syntax/src/ast.rs crates/linguini-syntax/src/lib.rs`
-- `cargo fmt --all --check`
-- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 443 lines and `crates/linguini-syntax/src/lexer.rs` has 422 lines; both below 500-line failure threshold)
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
-- `cargo test -p linguini-syntax` after parser recovery and invalid fixture diagnostics.
+- `./scripts/check-unit-test-structure.sh`
+- `./scripts/check-syntax-fixtures.sh`
 
 Known deferred work:
-- IR unresolved-reference validation is not implemented yet; current IR lowering preserves syntax references.
-- `linguini cldr update` and `linguini cldr clean` are not implemented.
-- CLDR network fetch is not implemented; current fetch command imports a local staged CLDR JSON directory.
-- Formatting data is loaded but not yet lowered into target-language helpers.
-- TypeScript codegen now integrates plural functions by configured helper name, but formatter helper emission, `.d.ts`, and tree-shaking modes remain deferred.
-- TypeScript compile validation now uses `scripts/validate-generated-ts.sh`, which copies plural and locale modules as separate files and compiles real imports.
-- Branch coverage helpers are not wired into full AST traversal yet.
-- Analyzer message coverage is not wired into `linguini check` yet; CLI currently reports syntax diagnostics only.
-- Locale scope symbols currently store declaration metadata only; variant/function/form internals remain for analyzer-specific checks.
-- Schema symbol table currently validates one parsed schema AST at a time; project-wide namespace merging remains future analyzer work.
-- Raw text quote handling should be revisited when parser fixtures cover quoted localized text.
-- Parser recovery currently reports diagnostics and optional full AST output; it does not insert error AST nodes for malformed declarations.
+- `insta` snapshot review workflow remains next unchecked testing-policy item.
+- CLI integration harness, generated JS validation, generated Rust validation, regression-test rule, coverage command, and full CI suite gate remain unchecked.
 
 Next recommended task:
-- Continue TypeScript backend with formatter helpers, `.d.ts`, tree-shaking mode, and automated generated-output compile/runtime tests in Rust or CLI integration tests.
+- Add `insta` snapshot review workflow without weakening current committed-snapshot tests.

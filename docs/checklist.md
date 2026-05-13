@@ -94,18 +94,18 @@ Checkpoint acceptance:
 - [x] Add mandatory test policy to repository docs
   - Note: completed on 2026-05-12. Documented required gates and checklist evidence rule.
   - Evidence: docs/testing.md
-- [ ] Add unit test structure for every core crate
-  - Note:
-  - Evidence:
+- [x] Add unit test structure for every core crate
+  - Note: completed on 2026-05-13. Added crate-level unit test modules where missing and a gate that rejects workspace crates without unit test structure.
+  - Evidence: scripts/check-unit-test-structure.sh; crates/linguini-codegen-js/src/tests.rs; crates/linguini-codegen-rust/src/tests.rs; crates/linguini-format/src/tests.rs; crates/linguini-lsp/src/tests.rs; crates/linguini-package/src/tests.rs; `./scripts/check-unit-test-structure.sh`; `cargo test --workspace`
 - [x] Add golden fixture directory for `.lqs` and `.lgl` projects
   - Note: completed on 2026-05-12. Expanded schema and Russian locale golden fixtures to cover enums, formatter annotations, docs, forms, selector maps, plural-shaped maps, nested form attributes, helper functions, messages, placeholders, and grouped messages.
   - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
-- [ ] Add behavior-complete syntax fixtures
-  - Note:
-  - Evidence:
-- [ ] Reject fragment-only syntax fixtures unless they are explicit invalid diagnostic fixtures
-  - Note:
-  - Evidence:
+- [x] Add behavior-complete syntax fixtures
+  - Note: completed on 2026-05-13. Added a syntax fixture gate that verifies golden `.lqs` and `.lgl` fixtures cover complete declarations, messages, docs, selectors, plural-shaped branches, nested form attributes, placeholders, and formatter annotations.
+  - Evidence: scripts/check-syntax-fixtures.sh; tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `./scripts/check-syntax-fixtures.sh`; `cargo test -p linguini-syntax`
+- [x] Reject fragment-only syntax fixtures unless they are explicit invalid diagnostic fixtures
+  - Note: completed on 2026-05-13. Golden syntax fixtures now have a minimum complete-program gate and diagnostic fragments are constrained to `tests/fixtures/invalid`.
+  - Evidence: scripts/check-syntax-fixtures.sh; docs/testing.md; `./scripts/check-syntax-fixtures.sh`
 - [ ] Add `insta` snapshot review workflow
   - Note:
   - Evidence:
