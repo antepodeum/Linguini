@@ -115,9 +115,9 @@ Checkpoint acceptance:
 - [x] Add generated TypeScript validation fixture
   - Note: completed on 2026-05-13. Added deterministic generated TypeScript file-tree fixtures for Russian schema/locale output.
   - Evidence: tests/fixtures/golden/snapshots/ts; `cargo test -p linguini-codegen-ts`
-- [ ] Add generated JavaScript validation fixture
-  - Note:
-  - Evidence:
+- [x] Add generated JavaScript validation fixture
+  - Note: completed on 2026-05-13. Added ESM JavaScript generated-output fixture and Node validation script covering delivery, plural output, formatter output, and facade access.
+  - Evidence: tests/fixtures/golden/snapshots/js; scripts/validate-generated-js.sh; `./scripts/validate-generated-js.sh`
 - [ ] Add generated Rust validation fixture
   - Note:
   - Evidence:

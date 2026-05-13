@@ -23,6 +23,8 @@ jobs:
         run: ./scripts/check-syntax-fixtures.sh
       - name: Check snapshot workflow
         run: ./scripts/review-snapshots.sh --check
+      - name: Validate generated JavaScript
+        run: ./scripts/validate-generated-js.sh
       - name: Check spec gates
         run: ./scripts/check-spec-gates.sh
       - name: Clippy

@@ -1,11 +1,12 @@
 Completed slice:
-- 2026-05-13: Added crate-level unit test structure checks, complete syntax fixture gates, snapshot review workflow, and CLI integration harness for testing-policy progress.
+- 2026-05-13: Added crate-level unit test structure checks, complete syntax fixture gates, snapshot review workflow, CLI integration harness, and generated JavaScript validation fixture for testing-policy progress.
 
 Implementation decisions:
 - Unit-test structure is enforced per workspace crate by `scripts/check-unit-test-structure.sh`.
 - Golden `.lqs` and `.lgl` fixtures are treated as complete valid programs; diagnostic fragments must live under `tests/fixtures/invalid`.
 - Snapshot review uses `scripts/review-snapshots.sh --check` in CI and `scripts/review-snapshots.sh review` with `cargo-insta` installed for interactive review.
 - CLI integration tests live under `crates/linguini-cli/tests` and exercise the compiled `linguini` binary with `assert_cmd`, `predicates`, and `tempfile`.
+- JavaScript generated-output fixture is a committed ESM file tree validated by `scripts/validate-generated-js.sh`; this does not mark JS backend codegen tasks complete.
 - Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, and `crates/linguini-cldr/src/data.rs`.
 
 Tests last run:
@@ -18,9 +19,10 @@ Tests last run:
 - `./scripts/review-snapshots.sh --check`
 - `./scripts/check-spec-gates.sh`
 - `cargo test -p linguini-cli`
+- `./scripts/validate-generated-js.sh`
 
 Known deferred work:
-- Generated JS validation, generated Rust validation, regression-test rule, coverage command, and full CI suite gate remain unchecked.
+- Generated Rust validation, regression-test rule, coverage command, and full CI suite gate remain unchecked.
 
 Next recommended task:
-- Add generated JavaScript validation fixture.
+- Add generated Rust validation fixture.
