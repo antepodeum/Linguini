@@ -324,21 +324,63 @@ where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
     choice((
-        select! { TokenKind::RawText(value) => value }.map_with(|value, extra| {
-            TextPart::Text(RawText {
+        select! { TokenKind::RawText(value) => value }.map_with(|value, extra| TextAtom {
+            part: TextPart::Text(RawText {
                 value,
                 span: extra.span(),
-            })
+            }),
+            trim_edges: true,
         }),
-        placeholder().map(TextPart::Placeholder),
+        select! { TokenKind::String(value) => value }.map_with(|value, extra| TextAtom {
+            part: TextPart::Text(RawText {
+                value,
+                span: extra.span(),
+            }),
+            trim_edges: false,
+        }),
+        placeholder().map(|placeholder| TextAtom {
+            part: TextPart::Placeholder(placeholder),
+            trim_edges: false,
+        }),
     ))
     .repeated()
     .at_least(1)
     .collect::<Vec<_>>()
-    .map_with(|parts, extra| TextPattern {
-        parts,
+    .map_with(|atoms, extra| TextPattern {
+        parts: trim_text_atoms(atoms),
         span: extra.span(),
     })
+}
+
+struct TextAtom {
+    part: TextPart,
+    trim_edges: bool,
+}
+
+fn trim_text_atoms(mut atoms: Vec<TextAtom>) -> Vec<TextPart> {
+    if let Some(first) = atoms.first_mut() {
+        if first.trim_edges {
+            if let TextPart::Text(text) = &mut first.part {
+                text.value = text.value.trim_start().to_owned();
+            }
+        }
+    }
+
+    if let Some(last) = atoms.last_mut() {
+        if last.trim_edges {
+            if let TextPart::Text(text) = &mut last.part {
+                text.value = text.value.trim_end().to_owned();
+            }
+        }
+    }
+
+    atoms
+        .into_iter()
+        .filter_map(|atom| match atom.part {
+            TextPart::Text(text) if atom.trim_edges && text.value.is_empty() => None,
+            part => Some(part),
+        })
+        .collect()
 }
 
 fn placeholder<'tokens, I>() -> impl Parser<'tokens, I, Placeholder, Extra<'tokens>> + Clone
@@ -403,6 +445,39 @@ impl LocaleDeclarationDocs for LocaleDeclaration {
             LocaleDeclaration::Message(declaration) => declaration.docs = docs,
             LocaleDeclaration::Group(declaration) => declaration.docs = docs,
             LocaleDeclaration::Override(declaration) => declaration.set_docs(docs),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{parse_locale, LocaleDeclaration, TextPart, TextPattern};
+
+    #[test]
+    fn trims_unquoted_raw_text_edges_and_preserves_quoted_edges() {
+        let locale = parse_locale("plain =  hello  \nquoted = \"  hello  \"\njoined = {a} {b}\n")
+            .expect("locale parses");
+
+        let LocaleDeclaration::Message(plain) = &locale.declarations[0] else {
+            panic!("expected plain message");
+        };
+        assert_eq!(raw_text(&plain.value), "hello");
+
+        let LocaleDeclaration::Message(quoted) = &locale.declarations[1] else {
+            panic!("expected quoted message");
+        };
+        assert_eq!(raw_text(&quoted.value), "  hello  ");
+
+        let LocaleDeclaration::Message(joined) = &locale.declarations[2] else {
+            panic!("expected joined message");
+        };
+        assert!(matches!(&joined.value.parts[1], TextPart::Text(text) if text.value == " "));
+    }
+
+    fn raw_text(text: &TextPattern) -> &str {
+        match &text.parts[0] {
+            TextPart::Text(raw) => &raw.value,
+            TextPart::Placeholder(_) => panic!("expected text"),
         }
     }
 }

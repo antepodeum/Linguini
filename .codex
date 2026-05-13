@@ -1,6 +1,12 @@
 Repository state handoff - 2026-05-13
 
 Completed slice:
+- Added TypeScript module generation for schema enum unions, schema type aliases, typed message functions, locale forms, selector/plural branches, local functions, and grouped messages.
+- Added generated Russian TypeScript module golden snapshot and compile/runtime validation via `tsc` plus Node smoke checks.
+- Extended IR with schema enums and type aliases so target codegen can emit public enum and custom scalar types.
+- Fixed `.lgl` raw text semantics: unquoted text after `=` or `=>` trims outer edge whitespace; quoted raw text preserves spaces inside quotes.
+- Added parser coverage for raw text trimming and quoted preservation.
+- Updated spec language for raw text trimming and aligned delivery signature with explicit `count: Number`.
 - Added modular IR crate split into `model.rs`, `lower.rs`, and `tests.rs`.
 - Added IR nodes for messages, parameters, forms, form variants, form entries, branches, functions, text parts, expressions, and formatter annotations.
 - Added schema-to-IR lowering for standalone and grouped message signatures.
@@ -65,7 +71,7 @@ Implementation decisions:
 - Ariadne renderer uses ASCII and disabled color to keep tests stable across environments.
 - Lexer uses `chumsky = "0.13.0"`.
 - Public spans are byte offsets.
-- Raw text after `=` and `=>` currently includes leading spaces, matching "text after delimiter" literally.
+- Raw text after `=` and `=>` trims unquoted outer edge whitespace. Quoted raw text after the delimiter preserves spaces inside quotes.
 - `lex_schema` disables raw-text transition after `=` because schema custom scalar aliases use code syntax after equals.
 - Mode transitions are coordinated in Rust, while token recognition is done with Chumsky parsers.
 - `TokenKind::Error` represents recovered invalid source characters.
@@ -79,6 +85,12 @@ Implementation decisions:
 - Form map bodies cover branch maps used by selector and plural-shaped examples, and recursive object-shaped nested attributes used by forms.
 
 Tests last run:
+- `cargo fmt --all --check`
+- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 498 lines, `crates/linguini-syntax/src/lexer.rs` has 459 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 483 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`
+- `LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-syntax -p linguini-ir -p linguini-codegen-ts`
+- `tsc --strict --target ES2020 --module commonjs` on concatenated generated TS plural helper plus module, followed by Node smoke checks for `delivery` and `counted`
 - `cargo test -p linguini-ir`
 - `env LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-ir`
 - `cargo fmt --all --check`
@@ -119,7 +131,7 @@ Known deferred work:
 - `linguini cldr update` and `linguini cldr clean` are not implemented.
 - CLDR network fetch is not implemented; current fetch command imports a local staged CLDR JSON directory.
 - Formatting data is loaded but not yet lowered into target-language helpers.
-- Full target-language message integration for generated plural functions is not implemented.
+- TypeScript codegen now integrates plural functions by configured helper name, but formatter helper emission, `.d.ts`, and tree-shaking modes remain deferred.
 - Branch coverage helpers are not wired into full AST traversal yet.
 - Analyzer message coverage is not wired into `linguini check` yet; CLI currently reports syntax diagnostics only.
 - Locale scope symbols currently store declaration metadata only; variant/function/form internals remain for analyzer-specific checks.
@@ -128,4 +140,4 @@ Known deferred work:
 - Parser recovery currently reports diagnostics and optional full AST output; it does not insert error AST nodes for malformed declarations.
 
 Next recommended task:
-- Add semantic IR validation so lowered IR has no unresolved references, then start TypeScript enum/message generation.
+- Continue TypeScript backend with formatter helpers, `.d.ts`, tree-shaking mode, and automated generated-output compile/runtime tests in Rust or CLI integration tests.

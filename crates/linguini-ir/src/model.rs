@@ -1,8 +1,24 @@
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct IrModule {
+    pub enums: Vec<IrEnum>,
+    pub type_aliases: Vec<IrTypeAlias>,
     pub messages: Vec<IrMessage>,
     pub forms: Vec<IrForm>,
     pub functions: Vec<IrFunction>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrTypeAlias {
+    pub name: String,
+    pub target: String,
+    pub docs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrEnum {
+    pub name: String,
+    pub docs: Vec<String>,
+    pub variants: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -29,6 +29,7 @@ mod tests {
         parse_schema_with_recovery, BranchPattern, FormEntry, LocaleDeclaration, LocaleValue,
         SchemaDeclaration, Span, TextPart, Token, TokenKind, LOCALE_EXTENSION, SCHEMA_EXTENSION,
     };
+    use std::{fs, path::Path};
 
     #[test]
     fn dsl_extensions_match_spec() {
@@ -121,7 +122,6 @@ mod tests {
                 TokenKind::Ident("body".into()),
                 TokenKind::Whitespace,
                 TokenKind::Equals,
-                TokenKind::RawText(" ".into()),
                 TokenKind::TripleQuote,
                 TokenKind::Newline,
                 TokenKind::RawText("Hello, ".into()),
@@ -197,9 +197,9 @@ mod tests {
         let source = include_str!("../../../tests/fixtures/golden/schema/shop.lqs");
         let tokens = lex_schema(source).expect("schema fixture lexes");
 
-        assert_eq!(
-            render_tokens(&tokens),
-            include_str!("../../../tests/fixtures/golden/snapshots/lexer-schema.tokens")
+        assert_snapshot(
+            "tests/fixtures/golden/snapshots/lexer-schema.tokens",
+            &render_tokens(&tokens),
         );
     }
 
@@ -208,9 +208,9 @@ mod tests {
         let source = include_str!("../../../tests/fixtures/golden/locale/ru.lgl");
         let tokens = lex(source).expect("locale fixture lexes");
 
-        assert_eq!(
-            render_tokens(&tokens),
-            include_str!("../../../tests/fixtures/golden/snapshots/lexer-locale.tokens")
+        assert_snapshot(
+            "tests/fixtures/golden/snapshots/lexer-locale.tokens",
+            &render_tokens(&tokens),
         );
     }
 
@@ -480,5 +480,19 @@ email_input {
                 )
             })
             .collect()
+    }
+
+    fn assert_snapshot(path: &str, snapshot: &str) {
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            fs::write(repo_root().join(path), snapshot).expect("write snapshot");
+        }
+
+        let expected = fs::read_to_string(repo_root().join(path)).expect("read snapshot");
+        assert_eq!(snapshot, expected);
+    }
+
+    #[rustfmt::skip]
+    fn repo_root() -> &'static Path {
+        Path::new(env!("CARGO_MANIFEST_DIR")).parent().and_then(Path::parent).expect("repo root")
     }
 }

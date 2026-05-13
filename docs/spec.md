@@ -309,7 +309,7 @@ Schema declarations may contain doc comments.
 ```lqs
 /// Displayed on the product delivery confirmation card.
 /// The adjective must agree with the fruit name.
-delivery(fruit: Fruit, size: Size)
+delivery(fruit: Fruit, size: Size, count: Number)
 
 /// Shown near cart item count.
 counted(count: Number, fruit: Fruit)
@@ -517,12 +517,29 @@ fn adjective(size, gender) {
 ### 6.7 Messages
 
 ```lgl
-delivery = {delivered(fruit.gender)} {size(fruit.gender)} {fruit.nom}
+delivery = {delivered(fruit.gender)} {size(fruit.gender)} {fruit.nom(count)}
 
 counted = {count} {fruit.nom}
 
 price = Цена: {amount}
 ```
+
+Raw text after `=` and `=>` is trimmed at the outer edges when it is not quoted.
+
+```lgl
+big, neuter => большое
+label = Email
+```
+
+These values are `большое` and `Email`, not values with leading spaces.
+
+Quoted raw text preserves spaces inside the quotes.
+
+```lgl
+label = "  Email  "
+```
+
+This value is `  Email  `.
 
 ### 6.8 Placeholders
 

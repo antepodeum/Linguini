@@ -235,20 +235,13 @@ fn raw_text_token<'src>(multiline: bool) -> impl Parser<'src, &'src str, Lexeme,
     };
 
     choice((
-        literal_token(
-            "\"\"\"",
-            TokenKind::TripleQuote,
-            Some(if multiline {
-                Mode::RawText
-            } else {
-                Mode::MultilineText
-            }),
-        ),
+        raw_triple_quote(multiline),
         newline().map(move |mut lexeme| {
             lexeme.next_mode = Some(newline_mode);
             lexeme
         }),
         literal_token("{", TokenKind::LBrace, Some(placeholder_mode)),
+        raw_quoted_text(),
         raw_text_segment(multiline),
     ))
 }
@@ -262,6 +255,22 @@ fn literal_token<'src>(
         token: Token::new(kind.clone(), Span::new(0, literal.len())),
         next_mode,
     })
+}
+
+fn raw_triple_quote<'src>(multiline: bool) -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
+    any()
+        .filter(|ch: &char| ch.is_whitespace() && *ch != '\n' && *ch != '\r')
+        .repeated()
+        .to_slice()
+        .then(just("\"\"\""))
+        .map(move |(prefix, _): (&str, &str)| Lexeme {
+            token: Token::new(TokenKind::TripleQuote, Span::new(0, prefix.len() + 3)),
+            next_mode: Some(if multiline {
+                Mode::RawText
+            } else {
+                Mode::MultilineText
+            }),
+        })
 }
 
 fn ident_like<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
@@ -395,11 +404,35 @@ fn string_literal<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
         })
 }
 
+fn raw_quoted_text<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
+    any()
+        .filter(|ch: &char| ch.is_whitespace() && *ch != '\n' && *ch != '\r')
+        .repeated()
+        .to_slice()
+        .then(
+            just('"')
+                .ignore_then(
+                    none_of("\"\\\n\r")
+                        .or(just('\\').ignore_then(any()))
+                        .repeated()
+                        .collect::<String>(),
+                )
+                .then_ignore(just('"'))
+                .to_slice(),
+        )
+        .map(|(prefix, raw): (&str, &str)| Lexeme {
+            token: Token::new(
+                TokenKind::String(raw[1..raw.len() - 1].to_string()),
+                Span::new(0, prefix.len() + raw.len()),
+            ),
+            next_mode: None,
+        })
+}
+
 fn raw_text_segment<'src>(multiline: bool) -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
     any()
         .filter(move |ch: &char| {
-            let _ = multiline;
-            *ch != '{' && *ch != '\n' && *ch != '\r' && *ch != '"'
+            *ch != '{' && *ch != '\n' && *ch != '\r' && (!multiline || *ch != '"')
         })
         .repeated()
         .at_least(1)

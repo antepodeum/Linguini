@@ -1,4 +1,35 @@
 IrModule {
+    enums: [
+        IrEnum {
+            name: "Fruit",
+            docs: [],
+            variants: [
+                "apple",
+                "pear",
+                "orange",
+            ],
+        },
+        IrEnum {
+            name: "Size",
+            docs: [],
+            variants: [
+                "small",
+                "big",
+            ],
+        },
+    ],
+    type_aliases: [
+        IrTypeAlias {
+            name: "Money",
+            target: "Decimal",
+            docs: [],
+        },
+        IrTypeAlias {
+            name: "ShortDate",
+            target: "Date",
+            docs: [],
+        },
+    ],
     messages: [
         IrMessage {
             name: "delivery",
@@ -13,6 +44,10 @@ IrModule {
                 IrParameter {
                     name: "size",
                     ty: "Size",
+                },
+                IrParameter {
+                    name: "count",
+                    ty: "Number",
                 },
             ],
             body: None,

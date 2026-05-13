@@ -1,7 +1,7 @@
 use crate::model::{
-    IrBranch, IrBranchPattern, IrExpression, IrForm, IrFormEntry, IrFormVariant, IrFormatter,
-    IrFormatterArgument, IrFunction, IrFunctionBranch, IrMessage, IrModule, IrParameter, IrText,
-    IrTextPart, IrValue,
+    IrBranch, IrBranchPattern, IrEnum, IrExpression, IrForm, IrFormEntry, IrFormVariant,
+    IrFormatter, IrFormatterArgument, IrFunction, IrFunctionBranch, IrMessage, IrModule,
+    IrParameter, IrText, IrTextPart, IrTypeAlias, IrValue,
 };
 use linguini_syntax::{
     Annotation, BranchPattern, DocComment, Expression, FormEntry, LocaleDeclaration, LocaleFile,
@@ -44,7 +44,20 @@ pub fn lower_schema(schema: &SchemaFile) -> IrModule {
                     });
                 }
             }
-            SchemaDeclaration::Enum(_) | SchemaDeclaration::TypeAlias(_) => {}
+            SchemaDeclaration::Enum(declaration) => module.enums.push(IrEnum {
+                name: declaration.name.value.clone(),
+                docs: docs(&declaration.docs),
+                variants: declaration
+                    .variants
+                    .iter()
+                    .map(|variant| variant.value.clone())
+                    .collect(),
+            }),
+            SchemaDeclaration::TypeAlias(declaration) => module.type_aliases.push(IrTypeAlias {
+                name: declaration.name.value.clone(),
+                target: declaration.target.value.clone(),
+                docs: docs(&declaration.docs),
+            }),
         }
     }
     module

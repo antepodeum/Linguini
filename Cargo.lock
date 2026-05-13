@@ -140,6 +140,8 @@ name = "linguini-codegen-ts"
 version = "0.1.0"
 dependencies = [
  "linguini-cldr",
+ "linguini-ir",
+ "linguini-syntax",
 ]
 
 [[package]]

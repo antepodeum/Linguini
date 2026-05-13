@@ -1,4 +1,6 @@
 IrModule {
+    enums: [],
+    type_aliases: [],
     messages: [
         IrMessage {
             name: "delivery",
@@ -9,9 +11,6 @@ IrModule {
             body: Some(
                 IrText {
                     parts: [
-                        Text(
-                            " ",
-                        ),
                         Placeholder(
                             IrExpression {
                                 path: [
@@ -91,7 +90,7 @@ IrModule {
                 IrText {
                     parts: [
                         Text(
-                            " В корзине ",
+                            "В корзине ",
                         ),
                         Placeholder(
                             IrExpression {
@@ -135,7 +134,7 @@ IrModule {
                 IrText {
                     parts: [
                         Text(
-                            " Цена ",
+                            "Цена ",
                         ),
                         Placeholder(
                             IrExpression {
@@ -190,7 +189,7 @@ IrModule {
                 IrText {
                     parts: [
                         Text(
-                            " Email",
+                            "Email",
                         ),
                     ],
                 },
@@ -204,7 +203,7 @@ IrModule {
                 IrText {
                     parts: [
                         Text(
-                            " name@example.com",
+                            "name@example.com",
                         ),
                     ],
                 },
@@ -218,7 +217,7 @@ IrModule {
                 IrText {
                     parts: [
                         Text(
-                            " Адрес электронной почты",
+                            "Адрес электронной почты",
                         ),
                     ],
                 },
@@ -240,7 +239,7 @@ IrModule {
                                 IrText {
                                     parts: [
                                         Text(
-                                            " neuter",
+                                            "neuter",
                                         ),
                                     ],
                                 },
@@ -252,7 +251,7 @@ IrModule {
                                 IrText {
                                     parts: [
                                         Text(
-                                            " 🍎",
+                                            "🍎",
                                         ),
                                     ],
                                 },
@@ -269,7 +268,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " яблоко",
+                                                    "яблоко",
                                                 ),
                                             ],
                                         },
@@ -281,7 +280,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " яблока",
+                                                    "яблока",
                                                 ),
                                             ],
                                         },
@@ -293,7 +292,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " яблок",
+                                                    "яблок",
                                                 ),
                                             ],
                                         },
@@ -305,7 +304,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " яблока",
+                                                    "яблока",
                                                 ),
                                             ],
                                         },
@@ -324,7 +323,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " яблока",
+                                                    "яблока",
                                                 ),
                                             ],
                                         },
@@ -336,7 +335,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " яблок",
+                                                    "яблок",
                                                 ),
                                             ],
                                         },
@@ -348,7 +347,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " яблок",
+                                                    "яблок",
                                                 ),
                                             ],
                                         },
@@ -360,7 +359,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " яблока",
+                                                    "яблока",
                                                 ),
                                             ],
                                         },
@@ -378,7 +377,7 @@ IrModule {
                                             IrText {
                                                 parts: [
                                                     Text(
-                                                        " ябл.",
+                                                        "ябл.",
                                                     ),
                                                 ],
                                             },
@@ -390,7 +389,7 @@ IrModule {
                                             IrText {
                                                 parts: [
                                                     Text(
-                                                        " спелое яблоко",
+                                                        "спелое яблоко",
                                                     ),
                                                 ],
                                             },
@@ -411,7 +410,7 @@ IrModule {
                                 IrText {
                                     parts: [
                                         Text(
-                                            " female",
+                                            "female",
                                         ),
                                     ],
                                 },
@@ -423,7 +422,7 @@ IrModule {
                                 IrText {
                                     parts: [
                                         Text(
-                                            " 🍐",
+                                            "🍐",
                                         ),
                                     ],
                                 },
@@ -440,7 +439,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " груша",
+                                                    "груша",
                                                 ),
                                             ],
                                         },
@@ -452,7 +451,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " груши",
+                                                    "груши",
                                                 ),
                                             ],
                                         },
@@ -464,7 +463,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " груш",
+                                                    "груш",
                                                 ),
                                             ],
                                         },
@@ -476,7 +475,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " груши",
+                                                    "груши",
                                                 ),
                                             ],
                                         },
@@ -495,7 +494,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " груши",
+                                                    "груши",
                                                 ),
                                             ],
                                         },
@@ -507,7 +506,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " груш",
+                                                    "груш",
                                                 ),
                                             ],
                                         },
@@ -519,7 +518,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " груш",
+                                                    "груш",
                                                 ),
                                             ],
                                         },
@@ -531,7 +530,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " груши",
+                                                    "груши",
                                                 ),
                                             ],
                                         },
@@ -551,7 +550,7 @@ IrModule {
                                 IrText {
                                     parts: [
                                         Text(
-                                            " male",
+                                            "male",
                                         ),
                                     ],
                                 },
@@ -563,7 +562,7 @@ IrModule {
                                 IrText {
                                     parts: [
                                         Text(
-                                            " 🍊",
+                                            "🍊",
                                         ),
                                     ],
                                 },
@@ -580,7 +579,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " апельсин",
+                                                    "апельсин",
                                                 ),
                                             ],
                                         },
@@ -592,7 +591,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " апельсина",
+                                                    "апельсина",
                                                 ),
                                             ],
                                         },
@@ -604,7 +603,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " апельсинов",
+                                                    "апельсинов",
                                                 ),
                                             ],
                                         },
@@ -616,7 +615,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " апельсина",
+                                                    "апельсина",
                                                 ),
                                             ],
                                         },
@@ -635,7 +634,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " апельсина",
+                                                    "апельсина",
                                                 ),
                                             ],
                                         },
@@ -647,7 +646,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " апельсинов",
+                                                    "апельсинов",
                                                 ),
                                             ],
                                         },
@@ -659,7 +658,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " апельсинов",
+                                                    "апельсинов",
                                                 ),
                                             ],
                                         },
@@ -671,7 +670,7 @@ IrModule {
                                         value: IrText {
                                             parts: [
                                                 Text(
-                                                    " апельсина",
+                                                    "апельсина",
                                                 ),
                                             ],
                                         },
@@ -701,7 +700,7 @@ IrModule {
                                 value: IrText {
                                     parts: [
                                         Text(
-                                            " маленький",
+                                            "маленький",
                                         ),
                                     ],
                                 },
@@ -715,7 +714,7 @@ IrModule {
                                 value: IrText {
                                     parts: [
                                         Text(
-                                            " маленькая",
+                                            "маленькая",
                                         ),
                                     ],
                                 },
@@ -729,7 +728,7 @@ IrModule {
                                 value: IrText {
                                     parts: [
                                         Text(
-                                            " маленькое",
+                                            "маленькое",
                                         ),
                                     ],
                                 },
@@ -743,7 +742,7 @@ IrModule {
                                 value: IrText {
                                     parts: [
                                         Text(
-                                            " маленький",
+                                            "маленький",
                                         ),
                                     ],
                                 },
@@ -765,7 +764,7 @@ IrModule {
                                 value: IrText {
                                     parts: [
                                         Text(
-                                            " большой",
+                                            "большой",
                                         ),
                                     ],
                                 },
@@ -779,7 +778,7 @@ IrModule {
                                 value: IrText {
                                     parts: [
                                         Text(
-                                            " большая",
+                                            "большая",
                                         ),
                                     ],
                                 },
@@ -793,7 +792,7 @@ IrModule {
                                 value: IrText {
                                     parts: [
                                         Text(
-                                            " большое",
+                                            "большое",
                                         ),
                                     ],
                                 },
@@ -807,7 +806,7 @@ IrModule {
                                 value: IrText {
                                     parts: [
                                         Text(
-                                            " большой",
+                                            "большой",
                                         ),
                                     ],
                                 },
@@ -835,7 +834,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " Доставлен",
+                                "Доставлен",
                             ),
                         ],
                     },
@@ -849,7 +848,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " Доставлена",
+                                "Доставлена",
                             ),
                         ],
                     },
@@ -863,7 +862,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " Доставлено",
+                                "Доставлено",
                             ),
                         ],
                     },
@@ -877,7 +876,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " Доставлено",
+                                "Доставлено",
                             ),
                         ],
                     },
@@ -902,7 +901,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " маленький",
+                                "маленький",
                             ),
                         ],
                     },
@@ -917,7 +916,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " маленькая",
+                                "маленькая",
                             ),
                         ],
                     },
@@ -932,7 +931,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " маленькое",
+                                "маленькое",
                             ),
                         ],
                     },
@@ -947,7 +946,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " большой",
+                                "большой",
                             ),
                         ],
                     },
@@ -962,7 +961,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " большая",
+                                "большая",
                             ),
                         ],
                     },
@@ -977,7 +976,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " большое",
+                                "большое",
                             ),
                         ],
                     },
@@ -987,7 +986,7 @@ IrModule {
                     value: IrText {
                         parts: [
                             Text(
-                                " обычное",
+                                "обычное",
                             ),
                         ],
                     },
