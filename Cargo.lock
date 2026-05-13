@@ -112,12 +112,16 @@ dependencies = [
 [[package]]
 name = "linguini-cldr"
 version = "0.1.0"
+dependencies = [
+ "linguini-test-support",
+]
 
 [[package]]
 name = "linguini-cli"
 version = "0.1.0"
 dependencies = [
  "linguini-analyzer",
+ "linguini-cldr",
  "linguini-config",
  "linguini-syntax",
  "linguini-test-support",

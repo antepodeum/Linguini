@@ -464,62 +464,82 @@ Checkpoint acceptance:
 
 ## 8. CLDR ingestion
 
-- [ ] Implement CLDR cache directory
-  - Note:
-- [ ] Implement `linguini cldr fetch`
-  - Note:
-- [ ] Implement `linguini cldr status`
-  - Note:
-- [ ] Load plural rules from CLDR JSON
-  - Note:
+- [x] Implement CLDR cache directory
+  - Note: completed on 2026-05-13. Added configurable CLDR cache root resolution, cache inspection, manifest/data/plurals checks, and offline cache requirement API.
+  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr -p linguini-cli`
+- [x] Implement `linguini cldr fetch`
+  - Note: completed on 2026-05-13. Added `linguini cldr fetch <cldr-json-dir>` to import staged CLDR JSON into the configured cache.
+  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cldr -p linguini-cli`
+- [x] Implement `linguini cldr status`
+  - Note: completed on 2026-05-13. Added `linguini cldr status` output for cache usability, manifest, data, and plural-rule presence.
+  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cldr -p linguini-cli`
+- [x] Load plural rules from CLDR JSON
+  - Note: completed on 2026-05-13. Added CLDR JSON plural-rule loader for locale category rules from cached `common/supplemental/plurals.json`.
+  - Evidence: crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
 - [ ] Load number formatting data
   - Note:
 - [ ] Load date formatting data
   - Note:
 - [ ] Load currency formatting data
   - Note:
-- [ ] Add cache integrity checks
-  - Note:
-- [ ] Add offline build mode
-  - Note:
+- [x] Add cache integrity checks
+  - Note: completed on 2026-05-13. Cache status now validates required manifest, data directory, and plural-rule file readability before marking cache usable.
+  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
+- [x] Add offline build mode
+  - Note: completed on 2026-05-13. Added `require_offline_cache` so build/check paths can fail without downloading when CLDR cache is absent or incomplete.
+  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
 
 Checkpoint acceptance:
 
 - [ ] Normal `linguini build` does not download CLDR
   - Note:
-- [ ] Cached CLDR data is reused
-  - Note:
-- [ ] Missing cache produces actionable error
-  - Note:
+- [x] Cached CLDR data is reused
+  - Note: completed on 2026-05-13. Plural rules are loaded from the existing cache path without fetching.
+  - Evidence: crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
+- [x] Missing cache produces actionable error
+  - Note: completed on 2026-05-13. Offline cache requirement reports `run linguini cldr fetch <cldr-json-dir>` when cache is missing.
+  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
 
 ---
 
 ## 9. CLDR plural expression parser
 
-- [ ] Define plural rule AST
-  - Note:
-- [ ] Parse operands `n i v w f t c e`
-  - Note:
-- [ ] Parse logical operators
-  - Note:
-- [ ] Parse modulo
-  - Note:
-- [ ] Parse ranges
-  - Note:
-- [ ] Parse comma-separated range lists
-  - Note:
-- [ ] Parse equality and inequality
-  - Note:
-- [ ] Parse `in`
-  - Note:
-- [ ] Parse `within`
-  - Note:
-- [ ] Add tests for Russian rules
-  - Note:
-- [ ] Add tests for English rules
-  - Note:
-- [ ] Add tests for Arabic rules
-  - Note:
+- [x] Define plural rule AST
+  - Note: completed on 2026-05-13. Added internal plural rule AST for OR conditions, AND relations, operand expressions, operators, and ranges.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Parse operands `n i v w f t c e`
+  - Note: completed on 2026-05-13. Parser accepts all required CLDR plural operands.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Parse logical operators
+  - Note: completed on 2026-05-13. Parser splits `or` conditions and `and` relations.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Parse modulo
+  - Note: completed on 2026-05-13. Parser accepts `%` and `mod` modulo expressions.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Parse ranges
+  - Note: completed on 2026-05-13. Parser accepts `start..end` ranges and single-value ranges.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Parse comma-separated range lists
+  - Note: completed on 2026-05-13. Parser accepts comma-separated range/value lists.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Parse equality and inequality
+  - Note: completed on 2026-05-13. Parser accepts `=`, `!=`, `is`, and negated equality forms.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Parse `in`
+  - Note: completed on 2026-05-13. Parser accepts `in` and `not in` relation operators.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Parse `within`
+  - Note: completed on 2026-05-13. Parser accepts `within` and `not within` relation operators.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
+- [x] Add tests for Russian rules
+  - Note: completed on 2026-05-13. Added Russian modulo/range plural parser coverage and CLDR JSON fixture loading.
+  - Evidence: crates/linguini-cldr/src/plural.rs; crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
+- [x] Add tests for English rules
+  - Note: completed on 2026-05-13. Added English `i = 1 and v = 0` parser coverage and CLDR JSON fixture loading.
+  - Evidence: crates/linguini-cldr/src/plural.rs; crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
+- [x] Add tests for Arabic rules
+  - Note: completed on 2026-05-13. Added Arabic-shaped `or` and comma-list parser coverage.
+  - Evidence: crates/linguini-cldr/src/plural.rs; `cargo test -p linguini-cldr`
 
 Checkpoint acceptance:
 
