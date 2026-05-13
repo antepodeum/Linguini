@@ -622,14 +622,14 @@ Checkpoint acceptance:
 Checkpoint acceptance:
 
 - [x] Generated TS compiles
-  - Note: completed on 2026-05-13. Concatenated generated plural helper plus generated module compiles under `tsc --strict`.
-  - Evidence: `tsc --strict --noEmit --target ES2020 /tmp/linguini-ts-*.ts`
+  - Note: completed on 2026-05-13. Generated plural helper and generated locale module compile as separate TypeScript files with a real import.
+  - Evidence: `bash scripts/validate-generated-ts.sh`
 - [x] Delivery example returns expected Russian strings
   - Note: completed on 2026-05-13. Compiled generated TypeScript and checked `delivery("apple", "small", 1)` in Node.
-  - Evidence: `tsc --strict --target ES2020 --module commonjs`; `node -e ...`
+  - Evidence: `bash scripts/validate-generated-ts.sh`
 - [x] Counted example returns expected plural strings
   - Note: completed on 2026-05-13. Compiled generated TypeScript and checked Russian `counted` plural output for `1 apple` and `5 orange`.
-  - Evidence: `tsc --strict --target ES2020 --module commonjs`; `node -e ...`
+  - Evidence: `bash scripts/validate-generated-ts.sh`
 
 ---
 

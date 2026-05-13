@@ -17,7 +17,9 @@ fn generated_module_snapshot_is_stable() {
         &lower_schema(&schema),
         &lower_locale(&locale),
         &TypeScriptOptions {
+            locale: "ru".to_owned(),
             plural_function: "pluralRu".to_owned(),
+            plural_import: Some("./plurals".to_owned()),
         },
     );
 

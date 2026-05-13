@@ -846,12 +846,34 @@ Generated output:
 - typed function arguments
 - tree-shakable message functions
 - locale-specific modules
+- plural and formatter helpers imported explicitly by locale modules
+- grouped messages emitted as nested objects, not flattened function names
+- static messages emitted as constants or object properties when no interpolation or formatting is needed
+- a generated locale map/facade for selecting a locale module
 
 Example:
 
 ```ts
-delivery({ fruit, size }): string
-counted({ count, fruit }): string
+import { pluralRu } from "./plurals";
+
+export function delivery(fruit: Fruit, size: Size, count: number): string
+export function counted(count: number, fruit: Fruit): string
+
+export const email_input = {
+  label: "Email",
+  placeholder: "name@example.com",
+  aria: "Адрес электронной почты",
+} as const;
+
+export const ru = {
+  delivery,
+  counted,
+  email_input,
+} as const;
+
+export const locales = { ru } as const;
+export type Locale = keyof typeof locales;
+export function createLinguini(locale: Locale): (typeof locales)[Locale]
 ```
 
 ### 11.3 JavaScript output

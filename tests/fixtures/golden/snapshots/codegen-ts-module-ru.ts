@@ -1,3 +1,5 @@
+import { pluralRu } from "./plurals";
+
 export type Fruit = "apple" | "pear" | "orange";
 
 export type Size = "small" | "big";
@@ -49,16 +51,25 @@ export function price(amount: Money, date: ShortDate): string {
   return "Цена " + String(amount) + " на " + String(date);
 }
 
-export function email_input_label(): string {
-  return "Email";
-}
+export const email_input = {
+  label: "Email",
+  placeholder: "name@example.com",
+  aria: "Адрес электронной почты",
+} as const;
 
-export function email_input_placeholder(): string {
-  return "name@example.com";
-}
+export const ru = {
+  delivery,
+  counted,
+  price,
+  email_input,
+} as const;
 
-export function email_input_aria(): string {
-  return "Адрес электронной почты";
+export const locales = { ru } as const;
+
+export type Locale = keyof typeof locales;
+
+export function createLinguini(locale: Locale): (typeof locales)[Locale] {
+  return locales[locale];
 }
 
 function selectBranch(key: string, branches: Record<string, string>): string {

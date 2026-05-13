@@ -2,7 +2,11 @@ Repository state handoff - 2026-05-13
 
 Completed slice:
 - Added TypeScript module generation for schema enum unions, schema type aliases, typed message functions, locale forms, selector/plural branches, local functions, and grouped messages.
-- Added generated Russian TypeScript module golden snapshot and compile/runtime validation via `tsc` plus Node smoke checks.
+- Added generated Russian TypeScript module golden snapshot and compile/runtime validation via real two-file `tsc` plus Node smoke checks.
+- Fixed TypeScript module snapshot to import plural helpers instead of relying on concatenated compile tests.
+- TypeScript grouped schema messages now emit nested objects such as `email_input.label`, not flattened `email_input_label` functions.
+- TypeScript output now emits a locale facade with `{ ru }`, `locales`, `Locale`, and `createLinguini(locale)`.
+- Split the TypeScript module generator into `module/emit.rs`, `module/expr.rs`, and `module/names.rs`.
 - Extended IR with schema enums and type aliases so target codegen can emit public enum and custom scalar types.
 - Fixed `.lgl` raw text semantics: unquoted text after `=` or `=>` trims outer edge whitespace; quoted raw text preserves spaces inside quotes.
 - Added parser coverage for raw text trimming and quoted preservation.
@@ -89,8 +93,9 @@ Tests last run:
 - `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 498 lines, `crates/linguini-syntax/src/lexer.rs` has 459 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 483 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
+- `cargo test -p linguini-codegen-ts`
 - `LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-syntax -p linguini-ir -p linguini-codegen-ts`
-- `tsc --strict --target ES2020 --module commonjs` on concatenated generated TS plural helper plus module, followed by Node smoke checks for `delivery` and `counted`
+- `bash scripts/validate-generated-ts.sh`
 - `cargo test -p linguini-ir`
 - `env LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-ir`
 - `cargo fmt --all --check`
@@ -132,6 +137,7 @@ Known deferred work:
 - CLDR network fetch is not implemented; current fetch command imports a local staged CLDR JSON directory.
 - Formatting data is loaded but not yet lowered into target-language helpers.
 - TypeScript codegen now integrates plural functions by configured helper name, but formatter helper emission, `.d.ts`, and tree-shaking modes remain deferred.
+- TypeScript compile validation now uses `scripts/validate-generated-ts.sh`, which copies plural and locale modules as separate files and compiles real imports.
 - Branch coverage helpers are not wired into full AST traversal yet.
 - Analyzer message coverage is not wired into `linguini check` yet; CLI currently reports syntax diagnostics only.
 - Locale scope symbols currently store declaration metadata only; variant/function/form internals remain for analyzer-specific checks.
