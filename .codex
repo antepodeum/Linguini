@@ -1,21 +1,24 @@
 Completed slice:
-- 2026-05-13: Added crate-level unit test structure checks and complete syntax fixture gates for testing-policy progress.
+- 2026-05-13: Added crate-level unit test structure checks, complete syntax fixture gates, and snapshot review workflow for testing-policy progress.
 
 Implementation decisions:
 - Unit-test structure is enforced per workspace crate by `scripts/check-unit-test-structure.sh`.
 - Golden `.lqs` and `.lgl` fixtures are treated as complete valid programs; diagnostic fragments must live under `tests/fixtures/invalid`.
+- Snapshot review uses `scripts/review-snapshots.sh --check` in CI and `scripts/review-snapshots.sh review` with `cargo-insta` installed for interactive review.
 - Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, and `crates/linguini-cldr/src/data.rs`.
 
 Tests last run:
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
+- `./scripts/check-file-size.sh`
 - `./scripts/check-unit-test-structure.sh`
 - `./scripts/check-syntax-fixtures.sh`
+- `./scripts/review-snapshots.sh --check`
+- `./scripts/check-spec-gates.sh`
 
 Known deferred work:
-- `insta` snapshot review workflow remains next unchecked testing-policy item.
 - CLI integration harness, generated JS validation, generated Rust validation, regression-test rule, coverage command, and full CI suite gate remain unchecked.
 
 Next recommended task:
-- Add `insta` snapshot review workflow without weakening current committed-snapshot tests.
+- Add CLI integration test harness with `assert_cmd` and `tempfile`.

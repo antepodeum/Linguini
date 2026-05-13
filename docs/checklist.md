@@ -106,9 +106,9 @@ Checkpoint acceptance:
 - [x] Reject fragment-only syntax fixtures unless they are explicit invalid diagnostic fixtures
   - Note: completed on 2026-05-13. Golden syntax fixtures now have a minimum complete-program gate and diagnostic fragments are constrained to `tests/fixtures/invalid`.
   - Evidence: scripts/check-syntax-fixtures.sh; docs/testing.md; `./scripts/check-syntax-fixtures.sh`
-- [ ] Add `insta` snapshot review workflow
-  - Note:
-  - Evidence:
+- [x] Add `insta` snapshot review workflow
+  - Note: completed on 2026-05-13. Added a snapshot review script with CI check mode for committed snapshot tests and interactive `cargo-insta` review mode for accepted snapshot updates.
+  - Evidence: scripts/review-snapshots.sh; docs/testing.md; .github/workflows/ci.yml; `./scripts/review-snapshots.sh --check`
 - [ ] Add CLI integration test harness with `assert_cmd` and `tempfile`
   - Note:
   - Evidence:
