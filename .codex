@@ -1,6 +1,9 @@
 Repository state handoff - 2026-05-13
 
 Completed slice:
+- Added repository spec gate script for completed-checklist evidence, required crate stack conformance, CI gate wiring, handoff shape, anti-simplification completion claims, and thin `main.rs` boundaries.
+- Wired `./scripts/check-spec-gates.sh` into CI after the file-size check.
+- Marked repository engineering gate checklist items complete with command evidence.
 - Added TypeScript module generation for schema enum unions, schema type aliases, typed message functions, locale forms, selector/plural branches, local functions, and grouped messages.
 - Added generated Russian TypeScript module golden snapshot and compile/runtime validation via real two-file `tsc` plus Node smoke checks.
 - Fixed TypeScript module snapshot to import plural helpers instead of relying on concatenated compile tests.
@@ -55,6 +58,8 @@ Completed slice:
 - Updated parser and fixture checklist items through parser recovery and invalid fixture diagnostics.
 
 Implementation decisions:
+- Spec gate is intentionally non-destructive against existing historical checklist order; it enforces evidence and completion-shape rules without unchecking already-recorded work.
+- Anti-simplification gate rejects explicit completed-item claims of skipped, omitted, fragment-only, or simplified-substitute behavior.
 - IR source is intentionally modular to keep implementation files below file-size gate; full snapshots stay in `tests/fixtures/golden/snapshots`, which the repository file-size gate excludes.
 - IR lowering is currently syntax-backed and preserves parsed structure; semantic resolved-reference IR remains deferred.
 - CLDR fetch currently imports a local/staged `cldr-json` directory into cache. Network download/update remains deferred.
@@ -89,6 +94,8 @@ Implementation decisions:
 - Form map bodies cover branch maps used by selector and plural-shaped examples, and recursive object-shaped nested attributes used by forms.
 
 Tests last run:
+- `./scripts/check-spec-gates.sh`
+- `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 498 lines, `crates/linguini-syntax/src/lexer.rs` has 459 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 483 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
 - `cargo fmt --all --check`
 - `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 498 lines, `crates/linguini-syntax/src/lexer.rs` has 459 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 483 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
 - `cargo clippy --workspace --all-targets -- -D warnings`

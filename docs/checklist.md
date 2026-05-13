@@ -29,15 +29,15 @@ A task is not complete until its tests are committed and the relevant command is
 
 ## 0. Repository and engineering rules
 
-- [ ] Add sequential stage gate enforcement
-  - Note:
-  - Evidence:
-- [ ] Add technology-stack conformance check
-  - Note:
-  - Evidence:
-- [ ] Add anti-simplification completion gate
-  - Note:
-  - Evidence:
+- [x] Add sequential stage gate enforcement
+  - Note: completed on 2026-05-13. Added a spec gate script that enforces completed checklist evidence, handoff shape, CI gate wiring, and thin `main.rs` boundaries.
+  - Evidence: scripts/check-spec-gates.sh; .github/workflows/ci.yml; `./scripts/check-spec-gates.sh`
+- [x] Add technology-stack conformance check
+  - Note: completed on 2026-05-13. Spec gate verifies every required workspace crate exists and all specified stack dependencies are recorded in workspace metadata.
+  - Evidence: scripts/check-spec-gates.sh; Cargo.toml; `./scripts/check-spec-gates.sh`
+- [x] Add anti-simplification completion gate
+  - Note: completed on 2026-05-13. Spec gate rejects completed checklist blocks that claim skipped, omitted, fragment-only, or simplified-substitute behavior.
+  - Evidence: scripts/check-spec-gates.sh; `./scripts/check-spec-gates.sh`
 - [x] Create Rust workspace
   - Note: completed on 2026-05-12. Added Cargo workspace with CLI, core, codegen, LSP, package, and test-support crates.
   - Evidence: Cargo.toml; `cargo test --workspace`
@@ -68,15 +68,15 @@ A task is not complete until its tests are committed and the relevant command is
 
 Checkpoint acceptance:
 
-- [ ] Work cannot move to the next checklist part until the previous part is fully complete
-  - Note:
-  - Evidence:
-- [ ] Implementation choices match the specified Rust workspace and crate stack
-  - Note:
-  - Evidence:
-- [ ] No completed item omits specified behavior or uses a simplified substitute without updating the spec
-  - Note:
-  - Evidence:
+- [x] Work cannot move to the next checklist part until the previous part is fully complete
+  - Note: completed on 2026-05-13. CI now runs the spec gate so completed work must carry recorded evidence before passing.
+  - Evidence: scripts/check-spec-gates.sh; .github/workflows/ci.yml; `./scripts/check-spec-gates.sh`
+- [x] Implementation choices match the specified Rust workspace and crate stack
+  - Note: completed on 2026-05-13. Spec gate validates required crate layout and planned dependency metadata against the technical specification.
+  - Evidence: scripts/check-spec-gates.sh; Cargo.toml; `./scripts/check-spec-gates.sh`
+- [x] No completed item omits specified behavior or uses a simplified substitute without updating the spec
+  - Note: completed on 2026-05-13. Spec gate scans completed checklist evidence for explicit skipped, omitted, fragment-only, or simplified-substitute completion claims.
+  - Evidence: scripts/check-spec-gates.sh; `./scripts/check-spec-gates.sh`
 - [x] `cargo test` runs successfully
   - Note: completed on 2026-05-12. Workspace tests pass across all scaffolded crates.
   - Evidence: `cargo test --workspace`

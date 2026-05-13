@@ -17,8 +17,9 @@ jobs:
         run: cargo fmt --all --check
       - name: Check file sizes
         run: ./scripts/check-file-size.sh
+      - name: Check spec gates
+        run: ./scripts/check-spec-gates.sh
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
-
