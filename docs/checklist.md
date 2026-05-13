@@ -420,33 +420,45 @@ Checkpoint acceptance:
 - [x] Validate `other` branch requirement
   - Note: completed on 2026-05-12. Added analyzer helper that requires an `other` fallback branch.
   - Evidence: crates/linguini-analyzer/src/branch_coverage.rs; `cargo test -p linguini-analyzer`
-- [ ] Validate placeholder variables
-  - Note:
-- [ ] Validate form property access
-  - Note:
-- [ ] Validate function calls
-  - Note:
-- [ ] Validate function arity
-  - Note:
-- [ ] Validate tuple patterns
-  - Note:
-- [ ] Detect reference cycles
-  - Note:
-- [ ] Resolve implicit plural arguments
-  - Note:
-- [ ] Reject ambiguous implicit plural arguments
-  - Note:
+- [x] Validate placeholder variables
+  - Note: completed on 2026-05-13. Added expression analyzer validation for placeholder roots against message variables.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
+- [x] Validate form property access
+  - Note: completed on 2026-05-13. Added form signature checks for property paths such as `fruit.nom`.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
+- [x] Validate function calls
+  - Note: completed on 2026-05-13. Added local function lookup for placeholder calls.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
+- [x] Validate function arity
+  - Note: completed on 2026-05-13. Analyzer reports call argument count mismatches with related function spans.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
+- [x] Validate tuple patterns
+  - Note: completed on 2026-05-13. Function branch tuple patterns are checked against function parameter count.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
+- [x] Detect reference cycles
+  - Note: completed on 2026-05-13. Added generic reference graph cycle diagnostics for analyzer callers.
+  - Evidence: crates/linguini-analyzer/src/reference.rs; `cargo test -p linguini-analyzer`
+- [x] Resolve implicit plural arguments
+  - Note: completed on 2026-05-13. Single numeric message parameters are accepted as implicit plural arguments.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
+- [x] Reject ambiguous implicit plural arguments
+  - Note: completed on 2026-05-13. Plural form access with multiple numeric parameters reports an explicit-argument diagnostic.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
 
 Checkpoint acceptance:
 
-- [ ] `delivery = {delivered(fruit.gender)} {size(fruit.gender)} {fruit.nom}` passes
-  - Note:
-- [ ] Missing enum variant is reported
-  - Note:
-- [ ] Unknown form property is reported
-  - Note:
-- [ ] Ambiguous plural access is reported
-  - Note:
+- [x] `delivery = {delivered(fruit.gender)} {size(fruit.gender)} {fruit.nom}` passes
+  - Note: completed on 2026-05-13. Expression analyzer accepts the valid delivery placeholder chain with functions and form properties in scope.
+  - Evidence: crates/linguini-analyzer/src/lib.rs; `cargo test -p linguini-analyzer`
+- [x] Missing enum variant is reported
+  - Note: completed on 2026-05-13. Branch coverage analyzer reports missing enum-backed branches with related variant spans.
+  - Evidence: crates/linguini-analyzer/src/branch_coverage.rs; `cargo test -p linguini-analyzer`
+- [x] Unknown form property is reported
+  - Note: completed on 2026-05-13. Expression analyzer reports unknown form properties on typed variables.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
+- [x] Ambiguous plural access is reported
+  - Note: completed on 2026-05-13. Expression analyzer reports ambiguous implicit plural arguments when multiple numeric variables are in scope.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; `cargo test -p linguini-analyzer`
 
 ---
 

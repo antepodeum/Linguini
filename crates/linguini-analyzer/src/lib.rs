@@ -1,6 +1,8 @@
 mod branch_coverage;
 mod diagnostic;
+mod expression;
 mod message_coverage;
+mod reference;
 
 pub use branch_coverage::{
     analyze_branch_coverage, require_other_branch, BranchCoverage, NamedSpan,
@@ -9,17 +11,25 @@ pub use diagnostic::{
     render_diagnostics, Diagnostic, DiagnosticSeverity, QuickFix, RelatedSpan, RenderError,
     Replacement,
 };
+pub use expression::{
+    analyze_expressions, analyze_function_patterns, ExpressionAnalysis, FormProperty,
+    FormSignature, FunctionSignature, MessageToAnalyze, Variable,
+};
 pub use message_coverage::{analyze_message_coverage, PublicMessage};
+pub use reference::{detect_reference_cycles, ReferenceNode};
 
 pub const CRATE_PURPOSE: &str = "semantic analysis";
 
 #[cfg(test)]
 mod tests {
     use super::{
-        analyze_branch_coverage, analyze_message_coverage, render_diagnostics,
-        require_other_branch, BranchCoverage, Diagnostic, NamedSpan, PublicMessage, QuickFix,
+        analyze_branch_coverage, analyze_expressions, analyze_function_patterns,
+        analyze_message_coverage, detect_reference_cycles, render_diagnostics,
+        require_other_branch, BranchCoverage, Diagnostic, ExpressionAnalysis, FormProperty,
+        FormSignature, FunctionSignature, MessageToAnalyze, NamedSpan, PublicMessage, QuickFix,
+        ReferenceNode, Variable,
     };
-    use linguini_syntax::Span;
+    use linguini_syntax::{parse_locale, Span};
 
     #[test]
     fn renders_primary_span_related_span_note_and_quick_fix() {
@@ -116,5 +126,209 @@ mod tests {
         );
 
         assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn expression_analysis_accepts_valid_delivery_message() {
+        let locale =
+            parse_locale("delivery = {delivered(fruit.gender)} {size(fruit.gender)} {fruit.nom}\n")
+                .expect("locale parses");
+        let value = message_value(&locale, "delivery");
+        let diagnostics = analyze_expressions(ExpressionAnalysis {
+            messages: vec![MessageToAnalyze::new(
+                "delivery",
+                value,
+                vec![Variable::new("fruit", "Fruit", Span::new(0, 0))],
+            )],
+            functions: vec![
+                FunctionSignature::new("delivered", 1, Span::new(12, 21)),
+                FunctionSignature::new("size", 1, Span::new(36, 40)),
+            ],
+            forms: vec![FormSignature::new(
+                "Fruit",
+                vec![
+                    FormProperty::new("gender", Span::new(0, 0)),
+                    FormProperty::new("nom", Span::new(0, 0)),
+                ],
+                Span::new(0, 0),
+            )],
+        });
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
+
+    #[test]
+    fn expression_analysis_reports_unknown_variable() {
+        let locale = parse_locale("delivery = {fruit.nom}\n").expect("locale parses");
+        let diagnostics = analyze_expressions(ExpressionAnalysis {
+            messages: vec![MessageToAnalyze::new(
+                "delivery",
+                message_value(&locale, "delivery"),
+                vec![],
+            )],
+            functions: vec![],
+            forms: vec![],
+        });
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].message, "unknown variable `fruit`");
+    }
+
+    #[test]
+    fn expression_analysis_reports_unknown_form_property() {
+        let locale = parse_locale("delivery = {fruit.acc}\n").expect("locale parses");
+        let diagnostics = analyze_expressions(ExpressionAnalysis {
+            messages: vec![MessageToAnalyze::new(
+                "delivery",
+                message_value(&locale, "delivery"),
+                vec![Variable::new("fruit", "Fruit", Span::new(0, 0))],
+            )],
+            functions: vec![],
+            forms: vec![FormSignature::new(
+                "Fruit",
+                vec![FormProperty::new("nom", Span::new(0, 0))],
+                Span::new(0, 0),
+            )],
+        });
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "unknown form property `acc` on type `Fruit`"
+        );
+    }
+
+    #[test]
+    fn expression_analysis_reports_function_arity() {
+        let locale = parse_locale("delivery = {size(fruit)}\n").expect("locale parses");
+        let diagnostics = analyze_expressions(ExpressionAnalysis {
+            messages: vec![MessageToAnalyze::new(
+                "delivery",
+                message_value(&locale, "delivery"),
+                vec![Variable::new("fruit", "Fruit", Span::new(0, 0))],
+            )],
+            functions: vec![FunctionSignature::new("size", 2, Span::new(0, 0))],
+            forms: vec![],
+        });
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "function `size` expects 2 argument(s), got 1"
+        );
+    }
+
+    #[test]
+    fn expression_analysis_reports_unknown_function_call() {
+        let locale = parse_locale("delivery = {missing(fruit)}\n").expect("locale parses");
+        let diagnostics = analyze_expressions(ExpressionAnalysis {
+            messages: vec![MessageToAnalyze::new(
+                "delivery",
+                message_value(&locale, "delivery"),
+                vec![Variable::new("fruit", "Fruit", Span::new(0, 0))],
+            )],
+            functions: vec![],
+            forms: vec![],
+        });
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].message, "unknown function `missing`");
+    }
+
+    #[test]
+    fn function_pattern_analysis_reports_tuple_arity() {
+        let locale = parse_locale("fn choose(gender, size) {\n  male => ok\n  else => ok\n}\n")
+            .expect("locale parses");
+        let diagnostics = analyze_function_patterns(&locale);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "function `choose` branch pattern expects 2 value(s), got 1"
+        );
+    }
+
+    #[test]
+    fn expression_analysis_reports_ambiguous_implicit_plural_argument() {
+        let locale = parse_locale("summary = {fruit.nom}\n").expect("locale parses");
+        let diagnostics = analyze_expressions(ExpressionAnalysis {
+            messages: vec![MessageToAnalyze::new(
+                "summary",
+                message_value(&locale, "summary"),
+                vec![
+                    Variable::new("apples", "Number", Span::new(0, 0)),
+                    Variable::new("pears", "Number", Span::new(0, 0)),
+                    Variable::new("fruit", "Fruit", Span::new(0, 0)),
+                ],
+            )],
+            functions: vec![],
+            forms: vec![FormSignature::new(
+                "Fruit",
+                vec![FormProperty::plural("nom", Span::new(0, 0))],
+                Span::new(0, 0),
+            )],
+        });
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "ambiguous implicit plural argument for `fruit.nom`; pass a numeric argument explicitly"
+        );
+    }
+
+    #[test]
+    fn expression_analysis_accepts_single_implicit_plural_argument() {
+        let locale = parse_locale("summary = {fruit.nom}\n").expect("locale parses");
+        let diagnostics = analyze_expressions(ExpressionAnalysis {
+            messages: vec![MessageToAnalyze::new(
+                "summary",
+                message_value(&locale, "summary"),
+                vec![
+                    Variable::new("count", "Number", Span::new(0, 0)),
+                    Variable::new("fruit", "Fruit", Span::new(0, 0)),
+                ],
+            )],
+            functions: vec![],
+            forms: vec![FormSignature::new(
+                "Fruit",
+                vec![FormProperty::plural("nom", Span::new(0, 0))],
+                Span::new(0, 0),
+            )],
+        });
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
+
+    #[test]
+    fn reference_cycle_analysis_reports_cycle() {
+        let diagnostics = detect_reference_cycles(&[ReferenceNode::new(
+            "delivery",
+            vec![NamedSpan::new("delivery", Span::new(4, 12))],
+            Span::new(0, 12),
+        )]);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "cyclic reference `delivery -> delivery`"
+        );
+    }
+
+    fn message_value(
+        locale: &linguini_syntax::LocaleFile,
+        name: &str,
+    ) -> linguini_syntax::TextPattern {
+        locale
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                linguini_syntax::LocaleDeclaration::Message(message)
+                    if message.name.value == name =>
+                {
+                    Some(message.value.clone())
+                }
+                _ => None,
+            })
+            .expect("message exists")
     }
 }
