@@ -5,6 +5,9 @@ Completed slice:
 - Added `linguini cldr status`.
 - Added `linguini cldr fetch <cldr-json-dir>` to import staged CLDR JSON into configured cache without normal-build downloads.
 - Added cached CLDR plural-rule loading from `common/supplemental/plurals.json`.
+- Added cached CLDR number formatting loaders for Latin decimal/group symbols plus decimal and percent patterns.
+- Added cached CLDR currency formatting loader for standard and accounting patterns.
+- Added cached CLDR Gregorian date/time/date-time format width loaders.
 - Added CLDR plural expression AST and parser for operands `n i v w f t c e`, `or`, `and`, `not`, equality/inequality, modulo, ranges, comma lists, `in`, and `within`.
 - Added English, Russian, and Arabic-shaped parser coverage.
 - Added analyzer branch coverage checks for enum-backed form and selector maps.
@@ -35,6 +38,7 @@ Implementation decisions:
 - CLDR fetch currently imports a local/staged `cldr-json` directory into cache. Network download/update remains deferred.
 - CLDR cache usability currently requires manifest, data directory, and `common/supplemental/plurals.json`.
 - CLDR JSON loading uses a narrow string-object extractor for plural rules to avoid adding a JSON dependency before dependency-fetch policy is settled.
+- Formatting data loaders use the same narrow JSON extractor and currently target CLDR `latn` number systems plus Gregorian calendars.
 - Plural AST stores OR as top-level condition list and AND as relation list inside each condition.
 - Empty CLDR plural rule strings parse as true/default rules with no conditions.
 - Branch coverage analyzer is generic over subject/enum/branches so form maps and selector maps can share it.
@@ -94,7 +98,7 @@ Tests last run:
 Known deferred work:
 - `linguini cldr update` and `linguini cldr clean` are not implemented.
 - CLDR network fetch is not implemented; current fetch command imports a local staged CLDR JSON directory.
-- Number/date/currency formatting data loading is not implemented.
+- Formatting data is loaded but not yet lowered into target-language helpers.
 - Plural rule evaluation and target-language plural function generation are not implemented.
 - Branch coverage helpers are not wired into full AST traversal yet.
 - Analyzer message coverage is not wired into `linguini check` yet; CLI currently reports syntax diagnostics only.
@@ -104,4 +108,4 @@ Known deferred work:
 - Parser recovery currently reports diagnostics and optional full AST output; it does not insert error AST nodes for malformed declarations.
 
 Next recommended task:
-- Continue CLDR formatting data loaders for number/date/currency, or implement plural rule evaluation before IR lowering.
+- Implement plural rule evaluation and CLDR category validation before IR lowering.

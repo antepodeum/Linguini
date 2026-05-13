@@ -476,12 +476,15 @@ Checkpoint acceptance:
 - [x] Load plural rules from CLDR JSON
   - Note: completed on 2026-05-13. Added CLDR JSON plural-rule loader for locale category rules from cached `common/supplemental/plurals.json`.
   - Evidence: crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
-- [ ] Load number formatting data
-  - Note:
-- [ ] Load date formatting data
-  - Note:
-- [ ] Load currency formatting data
-  - Note:
+- [x] Load number formatting data
+  - Note: completed on 2026-05-13. Added cached CLDR number symbol, decimal pattern, and percent pattern loading from locale `numbers.json`.
+  - Evidence: crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
+- [x] Load date formatting data
+  - Note: completed on 2026-05-13. Added cached Gregorian date, time, and date-time format-width loading from `ca-gregorian.json`.
+  - Evidence: crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
+- [x] Load currency formatting data
+  - Note: completed on 2026-05-13. Added cached CLDR currency standard and accounting pattern loading from locale `numbers.json`.
+  - Evidence: crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
 - [x] Add cache integrity checks
   - Note: completed on 2026-05-13. Cache status now validates required manifest, data directory, and plural-rule file readability before marking cache usable.
   - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
