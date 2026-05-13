@@ -1,4 +1,4 @@
-use crate::{lower_locale, lower_schema};
+use crate::{ensure_no_unresolved_references, lower_locale, lower_schema};
 use linguini_syntax::{parse_locale, parse_schema};
 use std::fs;
 use std::path::Path;
@@ -27,6 +27,43 @@ fn locale_ir_snapshot_is_stable() {
         "tests/fixtures/golden/snapshots/ir-locale-ru.txt",
         &snapshot,
     );
+}
+
+#[test]
+fn ir_reference_validation_accepts_golden_delivery_fixture() {
+    let schema = parse_schema(include_str!(
+        "../../../tests/fixtures/golden/schema/shop.lqs"
+    ))
+    .expect("schema");
+    let locale =
+        parse_locale(include_str!("../../../tests/fixtures/golden/locale/ru.lgl")).expect("locale");
+
+    ensure_no_unresolved_references(&lower_schema(&schema), &lower_locale(&locale))
+        .expect("references resolved");
+}
+
+#[test]
+fn ir_reference_validation_reports_unknown_message_and_placeholder() {
+    let schema = parse_schema("known(name: String)\n").expect("schema");
+    let locale = parse_locale("missing = {unknown}\n").expect("locale");
+    let errors = ensure_no_unresolved_references(&lower_schema(&schema), &lower_locale(&locale))
+        .expect_err("unresolved references");
+
+    assert!(errors
+        .iter()
+        .any(|error| error.message == "unresolved message `missing`"));
+}
+
+#[test]
+fn ir_reference_validation_reports_unknown_placeholder_root() {
+    let schema = parse_schema("known(name: String)\n").expect("schema");
+    let locale = parse_locale("known = {unknown}\n").expect("locale");
+    let errors = ensure_no_unresolved_references(&lower_schema(&schema), &lower_locale(&locale))
+        .expect_err("unresolved references");
+
+    assert!(errors
+        .iter()
+        .any(|error| error.message == "unresolved reference `unknown`"));
 }
 
 fn assert_snapshot(path: &str, snapshot: &str) {

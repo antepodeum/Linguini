@@ -624,8 +624,9 @@ Checkpoint acceptance:
 - [x] Lower formatting operations to IR
   - Note: completed on 2026-05-13. Placeholder formatter annotations lower to IR formatter nodes with named arguments.
   - Evidence: crates/linguini-ir/src/lower.rs; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
-- [ ] Ensure IR has no unresolved references
-  - Note:
+- [x] Ensure IR has no unresolved references
+  - Note: completed on 2026-05-13. Added IR reference validation for locale message names and placeholder roots against schema parameters, forms, and local functions.
+  - Evidence: crates/linguini-ir/src/reference.rs; `cargo test -p linguini-ir`
 
 Checkpoint acceptance:
 

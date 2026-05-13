@@ -1,5 +1,5 @@
 Completed slice:
-- 2026-05-13: Completed CLDR compiled-table slice and official `cldr-json` fetch path correction.
+- 2026-05-13: Completed CLDR compiled-table slice, official `cldr-json` fetch path correction, and IR unresolved-reference validation.
 
 Implementation decisions:
 - CLDR fetch defaults to `https://github.com/unicode-org/cldr-json` and uses sparse checkout for only required files.
@@ -8,6 +8,7 @@ Implementation decisions:
 - Runtime CLDR production lookup lives in typed tables under `crates/linguini-cldr/src/data/compiled.rs`; JSON loaders are ingestion/cache-only.
 - CLDR Rust source generation moved to proc-macro crate `linguini-cldr-macros`, using `syn` for macro input parsing and `quote` for compile errors.
 - `crates/linguini-cldr/src/data.rs` was split into `data/` modules and cache tests were moved to keep source files below the hard file-size limit.
+- IR reference validation checks locale message names and placeholder roots against schema parameters, local forms, and local functions.
 - Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, and `crates/linguini-syntax/src/parser/locale_parser.rs`.
 
 Tests last run:
@@ -15,6 +16,7 @@ Tests last run:
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
 - `cargo test -p linguini-cldr -p linguini-cldr-macros -p linguini-cli`
+- `cargo test -p linguini-ir`
 - `./scripts/check-file-size.sh`
 - `./scripts/check-unit-test-structure.sh`
 - `./scripts/check-syntax-fixtures.sh`
@@ -25,7 +27,7 @@ Tests last run:
 - `bash scripts/validate-generated-ts.sh`
 
 Known deferred work:
-- Next unfinished checklist item is `Ensure IR has no unresolved references`.
+- Next unfinished checklist item is `Add tree-shaking mode`.
 
 Next recommended task:
-- Continue Section 10 IR by adding unresolved-reference validation before moving deeper into codegen.
+- Continue TypeScript codegen section with tree-shaking mode.
