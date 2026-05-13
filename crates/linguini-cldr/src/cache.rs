@@ -103,13 +103,22 @@ pub fn fetch_cldr_from_dir(
     source_dir: impl AsRef<Path>,
     cache_root: impl AsRef<Path>,
 ) -> CldrCacheResult<CacheStatus> {
+    fetch_cldr_from_dir_for_locales(source_dir, cache_root, std::iter::empty::<&str>())
+}
+
+pub fn fetch_cldr_from_dir_for_locales<'a>(
+    source_dir: impl AsRef<Path>,
+    cache_root: impl AsRef<Path>,
+    locales: impl IntoIterator<Item = &'a str>,
+) -> CldrCacheResult<CacheStatus> {
     let source_dir = source_dir.as_ref();
     let cache_root = cache_root.as_ref();
     let data_dir = cache_root.join(DATA_DIR);
+    let locales: Vec<_> = locales.into_iter().collect();
 
     create_dir_all(cache_root)?;
     create_dir_all(&data_dir)?;
-    copy_dir(source_dir, &data_dir)?;
+    copy_required_files(source_dir, &data_dir, &locales)?;
 
     let manifest = format!(
         "source={}\nfetched_at_unix={}\n",
@@ -121,27 +130,79 @@ pub fn fetch_cldr_from_dir(
     require_offline_cache(cache_root)
 }
 
-fn copy_dir(source: &Path, destination: &Path) -> CldrCacheResult<()> {
-    for entry in read_dir(source)? {
-        let entry = entry.map_err(|error| CldrCacheError::Io {
-            path: source.to_path_buf(),
-            source: error,
-        })?;
-        let source_path = entry.path();
-        let destination_path = destination.join(entry.file_name());
+fn copy_required_files(source: &Path, destination: &Path, locales: &[&str]) -> CldrCacheResult<()> {
+    copy_relative_file(source, destination, "common/supplemental/plurals.json")?;
 
-        if source_path.is_dir() {
-            create_dir_all(&destination_path)?;
-            copy_dir(&source_path, &destination_path)?;
-        } else if source_path.is_file() {
-            fs::copy(&source_path, &destination_path).map_err(|source| CldrCacheError::Io {
-                path: destination_path,
-                source,
-            })?;
+    if locales.is_empty() {
+        copy_required_locale_files_for_all_locales(source, destination)?;
+    } else {
+        for locale in locales {
+            copy_required_locale_files(source, destination, locale)?;
         }
     }
 
     Ok(())
+}
+
+fn copy_required_locale_files_for_all_locales(
+    source: &Path,
+    destination: &Path,
+) -> CldrCacheResult<()> {
+    let main = source.join("common/main");
+    if !main.exists() {
+        return Ok(());
+    }
+
+    for entry in read_dir(&main)? {
+        let entry = entry.map_err(|error| CldrCacheError::Io {
+            path: main.clone(),
+            source: error,
+        })?;
+        if entry.path().is_dir() {
+            let locale = entry.file_name().to_string_lossy().into_owned();
+            copy_required_locale_files(source, destination, &locale)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn copy_required_locale_files(
+    source: &Path,
+    destination: &Path,
+    locale: &str,
+) -> CldrCacheResult<()> {
+    copy_relative_file(
+        source,
+        destination,
+        format!("common/main/{locale}/numbers.json"),
+    )?;
+    copy_relative_file(
+        source,
+        destination,
+        format!("common/main/{locale}/ca-gregorian.json"),
+    )
+}
+
+fn copy_relative_file(
+    source_root: &Path,
+    destination_root: &Path,
+    relative_path: impl AsRef<Path>,
+) -> CldrCacheResult<()> {
+    let relative_path = relative_path.as_ref();
+    let source = source_root.join(relative_path);
+    let destination = destination_root.join(relative_path);
+
+    if let Some(parent) = destination.parent() {
+        create_dir_all(parent)?;
+    }
+
+    fs::copy(&source, &destination)
+        .map(|_| ())
+        .map_err(|error| CldrCacheError::Io {
+            path: source,
+            source: error,
+        })
 }
 
 fn unix_seconds() -> u64 {
@@ -176,7 +237,10 @@ fn write_file(path: impl AsRef<Path>, contents: &str) -> CldrCacheResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cache_root, fetch_cldr_from_dir, inspect_cache, require_offline_cache};
+    use super::{
+        cache_root, fetch_cldr_from_dir, fetch_cldr_from_dir_for_locales, inspect_cache,
+        require_offline_cache,
+    };
     use linguini_test_support::temp_project_dir;
     use std::fs;
 
@@ -200,14 +264,43 @@ mod tests {
     #[test]
     fn fetch_from_dir_populates_offline_cache() {
         let project = temp_project_dir("cldr_fetch_from_dir");
-        let source = project.path().join("source/common/supplemental");
-        fs::create_dir_all(&source).expect("source dir");
-        fs::write(source.join("plurals.json"), "{}\n").expect("plural data");
+        write_required_source_files(project.path(), "ru");
 
         let cache = project.path().join(".linguini/cache");
         let status = fetch_cldr_from_dir(project.path().join("source"), &cache).expect("fetch");
 
         assert!(status.is_usable());
         assert!(require_offline_cache(&cache).is_ok());
+    }
+
+    #[test]
+    fn fetch_for_locales_copies_only_required_json_files() {
+        let project = temp_project_dir("cldr_fetch_required_only");
+        write_required_source_files(project.path(), "ru");
+        let extra_dir = project.path().join("source/common/main/ru");
+        fs::write(extra_dir.join("characters.json"), "{}\n").expect("extra data");
+
+        let cache = project.path().join(".linguini/cache");
+        fetch_cldr_from_dir_for_locales(project.path().join("source"), &cache, ["ru"])
+            .expect("fetch");
+
+        assert!(cache
+            .join("data/common/supplemental/plurals.json")
+            .is_file());
+        assert!(cache.join("data/common/main/ru/numbers.json").is_file());
+        assert!(cache
+            .join("data/common/main/ru/ca-gregorian.json")
+            .is_file());
+        assert!(!cache.join("data/common/main/ru/characters.json").exists());
+    }
+
+    fn write_required_source_files(root: &std::path::Path, locale: &str) {
+        let supplemental = root.join("source/common/supplemental");
+        let main = root.join("source/common/main").join(locale);
+        fs::create_dir_all(&supplemental).expect("supplemental dir");
+        fs::create_dir_all(&main).expect("main dir");
+        fs::write(supplemental.join("plurals.json"), "{}\n").expect("plural data");
+        fs::write(main.join("numbers.json"), "{}\n").expect("numbers data");
+        fs::write(main.join("ca-gregorian.json"), "{}\n").expect("calendar data");
     }
 }

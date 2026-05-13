@@ -3,8 +3,8 @@ mod data;
 mod plural;
 
 pub use cache::{
-    cache_root, fetch_cldr_from_dir, inspect_cache, require_offline_cache, CacheStatus,
-    CldrCacheError, CldrCacheResult,
+    cache_root, fetch_cldr_from_dir, fetch_cldr_from_dir_for_locales, inspect_cache,
+    require_offline_cache, CacheStatus, CldrCacheError, CldrCacheResult,
 };
 pub use data::{
     load_currency_formatting_from_cache, load_date_formatting_from_cache,

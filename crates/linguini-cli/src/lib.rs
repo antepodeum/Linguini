@@ -1,5 +1,5 @@
 use linguini_analyzer::{render_diagnostics, Diagnostic};
-use linguini_cldr::{cache_root, fetch_cldr_from_dir, inspect_cache};
+use linguini_cldr::{cache_root, fetch_cldr_from_dir_for_locales, inspect_cache};
 use linguini_config::{
     discover_locale_files, discover_schema_files, parse_config, DEFAULT_CONFIG_FILE,
 };
@@ -102,7 +102,11 @@ pub fn cldr_status(root: &Path) -> CliResult<String> {
 pub fn cldr_fetch(root: &Path, source_dir: &Path) -> CliResult<String> {
     let config = read_project_config(root)?;
     let cache = cache_root(root, &config.paths.cache);
-    let status = fetch_cldr_from_dir(source_dir, &cache)?;
+    let status = fetch_cldr_from_dir_for_locales(
+        source_dir,
+        &cache,
+        config.project.locales.iter().map(String::as_str),
+    )?;
 
     Ok(format!(
         "fetched CLDR data into {}\nusable: {}\n",
@@ -317,9 +321,13 @@ mod tests {
     fn cldr_fetch_imports_staged_cldr_json_cache() {
         let project = temp_project_dir("cldr_fetch_imports_staged_cldr_json_cache");
         init_project(project.path()).expect("init project");
-        let source = project.path().join("cldr-json/common/supplemental");
-        fs::create_dir_all(&source).expect("source dir");
-        fs::write(source.join("plurals.json"), "{}\n").expect("plural data");
+        let supplemental = project.path().join("cldr-json/common/supplemental");
+        let main = project.path().join("cldr-json/common/main/en");
+        fs::create_dir_all(&supplemental).expect("supplemental dir");
+        fs::create_dir_all(&main).expect("main dir");
+        fs::write(supplemental.join("plurals.json"), "{}\n").expect("plural data");
+        fs::write(main.join("numbers.json"), "{}\n").expect("numbers data");
+        fs::write(main.join("ca-gregorian.json"), "{}\n").expect("calendar data");
 
         let output = cldr_fetch(project.path(), &project.path().join("cldr-json")).expect("fetch");
 

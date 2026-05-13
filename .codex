@@ -1,5 +1,5 @@
 Completed slice:
-- 2026-05-13: Completed testing-policy gate slice, including coverage report generation.
+- 2026-05-13: Completed testing-policy gate slice and CLDR required-file fetch slice.
 
 Implementation decisions:
 - Unit-test structure is enforced per workspace crate by `scripts/check-unit-test-structure.sh`.
@@ -11,6 +11,7 @@ Implementation decisions:
 - `CONTRIBUTING.md` now requires focused regression tests for bug fixes.
 - Coverage command is `scripts/coverage.sh`; latest report generated at `target/coverage/lcov.info` and `target/coverage/html/html`.
 - CI now runs unit/CLI tests, snapshot checks, and generated-output validation for TypeScript, JavaScript, and Rust.
+- CLDR fetch copies only `common/supplemental/plurals.json` plus configured locale `numbers.json` and `ca-gregorian.json`; full staged CLDR trees are not vendored into cache.
 - Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, and `crates/linguini-cldr/src/data.rs`.
 
 Tests last run:
@@ -28,9 +29,10 @@ Tests last run:
 - `./scripts/coverage.sh --help`
 - `bash scripts/validate-generated-ts.sh`
 - `./scripts/coverage.sh`
+- `cargo test -p linguini-cldr -p linguini-cli`
 
 Known deferred work:
-- Next unfinished checklist part starts at `## 8. CLDR ingestion`: fetch only required CLDR JSON files and compiled CLDR table generation remain incomplete.
+- Next unfinished checklist item is `Generate compiled Rust CLDR tables from cldr-json`.
 
 Next recommended task:
-- Continue sequentially from CLDR ingestion incomplete items unless spec is updated to reopen earlier work.
+- Generate typed compiled CLDR tables and remove production runtime JSON parsing.

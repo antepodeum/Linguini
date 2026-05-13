@@ -518,9 +518,9 @@ Checkpoint acceptance:
 - [x] Add offline build mode
   - Note: completed on 2026-05-13. Added `require_offline_cache` so build/check paths can fail without downloading when CLDR cache is absent or incomplete.
   - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
-- [ ] Fetch only required CLDR JSON files
-  - Note:
-  - Evidence:
+- [x] Fetch only required CLDR JSON files
+  - Note: completed on 2026-05-13. CLDR fetch now copies shared plural rules plus configured locale `numbers.json` and `ca-gregorian.json` files instead of recursively importing the full staged CLDR tree.
+  - Evidence: crates/linguini-cldr/src/cache.rs; crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cldr -p linguini-cli`
 - [ ] Generate compiled Rust CLDR tables from `cldr-json`
   - Note:
   - Evidence:
@@ -535,8 +535,9 @@ Checkpoint acceptance:
 
 - [ ] Normal `linguini build` does not download CLDR
   - Note:
-- [ ] CLDR fetch/update does not download or vendor the full `cldr-json` repository
-  - Note:
+- [x] CLDR fetch/update does not download or vendor the full `cldr-json` repository
+  - Note: completed on 2026-05-13. Fetch imports only required JSON files from a staged CLDR source and leaves unrelated CLDR files out of the cache.
+  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
 - [ ] Production binary can evaluate required CLDR rules without runtime JSON files
   - Note:
 - [x] Cached CLDR data is reused
