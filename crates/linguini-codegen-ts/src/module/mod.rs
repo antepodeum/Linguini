@@ -1,6 +1,7 @@
 mod decl;
 mod emit;
 mod expr;
+mod formatters;
 mod names;
 
 use linguini_ir::IrModule;
@@ -79,8 +80,8 @@ pub fn generate_typescript_module(
     emit_enums(schema, &mut output);
     emit_type_aliases(schema, &mut output);
     emit_forms(locale, options, &mut output);
-    emit_local_functions(locale, &mut output);
-    let exports = emit_messages(schema, locale, &mut output);
+    emit_local_functions(locale, options, &mut output);
+    let exports = emit_messages(schema, locale, options, &mut output);
     emit_locale_default(&exports, &mut output);
     output
 }

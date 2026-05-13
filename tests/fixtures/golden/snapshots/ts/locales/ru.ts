@@ -1,4 +1,4 @@
-import { selectBranch } from "../shared";
+import { formatCurrency, formatDate, selectBranch } from "../shared";
 
 function pluralRu(value: number | string): string {
   const operands = pluralOperands(value);
@@ -63,7 +63,7 @@ export function counted(count: number, fruit: Fruit): string {
 }
 
 export function price(amount: Money, date: ShortDate): string {
-  return "Цена " + String(amount) + " на " + String(date);
+  return "Цена " + String(formatCurrency(amount, "ru", { code: "RUB" })) + " на " + String(formatDate(date, "ru", { style: "short" }));
 }
 
 export const email_input = {

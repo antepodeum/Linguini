@@ -1,6 +1,10 @@
 Repository state handoff - 2026-05-13
 
 Completed slice:
+- Added TypeScript shared formatter helpers for currency and date output.
+- Wired placeholder formatter annotations to generated TypeScript message expressions.
+- Updated generated TypeScript snapshots and runtime validation for formatted Russian currency output.
+- Split TypeScript formatter-use detection into `module/formatters.rs` to keep `emit.rs` below the 400-line warning threshold.
 - Added repository spec gate script for completed-checklist evidence, required crate stack conformance, CI gate wiring, handoff shape, anti-simplification completion claims, and thin `main.rs` boundaries.
 - Wired `./scripts/check-spec-gates.sh` into CI after the file-size check.
 - Marked repository engineering gate checklist items complete with command evidence.
@@ -58,6 +62,9 @@ Completed slice:
 - Updated parser and fixture checklist items through parser recovery and invalid fixture diagnostics.
 
 Implementation decisions:
+- TypeScript formatter helpers use `Intl.NumberFormat` for currency; date helper preserves string date values and formats `Date` or numeric values with `Intl.DateTimeFormat`.
+- TypeScript formatter imports are emitted only when locale IR contains placeholder formatter annotations.
+- Formatter-use scanning lives in a separate codegen module so emit logic stays below file-size warning limits.
 - Spec gate is intentionally non-destructive against existing historical checklist order; it enforces evidence and completion-shape rules without unchecking already-recorded work.
 - Anti-simplification gate rejects explicit completed-item claims of skipped, omitted, fragment-only, or simplified-substitute behavior.
 - IR source is intentionally modular to keep implementation files below file-size gate; full snapshots stay in `tests/fixtures/golden/snapshots`, which the repository file-size gate excludes.
@@ -94,6 +101,8 @@ Implementation decisions:
 - Form map bodies cover branch maps used by selector and plural-shaped examples, and recursive object-shaped nested attributes used by forms.
 
 Tests last run:
+- `LINGUINI_UPDATE_SNAPSHOTS=1 cargo test -p linguini-codegen-ts`
+- `bash scripts/validate-generated-ts.sh`
 - `./scripts/check-spec-gates.sh`
 - `./scripts/check-file-size.sh` (warned that `crates/linguini-syntax/src/lib.rs` has 498 lines, `crates/linguini-syntax/src/lexer.rs` has 459 lines, `crates/linguini-syntax/src/parser/locale_parser.rs` has 483 lines, and `crates/linguini-cldr/src/data.rs` has 481 lines; all below 500-line failure threshold)
 - `cargo fmt --all --check`

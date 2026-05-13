@@ -6,8 +6,23 @@ use super::names::{escape_comment, escape_string, function_name, property_key, t
 use super::TypeScriptOptions;
 
 pub fn generate_shared_declaration() -> String {
-    "export declare function selectBranch(\n  key: string,\n  branches: Record<string, string>,\n): string;\n"
-        .to_owned()
+    let mut output = String::new();
+    output.push_str("export type FormatterOptions = Record<string, string>;\n\n");
+    output.push_str("export declare function formatCurrency(\n");
+    output.push_str("  value: number | string,\n");
+    output.push_str("  locale: string,\n");
+    output.push_str("  options?: FormatterOptions,\n");
+    output.push_str("): string;\n\n");
+    output.push_str("export declare function formatDate(\n");
+    output.push_str("  value: Date | number | string,\n");
+    output.push_str("  locale: string,\n");
+    output.push_str("  options?: FormatterOptions,\n");
+    output.push_str("): string;\n\n");
+    output.push_str("export declare function selectBranch(\n");
+    output.push_str("  key: string,\n");
+    output.push_str("  branches: Record<string, string>,\n");
+    output.push_str("): string;\n");
+    output
 }
 
 pub fn generate_index_declaration(options: &TypeScriptOptions) -> String {
