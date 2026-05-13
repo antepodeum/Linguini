@@ -48,6 +48,8 @@ fn init_command_creates_project_files_without_cache_config() {
     assert!(project.path().join("linguini/schema").is_dir());
     assert!(project.path().join("linguini/locale").is_dir());
     assert!(!config.contains("cache"));
+    assert!(config.contains("[targets.ts]"));
+    assert!(config.contains("out = \"src/generated/linguini\""));
 }
 
 #[test]
@@ -105,7 +107,7 @@ fn check_command_reports_syntax_diagnostics_on_stderr() {
 }
 
 #[test]
-fn build_command_does_not_require_cldr_cache() {
+fn build_command_generates_typescript_and_does_not_require_cldr_cache() {
     let project = TempDir::new().expect("temp project");
     linguini()
         .current_dir(project.path())
@@ -113,12 +115,28 @@ fn build_command_does_not_require_cldr_cache() {
         .assert()
         .success();
 
+    let schema_dir = project.path().join("linguini/schema/shop");
+    let locale_dir = project.path().join("linguini/locale/shop/delivery");
+    fs::create_dir_all(&schema_dir).expect("schema dir");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(schema_dir.join("delivery.lqs"), "delivery(count: Number)\n")
+        .expect("schema file");
+    fs::write(locale_dir.join("en.lgl"), "delivery = {count} deliveries\n")
+        .expect("locale file");
+
     linguini()
         .current_dir(project.path())
         .arg("build")
         .assert()
         .success()
+        .stdout(contains("generated files:"))
+        .stdout(contains("src/generated/linguini/locales/en.ts"))
         .stdout(contains("build: ok"));
 
+    assert!(project
+        .path()
+        .join("src/generated/linguini/locales/en.ts")
+        .exists());
+    assert!(project.path().join("src/generated/linguini/index.ts").exists());
     assert!(!project.path().join(".linguini/cache").exists());
 }

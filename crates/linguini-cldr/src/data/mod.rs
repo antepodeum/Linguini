@@ -8,8 +8,8 @@ pub use cache_loaders::{
     load_number_formatting_from_cache, load_plural_rules, load_plural_rules_from_cache,
 };
 pub use compiled::{
-    compiled_currency_formatting, compiled_date_formatting, compiled_number_formatting,
-    compiled_plural_rules, CompiledPluralCategory, CompiledPluralRules,
+    built_in_plural_rules, compiled_currency_formatting, compiled_date_formatting,
+    compiled_number_formatting, compiled_plural_rules, CompiledPluralCategory, CompiledPluralRules,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

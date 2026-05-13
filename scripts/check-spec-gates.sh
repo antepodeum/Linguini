@@ -125,6 +125,11 @@ require_text ".github/workflows/ci.yml" "./scripts/check-spec-gates.sh" "spec ga
 require_file "crates/linguini-cldr/build.rs"
 require_text "crates/linguini-cldr/src/data/compiled.rs" 'include!\(concat!\(env!\("OUT_DIR"\)' "build-time generated CLDR include"
 require_text "crates/linguini-cldr/Cargo.toml" '^build = "build\.rs"$' "linguini-cldr build script"
+require_text "crates/linguini-cldr/src/data/compiled.rs" 'built_in_plural_rules' "built-in plural rule source API for codegen"
+require_text "crates/linguini-cldr/build.rs" 'generated_plural_rule_sources' "build-time generated CLDR rule source tables"
+require_text "crates/linguini-config/src/parser.rs" 'targets\.ts' "TypeScript codegen target config parser"
+require_text "crates/linguini-cli/src/lib.rs" 'generate_typescript_files' "linguini build TypeScript codegen"
+require_text "crates/linguini-cli/src/lib.rs" 'built_in_plural_rules' "linguini build uses built-in CLDR rules"
 if grep -R --line-number -E 'cldr (fetch|status)|cldr_command|cldr_fetch|cldr_status' crates/linguini-cli/src crates/linguini-cli/tests >/dev/null; then
   fail "CLI must not expose CLDR cache fetch/status commands; CLDR rules are generated during cargo build"
 fi

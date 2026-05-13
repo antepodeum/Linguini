@@ -1,5 +1,5 @@
 use crate::error::{ConfigError, ConfigResult};
-use crate::model::{LinguiniConfig, PathsConfig, ProjectConfig};
+use crate::model::{LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig, TypeScriptTargetConfig};
 
 #[derive(Default)]
 struct ProjectBuilder {
@@ -14,10 +14,23 @@ struct PathsBuilder {
     locale: Option<String>,
 }
 
+#[derive(Default)]
+struct TargetsBuilder {
+    ts: Option<TypeScriptTargetBuilder>,
+}
+
+#[derive(Default)]
+struct TypeScriptTargetBuilder {
+    out: Option<String>,
+    module: Option<String>,
+    declaration: Option<bool>,
+}
+
 pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
     let mut section = String::new();
     let mut project = ProjectBuilder::default();
     let mut paths = PathsBuilder::default();
+    let mut targets = TargetsBuilder::default();
 
     for raw_line in source.lines() {
         let line = raw_line.trim();
@@ -31,7 +44,7 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
             .and_then(|line| line.strip_suffix(']'))
         {
             match name {
-                "project" | "paths" => section = name.to_owned(),
+                "project" | "paths" | "targets.ts" => section = name.to_owned(),
                 name => return Err(ConfigError::UnexpectedSection(name.to_owned())),
             }
             continue;
@@ -44,7 +57,14 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
             });
         };
 
-        assign_value(&section, key.trim(), value.trim(), &mut project, &mut paths)?;
+        assign_value(
+            &section,
+            key.trim(),
+            value.trim(),
+            &mut project,
+            &mut paths,
+            &mut targets,
+        )?;
     }
 
     let config = LinguiniConfig {
@@ -56,6 +76,13 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
         paths: PathsConfig {
             schema: required(paths.schema, "paths.schema")?,
             locale: required(paths.locale, "paths.locale")?,
+        },
+        targets: TargetsConfig {
+            ts: targets.ts.map(|ts| TypeScriptTargetConfig {
+                out: ts.out.unwrap_or_else(|| "src/generated/linguini".to_owned()),
+                module: ts.module.unwrap_or_else(|| "esm".to_owned()),
+                declaration: ts.declaration.unwrap_or(true),
+            }),
         },
     };
 
@@ -69,6 +96,7 @@ fn assign_value(
     value: &str,
     project: &mut ProjectBuilder,
     paths: &mut PathsBuilder,
+    targets: &mut TargetsBuilder,
 ) -> ConfigResult<()> {
     match (section, key) {
         ("project", "name") => assign_string(&mut project.name, key, value),
@@ -79,6 +107,18 @@ fn assign_value(
         ("paths", "cache") => {
             parse_string(value)?;
             Ok(())
+        }
+        ("targets.ts", "out") => {
+            let ts = targets.ts.get_or_insert_with(TypeScriptTargetBuilder::default);
+            assign_string(&mut ts.out, key, value)
+        }
+        ("targets.ts", "module") => {
+            let ts = targets.ts.get_or_insert_with(TypeScriptTargetBuilder::default);
+            assign_string(&mut ts.module, key, value)
+        }
+        ("targets.ts", "declaration") => {
+            let ts = targets.ts.get_or_insert_with(TypeScriptTargetBuilder::default);
+            assign_bool(&mut ts.declaration, key, value)
         }
         (section, key) => Err(ConfigError::UnknownKey {
             section: section.to_owned(),
@@ -123,6 +163,19 @@ fn assign_array(slot: &mut Option<Vec<String>>, key: &str, value: &str) -> Confi
     Ok(())
 }
 
+fn assign_bool(slot: &mut Option<bool>, key: &str, value: &str) -> ConfigResult<()> {
+    if slot.is_some() {
+        return Err(ConfigError::DuplicateKey(key.to_owned()));
+    }
+
+    *slot = Some(match value {
+        "true" => true,
+        "false" => false,
+        value => return Err(ConfigError::InvalidString(value.to_owned())),
+    });
+    Ok(())
+}
+
 fn parse_string(value: &str) -> ConfigResult<String> {
     value
         .strip_prefix('"')
@@ -159,6 +212,7 @@ mod tests {
         assert_eq!(config.project.locales, ["ru", "en-US"]);
         assert_eq!(config.paths.schema, "linguini/schema");
         assert_eq!(config.paths.locale, "linguini/locale");
+        assert!(config.targets.ts.is_none());
     }
 
     #[test]
@@ -179,6 +233,34 @@ mod tests {
         .expect("legacy config");
 
         assert_eq!(config.paths.schema, "linguini/schema");
+    }
+
+
+    #[test]
+    fn parses_typescript_codegen_target() {
+        let config = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "ru"
+            locales = ["ru"]
+
+            [paths]
+            schema = "linguini/schema"
+            locale = "linguini/locale"
+
+            [targets.ts]
+            out = "src/generated/linguini"
+            module = "esm"
+            declaration = false
+            "#,
+        )
+        .expect("valid config");
+
+        let target = config.targets.ts.expect("ts target");
+        assert_eq!(target.out, "src/generated/linguini");
+        assert_eq!(target.module, "esm");
+        assert!(!target.declaration);
     }
 
     #[test]

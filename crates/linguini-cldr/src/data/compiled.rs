@@ -1,5 +1,11 @@
-use super::{CurrencyFormatData, DateFormatData, FormatWidths, NumberFormatData};
-use crate::plural::PluralOperands;
+use super::{
+    CurrencyFormatData, DateFormatData, FormatWidths, NumberFormatData, PluralCategoryRule,
+    PluralRules,
+};
+use crate::plural::{
+    Condition, Operand, OperandExpression, PluralOperands, PluralRule, Range, RangeList, Relation,
+    RelationOperator,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CompiledPluralRules {
@@ -30,6 +36,10 @@ pub struct CompiledPluralCategory {
 
 pub fn compiled_plural_rules(locale: &str) -> Option<CompiledPluralRules> {
     generated_plural_rules(locale)
+}
+
+pub fn built_in_plural_rules(locale: &str) -> Option<PluralRules> {
+    generated_plural_rule_sources(locale)
 }
 
 include!(concat!(env!("OUT_DIR"), "/linguini_generated_plural_rules.rs"));

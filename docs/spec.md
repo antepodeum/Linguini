@@ -261,25 +261,16 @@ locales = ["ru", "en"]
 [paths]
 schema = "linguini/schema"
 locale = "linguini/locale"
-cache = ".linguini/cache"
 
-[cldr]
-version = "45.0"
-source = "download"
-cache = true
+# CLDR plural rules are compiled into the Linguini binary during cargo build.
+# Project builds must not configure or populate a CLDR cache.
 
 [targets.ts]
 out = "src/generated/linguini"
 module = "esm"
 declaration = true
 
-[targets.js]
-out = "dist/linguini"
-module = "esm"
-
-[targets.rust]
-out = "crates/linguini_generated/src"
-crate_name = "linguini_generated"
+# JS and Rust targets are reserved for later backend implementation.
 
 [format]
 line_width = 100

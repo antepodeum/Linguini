@@ -4,6 +4,7 @@ use crate::error::{ConfigError, ConfigResult};
 pub struct LinguiniConfig {
     pub project: ProjectConfig,
     pub paths: PathsConfig,
+    pub targets: TargetsConfig,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -17,6 +18,18 @@ pub struct ProjectConfig {
 pub struct PathsConfig {
     pub schema: String,
     pub locale: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct TargetsConfig {
+    pub ts: Option<TypeScriptTargetConfig>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct TypeScriptTargetConfig {
+    pub out: String,
+    pub module: String,
+    pub declaration: bool,
 }
 
 impl LinguiniConfig {
@@ -34,6 +47,15 @@ impl LinguiniConfig {
 
         for locale in &self.project.locales {
             validate_locale_tag(locale)?;
+        }
+
+        if let Some(ts) = &self.targets.ts {
+            if ts.out.trim().is_empty() {
+                return Err(ConfigError::MissingField("targets.ts.out"));
+            }
+            if ts.module != "esm" {
+                return Err(ConfigError::InvalidString(ts.module.clone()));
+            }
         }
 
         Ok(())

@@ -9,8 +9,9 @@ pub use cache::{
     OFFICIAL_CLDR_JSON_REPO,
 };
 pub use data::{
-    compiled_currency_formatting, compiled_date_formatting, compiled_number_formatting,
-    compiled_plural_rules, load_currency_formatting_from_cache, load_date_formatting_from_cache,
+    built_in_plural_rules, compiled_currency_formatting, compiled_date_formatting,
+    compiled_number_formatting, compiled_plural_rules, load_currency_formatting_from_cache,
+    load_date_formatting_from_cache,
     load_number_formatting_from_cache, load_plural_rules, load_plural_rules_from_cache,
     CompiledPluralCategory, CompiledPluralRules, CurrencyFormatData, DateFormatData, FormatWidths,
     NumberFormatData, PluralCategoryRule, PluralRules,
