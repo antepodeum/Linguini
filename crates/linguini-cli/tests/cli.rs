@@ -18,6 +18,7 @@ fn help_is_generated_by_cli_argument_parser() {
         .stdout(contains("Usage: linguini <COMMAND>"))
         .stdout(contains("init"))
         .stdout(contains("check"))
+        .stdout(contains("fix"))
         .stdout(contains("build"))
         .stderr("");
 }
@@ -128,8 +129,12 @@ fn check_command_reports_missing_messages_for_empty_locale_file() {
         .arg("check")
         .assert()
         .failure()
-        .stderr(contains("missing locale implementation for schema message `delivery`"))
+        .stderr(contains(
+            "locale `en` for schema namespace `shop.delivery` is missing 1 schema message: `delivery`",
+        ))
         .stderr(contains("locales/shop/delivery/en.lgl"))
+        .stderr(contains("Fix: add missing locale message stubs"))
+        .stderr(contains("linguini fix missing-messages:shop.delivery:en"))
         .stderr(predicates::str::is_match("locale file contains no declarations").unwrap().not());
 }
 
@@ -154,7 +159,9 @@ fn check_reports_missing_schema_messages_in_matching_locale_namespace() {
         .arg("check")
         .assert()
         .failure()
-        .stderr(contains("missing locale implementation for schema message `counted`"))
+        .stderr(contains(
+            "locale `en` for schema namespace `shop` is missing 1 schema message: `counted`",
+        ))
         .stderr(contains("locales/shop/en.lgl"));
 }
 
@@ -179,9 +186,111 @@ fn check_requires_locales_to_follow_schema_namespace_directories() {
         .arg("check")
         .assert()
         .failure()
-        .stderr(contains("missing locale file for schema namespace `shop` and locale `en`"))
-        .stderr(contains("create locales/shop/en.lgl"))
-        .stderr(contains("locale namespace `<root>` does not match any schema file"));
+        .stderr(contains("required locale file is missing for schema namespace `shop`: `en`"))
+        .stderr(contains("expected path: locales/shop/en.lgl"))
+        .stderr(contains("locale namespace `<root>` has no matching schema namespace"));
+}
+
+
+#[test]
+fn check_command_warns_for_secondary_locale_missing_messages() {
+    let project = TempDir::new().expect("temp project");
+    linguini()
+        .current_dir(project.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"[project]
+name = "shop"
+default_locale = "en"
+locales = ["en", "ru"]
+
+[paths]
+schema = "schema"
+locale = "locales"
+
+[targets.ts]
+out = "src/generated/linguini"
+module = "esm"
+declaration = true
+"#,
+    )
+    .expect("config");
+
+    let schema_dir = project.path().join("schema");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&schema_dir).expect("schema dir");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(schema_dir.join("shop.lqs"), "delivery()\ncounted()\n").expect("schema file");
+    fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\ncounted = Counted\n")
+        .expect("default locale file");
+    fs::write(locale_dir.join("ru.lgl"), "delivery = Доставлено\n")
+        .expect("secondary locale file");
+
+    linguini()
+        .current_dir(project.path())
+        .arg("check")
+        .assert()
+        .success()
+        .stdout(contains("Warning:"))
+        .stdout(contains(
+            "locale `ru` for schema namespace `shop` is missing 1 schema message: `counted`",
+        ))
+        .stdout(contains("Fix: add missing locale message stubs"))
+        .stdout(contains("linguini fix missing-messages:shop:ru"));
+}
+
+#[test]
+fn fix_command_applies_missing_locale_and_message_stubs() {
+    let project = TempDir::new().expect("temp project");
+    linguini()
+        .current_dir(project.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"[project]
+name = "shop"
+default_locale = "en"
+locales = ["en", "ru"]
+
+[paths]
+schema = "schema"
+locale = "locales"
+
+[targets.ts]
+out = "src/generated/linguini"
+module = "esm"
+declaration = true
+"#,
+    )
+    .expect("config");
+
+    let schema_dir = project.path().join("schema");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&schema_dir).expect("schema dir");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(schema_dir.join("shop.lqs"), "delivery()\ncounted()\n").expect("schema file");
+    fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\n").expect("locale file");
+
+    linguini()
+        .current_dir(project.path())
+        .args(["fix", "--all"])
+        .assert()
+        .success()
+        .stdout(contains("applied missing-messages:shop:en"))
+        .stdout(contains("applied missing-locale:shop:ru"));
+
+    let en = fs::read_to_string(locale_dir.join("en.lgl")).expect("en locale");
+    let ru = fs::read_to_string(locale_dir.join("ru.lgl")).expect("ru locale");
+    assert!(en.contains("counted = TODO"));
+    assert!(ru.contains("delivery = TODO"));
+    assert!(ru.contains("counted = TODO"));
 }
 
 #[test]

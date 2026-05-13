@@ -17,8 +17,10 @@ pub use expression::{
     FormSignature, FunctionSignature, MessageToAnalyze, Variable,
 };
 pub use locale::{
-    analyze_locale_coverage, analyze_locale_file, analyze_locale_message_coverage,
-    locale_public_messages, schema_public_messages, ImplementedLocaleMessage, RequiredLocaleMessage,
+    analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
+    analyze_locale_message_coverage, analyze_locale_message_coverage_with_options,
+    locale_public_messages, schema_public_messages, ImplementedLocaleMessage, LocaleCoverageOptions,
+    RequiredLocaleMessage,
 };
 pub use message_coverage::{analyze_message_coverage, PublicMessage};
 pub use reference::{detect_reference_cycles, ReferenceNode};
@@ -29,11 +31,12 @@ pub const CRATE_PURPOSE: &str = "semantic analysis";
 mod tests {
     use super::{
         analyze_branch_coverage, analyze_expressions, analyze_function_patterns,
-        analyze_locale_coverage, analyze_locale_file, analyze_locale_message_coverage,
-        analyze_message_coverage, detect_reference_cycles, render_diagnostics,
-        require_other_branch, BranchCoverage, Diagnostic, ExpressionAnalysis, FormProperty,
-        FormSignature, FunctionSignature, MessageToAnalyze, NamedSpan, PublicMessage, QuickFix,
-        ReferenceNode, RequiredLocaleMessage, Variable,
+        analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
+        analyze_locale_message_coverage, analyze_message_coverage, detect_reference_cycles,
+        render_diagnostics, require_other_branch, BranchCoverage, Diagnostic, DiagnosticSeverity,
+        ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature, LocaleCoverageOptions,
+        MessageToAnalyze, NamedSpan, PublicMessage, QuickFix, ReferenceNode, RequiredLocaleMessage,
+        Variable,
     };
     use linguini_syntax::{parse_locale, parse_schema, Span};
 
@@ -62,7 +65,7 @@ mod tests {
     }
 
     #[test]
-    fn locale_coverage_reports_missing_schema_message() {
+    fn locale_coverage_groups_missing_schema_messages() {
         let schema = parse_schema("delivery()\ncounted()\n").expect("schema parses");
         let locale = parse_locale("delivery = Delivered\n").expect("locale parses");
         let diagnostics = analyze_locale_coverage(&schema, &locale);
@@ -70,13 +73,14 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(
             diagnostics[0].message,
-            "missing locale implementation for schema message `counted`"
+            "locale is missing 1 schema message: `counted`"
         );
+        assert_eq!(diagnostics[0].quick_fixes.len(), 1);
     }
 
     #[test]
-    fn locale_coverage_reports_missing_grouped_schema_message() {
-        let schema = parse_schema("email_input {\n  label()\n  placeholder()\n}\n")
+    fn locale_coverage_groups_missing_grouped_schema_messages() {
+        let schema = parse_schema("email_input {\n  label()\n  placeholder()\n  error()\n}\n")
             .expect("schema parses");
         let locale = parse_locale("email_input {\n  label = Email\n}\n").expect("locale parses");
         let diagnostics = analyze_locale_coverage(&schema, &locale);
@@ -84,22 +88,34 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(
             diagnostics[0].message,
-            "missing locale implementation for schema message `email_input.placeholder`"
+            "locale is missing 2 schema messages: `email_input.placeholder`, `email_input.error`"
         );
+        let replacement = diagnostics[0].quick_fixes[0]
+            .replacement
+            .as_ref()
+            .expect("quick fix replacement");
+        assert!(replacement.text.contains("email_input {"));
+        assert!(replacement.text.contains("  placeholder = TODO"));
+        assert!(replacement.text.contains("  error = TODO"));
     }
 
     #[test]
-    fn locale_message_coverage_uses_locale_span_for_missing_messages() {
-        let diagnostics = analyze_locale_message_coverage(
-            &[RequiredLocaleMessage::new("delivery", Span::new(10, 18))],
-            &[],
-            Span::new(0, 0),
+    fn locale_message_coverage_uses_requested_warning_severity_for_missing_messages() {
+        let diagnostics = analyze_locale_coverage_with_options(
+            &parse_schema("delivery()\n").expect("schema parses"),
+            &parse_locale("").expect("empty locale parses"),
+            LocaleCoverageOptions {
+                missing_message_severity: DiagnosticSeverity::Warning,
+                subject: "locale `ru`".to_owned(),
+                quick_fix_id: None,
+            },
         );
 
+        assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Warning);
         assert_eq!(diagnostics[0].span, Span::new(0, 0));
         assert_eq!(
             diagnostics[0].message,
-            "missing locale implementation for schema message `delivery`"
+            "locale `ru` is missing 1 schema message: `delivery`"
         );
     }
 
