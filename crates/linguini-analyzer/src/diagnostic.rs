@@ -1,4 +1,4 @@
-use ariadne::{CharSet, Color, Config, IndexType, Label, Report, ReportKind, Source};
+use ariadne::{CharSet, Color, Config, Fmt, IndexType, Label, Report, ReportKind, Source};
 use linguini_syntax::Span;
 use std::fmt;
 use std::io;
@@ -231,7 +231,7 @@ fn render_summary_diagnostic(
 ) {
     let label = severity_label(diagnostic.severity);
     let rendered_label = if color {
-        format!("{}{}\x1b[0m", severity_ansi(diagnostic.severity), label)
+        format!("{}", label.fg(label_color(diagnostic.severity)))
     } else {
         label.to_owned()
     };
@@ -270,14 +270,6 @@ fn severity_label(severity: DiagnosticSeverity) -> &'static str {
         DiagnosticSeverity::Error => "Error",
         DiagnosticSeverity::Warning => "Warning",
         DiagnosticSeverity::Advice => "Advice",
-    }
-}
-
-fn severity_ansi(severity: DiagnosticSeverity) -> &'static str {
-    match severity {
-        DiagnosticSeverity::Error => "\x1b[31m",
-        DiagnosticSeverity::Warning => "\x1b[33m",
-        DiagnosticSeverity::Advice => "\x1b[34m",
     }
 }
 

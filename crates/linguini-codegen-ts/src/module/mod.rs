@@ -3,13 +3,18 @@ mod emit;
 mod expr;
 mod formatters;
 mod names;
+mod project;
 
+use std::fmt;
+
+use linguini_cldr::built_in_plural_rules;
 use linguini_ir::IrModule;
 
 use self::emit::{
     emit_enums, emit_forms, emit_imports, emit_index, emit_local_functions, emit_messages,
     emit_shared, emit_type_aliases,
 };
+use super::plural::generate_plural_function;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptOptions {
@@ -31,9 +36,92 @@ impl Default for TypeScriptOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptLocaleModule {
+    pub locale: String,
+    pub module: IrModule,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptProjectOptions {
+    pub declaration: bool,
+}
+
+impl Default for TypeScriptProjectOptions {
+    fn default() -> Self {
+        Self { declaration: true }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptGeneratedFile {
     pub path: String,
     pub contents: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptCodegenError {
+    message: String,
+}
+
+impl TypeScriptCodegenError {
+    fn missing_plural_rules(locale: &str) -> Self {
+        Self {
+            message: format!("missing built-in CLDR plural rules for configured locale `{locale}`"),
+        }
+    }
+}
+
+impl fmt::Display for TypeScriptCodegenError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for TypeScriptCodegenError {}
+
+pub fn generate_typescript_project_files(
+    schema: &IrModule,
+    locales: &[TypeScriptLocaleModule],
+    options: &TypeScriptProjectOptions,
+) -> Result<Vec<TypeScriptGeneratedFile>, TypeScriptCodegenError> {
+    let mut files = vec![TypeScriptGeneratedFile {
+        path: "shared.ts".to_owned(),
+        contents: generate_shared_module(),
+    }];
+
+    if options.declaration {
+        files.push(TypeScriptGeneratedFile {
+            path: "shared.d.ts".to_owned(),
+            contents: decl::generate_shared_declaration(),
+        });
+    }
+
+    for locale in locales {
+        let locale_options = project_locale_options(&locale.locale)?;
+        files.push(TypeScriptGeneratedFile {
+            path: format!("locales/{}.ts", locale.locale),
+            contents: generate_typescript_module(schema, &locale.module, &locale_options),
+        });
+        if options.declaration {
+            files.push(TypeScriptGeneratedFile {
+                path: format!("locales/{}.d.ts", locale.locale),
+                contents: decl::generate_locale_declaration(schema),
+            });
+        }
+    }
+
+    files.push(TypeScriptGeneratedFile {
+        path: "index.ts".to_owned(),
+        contents: project::generate_project_index(locales),
+    });
+    if options.declaration {
+        files.push(TypeScriptGeneratedFile {
+            path: "index.d.ts".to_owned(),
+            contents: project::generate_project_index_declaration(locales),
+        });
+    }
+
+    Ok(files)
 }
 
 pub fn generate_typescript_files(
@@ -84,6 +172,39 @@ pub fn generate_typescript_module(
     let exports = emit_messages(schema, locale, options, &mut output);
     emit_locale_default(&exports, &mut output);
     output
+}
+
+fn project_locale_options(locale: &str) -> Result<TypeScriptOptions, TypeScriptCodegenError> {
+    let plural_function = plural_function_name(locale);
+    let plural_rules = built_in_plural_rules(locale)
+        .ok_or_else(|| TypeScriptCodegenError::missing_plural_rules(locale))?;
+    Ok(TypeScriptOptions {
+        locale: locale.to_owned(),
+        plural_function: plural_function.clone(),
+        plural_import: None,
+        plural_source: Some(generate_plural_function(&plural_function, &plural_rules)),
+    })
+}
+
+fn plural_function_name(locale: &str) -> String {
+    format!("plural{}", pascal_identifier(locale))
+}
+
+fn pascal_identifier(value: &str) -> String {
+    value
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            let Some(first) = chars.next() else {
+                return String::new();
+            };
+            let mut output = String::new();
+            output.push(first.to_ascii_uppercase());
+            output.extend(chars.map(|character| character.to_ascii_lowercase()));
+            output
+        })
+        .collect::<String>()
 }
 
 fn generate_shared_module() -> String {

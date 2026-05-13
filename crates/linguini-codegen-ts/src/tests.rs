@@ -68,3 +68,37 @@ const PLURALS: &str = r#"
   }
 }
 "#;
+
+#[test]
+fn project_codegen_owns_multilocale_index_files() {
+    use crate::{
+        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let files = generate_typescript_project_files(
+        &IrModule::default(),
+        &[
+            TypeScriptLocaleModule {
+                locale: "en".to_owned(),
+                module: IrModule::default(),
+            },
+            TypeScriptLocaleModule {
+                locale: "ru".to_owned(),
+                module: IrModule::default(),
+            },
+        ],
+        &TypeScriptProjectOptions { declaration: true },
+    )
+    .expect("project codegen");
+
+    let index = files
+        .iter()
+        .find(|file| file.path == "index.ts")
+        .expect("index.ts");
+    assert!(index.contents.contains("import locale_en from \"./locales/en\";"));
+    assert!(index
+        .contents
+        .contains("import locale_ru from \"./locales/ru\";"));
+    assert!(index.contents.contains("ru: locale_ru"));
+}

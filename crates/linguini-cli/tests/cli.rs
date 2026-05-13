@@ -311,6 +311,10 @@ fn build_command_generates_typescript_and_does_not_require_cldr_cache() {
     fs::write(locale_dir.join("en.lgl"), "delivery = {count} deliveries\n")
         .expect("locale file");
 
+    let stale_file = project.path().join("src/generated/linguini/stale.ts");
+    fs::create_dir_all(stale_file.parent().expect("stale parent")).expect("generated dir");
+    fs::write(&stale_file, "export const stale = true;\\n").expect("stale file");
+
     linguini()
         .current_dir(project.path())
         .arg("build")
@@ -325,5 +329,6 @@ fn build_command_generates_typescript_and_does_not_require_cldr_cache() {
         .join("src/generated/linguini/locales/en.ts")
         .exists());
     assert!(project.path().join("src/generated/linguini/index.ts").exists());
+    assert!(!stale_file.exists());
     assert!(!project.path().join(".linguini/cache").exists());
 }
