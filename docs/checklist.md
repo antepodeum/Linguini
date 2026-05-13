@@ -142,9 +142,9 @@ Checkpoint acceptance:
 - [x] CI runs the full required test suite
   - Note: completed on 2026-05-13. CI includes formatting, file-size, spec, unit, snapshot, CLI, and generated-output validation gates.
   - Evidence: .github/workflows/ci.yml; `./scripts/check-spec-gates.sh`
-- [ ] Coverage report exists for core crates
-  - Note:
-  - Evidence:
+- [x] Coverage report exists for core crates
+  - Note: completed on 2026-05-13. Generated workspace coverage with `cargo-llvm-cov` after installing `llvm-tools-preview`.
+  - Evidence: target/coverage/lcov.info; target/coverage/html/html; `./scripts/coverage.sh`
 
 ---
 

@@ -1,5 +1,5 @@
 Completed slice:
-- 2026-05-13: Completed testing-policy gate slice except coverage report generation.
+- 2026-05-13: Completed testing-policy gate slice, including coverage report generation.
 
 Implementation decisions:
 - Unit-test structure is enforced per workspace crate by `scripts/check-unit-test-structure.sh`.
@@ -9,7 +9,7 @@ Implementation decisions:
 - JavaScript generated-output fixture is a committed ESM file tree validated by `scripts/validate-generated-js.sh`; this does not mark JS backend codegen tasks complete.
 - Rust generated-output fixture is a committed crate validated by `scripts/validate-generated-rust.sh`; this does not mark Rust backend codegen tasks complete.
 - `CONTRIBUTING.md` now requires focused regression tests for bug fixes.
-- Coverage command is `scripts/coverage.sh` and requires `cargo-llvm-cov`; coverage report checkpoint remains unchecked until a report is generated.
+- Coverage command is `scripts/coverage.sh`; latest report generated at `target/coverage/lcov.info` and `target/coverage/html/html`.
 - CI now runs unit/CLI tests, snapshot checks, and generated-output validation for TypeScript, JavaScript, and Rust.
 - Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, and `crates/linguini-cldr/src/data.rs`.
 
@@ -27,9 +27,10 @@ Tests last run:
 - `./scripts/validate-generated-rust.sh`
 - `./scripts/coverage.sh --help`
 - `bash scripts/validate-generated-ts.sh`
+- `./scripts/coverage.sh`
 
 Known deferred work:
-- Coverage report generation remains unchecked because `cargo-llvm-cov` is not installed locally.
+- Next unfinished checklist part starts at `## 8. CLDR ingestion`: fetch only required CLDR JSON files and compiled CLDR table generation remain incomplete.
 
 Next recommended task:
-- Install `cargo-llvm-cov`, run `./scripts/coverage.sh`, and record the coverage report evidence.
+- Continue sequentially from CLDR ingestion incomplete items unless spec is updated to reopen earlier work.
