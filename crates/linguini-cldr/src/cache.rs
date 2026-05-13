@@ -50,7 +50,7 @@ impl Display for CldrCacheError {
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
             Self::MissingCache(path) => write!(
                 f,
-                "missing CLDR cache at `{}`; run `linguini cldr fetch`",
+                "missing CLDR cache at `{}`; public CLDR plural rules are generated during cargo build",
                 path.display()
             ),
             Self::Parse { path, message } => write!(f, "{}: {message}", path.display()),

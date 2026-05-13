@@ -162,6 +162,19 @@ fn compiled_plural_rules_need_no_runtime_json() {
     assert_eq!(russian.category_for("1.5").expect("ru other"), "other");
 }
 
+
+#[test]
+fn compiled_plural_rules_are_generated_from_full_cldr_at_cargo_build_time() {
+    let arabic = compiled_plural_rules("ar").expect("arabic generated from CLDR at cargo build time");
+
+    assert_eq!(arabic.category_for("0").expect("ar zero"), "zero");
+    assert_eq!(arabic.category_for("1").expect("ar one"), "one");
+    assert_eq!(arabic.category_for("2").expect("ar two"), "two");
+    assert_eq!(arabic.category_for("3").expect("ar few"), "few");
+    assert_eq!(arabic.category_for("11").expect("ar many"), "many");
+    assert_eq!(arabic.category_for("100").expect("ar other"), "other");
+}
+
 #[test]
 fn compiled_formatting_data_is_typed_not_json() {
     let numbers = compiled_number_formatting("en").expect("numbers");

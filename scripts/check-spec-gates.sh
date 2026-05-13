@@ -87,8 +87,8 @@ for dependency in "${required_stack[@]}"; do
 done
 
 require_text "crates/linguini-cli/Cargo.toml" '^clap = ' "actual clap dependency for linguini-cli"
-require_text "crates/linguini-cli/src/lib.rs" 'derive\(Debug, Parser\)' "clap Parser derive for CLI arguments"
-require_text "crates/linguini-cli/src/lib.rs" 'derive\(Debug, Subcommand\)' "clap Subcommand derive for CLI commands"
+require_text "crates/linguini-cli/src/lib.rs" 'derive\([^)]*Parser[^)]*\)' "clap Parser derive for CLI arguments"
+require_text "crates/linguini-cli/src/lib.rs" 'derive\([^)]*Subcommand[^)]*\)' "clap Subcommand derive for CLI commands"
 
 require_file ".codex"
 require_file "CONTRIBUTING.md"
@@ -122,6 +122,12 @@ require_text "CONTRIBUTING.md" "./scripts/coverage.sh" "coverage command"
 require_text ".github/workflows/ci.yml" "cargo clippy --workspace --all-targets -- -D warnings" "clippy check"
 require_text ".github/workflows/ci.yml" "cargo test --workspace" "workspace tests"
 require_text ".github/workflows/ci.yml" "./scripts/check-spec-gates.sh" "spec gate check"
+require_file "crates/linguini-cldr/build.rs"
+require_text "crates/linguini-cldr/src/data/compiled.rs" 'include!\(concat!\(env!\("OUT_DIR"\)' "build-time generated CLDR include"
+require_text "crates/linguini-cldr/Cargo.toml" '^build = "build\.rs"$' "linguini-cldr build script"
+if grep -R --line-number -E 'cldr (fetch|status)|cldr_command|cldr_fetch|cldr_status' crates/linguini-cli/src crates/linguini-cli/tests >/dev/null; then
+  fail "CLI must not expose CLDR cache fetch/status commands; CLDR rules are generated during cargo build"
+fi
 
 awk '
   /^## 0\. / { active = 1 }

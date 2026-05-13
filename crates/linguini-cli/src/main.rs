@@ -1,3 +1,4 @@
+use clap::error::ErrorKind;
 use std::env;
 use std::process::ExitCode;
 
@@ -7,18 +8,19 @@ fn main() -> ExitCode {
             print!("{output}");
             ExitCode::SUCCESS
         }
-        Err(error) => {
-            if error.use_stdout() {
+        Err(linguini_cli::CliError::Args(error)) => match error.kind() {
+            ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
                 print!("{error}");
-            } else {
-                eprintln!("{error}");
-            }
-
-            if error.exit_code() == 0 {
                 ExitCode::SUCCESS
-            } else {
+            }
+            _ => {
+                eprint!("{error}");
                 ExitCode::FAILURE
             }
+        },
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
         }
     }
 }

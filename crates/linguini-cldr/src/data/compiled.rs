@@ -29,18 +29,10 @@ pub struct CompiledPluralCategory {
 }
 
 pub fn compiled_plural_rules(locale: &str) -> Option<CompiledPluralRules> {
-    match locale {
-        "en" => Some(CompiledPluralRules {
-            locale: "en",
-            categories: EN_PLURAL_CATEGORIES,
-        }),
-        "ru" => Some(CompiledPluralRules {
-            locale: "ru",
-            categories: RU_PLURAL_CATEGORIES,
-        }),
-        _ => None,
-    }
+    generated_plural_rules(locale)
 }
+
+include!(concat!(env!("OUT_DIR"), "/linguini_generated_plural_rules.rs"));
 
 pub fn compiled_number_formatting(locale: &str) -> Option<NumberFormatData> {
     match locale {
@@ -99,47 +91,6 @@ pub fn compiled_date_formatting(locale: &str) -> Option<DateFormatData> {
         }),
         _ => None,
     }
-}
-
-const EN_PLURAL_CATEGORIES: &[CompiledPluralCategory] = &[CompiledPluralCategory {
-    category: "one",
-    matches: en_one,
-}];
-
-const RU_PLURAL_CATEGORIES: &[CompiledPluralCategory] = &[
-    CompiledPluralCategory {
-        category: "one",
-        matches: ru_one,
-    },
-    CompiledPluralCategory {
-        category: "few",
-        matches: ru_few,
-    },
-    CompiledPluralCategory {
-        category: "many",
-        matches: ru_many,
-    },
-];
-
-fn en_one(operands: &PluralOperands) -> bool {
-    operands.i == 1 && operands.v == 0
-}
-
-fn ru_one(operands: &PluralOperands) -> bool {
-    operands.v == 0 && operands.i % 10 == 1 && operands.i % 100 != 11
-}
-
-fn ru_few(operands: &PluralOperands) -> bool {
-    operands.v == 0
-        && (2..=4).contains(&(operands.i % 10))
-        && !(12..=14).contains(&(operands.i % 100))
-}
-
-fn ru_many(operands: &PluralOperands) -> bool {
-    operands.v == 0
-        && ((operands.i % 10 == 0)
-            || (5..=9).contains(&(operands.i % 10))
-            || (11..=14).contains(&(operands.i % 100)))
 }
 
 fn widths(full: &str, long: &str, medium: &str, short: &str) -> FormatWidths {

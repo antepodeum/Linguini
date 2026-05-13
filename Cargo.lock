@@ -346,6 +346,7 @@ name = "linguini-cldr"
 version = "0.1.0"
 dependencies = [
  "linguini-test-support",
+ "serde_json",
 ]
 
 [[package]]

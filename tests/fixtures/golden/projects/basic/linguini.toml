@@ -6,5 +6,4 @@ locales = ["ru"]
 [paths]
 schema = "linguini/schema"
 locale = "linguini/locale"
-cache = ".linguini/cache"
 

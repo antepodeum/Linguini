@@ -12,7 +12,6 @@ struct ProjectBuilder {
 struct PathsBuilder {
     schema: Option<String>,
     locale: Option<String>,
-    cache: Option<String>,
 }
 
 pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
@@ -57,7 +56,6 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
         paths: PathsConfig {
             schema: required(paths.schema, "paths.schema")?,
             locale: required(paths.locale, "paths.locale")?,
-            cache: required(paths.cache, "paths.cache")?,
         },
     };
 
@@ -78,7 +76,10 @@ fn assign_value(
         ("project", "locales") => assign_array(&mut project.locales, key, value),
         ("paths", "schema") => assign_string(&mut paths.schema, key, value),
         ("paths", "locale") => assign_string(&mut paths.locale, key, value),
-        ("paths", "cache") => assign_string(&mut paths.cache, key, value),
+        ("paths", "cache") => {
+            parse_string(value)?;
+            Ok(())
+        }
         (section, key) => Err(ConfigError::UnknownKey {
             section: section.to_owned(),
             key: key.to_owned(),
@@ -150,13 +151,33 @@ mod tests {
             [paths]
             schema = "linguini/schema"
             locale = "linguini/locale"
-            cache = ".linguini/cache"
             "#,
         )
         .expect("valid config");
 
         assert_eq!(config.project.name, "shop");
         assert_eq!(config.project.locales, ["ru", "en-US"]);
+        assert_eq!(config.paths.schema, "linguini/schema");
+        assert_eq!(config.paths.locale, "linguini/locale");
+    }
+
+    #[test]
+    fn accepts_legacy_cache_path_without_exposing_it_to_runtime() {
+        let config = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+
+            [paths]
+            schema = "linguini/schema"
+            locale = "linguini/locale"
+            cache = ".linguini/cache"
+            "#,
+        )
+        .expect("legacy config");
+
         assert_eq!(config.paths.schema, "linguini/schema");
     }
 

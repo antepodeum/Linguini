@@ -12,7 +12,6 @@ locales = ["ru"]
 [paths]
 schema = "linguini/schema"
 locale = "linguini/locale"
-cache = ".linguini/cache"
 "#,
     )
     .expect("valid config parses");

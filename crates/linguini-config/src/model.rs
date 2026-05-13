@@ -17,7 +17,6 @@ pub struct ProjectConfig {
 pub struct PathsConfig {
     pub schema: String,
     pub locale: String,
-    pub cache: String,
 }
 
 impl LinguiniConfig {

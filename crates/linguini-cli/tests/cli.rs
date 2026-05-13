@@ -13,14 +13,25 @@ fn help_is_generated_by_cli_argument_parser() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(contains("Usage:"))
-        .stderr("")
+        .stdout(contains("Experimental localization toolkit CLI"))
+        .stdout(contains("Usage: linguini <COMMAND>"))
         .stdout(contains("init"))
-        .stdout(contains("cldr"));
+        .stdout(contains("check"))
+        .stdout(contains("build"))
+        .stderr("");
 }
 
 #[test]
-fn init_command_creates_project_files() {
+fn no_public_cldr_subcommand_exists() {
+    linguini()
+        .args(["cldr", "status"])
+        .assert()
+        .failure()
+        .stderr(contains("cldr"));
+}
+
+#[test]
+fn init_command_creates_project_files_without_cache_config() {
     let project = TempDir::new().expect("temp project");
 
     linguini()
@@ -32,9 +43,11 @@ fn init_command_creates_project_files() {
         .stdout(contains("created linguini/schema"))
         .stdout(contains("created linguini/locale"));
 
+    let config = fs::read_to_string(project.path().join("linguini.toml")).expect("config");
     assert!(project.path().join("linguini.toml").exists());
     assert!(project.path().join("linguini/schema").is_dir());
     assert!(project.path().join("linguini/locale").is_dir());
+    assert!(!config.contains("cache"));
 }
 
 #[test]
@@ -92,7 +105,7 @@ fn check_command_reports_syntax_diagnostics_on_stderr() {
 }
 
 #[test]
-fn cldr_status_reports_missing_cache() {
+fn build_command_does_not_require_cldr_cache() {
     let project = TempDir::new().expect("temp project");
     linguini()
         .current_dir(project.path())
@@ -102,9 +115,10 @@ fn cldr_status_reports_missing_cache() {
 
     linguini()
         .current_dir(project.path())
-        .args(["cldr", "status"])
+        .arg("build")
         .assert()
         .success()
-        .stdout(contains("usable: false"))
-        .stdout(contains("plurals: false"));
+        .stdout(contains("build: ok"));
+
+    assert!(!project.path().join(".linguini/cache").exists());
 }
