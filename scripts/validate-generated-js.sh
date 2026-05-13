@@ -24,7 +24,8 @@ const expectations = [
   [ru.delivery("apple", "small", 1), "Доставлено маленькое яблоко"],
   [ru.email_input.label, "Email"],
   [m.createLinguini("ru").email_input.aria, "Адрес электронной почты"],
-  [m.configureLinguini({ language: "ru" }).lgl.price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
+  [m.configureLinguini({ language: "ru" }).price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
+  [m.lgl.price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
 ];
 
 for (const [actual, expected] of expectations) {

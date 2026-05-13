@@ -63,14 +63,14 @@ export function render(requestLanguage: "ru") {
 For frameworks where language is read from request context:
 
 ```ts
-import { configureLinguini } from "./generated";
+import { configureLinguini, lgl } from "./generated";
 
-const linguini = configureLinguini({
+configureLinguini({
   language: () => getRequestLanguage(),
 });
 
 export function renderPrice() {
-  return linguini.lgl.price(1200, "13.05.2026");
+  return lgl.price(1200, "13.05.2026");
 }
 ```
 

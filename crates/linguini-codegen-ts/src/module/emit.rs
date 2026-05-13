@@ -228,22 +228,34 @@ pub fn emit_index(options: &TypeScriptOptions, output: &mut String) {
     output.push_str(&format!(
         "type LinguiniLanguageInput = LinguiniLanguage | {locale_literal};\n\n"
     ));
+    output.push_str(&format!(
+        "let currentLanguage: () => LinguiniLanguageInput = () => {locale_literal};\n\n"
+    ));
+    output.push_str("function resolveLinguiniLanguage(): LinguiniLanguageInput {\n");
+    output.push_str("  return currentLanguage();\n");
+    output.push_str("}\n\n");
     output
         .push_str("export function createLinguini(language: LinguiniLanguageInput): Linguini {\n");
     output.push_str("  return localeModules[language as LinguiniLanguage];\n");
     output.push_str("}\n\n");
     output.push_str("export function configureLinguini(options: {\n");
     output.push_str("  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n");
-    output.push_str("}): { readonly lgl: Linguini } {\n");
-    output.push_str("  return {\n");
-    output.push_str("    get lgl() {\n");
+    output.push_str("}): Linguini {\n");
+    output.push_str("  if (typeof options.language === \"function\") {\n");
+    output.push_str("    currentLanguage = options.language;\n");
+    output.push_str("  } else {\n");
+    output.push_str("    const language = options.language;\n");
+    output.push_str("    currentLanguage = () => language;\n");
+    output.push_str("  }\n");
+    output.push_str("  return lgl;\n");
+    output.push_str("}\n\n");
+    output.push_str("export const lgl: Linguini = new Proxy({} as Linguini, {\n");
+    output.push_str("  get(_target, property) {\n");
     output.push_str(
-        "      const language = typeof options.language === \"function\" ? options.language() : options.language;\n",
+        "    return createLinguini(resolveLinguiniLanguage())[property as keyof Linguini];\n",
     );
-    output.push_str("      return createLinguini(language);\n");
-    output.push_str("    },\n");
-    output.push_str("  };\n");
-    output.push_str("}\n");
+    output.push_str("  },\n");
+    output.push_str("});\n");
 }
 
 fn emit_message_function(

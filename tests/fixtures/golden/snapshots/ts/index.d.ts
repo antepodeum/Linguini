@@ -11,4 +11,6 @@ export declare function createLinguini(language: LinguiniLanguageInput): Linguin
 
 export declare function configureLinguini(options: {
   language: LinguiniLanguageInput | (() => LinguiniLanguageInput);
-}): { readonly lgl: Linguini };
+}): Linguini;
+
+export declare const lgl: Linguini;

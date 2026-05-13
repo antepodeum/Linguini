@@ -25,7 +25,8 @@ const expectations = [
   [ru.delivery("apple", "small", 1), "Доставлено маленькое яблоко"],
   [ru.email_input.label, "Email"],
   [m.createLinguini("ru").email_input.aria, "Адрес электронной почты"],
-  [m.configureLinguini({ language: "ru" }).lgl.price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
+  [m.configureLinguini({ language: "ru" }).price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
+  [m.lgl.price(12, "13.05.2026"), "Цена 12,00 ₽ на 13.05.2026"],
 ];
 
 for (const [actual, expected] of expectations) {
@@ -40,13 +41,14 @@ cp "$repo_root/tests/fixtures/golden/snapshots/ts/shared.d.ts" "$tmpdir/types/sh
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/index.d.ts" "$tmpdir/types/index.d.ts"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/locales/ru.d.ts" "$tmpdir/types/locales/ru.d.ts"
 cat > "$tmpdir/types/consumer.ts" <<'TS'
-import { configureLinguini, createLinguini, type Linguini } from "./index";
+import { configureLinguini, createLinguini, lgl, type Linguini } from "./index";
 
 const direct: Linguini = createLinguini("ru");
 const configured = configureLinguini({ language: () => "ru" });
 
 direct.delivery("apple", "small", 1);
-configured.lgl.price(12, "13.05.2026");
+configured.price(12, "13.05.2026");
+lgl.delivery("apple", "small", 1);
 TS
 
 tsc --strict --target ES2020 --module commonjs --noEmit \
