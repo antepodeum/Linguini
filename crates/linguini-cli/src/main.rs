@@ -8,8 +8,17 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(error) => {
-            eprintln!("{error}");
-            ExitCode::FAILURE
+            if error.use_stdout() {
+                print!("{error}");
+            } else {
+                eprintln!("{error}");
+            }
+
+            if error.exit_code() == 0 {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
         }
     }
 }

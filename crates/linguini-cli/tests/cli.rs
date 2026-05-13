@@ -8,6 +8,18 @@ fn linguini() -> Command {
 }
 
 #[test]
+fn help_is_generated_by_cli_argument_parser() {
+    linguini()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(contains("Usage:"))
+        .stderr("")
+        .stdout(contains("init"))
+        .stdout(contains("cldr"));
+}
+
+#[test]
 fn init_command_creates_project_files() {
     let project = TempDir::new().expect("temp project");
 

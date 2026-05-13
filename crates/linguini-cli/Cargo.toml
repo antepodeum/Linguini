@@ -11,6 +11,7 @@ name = "linguini"
 path = "src/main.rs"
 
 [dependencies]
+clap = { version = "4.5", features = ["derive"] }
 linguini-analyzer = { path = "../linguini-analyzer" }
 linguini-cldr = { path = "../linguini-cldr" }
 linguini-config = { path = "../linguini-config" }

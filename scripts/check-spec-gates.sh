@@ -86,6 +86,10 @@ for dependency in "${required_stack[@]}"; do
   require_text "Cargo.toml" "\"$dependency\"" "planned dependency $dependency"
 done
 
+require_text "crates/linguini-cli/Cargo.toml" '^clap = ' "actual clap dependency for linguini-cli"
+require_text "crates/linguini-cli/src/lib.rs" 'derive\(Debug, Parser\)' "clap Parser derive for CLI arguments"
+require_text "crates/linguini-cli/src/lib.rs" 'derive\(Debug, Subcommand\)' "clap Subcommand derive for CLI commands"
+
 require_file ".codex"
 require_file "CONTRIBUTING.md"
 require_text "CONTRIBUTING.md" "Bug fixes require a focused regression test" "regression-test rule"

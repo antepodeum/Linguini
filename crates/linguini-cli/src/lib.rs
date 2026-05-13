@@ -1,3 +1,4 @@
+use clap::{error::ErrorKind, Parser, Subcommand};
 use linguini_analyzer::{render_diagnostics, Diagnostic};
 use linguini_cldr::{
     cache_root, fetch_cldr_from_dir_for_locales, fetch_cldr_from_official_repo_for_locales,
@@ -18,26 +19,41 @@ pub type CliResult<T> = Result<T, CliError>;
 pub enum CliError {
     Cldr(linguini_cldr::CldrCacheError),
     Config(linguini_config::ConfigError),
+    Arguments {
+        output: String,
+        exit_code: i32,
+        use_stdout: bool,
+    },
     Diagnostics(String),
     Io { path: PathBuf, source: io::Error },
-    MissingCommand,
-    UnknownCommand(String),
 }
 
 impl Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Arguments { output, .. } => f.write_str(output),
             Self::Cldr(error) => Display::fmt(error, f),
             Self::Config(error) => Display::fmt(error, f),
             Self::Diagnostics(output) => f.write_str(output),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
-            Self::MissingCommand => write!(f, "missing command"),
-            Self::UnknownCommand(command) => write!(f, "unknown command `{command}`"),
         }
     }
 }
 
 impl std::error::Error for CliError {}
+
+impl CliError {
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            Self::Arguments { exit_code, .. } => *exit_code,
+            _ => 1,
+        }
+    }
+
+    pub fn use_stdout(&self) -> bool {
+        matches!(self, Self::Arguments { use_stdout: true, .. })
+    }
+}
 
 impl From<linguini_config::ConfigError> for CliError {
     fn from(error: linguini_config::ConfigError) -> Self {
@@ -51,6 +67,40 @@ impl From<linguini_cldr::CldrCacheError> for CliError {
     }
 }
 
+#[derive(Debug, Parser)]
+#[command(name = "linguini", bin_name = "linguini")]
+#[command(about = "Experimental localization toolkit CLI")]
+struct CliArgs {
+    #[command(subcommand)]
+    command: CliCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum CliCommand {
+    /// Create a Linguini project skeleton.
+    Init,
+    /// Parse configured schema and locale files and report diagnostics.
+    Check,
+    /// Validate the project using the offline CLDR cache.
+    Build,
+    /// Inspect or populate cached CLDR data.
+    Cldr {
+        #[command(subcommand)]
+        command: CldrCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum CldrCommand {
+    /// Report whether the configured CLDR cache is usable.
+    Status,
+    /// Fetch CLDR JSON data from the official repository or a local staged directory.
+    Fetch {
+        /// Optional local CLDR JSON source directory.
+        source: Option<String>,
+    },
+}
+
 pub fn run(
     args: impl IntoIterator<Item = String>,
     current_dir: io::Result<PathBuf>,
@@ -59,27 +109,36 @@ pub fn run(
         path: PathBuf::from("."),
         source,
     })?;
-    let mut args = args.into_iter();
+    let cli = parse_cli(args)?;
 
-    match args.next().as_deref() {
-        Some("init") => init_project(&root),
-        Some("check") => check_project(&root),
-        Some("build") => build_project(&root),
-        Some("cldr") => cldr_command(&root, args.collect()),
-        Some(command) => Err(CliError::UnknownCommand(command.to_owned())),
-        None => Err(CliError::MissingCommand),
+    match cli.command {
+        CliCommand::Init => init_project(&root),
+        CliCommand::Check => check_project(&root),
+        CliCommand::Build => build_project(&root),
+        CliCommand::Cldr { command } => cldr_command(&root, command),
     }
 }
 
-pub fn cldr_command(root: &Path, args: Vec<String>) -> CliResult<String> {
-    match args.first().map(String::as_str) {
-        Some("status") => cldr_status(root),
-        Some("fetch") => {
-            let source = args.get(1).map(String::as_str);
-            cldr_fetch(root, source)
+fn parse_cli(args: impl IntoIterator<Item = String>) -> CliResult<CliArgs> {
+    let argv = std::iter::once("linguini".to_owned()).chain(args);
+    CliArgs::try_parse_from(argv).map_err(|error| {
+        let use_stdout = matches!(
+            error.kind(),
+            ErrorKind::DisplayHelp | ErrorKind::DisplayVersion
+        );
+
+        CliError::Arguments {
+            output: error.to_string(),
+            exit_code: error.exit_code(),
+            use_stdout,
         }
-        Some(command) => Err(CliError::UnknownCommand(format!("cldr {command}"))),
-        None => Err(CliError::MissingCommand),
+    })
+}
+
+fn cldr_command(root: &Path, command: CldrCommand) -> CliResult<String> {
+    match command {
+        CldrCommand::Status => cldr_status(root),
+        CldrCommand::Fetch { source } => cldr_fetch(root, source.as_deref()),
     }
 }
 
@@ -273,9 +332,28 @@ fn render_parse_errors(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_project, check_project, cldr_fetch, cldr_status, init_project};
+    use super::{build_project, check_project, cldr_fetch, cldr_status, init_project, CliArgs};
+    use clap::CommandFactory;
     use linguini_test_support::temp_project_dir;
     use std::fs;
+
+    #[test]
+    fn cli_argument_parser_is_clap_backed() {
+        let command = CliArgs::command();
+        let subcommands: Vec<_> = command
+            .get_subcommands()
+            .map(clap::Command::get_name)
+            .collect();
+
+        assert_eq!(subcommands, ["init", "check", "build", "cldr"]);
+        assert!(command.get_subcommands().any(|command| {
+            command.get_name() == "cldr"
+                && command
+                    .get_subcommands()
+                    .map(clap::Command::get_name)
+                    .eq(["status", "fetch"])
+        }));
+    }
 
     #[test]
     fn init_creates_valid_project() {
