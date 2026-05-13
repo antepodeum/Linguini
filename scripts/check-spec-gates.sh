@@ -111,6 +111,7 @@ require_text ".github/workflows/ci.yml" "./scripts/check-file-size.sh" "file-siz
 require_text ".github/workflows/ci.yml" "./scripts/check-unit-test-structure.sh" "unit test structure check"
 require_text ".github/workflows/ci.yml" "./scripts/check-syntax-fixtures.sh" "syntax fixture check"
 require_text ".github/workflows/ci.yml" "./scripts/review-snapshots.sh --check" "snapshot workflow check"
+require_text ".github/workflows/ci.yml" "bash scripts/validate-generated-ts.sh" "generated TypeScript validation"
 require_text ".github/workflows/ci.yml" "./scripts/validate-generated-js.sh" "generated JavaScript validation"
 require_text ".github/workflows/ci.yml" "./scripts/validate-generated-rust.sh" "generated Rust validation"
 require_text "CONTRIBUTING.md" "./scripts/coverage.sh" "coverage command"

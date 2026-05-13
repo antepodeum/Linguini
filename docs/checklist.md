@@ -127,21 +127,21 @@ Checkpoint acceptance:
 - [x] Add coverage measurement command for core crates
   - Note: completed on 2026-05-13. Added a `cargo-llvm-cov` coverage command that writes LCOV and HTML reports while excluding generated, vendor, target, and snapshot paths.
   - Evidence: scripts/coverage.sh; CONTRIBUTING.md; `./scripts/coverage.sh --help`; `./scripts/check-spec-gates.sh`
-- [ ] Add CI job that runs unit, snapshot, CLI, and generated-output tests
-  - Note:
-  - Evidence:
+- [x] Add CI job that runs unit, snapshot, CLI, and generated-output tests
+  - Note: completed on 2026-05-13. CI now runs unit and CLI tests through `cargo test --workspace`, snapshot checks, and generated-output validation for TypeScript, JavaScript, and Rust.
+  - Evidence: .github/workflows/ci.yml; scripts/review-snapshots.sh; scripts/validate-generated-ts.sh; scripts/validate-generated-js.sh; scripts/validate-generated-rust.sh; `./scripts/check-spec-gates.sh`
 
 Checkpoint acceptance:
 
-- [ ] No implementation task can be marked complete without test evidence
-  - Note:
-  - Evidence:
-- [ ] `.lqs` and `.lgl` golden fixtures are complete realistic programs
-  - Note:
-  - Evidence:
-- [ ] CI runs the full required test suite
-  - Note:
-  - Evidence:
+- [x] No implementation task can be marked complete without test evidence
+  - Note: completed on 2026-05-13. Spec gate rejects completed checklist items without note and evidence blocks.
+  - Evidence: scripts/check-spec-gates.sh; `./scripts/check-spec-gates.sh`
+- [x] `.lqs` and `.lgl` golden fixtures are complete realistic programs
+  - Note: completed on 2026-05-13. Syntax fixture gate checks the committed golden schema and locale fixtures cover complete realistic declarations and message bodies.
+  - Evidence: scripts/check-syntax-fixtures.sh; tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `./scripts/check-syntax-fixtures.sh`
+- [x] CI runs the full required test suite
+  - Note: completed on 2026-05-13. CI includes formatting, file-size, spec, unit, snapshot, CLI, and generated-output validation gates.
+  - Evidence: .github/workflows/ci.yml; `./scripts/check-spec-gates.sh`
 - [ ] Coverage report exists for core crates
   - Note:
   - Evidence:

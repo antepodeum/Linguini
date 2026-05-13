@@ -23,6 +23,8 @@ jobs:
         run: ./scripts/check-syntax-fixtures.sh
       - name: Check snapshot workflow
         run: ./scripts/review-snapshots.sh --check
+      - name: Validate generated TypeScript
+        run: bash scripts/validate-generated-ts.sh
       - name: Validate generated JavaScript
         run: ./scripts/validate-generated-js.sh
       - name: Validate generated Rust

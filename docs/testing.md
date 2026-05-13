@@ -12,6 +12,7 @@ Required gates:
 - `./scripts/check-unit-test-structure.sh`
 - `./scripts/check-syntax-fixtures.sh`
 - `./scripts/review-snapshots.sh --check`
+- `bash scripts/validate-generated-ts.sh`
 - `./scripts/validate-generated-js.sh`
 - `./scripts/validate-generated-rust.sh`
 
