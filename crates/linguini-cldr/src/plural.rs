@@ -1,5 +1,9 @@
 use std::fmt::{self, Display};
 
+mod eval;
+
+pub use eval::{evaluate_plural_rule, PluralOperands};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluralRule {
     pub conditions: Vec<Condition>,
@@ -252,7 +256,7 @@ fn parse_number(value: Option<&str>) -> Result<u64, PluralParseError> {
         .map_err(|_| error(format!("expected number, got `{value}`")))
 }
 
-fn error(message: impl Into<String>) -> PluralParseError {
+pub(crate) fn error(message: impl Into<String>) -> PluralParseError {
     PluralParseError {
         message: message.into(),
     }
@@ -292,7 +296,9 @@ impl Cursor {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_plural_rule, Operand, RelationOperator};
+    use super::{
+        evaluate_plural_rule, parse_plural_rule, Operand, PluralOperands, RelationOperator,
+    };
 
     #[test]
     fn parses_english_plural_rule() {
@@ -338,5 +344,56 @@ mod tests {
             rule.conditions[0].relations[1].operator,
             RelationOperator::NotWithin
         );
+    }
+
+    #[test]
+    fn extracts_visible_fraction_operands() {
+        let operands = PluralOperands::parse("1.2300").expect("operands");
+
+        assert_eq!(operands.i, 1);
+        assert_eq!(operands.v, 4);
+        assert_eq!(operands.w, 2);
+        assert_eq!(operands.f, 2300);
+        assert_eq!(operands.t, 23);
+    }
+
+    #[test]
+    fn evaluates_english_plural_examples() {
+        let one = parse_plural_rule("i = 1 and v = 0").expect("one");
+
+        assert!(evaluate_plural_rule(&one, "1").expect("matches"));
+        assert!(!evaluate_plural_rule(&one, "1.0").expect("does not match"));
+        assert!(!evaluate_plural_rule(&one, "2").expect("does not match"));
+    }
+
+    #[test]
+    fn evaluates_russian_plural_examples() {
+        let one = parse_plural_rule("v = 0 and i % 10 = 1 and i % 100 != 11").expect("one");
+        let few = parse_plural_rule("v = 0 and i % 10 = 2..4 and i % 100 != 12..14").expect("few");
+        let many = parse_plural_rule(
+            "v = 0 and i % 10 = 0 or v = 0 and i % 10 = 5..9 or v = 0 and i % 100 = 11..14",
+        )
+        .expect("many");
+
+        assert!(evaluate_plural_rule(&one, "1").expect("one"));
+        assert!(evaluate_plural_rule(&few, "2").expect("few"));
+        assert!(evaluate_plural_rule(&many, "5").expect("many"));
+        assert!(evaluate_plural_rule(&many, "11").expect("many"));
+        assert!(!evaluate_plural_rule(&one, "1.5").expect("fraction"));
+    }
+
+    #[test]
+    fn evaluates_arabic_plural_examples() {
+        let zero = parse_plural_rule("n = 0").expect("zero");
+        let one = parse_plural_rule("n = 1").expect("one");
+        let two = parse_plural_rule("n = 2").expect("two");
+        let few = parse_plural_rule("n % 100 = 3..10").expect("few");
+        let many = parse_plural_rule("n % 100 = 11..99").expect("many");
+
+        assert!(evaluate_plural_rule(&zero, "0").expect("zero"));
+        assert!(evaluate_plural_rule(&one, "1").expect("one"));
+        assert!(evaluate_plural_rule(&two, "2").expect("two"));
+        assert!(evaluate_plural_rule(&few, "103").expect("few"));
+        assert!(evaluate_plural_rule(&many, "111").expect("many"));
     }
 }

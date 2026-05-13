@@ -13,8 +13,8 @@ pub use data::{
     PluralRules,
 };
 pub use plural::{
-    parse_plural_rule, Operand, OperandExpression, PluralParseError, PluralRule, Range, RangeList,
-    Relation, RelationOperator,
+    evaluate_plural_rule, parse_plural_rule, Operand, OperandExpression, PluralOperands,
+    PluralParseError, PluralRule, Range, RangeList, Relation, RelationOperator,
 };
 
 pub const CRATE_PURPOSE: &str = "CLDR ingestion and plural rules";

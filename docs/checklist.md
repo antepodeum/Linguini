@@ -546,10 +546,12 @@ Checkpoint acceptance:
 
 Checkpoint acceptance:
 
-- [ ] Plural categories match CLDR examples for selected locales
-  - Note:
-- [ ] Generated plural functions pass snapshot tests
-  - Note:
+- [x] Plural categories match CLDR examples for selected locales
+  - Note: completed on 2026-05-13. Added plural operand extraction and rule evaluation for English, Russian, and Arabic-shaped examples.
+  - Evidence: crates/linguini-cldr/src/plural/eval.rs; crates/linguini-cldr/src/data.rs; `cargo test -p linguini-cldr`
+- [x] Generated plural functions pass snapshot tests
+  - Note: completed on 2026-05-13. Added deterministic TypeScript plural function generation from parsed CLDR plural rules.
+  - Evidence: crates/linguini-codegen-ts/src/lib.rs; tests/fixtures/golden/snapshots/codegen-ts-plural-ru.ts; `cargo test -p linguini-codegen-ts`
 
 ---
 
@@ -591,8 +593,9 @@ Checkpoint acceptance:
   - Note:
 - [ ] Generate local functions
   - Note:
-- [ ] Generate plural functions
-  - Note:
+- [x] Generate plural functions
+  - Note: completed on 2026-05-13. Added TypeScript plural category function generation from CLDR plural rules with operand helper output.
+  - Evidence: crates/linguini-codegen-ts/src/lib.rs; tests/fixtures/golden/snapshots/codegen-ts-plural-ru.ts; `cargo test -p linguini-codegen-ts`
 - [ ] Generate formatter helpers
   - Note:
 - [ ] Generate `.d.ts`

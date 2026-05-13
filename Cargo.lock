@@ -138,6 +138,9 @@ version = "0.1.0"
 [[package]]
 name = "linguini-codegen-ts"
 version = "0.1.0"
+dependencies = [
+ "linguini-cldr",
+]
 
 [[package]]
 name = "linguini-config"

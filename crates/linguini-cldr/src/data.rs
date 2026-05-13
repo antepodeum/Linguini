@@ -1,5 +1,5 @@
 use crate::cache::{CldrCacheError, CldrCacheResult, PLURALS_FILE};
-use crate::plural::{parse_plural_rule, PluralRule};
+use crate::plural::{parse_plural_rule, PluralOperands, PluralRule};
 use std::fs;
 use std::path::Path;
 
@@ -7,6 +7,21 @@ use std::path::Path;
 pub struct PluralRules {
     pub locale: String,
     pub categories: Vec<PluralCategoryRule>,
+}
+
+impl PluralRules {
+    pub fn category_for(&self, sample: &str) -> Result<&str, String> {
+        let operands = PluralOperands::parse(sample).map_err(|error| error.to_string())?;
+        Ok(self.category_for_operands(&operands))
+    }
+
+    pub fn category_for_operands(&self, operands: &PluralOperands) -> &str {
+        self.categories
+            .iter()
+            .find(|category| category.rule.matches(operands))
+            .map(|category| category.category.as_str())
+            .unwrap_or("other")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -320,7 +335,7 @@ mod tests {
           "ru": {
             "pluralRule-count-one": "v = 0 and i % 10 = 1 and i % 100 != 11",
             "pluralRule-count-few": "v = 0 and i % 10 = 2..4 and i % 100 != 12..14",
-            "pluralRule-count-many": "v = 0 and i % 10 = 0 or v = 0 and i % 10 = 5..9",
+            "pluralRule-count-many": "v = 0 and i % 10 = 0 or v = 0 and i % 10 = 5..9 or v = 0 and i % 100 = 11..14",
             "pluralRule-count-other": ""
           }
         }
@@ -396,6 +411,21 @@ mod tests {
             .categories
             .iter()
             .any(|category| category.category == "few"));
+    }
+
+    #[test]
+    fn plural_categories_match_selected_cldr_examples() {
+        let english = load_plural_rules(PLURALS, "en").expect("english");
+        let russian = load_plural_rules(PLURALS, "ru").expect("russian");
+
+        assert_eq!(english.category_for("1").expect("en one"), "one");
+        assert_eq!(english.category_for("2").expect("en other"), "other");
+        assert_eq!(english.category_for("1.0").expect("en decimal"), "other");
+        assert_eq!(russian.category_for("1").expect("ru one"), "one");
+        assert_eq!(russian.category_for("2").expect("ru few"), "few");
+        assert_eq!(russian.category_for("5").expect("ru many"), "many");
+        assert_eq!(russian.category_for("11").expect("ru many"), "many");
+        assert_eq!(russian.category_for("1.5").expect("ru fraction"), "other");
     }
 
     #[test]
