@@ -19,13 +19,6 @@ pub(super) enum SampleValue {
 }
 
 impl SampleValue {
-    fn as_json(&self) -> String {
-        match self {
-            Self::String(value) => json_string(value),
-            Self::Number(value) => value.to_string(),
-        }
-    }
-
     pub(super) fn as_text(&self) -> String {
         match self {
             Self::String(value) => value.clone(),
@@ -72,24 +65,24 @@ fn load_merged_schema(root: &Path, config: &LinguiniConfig) -> CliResult<IrModul
 
 fn render_generated_data(schema: &IrModule, locales: &BTreeMap<String, IrModule>) -> String {
     let mut output = String::new();
-    output.push_str("{\n  \"locales\": {\n");
+    output.push_str(&format!(
+        "{} {}\n",
+        color("linguini", Style::BoldCyan),
+        color("generate", Style::BoldWhite)
+    ));
 
-    for (locale_index, (locale, module)) in locales.iter().enumerate() {
-        if locale_index > 0 {
-            output.push_str(",\n");
-        }
-        output.push_str(&format!("    {}: {{\n", json_string(locale)));
-        output.push_str("      \"messages\": {\n");
-        for (message_index, message) in schema.messages.iter().enumerate() {
-            if message_index > 0 {
-                output.push_str(",\n");
-            }
+    for (locale, module) in locales {
+        output.push('\n');
+        output.push_str(&format!(
+            "{} {}\n",
+            color("locale", Style::Blue),
+            color(locale, Style::BoldWhite)
+        ));
+        for message in &schema.messages {
             render_message_cases(schema, module, locale, message, &mut output);
         }
-        output.push_str("\n      }\n    }");
     }
 
-    output.push_str("\n  }\n}\n");
     output
 }
 
@@ -100,27 +93,24 @@ fn render_message_cases(
     message: &IrMessage,
     output: &mut String,
 ) {
-    output.push_str(&format!("        {}: [", json_string(&message.name)));
+    output.push_str(&format!(
+        "  {} {}\n",
+        color("message", Style::Magenta),
+        color(&message.name, Style::BoldWhite)
+    ));
     let cases = message_cases(schema, message);
     let renderer = render::Renderer::new(schema, module, locale);
 
-    for (index, inputs) in cases.iter().enumerate() {
-        if index > 0 {
-            output.push(',');
-        }
-        output.push_str("\n          {\n            \"args\": ");
-        output.push_str(&pretty_json_args(inputs, 12));
-        output.push_str(",\n            \"output\": ");
-        output.push_str(&json_string(
-            &renderer.render_message(&message.name, inputs),
-        ));
-        output.push_str("\n          }");
-    }
-    if !cases.is_empty() {
+    for inputs in &cases {
+        output.push_str("    ");
+        output.push_str(&format_args(inputs));
         output.push('\n');
-        output.push_str("        ");
+        output.push_str(&format!(
+            "      {} {}\n",
+            color("=>", Style::Green),
+            renderer.render_message(&message.name, inputs)
+        ));
     }
-    output.push(']');
 }
 
 fn message_cases(schema: &IrModule, message: &IrMessage) -> Vec<BTreeMap<String, SampleValue>> {
@@ -176,37 +166,67 @@ fn resolve_type(schema: &IrModule, ty: &str) -> String {
         .unwrap_or_else(|| ty.to_owned())
 }
 
-fn pretty_json_args(inputs: &BTreeMap<String, SampleValue>, indent: usize) -> String {
+fn format_args(inputs: &BTreeMap<String, SampleValue>) -> String {
     if inputs.is_empty() {
-        return "{}".to_owned();
+        return color("(no args)", Style::Dim).to_string();
     }
 
-    let base_indent = " ".repeat(indent);
-    let item_indent = " ".repeat(indent + 2);
-    let items = inputs
+    inputs
         .iter()
-        .map(|(name, value)| format!("{item_indent}{}: {}", json_string(name), value.as_json()))
+        .map(|(name, value)| {
+            format!(
+                "{}{}{}",
+                color(name, Style::Yellow),
+                color("=", Style::Dim),
+                color(&value.as_text(), Style::Cyan)
+            )
+        })
         .collect::<Vec<_>>()
-        .join(",\n");
-    format!("{{\n{items}\n{base_indent}}}")
+        .join(" ")
 }
 
-pub(super) fn json_string(value: &str) -> String {
-    let mut output = String::from("\"");
-    for character in value.chars() {
-        match character {
-            '"' => output.push_str("\\\""),
-            '\\' => output.push_str("\\\\"),
-            '\n' => output.push_str("\\n"),
-            '\r' => output.push_str("\\r"),
-            '\t' => output.push_str("\\t"),
-            character if character.is_control() => {
-                output.push_str(&format!("\\u{:04x}", character as u32));
+#[derive(Clone, Copy)]
+enum Style {
+    Blue,
+    BoldCyan,
+    BoldWhite,
+    Cyan,
+    Dim,
+    Green,
+    Magenta,
+    Yellow,
+}
+
+fn color(value: &str, style: Style) -> String {
+    let code = match style {
+        Style::Blue => "34",
+        Style::BoldCyan => "1;36",
+        Style::BoldWhite => "1;37",
+        Style::Cyan => "36",
+        Style::Dim => "2",
+        Style::Green => "32",
+        Style::Magenta => "35",
+        Style::Yellow => "33",
+    };
+    format!("\x1b[{code}m{value}\x1b[0m")
+}
+
+#[cfg(test)]
+fn strip_ansi(value: &str) -> String {
+    let mut output = String::new();
+    let mut chars = value.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '\x1b' && chars.peek() == Some(&'[') {
+            chars.next();
+            for code in chars.by_ref() {
+                if code == 'm' {
+                    break;
+                }
             }
-            character => output.push(character),
+            continue;
         }
+        output.push(character);
     }
-    output.push('"');
     output
 }
 
@@ -230,12 +250,16 @@ mod tests {
         let mut locales = BTreeMap::new();
         locales.insert("en".to_owned(), locale);
 
-        let json = render_generated_data(&schema, &locales);
+        let output = render_generated_data(&schema, &locales);
+        let plain = strip_ansi(&output);
 
-        assert!(json.contains("\"fruit\": \"apple\""));
-        assert!(json.contains("\"fruit\": \"pear\""));
-        assert!(json.contains("\"count\": 5"));
-        assert!(json.contains("\"output\": \"1 apple\""));
-        assert!(json.contains("\"output\": \"5 apples\""));
+        assert!(output.contains("\x1b["));
+        assert!(plain.contains("locale en"));
+        assert!(plain.contains("message delivery"));
+        assert!(plain.contains("fruit=apple"));
+        assert!(plain.contains("fruit=pear"));
+        assert!(plain.contains("count=5"));
+        assert!(plain.contains("=> 1 apple"));
+        assert!(plain.contains("=> 5 apples"));
     }
 }

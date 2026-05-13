@@ -255,13 +255,33 @@ fn generate_renders_locale_enum_and_plural_matrix() {
     .expect("locale file");
 
     let output = generate_project_data(project.path()).expect("generated data");
+    let plain = strip_ansi(&output);
 
-    assert!(output.contains("\"locales\""));
-    assert!(output.contains("\"en\""));
-    assert!(output.contains("\"counted\""));
-    assert!(output.contains("\"fruit\": \"apple\""));
-    assert!(output.contains("\"fruit\": \"pear\""));
-    assert!(output.contains("\"count\": 5"));
-    assert!(output.contains("\"output\": \"1 apple\""));
-    assert!(output.contains("\"output\": \"5 apples\""));
+    assert!(output.contains("\x1b["));
+    assert!(!output.contains("\"locales\""));
+    assert!(plain.contains("locale en"));
+    assert!(plain.contains("message counted"));
+    assert!(plain.contains("fruit=apple"));
+    assert!(plain.contains("fruit=pear"));
+    assert!(plain.contains("count=5"));
+    assert!(plain.contains("=> 1 apple"));
+    assert!(plain.contains("=> 5 apples"));
+}
+
+fn strip_ansi(value: &str) -> String {
+    let mut output = String::new();
+    let mut chars = value.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '\x1b' && chars.peek() == Some(&'[') {
+            chars.next();
+            for code in chars.by_ref() {
+                if code == 'm' {
+                    break;
+                }
+            }
+            continue;
+        }
+        output.push(character);
+    }
+    output
 }

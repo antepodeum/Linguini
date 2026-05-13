@@ -365,11 +365,15 @@ fn generate_command_outputs_rendered_locale_matrix() {
         .arg("generate")
         .assert()
         .success()
-        .stdout(contains("\"locales\""))
-        .stdout(contains("\"en\""))
-        .stdout(contains("\"fruit\": \"apple\""))
-        .stdout(contains("\"fruit\": \"pear\""))
-        .stdout(contains("\"count\": 5"))
-        .stdout(contains("\"output\": \"1 apple\""))
-        .stdout(contains("\"output\": \"5 apples\""));
+        .stdout(contains("\u{1b}["))
+        .stdout(contains("locale"))
+        .stdout(contains("en"))
+        .stdout(contains("fruit"))
+        .stdout(contains("apple"))
+        .stdout(contains("pear"))
+        .stdout(contains("count"))
+        .stdout(contains("5"))
+        .stdout(contains("\u{1b}[32m=>\u{1b}[0m 1 apple"))
+        .stdout(contains("\u{1b}[32m=>\u{1b}[0m 5 apples"))
+        .stdout(predicates::str::contains("\"locales\"").not());
 }

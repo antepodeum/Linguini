@@ -995,7 +995,7 @@ Runs analysis and code generation.
 
 ### 12.4 `generate`
 
-Generates rendered JSON sample data for each configured locale.
+Generates rendered, colorized sample output for each configured locale.
 
 It must cover:
 

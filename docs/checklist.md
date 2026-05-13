@@ -927,7 +927,7 @@ Checkpoint acceptance:
 ## 20. Real-project validation
 
 - [x] Add rendered locale generate command
-  - Note: completed on 2026-05-13. Added `linguini generate` pretty JSON output that renders every configured locale across enum variants and representative numeric plural values.
+  - Note: completed on 2026-05-13. Added `linguini generate` colorized human-readable output that renders every configured locale across enum variants and representative numeric plural values.
   - Evidence: crates/linguini-cli/src/project/test_data; crates/linguini-cli/tests/cli.rs; `cargo test -p linguini-cli`
 - [ ] Test in a TypeScript app
   - Note:
