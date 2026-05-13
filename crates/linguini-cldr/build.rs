@@ -23,8 +23,8 @@ fn run() -> Result<(), String> {
     let plurals = plural_source_path()?;
     println!("cargo:rerun-if-changed={}", plurals.display());
 
-    let source = fs::read_to_string(&plurals)
-        .map_err(|error| format!("{}: {error}", plurals.display()))?;
+    let source =
+        fs::read_to_string(&plurals).map_err(|error| format!("{}: {error}", plurals.display()))?;
     let generated = generate_plural_tables(&source)?;
     let out_dir = PathBuf::from(env::var("OUT_DIR").map_err(|error| error.to_string())?);
     let output = out_dir.join(GENERATED_FILE);
@@ -95,7 +95,10 @@ fn run_git(args: &[&str]) -> Result<(), String> {
     if status.success() {
         Ok(())
     } else {
-        Err(format!("git {} failed with status {status}", args.join(" ")))
+        Err(format!(
+            "git {} failed with status {status}",
+            args.join(" ")
+        ))
     }
 }
 

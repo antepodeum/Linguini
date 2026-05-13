@@ -1,0 +1,314 @@
+use std::collections::BTreeMap;
+
+use linguini_cldr::built_in_plural_rules;
+use linguini_ir::{
+    IrBranch, IrBranchPattern, IrExpression, IrForm, IrFormEntry, IrFunction, IrModule, IrText,
+    IrTextPart, IrValue,
+};
+
+use super::SampleValue;
+
+pub(super) struct Renderer<'a> {
+    schema: &'a IrModule,
+    module: &'a IrModule,
+    locale: &'a str,
+}
+
+impl<'a> Renderer<'a> {
+    pub(super) fn new(schema: &'a IrModule, module: &'a IrModule, locale: &'a str) -> Self {
+        Self {
+            schema,
+            module,
+            locale,
+        }
+    }
+
+    pub(super) fn render_message(
+        &self,
+        name: &str,
+        inputs: &BTreeMap<String, SampleValue>,
+    ) -> String {
+        let Some(message) = self
+            .module
+            .messages
+            .iter()
+            .find(|message| message.name == name)
+        else {
+            return String::new();
+        };
+        let Some(body) = &message.body else {
+            return String::new();
+        };
+        self.render_text(body, &self.context(name), inputs)
+    }
+
+    fn render_text(
+        &self,
+        text: &IrText,
+        context: &BTreeMap<String, String>,
+        inputs: &BTreeMap<String, SampleValue>,
+    ) -> String {
+        text.parts
+            .iter()
+            .map(|part| match part {
+                IrTextPart::Text(value) => value.clone(),
+                IrTextPart::Placeholder(expression) => {
+                    self.eval_expression(expression, context, inputs)
+                }
+            })
+            .collect()
+    }
+
+    fn eval_expression(
+        &self,
+        expression: &IrExpression,
+        context: &BTreeMap<String, String>,
+        inputs: &BTreeMap<String, SampleValue>,
+    ) -> String {
+        let args = expression
+            .arguments
+            .iter()
+            .map(|argument| self.eval_expression(argument, context, inputs))
+            .collect::<Vec<_>>();
+
+        let value = match expression.path.as_slice() {
+            [root] if !args.is_empty() && context.contains_key(root) => {
+                self.eval_form_call(root, None, &args, context, inputs)
+            }
+            [root, property] if !args.is_empty() && context.contains_key(root) => {
+                self.eval_form_call(root, Some(property), &args, context, inputs)
+            }
+            [function] if !args.is_empty() => self.eval_function(function, &args, context, inputs),
+            [root] => inputs
+                .get(root)
+                .map(SampleValue::as_text)
+                .unwrap_or_default(),
+            [root, property] if context.contains_key(root) => {
+                self.eval_form_property(root, &[property.as_str()], context, inputs)
+            }
+            [root, tail @ ..] if context.contains_key(root) => {
+                let path = tail.iter().map(String::as_str).collect::<Vec<_>>();
+                self.eval_form_property(root, &path, context, inputs)
+            }
+            _ => String::new(),
+        };
+
+        self.apply_formatters(value, expression)
+    }
+
+    fn eval_form_call(
+        &self,
+        root: &str,
+        property: Option<&String>,
+        args: &[String],
+        context: &BTreeMap<String, String>,
+        inputs: &BTreeMap<String, SampleValue>,
+    ) -> String {
+        let Some(form) = self.form_for(root, context) else {
+            return String::new();
+        };
+        let Some(variant) = inputs.get(root).map(SampleValue::as_text) else {
+            return String::new();
+        };
+        let Some(variant) = form.variants.iter().find(|item| item.name == variant) else {
+            return String::new();
+        };
+
+        if let Some(property) = property {
+            let value = find_entry_value(&variant.entries, &[property.as_str()]);
+            return value
+                .map(|value| {
+                    self.eval_value(value, args.first().map(String::as_str), context, inputs)
+                })
+                .unwrap_or_default();
+        }
+
+        select_branch(
+            args.first().map(String::as_str).unwrap_or("other"),
+            variant
+                .entries
+                .iter()
+                .filter_map(|entry| match entry {
+                    IrFormEntry::Branch(branch) => Some(branch),
+                    IrFormEntry::Attribute { .. } => None,
+                })
+                .collect::<Vec<_>>(),
+            self.locale,
+            context,
+            inputs,
+            self,
+        )
+    }
+
+    fn eval_form_property(
+        &self,
+        root: &str,
+        path: &[&str],
+        context: &BTreeMap<String, String>,
+        inputs: &BTreeMap<String, SampleValue>,
+    ) -> String {
+        let Some(form) = self.form_for(root, context) else {
+            return String::new();
+        };
+        let Some(variant) = inputs.get(root).map(SampleValue::as_text) else {
+            return String::new();
+        };
+        let Some(variant) = form.variants.iter().find(|item| item.name == variant) else {
+            return String::new();
+        };
+        find_entry_value(&variant.entries, path)
+            .map(|value| self.eval_value(value, None, context, inputs))
+            .unwrap_or_default()
+    }
+
+    fn eval_value(
+        &self,
+        value: &IrValue,
+        selector: Option<&str>,
+        context: &BTreeMap<String, String>,
+        inputs: &BTreeMap<String, SampleValue>,
+    ) -> String {
+        match value {
+            IrValue::Text(text) => self.render_text(text, context, inputs),
+            IrValue::Map(branches) => select_branch(
+                selector.unwrap_or("other"),
+                branches.iter().collect::<Vec<_>>(),
+                self.locale,
+                context,
+                inputs,
+                self,
+            ),
+            IrValue::Object(_) => String::new(),
+        }
+    }
+
+    fn eval_function(
+        &self,
+        name: &str,
+        args: &[String],
+        context: &BTreeMap<String, String>,
+        inputs: &BTreeMap<String, SampleValue>,
+    ) -> String {
+        let Some(function) = self
+            .module
+            .functions
+            .iter()
+            .find(|function| function.name == name)
+        else {
+            return String::new();
+        };
+        let branch = matching_function_branch(function, args);
+        branch
+            .map(|branch| self.render_text(&branch.value, context, inputs))
+            .unwrap_or_default()
+    }
+
+    fn form_for(&self, root: &str, context: &BTreeMap<String, String>) -> Option<&'a IrForm> {
+        let ty = context.get(root)?;
+        self.module.forms.iter().find(|form| form.name == *ty)
+    }
+
+    fn context(&self, message_name: &str) -> BTreeMap<String, String> {
+        self.schema
+            .messages
+            .iter()
+            .find(|message| message.name == message_name)
+            .map(|message| {
+                message
+                    .parameters
+                    .iter()
+                    .map(|parameter| (parameter.name.clone(), parameter.ty.clone()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn apply_formatters(&self, value: String, expression: &IrExpression) -> String {
+        expression
+            .formatters
+            .iter()
+            .fold(value, |current, formatter| match formatter.name.as_str() {
+                "currency" => {
+                    let code = formatter
+                        .arguments
+                        .iter()
+                        .find(|argument| argument.name == "code")
+                        .map(|argument| argument.value.as_str())
+                        .unwrap_or("USD");
+                    format!("{code} {current}")
+                }
+                "date" => current,
+                _ => current,
+            })
+    }
+}
+
+fn find_entry_value<'a>(entries: &'a [IrFormEntry], path: &[&str]) -> Option<&'a IrValue> {
+    let (head, tail) = path.split_first()?;
+    for entry in entries {
+        if let IrFormEntry::Attribute { name, value } = entry {
+            if name == head {
+                return if tail.is_empty() {
+                    Some(value)
+                } else if let IrValue::Object(entries) = value {
+                    find_entry_value(entries, tail)
+                } else {
+                    None
+                };
+            }
+        }
+    }
+    None
+}
+
+fn matching_function_branch<'a>(
+    function: &'a IrFunction,
+    args: &[String],
+) -> Option<&'a linguini_ir::IrFunctionBranch> {
+    function
+        .branches
+        .iter()
+        .find(|branch| match &branch.pattern {
+            IrBranchPattern::Names(names) => names == args,
+            IrBranchPattern::Else => false,
+        })
+        .or_else(|| {
+            function
+                .branches
+                .iter()
+                .find(|branch| matches!(branch.pattern, IrBranchPattern::Else))
+        })
+}
+
+fn select_branch(
+    selector: &str,
+    branches: Vec<&IrBranch>,
+    locale: &str,
+    context: &BTreeMap<String, String>,
+    inputs: &BTreeMap<String, SampleValue>,
+    renderer: &Renderer<'_>,
+) -> String {
+    let key = plural_key(locale, selector);
+    let branch = branches
+        .iter()
+        .copied()
+        .find(|branch| branch.keys.iter().any(|candidate| candidate == &key))
+        .or_else(|| {
+            branches
+                .iter()
+                .copied()
+                .find(|branch| branch.keys.iter().any(|candidate| candidate == "other"))
+        });
+    branch
+        .map(|branch| renderer.render_text(&branch.value, context, inputs))
+        .unwrap_or_default()
+}
+
+fn plural_key(locale: &str, selector: &str) -> String {
+    if let Some(rules) = built_in_plural_rules(locale) {
+        if let Ok(category) = rules.category_for(selector) {
+            return category.to_owned();
+        }
+    }
+    selector.to_owned()
+}

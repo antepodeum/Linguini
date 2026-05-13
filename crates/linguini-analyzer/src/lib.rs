@@ -19,8 +19,8 @@ pub use expression::{
 pub use locale::{
     analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
     analyze_locale_message_coverage, analyze_locale_message_coverage_with_options,
-    locale_public_messages, schema_public_messages, ImplementedLocaleMessage, LocaleCoverageOptions,
-    RequiredLocaleMessage,
+    locale_public_messages, schema_public_messages, ImplementedLocaleMessage,
+    LocaleCoverageOptions, RequiredLocaleMessage,
 };
 pub use message_coverage::{analyze_message_coverage, PublicMessage};
 pub use reference::{detect_reference_cycles, ReferenceNode};
@@ -32,11 +32,10 @@ mod tests {
     use super::{
         analyze_branch_coverage, analyze_expressions, analyze_function_patterns,
         analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
-        analyze_locale_message_coverage, analyze_message_coverage, detect_reference_cycles,
-        render_diagnostics, require_other_branch, BranchCoverage, Diagnostic, DiagnosticSeverity,
-        ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature, LocaleCoverageOptions,
-        MessageToAnalyze, NamedSpan, PublicMessage, QuickFix, ReferenceNode, RequiredLocaleMessage,
-        Variable,
+        analyze_message_coverage, detect_reference_cycles, render_diagnostics,
+        require_other_branch, BranchCoverage, Diagnostic, DiagnosticSeverity, ExpressionAnalysis,
+        FormProperty, FormSignature, FunctionSignature, LocaleCoverageOptions, MessageToAnalyze,
+        NamedSpan, PublicMessage, QuickFix, ReferenceNode, Variable,
     };
     use linguini_syntax::{parse_locale, parse_schema, Span};
 

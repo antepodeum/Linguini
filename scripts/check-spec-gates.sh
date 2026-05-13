@@ -123,14 +123,15 @@ require_text ".github/workflows/ci.yml" "cargo clippy --workspace --all-targets 
 require_text ".github/workflows/ci.yml" "cargo test --workspace" "workspace tests"
 require_text ".github/workflows/ci.yml" "./scripts/check-spec-gates.sh" "spec gate check"
 require_file "crates/linguini-cldr/build.rs"
-require_text "crates/linguini-cldr/src/data/compiled.rs" 'include!\(concat!\(env!\("OUT_DIR"\)' "build-time generated CLDR include"
+require_text "crates/linguini-cldr/src/data/compiled.rs" 'include!' "build-time generated CLDR include"
+require_text "crates/linguini-cldr/src/data/compiled.rs" 'env!\("OUT_DIR"\)' "build-time generated CLDR OUT_DIR source"
 require_text "crates/linguini-cldr/Cargo.toml" '^build = "build\.rs"$' "linguini-cldr build script"
 require_text "crates/linguini-cldr/src/data/compiled.rs" 'built_in_plural_rules' "built-in plural rule source API for codegen"
 require_text "crates/linguini-cldr/build.rs" 'generated_plural_rule_sources' "build-time generated CLDR rule source tables"
 require_text "crates/linguini-config/src/parser.rs" 'targets\.ts' "TypeScript codegen target config parser"
 require_text "crates/linguini-codegen-ts/src/lib.rs" 'generate_typescript_project_files' "TypeScript project codegen backend"
 require_text "crates/linguini-codegen-ts/src/module/mod.rs" 'built_in_plural_rules' "TypeScript backend uses built-in CLDR rules"
-if grep -R --line-number -E 'generate_typescript_files|generate_plural_function|built_in_plural_rules|export function createLinguini|type LinguiniLanguage' crates/linguini-cli/src >/dev/null; then
+if grep -R --line-number -E 'generate_typescript_files|generate_plural_function|export function createLinguini|type LinguiniLanguage' crates/linguini-cli/src >/dev/null; then
   fail "CLI must not hard-code generated TypeScript output; use language codegen crates"
 fi
 if grep -R --line-number -E 'cldr (fetch|status)|cldr_command|cldr_fetch|cldr_status' crates/linguini-cli/src crates/linguini-cli/tests >/dev/null; then

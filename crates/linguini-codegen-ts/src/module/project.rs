@@ -63,7 +63,9 @@ pub fn generate_project_index_declaration(locales: &[TypeScriptLocaleModule]) ->
     output.push_str("};\n\n");
     output.push_str("type LinguiniLanguage = keyof typeof localeModules;\n");
     output.push_str("export type Linguini = (typeof localeModules)[LinguiniLanguage];\n\n");
-    output.push_str("export declare function createLinguini(language: LinguiniLanguage): Linguini;\n\n");
+    output.push_str(
+        "export declare function createLinguini(language: LinguiniLanguage): Linguini;\n\n",
+    );
     output.push_str("export declare function configureLinguini(options: {\n");
     output.push_str("  language: LinguiniLanguage | (() => LinguiniLanguage);\n");
     output.push_str("}): { readonly lgl: Linguini };\n");
@@ -73,4 +75,3 @@ pub fn generate_project_index_declaration(locales: &[TypeScriptLocaleModule]) ->
 fn locale_identifier(locale: &str) -> String {
     format!("locale_{}", safe_identifier(locale))
 }
-

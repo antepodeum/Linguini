@@ -1,8 +1,8 @@
 use super::{
-    compiled_currency_formatting, compiled_date_formatting, compiled_number_formatting,
-    built_in_plural_rules, compiled_plural_rules, load_currency_formatting_from_cache,
-    load_date_formatting_from_cache,
-    load_number_formatting_from_cache, load_plural_rules, load_plural_rules_from_cache,
+    built_in_plural_rules, compiled_currency_formatting, compiled_date_formatting,
+    compiled_number_formatting, compiled_plural_rules, load_currency_formatting_from_cache,
+    load_date_formatting_from_cache, load_number_formatting_from_cache, load_plural_rules,
+    load_plural_rules_from_cache,
 };
 use crate::fetch_cldr_from_dir;
 use linguini_test_support::{temp_project_dir, TempProject};
@@ -163,10 +163,10 @@ fn compiled_plural_rules_need_no_runtime_json() {
     assert_eq!(russian.category_for("1.5").expect("ru other"), "other");
 }
 
-
 #[test]
 fn compiled_plural_rules_are_generated_from_full_cldr_at_cargo_build_time() {
-    let arabic = compiled_plural_rules("ar").expect("arabic generated from CLDR at cargo build time");
+    let arabic =
+        compiled_plural_rules("ar").expect("arabic generated from CLDR at cargo build time");
 
     assert_eq!(arabic.category_for("0").expect("ar zero"), "zero");
     assert_eq!(arabic.category_for("1").expect("ar one"), "one");
@@ -176,13 +176,15 @@ fn compiled_plural_rules_are_generated_from_full_cldr_at_cargo_build_time() {
     assert_eq!(arabic.category_for("100").expect("ar other"), "other");
 }
 
-
 #[test]
 fn built_in_plural_rule_sources_are_available_for_codegen_without_json() {
     let russian = built_in_plural_rules("ru").expect("ru built-in source rules");
 
     assert_eq!(russian.locale, "ru");
-    assert!(russian.categories.iter().any(|category| category.category == "one"));
+    assert!(russian
+        .categories
+        .iter()
+        .any(|category| category.category == "one"));
     assert_eq!(russian.category_for("2").expect("ru few"), "few");
 }
 

@@ -1,33 +1,34 @@
 Completed slice:
-- 2026-05-13: Completed CLDR compiled-table slice, official `cldr-json` fetch path correction, and IR unresolved-reference validation.
+- 2026-05-13: Completed TypeScript tree-shaking message filtering, switchable facade evidence, SvelteKit provider example, `linguini test-data`, and CLDR generated-range clippy cleanup.
 
 Implementation decisions:
-- CLDR fetch defaults to `https://github.com/unicode-org/cldr-json` and uses sparse checkout for only required files.
-- Supported upstream paths are `cldr-json/cldr-core/supplemental/plurals.json`, `cldr-json/cldr-numbers-full/main/{locale}/numbers.json`, and `cldr-json/cldr-dates-full/main/{locale}/ca-gregorian.json`.
-- Local staged CLDR import remains for tests and offline development, but it expects the same `cldr-json/...` subtree shape.
-- Runtime CLDR production lookup lives in typed tables under `crates/linguini-cldr/src/data/compiled.rs`; JSON loaders are ingestion/cache-only.
-- CLDR Rust source generation moved to proc-macro crate `linguini-cldr-macros`, using `syn` for macro input parsing and `quote` for compile errors.
-- `crates/linguini-cldr/src/data.rs` was split into `data/` modules and cache tests were moved to keep source files below the hard file-size limit.
-- IR reference validation checks locale message names and placeholder roots against schema parameters, local forms, and local functions.
-- Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lib.rs`, `crates/linguini-syntax/src/lexer.rs`, and `crates/linguini-syntax/src/parser/locale_parser.rs`.
+- TypeScript target config now accepts `tree_shaking = true` and `messages = [...]`; `messages` without tree-shaking is rejected.
+- Tree-shaking filtering is explicit and deterministic: only selected message ids or selected group prefixes are emitted in locale modules and `.d.ts` files.
+- Generated TypeScript facade remains `createLinguini`/`configureLinguini`; `configureLinguini` accepts a language getter so one app-level source variable can switch `lgl.*(...)` output.
+- `linguini test-data` emits JSON rendered samples for each configured locale, schema enum variants, grouped messages, and representative numeric plural values.
+- Test-data rendering is split under `crates/linguini-cli/src/project/test_data/` to keep CLI files below the size gate.
+- CLDR build-time plural Rust generation emits `RangeInclusive::contains` for generated range checks instead of requiring a clippy allow in `compiled.rs`.
+- `cargo fmt --all` normalized existing unformatted Rust files across the workspace.
+- Syntax tests were split into `crates/linguini-syntax/src/tests/` modules. Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, `crates/linguini-analyzer/src/lib.rs`, and `crates/linguini-cldr/build/plural_rule.rs`.
 
 Tests last run:
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
-- `cargo test -p linguini-cldr -p linguini-cldr-macros -p linguini-cli`
-- `cargo test -p linguini-ir`
+- `cargo test -p linguini-config -p linguini-codegen-ts`
+- `cargo test -p linguini-cli`
+- `cargo clippy -p linguini-cldr --all-targets -- -D warnings`
 - `./scripts/check-file-size.sh`
 - `./scripts/check-unit-test-structure.sh`
 - `./scripts/check-syntax-fixtures.sh`
 - `./scripts/review-snapshots.sh --check`
 - `./scripts/check-spec-gates.sh`
+- `bash scripts/validate-generated-ts.sh`
 - `./scripts/validate-generated-js.sh`
 - `./scripts/validate-generated-rust.sh`
-- `bash scripts/validate-generated-ts.sh`
 
 Known deferred work:
-- Next unfinished checklist item is `Add tree-shaking mode`.
+- Next unfinished checklist item is JavaScript codegen stage 12.
 
 Next recommended task:
-- Continue TypeScript codegen section with tree-shaking mode.
+- Continue with JavaScript codegen: generate ESM output, optional CommonJS output, JSDoc types, deterministic tests, and switchable facade parity.

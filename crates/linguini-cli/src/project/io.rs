@@ -2,8 +2,8 @@ use crate::{CliError, CliResult};
 use linguini_analyzer::{render_diagnostics_with_color, Diagnostic};
 use linguini_config::{parse_config, DEFAULT_CONFIG_FILE};
 use std::fs;
-use std::io::{self, IsTerminal};
-use std::path::{Path, PathBuf};
+use std::io::IsTerminal;
+use std::path::Path;
 
 pub fn init_project(root: &Path) -> CliResult<String> {
     let schema_dir = root.join("schema");

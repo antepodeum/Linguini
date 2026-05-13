@@ -5,7 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::io::{create_dir_all, path_for_output, read_file, read_project_config, write_file};
-use super::sources::{expected_locale_path, load_locale_sources, load_schema_sources, locale_index};
+use super::sources::{
+    expected_locale_path, load_locale_sources, load_schema_sources, locale_index,
+};
 use super::util::pluralize;
 
 #[derive(Debug, Clone)]
@@ -93,7 +95,8 @@ fn available_project_fixes(root: &Path, config: &LinguiniConfig) -> CliResult<Ve
                     });
                 }
                 None => {
-                    let path = expected_locale_path(root, config, &schema_file.file.namespace, locale);
+                    let path =
+                        expected_locale_path(root, config, &schema_file.file.namespace, locale);
                     fixes.push(ProjectFix {
                         id: missing_locale_fix_id(&schema_file.file.namespace, locale),
                         title: format!("create locale file {}", path_for_output(root, &path)),
@@ -228,7 +231,11 @@ pub(crate) fn missing_locale_fix_id(namespace: &str, locale: &str) -> String {
 }
 
 pub(crate) fn missing_messages_fix_id(namespace: &str, locale: &str) -> String {
-    format!("missing-messages:{}:{}", fix_id_namespace(namespace), locale)
+    format!(
+        "missing-messages:{}:{}",
+        fix_id_namespace(namespace),
+        locale
+    )
 }
 
 fn fix_id_namespace(namespace: &str) -> String {

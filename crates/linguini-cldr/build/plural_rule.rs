@@ -420,8 +420,7 @@ fn ranges_to_rust(ranges: &[Range], value: &str) -> String {
         .iter()
         .map(|range| match (range.start, range.end) {
             (start, end) if start == end => format!("{value} == {start}"),
-            (0, end) => format!("{value} <= {end}"),
-            (start, end) => format!("{value} >= {start} && {value} <= {end}"),
+            (start, end) => format!("({start}..={end}).contains(&{value})"),
         })
         .collect::<Vec<_>>()
         .join(" || ")
@@ -434,7 +433,7 @@ fn ranges_to_rust_float(ranges: &[Range], value: &str) -> String {
             if range.start == range.end {
                 format!("{value} == {}f64", range.start)
             } else {
-                format!("{value} >= {}f64 && {value} <= {}f64", range.start, range.end)
+                format!("({}f64..={}f64).contains(&{value})", range.start, range.end)
             }
         })
         .collect::<Vec<_>>()

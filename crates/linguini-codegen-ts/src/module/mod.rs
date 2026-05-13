@@ -22,6 +22,7 @@ pub struct TypeScriptOptions {
     pub plural_function: String,
     pub plural_import: Option<String>,
     pub plural_source: Option<String>,
+    pub included_messages: Vec<String>,
 }
 
 impl Default for TypeScriptOptions {
@@ -31,6 +32,7 @@ impl Default for TypeScriptOptions {
             plural_function: "plural".to_owned(),
             plural_import: Some("./plurals".to_owned()),
             plural_source: None,
+            included_messages: Vec::new(),
         }
     }
 }
@@ -44,11 +46,17 @@ pub struct TypeScriptLocaleModule {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptProjectOptions {
     pub declaration: bool,
+    pub tree_shaking: bool,
+    pub included_messages: Vec<String>,
 }
 
 impl Default for TypeScriptProjectOptions {
     fn default() -> Self {
-        Self { declaration: true }
+        Self {
+            declaration: true,
+            tree_shaking: false,
+            included_messages: Vec::new(),
+        }
     }
 }
 
@@ -97,15 +105,16 @@ pub fn generate_typescript_project_files(
     }
 
     for locale in locales {
-        let locale_options = project_locale_options(&locale.locale)?;
+        let locale_options = project_locale_options(&locale.locale, options)?;
+        let visible_schema = visible_schema(schema, &locale_options);
         files.push(TypeScriptGeneratedFile {
             path: format!("locales/{}.ts", locale.locale),
-            contents: generate_typescript_module(schema, &locale.module, &locale_options),
+            contents: generate_typescript_module(&visible_schema, &locale.module, &locale_options),
         });
         if options.declaration {
             files.push(TypeScriptGeneratedFile {
                 path: format!("locales/{}.d.ts", locale.locale),
-                contents: decl::generate_locale_declaration(schema),
+                contents: decl::generate_locale_declaration(&visible_schema),
             });
         }
     }
@@ -162,19 +171,23 @@ pub fn generate_typescript_module(
     locale: &IrModule,
     options: &TypeScriptOptions,
 ) -> String {
+    let schema = visible_schema(schema, options);
     let mut output = String::new();
     emit_imports(locale, options, &mut output);
     emit::emit_plural_helpers(options, &mut output);
-    emit_enums(schema, &mut output);
-    emit_type_aliases(schema, &mut output);
+    emit_enums(&schema, &mut output);
+    emit_type_aliases(&schema, &mut output);
     emit_forms(locale, options, &mut output);
     emit_local_functions(locale, options, &mut output);
-    let exports = emit_messages(schema, locale, options, &mut output);
+    let exports = emit_messages(&schema, locale, options, &mut output);
     emit_locale_default(&exports, &mut output);
     output
 }
 
-fn project_locale_options(locale: &str) -> Result<TypeScriptOptions, TypeScriptCodegenError> {
+fn project_locale_options(
+    locale: &str,
+    project_options: &TypeScriptProjectOptions,
+) -> Result<TypeScriptOptions, TypeScriptCodegenError> {
     let plural_function = plural_function_name(locale);
     let plural_rules = built_in_plural_rules(locale)
         .ok_or_else(|| TypeScriptCodegenError::missing_plural_rules(locale))?;
@@ -183,7 +196,30 @@ fn project_locale_options(locale: &str) -> Result<TypeScriptOptions, TypeScriptC
         plural_function: plural_function.clone(),
         plural_import: None,
         plural_source: Some(generate_plural_function(&plural_function, &plural_rules)),
+        included_messages: if project_options.tree_shaking {
+            project_options.included_messages.clone()
+        } else {
+            Vec::new()
+        },
     })
+}
+
+fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
+    if options.included_messages.is_empty() {
+        return schema.clone();
+    }
+
+    let mut visible = schema.clone();
+    visible.messages.retain(|message| {
+        options.included_messages.iter().any(|selected| {
+            selected == &message.name
+                || message
+                    .name
+                    .strip_prefix(selected)
+                    .is_some_and(|rest| rest.starts_with('.'))
+        })
+    });
+    visible
 }
 
 fn plural_function_name(locale: &str) -> String {

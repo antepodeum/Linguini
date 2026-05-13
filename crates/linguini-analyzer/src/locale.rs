@@ -241,7 +241,9 @@ fn collect_locale_messages(
             }
         }
         LocaleDeclaration::Override(inner) => collect_locale_messages(inner, group, messages),
-        LocaleDeclaration::Enum(_) | LocaleDeclaration::Form(_) | LocaleDeclaration::Function(_) => {}
+        LocaleDeclaration::Enum(_)
+        | LocaleDeclaration::Form(_)
+        | LocaleDeclaration::Function(_) => {}
     }
 }
 

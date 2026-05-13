@@ -11,10 +11,9 @@ pub use cache::{
 pub use data::{
     built_in_plural_rules, compiled_currency_formatting, compiled_date_formatting,
     compiled_number_formatting, compiled_plural_rules, load_currency_formatting_from_cache,
-    load_date_formatting_from_cache,
-    load_number_formatting_from_cache, load_plural_rules, load_plural_rules_from_cache,
-    CompiledPluralCategory, CompiledPluralRules, CurrencyFormatData, DateFormatData, FormatWidths,
-    NumberFormatData, PluralCategoryRule, PluralRules,
+    load_date_formatting_from_cache, load_number_formatting_from_cache, load_plural_rules,
+    load_plural_rules_from_cache, CompiledPluralCategory, CompiledPluralRules, CurrencyFormatData,
+    DateFormatData, FormatWidths, NumberFormatData, PluralCategoryRule, PluralRules,
 };
 pub use plural::{
     evaluate_plural_rule, parse_plural_rule, Condition, Operand, OperandExpression, PluralOperands,

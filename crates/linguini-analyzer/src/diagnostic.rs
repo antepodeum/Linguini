@@ -240,7 +240,10 @@ fn render_summary_diagnostic(
     push_line(output, &format!("  in {path}"));
 
     for quick_fix in &diagnostic.quick_fixes {
-        push_line(output, &format!("  Fix: {}", quick_fix_description(quick_fix)));
+        push_line(
+            output,
+            &format!("  Fix: {}", quick_fix_description(quick_fix)),
+        );
     }
 
     if let Some(note) = &diagnostic.note {

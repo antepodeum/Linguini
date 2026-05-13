@@ -1,5 +1,7 @@
 use crate::error::{ConfigError, ConfigResult};
-use crate::model::{LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig, TypeScriptTargetConfig};
+use crate::model::{
+    LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig, TypeScriptTargetConfig,
+};
 
 #[derive(Default)]
 struct ProjectBuilder {
@@ -24,6 +26,8 @@ struct TypeScriptTargetBuilder {
     out: Option<String>,
     module: Option<String>,
     declaration: Option<bool>,
+    tree_shaking: Option<bool>,
+    messages: Option<Vec<String>>,
 }
 
 pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
@@ -79,9 +83,13 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
         },
         targets: TargetsConfig {
             ts: targets.ts.map(|ts| TypeScriptTargetConfig {
-                out: ts.out.unwrap_or_else(|| "src/generated/linguini".to_owned()),
+                out: ts
+                    .out
+                    .unwrap_or_else(|| "src/generated/linguini".to_owned()),
                 module: ts.module.unwrap_or_else(|| "esm".to_owned()),
                 declaration: ts.declaration.unwrap_or(true),
+                tree_shaking: ts.tree_shaking.unwrap_or(false),
+                messages: ts.messages.unwrap_or_default(),
             }),
         },
     };
@@ -109,16 +117,34 @@ fn assign_value(
             Ok(())
         }
         ("targets.ts", "out") => {
-            let ts = targets.ts.get_or_insert_with(TypeScriptTargetBuilder::default);
+            let ts = targets
+                .ts
+                .get_or_insert_with(TypeScriptTargetBuilder::default);
             assign_string(&mut ts.out, key, value)
         }
         ("targets.ts", "module") => {
-            let ts = targets.ts.get_or_insert_with(TypeScriptTargetBuilder::default);
+            let ts = targets
+                .ts
+                .get_or_insert_with(TypeScriptTargetBuilder::default);
             assign_string(&mut ts.module, key, value)
         }
         ("targets.ts", "declaration") => {
-            let ts = targets.ts.get_or_insert_with(TypeScriptTargetBuilder::default);
+            let ts = targets
+                .ts
+                .get_or_insert_with(TypeScriptTargetBuilder::default);
             assign_bool(&mut ts.declaration, key, value)
+        }
+        ("targets.ts", "tree_shaking") => {
+            let ts = targets
+                .ts
+                .get_or_insert_with(TypeScriptTargetBuilder::default);
+            assign_bool(&mut ts.tree_shaking, key, value)
+        }
+        ("targets.ts", "messages") => {
+            let ts = targets
+                .ts
+                .get_or_insert_with(TypeScriptTargetBuilder::default);
+            assign_array(&mut ts.messages, key, value)
         }
         (section, key) => Err(ConfigError::UnknownKey {
             section: section.to_owned(),
@@ -235,7 +261,6 @@ mod tests {
         assert_eq!(config.paths.schema, "linguini/schema");
     }
 
-
     #[test]
     fn parses_typescript_codegen_target() {
         let config = parse_config(
@@ -253,6 +278,8 @@ mod tests {
             out = "src/generated/linguini"
             module = "esm"
             declaration = false
+            tree_shaking = true
+            messages = ["delivery", "email_input.label"]
             "#,
         )
         .expect("valid config");
@@ -261,6 +288,8 @@ mod tests {
         assert_eq!(target.out, "src/generated/linguini");
         assert_eq!(target.module, "esm");
         assert!(!target.declaration);
+        assert!(target.tree_shaking);
+        assert_eq!(target.messages, ["delivery", "email_input.label"]);
     }
 
     #[test]

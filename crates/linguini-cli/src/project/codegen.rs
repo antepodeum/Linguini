@@ -68,6 +68,8 @@ fn generate_typescript_target(
         &locales,
         &TypeScriptProjectOptions {
             declaration: target.declaration,
+            tree_shaking: target.tree_shaking,
+            included_messages: target.messages.clone(),
         },
     )
     .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
@@ -289,7 +291,7 @@ fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> IrModule {
     schema
 }
 
-fn merge_module(target: &mut IrModule, source: IrModule) {
+pub(super) fn merge_module(target: &mut IrModule, source: IrModule) {
     target.enums.extend(source.enums);
     target.type_aliases.extend(source.type_aliases);
     target.messages.extend(source.messages);
@@ -297,7 +299,7 @@ fn merge_module(target: &mut IrModule, source: IrModule) {
     target.functions.extend(source.functions);
 }
 
-fn merge_module_fallback(target: &mut IrModule, source: IrModule) {
+pub(super) fn merge_module_fallback(target: &mut IrModule, source: IrModule) {
     for item in source.enums {
         if !target
             .enums

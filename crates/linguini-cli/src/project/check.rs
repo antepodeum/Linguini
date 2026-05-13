@@ -9,7 +9,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use super::fixes::missing_locale_fix_id;
-use super::io::{path_for_output, read_file, read_project_config, render_file_diagnostics, render_parse_errors};
+use super::io::{
+    path_for_output, read_file, read_project_config, render_file_diagnostics, render_parse_errors,
+};
 use super::sources::{coverage_options, expected_locale_path, locale_index};
 use super::util::{namespace_display, pluralize};
 use super::{ParsedLocaleSource, ParsedSchemaSource};
@@ -164,7 +166,12 @@ fn render_project_coverage_diagnostics(
                         &locale_file.ast,
                         coverage_options(config, &schema_file.file.namespace, locale),
                     );
-                    output.push(root, &locale_file.file.path, &locale_file.source, &diagnostics);
+                    output.push(
+                        root,
+                        &locale_file.file.path,
+                        &locale_file.source,
+                        &diagnostics,
+                    );
                 }
                 None if locale == &config.project.default_locale => {
                     missing_default_locale.push(locale.clone());
@@ -234,7 +241,12 @@ fn emit_missing_locale_files(
         severity,
         root,
     );
-    output.push(root, &schema_file.file.path, &schema_file.source, &[diagnostic]);
+    output.push(
+        root,
+        &schema_file.file.path,
+        &schema_file.source,
+        &[diagnostic],
+    );
 }
 
 pub(crate) fn reject_locale_files_without_schema_namespace(
@@ -276,7 +288,11 @@ fn missing_locale_files_diagnostic(
         .collect::<Vec<_>>();
     let message = format!(
         "{} locale {} missing for schema namespace `{}`: {}",
-        if severity == DiagnosticSeverity::Error { "required" } else { "secondary" },
+        if severity == DiagnosticSeverity::Error {
+            "required"
+        } else {
+            "secondary"
+        },
         pluralize(locales.len(), "file is", "files are"),
         namespace_display(namespace),
         locales

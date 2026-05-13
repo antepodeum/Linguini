@@ -52,12 +52,17 @@ pub(crate) fn load_locale_sources(
     Ok(parsed)
 }
 
-pub(crate) fn locale_index<'a>(
-    locale_files: &'a [ParsedLocaleSource],
-) -> BTreeMap<(String, String), &'a ParsedLocaleSource> {
+pub(crate) fn locale_index(
+    locale_files: &[ParsedLocaleSource],
+) -> BTreeMap<(String, String), &ParsedLocaleSource> {
     locale_files
         .iter()
-        .map(|file| ((file.file.namespace.clone(), file.file.locale.clone()), file))
+        .map(|file| {
+            (
+                (file.file.namespace.clone(), file.file.locale.clone()),
+                file,
+            )
+        })
         .collect()
 }
 

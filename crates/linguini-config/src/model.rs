@@ -30,6 +30,8 @@ pub struct TypeScriptTargetConfig {
     pub out: String,
     pub module: String,
     pub declaration: bool,
+    pub tree_shaking: bool,
+    pub messages: Vec<String>,
 }
 
 impl LinguiniConfig {
@@ -55,6 +57,11 @@ impl LinguiniConfig {
             }
             if ts.module != "esm" {
                 return Err(ConfigError::InvalidString(ts.module.clone()));
+            }
+            if !ts.tree_shaking && !ts.messages.is_empty() {
+                return Err(ConfigError::InvalidString(
+                    "targets.ts.messages requires tree_shaking = true".to_owned(),
+                ));
             }
         }
 

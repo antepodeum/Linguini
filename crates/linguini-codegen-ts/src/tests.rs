@@ -25,6 +25,7 @@ fn generated_module_snapshot_is_stable() {
                 "pluralRu",
                 &load_plural_rules(PLURALS, "ru").expect("plural rules"),
             )),
+            included_messages: Vec::new(),
         },
     );
 
@@ -88,7 +89,11 @@ fn project_codegen_owns_multilocale_index_files() {
                 module: IrModule::default(),
             },
         ],
-        &TypeScriptProjectOptions { declaration: true },
+        &TypeScriptProjectOptions {
+            declaration: true,
+            tree_shaking: false,
+            included_messages: Vec::new(),
+        },
     )
     .expect("project codegen");
 
@@ -96,9 +101,48 @@ fn project_codegen_owns_multilocale_index_files() {
         .iter()
         .find(|file| file.path == "index.ts")
         .expect("index.ts");
-    assert!(index.contents.contains("import locale_en from \"./locales/en\";"));
+    assert!(index
+        .contents
+        .contains("import locale_en from \"./locales/en\";"));
     assert!(index
         .contents
         .contains("import locale_ru from \"./locales/ru\";"));
     assert!(index.contents.contains("ru: locale_ru"));
+}
+
+#[test]
+fn project_codegen_filters_messages_in_tree_shaking_mode() {
+    use crate::{
+        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
+    };
+
+    let schema =
+        lower_schema(&parse_schema("keep()\ndrop()\ngroup { label() help() }\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale("keep = Keep\ndrop = Drop\ngroup {\n  label = Label\n  help = Help\n}\n")
+            .expect("locale"),
+    );
+
+    let files = generate_typescript_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions {
+            declaration: true,
+            tree_shaking: true,
+            included_messages: vec!["keep".to_owned(), "group.label".to_owned()],
+        },
+    )
+    .expect("project codegen");
+
+    let locale_module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+    assert!(locale_module.contents.contains("export function keep()"));
+    assert!(!locale_module.contents.contains("export function drop()"));
+    assert!(locale_module.contents.contains("label: \"Label\""));
+    assert!(!locale_module.contents.contains("help: \"Help\""));
 }

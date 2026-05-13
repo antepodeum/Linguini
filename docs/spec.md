@@ -925,7 +925,7 @@ Generated output:
 Generated code must:
 
 - emit only used locale modules
-- emit only used messages when tree-shaking mode is enabled
+- emit only used messages when TypeScript tree-shaking mode is enabled with an explicit message list
 - emit only used forms
 - emit only used plural functions
 - emit only used formatting helpers
@@ -949,6 +949,7 @@ Required commands:
 linguini init
 linguini check
 linguini build
+linguini test-data
 linguini format
 linguini fill
 linguini status
@@ -979,13 +980,27 @@ Runs full analysis without code generation.
 
 Runs analysis and code generation.
 
-### 12.4 `fill`
+### 12.4 `test-data`
+
+Generates rendered JSON sample data for each configured locale.
+
+It must cover:
+
+- every configured locale
+- every schema enum variant used by message parameters
+- representative numeric values for plural branches
+- grouped messages and standalone messages
+- default-locale fallback output for incomplete secondary locales
+
+The command is for inspecting how generated localization contracts behave with realistic argument matrices.
+
+### 12.5 `fill`
 
 Creates missing locale files and missing message stubs.
 
 It must use schema doc comments as context.
 
-### 12.5 `status`
+### 12.6 `status`
 
 Shows locale completion.
 

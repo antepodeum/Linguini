@@ -1,4 +1,4 @@
-use super::{build_project, check_project, init_project, Cli};
+use super::{build_project, check_project, init_project, project::generate_test_data, Cli};
 use clap::CommandFactory;
 use linguini_test_support::temp_project_dir;
 use std::fs;
@@ -15,6 +15,7 @@ fn cli_argument_parser_is_clap_backed() {
     assert!(subcommands.contains(&"check".to_owned()));
     assert!(subcommands.contains(&"fix".to_owned()));
     assert!(subcommands.contains(&"build".to_owned()));
+    assert!(subcommands.contains(&"test-data".to_owned()));
     assert!(!subcommands.contains(&"cldr".to_owned()));
 }
 
@@ -231,4 +232,36 @@ fn build_replaces_existing_generated_tree() {
     );
     assert!(!out_dir.join("stale.ts").exists());
     assert!(!out_dir.join("obsolete").exists());
+}
+
+#[test]
+fn test_data_renders_locale_enum_and_plural_matrix() {
+    let project = temp_project_dir("test_data_renders_locale_enum_and_plural_matrix");
+    init_project(project.path()).expect("init project");
+
+    let schema_dir = project.path().join("schema");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&schema_dir).expect("schema dir");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(
+        schema_dir.join("shop.lqs"),
+        "enum Fruit {\n  apple\n  pear\n}\ncounted(count: Number, fruit: Fruit)\n",
+    )
+    .expect("schema file");
+    fs::write(
+        locale_dir.join("en.lgl"),
+        "form Fruit {\n  apple {\n    gen {\n      one => apple\n      other => apples\n    }\n  }\n  pear {\n    gen {\n      one => pear\n      other => pears\n    }\n  }\n}\ncounted = {count} {fruit.gen(count)}\n",
+    )
+    .expect("locale file");
+
+    let output = generate_test_data(project.path()).expect("test data");
+
+    assert!(output.contains("\"locales\""));
+    assert!(output.contains("\"en\""));
+    assert!(output.contains("\"counted\""));
+    assert!(output.contains("\"fruit\": \"apple\""));
+    assert!(output.contains("\"fruit\": \"pear\""));
+    assert!(output.contains("\"count\": 5"));
+    assert!(output.contains("\"output\": \"1 apple\""));
+    assert!(output.contains("\"output\": \"5 apples\""));
 }

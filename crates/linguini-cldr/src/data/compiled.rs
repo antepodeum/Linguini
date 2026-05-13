@@ -42,7 +42,10 @@ pub fn built_in_plural_rules(locale: &str) -> Option<PluralRules> {
     generated_plural_rule_sources(locale)
 }
 
-include!(concat!(env!("OUT_DIR"), "/linguini_generated_plural_rules.rs"));
+include!(concat!(
+    env!("OUT_DIR"),
+    "/linguini_generated_plural_rules.rs"
+));
 
 pub fn compiled_number_formatting(locale: &str) -> Option<NumberFormatData> {
     match locale {

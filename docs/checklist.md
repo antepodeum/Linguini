@@ -662,15 +662,18 @@ Checkpoint acceptance:
 - [x] Generate `.d.ts`
   - Note: completed on 2026-05-13. TypeScript backend emits declaration files for shared helpers, locale modules, and the index API.
   - Evidence: tests/fixtures/golden/snapshots/ts/index.d.ts; tests/fixtures/golden/snapshots/ts/locales/ru.d.ts; `bash scripts/validate-generated-ts.sh`
-- [ ] Add tree-shaking mode
-  - Note:
+- [x] Add tree-shaking mode
+  - Note: completed on 2026-05-13. Added TypeScript target `tree_shaking` plus explicit `messages` filtering so generated locale modules and declarations emit only selected message ids.
+  - Evidence: crates/linguini-config/src/parser.rs; crates/linguini-codegen-ts/src/module/mod.rs; `cargo test -p linguini-config -p linguini-codegen-ts`
 - [x] Add deterministic output tests
   - Note: completed on 2026-05-13. Added generated TypeScript file-tree snapshots covering shared helpers, locale modules, index API, enums, aliases, forms, local functions, and messages.
   - Evidence: tests/fixtures/golden/snapshots/ts; `cargo test -p linguini-codegen-ts`
-- [ ] Generate facade with switchable active language source
-  - Note:
-- [ ] Add SvelteKit-compatible locale provider example for cookies, route data, or UI language
-  - Note:
+- [x] Generate facade with switchable active language source
+  - Note: completed on 2026-05-13. Generated TypeScript index exposes `createLinguini` and `configureLinguini` with a language value or language getter.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; tests/fixtures/golden/snapshots/ts/index.ts; `cargo test -p linguini-codegen-ts`
+- [x] Add SvelteKit-compatible locale provider example for cookies, route data, or UI language
+  - Note: completed on 2026-05-13. Added a SvelteKit provider example showing route data/cookie-driven language state while components keep `lgl.*(...)` calls.
+  - Evidence: docs/examples/sveltekit-locale-provider.md; `./scripts/check-spec-gates.sh`
 
 Checkpoint acceptance:
 
@@ -683,8 +686,9 @@ Checkpoint acceptance:
 - [x] Counted example returns expected plural strings
   - Note: completed on 2026-05-13. Compiled generated TypeScript and checked Russian `counted` plural output for `1 apple` and `5 orange`.
   - Evidence: `bash scripts/validate-generated-ts.sh`
-- [ ] Application code can call `lgl.*(...)` while changing one locale source variable to switch output language
-  - Note:
+- [x] Application code can call `lgl.*(...)` while changing one locale source variable to switch output language
+  - Note: completed on 2026-05-13. TypeScript facade supports a language getter, and the SvelteKit example wires one source variable to `linguini.lgl`.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; docs/examples/sveltekit-locale-provider.md; `cargo test -p linguini-codegen-ts`
 
 ---
 
@@ -922,6 +926,9 @@ Checkpoint acceptance:
 
 ## 20. Real-project validation
 
+- [x] Add rendered locale test-data command
+  - Note: completed on 2026-05-13. Added `linguini test-data` JSON output that renders every configured locale across enum variants and representative numeric plural values.
+  - Evidence: crates/linguini-cli/src/project/test_data; crates/linguini-cli/tests/cli.rs; `cargo test -p linguini-cli`
 - [ ] Test in a TypeScript app
   - Note:
 - [ ] Test in a JavaScript app
