@@ -1,0 +1,168 @@
+{
+  "name": "linguini-vscode",
+  "displayName": "Linguini",
+  "description": "VS Code language support for Linguini schema and locale files.",
+  "version": "0.1.0",
+  "publisher": "linguini",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters"
+  ],
+  "activationEvents": [
+    "onLanguage:linguini-schema",
+    "onLanguage:linguini-locale"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "linguini-schema",
+        "aliases": [
+          "Linguini Schema",
+          "linguini-schema"
+        ],
+        "extensions": [
+          ".lgs"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "linguini-locale",
+        "aliases": [
+          "Linguini Locale",
+          "linguini-locale"
+        ],
+        "extensions": [
+          ".lgl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "linguini-schema",
+        "scopeName": "source.linguini.schema",
+        "path": "./syntaxes/linguini-schema.tmLanguage.json"
+      },
+      {
+        "language": "linguini-locale",
+        "scopeName": "source.linguini.locale",
+        "path": "./syntaxes/linguini-locale.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Linguini",
+      "properties": {
+        "linguini.server.path": {
+          "type": "string",
+          "default": "linguini",
+          "description": "Path to the Linguini language server binary. Defaults to resolving `linguini` from PATH."
+        },
+        "linguini.server.args": {
+          "type": "array",
+          "default": [
+            "lsp"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments passed to the Linguini language server binary."
+        },
+        "linguini.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace communication between VS Code and the Linguini language server."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[linguini-schema]": {
+        "editor.defaultFormatter": "linguini.linguini-vscode",
+        "editor.semanticHighlighting.enabled": true
+      },
+      "[linguini-locale]": {
+        "editor.defaultFormatter": "linguini.linguini-vscode",
+        "editor.semanticHighlighting.enabled": true
+      }
+    },
+    "semanticTokenScopes": [
+      {
+        "language": "linguini-schema",
+        "scopes": {
+          "enum": [
+            "entity.name.type.enum.linguini"
+          ],
+          "enumMember": [
+            "variable.other.enummember.linguini"
+          ],
+          "type": [
+            "entity.name.type.linguini"
+          ],
+          "function": [
+            "entity.name.function.linguini"
+          ],
+          "parameter": [
+            "variable.parameter.linguini"
+          ],
+          "property": [
+            "variable.other.member.linguini"
+          ],
+          "keyword": [
+            "keyword.control.linguini"
+          ]
+        }
+      },
+      {
+        "language": "linguini-locale",
+        "scopes": {
+          "enum": [
+            "entity.name.type.enum.linguini"
+          ],
+          "enumMember": [
+            "variable.other.enummember.linguini"
+          ],
+          "type": [
+            "entity.name.type.linguini"
+          ],
+          "function": [
+            "entity.name.function.linguini"
+          ],
+          "parameter": [
+            "variable.parameter.linguini"
+          ],
+          "property": [
+            "variable.other.member.linguini"
+          ],
+          "keyword": [
+            "keyword.control.linguini"
+          ],
+          "string": [
+            "string.unquoted.linguini"
+          ]
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.5"
+  }
+}

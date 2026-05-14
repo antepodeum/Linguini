@@ -1,0 +1,269 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Linguini Locale",
+  "scopeName": "source.linguini.locale",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#placeholders"
+    },
+    {
+      "include": "#formatters"
+    },
+    {
+      "include": "#selectors"
+    },
+    {
+      "include": "#rawText"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.documentation.linguini.locale",
+          "begin": "^\\s*(///)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.comment.linguini.locale"
+            }
+          },
+          "end": "$"
+        },
+        {
+          "name": "comment.line.double-slash.linguini.locale",
+          "begin": "//",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.linguini.locale"
+            }
+          },
+          "end": "$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.linguini.locale",
+          "begin": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.linguini.locale"
+            }
+          },
+          "end": "\"",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.linguini.locale"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.linguini.locale",
+              "match": "\\\\(?:[\"\\\\nrt]|u\\{[0-9A-Fa-f]+\\})"
+            }
+          ]
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "meta.enum.linguini.locale",
+          "match": "\\b(enum)\\s+([A-Z][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.enum.linguini.locale"
+            },
+            "2": {
+              "name": "entity.name.type.enum.linguini.locale"
+            }
+          }
+        },
+        {
+          "name": "meta.impl.linguini.locale",
+          "match": "\\b(impl)\\s+([A-Z][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.impl.linguini.locale"
+            },
+            "2": {
+              "name": "entity.name.type.linguini.locale"
+            }
+          }
+        },
+        {
+          "name": "meta.form.linguini.locale",
+          "match": "\\b(form)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.form.linguini.locale"
+            },
+            "2": {
+              "name": "entity.name.function.form.linguini.locale"
+            }
+          }
+        },
+        {
+          "name": "meta.function.linguini.locale",
+          "match": "\\b(fn)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.function.linguini.locale"
+            },
+            "2": {
+              "name": "entity.name.function.linguini.locale"
+            }
+          }
+        },
+        {
+          "name": "meta.message.linguini.locale",
+          "match": "^\\s*([a-z_][A-Za-z0-9_]*)\\s*(?==|\\{)",
+          "captures": {
+            "1": {
+              "name": "variable.other.member.message.linguini.locale"
+            }
+          }
+        }
+      ]
+    },
+    "placeholders": {
+      "patterns": [
+        {
+          "name": "meta.interpolation.linguini.locale",
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.interpolation.begin.linguini.locale"
+            }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.interpolation.end.linguini.locale"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#formatters"
+            },
+            {
+              "name": "variable.parameter.linguini.locale",
+              "match": "\\b[a-z_][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "support.type.linguini.locale",
+              "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "punctuation.accessor.dot.linguini.locale",
+              "match": "\\."
+            },
+            {
+              "name": "punctuation.separator.comma.linguini.locale",
+              "match": ","
+            },
+            {
+              "name": "keyword.operator.assignment.linguini.locale",
+              "match": "="
+            },
+            {
+              "include": "#strings"
+            }
+          ]
+        }
+      ]
+    },
+    "formatters": {
+      "patterns": [
+        {
+          "name": "meta.formatter.attribute.linguini.locale",
+          "match": "(@)([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.annotation.linguini.locale"
+            },
+            "2": {
+              "name": "entity.other.attribute-name.linguini.locale"
+            }
+          }
+        }
+      ]
+    },
+    "selectors": {
+      "patterns": [
+        {
+          "name": "constant.language.placeholder.linguini.locale",
+          "match": "\\b_\\b"
+        },
+        {
+          "name": "constant.other.selector.plural.linguini.locale",
+          "match": "\\b(?:zero|one|two|few|many|other)\\b(?=\\s*(?:=>|\\{))"
+        },
+        {
+          "name": "variable.other.enummember.linguini.locale",
+          "match": "\\b[a-z_][A-Za-z0-9_]*\\b(?=\\s*(?:=>|\\{))"
+        },
+        {
+          "name": "support.type.primitive.linguini.locale",
+          "match": "\\b(?:String|Number|Decimal|Date|Plural|Gender)\\b"
+        },
+        {
+          "name": "entity.name.type.reference.linguini.locale",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "rawText": {
+      "patterns": [
+        {
+          "name": "string.unquoted.raw-text.linguini.locale",
+          "match": "(?<=\\s(?:=>|=))\\s*[^\\n{}]+"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.linguini.locale",
+          "match": "=>"
+        },
+        {
+          "name": "keyword.operator.assignment.linguini.locale",
+          "match": "="
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.section.block.linguini.locale",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.section.parameters.linguini.locale",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.separator.comma.linguini.locale",
+          "match": ","
+        }
+      ]
+    }
+  }
+}
