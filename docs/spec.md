@@ -354,11 +354,14 @@ price(amount: Money)
 
 ```lqs
 email_input {
-  label()
-  placeholder()
-  aria()
+  label
+  placeholder
+  aria
 }
 ```
+
+Parameterless grouped messages are written as bare identifiers. Parentheses are
+used only when a message has parameters.
 
 ---
 
@@ -369,7 +372,8 @@ email_input {
 A locale file may contain:
 
 - local enums
-- forms
+- enum implementations
+- typed forms
 - local functions
 - public message implementations
 - grouped message implementations
@@ -379,100 +383,98 @@ A locale file may contain:
 ### 6.2 Local enums
 
 ```lgl
-enum gender {
-  male
-  female
-  neuter
-  other
-}
+enum Gender { male, female, neuter, other }
 ```
 
 Local enums are locale-specific. They are not public API.
+Enum names are PascalCase. `Plural` is built in with `one`, `few`, `many`, and
+`other` and must not be redeclared.
 
-### 6.3 Forms
+### 6.3 Enum implementations
 
-Forms define localized renderings for schema enum values.
+`impl` defines localized data and forms for schema enum values.
 
 ```lgl
-form Fruit {
+impl Fruit {
   apple {
-    gender = neuter
+    Gender = neuter
 
-    nom {
+    form nom(Plural) {
       one => яблоко
       few => яблока
-      many => яблок
-      other => яблока
+      _ => яблок
     }
 
-    gen {
+    form gen(Plural) {
       one => яблока
-      few => яблок
-      many => яблок
-      other => яблока
+      _ => яблок
     }
   }
 
   pear {
-    gender = female
+    Gender = female
 
-    nom {
+    form nom(Plural) {
       one => груша
       few => груши
-      many => груш
-      other => груши
+      _ => груш
     }
 
-    gen {
+    form gen(Plural) {
       one => груши
-      few => груш
-      many => груш
-      other => груши
+      _ => груш
     }
   }
 }
 ```
 
-A form variant may contain:
+An implementation variant may contain:
 
-- scalar attributes: `gender = neuter`
+- typed enum attributes: `Gender = neuter`
 - text attributes: `emoji = 🍎`
-- selector maps
-- plural maps
+- local forms, such as `form nom(Plural) { ... }`
 - nested attributes
 
-### 6.4 Selector maps
+### 6.4 Typed forms
 
-Selector maps select text by a local enum.
+Top-level `form` declarations model grammatical agreement over enum-like
+parameters. Dispatch is nested in parameter order and `_` is the wildcard arm.
+`Plural` parameters accept numeric call-site arguments and convert through CLDR
+plural rules at runtime.
 
 ```lgl
-form Size {
-  small:gender {
-    male => маленький
-    female => маленькая
-    neuter => маленькое
-    other => маленький
+form SizeAdj(Size, Plural, Gender) {
+  small {
+    one {
+      male => маленький
+      female => маленькая
+      neuter => маленькое
+      _ => маленький
+    }
+    _ => маленьких
   }
 
-  big:gender {
-    male => большой
-    female => большая
-    neuter => большое
-    other => большой
+  big {
+    one {
+      male => большой
+      female => большая
+      neuter => большое
+      _ => большой
+    }
+    _ => больших
   }
 }
 ```
 
-### 6.5 Plural maps
+### 6.5 Local implementation forms
 
-A map whose branch keys are CLDR plural categories is a plural map.
+A local `form` inside an `impl` pattern-matches on the declared parameter type.
 
 ```lgl
-nom {
+form nom(Plural) {
   one => яблоко
   few => яблока
-  many => яблок
-  other => яблока
+  _ => яблок
 }
 ```
 
@@ -483,51 +485,32 @@ The analyzer validates plural categories against the current locale.
 Local functions are private locale helpers.
 
 ```lgl
-fn delivered(gender) {
-  male => Доставлен
-  female => Доставлена
-  neuter => Доставлено
-  other => Доставлено
+fn DeliveryNote(item: String, Plural, Gender) {
+  one {
+    female => Доставлена {item}
+    _ => Доставлен {item}
+  }
+  _ => Доставлены {item}
 }
 ```
 
-Locale expressions may call the built-in `plural(number)` helper to pass the
-current CLDR plural category into tuple functions.
-
-```lgl
-fn adjective(size, gender, plural) {
-  small, neuter, one => маленькое
-  small, neuter, few => маленьких
-  small, neuter, many => маленьких
-  else => обычное
-}
-```
-
-Multi-argument functions use tuple patterns.
-
-```lgl
-fn adjective(size, gender) {
-  small, male => маленький
-  small, female => маленькая
-  small, neuter => маленькое
-
-  big, male => большой
-  big, female => большая
-  big, neuter => большое
-
-  else => обычное
-}
-```
+`fn` uses the same nested dispatch as `form`, but may also accept named `String`
+parameters and interpolate them into branch text. Use `form` when the output
+depends only on grammatical categories.
 
 ### 6.7 Messages
 
 ```lgl
-delivery = {delivered(fruit.gender)} {size(fruit.gender)} {fruit.nom(count)}
+delivery = {Delivered(count, fruit.Gender)} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}
 
 counted = {count} {fruit.nom}
 
 price = Цена: {amount}
 ```
+
+Field access for typed enum attributes uses the type name, such as
+`fruit.Gender`. Explicit `plural(count)` calls are not part of the locale DSL;
+pass the numeric value directly to a `Plural` parameter.
 
 Raw text after `=` and `=>` is trimmed at the outer edges when it is not quoted.
 

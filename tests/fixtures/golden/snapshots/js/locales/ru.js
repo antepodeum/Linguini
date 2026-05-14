@@ -26,55 +26,26 @@ function pluralOperands(value) {
 }
 
 const FruitForms = {
-  apple: { gender: "neuter", emoji: "🍎", nom: (value) => selectBranch(pluralRu(value), { one: "яблоко", few: "яблока", many: "яблок", other: "яблока" }), gen: (value) => selectBranch(pluralRu(value), { one: "яблока", few: "яблок", many: "яблок", other: "яблока" }), display: { short: "ябл.", long: "спелое яблоко" } },
-  pear: { gender: "female", emoji: "🍐", nom: (value) => selectBranch(pluralRu(value), { one: "груша", few: "груши", many: "груш", other: "груши" }), gen: (value) => selectBranch(pluralRu(value), { one: "груши", few: "груш", many: "груш", other: "груши" }) },
-  orange: { gender: "male", emoji: "🍊", nom: (value) => selectBranch(pluralRu(value), { one: "апельсин", few: "апельсина", many: "апельсинов", other: "апельсина" }), gen: (value) => selectBranch(pluralRu(value), { one: "апельсина", few: "апельсинов", many: "апельсинов", other: "апельсина" }) },
+  apple: { Gender: "neuter", emoji: "🍎", nom: (value) => selectBranch(pluralRu(value), { one: "яблоко", few: "яблока", _: "яблок" }), gen: (value) => selectBranch(pluralRu(value), { one: "яблока", _: "яблок" }), display: { short: "ябл.", long: "спелое яблоко" } },
+  pear: { Gender: "female", emoji: "🍐", nom: (value) => selectBranch(pluralRu(value), { one: "груша", few: "груши", _: "груш" }), gen: (value) => selectBranch(pluralRu(value), { one: "груши", _: "груш" }) },
+  orange: { Gender: "male", emoji: "🍊", nom: (value) => selectBranch(pluralRu(value), { one: "апельсин", few: "апельсина", _: "апельсинов" }), gen: (value) => selectBranch(pluralRu(value), { one: "апельсина", _: "апельсинов" }) },
 };
 
-const SizeForms = {
-  small: (gender) => selectBranch(gender, { male: "маленький", female: "маленькая", neuter: "маленькое", other: "маленький" }),
-  big: (gender) => selectBranch(gender, { male: "большой", female: "большая", neuter: "большое", other: "большой" }),
-};
-
-function delivered(gender, plural) {
-  if (gender === "male" && plural === "one") return "Доставлен";
-  if (gender === "female" && plural === "one") return "Доставлена";
-  if (gender === "neuter" && plural === "one") return "Доставлено";
-  if (gender === "other" && plural === "one") return "Доставлено";
-  return "Доставлено";
+function Delivered(p0, p1) {
+  return selectBranch(pluralRu(p0), { one: selectBranch(String(p1), { male: "Доставлен", female: "Доставлена", neuter: "Доставлено", _: "Доставлено" }), _: "Доставлены" });
 }
 
-function size_label(size, gender, plural) {
-  if (size === "small" && gender === "male" && plural === "one") return "маленький";
-  if (size === "small" && gender === "female" && plural === "one") return "маленькая";
-  if (size === "small" && gender === "neuter" && plural === "one") return "маленькое";
-  if (size === "small" && gender === "other" && plural === "one") return "маленький";
-  if (size === "small" && gender === "female" && plural === "few") return "маленькие";
-  if (size === "small" && gender === "male" && plural === "few") return "маленьких";
-  if (size === "small" && gender === "neuter" && plural === "few") return "маленьких";
-  if (size === "small" && gender === "other" && plural === "few") return "маленьких";
-  if (size === "small" && gender === "male" && plural === "many") return "маленьких";
-  if (size === "small" && gender === "female" && plural === "many") return "маленьких";
-  if (size === "small" && gender === "neuter" && plural === "many") return "маленьких";
-  if (size === "small" && gender === "other" && plural === "many") return "маленьких";
-  if (size === "big" && gender === "male" && plural === "one") return "большой";
-  if (size === "big" && gender === "female" && plural === "one") return "большая";
-  if (size === "big" && gender === "neuter" && plural === "one") return "большое";
-  if (size === "big" && gender === "other" && plural === "one") return "большой";
-  if (size === "big" && gender === "female" && plural === "few") return "большие";
-  if (size === "big" && gender === "male" && plural === "few") return "больших";
-  if (size === "big" && gender === "neuter" && plural === "few") return "больших";
-  if (size === "big" && gender === "other" && plural === "few") return "больших";
-  if (size === "big" && gender === "male" && plural === "many") return "больших";
-  if (size === "big" && gender === "female" && plural === "many") return "больших";
-  if (size === "big" && gender === "neuter" && plural === "many") return "больших";
-  if (size === "big" && gender === "other" && plural === "many") return "больших";
-  return "обычные";
+function SizeAdj(p0, p1, p2) {
+  return selectBranch(String(p0), { small: selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { male: "маленький", female: "маленькая", neuter: "маленькое", _: "маленький" }), _: "маленьких" }), big: selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { male: "большой", female: "большая", neuter: "большое", _: "большой" }), _: "больших" }), _: "обычные" });
+}
+
+function DeliveryNote(item, p1, p2) {
+  return selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { female: "Доставлена " + String(item), _: "Доставлен " + String(item) }), _: "Доставлены " + String(item) });
 }
 
 /**  Displayed on the product delivery confirmation card. */
 export function delivery(fruit, size, count) {
-  return String(delivered(FruitForms[fruit].gender, pluralRu(count))) + " " + String(size_label(size, FruitForms[fruit].gender, pluralRu(count))) + " " + String(FruitForms[fruit].nom(count));
+  return String(Delivered(count, FruitForms[fruit].Gender)) + " " + String(SizeAdj(size, count, FruitForms[fruit].Gender)) + " " + String(FruitForms[fruit].nom(count));
 }
 
 /**  Shown near cart item count. */

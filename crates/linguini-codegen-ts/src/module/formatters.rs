@@ -1,4 +1,7 @@
-use linguini_ir::{IrExpression, IrFormEntry, IrMessage, IrModule, IrText, IrTextPart, IrValue};
+use linguini_ir::{
+    IrExpression, IrFormEntry, IrFunctionBranch, IrFunctionBranchValue, IrMessage, IrModule,
+    IrText, IrTextPart, IrValue,
+};
 
 pub fn module_uses_formatters(module: &IrModule) -> bool {
     module.messages.iter().any(message_uses_formatters)
@@ -11,7 +14,7 @@ pub fn module_uses_formatters(module: &IrModule) -> bool {
             function
                 .branches
                 .iter()
-                .any(|branch| text_uses_formatters(&branch.value))
+                .any(function_branch_uses_formatters)
         })
 }
 
@@ -33,6 +36,15 @@ fn value_uses_formatters(value: &IrValue) -> bool {
             .iter()
             .any(|branch| text_uses_formatters(&branch.value)),
         IrValue::Object(entries) => entries.iter().any(form_entry_uses_formatters),
+    }
+}
+
+fn function_branch_uses_formatters(branch: &IrFunctionBranch) -> bool {
+    match &branch.value {
+        IrFunctionBranchValue::Text(text) => text_uses_formatters(text),
+        IrFunctionBranchValue::Dispatch(branches) => {
+            branches.iter().any(function_branch_uses_formatters)
+        }
     }
 }
 

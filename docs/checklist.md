@@ -307,6 +307,44 @@ Checkpoint acceptance:
 
 ---
 
+## 3.1 Syntax migration
+
+- [x] Remove empty parentheses from parameterless grouped schema messages
+  - Note: completed on 2026-05-14. Schema grouped message leaves now parse as bare identifiers while parameterized messages still require parentheses.
+  - Evidence: tests/fixtures/golden/schema/shop.lqs; crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
+- [x] Support inline PascalCase enum declarations
+  - Note: completed on 2026-05-14. Schema and locale enum parsers accept comma-separated inline variants and the golden fixtures use PascalCase locale enum names.
+  - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
+- [x] Replace locale noun `form` declarations with `impl`
+  - Note: completed on 2026-05-14. Locale parser, IR lowering, generated data rendering, and golden fixtures now use `impl Fruit` for enum implementations.
+  - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; crates/linguini-ir/src/lower.rs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax -p linguini-ir -p linguini-cli`
+- [x] Support typed fields and local `form name(Type)` entries inside `impl`
+  - Note: completed on 2026-05-14. Implementation entries preserve typed fields like `Gender = neuter` and local plural forms like `form nom(Plural)`.
+  - Evidence: tests/fixtures/golden/locale/ru.lgl; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-ir`
+- [x] Replace `else` with `_` wildcard branches
+  - Note: completed on 2026-05-14. Parser, renderer, and generated TypeScript select helpers support `_` wildcard fallbacks for form maps and dispatch trees.
+  - Evidence: crates/linguini-codegen-ts/src/module/emit.rs; crates/linguini-cli/src/project/test_data/render.rs; `cargo test -p linguini-codegen-ts -p linguini-cli`
+- [x] Replace flat tuple helper functions with nested typed dispatch
+  - Note: completed on 2026-05-14. Top-level `form` and `fn` declarations parse typed parameters and nested dispatch trees that lower to IR and emit nested TypeScript `selectBranch` calls.
+  - Evidence: crates/linguini-syntax/src/ast.rs; crates/linguini-ir/src/model.rs; crates/linguini-codegen-ts/src/module/emit.rs; `cargo test -p linguini-syntax -p linguini-ir -p linguini-codegen-ts`
+- [x] Remove explicit `plural(count)` call syntax from fixtures and codegen paths
+  - Note: completed on 2026-05-14. Golden locale calls pass numeric values directly to `Plural` parameters, and generated TypeScript converts `Plural` dispatch parameters internally.
+  - Evidence: tests/fixtures/golden/locale/ru.lgl; tests/fixtures/golden/snapshots/ts/locales/ru.ts; `cargo test -p linguini-codegen-ts`
+- [x] Update canonical syntax specification
+  - Note: completed on 2026-05-14. `docs/spec.md` now describes parameterless schema leaves, `impl`, typed forms, `_` wildcards, and direct numeric plural arguments.
+  - Evidence: docs/spec.md; docs/spec-migrate-syntax.md
+
+Checkpoint acceptance:
+
+- [x] Migrated syntax fixtures parse and lower to IR
+  - Note: completed on 2026-05-14. Golden `.lqs` and `.lgl` fixtures use migrated syntax and have refreshed lexer, IR, and TypeScript snapshots.
+  - Evidence: tests/fixtures/golden/snapshots/lexer-schema.tokens; tests/fixtures/golden/snapshots/lexer-locale.tokens; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-syntax -p linguini-ir`
+- [x] Generated TypeScript uses migrated dispatch semantics
+  - Note: completed on 2026-05-14. Generated TypeScript emits nested dispatch helpers for typed forms and accepts direct numeric plural arguments at call sites.
+  - Evidence: tests/fixtures/golden/snapshots/ts/locales/ru.ts; `cargo test -p linguini-codegen-ts`
+
+---
+
 ## 4. Diagnostics
 
 - [x] Add Ariadne renderer

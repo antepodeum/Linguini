@@ -45,7 +45,6 @@ pub struct IrForm {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrFormVariant {
     pub name: String,
-    pub selector: Option<String>,
     pub entries: Vec<IrFormEntry>,
 }
 
@@ -66,20 +65,26 @@ pub enum IrValue {
 pub struct IrFunction {
     pub name: String,
     pub docs: Vec<String>,
-    pub parameters: Vec<String>,
+    pub parameters: Vec<IrFunctionParameter>,
     pub branches: Vec<IrFunctionBranch>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IrFunctionBranch {
-    pub pattern: IrBranchPattern,
-    pub value: IrText,
+pub struct IrFunctionParameter {
+    pub name: Option<String>,
+    pub ty: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IrBranchPattern {
-    Names(Vec<String>),
-    Else,
+pub struct IrFunctionBranch {
+    pub key: String,
+    pub value: IrFunctionBranchValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrFunctionBranchValue {
+    Text(IrText),
+    Dispatch(Vec<IrFunctionBranch>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

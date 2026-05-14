@@ -1,6 +1,6 @@
 use crate::Diagnostic;
 use linguini_syntax::{
-    BranchPattern, Expression, FunctionDeclaration, LocaleDeclaration, LocaleFile, TextPart,
+    Expression, FunctionBranchValue, FunctionDeclaration, LocaleDeclaration, LocaleFile, TextPart,
     TextPattern,
 };
 use std::collections::BTreeMap;
@@ -340,19 +340,50 @@ fn validate_function_branch_patterns(
     function: &FunctionDeclaration,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    for branch in &function.branches {
-        if let BranchPattern::Names(names) = &branch.pattern {
-            if names.len() != function.parameters.len() {
+    let dispatch_parameter_count = function
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.ty.value != "String")
+        .count();
+    validate_branch_depth(
+        &function.branches,
+        function,
+        dispatch_parameter_count,
+        0,
+        diagnostics,
+    );
+}
+
+fn validate_branch_depth(
+    branches: &[linguini_syntax::FunctionBranch],
+    function: &FunctionDeclaration,
+    dispatch_parameter_count: usize,
+    depth: usize,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for branch in branches {
+        match &branch.value {
+            FunctionBranchValue::Text(_) if depth + 1 != dispatch_parameter_count => {
                 diagnostics.push(Diagnostic::error(
                     format!(
                         "function `{}` branch pattern expects {} value(s), got {}",
                         function.name.value,
-                        function.parameters.len(),
-                        names.len()
+                        dispatch_parameter_count,
+                        depth + 1
                     ),
                     branch.span,
                 ));
             }
+            FunctionBranchValue::Dispatch(branches) => {
+                validate_branch_depth(
+                    branches,
+                    function,
+                    dispatch_parameter_count,
+                    depth + 1,
+                    diagnostics,
+                );
+            }
+            FunctionBranchValue::Text(_) => {}
         }
     }
 }

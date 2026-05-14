@@ -1,13 +1,6 @@
-enum Fruit {
-  apple
-  pear
-  orange
-}
+enum Fruit { apple, pear, orange }
 
-enum Size {
-  small
-  big
-}
+enum Size { small, big }
 
 type Money = Decimal @currency
 type ShortDate = Date @date(style = "short")
@@ -21,7 +14,7 @@ counted(count: Number, fruit: Fruit)
 price(amount: Money, date: ShortDate)
 
 email_input {
-  label()
-  placeholder()
-  aria()
+  label
+  placeholder
+  aria
 }

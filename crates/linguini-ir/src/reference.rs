@@ -1,4 +1,6 @@
-use crate::model::{IrExpression, IrModule, IrText, IrTextPart};
+use crate::model::{
+    IrExpression, IrFunctionBranch, IrFunctionBranchValue, IrModule, IrText, IrTextPart,
+};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,9 +28,13 @@ pub fn ensure_no_unresolved_references(
     }
 
     for function in &locale.functions {
-        let variables: BTreeSet<_> = function.parameters.iter().cloned().collect();
+        let variables: BTreeSet<_> = function
+            .parameters
+            .iter()
+            .filter_map(|parameter| parameter.name.clone())
+            .collect();
         for branch in &function.branches {
-            check_text(&branch.value, &variables, &context, &mut errors);
+            check_function_branch(branch, &variables, &context, &mut errors);
         }
     }
 
@@ -36,6 +42,22 @@ pub fn ensure_no_unresolved_references(
         Ok(())
     } else {
         Err(errors)
+    }
+}
+
+fn check_function_branch(
+    branch: &IrFunctionBranch,
+    variables: &BTreeSet<String>,
+    context: &ReferenceContext,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    match &branch.value {
+        IrFunctionBranchValue::Text(text) => check_text(text, variables, context, errors),
+        IrFunctionBranchValue::Dispatch(branches) => {
+            for branch in branches {
+                check_function_branch(branch, variables, context, errors);
+            }
+        }
     }
 }
 

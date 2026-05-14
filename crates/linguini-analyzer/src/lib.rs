@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn locale_coverage_groups_missing_grouped_schema_messages() {
-        let schema = parse_schema("email_input {\n  label()\n  placeholder()\n  error()\n}\n")
+        let schema = parse_schema("email_input {\n  label\n  placeholder\n  error\n}\n")
             .expect("schema parses");
         let locale = parse_locale("email_input {\n  label = Email\n}\n").expect("locale parses");
         let diagnostics = analyze_locale_coverage(&schema, &locale);
@@ -202,23 +202,23 @@ mod tests {
     #[test]
     fn expression_analysis_accepts_valid_delivery_message() {
         let locale =
-            parse_locale("delivery = {delivered(fruit.gender)} {size(fruit.gender)} {fruit.nom}\n")
+            parse_locale("delivery = {Delivered(count, fruit.Gender)} {fruit.nom(count)}\n")
                 .expect("locale parses");
         let value = message_value(&locale, "delivery");
         let diagnostics = analyze_expressions(ExpressionAnalysis {
             messages: vec![MessageToAnalyze::new(
                 "delivery",
                 value,
-                vec![Variable::new("fruit", "Fruit", Span::new(0, 0))],
+                vec![
+                    Variable::new("count", "Number", Span::new(0, 0)),
+                    Variable::new("fruit", "Fruit", Span::new(0, 0)),
+                ],
             )],
-            functions: vec![
-                FunctionSignature::new("delivered", 1, Span::new(12, 21)),
-                FunctionSignature::new("size", 1, Span::new(36, 40)),
-            ],
+            functions: vec![FunctionSignature::new("Delivered", 2, Span::new(12, 21))],
             forms: vec![FormSignature::new(
                 "Fruit",
                 vec![
-                    FormProperty::new("gender", Span::new(0, 0)),
+                    FormProperty::new("Gender", Span::new(0, 0)),
                     FormProperty::new("nom", Span::new(0, 0)),
                 ],
                 Span::new(0, 0),
@@ -307,22 +307,23 @@ mod tests {
     }
 
     #[test]
-    fn expression_analysis_accepts_builtin_plural_call() {
-        let locale = parse_locale("delivery = {size(fruit.gender, plural(count))}\n")
+    fn expression_analysis_accepts_int_plural_argument() {
+        let locale = parse_locale("delivery = {SizeAdj(size, count, fruit.Gender)}\n")
             .expect("locale parses");
         let diagnostics = analyze_expressions(ExpressionAnalysis {
             messages: vec![MessageToAnalyze::new(
                 "delivery",
                 message_value(&locale, "delivery"),
                 vec![
+                    Variable::new("size", "Size", Span::new(0, 0)),
                     Variable::new("count", "Number", Span::new(0, 0)),
                     Variable::new("fruit", "Fruit", Span::new(0, 0)),
                 ],
             )],
-            functions: vec![FunctionSignature::new("size", 2, Span::new(0, 0))],
+            functions: vec![FunctionSignature::new("SizeAdj", 3, Span::new(0, 0))],
             forms: vec![FormSignature::new(
                 "Fruit",
-                vec![FormProperty::new("gender", Span::new(0, 0))],
+                vec![FormProperty::new("Gender", Span::new(0, 0))],
                 Span::new(0, 0),
             )],
         });
@@ -331,15 +332,15 @@ mod tests {
     }
 
     #[test]
-    fn function_pattern_analysis_reports_tuple_arity() {
-        let locale = parse_locale("fn choose(gender, size) {\n  male => ok\n  else => ok\n}\n")
+    fn function_pattern_analysis_reports_dispatch_depth() {
+        let locale = parse_locale("form Choose(Gender, Size) {\n  male => ok\n  _ => ok\n}\n")
             .expect("locale parses");
         let diagnostics = analyze_function_patterns(&locale);
 
-        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics.len(), 2);
         assert_eq!(
             diagnostics[0].message,
-            "function `choose` branch pattern expects 2 value(s), got 1"
+            "function `Choose` branch pattern expects 2 value(s), got 1"
         );
     }
 

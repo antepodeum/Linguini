@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use linguini_cldr::built_in_plural_rules;
 use linguini_ir::{
-    IrBranch, IrBranchPattern, IrExpression, IrForm, IrFormEntry, IrFunction, IrModule, IrText,
-    IrTextPart, IrValue,
+    IrBranch, IrExpression, IrForm, IrFormEntry, IrFunction, IrFunctionBranch,
+    IrFunctionBranchValue, IrModule, IrText, IrTextPart, IrValue,
 };
 
 use super::SampleValue;
@@ -200,10 +200,40 @@ impl<'a> Renderer<'a> {
         else {
             return String::new();
         };
-        let branch = matching_function_branch(function, args);
-        branch
-            .map(|branch| self.render_text(&branch.value, context, inputs))
-            .unwrap_or_default()
+        self.eval_dispatch(function, &function.branches, 0, args, context, inputs)
+    }
+
+    fn eval_dispatch(
+        &self,
+        function: &IrFunction,
+        branches: &[IrFunctionBranch],
+        depth: usize,
+        args: &[String],
+        context: &BTreeMap<String, String>,
+        inputs: &BTreeMap<String, SampleValue>,
+    ) -> String {
+        let parameter_index = dispatch_parameter_indices(function)
+            .get(depth)
+            .copied()
+            .unwrap_or(depth);
+        let Some(selector) = args.get(parameter_index) else {
+            return String::new();
+        };
+        let key = function
+            .parameters
+            .get(parameter_index)
+            .filter(|parameter| parameter.ty == "Plural")
+            .map(|_| plural_key(self.locale, selector))
+            .unwrap_or_else(|| selector.clone());
+        let Some(branch) = matching_function_branch(branches, &key) else {
+            return String::new();
+        };
+        match &branch.value {
+            IrFunctionBranchValue::Text(text) => self.render_text(text, context, inputs),
+            IrFunctionBranchValue::Dispatch(branches) => {
+                self.eval_dispatch(function, branches, depth + 1, args, context, inputs)
+            }
+        }
     }
 
     fn form_for(&self, root: &str, context: &BTreeMap<String, String>) -> Option<&'a IrForm> {
@@ -265,22 +295,22 @@ fn find_entry_value<'a>(entries: &'a [IrFormEntry], path: &[&str]) -> Option<&'a
 }
 
 fn matching_function_branch<'a>(
-    function: &'a IrFunction,
-    args: &[String],
-) -> Option<&'a linguini_ir::IrFunctionBranch> {
-    function
-        .branches
+    branches: &'a [IrFunctionBranch],
+    key: &str,
+) -> Option<&'a IrFunctionBranch> {
+    branches
         .iter()
-        .find(|branch| match &branch.pattern {
-            IrBranchPattern::Names(names) => names == args,
-            IrBranchPattern::Else => false,
-        })
-        .or_else(|| {
-            function
-                .branches
-                .iter()
-                .find(|branch| matches!(branch.pattern, IrBranchPattern::Else))
-        })
+        .find(|branch| branch.key == key)
+        .or_else(|| branches.iter().find(|branch| branch.key == "_"))
+}
+
+fn dispatch_parameter_indices(function: &IrFunction) -> Vec<usize> {
+    function
+        .parameters
+        .iter()
+        .enumerate()
+        .filter_map(|(index, parameter)| (parameter.ty != "String").then_some(index))
+        .collect()
 }
 
 fn select_branch(
@@ -296,6 +326,12 @@ fn select_branch(
         .iter()
         .copied()
         .find(|branch| branch.keys.iter().any(|candidate| candidate == &key))
+        .or_else(|| {
+            branches
+                .iter()
+                .copied()
+                .find(|branch| branch.keys.iter().any(|candidate| candidate == "_"))
+        })
         .or_else(|| {
             branches
                 .iter()

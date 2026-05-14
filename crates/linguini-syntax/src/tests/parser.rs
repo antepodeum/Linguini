@@ -1,6 +1,6 @@
 use crate::{
-    parse_locale, parse_locale_with_recovery, parse_schema, parse_schema_with_recovery,
-    BranchPattern, FormEntry, LocaleDeclaration, LocaleValue, SchemaDeclaration, TextPart,
+    parse_locale, parse_locale_with_recovery, parse_schema, parse_schema_with_recovery, FormEntry,
+    FunctionBranchValue, LocaleDeclaration, LocaleValue, SchemaDeclaration, TextPart,
 };
 
 #[test]
@@ -52,8 +52,8 @@ type Money = Decimal @currency
 type ShortDate = Date @date(style = "short")
 
 email_input {
-  label()
-  placeholder()
+  label
+  placeholder
 }
 "#;
     let schema = parse_schema(source).expect("schema parses");
@@ -132,41 +132,33 @@ fn locale_parser_recovery_reports_invalid_fixture_diagnostics() {
 }
 
 #[test]
-fn parses_locale_forms_functions_messages_and_placeholders() {
-    let source = r#"enum gender {
-  male
-  female
-  neuter
-  other
-}
+fn parses_locale_impls_forms_functions_messages_and_placeholders() {
+    let source = r#"enum Gender { male, female, neuter, other }
 
-form Fruit {
+impl Fruit {
   apple {
-    gender = neuter
-    nom {
+    Gender = neuter
+    form nom(Plural) {
       one => яблоко
       few => яблока
-      many => яблок
-      other => яблока
+      _ => яблок
     }
   }
 }
 
-form Size {
-  small:gender {
+form Adjective(Size, Gender) {
+  small {
     male => маленький
-    female => маленькая
-    neuter => маленькое
-    other => маленький
+    _ => обычное
   }
 }
 
-fn adjective(size, gender) {
-  small, male => маленький
-  else => обычное
+fn note(item: String, Gender) {
+  female => Доставлена {item}
+  _ => Доставлен {item}
 }
 
-delivery = {adjective(size, fruit.gender)} {fruit.nom(count)} {amount @currency(code = "USD")}
+delivery = {Adjective(size, fruit.Gender)} {fruit.nom(count)} {amount @currency(code = "USD")}
 
 email_input {
   label = Email
@@ -182,7 +174,7 @@ email_input {
             assert_eq!(form.variants[0].entries.len(), 2);
             match &form.variants[0].entries[1] {
                 FormEntry::Attribute(attribute) => match &attribute.value {
-                    LocaleValue::Map(branches) => assert_eq!(branches.len(), 4),
+                    LocaleValue::Map(branches) => assert_eq!(branches.len(), 3),
                     other => panic!("expected map value, got {other:?}"),
                 },
                 other => panic!("expected form attribute, got {other:?}"),
@@ -191,26 +183,31 @@ email_input {
         other => panic!("expected form, got {other:?}"),
     }
     match &locale.declarations[2] {
-        LocaleDeclaration::Form(form) => {
-            assert_eq!(
-                form.variants[0]
-                    .selector
-                    .as_ref()
-                    .expect("selector exists")
-                    .value,
-                "gender"
-            );
-            assert!(matches!(form.variants[0].entries[0], FormEntry::Branch(_)));
+        LocaleDeclaration::Function(function) => {
+            assert_eq!(function.name.value, "Adjective");
+            assert_eq!(function.parameters[0].ty.value, "Size");
+            assert!(matches!(
+                function.branches[0].value,
+                FunctionBranchValue::Dispatch(_)
+            ));
         }
-        other => panic!("expected selector form, got {other:?}"),
+        other => panic!("expected form function, got {other:?}"),
     }
     match &locale.declarations[3] {
         LocaleDeclaration::Function(function) => {
-            assert_eq!(function.name.value, "adjective");
+            assert_eq!(function.name.value, "note");
             assert_eq!(function.parameters.len(), 2);
+            assert_eq!(
+                function.parameters[0]
+                    .name
+                    .as_ref()
+                    .expect("named parameter")
+                    .value,
+                "item"
+            );
             assert!(matches!(
-                function.branches[1].pattern,
-                BranchPattern::Else(_)
+                function.branches[1].value,
+                FunctionBranchValue::Text(_)
             ));
         }
         other => panic!("expected function, got {other:?}"),
@@ -246,12 +243,12 @@ email_input {
 
 #[test]
 fn parses_locale_override_declaration() {
-    let locale = parse_locale("override enum gender { other }\n").expect("locale parses");
+    let locale = parse_locale("override enum Gender { other }\n").expect("locale parses");
 
     match &locale.declarations[0] {
         LocaleDeclaration::Override(declaration) => match declaration.as_ref() {
             LocaleDeclaration::Enum(declaration) => {
-                assert_eq!(declaration.name.value, "gender")
+                assert_eq!(declaration.name.value, "Gender")
             }
             other => panic!("expected enum override, got {other:?}"),
         },

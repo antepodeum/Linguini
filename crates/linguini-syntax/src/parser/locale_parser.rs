@@ -1,10 +1,10 @@
 use chumsky::{input::IterInput, input::ValueInput, prelude::*};
 
 use crate::{
-    lex, lex_with_recovery, BranchPattern, Expression, FormAttribute, FormDeclaration, FormEntry,
-    FormVariant, FunctionBranch, FunctionDeclaration, LocaleDeclaration, LocaleFile, LocaleValue,
-    MapBranch, MessageImplementation, MessageImplementationGroup, Name, Placeholder, RawText, Span,
-    TextPart, TextPattern, TokenKind,
+    lex, lex_with_recovery, Expression, FormAttribute, FormDeclaration, FormEntry, FormVariant,
+    FunctionBranch, FunctionBranchValue, FunctionDeclaration, FunctionParameter, LocaleDeclaration,
+    LocaleFile, LocaleValue, MapBranch, MessageImplementation, MessageImplementationGroup,
+    Placeholder, RawText, Span, TextPart, TextPattern, TokenKind,
 };
 
 use super::{
@@ -100,17 +100,18 @@ where
 {
     choice((
         enum_declaration().map(LocaleDeclaration::Enum),
-        form_declaration().map(LocaleDeclaration::Form),
+        impl_declaration().map(LocaleDeclaration::Form),
+        form_function_declaration().map(LocaleDeclaration::Function),
         function_declaration().map(LocaleDeclaration::Function),
         group_or_message(),
     ))
 }
 
-fn form_declaration<'tokens, I>() -> impl Parser<'tokens, I, FormDeclaration, Extra<'tokens>> + Clone
+fn impl_declaration<'tokens, I>() -> impl Parser<'tokens, I, FormDeclaration, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    keyword("form")
+    keyword("impl")
         .ignore_then(name())
         .then(
             form_variant()
@@ -131,16 +132,14 @@ where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
     name()
-        .then(just(TokenKind::Colon).ignore_then(name()).or_not())
         .then(
             form_entry_parser()
                 .repeated()
                 .collect::<Vec<_>>()
                 .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace)),
         )
-        .map_with(|((name, selector), entries), extra| FormVariant {
+        .map_with(|(name, entries), extra| FormVariant {
             name,
-            selector,
             entries,
             span: extra.span(),
         })
@@ -152,7 +151,15 @@ where
 {
     recursive(|entry| {
         let branch = map_branch().map(FormEntry::Branch);
-        let attribute = name()
+        let attribute_name = keyword("form").or_not().ignore_then(name()).then_ignore(
+            name()
+                .then_ignore(just(TokenKind::Comma).or_not())
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen))
+                .or_not(),
+        );
+        let attribute = attribute_name
             .then(choice((
                 just(TokenKind::Equals)
                     .ignore_then(text_pattern())
@@ -191,13 +198,7 @@ where
 {
     keyword("fn")
         .ignore_then(name())
-        .then(
-            name()
-                .separated_by(just(TokenKind::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen)),
-        )
+        .then(function_parameters())
         .then(
             function_branch()
                 .repeated()
@@ -215,29 +216,81 @@ where
         )
 }
 
+fn form_function_declaration<'tokens, I>(
+) -> impl Parser<'tokens, I, FunctionDeclaration, Extra<'tokens>> + Clone
+where
+    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
+{
+    keyword("form")
+        .ignore_then(name())
+        .then(function_parameters())
+        .then(
+            function_branch()
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace)),
+        )
+        .map_with(
+            |((name, parameters), branches), extra| FunctionDeclaration {
+                docs: Vec::new(),
+                name,
+                parameters,
+                branches,
+                span: extra.span(),
+            },
+        )
+}
+
+fn function_parameters<'tokens, I>(
+) -> impl Parser<'tokens, I, Vec<FunctionParameter>, Extra<'tokens>> + Clone
+where
+    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
+{
+    name()
+        .then(just(TokenKind::Colon).ignore_then(name()).or_not())
+        .map_with(|(first, ty), extra| {
+            if let Some(ty) = ty {
+                FunctionParameter {
+                    name: Some(first),
+                    ty,
+                    span: extra.span(),
+                }
+            } else {
+                FunctionParameter {
+                    name: None,
+                    ty: first,
+                    span: extra.span(),
+                }
+            }
+        })
+        .separated_by(just(TokenKind::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen))
+}
+
 fn function_branch<'tokens, I>() -> impl Parser<'tokens, I, FunctionBranch, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    choice((
-        keyword("else").map_with(|_, extra| {
-            BranchPattern::Else(Name {
-                value: "else".to_string(),
+    recursive(|branch| {
+        name()
+            .then(choice((
+                just(TokenKind::Arrow)
+                    .ignore_then(text_pattern())
+                    .map(FunctionBranchValue::Text),
+                branch
+                    .repeated()
+                    .at_least(1)
+                    .collect::<Vec<_>>()
+                    .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace))
+                    .map(FunctionBranchValue::Dispatch),
+            )))
+            .map_with(|(key, value), extra| FunctionBranch {
+                key,
+                value,
                 span: extra.span(),
             })
-        }),
-        name()
-            .separated_by(just(TokenKind::Comma))
-            .at_least(1)
-            .collect::<Vec<_>>()
-            .map(BranchPattern::Names),
-    ))
-    .then_ignore(just(TokenKind::Arrow))
-    .then(text_pattern())
-    .map_with(|(pattern, value), extra| FunctionBranch {
-        pattern,
-        value,
-        span: extra.span(),
     })
 }
 

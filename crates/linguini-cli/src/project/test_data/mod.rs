@@ -243,7 +243,7 @@ mod tests {
         );
         let locale = lower_locale(
             &parse_locale(
-                "form Fruit {\n  apple {\n    nom {\n      one => apple\n      other => apples\n    }\n  }\n  pear {\n    nom {\n      one => pear\n      other => pears\n    }\n  }\n}\ndelivery = {count} {fruit.nom(count)}\n",
+                "impl Fruit {\n  apple {\n    form nom(Plural) {\n      one => apple\n      _ => apples\n    }\n  }\n  pear {\n    form nom(Plural) {\n      one => pear\n      _ => pears\n    }\n  }\n}\ndelivery = {count} {fruit.nom(count)}\n",
             )
             .expect("locale"),
         );

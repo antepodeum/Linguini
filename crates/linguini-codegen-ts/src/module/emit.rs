@@ -1,10 +1,8 @@
 use std::collections::BTreeMap;
 
-use linguini_ir::{IrBranchPattern, IrMessage, IrModule};
+use linguini_ir::{IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrMessage, IrModule};
 
-use super::expr::{
-    branch_switch, form_object, is_static_text, text_expression, text_expression_with_context,
-};
+use super::expr::{form_object, is_static_text, text_expression, text_expression_with_context};
 use super::formatters::module_uses_formatters;
 use super::names::{
     escape_comment, escape_string, function_name, property_key, safe_identifier, string_literal,
@@ -20,14 +18,15 @@ pub struct ModuleExports {
 
 pub fn emit_imports(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     let uses_forms = !module.forms.is_empty();
+    let uses_dispatch = !module.functions.is_empty();
     let uses_formatters = module_uses_formatters(module);
-    if uses_forms || uses_formatters {
+    if uses_forms || uses_dispatch || uses_formatters {
         let mut imports = Vec::new();
         if uses_formatters {
             imports.push("formatCurrency");
             imports.push("formatDate");
         }
-        if uses_forms {
+        if uses_forms || uses_dispatch {
             imports.push("selectBranch");
         }
         output.push_str(&format!(
@@ -94,20 +93,11 @@ pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut S
     for form in &module.forms {
         output.push_str(&format!("const {}Forms = {{\n", form.name));
         for variant in &form.variants {
-            if let Some(selector) = &variant.selector {
-                output.push_str(&format!(
-                    "  {}: ({}: string) => {},\n",
-                    property_key(&variant.name),
-                    safe_identifier(selector),
-                    branch_switch(&safe_identifier(selector), &variant.entries, options)
-                ));
-            } else {
-                output.push_str(&format!(
-                    "  {}: {},\n",
-                    property_key(&variant.name),
-                    form_object(&variant.entries, options)
-                ));
-            }
+            output.push_str(&format!(
+                "  {}: {},\n",
+                property_key(&variant.name),
+                form_object(&variant.entries, options)
+            ));
         }
         output.push_str("} as const;\n\n");
     }
@@ -115,38 +105,19 @@ pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut S
 
 pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     for function in &module.functions {
-        let params = function
-            .parameters
+        let params = function_parameters(function)
             .iter()
-            .map(|name| format!("{}: string", safe_identifier(name)))
+            .map(|name| format!("{name}: string | number"))
             .collect::<Vec<_>>()
             .join(", ");
         output.push_str(&format!(
             "function {}({params}): string {{\n",
             function.name
         ));
-        for branch in &function.branches {
-            match &branch.pattern {
-                IrBranchPattern::Names(names) => output.push_str(&format!(
-                    "  if ({}) return {};\n",
-                    tuple_condition(&function.parameters, names),
-                    text_expression(&branch.value, options)
-                )),
-                IrBranchPattern::Else => {
-                    output.push_str(&format!(
-                        "  return {};\n",
-                        text_expression(&branch.value, options)
-                    ));
-                }
-            }
-        }
-        if !function
-            .branches
-            .iter()
-            .any(|branch| branch.pattern == IrBranchPattern::Else)
-        {
-            output.push_str("  return \"\";\n");
-        }
+        output.push_str(&format!(
+            "  return {};\n",
+            dispatch_expression(function, &function.branches, 0, options)
+        ));
         output.push_str("}\n\n");
     }
 }
@@ -209,7 +180,7 @@ pub fn emit_shared(output: &mut String) {
     output.push_str("  key: string,\n");
     output.push_str("  branches: Record<string, string>,\n");
     output.push_str("): string {\n");
-    output.push_str("  return branches[key] ?? branches.other ?? \"\";\n");
+    output.push_str("  return branches[key] ?? branches._ ?? branches.other ?? \"\";\n");
     output.push_str("}\n");
 }
 
@@ -360,11 +331,62 @@ fn message_implementation<'a>(module: &'a IrModule, name: &str) -> Option<&'a Ir
     module.messages.iter().find(|message| message.name == name)
 }
 
-fn tuple_condition(parameters: &[String], names: &[String]) -> String {
-    parameters
+fn function_parameters(function: &IrFunction) -> Vec<String> {
+    function
+        .parameters
         .iter()
-        .zip(names)
-        .map(|(parameter, name)| format!("{parameter} === {}", string_literal(name)))
+        .enumerate()
+        .map(|(index, parameter)| {
+            parameter
+                .name
+                .as_deref()
+                .map(safe_identifier)
+                .unwrap_or_else(|| format!("p{index}"))
+        })
+        .collect()
+}
+
+fn dispatch_expression(
+    function: &IrFunction,
+    branches: &[IrFunctionBranch],
+    depth: usize,
+    options: &TypeScriptOptions,
+) -> String {
+    let parameter_index = dispatch_parameter_indices(function)
+        .get(depth)
+        .copied()
+        .unwrap_or(depth);
+    let parameter = function_parameters(function)
+        .get(parameter_index)
+        .cloned()
+        .unwrap_or_else(|| "undefined".to_owned());
+    let selector = function
+        .parameters
+        .get(parameter_index)
+        .filter(|parameter| parameter.ty == "Plural")
+        .map(|_| format!("{}({parameter})", options.plural_function))
+        .unwrap_or_else(|| format!("String({parameter})"));
+    let items = branches
+        .iter()
+        .map(|branch| {
+            let value = match &branch.value {
+                IrFunctionBranchValue::Text(text) => text_expression(text, options),
+                IrFunctionBranchValue::Dispatch(branches) => {
+                    dispatch_expression(function, branches, depth + 1, options)
+                }
+            };
+            format!("{}: {value}", property_key(&branch.key))
+        })
         .collect::<Vec<_>>()
-        .join(" && ")
+        .join(", ");
+    format!("selectBranch({selector}, {{ {items} }})")
+}
+
+fn dispatch_parameter_indices(function: &IrFunction) -> Vec<usize> {
+    function
+        .parameters
+        .iter()
+        .enumerate()
+        .filter_map(|(index, parameter)| (parameter.ty != "String").then_some(index))
+        .collect()
 }

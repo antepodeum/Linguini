@@ -37,25 +37,6 @@ pub fn map_expression(branches: &[IrBranch], options: &TypeScriptOptions) -> Str
     )
 }
 
-pub fn branch_switch(
-    selector: &str,
-    entries: &[IrFormEntry],
-    options: &TypeScriptOptions,
-) -> String {
-    let branches = entries
-        .iter()
-        .filter_map(|entry| match entry {
-            IrFormEntry::Branch(branch) => Some(branch),
-            IrFormEntry::Attribute { .. } => None,
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    format!(
-        "selectBranch({selector}, {{ {} }})",
-        branch_items(&branches, options)
-    )
-}
-
 pub fn text_expression(text: &IrText, options: &TypeScriptOptions) -> String {
     text_expression_with_context(text, &BTreeMap::new(), options)
 }
@@ -89,7 +70,7 @@ fn branch_items(branches: &[IrBranch], options: &TypeScriptOptions) -> String {
     branches
         .iter()
         .map(|branch| {
-            let key = branch.keys.first().map(String::as_str).unwrap_or("other");
+            let key = branch.keys.first().map(String::as_str).unwrap_or("_");
             format!(
                 "{}: {}",
                 property_key(key),

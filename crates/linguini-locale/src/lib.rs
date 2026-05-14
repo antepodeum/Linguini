@@ -347,20 +347,20 @@ mod tests {
     #[test]
     fn explicit_override_replaces_parent_declaration() {
         let sources = vec![
-            source("locale/ru.lgl", "enum gender { other }\n"),
-            source("locale/shop/ru.lgl", "override enum gender { male }\n"),
+            source("locale/ru.lgl", "enum Gender { other }\n"),
+            source("locale/shop/ru.lgl", "override enum Gender { male }\n"),
         ];
         let (scope, diagnostics) = load_locale_scope(&sources);
 
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        assert_eq!(scope.enums["gender"].source_index, 1);
+        assert_eq!(scope.enums["Gender"].source_index, 1);
     }
 
     #[test]
     fn registers_forms_and_grouped_messages() {
         let sources = vec![source(
             "locale/ru.lgl",
-            "form Fruit {\n  apple {\n    nom {\n      other => apple\n    }\n  }\n}\nemail {\n  label = Email\n}\n",
+            "impl Fruit {\n  apple {\n    form nom(Plural) {\n      _ => apple\n    }\n  }\n}\nemail {\n  label = Email\n}\n",
         )];
         let (scope, diagnostics) = load_locale_scope(&sources);
 

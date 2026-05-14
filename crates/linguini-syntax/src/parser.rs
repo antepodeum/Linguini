@@ -160,6 +160,7 @@ where
         .ignore_then(name())
         .then(
             name()
+                .then_ignore(just(TokenKind::Comma).or_not())
                 .repeated()
                 .collect::<Vec<_>>()
                 .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace)),
@@ -241,11 +242,11 @@ where
         .repeated()
         .collect::<Vec<_>>()
         .then(name())
-        .then(parameters())
+        .then(parameters().or_not())
         .map_with(|((docs, name), parameters), extra| MessageSignature {
             docs,
             name,
-            parameters,
+            parameters: parameters.unwrap_or_default(),
             span: extra.span(),
         })
 }

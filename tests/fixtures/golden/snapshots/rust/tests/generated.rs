@@ -6,6 +6,10 @@ fn delivery_example_returns_expected_russian_string() {
         delivery(Fruit::Apple, Size::Small, 1),
         "Доставлено маленькое яблоко"
     );
+    assert_eq!(
+        delivery(Fruit::Apple, Size::Small, 5),
+        "Доставлены маленьких яблок"
+    );
 }
 
 #[test]

@@ -113,7 +113,6 @@ pub struct FormDeclaration {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormVariant {
     pub name: Name,
-    pub selector: Option<Name>,
     pub entries: Vec<FormEntry>,
     pub span: Span,
 }
@@ -142,22 +141,29 @@ pub enum LocaleValue {
 pub struct FunctionDeclaration {
     pub docs: Vec<DocComment>,
     pub name: Name,
-    pub parameters: Vec<Name>,
+    pub parameters: Vec<FunctionParameter>,
     pub branches: Vec<FunctionBranch>,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FunctionBranch {
-    pub pattern: BranchPattern,
-    pub value: TextPattern,
+pub struct FunctionParameter {
+    pub name: Option<Name>,
+    pub ty: Name,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BranchPattern {
-    Names(Vec<Name>),
-    Else(Name),
+pub struct FunctionBranch {
+    pub key: Name,
+    pub value: FunctionBranchValue,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FunctionBranchValue {
+    Text(TextPattern),
+    Dispatch(Vec<FunctionBranch>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

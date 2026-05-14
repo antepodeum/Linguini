@@ -18,5 +18,5 @@ fn parse_errors_hide_internal_token_debug_representation() {
 
     assert!(!error.message.contains("Ident("), "{}", error.message);
     assert!(!error.message.contains("Span"), "{}", error.message);
-    assert!(error.message.contains("delivered") || error.message.contains("identifier"));
+    assert!(error.message.contains("expected"), "{}", error.message);
 }

@@ -356,7 +356,7 @@ fn generate_command_outputs_rendered_locale_matrix() {
     .expect("schema file");
     fs::write(
         locale_dir.join("en.lgl"),
-        "form Fruit {\n  apple {\n    gen {\n      one => apple\n      other => apples\n    }\n  }\n  pear {\n    gen {\n      one => pear\n      other => pears\n    }\n  }\n}\ncounted = {count} {fruit.gen(count)}\n",
+        "impl Fruit {\n  apple {\n    form gen(Plural) {\n      one => apple\n      _ => apples\n    }\n  }\n  pear {\n    form gen(Plural) {\n      one => pear\n      _ => pears\n    }\n  }\n}\ncounted = {count} {fruit.gen(count)}\n",
     )
     .expect("locale file");
 

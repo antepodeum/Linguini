@@ -14,5 +14,5 @@ export function formatDate(value, locale, options = {}) {
 }
 
 export function selectBranch(key, branches) {
-  return branches[key] ?? branches.other ?? "";
+  return branches[key] ?? branches._ ?? branches.other ?? "";
 }

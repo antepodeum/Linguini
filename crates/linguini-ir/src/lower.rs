@@ -1,11 +1,11 @@
 use crate::model::{
-    IrBranch, IrBranchPattern, IrEnum, IrExpression, IrForm, IrFormEntry, IrFormVariant,
-    IrFormatter, IrFormatterArgument, IrFunction, IrFunctionBranch, IrMessage, IrModule,
-    IrParameter, IrText, IrTextPart, IrTypeAlias, IrValue,
+    IrBranch, IrEnum, IrExpression, IrForm, IrFormEntry, IrFormVariant, IrFormatter,
+    IrFormatterArgument, IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter,
+    IrMessage, IrModule, IrParameter, IrText, IrTextPart, IrTypeAlias, IrValue,
 };
 use linguini_syntax::{
-    Annotation, BranchPattern, DocComment, Expression, FormEntry, LocaleDeclaration, LocaleFile,
-    LocaleValue, MapBranch, SchemaDeclaration, SchemaFile, TextPart, TextPattern,
+    Annotation, DocComment, Expression, FormEntry, FunctionBranchValue, LocaleDeclaration,
+    LocaleFile, LocaleValue, MapBranch, SchemaDeclaration, SchemaFile, TextPart, TextPattern,
 };
 
 pub fn lower_schema(schema: &SchemaFile) -> IrModule {
@@ -81,7 +81,6 @@ fn lower_locale_declaration(declaration: &LocaleDeclaration, module: &mut IrModu
                 .iter()
                 .map(|variant| IrFormVariant {
                     name: variant.name.value.clone(),
-                    selector: variant.selector.as_ref().map(|name| name.value.clone()),
                     entries: variant.entries.iter().map(lower_form_entry).collect(),
                 })
                 .collect(),
@@ -92,20 +91,15 @@ fn lower_locale_declaration(declaration: &LocaleDeclaration, module: &mut IrModu
             parameters: function
                 .parameters
                 .iter()
-                .map(|name| name.value.clone())
+                .map(|parameter| IrFunctionParameter {
+                    name: parameter.name.as_ref().map(|name| name.value.clone()),
+                    ty: parameter.ty.value.clone(),
+                })
                 .collect(),
             branches: function
                 .branches
                 .iter()
-                .map(|branch| IrFunctionBranch {
-                    pattern: match &branch.pattern {
-                        BranchPattern::Names(names) => IrBranchPattern::Names(
-                            names.iter().map(|name| name.value.clone()).collect(),
-                        ),
-                        BranchPattern::Else(_) => IrBranchPattern::Else,
-                    },
-                    value: lower_text(&branch.value),
-                })
+                .map(lower_function_branch)
                 .collect(),
         }),
         LocaleDeclaration::Message(message) => module.messages.push(IrMessage {
@@ -117,6 +111,18 @@ fn lower_locale_declaration(declaration: &LocaleDeclaration, module: &mut IrModu
         LocaleDeclaration::Group(group) => lower_group(group, module),
         LocaleDeclaration::Override(inner) => lower_locale_declaration(inner, module),
         LocaleDeclaration::Enum(_) => {}
+    }
+}
+
+fn lower_function_branch(branch: &linguini_syntax::FunctionBranch) -> IrFunctionBranch {
+    IrFunctionBranch {
+        key: branch.key.value.clone(),
+        value: match &branch.value {
+            FunctionBranchValue::Text(text) => IrFunctionBranchValue::Text(lower_text(text)),
+            FunctionBranchValue::Dispatch(branches) => IrFunctionBranchValue::Dispatch(
+                branches.iter().map(lower_function_branch).collect(),
+            ),
+        },
     }
 }
 
