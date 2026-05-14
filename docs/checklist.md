@@ -96,7 +96,7 @@ Checkpoint acceptance:
   - Evidence: docs/testing.md
 - [x] Add unit test structure for every core crate
   - Note: completed on 2026-05-13. Added crate-level unit test modules where missing and a gate that rejects workspace crates without unit test structure.
-  - Evidence: scripts/check-unit-test-structure.sh; crates/linguini-codegen-js/src/tests.rs; crates/linguini-codegen-rust/src/tests.rs; crates/linguini-format/src/tests.rs; crates/linguini-lsp/src/tests.rs; crates/linguini-package/src/tests.rs; `./scripts/check-unit-test-structure.sh`; `cargo test --workspace`
+  - Evidence: scripts/check-unit-test-structure.sh; `./scripts/check-unit-test-structure.sh`; `cargo test --workspace`
 - [x] Add golden fixture directory for `.lqs` and `.lgl` projects
   - Note: completed on 2026-05-12. Expanded schema and Russian locale golden fixtures to cover enums, formatter annotations, docs, forms, selector maps, plural-shaped maps, nested form attributes, helper functions, messages, placeholders, and grouped messages.
   - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
@@ -115,12 +115,6 @@ Checkpoint acceptance:
 - [x] Add generated TypeScript validation fixture
   - Note: completed on 2026-05-13. Added deterministic generated TypeScript file-tree fixtures for Russian schema/locale output.
   - Evidence: tests/fixtures/golden/snapshots/ts; `cargo test -p linguini-codegen-ts`
-- [x] Add generated JavaScript validation fixture
-  - Note: completed on 2026-05-13. Added ESM JavaScript generated-output fixture and Node validation script covering delivery, plural output, formatter output, and facade access.
-  - Evidence: tests/fixtures/golden/snapshots/js; scripts/validate-generated-js.sh; `./scripts/validate-generated-js.sh`
-- [x] Add generated Rust validation fixture
-  - Note: completed on 2026-05-13. Added generated Rust fixture crate and validation script covering delivery, plural output, and grouped message values.
-  - Evidence: tests/fixtures/golden/snapshots/rust; scripts/validate-generated-rust.sh; `./scripts/validate-generated-rust.sh`
 - [x] Add regression-test rule to contribution docs
   - Note: completed on 2026-05-13. Added contribution guidance requiring focused regression tests for bug fixes and recorded gate evidence before checklist completion.
   - Evidence: CONTRIBUTING.md; scripts/check-spec-gates.sh; `./scripts/check-spec-gates.sh`
@@ -128,8 +122,8 @@ Checkpoint acceptance:
   - Note: completed on 2026-05-13. Added a `cargo-llvm-cov` coverage command that writes LCOV and HTML reports while excluding generated, vendor, target, and snapshot paths.
   - Evidence: scripts/coverage.sh; CONTRIBUTING.md; `./scripts/coverage.sh --help`; `./scripts/check-spec-gates.sh`
 - [x] Add CI job that runs unit, snapshot, CLI, and generated-output tests
-  - Note: completed on 2026-05-13. CI now runs unit and CLI tests through `cargo test --workspace`, snapshot checks, and generated-output validation for TypeScript, JavaScript, and Rust.
-  - Evidence: .github/workflows/ci.yml; scripts/review-snapshots.sh; scripts/validate-generated-ts.sh; scripts/validate-generated-js.sh; scripts/validate-generated-rust.sh; `./scripts/check-spec-gates.sh`
+  - Note: completed on 2026-05-13. CI runs unit and CLI tests through `cargo test --workspace`, snapshot checks, and generated-output validation for TypeScript.
+  - Evidence: .github/workflows/ci.yml; scripts/review-snapshots.sh; scripts/validate-generated-ts.sh; `./scripts/check-spec-gates.sh`
 
 Checkpoint acceptance:
 
@@ -730,67 +724,55 @@ Checkpoint acceptance:
 
 ---
 
-## 12. JavaScript codegen
+## 12. TypeScript/JavaScript vite plugin integration
 
-- [ ] Generate ESM output
+- [ ] Export `locales` and `baseLocale` from generated TypeScript
   - Note:
-- [ ] Generate optional CommonJS output
+- [ ] Expose stable generated locale module loaders or locale map for runtime integration
   - Note:
-- [ ] Generate JSDoc types
+- [ ] Define generated locale provider contract for `getLocale()` and message facades
   - Note:
-- [ ] Reuse TS backend IR lowering
+- [ ] Add configurable locale detection strategy chain
   - Note:
-- [ ] Add deterministic output tests
+- [ ] Implement URL, cookie, preferred-language, localStorage, and base-locale detectors
   - Note:
-- [ ] Generate facade with switchable active language source
+- [ ] Implement `localizeHref`
   - Note:
-
-Checkpoint acceptance:
-
-- [ ] Generated JS runs in Node
+- [ ] Implement `shouldRedirect`
   - Note:
-- [ ] Output has no TypeScript dependency
+- [ ] Implement server middleware with per-request locale context
   - Note:
-- [ ] Application code can call `lgl.*(...)` while changing one locale source variable to switch output language
+- [ ] Add `disableAsyncLocalStorage` runtime option
   - Note:
-
----
-
-## 13. Rust codegen
-
-- [ ] Generate Rust module tree
+- [ ] Implement `%lang%` and `%dir%` injection support
   - Note:
-- [ ] Generate Rust enums
+- [ ] Implement `getTextDirection`
   - Note:
-- [ ] Generate typed message functions
+- [ ] Implement Svelte/SvelteKit `<Trans>` component for rich text and component interpolation
   - Note:
-- [ ] Generate forms
+- [ ] Add SvelteKit static-site locale-link support
   - Note:
-- [ ] Generate local functions
-  - Note:
-- [ ] Generate plural functions
-  - Note:
-- [ ] Avoid allocation for static messages
-  - Note:
-- [ ] Add deterministic output tests
-  - Note:
-- [ ] Generate facade/provider API with switchable active language source
+- [ ] Add Vite plugin that rebuilds when translation files change
   - Note:
 
 Checkpoint acceptance:
 
-- [ ] Generated Rust crate compiles
+- [ ] Detection strategy resolves locales in configured priority order
   - Note:
-- [ ] Delivery example returns expected Russian strings
+- [ ] Middleware keeps concurrent request locale state isolated
   - Note:
-- [ ] Static messages return `&'static str` where possible
+- [ ] `localizeHref` converts between locale-prefixed URLs
   - Note:
-- [ ] Caller code can switch output language through one facade/provider value instead of per-message locale arguments
+- [ ] `shouldRedirect` identifies stale localized URLs after navigation
+  - Note:
+- [ ] `<Trans>` renders translated rich text with Svelte components
+  - Note:
+- [ ] `locales` supports a locale switcher without hand-written locale lists
   - Note:
 
 ---
 
-## 14. Formatter
+## 13. Formatter
 
 - [ ] Format schema files
   - Note:
@@ -814,7 +796,7 @@ Checkpoint acceptance:
 
 ---
 
-## 15. LSP
+## 14. LSP
 
 - [ ] Start LSP server over stdio
   - Note:
@@ -854,7 +836,7 @@ Checkpoint acceptance:
 
 ---
 
-## 16. Syntax highlighting
+## 15. Syntax highlighting
 
 - [ ] Create TextMate grammar for `.lqs`
   - Note:
@@ -876,7 +858,7 @@ Checkpoint acceptance:
 
 ---
 
-## 17. Locale management
+## 16. Locale management
 
 - [ ] Implement `linguini status`
   - Note:
@@ -904,7 +886,7 @@ Checkpoint acceptance:
 
 ---
 
-## 18. Formatting data
+## 17. Formatting data
 
 - [ ] Generate number formatter helpers
   - Note:
@@ -928,7 +910,7 @@ Checkpoint acceptance:
 
 ---
 
-## 19. Packages
+## 18. Packages
 
 - [ ] Define package manifest format
   - Note:
@@ -962,16 +944,12 @@ Checkpoint acceptance:
 
 ---
 
-## 20. Real-project validation
+## 19. Real-project validation
 
 - [x] Add rendered locale generate command
   - Note: completed on 2026-05-13. Added `linguini generate` colorized human-readable output that renders every configured locale across enum variants and representative numeric plural values.
   - Evidence: crates/linguini-cli/src/project/test_data; crates/linguini-cli/tests/cli.rs; `cargo test -p linguini-cli`
 - [ ] Test in a TypeScript app
-  - Note:
-- [ ] Test in a JavaScript app
-  - Note:
-- [ ] Test in a Rust app
   - Note:
 - [ ] Test adding a second locale
   - Note:
@@ -987,8 +965,6 @@ Checkpoint acceptance:
 Checkpoint acceptance:
 
 - [ ] Real TS project can use generated Linguini output
-  - Note:
-- [ ] Real Rust project can use generated Linguini output
   - Note:
 - [ ] Developer can add missing locale messages via LSP quick fixes
   - Note:

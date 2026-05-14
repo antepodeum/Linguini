@@ -16,7 +16,8 @@ It provides:
 - project scaffolding and locale-management tooling
 - syntax highlighting
 - an LSP server
-- code generation for TypeScript, JavaScript, and Rust
+- code generation for TypeScript
+- a TypeScript runtime integration library for locale detection, localized URLs, server middleware, and rich text interpolation
 - later-stage package management for reusable localization resources
 
 The output must be native target-language code. Generated applications must not parse Linguini files at runtime.
@@ -98,8 +99,6 @@ crates/
   linguini-cldr-macros/
   linguini-ir/
   linguini-codegen-ts/
-  linguini-codegen-js/
-  linguini-codegen-rust/
   linguini-format/
   linguini-lsp/
   linguini-package/
@@ -120,8 +119,6 @@ Responsibilities:
 | `linguini-cldr-macros`  | procedural macros for compiled CLDR Rust table output  |
 | `linguini-ir`           | target-independent localization IR                     |
 | `linguini-codegen-ts`   | TypeScript output                                      |
-| `linguini-codegen-js`   | JavaScript output                                      |
-| `linguini-codegen-rust` | Rust output                                            |
 | `linguini-format`       | `.lqs` and `.lgl` formatter                            |
 | `linguini-lsp`          | language server                                        |
 | `linguini-package`      | package import/export and registry support             |
@@ -315,7 +312,6 @@ Doc comments must be available in:
 - LSP hover
 - LSP completion details
 - generated TypeScript declarations
-- generated Rust documentation comments
 
 ### 5.3 Enums
 
@@ -837,11 +833,11 @@ IR must be fully resolved:
 
 ### 11.1 Targets
 
-Initial targets:
+Initial target:
 
 - TypeScript
-- JavaScript
-- Rust
+
+JavaScript and Rust code generation are deferred and are not part of the current implementation requirements.
 
 ### 11.2 TypeScript output
 
@@ -888,6 +884,7 @@ export default lgl;
 import ru from "./locales/ru";
 
 export type Linguini = typeof ru;
+export const locales: readonly ["ru"];
 export function createLinguini(language: "ru"): Linguini
 export function createLinguiniProvider(options: {
   resolveLanguage: () => "ru";
@@ -895,28 +892,62 @@ export function createLinguiniProvider(options: {
 export const lgl: Linguini
 ```
 
-The public generated API must be structured so application code can switch the active output language by changing one locale source variable or provider, without changing every message call site. For example, a SvelteKit application must be able to connect that source variable to cookies, route data, or the UI language, while user code continues to call `lgl.delivered(...)` or another generated facade method. The same principle applies to JavaScript and Rust targets: locale selection belongs at the generated facade/provider boundary, not in every message call.
+The public generated API must be structured so application code can switch the active output language by changing one locale source variable or provider, without changing every message call site. For example, a SvelteKit application must be able to connect that source variable to cookies, route data, or the UI language, while user code continues to call `lgl.delivered(...)` or another generated facade method. Locale selection belongs at the generated facade/provider boundary, not in every message call.
 
-### 11.3 JavaScript output
+Generated TypeScript must also be shaped so a separate Linguini TypeScript runtime library can wrap it without rewriting generated message modules. The generated package must export enough static metadata and stable hooks for that library:
 
-Generated output:
+- `locales`: a readonly array of all available locale tags, in deterministic order;
+- `baseLocale`: the configured default locale;
+- locale module imports or loaders that the runtime can resolve by locale;
+- a stable locale provider contract used by `getLocale()` and generated message facades;
+- message functions that can be called through the current locale context without adding locale arguments at every call site.
 
-- ESM by default
-- optional CommonJS
-- no TypeScript dependency
-- JSDoc types optional
+### 11.3 TypeScript runtime integration library
 
-### 11.4 Rust output
+The TypeScript generator must be compatible with a separate framework-aware runtime library that provides Paraglide-style application integration.
 
-Generated output:
+The runtime library must be able to use generated metadata and message modules to provide:
 
-- Rust module tree
-- typed enums
-- message functions
-- no heap allocation when static `&'static str` is sufficient
-- `String` only when interpolation is required
+- `locales`: all available locales exported from generated output;
+- `baseLocale`: the configured fallback locale;
+- `getLocale()` and `setLocale()` or an equivalent locale-source API;
+- `localizeHref(href, options?)`, converting paths between locales, for example `/en/about` to `/ru/about`;
+- `shouldRedirect(requestOrLocation, options?)`, reporting when navigation should be resynchronized to the active locale URL;
+- `getTextDirection(locale?)`, returning `ltr` or `rtl` for the current or supplied locale;
+- a rich-text `<Trans>` component API for component interpolation, such as links or buttons inside translated text;
+- a Vite plugin that watches Linguini source files and regenerates output when translations change;
+- framework adapters, including Svelte/SvelteKit bindings, without changing generated locale module internals.
 
-### 11.5 Optimization requirements
+Locale detection must be configurable as an ordered strategy chain. The default chain is:
+
+```ts
+["url", "cookie", "preferredLanguage", "localStorage", "baseLocale"]
+```
+
+The order determines precedence. Each detector must be optional, environment-aware, and skipped when unavailable. The runtime must support at least:
+
+- `url`: locale prefix or route parameter;
+- `cookie`: persisted locale cookie;
+- `preferredLanguage`: `Accept-Language` on the server or `navigator.languages` in the browser;
+- `localStorage`: persisted browser locale;
+- `baseLocale`: final fallback.
+
+Localized URL support must be driven by generated locale metadata and must not require user-authored route tables for basic locale-prefix routing. The runtime must expose enough configuration to support non-prefixed base locales and custom URL patterns later.
+
+The Vite plugin must be framework-agnostic. During development it must watch `.lqs`, `.lgl`, and relevant `linguini.toml` files, regenerate TypeScript output after changes, and trigger the Vite module graph updates needed for locale HMR.
+
+Server middleware must detect the locale from each request and provide a per-request locale context so `getLocale()` and generated message facade calls resolve the correct locale during concurrent requests. The default Node/server implementation should use `AsyncLocalStorage`. The runtime must also provide a `disableAsyncLocalStorage` option for edge and serverless environments where that API is unavailable or unnecessary.
+
+For SvelteKit and static-site generation, the runtime adapter must:
+
+- integrate with server middleware/hooks;
+- replace `%lang%` and `%dir%` placeholders in `app.html` with the current language and text direction;
+- generate locale switcher links that allow static builds to discover all localized pages;
+- keep generated message calls usable in components without passing the locale into every call.
+
+The `<Trans>` component must support rich text and component interpolation while preserving type safety for message parameters. The message source format may continue to produce plain strings for normal calls, but generated metadata or helper output must be sufficient for the runtime to map named rich-text placeholders to framework components.
+
+### 11.4 Optimization requirements
 
 Generated code must:
 
@@ -1133,7 +1164,7 @@ Required module boundaries:
 - CLDR plural parsing
 - semantic diagnostics
 - IR lowering
-- each target backend
+- TypeScript backend
 - LSP handlers
 
 ### 17.3 Code quality
@@ -1161,10 +1192,10 @@ Required test layers:
 | --------------------- | --------------------------------------------------------------------------------------------------- |
 | Unit tests            | lexer, parser, analyzer, CLDR plural parser, formatter, IR lowering, codegen helpers                |
 | Golden fixture tests  | `.lqs` and `.lgl` source files, expected AST summaries, expected diagnostics, expected IR summaries |
-| Snapshot tests        | diagnostics, formatted output, generated TypeScript, generated JavaScript, generated Rust           |
+| Snapshot tests        | diagnostics, formatted output, generated TypeScript                                                |
 | CLI integration tests | `init`, `check`, `build`, `fmt`, `fill`, `status`, `map update`, package commands                   |
 | LSP tests             | hover, completion, diagnostics, semantic tokens, formatting, code actions, quick fixes              |
-| Generated-code tests  | compile or run generated output for TypeScript, JavaScript, and Rust                                |
+| Generated-code tests  | compile or run generated output for TypeScript                                                      |
 | Regression tests      | one focused test for every fixed bug                                                                |
 
 Coverage requirements:
@@ -1182,8 +1213,6 @@ Generated output validation:
 | Target     | Required validation                                                         |
 | ---------- | --------------------------------------------------------------------------- |
 | TypeScript | generated fixtures must pass `tsc --noEmit` and runtime tests               |
-| JavaScript | generated fixtures must run under Node.js                                   |
-| Rust       | generated fixtures must pass `cargo check` and runtime tests where possible |
 
 Recommended Rust test tools:
 
@@ -1191,8 +1220,7 @@ Recommended Rust test tools:
 - `insta` for snapshots;
 - `assert_cmd`, `predicates`, and `tempfile` for CLI tests;
 - `proptest` for lexer/parser/analyzer invariants;
-- `trybuild` or fixture crates for generated Rust output;
-- Node.js test fixtures for generated JavaScript and TypeScript output.
+- Node.js test fixtures for generated TypeScript output.
 
 Completion rule:
 
@@ -1254,21 +1282,22 @@ Checkpoint result:
 - plural rules parse into IR
 - plural categories validate per locale
 
-### Stage 5: TypeScript and JavaScript codegen
+### Stage 5: TypeScript codegen and runtime integration
 
 Checkpoint result:
 
-- generated TS/JS functions run in a sample app
+- generated TS functions run in a sample app
+- generated output exposes locale metadata required by the runtime integration library
 - static messages allocate no dynamic structures
 - only used locale code is emitted
 
-### Stage 6: Rust codegen
+### Stage 6: TypeScript application integration
 
 Checkpoint result:
 
-- generated Rust crate compiles
-- message functions are typed
-- interpolation and plural selection work
+- detection strategy resolves locales in browser and server contexts
+- middleware provides concurrent request-safe locale context
+- `localizeHref`, `shouldRedirect`, and `<Trans>` work in a SvelteKit sample
 
 ### Stage 7: Formatter
 
