@@ -36,12 +36,34 @@ fn formats_locale_idempotently_and_preserves_ordinary_comments() {
 }
 
 #[test]
-fn preserves_raw_text_spacing_and_blank_lines() {
+fn preserves_raw_text_spacing_and_single_blank_line() {
     let source = "message = Hello  {name}  !\n\nnext = Bye\n";
     let formatted =
         format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
 
     assert_eq!(formatted, source);
+}
+
+#[test]
+fn collapses_multiple_blank_lines_to_one_blank_line() {
+    let source = "first = One\n\n\nsecond = Two\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(formatted, "first = One\n\nsecond = Two\n");
+}
+
+
+#[test]
+fn collapses_blank_lines_between_form_keyword_and_name() {
+    let source = "form \n\nDelivered(Plural, Gender) {\n  one {\n    male   => Доставлен\n    female => Доставлена\n    neuter => Доставлено\n    _      => Доставлено\n  }\n  _ => Доставлены\n}\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(
+        formatted,
+        "form Delivered(Plural, Gender) {\n  one {\n    male   => Доставлен\n    female => Доставлена\n    neuter => Доставлено\n    _      => Доставлено\n  }\n  _ => Доставлены\n}\n"
+    );
 }
 
 #[test]

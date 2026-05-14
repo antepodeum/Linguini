@@ -136,7 +136,7 @@
         "linguini.semanticHighlighting.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable semantic highlighting from `linguini lsp`. Disabled by default because the TextMate grammar provides stable syntax highlighting."
+          "description": "Enable semantic highlighting from `linguini lsp`."
         }
       }
     },

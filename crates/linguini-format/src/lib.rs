@@ -101,15 +101,19 @@ fn render_tokens(source: &str, tokens: &[Token], options: &FormatOptions) -> Str
     let mut pending_space = false;
     let mut brace_stack = Vec::new();
 
-    for token in tokens {
+    for (index, token) in tokens.iter().enumerate() {
         match &token.kind {
             TokenKind::Whitespace => {
                 pending_space = !at_line_start;
             }
             TokenKind::Newline => {
-                push_newline(&mut out);
-                at_line_start = true;
-                pending_space = false;
+                if should_collapse_newline(previous, next_significant_kind(tokens, index + 1)) {
+                    pending_space = !at_line_start;
+                } else {
+                    push_newline(&mut out);
+                    at_line_start = true;
+                    pending_space = false;
+                }
             }
             TokenKind::Comment(text) => {
                 push_indent(&mut out, indent, options, &mut at_line_start);
@@ -188,6 +192,23 @@ fn render_tokens(source: &str, tokens: &[Token], options: &FormatOptions) -> Str
     out = align_marked_match_arms(&out);
     out.push('\n');
     out
+}
+
+
+fn next_significant_kind(tokens: &[Token], start: usize) -> Option<&TokenKind> {
+    tokens
+        .iter()
+        .skip(start)
+        .find(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Newline))
+        .map(|token| &token.kind)
+}
+
+fn should_collapse_newline(
+    previous: Option<&TokenKind>,
+    next: Option<&TokenKind>,
+) -> bool {
+    matches!(previous, Some(TokenKind::Ident(keyword)) if keyword == "form")
+        && matches!(next, Some(TokenKind::Ident(_) | TokenKind::LocaleTag(_) | TokenKind::String(_)))
 }
 
 fn push_token_text(
@@ -280,6 +301,9 @@ fn push_indent(
 fn push_newline(out: &mut String) {
     while out.ends_with(' ') {
         out.pop();
+    }
+    if out.ends_with("\n\n") {
+        return;
     }
     out.push('\n');
 }
