@@ -67,6 +67,40 @@ fn semantic_tokens_include_keywords_comments_and_text() {
 }
 
 #[test]
+fn semantic_tokens_use_utf16_columns_for_non_ascii_text() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgl",
+        "linguini-locale",
+        "hello = Привет\n",
+    );
+
+    let tokens = semantic_tokens(&document);
+    let text_token = tokens
+        .iter()
+        .find(|token| token.token_type == 4)
+        .expect("raw text token");
+
+    assert_eq!(text_token.start, 7);
+    assert_eq!(text_token.length, 7);
+}
+
+#[test]
+fn semantic_tokens_mark_form_names_as_functions() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgl",
+        "linguini-locale",
+        "impl Fruit { apple { form nom(Plural) { one => яблоко } } }\n",
+    );
+    let (line, start) = document.position(document.text.find("nom").expect("nom offset"));
+
+    let tokens = semantic_tokens(&document);
+
+    assert!(tokens
+        .iter()
+        .any(|token| token.token_type == 7 && token.line == line && token.start == start));
+}
+
+#[test]
 fn references_find_matching_identifiers() {
     let document = LinguiniDocument::new(
         "file:///shop.lgl",

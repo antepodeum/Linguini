@@ -76,16 +76,16 @@ impl LinguiniDocument {
     pub fn position(&self, offset: usize) -> (u32, u32) {
         let offset = offset.min(self.text.len());
         let line = self.line_starts.partition_point(|start| *start <= offset) - 1;
-        (line as u32, (offset - self.line_starts[line]) as u32)
+        let line_start = self.line_starts[line];
+        let character = utf16_len(&self.text[line_start..offset]);
+        (line as u32, character as u32)
     }
 
     pub fn offset(&self, line: u32, character: u32) -> usize {
-        let line_start = self
-            .line_starts
-            .get(line as usize)
-            .copied()
-            .unwrap_or(self.text.len());
-        (line_start + character as usize).min(self.text.len())
+        let line = line as usize;
+        let line_start = self.line_starts.get(line).copied().unwrap_or(self.text.len());
+        let line_end = line_end(&self.text, &self.line_starts, line);
+        utf16_column_to_offset(&self.text, line_start, line_end, character as usize)
     }
 
     pub fn range(&self, span: Span) -> ((u32, u32), (u32, u32)) {
@@ -168,13 +168,17 @@ pub fn workspace_symbols(documents: impl IntoIterator<Item = LinguiniDocument>) 
 }
 
 pub fn semantic_tokens(document: &LinguiniDocument) -> Vec<LinguiniSemanticToken> {
+    let source_tokens = tokens(document);
     let mut raw = Vec::new();
-    for token in tokens(document) {
-        let Some(token_type) = semantic_token_type(&token.kind) else {
+    for (index, token) in source_tokens.iter().enumerate() {
+        let Some(token_type) = semantic_token_type(&source_tokens, index) else {
             continue;
         };
         let (line, start) = document.position(token.span.start);
-        let (_, end) = document.position(token.span.end);
+        let (end_line, end) = document.position(token.span.end);
+        if end_line != line {
+            continue;
+        }
         raw.push(LinguiniSemanticToken {
             line,
             start,
@@ -267,9 +271,11 @@ fn tokens(document: &LinguiniDocument) -> Vec<Token> {
     }
 }
 
-fn semantic_token_type(kind: &TokenKind) -> Option<u32> {
+fn semantic_token_type(tokens: &[Token], index: usize) -> Option<u32> {
+    let kind = &tokens.get(index)?.kind;
     match kind {
         TokenKind::Ident(value) if is_keyword(value) => Some(0),
+        TokenKind::Ident(_) if is_function_like_identifier(tokens, index) => Some(7),
         TokenKind::Ident(value) if value.chars().next().is_some_and(char::is_uppercase) => Some(2),
         TokenKind::Ident(_) | TokenKind::LocaleTag(_) => Some(1),
         TokenKind::String(_) | TokenKind::RawText(_) => Some(4),
@@ -277,6 +283,38 @@ fn semantic_token_type(kind: &TokenKind) -> Option<u32> {
         TokenKind::Equals | TokenKind::Arrow | TokenKind::At => Some(6),
         _ => None,
     }
+}
+
+fn is_function_like_identifier(tokens: &[Token], index: usize) -> bool {
+    matches!(next_significant_kind(tokens, index), Some(TokenKind::LParen))
+        || matches!(
+            previous_significant_kind(tokens, index),
+            Some(TokenKind::Ident(value)) if matches!(value.as_str(), "fn" | "form")
+        )
+}
+
+fn previous_significant_kind(tokens: &[Token], index: usize) -> Option<&TokenKind> {
+    tokens[..index]
+        .iter()
+        .rev()
+        .find(|token| !is_trivia(&token.kind))
+        .map(|token| &token.kind)
+}
+
+fn next_significant_kind(tokens: &[Token], index: usize) -> Option<&TokenKind> {
+    tokens
+        .get(index + 1..)
+        .unwrap_or(&[])
+        .iter()
+        .find(|token| !is_trivia(&token.kind))
+        .map(|token| &token.kind)
+}
+
+fn is_trivia(kind: &TokenKind) -> bool {
+    matches!(
+        kind,
+        TokenKind::Whitespace | TokenKind::Newline | TokenKind::Comment(_) | TokenKind::DocComment(_)
+    )
 }
 
 fn base_keywords(kind: SourceKind) -> Vec<String> {
@@ -317,6 +355,37 @@ fn word_at(source: &str, offset: usize) -> Option<String> {
 
 fn is_word_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
+}
+
+fn utf16_len(text: &str) -> usize {
+    text.chars().map(|ch| ch.len_utf16()).sum()
+}
+
+fn utf16_column_to_offset(source: &str, line_start: usize, line_end: usize, column: usize) -> usize {
+    let mut units = 0usize;
+    for (relative_offset, ch) in source[line_start..line_end].char_indices() {
+        let next_units = units + ch.len_utf16();
+        if next_units > column {
+            return line_start + relative_offset;
+        }
+        if next_units == column {
+            return line_start + relative_offset + ch.len_utf8();
+        }
+        units = next_units;
+    }
+    line_end
+}
+
+fn line_end(source: &str, line_starts: &[usize], line: usize) -> usize {
+    let mut end = line_starts.get(line + 1).copied().unwrap_or(source.len());
+    let bytes = source.as_bytes();
+    if end > 0 && bytes[end - 1] == b'\n' {
+        end -= 1;
+    }
+    if end > 0 && bytes[end - 1] == b'\r' {
+        end -= 1;
+    }
+    end
 }
 
 fn line_starts(source: &str) -> Vec<usize> {

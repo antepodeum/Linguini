@@ -3,10 +3,14 @@ use linguini_syntax::{
     parse_schema_with_recovery, ParseError, Span, Token, TokenKind, LOCALE_EXTENSION,
     SCHEMA_EXTENSION,
 };
+use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
 
 pub const CRATE_PURPOSE: &str = "Linguini source formatting";
+
+const ARROW_MARKER_START: char = '\u{E000}';
+const ARROW_MARKER_END: char = '\u{E001}';
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum SourceKind {
@@ -181,6 +185,7 @@ fn render_tokens(source: &str, tokens: &[Token], options: &FormatOptions) -> Str
     }
 
     trim_trailing_blank_lines(&mut out);
+    out = align_marked_match_arms(&out);
     out.push('\n');
     out
 }
@@ -196,22 +201,58 @@ fn push_token_text(
     previous: Option<&TokenKind>,
     placeholder_brace: bool,
 ) {
-    let text = token_source(source, token);
+    let source_text = token_source(source, token);
+    let text = rendered_token_text(source_text, &token.kind);
     if text.is_empty() {
         return;
     }
 
-    push_indent(out, indent, options, at_line_start);
+    if should_preserve_line_start(&token.kind) && *at_line_start {
+        *at_line_start = false;
+    } else {
+        push_indent(out, indent, options, at_line_start);
+    }
 
-    if should_space_before(previous, &token.kind, *pending_space, placeholder_brace)
-        && !out.ends_with([' ', '\n'])
+    if should_space_before(
+        previous,
+        &token.kind,
+        text.as_ref(),
+        *pending_space,
+        placeholder_brace,
+    ) && !out.ends_with([' ', '\n'])
     {
         out.push(' ');
     }
 
-    out.push_str(text.trim());
+    if matches!(token.kind, TokenKind::Arrow) {
+        out.push(ARROW_MARKER_START);
+        out.push_str(text.as_ref());
+        out.push(ARROW_MARKER_END);
+    } else {
+        out.push_str(text.as_ref());
+    }
+
     *pending_space = false;
     *at_line_start = false;
+}
+
+fn rendered_token_text<'a>(source_text: &'a str, kind: &TokenKind) -> Cow<'a, str> {
+    if should_preserve_token_source(kind) {
+        Cow::Borrowed(source_text)
+    } else {
+        Cow::Borrowed(source_text.trim())
+    }
+}
+
+fn should_preserve_token_source(kind: &TokenKind) -> bool {
+    matches!(
+        kind,
+        TokenKind::RawText(_) | TokenKind::String(_) | TokenKind::TripleQuote
+    )
+}
+
+fn should_preserve_line_start(kind: &TokenKind) -> bool {
+    matches!(kind, TokenKind::RawText(_) | TokenKind::TripleQuote)
 }
 
 fn token_source<'a>(source: &'a str, token: &Token) -> &'a str {
@@ -240,9 +281,7 @@ fn push_newline(out: &mut String) {
     while out.ends_with(' ') {
         out.pop();
     }
-    if !out.ends_with('\n') {
-        out.push('\n');
-    }
+    out.push('\n');
 }
 
 fn trim_trailing_blank_lines(out: &mut String) {
@@ -254,6 +293,7 @@ fn trim_trailing_blank_lines(out: &mut String) {
 fn should_space_before(
     previous: Option<&TokenKind>,
     current: &TokenKind,
+    current_text: &str,
     pending: bool,
     placeholder_brace: bool,
 ) -> bool {
@@ -263,9 +303,13 @@ fn should_space_before(
 
     if matches!(
         current,
-        TokenKind::Comma | TokenKind::Colon | TokenKind::RParen | TokenKind::Dot
+        TokenKind::Comma | TokenKind::Colon | TokenKind::LParen | TokenKind::RParen | TokenKind::Dot
     ) || matches!(previous, TokenKind::LParen | TokenKind::Dot | TokenKind::At)
     {
+        return false;
+    }
+
+    if current_text.chars().next().is_some_and(char::is_whitespace) {
         return false;
     }
 
@@ -298,6 +342,77 @@ fn should_space_before(
                     | TokenKind::String(_)
                     | TokenKind::RawText(_)
             )
+}
+
+fn align_marked_match_arms(input: &str) -> String {
+    let mut output = Vec::new();
+    let mut group = Vec::new();
+
+    for line in input.lines() {
+        if line.contains(ARROW_MARKER_START) {
+            group.push(line.to_owned());
+        } else {
+            flush_arm_group(&mut output, &mut group);
+            output.push(remove_arrow_markers(line));
+        }
+    }
+
+    flush_arm_group(&mut output, &mut group);
+    output.join("\n")
+}
+
+fn flush_arm_group(output: &mut Vec<String>, group: &mut Vec<String>) {
+    if group.is_empty() {
+        return;
+    }
+
+    let max_before_width = group
+        .iter()
+        .filter_map(|line| marked_arrow_bounds(line).map(|(start, _)| display_width(line[..start].trim_end())))
+        .max()
+        .unwrap_or(0);
+
+    output.extend(
+        group
+            .drain(..)
+            .map(|line| align_marked_arm_line(&line, max_before_width)),
+    );
+}
+
+fn align_marked_arm_line(line: &str, max_before_width: usize) -> String {
+    let Some((start, end)) = marked_arrow_bounds(line) else {
+        return remove_arrow_markers(line);
+    };
+
+    let before = line[..start].trim_end();
+    let after = line[end..].trim_start();
+    let padding = max_before_width.saturating_sub(display_width(before)) + 1;
+
+    let mut aligned = String::new();
+    aligned.push_str(before);
+    aligned.push_str(&" ".repeat(padding));
+    aligned.push_str("=>");
+    if !after.is_empty() {
+        aligned.push(' ');
+        aligned.push_str(after);
+    }
+    aligned
+}
+
+fn marked_arrow_bounds(line: &str) -> Option<(usize, usize)> {
+    let start = line.find(ARROW_MARKER_START)?;
+    let arrow_start = start + ARROW_MARKER_START.len_utf8();
+    let marker_end = line[arrow_start..].find(ARROW_MARKER_END)? + arrow_start;
+    Some((start, marker_end + ARROW_MARKER_END.len_utf8()))
+}
+
+fn remove_arrow_markers(line: &str) -> String {
+    line.replace(ARROW_MARKER_START, "")
+        .replace(ARROW_MARKER_END, "")
+}
+
+fn display_width(text: &str) -> usize {
+    text.chars().count()
 }
 
 #[cfg(test)]

@@ -7,11 +7,11 @@ impl Fruit {
     form nom(Plural) {
       one => яблоко
       few => яблока
-      _ => яблок
+      _   => яблок
     }
     form gen(Plural) {
       one => яблока
-      _ => яблок
+      _   => яблок
     }
     display {
       short = ябл.
@@ -24,11 +24,11 @@ impl Fruit {
     form nom(Plural) {
       one => груша
       few => груши
-      _ => груш
+      _   => груш
     }
     form gen(Plural) {
       one => груши
-      _ => груш
+      _   => груш
     }
   }
   orange {
@@ -37,21 +37,21 @@ impl Fruit {
     form nom(Plural) {
       one => апельсин
       few => апельсина
-      _ => апельсинов
+      _   => апельсинов
     }
     form gen(Plural) {
       one => апельсина
-      _ => апельсинов
+      _   => апельсинов
     }
   }
 }
 
 form Delivered(Plural, Gender) {
   one {
-    male => Доставлен
+    male   => Доставлен
     female => Доставлена
     neuter => Доставлено
-    _ => Доставлено
+    _      => Доставлено
   }
   _ => Доставлены
 }
@@ -59,19 +59,19 @@ form Delivered(Plural, Gender) {
 form SizeAdj(Size, Plural, Gender) {
   small {
     one {
-      male => маленький
+      male   => маленький
       female => маленькая
       neuter => маленькое
-      _ => маленький
+      _      => маленький
     }
     _ => маленьких
   }
   big {
     one {
-      male => большой
+      male   => большой
       female => большая
       neuter => большое
-      _ => большой
+      _      => большой
     }
     _ => больших
   }

@@ -135,7 +135,7 @@
         },
         "linguini.semanticHighlighting.enabled": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Enable semantic highlighting from `linguini lsp`. Disabled by default because the TextMate grammar provides stable syntax highlighting."
         }
       }
@@ -143,11 +143,11 @@
     "configurationDefaults": {
       "[linguini-schema]": {
         "editor.defaultFormatter": "linguini.linguini-vscode",
-        "editor.semanticHighlighting.enabled": false
+        "editor.semanticHighlighting.enabled": true
       },
       "[linguini-locale]": {
         "editor.defaultFormatter": "linguini.linguini-vscode",
-        "editor.semanticHighlighting.enabled": false
+        "editor.semanticHighlighting.enabled": true
       }
     },
     "semanticTokenScopes": [

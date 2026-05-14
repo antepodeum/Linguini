@@ -22,7 +22,7 @@ fn formats_schema_idempotently_and_preserves_doc_comments() {
 
 #[test]
 fn formats_locale_idempotently_and_preserves_ordinary_comments() {
-    let source = "enum Fruit{apple,pear}\n// keep me\nimpl Fruit{\napple{\nform nom(Plural){\none=>яблоко\n_=>яблок\n}\n}\n}\n";
+    let source = "enum Fruit{apple,pear}\n// keep me\nimpl Fruit{\napple{\nform nom (Plural){\none=>яблоко\n_=>яблок\n}\n}\n}\n";
     let formatted =
         format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
     let second = format_source(SourceKind::Locale, &formatted, &FormatOptions::default())
@@ -30,9 +30,30 @@ fn formats_locale_idempotently_and_preserves_ordinary_comments() {
 
     assert_eq!(
         formatted,
-        "enum Fruit { apple, pear }\n// keep me\nimpl Fruit {\n  apple {\n    form nom(Plural) {\n      one => яблоко\n      _ => яблок\n    }\n  }\n}\n"
+        "enum Fruit { apple, pear }\n// keep me\nimpl Fruit {\n  apple {\n    form nom(Plural) {\n      one => яблоко\n      _   => яблок\n    }\n  }\n}\n"
     );
     assert_eq!(formatted, second);
+}
+
+#[test]
+fn preserves_raw_text_spacing_and_blank_lines() {
+    let source = "message = Hello  {name}  !\n\nnext = Bye\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(formatted, source);
+}
+
+#[test]
+fn aligns_consecutive_match_arms_by_text_column() {
+    let source = "form case(Plural){\none=>One\nother_long=>Many\n_=>Fallback\n}\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(
+        formatted,
+        "form case(Plural) {\n  one        => One\n  other_long => Many\n  _          => Fallback\n}\n"
+    );
 }
 
 #[test]
