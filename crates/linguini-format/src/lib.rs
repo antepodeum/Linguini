@@ -99,6 +99,7 @@ fn render_tokens(source: &str, tokens: &[Token], options: &FormatOptions) -> Str
     let mut at_line_start = true;
     let mut previous: Option<&TokenKind> = None;
     let mut pending_space = false;
+    let mut paren_depth = 0usize;
     let mut brace_stack = Vec::new();
 
     for (index, token) in tokens.iter().enumerate() {
@@ -107,7 +108,11 @@ fn render_tokens(source: &str, tokens: &[Token], options: &FormatOptions) -> Str
                 pending_space = !at_line_start;
             }
             TokenKind::Newline => {
-                if should_collapse_newline(previous, next_significant_kind(tokens, index + 1)) {
+                if should_collapse_newline(
+                    previous,
+                    next_significant_kind(tokens, index + 1),
+                    paren_depth,
+                ) {
                     pending_space = !at_line_start;
                 } else {
                     push_newline(&mut out);
@@ -170,6 +175,34 @@ fn render_tokens(source: &str, tokens: &[Token], options: &FormatOptions) -> Str
                     indent += 1;
                 }
             }
+            TokenKind::LParen => {
+                push_token_text(
+                    source,
+                    token,
+                    &mut out,
+                    indent,
+                    options,
+                    &mut at_line_start,
+                    &mut pending_space,
+                    previous,
+                    *brace_stack.last().unwrap_or(&false),
+                );
+                paren_depth += 1;
+            }
+            TokenKind::RParen => {
+                paren_depth = paren_depth.saturating_sub(1);
+                push_token_text(
+                    source,
+                    token,
+                    &mut out,
+                    indent,
+                    options,
+                    &mut at_line_start,
+                    &mut pending_space,
+                    previous,
+                    *brace_stack.last().unwrap_or(&false),
+                );
+            }
             _ => push_token_text(
                 source,
                 token,
@@ -206,9 +239,55 @@ fn next_significant_kind(tokens: &[Token], start: usize) -> Option<&TokenKind> {
 fn should_collapse_newline(
     previous: Option<&TokenKind>,
     next: Option<&TokenKind>,
+    paren_depth: usize,
 ) -> bool {
-    matches!(previous, Some(TokenKind::Ident(keyword)) if keyword == "form")
-        && matches!(next, Some(TokenKind::Ident(_) | TokenKind::LocaleTag(_) | TokenKind::String(_)))
+    let (Some(previous), Some(next)) = (previous, next) else {
+        return false;
+    };
+
+    if is_hard_layout_boundary(previous) || is_hard_layout_boundary(next) {
+        return false;
+    }
+
+    if paren_depth > 0 {
+        return true;
+    }
+
+    is_declaration_keyword(previous) && is_name_like(next)
+        || is_name_like(previous)
+            && matches!(next, TokenKind::LParen | TokenKind::LBrace | TokenKind::Equals)
+        || is_annotation_target(previous) && matches!(next, TokenKind::At)
+        || matches!(previous, TokenKind::RParen) && matches!(next, TokenKind::LBrace | TokenKind::At)
+        || matches!(
+            previous,
+            TokenKind::Equals | TokenKind::Colon | TokenKind::Comma | TokenKind::Dot | TokenKind::At
+        ) && is_name_like(next)
+}
+
+fn is_hard_layout_boundary(kind: &TokenKind) -> bool {
+    matches!(
+        kind,
+        TokenKind::Comment(_)
+            | TokenKind::DocComment(_)
+            | TokenKind::RawText(_)
+            | TokenKind::TripleQuote
+    )
+}
+
+fn is_declaration_keyword(kind: &TokenKind) -> bool {
+    matches!(
+        kind,
+        TokenKind::Ident(keyword)
+            if matches!(keyword.as_str(), "enum" | "type" | "impl" | "fn" | "form" | "override")
+    )
+}
+
+fn is_name_like(kind: &TokenKind) -> bool {
+    matches!(kind, TokenKind::Ident(_) | TokenKind::LocaleTag(_) | TokenKind::String(_))
+}
+
+fn is_annotation_target(kind: &TokenKind) -> bool {
+    is_name_like(kind) || matches!(kind, TokenKind::RParen)
 }
 
 fn push_token_text(

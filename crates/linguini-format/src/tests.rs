@@ -53,16 +53,44 @@ fn collapses_multiple_blank_lines_to_one_blank_line() {
     assert_eq!(formatted, "first = One\n\nsecond = Two\n");
 }
 
-
 #[test]
-fn collapses_blank_lines_between_form_keyword_and_name() {
-    let source = "form \n\nDelivered(Plural, Gender) {\n  one {\n    male   => Доставлен\n    female => Доставлена\n    neuter => Доставлено\n    _      => Доставлено\n  }\n  _ => Доставлены\n}\n";
+fn collapses_structural_newlines_in_form_headers_and_arguments() {
+    let source = "form \n\nDelivered(\n  Plural,\n  Gender\n) {\n  one {\n    male   => Доставлен\n    female => Доставлена\n    neuter => Доставлено\n    _      => Доставлено\n  }\n  _ => Доставлены\n}\n";
     let formatted =
         format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
 
     assert_eq!(
         formatted,
         "form Delivered(Plural, Gender) {\n  one {\n    male   => Доставлен\n    female => Доставлена\n    neuter => Доставлено\n    _      => Доставлено\n  }\n  _ => Доставлены\n}\n"
+    );
+}
+
+
+#[test]
+fn collapses_structural_newlines_in_schema_headers_and_arguments() {
+    let source = "type \nUserId \n= \nString\n\ndelivery\n(\n  count\n  :\n  Number\n)\n";
+    let formatted =
+        format_source(SourceKind::Schema, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(formatted, "type UserId = String\n\ndelivery(count: Number)\n");
+}
+
+
+#[test]
+fn collapses_structural_newlines_around_annotations() {
+    let schema = "type Money = Decimal\n  @\n  currency(\n    code\n    =\n    \"USD\"\n  )\n";
+    let formatted_schema =
+        format_source(SourceKind::Schema, schema, &FormatOptions::default()).expect("format");
+
+    assert_eq!(formatted_schema, "type Money = Decimal @currency(code = \"USD\")\n");
+
+    let locale = "price = Цена: {amount\n  @\n  currency(\n    code\n    =\n    \"USD\"\n  )}\n";
+    let formatted_locale =
+        format_source(SourceKind::Locale, locale, &FormatOptions::default()).expect("format");
+
+    assert_eq!(
+        formatted_locale,
+        "price = Цена: {amount @currency(code = \"USD\")}\n"
     );
 }
 
