@@ -8,7 +8,8 @@ VS Code support for Linguini schema (`.lgs`) and locale (`.lgl`) files.
 - TextMate grammars for declarations, selectors, interpolations, formatters, raw locale text, strings, comments, and punctuation.
 - Semantic token scope mappings for schema and locale files.
 - Language client activation through `vscode-languageclient/node`.
-- Document formatting requests routed to the Linguini language server.
+- LSP starts with `linguini lsp` by default.
+- Document formatting runs `linguini formatting` by default, sends the document text to stdin, and expects the formatted document on stdout.
 
 ## Local Development
 
@@ -31,14 +32,56 @@ VS Code support for Linguini schema (`.lgs`) and locale (`.lgl`) files.
    npm run compile
    ```
 
-4. Open this repository in VS Code, then press `F5` from `editors/vscode` to launch an Extension Development Host.
+4. Launch the Extension Development Host in one of two ways:
 
-5. If the binary is not available as `linguini` on `PATH`, set:
+   - Open this extension folder in VS Code and press `F5`. The launch config opens `sample-workspace` automatically.
+   - Or run:
 
-   ```json
-   {
-     "linguini.server.path": "${workspaceFolder}/target/debug/linguini"
-   }
+     ```sh
+     npm run open:dev
+     ```
+
+5. Open `sample-workspace/example.lgs` or `sample-workspace/en.lgl` in the Extension Development Host.
+
+6. Check LSP behavior through diagnostics/completion/hover provided by `linguini lsp`.
+
+7. Check formatting with `Format Document` / `Shift+Alt+F`. The extension runs:
+
+   ```sh
+   linguini formatting
    ```
 
-The extension starts the server with `linguini lsp` by default. Override `linguini.server.args` if your local binary uses different language-server arguments.
+   The current document is passed on stdin. The formatted document must be printed to stdout.
+
+If the binary is not available as `linguini` on `PATH`, set explicit paths in VS Code settings. Use your actual binary path, for example:
+
+```json
+{
+  "linguini.server.path": "/absolute/path/to/target/debug/linguini",
+  "linguini.server.args": ["lsp"],
+  "linguini.formatter.path": "/absolute/path/to/target/debug/linguini",
+  "linguini.formatter.args": ["formatting"]
+}
+```
+
+`${workspaceFolder}` is supported in these settings when that is more convenient.
+
+`linguini.formatter.args` supports `${file}`, `${workspaceFolder}`, and `${languageId}` placeholders if the CLI later needs file-aware arguments, for example:
+
+```json
+{
+  "linguini.formatter.args": ["formatting", "--stdin-filepath", "${file}"]
+}
+```
+
+## Dependency audit
+
+`@vscode/test-cli` was removed because its `mocha` dependency chain currently pulls audited vulnerable packages. Use the checked-in `.vscode/launch.json` or `npm run open:dev` for manual Extension Host testing.
+
+Useful checks:
+
+```sh
+npm run compile
+npm audit
+npm run audit:prod
+```

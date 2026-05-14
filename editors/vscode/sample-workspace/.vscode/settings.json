@@ -1,0 +1,18 @@
+{
+  "linguini.server.path": "linguini",
+  "linguini.server.args": [
+    "lsp"
+  ],
+  "linguini.formatting.args": [
+    "formatting"
+  ],
+  "linguini.semanticHighlighting.enabled": false,
+  "[linguini-schema]": {
+    "editor.defaultFormatter": "linguini.linguini-vscode",
+    "editor.semanticHighlighting.enabled": false
+  },
+  "[linguini-locale]": {
+    "editor.defaultFormatter": "linguini.linguini-vscode",
+    "editor.semanticHighlighting.enabled": false
+  }
+}

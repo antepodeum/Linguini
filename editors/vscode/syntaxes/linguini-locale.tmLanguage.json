@@ -13,22 +13,22 @@
       "include": "#declarations"
     },
     {
-      "include": "#placeholders"
-    },
-    {
-      "include": "#formatters"
+      "include": "#valueLines"
     },
     {
       "include": "#selectors"
     },
     {
-      "include": "#rawText"
+      "include": "#builtins"
     },
     {
       "include": "#operators"
     },
     {
       "include": "#punctuation"
+    },
+    {
+      "include": "#identifiers"
     }
   ],
   "repository": {
@@ -142,11 +142,40 @@
         }
       ]
     },
+    "valueLines": {
+      "patterns": [
+        {
+          "name": "meta.value.linguini.locale",
+          "begin": "=>|=",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.operator.assignment.linguini.locale"
+            }
+          },
+          "end": "$",
+          "patterns": [
+            {
+              "include": "#placeholders"
+            },
+            {
+              "include": "#formatters"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "name": "string.unquoted.raw-text.linguini.locale",
+              "match": "[^\\n{}]+"
+            }
+          ]
+        }
+      ]
+    },
     "placeholders": {
       "patterns": [
         {
           "name": "meta.interpolation.linguini.locale",
-          "begin": "\\{",
+          "begin": "\\{(?=[^\\n}]*\\})",
           "beginCaptures": {
             "0": {
               "name": "punctuation.section.interpolation.begin.linguini.locale"
@@ -163,12 +192,23 @@
               "include": "#formatters"
             },
             {
-              "name": "variable.parameter.linguini.locale",
-              "match": "\\b[a-z_][A-Za-z0-9_]*\\b"
+              "include": "#strings"
+            },
+            {
+              "name": "entity.name.function.call.linguini.locale",
+              "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()"
             },
             {
               "name": "support.type.linguini.locale",
               "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "variable.parameter.linguini.locale",
+              "match": "\\b[a-z_][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "constant.numeric.linguini.locale",
+              "match": "\\b\\d+(?:\\.\\d+)?\\b"
             },
             {
               "name": "punctuation.accessor.dot.linguini.locale",
@@ -183,7 +223,8 @@
               "match": "="
             },
             {
-              "include": "#strings"
+              "name": "punctuation.section.parameters.linguini.locale",
+              "match": "[()]"
             }
           ]
         }
@@ -218,22 +259,14 @@
         {
           "name": "variable.other.enummember.linguini.locale",
           "match": "\\b[a-z_][A-Za-z0-9_]*\\b(?=\\s*(?:=>|\\{))"
-        },
-        {
-          "name": "support.type.primitive.linguini.locale",
-          "match": "\\b(?:String|Number|Decimal|Date|Plural|Gender)\\b"
-        },
-        {
-          "name": "entity.name.type.reference.linguini.locale",
-          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
         }
       ]
     },
-    "rawText": {
+    "builtins": {
       "patterns": [
         {
-          "name": "string.unquoted.raw-text.linguini.locale",
-          "match": "(?<=\\s(?:=>|=))\\s*[^\\n{}]+"
+          "name": "support.type.primitive.linguini.locale",
+          "match": "\\b(?:String|Number|Decimal|Date|Plural|Gender)\\b"
         }
       ]
     },
@@ -262,6 +295,22 @@
         {
           "name": "punctuation.separator.comma.linguini.locale",
           "match": ","
+        },
+        {
+          "name": "punctuation.accessor.dot.linguini.locale",
+          "match": "\\."
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "entity.name.type.reference.linguini.locale",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        },
+        {
+          "name": "variable.other.member.linguini.locale",
+          "match": "\\b[a-z_][A-Za-z0-9_]*\\b"
         }
       ]
     }

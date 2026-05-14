@@ -1,0 +1,27 @@
+enum Fruit {
+  apple
+  pear
+  orange
+}
+
+enum Size {
+  small
+  big
+}
+
+type Money = Decimal @currency
+type ShortDate = Date @date(style = "short")
+
+/// Displayed on the product delivery confirmation card.
+delivery(fruit: Fruit, size: Size, count: Number)
+
+/// Shown near cart item count.
+counted(count: Number, fruit: Fruit)
+
+price(amount: Money, date: ShortDate)
+
+email_input {
+  label
+  placeholder
+  aria
+}
