@@ -8,7 +8,7 @@ Linguini is a compiled localization ecosystem.
 
 It provides:
 
-- a schema DSL for public localization contracts: `.lqs`
+- a schema DSL for public localization contracts: `.lgs`
 - a locale DSL for localized implementations: `.lgl`
 - a TOML project configuration file
 - CLDR-based plural and formatting support
@@ -119,7 +119,7 @@ Responsibilities:
 | `linguini-cldr-macros`  | procedural macros for compiled CLDR Rust table output  |
 | `linguini-ir`           | target-independent localization IR                     |
 | `linguini-codegen-ts`   | TypeScript output                                      |
-| `linguini-format`       | `.lqs` and `.lgl` formatter                            |
+| `linguini-format`       | `.lgs` and `.lgl` formatter                            |
 | `linguini-lsp`          | language server                                        |
 | `linguini-package`      | package import/export and registry support             |
 | `linguini-test-support` | fixtures, golden tests, fake projects                  |
@@ -143,8 +143,8 @@ linguini/
 linguini/
   schema/
     shop/
-      types.lqs
-      delivery.lqs
+      types.lgs
+      delivery.lgs
 
   locale/
     ru.lgl
@@ -173,8 +173,8 @@ linguini/
 Schema namespaces are derived from paths under `schema/`.
 
 ```txt
-schema/shop/delivery.lqs -> shop.delivery
-schema/shop/types.lqs    -> shop.types
+schema/shop/delivery.lgs -> shop.delivery
+schema/shop/types.lgs    -> shop.types
 ```
 
 Locale namespaces are derived from paths under `locale/`, excluding the final locale file.
@@ -279,7 +279,7 @@ warn_source_file_lines = 400
 
 ---
 
-## 5. Schema DSL `.lqs`
+## 5. Schema DSL `.lgs`
 
 ### 5.1 Schema file contents
 
@@ -296,7 +296,7 @@ A schema file may define:
 
 Schema declarations may contain doc comments.
 
-```lqs
+```lgs
 /// Displayed on the product delivery confirmation card.
 /// The adjective must agree with the fruit name.
 delivery(fruit: Fruit, size: Size, count: Number)
@@ -315,7 +315,7 @@ Doc comments must be available in:
 
 ### 5.3 Enums
 
-```lqs
+```lgs
 enum Fruit {
   apple
   pear
@@ -330,7 +330,7 @@ enum Size {
 
 ### 5.4 Custom scalar types
 
-```lqs
+```lgs
 type Money = Decimal @currency
 type ShortDate = Date @date(style = "short")
 type Percent = Number @percent
@@ -340,7 +340,7 @@ Schema-level formatter annotations define default formatting behavior.
 
 ### 5.5 Message signatures
 
-```lqs
+```lgs
 delivery(fruit: Fruit, size: Size)
 counted(count: Number, fruit: Fruit)
 price(amount: Money)
@@ -348,7 +348,7 @@ price(amount: Money)
 
 ### 5.6 Grouped messages
 
-```lqs
+```lgs
 email_input {
   label
   placeholder
@@ -665,7 +665,7 @@ Formatting is resolved at compile time into generated target-language formatting
 
 Schema default:
 
-```lqs
+```lgs
 type Money = Decimal @currency
 ```
 
@@ -722,7 +722,7 @@ The parser must produce:
 
 - a syntax tree with spans
 - recoverable parse errors
-- separate ASTs for `.lqs` and `.lgl`
+- separate ASTs for `.lgs` and `.lgl`
 
 The parser must not perform type checking.
 
@@ -785,7 +785,7 @@ When a plural map is accessed without an explicit numeric argument, the analyzer
 
 Example:
 
-```lqs
+```lgs
 counted(count: Number, fruit: Fruit)
 ```
 
@@ -857,14 +857,17 @@ Example:
 
 ```ts
 // shared.ts
-export function selectBranch(key: string, branches: Record<string, string>): string
+export function selectBranch(
+  key: string,
+  branches: Record<string, string>,
+): string;
 
 // locales/ru.ts
 import { selectBranch } from "../shared";
 import { pluralRu } from "../plurals";
 
-export function delivery(fruit: Fruit, size: Size, count: number): string
-export function counted(count: number, fruit: Fruit): string
+export function delivery(fruit: Fruit, size: Size, count: number): string;
+export function counted(count: number, fruit: Fruit): string;
 
 export const email_input = {
   label: "Email",
@@ -885,11 +888,11 @@ import ru from "./locales/ru";
 
 export type Linguini = typeof ru;
 export const locales: readonly ["ru"];
-export function createLinguini(language: "ru"): Linguini
+export function createLinguini(language: "ru"): Linguini;
 export function createLinguiniProvider(options: {
   resolveLanguage: () => "ru";
-}): Linguini
-export const lgl: Linguini
+}): Linguini;
+export const lgl: Linguini;
 ```
 
 The public generated API must be structured so application code can switch the active output language by changing one locale source variable or provider, without changing every message call site. For example, a SvelteKit application must be able to connect that source variable to cookies, route data, or the UI language, while user code continues to call `lgl.delivered(...)` or another generated facade method. Locale selection belongs at the generated facade/provider boundary, not in every message call.
@@ -921,7 +924,7 @@ The runtime library must be able to use generated metadata and message modules t
 Locale detection must be configurable as an ordered strategy chain. The default chain is:
 
 ```ts
-["url", "cookie", "preferredLanguage", "localStorage", "baseLocale"]
+["url", "cookie", "preferredLanguage", "localStorage", "baseLocale"];
 ```
 
 The order determines precedence. Each detector must be optional, environment-aware, and skipped when unavailable. The runtime must support at least:
@@ -934,7 +937,7 @@ The order determines precedence. Each detector must be optional, environment-awa
 
 Localized URL support must be driven by generated locale metadata and must not require user-authored route tables for basic locale-prefix routing. The runtime must expose enough configuration to support non-prefixed base locales and custom URL patterns later.
 
-The Vite plugin must be framework-agnostic. During development it must watch `.lqs`, `.lgl`, and relevant `linguini.toml` files, regenerate TypeScript output after changes, and trigger the Vite module graph updates needed for locale HMR.
+The Vite plugin must be framework-agnostic. During development it must watch `.lgs`, `.lgl`, and relevant `linguini.toml` files, regenerate TypeScript output after changes, and trigger the Vite module graph updates needed for locale HMR.
 
 Server middleware must detect the locale from each request and provide a per-request locale context so `getLocale()` and generated message facade calls resolve the correct locale during concurrent requests. The default Node/server implementation should use `AsyncLocalStorage`. The runtime must also provide a `disableAsyncLocalStorage` option for edge and serverless environments where that API is unavailable or unnecessary.
 
@@ -1035,7 +1038,7 @@ Shows locale completion.
 
 ## 13. Formatter
 
-The formatter must support `.lqs` and `.lgl`.
+The formatter must support `.lgs` and `.lgl`.
 
 Required:
 
@@ -1089,7 +1092,7 @@ Quick-fix examples:
 
 Deliverables:
 
-- TextMate grammar for `.lqs`
+- TextMate grammar for `.lgs`
 - TextMate grammar for `.lgl`
 - VS Code extension
 - optional tree-sitter grammar
@@ -1191,8 +1194,8 @@ Required test layers:
 | Layer                 | Required coverage                                                                                   |
 | --------------------- | --------------------------------------------------------------------------------------------------- |
 | Unit tests            | lexer, parser, analyzer, CLDR plural parser, formatter, IR lowering, codegen helpers                |
-| Golden fixture tests  | `.lqs` and `.lgl` source files, expected AST summaries, expected diagnostics, expected IR summaries |
-| Snapshot tests        | diagnostics, formatted output, generated TypeScript                                                |
+| Golden fixture tests  | `.lgs` and `.lgl` source files, expected AST summaries, expected diagnostics, expected IR summaries |
+| Snapshot tests        | diagnostics, formatted output, generated TypeScript                                                 |
 | CLI integration tests | `init`, `check`, `build`, `fmt`, `fill`, `status`, `map update`, package commands                   |
 | LSP tests             | hover, completion, diagnostics, semantic tokens, formatting, code actions, quick fixes              |
 | Generated-code tests  | compile or run generated output for TypeScript                                                      |
@@ -1206,13 +1209,13 @@ Coverage requirements:
 - generated files and vendored files are excluded from coverage metrics;
 - every semantic rule in this specification must have at least one test fixture.
 
-Syntax fixtures must be behavior-complete, valid Linguini programs or intentionally invalid programs with a precise diagnostic purpose. Golden `.lqs` and `.lgl` fixtures must exercise complete declarations and realistic message bodies, not abbreviated fragments that only satisfy the current parser shape.
+Syntax fixtures must be behavior-complete, valid Linguini programs or intentionally invalid programs with a precise diagnostic purpose. Golden `.lgs` and `.lgl` fixtures must exercise complete declarations and realistic message bodies, not abbreviated fragments that only satisfy the current parser shape.
 
 Generated output validation:
 
-| Target     | Required validation                                                         |
-| ---------- | --------------------------------------------------------------------------- |
-| TypeScript | generated fixtures must pass `tsc --noEmit` and runtime tests               |
+| Target     | Required validation                                           |
+| ---------- | ------------------------------------------------------------- |
+| TypeScript | generated fixtures must pass `tsc --noEmit` and runtime tests |
 
 Recommended Rust test tools:
 
@@ -1262,7 +1265,7 @@ Checkpoint result:
 
 Checkpoint result:
 
-- `.lqs` and `.lgl` parse into ASTs
+- `.lgs` and `.lgl` parse into ASTs
 - diagnostics include spans
 - invalid syntax recovers where possible
 
@@ -1303,7 +1306,7 @@ Checkpoint result:
 
 Checkpoint result:
 
-- `.lqs` and `.lgl` formatting is idempotent
+- `.lgs` and `.lgl` formatting is idempotent
 - comments are preserved
 
 ### Stage 8: LSP and editor support

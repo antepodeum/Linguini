@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn registers_schema_fixture_symbols() {
-        let source = include_str!("../../../tests/fixtures/golden/schema/shop.lqs");
+        let source = include_str!("../../../tests/fixtures/golden/schema/shop.lgs");
         let schema = parse_schema(source).expect("schema parses");
         let (symbols, diagnostics) = build_schema_symbols(&schema);
 

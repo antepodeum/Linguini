@@ -4,7 +4,7 @@ use super::common::{assert_snapshot, render_tokens};
 
 #[test]
 fn lexes_schema_fixture_tokens() {
-    let source = include_str!("../../../../tests/fixtures/golden/schema/shop.lqs");
+    let source = include_str!("../../../../tests/fixtures/golden/schema/shop.lgs");
     let tokens = lex_schema(source).expect("schema fixture lexes");
     let kinds: Vec<_> = tokens.iter().map(|token| &token.kind).collect();
 
@@ -159,7 +159,7 @@ fn reports_unterminated_placeholder_with_recovered_prefix() {
 
 #[test]
 fn lexer_schema_snapshot_matches_committed_fixture() {
-    let source = include_str!("../../../../tests/fixtures/golden/schema/shop.lqs");
+    let source = include_str!("../../../../tests/fixtures/golden/schema/shop.lgs");
     let tokens = lex_schema(source).expect("schema fixture lexes");
 
     assert_snapshot(

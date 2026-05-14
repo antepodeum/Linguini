@@ -21,7 +21,7 @@ require_text() {
   fi
 }
 
-schema_fixture="tests/fixtures/golden/schema/shop.lqs"
+schema_fixture="tests/fixtures/golden/schema/shop.lgs"
 locale_fixture="tests/fixtures/golden/locale/ru.lgl"
 
 require_text "$schema_fixture" '^enum [A-Z][A-Za-z0-9_]* \{.*\}$' "schema enum declarations"
@@ -47,13 +47,13 @@ while IFS= read -r fixture; do
   if (( line_count < 8 )); then
     fail "$fixture is too small for a golden syntax fixture"
   fi
-done < <(find tests/fixtures/golden -type f \( -name '*.lqs' -o -name '*.lgl' \) | sort)
+done < <(find tests/fixtures/golden -type f \( -name '*.lgs' -o -name '*.lgl' \) | sort)
 
 while IFS= read -r fixture; do
   case "$fixture" in
     tests/fixtures/invalid/*) ;;
     *) fail "invalid diagnostic fixture is outside tests/fixtures/invalid: $fixture" ;;
   esac
-done < <(find tests/fixtures -type f \( -name 'broken-*.lgl' -o -name 'missing-*.lqs' \) | sort)
+done < <(find tests/fixtures -type f \( -name 'broken-*.lgl' -o -name 'missing-*.lgs' \) | sort)
 
 exit "$failed"

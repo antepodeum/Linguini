@@ -6,7 +6,7 @@ use std::path::Path;
 #[test]
 fn schema_ir_snapshot_is_stable() {
     let schema = parse_schema(include_str!(
-        "../../../tests/fixtures/golden/schema/shop.lqs"
+        "../../../tests/fixtures/golden/schema/shop.lgs"
     ))
     .expect("schema");
     let snapshot = format!("{:#?}", lower_schema(&schema));
@@ -32,7 +32,7 @@ fn locale_ir_snapshot_is_stable() {
 #[test]
 fn ir_reference_validation_accepts_golden_delivery_fixture() {
     let schema = parse_schema(include_str!(
-        "../../../tests/fixtures/golden/schema/shop.lqs"
+        "../../../tests/fixtures/golden/schema/shop.lgs"
     ))
     .expect("schema");
     let locale =

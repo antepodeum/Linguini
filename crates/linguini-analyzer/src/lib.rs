@@ -46,7 +46,7 @@ mod tests {
             .with_note("schema types must be declared before use")
             .with_quick_fix(QuickFix::hint("declare enum Color"));
 
-        let rendered = render_diagnostics("shop.lqs", "paint(color: Color)\n", &[diagnostic])
+        let rendered = render_diagnostics("shop.lgs", "paint(color: Color)\n", &[diagnostic])
             .expect("render diagnostics");
 
         assert_eq!(

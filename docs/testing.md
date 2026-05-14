@@ -20,7 +20,7 @@ Golden Linguini projects live under `tests/fixtures/golden`. Snapshot-style test
 stable output with committed expected files, and may move to `insta` once external dependencies are
 introduced.
 
-Golden `.lqs` and `.lgl` syntax fixtures must be complete valid Linguini programs. Small fragments
+Golden `.lgs` and `.lgl` syntax fixtures must be complete valid Linguini programs. Small fragments
 belong only under `tests/fixtures/invalid` when they exist to assert a precise diagnostic.
 
 Snapshot updates must pass `./scripts/review-snapshots.sh --check`. For interactive review, install

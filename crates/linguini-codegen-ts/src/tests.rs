@@ -8,7 +8,7 @@ use std::path::Path;
 #[test]
 fn generated_module_snapshot_is_stable() {
     let schema = parse_schema(include_str!(
-        "../../../tests/fixtures/golden/schema/shop.lqs"
+        "../../../tests/fixtures/golden/schema/shop.lgs"
     ))
     .expect("schema");
     let locale =

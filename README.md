@@ -4,9 +4,9 @@ Linguini is an experimental localization toolkit. Current repo state has Rust cr
 
 ## Current Workflow
 
-Write schema files in `.lqs`:
+Write schema files in `.lgs`:
 
-```lqs
+```lgs
 enum Fruit {
   apple
   pear

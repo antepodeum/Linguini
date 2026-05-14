@@ -68,7 +68,7 @@ fn check_command_lists_schema_and_locale_files() {
     let locale_dir = project.path().join("locales/shop/delivery");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("delivery.lqs"), "delivery()\n").expect("schema file");
+    fs::write(schema_dir.join("delivery.lgs"), "delivery()\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\n").expect("locale file");
 
     linguini()
@@ -77,7 +77,7 @@ fn check_command_lists_schema_and_locale_files() {
         .assert()
         .success()
         .stdout(contains("schema files:"))
-        .stdout(contains("schema/shop/delivery.lqs [shop.delivery]"))
+        .stdout(contains("schema/shop/delivery.lgs [shop.delivery]"))
         .stdout(contains("locale files:"))
         .stdout(contains("locales/shop/delivery/en.lgl [en:shop.delivery]"));
 }
@@ -93,7 +93,7 @@ fn check_command_reports_syntax_diagnostics_on_stderr() {
 
     let schema_dir = project.path().join("schema/shop");
     fs::create_dir_all(&schema_dir).expect("schema dir");
-    fs::write(schema_dir.join("broken.lqs"), "delivery(fruit: Fruit\n").expect("schema file");
+    fs::write(schema_dir.join("broken.lgs"), "delivery(fruit: Fruit\n").expect("schema file");
 
     linguini()
         .current_dir(project.path())
@@ -101,7 +101,7 @@ fn check_command_reports_syntax_diagnostics_on_stderr() {
         .assert()
         .failure()
         .stderr(contains("Error:"))
-        .stderr(contains("schema/shop/broken.lqs"))
+        .stderr(contains("schema/shop/broken.lgs"))
         .stderr(contains("schema syntax error"));
 }
 
@@ -118,7 +118,7 @@ fn check_command_reports_missing_messages_for_empty_locale_file() {
     let locale_dir = project.path().join("locales/shop/delivery");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("delivery.lqs"), "delivery()\n").expect("schema file");
+    fs::write(schema_dir.join("delivery.lgs"), "delivery()\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "").expect("locale file");
 
     linguini()
@@ -148,7 +148,7 @@ fn check_reports_missing_schema_messages_in_matching_locale_namespace() {
     let locale_dir = project.path().join("locales/shop");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("shop.lqs"), "delivery()\ncounted()\n").expect("schema file");
+    fs::write(schema_dir.join("shop.lgs"), "delivery()\ncounted()\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\n").expect("locale file");
 
     linguini()
@@ -175,7 +175,7 @@ fn check_requires_locales_to_follow_schema_namespace_directories() {
     let locale_dir = project.path().join("locales");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("shop.lqs"), "delivery()\n").expect("schema file");
+    fs::write(schema_dir.join("shop.lgs"), "delivery()\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\n").expect("locale file");
 
     linguini()
@@ -224,7 +224,7 @@ declaration = true
     let locale_dir = project.path().join("locales/shop");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("shop.lqs"), "delivery()\ncounted()\n").expect("schema file");
+    fs::write(schema_dir.join("shop.lgs"), "delivery()\ncounted()\n").expect("schema file");
     fs::write(
         locale_dir.join("en.lgl"),
         "delivery = Delivered\ncounted = Counted\n",
@@ -277,7 +277,7 @@ declaration = true
     let locale_dir = project.path().join("locales/shop");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("shop.lqs"), "delivery()\ncounted()\n").expect("schema file");
+    fs::write(schema_dir.join("shop.lgs"), "delivery()\ncounted()\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\n").expect("locale file");
 
     linguini()
@@ -308,7 +308,7 @@ fn build_command_generates_typescript_and_does_not_require_cldr_cache() {
     let locale_dir = project.path().join("locales/shop/delivery");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("delivery.lqs"), "delivery(count: Number)\n").expect("schema file");
+    fs::write(schema_dir.join("delivery.lgs"), "delivery(count: Number)\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "delivery = {count} deliveries\n").expect("locale file");
 
     let stale_file = project.path().join("src/generated/linguini/stale.ts");
@@ -350,7 +350,7 @@ fn generate_command_outputs_rendered_locale_matrix() {
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
     fs::write(
-        schema_dir.join("shop.lqs"),
+        schema_dir.join("shop.lgs"),
         "enum Fruit {\n  apple\n  pear\n}\ncounted(count: Number, fruit: Fruit)\n",
     )
     .expect("schema file");

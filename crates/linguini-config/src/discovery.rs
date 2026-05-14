@@ -61,7 +61,7 @@ fn collect_schema_files(
 
         if path.is_dir() {
             collect_schema_files(root, &path, files)?;
-        } else if path.extension().and_then(|extension| extension.to_str()) == Some("lqs") {
+        } else if path.extension().and_then(|extension| extension.to_str()) == Some("lgs") {
             files.push(SchemaFile {
                 namespace: schema_namespace(root, &path),
                 path,
@@ -144,7 +144,7 @@ mod tests {
     fn derives_schema_namespace_from_path() {
         let namespace = namespace_from_path(
             Path::new("linguini/schema"),
-            Path::new("linguini/schema/shop/delivery.lqs"),
+            Path::new("linguini/schema/shop/delivery.lgs"),
             true,
         );
 

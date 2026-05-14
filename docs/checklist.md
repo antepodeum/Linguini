@@ -97,12 +97,12 @@ Checkpoint acceptance:
 - [x] Add unit test structure for every core crate
   - Note: completed on 2026-05-13. Added crate-level unit test modules where missing and a gate that rejects workspace crates without unit test structure.
   - Evidence: scripts/check-unit-test-structure.sh; `./scripts/check-unit-test-structure.sh`; `cargo test --workspace`
-- [x] Add golden fixture directory for `.lqs` and `.lgl` projects
+- [x] Add golden fixture directory for `.lgs` and `.lgl` projects
   - Note: completed on 2026-05-12. Expanded schema and Russian locale golden fixtures to cover enums, formatter annotations, docs, forms, selector maps, plural-shaped maps, nested form attributes, helper functions, messages, placeholders, and grouped messages.
-  - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
+  - Evidence: tests/fixtures/golden/schema/shop.lgs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
 - [x] Add behavior-complete syntax fixtures
-  - Note: completed on 2026-05-13. Added a syntax fixture gate that verifies golden `.lqs` and `.lgl` fixtures cover complete declarations, messages, docs, selectors, plural-shaped branches, nested form attributes, placeholders, and formatter annotations.
-  - Evidence: scripts/check-syntax-fixtures.sh; tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `./scripts/check-syntax-fixtures.sh`; `cargo test -p linguini-syntax`
+  - Note: completed on 2026-05-13. Added a syntax fixture gate that verifies golden `.lgs` and `.lgl` fixtures cover complete declarations, messages, docs, selectors, plural-shaped branches, nested form attributes, placeholders, and formatter annotations.
+  - Evidence: scripts/check-syntax-fixtures.sh; tests/fixtures/golden/schema/shop.lgs; tests/fixtures/golden/locale/ru.lgl; `./scripts/check-syntax-fixtures.sh`; `cargo test -p linguini-syntax`
 - [x] Reject fragment-only syntax fixtures unless they are explicit invalid diagnostic fixtures
   - Note: completed on 2026-05-13. Golden syntax fixtures now have a minimum complete-program gate and diagnostic fragments are constrained to `tests/fixtures/invalid`.
   - Evidence: scripts/check-syntax-fixtures.sh; docs/testing.md; `./scripts/check-syntax-fixtures.sh`
@@ -130,9 +130,9 @@ Checkpoint acceptance:
 - [x] No implementation task can be marked complete without test evidence
   - Note: completed on 2026-05-13. Spec gate rejects completed checklist items without note and evidence blocks.
   - Evidence: scripts/check-spec-gates.sh; `./scripts/check-spec-gates.sh`
-- [x] `.lqs` and `.lgl` golden fixtures are complete realistic programs
+- [x] `.lgs` and `.lgl` golden fixtures are complete realistic programs
   - Note: completed on 2026-05-13. Syntax fixture gate checks the committed golden schema and locale fixtures cover complete realistic declarations and message bodies.
-  - Evidence: scripts/check-syntax-fixtures.sh; tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `./scripts/check-syntax-fixtures.sh`
+  - Evidence: scripts/check-syntax-fixtures.sh; tests/fixtures/golden/schema/shop.lgs; tests/fixtures/golden/locale/ru.lgl; `./scripts/check-syntax-fixtures.sh`
 - [x] CI runs the full required test suite
   - Note: completed on 2026-05-13. CI includes formatting, file-size, spec, unit, snapshot, CLI, and generated-output validation gates.
   - Evidence: .github/workflows/ci.yml; `./scripts/check-spec-gates.sh`
@@ -151,7 +151,7 @@ Checkpoint acceptance:
   - Note: completed on 2026-05-12. Added validation for required fields, default locale membership, and locale tag shape.
   - Evidence: crates/linguini-config/src/model.rs; `cargo test --workspace`
 - [x] Implement schema path discovery
-  - Note: completed on 2026-05-12. Added recursive `.lqs` discovery under the configured schema root.
+  - Note: completed on 2026-05-12. Added recursive `.lgs` discovery under the configured schema root.
   - Evidence: crates/linguini-config/src/discovery.rs; `cargo test --workspace`
 - [x] Implement locale path discovery
   - Note: completed on 2026-05-12. Added recursive `.lgl` discovery under the configured locale root.
@@ -224,9 +224,9 @@ Checkpoint acceptance:
 
 Checkpoint acceptance:
 
-- [x] Lexer handles `.lqs` examples
+- [x] Lexer handles `.lgs` examples
   - Note: completed on 2026-05-12. Schema golden fixture lexes with expected declaration tokens.
-  - Evidence: tests/fixtures/golden/schema/shop.lqs; `cargo test -p linguini-syntax`
+  - Evidence: tests/fixtures/golden/schema/shop.lgs; `cargo test -p linguini-syntax`
 - [x] Lexer handles `.lgl` examples
   - Note: completed on 2026-05-12. Locale golden fixture lexes with raw text output.
   - Evidence: tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
@@ -291,10 +291,10 @@ Checkpoint acceptance:
 
 - [x] All valid fixtures parse
   - Note: completed on 2026-05-12. Parser tests cover committed schema and locale golden fixtures.
-  - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
+  - Evidence: tests/fixtures/golden/schema/shop.lgs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
 - [x] Invalid fixtures produce diagnostics
   - Note: completed on 2026-05-12. Added invalid schema and locale fixtures with tests asserting parser diagnostics and strict parser failure.
-  - Evidence: tests/fixtures/invalid/schema/missing-message-paren.lqs; tests/fixtures/invalid/locale/broken-placeholder.lgl; `cargo test -p linguini-syntax`
+  - Evidence: tests/fixtures/invalid/schema/missing-message-paren.lgs; tests/fixtures/invalid/locale/broken-placeholder.lgl; `cargo test -p linguini-syntax`
 - [x] Parser does not require semantic information
   - Note: completed on 2026-05-12. Locale parser preserves selector, plural, formatter, call, and form syntax without resolving types, variants, or CLDR categories.
   - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; `cargo test -p linguini-syntax`
@@ -305,10 +305,10 @@ Checkpoint acceptance:
 
 - [x] Remove empty parentheses from parameterless grouped schema messages
   - Note: completed on 2026-05-14. Schema grouped message leaves now parse as bare identifiers while parameterized messages still require parentheses.
-  - Evidence: tests/fixtures/golden/schema/shop.lqs; crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
+  - Evidence: tests/fixtures/golden/schema/shop.lgs; crates/linguini-syntax/src/parser.rs; `cargo test -p linguini-syntax`
 - [x] Support inline PascalCase enum declarations
   - Note: completed on 2026-05-14. Schema and locale enum parsers accept comma-separated inline variants and the golden fixtures use PascalCase locale enum names.
-  - Evidence: tests/fixtures/golden/schema/shop.lqs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
+  - Evidence: tests/fixtures/golden/schema/shop.lgs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax`
 - [x] Replace locale noun `form` declarations with `impl`
   - Note: completed on 2026-05-14. Locale parser, IR lowering, generated data rendering, and golden fixtures now use `impl Fruit` for enum implementations.
   - Evidence: crates/linguini-syntax/src/parser/locale_parser.rs; crates/linguini-ir/src/lower.rs; tests/fixtures/golden/locale/ru.lgl; `cargo test -p linguini-syntax -p linguini-ir -p linguini-cli`
@@ -331,7 +331,7 @@ Checkpoint acceptance:
 Checkpoint acceptance:
 
 - [x] Migrated syntax fixtures parse and lower to IR
-  - Note: completed on 2026-05-14. Golden `.lqs` and `.lgl` fixtures use migrated syntax and have refreshed lexer, IR, and TypeScript snapshots.
+  - Note: completed on 2026-05-14. Golden `.lgs` and `.lgl` fixtures use migrated syntax and have refreshed lexer, IR, and TypeScript snapshots.
   - Evidence: tests/fixtures/golden/snapshots/lexer-schema.tokens; tests/fixtures/golden/snapshots/lexer-locale.tokens; tests/fixtures/golden/snapshots/ir-locale-ru.txt; `cargo test -p linguini-syntax -p linguini-ir`
 - [x] Generated TypeScript uses migrated dispatch semantics
   - Note: completed on 2026-05-14. Generated TypeScript emits nested dispatch helpers for typed forms and accepts direct numeric plural arguments at call sites.
@@ -838,7 +838,7 @@ Checkpoint acceptance:
 
 ## 15. Syntax highlighting
 
-- [ ] Create TextMate grammar for `.lqs`
+- [ ] Create TextMate grammar for `.lgs`
   - Note:
 - [ ] Create TextMate grammar for `.lgl`
   - Note:
@@ -851,7 +851,7 @@ Checkpoint acceptance:
 
 Checkpoint acceptance:
 
-- [ ] `.lqs` files highlight in VS Code
+- [ ] `.lgs` files highlight in VS Code
   - Note:
 - [ ] `.lgl` files highlight in VS Code
   - Note:

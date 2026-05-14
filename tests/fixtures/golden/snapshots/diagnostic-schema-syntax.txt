@@ -1,5 +1,5 @@
 Error: unknown type `Color`
-   ,-[ shop.lqs:1:14 ]
+   ,-[ shop.lgs:1:14 ]
    |
  1 | paint(color: Color)
    | ^^|^^        ^^|^^  

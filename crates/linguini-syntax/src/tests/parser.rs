@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn parses_schema_fixture() {
-    let source = include_str!("../../../../tests/fixtures/golden/schema/shop.lqs");
+    let source = include_str!("../../../../tests/fixtures/golden/schema/shop.lgs");
     let schema = parse_schema(source).expect("schema fixture parses");
 
     assert_eq!(schema.declarations.len(), 8);
@@ -36,7 +36,7 @@ fn parses_schema_fixture() {
 #[test]
 fn schema_parser_recovery_reports_invalid_fixture_diagnostics() {
     let source =
-        include_str!("../../../../tests/fixtures/invalid/schema/missing-message-paren.lqs");
+        include_str!("../../../../tests/fixtures/invalid/schema/missing-message-paren.lgs");
     let output = parse_schema_with_recovery(source);
 
     assert!(!output.errors.is_empty());

@@ -3,7 +3,7 @@ mod lexer;
 mod parser;
 mod token;
 
-pub const SCHEMA_EXTENSION: &str = "lqs";
+pub const SCHEMA_EXTENSION: &str = "lgs";
 pub const LOCALE_EXTENSION: &str = "lgl";
 
 pub use ast::{
