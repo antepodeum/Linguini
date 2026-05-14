@@ -16,7 +16,9 @@ linguini-analyzer = { path = "../linguini-analyzer" }
 linguini-cldr = { path = "../linguini-cldr" }
 linguini-codegen-ts = { path = "../linguini-codegen-ts" }
 linguini-config = { path = "../linguini-config" }
+linguini-format = { path = "../linguini-format" }
 linguini-ir = { path = "../linguini-ir" }
+linguini-lsp = { path = "../linguini-lsp" }
 linguini-syntax = { path = "../linguini-syntax" }
 
 [dev-dependencies]

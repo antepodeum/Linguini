@@ -1,6 +1,48 @@
-use super::CRATE_PURPOSE;
+use super::{format_source, FormatOptions, SourceKind, CRATE_PURPOSE};
 
 #[test]
 fn crate_has_unit_test_structure() {
     assert_eq!(CRATE_PURPOSE, "Linguini source formatting");
+}
+
+#[test]
+fn formats_schema_idempotently_and_preserves_doc_comments() {
+    let source = "/// Delivery label\ndelivery(count:Number)\nemail_input{\n/// Label\nlabel\n}\n";
+    let formatted =
+        format_source(SourceKind::Schema, source, &FormatOptions::default()).expect("format");
+    let second = format_source(SourceKind::Schema, &formatted, &FormatOptions::default())
+        .expect("format again");
+
+    assert_eq!(
+        formatted,
+        "/// Delivery label\ndelivery(count: Number)\nemail_input {\n  /// Label\n  label\n}\n"
+    );
+    assert_eq!(formatted, second);
+}
+
+#[test]
+fn formats_locale_idempotently_and_preserves_ordinary_comments() {
+    let source = "enum Fruit{apple,pear}\n// keep me\nimpl Fruit{\napple{\nform nom(Plural){\none=>яблоко\n_=>яблок\n}\n}\n}\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+    let second = format_source(SourceKind::Locale, &formatted, &FormatOptions::default())
+        .expect("format again");
+
+    assert_eq!(
+        formatted,
+        "enum Fruit { apple, pear }\n// keep me\nimpl Fruit {\n  apple {\n    form nom(Plural) {\n      one => яблоко\n      _ => яблок\n    }\n  }\n}\n"
+    );
+    assert_eq!(formatted, second);
+}
+
+#[test]
+fn refuses_invalid_source() {
+    let error = format_source(
+        SourceKind::Schema,
+        "delivery(count: Number\n",
+        &FormatOptions::default(),
+    )
+    .expect_err("invalid source");
+
+    assert!(!error.errors.is_empty());
 }

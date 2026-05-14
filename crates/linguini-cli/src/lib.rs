@@ -4,7 +4,9 @@ mod project;
 mod tests;
 
 use clap::{Args, Parser, Subcommand};
+use linguini_format::format_path_source;
 use std::fmt::{self, Display};
+use std::fs;
 use std::io;
 use std::path::PathBuf;
 
@@ -17,6 +19,7 @@ pub enum CliError {
     Args(clap::Error),
     Config(linguini_config::ConfigError),
     Diagnostics(String),
+    Format(linguini_format::FormatError),
     Io { path: PathBuf, source: io::Error },
 }
 
@@ -26,6 +29,7 @@ impl Display for CliError {
             Self::Args(error) => Display::fmt(error, f),
             Self::Config(error) => Display::fmt(error, f),
             Self::Diagnostics(output) => f.write_str(output),
+            Self::Format(error) => Display::fmt(error, f),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
         }
     }
@@ -64,6 +68,10 @@ enum CliCommand {
     Build,
     /// Generate rendered sample data for configured locales and enum variants
     Generate,
+    /// Format `.lgs` and `.lgl` files
+    Format(FormatArgs),
+    /// Start the Linguini language server over stdio
+    Lsp,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Args)]
@@ -73,6 +81,15 @@ pub(crate) struct FixArgs {
     pub(crate) all: bool,
     /// Fix ids printed by `linguini check`, for example `missing-messages:shop:ru`
     pub(crate) ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Args)]
+pub(crate) struct FormatArgs {
+    /// Check whether files are already formatted without writing changes
+    #[arg(long)]
+    pub(crate) check: bool,
+    /// Files to format. Defaults to discovered schema and locale files.
+    pub(crate) paths: Vec<PathBuf>,
 }
 
 pub fn run(
@@ -91,5 +108,68 @@ pub fn run(
         CliCommand::Fix(args) => project::fix_project(&root, &args),
         CliCommand::Build => build_project(&root),
         CliCommand::Generate => project::generate_project_data(&root),
+        CliCommand::Format(args) => format_project(&root, &args),
+        CliCommand::Lsp => {
+            linguini_lsp::run_stdio_blocking();
+            Ok(String::new())
+        }
+    }
+}
+
+fn format_project(root: &std::path::Path, args: &FormatArgs) -> CliResult<String> {
+    let paths = if args.paths.is_empty() {
+        let config_path = root.join(linguini_config::DEFAULT_CONFIG_FILE);
+        let config_source = fs::read_to_string(&config_path).map_err(|source| CliError::Io {
+            path: config_path,
+            source,
+        })?;
+        let config = linguini_config::parse_config(&config_source)?;
+        linguini_config::discover_schema_files(root.join(&config.paths.schema))?
+            .iter()
+            .map(|file| file.path.clone())
+            .chain(
+                linguini_config::discover_locale_files(root.join(&config.paths.locale))?
+                    .iter()
+                    .map(|file| file.path.clone()),
+            )
+            .collect()
+    } else {
+        args.paths.clone()
+    };
+
+    let mut changed = Vec::new();
+    for relative_path in paths {
+        let path = if relative_path.is_absolute() {
+            relative_path
+        } else {
+            root.join(relative_path)
+        };
+        let source = fs::read_to_string(&path).map_err(|source| CliError::Io {
+            path: path.clone(),
+            source,
+        })?;
+        let formatted = format_path_source(&path, &source).map_err(CliError::Format)?;
+        if formatted != source {
+            changed.push(path.strip_prefix(root).unwrap_or(&path).display().to_string());
+            if !args.check {
+                fs::write(&path, formatted).map_err(|source| CliError::Io {
+                    path: path.clone(),
+                    source,
+                })?;
+            }
+        }
+    }
+
+    if args.check && !changed.is_empty() {
+        return Err(CliError::Diagnostics(format!(
+            "format check failed:\n{}\n",
+            changed.join("\n")
+        )));
+    }
+
+    if changed.is_empty() {
+        Ok("format: ok\n".to_owned())
+    } else {
+        Ok(format!("formatted files:\n{}\n", changed.join("\n")))
     }
 }

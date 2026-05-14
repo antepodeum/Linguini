@@ -16,6 +16,8 @@ fn cli_argument_parser_is_clap_backed() {
     assert!(subcommands.contains(&"fix".to_owned()));
     assert!(subcommands.contains(&"build".to_owned()));
     assert!(subcommands.contains(&"generate".to_owned()));
+    assert!(subcommands.contains(&"format".to_owned()));
+    assert!(subcommands.contains(&"lsp".to_owned()));
     assert!(!subcommands.contains(&"cldr".to_owned()));
 }
 
@@ -50,6 +52,31 @@ fn check_lists_discovered_files() {
 
     assert!(output.contains("schema/shop/delivery.lgs [shop.delivery]"));
     assert!(output.contains("locales/shop/delivery/en.lgl [en:shop.delivery]"));
+}
+
+#[test]
+fn format_command_formats_discovered_project_files() {
+    let project = temp_project_dir("format_command_formats_discovered_project_files");
+    init_project(project.path()).expect("init project");
+
+    fs::write(project.path().join("schema/shop.lgs"), "delivery(count:Number)\n")
+        .expect("schema file");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(locale_dir.join("en.lgl"), "delivery={count} deliveries\n").expect("locale file");
+
+    let output = super::run(vec!["format".to_owned()], Ok(project.path().to_path_buf()))
+        .expect("format command");
+
+    assert!(output.contains("schema/shop.lgs"));
+    assert_eq!(
+        fs::read_to_string(project.path().join("schema/shop.lgs")).expect("schema"),
+        "delivery(count: Number)\n"
+    );
+    assert_eq!(
+        fs::read_to_string(locale_dir.join("en.lgl")).expect("locale"),
+        "delivery = {count} deliveries\n"
+    );
 }
 
 #[test]
