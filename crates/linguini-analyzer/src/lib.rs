@@ -74,7 +74,18 @@ mod tests {
             diagnostics[0].message,
             "locale is missing 1 schema message: `counted`"
         );
-        assert_eq!(diagnostics[0].quick_fixes.len(), 1);
+        assert_eq!(diagnostics[0].quick_fixes.len(), 2);
+        assert_eq!(
+            diagnostics[0]
+                .quick_fixes
+                .iter()
+                .map(|fix| fix.title.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "add missing locale message stubs",
+                "add locale message stub `counted`"
+            ]
+        );
     }
 
     #[test]
@@ -171,6 +182,8 @@ mod tests {
             "form `Fruit.nom` for enum `Fruit` is missing branch `pear`"
         );
         assert_eq!(diagnostics[0].related.len(), 1);
+        assert_eq!(diagnostics[0].quick_fixes.len(), 1);
+        assert_eq!(diagnostics[0].quick_fixes[0].title, "add branch `pear`");
     }
 
     #[test]
@@ -186,6 +199,8 @@ mod tests {
             diagnostics[0].message,
             "plural map `Fruit.nom` is missing required `other` branch"
         );
+        assert_eq!(diagnostics[0].quick_fixes.len(), 1);
+        assert_eq!(diagnostics[0].quick_fixes[0].title, "add `other` branch");
     }
 
     #[test]
@@ -369,6 +384,14 @@ mod tests {
         assert_eq!(
             diagnostics[0].message,
             "ambiguous implicit plural argument for `fruit.nom`; pass a numeric argument explicitly"
+        );
+        assert_eq!(
+            diagnostics[0]
+                .quick_fixes
+                .iter()
+                .map(|fix| fix.title.as_str())
+                .collect::<Vec<_>>(),
+            ["pass `apples` explicitly", "pass `pears` explicitly"]
         );
     }
 

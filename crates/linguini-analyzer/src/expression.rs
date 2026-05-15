@@ -1,4 +1,4 @@
-use crate::Diagnostic;
+use crate::{Diagnostic, QuickFix, Replacement};
 use linguini_syntax::{
     Expression, FunctionBranchValue, FunctionDeclaration, LocaleDeclaration, LocaleFile, TextPart,
     TextPattern,
@@ -260,13 +260,23 @@ fn analyze_path(
     };
 
     if property_signature.needs_number && numeric_variables.len() > 1 {
-        diagnostics.push(Diagnostic::error(
+        let expression_path = expression_path(expression);
+        let mut diagnostic = Diagnostic::error(
             format!(
-                "ambiguous implicit plural argument for `{}`; pass a numeric argument explicitly",
-                expression_path(expression)
+                "ambiguous implicit plural argument for `{expression_path}`; pass a numeric argument explicitly",
             ),
             expression.span,
-        ));
+        );
+        for variable in numeric_variables {
+            diagnostic = diagnostic.with_quick_fix(QuickFix::replacement(
+                format!("pass `{}` explicitly", variable.name),
+                Replacement {
+                    span: expression.span,
+                    text: format!("{expression_path}({})", variable.name),
+                },
+            ));
+        }
+        diagnostics.push(diagnostic);
     }
 }
 

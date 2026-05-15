@@ -1,4 +1,4 @@
-use crate::Diagnostic;
+use crate::{Diagnostic, QuickFix, Replacement};
 use linguini_syntax::Span;
 use std::collections::BTreeSet;
 
@@ -32,6 +32,7 @@ pub fn analyze_branch_coverage(input: BranchCoverage<'_>) -> Vec<Diagnostic> {
         .iter()
         .map(|branch| branch.name.as_str())
         .collect();
+    let insertion = branch_insertion_span(&input.branches, input.span);
     let mut diagnostics = Vec::new();
 
     for variant in input.variants {
@@ -44,7 +45,14 @@ pub fn analyze_branch_coverage(input: BranchCoverage<'_>) -> Vec<Diagnostic> {
                     ),
                     input.span,
                 )
-                .with_related(variant.span, "enum variant is declared here"),
+                .with_related(variant.span, "enum variant is declared here")
+                .with_quick_fix(QuickFix::replacement(
+                    format!("add branch `{}`", variant.name),
+                    Replacement {
+                        span: insertion,
+                        text: format!("\n{} => TODO", variant.name),
+                    },
+                )),
             );
         }
     }
@@ -56,9 +64,27 @@ pub fn require_other_branch(subject: &str, branches: &[NamedSpan], span: Span) -
     if branches.iter().any(|branch| branch.name == "other") {
         Vec::new()
     } else {
-        vec![Diagnostic::error(
-            format!("{subject} is missing required `other` branch"),
-            span,
-        )]
+        let insertion = branch_insertion_span(branches, span);
+        vec![
+            Diagnostic::error(
+                format!("{subject} is missing required `other` branch"),
+                span,
+            )
+            .with_quick_fix(QuickFix::replacement(
+                "add `other` branch",
+                Replacement {
+                    span: insertion,
+                    text: "\nother => TODO".to_owned(),
+                },
+            )),
+        ]
     }
+}
+
+fn branch_insertion_span(branches: &[NamedSpan], fallback: Span) -> Span {
+    branches
+        .iter()
+        .map(|branch| Span::new(branch.span.end, branch.span.end))
+        .max_by_key(|span| span.start)
+        .unwrap_or(Span::new(fallback.end, fallback.end))
 }

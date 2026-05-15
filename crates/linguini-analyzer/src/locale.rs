@@ -168,10 +168,22 @@ fn missing_messages_diagnostic(
         },
     );
 
-    match quick_fix_id {
+    let mut diagnostic = match quick_fix_id {
         Some(id) => diagnostic.with_quick_fix(quick_fix.with_id(id)),
         None => diagnostic.with_quick_fix(quick_fix),
+    };
+
+    for name in names {
+        diagnostic = diagnostic.with_quick_fix(QuickFix::replacement(
+            format!("add locale message stub `{name}`"),
+            Replacement {
+                span: Span::new(locale_span.end, locale_span.end),
+                text: missing_message_stub_text(&[name]),
+            },
+        ));
     }
+
+    diagnostic
 }
 
 fn unknown_messages_diagnostic(unknown: &[&ImplementedLocaleMessage]) -> Diagnostic {
