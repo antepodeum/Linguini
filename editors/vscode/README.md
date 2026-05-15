@@ -42,7 +42,15 @@ Packaged users do not need to install the Linguini CLI separately. The extension
    npm run build:server:target -- win32-x64
    ```
 
-   Supported target names are `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-armhf`, `linux-x64`, `alpine-arm64`, `alpine-x64`, `win32-arm64`, `win32-ia32`, and `win32-x64`.
+   Supported target names are `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-armhf`, `linux-x64`, `alpine-arm64`, `alpine-x64`, `win32-arm64`, and `win32-x64`.
+
+   To produce the platform-specific VSIX package for one target:
+
+   ```sh
+   npm run package:vsix -- linux-x64
+   ```
+
+   The generated package is written to `dist/` and contains only `server/<target>/linguini` for that platform. The `server/` and `dist/` directories are ignored by Git, so native binaries stay out of repository history.
 
 4. Launch the Extension Development Host in one of two ways:
 

@@ -1,0 +1,43 @@
+name: VS Code Extension
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'vscode-v*'
+
+jobs:
+  package:
+    name: Package ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            os: ubuntu-latest
+          - target: darwin-x64
+            os: macos-13
+          - target: darwin-arm64
+            os: macos-14
+          - target: win32-x64
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install extension dependencies
+        working-directory: editors/vscode
+        run: npm ci
+      - name: Package platform VSIX
+        working-directory: editors/vscode
+        run: npm run package:vsix -- ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linguini-vscode-${{ matrix.target }}
+          path: editors/vscode/dist/*.vsix

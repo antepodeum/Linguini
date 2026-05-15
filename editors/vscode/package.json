@@ -22,10 +22,12 @@
     "build:server": "node ./scripts/build-server.js",
     "build:server:all": "node ./scripts/build-server.js --all",
     "build:server:target": "node ./scripts/build-server.js --target",
+    "package:vsix": "node ./scripts/package-vsix.js",
+    "package:vsix:all": "node ./scripts/package-vsix.js --all",
     "watch": "tsc -watch -p ./",
     "open:dev": "npm run compile && code --extensionDevelopmentPath=. ./sample-workspace",
     "audit:prod": "npm audit --omit=dev",
-    "vscode:prepublish": "npm run compile && npm run build:server",
+    "vscode:prepublish": "npm run compile",
     "check": "npm run compile && npm audit --audit-level=moderate",
     "dev:host": "npm run compile && node ./scripts/open-extension-host.js"
   },

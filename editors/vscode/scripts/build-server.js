@@ -14,12 +14,13 @@ const targets = {
   'alpine-arm64': { rust: 'aarch64-unknown-linux-musl', exe: 'linguini' },
   'alpine-x64': { rust: 'x86_64-unknown-linux-musl', exe: 'linguini' },
   'win32-arm64': { rust: 'aarch64-pc-windows-msvc', exe: 'linguini.exe' },
-  'win32-ia32': { rust: 'i686-pc-windows-msvc', exe: 'linguini.exe' },
   'win32-x64': { rust: 'x86_64-pc-windows-msvc', exe: 'linguini.exe' }
 };
 
 const args = parseArgs(process.argv.slice(2));
 const selectedTargets = args.all ? Object.keys(targets) : [args.target ?? hostTarget()];
+
+cleanServerDir();
 
 for (const target of selectedTargets) {
   buildTarget(target);
@@ -68,6 +69,10 @@ function buildTarget(target) {
     fs.chmodSync(destBinary, 0o755);
   }
   console.log(`wrote ${path.relative(extensionRoot, destBinary)}`);
+}
+
+function cleanServerDir() {
+  fs.rmSync(path.join(extensionRoot, 'server'), { recursive: true, force: true });
 }
 
 function run(command, args, cwd) {
