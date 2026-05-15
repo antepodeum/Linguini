@@ -64,6 +64,69 @@ mod tests {
     }
 
     #[test]
+    fn locale_analysis_reports_incomplete_nested_enum_branch_coverage() {
+        let locale = parse_locale(
+            "enum Gender { male, female, neuter, other }\n\
+             form SizeAdj(Plural, Gender) {\n\
+               one {\n\
+                 male => большой\n\
+                 female => большая\n\
+               }\n\
+               _ => большие\n\
+             }\n",
+        )
+        .expect("locale parses");
+
+        let diagnostics = analyze_locale_file(&locale);
+
+        assert_eq!(
+            diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.message.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "function `SizeAdj` for enum `Gender` is missing branch `neuter`",
+                "function `SizeAdj` for enum `Gender` is missing branch `other`"
+            ]
+        );
+    }
+
+    #[test]
+    fn locale_analysis_accepts_wildcard_for_enum_branch_coverage() {
+        let locale = parse_locale(
+            "enum Gender { male, female, neuter, other }\n\
+             form SizeAdj(Plural, Gender) {\n\
+               one {\n\
+                 male => большой\n\
+                 female => большая\n\
+                 _ => большое\n\
+               }\n\
+               _ => большие\n\
+             }\n",
+        )
+        .expect("locale parses");
+
+        let diagnostics = analyze_locale_file(&locale);
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
+
+    #[test]
+    fn locale_coverage_reports_missing_locale_doc_comment() {
+        let schema = parse_schema("/// Translator context\ndelivery()\n").expect("schema parses");
+        let locale = parse_locale("delivery = Delivered\n").expect("locale parses");
+
+        let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].message,
+            "locale message `delivery` is missing schema doc comment"
+        );
+        assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Warning);
+    }
+
+    #[test]
     fn locale_coverage_groups_missing_schema_messages() {
         let schema = parse_schema("delivery()\ncounted()\n").expect("schema parses");
         let locale = parse_locale("delivery = Delivered\n").expect("locale parses");

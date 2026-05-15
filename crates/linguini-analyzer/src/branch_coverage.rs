@@ -27,6 +27,10 @@ impl NamedSpan {
 }
 
 pub fn analyze_branch_coverage(input: BranchCoverage<'_>) -> Vec<Diagnostic> {
+    if input.branches.iter().any(|branch| branch.name == "_") {
+        return Vec::new();
+    }
+
     let branch_names: BTreeSet<_> = input
         .branches
         .iter()
@@ -61,7 +65,10 @@ pub fn analyze_branch_coverage(input: BranchCoverage<'_>) -> Vec<Diagnostic> {
 }
 
 pub fn require_other_branch(subject: &str, branches: &[NamedSpan], span: Span) -> Vec<Diagnostic> {
-    if branches.iter().any(|branch| branch.name == "other") {
+    if branches
+        .iter()
+        .any(|branch| matches!(branch.name.as_str(), "other" | "_"))
+    {
         Vec::new()
     } else {
         let insertion = branch_insertion_span(branches, span);
