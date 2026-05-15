@@ -4,7 +4,6 @@ mod expr;
 mod formatters;
 mod names;
 mod project;
-mod svelte;
 
 use std::fmt;
 
@@ -126,14 +125,6 @@ pub fn generate_typescript_project_files(
         path: "index.ts".to_owned(),
         contents: project::generate_project_index(locales, options.base_locale.as_deref()),
     });
-    files.push(TypeScriptGeneratedFile {
-        path: "svelte/Trans.svelte".to_owned(),
-        contents: svelte::generate_trans_component(),
-    });
-    files.push(TypeScriptGeneratedFile {
-        path: "sveltekit.ts".to_owned(),
-        contents: svelte::generate_sveltekit_helpers(),
-    });
     if options.declaration {
         files.push(TypeScriptGeneratedFile {
             path: "index.d.ts".to_owned(),
@@ -141,10 +132,6 @@ pub fn generate_typescript_project_files(
                 locales,
                 options.base_locale.as_deref(),
             ),
-        });
-        files.push(TypeScriptGeneratedFile {
-            path: "sveltekit.d.ts".to_owned(),
-            contents: svelte::generate_sveltekit_declaration(),
         });
     }
 

@@ -93,6 +93,29 @@ fn project_codegen_owns_multilocale_index_files() {
         .contents
         .contains("import locale_ru from \"./locales/ru\";"));
     assert!(index.contents.contains("ru: locale_ru"));
+    assert_eq!(
+        files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "shared.ts",
+            "shared.d.ts",
+            "locales/en.ts",
+            "locales/en.d.ts",
+            "locales/ru.ts",
+            "locales/ru.d.ts",
+            "index.ts",
+            "index.d.ts",
+        ]
+    );
+    for forbidden in [
+        ["coo", "kie"].concat(),
+        ["localize", "Href"].concat(),
+        ["Middle", "ware"].concat(),
+    ] {
+        assert!(!index.contents.contains(&forbidden));
+    }
 }
 
 #[test]
