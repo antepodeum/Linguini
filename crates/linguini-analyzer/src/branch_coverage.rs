@@ -65,19 +65,17 @@ pub fn require_other_branch(subject: &str, branches: &[NamedSpan], span: Span) -
         Vec::new()
     } else {
         let insertion = branch_insertion_span(branches, span);
-        vec![
-            Diagnostic::error(
-                format!("{subject} is missing required `other` branch"),
-                span,
-            )
-            .with_quick_fix(QuickFix::replacement(
-                "add `other` branch",
-                Replacement {
-                    span: insertion,
-                    text: "\nother => TODO".to_owned(),
-                },
-            )),
-        ]
+        vec![Diagnostic::error(
+            format!("{subject} is missing required `other` branch"),
+            span,
+        )
+        .with_quick_fix(QuickFix::replacement(
+            "add `other` branch",
+            Replacement {
+                span: insertion,
+                text: "\nother => TODO".to_owned(),
+            },
+        ))]
     }
 }
 

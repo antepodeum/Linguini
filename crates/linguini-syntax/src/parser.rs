@@ -1,15 +1,14 @@
 use chumsky::{input::IterInput, input::ValueInput, prelude::*};
 
 mod locale_parser;
+#[cfg(test)]
+mod locale_tests;
 
 use crate::{
-    lex_schema, lex_schema_with_recovery, Annotation, AnnotationArgument, DocComment,
-    EnumDeclaration, MessageGroup, MessageSignature, Name, Parameter, SchemaDeclaration,
-    SchemaFile, Span, StringLiteral, TokenKind, TypeAliasDeclaration,
+    lex, lex_schema, lex_schema_with_recovery, lex_with_recovery, Annotation, AnnotationArgument,
+    DocComment, EnumDeclaration, LocaleFile, MessageGroup, MessageSignature, Name, Parameter,
+    SchemaDeclaration, SchemaFile, Span, StringLiteral, TokenKind, TypeAliasDeclaration,
 };
-
-pub use locale_parser::parse_locale;
-pub use locale_parser::parse_locale_with_recovery;
 
 type Extra<'tokens> = extra::Err<Rich<'tokens, TokenKind, Span>>;
 
@@ -23,6 +22,54 @@ pub struct ParseError {
 pub struct ParseOutput<T> {
     pub ast: Option<T>,
     pub errors: Vec<ParseError>,
+}
+
+pub fn parse_locale(source: &str) -> Result<LocaleFile, Vec<ParseError>> {
+    let tokens = lex(source).map_err(|error| {
+        vec![ParseError {
+            message: error.message,
+            span: error.span,
+        }]
+    })?;
+    let syntax_tokens: Vec<_> = strip_trivia(tokens)
+        .into_iter()
+        .map(|token| (token.kind, token.span))
+        .collect();
+    let eof = Span::new(source.len(), source.len());
+    let (ast, errors) = locale_parser::locale_parser()
+        .parse(IterInput::new(syntax_tokens.into_iter(), eof))
+        .into_output_errors();
+
+    if errors.is_empty() {
+        Ok(ast.expect("parser produced an AST without errors"))
+    } else {
+        Err(errors.into_iter().map(parse_error_from_rich).collect())
+    }
+}
+
+pub fn parse_locale_with_recovery(source: &str) -> ParseOutput<LocaleFile> {
+    let lexed = lex_with_recovery(source);
+    let mut errors: Vec<_> = lexed
+        .errors
+        .into_iter()
+        .map(|error| ParseError {
+            message: error.message,
+            span: error.span,
+        })
+        .collect();
+    let syntax_tokens: Vec<_> = strip_trivia(lexed.tokens)
+        .into_iter()
+        .filter(|token| !matches!(token.kind, TokenKind::Error(_)))
+        .map(|token| (token.kind, token.span))
+        .collect();
+    let eof = Span::new(source.len(), source.len());
+    let (ast, parse_errors) = locale_parser::locale_parser()
+        .parse(IterInput::new(syntax_tokens.into_iter(), eof))
+        .into_output_errors();
+
+    errors.extend(parse_errors.into_iter().map(parse_error_from_rich));
+
+    ParseOutput { ast, errors }
 }
 
 pub fn parse_schema(source: &str) -> Result<SchemaFile, Vec<ParseError>> {

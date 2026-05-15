@@ -1,4 +1,8 @@
 Completed slice:
+- 2026-05-15: Vite plugin package added under `plugins/vite`; it watches Linguini config/schema/locale files, runs `linguini build`, invalidates generated modules, and emits a `linguini:update` HMR event.
+- 2026-05-15: LSP quick fixes now convert analyzer `QuickFix` replacement and command data into generic code actions, so new analyzer quick fixes do not need per-fix LSP code.
+- 2026-05-15: Analyzer quick fixes now cover missing enum branches, missing `other` branches, missing locale message stubs, and ambiguous implicit plural arguments with multiple explicit argument variants.
+- 2026-05-15: Formatter enforces configured line width for long structural argument lists while preserving raw text lines.
 - 2026-05-15: VS Code formatting now goes through LSP only; removed shell-out formatter provider and stale formatter settings.
 - 2026-05-15: Formatter core split into custom `FormatIr` plus token-to-IR lowering/rendering modules while preserving schema/locale idempotency behavior.
 - 2026-05-15: LSP rename now targets the cursor identifier and edits matching identifiers across all open Linguini schema/locale documents; rename refactor action added.
@@ -6,6 +10,9 @@ Completed slice:
 - 2026-05-15: Removed generated server binaries from git tracking; `editors/vscode/server/` is ignored and filled during package builds.
 
 Implementation decisions:
+- Vite plugin is dependency-light ESM JavaScript with `.d.ts` types; it shells to `linguini build` by default and supports an injected `build` function for tests/custom integrations.
+- LSP quick-fix support is analyzer-driven: replacement fixes become workspace edits, command-only fixes become command code actions, and multiple fixes on one diagnostic are exposed as separate actions.
+- Formatter line-width enforcement intentionally targets structural parenthesized lines only; raw text lines are not wrapped because that would change message semantics.
 - Extension formatting must rely on the LSP `textDocument/formatting` capability; no separate formatter process or `linguini formatting` command.
 - Native server bundling is per built VSIX/platform: `npm run build:server` builds host binary, and `npm run build:server:target -- <vscode-target>` builds a selected VS Code target into `editors/vscode/server/<target>/`.
 - Supported native VS Code targets in the build script: `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-armhf`, `linux-x64`, `alpine-arm64`, `alpine-x64`, `win32-arm64`, `win32-ia32`, `win32-x64`.
@@ -14,6 +21,13 @@ Implementation decisions:
 - LSP rename remains token/name based across open documents; full project indexing and schema-aware rename validation are still future work.
 
 Tests last run:
+- `cargo test -p linguini-syntax -p linguini-analyzer -p linguini-lsp -p linguini-format`
+- `./scripts/check-file-size.sh`
+- `./scripts/check-spec-gates.sh`
+- `cargo test -p linguini-analyzer`
+- `cargo test -p linguini-lsp`
+- `cargo test -p linguini-format`
+- `npm test` in `plugins/vite`
 - `npm run compile`
 - `npm run build:server:target -- linux-x64` (required network for CLDR build script)
 - `editors/vscode/server/linux-x64/linguini --help`
@@ -21,10 +35,8 @@ Tests last run:
 - `cargo test -p linguini-format`
 
 Known deferred work:
-- Formatter still does not enforce configured max line width.
-- LSP quick fixes for missing branches/messages/explicit plural args remain unchecked.
 - LSP completion is keyword/document-symbol/context based, not fully schema-indexed across project files.
 - Native VSIX bundles must be built per target platform/arch so each published artifact carries its matching server binary.
 
 Next recommended task:
-- Implement project-aware LSP workspace indexing from `linguini.toml`, then use it for schema-argument completion, true cross-file definitions/references, and quick fixes.
+- Implement project-aware LSP workspace indexing from `linguini.toml`, then use it for schema-argument completion and true cross-file definitions/references.

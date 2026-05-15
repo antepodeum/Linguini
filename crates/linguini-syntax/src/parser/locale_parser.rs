@@ -1,66 +1,16 @@
-use chumsky::{input::IterInput, input::ValueInput, prelude::*};
+use chumsky::{input::ValueInput, prelude::*};
 
 use crate::{
-    lex, lex_with_recovery, Expression, FormAttribute, FormDeclaration, FormEntry, FormVariant,
-    FunctionBranch, FunctionBranchValue, FunctionDeclaration, FunctionParameter, LocaleDeclaration,
-    LocaleFile, LocaleValue, MapBranch, MessageImplementation, MessageImplementationGroup,
-    Placeholder, RawText, Span, TextPart, TextPattern, TokenKind,
+    Expression, FormAttribute, FormDeclaration, FormEntry, FormVariant, FunctionBranch,
+    FunctionBranchValue, FunctionDeclaration, FunctionParameter, LocaleDeclaration, LocaleFile,
+    LocaleValue, MapBranch, MessageImplementation, MessageImplementationGroup, Placeholder,
+    RawText, Span, TextPart, TextPattern, TokenKind,
 };
 
-use super::{
-    annotation, doc_comment, enum_declaration, keyword, name, parse_error_from_rich, strip_trivia,
-    Extra, ParseError, ParseOutput,
-};
+use super::{annotation, doc_comment, enum_declaration, keyword, name, Extra};
 
-pub fn parse_locale(source: &str) -> Result<LocaleFile, Vec<ParseError>> {
-    let tokens = lex(source).map_err(|error| {
-        vec![ParseError {
-            message: error.message,
-            span: error.span,
-        }]
-    })?;
-    let syntax_tokens: Vec<_> = strip_trivia(tokens)
-        .into_iter()
-        .map(|token| (token.kind, token.span))
-        .collect();
-    let eof = Span::new(source.len(), source.len());
-    let (ast, errors) = locale_parser()
-        .parse(IterInput::new(syntax_tokens.into_iter(), eof))
-        .into_output_errors();
-
-    if errors.is_empty() {
-        Ok(ast.expect("parser produced an AST without errors"))
-    } else {
-        Err(errors.into_iter().map(parse_error_from_rich).collect())
-    }
-}
-
-pub fn parse_locale_with_recovery(source: &str) -> ParseOutput<LocaleFile> {
-    let lexed = lex_with_recovery(source);
-    let mut errors: Vec<_> = lexed
-        .errors
-        .into_iter()
-        .map(|error| ParseError {
-            message: error.message,
-            span: error.span,
-        })
-        .collect();
-    let syntax_tokens: Vec<_> = strip_trivia(lexed.tokens)
-        .into_iter()
-        .filter(|token| !matches!(token.kind, TokenKind::Error(_)))
-        .map(|token| (token.kind, token.span))
-        .collect();
-    let eof = Span::new(source.len(), source.len());
-    let (ast, parse_errors) = locale_parser()
-        .parse(IterInput::new(syntax_tokens.into_iter(), eof))
-        .into_output_errors();
-
-    errors.extend(parse_errors.into_iter().map(parse_error_from_rich));
-
-    ParseOutput { ast, errors }
-}
-
-fn locale_parser<'tokens, I>() -> impl Parser<'tokens, I, LocaleFile, Extra<'tokens>> + Clone
+pub(super) fn locale_parser<'tokens, I>(
+) -> impl Parser<'tokens, I, LocaleFile, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
@@ -498,39 +448,6 @@ impl LocaleDeclarationDocs for LocaleDeclaration {
             LocaleDeclaration::Message(declaration) => declaration.docs = docs,
             LocaleDeclaration::Group(declaration) => declaration.docs = docs,
             LocaleDeclaration::Override(declaration) => declaration.set_docs(docs),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{parse_locale, LocaleDeclaration, TextPart, TextPattern};
-
-    #[test]
-    fn trims_unquoted_raw_text_edges_and_preserves_quoted_edges() {
-        let locale = parse_locale("plain =  hello  \nquoted = \"  hello  \"\njoined = {a} {b}\n")
-            .expect("locale parses");
-
-        let LocaleDeclaration::Message(plain) = &locale.declarations[0] else {
-            panic!("expected plain message");
-        };
-        assert_eq!(raw_text(&plain.value), "hello");
-
-        let LocaleDeclaration::Message(quoted) = &locale.declarations[1] else {
-            panic!("expected quoted message");
-        };
-        assert_eq!(raw_text(&quoted.value), "  hello  ");
-
-        let LocaleDeclaration::Message(joined) = &locale.declarations[2] else {
-            panic!("expected joined message");
-        };
-        assert!(matches!(&joined.value.parts[1], TextPart::Text(text) if text.value == " "));
-    }
-
-    fn raw_text(text: &TextPattern) -> &str {
-        match &text.parts[0] {
-            TextPart::Text(raw) => &raw.value,
-            TextPart::Placeholder(_) => panic!("expected text"),
         }
     }
 }

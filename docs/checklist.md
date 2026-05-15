@@ -753,7 +753,8 @@ Checkpoint acceptance:
 - [ ] Add SvelteKit static-site locale-link support
   - Note:
 - [ ] Add Vite plugin that rebuilds when translation files change
-  - Note:
+  - Note: completed on 2026-05-15. Added `@linguini/vite` plugin that watches `linguini.toml`, `.lgs`, and `.lgl`, runs `linguini build`, invalidates generated modules, and emits a HMR update event.
+  - Evidence: plugins/vite/src/index.js; plugins/vite/test/plugin.test.mjs; `npm test` in plugins/vite
 
 Checkpoint acceptance:
 
@@ -786,8 +787,9 @@ Checkpoint acceptance:
 - [x] Preserve ordinary comments where possible
   - Note: completed on 2026-05-15. Formatter preserves ordinary line comments in locale files.
   - Evidence: crates/linguini-format/src/tests.rs; `cargo test -p linguini-format`
-- [ ] Enforce line width
-  - Note:
+- [x] Enforce line width
+  - Note: completed on 2026-05-15. Formatter wraps long structural argument lists using configured max line width while preserving raw text lines.
+  - Evidence: crates/linguini-format/src/ir.rs; crates/linguini-format/src/tests.rs; `cargo test -p linguini-format`
 - [x] Add idempotency tests
   - Note: completed on 2026-05-15. Formatter tests run formatted output back through the formatter.
   - Evidence: crates/linguini-format/src/tests.rs; `cargo test -p linguini-format`
@@ -829,12 +831,15 @@ Checkpoint acceptance:
 - [x] Implement code actions
   - Note: completed on 2026-05-15. LSP returns diagnostic display actions and rename refactor action.
   - Evidence: crates/linguini-lsp/src/server.rs; `cargo test -p linguini-lsp`
-- [ ] Implement quick fix: add missing branches
-  - Note:
-- [ ] Implement quick fix: add missing message
-  - Note:
-- [ ] Implement quick fix: add explicit plural argument
-  - Note:
+- [x] Implement quick fix: add missing branches
+  - Note: completed on 2026-05-15. Analyzer emits replacement quick fixes for missing enum and `other` branches, and LSP maps analyzer replacements to code actions generically.
+  - Evidence: crates/linguini-analyzer/src/branch_coverage.rs; crates/linguini-lsp/src/server.rs; `cargo test -p linguini-analyzer -p linguini-lsp`
+- [x] Implement quick fix: add missing message
+  - Note: completed on 2026-05-15. Analyzer emits all-missing and per-message locale stub fixes, and LSP exposes every analyzer quick fix without per-fix rewrites.
+  - Evidence: crates/linguini-analyzer/src/locale.rs; crates/linguini-lsp/src/server.rs; `cargo test -p linguini-analyzer -p linguini-lsp`
+- [x] Implement quick fix: add explicit plural argument
+  - Note: completed on 2026-05-15. Analyzer emits one explicit-argument fix per numeric variable for ambiguous plural form calls, and LSP exposes all variants.
+  - Evidence: crates/linguini-analyzer/src/expression.rs; crates/linguini-lsp/src/server.rs; `cargo test -p linguini-analyzer -p linguini-lsp`
 - [x] Implement formatting request
   - Note: completed on 2026-05-15. LSP returns whole-document formatting edits backed by `linguini-format`.
   - Evidence: crates/linguini-lsp/src/server.rs; crates/linguini-lsp/src/tests.rs; `cargo test -p linguini-lsp`
@@ -849,8 +854,9 @@ Checkpoint acceptance:
   - Evidence: crates/linguini-lsp/src/tests.rs; `cargo test -p linguini-lsp`
 - [ ] Completion suggests schema args
   - Note:
-- [ ] Quick fix can add missing branches
-  - Note:
+- [x] Quick fix can add missing branches
+  - Note: completed on 2026-05-15. Branch coverage diagnostics carry replacement edits, and the LSP quick-fix adapter turns them into workspace edits.
+  - Evidence: crates/linguini-analyzer/src/branch_coverage.rs; crates/linguini-lsp/src/server.rs; `cargo test -p linguini-analyzer -p linguini-lsp`
 
 ---
 
