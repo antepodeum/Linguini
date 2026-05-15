@@ -131,7 +131,7 @@ pub fn generate_project_index_declaration(
     output.push_str("  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n");
     output.push_str("}): Linguini;\n\n");
     output.push_str("export declare const lgl: Linguini;\n");
-    output.push_str("\n");
+    output.push('\n');
     push_runtime_function_declarations(&mut output);
     output
 }
