@@ -49,7 +49,14 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
                 if !placeholder_brace {
                     ir.push(FormatItem::Dedent);
                 }
-                lower_token_text(source, token, &mut ir, previous, pending_space, placeholder_brace);
+                lower_token_text(
+                    source,
+                    token,
+                    &mut ir,
+                    previous,
+                    pending_space,
+                    placeholder_brace,
+                );
                 pending_space = false;
             }
             TokenKind::LBrace => {
@@ -57,7 +64,14 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
                     previous,
                     Some(TokenKind::Equals | TokenKind::Arrow | TokenKind::RawText(_))
                 );
-                lower_token_text(source, token, &mut ir, previous, pending_space, placeholder_brace);
+                lower_token_text(
+                    source,
+                    token,
+                    &mut ir,
+                    previous,
+                    pending_space,
+                    placeholder_brace,
+                );
                 brace_stack.push(placeholder_brace);
                 if !placeholder_brace {
                     ir.push(FormatItem::Indent);
@@ -136,12 +150,20 @@ fn should_collapse_newline(
 
     is_declaration_keyword(previous) && is_name_like(next)
         || is_name_like(previous)
-            && matches!(next, TokenKind::LParen | TokenKind::LBrace | TokenKind::Equals)
+            && matches!(
+                next,
+                TokenKind::LParen | TokenKind::LBrace | TokenKind::Equals
+            )
         || is_annotation_target(previous) && matches!(next, TokenKind::At)
-        || matches!(previous, TokenKind::RParen) && matches!(next, TokenKind::LBrace | TokenKind::At)
+        || matches!(previous, TokenKind::RParen)
+            && matches!(next, TokenKind::LBrace | TokenKind::At)
         || matches!(
             previous,
-            TokenKind::Equals | TokenKind::Colon | TokenKind::Comma | TokenKind::Dot | TokenKind::At
+            TokenKind::Equals
+                | TokenKind::Colon
+                | TokenKind::Comma
+                | TokenKind::Dot
+                | TokenKind::At
         ) && is_name_like(next)
 }
 
@@ -164,7 +186,10 @@ fn is_declaration_keyword(kind: &TokenKind) -> bool {
 }
 
 fn is_name_like(kind: &TokenKind) -> bool {
-    matches!(kind, TokenKind::Ident(_) | TokenKind::LocaleTag(_) | TokenKind::String(_))
+    matches!(
+        kind,
+        TokenKind::Ident(_) | TokenKind::LocaleTag(_) | TokenKind::String(_)
+    )
 }
 
 fn is_annotation_target(kind: &TokenKind) -> bool {
@@ -189,7 +214,13 @@ fn lower_token_text(
         ir.push(FormatItem::RawLineStart);
     }
 
-    if should_space_before(previous, &token.kind, text.as_ref(), pending_space, placeholder_brace) {
+    if should_space_before(
+        previous,
+        &token.kind,
+        text.as_ref(),
+        pending_space,
+        placeholder_brace,
+    ) {
         ir.push(FormatItem::Space);
     }
 
@@ -242,7 +273,11 @@ fn should_space_before(
 
     if matches!(
         current,
-        TokenKind::Comma | TokenKind::Colon | TokenKind::LParen | TokenKind::RParen | TokenKind::Dot
+        TokenKind::Comma
+            | TokenKind::Colon
+            | TokenKind::LParen
+            | TokenKind::RParen
+            | TokenKind::Dot
     ) || matches!(previous, TokenKind::LParen | TokenKind::Dot | TokenKind::At)
     {
         return false;
@@ -266,19 +301,26 @@ fn should_space_before(
         return true;
     }
 
-    if matches!(previous, TokenKind::Comma | TokenKind::Colon | TokenKind::Equals | TokenKind::Arrow)
-    {
+    if matches!(
+        previous,
+        TokenKind::Comma | TokenKind::Colon | TokenKind::Equals | TokenKind::Arrow
+    ) {
         return true;
     }
 
     pending
-        || matches!(current, TokenKind::LBrace | TokenKind::Arrow | TokenKind::Equals)
-        || matches!(previous, TokenKind::Ident(_) | TokenKind::LocaleTag(_) | TokenKind::String(_))
-            && matches!(
-                current,
-                TokenKind::Ident(_)
-                    | TokenKind::LocaleTag(_)
-                    | TokenKind::String(_)
-                    | TokenKind::RawText(_)
-            )
+        || matches!(
+            current,
+            TokenKind::LBrace | TokenKind::Arrow | TokenKind::Equals
+        )
+        || matches!(
+            previous,
+            TokenKind::Ident(_) | TokenKind::LocaleTag(_) | TokenKind::String(_)
+        ) && matches!(
+            current,
+            TokenKind::Ident(_)
+                | TokenKind::LocaleTag(_)
+                | TokenKind::String(_)
+                | TokenKind::RawText(_)
+        )
 }

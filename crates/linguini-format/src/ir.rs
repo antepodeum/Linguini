@@ -78,12 +78,7 @@ impl FormatIr {
 const ARROW_MARKER_START: char = '\u{E000}';
 const ARROW_MARKER_END: char = '\u{E001}';
 
-fn push_indent(
-    out: &mut String,
-    indent: usize,
-    options: &FormatOptions,
-    at_line_start: &mut bool,
-) {
+fn push_indent(out: &mut String, indent: usize, options: &FormatOptions, at_line_start: &mut bool) {
     if *at_line_start {
         out.push_str(&" ".repeat(indent * options.indent_width));
         *at_line_start = false;

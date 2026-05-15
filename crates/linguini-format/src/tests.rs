@@ -65,16 +65,17 @@ fn collapses_structural_newlines_in_form_headers_and_arguments() {
     );
 }
 
-
 #[test]
 fn collapses_structural_newlines_in_schema_headers_and_arguments() {
     let source = "type \nUserId \n= \nString\n\ndelivery\n(\n  count\n  :\n  Number\n)\n";
     let formatted =
         format_source(SourceKind::Schema, source, &FormatOptions::default()).expect("format");
 
-    assert_eq!(formatted, "type UserId = String\n\ndelivery(count: Number)\n");
+    assert_eq!(
+        formatted,
+        "type UserId = String\n\ndelivery(count: Number)\n"
+    );
 }
-
 
 #[test]
 fn collapses_structural_newlines_around_annotations() {
@@ -82,7 +83,10 @@ fn collapses_structural_newlines_around_annotations() {
     let formatted_schema =
         format_source(SourceKind::Schema, schema, &FormatOptions::default()).expect("format");
 
-    assert_eq!(formatted_schema, "type Money = Decimal @currency(code = \"USD\")\n");
+    assert_eq!(
+        formatted_schema,
+        "type Money = Decimal @currency(code = \"USD\")\n"
+    );
 
     let locale = "price = Цена: {amount\n  @\n  currency(\n    code\n    =\n    \"USD\"\n  )}\n";
     let formatted_locale =

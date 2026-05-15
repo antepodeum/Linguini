@@ -59,8 +59,11 @@ fn format_command_formats_discovered_project_files() {
     let project = temp_project_dir("format_command_formats_discovered_project_files");
     init_project(project.path()).expect("init project");
 
-    fs::write(project.path().join("schema/shop.lgs"), "delivery(count:Number)\n")
-        .expect("schema file");
+    fs::write(
+        project.path().join("schema/shop.lgs"),
+        "delivery(count:Number)\n",
+    )
+    .expect("schema file");
     let locale_dir = project.path().join("locales/shop");
     fs::create_dir_all(&locale_dir).expect("locale dir");
     fs::write(locale_dir.join("en.lgl"), "delivery={count} deliveries\n").expect("locale file");

@@ -150,7 +150,12 @@ fn format_project(root: &std::path::Path, args: &FormatArgs) -> CliResult<String
         })?;
         let formatted = format_path_source(&path, &source).map_err(CliError::Format)?;
         if formatted != source {
-            changed.push(path.strip_prefix(root).unwrap_or(&path).display().to_string());
+            changed.push(
+                path.strip_prefix(root)
+                    .unwrap_or(&path)
+                    .display()
+                    .to_string(),
+            );
             if !args.check {
                 fs::write(&path, formatted).map_err(|source| CliError::Io {
                     path: path.clone(),
