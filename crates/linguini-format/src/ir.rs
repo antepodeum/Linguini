@@ -167,8 +167,7 @@ fn marked_arrow_bounds(line: &str) -> Option<(usize, usize)> {
 }
 
 fn remove_arrow_markers(line: &str) -> String {
-    line.replace(ARROW_MARKER_START, "")
-        .replace(ARROW_MARKER_END, "")
+    line.replace([ARROW_MARKER_START, ARROW_MARKER_END], "")
 }
 
 fn display_width(text: &str) -> usize {
