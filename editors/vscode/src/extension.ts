@@ -1,4 +1,3 @@
-import * as cp from 'child_process';
 import * as vscode from 'vscode';
 import {
   DocumentSelector,
@@ -9,7 +8,6 @@ import {
 
 let client: LanguageClient | undefined;
 let traceOutputChannel: vscode.OutputChannel | undefined;
-let formatterOutputChannel: vscode.OutputChannel | undefined;
 
 const documentSelector: DocumentSelector = [
   { language: 'linguini-schema', scheme: 'file' },
@@ -20,22 +18,14 @@ const documentSelector: DocumentSelector = [
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   traceOutputChannel = vscode.window.createOutputChannel('Linguini Language Server Trace');
-  formatterOutputChannel = vscode.window.createOutputChannel('Linguini Formatter');
   client = createClient();
 
   context.subscriptions.push(
     traceOutputChannel,
-    formatterOutputChannel,
-    vscode.languages.registerDocumentFormattingEditProvider(
-      documentSelector,
-      new LinguiniDocumentFormattingProvider()
-    ),
     vscode.commands.registerCommand('linguini.restartServer', restartClient),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (
-        event.affectsConfiguration('linguini.server') ||
-        event.affectsConfiguration('linguini.semanticHighlighting')
-      ) {
+      if (event.affectsConfiguration('linguini.server') ||
+        event.affectsConfiguration('linguini.semanticHighlighting')) {
         void restartClient();
       }
     }),
@@ -48,39 +38,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 export async function deactivate(): Promise<void> {
   await client?.stop();
   client = undefined;
-}
-
-class LinguiniDocumentFormattingProvider implements vscode.DocumentFormattingEditProvider {
-  async provideDocumentFormattingEdits(
-    document: vscode.TextDocument,
-    _options: vscode.FormattingOptions,
-    token: vscode.CancellationToken
-  ): Promise<vscode.TextEdit[]> {
-    try {
-      const input = document.getText();
-      const formatted = await runFormatter(document, input, token);
-
-      if (formatted.length === 0 && input.length > 0) {
-        throw new Error('formatter returned empty stdout; refusing to replace the document with empty content');
-      }
-
-      if (formatted === input) {
-        return [];
-      }
-
-      return [
-        vscode.TextEdit.replace(
-          new vscode.Range(document.positionAt(0), document.positionAt(input.length)),
-          formatted
-        )
-      ];
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      formatterOutputChannel?.appendLine(message);
-      void vscode.window.showErrorMessage(`Linguini formatting failed: ${message}`);
-      return [];
-    }
-  }
 }
 
 function createClient(): LanguageClient {
@@ -129,93 +86,6 @@ async function startClient(nextClient: LanguageClient): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     void vscode.window.showErrorMessage(`Linguini language server failed to start: ${message}`);
   }
-}
-
-function runFormatter(
-  document: vscode.TextDocument,
-  input: string,
-  token: vscode.CancellationToken
-): Promise<string> {
-  const config = vscode.workspace.getConfiguration('linguini.formatter');
-  const command = expandVariables(config.get<string>('path', 'linguini'), document);
-  const args = expandFormatterArgs(config.get<string[]>('args', ['formatting']), document);
-  const timeoutMs = config.get<number>('timeoutMs', 10000);
-  const cwd = getWorkspaceRoot() ?? process.cwd();
-
-  formatterOutputChannel?.appendLine(`Running: ${command} ${args.join(' ')}`);
-
-  return new Promise((resolve, reject) => {
-    const child = cp.spawn(command, args, {
-      cwd,
-      windowsHide: true
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-
-    const finish = (callback: () => void): void => {
-      if (settled) {
-        return;
-      }
-
-      settled = true;
-      clearTimeout(timeout);
-      cancellation.dispose();
-      callback();
-    };
-
-    const timeout = setTimeout(() => {
-      child.kill();
-      finish(() => reject(new Error(`formatter timed out after ${timeoutMs}ms`)));
-    }, timeoutMs);
-
-    const cancellation = token.onCancellationRequested(() => {
-      child.kill();
-      finish(() => reject(new Error('formatting was cancelled')));
-    });
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-
-    child.stdout.on('data', (chunk: string) => {
-      stdout += chunk;
-    });
-
-    child.stderr.on('data', (chunk: string) => {
-      stderr += chunk;
-    });
-
-    child.on('error', (error) => {
-      finish(() => reject(error));
-    });
-
-    child.on('close', (code) => {
-      finish(() => {
-        if (stderr.trim().length > 0) {
-          formatterOutputChannel?.appendLine(stderr.trimEnd());
-        }
-
-        if (code === 0) {
-          resolve(stdout);
-        } else {
-          reject(new Error(`formatter exited with code ${code}${stderr ? `: ${stderr.trim()}` : ''}`));
-        }
-      });
-    });
-
-    child.stdin.on('error', (error: NodeJS.ErrnoException) => {
-      if (error.code !== 'EPIPE') {
-        formatterOutputChannel?.appendLine(error.message);
-      }
-    });
-
-    child.stdin.end(input, 'utf8');
-  });
-}
-
-function expandFormatterArgs(args: string[], document: vscode.TextDocument): string[] {
-  return args.map((arg) => expandVariables(arg, document));
 }
 
 function expandVariables(value: string, document?: vscode.TextDocument): string {

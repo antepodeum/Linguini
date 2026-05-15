@@ -69,7 +69,7 @@
         "linguini.server.path": {
           "type": "string",
           "default": "linguini",
-          "description": "Path to the Linguini binary. Used for both `linguini lsp` and formatting unless `linguini.formatting.path` is set."
+          "description": "Path to the Linguini binary used to start `linguini lsp`."
         },
         "linguini.server.args": {
           "type": "array",
@@ -90,48 +90,6 @@
           ],
           "default": "off",
           "description": "Trace communication between VS Code and the Linguini language server."
-        },
-        "linguini.formatter.path": {
-          "type": "string",
-          "default": "linguini",
-          "description": "Path to the Linguini formatter binary. Defaults to resolving `linguini` from PATH. Supports `${workspaceFolder}`."
-        },
-        "linguini.formatter.args": {
-          "type": "array",
-          "default": [
-            "formatting"
-          ],
-          "items": {
-            "type": "string"
-          },
-          "description": "Arguments passed to the Linguini formatter binary. The document text is passed on stdin; stdout must contain the formatted document. Supports `${file}`, `${workspaceFolder}`, and `${languageId}` placeholders."
-        },
-        "linguini.formatter.timeoutMs": {
-          "type": "number",
-          "default": 10000,
-          "minimum": 1000,
-          "description": "Maximum time in milliseconds to wait for `linguini formatting` before cancelling formatting."
-        },
-        "linguini.formatting.path": {
-          "type": "string",
-          "default": "",
-          "description": "Optional path to the Linguini formatter binary. Leave empty to reuse `linguini.server.path`."
-        },
-        "linguini.formatting.args": {
-          "type": "array",
-          "default": [
-            "formatting"
-          ],
-          "items": {
-            "type": "string"
-          },
-          "description": "Arguments passed to the Linguini formatter. Defaults to running `linguini formatting` and sending the document through stdin. Supports `${workspaceFolder}` and `${file}` substitutions."
-        },
-        "linguini.formatting.timeoutMs": {
-          "type": "number",
-          "default": 10000,
-          "minimum": 1000,
-          "description": "Maximum time in milliseconds to wait for `linguini formatting` before cancelling formatting."
         },
         "linguini.semanticHighlighting.enabled": {
           "type": "boolean",
