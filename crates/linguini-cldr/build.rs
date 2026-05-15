@@ -111,7 +111,7 @@ fn generate_plural_tables(source: &str) -> Result<String, String> {
         .ok_or_else(|| "missing supplemental.plurals-type-cardinal".to_owned())?;
 
     let mut locales: Vec<_> = cardinal.iter().collect();
-    locales.sort_by(|(left, _), (right, _)| left.cmp(right));
+    locales.sort_by_key(|(left, _)| *left);
 
     let mut compiled_match_arms = String::new();
     let mut source_match_arms = String::new();
