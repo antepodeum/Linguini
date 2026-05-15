@@ -25,6 +25,12 @@ Implementation decisions:
 - LSP rename remains token/name based across open documents; full project indexing and schema-aware rename validation are still future work.
 
 Tests last run:
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings` (rerun with network approval for CLDR build script)
+- `./scripts/review-snapshots.sh --check`
+- `bash scripts/validate-generated-js.sh`
+- `./scripts/validate-generated-rust.sh`
+- `npm test` in `plugins/vite`
 - `cargo test -p linguini-codegen-ts`
 - `bash scripts/validate-generated-ts.sh`
 - `cargo fmt --all --check`
