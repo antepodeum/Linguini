@@ -1,0 +1,5 @@
+form Label(Plural) {
+  one {
+    _ => item
+  _ => items
+}

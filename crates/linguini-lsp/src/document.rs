@@ -376,10 +376,7 @@ fn symbol(name: &Name, detail: &str, docs: &[DocComment]) -> Symbol {
     }
 }
 
-fn schema_message_symbol(
-    message: &MessageSignature,
-    group: Option<&str>,
-) -> Symbol {
+fn schema_message_symbol(message: &MessageSignature, group: Option<&str>) -> Symbol {
     let mut symbol = symbol(&message.name, "message", &message.docs);
     let display_name = qualified_name(group, &message.name.value);
     symbol.preview = Some(schema_message_preview(&display_name, &message.parameters));

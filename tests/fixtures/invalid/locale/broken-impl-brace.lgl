@@ -1,0 +1,7 @@
+impl Fruit {
+  apple {
+    label = Apple
+  pear {
+    label = Pear
+  }
+}

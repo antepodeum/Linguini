@@ -1,6 +1,6 @@
 use crate::{
-    analyze_branch_coverage, require_other_branch, BranchCoverage, Diagnostic,
-    DiagnosticSeverity, NamedSpan, QuickFix, Replacement,
+    analyze_branch_coverage, require_other_branch, BranchCoverage, Diagnostic, DiagnosticSeverity,
+    NamedSpan, QuickFix, Replacement,
 };
 use linguini_syntax::{
     DocComment, FunctionBranch, FunctionBranchValue, LocaleDeclaration, LocaleFile,
@@ -245,18 +245,22 @@ fn collect_schema_messages(
     messages: &mut Vec<RequiredLocaleMessage>,
 ) {
     match declaration {
-        SchemaDeclaration::Message(message) => messages.push(RequiredLocaleMessage::new(
-            qualified_name(group, &message.name.value),
-            message.name.span,
-        )
-        .with_docs(&message.docs)),
+        SchemaDeclaration::Message(message) => messages.push(
+            RequiredLocaleMessage::new(
+                qualified_name(group, &message.name.value),
+                message.name.span,
+            )
+            .with_docs(&message.docs),
+        ),
         SchemaDeclaration::Group(group_declaration) => {
             for message in &group_declaration.messages {
-                messages.push(RequiredLocaleMessage::new(
-                    qualified_name(Some(&group_declaration.name.value), &message.name.value),
-                    message.name.span,
-                )
-                .with_docs(&message.docs));
+                messages.push(
+                    RequiredLocaleMessage::new(
+                        qualified_name(Some(&group_declaration.name.value), &message.name.value),
+                        message.name.span,
+                    )
+                    .with_docs(&message.docs),
+                );
             }
         }
         SchemaDeclaration::Enum(_) | SchemaDeclaration::TypeAlias(_) => {}
@@ -269,18 +273,22 @@ fn collect_locale_messages(
     messages: &mut Vec<ImplementedLocaleMessage>,
 ) {
     match declaration {
-        LocaleDeclaration::Message(message) => messages.push(ImplementedLocaleMessage::new(
-            qualified_name(group, &message.name.value),
-            message.name.span,
-        )
-        .with_docs(&message.docs)),
+        LocaleDeclaration::Message(message) => messages.push(
+            ImplementedLocaleMessage::new(
+                qualified_name(group, &message.name.value),
+                message.name.span,
+            )
+            .with_docs(&message.docs),
+        ),
         LocaleDeclaration::Group(group_declaration) => {
             for message in &group_declaration.messages {
-                messages.push(ImplementedLocaleMessage::new(
-                    qualified_name(Some(&group_declaration.name.value), &message.name.value),
-                    message.name.span,
-                )
-                .with_docs(&message.docs));
+                messages.push(
+                    ImplementedLocaleMessage::new(
+                        qualified_name(Some(&group_declaration.name.value), &message.name.value),
+                        message.name.span,
+                    )
+                    .with_docs(&message.docs),
+                );
             }
         }
         LocaleDeclaration::Override(inner) => collect_locale_messages(inner, group, messages),

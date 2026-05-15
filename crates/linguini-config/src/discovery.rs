@@ -137,7 +137,10 @@ fn namespace_from_path(root: &Path, path: &Path, include_file_stem: bool) -> Str
 
 #[cfg(test)]
 mod tests {
-    use super::{locale_scope_chain, namespace_from_path};
+    use super::{
+        discover_locale_files, discover_schema_files, locale_scope_chain, namespace_from_path,
+    };
+    use std::fs;
     use std::path::Path;
 
     #[test]
@@ -185,5 +188,39 @@ mod tests {
                 Path::new("linguini/locale/shop/delivery/ru.lgl").to_path_buf(),
             ]
         );
+    }
+
+    #[test]
+    fn discovers_project_structure_namespaces_and_locales() {
+        let root = temp_root("discovers_project_structure_namespaces_and_locales");
+        let schema_root = root.join("schema");
+        let locale_root = root.join("locales");
+        fs::create_dir_all(schema_root.join("shop/forms")).expect("schema dirs");
+        fs::create_dir_all(locale_root.join("shop/forms/cart")).expect("locale dirs");
+        fs::write(schema_root.join("shop/forms/cart.lgs"), "cart()\n").expect("schema file");
+        fs::write(
+            locale_root.join("shop/forms/cart/en-US.lgl"),
+            "cart = Cart\n",
+        )
+        .expect("locale file");
+
+        let schemas = discover_schema_files(&schema_root).expect("schema discovery");
+        let locales = discover_locale_files(&locale_root).expect("locale discovery");
+
+        assert_eq!(schemas.len(), 1);
+        assert_eq!(schemas[0].namespace, "shop.forms.cart");
+        assert_eq!(locales.len(), 1);
+        assert_eq!(locales[0].locale, "en-US");
+        assert_eq!(locales[0].namespace, "shop.forms.cart");
+
+        fs::remove_dir_all(root).expect("remove temp project");
+    }
+
+    fn temp_root(name: &str) -> std::path::PathBuf {
+        let path =
+            std::env::temp_dir().join(format!("linguini-config-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).expect("create temp root");
+        path
     }
 }

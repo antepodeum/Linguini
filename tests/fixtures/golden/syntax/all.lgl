@@ -1,0 +1,27 @@
+enum Tone { formal, casual }
+
+override enum Channel { email, sms }
+
+form Greeting(Tone, Plural) {
+  formal {
+    one => Hello
+    _ => Hello
+  }
+  casual {
+    one => Hey
+    _ => Hey
+  }
+}
+
+fn Wrap(value: String, Tone) {
+  formal => {value}
+  _ => {value}
+}
+
+/// Greeting shown in account header.
+greeting = {Greeting(tone, count)}, {Wrap(name, tone)}
+
+account {
+  title = Account
+  subtitle = {count} updates
+}

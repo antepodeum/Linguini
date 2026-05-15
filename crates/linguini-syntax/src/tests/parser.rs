@@ -2,6 +2,8 @@ use crate::{
     parse_locale, parse_locale_with_recovery, parse_schema, parse_schema_with_recovery, FormEntry,
     FunctionBranchValue, LocaleDeclaration, LocaleValue, SchemaDeclaration, TextPart,
 };
+use std::fs;
+use std::path::Path;
 
 #[test]
 fn parses_schema_fixture() {
@@ -34,6 +36,15 @@ fn parses_schema_fixture() {
 }
 
 #[test]
+fn parses_syntax_coverage_fixtures() {
+    let schema = include_str!("../../../../tests/fixtures/golden/syntax/all.lgs");
+    let locale = include_str!("../../../../tests/fixtures/golden/syntax/all.lgl");
+
+    assert!(parse_schema(schema).is_ok());
+    assert!(parse_locale(locale).is_ok());
+}
+
+#[test]
 fn schema_parser_recovery_reports_invalid_fixture_diagnostics() {
     let source =
         include_str!("../../../../tests/fixtures/invalid/schema/missing-message-paren.lgs");
@@ -42,6 +53,22 @@ fn schema_parser_recovery_reports_invalid_fixture_diagnostics() {
     assert!(!output.errors.is_empty());
     assert!(output.errors.iter().any(|error| error.span.start >= 25));
     assert!(parse_schema(source).is_err());
+}
+
+#[test]
+fn parser_recovery_reports_all_invalid_fixture_diagnostics() {
+    let root = repo_root().join("tests/fixtures/invalid");
+    for path in fixture_files(&root) {
+        let source = fs::read_to_string(&path).expect("read invalid fixture");
+        let extension = path.extension().and_then(|extension| extension.to_str());
+        let errors = match extension {
+            Some("lgs") => parse_schema_with_recovery(&source).errors,
+            Some("lgl") => parse_locale_with_recovery(&source).errors,
+            _ => continue,
+        };
+
+        assert!(!errors.is_empty(), "{} produced no errors", path.display());
+    }
 }
 
 #[test]
@@ -254,4 +281,25 @@ fn parses_locale_override_declaration() {
         },
         other => panic!("expected override, got {other:?}"),
     }
+}
+
+fn fixture_files(root: &Path) -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    for entry in fs::read_dir(root).expect("read fixture dir") {
+        let path = entry.expect("fixture entry").path();
+        if path.is_dir() {
+            paths.extend(fixture_files(&path));
+        } else {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    paths
+}
+
+fn repo_root() -> &'static Path {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("repo root")
 }

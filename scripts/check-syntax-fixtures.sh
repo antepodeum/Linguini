@@ -23,6 +23,8 @@ require_text() {
 
 schema_fixture="tests/fixtures/golden/schema/shop.lgs"
 locale_fixture="tests/fixtures/golden/locale/ru.lgl"
+syntax_schema_fixture="tests/fixtures/golden/syntax/all.lgs"
+syntax_locale_fixture="tests/fixtures/golden/syntax/all.lgl"
 
 require_text "$schema_fixture" '^enum [A-Z][A-Za-z0-9_]* \{.*\}$' "schema enum declarations"
 require_text "$schema_fixture" '^type [A-Z][A-Za-z0-9_]* = [A-Z][A-Za-z0-9_]* @' "schema formatter annotations"
@@ -42,6 +44,11 @@ require_text "$locale_fixture" '\{[a-z][A-Za-z0-9_]*(\.[a-z][A-Za-z0-9_]*)*(\([^
 require_text "$locale_fixture" '@currency\(' "placeholder formatter annotations"
 require_text "$locale_fixture" '^[a-z][A-Za-z0-9_]* \{$' "grouped message implementations"
 
+require_text "$syntax_schema_fixture" '^type [A-Z][A-Za-z0-9_]* = [A-Z][A-Za-z0-9_]* @.*\(' "schema annotation arguments"
+require_text "$syntax_locale_fixture" '^override ' "locale override declarations"
+require_text "$syntax_locale_fixture" '^fn [A-Z][A-Za-z0-9_]*\([a-z][A-Za-z0-9_]*: String, [A-Z][A-Za-z0-9_]*\)' "named and unnamed function parameters"
+require_text "$syntax_locale_fixture" '^\s+formal \{$' "nested dispatch branches"
+
 while IFS= read -r fixture; do
   line_count="$(wc -l < "$fixture")"
   if (( line_count < 8 )); then
@@ -54,6 +61,6 @@ while IFS= read -r fixture; do
     tests/fixtures/invalid/*) ;;
     *) fail "invalid diagnostic fixture is outside tests/fixtures/invalid: $fixture" ;;
   esac
-done < <(find tests/fixtures -type f \( -name 'broken-*.lgl' -o -name 'missing-*.lgs' \) | sort)
+done < <(find tests/fixtures/invalid -type f \( -name '*.lgs' -o -name '*.lgl' \) | sort)
 
 exit "$failed"

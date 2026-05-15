@@ -85,15 +85,11 @@ fn workspace_diagnostics_include_schema_doc_and_branch_coverage() {
 
     let diagnostics = diagnostics_with_workspace(&locale, [schema]);
 
-    assert!(diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic
-            .message
-            .contains("enum `Gender` is missing branch `neuter`")));
-    assert!(diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.message
-            == "locale message `delivery` is missing schema doc comment"));
+    assert!(diagnostics.iter().any(|diagnostic| diagnostic
+        .message
+        .contains("enum `Gender` is missing branch `neuter`")));
+    assert!(diagnostics.iter().any(|diagnostic| diagnostic.message
+        == "locale message `delivery` is missing schema doc comment"));
 }
 
 #[test]

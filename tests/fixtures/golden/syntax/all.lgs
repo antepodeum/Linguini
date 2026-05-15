@@ -1,0 +1,11 @@
+enum Tone { formal, casual }
+
+type Price = Decimal @currency(code = "USD")
+
+/// Greeting shown in account header.
+greeting(name: String, tone: Tone)
+
+account {
+  title
+  subtitle(count: Number)
+}
