@@ -1,4 +1,5 @@
 Completed slice:
+- 2026-05-15: TypeScript project codegen now exports `locales`, `baseLocale`, `localeModules`, `localeLoaders`, provider contracts, detection strategy, URL helpers, request locale middleware, `%lang%`/`%dir%` injection, text direction, Svelte `<Trans>`, and SvelteKit locale-link helpers.
 - 2026-05-15: Vite plugin package added under `plugins/vite`; it watches Linguini config/schema/locale files, runs `linguini build`, invalidates generated modules, and emits a `linguini:update` HMR event.
 - 2026-05-15: LSP quick fixes now convert analyzer `QuickFix` replacement and command data into generic code actions, so new analyzer quick fixes do not need per-fix LSP code.
 - 2026-05-15: Analyzer quick fixes now cover missing enum branches, missing `other` branches, missing locale message stubs, and ambiguous implicit plural arguments with multiple explicit argument variants.
@@ -10,6 +11,9 @@ Completed slice:
 - 2026-05-15: Removed generated server binaries from git tracking; `editors/vscode/server/` is ignored and filled during package builds.
 
 Implementation decisions:
+- Generated TypeScript runtime lives in the project `index.ts`; Svelte-specific output is split into `svelte/Trans.svelte` and `sveltekit.ts` to keep the core index importable outside Svelte.
+- Server locale context uses Node `AsyncLocalStorage` when available via guarded dynamic loading, with `disableAsyncLocalStorage` for browser/non-Node fallback behavior.
+- Locale detection order is explicit and configurable; default order is URL, cookie, preferred language, localStorage, then base locale.
 - Vite plugin is dependency-light ESM JavaScript with `.d.ts` types; it shells to `linguini build` by default and supports an injected `build` function for tests/custom integrations.
 - LSP quick-fix support is analyzer-driven: replacement fixes become workspace edits, command-only fixes become command code actions, and multiple fixes on one diagnostic are exposed as separate actions.
 - Formatter line-width enforcement intentionally targets structural parenthesized lines only; raw text lines are not wrapped because that would change message semantics.
@@ -21,6 +25,11 @@ Implementation decisions:
 - LSP rename remains token/name based across open documents; full project indexing and schema-aware rename validation are still future work.
 
 Tests last run:
+- `cargo test -p linguini-codegen-ts`
+- `bash scripts/validate-generated-ts.sh`
+- `cargo fmt --all --check`
+- `./scripts/check-file-size.sh`
+- Svelte autofixer for generated `Trans.svelte`
 - `cargo test -p linguini-syntax -p linguini-analyzer -p linguini-lsp -p linguini-format`
 - `./scripts/check-file-size.sh`
 - `./scripts/check-spec-gates.sh`
@@ -35,8 +44,9 @@ Tests last run:
 - `cargo test -p linguini-format`
 
 Known deferred work:
+- Generated `<Trans>` accepts already-tokenized rich-text parts; parser/codegen support for authoring rich-text tags directly in `.lgl` remains future work.
 - LSP completion is keyword/document-symbol/context based, not fully schema-indexed across project files.
 - Native VSIX bundles must be built per target platform/arch so each published artifact carries its matching server binary.
 
 Next recommended task:
-- Implement project-aware LSP workspace indexing from `linguini.toml`, then use it for schema-argument completion and true cross-file definitions/references.
+- Continue section 14 by implementing project-aware LSP workspace indexing from `linguini.toml`, then use it for schema-argument completion and true cross-file definitions/references.

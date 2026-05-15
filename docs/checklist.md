@@ -726,50 +726,69 @@ Checkpoint acceptance:
 
 ## 12. TypeScript/JavaScript vite plugin integration
 
-- [ ] Export `locales` and `baseLocale` from generated TypeScript
-  - Note:
-- [ ] Expose stable generated locale module loaders or locale map for runtime integration
-  - Note:
-- [ ] Define generated locale provider contract for `getLocale()` and message facades
-  - Note:
-- [ ] Add configurable locale detection strategy chain
-  - Note:
-- [ ] Implement URL, cookie, preferred-language, localStorage, and base-locale detectors
-  - Note:
-- [ ] Implement `localizeHref`
-  - Note:
-- [ ] Implement `shouldRedirect`
-  - Note:
-- [ ] Implement server middleware with per-request locale context
-  - Note:
-- [ ] Add `disableAsyncLocalStorage` runtime option
-  - Note:
-- [ ] Implement `%lang%` and `%dir%` injection support
-  - Note:
-- [ ] Implement `getTextDirection`
-  - Note:
-- [ ] Implement Svelte/SvelteKit `<Trans>` component for rich text and component interpolation
-  - Note:
-- [ ] Add SvelteKit static-site locale-link support
-  - Note:
-- [ ] Add Vite plugin that rebuilds when translation files change
+- [x] Export `locales` and `baseLocale` from generated TypeScript
+  - Note: completed on 2026-05-15. Generated project indexes export a typed locale list and the configured default locale as `baseLocale`.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; tests/fixtures/golden/snapshots/ts/index.ts; `cargo test -p linguini-codegen-ts`
+- [x] Expose stable generated locale module loaders or locale map for runtime integration
+  - Note: completed on 2026-05-15. Generated indexes export `localeModules` and `localeLoaders` for direct or lazy runtime integration.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; tests/fixtures/golden/snapshots/ts-runtime/index.ts; `bash scripts/validate-generated-ts.sh`
+- [x] Define generated locale provider contract for `getLocale()` and message facades
+  - Note: completed on 2026-05-15. Generated indexes expose `getLocale()`, provider options, `createLinguiniProvider`, and `lgl` facade wiring.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; tests/fixtures/golden/snapshots/ts/index.d.ts; `bash scripts/validate-generated-ts.sh`
+- [x] Add configurable locale detection strategy chain
+  - Note: completed on 2026-05-15. Added `defaultLocaleStrategy` plus `resolveLocale` options for caller-supplied detector ordering.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; tests/fixtures/golden/snapshots/ts/index.ts; `bash scripts/validate-generated-ts.sh`
+- [x] Implement URL, cookie, preferred-language, localStorage, and base-locale detectors
+  - Note: completed on 2026-05-15. Generated runtime includes URL, cookie/header, Accept-Language/navigator, localStorage, and base-locale detectors.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] Implement `localizeHref`
+  - Note: completed on 2026-05-15. Generated runtime rewrites locale-prefixed relative and absolute hrefs while preserving query and hash suffixes.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] Implement `shouldRedirect`
+  - Note: completed on 2026-05-15. Generated runtime compares current hrefs against localized targets to identify stale locale URLs.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] Implement server middleware with per-request locale context
+  - Note: completed on 2026-05-15. Added `runWithLocale` and `createLinguiniMiddleware` with AsyncLocalStorage-backed request locale state.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] Add `disableAsyncLocalStorage` runtime option
+  - Note: completed on 2026-05-15. Middleware options can disable AsyncLocalStorage and use scoped fallback state for non-Node environments.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; tests/fixtures/golden/snapshots/ts/index.d.ts; `cargo test -p linguini-codegen-ts`
+- [x] Implement `%lang%` and `%dir%` injection support
+  - Note: completed on 2026-05-15. Added `injectLangAndDir` to replace `%lang%` and `%dir%` using resolved locale and text direction.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] Implement `getTextDirection`
+  - Note: completed on 2026-05-15. Generated runtime maps known RTL language subtags to `rtl` and defaults other locales to `ltr`.
+  - Evidence: crates/linguini-codegen-ts/src/module/project.rs; tests/fixtures/golden/snapshots/ts/index.ts; `bash scripts/validate-generated-ts.sh`
+- [x] Implement Svelte/SvelteKit `<Trans>` component for rich text and component interpolation
+  - Note: completed on 2026-05-15. Generated Svelte 5 `Trans.svelte` renders string parts and named rich-text component snippets.
+  - Evidence: crates/linguini-codegen-ts/src/module/svelte.rs; tests/fixtures/golden/snapshots/ts/svelte/Trans.svelte; Svelte autofixer; `cargo test -p linguini-codegen-ts`
+- [x] Add SvelteKit static-site locale-link support
+  - Note: completed on 2026-05-15. Generated `sveltekit.ts` exposes locale switcher links, static locale path expansion, and HTML locale attributes.
+  - Evidence: crates/linguini-codegen-ts/src/module/svelte.rs; tests/fixtures/golden/snapshots/ts/sveltekit.ts; `bash scripts/validate-generated-ts.sh`
+- [x] Add Vite plugin that rebuilds when translation files change
   - Note: completed on 2026-05-15. Added `@linguini/vite` plugin that watches `linguini.toml`, `.lgs`, and `.lgl`, runs `linguini build`, invalidates generated modules, and emits a HMR update event.
   - Evidence: plugins/vite/src/index.js; plugins/vite/test/plugin.test.mjs; `npm test` in plugins/vite
 
 Checkpoint acceptance:
 
-- [ ] Detection strategy resolves locales in configured priority order
-  - Note:
-- [ ] Middleware keeps concurrent request locale state isolated
-  - Note:
-- [ ] `localizeHref` converts between locale-prefixed URLs
-  - Note:
-- [ ] `shouldRedirect` identifies stale localized URLs after navigation
-  - Note:
-- [ ] `<Trans>` renders translated rich text with Svelte components
-  - Note:
-- [ ] `locales` supports a locale switcher without hand-written locale lists
-  - Note:
+- [x] Detection strategy resolves locales in configured priority order
+  - Note: completed on 2026-05-15. Runtime validation checks URL locale wins over cookie locale and preferred-language fallback resolves next.
+  - Evidence: scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] Middleware keeps concurrent request locale state isolated
+  - Note: completed on 2026-05-15. Runtime validation runs concurrent middleware calls with different locales and verifies isolated `getLocale()` results.
+  - Evidence: scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] `localizeHref` converts between locale-prefixed URLs
+  - Note: completed on 2026-05-15. Runtime validation checks locale prefix replacement and base-locale prefix stripping.
+  - Evidence: scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] `shouldRedirect` identifies stale localized URLs after navigation
+  - Note: completed on 2026-05-15. Runtime validation checks stale and current locale URL comparisons.
+  - Evidence: scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
+- [x] `<Trans>` renders translated rich text with Svelte components
+  - Note: completed on 2026-05-15. Generated Svelte component accepts rich-text parts and named snippet components for interpolation.
+  - Evidence: tests/fixtures/golden/snapshots/ts/svelte/Trans.svelte; Svelte autofixer; `cargo test -p linguini-codegen-ts`
+- [x] `locales` supports a locale switcher without hand-written locale lists
+  - Note: completed on 2026-05-15. Generated `localeLinks` derives switcher entries directly from exported `locales`.
+  - Evidence: tests/fixtures/golden/snapshots/ts/sveltekit.ts; scripts/validate-generated-ts.sh; `bash scripts/validate-generated-ts.sh`
 
 ---
 
