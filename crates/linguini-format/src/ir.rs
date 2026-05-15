@@ -70,6 +70,7 @@ impl FormatIr {
 
         trim_trailing_blank_lines(&mut out);
         out = align_marked_match_arms(&out);
+        out = enforce_line_width(&out, options);
         out.push('\n');
         out
     }
@@ -172,4 +173,58 @@ fn remove_arrow_markers(line: &str) -> String {
 
 fn display_width(text: &str) -> usize {
     text.chars().count()
+}
+
+fn enforce_line_width(input: &str, options: &FormatOptions) -> String {
+    input
+        .lines()
+        .flat_map(|line| wrap_structural_arguments(line, options))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn wrap_structural_arguments(line: &str, options: &FormatOptions) -> Vec<String> {
+    if options.max_line_width == 0 || display_width(line) <= options.max_line_width {
+        return vec![line.to_owned()];
+    }
+
+    if line.contains('=') || line.contains("=>") || !line.contains(',') {
+        return vec![line.to_owned()];
+    }
+
+    let Some(open) = line.find('(') else {
+        return vec![line.to_owned()];
+    };
+    let Some(close) = line.rfind(')') else {
+        return vec![line.to_owned()];
+    };
+    if close <= open {
+        return vec![line.to_owned()];
+    }
+
+    let before = line[..open].trim_end();
+    let args = line[open + 1..close]
+        .split(',')
+        .map(str::trim)
+        .filter(|arg| !arg.is_empty())
+        .collect::<Vec<_>>();
+    if args.len() < 2 {
+        return vec![line.to_owned()];
+    }
+
+    let suffix = line[close + 1..].trim_end();
+    let base_indent = leading_spaces(line);
+    let nested_indent = base_indent + options.indent_width;
+    let mut wrapped = Vec::with_capacity(args.len() + 2);
+    wrapped.push(format!("{before}("));
+    for (index, arg) in args.iter().enumerate() {
+        let comma = if index + 1 == args.len() { "" } else { "," };
+        wrapped.push(format!("{}{}{}", " ".repeat(nested_indent), arg, comma));
+    }
+    wrapped.push(format!("{}){}", " ".repeat(base_indent), suffix));
+    wrapped
+}
+
+fn leading_spaces(line: &str) -> usize {
+    line.bytes().take_while(|byte| *byte == b' ').count()
 }

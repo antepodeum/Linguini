@@ -111,6 +111,41 @@ fn aligns_consecutive_match_arms_by_text_column() {
 }
 
 #[test]
+fn wraps_long_structural_argument_lists() {
+    let source = "delivery(count: Number, fruit: Fruit, size: Size, price: Money)\n";
+    let formatted = format_source(
+        SourceKind::Schema,
+        source,
+        &FormatOptions {
+            max_line_width: 32,
+            ..FormatOptions::default()
+        },
+    )
+    .expect("format");
+
+    assert_eq!(
+        formatted,
+        "delivery(\n  count: Number,\n  fruit: Fruit,\n  size: Size,\n  price: Money\n)\n"
+    );
+}
+
+#[test]
+fn leaves_long_raw_text_lines_unchanged() {
+    let source = "message = This raw text has commas, spaces, and enough words to exceed the configured width\n";
+    let formatted = format_source(
+        SourceKind::Locale,
+        source,
+        &FormatOptions {
+            max_line_width: 24,
+            ..FormatOptions::default()
+        },
+    )
+    .expect("format");
+
+    assert_eq!(formatted, source);
+}
+
+#[test]
 fn refuses_invalid_source() {
     let error = format_source(
         SourceKind::Schema,
