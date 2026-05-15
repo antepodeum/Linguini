@@ -70,6 +70,7 @@ fn generate_typescript_target(
             declaration: target.declaration,
             tree_shaking: target.tree_shaking,
             included_messages: target.messages.clone(),
+            base_locale: Some(config.project.default_locale.clone()),
         },
     )
     .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;

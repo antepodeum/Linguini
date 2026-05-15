@@ -93,6 +93,7 @@ fn project_codegen_owns_multilocale_index_files() {
             declaration: true,
             tree_shaking: false,
             included_messages: Vec::new(),
+            base_locale: Some("en".to_owned()),
         },
     )
     .expect("project codegen");
@@ -133,6 +134,7 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
             declaration: true,
             tree_shaking: true,
             included_messages: vec!["keep".to_owned(), "group.label".to_owned()],
+            base_locale: Some("en".to_owned()),
         },
     )
     .expect("project codegen");

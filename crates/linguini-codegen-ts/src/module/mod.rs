@@ -48,6 +48,7 @@ pub struct TypeScriptProjectOptions {
     pub declaration: bool,
     pub tree_shaking: bool,
     pub included_messages: Vec<String>,
+    pub base_locale: Option<String>,
 }
 
 impl Default for TypeScriptProjectOptions {
@@ -56,6 +57,7 @@ impl Default for TypeScriptProjectOptions {
             declaration: true,
             tree_shaking: false,
             included_messages: Vec::new(),
+            base_locale: None,
         }
     }
 }
@@ -121,12 +123,15 @@ pub fn generate_typescript_project_files(
 
     files.push(TypeScriptGeneratedFile {
         path: "index.ts".to_owned(),
-        contents: project::generate_project_index(locales),
+        contents: project::generate_project_index(locales, options.base_locale.as_deref()),
     });
     if options.declaration {
         files.push(TypeScriptGeneratedFile {
             path: "index.d.ts".to_owned(),
-            contents: project::generate_project_index_declaration(locales),
+            contents: project::generate_project_index_declaration(
+                locales,
+                options.base_locale.as_deref(),
+            ),
         });
     }
 
