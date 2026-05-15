@@ -84,15 +84,36 @@ function resolveServerCommand(configuredCommand: string): string {
 
 function bundledServerPath(): string | undefined {
   const executable = process.platform === 'win32' ? 'linguini.exe' : 'linguini';
-  const candidate = path.join(
-    __dirname,
-    '..',
-    'server',
-    `${process.platform}-${process.arch}`,
-    executable
-  );
+  for (const target of bundledServerTargets()) {
+    const candidate = path.join(__dirname, '..', 'server', target, executable);
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
 
-  return fs.existsSync(candidate) ? candidate : undefined;
+  return undefined;
+}
+
+function bundledServerTargets(): string[] {
+  if (process.platform === 'linux') {
+    if (process.arch === 'arm') {
+      return ['linux-armhf'];
+    }
+    if (process.arch === 'x64' || process.arch === 'arm64') {
+      const gnu = `linux-${process.arch}`;
+      const musl = `alpine-${process.arch}`;
+      return isMuslRuntime() ? [musl, gnu] : [gnu, musl];
+    }
+  }
+
+  return [`${process.platform}-${process.arch}`];
+}
+
+function isMuslRuntime(): boolean {
+  const report = process.report?.getReport?.() as
+    | { header?: { glibcVersionRuntime?: string } }
+    | undefined;
+  return process.platform === 'linux' && !report?.header?.glibcVersionRuntime;
 }
 
 async function restartClient(): Promise<void> {

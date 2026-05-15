@@ -2,19 +2,20 @@ Completed slice:
 - 2026-05-15: VS Code formatting now goes through LSP only; removed shell-out formatter provider and stale formatter settings.
 - 2026-05-15: Formatter core split into custom `FormatIr` plus token-to-IR lowering/rendering modules while preserving schema/locale idempotency behavior.
 - 2026-05-15: LSP rename now targets the cursor identifier and edits matching identifiers across all open Linguini schema/locale documents; rename refactor action added.
-- 2026-05-15: VS Code extension now prefers bundled native server binary at `server/<platform>-<arch>/linguini(.exe)` and falls back to `linguini` on PATH.
-- 2026-05-15: Built and committed current host bundled server artifact at `editors/vscode/server/linux-x64/linguini`.
+- 2026-05-15: VS Code extension now prefers package-time bundled native server binary at `server/<platform>-<arch>/linguini(.exe)` and falls back to `linguini` on PATH.
+- 2026-05-15: Removed generated server binaries from git tracking; `editors/vscode/server/` is ignored and filled during package builds.
 
 Implementation decisions:
 - Extension formatting must rely on the LSP `textDocument/formatting` capability; no separate formatter process or `linguini formatting` command.
-- Native server bundling is per built VSIX/platform: `npm run build:server` builds `linguini-cli --release` and copies the binary into `editors/vscode/server/${process.platform}-${process.arch}/`.
+- Native server bundling is per built VSIX/platform: `npm run build:server` builds host binary, and `npm run build:server:target -- <vscode-target>` builds a selected VS Code target into `editors/vscode/server/<target>/`.
+- Supported native VS Code targets in the build script: `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-armhf`, `linux-x64`, `alpine-arm64`, `alpine-x64`, `win32-arm64`, `win32-ia32`, `win32-x64`.
 - User override remains possible: if `linguini.server.path` is anything other than default `linguini`, the extension uses that exact path.
 - Formatter IR is layout-oriented, not semantic IR: tokens lower into text, spacing, hard-line, indent/dedent, raw-line-start, and selector-arm marker items before rendering.
 - LSP rename remains token/name based across open documents; full project indexing and schema-aware rename validation are still future work.
 
 Tests last run:
 - `npm run compile`
-- `npm run build:server` (required network for CLDR build script)
+- `npm run build:server:target -- linux-x64` (required network for CLDR build script)
 - `editors/vscode/server/linux-x64/linguini --help`
 - `cargo test -p linguini-lsp`
 - `cargo test -p linguini-format`

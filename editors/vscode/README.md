@@ -8,29 +8,41 @@ VS Code support for Linguini schema (`.lgs`) and locale (`.lgl`) files.
 - TextMate grammars for declarations, selectors, interpolations, formatters, raw locale text, strings, comments, and punctuation.
 - Semantic token scope mappings for schema and locale files.
 - Language client activation through `vscode-languageclient/node`.
-- LSP starts with `linguini lsp` by default.
-- Document formatting runs `linguini formatting` by default, sends the document text to stdin, and expects the formatted document on stdout.
+- LSP starts from the bundled native `linguini` binary when the extension package includes one for the current VS Code platform.
+- Document formatting is provided by the LSP formatting request.
+
+Packaged users do not need to install the Linguini CLI separately. The extension falls back to `linguini` on `PATH` only when no bundled server binary exists or when `linguini.server.path` is overridden.
 
 ## Local Development
 
-1. Build or install the Linguini binary so VS Code can run it:
-
-   ```sh
-   cargo build -p linguini-cli
-   ```
-
-2. Install extension dependencies:
+1. Install extension dependencies:
 
    ```sh
    cd editors/vscode
    npm install
    ```
 
-3. Compile the extension:
+2. Compile the extension:
 
    ```sh
    npm run compile
    ```
+
+3. Build a bundled native server for the current host:
+
+   ```sh
+   npm run build:server
+   ```
+
+   To build a specific VS Code target:
+
+   ```sh
+   npm run build:server:target -- linux-x64
+   npm run build:server:target -- darwin-arm64
+   npm run build:server:target -- win32-x64
+   ```
+
+   Supported target names are `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-armhf`, `linux-x64`, `alpine-arm64`, `alpine-x64`, `win32-arm64`, `win32-ia32`, and `win32-x64`.
 
 4. Launch the Extension Development Host in one of two ways:
 
@@ -45,34 +57,18 @@ VS Code support for Linguini schema (`.lgs`) and locale (`.lgl`) files.
 
 6. Check LSP behavior through diagnostics/completion/hover provided by `linguini lsp`.
 
-7. Check formatting with `Format Document` / `Shift+Alt+F`. The extension runs:
+7. Check formatting with `Format Document` / `Shift+Alt+F`. VS Code sends a formatting request to the running LSP.
 
-   ```sh
-   linguini formatting
-   ```
-
-   The current document is passed on stdin. The formatted document must be printed to stdout.
-
-If the binary is not available as `linguini` on `PATH`, set explicit paths in VS Code settings. Use your actual binary path, for example:
+If you want to test an external binary instead of the bundled one, set an explicit path in VS Code settings:
 
 ```json
 {
   "linguini.server.path": "/absolute/path/to/target/debug/linguini",
-  "linguini.server.args": ["lsp"],
-  "linguini.formatter.path": "/absolute/path/to/target/debug/linguini",
-  "linguini.formatter.args": ["formatting"]
+  "linguini.server.args": ["lsp"]
 }
 ```
 
 `${workspaceFolder}` is supported in these settings when that is more convenient.
-
-`linguini.formatter.args` supports `${file}`, `${workspaceFolder}`, and `${languageId}` placeholders if the CLI later needs file-aware arguments, for example:
-
-```json
-{
-  "linguini.formatter.args": ["formatting", "--stdin-filepath", "${file}"]
-}
-```
 
 ## Dependency audit
 

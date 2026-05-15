@@ -93,8 +93,30 @@ function resolveServerCommand(configuredCommand) {
 }
 function bundledServerPath() {
     const executable = process.platform === 'win32' ? 'linguini.exe' : 'linguini';
-    const candidate = path.join(__dirname, '..', 'server', `${process.platform}-${process.arch}`, executable);
-    return fs.existsSync(candidate) ? candidate : undefined;
+    for (const target of bundledServerTargets()) {
+        const candidate = path.join(__dirname, '..', 'server', target, executable);
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+    return undefined;
+}
+function bundledServerTargets() {
+    if (process.platform === 'linux') {
+        if (process.arch === 'arm') {
+            return ['linux-armhf'];
+        }
+        if (process.arch === 'x64' || process.arch === 'arm64') {
+            const gnu = `linux-${process.arch}`;
+            const musl = `alpine-${process.arch}`;
+            return isMuslRuntime() ? [musl, gnu] : [gnu, musl];
+        }
+    }
+    return [`${process.platform}-${process.arch}`];
+}
+function isMuslRuntime() {
+    const report = process.report?.getReport?.();
+    return process.platform === 'linux' && !report?.header?.glibcVersionRuntime;
 }
 async function restartClient() {
     const previous = client;
