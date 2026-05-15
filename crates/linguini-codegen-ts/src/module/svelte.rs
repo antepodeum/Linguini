@@ -1,0 +1,92 @@
+pub fn generate_trans_component() -> String {
+    [
+        "<script lang=\"ts\">",
+        "  import type { Snippet } from \"svelte\";",
+        "",
+        "  export type RichTextPart = string | { name: string; text: string };",
+        "  export type RichTextComponents = Record<string, Snippet<[string]>>;",
+        "",
+        "  let { value, components = {} }: {",
+        "    value: readonly RichTextPart[];",
+        "    components?: RichTextComponents;",
+        "  } = $props();",
+        "</script>",
+        "",
+        "{#each value as part, index (index)}",
+        "  {#if typeof part === \"string\"}",
+        "    {part}",
+        "  {:else if components[part.name]}",
+        "    {@render components[part.name](part.text)}",
+        "  {:else}",
+        "    {part.text}",
+        "  {/if}",
+        "{/each}",
+        "",
+    ]
+    .join("\n")
+}
+
+pub fn generate_sveltekit_helpers() -> String {
+    [
+        "import { baseLocale, getTextDirection, localizeHref, locales, type Locale } from \"./index\";",
+        "",
+        "export type LocaleLink = {",
+        "  locale: Locale;",
+        "  href: string;",
+        "  current: boolean;",
+        "  lang: string;",
+        "  dir: \"ltr\" | \"rtl\";",
+        "};",
+        "",
+        "export type LocaleLinkOptions = {",
+        "  currentLocale?: Locale;",
+        "  stripBaseLocale?: boolean;",
+        "};",
+        "",
+        "export function localeLinks(pathname: string, options: LocaleLinkOptions = {}): LocaleLink[] {",
+        "  const currentLocale = options.currentLocale ?? baseLocale;",
+        "  return locales.map((locale) => ({",
+        "    locale,",
+        "    href: localizeHref(pathname, locale, options),",
+        "    current: locale === currentLocale,",
+        "    lang: locale,",
+        "    dir: getTextDirection(locale),",
+        "  }));",
+        "}",
+        "",
+        "export function staticLocaleEntries(paths: readonly string[], options: LocaleLinkOptions = {}): string[] {",
+        "  return paths.flatMap((path) => locales.map((locale) => localizeHref(path, locale, options)));",
+        "}",
+        "",
+        "export function htmlLocaleAttributes(locale: Locale = baseLocale) {",
+        "  return { lang: locale, dir: getTextDirection(locale) } as const;",
+        "}",
+        "",
+    ]
+    .join("\n")
+}
+
+pub fn generate_sveltekit_declaration() -> String {
+    [
+        "import { type Locale } from \"./index\";",
+        "",
+        "export type LocaleLink = {",
+        "  locale: Locale;",
+        "  href: string;",
+        "  current: boolean;",
+        "  lang: string;",
+        "  dir: \"ltr\" | \"rtl\";",
+        "};",
+        "",
+        "export type LocaleLinkOptions = {",
+        "  currentLocale?: Locale;",
+        "  stripBaseLocale?: boolean;",
+        "};",
+        "",
+        "export declare function localeLinks(pathname: string, options?: LocaleLinkOptions): LocaleLink[];",
+        "export declare function staticLocaleEntries(paths: readonly string[], options?: LocaleLinkOptions): string[];",
+        "export declare function htmlLocaleAttributes(locale?: Locale): { readonly lang: Locale; readonly dir: \"ltr\" | \"rtl\" };",
+        "",
+    ]
+    .join("\n")
+}

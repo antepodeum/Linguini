@@ -7,13 +7,15 @@ trap 'rm -rf "$tmpdir"' EXIT
 
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/shared.ts" "$tmpdir/shared.ts"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/index.ts" "$tmpdir/index.ts"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts/sveltekit.ts" "$tmpdir/sveltekit.ts"
 mkdir -p "$tmpdir/locales"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/locales/ru.ts" "$tmpdir/locales/ru.ts"
 
 tsc --strict --target ES2020 --module commonjs --outDir "$tmpdir/out" \
   "$tmpdir/shared.ts" \
   "$tmpdir/locales/ru.ts" \
-  "$tmpdir/index.ts"
+  "$tmpdir/index.ts" \
+  "$tmpdir/sveltekit.ts"
 
 node - "$tmpdir/out/index.js" "$tmpdir/out/locales/ru.js" <<'JS'
 const m = require(process.argv[2]);
@@ -43,9 +45,11 @@ JS
 mkdir -p "$tmpdir/types/locales"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/shared.d.ts" "$tmpdir/types/shared.d.ts"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/index.d.ts" "$tmpdir/types/index.d.ts"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts/sveltekit.d.ts" "$tmpdir/types/sveltekit.d.ts"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/locales/ru.d.ts" "$tmpdir/types/locales/ru.d.ts"
 cat > "$tmpdir/types/consumer.ts" <<'TS'
 import { createLinguini, createLinguiniProvider, lgl, type Linguini } from "./index";
+import { localeLinks, staticLocaleEntries } from "./sveltekit";
 
 const direct: Linguini = createLinguini("ru");
 const configured = createLinguiniProvider({ resolveLanguage: () => "ru" });
@@ -53,10 +57,26 @@ const configured = createLinguiniProvider({ resolveLanguage: () => "ru" });
 direct.delivery("apple", "small", 1);
 configured.price(12, "13.05.2026");
 lgl.delivery("apple", "small", 1);
+localeLinks("/cart", { currentLocale: "ru" });
+staticLocaleEntries(["/cart"]);
 TS
 
 tsc --strict --target ES2020 --module commonjs --noEmit \
   "$tmpdir/types/consumer.ts"
+
+node - "$tmpdir/out/sveltekit.js" <<'JS'
+const sveltekit = require(process.argv[2]);
+const links = sveltekit.localeLinks("/cart", { currentLocale: "ru" });
+
+if (links.length !== 1 || links[0].href !== "/ru/cart" || !links[0].current) {
+  throw new Error(`locale links failed: ${JSON.stringify(links)}`);
+}
+
+const staticEntries = sveltekit.staticLocaleEntries(["/cart", "/checkout"]);
+if (staticEntries.join(",") !== "/ru/cart,/ru/checkout") {
+  throw new Error(`static locale entries failed: ${staticEntries.join(",")}`);
+}
+JS
 
 runtime="$tmpdir/runtime"
 mkdir -p "$runtime/locales"
