@@ -1,8 +1,8 @@
 #![allow(deprecated)]
 
 use crate::{
-    completion_items, diagnostics, document_symbols, format_document, hover_at, references_at,
-    semantic_tokens, LinguiniDocument, SemanticLegend,
+    completion_items, diagnostics, document_symbols, format_document, hover_at, prepare_rename_at,
+    references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument, SemanticLegend,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -40,7 +40,9 @@ impl Backend {
         let Ok(uri) = document.uri.parse::<Uri>() else {
             return;
         };
-        self.client.publish_diagnostics(uri, diagnostics, None).await;
+        self.client
+            .publish_diagnostics(uri, diagnostics, None)
+            .await;
     }
 
     fn document(&self, uri: &Uri) -> Option<LinguiniDocument> {
@@ -293,7 +295,7 @@ impl LanguageServer for Backend {
     }
 
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
-        let actions = params
+        let mut actions: CodeActionResponse = params
             .context
             .diagnostics
             .into_iter()
@@ -306,6 +308,20 @@ impl LanguageServer for Backend {
                 })
             })
             .collect();
+        if self.document(&params.text_document.uri).is_some()
+            && params.range.start == params.range.end
+        {
+            actions.push(CodeActionOrCommand::CodeAction(CodeAction {
+                title: "Rename Linguini symbol".to_owned(),
+                kind: Some(CodeActionKind::REFACTOR),
+                command: Some(Command {
+                    title: "Rename Linguini symbol".to_owned(),
+                    command: "editor.action.rename".to_owned(),
+                    arguments: None,
+                }),
+                ..Default::default()
+            }));
+        }
         Ok(Some(actions))
     }
 
@@ -331,10 +347,12 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let offset = document.offset(params.position.line, params.position.character);
-        let Some(span) = references_at(&document, offset).into_iter().next() else {
+        let Some(span) = prepare_rename_at(&document, offset) else {
             return Ok(None);
         };
-        Ok(Some(PrepareRenameResponse::Range(to_range(&document, span))))
+        Ok(Some(PrepareRenameResponse::Range(to_range(
+            &document, span,
+        ))))
     }
 
     async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
@@ -346,15 +364,29 @@ impl LanguageServer for Backend {
             params.text_document_position.position.line,
             params.text_document_position.position.character,
         );
-        let edits = references_at(&document, offset)
-            .into_iter()
-            .map(|span| TextEdit {
-                range: to_range(&document, span),
-                new_text: params.new_name.clone(),
-            })
-            .collect();
         let mut changes = HashMap::new();
-        changes.insert(uri, edits);
+        if let Ok(documents) = self.documents.read() {
+            for workspace_edit in rename_workspace_edits(
+                documents.values().cloned().collect::<Vec<_>>(),
+                &document,
+                offset,
+                &params.new_name,
+            ) {
+                let Ok(edit_uri) = workspace_edit.uri.parse::<Uri>() else {
+                    continue;
+                };
+                let Some(edit_document) = documents.get(&edit_uri) else {
+                    continue;
+                };
+                changes
+                    .entry(edit_uri)
+                    .or_insert_with(Vec::new)
+                    .push(TextEdit {
+                        range: to_range(edit_document, workspace_edit.edit.span),
+                        new_text: workspace_edit.edit.new_text,
+                    });
+            }
+        }
         Ok(Some(WorkspaceEdit {
             changes: Some(changes),
             ..Default::default()

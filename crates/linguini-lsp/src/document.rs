@@ -30,6 +30,12 @@ pub struct TextEdit {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WorkspaceTextEdit {
+    pub uri: String,
+    pub edit: TextEdit,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LinguiniSemanticToken {
     pub line: u32,
     pub start: u32,
@@ -55,7 +61,11 @@ impl SemanticLegend {
 }
 
 impl LinguiniDocument {
-    pub fn new(uri: impl Into<String>, language_id: impl Into<String>, text: impl Into<String>) -> Self {
+    pub fn new(
+        uri: impl Into<String>,
+        language_id: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Self {
         let language_id = language_id.into();
         let kind = if language_id == "linguini-schema" || language_id == "lgs" {
             SourceKind::Schema
@@ -83,7 +93,11 @@ impl LinguiniDocument {
 
     pub fn offset(&self, line: u32, character: u32) -> usize {
         let line = line as usize;
-        let line_start = self.line_starts.get(line).copied().unwrap_or(self.text.len());
+        let line_start = self
+            .line_starts
+            .get(line)
+            .copied()
+            .unwrap_or(self.text.len());
         let line_end = line_end(&self.text, &self.line_starts, line);
         utf16_column_to_offset(&self.text, line_start, line_end, character as usize)
     }
@@ -138,20 +152,49 @@ pub fn hover_at(document: &LinguiniDocument, offset: usize) -> Option<String> {
             if symbol.docs.is_empty() {
                 format!("{} `{}`", symbol.detail, symbol.name)
             } else {
-                format!("{} `{}`\n\n{}", symbol.detail, symbol.name, symbol.docs.join("\n"))
+                format!(
+                    "{} `{}`\n\n{}",
+                    symbol.detail,
+                    symbol.name,
+                    symbol.docs.join("\n")
+                )
             }
         })
 }
 
 pub fn references_at(document: &LinguiniDocument, offset: usize) -> Vec<Span> {
-    let Some(word) = word_at(&document.text, offset) else {
+    let Some((word, _)) = identifier_at(document, offset) else {
         return Vec::new();
     };
-    tokens(document)
+    matching_identifier_spans(document, &word)
+}
+
+pub fn prepare_rename_at(document: &LinguiniDocument, offset: usize) -> Option<Span> {
+    identifier_at(document, offset).map(|(_, span)| span)
+}
+
+pub fn rename_workspace_edits(
+    documents: impl IntoIterator<Item = LinguiniDocument>,
+    source: &LinguiniDocument,
+    offset: usize,
+    new_name: &str,
+) -> Vec<WorkspaceTextEdit> {
+    let Some((word, _)) = identifier_at(source, offset) else {
+        return Vec::new();
+    };
+
+    documents
         .into_iter()
-        .filter_map(|token| match token.kind {
-            TokenKind::Ident(value) if value == word => Some(token.span),
-            _ => None,
+        .flat_map(|document| {
+            matching_identifier_spans(&document, &word)
+                .into_iter()
+                .map(move |span| WorkspaceTextEdit {
+                    uri: document.uri.clone(),
+                    edit: TextEdit {
+                        span,
+                        new_text: new_name.to_owned(),
+                    },
+                })
         })
         .collect()
 }
@@ -192,7 +235,9 @@ pub fn semantic_tokens(document: &LinguiniDocument) -> Vec<LinguiniSemanticToken
     raw
 }
 
-pub fn format_document(document: &LinguiniDocument) -> Result<TextEdit, linguini_format::FormatError> {
+pub fn format_document(
+    document: &LinguiniDocument,
+) -> Result<TextEdit, linguini_format::FormatError> {
     let formatted = format_source(document.kind, &document.text, &FormatOptions::default())?;
     Ok(TextEdit {
         span: Span::new(0, document.text.len()),
@@ -230,9 +275,11 @@ fn schema_declaration_symbols(declaration: &SchemaDeclaration) -> Vec<Symbol> {
         SchemaDeclaration::Message(item) => vec![symbol(&item.name, "message", &item.docs)],
         SchemaDeclaration::Group(item) => {
             let mut output = vec![symbol(&item.name, "message group", &item.docs)];
-            output.extend(item.messages.iter().map(|message| {
-                symbol(&message.name, "message", &message.docs)
-            }));
+            output.extend(
+                item.messages
+                    .iter()
+                    .map(|message| symbol(&message.name, "message", &message.docs)),
+            );
             output
         }
     }
@@ -246,9 +293,11 @@ fn locale_declaration_symbols(declaration: &LocaleDeclaration) -> Vec<Symbol> {
         LocaleDeclaration::Message(item) => vec![symbol(&item.name, "message", &item.docs)],
         LocaleDeclaration::Group(item) => {
             let mut output = vec![symbol(&item.name, "message group", &item.docs)];
-            output.extend(item.messages.iter().map(|message| {
-                symbol(&message.name, "message", &message.docs)
-            }));
+            output.extend(
+                item.messages
+                    .iter()
+                    .map(|message| symbol(&message.name, "message", &message.docs)),
+            );
             output
         }
         LocaleDeclaration::Override(inner) => locale_declaration_symbols(inner),
@@ -271,6 +320,31 @@ fn tokens(document: &LinguiniDocument) -> Vec<Token> {
     }
 }
 
+fn identifier_at(document: &LinguiniDocument, offset: usize) -> Option<(String, Span)> {
+    tokens(document)
+        .into_iter()
+        .find_map(|token| match token.kind {
+            TokenKind::Ident(value) | TokenKind::LocaleTag(value)
+                if contains(token.span, offset) =>
+            {
+                Some((value, token.span))
+            }
+            _ => None,
+        })
+}
+
+fn matching_identifier_spans(document: &LinguiniDocument, word: &str) -> Vec<Span> {
+    tokens(document)
+        .into_iter()
+        .filter_map(|token| match token.kind {
+            TokenKind::Ident(value) | TokenKind::LocaleTag(value) if value == word => {
+                Some(token.span)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 fn semantic_token_type(tokens: &[Token], index: usize) -> Option<u32> {
     let kind = &tokens.get(index)?.kind;
     match kind {
@@ -286,11 +360,13 @@ fn semantic_token_type(tokens: &[Token], index: usize) -> Option<u32> {
 }
 
 fn is_function_like_identifier(tokens: &[Token], index: usize) -> bool {
-    matches!(next_significant_kind(tokens, index), Some(TokenKind::LParen))
-        || matches!(
-            previous_significant_kind(tokens, index),
-            Some(TokenKind::Ident(value)) if matches!(value.as_str(), "fn" | "form")
-        )
+    matches!(
+        next_significant_kind(tokens, index),
+        Some(TokenKind::LParen)
+    ) || matches!(
+        previous_significant_kind(tokens, index),
+        Some(TokenKind::Ident(value)) if matches!(value.as_str(), "fn" | "form")
+    )
 }
 
 fn previous_significant_kind(tokens: &[Token], index: usize) -> Option<&TokenKind> {
@@ -313,7 +389,10 @@ fn next_significant_kind(tokens: &[Token], index: usize) -> Option<&TokenKind> {
 fn is_trivia(kind: &TokenKind) -> bool {
     matches!(
         kind,
-        TokenKind::Whitespace | TokenKind::Newline | TokenKind::Comment(_) | TokenKind::DocComment(_)
+        TokenKind::Whitespace
+            | TokenKind::Newline
+            | TokenKind::Comment(_)
+            | TokenKind::DocComment(_)
     )
 }
 
@@ -340,28 +419,16 @@ fn contains(span: Span, offset: usize) -> bool {
     span.start <= offset && offset <= span.end
 }
 
-fn word_at(source: &str, offset: usize) -> Option<String> {
-    let bytes = source.as_bytes();
-    let mut start = offset.min(bytes.len());
-    while start > 0 && is_word_byte(bytes[start - 1]) {
-        start -= 1;
-    }
-    let mut end = offset.min(bytes.len());
-    while end < bytes.len() && is_word_byte(bytes[end]) {
-        end += 1;
-    }
-    (start < end).then(|| source[start..end].to_owned())
-}
-
-fn is_word_byte(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'_'
-}
-
 fn utf16_len(text: &str) -> usize {
     text.chars().map(|ch| ch.len_utf16()).sum()
 }
 
-fn utf16_column_to_offset(source: &str, line_start: usize, line_end: usize, column: usize) -> usize {
+fn utf16_column_to_offset(
+    source: &str,
+    line_start: usize,
+    line_end: usize,
+    column: usize,
+) -> usize {
     let mut units = 0usize;
     for (relative_offset, ch) in source[line_start..line_end].char_indices() {
         let next_units = units + ch.len_utf16();

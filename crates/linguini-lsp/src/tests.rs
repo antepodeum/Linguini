@@ -1,6 +1,6 @@
 use super::{
-    completion_items, diagnostics, document_symbols, format_document, hover_at, references_at,
-    semantic_tokens, LinguiniDocument, CRATE_PURPOSE,
+    completion_items, diagnostics, document_symbols, format_document, hover_at, prepare_rename_at,
+    references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument, CRATE_PURPOSE,
 };
 
 #[test]
@@ -68,11 +68,7 @@ fn semantic_tokens_include_keywords_comments_and_text() {
 
 #[test]
 fn semantic_tokens_use_utf16_columns_for_non_ascii_text() {
-    let document = LinguiniDocument::new(
-        "file:///shop.lgl",
-        "linguini-locale",
-        "hello = Привет\n",
-    );
+    let document = LinguiniDocument::new("file:///shop.lgl", "linguini-locale", "hello = Привет\n");
 
     let tokens = semantic_tokens(&document);
     let text_token = tokens
@@ -112,6 +108,53 @@ fn references_find_matching_identifiers() {
     let references = references_at(&document, offset);
 
     assert_eq!(references.len(), 2);
+}
+
+#[test]
+fn prepare_rename_uses_identifier_under_cursor() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "delivery(count: Number)\ncheckout(count: Number)\n",
+    );
+    let offset = document.text.find("checkout").expect("checkout offset");
+
+    let span = prepare_rename_at(&document, offset).expect("rename span");
+
+    assert_eq!(&document.text[span.start..span.end], "checkout");
+}
+
+#[test]
+fn rename_workspace_edits_schema_symbol_and_locale_references() {
+    let schema = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "delivery(count: Number)\n",
+    );
+    let locale = LinguiniDocument::new(
+        "file:///ru.lgl",
+        "linguini-locale",
+        "delivery = Доставка\nsummary = {delivery}\n",
+    );
+    let offset = schema.text.find("delivery").expect("delivery offset");
+
+    let edits = rename_workspace_edits(
+        [schema.clone(), locale.clone()],
+        &schema,
+        offset,
+        "shipping",
+    );
+
+    assert_eq!(edits.len(), 3);
+    assert!(edits.iter().any(|edit| edit.uri == schema.uri));
+    assert_eq!(
+        edits
+            .iter()
+            .filter(|edit| edit.uri == locale.uri)
+            .map(|edit| &locale.text[edit.edit.span.start..edit.edit.span.end])
+            .collect::<Vec<_>>(),
+        ["delivery", "delivery"]
+    );
 }
 
 #[test]
