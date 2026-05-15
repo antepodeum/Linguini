@@ -1,13 +1,16 @@
+import locale_en from "./locales/en";
 import locale_ru from "./locales/ru";
 
-export const locales = ["ru"] as const;
-export const baseLocale = "ru";
+export const locales = ["en", "ru"] as const;
+export const baseLocale = "en";
 
 export const localeModules = {
+  en: locale_en,
   ru: locale_ru,
 } as const;
 
 export const localeLoaders = {
+  en: () => Promise.resolve(locale_en),
   ru: () => Promise.resolve(locale_ru),
 } as const;
 

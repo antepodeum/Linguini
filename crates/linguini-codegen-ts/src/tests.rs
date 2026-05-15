@@ -1,5 +1,4 @@
-use crate::{generate_plural_function, generate_typescript_files, TypeScriptOptions};
-use linguini_cldr::load_plural_rules;
+use crate::{generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions};
 use linguini_ir::{lower_locale, lower_schema};
 use linguini_syntax::{parse_locale, parse_schema};
 use std::fs;
@@ -14,20 +13,20 @@ fn generated_module_snapshot_is_stable() {
     let locale =
         parse_locale(include_str!("../../../tests/fixtures/golden/locale/ru.lgl")).expect("locale");
 
-    let files = generate_typescript_files(
+    let files = generate_typescript_project_files(
         &lower_schema(&schema),
-        &lower_locale(&locale),
-        &TypeScriptOptions {
+        &[TypeScriptLocaleModule {
             locale: "ru".to_owned(),
-            plural_function: "pluralRu".to_owned(),
-            plural_import: None,
-            plural_source: Some(generate_plural_function(
-                "pluralRu",
-                &load_plural_rules(PLURALS, "ru").expect("plural rules"),
-            )),
+            module: lower_locale(&locale),
+        }],
+        &TypeScriptProjectOptions {
+            declaration: true,
+            tree_shaking: false,
             included_messages: Vec::new(),
+            base_locale: Some("ru".to_owned()),
         },
-    );
+    )
+    .expect("project files");
 
     for file in files {
         let snapshot_path = format!("tests/fixtures/golden/snapshots/ts/{}", file.path);
@@ -54,21 +53,6 @@ fn repo_root() -> &'static Path {
         .and_then(Path::parent)
         .expect("repo root")
 }
-
-const PLURALS: &str = r#"
-{
-  "supplemental": {
-    "plurals-type-cardinal": {
-      "ru": {
-        "pluralRule-count-one": "v = 0 and i % 10 = 1 and i % 100 != 11",
-        "pluralRule-count-few": "v = 0 and i % 10 = 2..4 and i % 100 != 12..14",
-        "pluralRule-count-many": "v = 0 and i % 10 = 0 or v = 0 and i % 10 = 5..9 or v = 0 and i % 100 = 11..14",
-        "pluralRule-count-other": ""
-      }
-    }
-  }
-}
-"#;
 
 #[test]
 fn project_codegen_owns_multilocale_index_files() {
@@ -109,6 +93,41 @@ fn project_codegen_owns_multilocale_index_files() {
         .contents
         .contains("import locale_ru from \"./locales/ru\";"));
     assert!(index.contents.contains("ru: locale_ru"));
+}
+
+#[test]
+fn project_runtime_index_snapshot_is_stable() {
+    use linguini_ir::IrModule;
+
+    let files = generate_typescript_project_files(
+        &IrModule::default(),
+        &[
+            TypeScriptLocaleModule {
+                locale: "en".to_owned(),
+                module: IrModule::default(),
+            },
+            TypeScriptLocaleModule {
+                locale: "ru".to_owned(),
+                module: IrModule::default(),
+            },
+        ],
+        &TypeScriptProjectOptions {
+            declaration: true,
+            tree_shaking: false,
+            included_messages: Vec::new(),
+            base_locale: Some("en".to_owned()),
+        },
+    )
+    .expect("project codegen");
+
+    let index = files
+        .iter()
+        .find(|file| file.path == "index.ts")
+        .expect("index.ts");
+    assert_snapshot(
+        "tests/fixtures/golden/snapshots/ts-runtime/index.ts",
+        &index.contents,
+    );
 }
 
 #[test]

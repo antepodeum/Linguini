@@ -57,3 +57,68 @@ TS
 
 tsc --strict --target ES2020 --module commonjs --noEmit \
   "$tmpdir/types/consumer.ts"
+
+runtime="$tmpdir/runtime"
+mkdir -p "$runtime/locales"
+cp "$repo_root/tests/fixtures/golden/snapshots/ts-runtime/index.ts" "$runtime/index.ts"
+cat > "$runtime/locales/en.ts" <<'TS'
+const lgl = { locale: "en" } as const;
+export default lgl;
+TS
+cat > "$runtime/locales/ru.ts" <<'TS'
+const lgl = { locale: "ru" } as const;
+export default lgl;
+TS
+
+tsc --strict --target ES2020 --module commonjs --outDir "$runtime/out" \
+  "$runtime/locales/en.ts" \
+  "$runtime/locales/ru.ts" \
+  "$runtime/index.ts"
+
+node - "$runtime/out/index.js" <<'JS'
+const m = require(process.argv[2]);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function main() {
+const expectations = [
+  [m.locales.join(","), "en,ru"],
+  [m.baseLocale, "en"],
+  [m.createLinguini("ru").locale, "ru"],
+  [m.resolveLocale({ url: "/ru/cart", cookies: "linguini_locale=en" }), "ru"],
+  [m.resolveLocale({ headers: { "accept-language": "ru-RU, en;q=0.8" } }), "ru"],
+  [m.resolveLocale({ localStorage: { getItem: () => "ru" } }), "ru"],
+  [m.localizeHref("/en/cart?x=1", "ru"), "/ru/cart?x=1"],
+  [m.localizeHref("/en/cart", "en", { stripBaseLocale: true }), "/cart"],
+  [String(m.shouldRedirect("/en/cart", "ru")), "true"],
+  [String(m.shouldRedirect("/ru/cart", "ru")), "false"],
+  [m.injectLangAndDir("<html lang=\"%lang%\" dir=\"%dir%\">", "ru"), "<html lang=\"ru\" dir=\"ltr\">"],
+];
+
+for (const [actual, expected] of expectations) {
+  if (actual !== expected) {
+    throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
+const middleware = m.createLinguiniMiddleware();
+const [en, ru] = await Promise.all([
+  middleware({ locale: "en" }, async () => {
+    await sleep(20);
+    return m.getLocale();
+  }),
+  middleware({ locale: "ru" }, async () => {
+    await sleep(5);
+    return m.getLocale();
+  })
+]);
+
+if (en !== "en" || ru !== "ru" || m.getLocale() !== "en") {
+  throw new Error(`request locale isolation failed: ${en}, ${ru}, ${m.getLocale()}`);
+}
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+JS
