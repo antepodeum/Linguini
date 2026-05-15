@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   DocumentSelector,
@@ -42,7 +44,8 @@ export async function deactivate(): Promise<void> {
 
 function createClient(): LanguageClient {
   const config = vscode.workspace.getConfiguration('linguini.server');
-  const command = expandVariables(config.get<string>('path', 'linguini'));
+  const configuredCommand = expandVariables(config.get<string>('path', 'linguini'));
+  const command = resolveServerCommand(configuredCommand);
   const args = config.get<string[]>('args', ['lsp']).map((arg) => expandVariables(arg));
 
   const serverOptions: ServerOptions = {
@@ -69,6 +72,27 @@ function createClient(): LanguageClient {
     serverOptions,
     clientOptions
   );
+}
+
+function resolveServerCommand(configuredCommand: string): string {
+  if (configuredCommand !== 'linguini') {
+    return configuredCommand;
+  }
+
+  return bundledServerPath() ?? configuredCommand;
+}
+
+function bundledServerPath(): string | undefined {
+  const executable = process.platform === 'win32' ? 'linguini.exe' : 'linguini';
+  const candidate = path.join(
+    __dirname,
+    '..',
+    'server',
+    `${process.platform}-${process.arch}`,
+    executable
+  );
+
+  return fs.existsSync(candidate) ? candidate : undefined;
 }
 
 async function restartClient(): Promise<void> {

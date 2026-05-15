@@ -19,10 +19,11 @@
   "main": "./out/extension.js",
   "scripts": {
     "compile": "tsc -p ./",
+    "build:server": "node ./scripts/build-server.js",
     "watch": "tsc -watch -p ./",
     "open:dev": "npm run compile && code --extensionDevelopmentPath=. ./sample-workspace",
     "audit:prod": "npm audit --omit=dev",
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run build:server",
     "check": "npm run compile && npm audit --audit-level=moderate",
     "dev:host": "npm run compile && node ./scripts/open-extension-host.js"
   },

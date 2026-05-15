@@ -35,6 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const node_1 = require("vscode-languageclient/node");
 let client;
@@ -62,7 +64,8 @@ async function deactivate() {
 }
 function createClient() {
     const config = vscode.workspace.getConfiguration('linguini.server');
-    const command = expandVariables(config.get('path', 'linguini'));
+    const configuredCommand = expandVariables(config.get('path', 'linguini'));
+    const command = resolveServerCommand(configuredCommand);
     const args = config.get('args', ['lsp']).map((arg) => expandVariables(arg));
     const serverOptions = {
         command,
@@ -81,6 +84,17 @@ function createClient() {
         middleware: createClientMiddleware()
     };
     return new node_1.LanguageClient('linguiniLanguageServer', 'Linguini Language Server', serverOptions, clientOptions);
+}
+function resolveServerCommand(configuredCommand) {
+    if (configuredCommand !== 'linguini') {
+        return configuredCommand;
+    }
+    return bundledServerPath() ?? configuredCommand;
+}
+function bundledServerPath() {
+    const executable = process.platform === 'win32' ? 'linguini.exe' : 'linguini';
+    const candidate = path.join(__dirname, '..', 'server', `${process.platform}-${process.arch}`, executable);
+    return fs.existsSync(candidate) ? candidate : undefined;
 }
 async function restartClient() {
     const previous = client;

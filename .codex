@@ -1,34 +1,29 @@
 Completed slice:
-- 2026-05-13: Completed TypeScript tree-shaking message filtering, switchable facade evidence, SvelteKit provider example, `linguini test-data`, and CLDR generated-range clippy cleanup.
+- 2026-05-15: VS Code formatting now goes through LSP only; removed shell-out formatter provider and stale formatter settings.
+- 2026-05-15: Formatter core split into custom `FormatIr` plus token-to-IR lowering/rendering modules while preserving schema/locale idempotency behavior.
+- 2026-05-15: LSP rename now targets the cursor identifier and edits matching identifiers across all open Linguini schema/locale documents; rename refactor action added.
+- 2026-05-15: VS Code extension now prefers bundled native server binary at `server/<platform>-<arch>/linguini(.exe)` and falls back to `linguini` on PATH.
+- 2026-05-15: Built and committed current host bundled server artifact at `editors/vscode/server/linux-x64/linguini`.
 
 Implementation decisions:
-- TypeScript target config now accepts `tree_shaking = true` and `messages = [...]`; `messages` without tree-shaking is rejected.
-- Tree-shaking filtering is explicit and deterministic: only selected message ids or selected group prefixes are emitted in locale modules and `.d.ts` files.
-- Generated TypeScript facade remains `createLinguini`/`configureLinguini`; `configureLinguini` accepts a language getter so one app-level source variable can switch `lgl.*(...)` output.
-- `linguini test-data` emits JSON rendered samples for each configured locale, schema enum variants, grouped messages, and representative numeric plural values.
-- Test-data rendering is split under `crates/linguini-cli/src/project/test_data/` to keep CLI files below the size gate.
-- CLDR build-time plural Rust generation emits `RangeInclusive::contains` for generated range checks instead of requiring a clippy allow in `compiled.rs`.
-- `cargo fmt --all` normalized existing unformatted Rust files across the workspace.
-- Syntax tests were split into `crates/linguini-syntax/src/tests/` modules. Near-limit source files remain split-required before future growth: `crates/linguini-syntax/src/lexer.rs`, `crates/linguini-syntax/src/parser/locale_parser.rs`, `crates/linguini-analyzer/src/lib.rs`, and `crates/linguini-cldr/build/plural_rule.rs`.
+- Extension formatting must rely on the LSP `textDocument/formatting` capability; no separate formatter process or `linguini formatting` command.
+- Native server bundling is per built VSIX/platform: `npm run build:server` builds `linguini-cli --release` and copies the binary into `editors/vscode/server/${process.platform}-${process.arch}/`.
+- User override remains possible: if `linguini.server.path` is anything other than default `linguini`, the extension uses that exact path.
+- Formatter IR is layout-oriented, not semantic IR: tokens lower into text, spacing, hard-line, indent/dedent, raw-line-start, and selector-arm marker items before rendering.
+- LSP rename remains token/name based across open documents; full project indexing and schema-aware rename validation are still future work.
 
 Tests last run:
-- `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
-- `cargo test -p linguini-config -p linguini-codegen-ts`
-- `cargo test -p linguini-cli`
-- `cargo clippy -p linguini-cldr --all-targets -- -D warnings`
-- `./scripts/check-file-size.sh`
-- `./scripts/check-unit-test-structure.sh`
-- `./scripts/check-syntax-fixtures.sh`
-- `./scripts/review-snapshots.sh --check`
-- `./scripts/check-spec-gates.sh`
-- `bash scripts/validate-generated-ts.sh`
-- `./scripts/validate-generated-js.sh`
-- `./scripts/validate-generated-rust.sh`
+- `npm run compile`
+- `npm run build:server` (required network for CLDR build script)
+- `editors/vscode/server/linux-x64/linguini --help`
+- `cargo test -p linguini-lsp`
+- `cargo test -p linguini-format`
 
 Known deferred work:
-- Next unfinished checklist item is JavaScript codegen stage 12.
+- Formatter still does not enforce configured max line width.
+- LSP quick fixes for missing branches/messages/explicit plural args remain unchecked.
+- LSP completion is keyword/document-symbol/context based, not fully schema-indexed across project files.
+- Native VSIX bundles must be built per target platform/arch so each published artifact carries its matching server binary.
 
 Next recommended task:
-- Continue with JavaScript codegen: generate ESM output, optional CommonJS output, JSDoc types, deterministic tests, and switchable facade parity.
+- Implement project-aware LSP workspace indexing from `linguini.toml`, then use it for schema-argument completion, true cross-file definitions/references, and quick fixes.

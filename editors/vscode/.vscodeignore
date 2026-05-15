@@ -1,0 +1,6 @@
+src/**
+sample-workspace/**
+.vscode/**
+scripts/**
+*.vsix
+tsconfig.json
