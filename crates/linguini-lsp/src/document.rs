@@ -1,9 +1,13 @@
-use linguini_analyzer::Diagnostic;
+use linguini_analyzer::{
+    analyze_locale_coverage_with_options, analyze_locale_file, Diagnostic, DiagnosticSeverity,
+    LocaleCoverageOptions,
+};
 use linguini_format::{format_source, FormatOptions, SourceKind};
 use linguini_syntax::{
     lex_schema_with_recovery, lex_with_recovery, parse_locale_with_recovery,
-    parse_schema_with_recovery, DocComment, LocaleDeclaration, Name, SchemaDeclaration, Span,
-    Token, TokenKind,
+    parse_schema_with_recovery, DocComment, FunctionBranch, FunctionBranchValue,
+    FunctionDeclaration, LocaleDeclaration, MessageSignature, Name, Parameter, SchemaDeclaration,
+    Span, TextPart, TextPattern, Token, TokenKind,
 };
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -21,6 +25,7 @@ pub struct Symbol {
     pub detail: String,
     pub span: Span,
     pub docs: Vec<String>,
+    pub preview: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -108,12 +113,19 @@ impl LinguiniDocument {
 }
 
 pub fn diagnostics(document: &LinguiniDocument) -> Vec<Diagnostic> {
+    diagnostics_with_workspace(document, [])
+}
+
+pub fn diagnostics_with_workspace(
+    document: &LinguiniDocument,
+    workspace: impl IntoIterator<Item = LinguiniDocument>,
+) -> Vec<Diagnostic> {
     let errors = match document.kind {
         SourceKind::Schema => parse_schema_with_recovery(&document.text).errors,
         SourceKind::Locale => parse_locale_with_recovery(&document.text).errors,
     };
 
-    errors
+    let mut diagnostics = errors
         .into_iter()
         .map(|error| {
             Diagnostic::error(
@@ -128,7 +140,43 @@ pub fn diagnostics(document: &LinguiniDocument) -> Vec<Diagnostic> {
                 error.span,
             )
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    if !diagnostics.is_empty() {
+        return diagnostics;
+    }
+
+    let SourceKind::Locale = document.kind else {
+        return diagnostics;
+    };
+    let parsed_locale = parse_locale_with_recovery(&document.text);
+    let Some(locale) = parsed_locale.ast else {
+        return diagnostics;
+    };
+
+    let schemas = workspace
+        .into_iter()
+        .filter(|candidate| candidate.kind == SourceKind::Schema)
+        .filter_map(|candidate| parse_schema_with_recovery(&candidate.text).ast)
+        .collect::<Vec<_>>();
+
+    if schemas.is_empty() {
+        diagnostics.extend(analyze_locale_file(&locale));
+    } else {
+        for schema in schemas {
+            diagnostics.extend(analyze_locale_coverage_with_options(
+                &schema,
+                &locale,
+                LocaleCoverageOptions {
+                    missing_message_severity: DiagnosticSeverity::Warning,
+                    subject: "locale".to_owned(),
+                    quick_fix_id: Some("linguini.addMissingLocaleMessages".to_owned()),
+                },
+            ));
+        }
+    }
+
+    diagnostics
 }
 
 pub fn completion_items(document: &LinguiniDocument, offset: usize) -> Vec<String> {
@@ -145,20 +193,24 @@ pub fn completion_items(document: &LinguiniDocument, offset: usize) -> Vec<Strin
 }
 
 pub fn hover_at(document: &LinguiniDocument, offset: usize) -> Option<String> {
+    if let Some(hover) = plural_branch_hover(document, offset) {
+        return Some(hover);
+    }
+
     symbols(document)
         .into_iter()
         .find(|symbol| contains(symbol.span, offset))
         .map(|symbol| {
+            let mut parts = Vec::new();
+            parts.push(format!("{} `{}`", symbol.detail, symbol.name));
             if symbol.docs.is_empty() {
-                format!("{} `{}`", symbol.detail, symbol.name)
             } else {
-                format!(
-                    "{} `{}`\n\n{}",
-                    symbol.detail,
-                    symbol.name,
-                    symbol.docs.join("\n")
-                )
+                parts.push(symbol.docs.join("\n"));
             }
+            if let Some(preview) = symbol.preview {
+                parts.push(format!("Sample\n\n```text\n{preview}\n```"));
+            }
+            parts.join("\n\n")
         })
 }
 
@@ -272,13 +324,15 @@ fn schema_declaration_symbols(declaration: &SchemaDeclaration) -> Vec<Symbol> {
     match declaration {
         SchemaDeclaration::Enum(item) => vec![symbol(&item.name, "enum", &item.docs)],
         SchemaDeclaration::TypeAlias(item) => vec![symbol(&item.name, "type", &item.docs)],
-        SchemaDeclaration::Message(item) => vec![symbol(&item.name, "message", &item.docs)],
+        SchemaDeclaration::Message(item) => {
+            vec![schema_message_symbol(item, None)]
+        }
         SchemaDeclaration::Group(item) => {
             let mut output = vec![symbol(&item.name, "message group", &item.docs)];
             output.extend(
                 item.messages
                     .iter()
-                    .map(|message| symbol(&message.name, "message", &message.docs)),
+                    .map(|message| schema_message_symbol(message, Some(&item.name.value))),
             );
             output
         }
@@ -290,14 +344,22 @@ fn locale_declaration_symbols(declaration: &LocaleDeclaration) -> Vec<Symbol> {
         LocaleDeclaration::Enum(item) => vec![symbol(&item.name, "enum", &item.docs)],
         LocaleDeclaration::Form(item) => vec![symbol(&item.name, "impl", &item.docs)],
         LocaleDeclaration::Function(item) => vec![symbol(&item.name, "function", &item.docs)],
-        LocaleDeclaration::Message(item) => vec![symbol(&item.name, "message", &item.docs)],
+        LocaleDeclaration::Message(item) => vec![locale_message_symbol(
+            &item.name,
+            None,
+            &item.docs,
+            &item.value,
+        )],
         LocaleDeclaration::Group(item) => {
             let mut output = vec![symbol(&item.name, "message group", &item.docs)];
-            output.extend(
-                item.messages
-                    .iter()
-                    .map(|message| symbol(&message.name, "message", &message.docs)),
-            );
+            output.extend(item.messages.iter().map(|message| {
+                locale_message_symbol(
+                    &message.name,
+                    Some(&item.name.value),
+                    &message.docs,
+                    &message.value,
+                )
+            }));
             output
         }
         LocaleDeclaration::Override(inner) => locale_declaration_symbols(inner),
@@ -310,6 +372,228 @@ fn symbol(name: &Name, detail: &str, docs: &[DocComment]) -> Symbol {
         detail: detail.to_owned(),
         span: name.span,
         docs: docs.iter().map(|doc| doc.text.trim().to_owned()).collect(),
+        preview: None,
+    }
+}
+
+fn schema_message_symbol(
+    message: &MessageSignature,
+    group: Option<&str>,
+) -> Symbol {
+    let mut symbol = symbol(&message.name, "message", &message.docs);
+    let display_name = qualified_name(group, &message.name.value);
+    symbol.preview = Some(schema_message_preview(&display_name, &message.parameters));
+    symbol
+}
+
+fn locale_message_symbol(
+    name: &Name,
+    group: Option<&str>,
+    docs: &[DocComment],
+    value: &TextPattern,
+) -> Symbol {
+    let mut symbol = symbol(name, "message", docs);
+    let display_name = qualified_name(group, &name.value);
+    symbol.preview = Some(format!("{display_name} -> {}", text_preview(value)));
+    symbol
+}
+
+fn schema_message_preview(name: &str, parameters: &[Parameter]) -> String {
+    let arguments = parameters
+        .iter()
+        .map(|parameter| {
+            format!(
+                "{}: {}",
+                parameter.name.value,
+                sample_value_for_type(&parameter.ty.value)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{name}({arguments})")
+}
+
+fn sample_value_for_type(ty: &str) -> &'static str {
+    match ty {
+        "Number" => "3",
+        "Decimal" => "12.5",
+        "String" => "\"Sample\"",
+        "Date" => "2026-05-15",
+        _ => "sample",
+    }
+}
+
+fn text_preview(value: &TextPattern) -> String {
+    value
+        .parts
+        .iter()
+        .map(|part| match part {
+            TextPart::Text(text) => text.value.clone(),
+            TextPart::Placeholder(placeholder) => {
+                format!("{{{}}}", expression_preview(&placeholder.expression))
+            }
+        })
+        .collect::<String>()
+}
+
+fn expression_preview(expression: &linguini_syntax::Expression) -> String {
+    let mut output = expression
+        .path
+        .iter()
+        .map(|name| name.value.as_str())
+        .collect::<Vec<_>>()
+        .join(".");
+    if !expression.arguments.is_empty() {
+        output.push('(');
+        output.push_str(
+            &expression
+                .arguments
+                .iter()
+                .map(expression_preview)
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        output.push(')');
+    }
+    output
+}
+
+fn plural_branch_hover(document: &LinguiniDocument, offset: usize) -> Option<String> {
+    let SourceKind::Locale = document.kind else {
+        return None;
+    };
+    let locale = locale_from_uri(&document.uri)?;
+    let rules = linguini_cldr::compiled_plural_rules(&locale)?;
+    let file = parse_locale_with_recovery(&document.text).ast?;
+
+    for declaration in &file.declarations {
+        if let Some(hover) = declaration_plural_branch_hover(declaration, offset, &locale, &rules) {
+            return Some(hover);
+        }
+    }
+    None
+}
+
+fn declaration_plural_branch_hover(
+    declaration: &LocaleDeclaration,
+    offset: usize,
+    locale: &str,
+    rules: &linguini_cldr::CompiledPluralRules,
+) -> Option<String> {
+    match declaration {
+        LocaleDeclaration::Function(function) => function_plural_branch_hover(
+            function,
+            &dispatch_types(function),
+            &function.branches,
+            0,
+            offset,
+            locale,
+            rules,
+        ),
+        LocaleDeclaration::Override(inner) => {
+            declaration_plural_branch_hover(inner, offset, locale, rules)
+        }
+        LocaleDeclaration::Enum(_)
+        | LocaleDeclaration::Form(_)
+        | LocaleDeclaration::Message(_)
+        | LocaleDeclaration::Group(_) => None,
+    }
+}
+
+fn function_plural_branch_hover(
+    function: &FunctionDeclaration,
+    dispatch_types: &[&str],
+    branches: &[FunctionBranch],
+    depth: usize,
+    offset: usize,
+    locale: &str,
+    rules: &linguini_cldr::CompiledPluralRules,
+) -> Option<String> {
+    let dispatch_type = dispatch_types.get(depth).copied();
+    for branch in branches {
+        if dispatch_type == Some("Plural") && contains(branch.key.span, offset) {
+            return Some(plural_samples_hover(
+                &function.name.value,
+                &branch.key.value,
+                locale,
+                rules,
+            ));
+        }
+        if let FunctionBranchValue::Dispatch(children) = &branch.value {
+            if let Some(hover) = function_plural_branch_hover(
+                function,
+                dispatch_types,
+                children,
+                depth + 1,
+                offset,
+                locale,
+                rules,
+            ) {
+                return Some(hover);
+            }
+        }
+    }
+    None
+}
+
+fn dispatch_types(function: &FunctionDeclaration) -> Vec<&str> {
+    function
+        .parameters
+        .iter()
+        .filter_map(|parameter| {
+            (parameter.ty.value != "String").then_some(parameter.ty.value.as_str())
+        })
+        .collect()
+}
+
+fn plural_samples_hover(
+    function_name: &str,
+    branch: &str,
+    locale: &str,
+    rules: &linguini_cldr::CompiledPluralRules,
+) -> String {
+    let category = if branch == "_" { "other" } else { branch };
+    let samples = plural_samples_for_category(rules, category);
+    let sample_text = if samples.is_empty() {
+        "no integer samples in 0..200".to_owned()
+    } else {
+        samples.join(", ")
+    };
+    format!(
+        "plural branch `{branch}` in `{function_name}`\n\nLocale `{locale}` category `{category}`\n\nSample numbers: {sample_text}"
+    )
+}
+
+fn plural_samples_for_category(
+    rules: &linguini_cldr::CompiledPluralRules,
+    category: &str,
+) -> Vec<String> {
+    (0..=200)
+        .map(|number| number.to_string())
+        .filter(|sample| {
+            rules
+                .category_for(sample)
+                .is_ok_and(|candidate| candidate == category)
+        })
+        .take(12)
+        .collect()
+}
+
+fn locale_from_uri(uri: &str) -> Option<String> {
+    let file_name = uri
+        .rsplit('/')
+        .next()
+        .filter(|segment| !segment.is_empty())?;
+    file_name
+        .strip_suffix(".lgl")
+        .or_else(|| file_name.strip_suffix(".linguini"))
+        .map(|locale| locale.to_owned())
+}
+
+fn qualified_name(group: Option<&str>, name: &str) -> String {
+    match group {
+        Some(group) => format!("{group}.{name}"),
+        None => name.to_owned(),
     }
 }
 

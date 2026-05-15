@@ -2,8 +2,9 @@
 
 use crate::{
     code_action::{analyzer_quick_fix_actions, diagnostic_display_actions, to_lsp_diagnostic},
-    completion_items, diagnostics, document_symbols, format_document, hover_at, prepare_rename_at,
-    references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument, SemanticLegend,
+    completion_items, diagnostics_with_workspace, document_symbols, format_document, hover_at,
+    prepare_rename_at, references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument,
+    SemanticLegend,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -24,7 +25,13 @@ impl Backend {
     }
 
     async fn publish(&self, document: &LinguiniDocument) {
-        let diagnostics = diagnostics(document)
+        let workspace = self
+            .documents
+            .read()
+            .ok()
+            .map(|documents| documents.values().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        let diagnostics = diagnostics_with_workspace(document, workspace)
             .into_iter()
             .map(|diagnostic| to_lsp_diagnostic(document, &diagnostic))
             .collect();

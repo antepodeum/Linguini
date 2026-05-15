@@ -1,6 +1,7 @@
 use super::{
-    completion_items, diagnostics, document_symbols, format_document, hover_at, prepare_rename_at,
-    references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument, CRATE_PURPOSE,
+    completion_items, diagnostics, diagnostics_with_workspace, document_symbols, format_document,
+    hover_at, prepare_rename_at, references_at, rename_workspace_edits, semantic_tokens,
+    LinguiniDocument, CRATE_PURPOSE,
 };
 
 #[test]
@@ -35,6 +36,64 @@ fn hover_uses_doc_comments_for_schema_symbols() {
 
     assert!(hover.contains("message `delivery`"));
     assert!(hover.contains("Delivery label"));
+    assert!(hover.contains("Sample"));
+    assert!(hover.contains("delivery(count: 3)"));
+}
+
+#[test]
+fn hover_previews_locale_message_output_shape() {
+    let document = LinguiniDocument::new(
+        "file:///ru.lgl",
+        "linguini-locale",
+        "delivery = {count} items\n",
+    );
+    let offset = document.text.find("delivery").expect("delivery offset");
+
+    let hover = hover_at(&document, offset).expect("hover");
+
+    assert!(hover.contains("delivery -> {count} items"));
+}
+
+#[test]
+fn hover_on_plural_branch_lists_locale_samples() {
+    let document = LinguiniDocument::new(
+        "file:///ru.lgl",
+        "linguini-locale",
+        "form Count(Plural) {\n  one => item\n  few => items\n  _ => items\n}\n",
+    );
+    let offset = document.text.find("one").expect("one offset");
+
+    let hover = hover_at(&document, offset).expect("hover");
+
+    assert!(hover.contains("plural branch `one`"));
+    assert!(hover.contains("Locale `ru` category `one`"));
+    assert!(hover.contains("Sample numbers: 1, 21"));
+}
+
+#[test]
+fn workspace_diagnostics_include_schema_doc_and_branch_coverage() {
+    let schema = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "enum Gender { male, female, neuter, other }\n/// Context\ndelivery()\n",
+    );
+    let locale = LinguiniDocument::new(
+        "file:///ru.lgl",
+        "linguini-locale",
+        "form SizeAdj(Plural, Gender) {\n  one {\n    male => большой\n    female => большая\n  }\n  _ => большие\n}\ndelivery = Delivered\n",
+    );
+
+    let diagnostics = diagnostics_with_workspace(&locale, [schema]);
+
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic
+            .message
+            .contains("enum `Gender` is missing branch `neuter`")));
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message
+            == "locale message `delivery` is missing schema doc comment"));
 }
 
 #[test]

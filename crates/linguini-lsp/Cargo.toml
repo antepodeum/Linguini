@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 linguini-analyzer = { path = "../linguini-analyzer" }
+linguini-cldr = { path = "../linguini-cldr" }
 linguini-format = { path = "../linguini-format" }
 linguini-syntax = { path = "../linguini-syntax" }
 tokio = { version = "1.52.3", features = ["io-std", "macros", "rt-multi-thread"] }
