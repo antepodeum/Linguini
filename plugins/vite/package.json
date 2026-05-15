@@ -1,0 +1,22 @@
+{
+  "name": "@linguini/vite",
+  "version": "0.1.0",
+  "description": "Vite plugin for Linguini source watching and TypeScript codegen",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
