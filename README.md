@@ -3,7 +3,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/artemy/Linguini/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/artemy/Linguini/ci.yml?branch=main&label=ci&style=flat"></a>
   <img alt="Status" src="https://img.shields.io/badge/status-preview-orange?style=flat">
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat">
 </p>

@@ -19,11 +19,7 @@
   "main": "./out/extension.js",
   "scripts": {
     "compile": "tsc -p ./",
-    "build:server": "node ./scripts/build-server.js",
-    "build:server:all": "node ./scripts/build-server.js --all",
-    "build:server:target": "node ./scripts/build-server.js --target",
     "package:vsix": "node ./scripts/package-vsix.js",
-    "package:vsix:all": "node ./scripts/package-vsix.js --all",
     "watch": "tsc -watch -p ./",
     "open:dev": "npm run compile && code --extensionDevelopmentPath=. ./sample-workspace",
     "audit:prod": "npm audit --omit=dev",
@@ -74,7 +70,7 @@
         "linguini.server.path": {
           "type": "string",
           "default": "linguini",
-          "description": "Path to the Linguini binary used to start `linguini lsp`."
+          "description": "Path to the Linguini CLI binary used to start `linguini lsp`. The extension does not bundle the CLI; install it separately or set an absolute path here."
         },
         "linguini.server.args": {
           "type": "array",

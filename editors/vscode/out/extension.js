@@ -35,8 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
-const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const node_1 = require("vscode-languageclient/node");
 let client;
@@ -64,8 +62,7 @@ async function deactivate() {
 }
 function createClient() {
     const config = vscode.workspace.getConfiguration('linguini.server');
-    const configuredCommand = expandVariables(config.get('path', 'linguini'));
-    const command = resolveServerCommand(configuredCommand);
+    const command = expandVariables(config.get('path', 'linguini'));
     const args = config.get('args', ['lsp']).map((arg) => expandVariables(arg));
     const serverOptions = {
         command,
@@ -85,39 +82,6 @@ function createClient() {
     };
     return new node_1.LanguageClient('linguiniLanguageServer', 'Linguini Language Server', serverOptions, clientOptions);
 }
-function resolveServerCommand(configuredCommand) {
-    if (configuredCommand !== 'linguini') {
-        return configuredCommand;
-    }
-    return bundledServerPath() ?? configuredCommand;
-}
-function bundledServerPath() {
-    const executable = process.platform === 'win32' ? 'linguini.exe' : 'linguini';
-    for (const target of bundledServerTargets()) {
-        const candidate = path.join(__dirname, '..', 'server', target, executable);
-        if (fs.existsSync(candidate)) {
-            return candidate;
-        }
-    }
-    return undefined;
-}
-function bundledServerTargets() {
-    if (process.platform === 'linux') {
-        if (process.arch === 'arm') {
-            return ['linux-armhf'];
-        }
-        if (process.arch === 'x64' || process.arch === 'arm64') {
-            const gnu = `linux-${process.arch}`;
-            const musl = `alpine-${process.arch}`;
-            return isMuslRuntime() ? [musl, gnu] : [gnu, musl];
-        }
-    }
-    return [`${process.platform}-${process.arch}`];
-}
-function isMuslRuntime() {
-    const report = process.report?.getReport?.();
-    return process.platform === 'linux' && !report?.header?.glibcVersionRuntime;
-}
 async function restartClient() {
     const previous = client;
     client = createClient();
@@ -130,7 +94,7 @@ async function startClient(nextClient) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        void vscode.window.showErrorMessage(`Linguini language server failed to start: ${message}`);
+        void vscode.window.showErrorMessage(`Linguini language server failed to start: ${message}. Install the Linguini CLI and make sure the \`linguini\` command is on PATH, or set linguini.server.path.`);
     }
 }
 function expandVariables(value, document) {

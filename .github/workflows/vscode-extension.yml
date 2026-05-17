@@ -2,31 +2,14 @@ name: VS Code Extension
 
 on:
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish packaged VSIX files to the Visual Studio Marketplace
-        type: boolean
-        default: false
   push:
     tags:
       - 'vscode-v*'
 
 jobs:
   package:
-    name: Package ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: linux-x64
-            os: ubuntu-latest
-          - target: darwin-x64
-            os: macos-13
-          - target: darwin-arm64
-            os: macos-14
-          - target: win32-x64
-            os: windows-latest
+    name: Package universal VSIX
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -35,48 +18,13 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: editors/vscode/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
       - name: Install extension dependencies
         working-directory: editors/vscode
         run: npm ci
-      - name: Package platform VSIX
+      - name: Package universal VSIX
         working-directory: editors/vscode
-        run: npm run package:vsix -- ${{ matrix.target }}
+        run: npm run package:vsix
       - uses: actions/upload-artifact@v4
         with:
-          name: linguini-vscode-${{ matrix.target }}
-          path: editors/vscode/dist/*.vsix
-
-  publish:
-    name: Publish to Visual Studio Marketplace
-    runs-on: ubuntu-latest
-    needs: package
-    if: >-
-      ${{
-        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vscode-v')) ||
-        (github.event_name == 'workflow_dispatch' && inputs.publish)
-      }}
-    permissions:
-      contents: read
-    environment: vscode-marketplace
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: linguini-vscode-*
-          path: dist
-          merge-multiple: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Publish packaged VSIX files
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          set -euo pipefail
-          test -n "${VSCE_PAT:-}" || {
-            echo "VSCE_PAT repository secret is required to publish the VS Code extension" >&2
-            exit 1
-          }
-          for vsix in dist/*.vsix; do
-            npx --yes @vscode/vsce publish --packagePath "$vsix" -p "$VSCE_PAT"
-          done
+          name: linguini-vscode
+          path: editors/vscode/dist/linguini-vscode.vsix

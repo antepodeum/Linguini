@@ -7,15 +7,13 @@ trap 'rm -rf "$tmpdir"' EXIT
 
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/shared.ts" "$tmpdir/shared.ts"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/index.ts" "$tmpdir/index.ts"
-cp "$repo_root/tests/fixtures/golden/snapshots/ts/sveltekit.ts" "$tmpdir/sveltekit.ts"
 mkdir -p "$tmpdir/locales"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/locales/ru.ts" "$tmpdir/locales/ru.ts"
 
 tsc --strict --target ES2020 --module commonjs --outDir "$tmpdir/out" \
   "$tmpdir/shared.ts" \
   "$tmpdir/locales/ru.ts" \
-  "$tmpdir/index.ts" \
-  "$tmpdir/sveltekit.ts"
+  "$tmpdir/index.ts"
 
 node - "$tmpdir/out/index.js" "$tmpdir/out/locales/ru.js" <<'JS'
 const m = require(process.argv[2]);
@@ -45,38 +43,19 @@ JS
 mkdir -p "$tmpdir/types/locales"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/shared.d.ts" "$tmpdir/types/shared.d.ts"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/index.d.ts" "$tmpdir/types/index.d.ts"
-cp "$repo_root/tests/fixtures/golden/snapshots/ts/sveltekit.d.ts" "$tmpdir/types/sveltekit.d.ts"
 cp "$repo_root/tests/fixtures/golden/snapshots/ts/locales/ru.d.ts" "$tmpdir/types/locales/ru.d.ts"
 cat > "$tmpdir/types/consumer.ts" <<'TS'
 import { createLinguini, createLinguiniProvider, lgl, type Linguini } from "./index";
-import { localeLinks, staticLocaleEntries } from "./sveltekit";
-
 const direct: Linguini = createLinguini("ru");
 const configured = createLinguiniProvider({ resolveLanguage: () => "ru" });
 
 direct.delivery("apple", "small", 1);
 configured.price(12, "13.05.2026");
 lgl.delivery("apple", "small", 1);
-localeLinks("/cart", { currentLocale: "ru" });
-staticLocaleEntries(["/cart"]);
 TS
 
 tsc --strict --target ES2020 --module commonjs --noEmit \
   "$tmpdir/types/consumer.ts"
-
-node - "$tmpdir/out/sveltekit.js" <<'JS'
-const sveltekit = require(process.argv[2]);
-const links = sveltekit.localeLinks("/cart", { currentLocale: "ru" });
-
-if (links.length !== 1 || links[0].href !== "/ru/cart" || !links[0].current) {
-  throw new Error(`locale links failed: ${JSON.stringify(links)}`);
-}
-
-const staticEntries = sveltekit.staticLocaleEntries(["/cart", "/checkout"]);
-if (staticEntries.join(",") !== "/ru/cart,/ru/checkout") {
-  throw new Error(`static locale entries failed: ${staticEntries.join(",")}`);
-}
-JS
 
 runtime="$tmpdir/runtime"
 mkdir -p "$runtime/locales"
@@ -97,21 +76,23 @@ tsc --strict --target ES2020 --module commonjs --outDir "$runtime/out" \
 
 node - "$runtime/out/index.js" <<'JS'
 const m = require(process.argv[2]);
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function main() {
+const direct = m.createLinguini("ru");
+const configured = m.createLinguiniProvider({ resolveLanguage: () => "ru" });
+const configuredFromGetter = m.configureLinguini({ language: () => "en" });
+
 const expectations = [
   [m.locales.join(","), "en,ru"],
   [m.baseLocale, "en"],
-  [m.createLinguini("ru").locale, "ru"],
-  [m.resolveLocale({ url: "/ru/cart", cookies: "linguini_locale=en" }), "ru"],
-  [m.resolveLocale({ headers: { "accept-language": "ru-RU, en;q=0.8" } }), "ru"],
-  [m.resolveLocale({ localStorage: { getItem: () => "ru" } }), "ru"],
-  [m.localizeHref("/en/cart?x=1", "ru"), "/ru/cart?x=1"],
-  [m.localizeHref("/en/cart", "en", { stripBaseLocale: true }), "/cart"],
-  [String(m.shouldRedirect("/en/cart", "ru")), "true"],
-  [String(m.shouldRedirect("/ru/cart", "ru")), "false"],
-  [m.injectLangAndDir("<html lang=\"%lang%\" dir=\"%dir%\">", "ru"), "<html lang=\"ru\" dir=\"ltr\">"],
+  [direct.locale, "ru"],
+  [configured.locale, "ru"],
+  [configuredFromGetter.locale, "en"],
+  [m.lgl.locale, "en"],
+  [m.getLocale(), "en"],
+  [m.setLocale("ru"), "ru"],
+  [m.getLocale(), "ru"],
+  [m.setLocale("ru-RU"), "ru"],
+  [m.setLocale("unknown"), "en"],
 ];
 
 for (const [actual, expected] of expectations) {
@@ -119,26 +100,4 @@ for (const [actual, expected] of expectations) {
     throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
   }
 }
-
-const middleware = m.createLinguiniMiddleware();
-const [en, ru] = await Promise.all([
-  middleware({ locale: "en" }, async () => {
-    await sleep(20);
-    return m.getLocale();
-  }),
-  middleware({ locale: "ru" }, async () => {
-    await sleep(5);
-    return m.getLocale();
-  })
-]);
-
-if (en !== "en" || ru !== "ru" || m.getLocale() !== "en") {
-  throw new Error(`request locale isolation failed: ${en}, ${ru}, ${m.getLocale()}`);
-}
-}
-
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
 JS

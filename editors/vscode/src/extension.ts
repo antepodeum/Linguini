@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   DocumentSelector,
@@ -44,8 +42,7 @@ export async function deactivate(): Promise<void> {
 
 function createClient(): LanguageClient {
   const config = vscode.workspace.getConfiguration('linguini.server');
-  const configuredCommand = expandVariables(config.get<string>('path', 'linguini'));
-  const command = resolveServerCommand(configuredCommand);
+  const command = expandVariables(config.get<string>('path', 'linguini'));
   const args = config.get<string[]>('args', ['lsp']).map((arg) => expandVariables(arg));
 
   const serverOptions: ServerOptions = {
@@ -74,48 +71,6 @@ function createClient(): LanguageClient {
   );
 }
 
-function resolveServerCommand(configuredCommand: string): string {
-  if (configuredCommand !== 'linguini') {
-    return configuredCommand;
-  }
-
-  return bundledServerPath() ?? configuredCommand;
-}
-
-function bundledServerPath(): string | undefined {
-  const executable = process.platform === 'win32' ? 'linguini.exe' : 'linguini';
-  for (const target of bundledServerTargets()) {
-    const candidate = path.join(__dirname, '..', 'server', target, executable);
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return undefined;
-}
-
-function bundledServerTargets(): string[] {
-  if (process.platform === 'linux') {
-    if (process.arch === 'arm') {
-      return ['linux-armhf'];
-    }
-    if (process.arch === 'x64' || process.arch === 'arm64') {
-      const gnu = `linux-${process.arch}`;
-      const musl = `alpine-${process.arch}`;
-      return isMuslRuntime() ? [musl, gnu] : [gnu, musl];
-    }
-  }
-
-  return [`${process.platform}-${process.arch}`];
-}
-
-function isMuslRuntime(): boolean {
-  const report = process.report?.getReport?.() as
-    | { header?: { glibcVersionRuntime?: string } }
-    | undefined;
-  return process.platform === 'linux' && !report?.header?.glibcVersionRuntime;
-}
-
 async function restartClient(): Promise<void> {
   const previous = client;
   client = createClient();
@@ -129,7 +84,9 @@ async function startClient(nextClient: LanguageClient): Promise<void> {
     await nextClient.start();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    void vscode.window.showErrorMessage(`Linguini language server failed to start: ${message}`);
+    void vscode.window.showErrorMessage(
+      `Linguini language server failed to start: ${message}. Install the Linguini CLI and make sure the \`linguini\` command is on PATH, or set linguini.server.path.`
+    );
   }
 }
 
