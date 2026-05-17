@@ -137,12 +137,14 @@ jobs:
           path: ovsx-dist
           merge-multiple: true
       - name: Check Open VSX token
+        shell: bash
         run: |
           if [[ -z "${OVSX_PAT:-}" ]]; then
             echo 'Missing repository secret OVSX_PAT.' >&2
             exit 1
           fi
       - name: Publish bundled VSIX packages to Open VSX
+        shell: bash
         run: |
           shopt -s nullglob
           files=(ovsx-dist/*.vsix)
@@ -150,11 +152,13 @@ jobs:
             echo 'No bundled VSIX files were downloaded.' >&2
             exit 1
           fi
-          printf '%s\n' "${files[@]}"
+          printf '%s
+' "${files[@]}"
           for vsix in "${files[@]}"; do
             npx --yes ovsx publish "$vsix"
           done
       - name: Add Open VSX summary
+        shell: bash
         run: |
           echo '### Open VSX publish' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"

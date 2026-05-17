@@ -2,10 +2,9 @@ use serde_json::Value;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 
-const OFFICIAL_CLDR_JSON_REPO: &str = "https://github.com/unicode-org/cldr-json";
 const PLURALS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/plurals.json";
+const VENDORED_PLURALS_RELATIVE_PATH: &str = "vendor/cldr-json/cldr-core/supplemental/plurals.json";
 const GENERATED_FILE: &str = "linguini_generated_plural_rules.rs";
 
 include!("build/plural_rule.rs");
@@ -38,68 +37,38 @@ fn plural_source_path() -> Result<PathBuf, String> {
     }
 
     if let Ok(source_dir) = env::var("LINGUINI_CLDR_SOURCE_DIR") {
-        let source_dir = PathBuf::from(source_dir);
-        for candidate in [
-            source_dir.join(PLURALS_RELATIVE_PATH),
-            source_dir.join("cldr-core/supplemental/plurals.json"),
-            source_dir.join("supplemental/plurals.json"),
-        ] {
-            if candidate.is_file() {
-                return Ok(candidate);
-            }
+        return plural_source_path_from_source_dir(PathBuf::from(source_dir));
+    }
+
+    let manifest_dir = PathBuf::from(
+        env::var("CARGO_MANIFEST_DIR").map_err(|error| error.to_string())?,
+    );
+    let vendored = manifest_dir.join(VENDORED_PLURALS_RELATIVE_PATH);
+    if vendored.is_file() {
+        return Ok(vendored);
+    }
+
+    Err(format!(
+        "missing vendored CLDR plural rules at {}. \
+Set LINGUINI_CLDR_PLURALS_JSON or LINGUINI_CLDR_SOURCE_DIR to override the source.",
+        vendored.display()
+    ))
+}
+
+fn plural_source_path_from_source_dir(source_dir: PathBuf) -> Result<PathBuf, String> {
+    for candidate in [
+        source_dir.join(PLURALS_RELATIVE_PATH),
+        source_dir.join("cldr-core/supplemental/plurals.json"),
+        source_dir.join("supplemental/plurals.json"),
+    ] {
+        if candidate.is_file() {
+            return Ok(candidate);
         }
-        return Err(format!(
-            "LINGUINI_CLDR_SOURCE_DIR={} does not contain {PLURALS_RELATIVE_PATH}",
-            source_dir.display()
-        ));
     }
-
-    download_official_plural_rules()
-}
-
-fn download_official_plural_rules() -> Result<PathBuf, String> {
-    let out_dir = PathBuf::from(env::var("OUT_DIR").map_err(|error| error.to_string())?);
-    let source_dir = out_dir.join("cldr-json-source");
-    if source_dir.exists() {
-        fs::remove_dir_all(&source_dir)
-            .map_err(|error| format!("{}: {error}", source_dir.display()))?;
-    }
-
-    let source_dir_arg = source_dir.to_string_lossy().into_owned();
-    run_git(&[
-        "clone",
-        "--filter=blob:none",
-        "--no-checkout",
-        "--depth=1",
-        OFFICIAL_CLDR_JSON_REPO,
-        source_dir_arg.as_str(),
-    ])?;
-    run_git(&[
-        "-C",
-        source_dir_arg.as_str(),
-        "sparse-checkout",
-        "set",
-        "--no-cone",
-        PLURALS_RELATIVE_PATH,
-    ])?;
-    run_git(&["-C", source_dir_arg.as_str(), "checkout"])?;
-
-    Ok(source_dir.join(PLURALS_RELATIVE_PATH))
-}
-
-fn run_git(args: &[&str]) -> Result<(), String> {
-    let status = Command::new("git")
-        .args(args)
-        .status()
-        .map_err(|error| format!("failed to execute git: {error}"))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(format!(
-            "git {} failed with status {status}",
-            args.join(" ")
-        ))
-    }
+    Err(format!(
+        "LINGUINI_CLDR_SOURCE_DIR={} does not contain {PLURALS_RELATIVE_PATH}",
+        source_dir.display()
+    ))
 }
 
 fn generate_plural_tables(source: &str) -> Result<String, String> {
