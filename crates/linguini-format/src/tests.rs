@@ -55,7 +55,8 @@ fn preserves_adjacent_locale_placeholders_without_inner_spaces() {
 
 #[test]
 fn preserves_punctuation_after_locale_placeholders_without_extra_space() {
-    let source = "point = Точка здесь {val}.\nlist = Значения: {a}, {b}; {c}!\nquestion = Это {value}?\n";
+    let source =
+        "point = Точка здесь {val}.\nlist = Значения: {a}, {b}; {c}!\nquestion = Это {value}?\n";
     let formatted =
         format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
 
