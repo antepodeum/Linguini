@@ -40,9 +40,8 @@ fn plural_source_path() -> Result<PathBuf, String> {
         return plural_source_path_from_source_dir(PathBuf::from(source_dir));
     }
 
-    let manifest_dir = PathBuf::from(
-        env::var("CARGO_MANIFEST_DIR").map_err(|error| error.to_string())?,
-    );
+    let manifest_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").map_err(|error| error.to_string())?);
     let vendored = manifest_dir.join(VENDORED_PLURALS_RELATIVE_PATH);
     if vendored.is_file() {
         return Ok(vendored);
