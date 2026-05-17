@@ -1,78 +1,153 @@
-# Linguini
+<p align="center">
+  <img src="https://github.com/antepodeum/.github/blob/main/logos/Linguini.png?raw=true" alt="Linguini" width="760" />
+</p>
 
-**The localization language for products that outgrow strings.**
+<p align="center">
+  <a href="https://github.com/artemy/Linguini/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/artemy/Linguini/ci.yml?branch=main&label=ci&style=flat"></a>
+  <img alt="Status" src="https://img.shields.io/badge/status-preview-orange?style=flat">
+  <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat">
+</p>
 
-Linguini is a compiled localization system for modern apps. It replaces JSON key bags, runtime message parsers, plural hacks, unsafe placeholders, manual formatter wiring, and framework glue with one typed language pipeline.
+No more JSON archaeology, string-key roulette, and runtime localization surprises.
 
-The goal is direct: **solve the i18n stack as one system** — schema, translations, grammar, formatting, diagnostics, generated code, editor tooling, and app integration.
+> [!NOTE]
+> **Repository state:** this was built quickly, but it is built. The current goal is to finish the baseline end-to-end feature set. After that, the whole codebase will be manually reviewed, corrected, optimized, and cleaned up.
 
-> Experimental status: parts of this are implemented today; parts are the roadmap. The concept is the important thing: i18n should be compiled, typed, and analyzable.
+## Example
 
----
+The schema is the public contract your app can call:
 
-## Why i18n is broken
+```lgs
+// linguini/schema/checkout.lgs
 
-Most localization stacks start like this:
-
-```json
-{
-  "cart.count": "{count} items"
+enum Item {
+  pasta
+  sauce
+  cookbook
 }
+
+type Money = Decimal @currency
+type DeliveryDate = Date @date(style = "long")
+
+order_ready(
+  customer: String,
+  item: Item,
+  amount: Number,
+  total: Money,
+  delivery: DeliveryDate,
+)
+
+cart_summary(amount: Number, total: Money)
 ```
 
-Then the real product needs plural rules, gender, grammatical case, typed placeholders, currency/date formatting, fallbacks, missing-translation checks, route localization, editor support, generated types, and framework integration.
+The locale implements that contract with real language logic:
 
-At that point localization is no longer “strings”. It is a small programming language hiding inside translation files.
+```lgl
+// linguini/locale/checkout/ru.lgl
 
-Linguini makes that language explicit.
+enum Gender { masculine, feminine, neuter, other }
+
+impl Item {
+  pasta {
+    Gender = feminine
+
+    form acc(Plural) {
+      one => пасту
+      few => пасты
+      _   => паст
+    }
+  }
+
+  sauce {
+    Gender = masculine
+
+    form acc(Plural) {
+      one => соус
+      few => соуса
+      _   => соусов
+    }
+  }
+}
+
+form Ready(Plural, Gender) {
+  one {
+    masculine => готов
+    feminine  => готова
+    neuter    => готово
+    _         => готово
+  }
+
+  _ => готовы
+}
+
+form Product(Plural) {
+  one => товар
+  few => товара
+  _   => товаров
+}
+
+order_ready = {customer}, ваш заказ {Ready(amount, item.Gender)}: {amount} {item.acc(amount)} на сумму {total @currency(code = "RUB")}. Доставка до {delivery @date(style = "long")}.
+
+cart_summary = В корзине {amount} {Product(amount)} на сумму {total @currency(code = "RUB")}
+```
+
+The app receives a generated native API.
+
+```ts
+import { configureLinguini } from "./generated/linguini";
+
+const l = configureLinguini({ language: () => getRequestLocale() });
+
+l.checkout.order_ready("Artemy", "pasta", 3, 1290, "2026-05-17");
+l.checkout.cart_summary(3, 1290);
+```
+
+What this gives you:
+
+- typed message arguments instead of unchecked string keys;
+- plural forms, enum attributes, grammatical agreement, and helper forms;
+- source-level formatter annotations like `@currency` and `@date`;
+- analyzer diagnostics for missing messages, unresolved references, bad branches, and malformed source;
+- generated native modules for the target runtime.
+
+```txt
+.lgs schema + .lgl locale -> analyze -> IR -> compile -> native code
+                             │
+                             ├─ diagnostics / quick fixes
+                             ├─ formatter
+                             └─ LSP / editor tooling
+```
 
 ---
 
-## The idea
+## Features
 
-Linguini splits localization into two layers:
+| Area      | Status                                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------ |
+| Language  | `.lgs` schemas and `.lgl` locale implementations                                                                   |
+| Grammar   | CLDR plural categories, forms, enum metadata, nested selectors, local helpers                                      |
+| Analyzer  | project checks, missing implementations, invalid references, incomplete branches, diagnostics, quick fixes         |
+| Formatter | `.lgs` / `.lgl` formatting and `--check` mode                                                                      |
+| LSP       | diagnostics, completion, hover, definition, references, symbols, semantic tokens, formatting, rename, code actions |
+| Codegen   | TypeScript                                                                                                         |
+| Editor    | VS Code extension support                                                                                          |
 
-- **`.lgs` schema** — the public localization contract your app can call.
-- **`.lgl` locale** — the implementation for a real human language.
-
-The compiler checks both and generates native TypeScript.
-
-No runtime parsing of translation files. No unchecked keys. No guessing whether `{count}` exists. No shipping missing plural branches by accident.
+Linguini is intended to support many targets: TypeScript, JavaScript, Rust, Kotlin/JVM, Swift, Go, Python, C#/.NET, and other mainstream application ecosystems.
 
 ---
 
-## Project shape
-
-A `.lgs` file becomes a namespace. The matching `.lgl` files live in a folder with the same namespace.
+## Project layout
 
 ```txt
 linguini.toml
 linguini/
   schema/
-    shop.lgs
     checkout.lgs
-
   locale/
-    shop/
-      en.lgl
-      ru.lgl
-
     checkout/
       en.lgl
       ru.lgl
 ```
-
-Mapping:
-
-```txt
-linguini/schema/shop.lgs          -> namespace shop
-linguini/locale/shop/ru.lgl       -> ru implementation for shop
-
-linguini/schema/shop/delivery.lgs -> namespace shop.delivery
-linguini/locale/shop/delivery/ru.lgl
-```
-
-Config:
 
 ```toml
 [project]
@@ -90,244 +165,59 @@ module = "esm"
 declaration = true
 ```
 
----
-
-## Schema: the contract
-
-`linguini/schema/shop.lgs`
-
-```lgs
-enum Fruit {
-  apple
-  pear
-  orange
-}
-
-enum Size {
-  small
-  big
-}
-
-type Money = Decimal @currency
-type ShortDate = Date @date(style = "short")
-
-/// Displayed on the product delivery confirmation card.
-delivery(fruit: Fruit, size: Size, count: Number)
-
-counted(count: Number, fruit: Fruit)
-price(amount: Money, date: ShortDate)
-
-email_input {
-  label
-  placeholder
-  aria
-}
-```
-
-The schema defines what the application may ask for: messages, arguments, enums, docs, grouped messages, and formatting intent.
-
----
-
-## Locale: the language logic
-
-`linguini/locale/shop/ru.lgl`
-
-```lgl
-enum Gender { male, female, neuter, other }
-
-impl Fruit {
-  apple {
-    Gender = neuter
-
-    form nom(Plural) {
-      one => яблоко
-      few => яблока
-      _ => яблок
-    }
-  }
-
-  pear {
-    Gender = female
-
-    form nom(Plural) {
-      one => груша
-      few => груши
-      _ => груш
-    }
-  }
-}
-
-form Delivered(Plural, Gender) {
-  one {
-    male   => Доставлен
-    female => Доставлена
-    neuter => Доставлено
-    _      => Доставлено
-  }
-  _ => Доставлены
-}
-
-delivery = {Delivered(count, fruit.Gender)} {fruit.nom(count)}
-counted = В корзине {count} {fruit.nom(count)}
-price = Цена {amount @currency(code = "RUB")} на {date @date(style = "short")}
-
-email_input {
-  label = Email
-  placeholder = name@example.com
-  aria = Адрес электронной почты
-}
-```
-
-This is the main point: Linguini does not pretend every language is English with different words. A locale can describe its own grammar, private enums, forms, attributes, and formatter overrides.
-
----
-
-## Generated TypeScript
-
-Linguini generates code like this:
+A schema file becomes a namespace:
 
 ```txt
-src/generated/linguini/
-  index.ts
-  index.d.ts
-  shared.ts
-  shared.d.ts
-  locales/
-    en.ts
-    en.d.ts
-    ru.ts
-    ru.d.ts
-```
-
-Generated declarations are typed:
-
-```ts
-export type Fruit = "apple" | "pear" | "orange";
-export type Size = "small" | "big";
-export type Money = number;
-export type ShortDate = string;
-
-export declare function delivery(
-  fruit: Fruit,
-  size: Size,
-  count: number,
-): string;
-
-export declare function counted(count: number, fruit: Fruit): string;
-export declare function price(amount: Money, date: ShortDate): string;
-```
-
-Application code uses functions, not string keys:
-
-```ts
-import { configureLinguini } from "./generated/linguini";
-
-const lgl = configureLinguini({
-  language: () => getRequestLocale(),
-});
-
-lgl.delivery("apple", "small", 5);
-lgl.counted(5, "apple");
-lgl.price(1200, "2026-05-14");
+linguini/schema/checkout.lgs     -> checkout
+linguini/locale/checkout/ru.lgl  -> ru implementation for checkout
 ```
 
 ---
 
-## What it solves
+## CLI
 
-Linguini is designed to remove the usual split between translation files, type generation, plural libraries, formatter helpers, runtime locale state, editor tooling, and framework adapters.
-
-It brings together:
-
-- schema-first message contracts;
-- typed generated TypeScript;
-- CLDR plural rules;
-- grammatical forms and agreement;
-- locale-private enums, attributes, and functions;
-- currency/date/number formatter annotations;
-- missing-message and missing-locale diagnostics;
-- default-locale fallback;
-- generated runtime facade;
-- formatter, LSP, and VS Code support;
-- future Vite/SvelteKit/runtime integration;
-- future reusable localization packages.
-
-The goal is not a better translation file. The goal is a complete i18n compiler.
-
----
-
-## Why not Fluent?
-
-Fluent is a great message format. Linguini targets the whole product localization pipeline.
-
-| Area                 | Fluent-style systems                         | Linguini                                            |
-| -------------------- | -------------------------------------------- | --------------------------------------------------- |
-| Public API           | Message files are the source of truth        | Separate `.lgs` schema contract                     |
-| App calls            | Usually key/string oriented or extra typegen | Generated typed functions by default                |
-| Grammar              | Expressive messages                          | First-class forms, enum attributes, local functions |
-| Project layout       | File/message oriented                        | Namespace-aware schema/locale mapping               |
-| Missing locale files | Tooling-dependent                            | Analyzer-level project check                        |
-| Formatters           | Usually runtime/library wiring               | Source-level annotations like `@currency`           |
-| Runtime              | Message resolution/parsing model             | Native generated target code                        |
-| Framework glue       | Separate ecosystem concern                   | Planned as part of the Linguini stack               |
-
-Fluent helps write better localized messages.
-
-Linguini aims to make localization a compiled, typed, end-to-end application layer.
-
----
-
-## Status
-
-Already present or partially present:
-
-- `.lgs` / `.lgl` syntax;
-- `linguini.toml` project config;
-- path-derived namespaces;
-- CLI: `init`, `check`, `fix`, `build`, `generate`, `format`, `lsp`;
-- TypeScript code generation with `.d.ts`;
-- generated locale modules and facade;
-- CLDR plural generation;
-- currency/date formatter calls;
-- diagnostics for missing locale files and messages;
-- formatter prototype;
-- LSP and VS Code prototypes.
-
-Roadmap:
-
-- production-grade formatter;
-- deeper semantic analysis;
-- safe rename and quick fixes;
-- missing branch generation;
-- richer formatter annotations;
-- runtime integration library;
-- Vite plugin;
-- Svelte/SvelteKit adapter;
-- localized routing helpers;
-- rich text component interpolation;
-- package registry and reusable grammar packs;
-- JS and Rust backends.
-
----
-
-## Commands
+### Installation
 
 ```bash
-linguini init
-linguini check
-linguini fix --all
-linguini build
-linguini generate
-linguini format
-linguini lsp
+cargo install linguini-cli
 ```
 
----
+```
+Usage: linguini <COMMAND>
 
-## Philosophy
+Commands:
+  init      Create a Linguini project skeleton
+  check     Parse configured schema and locale files and report diagnostics
+  fix       Apply analyzer quick fixes such as missing locale files and message stubs
+  build     Build the localization project and write configured codegen outputs
+  generate  Generate rendered sample data for configured locales and enum variants
+  format    Format `.lgs` and `.lgl` files
+  lsp       Start the Linguini language server over stdio
+  help      Print this message or the help of the given subcommand(s)
 
-Localization should be compiled, typed, analyzable, and editor-aware.
+Options:
+  -h, --help  Print help
+```
 
-Languages have grammar. Products have contracts. Applications need generated code. Teams need diagnostics before release.
+## Development
 
-Linguini puts all of that into one system.
+```bash
+cargo test --workspace
+```
+
+VS Code extension:
+
+```bash
+cd editors/vscode
+npm install
+npm run compile
+npm run build:server
+npm run open:dev
+```
+
+Vite plugin:
+
+```bash
+cd plugins/vite
+npm test
+```

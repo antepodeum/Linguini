@@ -1,5 +1,5 @@
 {
-  "name": "@linguini/vite",
+  "name": "@antepod/linguini-vite",
   "version": "0.1.0",
   "description": "Vite plugin for Linguini source watching and TypeScript codegen",
   "type": "module",
