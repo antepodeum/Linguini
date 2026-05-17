@@ -22,7 +22,7 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/artemy/Linguini"
+repository = "https://github.com/antepodeum/Linguini"
 rust-version = "1.76"
 
 [workspace.metadata.linguini.planned_dependencies]
