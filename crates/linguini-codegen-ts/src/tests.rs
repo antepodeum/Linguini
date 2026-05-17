@@ -190,3 +190,73 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
     assert!(locale_module.contents.contains("label: \"Label\""));
     assert!(!locale_module.contents.contains("help: \"Help\""));
 }
+
+#[test]
+fn project_codegen_emits_schema_namespace_objects() {
+    use linguini_ir::{IrMessage, IrModule, IrText, IrTextPart};
+
+    fn schema_message(name: &str) -> IrMessage {
+        IrMessage {
+            name: name.to_owned(),
+            docs: Vec::new(),
+            parameters: Vec::new(),
+            body: None,
+        }
+    }
+
+    fn locale_message(name: &str, value: &str) -> IrMessage {
+        IrMessage {
+            name: name.to_owned(),
+            docs: Vec::new(),
+            parameters: Vec::new(),
+            body: Some(IrText {
+                parts: vec![IrTextPart::Text(value.to_owned())],
+            }),
+        }
+    }
+
+    let schema = IrModule {
+        messages: vec![
+            schema_message("checkout.order_ready"),
+            schema_message("checkout.cart_summary"),
+        ],
+        ..IrModule::default()
+    };
+    let locale = IrModule {
+        messages: vec![
+            locale_message("checkout.order_ready", "Ready"),
+            locale_message("checkout.cart_summary", "Cart"),
+        ],
+        ..IrModule::default()
+    };
+
+    let files = generate_typescript_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions::default(),
+    )
+    .expect("project codegen");
+
+    let locale_module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+    assert!(locale_module.contents.contains("export const checkout = {"));
+    assert!(locale_module.contents.contains("  order_ready: \"Ready\","));
+    assert!(locale_module.contents.contains("  cart_summary: \"Cart\","));
+    assert!(locale_module.contents.contains("  checkout,"));
+
+    let declaration = files
+        .iter()
+        .find(|file| file.path == "locales/en.d.ts")
+        .expect("locale declaration");
+    assert!(declaration
+        .contents
+        .contains("export declare const checkout: {"));
+    assert!(declaration
+        .contents
+        .contains("  readonly order_ready: string;"));
+}

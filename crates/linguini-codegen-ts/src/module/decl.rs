@@ -1,8 +1,7 @@
-use std::collections::BTreeMap;
-
 use linguini_ir::{IrMessage, IrModule};
 
 use super::names::{escape_comment, escape_string, function_name, property_key, ts_type};
+use super::tree::{nested_message_tree, MessageTree};
 use super::TypeScriptOptions;
 
 pub fn generate_shared_declaration() -> String {
@@ -89,6 +88,7 @@ fn emit_type_declarations(schema: &IrModule, output: &mut String) {
 }
 
 fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<String> {
+    let nested = nested_message_tree(schema);
     let mut exports = Vec::new();
 
     for signature in &schema.messages {
@@ -99,21 +99,38 @@ fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<Stri
         exports.push(function_name(&signature.name));
     }
 
-    for (group, messages) in group_messages(schema) {
-        output.push_str(&format!("export declare const {group}: {{\n"));
-        for signature in messages {
-            let property = signature.name.split('.').nth(1).unwrap_or(&signature.name);
-            output.push_str(&format!(
-                "  readonly {}: {};\n",
-                property_key(property),
-                group_property_type(&signature)
-            ));
-        }
-        output.push_str("};\n\n");
+    for (group, messages) in nested.children {
+        emit_message_object_declaration(&group, &messages, output);
         exports.push(group);
     }
 
     exports
+}
+
+fn emit_message_object_declaration(name: &str, tree: &MessageTree, output: &mut String) {
+    output.push_str(&format!("export declare const {name}: "));
+    emit_object_type(tree, 0, output);
+    output.push_str(";\n\n");
+}
+
+fn emit_object_type(tree: &MessageTree, depth: usize, output: &mut String) {
+    let indent = "  ".repeat(depth);
+    let child_indent = "  ".repeat(depth + 1);
+    output.push_str("{\n");
+    for entry in &tree.messages {
+        output.push_str(&format!(
+            "{child_indent}readonly {}: {};\n",
+            property_key(&entry.property),
+            group_property_type(&entry.signature)
+        ));
+    }
+    for (name, child) in &tree.children {
+        output.push_str(&format!("{child_indent}readonly {}: ", property_key(name)));
+        emit_object_type(child, depth + 1, output);
+        output.push_str(";\n");
+    }
+    output.push_str(&indent);
+    output.push('}');
 }
 
 fn emit_function_declaration(signature: &IrMessage, output: &mut String) {
@@ -153,15 +170,3 @@ fn signature_params(signature: &IrMessage) -> String {
         .join(", ")
 }
 
-fn group_messages(module: &IrModule) -> BTreeMap<String, Vec<IrMessage>> {
-    let mut grouped = BTreeMap::new();
-    for message in &module.messages {
-        if let Some((group, _)) = message.name.split_once('.') {
-            grouped
-                .entry(group.to_owned())
-                .or_insert_with(Vec::new)
-                .push(message.clone());
-        }
-    }
-    grouped
-}

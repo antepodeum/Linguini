@@ -103,12 +103,18 @@ fn build_locale_ir(
 
         if let Some(locale_file) = locale_file {
             ensure_locale_has_required_messages(root, config, schema_file, locale_file, locale)?;
-            merge_module(&mut locale_ir, lower_locale(&locale_file.ast));
+            merge_module(
+                &mut locale_ir,
+                namespace_messages(lower_locale(&locale_file.ast), namespace),
+            );
         }
 
         if locale != config.project.default_locale.as_str() {
             if let Some(default_locale_file) = locale_index.get(&default_key) {
-                merge_module_fallback(&mut locale_ir, lower_locale(&default_locale_file.ast));
+                merge_module_fallback(
+                    &mut locale_ir,
+                    namespace_messages(lower_locale(&default_locale_file.ast), namespace),
+                );
             }
         }
     }
@@ -287,9 +293,23 @@ fn remove_path_if_exists(path: &Path) -> CliResult<()> {
 fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> IrModule {
     let mut schema = IrModule::default();
     for file in schema_files {
-        merge_module(&mut schema, lower_schema(&file.ast));
+        merge_module(
+            &mut schema,
+            namespace_messages(lower_schema(&file.ast), &file.file.namespace),
+        );
     }
     schema
+}
+
+fn namespace_messages(mut module: IrModule, namespace: &str) -> IrModule {
+    if namespace.is_empty() {
+        return module;
+    }
+
+    for message in &mut module.messages {
+        message.name = format!("{namespace}.{}", message.name);
+    }
+    module
 }
 
 pub(super) fn merge_module(target: &mut IrModule, source: IrModule) {

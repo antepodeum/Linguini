@@ -4,6 +4,7 @@ use linguini_ir::{IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrMessage
 
 use super::expr::{form_object, is_static_text, text_expression, text_expression_with_context};
 use super::formatters::module_uses_formatters;
+use super::tree::{nested_message_tree, MessageTree};
 use super::names::{
     escape_comment, escape_string, function_name, property_key, safe_identifier, string_literal,
     ts_type,
@@ -128,7 +129,7 @@ pub fn emit_messages(
     options: &TypeScriptOptions,
     output: &mut String,
 ) -> ModuleExports {
-    let grouped = group_messages(schema);
+    let nested = nested_message_tree(schema);
     let mut exports = ModuleExports {
         top_level: Vec::new(),
         groups: Vec::new(),
@@ -143,8 +144,8 @@ pub fn emit_messages(
         }
     }
 
-    for (group, messages) in grouped {
-        emit_group_object(&group, &messages, locale, options, output);
+    for (group, messages) in nested.children {
+        emit_message_object(&group, &messages, locale, options, output);
         exports.groups.push(group);
     }
 
@@ -248,25 +249,44 @@ fn emit_message_function(
     true
 }
 
-fn emit_group_object(
-    group: &str,
-    signatures: &[IrMessage],
+fn emit_message_object(
+    name: &str,
+    tree: &MessageTree,
     locale: &IrModule,
     options: &TypeScriptOptions,
     output: &mut String,
 ) {
-    output.push_str(&format!("export const {group} = {{\n"));
-    for signature in signatures {
-        let property = signature.name.split('.').nth(1).unwrap_or(&signature.name);
-        if let Some(implementation) = message_implementation(locale, &signature.name) {
+    output.push_str(&format!("export const {name} = "));
+    emit_object_literal(tree, locale, options, 0, output);
+    output.push_str(" as const;\n\n");
+}
+
+fn emit_object_literal(
+    tree: &MessageTree,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+    depth: usize,
+    output: &mut String,
+) {
+    let indent = "  ".repeat(depth);
+    let child_indent = "  ".repeat(depth + 1);
+    output.push_str("{\n");
+    for entry in &tree.messages {
+        if let Some(implementation) = message_implementation(locale, &entry.signature.name) {
             output.push_str(&format!(
-                "  {}: {},\n",
-                property_key(property),
-                group_property_value(signature, implementation, options)
+                "{child_indent}{}: {},\n",
+                property_key(&entry.property),
+                group_property_value(&entry.signature, implementation, options)
             ));
         }
     }
-    output.push_str("} as const;\n\n");
+    for (name, child) in &tree.children {
+        output.push_str(&format!("{child_indent}{}: ", property_key(name)));
+        emit_object_literal(child, locale, options, depth + 1, output);
+        output.push_str(",\n");
+    }
+    output.push_str(&indent);
+    output.push('}');
 }
 
 fn group_property_value(
@@ -312,19 +332,6 @@ fn signature_params(signature: &IrMessage) -> String {
         .map(|parameter| format!("{}: {}", parameter.name, ts_type(&parameter.ty)))
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-fn group_messages(module: &IrModule) -> BTreeMap<String, Vec<IrMessage>> {
-    let mut grouped = BTreeMap::new();
-    for message in &module.messages {
-        if let Some((group, _)) = message.name.split_once('.') {
-            grouped
-                .entry(group.to_owned())
-                .or_insert_with(Vec::new)
-                .push(message.clone());
-        }
-    }
-    grouped
 }
 
 fn message_implementation<'a>(module: &'a IrModule, name: &str) -> Option<&'a IrMessage> {

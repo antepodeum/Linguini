@@ -4,6 +4,7 @@ mod expr;
 mod formatters;
 mod names;
 mod project;
+mod tree;
 
 use std::fmt;
 
