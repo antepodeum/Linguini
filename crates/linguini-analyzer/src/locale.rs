@@ -1,15 +1,13 @@
-use crate::{
-    analyze_branch_coverage, require_other_branch, BranchCoverage, Diagnostic, DiagnosticSeverity,
-    NamedSpan, QuickFix, Replacement,
-};
+use crate::{Diagnostic, DiagnosticSeverity, QuickFix, Replacement};
 use linguini_syntax::{
-    DocComment, FunctionBranch, FunctionBranchValue, LocaleDeclaration, LocaleFile,
-    SchemaDeclaration, SchemaFile, Span,
+    DocComment, LocaleDeclaration, LocaleFile, SchemaDeclaration, SchemaFile, Span,
 };
 use std::collections::BTreeMap;
 
+mod branches;
 mod messages;
 
+use self::branches::analyze_locale_branch_coverage;
 use self::messages::{
     format_name_list, locale_message_map, missing_message_stub_text, pluralize, schema_message_map,
 };
@@ -76,7 +74,7 @@ impl Default for LocaleCoverageOptions {
 }
 
 pub fn analyze_locale_file(locale: &LocaleFile) -> Vec<Diagnostic> {
-    analyze_locale_branch_coverage(&BTreeMap::new(), locale)
+    analyze_locale_branch_coverage(None, locale)
 }
 
 pub fn analyze_locale_coverage(schema: &SchemaFile, locale: &LocaleFile) -> Vec<Diagnostic> {
@@ -94,10 +92,7 @@ pub fn analyze_locale_coverage_with_options(
         locale.span,
         options,
     );
-    diagnostics.extend(analyze_locale_branch_coverage(
-        &schema_enum_variants(schema),
-        locale,
-    ));
+    diagnostics.extend(analyze_locale_branch_coverage(Some(schema), locale));
     diagnostics
 }
 
@@ -327,151 +322,6 @@ fn missing_doc_comment_diagnostics(
             )
         })
         .collect()
-}
-
-fn analyze_locale_branch_coverage(
-    schema_enums: &BTreeMap<String, Vec<NamedSpan>>,
-    locale: &LocaleFile,
-) -> Vec<Diagnostic> {
-    let mut enum_variants = schema_enums.clone();
-    for declaration in &locale.declarations {
-        collect_locale_enum_variants(declaration, &mut enum_variants);
-    }
-
-    let mut diagnostics = Vec::new();
-    for declaration in &locale.declarations {
-        collect_branch_coverage_diagnostics(declaration, &enum_variants, &mut diagnostics);
-    }
-    diagnostics
-}
-
-fn schema_enum_variants(schema: &SchemaFile) -> BTreeMap<String, Vec<NamedSpan>> {
-    schema
-        .declarations
-        .iter()
-        .filter_map(|declaration| match declaration {
-            SchemaDeclaration::Enum(item) => Some((
-                item.name.value.clone(),
-                item.variants
-                    .iter()
-                    .map(|variant| NamedSpan::new(&variant.value, variant.span))
-                    .collect(),
-            )),
-            SchemaDeclaration::TypeAlias(_)
-            | SchemaDeclaration::Message(_)
-            | SchemaDeclaration::Group(_) => None,
-        })
-        .collect()
-}
-
-fn collect_locale_enum_variants(
-    declaration: &LocaleDeclaration,
-    enum_variants: &mut BTreeMap<String, Vec<NamedSpan>>,
-) {
-    match declaration {
-        LocaleDeclaration::Enum(item) => {
-            enum_variants.insert(
-                item.name.value.clone(),
-                item.variants
-                    .iter()
-                    .map(|variant| NamedSpan::new(&variant.value, variant.span))
-                    .collect(),
-            );
-        }
-        LocaleDeclaration::Override(inner) => collect_locale_enum_variants(inner, enum_variants),
-        LocaleDeclaration::Form(_)
-        | LocaleDeclaration::Function(_)
-        | LocaleDeclaration::Message(_)
-        | LocaleDeclaration::Group(_) => {}
-    }
-}
-
-fn collect_branch_coverage_diagnostics(
-    declaration: &LocaleDeclaration,
-    enum_variants: &BTreeMap<String, Vec<NamedSpan>>,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    match declaration {
-        LocaleDeclaration::Function(function) => {
-            let dispatch_types = function
-                .parameters
-                .iter()
-                .filter_map(|parameter| {
-                    (parameter.ty.value != "String").then_some(parameter.ty.value.as_str())
-                })
-                .collect::<Vec<_>>();
-            validate_dispatch_branches(
-                &function.name.value,
-                &function.branches,
-                &dispatch_types,
-                0,
-                enum_variants,
-                diagnostics,
-            );
-        }
-        LocaleDeclaration::Override(inner) => {
-            collect_branch_coverage_diagnostics(inner, enum_variants, diagnostics);
-        }
-        LocaleDeclaration::Enum(_)
-        | LocaleDeclaration::Form(_)
-        | LocaleDeclaration::Message(_)
-        | LocaleDeclaration::Group(_) => {}
-    }
-}
-
-fn validate_dispatch_branches(
-    function_name: &str,
-    branches: &[FunctionBranch],
-    dispatch_types: &[&str],
-    depth: usize,
-    enum_variants: &BTreeMap<String, Vec<NamedSpan>>,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    let Some(dispatch_type) = dispatch_types.get(depth) else {
-        return;
-    };
-    let branch_spans = branches
-        .iter()
-        .map(|branch| NamedSpan::new(&branch.key.value, branch.key.span))
-        .collect::<Vec<_>>();
-    let span = branch_list_span(branches);
-    let subject = format!("function `{function_name}`");
-
-    if *dispatch_type == "Plural" {
-        diagnostics.extend(require_other_branch(&subject, &branch_spans, span));
-    } else if let Some(variants) = enum_variants.get(*dispatch_type) {
-        diagnostics.extend(analyze_branch_coverage(BranchCoverage {
-            subject: &subject,
-            enum_name: dispatch_type,
-            variants: variants.clone(),
-            branches: branch_spans,
-            span,
-        }));
-    }
-
-    for branch in branches {
-        if let FunctionBranchValue::Dispatch(children) = &branch.value {
-            validate_dispatch_branches(
-                function_name,
-                children,
-                dispatch_types,
-                depth + 1,
-                enum_variants,
-                diagnostics,
-            );
-        }
-    }
-}
-
-fn branch_list_span(branches: &[FunctionBranch]) -> Span {
-    let Some(first) = branches.first() else {
-        return Span::new(0, 0);
-    };
-    let end = branches
-        .last()
-        .map(|branch| branch.span.end)
-        .unwrap_or(first.span.end);
-    Span::new(first.span.start, end)
 }
 
 fn qualified_name(group: Option<&str>, name: &str) -> String {
