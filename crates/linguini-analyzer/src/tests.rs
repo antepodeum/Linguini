@@ -1,4 +1,3 @@
-
 use super::{
     analyze_branch_coverage, analyze_expressions, analyze_function_patterns,
     analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
