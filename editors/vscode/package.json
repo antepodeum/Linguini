@@ -3,8 +3,8 @@
   "displayName": "Linguini",
   "description": "VS Code language support for Linguini schema and locale files.",
   "icon": "assets/icon.png",
-  "version": "0.1.0",
-  "publisher": "linguini",
+  "version": "0.1.1",
+  "publisher": "antepod",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
