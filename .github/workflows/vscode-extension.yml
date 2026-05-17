@@ -152,8 +152,7 @@ jobs:
             echo 'No bundled VSIX files were downloaded.' >&2
             exit 1
           fi
-          printf '%s
-' "${files[@]}"
+          printf '%s\n' "${files[@]}"
           for vsix in "${files[@]}"; do
             npx --yes ovsx publish "$vsix"
           done
