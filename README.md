@@ -79,12 +79,10 @@ form Rubles(Plural) {
 form Pronoun(Plural, Gender) {
     one {
         masculine => Его
-        feminine => Её
-        _ => Их
+        feminine  => Её
+        _         => Их
     }
-    _ {
-        _ => Их
-    }
+    _ => Их
 }
 
 you_ordered = {customer}, вы заказали: {amount} {item.acc(amount)} на сумму {total} {Rubles(total)}. {Pronoun(amount, item.Gender)} доставка будет {delivery}.
@@ -107,7 +105,6 @@ What this gives you:
 
 - typed message arguments instead of unchecked string keys;
 - plural forms, enum attributes, grammatical agreement, and helper forms;
-- source-level formatter annotations like `@currency` and `@date`;
 - analyzer diagnostics for missing messages, unresolved references, bad branches, and malformed source;
 - generated native modules for the target runtime.
 
