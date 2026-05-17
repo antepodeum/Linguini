@@ -9,8 +9,9 @@
 
 No more JSON archaeology, string-key roulette, and runtime localization surprises.
 
-> [!NOTE]
-> **Repository state:** this was built quickly, but it is built. The current goal is to finish the baseline end-to-end feature set. After that, the whole codebase will be manually reviewed, corrected, optimized, and cleaned up.
+**[Why Linguini](./docs/why.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)**
+
+---
 
 ## Example
 
@@ -19,11 +20,9 @@ The schema is the public contract your app can call:
 ```lgs
 // linguini/schema/checkout.lgs
 
-enum Item {
-  pasta
-  sauce
-}
+enum Item { pasta, sauce }
 
+/// Shown on the delivery confirmation card.
 you_ordered(
   customer: String,
   item: Item,
@@ -64,25 +63,19 @@ impl Item {
   }
 }
 
-form Product(Plural) {
-  one => товар
-  few => товара
-  _   => товаров
-}
-
 form Rubles(Plural) {
-    one => рубль
-    few => рубля
-    _   => рублей
+  one => рубль
+  few => рубля
+  _   => рублей
 }
 
 form Pronoun(Plural, Gender) {
-    one {
-        masculine => Его
-        feminine  => Её
-        _         => Их
-    }
-    _ => Их
+  one {
+    masculine => Его
+    feminine  => Её
+    _         => Их
+  }
+  _ => Их
 }
 
 you_ordered = {customer}, вы заказали: {amount} {item.acc(amount)} на сумму {total} {Rubles(total)}. {Pronoun(amount, item.Gender)} доставка будет {delivery}.
@@ -90,31 +83,21 @@ you_ordered = {customer}, вы заказали: {amount} {item.acc(amount)} н�
 cart_summary = В корзине {amount} {Product(amount)} на сумму {total} {Rubles(total)}
 ```
 
-The app receives a generated native API.
+The app gets a generated native API:
 
 ```ts
 import { configureLinguini } from "./generated/linguini";
 
 const l = configureLinguini({ language: () => getRequestLocale() });
 
-l.checkout.order_ready("Artemy", "pasta", 3, 1290, "2026-05-17");
+l.checkout.you_ordered("Artemy", "pasta", 3, 1290, "2026-05-17");
+// → "Artemy, вы заказали: 3 пасты на сумму 1290 рублей. Их доставка будет 17.05.2026."
+
 l.checkout.cart_summary(3, 1290);
+// → "В корзине 3 товара на сумму 1290 рублей"
 ```
 
-What this gives you:
-
-- typed message arguments instead of unchecked string keys;
-- plural forms, enum attributes, grammatical agreement, and helper forms;
-- analyzer diagnostics for missing messages, unresolved references, bad branches, and malformed source;
-- generated native modules for the target runtime.
-
-```txt
-.lgs schema + .lgl locale -> analyze -> IR -> compile -> native code
-                             │
-                             ├─ diagnostics / quick fixes
-                             ├─ formatter
-                             └─ LSP / editor tooling
-```
+Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer diagnostics for everything that can go wrong. Generated native modules for each target runtime.
 
 ---
 
@@ -124,19 +107,17 @@ What this gives you:
 | --------- | ------------------------------------------------------------------------------------------------------------------ |
 | Language  | `.lgs` schemas and `.lgl` locale implementations                                                                   |
 | Grammar   | CLDR plural categories, forms, enum metadata, nested selectors, local helpers                                      |
-| Analyzer  | project checks, missing implementations, invalid references, incomplete branches, diagnostics, quick fixes         |
+| Analyzer  | missing implementations, invalid references, incomplete branches, diagnostics, quick fixes                         |
 | Formatter | `.lgs` / `.lgl` formatting and `--check` mode                                                                      |
 | LSP       | diagnostics, completion, hover, definition, references, symbols, semantic tokens, formatting, rename, code actions |
-| Codegen   | TypeScript                                                                                                         |
-| Editor    | VS Code extension support                                                                                          |
-
-Linguini is intended to support many targets: TypeScript, JavaScript, Rust, Kotlin/JVM, Swift, Go, Python, C#/.NET, and other mainstream application ecosystems.
+| Codegen   | TypeScript (JS, Rust, Kotlin, Swift, Go, Python, C# planned)                                                       |
+| Editor    | VS Code extension                                                                                                  |
 
 ---
 
 ## Project layout
 
-```txt
+```
 linguini.toml
 linguini/
   schema/
@@ -149,53 +130,42 @@ linguini/
 
 ```toml
 [project]
-name = "shop"
+name           = "shop"
 default_locale = "en"
-locales = ["en", "ru"]
+locales        = ["en", "ru"]
 
 [paths]
 schema = "linguini/schema"
 locale = "linguini/locale"
 
 [targets.ts]
-out = "src/generated/linguini"
-module = "esm"
+out         = "src/generated/linguini"
+module      = "esm"
 declaration = true
 ```
 
-A schema file becomes a namespace:
-
-```txt
-linguini/schema/checkout.lgs     -> checkout
-linguini/locale/checkout/ru.lgl  -> ru implementation for checkout
-```
+A schema file becomes a namespace. `checkout.lgs` → namespace `checkout`.
+`locale/checkout/ru.lgl` → Russian implementation for that namespace.
 
 ---
 
 ## CLI
-
-### Installation
 
 ```bash
 cargo install linguini-cli --version 0.1.0-alpha.3
 ```
 
 ```
-Usage: linguini <COMMAND>
-
-Commands:
-  init      Create a Linguini project skeleton
-  check     Parse configured schema and locale files and report diagnostics
-  fix       Apply analyzer quick fixes such as missing locale files and message stubs
-  build     Build the localization project and write configured codegen outputs
-  generate  Generate rendered sample data for configured locales and enum variants
-  format    Format `.lgs` and `.lgl` files
-  lsp       Start the Linguini language server over stdio
-  help      Print this message or the help of the given subcommand(s)
-
-Options:
-  -h, --help  Print help
+linguini init      Create a project skeleton
+linguini check     Report diagnostics across schema and locale files
+linguini fix       Apply quick fixes — missing files, message stubs
+linguini build     Build and write codegen outputs
+linguini generate  Render sample output for all locales and enum variants
+linguini format    Format .lgs and .lgl files
+linguini lsp       Start the language server over stdio
 ```
+
+---
 
 ## Development
 
@@ -213,9 +183,10 @@ npm run build:server
 npm run open:dev
 ```
 
-Vite plugin:
+---
 
-```bash
-cd plugins/vite
-npm test
-```
+## License
+
+Apache 2.0 — see [LICENSE](./LICENSE).
+
+Built by [Antepod](https://github.com/antepodeum).
