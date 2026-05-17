@@ -14,7 +14,10 @@ fn locale_coverage_reports_incomplete_schema_enum_impl() {
         "impl `Item` for enum `Item` is missing variant `cookbook`"
     );
     assert_eq!(diagnostics[0].quick_fixes.len(), 1);
-    assert_eq!(diagnostics[0].quick_fixes[0].title, "add variant `cookbook`");
+    assert_eq!(
+        diagnostics[0].quick_fixes[0].title,
+        "add variant `cookbook`"
+    );
 }
 
 #[test]

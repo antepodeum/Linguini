@@ -112,7 +112,12 @@ fn validate_impl_variants(
         .map(|variant| NamedSpan::new(&variant.name.value, variant.name.span))
         .collect::<Vec<_>>();
 
-    diagnostics.extend(analyze_impl_coverage(&form.name.value, variants, &branches, form));
+    diagnostics.extend(analyze_impl_coverage(
+        &form.name.value,
+        variants,
+        &branches,
+        form,
+    ));
 }
 
 fn analyze_impl_coverage(
