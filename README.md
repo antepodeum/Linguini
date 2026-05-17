@@ -22,21 +22,17 @@ The schema is the public contract your app can call:
 enum Item {
   pasta
   sauce
-  cookbook
 }
 
-type Money = Decimal @currency
-type DeliveryDate = Date @date(style = "long")
-
-order_ready(
+you_ordered(
   customer: String,
   item: Item,
   amount: Number,
-  total: Money,
-  delivery: DeliveryDate,
+  total: Number,
+  delivery: String,
 )
 
-cart_summary(amount: Number, total: Money)
+cart_summary(amount: Number, total: Number)
 ```
 
 The locale implements that contract with real language logic:
@@ -68,26 +64,21 @@ impl Item {
   }
 }
 
-form Ready(Plural, Gender) {
-  one {
-    masculine => готов
-    feminine  => готова
-    neuter    => готово
-    _         => готово
-  }
-
-  _ => готовы
-}
-
 form Product(Plural) {
   one => товар
   few => товара
   _   => товаров
 }
 
-order_ready = {customer}, ваш заказ {Ready(amount, item.Gender)}: {amount} {item.acc(amount)} на сумму {total @currency(code = "RUB")}. Доставка до {delivery @date(style = "long")}.
+form Rubles(Plural) {
+    one => рубль
+    few => рубля
+    _   => рублей
+}
 
-cart_summary = В корзине {amount} {Product(amount)} на сумму {total @currency(code = "RUB")}
+you_ordered = {customer}, вы заказали: {amount} {item.acc(amount)} на сумму {total} {Rubles(total)}. Доставка до {delivery}.
+
+cart_summary = В корзине {amount} {Product(amount)} на сумму {total} {Rubles(total)}
 ```
 
 The app receives a generated native API.
