@@ -29,7 +29,7 @@ you_ordered(
   item: Item,
   amount: Number,
   total: Number,
-  delivery: String,
+  delivery: Date,
 )
 
 cart_summary(amount: Number, total: Number)
@@ -76,7 +76,18 @@ form Rubles(Plural) {
     _   => рублей
 }
 
-you_ordered = {customer}, вы заказали: {amount} {item.acc(amount)} на сумму {total} {Rubles(total)}. Доставка до {delivery}.
+form Pronoun(Plural, Gender) {
+    one {
+        masculine => Его
+        feminine => Её
+        _ => Их
+    }
+    _ {
+        _ => Их
+    }
+}
+
+you_ordered = {customer}, вы заказали: {amount} {item.acc(amount)} на сумму {total} {Rubles(total)}. {Pronoun(amount, item.Gender)} доставка будет {delivery}.
 
 cart_summary = В корзине {amount} {Product(amount)} на сумму {total} {Rubles(total)}
 ```
