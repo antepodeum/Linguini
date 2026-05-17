@@ -1,6 +1,8 @@
 [package]
 name = "linguini-codegen-rust"
 version = "0.1.0-alpha.1"
+description = "Reserved Rust code generation crate for Linguini"
+publish = false
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

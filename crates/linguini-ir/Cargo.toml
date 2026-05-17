@@ -1,10 +1,11 @@
 [package]
 name = "linguini-ir"
 version = "0.1.0-alpha.1"
+description = "Intermediate representation and lowering for Linguini"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-linguini-syntax = { path = "../linguini-syntax" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.1" }

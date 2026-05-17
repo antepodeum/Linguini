@@ -1,14 +1,15 @@
 [package]
 name = "linguini-codegen-ts"
 version = "0.1.0-alpha.1"
+description = "TypeScript code generator for Linguini localization projects"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-linguini-cldr = { path = "../linguini-cldr" }
-linguini-ir = { path = "../linguini-ir" }
+linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.1" }
+linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.1" }
 
 [dev-dependencies]
-linguini-syntax = { path = "../linguini-syntax" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.1" }

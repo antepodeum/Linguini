@@ -1,6 +1,8 @@
 [package]
 name = "linguini-package"
 version = "0.1.0-alpha.1"
+description = "Internal package helpers for Linguini"
+publish = false
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

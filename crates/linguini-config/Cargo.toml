@@ -1,6 +1,7 @@
 [package]
 name = "linguini-config"
 version = "0.1.0-alpha.1"
+description = "Configuration parsing and file discovery for Linguini projects"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

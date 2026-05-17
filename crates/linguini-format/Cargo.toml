@@ -1,10 +1,11 @@
 [package]
 name = "linguini-format"
 version = "0.1.0-alpha.1"
+description = "Formatter for Linguini schema and locale files"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-linguini-syntax = { path = "../linguini-syntax" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.1" }

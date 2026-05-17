@@ -1,6 +1,8 @@
 [package]
 name = "linguini-codegen-js"
 version = "0.1.0-alpha.1"
+description = "Reserved JavaScript code generation crate for Linguini"
+publish = false
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

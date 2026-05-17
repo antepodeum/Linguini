@@ -1,14 +1,16 @@
 [package]
 name = "linguini-locale"
 version = "0.1.0-alpha.1"
+description = "Internal locale helpers for Linguini"
+publish = false
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-linguini-analyzer = { path = "../linguini-analyzer" }
-linguini-syntax = { path = "../linguini-syntax" }
+linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.1" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.1" }
 
 [dev-dependencies]
 linguini-test-support = { path = "../linguini-test-support" }
