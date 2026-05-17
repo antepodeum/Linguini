@@ -24,6 +24,7 @@ const selectedTargets = args.all ? targets : args.target ? [args.target] : [];
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 run('npm', ['run', 'compile']);
+bundleExtension();
 
 if (selectedTargets.length === 0) {
   packageUniversalVsix();
@@ -59,6 +60,22 @@ function parseArgs(argv) {
   }
 
   return parsed;
+}
+
+function bundleExtension() {
+  run(npxCommand(), [
+    '--yes',
+    'esbuild@0.25.5',
+    'src/extension.ts',
+    '--bundle',
+    '--platform=node',
+    '--format=cjs',
+    '--target=node20',
+    '--external:vscode',
+    '--outfile=out/extension.js',
+    '--sourcemap',
+    '--sources-content=false'
+  ]);
 }
 
 function packageUniversalVsix() {

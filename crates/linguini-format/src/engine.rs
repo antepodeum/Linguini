@@ -17,16 +17,13 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
     let mut brace_stack = Vec::new();
 
     for (index, token) in tokens.iter().enumerate() {
+        let next = next_significant_kind(tokens, index + 1);
         match &token.kind {
             TokenKind::Whitespace => {
                 pending_space = true;
             }
             TokenKind::Newline => {
-                if should_collapse_newline(
-                    previous,
-                    next_significant_kind(tokens, index + 1),
-                    paren_depth,
-                ) {
+                if should_collapse_newline(previous, next, paren_depth) {
                     pending_space = true;
                 } else {
                     ir.push(FormatItem::HardLine);
@@ -60,10 +57,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
                 pending_space = false;
             }
             TokenKind::LBrace => {
-                let placeholder_brace = matches!(
-                    previous,
-                    Some(TokenKind::Equals | TokenKind::Arrow | TokenKind::RawText(_))
-                );
+                let placeholder_brace = is_text_placeholder_start(previous, next);
                 lower_token_text(
                     source,
                     token,
@@ -129,6 +123,34 @@ fn next_significant_kind(tokens: &[Token], start: usize) -> Option<&TokenKind> {
         .skip(start)
         .find(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Newline))
         .map(|token| &token.kind)
+}
+
+fn is_text_placeholder_start(previous: Option<&TokenKind>, next: Option<&TokenKind>) -> bool {
+    let Some(previous) = previous else {
+        return false;
+    };
+
+    if matches!(
+        previous,
+        TokenKind::Equals | TokenKind::Arrow | TokenKind::RawText(_) | TokenKind::TripleQuote
+    ) {
+        return true;
+    }
+
+    matches!(previous, TokenKind::RBrace) && is_placeholder_content_start(next)
+}
+
+fn is_placeholder_content_start(next: Option<&TokenKind>) -> bool {
+    matches!(
+        next,
+        Some(
+            TokenKind::Ident(_)
+                | TokenKind::LocaleTag(_)
+                | TokenKind::String(_)
+                | TokenKind::At
+                | TokenKind::RBrace
+        )
+    )
 }
 
 fn should_collapse_newline(
@@ -294,7 +316,7 @@ fn should_space_before(
     }
 
     if matches!(previous, TokenKind::RBrace) && matches!(current, TokenKind::RawText(_)) {
-        return true;
+        return pending;
     }
 
     if matches!(previous, TokenKind::LBrace) || matches!(current, TokenKind::RBrace) {

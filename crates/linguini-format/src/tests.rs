@@ -45,6 +45,36 @@ fn preserves_raw_text_spacing_and_single_blank_line() {
 }
 
 #[test]
+fn preserves_adjacent_locale_placeholders_without_inner_spaces() {
+    let source = "message = {first}{second} {amount @currency(code = \"RUB\")}\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(formatted, source);
+}
+
+#[test]
+fn preserves_punctuation_after_locale_placeholders_without_extra_space() {
+    let source = "point = Точка здесь {val}.\nlist = Значения: {a}, {b}; {c}!\nquestion = Это {value}?\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(formatted, source);
+}
+
+#[test]
+fn preserves_branch_arm_placeholders_without_inner_spaces_or_punctuation_gaps() {
+    let source = "form Product(Plural) {\n  one => {amount}{item}.\n  _ => {amount} {item}!\n}\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(
+        formatted,
+        "form Product(Plural) {\n  one => {amount}{item}.\n  _   => {amount} {item}!\n}\n"
+    );
+}
+
+#[test]
 fn collapses_multiple_blank_lines_to_one_blank_line() {
     let source = "first = One\n\n\nsecond = Two\n";
     let formatted =
