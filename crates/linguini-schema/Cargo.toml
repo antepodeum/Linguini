@@ -1,6 +1,6 @@
 [package]
 name = "linguini-schema"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 description = "Internal schema helpers for Linguini"
 publish = false
 edition.workspace = true
@@ -9,5 +9,5 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.1" }
-linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.1" }
+linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.3" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.3" }

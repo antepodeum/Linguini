@@ -1,7 +1,7 @@
 [package]
 name = "linguini-cldr"
 build = "build.rs"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 description = "Compiled CLDR plural and formatting data for Linguini"
 edition.workspace = true
 license.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "linguini-cli"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 description = "Command-line interface for Linguini localization projects"
 edition.workspace = true
 license.workspace = true
@@ -13,14 +13,14 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
-linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.1" }
-linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.1" }
-linguini-codegen-ts = { path = "../linguini-codegen-ts", version = "0.1.0-alpha.1" }
-linguini-config = { path = "../linguini-config", version = "0.1.0-alpha.1" }
-linguini-format = { path = "../linguini-format", version = "0.1.0-alpha.1" }
-linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.1" }
-linguini-lsp = { path = "../linguini-lsp", version = "0.1.0-alpha.1" }
-linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.1" }
+linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.3" }
+linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.3" }
+linguini-codegen-ts = { path = "../linguini-codegen-ts", version = "0.1.0-alpha.3" }
+linguini-config = { path = "../linguini-config", version = "0.1.0-alpha.3" }
+linguini-format = { path = "../linguini-format", version = "0.1.0-alpha.3" }
+linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.3" }
+linguini-lsp = { path = "../linguini-lsp", version = "0.1.0-alpha.3" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.3" }
 
 [dev-dependencies]
 assert_cmd = "2.1.2"

@@ -1,6 +1,6 @@
 [package]
 name = "linguini-lsp"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 description = "Language server implementation for Linguini"
 edition.workspace = true
 license.workspace = true
@@ -8,9 +8,9 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.1" }
-linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.1" }
-linguini-format = { path = "../linguini-format", version = "0.1.0-alpha.1" }
-linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.1" }
+linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.3" }
+linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.3" }
+linguini-format = { path = "../linguini-format", version = "0.1.0-alpha.3" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.3" }
 tokio = { version = "1.52.3", features = ["io-std", "macros", "rt-multi-thread"] }
 tower-lsp-server = "0.23.0"

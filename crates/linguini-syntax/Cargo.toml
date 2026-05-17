@@ -1,6 +1,6 @@
 [package]
 name = "linguini-syntax"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 description = "Parser and syntax tree for the Linguini localization language"
 edition.workspace = true
 license.workspace = true
