@@ -2,9 +2,15 @@
   "name": "linguini-vscode",
   "displayName": "Linguini",
   "description": "VS Code language support for Linguini schema and locale files.",
+  "icon": "assets/icon.png",
   "version": "0.1.0",
   "publisher": "linguini",
-  "license": "MIT",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/artegoser/Linguini.git",
+    "directory": "editors/vscode"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },

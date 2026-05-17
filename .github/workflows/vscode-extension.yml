@@ -24,7 +24,13 @@ jobs:
       - name: Package universal VSIX
         working-directory: editors/vscode
         run: npm run package:vsix
+      - name: Add VSIX summary
+        run: |
+          echo '### VS Code extension artifact' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: linguini-vscode
           path: editors/vscode/dist/linguini-vscode.vsix
+          if-no-files-found: error
+          retention-days: 30
