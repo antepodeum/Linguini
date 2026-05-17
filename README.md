@@ -180,7 +180,7 @@ linguini/locale/checkout/ru.lgl  -> ru implementation for checkout
 ### Installation
 
 ```bash
-cargo install linguini-cli
+cargo install linguini-cli --version 0.1.0-alpha.3
 ```
 
 ```

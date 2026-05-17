@@ -3,6 +3,5 @@ sample-workspace/**
 .vscode/**
 scripts/**
 dist/**
-server/**
 *.vsix
 tsconfig.json
