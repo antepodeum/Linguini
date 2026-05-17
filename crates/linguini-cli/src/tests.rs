@@ -220,10 +220,9 @@ fn build_generates_typescript_project_files_without_cldr_cache() {
         .path()
         .join("src/generated/linguini/index.ts")
         .exists());
-    let generated_locale = fs::read_to_string(
-        project.path().join("src/generated/linguini/locales/en.ts"),
-    )
-    .expect("read generated locale");
+    let generated_locale =
+        fs::read_to_string(project.path().join("src/generated/linguini/locales/en.ts"))
+            .expect("read generated locale");
     assert!(generated_locale.contains("export const shop = {"));
     assert!(generated_locale.contains("  delivery: {"));
     assert!(generated_locale.contains("    delivery: (count: number) =>"));

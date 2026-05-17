@@ -163,11 +163,9 @@ fn expression_preview(expression: &linguini_syntax::Expression) -> String {
     output
 }
 
-
 fn qualified_name(group: Option<&str>, name: &str) -> String {
     match group {
         Some(group) => format!("{group}.{name}"),
         None => name.to_owned(),
     }
 }
-

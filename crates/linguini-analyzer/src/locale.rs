@@ -11,8 +11,7 @@ use std::collections::BTreeMap;
 mod messages;
 
 use self::messages::{
-    format_name_list, locale_message_map, missing_message_stub_text, pluralize,
-    schema_message_map,
+    format_name_list, locale_message_map, missing_message_stub_text, pluralize, schema_message_map,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -481,4 +480,3 @@ fn qualified_name(group: Option<&str>, name: &str) -> String {
         None => name.to_owned(),
     }
 }
-

@@ -94,11 +94,7 @@ pub(crate) fn render_file_diagnostics(
     diagnostics: &[Diagnostic],
 ) -> String {
     let relative_path = path_for_output(root, path);
-    render_diagnostics_with_color(
-        &relative_path,
-        source,
-        diagnostics,
-        false,
+    render_diagnostics_with_color(&relative_path, source, diagnostics, false).unwrap_or_else(
+        |error| format!("failed to render diagnostics for {relative_path}: {error}"),
     )
-    .unwrap_or_else(|error| format!("failed to render diagnostics for {relative_path}: {error}"))
 }

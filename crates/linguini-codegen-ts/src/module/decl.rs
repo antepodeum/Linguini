@@ -169,4 +169,3 @@ fn signature_params(signature: &IrMessage) -> String {
         .collect::<Vec<_>>()
         .join(", ")
 }
-

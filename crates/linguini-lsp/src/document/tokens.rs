@@ -103,4 +103,3 @@ pub(super) fn is_placeholder_context(source: &str, offset: usize) -> bool {
     let before = &source[..offset.min(source.len())];
     before.rfind('{') > before.rfind('}')
 }
-

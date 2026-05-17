@@ -136,4 +136,3 @@ fn locale_from_uri(uri: &str) -> Option<String> {
         .or_else(|| file_name.strip_suffix(".linguini"))
         .map(|locale| locale.to_owned())
 }
-

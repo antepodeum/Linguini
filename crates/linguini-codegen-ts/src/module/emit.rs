@@ -4,11 +4,11 @@ use linguini_ir::{IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrMessage
 
 use super::expr::{form_object, is_static_text, text_expression, text_expression_with_context};
 use super::formatters::module_uses_formatters;
-use super::tree::{nested_message_tree, MessageTree};
 use super::names::{
     escape_comment, escape_string, function_name, property_key, safe_identifier, string_literal,
     ts_type,
 };
+use super::tree::{nested_message_tree, MessageTree};
 use super::TypeScriptOptions;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
