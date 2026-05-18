@@ -1,30 +1,38 @@
 use serde_json::Value;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 const PLURALS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/plurals.json";
-const VENDORED_PLURALS_RELATIVE_PATH: &str = "vendor/cldr-json/cldr-core/supplemental/plurals.json";
+const LAYOUT_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-misc-full/main";
+const LOCAL_CLDR_SOURCE_RELATIVE_PATH: &str = "vendor/cldr-json";
+const CLDR_SOURCE_CONFIG_RELATIVE_PATH: &str = "cldr-json.toml";
 const GENERATED_FILE: &str = "linguini_generated_plural_rules.rs";
 
 include!("build/plural_rule.rs");
 
 fn main() {
     println!("cargo:rerun-if-env-changed=LINGUINI_CLDR_PLURALS_JSON");
+    println!("cargo:rerun-if-env-changed=LINGUINI_CLDR_LAYOUT_MAIN_DIR");
     println!("cargo:rerun-if-env-changed=LINGUINI_CLDR_SOURCE_DIR");
+    println!("cargo:rerun-if-env-changed=LINGUINI_CLDR_AUTO_FETCH");
 
     if let Err(error) = run() {
-        panic!("failed to generate built-in CLDR plural rules: {error}");
+        panic!("failed to generate built-in CLDR data: {error}");
     }
 }
 
 fn run() -> Result<(), String> {
     let plurals = plural_source_path()?;
+    let layout_main = layout_main_source_path()?;
     println!("cargo:rerun-if-changed={}", plurals.display());
+    println!("cargo:rerun-if-changed={}", layout_main.display());
 
     let source =
         fs::read_to_string(&plurals).map_err(|error| format!("{}: {error}", plurals.display()))?;
-    let generated = generate_plural_tables(&source)?;
+    let mut generated = generate_plural_tables(&source)?;
+    generated.push_str(&generate_text_direction_table(&layout_main)?);
     let out_dir = PathBuf::from(env::var("OUT_DIR").map_err(|error| error.to_string())?);
     let output = out_dir.join(GENERATED_FILE);
     fs::write(&output, generated).map_err(|error| format!("{}: {error}", output.display()))?;
@@ -36,22 +44,187 @@ fn plural_source_path() -> Result<PathBuf, String> {
         return Ok(PathBuf::from(path));
     }
 
+    let source_dir = cldr_source_dir()?;
+    plural_source_path_from_source_dir(source_dir)
+}
+
+#[derive(Debug)]
+struct CldrSourceConfig {
+    repo: String,
+    git_ref: String,
+    commit_prefix: String,
+}
+
+fn cldr_source_dir() -> Result<PathBuf, String> {
     if let Ok(source_dir) = env::var("LINGUINI_CLDR_SOURCE_DIR") {
-        return plural_source_path_from_source_dir(PathBuf::from(source_dir));
+        return Ok(PathBuf::from(source_dir));
     }
 
-    let manifest_dir =
-        PathBuf::from(env::var("CARGO_MANIFEST_DIR").map_err(|error| error.to_string())?);
-    let vendored = manifest_dir.join(VENDORED_PLURALS_RELATIVE_PATH);
-    if vendored.is_file() {
-        return Ok(vendored);
+    let manifest_dir = manifest_dir()?;
+    let source_dir = manifest_dir.join(LOCAL_CLDR_SOURCE_RELATIVE_PATH);
+    if is_usable_cldr_source_dir(&source_dir) {
+        return Ok(source_dir);
     }
 
-    Err(format!(
-        "missing vendored CLDR plural rules at {}. \
-Set LINGUINI_CLDR_PLURALS_JSON or LINGUINI_CLDR_SOURCE_DIR to override the source.",
-        vendored.display()
-    ))
+    if matches!(
+        env::var("LINGUINI_CLDR_AUTO_FETCH").as_deref(),
+        Ok("0") | Ok("false")
+    ) {
+        return Err(format!(
+            "missing local CLDR JSON checkout at {}. Run `./scripts/fetch-cldr-json.sh` or unset LINGUINI_CLDR_AUTO_FETCH=0.",
+            source_dir.display()
+        ));
+    }
+
+    let config_path = manifest_dir.join(CLDR_SOURCE_CONFIG_RELATIVE_PATH);
+    println!("cargo:rerun-if-changed={}", config_path.display());
+    let config = read_cldr_source_config(&config_path)?;
+    fetch_cldr_json(&source_dir, &config)?;
+    Ok(source_dir)
+}
+
+fn is_usable_cldr_source_dir(path: &Path) -> bool {
+    path.join("cldr-json/cldr-core/supplemental/plurals.json")
+        .is_file()
+        && path.join("cldr-json/cldr-misc-full/main").is_dir()
+}
+
+fn manifest_dir() -> Result<PathBuf, String> {
+    PathBuf::from(env::var("CARGO_MANIFEST_DIR").map_err(|error| error.to_string())?)
+        .canonicalize()
+        .map_err(|error| error.to_string())
+}
+
+fn read_cldr_source_config(path: &Path) -> Result<CldrSourceConfig, String> {
+    let source =
+        fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let repo = toml_string_value(&source, "repo")
+        .ok_or_else(|| format!("{}: missing `repo`", path.display()))?;
+    let git_ref = toml_string_value(&source, "ref")
+        .ok_or_else(|| format!("{}: missing `ref`", path.display()))?;
+    let commit_prefix = toml_string_value(&source, "commit_prefix")
+        .ok_or_else(|| format!("{}: missing `commit_prefix`", path.display()))?;
+    Ok(CldrSourceConfig {
+        repo,
+        git_ref,
+        commit_prefix,
+    })
+}
+
+fn toml_string_value(source: &str, key: &str) -> Option<String> {
+    for line in source.lines() {
+        let line = line
+            .split_once('#')
+            .map_or(line, |(before, _)| before)
+            .trim();
+        let Some((left, right)) = line.split_once('=') else {
+            continue;
+        };
+        if left.trim() != key {
+            continue;
+        }
+        let value = right.trim();
+        if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
+            return Some(value[1..value.len() - 1].to_owned());
+        }
+    }
+    None
+}
+
+fn fetch_cldr_json(source_dir: &Path, config: &CldrSourceConfig) -> Result<(), String> {
+    if source_dir.exists() {
+        fs::remove_dir_all(source_dir)
+            .map_err(|error| format!("{}: {error}", source_dir.display()))?;
+    }
+    if let Some(parent) = source_dir.parent() {
+        fs::create_dir_all(parent).map_err(|error| format!("{}: {error}", parent.display()))?;
+    }
+
+    let source_dir_arg = source_dir.to_string_lossy().into_owned();
+    run_git(["init", source_dir_arg.as_str()])?;
+    run_git([
+        "-C",
+        source_dir_arg.as_str(),
+        "remote",
+        "add",
+        "origin",
+        config.repo.as_str(),
+    ])?;
+    run_git([
+        "-C",
+        source_dir_arg.as_str(),
+        "fetch",
+        "--depth=1",
+        "origin",
+        config.git_ref.as_str(),
+    ])?;
+    run_git([
+        "-C",
+        source_dir_arg.as_str(),
+        "checkout",
+        "--detach",
+        "FETCH_HEAD",
+    ])?;
+
+    let head = git_output(["-C", source_dir_arg.as_str(), "rev-parse", "HEAD"])?;
+    if !head.trim().starts_with(&config.commit_prefix) {
+        return Err(format!(
+            "CLDR JSON ref `{}` resolved to {}, expected commit prefix {}",
+            config.git_ref,
+            head.trim(),
+            config.commit_prefix
+        ));
+    }
+
+    if !is_usable_cldr_source_dir(source_dir) {
+        return Err(format!(
+            "CLDR JSON checkout at {} does not contain expected cldr-json data",
+            source_dir.display()
+        ));
+    }
+
+    Ok(())
+}
+
+fn run_git<'a>(args: impl IntoIterator<Item = &'a str>) -> Result<(), String> {
+    let args: Vec<&str> = args.into_iter().collect();
+    let status = Command::new("git")
+        .args(&args)
+        .status()
+        .map_err(|error| format!("git {}: {error}", args.join(" ")))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "git {} failed with status {}",
+            args.join(" "),
+            status
+                .code()
+                .map(|code| code.to_string())
+                .unwrap_or_else(|| "unknown".to_owned())
+        ))
+    }
+}
+
+fn git_output<'a>(args: impl IntoIterator<Item = &'a str>) -> Result<String, String> {
+    let args: Vec<&str> = args.into_iter().collect();
+    let output = Command::new("git")
+        .args(&args)
+        .output()
+        .map_err(|error| format!("git {}: {error}", args.join(" ")))?;
+    if output.status.success() {
+        String::from_utf8(output.stdout).map_err(|error| error.to_string())
+    } else {
+        Err(format!(
+            "git {} failed with status {}",
+            args.join(" "),
+            output
+                .status
+                .code()
+                .map(|code| code.to_string())
+                .unwrap_or_else(|| "unknown".to_owned())
+        ))
+    }
 }
 
 fn plural_source_path_from_source_dir(source_dir: PathBuf) -> Result<PathBuf, String> {
@@ -68,6 +241,83 @@ fn plural_source_path_from_source_dir(source_dir: PathBuf) -> Result<PathBuf, St
         "LINGUINI_CLDR_SOURCE_DIR={} does not contain {PLURALS_RELATIVE_PATH}",
         source_dir.display()
     ))
+}
+
+fn layout_main_source_path() -> Result<PathBuf, String> {
+    if let Ok(path) = env::var("LINGUINI_CLDR_LAYOUT_MAIN_DIR") {
+        return Ok(PathBuf::from(path));
+    }
+
+    let source_dir = cldr_source_dir()?;
+    layout_main_source_path_from_source_dir(source_dir)
+}
+
+fn layout_main_source_path_from_source_dir(source_dir: PathBuf) -> Result<PathBuf, String> {
+    for candidate in [
+        source_dir.join(LAYOUT_MAIN_RELATIVE_PATH),
+        source_dir.join("cldr-misc-full/main"),
+        source_dir.join("main"),
+    ] {
+        if candidate.is_dir() {
+            return Ok(candidate);
+        }
+    }
+    Err(format!(
+        "LINGUINI_CLDR_SOURCE_DIR={} does not contain {LAYOUT_MAIN_RELATIVE_PATH}",
+        source_dir.display()
+    ))
+}
+
+fn generate_text_direction_table(layout_main: &std::path::Path) -> Result<String, String> {
+    let mut directions = Vec::new();
+    let entries =
+        fs::read_dir(layout_main).map_err(|error| format!("{}: {error}", layout_main.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("{}: {error}", layout_main.display()))?;
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let locale = entry.file_name().to_string_lossy().into_owned();
+        let layout = entry.path().join("layout.json");
+        if !layout.is_file() {
+            continue;
+        }
+        println!("cargo:rerun-if-changed={}", layout.display());
+        let source = fs::read_to_string(&layout)
+            .map_err(|error| format!("{}: {error}", layout.display()))?;
+        if let Some(direction) = extract_text_direction(&source) {
+            directions.push((locale, direction));
+        }
+    }
+    directions.sort_by(|left, right| left.0.cmp(&right.0));
+
+    let mut arms = String::new();
+    for (locale, direction) in directions {
+        arms.push_str(&format!(
+            "        {} => Some({}),\n",
+            rust_string(&locale),
+            rust_string(direction)
+        ));
+    }
+
+    Ok(format!(
+        "\nfn generated_text_direction(locale: &str) -> Option<&'static str> {{\n    match locale {{\n{arms}        _ => None,\n    }}\n}}\n"
+    ))
+}
+
+fn extract_text_direction(source: &str) -> Option<&'static str> {
+    let key = "\"characterOrder\"";
+    let key_start = source.find(key)?;
+    let after_key = &source[key_start + key.len()..];
+    let colon = after_key.find(':')?;
+    let after_colon = after_key[colon + 1..].trim_start();
+    if after_colon.starts_with("\"right-to-left\"") {
+        Some("rtl")
+    } else if after_colon.starts_with("\"left-to-right\"") {
+        Some("ltr")
+    } else {
+        None
+    }
 }
 
 fn generate_plural_tables(source: &str) -> Result<String, String> {

@@ -3,6 +3,10 @@ import locale_ru from "./locales/ru";
 export declare const locales: readonly ["ru"];
 export declare const baseLocale: "ru";
 
+export declare const localeDirections: {
+  readonly ru: "ltr";
+};
+
 export declare const localeModules: {
   readonly ru: typeof locale_ru;
 };
@@ -13,6 +17,7 @@ export declare const localeLoaders: {
 
 type LinguiniLanguage = keyof typeof localeModules;
 export type Locale = (typeof locales)[number];
+export type TextDirection = "ltr" | "rtl";
 export type Linguini = (typeof localeModules)[LinguiniLanguage];
 
 type LinguiniLanguageInput = LinguiniLanguage;
@@ -24,8 +29,6 @@ export type LinguiniProviderOptions = {
 
 export declare function createLinguini(language: LinguiniLanguageInput): Linguini;
 
-export declare function getLocale(): Locale;
-
 export declare function createLinguiniProvider(options?: LinguiniProviderOptions): Linguini;
 
 export declare function configureLinguini(options: {
@@ -34,4 +37,6 @@ export declare function configureLinguini(options: {
 
 export declare const lgl: Linguini;
 
-export declare function setLocale(locale: LinguiniLanguageInput): Locale;
+export declare function isLocale(locale: unknown): locale is Locale;
+export declare function normalizeLocale(locale: unknown): Locale | undefined;
+export declare function getTextDirection(locale: Locale): TextDirection;

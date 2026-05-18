@@ -1,7 +1,8 @@
 use linguini_cldr::{
     load_currency_formatting_from_cache, load_date_formatting_from_cache,
-    load_number_formatting_from_cache, load_plural_rules_from_cache, CldrCacheResult, Condition,
-    FormatWidths, Operand, OperandExpression, PluralRule, Range, Relation, RelationOperator,
+    load_number_formatting_from_cache, load_plural_rules_from_cache,
+    load_text_direction_from_cache, CldrCacheResult, Condition, FormatWidths, Operand,
+    OperandExpression, PluralRule, Range, Relation, RelationOperator,
 };
 use std::path::Path;
 
@@ -20,12 +21,14 @@ pub(crate) fn generate_compiled_tables_from_cache(
     let mut number_match = String::new();
     let mut currency_match = String::new();
     let mut date_match = String::new();
+    let mut direction_match = String::new();
 
     for locale in locales {
         let plurals = load_plural_rules_from_cache(cache_root, &locale)?;
         let numbers = load_number_formatting_from_cache(cache_root, &locale)?;
         let currency = load_currency_formatting_from_cache(cache_root, &locale)?;
         let dates = load_date_formatting_from_cache(cache_root, &locale)?;
+        let direction = load_text_direction_from_cache(cache_root, &locale)?;
         let name = const_name(&locale);
 
         plural_match.push_str(&format!(
@@ -74,6 +77,11 @@ pub(crate) fn generate_compiled_tables_from_cache(
             widths(&dates.time_formats),
             widths(&dates.date_time_formats)
         ));
+        direction_match.push_str(&format!(
+            "{}=>Some({}),",
+            rust_string(&locale),
+            rust_string(&direction)
+        ));
     }
 
     output.push_str(&format!(
@@ -90,6 +98,9 @@ pub(crate) fn generate_compiled_tables_from_cache(
     ));
     output.push_str(&format!(
         "pub fn compiled_date_formatting(locale:&str)->Option<DateFormatData>{{match locale {{{date_match}_=>None}}}}"
+    ));
+    output.push_str(&format!(
+        "pub fn compiled_text_direction(locale:&str)->Option<&'static str>{{match locale {{{direction_match}_=>None}}}}"
     ));
     Ok(output)
 }

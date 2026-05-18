@@ -582,14 +582,14 @@ Required CLDR domains:
 - date-time formatting
 - unit formatting, later stage
 
-CLDR ingestion must be selective. Fetch/update commands must download or copy only the CLDR JSON files required for the configured locales and enabled formatter domains. They must not fetch, vendor, or require the entire `cldr-json` repository when a smaller file set is sufficient.
+Project-level CLDR caches may stay selective, but the compiler development build uses a pinned shallow checkout of the full `cldr-json` repository. The checkout is local-only, ignored by git, and verified against the pinned ref/commit metadata before build-time CLDR tables are generated.
 
 Production binaries must contain the CLDR rules they need as compiled data, not as runtime JSON files and not as raw `include_str!` JSON blobs that are parsed at startup. The `linguini-cldr-macros` crate must provide a procedural macro/code-generation step, using `syn` and `quote`, that reads the required files from the `cldr-json` repository layout and emits Rust source for compact, typed CLDR rule/data tables. Runtime code must use those generated tables directly.
 
 The upstream repository URL is:
 
 ```txt
-https://github.com/unicode-org/cldr-json
+https://github.com/unicode-org/cldr-json.git
 ```
 
 The required upstream file paths currently used by Linguini are:
@@ -598,6 +598,7 @@ The required upstream file paths currently used by Linguini are:
 cldr-json/cldr-core/supplemental/plurals.json
 cldr-json/cldr-numbers-full/main/{locale}/numbers.json
 cldr-json/cldr-dates-full/main/{locale}/ca-gregorian.json
+cldr-json/cldr-misc-full/main/{locale}/layout.json
 ```
 
 ### 7.2 CLDR cache
@@ -610,7 +611,7 @@ Default cache path:
 .linguini/cache/cldr/{version}/
 ```
 
-The compiler must not download CLDR data during normal builds unless the user explicitly runs a fetch/update command.
+The compiler build reads CLDR data from `crates/linguini-cldr/vendor/cldr-json`. If the pinned checkout is missing, build.rs may fetch it with `git fetch --depth=1` using `crates/linguini-cldr/cldr-json.toml`. Set `LINGUINI_CLDR_AUTO_FETCH=0` to force an explicit `./scripts/fetch-cldr-json.sh` step instead.
 
 Commands:
 

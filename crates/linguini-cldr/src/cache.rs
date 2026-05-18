@@ -204,6 +204,9 @@ pub fn required_cldr_json_paths(locales: &[&str]) -> Vec<String> {
         paths.push(format!(
             "cldr-json/cldr-dates-full/main/{locale}/ca-gregorian.json"
         ));
+        paths.push(format!(
+            "cldr-json/cldr-misc-full/main/{locale}/layout.json"
+        ));
     }
     paths
 }
@@ -284,6 +287,11 @@ fn copy_required_locale_files(
         source,
         destination,
         format!("cldr-json/cldr-dates-full/main/{locale}/ca-gregorian.json"),
+    )?;
+    copy_relative_file(
+        source,
+        destination,
+        format!("cldr-json/cldr-misc-full/main/{locale}/layout.json"),
     )
 }
 

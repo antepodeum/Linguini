@@ -6,10 +6,12 @@ use crate::plural::{PluralOperands, PluralRule};
 pub use cache_loaders::{
     load_currency_formatting_from_cache, load_date_formatting_from_cache,
     load_number_formatting_from_cache, load_plural_rules, load_plural_rules_from_cache,
+    load_text_direction_from_cache,
 };
 pub use compiled::{
-    built_in_plural_rules, compiled_currency_formatting, compiled_date_formatting,
-    compiled_number_formatting, compiled_plural_rules, CompiledPluralCategory, CompiledPluralRules,
+    built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
+    compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
+    CompiledPluralCategory, CompiledPluralRules,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

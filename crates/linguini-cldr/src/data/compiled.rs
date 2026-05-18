@@ -42,6 +42,13 @@ pub fn built_in_plural_rules(locale: &str) -> Option<PluralRules> {
     generated_plural_rule_sources(locale)
 }
 
+pub fn built_in_text_direction(locale: &str) -> Option<&'static str> {
+    generated_text_direction(locale).or_else(|| {
+        let language = locale.split('-').next()?;
+        generated_text_direction(language)
+    })
+}
+
 include!(concat!(
     env!("OUT_DIR"),
     "/linguini_generated_plural_rules.rs"

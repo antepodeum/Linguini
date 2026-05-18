@@ -10,6 +10,28 @@ use crate::plural::parse_plural_rule;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub fn load_text_direction_from_cache(
+    cache_root: impl AsRef<Path>,
+    locale: &str,
+) -> CldrCacheResult<String> {
+    let path = locale_data_path(cache_root.as_ref(), locale, "layout.json");
+    let source = read_data_file(&path)?;
+    let orientation =
+        find_json_object(&source, "orientation").ok_or_else(|| CldrCacheError::Parse {
+            path: path.clone(),
+            message: format!("missing layout orientation for locale `{locale}`"),
+        })?;
+    let character_order = required_string(orientation, "characterOrder", &path)?;
+    match character_order.as_str() {
+        "left-to-right" => Ok("ltr".to_owned()),
+        "right-to-left" => Ok("rtl".to_owned()),
+        value => Err(CldrCacheError::Parse {
+            path,
+            message: format!("unknown CLDR characterOrder `{value}`"),
+        }),
+    }
+}
+
 pub fn load_plural_rules_from_cache(
     cache_root: impl AsRef<Path>,
     locale: &str,
@@ -132,6 +154,7 @@ pub(super) fn locale_data_path(cache_root: &Path, locale: &str, file_name: &str)
     let domain = match file_name {
         "numbers.json" => "cldr-numbers-full",
         "ca-gregorian.json" => "cldr-dates-full",
+        "layout.json" => "cldr-misc-full",
         _ => "cldr-core",
     };
     cache_root

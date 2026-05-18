@@ -9,7 +9,7 @@
 
 No more JSON archaeology, string-key roulette, and runtime localization surprises.
 
-**[Why Linguini](./docs/why.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)**
+**[Why Linguini](./docs/why.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)** · **[Web/SvelteKit](./docs/web-sveltekit.md)**
 
 ---
 
@@ -110,7 +110,7 @@ Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer 
 | Analyzer  | missing implementations, invalid references, incomplete branches, diagnostics, quick fixes                         |
 | Formatter | `.lgs` / `.lgl` formatting and `--check` mode                                                                      |
 | LSP       | diagnostics, completion, hover, definition, references, symbols, semantic tokens, formatting, rename, code actions |
-| Codegen   | TypeScript (JS, Rust, Kotlin, Swift, Go, Python, C# planned)                                                       |
+| Codegen   | TypeScript, generated Svelte 5/SvelteKit adapters (JS, Rust, Kotlin, Swift, Go, Python, C# planned)                |
 | Editor    | VS Code extension                                                                                                  |
 
 ---

@@ -51,6 +51,8 @@ fn init_command_creates_project_files_without_cache_config() {
     assert!(project.path().join("schema").is_dir());
     assert!(project.path().join("locales").is_dir());
     assert!(!config.contains("cache"));
+    assert!(!config.contains("[web]"));
+    assert!(!config.contains("framework ="));
     assert!(config.contains("[targets.ts]"));
     assert!(config.contains("out = \"src/generated/linguini\""));
 }

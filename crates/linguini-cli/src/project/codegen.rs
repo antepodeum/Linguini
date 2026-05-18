@@ -4,8 +4,8 @@ use std::path::{Component, Path, PathBuf};
 
 use linguini_analyzer::DiagnosticSeverity;
 use linguini_codegen_ts::{
-    generate_typescript_project_files, TypeScriptGeneratedFile, TypeScriptLocaleModule,
-    TypeScriptProjectOptions,
+    generate_typescript_project_files, TypeScriptFramework, TypeScriptGeneratedFile,
+    TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
 };
 use linguini_config::{LinguiniConfig, TypeScriptTargetConfig};
 use linguini_ir::{ensure_no_unresolved_references, lower_locale, lower_schema, IrModule};
@@ -71,6 +71,26 @@ fn generate_typescript_target(
             tree_shaking: target.tree_shaking,
             included_messages: target.messages.clone(),
             base_locale: Some(config.project.default_locale.clone()),
+            web: TypeScriptWebOptions {
+                strategy: config.web.strategy.clone(),
+                cookie_name: config.web.cookie_name.clone(),
+                cookie_path: config.web.cookie_path.clone(),
+                cookie_domain: config.web.cookie_domain.clone(),
+                cookie_max_age: config.web.cookie_max_age,
+                cookie_same_site: config.web.cookie_same_site.clone(),
+                cookie_secure: config.web.cookie_secure,
+                cookie_http_only: config.web.cookie_http_only,
+                local_storage_key: config.web.local_storage_key.clone(),
+                global_variable_name: config.web.global_variable_name.clone(),
+                prefix_default_locale: config.web.prefix_default_locale,
+                base_path: config.web.base_path.clone(),
+                trailing_slash: config.web.trailing_slash.clone(),
+                redirect: config.web.redirect,
+                origin: config.web.origin.clone(),
+                exclude: config.web.exclude.clone(),
+                localize_links: config.web.localize_links,
+            },
+            framework: TypeScriptFramework::from_config(target.framework.as_deref()),
         },
     )
     .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;

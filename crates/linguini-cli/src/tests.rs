@@ -32,6 +32,8 @@ fn init_creates_valid_project() {
     assert!(project.path().join("locales").is_dir());
     let config = fs::read_to_string(project.path().join("linguini.toml")).expect("config");
     assert!(!config.contains("cache"));
+    assert!(!config.contains("[web]"));
+    assert!(!config.contains("framework ="));
     assert!(config.contains("[targets.ts]"));
     assert!(config.contains("out = \"src/generated/linguini\""));
 }

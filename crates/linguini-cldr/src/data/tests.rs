@@ -1,8 +1,9 @@
 use super::{
-    built_in_plural_rules, compiled_currency_formatting, compiled_date_formatting,
-    compiled_number_formatting, compiled_plural_rules, load_currency_formatting_from_cache,
-    load_date_formatting_from_cache, load_number_formatting_from_cache, load_plural_rules,
-    load_plural_rules_from_cache,
+    built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
+    compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
+    load_currency_formatting_from_cache, load_date_formatting_from_cache,
+    load_number_formatting_from_cache, load_plural_rules, load_plural_rules_from_cache,
+    load_text_direction_from_cache,
 };
 use crate::fetch_cldr_from_dir;
 use linguini_test_support::{temp_project_dir, TempProject};
@@ -78,6 +79,21 @@ const GREGORIAN: &str = r#"
 }
 "#;
 
+const LAYOUT: &str = r#"
+{
+  "main": {
+    "en": {
+      "layout": {
+        "orientation": {
+          "characterOrder": "left-to-right",
+          "lineOrder": "top-to-bottom"
+        }
+      }
+    }
+  }
+}
+"#;
+
 #[test]
 fn loads_plural_rules_for_locale_from_cldr_json() {
     let rules = load_plural_rules(PLURALS, "ru").expect("plural rules");
@@ -136,6 +152,7 @@ fn loads_number_date_and_currency_formatting_from_cache() {
     let numbers = load_number_formatting_from_cache(&cache, "en").expect("numbers");
     let currency = load_currency_formatting_from_cache(&cache, "en").expect("currency");
     let dates = load_date_formatting_from_cache(&cache, "en").expect("dates");
+    let direction = load_text_direction_from_cache(&cache, "en").expect("direction");
 
     assert_eq!(numbers.decimal_symbol, ".");
     assert_eq!(numbers.decimal_pattern, "#,##0.###");
@@ -148,6 +165,14 @@ fn loads_number_date_and_currency_formatting_from_cache() {
     assert_eq!(dates.date_formats.short, "M/d/yy");
     assert_eq!(dates.time_formats.short, "h:mm a");
     assert_eq!(dates.date_time_formats.short, "{1}, {0}");
+    assert_eq!(direction, "ltr");
+}
+
+#[test]
+fn built_in_text_directions_are_generated_from_cldr_layout_data() {
+    assert_eq!(built_in_text_direction("en"), Some("ltr"));
+    assert_eq!(built_in_text_direction("ar"), Some("rtl"));
+    assert_eq!(built_in_text_direction("ar-EG"), Some("rtl"));
 }
 
 #[test]
@@ -213,12 +238,17 @@ fn write_full_cache(name: &str) -> TempProject {
     let dates = project
         .path()
         .join("source/cldr-json/cldr-dates-full/main/en");
+    let layout = project
+        .path()
+        .join("source/cldr-json/cldr-misc-full/main/en");
     fs::create_dir_all(&supplemental).expect("supplemental dir");
     fs::create_dir_all(&numbers).expect("numbers dir");
     fs::create_dir_all(&dates).expect("dates dir");
+    fs::create_dir_all(&layout).expect("layout dir");
     fs::write(supplemental.join("plurals.json"), PLURALS).expect("plural data");
     fs::write(numbers.join("numbers.json"), NUMBERS).expect("numbers data");
     fs::write(dates.join("ca-gregorian.json"), GREGORIAN).expect("calendar data");
+    fs::write(layout.join("layout.json"), LAYOUT).expect("layout data");
     fetch_cldr_from_dir(
         project.path().join("source"),
         project.path().join(".linguini/cache"),

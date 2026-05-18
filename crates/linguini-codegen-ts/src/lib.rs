@@ -3,8 +3,8 @@ mod plural;
 
 pub use module::{
     generate_typescript_files, generate_typescript_module, generate_typescript_project_files,
-    TypeScriptCodegenError, TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptOptions,
-    TypeScriptProjectOptions,
+    TypeScriptCodegenError, TypeScriptFramework, TypeScriptGeneratedFile, TypeScriptLocaleModule,
+    TypeScriptOptions, TypeScriptProjectOptions, TypeScriptWebOptions,
 };
 pub use plural::generate_plural_function;
 

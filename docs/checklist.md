@@ -565,12 +565,12 @@ Checkpoint acceptance:
 
 Checkpoint acceptance:
 
-- [x] Normal `linguini build` does not download CLDR
-  - Note: completed on 2026-05-13. Added `linguini build` path that requires an existing offline CLDR cache and never invokes fetch or git.
-  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cli`
-- [x] CLDR fetch/update does not download or vendor the full `cldr-json` repository
-  - Note: completed on 2026-05-13. Fetch imports only required JSON files from a staged CLDR source and leaves unrelated CLDR files out of the cache.
-  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
+- [x] Build-time CLDR source is pinned and local-only after fetch
+  - Note: updated on 2026-05-18. `linguini-cldr` uses a gitignored shallow checkout pinned by `crates/linguini-cldr/cldr-json.toml`; build.rs auto-fetches it only when missing, and `LINGUINI_CLDR_AUTO_FETCH=0` disables that behavior.
+  - Evidence: crates/linguini-cldr/build.rs; scripts/fetch-cldr-json.sh; `cargo test --workspace`
+- [x] Full CLDR checkout is not committed
+  - Note: updated on 2026-05-18. The local `crates/linguini-cldr/vendor/` checkout is gitignored and recreated from the pinned upstream ref when needed.
+  - Evidence: .gitignore; crates/linguini-cldr/cldr-json.toml; scripts/fetch-cldr-json.sh
 - [x] Production binary can evaluate required CLDR rules without runtime JSON files
   - Note: completed on 2026-05-13. Compiled plural-rule tests evaluate English and Russian categories without reading runtime JSON files.
   - Evidence: crates/linguini-cldr/src/data/compiled.rs; `cargo test -p linguini-cldr`

@@ -24,3 +24,19 @@ behavior, and generated-output validation for target-language output.
 
 Do not mark checklist work complete until the relevant test command is recorded as evidence in
 `docs/checklist.md`.
+
+## CLDR data for local development
+
+`linguini-cldr` uses a local shallow checkout of `unicode-org/cldr-json` under
+`crates/linguini-cldr/vendor/cldr-json`. The directory is ignored by git. The
+pinned source is declared in `crates/linguini-cldr/cldr-json.toml`.
+
+Fetch or refresh it explicitly with:
+
+```sh
+./scripts/fetch-cldr-json.sh
+```
+
+`cargo build`/`cargo test` also fetches the pinned checkout automatically when it
+is missing. Set `LINGUINI_CLDR_AUTO_FETCH=0` to require a pre-existing local
+checkout.

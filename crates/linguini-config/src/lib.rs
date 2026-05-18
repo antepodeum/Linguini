@@ -8,7 +8,7 @@ pub use discovery::{
 };
 pub use error::{ConfigError, ConfigResult};
 pub use model::{
-    LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig, TypeScriptTargetConfig,
+    LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig, TypeScriptTargetConfig, WebConfig,
 };
 pub use parser::parse_config;
 

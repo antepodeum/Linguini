@@ -5,6 +5,7 @@ pub struct LinguiniConfig {
     pub project: ProjectConfig,
     pub paths: PathsConfig,
     pub targets: TargetsConfig,
+    pub web: WebConfig,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -32,6 +33,58 @@ pub struct TypeScriptTargetConfig {
     pub declaration: bool,
     pub tree_shaking: bool,
     pub messages: Vec<String>,
+    pub framework: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WebConfig {
+    pub strategy: Vec<String>,
+    pub cookie_name: String,
+    pub cookie_path: String,
+    pub cookie_domain: Option<String>,
+    pub cookie_max_age: u64,
+    pub cookie_same_site: String,
+    pub cookie_secure: bool,
+    pub cookie_http_only: bool,
+    pub local_storage_key: String,
+    pub global_variable_name: Option<String>,
+    pub prefix_default_locale: bool,
+    pub base_path: String,
+    pub trailing_slash: String,
+    pub redirect: bool,
+    pub origin: Option<String>,
+    pub exclude: Vec<String>,
+    pub localize_links: bool,
+}
+
+impl Default for WebConfig {
+    fn default() -> Self {
+        Self {
+            strategy: vec![
+                "url".to_owned(),
+                "cookie".to_owned(),
+                "localStorage".to_owned(),
+                "preferredLanguage".to_owned(),
+                "baseLocale".to_owned(),
+            ],
+            cookie_name: "LINGUINI_LOCALE".to_owned(),
+            cookie_path: "/".to_owned(),
+            cookie_domain: None,
+            cookie_max_age: 60 * 60 * 24 * 365,
+            cookie_same_site: "lax".to_owned(),
+            cookie_secure: false,
+            cookie_http_only: false,
+            local_storage_key: "LINGUINI_LOCALE".to_owned(),
+            global_variable_name: None,
+            prefix_default_locale: false,
+            base_path: String::new(),
+            trailing_slash: "ignore".to_owned(),
+            redirect: true,
+            origin: None,
+            exclude: Vec::new(),
+            localize_links: true,
+        }
+    }
 }
 
 impl LinguiniConfig {
@@ -63,10 +116,49 @@ impl LinguiniConfig {
                     "targets.ts.messages requires tree_shaking = true".to_owned(),
                 ));
             }
+            if let Some(framework) = &ts.framework {
+                match framework.as_str() {
+                    "svelte" | "sveltekit" => {}
+                    value => return Err(ConfigError::InvalidString(value.to_owned())),
+                }
+            }
+        }
+
+        validate_web_strategy(&self.web.strategy)?;
+        match self.web.trailing_slash.as_str() {
+            "ignore" | "always" | "never" | "directory" => {}
+            value => return Err(ConfigError::InvalidString(value.to_owned())),
+        }
+        match self.web.cookie_same_site.as_str() {
+            "lax" | "strict" | "none" => {}
+            value => return Err(ConfigError::InvalidString(value.to_owned())),
         }
 
         Ok(())
     }
+}
+
+fn validate_web_strategy(strategy: &[String]) -> ConfigResult<()> {
+    if strategy.is_empty() {
+        return Err(ConfigError::InvalidArray("web.strategy".to_owned()));
+    }
+    for item in strategy {
+        let is_builtin = matches!(
+            item.as_str(),
+            "url"
+                | "cookie"
+                | "localStorage"
+                | "header"
+                | "navigator"
+                | "preferredLanguage"
+                | "globalVariable"
+                | "baseLocale"
+        );
+        if !is_builtin && !item.starts_with("custom-") {
+            return Err(ConfigError::InvalidString(item.clone()));
+        }
+    }
+    Ok(())
 }
 
 pub fn validate_locale_tag(tag: &str) -> ConfigResult<()> {

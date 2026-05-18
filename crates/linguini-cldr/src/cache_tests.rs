@@ -55,6 +55,9 @@ fn fetch_for_locales_copies_only_required_json_files() {
     assert!(cache
         .join("data/cldr-json/cldr-dates-full/main/ru/ca-gregorian.json")
         .is_file());
+    assert!(cache
+        .join("data/cldr-json/cldr-misc-full/main/ru/layout.json")
+        .is_file());
     assert!(!cache
         .join("data/cldr-json/cldr-numbers-full/main/ru/characters.json")
         .exists());
@@ -78,8 +81,10 @@ fn sparse_fetch_paths_include_only_required_locale_files() {
             "cldr-json/cldr-core/supplemental/plurals.json",
             "cldr-json/cldr-numbers-full/main/en/numbers.json",
             "cldr-json/cldr-dates-full/main/en/ca-gregorian.json",
+            "cldr-json/cldr-misc-full/main/en/layout.json",
             "cldr-json/cldr-numbers-full/main/ru/numbers.json",
             "cldr-json/cldr-dates-full/main/ru/ca-gregorian.json",
+            "cldr-json/cldr-misc-full/main/ru/layout.json",
         ]
     );
 }
@@ -92,10 +97,21 @@ fn write_required_source_files(root: &std::path::Path, locale: &str) {
     let dates = root
         .join("source/cldr-json/cldr-dates-full/main")
         .join(locale);
+    let layout = root
+        .join("source/cldr-json/cldr-misc-full/main")
+        .join(locale);
     fs::create_dir_all(&supplemental).expect("supplemental dir");
     fs::create_dir_all(&numbers).expect("numbers dir");
     fs::create_dir_all(&dates).expect("dates dir");
+    fs::create_dir_all(&layout).expect("layout dir");
     fs::write(supplemental.join("plurals.json"), "{}\n").expect("plural data");
     fs::write(numbers.join("numbers.json"), "{}\n").expect("numbers data");
     fs::write(dates.join("ca-gregorian.json"), "{}\n").expect("calendar data");
+    fs::write(
+        layout.join("layout.json"),
+        format!(
+            r#"{{"main":{{"{locale}":{{"layout":{{"orientation":{{"characterOrder":"left-to-right"}}}}}}}}}}"#
+        ),
+    )
+    .expect("layout data");
 }

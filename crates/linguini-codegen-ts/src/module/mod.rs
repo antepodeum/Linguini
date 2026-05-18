@@ -50,6 +50,53 @@ pub struct TypeScriptProjectOptions {
     pub tree_shaking: bool,
     pub included_messages: Vec<String>,
     pub base_locale: Option<String>,
+    pub web: TypeScriptWebOptions,
+    pub framework: Option<TypeScriptFramework>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeScriptFramework {
+    Svelte,
+    SvelteKit,
+}
+
+impl TypeScriptFramework {
+    pub fn from_config(value: Option<&str>) -> Option<Self> {
+        match value {
+            Some("svelte") => Some(Self::Svelte),
+            Some("sveltekit") => Some(Self::SvelteKit),
+            _ => None,
+        }
+    }
+
+    fn needs_svelte_module(self) -> bool {
+        matches!(self, Self::Svelte | Self::SvelteKit)
+    }
+
+    fn needs_sveltekit_module(self) -> bool {
+        matches!(self, Self::SvelteKit)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptWebOptions {
+    pub strategy: Vec<String>,
+    pub cookie_name: String,
+    pub cookie_path: String,
+    pub cookie_domain: Option<String>,
+    pub cookie_max_age: u64,
+    pub cookie_same_site: String,
+    pub cookie_secure: bool,
+    pub cookie_http_only: bool,
+    pub local_storage_key: String,
+    pub global_variable_name: Option<String>,
+    pub prefix_default_locale: bool,
+    pub base_path: String,
+    pub trailing_slash: String,
+    pub redirect: bool,
+    pub origin: Option<String>,
+    pub exclude: Vec<String>,
+    pub localize_links: bool,
 }
 
 impl Default for TypeScriptProjectOptions {
@@ -59,6 +106,38 @@ impl Default for TypeScriptProjectOptions {
             tree_shaking: false,
             included_messages: Vec::new(),
             base_locale: None,
+            web: TypeScriptWebOptions::default(),
+            framework: None,
+        }
+    }
+}
+
+impl Default for TypeScriptWebOptions {
+    fn default() -> Self {
+        Self {
+            strategy: vec![
+                "url".to_owned(),
+                "cookie".to_owned(),
+                "localStorage".to_owned(),
+                "preferredLanguage".to_owned(),
+                "baseLocale".to_owned(),
+            ],
+            cookie_name: "LINGUINI_LOCALE".to_owned(),
+            cookie_path: "/".to_owned(),
+            cookie_domain: None,
+            cookie_max_age: 60 * 60 * 24 * 365,
+            cookie_same_site: "lax".to_owned(),
+            cookie_secure: false,
+            cookie_http_only: false,
+            local_storage_key: "LINGUINI_LOCALE".to_owned(),
+            global_variable_name: None,
+            prefix_default_locale: false,
+            base_path: String::new(),
+            trailing_slash: "ignore".to_owned(),
+            redirect: true,
+            origin: None,
+            exclude: Vec::new(),
+            localize_links: true,
         }
     }
 }
@@ -134,6 +213,38 @@ pub fn generate_typescript_project_files(
                 options.base_locale.as_deref(),
             ),
         });
+    }
+
+    if options
+        .framework
+        .is_some_and(TypeScriptFramework::needs_svelte_module)
+    {
+        files.push(TypeScriptGeneratedFile {
+            path: "svelte.ts".to_owned(),
+            contents: project::generate_project_svelte_module(&options.web),
+        });
+        if options.declaration {
+            files.push(TypeScriptGeneratedFile {
+                path: "svelte.d.ts".to_owned(),
+                contents: project::generate_project_svelte_declaration(),
+            });
+        }
+    }
+
+    if options
+        .framework
+        .is_some_and(TypeScriptFramework::needs_sveltekit_module)
+    {
+        files.push(TypeScriptGeneratedFile {
+            path: "sveltekit.ts".to_owned(),
+            contents: project::generate_project_sveltekit_module(&options.web),
+        });
+        if options.declaration {
+            files.push(TypeScriptGeneratedFile {
+                path: "sveltekit.d.ts".to_owned(),
+                contents: project::generate_project_sveltekit_declaration(),
+            });
+        }
     }
 
     Ok(files)

@@ -24,6 +24,7 @@ fn generated_module_snapshot_is_stable() {
             tree_shaking: false,
             included_messages: Vec::new(),
             base_locale: Some("ru".to_owned()),
+            ..TypeScriptProjectOptions::default()
         },
     )
     .expect("project files");
@@ -78,6 +79,7 @@ fn project_codegen_owns_multilocale_index_files() {
             tree_shaking: false,
             included_messages: Vec::new(),
             base_locale: Some("en".to_owned()),
+            ..TypeScriptProjectOptions::default()
         },
     )
     .expect("project codegen");
@@ -139,6 +141,7 @@ fn project_runtime_index_snapshot_is_stable() {
             tree_shaking: false,
             included_messages: Vec::new(),
             base_locale: Some("en".to_owned()),
+            ..TypeScriptProjectOptions::default()
         },
     )
     .expect("project codegen");
@@ -177,6 +180,7 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
             tree_shaking: true,
             included_messages: vec!["keep".to_owned(), "group.label".to_owned()],
             base_locale: Some("en".to_owned()),
+            ..TypeScriptProjectOptions::default()
         },
     )
     .expect("project codegen");
@@ -259,4 +263,122 @@ fn project_codegen_emits_schema_namespace_objects() {
     assert!(declaration
         .contents
         .contains("  readonly order_ready: string;"));
+}
+
+#[test]
+fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
+    use crate::{
+        generate_typescript_project_files, TypeScriptFramework, TypeScriptLocaleModule,
+        TypeScriptProjectOptions, TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let files = generate_typescript_project_files(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &TypeScriptProjectOptions {
+            framework: Some(TypeScriptFramework::SvelteKit),
+            web: TypeScriptWebOptions {
+                strategy: vec![
+                    "url".to_owned(),
+                    "cookie".to_owned(),
+                    "header".to_owned(),
+                    "baseLocale".to_owned(),
+                ],
+                cookie_name: "SHOP_LOCALE".to_owned(),
+                cookie_path: "/shop".to_owned(),
+                cookie_domain: Some("example.com".to_owned()),
+                cookie_max_age: 86400,
+                cookie_same_site: "strict".to_owned(),
+                cookie_secure: true,
+                cookie_http_only: true,
+                local_storage_key: "SHOP_LOCALE".to_owned(),
+                global_variable_name: Some("__SHOP_LOCALE__".to_owned()),
+                prefix_default_locale: true,
+                base_path: "/shop".to_owned(),
+                trailing_slash: "never".to_owned(),
+                redirect: false,
+                origin: Some("https://example.com".to_owned()),
+                exclude: vec!["/api/**".to_owned()],
+                localize_links: false,
+            },
+            ..TypeScriptProjectOptions::default()
+        },
+    )
+    .expect("project codegen");
+
+    let paths = files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&"svelte.ts"));
+    assert!(paths.contains(&"sveltekit.ts"));
+
+    let svelte = files
+        .iter()
+        .find(|file| file.path == "svelte.ts")
+        .expect("svelte module");
+    assert!(svelte
+        .contents
+        .contains("@antepod/linguini-sveltekit/client"));
+    assert!(svelte.contents.contains("export const l = linguini.l;"));
+    assert!(svelte.contents.contains("cookieName: \"SHOP_LOCALE\""));
+    assert!(svelte.contents.contains("localizeLinks: false"));
+
+    let sveltekit = files
+        .iter()
+        .find(|file| file.path == "sveltekit.ts")
+        .expect("sveltekit module");
+    assert!(sveltekit
+        .contents
+        .contains("@antepod/linguini-sveltekit/server"));
+    assert!(sveltekit.contents.contains("export const handle"));
+    assert!(sveltekit.contents.contains("export const reroute"));
+    assert!(sveltekit.contents.contains("export const load"));
+
+    let sveltekit_declaration = files
+        .iter()
+        .find(|file| file.path == "sveltekit.d.ts")
+        .expect("sveltekit declaration");
+    assert!(sveltekit_declaration.contents.contains("interface Locals"));
+    assert!(sveltekit_declaration
+        .contents
+        .contains("linguini: LinguiniRequestContext<Locale, Linguini>"));
+}
+
+#[test]
+fn project_codegen_uses_cldr_text_direction_metadata() {
+    use crate::{
+        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let files = generate_typescript_project_files(
+        &IrModule::default(),
+        &[
+            TypeScriptLocaleModule {
+                locale: "en".to_owned(),
+                module: IrModule::default(),
+            },
+            TypeScriptLocaleModule {
+                locale: "ar".to_owned(),
+                module: IrModule::default(),
+            },
+        ],
+        &TypeScriptProjectOptions {
+            base_locale: Some("en".to_owned()),
+            ..TypeScriptProjectOptions::default()
+        },
+    )
+    .expect("project codegen");
+
+    let index = files
+        .iter()
+        .find(|file| file.path == "index.ts")
+        .expect("index module");
+    assert!(index.contents.contains(r#"en: "ltr""#));
+    assert!(index.contents.contains(r#"ar: "rtl""#));
 }
