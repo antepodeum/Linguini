@@ -88,11 +88,14 @@ const expectations = [
   [configured.locale, "ru"],
   [configuredFromGetter.locale, "en"],
   [m.lgl.locale, "en"],
-  [m.getLocale(), "en"],
-  [m.setLocale("ru"), "ru"],
-  [m.getLocale(), "ru"],
-  [m.setLocale("ru-RU"), "ru"],
-  [m.setLocale("unknown"), "en"],
+  [m.normalizeLocale("ru-RU"), "ru"],
+  [m.normalizeLocale("unknown"), undefined],
+  [m.isLocale("ru-RU"), true],
+  [m.isLocale("unknown"), false],
+  [m.createLinguini("ru-RU").locale, "ru"],
+  [m.createLinguini("unknown").locale, "en"],
+  [m.getTextDirection("en"), "ltr"],
+  [m.getTextDirection("ru"), "ltr"],
 ];
 
 for (const [actual, expected] of expectations) {
