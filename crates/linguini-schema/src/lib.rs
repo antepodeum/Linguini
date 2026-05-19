@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn stores_group_doc_comments() {
-        let schema = parse_schema("/// Input fields\nemail { label() }\n").expect("schema parses");
+        let schema = parse_schema("/// Input fields\nemail { label }\n").expect("schema parses");
         let (symbols, diagnostics) = build_schema_symbols(&schema);
 
         assert!(diagnostics.is_empty());

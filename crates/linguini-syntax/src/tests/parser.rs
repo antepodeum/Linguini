@@ -79,6 +79,8 @@ type Money = Decimal @currency
 
 type ShortDate = Date @date(style = "short")
 
+nav_label
+
 email_input {
   label
   placeholder
@@ -86,7 +88,7 @@ email_input {
 "#;
     let schema = parse_schema(source).expect("schema parses");
 
-    assert_eq!(schema.declarations.len(), 3);
+    assert_eq!(schema.declarations.len(), 4);
     match &schema.declarations[0] {
         SchemaDeclaration::TypeAlias(declaration) => {
             assert_eq!(declaration.docs[0].text, " money amount");
@@ -104,6 +106,13 @@ email_input {
         other => panic!("expected type alias, got {other:?}"),
     }
     match &schema.declarations[2] {
+        SchemaDeclaration::Message(declaration) => {
+            assert_eq!(declaration.name.value, "nav_label");
+            assert!(declaration.parameters.is_empty());
+        }
+        other => panic!("expected message, got {other:?}"),
+    }
+    match &schema.declarations[3] {
         SchemaDeclaration::Group(declaration) => {
             assert_eq!(declaration.name.value, "email_input");
             assert_eq!(declaration.messages.len(), 2);
@@ -111,6 +120,17 @@ email_input {
         }
         other => panic!("expected group, got {other:?}"),
     }
+}
+
+#[test]
+fn rejects_empty_schema_message_parentheses() {
+    assert!(parse_schema("nav_label()\n").is_err());
+}
+
+#[test]
+fn rejects_empty_locale_function_parentheses() {
+    assert!(parse_locale("fn Label() { _ => Label }\n").is_err());
+    assert!(parse_locale("form Label() { _ => Label }\n").is_err());
 }
 
 #[test]
