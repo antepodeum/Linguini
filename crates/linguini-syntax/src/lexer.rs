@@ -240,6 +240,7 @@ fn raw_text_token<'src>(multiline: bool) -> impl Parser<'src, &'src str, Lexeme,
             lexeme.next_mode = Some(newline_mode);
             lexeme
         }),
+        literal_token("}", TokenKind::RBrace, Some(Mode::Code)),
         literal_token("{", TokenKind::LBrace, Some(placeholder_mode)),
         raw_quoted_text(),
         raw_text_segment(multiline),
@@ -432,7 +433,7 @@ fn raw_quoted_text<'src>() -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> 
 fn raw_text_segment<'src>(multiline: bool) -> impl Parser<'src, &'src str, Lexeme, Extra<'src>> {
     any()
         .filter(move |ch: &char| {
-            *ch != '{' && *ch != '\n' && *ch != '\r' && (!multiline || *ch != '"')
+            *ch != '{' && *ch != '}' && *ch != '\n' && *ch != '\r' && (!multiline || *ch != '"')
         })
         .repeated()
         .at_least(1)

@@ -270,6 +270,31 @@ email_input {
 }
 
 #[test]
+fn parses_single_line_form_impl_attribute() {
+    let locale = parse_locale("impl Plan { starter { label = Starter } }\n").expect("locale");
+
+    match &locale.declarations[0] {
+        LocaleDeclaration::Form(form) => {
+            assert_eq!(form.name.value, "Plan");
+            assert_eq!(form.variants[0].name.value, "starter");
+            match &form.variants[0].entries[0] {
+                FormEntry::Attribute(attribute) => {
+                    assert_eq!(attribute.name.value, "label");
+                    assert!(
+                        matches!(&attribute.value, LocaleValue::Text(text) if matches!(
+                            text.parts.as_slice(),
+                            [TextPart::Text(raw)] if raw.value == "Starter"
+                        ))
+                    );
+                }
+                other => panic!("expected attribute, got {other:?}"),
+            }
+        }
+        other => panic!("expected form, got {other:?}"),
+    }
+}
+
+#[test]
 fn parses_locale_override_declaration() {
     let locale = parse_locale("override enum Gender { other }\n").expect("locale parses");
 

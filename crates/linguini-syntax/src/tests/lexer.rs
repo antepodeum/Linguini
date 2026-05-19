@@ -55,6 +55,21 @@ fn lexes_raw_text_placeholders() {
 }
 
 #[test]
+fn lexes_single_line_raw_text_before_closing_brace() {
+    let tokens = lex("impl Plan { starter { label = Starter } }\n").expect("source lexes");
+    let kinds: Vec<_> = tokens.into_iter().map(|token| token.kind).collect();
+
+    assert!(kinds.windows(3).any(|window| {
+        window
+            == [
+                TokenKind::Equals,
+                TokenKind::RawText(" Starter ".into()),
+                TokenKind::RBrace,
+            ]
+    }));
+}
+
+#[test]
 fn lexes_arrow_raw_text_and_comments() {
     let tokens = lex("/// doc\n// note\nmale => Доставлен\n").expect("source lexes");
     let kinds: Vec<_> = tokens.into_iter().map(|token| token.kind).collect();
