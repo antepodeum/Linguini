@@ -2,7 +2,6 @@
 name = "linguini-cldr-macros"
 version = "0.1.0-alpha.3"
 description = "Internal CLDR code generation macros for Linguini"
-publish = false
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
