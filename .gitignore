@@ -1,4 +1,3 @@
 /target/
-editors/vscode/server/
 editors/vscode/dist/
 crates/linguini-cldr/vendor/

@@ -123,7 +123,8 @@ l.main.field_required("Email"); // → "Email is required."
 
 Install the extension from the marketplace for inline diagnostics, completions,
 hover, go-to-definition, and code actions — all backed by the same analyzer
-the CLI uses.
+the CLI uses. Install Linguini CLI separately; the extension runs `linguini lsp`
+from PATH by default.
 
 Or run it locally from source:
 
@@ -131,7 +132,6 @@ Or run it locally from source:
 cd editors/vscode
 npm install
 npm run compile
-npm run build:server
 npm run open:dev
 ```
 

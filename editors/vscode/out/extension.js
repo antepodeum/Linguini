@@ -47,11 +47,11 @@ const documentSelector = [
 ];
 async function activate(context) {
     traceOutputChannel = vscode.window.createOutputChannel('Linguini Language Server Trace');
-    client = createClient();
-    context.subscriptions.push(traceOutputChannel, vscode.commands.registerCommand('linguini.restartServer', restartClient), vscode.workspace.onDidChangeConfiguration((event) => {
+    client = createClient(context);
+    context.subscriptions.push(traceOutputChannel, vscode.commands.registerCommand('linguini.restartServer', () => restartClient(context)), vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration('linguini.server') ||
             event.affectsConfiguration('linguini.semanticHighlighting')) {
-            void restartClient();
+            void restartClient(context);
         }
     }), client);
     await startClient(client);
@@ -60,7 +60,7 @@ async function deactivate() {
     await client?.stop();
     client = undefined;
 }
-function createClient() {
+function createClient(_context) {
     const config = vscode.workspace.getConfiguration('linguini.server');
     const command = expandVariables(config.get('path', 'linguini'));
     const args = config.get('args', ['lsp']).map((arg) => expandVariables(arg));
@@ -82,9 +82,9 @@ function createClient() {
     };
     return new node_1.LanguageClient('linguiniLanguageServer', 'Linguini Language Server', serverOptions, clientOptions);
 }
-async function restartClient() {
+async function restartClient(context) {
     const previous = client;
-    client = createClient();
+    client = createClient(context);
     await previous?.stop();
     await startClient(client);
 }

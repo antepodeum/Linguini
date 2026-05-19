@@ -151,6 +151,9 @@ A schema file becomes a namespace. `checkout.lgs` → namespace `checkout`.
 
 ## CLI
 
+Linguini CLI must be installed. The VS Code extension and generated tooling use
+the `linguini` command by default and do not include a bundled binary.
+
 ```bash
 cargo install linguini-cli --version 0.1.0-alpha.3
 ```
@@ -179,7 +182,6 @@ VS Code extension:
 cd editors/vscode
 npm install
 npm run compile
-npm run build:server
 npm run open:dev
 ```
 

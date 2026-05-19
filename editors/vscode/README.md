@@ -2,6 +2,9 @@
 
 VS Code support for Linguini schema (`.lgs`) and locale (`.lgl`) files.
 
+Install Linguini CLI separately. The extension starts `linguini lsp` by default
+and does not bundle the CLI.
+
 ## Features
 
 - Language contributions for `.lgs` and `.lgl`.

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_ovsx:
-        description: Publish bundled VSIX packages to Open VSX after packaging
+        description: Publish the universal VSIX package to Open VSX after packaging
         type: boolean
         default: false
   push:
@@ -47,83 +47,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  package-ovsx:
-    name: Package Open VSX ${{ matrix.target }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: linux-x64
-            runner: ubuntu-latest
-            rust_target: x86_64-unknown-linux-gnu
-            build_tool: cargo
-          - target: linux-arm64
-            runner: ubuntu-latest
-            rust_target: aarch64-unknown-linux-gnu
-            build_tool: cross
-          - target: linux-armhf
-            runner: ubuntu-latest
-            rust_target: armv7-unknown-linux-gnueabihf
-            build_tool: cross
-          - target: alpine-x64
-            runner: ubuntu-latest
-            rust_target: x86_64-unknown-linux-musl
-            build_tool: cross
-          - target: alpine-arm64
-            runner: ubuntu-latest
-            rust_target: aarch64-unknown-linux-musl
-            build_tool: cross
-          - target: darwin-arm64
-            runner: macos-latest
-            rust_target: aarch64-apple-darwin
-            build_tool: cargo
-          - target: darwin-x64
-            runner: macos-15-intel
-            rust_target: x86_64-apple-darwin
-            build_tool: cargo
-          - target: win32-x64
-            runner: windows-latest
-            rust_target: x86_64-pc-windows-msvc
-            build_tool: cargo
-          - target: win32-arm64
-            runner: windows-11-arm
-            rust_target: aarch64-pc-windows-msvc
-            build_tool: cargo
-    runs-on: ${{ matrix.runner }}
-
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: editors/vscode/package-lock.json
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.rust_target }}
-      - name: Install cross
-        if: matrix.build_tool == 'cross'
-        run: cargo install cross --locked
-      - name: Install extension dependencies
-        working-directory: editors/vscode
-        run: npm ci
-      - name: Package bundled VSIX
-        working-directory: editors/vscode
-        env:
-          LINGUINI_CARGO: ${{ matrix.build_tool }}
-        run: npm run package:vsix -- --target ${{ matrix.target }}
-      - uses: actions/upload-artifact@v6
-        with:
-          name: linguini-vscode-ovsx-${{ matrix.target }}
-          path: editors/vscode/dist/linguini-vscode-${{ matrix.target }}.vsix
-          if-no-files-found: error
-          retention-days: 30
-
   publish-ovsx:
     name: Publish Open VSX
     runs-on: ubuntu-latest
-    needs: package-ovsx
+    needs: package-universal
     if: >-
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vscode-v')) ||
       (github.event_name == 'workflow_dispatch' && inputs.publish_ovsx)
@@ -136,9 +63,8 @@ jobs:
           node-version: 24
       - uses: actions/download-artifact@v8
         with:
-          pattern: linguini-vscode-ovsx-*
+          name: linguini-vscode
           path: ovsx-dist
-          merge-multiple: true
       - name: Check Open VSX token
         shell: bash
         run: |
@@ -146,13 +72,13 @@ jobs:
             echo 'Missing repository secret OVSX_PAT.' >&2
             exit 1
           fi
-      - name: Publish bundled VSIX packages to Open VSX
+      - name: Publish universal VSIX package to Open VSX
         shell: bash
         run: |
           shopt -s nullglob
           files=(ovsx-dist/*.vsix)
           if (( ${#files[@]} == 0 )); then
-            echo 'No bundled VSIX files were downloaded.' >&2
+            echo 'No VSIX file was downloaded.' >&2
             exit 1
           fi
           printf '%s\n' "${files[@]}"
@@ -164,4 +90,4 @@ jobs:
         run: |
           echo '### Open VSX publish' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Published bundled platform-specific VSIX packages from `linguini-vscode-ovsx-*` artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Published the universal VSIX package from the `linguini-vscode` artifact.' >> "$GITHUB_STEP_SUMMARY"

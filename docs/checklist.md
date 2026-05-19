@@ -828,7 +828,7 @@ Checkpoint acceptance:
 
 - [x] Start LSP server over stdio
   - Note: completed on 2026-05-15. CLI starts `linguini lsp` over stdio and VS Code launches it through languageclient.
-  - Evidence: crates/linguini-lsp/src/server.rs; `npm run build:server:target -- linux-x64`; `editors/vscode/server/linux-x64/linguini --help`
+  - Evidence: crates/linguini-lsp/src/server.rs; `cargo run -p linguini-cli -- lsp --help`; `npm run compile`
 - [x] Publish diagnostics
   - Note: completed on 2026-05-15. LSP publishes parser diagnostics for open documents.
   - Evidence: crates/linguini-lsp/src/server.rs; crates/linguini-lsp/src/tests.rs; `cargo test -p linguini-lsp`
@@ -866,7 +866,7 @@ Checkpoint acceptance:
 Checkpoint acceptance:
 
 - [x] VS Code shows diagnostics
-  - Note: completed on 2026-05-15. VS Code extension starts the bundled/default LSP and relies on published diagnostics.
+  - Note: completed on 2026-05-15. VS Code extension starts `linguini lsp` from the installed CLI and relies on published diagnostics.
   - Evidence: editors/vscode/src/extension.ts; `npm run compile`
 - [x] Hover shows schema doc comments
   - Note: completed on 2026-05-15. Hover unit test covers doc comment rendering.
@@ -888,8 +888,8 @@ Checkpoint acceptance:
   - Note: completed on 2026-05-15. VS Code extension contributes locale grammar for `.lgl`.
   - Evidence: editors/vscode/syntaxes/linguini-locale.tmLanguage.json; `npm run compile`
 - [x] Create VS Code extension
-  - Note: completed on 2026-05-15. Extension registers languages, grammars, commands, LSP client, default formatter, and package-time native server lookup.
-  - Evidence: editors/vscode/package.json; editors/vscode/src/extension.ts; editors/vscode/scripts/build-server.js; `npm run compile`; `npm run build:server:target -- linux-x64`
+  - Note: completed on 2026-05-15. Extension registers languages, grammars, commands, LSP client, default formatter, and installed CLI launch.
+  - Evidence: editors/vscode/package.json; editors/vscode/src/extension.ts; `npm run compile`
 - [x] Wire semantic tokens from LSP
   - Note: completed on 2026-05-15. Extension enables semantic token middleware and scopes for schema and locale languages.
   - Evidence: editors/vscode/package.json; editors/vscode/src/extension.ts; `npm run compile`
