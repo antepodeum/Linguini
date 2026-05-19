@@ -1,0 +1,99 @@
+impl Fruit {
+  apple {
+    Gender = neuter
+    emoji = 🍎
+
+    form nom(Plural) {
+      one => яблоко
+      few => яблока
+      _ => яблок
+    }
+  }
+
+  pear {
+    Gender = female
+    emoji = 🍐
+
+    form nom(Plural) {
+      one => груша
+      few => груши
+      _ => груш
+    }
+  }
+
+  orange {
+    Gender = male
+    emoji = 🍊
+
+    form nom(Plural) {
+      one => апельсин
+      few => апельсина
+      _ => апельсинов
+    }
+  }
+}
+
+form SizeWord(Size) {
+  small => маленький
+  big => большой
+}
+
+form GenderWord(Gender) {
+  male => мужской
+  female => женский
+  neuter => средний
+  _ => нейтральный
+}
+
+form Delivered(Plural, Gender) {
+  one {
+    male => Доставлен
+    female => Доставлена
+    neuter => Доставлено
+    _ => Доставлено
+  }
+  _ => Доставлены
+}
+
+nav_why = Зачем
+nav_language = Язык
+nav_codegen = Кодген
+nav_web = Web
+locale_label = Локаль
+hero_eyebrow = Типизированная локализация для продуктовых команд
+hero_title = Linguini
+hero_copy = Компилируемый язык локализации, где схемы, грамматика локали, CLDR-форматирование, SvelteKit hooks, cookie и локализованные маршруты генерируются из одного источника.
+primary_cta = Документация
+secondary_cta = GitHub
+schema_chip = схема задает контракт
+locale_chip = локаль задает язык
+generated_chip = приложение импортирует сгенерированный код
+proof_kicker = Pipeline
+proof_title = Настоящий Linguini от схемы до SvelteKit
+feature_schema = Текст сайта, enum, TypeKind aliases и formatter defaults лежат в .lgs файлах.
+feature_locale = Locale files реализуют plural, gender, size, forms и functions без runtime parsing.
+feature_cldr = Примеры number, currency и date используют CLDR formatters из Linguini codegen.
+feature_web = SvelteKit hooks сохраняют локаль в cookie и ведут страницы как /en/... и /ru/....
+sample_kicker = Сгенерированный output
+sample_title = Форматирование в схеме, без шума в локали
+reference_cta = Reference
+playground_kicker = Live playground
+playground_title = Меняй count, fruit, size, gender, amount, date или locale.
+count_label = Количество
+fruit_label = Фрукт
+size_label = Размер
+gender_label = Род
+amount_label = Сумма
+date_label = Дата
+localized_path_label = Локализованный route
+cookie_label = Cookie
+route_label = Route prefix
+
+playground_sentence = {Delivered(count, gender)} {count} {SizeWord(size)} {fruit.nom(count)} для элемента с родом {GenderWord(gender)}. Итого {amount @currency(code = "RUB")}; дата {date}.
+cart_summary = В корзине {count} {fruit.nom(count)}
+number_format = Формат числа: {value}
+currency_format = Формат валюты: {amount @currency(code = "RUB")}
+date_format = Формат даты: {date}
+override_format = Locale override: {amount @number} / {date @date(style = "long")}
+gender_line = Форма рода: {GenderWord(gender)}
+size_line = Форма размера: {SizeWord(size)}
