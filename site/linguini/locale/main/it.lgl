@@ -1,0 +1,91 @@
+impl Fruit {
+  apple {
+    Gender = neuter
+    emoji = 🍎
+
+    form nom(Plural) {
+      one => mela
+      _ => mele
+    }
+  }
+
+  pear {
+    Gender = female
+    emoji = 🍐
+
+    form nom(Plural) {
+      one => pera
+      _ => pere
+    }
+  }
+
+  orange {
+    Gender = male
+    emoji = 🍊
+
+    form nom(Plural) {
+      one => arancia
+      _ => arance
+    }
+  }
+}
+
+form SizeWord(Size) {
+  small => piccolo
+  big => grande
+}
+
+form GenderWord(Gender) {
+  male => maschile
+  female => femminile
+  neuter => neutro
+  _ => neutro
+}
+
+form Delivered(Plural, Gender) {
+  one => Consegnato
+  _ => Consegnati
+}
+
+nav_why = Perché
+nav_language = Lingua
+nav_codegen = Codegen
+nav_web = Web
+locale_label = Lingua
+hero_eyebrow = Localizzazione tipizzata per team di prodotto
+hero_title = Linguini
+hero_copy = Un linguaggio di localizzazione compilato dove schemi, grammatica, formattazione CLDR, hook SvelteKit, cookie e route localizzate vengono da una sola fonte.
+primary_cta = Leggi docs
+secondary_cta = Vedi GitHub
+schema_chip = lo schema definisce il contratto
+locale_chip = la locale definisce la lingua
+generated_chip = l'app importa codice generato
+proof_kicker = Pipeline
+proof_title = Linguini reale dallo schema a SvelteKit
+feature_schema = Testo, enum, alias TypeKind e default formatter vivono nei file .lgs.
+feature_locale = Le locale implementano plural, gender, size, forms e functions senza runtime parsing.
+feature_cldr = Esempi number, currency e date usano formatter CLDR generati da Linguini.
+feature_web = Gli hook SvelteKit salvano la locale nel cookie e usano route come /en/... e /ru/....
+sample_kicker = Output generato
+sample_title = Formattazione nello schema senza rumore nella locale
+reference_cta = Riferimento
+playground_kicker = Playground live
+playground_title = Cambia count, fruit, size, gender, amount, date o locale.
+count_label = Quantità
+fruit_label = Frutta
+size_label = Dimensione
+gender_label = Genere
+amount_label = Importo
+date_label = Data
+localized_path_label = Route localizzata
+cookie_label = Cookie
+route_label = Prefisso route
+
+playground_sentence = {Delivered(count, gender)} {count} {SizeWord(size)} {fruit.nom(count)} per un elemento {GenderWord(gender)}. Totale {amount @currency(code = "EUR")}; data {date}.
+cart_summary = Il carrello ha {count} {fruit.nom(count)}
+number_format = Formato numero: {value}
+currency_format = Formato valuta: {amount @currency(code = "EUR")}
+date_format = Formato data: {date}
+override_format = Locale override: {amount @number} / {date @date(style = "long")}
+gender_line = Forma genere: {GenderWord(gender)}
+size_line = Forma dimensione: {SizeWord(size)}

@@ -8,39 +8,39 @@ type Money = Decimal @currency(code = "USD")
 type ShortDate = Date @date(style = "short")
 type Measurement = Number @number
 
-nav_why()
-nav_language()
-nav_codegen()
-nav_web()
-locale_label()
-hero_eyebrow()
-hero_title()
-hero_copy()
-primary_cta()
-secondary_cta()
-schema_chip()
-locale_chip()
-generated_chip()
-proof_kicker()
-proof_title()
-feature_schema()
-feature_locale()
-feature_cldr()
-feature_web()
-sample_kicker()
-sample_title()
-reference_cta()
-playground_kicker()
-playground_title()
-count_label()
-fruit_label()
-size_label()
-gender_label()
-amount_label()
-date_label()
-localized_path_label()
-cookie_label()
-route_label()
+nav_why
+nav_language
+nav_codegen
+nav_web
+locale_label
+hero_eyebrow
+hero_title
+hero_copy
+primary_cta
+secondary_cta
+schema_chip
+locale_chip
+generated_chip
+proof_kicker
+proof_title
+feature_schema
+feature_locale
+feature_cldr
+feature_web
+sample_kicker
+sample_title
+reference_cta
+playground_kicker
+playground_title
+count_label
+fruit_label
+size_label
+gender_label
+amount_label
+date_label
+localized_path_label
+cookie_label
+route_label
 
 playground_sentence(fruit: Fruit, size: Size, gender: Gender, count: Number, amount: Money, date: ShortDate)
 cart_summary(count: Number, fruit: Fruit)

@@ -1,0 +1,87 @@
+impl Fruit {
+  apple {
+    Gender = neuter
+    emoji = 🍎
+
+    form nom(Plural) {
+      _ => 苹果
+    }
+  }
+
+  pear {
+    Gender = female
+    emoji = 🍐
+
+    form nom(Plural) {
+      _ => 梨
+    }
+  }
+
+  orange {
+    Gender = male
+    emoji = 🍊
+
+    form nom(Plural) {
+      _ => 橙子
+    }
+  }
+}
+
+form SizeWord(Size) {
+  small => 小
+  big => 大
+}
+
+form GenderWord(Gender) {
+  male => 阳性
+  female => 阴性
+  neuter => 中性
+  _ => 中性
+}
+
+form Delivered(Plural, Gender) {
+  _ => 已配送
+}
+
+nav_why = 为什么
+nav_language = 语言
+nav_codegen = 代码生成
+nav_web = Web
+locale_label = 语言
+hero_eyebrow = 面向产品团队的类型化本地化
+hero_title = Linguini
+hero_copy = 一种编译型本地化语言，把 schema、locale 语法、CLDR 格式化、SvelteKit hooks、cookie 和本地化路由放在同一个生成流程里。
+primary_cta = 阅读文档
+secondary_cta = 查看 GitHub
+schema_chip = schema 定义契约
+locale_chip = locale 定义语言
+generated_chip = app 导入生成代码
+proof_kicker = Pipeline
+proof_title = 从 schema 到 SvelteKit 的真实 Linguini
+feature_schema = 页面文本、enum、TypeKind aliases 和 formatter defaults 都在 .lgs 文件中。
+feature_locale = Locale 文件实现 plural、gender、size、forms 和 functions，无需 runtime parsing。
+feature_cldr = Number、currency 和 date 示例使用 Linguini 生成的 CLDR formatters。
+feature_web = SvelteKit hooks 把 locale 保存到 cookie，并使用 /en/... 和 /ru/... 路由。
+sample_kicker = 生成输出
+sample_title = 在 schema 中定义格式化，locale 不需要重复
+reference_cta = 参考
+playground_kicker = 实时 Playground
+playground_title = 修改 count、fruit、size、gender、amount、date 或 locale。
+count_label = 数量
+fruit_label = 水果
+size_label = 大小
+gender_label = 性别
+amount_label = 金额
+date_label = 日期
+localized_path_label = 本地化路由
+cookie_label = Cookie
+route_label = 路由前缀
+
+playground_sentence = {Delivered(count, gender)} {count} 个 {SizeWord(size)} {fruit.nom(count)}，性别形式 {GenderWord(gender)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
+cart_summary = 购物车中有 {count} 个 {fruit.nom(count)}
+number_format = 数字格式：{value}
+currency_format = 货币格式：{amount @currency(code = "CNY")}
+date_format = 日期格式：{date}
+override_format = Locale override: {amount @number} / {date @date(style = "long")}
+gender_line = 性别形式：{GenderWord(gender)}
+size_line = 大小形式：{SizeWord(size)}
