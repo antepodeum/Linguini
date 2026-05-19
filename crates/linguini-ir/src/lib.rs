@@ -5,8 +5,8 @@ mod reference;
 pub use lower::{lower_locale, lower_schema};
 pub use model::{
     IrBranch, IrExpression, IrForm, IrFormEntry, IrFormVariant, IrFormatter, IrFormatterArgument,
-    IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter, IrMessage, IrModule,
-    IrParameter, IrText, IrTextPart, IrValue,
+    IrFormatterKind, IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter,
+    IrMessage, IrModule, IrParameter, IrText, IrTextPart, IrValue,
 };
 pub use reference::{ensure_no_unresolved_references, IrReferenceError};
 

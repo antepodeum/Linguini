@@ -1,11 +1,13 @@
 use crate::model::{
     IrBranch, IrEnum, IrExpression, IrForm, IrFormEntry, IrFormVariant, IrFormatter,
-    IrFormatterArgument, IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter,
-    IrMessage, IrModule, IrParameter, IrText, IrTextPart, IrTypeAlias, IrValue,
+    IrFormatterArgument, IrFormatterKind, IrFunction, IrFunctionBranch, IrFunctionBranchValue,
+    IrFunctionParameter, IrMessage, IrModule, IrParameter, IrText, IrTextPart, IrTypeAlias,
+    IrValue,
 };
 use linguini_syntax::{
-    Annotation, DocComment, Expression, FormEntry, FunctionBranchValue, LocaleDeclaration,
-    LocaleFile, LocaleValue, MapBranch, SchemaDeclaration, SchemaFile, TextPart, TextPattern,
+    Annotation, DocComment, Expression, FormEntry, FormatterKind, FunctionBranchValue,
+    LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, SchemaDeclaration, SchemaFile, TextPart,
+    TextPattern,
 };
 
 pub fn lower_schema(schema: &SchemaFile) -> IrModule {
@@ -193,7 +195,7 @@ fn lower_expression(expression: &Expression) -> IrExpression {
 
 fn lower_formatter(annotation: &Annotation) -> IrFormatter {
     IrFormatter {
-        name: annotation.name.value.clone(),
+        kind: lower_formatter_kind(annotation.kind),
         arguments: annotation
             .arguments
             .iter()
@@ -202,6 +204,15 @@ fn lower_formatter(annotation: &Annotation) -> IrFormatter {
                 value: argument.value.value.clone(),
             })
             .collect(),
+    }
+}
+
+fn lower_formatter_kind(kind: FormatterKind) -> IrFormatterKind {
+    match kind {
+        FormatterKind::Number => IrFormatterKind::Number,
+        FormatterKind::Currency => IrFormatterKind::Currency,
+        FormatterKind::Date => IrFormatterKind::Date,
+        FormatterKind::Unknown => IrFormatterKind::Unknown,
     }
 }
 

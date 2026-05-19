@@ -26,6 +26,7 @@ pub fn emit_imports(module: &IrModule, options: &TypeScriptOptions, output: &mut
         if uses_formatters {
             imports.push("formatCurrency");
             imports.push("formatDate");
+            imports.push("formatNumber");
         }
         if uses_forms || uses_dispatch {
             imports.push("selectBranch");
@@ -153,29 +154,77 @@ pub fn emit_messages(
 }
 
 pub fn emit_shared(output: &mut String) {
-    output.push_str("export type FormatterOptions = Record<string, string>;\n\n");
+    output
+        .push_str("export type FormatterWidth = \"full\" | \"long\" | \"medium\" | \"short\";\n\n");
+    output.push_str("export type NumberFormatterOptions = Record<string, never>;\n\n");
+    output.push_str("export type CurrencyFormatterOptions = {\n");
+    output.push_str("  code?: string;\n");
+    output.push_str("  accounting?: \"true\" | \"false\";\n");
+    output.push_str("};\n\n");
+    output.push_str("export type DateFormatterOptions = {\n");
+    output.push_str("  style?: FormatterWidth;\n");
+    output.push_str("};\n\n");
+    output.push_str("export type FormatterOptions = NumberFormatterOptions | CurrencyFormatterOptions | DateFormatterOptions;\n\n");
+    output.push_str("export type CldrFormatWidths = Record<FormatterWidth, string>;\n\n");
+    output.push_str("export type CldrFormatterData = {\n");
+    output.push_str("  locale: string;\n");
+    output.push_str("  numbers?: {\n");
+    output.push_str("    decimalSymbol: string;\n");
+    output.push_str("    groupSymbol: string;\n");
+    output.push_str("    decimalPattern: string;\n");
+    output.push_str("    percentPattern: string;\n");
+    output.push_str("  };\n");
+    output.push_str("  currency?: {\n");
+    output.push_str("    standardPattern: string;\n");
+    output.push_str("    accountingPattern?: string;\n");
+    output.push_str("  };\n");
+    output.push_str("  date?: {\n");
+    output.push_str("    dateFormats: CldrFormatWidths;\n");
+    output.push_str("    timeFormats: CldrFormatWidths;\n");
+    output.push_str("    dateTimeFormats: CldrFormatWidths;\n");
+    output.push_str("  };\n");
+    output.push_str("};\n\n");
+    output.push_str("export function formatNumber(\n");
+    output.push_str("  value: number | string,\n");
+    output.push_str("  data: CldrFormatterData,\n");
+    output.push_str("): string {\n");
+    output.push_str("  return formatDecimal(Number(value), data);\n");
+    output.push_str("}\n\n");
     output.push_str("export function formatCurrency(\n");
     output.push_str("  value: number | string,\n");
-    output.push_str("  locale: string,\n");
-    output.push_str("  options: FormatterOptions = {},\n");
+    output.push_str("  data: CldrFormatterData,\n");
+    output.push_str("  options: CurrencyFormatterOptions = {},\n");
     output.push_str("): string {\n");
     output.push_str("  const currency = options.code ?? \"USD\";\n");
-    output.push_str("  return new Intl.NumberFormat(locale, {\n");
-    output.push_str("    style: \"currency\",\n");
-    output.push_str("    currency,\n");
-    output.push_str("  }).format(Number(value));\n");
+    output.push_str("  const pattern = options.accounting === \"true\"\n");
+    output.push_str("    ? data.currency?.accountingPattern ?? data.currency?.standardPattern\n");
+    output.push_str("    : data.currency?.standardPattern;\n");
+    output.push_str(
+        "  return applyNumberPattern(formatDecimal(Number(value), data, 2), pattern, currency);\n",
+    );
     output.push_str("}\n\n");
     output.push_str("export function formatDate(\n");
     output.push_str("  value: Date | number | string,\n");
-    output.push_str("  locale: string,\n");
-    output.push_str("  options: FormatterOptions = {},\n");
+    output.push_str("  data: CldrFormatterData,\n");
+    output.push_str("  options: DateFormatterOptions = {},\n");
     output.push_str("): string {\n");
     output.push_str("  if (typeof value === \"string\") return value;\n");
-    output.push_str("  const intlOptions: Record<string, string> = {};\n");
-    output.push_str("  if (options.style) intlOptions.dateStyle = options.style;\n");
+    output.push_str("  const style = options.style ?? \"medium\";\n");
+    output.push_str("  const pattern = data.date?.dateFormats[style];\n");
+    output.push_str("  if (!pattern) return new Intl.DateTimeFormat(data.locale).format(value);\n");
     output.push_str(
-        "  return new Intl.DateTimeFormat(locale, intlOptions as Intl.DateTimeFormatOptions).format(value);\n",
+        "  return new Intl.DateTimeFormat(data.locale, { dateStyle: style }).format(value);\n",
     );
+    output.push_str("}\n\n");
+    output.push_str("function formatDecimal(value: number, data: CldrFormatterData, fractionDigits?: number): string {\n");
+    output.push_str("  const fixed = typeof fractionDigits === \"number\" ? value.toFixed(fractionDigits) : String(value);\n");
+    output.push_str("  const [integer, fraction] = fixed.split(\".\");\n");
+    output.push_str("  const grouped = integer.replace(/\\B(?=(\\d{3})+(?!\\d))/g, data.numbers?.groupSymbol ?? \",\");\n");
+    output.push_str("  return fraction ? `${grouped}${data.numbers?.decimalSymbol ?? \".\"}${fraction}` : grouped;\n");
+    output.push_str("}\n\n");
+    output.push_str("function applyNumberPattern(value: string, pattern: string | undefined, currency: string): string {\n");
+    output.push_str("  if (!pattern) return `${currency} ${value}`;\n");
+    output.push_str("  return pattern.replace(/[#0.,]+/, value).replace(\"¤\", currency);\n");
     output.push_str("}\n\n");
     output.push_str("export function selectBranch(\n");
     output.push_str("  key: string,\n");

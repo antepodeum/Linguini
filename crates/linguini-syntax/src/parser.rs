@@ -331,7 +331,7 @@ where
                 .or_not(),
         )
         .map_with(|(name, arguments), extra| Annotation {
-            name,
+            kind: crate::FormatterKind::from_name(&name.value),
             arguments: arguments.unwrap_or_default(),
             span: extra.span(),
         })

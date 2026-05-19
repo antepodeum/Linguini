@@ -55,69 +55,13 @@ include!(concat!(
 ));
 
 pub fn compiled_number_formatting(locale: &str) -> Option<NumberFormatData> {
-    match locale {
-        "en" => Some(NumberFormatData {
-            locale: "en".to_owned(),
-            decimal_symbol: ".".to_owned(),
-            group_symbol: ",".to_owned(),
-            decimal_pattern: "#,##0.###".to_owned(),
-            percent_pattern: "#,##0%".to_owned(),
-        }),
-        "ru" => Some(NumberFormatData {
-            locale: "ru".to_owned(),
-            decimal_symbol: ",".to_owned(),
-            group_symbol: "\u{a0}".to_owned(),
-            decimal_pattern: "#,##0.###".to_owned(),
-            percent_pattern: "#,##0%".to_owned(),
-        }),
-        _ => None,
-    }
+    generated_number_formatting(locale)
 }
 
 pub fn compiled_currency_formatting(locale: &str) -> Option<CurrencyFormatData> {
-    match locale {
-        "en" => Some(CurrencyFormatData {
-            locale: "en".to_owned(),
-            standard_pattern: "\u{a4}#,##0.00".to_owned(),
-            accounting_pattern: Some("(\u{a4}#,##0.00)".to_owned()),
-        }),
-        "ru" => Some(CurrencyFormatData {
-            locale: "ru".to_owned(),
-            standard_pattern: "#,##0.00\u{a0}\u{a4}".to_owned(),
-            accounting_pattern: None,
-        }),
-        _ => None,
-    }
+    generated_currency_formatting(locale)
 }
 
 pub fn compiled_date_formatting(locale: &str) -> Option<DateFormatData> {
-    match locale {
-        "en" => Some(DateFormatData {
-            locale: "en".to_owned(),
-            date_formats: widths("EEEE, MMMM d, y", "MMMM d, y", "MMM d, y", "M/d/yy"),
-            time_formats: widths("h:mm:ss a zzzz", "h:mm:ss a z", "h:mm:ss a", "h:mm a"),
-            date_time_formats: widths("{1}, {0}", "{1}, {0}", "{1}, {0}", "{1}, {0}"),
-        }),
-        "ru" => Some(DateFormatData {
-            locale: "ru".to_owned(),
-            date_formats: widths(
-                "EEEE, d MMMM y\u{a0}'\u{433}'.",
-                "d MMMM y\u{a0}'\u{433}'.",
-                "d MMM y\u{a0}'\u{433}'.",
-                "dd.MM.y",
-            ),
-            time_formats: widths("HH:mm:ss zzzz", "HH:mm:ss z", "HH:mm:ss", "HH:mm"),
-            date_time_formats: widths("{1}, {0}", "{1}, {0}", "{1}, {0}", "{1}, {0}"),
-        }),
-        _ => None,
-    }
-}
-
-fn widths(full: &str, long: &str, medium: &str, short: &str) -> FormatWidths {
-    FormatWidths {
-        full: full.to_owned(),
-        long: long.to_owned(),
-        medium: medium.to_owned(),
-        short: short.to_owned(),
-    }
+    generated_date_formatting(locale)
 }

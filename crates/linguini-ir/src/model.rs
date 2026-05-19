@@ -113,8 +113,27 @@ pub struct IrExpression {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrFormatter {
-    pub name: String,
+    pub kind: IrFormatterKind,
     pub arguments: Vec<IrFormatterArgument>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrFormatterKind {
+    Number,
+    Currency,
+    Date,
+    Unknown,
+}
+
+impl IrFormatterKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Number => "number",
+            Self::Currency => "currency",
+            Self::Date => "date",
+            Self::Unknown => "unknown",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

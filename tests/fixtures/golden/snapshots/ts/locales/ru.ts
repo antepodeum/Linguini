@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate, selectBranch } from "../shared";
+import { formatCurrency, formatDate, formatNumber, selectBranch } from "../shared";
 
 function pluralRu(value: number | string): string {
   const operands = pluralOperands(value);
@@ -62,7 +62,7 @@ export function counted(count: number, fruit: Fruit): string {
 }
 
 export function price(amount: Money, date: ShortDate): string {
-  return "Цена " + String(formatCurrency(amount, "ru", { code: "RUB" })) + " на " + String(formatDate(date, "ru", { style: "short" }));
+  return "Цена " + String(formatCurrency(amount, { locale: "ru", numbers: { decimalSymbol: ",", groupSymbol: " ", decimalPattern: "#,##0.###", percentPattern: "#,##0 %" }, currency: { standardPattern: "#,##0.00 ¤", accountingPattern: "#,##0.00 ¤" }, date: { dateFormats: { full: "EEEE, d MMMM y 'г'.", long: "d MMMM y 'г'.", medium: "d MMM y 'г'.", short: "dd.MM.y" }, timeFormats: { full: "HH:mm:ss zzzz", long: "HH:mm:ss z", medium: "HH:mm:ss", short: "HH:mm" }, dateTimeFormats: { full: "{1}, {0}", long: "{1}, {0}", medium: "{1}, {0}", short: "{1}, {0}" } } }, { code: "RUB" })) + " на " + String(formatDate(date, { locale: "ru", numbers: { decimalSymbol: ",", groupSymbol: " ", decimalPattern: "#,##0.###", percentPattern: "#,##0 %" }, currency: { standardPattern: "#,##0.00 ¤", accountingPattern: "#,##0.00 ¤" }, date: { dateFormats: { full: "EEEE, d MMMM y 'г'.", long: "d MMMM y 'г'.", medium: "d MMM y 'г'.", short: "dd.MM.y" }, timeFormats: { full: "HH:mm:ss zzzz", long: "HH:mm:ss z", medium: "HH:mm:ss", short: "HH:mm" }, dateTimeFormats: { full: "{1}, {0}", long: "{1}, {0}", medium: "{1}, {0}", short: "{1}, {0}" } } }, { style: "short" }));
 }
 
 export const email_input = {

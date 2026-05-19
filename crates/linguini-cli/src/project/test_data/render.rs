@@ -260,7 +260,7 @@ impl<'a> Renderer<'a> {
         expression
             .formatters
             .iter()
-            .fold(value, |current, formatter| match formatter.name.as_str() {
+            .fold(value, |current, formatter| match formatter.kind.as_str() {
                 "currency" => {
                     let code = formatter
                         .arguments

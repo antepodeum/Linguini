@@ -1,6 +1,7 @@
 use crate::{
     parse_locale, parse_locale_with_recovery, parse_schema, parse_schema_with_recovery, FormEntry,
-    FunctionBranchValue, LocaleDeclaration, LocaleValue, SchemaDeclaration, TextPart,
+    FormatterKind, FunctionBranchValue, LocaleDeclaration, LocaleValue, SchemaDeclaration,
+    TextPart,
 };
 use std::fs;
 use std::path::Path;
@@ -91,7 +92,7 @@ email_input {
             assert_eq!(declaration.docs[0].text, " money amount");
             assert_eq!(declaration.name.value, "Money");
             assert_eq!(declaration.target.value, "Decimal");
-            assert_eq!(declaration.annotations[0].name.value, "currency");
+            assert_eq!(declaration.annotations[0].kind, FormatterKind::Currency);
         }
         other => panic!("expected type alias, got {other:?}"),
     }
@@ -251,7 +252,7 @@ email_input {
             let annotated_amount = message.value.parts.iter().any(|part| match part {
                 TextPart::Placeholder(placeholder) => {
                     placeholder.expression.path[0].value == "amount"
-                        && placeholder.expression.annotations[0].name.value == "currency"
+                        && placeholder.expression.annotations[0].kind == FormatterKind::Currency
                 }
                 TextPart::Text(_) => false,
             });

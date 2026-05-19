@@ -6,6 +6,8 @@ use std::process::Command;
 
 const PLURALS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/plurals.json";
 const LAYOUT_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-misc-full/main";
+const NUMBERS_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-numbers-full/main";
+const DATES_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-dates-full/main";
 const LOCAL_CLDR_SOURCE_RELATIVE_PATH: &str = "vendor/cldr-json";
 const CLDR_SOURCE_CONFIG_RELATIVE_PATH: &str = "cldr-json.toml";
 const GENERATED_FILE: &str = "linguini_generated_plural_rules.rs";
@@ -26,13 +28,18 @@ fn main() {
 fn run() -> Result<(), String> {
     let plurals = plural_source_path()?;
     let layout_main = layout_main_source_path()?;
+    let numbers_main = numbers_main_source_path()?;
+    let dates_main = dates_main_source_path()?;
     println!("cargo:rerun-if-changed={}", plurals.display());
     println!("cargo:rerun-if-changed={}", layout_main.display());
+    println!("cargo:rerun-if-changed={}", numbers_main.display());
+    println!("cargo:rerun-if-changed={}", dates_main.display());
 
     let source =
         fs::read_to_string(&plurals).map_err(|error| format!("{}: {error}", plurals.display()))?;
     let mut generated = generate_plural_tables(&source)?;
     generated.push_str(&generate_text_direction_table(&layout_main)?);
+    generated.push_str(&generate_formatting_tables(&numbers_main, &dates_main)?);
     let out_dir = PathBuf::from(env::var("OUT_DIR").map_err(|error| error.to_string())?);
     let output = out_dir.join(GENERATED_FILE);
     fs::write(&output, generated).map_err(|error| format!("{}: {error}", output.display()))?;
@@ -268,6 +275,48 @@ fn layout_main_source_path_from_source_dir(source_dir: PathBuf) -> Result<PathBu
     ))
 }
 
+fn numbers_main_source_path() -> Result<PathBuf, String> {
+    if let Ok(path) = env::var("LINGUINI_CLDR_NUMBERS_MAIN_DIR") {
+        return Ok(PathBuf::from(path));
+    }
+
+    let source_dir = cldr_source_dir()?;
+    main_source_path_from_source_dir(
+        source_dir,
+        NUMBERS_MAIN_RELATIVE_PATH,
+        "cldr-numbers-full/main",
+    )
+}
+
+fn dates_main_source_path() -> Result<PathBuf, String> {
+    if let Ok(path) = env::var("LINGUINI_CLDR_DATES_MAIN_DIR") {
+        return Ok(PathBuf::from(path));
+    }
+
+    let source_dir = cldr_source_dir()?;
+    main_source_path_from_source_dir(source_dir, DATES_MAIN_RELATIVE_PATH, "cldr-dates-full/main")
+}
+
+fn main_source_path_from_source_dir(
+    source_dir: PathBuf,
+    relative_path: &str,
+    fallback_path: &str,
+) -> Result<PathBuf, String> {
+    for candidate in [
+        source_dir.join(relative_path),
+        source_dir.join(fallback_path),
+        source_dir.join("main"),
+    ] {
+        if candidate.is_dir() {
+            return Ok(candidate);
+        }
+    }
+    Err(format!(
+        "LINGUINI_CLDR_SOURCE_DIR={} does not contain {relative_path}",
+        source_dir.display()
+    ))
+}
+
 fn generate_text_direction_table(layout_main: &std::path::Path) -> Result<String, String> {
     let mut directions = Vec::new();
     let entries =
@@ -303,6 +352,171 @@ fn generate_text_direction_table(layout_main: &std::path::Path) -> Result<String
     Ok(format!(
         "\nfn generated_text_direction(locale: &str) -> Option<&'static str> {{\n    match locale {{\n{arms}        _ => None,\n    }}\n}}\n"
     ))
+}
+
+fn generate_formatting_tables(numbers_main: &Path, dates_main: &Path) -> Result<String, String> {
+    let mut locales = Vec::new();
+    for entry in fs::read_dir(numbers_main)
+        .map_err(|error| format!("{}: {error}", numbers_main.display()))?
+    {
+        let entry = entry.map_err(|error| format!("{}: {error}", numbers_main.display()))?;
+        if entry
+            .file_type()
+            .map_err(|error| error.to_string())?
+            .is_dir()
+        {
+            locales.push(entry.file_name().to_string_lossy().into_owned());
+        }
+    }
+    locales.sort();
+
+    let mut number_arms = String::new();
+    let mut currency_arms = String::new();
+    let mut date_arms = String::new();
+
+    for locale in locales {
+        let numbers_path = numbers_main.join(&locale).join("numbers.json");
+        let numbers_value = read_json(&numbers_path)?;
+        if let Some(numbers) = extract_numbers(&numbers_value, &locale) {
+            number_arms.push_str(&format!(
+                "        {} => Some(NumberFormatData {{ locale: {}.to_owned(), decimal_symbol: {}.to_owned(), group_symbol: {}.to_owned(), decimal_pattern: {}.to_owned(), percent_pattern: {}.to_owned() }}),\n",
+                rust_string(&locale),
+                rust_string(&locale),
+                rust_string(&numbers.decimal_symbol),
+                rust_string(&numbers.group_symbol),
+                rust_string(&numbers.decimal_pattern),
+                rust_string(&numbers.percent_pattern)
+            ));
+        }
+        if let Some(currency) = extract_currency(&numbers_value, &locale) {
+            currency_arms.push_str(&format!(
+                "        {} => Some(CurrencyFormatData {{ locale: {}.to_owned(), standard_pattern: {}.to_owned(), accounting_pattern: {} }}),\n",
+                rust_string(&locale),
+                rust_string(&locale),
+                rust_string(&currency.standard_pattern),
+                option_string(currency.accounting_pattern.as_deref())
+            ));
+        }
+
+        let dates_path = dates_main.join(&locale).join("ca-gregorian.json");
+        if dates_path.is_file() {
+            let dates_value = read_json(&dates_path)?;
+            if let Some(dates) = extract_dates(&dates_value, &locale) {
+                date_arms.push_str(&format!(
+                    "        {} => Some(DateFormatData {{ locale: {}.to_owned(), date_formats: {}, time_formats: {}, date_time_formats: {} }}),\n",
+                    rust_string(&locale),
+                    rust_string(&locale),
+                    widths(&dates.date_formats),
+                    widths(&dates.time_formats),
+                    widths(&dates.date_time_formats)
+                ));
+            }
+        }
+    }
+
+    Ok(format!(
+        "\nfn generated_number_formatting(locale: &str) -> Option<NumberFormatData> {{\n    match locale {{\n{number_arms}        _ => None,\n    }}\n}}\n\nfn generated_currency_formatting(locale: &str) -> Option<CurrencyFormatData> {{\n    match locale {{\n{currency_arms}        _ => None,\n    }}\n}}\n\nfn generated_date_formatting(locale: &str) -> Option<DateFormatData> {{\n    match locale {{\n{date_arms}        _ => None,\n    }}\n}}\n"
+    ))
+}
+
+struct NumberData {
+    decimal_symbol: String,
+    group_symbol: String,
+    decimal_pattern: String,
+    percent_pattern: String,
+}
+
+struct CurrencyData {
+    standard_pattern: String,
+    accounting_pattern: Option<String>,
+}
+
+struct DateData {
+    date_formats: WidthData,
+    time_formats: WidthData,
+    date_time_formats: WidthData,
+}
+
+struct WidthData {
+    full: String,
+    long: String,
+    medium: String,
+    short: String,
+}
+
+fn read_json(path: &Path) -> Result<Value, String> {
+    let source =
+        fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    serde_json::from_str(&source).map_err(|error| format!("{}: {error}", path.display()))
+}
+
+fn extract_numbers(value: &Value, locale: &str) -> Option<NumberData> {
+    let numbers = value.get("main")?.get(locale)?.get("numbers")?;
+    let symbols = numbers.get("symbols-numberSystem-latn")?;
+    let decimal_formats = numbers.get("decimalFormats-numberSystem-latn")?;
+    let percent_formats = numbers.get("percentFormats-numberSystem-latn")?;
+    Some(NumberData {
+        decimal_symbol: string_field(symbols, "decimal")?,
+        group_symbol: string_field(symbols, "group")?,
+        decimal_pattern: string_field(decimal_formats, "standard")?,
+        percent_pattern: string_field(percent_formats, "standard")?,
+    })
+}
+
+fn extract_currency(value: &Value, locale: &str) -> Option<CurrencyData> {
+    let currency_formats = value
+        .get("main")?
+        .get(locale)?
+        .get("numbers")?
+        .get("currencyFormats-numberSystem-latn")?;
+    Some(CurrencyData {
+        standard_pattern: string_field(currency_formats, "standard")?,
+        accounting_pattern: string_field(currency_formats, "accounting"),
+    })
+}
+
+fn extract_dates(value: &Value, locale: &str) -> Option<DateData> {
+    let gregorian = value
+        .get("main")?
+        .get(locale)?
+        .get("dates")?
+        .get("calendars")?
+        .get("gregorian")?;
+    Some(DateData {
+        date_formats: extract_widths(gregorian.get("dateFormats")?)?,
+        time_formats: extract_widths(gregorian.get("timeFormats")?)?,
+        date_time_formats: extract_widths(gregorian.get("dateTimeFormats")?)?,
+    })
+}
+
+fn extract_widths(value: &Value) -> Option<WidthData> {
+    Some(WidthData {
+        full: string_field(value, "full")?,
+        long: string_field(value, "long")?,
+        medium: string_field(value, "medium")?,
+        short: string_field(value, "short")?,
+    })
+}
+
+fn string_field(value: &Value, key: &str) -> Option<String> {
+    value.get(key)?.as_str().map(str::to_owned)
+}
+
+fn option_string(value: Option<&str>) -> String {
+    value.map_or_else(
+        || "None".to_owned(),
+        |value| format!("Some({}.to_owned())", rust_string(value)),
+    )
+}
+
+fn widths(value: &WidthData) -> String {
+    format!(
+        "FormatWidths {{ full: {}.to_owned(), long: {}.to_owned(), medium: {}.to_owned(), short: {}.to_owned() }}",
+        rust_string(&value.full),
+        rust_string(&value.long),
+        rust_string(&value.medium),
+        rust_string(&value.short)
+    )
 }
 
 fn extract_text_direction(source: &str) -> Option<&'static str> {

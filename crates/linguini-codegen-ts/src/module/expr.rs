@@ -1,6 +1,11 @@
 use std::collections::BTreeMap;
 
-use linguini_ir::{IrBranch, IrExpression, IrFormEntry, IrFormatter, IrText, IrTextPart, IrValue};
+use linguini_cldr::{
+    compiled_currency_formatting, compiled_date_formatting, compiled_number_formatting,
+};
+use linguini_ir::{
+    IrBranch, IrExpression, IrFormEntry, IrFormatter, IrFormatterKind, IrText, IrTextPart, IrValue,
+};
 
 use super::names::{escape_string, property_key, string_literal};
 use super::TypeScriptOptions;
@@ -182,11 +187,16 @@ fn apply_formatters(
 ) -> String {
     formatters.iter().fold(value, |current, formatter| {
         let formatter_options = formatter_options(formatter);
-        let locale = string_literal(&options.locale);
-        match formatter.name.as_str() {
-            "currency" => format!("formatCurrency({current}, {locale}, {formatter_options})"),
-            "date" => format!("formatDate({current}, {locale}, {formatter_options})"),
-            _ => current,
+        let formatter_data = formatter_data_literal(&options.locale);
+        match formatter.kind {
+            IrFormatterKind::Number => format!("formatNumber({current}, {formatter_data})"),
+            IrFormatterKind::Currency => {
+                format!("formatCurrency({current}, {formatter_data}, {formatter_options})")
+            }
+            IrFormatterKind::Date => {
+                format!("formatDate({current}, {formatter_data}, {formatter_options})")
+            }
+            IrFormatterKind::Unknown => current,
         }
     })
 }
@@ -205,4 +215,60 @@ fn formatter_options(formatter: &IrFormatter) -> String {
         .collect::<Vec<_>>()
         .join(", ");
     format!("{{ {items} }}")
+}
+
+fn formatter_data_literal(locale: &str) -> String {
+    let numbers = compiled_number_formatting(locale);
+    let currency = compiled_currency_formatting(locale);
+    let dates = compiled_date_formatting(locale);
+
+    format!(
+        "{{ locale: {}, numbers: {}, currency: {}, date: {} }}",
+        string_literal(locale),
+        numbers.map_or_else(
+            || "undefined".to_owned(),
+            |data| {
+                format!(
+                "{{ decimalSymbol: {}, groupSymbol: {}, decimalPattern: {}, percentPattern: {} }}",
+                string_literal(&data.decimal_symbol),
+                string_literal(&data.group_symbol),
+                string_literal(&data.decimal_pattern),
+                string_literal(&data.percent_pattern)
+            )
+            }
+        ),
+        currency.map_or_else(
+            || "undefined".to_owned(),
+            |data| {
+                format!(
+                    "{{ standardPattern: {}, accountingPattern: {} }}",
+                    string_literal(&data.standard_pattern),
+                    data.accounting_pattern
+                        .as_deref()
+                        .map_or_else(|| "undefined".to_owned(), string_literal)
+                )
+            }
+        ),
+        dates.map_or_else(
+            || "undefined".to_owned(),
+            |data| {
+                format!(
+                    "{{ dateFormats: {}, timeFormats: {}, dateTimeFormats: {} }}",
+                    widths_literal(&data.date_formats),
+                    widths_literal(&data.time_formats),
+                    widths_literal(&data.date_time_formats)
+                )
+            }
+        )
+    )
+}
+
+fn widths_literal(widths: &linguini_cldr::FormatWidths) -> String {
+    format!(
+        "{{ full: {}, long: {}, medium: {}, short: {} }}",
+        string_literal(&widths.full),
+        string_literal(&widths.long),
+        string_literal(&widths.medium),
+        string_literal(&widths.short)
+    )
 }

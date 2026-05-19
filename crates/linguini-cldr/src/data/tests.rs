@@ -222,9 +222,9 @@ fn compiled_formatting_data_is_typed_not_json() {
     assert_eq!(numbers.decimal_symbol, ".");
     assert_eq!(
         currency.accounting_pattern.as_deref(),
-        Some("(\u{a4}#,##0.00)")
+        Some("\u{a4}#,##0.00;(\u{a4}#,##0.00)")
     );
-    assert_eq!(dates.time_formats.short, "h:mm a");
+    assert_eq!(dates.time_formats.short, "h:mm\u{202f}a");
 }
 
 fn write_full_cache(name: &str) -> TempProject {
