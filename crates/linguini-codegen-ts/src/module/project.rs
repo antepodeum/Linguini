@@ -288,7 +288,7 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
     let strategy = js_string_array(&options.strategy);
     let exclude = js_string_array(&options.exclude);
     let mut fields = vec![
-        format!("strategy: [{strategy}]"),
+        format!("strategy: [{strategy}] as const"),
         format!("cookieName: \"{}\"", escape_string(&options.cookie_name)),
         format!("cookiePath: \"{}\"", escape_string(&options.cookie_path)),
         format!("cookieMaxAge: {}", options.cookie_max_age),
@@ -312,7 +312,7 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
             escape_string(&options.trailing_slash)
         ),
         format!("redirect: {}", js_bool(options.redirect)),
-        format!("exclude: [{exclude}]"),
+        format!("exclude: [{exclude}] as const"),
         format!("localizeLinks: {}", js_bool(options.localize_links)),
     ];
 
@@ -332,7 +332,7 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
         fields.push(format!("origin: \"{}\"", escape_string(origin)));
     }
 
-    format!("{{ {} }}", fields.join(", "))
+    format!("{{ {} }} as const", fields.join(", "))
 }
 
 fn js_string_array(values: &[String]) -> String {
