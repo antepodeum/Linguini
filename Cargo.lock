@@ -476,18 +476,18 @@ dependencies = [
 name = "linguini-cldr"
 version = "0.1.0-alpha.3"
 dependencies = [
+ "linguini-cldr-macros",
  "linguini-test-support",
- "serde_json",
 ]
 
 [[package]]
 name = "linguini-cldr-macros"
 version = "0.1.0-alpha.3"
 dependencies = [
- "linguini-cldr",
  "linguini-test-support",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn",
 ]
 

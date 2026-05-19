@@ -49,10 +49,7 @@ pub fn built_in_text_direction(locale: &str) -> Option<&'static str> {
     })
 }
 
-include!(concat!(
-    env!("OUT_DIR"),
-    "/linguini_generated_plural_rules.rs"
-));
+linguini_cldr_macros::compiled_cldr_tables!();
 
 pub fn compiled_number_formatting(locale: &str) -> Option<NumberFormatData> {
     generated_number_formatting(locale)

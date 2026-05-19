@@ -1,105 +1,22 @@
-fn plural_rule_literal(rule: &PluralRule) -> String {
-    format!(
-        "PluralRule {{ conditions: vec![{}] }}",
-        rule.conditions
-            .iter()
-            .map(condition_literal)
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
-}
-
-fn condition_literal(condition: &Condition) -> String {
-    format!(
-        "Condition {{ relations: vec![{}] }}",
-        condition
-            .relations
-            .iter()
-            .map(relation_literal)
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
-}
-
-fn relation_literal(relation: &Relation) -> String {
-    format!(
-        "Relation {{ expression: {}, operator: {}, ranges: {} }}",
-        operand_expression_literal(&relation.expression),
-        relation_operator_literal(relation.operator),
-        range_list_literal(&relation.ranges)
-    )
-}
-
-fn operand_expression_literal(expression: &OperandExpression) -> String {
-    format!(
-        "OperandExpression {{ operand: {}, modulo: {} }}",
-        operand_literal(expression.operand),
-        option_u64_literal(expression.modulo)
-    )
-}
-
-fn range_list_literal(ranges: &RangeList) -> String {
-    format!(
-        "RangeList {{ ranges: vec![{}] }}",
-        ranges
-            .ranges
-            .iter()
-            .map(|range| format!(
-                "Range {{ start: {}, end: {} }}",
-                range.start, range.end
-            ))
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
-}
-
-fn option_u64_literal(value: Option<u64>) -> String {
-    value.map_or_else(|| "None".to_owned(), |value| format!("Some({value})"))
-}
-
-fn operand_literal(operand: Operand) -> &'static str {
-    match operand {
-        Operand::N => "Operand::N",
-        Operand::I => "Operand::I",
-        Operand::V => "Operand::V",
-        Operand::W => "Operand::W",
-        Operand::F => "Operand::F",
-        Operand::T => "Operand::T",
-        Operand::C => "Operand::C",
-        Operand::E => "Operand::E",
-    }
-}
-
-fn relation_operator_literal(operator: RelationOperator) -> &'static str {
-    match operator {
-        RelationOperator::Equal => "RelationOperator::Equal",
-        RelationOperator::NotEqual => "RelationOperator::NotEqual",
-        RelationOperator::In => "RelationOperator::In",
-        RelationOperator::NotIn => "RelationOperator::NotIn",
-        RelationOperator::Within => "RelationOperator::Within",
-        RelationOperator::NotWithin => "RelationOperator::NotWithin",
-    }
+#[derive(Debug, Clone)]
+pub(crate) struct PluralRule {
+    pub(crate) conditions: Vec<Condition>,
 }
 
 #[derive(Debug, Clone)]
-struct PluralRule {
-    conditions: Vec<Condition>,
+pub(crate) struct Condition {
+    pub(crate) relations: Vec<Relation>,
 }
 
 #[derive(Debug, Clone)]
-struct Condition {
-    relations: Vec<Relation>,
-}
-
-#[derive(Debug, Clone)]
-struct Relation {
-    expression: OperandExpression,
-    operator: RelationOperator,
-    ranges: RangeList,
+pub(crate) struct Relation {
+    pub(crate) expression: OperandExpression,
+    pub(crate) operator: RelationOperator,
+    pub(crate) ranges: RangeList,
 }
 
 #[derive(Debug, Clone, Copy)]
-enum RelationOperator {
+pub(crate) enum RelationOperator {
     Equal,
     NotEqual,
     In,
@@ -109,13 +26,13 @@ enum RelationOperator {
 }
 
 #[derive(Debug, Clone)]
-struct OperandExpression {
-    operand: Operand,
-    modulo: Option<u64>,
+pub(crate) struct OperandExpression {
+    pub(crate) operand: Operand,
+    pub(crate) modulo: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Operand {
+pub(crate) enum Operand {
     N,
     I,
     V,
@@ -127,17 +44,17 @@ enum Operand {
 }
 
 #[derive(Debug, Clone)]
-struct RangeList {
-    ranges: Vec<Range>,
+pub(crate) struct RangeList {
+    pub(crate) ranges: Vec<Range>,
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Range {
-    start: u64,
-    end: u64,
+pub(crate) struct Range {
+    pub(crate) start: u64,
+    pub(crate) end: u64,
 }
 
-fn parse_plural_rule(source: &str) -> Result<PluralRule, String> {
+pub(crate) fn parse_plural_rule(source: &str) -> Result<PluralRule, String> {
     let rule = source.split('@').next().unwrap_or(source).trim();
     if rule.is_empty() {
         return Ok(PluralRule { conditions: vec![] });
@@ -350,92 +267,4 @@ impl Cursor {
             false
         }
     }
-}
-
-fn plural_rule_uses_operands(rule: &PluralRule) -> bool {
-    !rule.conditions.is_empty()
-}
-
-fn plural_rule_to_rust(rule: &PluralRule) -> String {
-    if rule.conditions.is_empty() {
-        return "true".to_owned();
-    }
-    rule.conditions
-        .iter()
-        .map(condition_to_rust)
-        .collect::<Vec<_>>()
-        .join(" || ")
-}
-
-fn condition_to_rust(condition: &Condition) -> String {
-    condition
-        .relations
-        .iter()
-        .map(relation_to_rust)
-        .collect::<Vec<_>>()
-        .join(" && ")
-}
-
-fn relation_to_rust(relation: &Relation) -> String {
-    let expression = operand_expression_to_rust(&relation.expression);
-    match relation.operator {
-        RelationOperator::Equal | RelationOperator::In => {
-            let ranges = ranges_to_rust(&relation.ranges.ranges, "value");
-            format!("integer_value({expression}).is_some_and(|value| {ranges})")
-        }
-        RelationOperator::NotEqual | RelationOperator::NotIn => {
-            let ranges = ranges_to_rust(&relation.ranges.ranges, "value");
-            format!("!integer_value({expression}).is_some_and(|value| {ranges})")
-        }
-        RelationOperator::Within => {
-            let ranges = ranges_to_rust_float(&relation.ranges.ranges, "value");
-            format!("{{ let value = ({expression}).0; value >= 0.0 && ({ranges}) }}")
-        }
-        RelationOperator::NotWithin => {
-            let ranges = ranges_to_rust_float(&relation.ranges.ranges, "value");
-            format!("{{ let value = ({expression}).0; !(value >= 0.0 && ({ranges})) }}")
-        }
-    }
-}
-
-fn operand_expression_to_rust(expression: &OperandExpression) -> String {
-    let operand = match expression.operand {
-        Operand::N => "(operands.n.parse::<f64>().unwrap_or(operands.i as f64), operands.v == 0)",
-        Operand::I => "(operands.i as f64, true)",
-        Operand::V => "(operands.v as f64, true)",
-        Operand::W => "(operands.w as f64, true)",
-        Operand::F => "(operands.f as f64, true)",
-        Operand::T => "(operands.t as f64, true)",
-        Operand::C => "(operands.c as f64, true)",
-        Operand::E => "(operands.e as f64, true)",
-    };
-    expression.modulo.map_or_else(
-        || operand.to_owned(),
-        |modulo| format!("{{ let value = {operand}; (value.0 % {modulo}f64, value.1) }}"),
-    )
-}
-
-fn ranges_to_rust(ranges: &[Range], value: &str) -> String {
-    ranges
-        .iter()
-        .map(|range| match (range.start, range.end) {
-            (start, end) if start == end => format!("{value} == {start}"),
-            (start, end) => format!("({start}..={end}).contains(&{value})"),
-        })
-        .collect::<Vec<_>>()
-        .join(" || ")
-}
-
-fn ranges_to_rust_float(ranges: &[Range], value: &str) -> String {
-    ranges
-        .iter()
-        .map(|range| {
-            if range.start == range.end {
-                format!("{value} == {}f64", range.start)
-            } else {
-                format!("({}f64..={}f64).contains(&{value})", range.start, range.end)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" || ")
 }

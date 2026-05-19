@@ -2,8 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-config="$repo_root/crates/linguini-cldr/cldr-json.toml"
-destination="${LINGUINI_CLDR_VENDOR_DIR:-$repo_root/crates/linguini-cldr/vendor/cldr-json}"
+config="$repo_root/crates/linguini-cldr-macros/cldr-json.toml"
+destination="${LINGUINI_CLDR_VENDOR_DIR:-$repo_root/crates/linguini-cldr-macros/vendor/cldr-json}"
 
 read_config_value() {
   local key="$1"

@@ -50,7 +50,7 @@ export function formatCurrency(
   const pattern = options.accounting === "true"
     ? data.currency?.accountingPattern ?? data.currency?.standardPattern
     : data.currency?.standardPattern;
-  return applyNumberPattern(formatDecimal(Number(value), data, 2), pattern, currency);
+  return applyNumberPattern(formatDecimal(Number(value), data, 2), pattern, currencySymbol(currency, data.locale));
 }
 
 export function formatDate(
@@ -75,6 +75,10 @@ function formatDecimal(value: number, data: CldrFormatterData, fractionDigits?: 
 function applyNumberPattern(value: string, pattern: string | undefined, currency: string): string {
   if (!pattern) return `${currency} ${value}`;
   return pattern.replace(/[#0.,]+/, value).replace("¤", currency);
+}
+
+function currencySymbol(currency: string, locale: string): string {
+  return new Intl.NumberFormat(locale, { style: "currency", currency }).formatToParts(0).find((part) => part.type === "currency")?.value ?? currency;
 }
 
 export function selectBranch(

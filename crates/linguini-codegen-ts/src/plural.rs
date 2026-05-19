@@ -115,26 +115,11 @@ const PLURAL_OPERANDS_HELPER: &str = r#"function pluralOperands(value: number | 
 #[cfg(test)]
 mod tests {
     use super::generate_plural_function;
-    use linguini_cldr::load_plural_rules;
-
-    const PLURALS: &str = r#"
-    {
-      "supplemental": {
-        "plurals-type-cardinal": {
-          "ru": {
-            "pluralRule-count-one": "v = 0 and i % 10 = 1 and i % 100 != 11",
-            "pluralRule-count-few": "v = 0 and i % 10 = 2..4 and i % 100 != 12..14",
-            "pluralRule-count-many": "v = 0 and i % 10 = 0 or v = 0 and i % 10 = 5..9 or v = 0 and i % 100 = 11..14",
-            "pluralRule-count-other": ""
-          }
-        }
-      }
-    }
-    "#;
+    use linguini_cldr::built_in_plural_rules;
 
     #[test]
     fn generated_plural_function_snapshot_is_stable() {
-        let rules = load_plural_rules(PLURALS, "ru").expect("rules");
+        let rules = built_in_plural_rules("ru").expect("rules");
         let output = generate_plural_function("pluralRu", &rules);
 
         assert_eq!(

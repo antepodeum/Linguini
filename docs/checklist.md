@@ -523,36 +523,36 @@ Checkpoint acceptance:
 
 ## 8. CLDR ingestion
 
-- [x] Implement CLDR cache directory
-  - Note: completed on 2026-05-13. Added configurable CLDR cache root resolution, cache inspection, manifest/data/plurals checks, and offline cache requirement API.
-  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr -p linguini-cli`
-- [x] Implement `linguini cldr fetch`
-  - Note: completed on 2026-05-13. Added `linguini cldr fetch` for `https://github.com/unicode-org/cldr-json` and retained staged CLDR JSON import for tests and offline development.
-  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cldr -p linguini-cli`
-- [x] Implement `linguini cldr status`
-  - Note: completed on 2026-05-13. Added `linguini cldr status` output for cache usability, manifest, data, and plural-rule presence.
-  - Evidence: crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cldr -p linguini-cli`
+- [x] Keep CLDR source private to macro generation
+  - Note: completed on 2026-05-19. `linguini-cldr-macros` owns CLDR source discovery/fetch and generated Rust emission; `linguini-cldr` exposes typed runtime APIs only.
+  - Evidence: crates/linguini-cldr-macros/src/source_paths.rs; crates/linguini-cldr/src/data/compiled.rs; `cargo test -p linguini-cldr -p linguini-cldr-macros`
+- [x] Avoid public `linguini cldr` commands
+  - Note: completed on 2026-05-19. CLDR ingestion is not a CLI/cache workflow; the macro reads the pinned source checkout and emits compiled tables.
+  - Evidence: crates/linguini-cli/src/lib.rs; scripts/check-spec-gates.sh; `./scripts/check-spec-gates.sh`
+- [x] Keep generated CLDR code in the procedural macro crate
+  - Note: completed on 2026-05-19. `linguini-cldr` invokes `compiled_cldr_tables!`; generator code lives under `linguini-cldr-macros`.
+  - Evidence: crates/linguini-cldr-macros/src/source.rs; crates/linguini-cldr/src/data/compiled.rs; `cargo test -p linguini-cldr -p linguini-cldr-macros`
 - [x] Load plural rules from CLDR JSON
-  - Note: completed on 2026-05-13. Added CLDR JSON plural-rule loader for locale category rules from cached `cldr-json/cldr-core/supplemental/plurals.json`.
-  - Evidence: crates/linguini-cldr/src/data/cache_loaders.rs; `cargo test -p linguini-cldr`
+  - Note: completed on 2026-05-19. The macro generator loads locale category rules from pinned `cldr-json/cldr-core/supplemental/plurals.json`.
+  - Evidence: crates/linguini-cldr-macros/src/source.rs; `cargo test -p linguini-cldr-macros`
 - [x] Load number formatting data
-  - Note: completed on 2026-05-13. Added cached CLDR number symbol, decimal pattern, and percent pattern loading from locale `numbers.json`.
-  - Evidence: crates/linguini-cldr/src/data/cache_loaders.rs; `cargo test -p linguini-cldr`
+  - Note: completed on 2026-05-19. The macro generator loads CLDR number symbol, decimal pattern, and percent pattern data from locale `numbers.json`.
+  - Evidence: crates/linguini-cldr-macros/src/source.rs; `cargo test -p linguini-cldr-macros`
 - [x] Load date formatting data
-  - Note: completed on 2026-05-13. Added cached Gregorian date, time, and date-time format-width loading from `ca-gregorian.json`.
-  - Evidence: crates/linguini-cldr/src/data/cache_loaders.rs; `cargo test -p linguini-cldr`
+  - Note: completed on 2026-05-19. The macro generator loads Gregorian date, time, and date-time format-width data from `ca-gregorian.json`.
+  - Evidence: crates/linguini-cldr-macros/src/source.rs; `cargo test -p linguini-cldr-macros`
 - [x] Load currency formatting data
-  - Note: completed on 2026-05-13. Added cached CLDR currency standard and accounting pattern loading from locale `numbers.json`.
-  - Evidence: crates/linguini-cldr/src/data/cache_loaders.rs; `cargo test -p linguini-cldr`
-- [x] Add cache integrity checks
-  - Note: completed on 2026-05-13. Cache status now validates required manifest, data directory, and plural-rule file readability before marking cache usable.
-  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
-- [x] Add offline build mode
-  - Note: completed on 2026-05-13. Added `require_offline_cache` so build/check paths can fail without downloading when CLDR cache is absent or incomplete.
-  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
-- [x] Fetch only required CLDR JSON files
-  - Note: completed on 2026-05-13. CLDR fetch uses sparse official `cldr-json` paths for plural rules, locale numbers, and Gregorian calendar data instead of importing the full tree.
-  - Evidence: crates/linguini-cldr/src/cache.rs; crates/linguini-cli/src/lib.rs; `cargo test -p linguini-cldr -p linguini-cli`
+  - Note: completed on 2026-05-19. The macro generator loads CLDR currency standard and accounting pattern data from locale `numbers.json`.
+  - Evidence: crates/linguini-cldr-macros/src/source.rs; `cargo test -p linguini-cldr-macros`
+- [x] Add source checkout integrity checks
+  - Note: completed on 2026-05-19. Macro source fetch verifies the pinned ref resolves to the expected commit prefix and contains required CLDR files.
+  - Evidence: crates/linguini-cldr-macros/src/source_paths.rs; `cargo test -p linguini-cldr-macros`
+- [x] Add offline source mode
+  - Note: completed on 2026-05-19. `LINGUINI_CLDR_AUTO_FETCH=0` makes macro generation fail with an actionable missing-checkout error instead of fetching.
+  - Evidence: crates/linguini-cldr-macros/src/source_paths.rs; `cargo test -p linguini-cldr-macros`
+- [x] Keep full CLDR source checkout outside git
+  - Note: completed on 2026-05-19. The full checkout lives under gitignored `crates/linguini-cldr-macros/vendor/`.
+  - Evidence: .gitignore; scripts/fetch-cldr-json.sh
 - [x] Generate compiled Rust CLDR tables from `cldr-json`
   - Note: completed on 2026-05-13. Added `linguini-cldr-macros` proc-macro crate that reads cached `cldr-json` files and emits typed Rust plural and formatter table functions.
   - Evidence: crates/linguini-cldr-macros/src/lib.rs; crates/linguini-cldr-macros/src/source.rs; `cargo test -p linguini-cldr-macros`
@@ -566,20 +566,20 @@ Checkpoint acceptance:
 Checkpoint acceptance:
 
 - [x] Build-time CLDR source is pinned and local-only after fetch
-  - Note: completed on 2026-05-18. `linguini-cldr` uses a gitignored shallow checkout pinned by `crates/linguini-cldr/cldr-json.toml`; build.rs auto-fetches it only when missing, and `LINGUINI_CLDR_AUTO_FETCH=0` disables that behavior.
-  - Evidence: crates/linguini-cldr/build.rs; scripts/fetch-cldr-json.sh; `cargo test --workspace`
+  - Note: completed on 2026-05-18. `linguini-cldr-macros` uses a gitignored shallow checkout pinned by `crates/linguini-cldr-macros/cldr-json.toml`; macro generation auto-fetches it only when missing, and `LINGUINI_CLDR_AUTO_FETCH=0` disables that behavior.
+  - Evidence: crates/linguini-cldr-macros/src/source.rs; scripts/fetch-cldr-json.sh; `cargo test --workspace`
 - [x] Full CLDR checkout is not committed
-  - Note: completed on 2026-05-18. The local `crates/linguini-cldr/vendor/` checkout is gitignored and recreated from the pinned upstream ref when needed.
-  - Evidence: .gitignore; crates/linguini-cldr/cldr-json.toml; scripts/fetch-cldr-json.sh
+  - Note: completed on 2026-05-18. The local `crates/linguini-cldr-macros/vendor/` checkout is gitignored and recreated from the pinned upstream ref when needed.
+  - Evidence: .gitignore; crates/linguini-cldr-macros/cldr-json.toml; scripts/fetch-cldr-json.sh
 - [x] Production binary can evaluate required CLDR rules without runtime JSON files
   - Note: completed on 2026-05-13. Compiled plural-rule tests evaluate English and Russian categories without reading runtime JSON files.
   - Evidence: crates/linguini-cldr/src/data/compiled.rs; `cargo test -p linguini-cldr`
-- [x] Cached CLDR data is reused
-  - Note: completed on 2026-05-13. Plural rules are loaded from the existing cache path without fetching.
-  - Evidence: crates/linguini-cldr/src/data/cache_loaders.rs; `cargo test -p linguini-cldr`
-- [x] Missing cache produces actionable error
-  - Note: completed on 2026-05-13. Offline cache requirement reports `run linguini cldr fetch` when cache is missing.
-  - Evidence: crates/linguini-cldr/src/cache.rs; `cargo test -p linguini-cldr`
+- [x] Existing CLDR source checkout is reused
+  - Note: completed on 2026-05-19. Macro generation reads the existing source checkout before attempting fetch.
+  - Evidence: crates/linguini-cldr-macros/src/source_paths.rs; `cargo test -p linguini-cldr-macros`
+- [x] Missing source checkout produces actionable error
+  - Note: completed on 2026-05-19. Offline source mode reports the missing checkout path and points to `./scripts/fetch-cldr-json.sh`.
+  - Evidence: crates/linguini-cldr-macros/src/source_paths.rs; `cargo test -p linguini-cldr-macros`
 
 ---
 

@@ -200,7 +200,7 @@ pub fn emit_shared(output: &mut String) {
     output.push_str("    ? data.currency?.accountingPattern ?? data.currency?.standardPattern\n");
     output.push_str("    : data.currency?.standardPattern;\n");
     output.push_str(
-        "  return applyNumberPattern(formatDecimal(Number(value), data, 2), pattern, currency);\n",
+        "  return applyNumberPattern(formatDecimal(Number(value), data, 2), pattern, currencySymbol(currency, data.locale));\n",
     );
     output.push_str("}\n\n");
     output.push_str("export function formatDate(\n");
@@ -225,6 +225,9 @@ pub fn emit_shared(output: &mut String) {
     output.push_str("function applyNumberPattern(value: string, pattern: string | undefined, currency: string): string {\n");
     output.push_str("  if (!pattern) return `${currency} ${value}`;\n");
     output.push_str("  return pattern.replace(/[#0.,]+/, value).replace(\"¤\", currency);\n");
+    output.push_str("}\n\n");
+    output.push_str("function currencySymbol(currency: string, locale: string): string {\n");
+    output.push_str("  return new Intl.NumberFormat(locale, { style: \"currency\", currency }).formatToParts(0).find((part) => part.type === \"currency\")?.value ?? currency;\n");
     output.push_str("}\n\n");
     output.push_str("export function selectBranch(\n");
     output.push_str("  key: string,\n");

@@ -1,18 +1,19 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{bracketed, parse_macro_input, LitStr, Result, Token};
+use syn::{parse_macro_input, Result};
 
+mod formatting;
+mod plural_rule;
 mod source;
+mod source_paths;
 
 #[proc_macro]
 pub fn compiled_cldr_tables(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as MacroInput);
-    match source::generate_compiled_tables_from_cache(input.cache.value(), input.locales()) {
-        Ok(source) => source.parse().unwrap_or_else(|error| {
-            let message = format!("generated CLDR Rust did not parse: {error}");
-            quote!(compile_error!(#message);).into()
-        }),
+    parse_macro_input!(input as EmptyInput);
+
+    match source::generate_compiled_tables() {
+        Ok(tokens) => tokens.into(),
         Err(error) => {
             let message = error.to_string();
             quote!(compile_error!(#message);).into()
@@ -20,41 +21,23 @@ pub fn compiled_cldr_tables(input: TokenStream) -> TokenStream {
     }
 }
 
-struct MacroInput {
-    cache: LitStr,
-    locales: Vec<LitStr>,
-}
+struct EmptyInput;
 
-impl MacroInput {
-    fn locales(&self) -> Vec<String> {
-        self.locales.iter().map(LitStr::value).collect()
-    }
-}
-
-impl Parse for MacroInput {
+impl Parse for EmptyInput {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let cache = input.parse()?;
-        input.parse::<Token![,]>()?;
-
-        let content;
-        bracketed!(content in input);
-        let mut locales = Vec::new();
-        while !content.is_empty() {
-            locales.push(content.parse()?);
-            if !content.is_empty() {
-                content.parse::<Token![,]>()?;
-            }
+        if input.is_empty() {
+            Ok(Self)
+        } else {
+            Err(input.error("compiled_cldr_tables! takes no arguments"))
         }
-
-        Ok(Self { cache, locales })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::source::generate_compiled_tables_from_cache;
-    use linguini_cldr::fetch_cldr_from_dir;
+    use super::source::generate_compiled_tables;
     use linguini_test_support::temp_project_dir;
+    use std::env;
     use std::fs;
 
     const PLURALS: &str = r#"{"supplemental":{"plurals-type-cardinal":{"en":{"pluralRule-count-one":"i = 1 and v = 0","pluralRule-count-other":""}}}}"#;
@@ -63,7 +46,7 @@ mod tests {
     const LAYOUT: &str = r#"{"main":{"en":{"layout":{"orientation":{"characterOrder":"left-to-right","lineOrder":"top-to-bottom"}}}}}"#;
 
     #[test]
-    fn proc_macro_generator_emits_typed_rust_from_cache() {
+    fn proc_macro_generator_emits_typed_rust_from_source() {
         let project = temp_project_dir("cldr_macro_generator");
         let supplemental = project
             .path()
@@ -85,16 +68,20 @@ mod tests {
         fs::write(numbers.join("numbers.json"), NUMBERS).expect("numbers json");
         fs::write(dates.join("ca-gregorian.json"), GREGORIAN).expect("calendar");
         fs::write(layout.join("layout.json"), LAYOUT).expect("layout json");
-        let cache = project.path().join(".linguini/cache");
-        fetch_cldr_from_dir(project.path().join("source"), &cache).expect("fetch");
+        let previous = env::var("LINGUINI_CLDR_SOURCE_DIR").ok();
+        env::set_var("LINGUINI_CLDR_SOURCE_DIR", project.path().join("source"));
 
-        let generated =
-            generate_compiled_tables_from_cache(&cache, vec!["en".to_owned()]).expect("generate");
+        let generated = generate_compiled_tables().expect("generate").to_string();
+        if let Some(previous) = previous {
+            env::set_var("LINGUINI_CLDR_SOURCE_DIR", previous);
+        } else {
+            env::remove_var("LINGUINI_CLDR_SOURCE_DIR");
+        }
 
         assert!(generated.contains("CompiledPluralRules"));
         assert!(generated.contains("PLURAL_CATEGORIES_EN"));
-        assert!(generated.contains("compiled_text_direction"));
-        assert!(generated.contains("Some(\"ltr\")"));
+        assert!(generated.contains("generated_text_direction"));
+        assert!(generated.contains("\"ltr\""));
         assert!(!generated.contains("supplemental"));
     }
 }

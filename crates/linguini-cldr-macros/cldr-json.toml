@@ -1,4 +1,4 @@
-# Pinned CLDR JSON source used by linguini-cldr build.rs and scripts/fetch-cldr-json.sh.
+# Pinned CLDR JSON source used by linguini-cldr-macros and scripts/fetch-cldr-json.sh.
 repo = "https://github.com/unicode-org/cldr-json.git"
 ref = "48.2.0"
 commit_prefix = "bb334e8"
