@@ -1,0 +1,34 @@
+{
+	"name": "@antepod/linguini-site",
+	"private": true,
+	"version": "0.1.0-alpha.3",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+	},
+	"dependencies": {
+		"@fontsource-variable/newsreader": "^5.2.8",
+		"@fontsource-variable/work-sans": "^5.2.8",
+		"clsx": "^2.1.1",
+		"@lucide/svelte": "^1.0.1",
+		"tailwind-merge": "^2.6.0"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-static": "^3.0.8",
+		"@sveltejs/kit": "^2.57.0",
+		"@sveltejs/vite-plugin-svelte": "^7.0.0",
+		"autoprefixer": "^10.4.20",
+		"postcss": "^8.4.49",
+		"svelte": "^5.55.2",
+		"svelte-check": "^4.4.6",
+		"tailwindcss": "^3.4.17",
+		"@types/node": "^24.10.0",
+		"typescript": "^6.0.2",
+		"vite": "^8.0.7"
+	}
+}

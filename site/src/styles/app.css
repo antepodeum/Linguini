@@ -1,0 +1,50 @@
+@import '@fontsource-variable/work-sans';
+@import '@fontsource-variable/newsreader';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 42 43% 96%;
+  --foreground: 205 38% 14%;
+  --muted: 189 24% 88%;
+  --muted-foreground: 204 16% 39%;
+  --border: 201 21% 82%;
+  --primary: 188 87% 27%;
+  --primary-foreground: 42 43% 96%;
+  --accent: 8 80% 62%;
+  --accent-foreground: 205 38% 14%;
+  --ring: 188 87% 27%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, hsl(188 62% 83% / 0.75), transparent 30rem),
+    linear-gradient(135deg, hsl(var(--background)), hsl(46 52% 91%));
+  color: hsl(var(--foreground));
+  font-family: 'Work Sans Variable', ui-sans-serif, sans-serif;
+}
+
+::selection {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.14;
+  mix-blend-mode: multiply;
+  background-image:
+    linear-gradient(90deg, hsl(0 0% 0% / 0.05) 1px, transparent 1px),
+    linear-gradient(hsl(0 0% 0% / 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
