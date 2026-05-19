@@ -73,3 +73,24 @@ impl TypeKind {
         ]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{FormatterKind, TypeKind};
+
+    #[test]
+    fn formatter_kind_round_trips_known_names() {
+        for &kind in FormatterKind::all_known() {
+            assert_eq!(FormatterKind::from_name(kind.as_str()), kind);
+        }
+        assert_eq!(FormatterKind::from_name("unknown"), FormatterKind::Unknown);
+    }
+
+    #[test]
+    fn type_kind_round_trips_known_names() {
+        for &kind in TypeKind::all() {
+            assert_eq!(TypeKind::from_name(kind.as_str()), Some(kind));
+        }
+        assert_eq!(TypeKind::from_name("Void"), None);
+    }
+}

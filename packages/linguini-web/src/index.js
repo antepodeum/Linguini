@@ -535,14 +535,13 @@ function matchLocale(locales, value, baseLocale) {
   const candidates = Array.isArray(value) ? value : [value];
   for (const candidate of candidates) {
     if (typeof candidate !== "string") continue;
-    const exact = locales.find((locale) => locale.toLowerCase() === candidate.toLowerCase());
-    if (exact) return exact;
-    const language = candidate.toLowerCase().split("-")[0];
-    const languageMatch = locales.find((locale) => {
-      const normalized = locale.toLowerCase();
-      return normalized === language || normalized.startsWith(`${language}-`);
-    });
-    if (languageMatch) return languageMatch;
+    let tag = candidate;
+    while (tag) {
+      const exact = locales.find((locale) => locale.toLowerCase() === tag.toLowerCase());
+      if (exact) return exact;
+      const dash = tag.lastIndexOf("-");
+      tag = dash > 0 ? tag.slice(0, dash) : "";
+    }
   }
   return undefined;
 }

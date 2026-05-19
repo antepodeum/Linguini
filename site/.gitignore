@@ -21,3 +21,6 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Linguini codegen (built by vite-plugin-linguini / linguini build)
+src/lib/generated/linguini/

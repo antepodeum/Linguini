@@ -32,6 +32,13 @@ form SizeWord(Size) {
   big => 大
 }
 
+form GenderPronoun(Gender) {
+  male => 他
+  female => 她
+  neuter => 它
+  _ => 它
+}
+
 form GenderWord(Gender) {
   male => 阳性
   female => 阴性
@@ -51,20 +58,35 @@ locale_label = 语言
 hero_eyebrow = 面向产品团队的类型化本地化
 hero_title = Linguini
 hero_copy = 一种编译型本地化语言，把 schema、locale 语法、CLDR 格式化、SvelteKit hooks、cookie 和本地化路由放在同一个生成流程里。
+hero_trait_typed = 类型化
+hero_trait_compiled = 编译型
+hero_trait_native = 原生
 primary_cta = 阅读文档
 secondary_cta = 查看 GitHub
-schema_chip = schema 定义契约
-locale_chip = locale 定义语言
-generated_chip = app 导入生成代码
-proof_kicker = Pipeline
-proof_title = 从 schema 到 SvelteKit 的真实 Linguini
-feature_schema = 页面文本、enum、TypeKind aliases 和 formatter defaults 都在 .lgs 文件中。
-feature_locale = Locale 文件实现 plural、gender、size、forms 和 functions，无需 runtime parsing。
-feature_cldr = Number、currency 和 date 示例使用 Linguini 生成的 CLDR formatters。
-feature_web = SvelteKit hooks 把 locale 保存到 cookie，并使用 /en/... 和 /ru/... 路由。
-sample_kicker = 生成输出
-sample_title = 在 schema 中定义格式化，locale 不需要重复
-reference_cta = 参考
+codegen_kicker = 代码生成
+codegen_title = 一份 schema，为每个运行时生成类型化输出
+codegen_intro = Linguini 一次性分析 .lgs 契约与 .lgl 语言逻辑，然后在构建期生成目标模块，内置 CLDR 格式化、复数选择器与框架适配器。
+codegen_ts_title = TypeScript / ESM
+codegen_ts_desc = 类型化消息函数、共享 runtime、声明文件，以及按 locale 的可选 tree shaking。
+codegen_svelte_title = Svelte 5 + SvelteKit
+codegen_svelte_desc = 生成 l rune、切换 locale、localizeHref 辅助函数，以及 handle / reroute / load 导出。
+codegen_planned_title = 计划中的目标
+codegen_rust = Rust
+codegen_kotlin = Kotlin
+codegen_swift = Swift
+codegen_go = Go
+codegen_python = Python
+codegen_csharp = C#
+codegen_status_shipped = 已发布
+codegen_status_planned = 计划中
+web_kicker = SvelteKit
+web_title = Web 集成
+web_intro = 生成的 hooks 连接 locale 检测、路由、cookie 与响应式消息，无需手写胶水代码。
+web_routing = 通过 reroute 生成本地化路径（/pt-BR/...）；可为默认 locale 添加前缀。
+web_cookie = Cookie 与 localStorage 在访问之间保留所选 locale。
+web_fallback = 区域标签继承缺失文案（pt-BR → pt → en）。
+web_reactivity = l rune 随 locale 变化更新；客户端自动本地化链接。
+web_links = data-linguini-ignore 可让单个链接跳过自动本地化。
 playground_kicker = 实时 Playground
 playground_title = 修改 count、fruit、size、gender、amount、date 或 locale。
 count_label = 数量
@@ -77,7 +99,7 @@ localized_path_label = 本地化路由
 cookie_label = Cookie
 route_label = 路由前缀
 
-playground_sentence = {Delivered(count, gender)} {count} 个 {SizeWord(size)} {fruit.nom(count)}，性别形式 {GenderWord(gender)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
+playground_sentence = {Delivered(count, gender)} {count} 个 {SizeWord(size)} {fruit.nom(count)}，指代 {GenderPronoun(gender)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
 cart_summary = 购物车中有 {count} 个 {fruit.nom(count)}
 number_format = 数字格式：{value}
 currency_format = 货币格式：{amount @currency(code = "CNY")}

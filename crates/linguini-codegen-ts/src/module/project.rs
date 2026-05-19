@@ -56,10 +56,11 @@ pub fn generate_project_index(
     output.push_str("export type Linguini = (typeof localeModules)[LinguiniLanguage];\n\n");
     output.push_str("type LinguiniLanguageInput = LinguiniLanguage;\n\n");
     push_runtime_types(&mut output);
+    push_locale_fallback_runtime(&mut output);
     output
         .push_str("export function createLinguini(language: LinguiniLanguageInput): Linguini {\n");
     output.push_str("  const locale = normalizeLocale(language) ?? baseLocale;\n");
-    output.push_str("  return localeModules[locale as LinguiniLanguage];\n");
+    output.push_str("  return mergeLocaleChain(localeFallbackChain(locale));\n");
     output.push_str("}\n\n");
     output.push_str("export function createLinguiniProvider(options: LinguiniProviderOptions = {}): Linguini {\n");
     output.push_str(
@@ -255,15 +256,71 @@ fn push_runtime_types(output: &mut String) {
     output.push_str("};\n\n");
 }
 
+fn push_locale_fallback_runtime(output: &mut String) {
+    output.push_str(
+        "function localeFallbackTags(locale: string): string[] {\n\
+           const tags: string[] = [];\n\
+           let tag = locale;\n\
+           while (tag) {\n\
+             tags.push(tag);\n\
+             const dash = tag.lastIndexOf(\"-\");\n\
+             if (dash <= 0) break;\n\
+             tag = tag.slice(0, dash);\n\
+           }\n\
+           return tags;\n\
+         }\n\n\
+         function localeFallbackChain(locale: Locale): Locale[] {\n\
+           const chain: Locale[] = [];\n\
+           for (const tag of localeFallbackTags(locale)) {\n\
+             const exact = locales.find((entry) => entry.toLowerCase() === tag.toLowerCase());\n\
+             if (exact && !chain.includes(exact)) chain.push(exact);\n\
+           }\n\
+           if (!chain.includes(baseLocale)) chain.push(baseLocale);\n\
+           return chain;\n\
+         }\n\n\
+         function mergeLocaleChain(chain: Locale[]): Linguini {\n\
+           let merged = {} as Linguini;\n\
+           for (const locale of [...chain].reverse()) {\n\
+             merged = mergeLocaleModule(merged, localeModules[locale as LinguiniLanguage]);\n\
+           }\n\
+           return merged;\n\
+         }\n\n\
+         function mergeLocaleModule(target: Linguini, source: Linguini): Linguini {\n\
+           const result = { ...target } as Linguini;\n\
+           for (const key of Object.keys(source) as (keyof Linguini)[]) {\n\
+             const value = source[key];\n\
+             const existing = target[key];\n\
+             if (\n\
+               value &&\n\
+               typeof value === \"object\" &&\n\
+               !Array.isArray(value) &&\n\
+               typeof (value as { call?: unknown }).call !== \"function\" &&\n\
+               existing &&\n\
+               typeof existing === \"object\" &&\n\
+               !Array.isArray(existing) &&\n\
+               typeof (existing as { call?: unknown }).call !== \"function\"\n\
+             ) {\n\
+               result[key] = mergeLocaleModule(existing as Linguini, value as Linguini) as Linguini[keyof Linguini];\n\
+             } else {\n\
+               result[key] = value;\n\
+             }\n\
+           }\n\
+           return result;\n\
+         }\n\n",
+    );
+}
+
 fn push_runtime_functions(output: &mut String) {
     output.push_str("\nexport function isLocale(locale: unknown): locale is Locale {\n");
     output.push_str("  return normalizeLocale(locale) !== undefined;\n");
     output.push_str("}\n\n");
     output.push_str("export function normalizeLocale(locale: unknown): Locale | undefined {\n");
     output.push_str("  if (typeof locale !== \"string\") return undefined;\n");
-    output.push_str("  if (locales.includes(locale as Locale)) return locale as Locale;\n");
-    output.push_str("  const language = locale.toLowerCase().split(\"-\")[0];\n");
-    output.push_str("  return locales.find((candidate) => candidate.toLowerCase() === language || candidate.toLowerCase().startsWith(`${language}-`));\n");
+    output.push_str("  for (const tag of localeFallbackTags(locale)) {\n");
+    output.push_str("    const exact = locales.find((entry) => entry.toLowerCase() === tag.toLowerCase());\n");
+    output.push_str("    if (exact) return exact;\n");
+    output.push_str("  }\n");
+    output.push_str("  return undefined;\n");
     output.push_str("}\n\n");
     output.push_str("export function getTextDirection(locale: Locale): TextDirection {\n");
     output.push_str("  return localeDirections[normalizeLocale(locale) ?? baseLocale];\n");

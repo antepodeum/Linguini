@@ -11,6 +11,22 @@ fn built_in_text_directions_are_generated_from_cldr_layout_data() {
 }
 
 #[test]
+fn compiled_cldr_data_falls_back_to_parent_locale_tags() {
+    let portuguese = compiled_number_formatting("pt").expect("pt compiled");
+    let brazil = compiled_number_formatting("pt-BR").expect("pt-BR falls back to pt");
+
+    assert_eq!(brazil.decimal_symbol, portuguese.decimal_symbol);
+    assert_eq!(brazil.group_symbol, portuguese.group_symbol);
+    assert_eq!(
+        compiled_plural_rules("pt-BR")
+            .expect("pt-BR plural rules")
+            .locale,
+        "pt"
+    );
+    assert_eq!(built_in_text_direction("pt-BR"), built_in_text_direction("pt"));
+}
+
+#[test]
 fn compiled_plural_rules_need_no_runtime_json() {
     let english = compiled_plural_rules("en").expect("en compiled");
     let russian = compiled_plural_rules("ru").expect("ru compiled");

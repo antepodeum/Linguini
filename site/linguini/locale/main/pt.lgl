@@ -1,0 +1,145 @@
+impl Fruit {
+  apple {
+    Gender = neuter
+    emoji = 🍎
+
+    form nom(Plural) {
+      one => maçã
+      _ => maçãs
+    }
+  }
+
+  pear {
+    Gender = female
+    emoji = 🍐
+
+    form nom(Plural) {
+      one => pera
+      _ => peras
+    }
+  }
+
+  orange {
+    Gender = male
+    emoji = 🍊
+
+    form nom(Plural) {
+      one => laranja
+      _ => laranjas
+    }
+  }
+}
+
+form SizeAdj(Size, Plural, Gender) {
+  small {
+    one {
+      male => pequeno
+      female => pequena
+      neuter => pequeno
+      _ => pequeno
+    }
+    _ {
+      male => pequenos
+      female => pequenas
+      neuter => pequenos
+      _ => pequenos
+    }
+  }
+  big {
+    one {
+      male => grande
+      female => grande
+      neuter => grande
+      _ => grande
+    }
+    _ {
+      male => grandes
+      female => grandes
+      neuter => grandes
+      _ => grandes
+    }
+  }
+  _ => normais
+}
+
+form SizeWord(Size) {
+  small => pequeno
+  big => grande
+}
+
+form GenderPronoun(Gender) {
+  male => ele
+  female => ela
+  neuter => ele
+  _ => ele
+}
+
+form GenderWord(Gender) {
+  male => masculino
+  female => feminino
+  neuter => neutro
+  _ => neutro
+}
+
+form Delivered(Plural, Gender) {
+  one => Entregue
+  _ => Entregues
+}
+
+nav_why = Porquê
+nav_language = Idioma
+nav_codegen = Codegen
+nav_web = Web
+locale_label = Idioma
+hero_eyebrow = Localização tipada para equipas de produto
+hero_title = Linguini
+hero_copy = Uma linguagem de localização compilada em que esquemas, gramática, formatação CLDR e integração web saem de uma única fonte.
+hero_trait_typed = Tipado
+hero_trait_compiled = Compilado
+hero_trait_native = Nativo
+primary_cta = Ler a documentação
+secondary_cta = Ver no GitHub
+codegen_kicker = Geração de código
+codegen_title = Um esquema, saída tipada para cada runtime
+codegen_intro = O Linguini analisa contratos .lgs e lógica .lgl uma vez e emite módulos com formatadores CLDR e adaptadores de framework no build.
+codegen_ts_title = TypeScript / ESM
+codegen_ts_desc = Funções de mensagem tipadas, runtime partilhado e declarações TypeScript.
+codegen_svelte_title = Svelte 5 + SvelteKit
+codegen_svelte_desc = Rune l gerado, troca de locale e exports handle / reroute / load.
+codegen_planned_title = Alvos planeados
+codegen_rust = Rust
+codegen_kotlin = Kotlin
+codegen_swift = Swift
+codegen_go = Go
+codegen_python = Python
+codegen_csharp = C#
+codegen_status_shipped = Disponível
+codegen_status_planned = Planeado
+web_kicker = SvelteKit
+web_title = Integração web
+web_intro = Hooks gerados ligam deteção de locale, rotas, cookies e mensagens reativas sem código glue manual.
+web_routing = Caminhos localizados (/pt-BR/...) via reroute; prefixo opcional para a locale por defeito.
+web_cookie = Cookie e localStorage mantêm a locale entre visitas.
+web_fallback = Tags regionais herdam texto em falta (pt-BR → pt → en).
+web_reactivity = O rune l reage à mudança de locale; ligações localizam-se no cliente.
+web_links = data-linguini-ignore exclui uma ligação da localização automática.
+playground_kicker = Playground ao vivo
+playground_title = Altere count, fruit, size, gender, amount, date ou locale.
+count_label = Quantidade
+fruit_label = Fruta
+size_label = Tamanho
+gender_label = Género
+amount_label = Valor
+date_label = Data
+localized_path_label = Rota localizada
+cookie_label = Cookie
+route_label = Prefixo da rota
+
+playground_sentence = {Delivered(count, gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} para {GenderPronoun(gender)}. Total {amount @currency(code = "EUR")}; data {date}.
+cart_summary = O carrinho tem {count} {fruit.nom(count)}
+number_format = Formato numérico: {value}
+currency_format = Formato de moeda: {amount @currency(code = "EUR")}
+date_format = Formato de data: {date}
+override_format = Locale override: {amount @number} / {date @date(style = "long")}
+gender_line = Forma de género: {GenderWord(gender)}
+size_line = Forma de tamanho: {SizeWord(size)}

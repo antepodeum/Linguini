@@ -30,9 +30,48 @@ impl Fruit {
   }
 }
 
+form SizeAdj(Size, Plural, Gender) {
+  small {
+    one {
+      male => pequeño
+      female => pequeña
+      neuter => pequeño
+      _ => pequeño
+    }
+    _ {
+      male => pequeños
+      female => pequeñas
+      neuter => pequeños
+      _ => pequeños
+    }
+  }
+  big {
+    one {
+      male => grande
+      female => grande
+      neuter => grande
+      _ => grande
+    }
+    _ {
+      male => grandes
+      female => grandes
+      neuter => grandes
+      _ => grandes
+    }
+  }
+  _ => normales
+}
+
 form SizeWord(Size) {
   small => pequeño
   big => grande
+}
+
+form GenderPronoun(Gender) {
+  male => él
+  female => ella
+  neuter => ello
+  _ => ello
 }
 
 form GenderWord(Gender) {
@@ -55,20 +94,35 @@ locale_label = Idioma
 hero_eyebrow = Localización tipada para equipos de producto
 hero_title = Linguini
 hero_copy = Un lenguaje de localización compilado donde esquemas, gramática, formato CLDR, hooks de SvelteKit, cookies y rutas localizadas se generan desde una sola fuente.
+hero_trait_typed = Tipado
+hero_trait_compiled = Compilado
+hero_trait_native = Nativo
 primary_cta = Leer docs
 secondary_cta = Ver GitHub
-schema_chip = el esquema define el contrato
-locale_chip = la locale define el idioma
-generated_chip = la app importa código generado
-proof_kicker = Pipeline
-proof_title = Linguini real desde esquema hasta SvelteKit
-feature_schema = El texto, enum, TypeKind aliases y formatter defaults viven en archivos .lgs.
-feature_locale = Las locales implementan plural, género, tamaño, forms y functions sin runtime parsing.
-feature_cldr = Los ejemplos de number, currency y date usan CLDR formatters generados por Linguini.
-feature_web = Los hooks de SvelteKit guardan la locale en cookie y enrutan como /en/... y /ru/....
-sample_kicker = Salida generada
-sample_title = Formato en esquema sin ruido en locale
-reference_cta = Referencia
+codegen_kicker = Generación de código
+codegen_title = Un esquema, salida tipada para cada runtime
+codegen_intro = Linguini analiza contratos .lgs y lógica .lgl una vez, luego emite módulos específicos con formateadores CLDR, selectores plurales y adaptadores de framework en tiempo de compilación.
+codegen_ts_title = TypeScript / ESM
+codegen_ts_desc = Funciones de mensajes tipadas, runtime compartido, archivos de declaración y tree shaking opcional por locale.
+codegen_svelte_title = Svelte 5 + SvelteKit
+codegen_svelte_desc = Rune l generado, cambio de locale, helpers localizeHref y exports handle / reroute / load.
+codegen_planned_title = Targets planificados
+codegen_rust = Rust
+codegen_kotlin = Kotlin
+codegen_swift = Swift
+codegen_go = Go
+codegen_python = Python
+codegen_csharp = C#
+codegen_status_shipped = Disponible
+codegen_status_planned = Planificado
+web_kicker = SvelteKit
+web_title = Integración web
+web_intro = Hooks generados conectan detección de locale, rutas, cookies y mensajes reactivos sin código glue manual.
+web_routing = Rutas localizadas (/pt-BR/...) con reroute; prefijo opcional para la locale por defecto.
+web_cookie = Cookie y localStorage conservan la locale entre visitas.
+web_fallback = Etiquetas regionales heredan textos faltantes (pt-BR → pt → en).
+web_reactivity = El rune l reacciona al cambio de locale; los enlaces se localizan en el cliente.
+web_links = data-linguini-ignore excluye un enlace de la localización automática.
 playground_kicker = Playground en vivo
 playground_title = Cambia count, fruit, size, gender, amount, date o locale.
 count_label = Cantidad
@@ -81,7 +135,7 @@ localized_path_label = Ruta localizada
 cookie_label = Cookie
 route_label = Prefijo de ruta
 
-playground_sentence = {Delivered(count, gender)} {count} {SizeWord(size)} {fruit.nom(count)} para un elemento {GenderWord(gender)}. Total {amount @currency(code = "EUR")}; fecha {date}.
+playground_sentence = {Delivered(count, gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} para {GenderPronoun(gender)}. Total {amount @currency(code = "EUR")}; fecha {date}.
 cart_summary = El carrito tiene {count} {fruit.nom(count)}
 number_format = Formato numérico: {value}
 currency_format = Formato moneda: {amount @currency(code = "EUR")}

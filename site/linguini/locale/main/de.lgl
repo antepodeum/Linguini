@@ -30,9 +30,38 @@ impl Fruit {
   }
 }
 
+form SizeAdj(Size, Plural, Gender) {
+  small {
+    one {
+      male => kleiner
+      female => kleine
+      neuter => kleines
+      _ => kleiner
+    }
+    _ => kleine
+  }
+  big {
+    one {
+      male => großer
+      female => große
+      neuter => großes
+      _ => großer
+    }
+    _ => große
+  }
+  _ => normale
+}
+
 form SizeWord(Size) {
   small => klein
   big => groß
+}
+
+form GenderPronoun(Gender) {
+  male => ihn
+  female => sie
+  neuter => es
+  _ => es
 }
 
 form GenderWord(Gender) {
@@ -55,20 +84,35 @@ locale_label = Sprache
 hero_eyebrow = Typisierte Lokalisierung für Produktteams
 hero_title = Linguini
 hero_copy = Eine kompilierte Lokalisierungssprache, in der Schemas, Grammatik, CLDR-Formatierung, SvelteKit-Hooks, Cookies und lokalisierte Routen aus einer Quelle entstehen.
+hero_trait_typed = Typisiert
+hero_trait_compiled = Kompiliert
+hero_trait_native = Nativ
 primary_cta = Docs lesen
 secondary_cta = GitHub ansehen
-schema_chip = Schema definiert Vertrag
-locale_chip = Locale definiert Sprache
-generated_chip = App importiert generierten Code
-proof_kicker = Pipeline
-proof_title = Echtes Linguini vom Schema bis SvelteKit
-feature_schema = Seitentexte, enums, TypeKind aliases und formatter defaults liegen in .lgs Dateien.
-feature_locale = Locales implementieren plural, gender, size, forms und functions ohne runtime parsing.
-feature_cldr = Number, currency und date Beispiele nutzen von Linguini generierte CLDR formatters.
-feature_web = SvelteKit hooks speichern Locale im Cookie und routen als /en/... und /ru/....
-sample_kicker = Generierte Ausgabe
-sample_title = Formatierung im Schema ohne Locale-Rauschen
-reference_cta = Referenz
+codegen_kicker = Codegenerierung
+codegen_title = Ein Schema, typisierte Ausgabe für jeden Runtime
+codegen_intro = Linguini analysiert .lgs-Verträge und .lgl-Locale-Logik einmal und erzeugt dann zielspezifische Module mit CLDR-Formatierern, Plural-Selektoren und Framework-Adaptern zur Build-Zeit.
+codegen_ts_title = TypeScript / ESM
+codegen_ts_desc = Typisierte Message-Funktionen, gemeinsamer Runtime, Deklarationsdateien und optionales Tree-Shaking pro Locale.
+codegen_svelte_title = Svelte 5 + SvelteKit
+codegen_svelte_desc = Generierter l-Rune, Locale-Wechsel, localizeHref-Helfer und handle / reroute / load-Exports.
+codegen_planned_title = Geplante Targets
+codegen_rust = Rust
+codegen_kotlin = Kotlin
+codegen_swift = Swift
+codegen_go = Go
+codegen_python = Python
+codegen_csharp = C#
+codegen_status_shipped = Verfügbar
+codegen_status_planned = Geplant
+web_kicker = SvelteKit
+web_title = Web-Integration
+web_intro = Generierte Hooks verbinden Locale-Erkennung, Routing, Cookies und reaktive Messages ohne manuelles Glue.
+web_routing = Lokalisierte Pfade (/pt-BR/...) per reroute; optionaler Präfix für die Standard-Locale.
+web_cookie = Cookie und localStorage behalten die gewählte Locale über Besuche hinweg.
+web_fallback = Regionale Tags erben fehlende Texte von Eltern-Locales (pt-BR → pt → en).
+web_reactivity = Der l-Rune aktualisiert sich bei Locale-Wechsel; Links werden clientseitig lokalisiert.
+web_links = data-linguini-ignore schließt einen Link von der Auto-Lokalisierung aus.
 playground_kicker = Live Playground
 playground_title = Ändere count, fruit, size, gender, amount, date oder locale.
 count_label = Anzahl
@@ -81,7 +125,7 @@ localized_path_label = Lokalisierte Route
 cookie_label = Cookie
 route_label = Route-Präfix
 
-playground_sentence = {Delivered(count, gender)} {count} {SizeWord(size)} {fruit.nom(count)} für ein {GenderWord(gender)} Element. Summe {amount @currency(code = "EUR")}; Datum {date}.
+playground_sentence = {Delivered(count, gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} für {GenderPronoun(gender)}. Summe {amount @currency(code = "EUR")}; Datum {date}.
 cart_summary = Warenkorb enthält {count} {fruit.nom(count)}
 number_format = Zahlenformat: {value}
 currency_format = Währungsformat: {amount @currency(code = "EUR")}

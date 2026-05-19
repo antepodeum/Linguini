@@ -22,11 +22,11 @@
       'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
       size === 'sm' ? 'h-9 px-4' : 'h-11 px-5',
       variant === 'primary' &&
-        'border-primary bg-primary text-primary-foreground shadow-soft hover:-translate-y-0.5 hover:bg-foreground',
+        'border-primary bg-primary text-primary-foreground hover:bg-primary/90',
       variant === 'secondary' &&
-        'border-border bg-white/70 text-foreground hover:-translate-y-0.5 hover:border-foreground/30',
+        'border-border bg-muted text-foreground hover:border-primary/40 hover:bg-muted/80',
       variant === 'ghost' &&
-        'border-transparent bg-transparent text-foreground hover:bg-white/70',
+        'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
       className
     )
   );
