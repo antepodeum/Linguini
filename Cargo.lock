@@ -532,6 +532,10 @@ name = "linguini-config"
 version = "0.1.0-alpha.3"
 
 [[package]]
+name = "linguini-core"
+version = "0.1.0-alpha.3"
+
+[[package]]
 name = "linguini-format"
 version = "0.1.0-alpha.3"
 dependencies = [
@@ -542,6 +546,7 @@ dependencies = [
 name = "linguini-ir"
 version = "0.1.0-alpha.3"
 dependencies = [
+ "linguini-core",
  "linguini-syntax",
 ]
 
@@ -575,6 +580,7 @@ name = "linguini-schema"
 version = "0.1.0-alpha.3"
 dependencies = [
  "linguini-analyzer",
+ "linguini-core",
  "linguini-syntax",
 ]
 
@@ -583,6 +589,7 @@ name = "linguini-syntax"
 version = "0.1.0-alpha.3"
 dependencies = [
  "chumsky",
+ "linguini-core",
 ]
 
 [[package]]

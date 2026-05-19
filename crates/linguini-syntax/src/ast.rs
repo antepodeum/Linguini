@@ -1,4 +1,5 @@
 use crate::Span;
+pub use linguini_core::FormatterKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Name {
@@ -87,34 +88,6 @@ pub struct Annotation {
     pub kind: FormatterKind,
     pub arguments: Vec<AnnotationArgument>,
     pub span: Span,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FormatterKind {
-    Number,
-    Currency,
-    Date,
-    Unknown,
-}
-
-impl FormatterKind {
-    pub fn from_name(value: &str) -> Self {
-        match value {
-            "number" => Self::Number,
-            "currency" => Self::Currency,
-            "date" => Self::Date,
-            _ => Self::Unknown,
-        }
-    }
-
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Number => "number",
-            Self::Currency => "currency",
-            Self::Date => "date",
-            Self::Unknown => "unknown",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

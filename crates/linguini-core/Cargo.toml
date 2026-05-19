@@ -1,0 +1,10 @@
+[package]
+name = "linguini-core"
+version = "0.1.0-alpha.3"
+description = "Shared core types for Linguini"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]

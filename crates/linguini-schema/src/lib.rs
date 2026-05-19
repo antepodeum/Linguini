@@ -1,4 +1,5 @@
 use linguini_analyzer::Diagnostic;
+use linguini_core::TypeKind;
 use linguini_syntax::{
     DocComment, MessageSignature, Name, Parameter, SchemaDeclaration, SchemaFile, Span,
     TypeAliasDeclaration,
@@ -207,9 +208,9 @@ impl SchemaSymbolBuilder {
     }
 
     fn known_types(&self) -> BTreeSet<String> {
-        ["String", "Number", "Decimal", "Date", "Boolean"]
-            .into_iter()
-            .map(str::to_owned)
+        TypeKind::all()
+            .iter()
+            .map(|kind| kind.as_str().to_owned())
             .chain(self.symbols.enums.keys().cloned())
             .chain(self.symbols.type_aliases.keys().cloned())
             .collect()

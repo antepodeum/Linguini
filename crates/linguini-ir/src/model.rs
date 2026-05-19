@@ -1,3 +1,5 @@
+pub use linguini_core::FormatterKind as IrFormatterKind;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct IrModule {
     pub enums: Vec<IrEnum>,
@@ -115,25 +117,6 @@ pub struct IrExpression {
 pub struct IrFormatter {
     pub kind: IrFormatterKind,
     pub arguments: Vec<IrFormatterArgument>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IrFormatterKind {
-    Number,
-    Currency,
-    Date,
-    Unknown,
-}
-
-impl IrFormatterKind {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Number => "number",
-            Self::Currency => "currency",
-            Self::Date => "date",
-            Self::Unknown => "unknown",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

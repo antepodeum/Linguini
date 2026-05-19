@@ -8,4 +8,5 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+linguini-core = { path = "../linguini-core", version = "0.1.0-alpha.3" }
 linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.3" }

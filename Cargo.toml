@@ -9,6 +9,7 @@ members = [
   "crates/linguini-codegen-rust",
   "crates/linguini-codegen-ts",
   "crates/linguini-config",
+  "crates/linguini-core",
   "crates/linguini-format",
   "crates/linguini-ir",
   "crates/linguini-locale",
