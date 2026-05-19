@@ -4,7 +4,11 @@ use linguini_ir::{
 };
 
 pub fn module_uses_formatters(module: &IrModule) -> bool {
-    module.messages.iter().any(message_uses_formatters)
+    module
+        .type_aliases
+        .iter()
+        .any(|alias| !alias.formatters.is_empty())
+        || module.messages.iter().any(message_uses_formatters)
         || module.forms.iter().any(|form| {
             form.variants
                 .iter()

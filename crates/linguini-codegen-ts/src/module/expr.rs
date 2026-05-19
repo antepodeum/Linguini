@@ -43,12 +43,13 @@ pub fn map_expression(branches: &[IrBranch], options: &TypeScriptOptions) -> Str
 }
 
 pub fn text_expression(text: &IrText, options: &TypeScriptOptions) -> String {
-    text_expression_with_context(text, &BTreeMap::new(), options)
+    text_expression_with_context(text, &BTreeMap::new(), &BTreeMap::new(), options)
 }
 
 pub fn text_expression_with_context(
     text: &IrText,
     context: &BTreeMap<String, String>,
+    default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
 ) -> String {
     let parts = text
@@ -56,7 +57,9 @@ pub fn text_expression_with_context(
         .iter()
         .map(|part| match part {
             IrTextPart::Text(raw) => string_literal(raw),
-            IrTextPart::Placeholder(expression) => expression_string(expression, context, options),
+            IrTextPart::Placeholder(expression) => {
+                expression_string(expression, context, default_formatters, options)
+            }
         })
         .collect::<Vec<_>>();
 
@@ -89,10 +92,20 @@ fn branch_items(branches: &[IrBranch], options: &TypeScriptOptions) -> String {
 fn expression_string(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
+    default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
 ) -> String {
     let value = expression_value(expression, context, options);
-    let formatted = apply_formatters(value, &expression.formatters, options);
+    let formatters = if expression.formatters.is_empty() {
+        expression
+            .path
+            .first()
+            .and_then(|name| default_formatters.get(name))
+            .map_or(expression.formatters.as_slice(), Vec::as_slice)
+    } else {
+        expression.formatters.as_slice()
+    };
+    let formatted = apply_formatters(value, formatters, options);
     format!("String({formatted})")
 }
 

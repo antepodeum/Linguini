@@ -290,7 +290,7 @@ pub fn generate_typescript_module(
 ) -> String {
     let schema = visible_schema(schema, options);
     let mut output = String::new();
-    emit_imports(locale, options, &mut output);
+    emit_imports(&schema, locale, options, &mut output);
     emit::emit_plural_helpers(options, &mut output);
     emit_enums(&schema, &mut output);
     emit_type_aliases(&schema, &mut output);

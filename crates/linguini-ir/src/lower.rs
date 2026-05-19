@@ -57,6 +57,11 @@ pub fn lower_schema(schema: &SchemaFile) -> IrModule {
                 name: declaration.name.value.clone(),
                 target: declaration.target.value.clone(),
                 docs: docs(&declaration.docs),
+                formatters: declaration
+                    .annotations
+                    .iter()
+                    .map(lower_formatter)
+                    .collect(),
             }),
         }
     }

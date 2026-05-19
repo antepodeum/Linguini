@@ -14,6 +14,7 @@ pub struct IrTypeAlias {
     pub name: String,
     pub target: String,
     pub docs: Vec<String>,
+    pub formatters: Vec<IrFormatter>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

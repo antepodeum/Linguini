@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use linguini_ir::{IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrMessage, IrModule};
+use linguini_ir::{
+    IrFormatter, IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrMessage, IrModule,
+};
 
 use super::expr::{form_object, is_static_text, text_expression, text_expression_with_context};
 use super::formatters::module_uses_formatters;
@@ -17,10 +19,15 @@ pub struct ModuleExports {
     pub groups: Vec<String>,
 }
 
-pub fn emit_imports(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    let uses_forms = !module.forms.is_empty();
-    let uses_dispatch = !module.functions.is_empty();
-    let uses_formatters = module_uses_formatters(module);
+pub fn emit_imports(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+    output: &mut String,
+) {
+    let uses_forms = !locale.forms.is_empty();
+    let uses_dispatch = !locale.functions.is_empty();
+    let uses_formatters = module_uses_formatters(schema) || module_uses_formatters(locale);
     if uses_forms || uses_dispatch || uses_formatters {
         let mut imports = Vec::new();
         if uses_formatters {
@@ -140,13 +147,13 @@ pub fn emit_messages(
         if signature.name.contains('.') {
             continue;
         }
-        if emit_message_function(signature, locale, options, output) {
+        if emit_message_function(schema, signature, locale, options, output) {
             exports.top_level.push(function_name(&signature.name));
         }
     }
 
     for (group, messages) in nested.children {
-        emit_message_object(&group, &messages, locale, options, output);
+        emit_message_object(schema, &group, &messages, locale, options, output);
         exports.groups.push(group);
     }
 
@@ -281,6 +288,7 @@ pub fn emit_index(options: &TypeScriptOptions, output: &mut String) {
 }
 
 fn emit_message_function(
+    schema: &IrModule,
     signature: &IrMessage,
     locale: &IrModule,
     options: &TypeScriptOptions,
@@ -293,7 +301,7 @@ fn emit_message_function(
         output.push_str(&format!("/** {} */\n", escape_comment(doc)));
     }
     let params = signature_params(signature);
-    let body = message_body(signature, implementation, options);
+    let body = message_body(schema, signature, implementation, options);
     output.push_str(&format!(
         "export function {}({params}): string {{\n  return {body};\n}}\n\n",
         function_name(&signature.name)
@@ -302,6 +310,7 @@ fn emit_message_function(
 }
 
 fn emit_message_object(
+    schema: &IrModule,
     name: &str,
     tree: &MessageTree,
     locale: &IrModule,
@@ -309,11 +318,12 @@ fn emit_message_object(
     output: &mut String,
 ) {
     output.push_str(&format!("export const {name} = "));
-    emit_object_literal(tree, locale, options, 0, output);
+    emit_object_literal(schema, tree, locale, options, 0, output);
     output.push_str(" as const;\n\n");
 }
 
 fn emit_object_literal(
+    schema: &IrModule,
     tree: &MessageTree,
     locale: &IrModule,
     options: &TypeScriptOptions,
@@ -328,13 +338,13 @@ fn emit_object_literal(
             output.push_str(&format!(
                 "{child_indent}{}: {},\n",
                 property_key(&entry.property),
-                group_property_value(&entry.signature, implementation, options)
+                group_property_value(schema, &entry.signature, implementation, options)
             ));
         }
     }
     for (name, child) in &tree.children {
         output.push_str(&format!("{child_indent}{}: ", property_key(name)));
-        emit_object_literal(child, locale, options, depth + 1, output);
+        emit_object_literal(schema, child, locale, options, depth + 1, output);
         output.push_str(",\n");
     }
     output.push_str(&indent);
@@ -342,6 +352,7 @@ fn emit_object_literal(
 }
 
 fn group_property_value(
+    schema: &IrModule,
     signature: &IrMessage,
     implementation: &IrMessage,
     options: &TypeScriptOptions,
@@ -355,12 +366,13 @@ fn group_property_value(
         format!(
             "({}) => {}",
             signature_params(signature),
-            message_body(signature, implementation, options)
+            message_body(schema, signature, implementation, options)
         )
     }
 }
 
 fn message_body(
+    schema: &IrModule,
     signature: &IrMessage,
     implementation: &IrMessage,
     options: &TypeScriptOptions,
@@ -370,11 +382,30 @@ fn message_body(
         .iter()
         .map(|parameter| (parameter.name.clone(), parameter.ty.clone()))
         .collect::<BTreeMap<_, _>>();
+    let default_formatters = parameter_formatters(schema, signature);
     implementation
         .body
         .as_ref()
-        .map(|body| text_expression_with_context(body, &context, options))
+        .map(|body| text_expression_with_context(body, &context, &default_formatters, options))
         .unwrap_or_else(|| "\"\"".to_owned())
+}
+
+fn parameter_formatters(
+    schema: &IrModule,
+    signature: &IrMessage,
+) -> BTreeMap<String, Vec<IrFormatter>> {
+    signature
+        .parameters
+        .iter()
+        .filter_map(|parameter| {
+            schema
+                .type_aliases
+                .iter()
+                .find(|alias| alias.name == parameter.ty)
+                .filter(|alias| !alias.formatters.is_empty())
+                .map(|alias| (parameter.name.clone(), alias.formatters.clone()))
+        })
+        .collect()
 }
 
 fn signature_params(signature: &IrMessage) -> String {

@@ -196,6 +196,60 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
 }
 
 #[test]
+fn project_codegen_applies_schema_formatter_aliases() {
+    let schema = lower_schema(
+        &parse_schema(
+            r#"
+type Price = Number @currency(code = "EUR")
+type ShortDate = Date @date(style = "short")
+total(price: Price, created: ShortDate)
+raw(price: Price)
+"#,
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            r#"
+total = Total {price} on {created}
+raw = Raw {price @number}
+"#,
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_typescript_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions::default(),
+    )
+    .expect("project codegen");
+
+    let locale_module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+    assert!(locale_module
+        .contents
+        .contains("import { formatCurrency, formatDate, formatNumber } from \"../shared\";"));
+    assert!(locale_module
+        .contents
+        .contains("formatCurrency(price, { locale: \"en\""));
+    assert!(locale_module
+        .contents
+        .contains("formatDate(created, { locale: \"en\""));
+    assert!(locale_module
+        .contents
+        .contains("export function raw(price: Price): string"));
+    assert!(locale_module
+        .contents
+        .contains("formatNumber(price, { locale: \"en\""));
+}
+
+#[test]
 fn project_codegen_emits_schema_namespace_objects() {
     use linguini_ir::{IrMessage, IrModule, IrText, IrTextPart};
 
