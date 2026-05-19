@@ -1,22 +1,42 @@
 import locale_en from "./locales/en";
 import locale_ru from "./locales/ru";
+import locale_es from "./locales/es";
+import locale_fr from "./locales/fr";
+import locale_de from "./locales/de";
+import locale_it from "./locales/it";
+import locale_zh from "./locales/zh";
 
-export const locales = ["en", "ru"] as const;
+export const locales = ["en", "ru", "es", "fr", "de", "it", "zh"] as const;
 export const baseLocale = "en";
 
 export const localeDirections = {
   en: "ltr",
   ru: "ltr",
+  es: "ltr",
+  fr: "ltr",
+  de: "ltr",
+  it: "ltr",
+  zh: "ltr",
 } as const;
 
 export const localeModules = {
   en: locale_en,
   ru: locale_ru,
+  es: locale_es,
+  fr: locale_fr,
+  de: locale_de,
+  it: locale_it,
+  zh: locale_zh,
 } as const;
 
 export const localeLoaders = {
   en: () => Promise.resolve(locale_en),
   ru: () => Promise.resolve(locale_ru),
+  es: () => Promise.resolve(locale_es),
+  fr: () => Promise.resolve(locale_fr),
+  de: () => Promise.resolve(locale_de),
+  it: () => Promise.resolve(locale_it),
+  zh: () => Promise.resolve(locale_zh),
 } as const;
 
 type LinguiniLanguage = keyof typeof localeModules;

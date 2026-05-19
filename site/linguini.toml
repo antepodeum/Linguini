@@ -1,7 +1,7 @@
 [project]
 name = "linguini-site"
 default_locale = "en"
-locales = ["en", "ru"]
+locales = ["en", "ru", "es", "fr", "de", "it", "zh"]
 
 [paths]
 schema = "linguini/schema"
