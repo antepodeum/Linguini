@@ -47,7 +47,7 @@ fn check_lists_discovered_files() {
     let locale_dir = project.path().join("locales/shop/delivery");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("delivery.lgs"), "delivery()\n").expect("schema file");
+    fs::write(schema_dir.join("delivery.lgs"), "delivery\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\n").expect("locale file");
 
     let output = check_project(project.path()).expect("check project");
@@ -110,7 +110,7 @@ fn check_reports_missing_schema_message_for_empty_locale_file() {
     let locale_dir = project.path().join("locales/shop/delivery");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("delivery.lgs"), "delivery()\n").expect("schema file");
+    fs::write(schema_dir.join("delivery.lgs"), "delivery\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "").expect("locale file");
 
     let error = check_project(project.path()).expect_err("check fails on missing message");
@@ -130,7 +130,7 @@ fn check_rejects_root_locale_file_for_schema_namespace() {
     let project = temp_project_dir("check_rejects_root_locale_file");
     init_project(project.path()).expect("init project");
 
-    fs::write(project.path().join("schema/shop.lgs"), "delivery()\n").expect("schema file");
+    fs::write(project.path().join("schema/shop.lgs"), "delivery\n").expect("schema file");
     fs::write(
         project.path().join("locales/en.lgl"),
         "delivery = Delivered\n",
@@ -173,7 +173,7 @@ declaration = true
     let locale_dir = project.path().join("locales/shop");
     fs::create_dir_all(&schema_dir).expect("schema dir");
     fs::create_dir_all(&locale_dir).expect("locale dir");
-    fs::write(schema_dir.join("shop.lgs"), "delivery()\ncounted()\n").expect("schema file");
+    fs::write(schema_dir.join("shop.lgs"), "delivery\ncounted\n").expect("schema file");
     fs::write(
         locale_dir.join("en.lgl"),
         "delivery = Delivered\ncounted = Counted\n",

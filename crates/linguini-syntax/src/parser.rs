@@ -260,6 +260,10 @@ where
                     messages,
                     span: extra.span(),
                 }),
+            empty().map_with(|_, extra| GroupOrMessage::Message {
+                parameters: Vec::new(),
+                span: extra.span(),
+            }),
         )))
         .map(|(name, body)| match body {
             GroupOrMessage::Message { parameters, span } => {
@@ -311,6 +315,7 @@ where
             span: extra.span(),
         })
         .separated_by(just(TokenKind::Comma))
+        .at_least(1)
         .allow_trailing()
         .collect::<Vec<_>>()
         .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen))

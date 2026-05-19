@@ -82,7 +82,7 @@ fn locale_analysis_accepts_wildcard_for_enum_branch_coverage() {
 
 #[test]
 fn locale_coverage_reports_missing_locale_doc_comment() {
-    let schema = parse_schema("/// Translator context\ndelivery()\n").expect("schema parses");
+    let schema = parse_schema("/// Translator context\ndelivery\n").expect("schema parses");
     let locale = parse_locale("delivery = Delivered\n").expect("locale parses");
 
     let diagnostics = analyze_locale_coverage(&schema, &locale);
@@ -97,7 +97,7 @@ fn locale_coverage_reports_missing_locale_doc_comment() {
 
 #[test]
 fn locale_coverage_groups_missing_schema_messages() {
-    let schema = parse_schema("delivery()\ncounted()\n").expect("schema parses");
+    let schema = parse_schema("delivery\ncounted\n").expect("schema parses");
     let locale = parse_locale("delivery = Delivered\n").expect("locale parses");
     let diagnostics = analyze_locale_coverage(&schema, &locale);
 
@@ -144,7 +144,7 @@ fn locale_coverage_groups_missing_grouped_schema_messages() {
 #[test]
 fn locale_message_coverage_uses_requested_warning_severity_for_missing_messages() {
     let diagnostics = analyze_locale_coverage_with_options(
-        &parse_schema("delivery()\n").expect("schema parses"),
+        &parse_schema("delivery\n").expect("schema parses"),
         &parse_locale("").expect("empty locale parses"),
         LocaleCoverageOptions {
             missing_message_severity: DiagnosticSeverity::Warning,

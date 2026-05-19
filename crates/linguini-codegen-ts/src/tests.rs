@@ -162,8 +162,7 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
         generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
     };
 
-    let schema =
-        lower_schema(&parse_schema("keep()\ndrop()\ngroup { label() help() }\n").expect("schema"));
+    let schema = lower_schema(&parse_schema("keep\ndrop\ngroup { label help }\n").expect("schema"));
     let locale = lower_locale(
         &parse_locale("keep = Keep\ndrop = Drop\ngroup {\n  label = Label\n  help = Help\n}\n")
             .expect("locale"),
@@ -189,8 +188,8 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
         .iter()
         .find(|file| file.path == "locales/en.ts")
         .expect("locale module");
-    assert!(locale_module.contents.contains("export function keep()"));
-    assert!(!locale_module.contents.contains("export function drop()"));
+    assert!(locale_module.contents.contains("export function keep"));
+    assert!(!locale_module.contents.contains("export function drop"));
     assert!(locale_module.contents.contains("label: \"Label\""));
     assert!(!locale_module.contents.contains("help: \"Help\""));
 }
