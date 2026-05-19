@@ -57,8 +57,14 @@ Define your messages and the types they work with:
 ```lgs
 // linguini/schema/main.lgs
 
+type Money = Decimal @currency(code = "USD")
+type ShortDate = Date @date(style = "short")
+
 /// Greeting shown on the home page.
 hello(name: String)
+
+/// Checkout total with schema-owned formatting.
+checkout_total(amount: Money, created: ShortDate)
 
 /// Error shown when a field is empty.
 field_required(field: String)
@@ -72,6 +78,7 @@ Implement the schema for each locale:
 // linguini/locale/main/en.lgl
 
 hello = Hello, {name}!
+checkout_total = Total {amount} on {created}
 field_required = {field} is required.
 ```
 
@@ -79,6 +86,7 @@ field_required = {field} is required.
 // linguini/locale/main/ru.lgl
 
 hello = Привет, {name}!
+checkout_total = Итого {amount} на {created}
 field_required = Поле «{field}» обязательно для заполнения.
 ```
 

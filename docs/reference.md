@@ -20,11 +20,29 @@ enum Size   { small, big }
 
 ### Type aliases
 
-Attach a formatter to a primitive type.
+Built-in primitive types are `String`, `Number`, `Decimal`, `Date`, and
+`Boolean`. They are represented internally by `TypeKind`, so parser, analyzer,
+IR, and codegen share one canonical type list.
+
+Attach a formatter to a primitive type to make formatting part of the schema
+contract. Locale files can then interpolate the value directly; generated code
+applies the schema formatter automatically.
 
 ```lgs
-type Money     = Decimal @currency
+type Money     = Decimal @currency(code = "EUR")
 type ShortDate = Date    @date(style = "short")
+
+checkout_total(amount: Money, created: ShortDate)
+```
+
+```lgl
+checkout_total = Total {amount} on {created}
+```
+
+Locale authors can still override formatting at the interpolation site:
+
+```lgl
+checkout_total = Total {amount @number} on {created @date(style = "long")}
 ```
 
 ### Messages

@@ -91,6 +91,7 @@ Include:
 crates/
   linguini-cli/
   linguini-config/
+  linguini-core/
   linguini-syntax/
   linguini-schema/
   linguini-locale/
@@ -111,6 +112,7 @@ Responsibilities:
 | ----------------------- | ------------------------------------------------------ |
 | `linguini-cli`          | command dispatch, user-facing CLI output               |
 | `linguini-config`       | `linguini.toml` model and validation                   |
+| `linguini-core`         | shared enums such as `TypeKind` and `FormatterKind`    |
 | `linguini-syntax`       | lexer, parser, CST/AST, spans                          |
 | `linguini-schema`       | schema AST model and schema symbol table               |
 | `linguini-locale`       | locale AST model and path-based scope loading          |
@@ -238,6 +240,44 @@ A parent scope file may contain:
 - imports
 - formatter overrides
 - package imports
+
+---
+
+## 4. Schema Types And Formatters
+
+The canonical primitive schema types are represented by `TypeKind`:
+
+| Type      | Meaning                         |
+| --------- | ------------------------------- |
+| `String`  | localized or user-provided text |
+| `Number`  | numeric value                   |
+| `Decimal` | decimal numeric value           |
+| `Date`    | date/time-compatible value      |
+| `Boolean` | boolean value                   |
+
+`FormatterKind` is also canonical and shared across parser, IR, and codegen.
+Known formatter kinds are `number`, `currency`, and `date`.
+
+Schema type aliases may attach formatter annotations. This lets the schema own
+the default formatting contract:
+
+```lgs
+type Money = Decimal @currency(code = "EUR")
+type ShortDate = Date @date(style = "short")
+
+checkout_total(amount: Money, created: ShortDate)
+```
+
+```lgl
+checkout_total = Total {amount} on {created}
+```
+
+Generated code applies the alias formatter to `{amount}` and `{created}`. A
+locale implementation can override formatting by writing an explicit formatter:
+
+```lgl
+checkout_total = Total {amount @number} on {created @date(style = "long")}
+```
 
 A child file may use declarations from parent scope files.
 
