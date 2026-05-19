@@ -208,25 +208,19 @@ pub fn generate_project_sveltekit_module(options: &TypeScriptWebOptions) -> Stri
 
 pub fn generate_project_sveltekit_declaration() -> String {
     let mut output = String::new();
-    output.push_str("import type { Handle, Reroute, ServerLoad } from \"@sveltejs/kit\";\n");
-    output.push_str("import type { LinguiniRequestContext } from \"@antepod/linguini-web\";\n");
-    output.push_str(
-        "import type { SerializedLinguiniContext } from \"@antepod/linguini-sveltekit/server\";\n",
-    );
-    output.push_str("import type { Locale, Linguini, TextDirection } from \"./index\";\n\n");
-    output.push_str("export declare const handle: Handle;\n");
-    output.push_str("export declare const reroute: Reroute;\n");
-    output.push_str("export declare const load: ServerLoad;\n\n");
+    output.push_str("export declare const handle: import(\"@sveltejs/kit\").Handle;\n");
+    output.push_str("export declare const reroute: import(\"@sveltejs/kit\").Reroute;\n");
+    output.push_str("export declare const load: import(\"@sveltejs/kit\").ServerLoad;\n\n");
     output.push_str("declare global {\n");
     output.push_str("  namespace App {\n");
     output.push_str("    interface Locals {\n");
-    output.push_str("      linguini: LinguiniRequestContext<Locale, Linguini>;\n");
-    output.push_str("      locale: Locale;\n");
-    output.push_str("      direction: TextDirection;\n");
-    output.push_str("      l: Linguini;\n");
+    output.push_str("      linguini: import(\"@antepod/linguini-web\").LinguiniRequestContext<import(\"./index\").Locale, import(\"./index\").Linguini>;\n");
+    output.push_str("      locale: import(\"./index\").Locale;\n");
+    output.push_str("      direction: import(\"./index\").TextDirection;\n");
+    output.push_str("      l: import(\"./index\").Linguini;\n");
     output.push_str("    }\n");
     output.push_str("    interface PageData {\n");
-    output.push_str("      linguini?: SerializedLinguiniContext<Locale>;\n");
+    output.push_str("      linguini?: import(\"@antepod/linguini-sveltekit/server\").SerializedLinguiniContext<import(\"./index\").Locale>;\n");
     output.push_str("    }\n");
     output.push_str("  }\n");
     output.push_str("}\n");

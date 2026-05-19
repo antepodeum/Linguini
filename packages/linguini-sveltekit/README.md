@@ -45,3 +45,10 @@ client-side hydration. Add `data-linguini-ignore` to a single link or set
 The generated Svelte entrypoint also exports `setLocale`, `localizeHref`,
 `localizeUrl`, `delocalizeUrl`, `alternateLinks`, and the `linguini` rune object
 for programmatic URLs and locale switching.
+
+## Global App Types
+
+The generated `sveltekit.d.ts` augments `App.Locals` and `App.PageData` with
+inline `import("...")` type references. SvelteKit global namespace declarations
+cannot rely on imported local aliases, so keep your own `src/app.d.ts` free of
+generated imports and let TypeScript include the generated declaration file.

@@ -346,7 +346,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit_declaration.contents.contains("interface Locals"));
     assert!(sveltekit_declaration
         .contents
-        .contains("linguini: LinguiniRequestContext<Locale, Linguini>"));
+        .contains("linguini: import(\"@antepod/linguini-web\").LinguiniRequestContext"));
+    assert!(!sveltekit_declaration.contents.contains("import type"));
 }
 
 #[test]
