@@ -196,18 +196,17 @@ fn expression_value(
 fn apply_formatters(
     value: String,
     formatters: &[IrFormatter],
-    options: &TypeScriptOptions,
+    _options: &TypeScriptOptions,
 ) -> String {
     formatters.iter().fold(value, |current, formatter| {
         let formatter_options = formatter_options(formatter);
-        let formatter_data = formatter_data_literal(&options.locale);
         match formatter.kind {
-            IrFormatterKind::Number => format!("formatNumber({current}, {formatter_data})"),
+            IrFormatterKind::Number => format!("formatNumber({current}, FORMATTER_DATA)"),
             IrFormatterKind::Currency => {
-                format!("formatCurrency({current}, {formatter_data}, {formatter_options})")
+                format!("formatCurrency({current}, FORMATTER_DATA, {formatter_options})")
             }
             IrFormatterKind::Date => {
-                format!("formatDate({current}, {formatter_data}, {formatter_options})")
+                format!("formatDate({current}, FORMATTER_DATA, {formatter_options})")
             }
             IrFormatterKind::Unknown => current,
         }
@@ -228,6 +227,13 @@ fn formatter_options(formatter: &IrFormatter) -> String {
         .collect::<Vec<_>>()
         .join(", ");
     format!("{{ {items} }}")
+}
+
+pub fn formatter_data_declaration(locale: &str) -> String {
+    format!(
+        "const FORMATTER_DATA = {};\n\n",
+        formatter_data_literal(locale)
+    )
 }
 
 fn formatter_data_literal(locale: &str) -> String {

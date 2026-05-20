@@ -12,8 +12,8 @@ use linguini_cldr::built_in_plural_rules;
 use linguini_ir::IrModule;
 
 use self::emit::{
-    emit_enums, emit_forms, emit_imports, emit_index, emit_local_functions, emit_messages,
-    emit_shared, emit_type_aliases,
+    emit_enums, emit_formatter_data, emit_forms, emit_imports, emit_index, emit_local_functions,
+    emit_messages, emit_shared, emit_type_aliases,
 };
 use super::plural::generate_plural_function;
 
@@ -292,6 +292,7 @@ pub fn generate_typescript_module(
     let mut output = String::new();
     emit_imports(&schema, locale, options, &mut output);
     emit::emit_plural_helpers(options, &mut output);
+    emit_formatter_data(&schema, locale, options, &mut output);
     emit_enums(&schema, &mut output);
     emit_type_aliases(&schema, &mut output);
     emit_forms(locale, options, &mut output);

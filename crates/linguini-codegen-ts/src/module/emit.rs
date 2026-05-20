@@ -1,10 +1,15 @@
 use std::collections::BTreeMap;
 
+use linguini_core::{FormatterKind, TypeKind};
 use linguini_ir::{
-    IrFormatter, IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrMessage, IrModule,
+    IrFormatter, IrFormatterArgument, IrFunction, IrFunctionBranch, IrFunctionBranchValue,
+    IrMessage, IrModule,
 };
 
-use super::expr::{form_object, is_static_text, text_expression, text_expression_with_context};
+use super::expr::{
+    form_object, formatter_data_declaration, is_static_text, text_expression,
+    text_expression_with_context,
+};
 use super::formatters::module_uses_formatters;
 use super::names::{
     escape_comment, escape_string, function_name, property_key, safe_identifier, string_literal,
@@ -27,7 +32,9 @@ pub fn emit_imports(
 ) {
     let uses_forms = !locale.forms.is_empty();
     let uses_dispatch = !locale.functions.is_empty();
-    let uses_formatters = module_uses_formatters(schema) || module_uses_formatters(locale);
+    let uses_formatters = module_uses_formatters(schema)
+        || module_uses_formatters(locale)
+        || schema_uses_auto_formatters(schema);
     if uses_forms || uses_dispatch || uses_formatters {
         let mut imports = Vec::new();
         if uses_formatters {
@@ -67,6 +74,20 @@ pub fn emit_plural_helpers(options: &TypeScriptOptions, output: &mut String) {
         );
         output.push_str(source.trim_end());
         output.push_str("\n\n");
+    }
+}
+
+pub fn emit_formatter_data(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+    output: &mut String,
+) {
+    if module_uses_formatters(schema)
+        || module_uses_formatters(locale)
+        || schema_uses_auto_formatters(schema)
+    {
+        output.push_str(&formatter_data_declaration(&options.locale));
     }
 }
 
@@ -398,14 +419,38 @@ fn parameter_formatters(
         .parameters
         .iter()
         .filter_map(|parameter| {
-            schema
-                .type_aliases
-                .iter()
-                .find(|alias| alias.name == parameter.ty)
-                .filter(|alias| !alias.formatters.is_empty())
-                .map(|alias| (parameter.name.clone(), alias.formatters.clone()))
+            default_type_formatters(schema, &parameter.ty)
+                .map(|formatters| (parameter.name.clone(), formatters))
         })
         .collect()
+}
+
+fn schema_uses_auto_formatters(schema: &IrModule) -> bool {
+    schema.messages.iter().any(|message| {
+        message
+            .parameters
+            .iter()
+            .any(|parameter| default_type_formatters(schema, &parameter.ty).is_some())
+    })
+}
+
+fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatter>> {
+    if let Some(alias) = schema.type_aliases.iter().find(|alias| alias.name == ty) {
+        if !alias.formatters.is_empty() {
+            return Some(alias.formatters.clone());
+        }
+        return default_type_formatters(schema, &alias.target);
+    }
+
+    let kind = match TypeKind::from_name(ty)? {
+        TypeKind::Number | TypeKind::Decimal => FormatterKind::Number,
+        TypeKind::Date => FormatterKind::Date,
+        TypeKind::String | TypeKind::Boolean => return None,
+    };
+    Some(vec![IrFormatter {
+        kind,
+        arguments: Vec::<IrFormatterArgument>::new(),
+    }])
 }
 
 fn signature_params(signature: &IrMessage) -> String {

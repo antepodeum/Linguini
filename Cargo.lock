@@ -523,6 +523,7 @@ name = "linguini-codegen-ts"
 version = "0.1.0-alpha.3"
 dependencies = [
  "linguini-cldr",
+ "linguini-core",
  "linguini-ir",
  "linguini-syntax",
 ]

@@ -317,7 +317,9 @@ fn push_runtime_functions(output: &mut String) {
     output.push_str("export function normalizeLocale(locale: unknown): Locale | undefined {\n");
     output.push_str("  if (typeof locale !== \"string\") return undefined;\n");
     output.push_str("  for (const tag of localeFallbackTags(locale)) {\n");
-    output.push_str("    const exact = locales.find((entry) => entry.toLowerCase() === tag.toLowerCase());\n");
+    output.push_str(
+        "    const exact = locales.find((entry) => entry.toLowerCase() === tag.toLowerCase());\n",
+    );
     output.push_str("    if (exact) return exact;\n");
     output.push_str("  }\n");
     output.push_str("  return undefined;\n");

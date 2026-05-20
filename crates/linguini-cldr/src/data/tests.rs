@@ -23,7 +23,10 @@ fn compiled_cldr_data_falls_back_to_parent_locale_tags() {
             .locale,
         "pt"
     );
-    assert_eq!(built_in_text_direction("pt-BR"), built_in_text_direction("pt"));
+    assert_eq!(
+        built_in_text_direction("pt-BR"),
+        built_in_text_direction("pt")
+    );
 }
 
 #[test]

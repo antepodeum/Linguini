@@ -25,6 +25,8 @@ function pluralOperands(value: number | string) {
   };
 }
 
+const FORMATTER_DATA = { locale: "ru", numbers: { decimalSymbol: ",", groupSymbol: " ", decimalPattern: "#,##0.###", percentPattern: "#,##0 %" }, currency: { standardPattern: "#,##0.00 ¤", accountingPattern: "#,##0.00 ¤" }, date: { dateFormats: { full: "EEEE, d MMMM y 'г'.", long: "d MMMM y 'г'.", medium: "d MMM y 'г'.", short: "dd.MM.y" }, timeFormats: { full: "HH:mm:ss zzzz", long: "HH:mm:ss z", medium: "HH:mm:ss", short: "HH:mm" }, dateTimeFormats: { full: "{1}, {0}", long: "{1}, {0}", medium: "{1}, {0}", short: "{1}, {0}" } } };
+
 export type Fruit = "apple" | "pear" | "orange";
 
 export type Size = "small" | "big";
@@ -58,11 +60,11 @@ export function delivery(fruit: Fruit, size: Size, count: number): string {
 
 /**  Shown near cart item count. */
 export function counted(count: number, fruit: Fruit): string {
-  return "В корзине " + String(count) + " " + String(FruitForms[fruit].nom(count));
+  return "В корзине " + String(formatNumber(count, FORMATTER_DATA)) + " " + String(FruitForms[fruit].nom(count));
 }
 
 export function price(amount: Money, date: ShortDate): string {
-  return "Цена " + String(formatCurrency(amount, { locale: "ru", numbers: { decimalSymbol: ",", groupSymbol: " ", decimalPattern: "#,##0.###", percentPattern: "#,##0 %" }, currency: { standardPattern: "#,##0.00 ¤", accountingPattern: "#,##0.00 ¤" }, date: { dateFormats: { full: "EEEE, d MMMM y 'г'.", long: "d MMMM y 'г'.", medium: "d MMM y 'г'.", short: "dd.MM.y" }, timeFormats: { full: "HH:mm:ss zzzz", long: "HH:mm:ss z", medium: "HH:mm:ss", short: "HH:mm" }, dateTimeFormats: { full: "{1}, {0}", long: "{1}, {0}", medium: "{1}, {0}", short: "{1}, {0}" } } }, { code: "RUB" })) + " на " + String(formatDate(date, { locale: "ru", numbers: { decimalSymbol: ",", groupSymbol: " ", decimalPattern: "#,##0.###", percentPattern: "#,##0 %" }, currency: { standardPattern: "#,##0.00 ¤", accountingPattern: "#,##0.00 ¤" }, date: { dateFormats: { full: "EEEE, d MMMM y 'г'.", long: "d MMMM y 'г'.", medium: "d MMM y 'г'.", short: "dd.MM.y" }, timeFormats: { full: "HH:mm:ss zzzz", long: "HH:mm:ss z", medium: "HH:mm:ss", short: "HH:mm" }, dateTimeFormats: { full: "{1}, {0}", long: "{1}, {0}", medium: "{1}, {0}", short: "{1}, {0}" } } }, { style: "short" }));
+  return "Цена " + String(formatCurrency(amount, FORMATTER_DATA, { code: "RUB" })) + " на " + String(formatDate(date, FORMATTER_DATA, { style: "short" }));
 }
 
 export const email_input = {

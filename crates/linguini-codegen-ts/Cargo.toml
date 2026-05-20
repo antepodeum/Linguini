@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.3" }
+linguini-core = { path = "../linguini-core", version = "0.1.0-alpha.3" }
 linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.3" }
 
 [dev-dependencies]

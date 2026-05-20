@@ -236,16 +236,52 @@ raw = Raw {price @number}
         .contains("import { formatCurrency, formatDate, formatNumber } from \"../shared\";"));
     assert!(locale_module
         .contents
-        .contains("formatCurrency(price, { locale: \"en\""));
+        .contains("const FORMATTER_DATA = { locale: \"en\""));
     assert!(locale_module
         .contents
-        .contains("formatDate(created, { locale: \"en\""));
+        .contains("formatCurrency(price, FORMATTER_DATA"));
+    assert!(locale_module
+        .contents
+        .contains("formatDate(created, FORMATTER_DATA"));
     assert!(locale_module
         .contents
         .contains("export function raw(price: Price): string"));
     assert!(locale_module
         .contents
-        .contains("formatNumber(price, { locale: \"en\""));
+        .contains("formatNumber(price, FORMATTER_DATA"));
+}
+
+#[test]
+fn project_codegen_applies_primitive_schema_formatters() {
+    let schema = lower_schema(
+        &parse_schema("summary(count: Number, amount: Decimal, created: Date)\n").expect("schema"),
+    );
+    let locale =
+        lower_locale(&parse_locale("summary = {count} / {amount} / {created}\n").expect("locale"));
+
+    let files = generate_typescript_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions::default(),
+    )
+    .expect("project codegen");
+
+    let locale_module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+    assert!(locale_module
+        .contents
+        .contains("formatNumber(count, FORMATTER_DATA)"));
+    assert!(locale_module
+        .contents
+        .contains("formatNumber(amount, FORMATTER_DATA)"));
+    assert!(locale_module
+        .contents
+        .contains("formatDate(created, FORMATTER_DATA"));
 }
 
 #[test]
