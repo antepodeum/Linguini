@@ -68,6 +68,20 @@
         "language": "linguini-locale",
         "scopeName": "source.linguini.locale",
         "path": "./syntaxes/linguini-locale.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.linguini.schema.codeblock",
+        "path": "./syntaxes/markdown-linguini-schema.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ]
+      },
+      {
+        "scopeName": "markdown.linguini.locale.codeblock",
+        "path": "./syntaxes/markdown-linguini-locale.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ]
       }
     ],
     "configuration": {

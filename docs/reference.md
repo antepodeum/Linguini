@@ -62,11 +62,11 @@ interpolations do not inline the full number/date/currency table.
 
 The formatter list is canonical:
 
-| Formatter  | Applies to                 |
-| ---------- | -------------------------- |
-| `@number`  | `Number`, `Decimal`        |
-| `@currency`| `Number`, `Decimal` alias  |
-| `@date`    | `Date`                     |
+| Formatter   | Applies to                |
+| ----------- | ------------------------- |
+| `@number`   | `Number`, `Decimal`       |
+| `@currency` | `Number`, `Decimal` alias |
+| `@date`     | `Date`                    |
 
 ### Messages
 

@@ -3,11 +3,19 @@
 Generated `index.ts` exposes direct locale facades:
 
 ```ts
-import { createLinguini, createLinguiniProvider, lgl } from "$lib/generated/linguini";
+import {
+  createLinguini,
+  createLinguiniProvider,
+  lgl,
+} from "$lib/generated/linguini";
 
 lgl.delivery("apple", "small", 1);
 createLinguini("ru").delivery("apple", "small", 1);
-createLinguiniProvider({ resolveLanguage: () => "ru" }).delivery("apple", "small", 1);
+createLinguiniProvider({ resolveLanguage: () => "ru" }).delivery(
+  "apple",
+  "small",
+  1,
+);
 ```
 
 SSR hooks can resolve language from a cookie first, then known request headers:
@@ -36,7 +44,9 @@ function isLanguage(value: string | undefined): value is Language {
   return supportedLanguages.includes(value as Language);
 }
 
-function languageFromAcceptLanguage(header: string | null): Language | undefined {
+function languageFromAcceptLanguage(
+  header: string | null,
+): Language | undefined {
   return header
     ?.split(",")
     .map((part) => part.trim().split(";")[0])
@@ -50,7 +60,9 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.request.headers.get("x-locale") ??
     languageFromAcceptLanguage(event.request.headers.get("accept-language"));
 
-  event.locals.language = isLanguage(cookieLanguage) ? cookieLanguage : headerLanguage ?? "en";
+  event.locals.language = isLanguage(cookieLanguage)
+    ? cookieLanguage
+    : (headerLanguage ?? "en");
   return resolve(event);
 };
 ```

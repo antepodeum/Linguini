@@ -4,6 +4,7 @@ mod expr;
 mod formatters;
 mod names;
 mod project;
+mod shared;
 mod tree;
 
 use std::fmt;
@@ -13,8 +14,9 @@ use linguini_ir::IrModule;
 
 use self::emit::{
     emit_enums, emit_formatter_data, emit_forms, emit_imports, emit_index, emit_local_functions,
-    emit_messages, emit_shared, emit_type_aliases,
+    emit_messages, emit_type_aliases,
 };
+use self::shared::emit_shared;
 use super::plural::generate_plural_function;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

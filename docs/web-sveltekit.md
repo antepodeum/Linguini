@@ -75,16 +75,16 @@ local_storage_key = "LINGUINI_LOCALE"
 
 Available strategies:
 
-| Strategy | Reads from |
-| --- | --- |
-| `url` | the first localized path segment, for example `/ru/pricing` |
-| `cookie` | the configured locale cookie |
-| `localStorage` | the configured browser storage key |
-| `header` | the server `Accept-Language` header |
-| `navigator` | browser `navigator.languages` / `navigator.language` |
-| `preferredLanguage` | `header` on the server, `navigator` in the browser |
-| `globalVariable` | the configured global variable name |
-| `baseLocale` | `project.default_locale` |
+| Strategy            | Reads from                                                  |
+| ------------------- | ----------------------------------------------------------- |
+| `url`               | the first localized path segment, for example `/ru/pricing` |
+| `cookie`            | the configured locale cookie                                |
+| `localStorage`      | the configured browser storage key                          |
+| `header`            | the server `Accept-Language` header                         |
+| `navigator`         | browser `navigator.languages` / `navigator.language`        |
+| `preferredLanguage` | `header` on the server, `navigator` in the browser          |
+| `globalVariable`    | the configured global variable name                         |
+| `baseLocale`        | `project.default_locale`                                    |
 
 ## SvelteKit files
 

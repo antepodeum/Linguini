@@ -27,11 +27,16 @@
   import TypeScriptIcon from '@iconify-svelte/skill-icons/typescript';
   import VueIcon from '@iconify-svelte/skill-icons/vuejs-dark';
   import ZigIcon from '@iconify-svelte/skill-icons/zig-dark';
-  import brandIcon from '$lib/assets/linguini-icon.png';
   import Button from '$lib/components/button.svelte';
-  import { l, linguini, localizeHref, setLocale } from '$lib/generated/linguini/svelte';
+  import CodeBlock from '$lib/components/code-block.svelte';
+  import { l, linguini, setLocale } from '$lib/generated/linguini/svelte';
   import { locales, type Locale } from '$lib/generated/linguini';
   import type { Fruit, Gender, Size } from '$lib/generated/linguini/locales/en';
+  import type { PageData } from './$types';
+
+  const brandIcon = '/linguini-icon.png';
+
+  let { data }: { data: PageData } = $props();
 
   let count = $state(3);
   let fruit = $state<Fruit>('apple');
@@ -40,8 +45,8 @@
   let amount = $state(1299.5);
   let dateInput = $state('2026-05-19');
 
-  const dateValue = $derived(new Date(`${dateInput}T12:00:00Z`) as unknown as string);
-  const localizedRoot = $derived(localizeHref('/'));
+  const dateValue = $derived(dateInput);
+  const localizedRoot = $derived(linguini.localizeHref('/'));
 
   const nav = $derived([
     { id: 'why', label: l.main.nav_why },
@@ -54,14 +59,12 @@
     {
       icon: TypeScriptIcon,
       title: l.main.codegen_ts_title,
-      description: l.main.codegen_ts_desc,
-      status: l.main.codegen_status_shipped
+      description: l.main.codegen_ts_desc
     },
     {
       icon: SvelteIcon,
       title: l.main.codegen_svelte_title,
-      description: l.main.codegen_svelte_desc,
-      status: l.main.codegen_status_shipped
+      description: l.main.codegen_svelte_desc
     }
   ]);
 
@@ -140,11 +143,11 @@
     <div class="locale-nav flex max-w-full flex-wrap items-center">
       <span class="px-3 text-xs text-muted-foreground">{l.main.locale_label}</span>
       {#each locales as item (item)}
-        <a
-          href={localizeHref('/', item)}
-          data-linguini-ignore
+        <button
+          type="button"
+          aria-pressed={linguini.locale === item}
           class={[
-            'flex h-8 items-center px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
+            'flex h-8 cursor-pointer appearance-none items-center bg-transparent px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
             linguini.locale === item
               ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground'
@@ -155,7 +158,7 @@
           }}
         >
           {localeLabel(item)}
-        </a>
+        </button>
       {/each}
     </div>
     </div>
@@ -184,14 +187,8 @@
       <div class="brand-code-card">
         <div class="mb-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
           <span class="font-mono text-xs text-muted-foreground">linguini/locale/main/en.lgl</span>
-          <span class="rounded-md bg-primary/10 px-2.5 py-1 text-xs text-primary">{l.main.codegen_status_shipped}</span>
         </div>
-        <div class="grid gap-2 font-mono text-sm leading-6 text-foreground/90">
-          <p><span class="text-primary">cart_summary</span> = Cart has &#123;count&#125; &#123;fruit.nom(count)&#125;</p>
-          <p><span class="text-primary">currency_format</span> = Currency formatting: &#123;amount&#125;</p>
-          <p><span class="text-primary">date_format</span> = Date formatting: &#123;date&#125;</p>
-          <p><span class="text-accent">form</span> SizeWord(Size) &#123; small =&gt; compact, big =&gt; full-size &#125;</p>
-        </div>
+        <CodeBlock html={data.codeBlocks.heroLocale} />
       </div>
     </div>
 
@@ -230,34 +227,17 @@
     <div class="pipeline">
       <article class="pipeline-panel">
         <p class="pipeline-label">schema</p>
-        <pre><code>enum Fruit &#123; apple, pear &#125;
-
-type Money = Decimal @currency
-
-checkout(count: Number, fruit: Fruit, total: Money)</code></pre>
+        <CodeBlock html={data.codeBlocks.schema} />
       </article>
 
       <article class="pipeline-panel">
-        <p class="pipeline-label">locale + impl</p>
-        <pre><code>impl Fruit &#123;
-  apple &#123;
-    form nom(Plural) &#123;
-      one =&gt; apple
-      _ =&gt; apples
-    &#125;
-  &#125;
-&#125;
-
-checkout = &#123;count&#125; &#123;fruit.nom(count)&#125;, &#123;total&#125;</code></pre>
+        <p class="pipeline-label">locale</p>
+        <CodeBlock html={data.codeBlocks.locale} />
       </article>
 
       <article class="pipeline-panel pipeline-panel-output">
         <p class="pipeline-label">SvelteKit</p>
-        <pre><code>import &#123; l, localizeHref &#125; from '$lib/linguini/svelte';
-
-&lt;a href=&#123;localizeHref('/checkout')&#125;&gt;
-  &#123;l.main.checkout(count, fruit, total)&#125;
-&lt;/a&gt;</code></pre>
+        <CodeBlock html={data.codeBlocks.sveltekit} />
       </article>
     </div>
 
@@ -268,9 +248,6 @@ checkout = &#123;count&#125; &#123;fruit.nom(count)&#125;, &#123;total&#125;</co
           <div class="mb-5 flex items-start justify-between gap-4">
             <span class="flex h-12 w-12 items-center justify-center">
               <Icon width="40" height="40" />
-            </span>
-            <span class="rounded-md border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              {target.status}
             </span>
           </div>
           <h3 class="text-xl font-semibold">{target.title}</h3>
@@ -283,9 +260,14 @@ checkout = &#123;count&#125; &#123;fruit.nom(count)&#125;, &#123;total&#125;</co
       <p class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{l.main.codegen_planned_title}</p>
       <p class="mt-2 max-w-3xl text-sm text-muted-foreground">{l.main.codegen_planned_intro}</p>
       <div class="planned-icons" aria-label={l.main.codegen_planned_title}>
-        {#each plannedTargets as target (target.label)}
+        {#each plannedTargets as target, index (target.label)}
           {@const Icon = target.icon}
-          <span class="planned-icon" title={target.label} aria-label={target.label}>
+          <span
+            class="planned-icon"
+            title={target.label}
+            aria-label={target.label}
+            style:z-index={plannedTargets.length - index}
+          >
             <Icon width="34" height="34" />
           </span>
         {/each}
