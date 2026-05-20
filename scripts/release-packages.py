@@ -12,15 +12,32 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUST_MANIFESTS = sorted(ROOT.glob("crates/*/Cargo.toml"))
-NPM_MANIFESTS = [
-    ROOT / "packages/linguini-web/package.json",
-    ROOT / "packages/linguini-sveltekit/package.json",
-    ROOT / "plugins/vite/package.json",
-    ROOT / "editors/vscode/package.json",
-]
+NPM_MANIFEST_ROOTS = [ROOT / "packages", ROOT / "plugins", ROOT / "editors", ROOT / "site"]
 VERSION_RE = re.compile(r'^version = "([^"]+)"$', re.MULTILINE)
 PATH_DEP_VERSION_RE = re.compile(r'(path = "\.\./[^"]+", version = )"[^"]+"')
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-alpha\.(\d+))?$")
+SKIP_DIRS = {"node_modules", ".svelte-kit", ".vercel", "dist", "build", "out"}
+
+
+def npm_manifests() -> list[Path]:
+    manifests: list[Path] = []
+    for root in NPM_MANIFEST_ROOTS:
+        if not root.exists():
+            continue
+        for manifest in root.rglob("package.json"):
+            if any(part in SKIP_DIRS for part in manifest.parts):
+                continue
+            manifests.append(manifest)
+    return sorted(manifests)
+
+
+def npm_package_names(manifests: list[Path]) -> set[str]:
+    names = set()
+    for manifest in manifests:
+        data = json.loads(manifest.read_text())
+        if "name" in data:
+            names.add(data["name"])
+    return names
 
 
 def next_alpha(version: str) -> str:
@@ -60,14 +77,27 @@ def bump_rust(version: str) -> None:
 
 
 def bump_npm(version: str) -> None:
-    for manifest in NPM_MANIFESTS:
+    manifests = npm_manifests()
+    internal_names = npm_package_names(manifests)
+    for manifest in manifests:
         if not manifest.exists():
             continue
         data = json.loads(manifest.read_text())
         data["version"] = version
+        for section in ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]:
+            deps = data.get(section)
+            if not isinstance(deps, dict):
+                continue
+            for name in internal_names:
+                if name in deps and not deps[name].startswith("file:"):
+                    deps[name] = f"^{version}"
         manifest.write_text(json.dumps(data, indent=2) + "\n")
 
-    for lockfile in [ROOT / "editors/vscode/package-lock.json", ROOT / "plugins/vite/pnpm-lock.yaml"]:
+    for lockfile in [
+        ROOT / "editors/vscode/package-lock.json",
+        ROOT / "plugins/vite/pnpm-lock.yaml",
+        ROOT / "site/pnpm-lock.yaml",
+    ]:
         if lockfile.exists():
             print(f"warning: update lockfile manually or via package manager: {lockfile.relative_to(ROOT)}")
 
@@ -88,12 +118,15 @@ def publish_rust(dry_run: bool) -> None:
 
 
 def publish_npm(dry_run: bool) -> None:
-    for manifest in NPM_MANIFESTS:
+    for manifest in npm_manifests():
         if not manifest.exists():
             continue
         package_dir = manifest.parent
+        data = json.loads(manifest.read_text())
+        if data.get("private"):
+            continue
         command = ["npm", "publish"]
-        if "-alpha." in json.loads(manifest.read_text())["version"]:
+        if "-alpha." in data["version"]:
             command.extend(["--tag", "alpha"])
         run(command, dry_run=dry_run, cwd=package_dir)
 

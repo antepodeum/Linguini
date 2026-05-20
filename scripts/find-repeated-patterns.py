@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import re
 from collections import defaultdict
@@ -85,22 +86,22 @@ def normalize_line(line: str) -> str:
     return re.sub(r"\s+", " ", line).strip()
 
 
-def repeated_declarations(files: list[Path], root: Path) -> dict[str, list[str]]:
+def repeated_declarations(files: list[Path], root: Path, min_hits: int) -> dict[str, list[str]]:
     declarations: dict[str, list[str]] = defaultdict(list)
     for path in files:
         for line_number, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
             match = DECLARATION_RE.match(line)
             if match:
                 declarations[match.group(1)].append(f"{path.relative_to(root)}:{line_number}")
-    return {name: hits for name, hits in declarations.items() if len(hits) > 1}
+    return {name: hits for name, hits in declarations.items() if len(hits) >= min_hits}
 
 
-def repeated_blocks(files: list[Path], root: Path, window: int) -> dict[str, list[str]]:
+def repeated_blocks(files: list[Path], root: Path, window: int, min_hits: int) -> dict[str, list[str]]:
     blocks: dict[str, list[str]] = defaultdict(list)
     for path in files:
         for line_number, digest in normalized_blocks(path, window):
             blocks[digest].append(f"{path.relative_to(root)}:{line_number}")
-    return {digest: hits for digest, hits in blocks.items() if len(hits) > 1}
+    return {digest: hits for digest, hits in blocks.items() if len(hits) >= min_hits}
 
 
 def print_group(title: str, groups: dict[str, list[str]], limit: int) -> None:
@@ -119,6 +120,8 @@ def main() -> int:
     parser.add_argument("--root", default=".", help="repository root")
     parser.add_argument("--window", type=int, default=8, help="line count per repeated block")
     parser.add_argument("--limit", type=int, default=20, help="max groups and hits to print")
+    parser.add_argument("--min-hits", type=int, default=2, help="minimum occurrences per group")
+    parser.add_argument("--json", action="store_true", help="emit JSON instead of text")
     parser.add_argument(
         "--max-file-bytes",
         type=int,
@@ -131,10 +134,27 @@ def main() -> int:
     root = Path(args.root).resolve()
     suffixes = set(args.suffix or DEFAULT_SUFFIXES)
     files = iter_files(root, suffixes, args.max_file_bytes)
+    declarations = repeated_declarations(files, root, args.min_hits)
+    blocks = repeated_blocks(files, root, args.window, args.min_hits)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "root": str(root),
+                    "fileCount": len(files),
+                    "repeatedDeclarations": declarations,
+                    "repeatedBlocks": blocks,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 0
 
     print(f"Scanned {len(files)} files under {root}")
-    print_group("Repeated declarations", repeated_declarations(files, root), args.limit)
-    print_group("Repeated normalized blocks", repeated_blocks(files, root, args.window), args.limit)
+    print_group("Repeated declarations", declarations, args.limit)
+    print_group("Repeated normalized blocks", blocks, args.limit)
     return 0
 
 
