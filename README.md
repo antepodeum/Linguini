@@ -31,7 +31,7 @@ you_ordered(
   delivery: Date,
 )
 
-cart_summary(amount: Number, total: Number)
+cart_summary(amount: Number, item: Item, total: Number)
 ```
 
 The locale implements that contract with real language logic:
@@ -80,7 +80,7 @@ form Pronoun(Plural, Gender) {
 
 you_ordered = {customer}, вы заказали: {amount} {item.acc(amount)} на сумму {total} {Rubles(total)}. {Pronoun(amount, item.Gender)} доставка будет {delivery}.
 
-cart_summary = В корзине {amount} {Product(amount)} на сумму {total} {Rubles(total)}
+cart_summary = В корзине {amount} {item.acc(amount)} на сумму {total} {Rubles(total)}
 ```
 
 The app gets a generated native API:
@@ -93,11 +93,11 @@ const l = configureLinguini({ language: () => getRequestLocale() });
 l.checkout.you_ordered("Artemy", "pasta", 3, 1290, "2026-05-17");
 // → "Artemy, вы заказали: 3 пасты на сумму 1290 рублей. Их доставка будет 17.05.2026."
 
-l.checkout.cart_summary(3, 1290);
-// → "В корзине 3 товара на сумму 1290 рублей"
+l.checkout.cart_summary(3, "pasta", 1290);
+// → "В корзине 3 пасты на сумму 1290 рублей"
 ```
 
-Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer diagnostics for everything that can go wrong. Generated native modules for each target runtime.
+Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer diagnostics for everything that can go wrong. Generated modules that can be used from any app code.
 
 ---
 
@@ -110,7 +110,7 @@ Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer 
 | Analyzer  | missing implementations, invalid references, incomplete branches, diagnostics, quick fixes                         |
 | Formatter | `.lgs` / `.lgl` formatting and `--check` mode                                                                      |
 | LSP       | diagnostics, completion, hover, definition, references, symbols, semantic tokens, formatting, rename, code actions |
-| Codegen   | TypeScript, generated Svelte 5/SvelteKit adapters (JS, Rust, Kotlin, Swift, Go, Python, C# planned)                |
+| Codegen   | TypeScript and generated Svelte 5/SvelteKit adapters today; other targets are planned or experimental              |
 | Editor    | VS Code extension                                                                                                  |
 
 ---
@@ -157,6 +157,10 @@ the `linguini` command by default and do not include a bundled binary.
 ```bash
 cargo install linguini-cli --version 0.1.0-alpha.3
 ```
+
+Preview builds use vendored CLDR JSON data from the repository. If that data is
+missing from a source archive, building the CLDR support crate may need network
+access to fetch the pinned CLDR source.
 
 ```
 linguini init      Create a project skeleton

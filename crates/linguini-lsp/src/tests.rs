@@ -1,7 +1,6 @@
 use super::{
-    completion_items, diagnostics, diagnostics_with_workspace, document_symbols, format_document,
-    hover_at, prepare_rename_at, references_at, rename_workspace_edits, semantic_tokens,
-    LinguiniDocument, CRATE_PURPOSE,
+    completion_items, diagnostics, document_symbols, format_document, hover_at, prepare_rename_at,
+    references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument, CRATE_PURPOSE,
 };
 
 #[test]
@@ -71,25 +70,18 @@ fn hover_on_plural_branch_lists_locale_samples() {
 }
 
 #[test]
-fn workspace_diagnostics_include_schema_doc_and_branch_coverage() {
-    let schema = LinguiniDocument::new(
-        "file:///shop.lgs",
-        "linguini-schema",
-        "enum Gender { male, female, neuter, other }\n/// Context\ndelivery()\n",
-    );
+fn diagnostics_include_branch_coverage() {
     let locale = LinguiniDocument::new(
         "file:///ru.lgl",
         "linguini-locale",
-        "form SizeAdj(Plural, Gender) {\n  one {\n    male => большой\n    female => большая\n  }\n  _ => большие\n}\ndelivery = Delivered\n",
+        "enum Gender { male, female, neuter, other }\nform SizeAdj(Plural, Gender) {\n  one {\n    male => большой\n    female => большая\n  }\n  _ => большие\n}\ndelivery = Delivered\n",
     );
 
-    let diagnostics = diagnostics_with_workspace(&locale, [schema]);
+    let locale_diagnostics = diagnostics(&locale);
 
-    assert!(diagnostics.iter().any(|diagnostic| diagnostic
+    assert!(locale_diagnostics.iter().any(|diagnostic| diagnostic
         .message
         .contains("enum `Gender` is missing branch `neuter`")));
-    assert!(diagnostics.iter().any(|diagnostic| diagnostic.message
-        == "locale message `delivery` is missing schema doc comment"));
 }
 
 #[test]

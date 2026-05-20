@@ -1,4 +1,4 @@
-# @linguini/vite
+# @antepod/linguini-vite
 
 Vite plugin for Linguini projects.
 
@@ -8,7 +8,7 @@ after changes, invalidates generated Linguini modules, and emits a
 
 ```js
 import { defineConfig } from "vite";
-import linguini from "@linguini/vite";
+import linguini from "@antepod/linguini-vite";
 
 export default defineConfig({
   plugins: [linguini()]

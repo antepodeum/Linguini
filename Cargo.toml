@@ -5,8 +5,6 @@ members = [
   "crates/linguini-cldr",
   "crates/linguini-cldr-macros",
   "crates/linguini-cli",
-  "crates/linguini-codegen-js",
-  "crates/linguini-codegen-rust",
   "crates/linguini-codegen-ts",
   "crates/linguini-config",
   "crates/linguini-core",

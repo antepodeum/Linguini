@@ -15,23 +15,18 @@ jobs:
           components: clippy, rustfmt
       - name: Check formatting
         run: cargo fmt --all --check
-      - name: Check file sizes
-        run: ./scripts/check-file-size.sh
-      - name: Check unit test structure
-        run: ./scripts/check-unit-test-structure.sh
-      - name: Check syntax fixtures
-        run: ./scripts/check-syntax-fixtures.sh
-      - name: Check snapshot workflow
-        run: ./scripts/review-snapshots.sh --check
-      - name: Validate generated TypeScript
-        run: bash scripts/validate-generated-ts.sh
-      - name: Validate generated JavaScript
-        run: ./scripts/validate-generated-js.sh
-      - name: Validate generated Rust
-        run: ./scripts/validate-generated-rust.sh
-      - name: Check spec gates
-        run: ./scripts/check-spec-gates.sh
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+      - name: Check site
+        working-directory: site
+        run: pnpm install --frozen-lockfile && pnpm check

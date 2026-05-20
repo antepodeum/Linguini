@@ -511,14 +511,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "linguini-codegen-js"
-version = "0.1.0-alpha.3"
-
-[[package]]
-name = "linguini-codegen-rust"
-version = "0.1.0-alpha.3"
-
-[[package]]
 name = "linguini-codegen-ts"
 version = "0.1.0-alpha.3"
 dependencies = [

@@ -74,7 +74,7 @@ fn cldr_source_dir() -> Result<PathBuf, String> {
         Ok("0") | Ok("false")
     ) {
         return Err(format!(
-            "missing local CLDR JSON checkout at {}. Run `./scripts/fetch-cldr-json.sh` or unset LINGUINI_CLDR_AUTO_FETCH=0.",
+            "missing local CLDR JSON checkout at {}. Provide LINGUINI_CLDR_SOURCE_DIR or unset LINGUINI_CLDR_AUTO_FETCH=0 to allow fetching the pinned CLDR source.",
             source_dir.display()
         ));
     }
