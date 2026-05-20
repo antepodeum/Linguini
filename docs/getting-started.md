@@ -82,6 +82,15 @@ checkout_total = Total {amount} on {created}
 field_required = {field} is required.
 ```
 
+You only need aliases when the schema should carry specific options like
+currency code or date width. Plain `Number`, `Decimal`, and `Date` parameters
+are formatted automatically from the active locale, and a locale can override a
+single interpolation when needed:
+
+```lgl
+checkout_total = Total {amount @number} on {created @date(style = "long")}
+```
+
 ```lgl
 // linguini/locale/main/ru.lgl
 

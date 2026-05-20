@@ -45,6 +45,29 @@ Locale authors can still override formatting at the interpolation site:
 checkout_total = Total {amount @number} on {created @date(style = "long")}
 ```
 
+Primitive `Number`, `Decimal`, and `Date` parameters also get schema-owned
+defaults even without aliases:
+
+```lgs
+summary(count: Number, total: Decimal, created: Date)
+```
+
+```lgl
+summary = {count} items, {total}, {created}
+```
+
+Generated TypeScript emits the locale CLDR data once per locale module and
+passes a shared `FORMATTER_DATA` constant into each formatter call, so repeated
+interpolations do not inline the full number/date/currency table.
+
+The formatter list is canonical:
+
+| Formatter  | Applies to                 |
+| ---------- | -------------------------- |
+| `@number`  | `Number`, `Decimal`        |
+| `@currency`| `Number`, `Decimal` alias  |
+| `@date`    | `Date`                     |
+
 ### Messages
 
 A message is a named entry the app can call. Parameters are typed.

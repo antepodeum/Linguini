@@ -57,27 +57,26 @@ merged = mergeLocaleModule(merged, localeModules[locale as LinguiniLanguage]);
 return merged;
 }
 
+type LinguiniRecord = Record<string, unknown>;
+
+function isPlainLocaleObject(value: unknown): value is LinguiniRecord {
+return !!value && typeof value === "object" && !Array.isArray(value) && typeof (value as { call?: unknown }).call !== "function";
+}
+
 function mergeLocaleModule(target: Linguini, source: Linguini): Linguini {
-const result = { ...target } as Linguini;
-for (const key of Object.keys(source) as (keyof Linguini)[]) {
-const value = source[key];
-const existing = target[key];
-if (
-value &&
-typeof value === "object" &&
-!Array.isArray(value) &&
-typeof (value as { call?: unknown }).call !== "function" &&
-existing &&
-typeof existing === "object" &&
-!Array.isArray(existing) &&
-typeof (existing as { call?: unknown }).call !== "function"
-) {
-result[key] = mergeLocaleModule(existing as Linguini, value as Linguini) as Linguini[keyof Linguini];
+const targetRecord = target as unknown as LinguiniRecord;
+const sourceRecord = source as unknown as LinguiniRecord;
+const result: LinguiniRecord = { ...targetRecord };
+for (const key of Object.keys(sourceRecord)) {
+const value = sourceRecord[key];
+const existing = targetRecord[key];
+if (isPlainLocaleObject(value) && isPlainLocaleObject(existing)) {
+result[key] = mergeLocaleModule(existing as unknown as Linguini, value as unknown as Linguini);
 } else {
 result[key] = value;
 }
 }
-return result;
+return result as unknown as Linguini;
 }
 
 export function createLinguini(language: LinguiniLanguageInput): Linguini {

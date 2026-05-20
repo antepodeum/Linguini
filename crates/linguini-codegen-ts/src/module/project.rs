@@ -285,27 +285,24 @@ fn push_locale_fallback_runtime(output: &mut String) {
            }\n\
            return merged;\n\
          }\n\n\
+         type LinguiniRecord = Record<string, unknown>;\n\n\
+         function isPlainLocaleObject(value: unknown): value is LinguiniRecord {\n\
+           return !!value && typeof value === \"object\" && !Array.isArray(value) && typeof (value as { call?: unknown }).call !== \"function\";\n\
+         }\n\n\
          function mergeLocaleModule(target: Linguini, source: Linguini): Linguini {\n\
-           const result = { ...target } as Linguini;\n\
-           for (const key of Object.keys(source) as (keyof Linguini)[]) {\n\
-             const value = source[key];\n\
-             const existing = target[key];\n\
-             if (\n\
-               value &&\n\
-               typeof value === \"object\" &&\n\
-               !Array.isArray(value) &&\n\
-               typeof (value as { call?: unknown }).call !== \"function\" &&\n\
-               existing &&\n\
-               typeof existing === \"object\" &&\n\
-               !Array.isArray(existing) &&\n\
-               typeof (existing as { call?: unknown }).call !== \"function\"\n\
-             ) {\n\
-               result[key] = mergeLocaleModule(existing as Linguini, value as Linguini) as Linguini[keyof Linguini];\n\
+           const targetRecord = target as unknown as LinguiniRecord;\n\
+           const sourceRecord = source as unknown as LinguiniRecord;\n\
+           const result: LinguiniRecord = { ...targetRecord };\n\
+           for (const key of Object.keys(sourceRecord)) {\n\
+             const value = sourceRecord[key];\n\
+             const existing = targetRecord[key];\n\
+             if (isPlainLocaleObject(value) && isPlainLocaleObject(existing)) {\n\
+               result[key] = mergeLocaleModule(existing as unknown as Linguini, value as unknown as Linguini);\n\
              } else {\n\
                result[key] = value;\n\
              }\n\
            }\n\
-           return result;\n\
+           return result as unknown as Linguini;\n\
          }\n\n",
     );
 }

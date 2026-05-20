@@ -258,8 +258,11 @@ The canonical primitive schema types are represented by `TypeKind`:
 `FormatterKind` is also canonical and shared across parser, IR, and codegen.
 Known formatter kinds are `number`, `currency`, and `date`.
 
-Schema type aliases may attach formatter annotations. This lets the schema own
-the default formatting contract:
+Schema type aliases may attach formatter annotations. Primitive `Number`,
+`Decimal`, and `Date` parameters also have built-in default formatters
+(`number`, `number`, and `date`) so schema authors do not need aliases for
+ordinary number/date output. This lets the schema own the default formatting
+contract:
 
 ```lgs
 type Money = Decimal @currency(code = "EUR")
@@ -278,6 +281,10 @@ locale implementation can override formatting by writing an explicit formatter:
 ```lgl
 checkout_total = Total {amount @number} on {created @date(style = "long")}
 ```
+
+Generated target modules must hoist locale formatter data into one shared
+constant per locale module. Formatter calls receive that constant by reference;
+they must not inline the CLDR number/date/currency data at every interpolation.
 
 A child file may use declarations from parent scope files.
 

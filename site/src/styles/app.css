@@ -6,16 +6,16 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 4%;
-  --foreground: 0 0% 96%;
-  --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 62%;
-  --border: 0 0% 16%;
-  --primary: 15 100% 55%;
-  --primary-foreground: 0 0% 4%;
-  --accent: 175 55% 48%;
-  --accent-foreground: 0 0% 96%;
-  --ring: 15 100% 55%;
+  --background: 205 10% 12%;
+  --foreground: 35 18% 93%;
+  --muted: 205 9% 18%;
+  --muted-foreground: 35 7% 70%;
+  --border: 205 8% 27%;
+  --primary: 15 96% 55%;
+  --primary-foreground: 24 35% 10%;
+  --accent: 172 53% 55%;
+  --accent-foreground: 190 20% 10%;
+  --ring: 15 96% 55%;
 }
 
 html {
@@ -25,7 +25,9 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: hsl(var(--background));
+  background:
+    radial-gradient(circle at 50% -20%, hsl(var(--muted)) 0, transparent 34rem),
+    linear-gradient(180deg, hsl(205 10% 18%), hsl(var(--background)) 38rem);
   color: hsl(var(--foreground));
   font-family: 'Work Sans Variable', ui-sans-serif, sans-serif;
 }
@@ -39,18 +41,103 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.04;
-  background-image: radial-gradient(hsl(var(--primary) / 0.15) 1px, transparent 1px);
-  background-size: 24px 24px;
+  opacity: 0.055;
+  mix-blend-mode: screen;
+  background-image:
+    linear-gradient(115deg, transparent 0 48%, hsl(var(--foreground) / 0.16) 50%, transparent 52% 100%),
+    radial-gradient(hsl(var(--primary) / 0.25) 1px, transparent 1px);
+  background-size: 180px 180px, 22px 22px;
 }
 
-.shiki-wrap :global(pre) {
+.hero-machine {
+  transform-style: preserve-3d;
+  perspective: 1100px;
+}
+
+.machine-track {
+  position: absolute;
+  left: -16%;
+  right: -20%;
+  top: 48%;
+  height: 76px;
+  transform: rotate(-8deg) skewX(-16deg);
+  border-radius: 999px;
+  background:
+    repeating-linear-gradient(90deg, hsl(205 13% 48%) 0 12px, hsl(205 13% 36%) 12px 18px),
+    linear-gradient(180deg, hsl(204 23% 76%), hsl(207 18% 42%));
+  box-shadow: 0 28px 62px hsl(210 25% 5% / 0.46), inset 0 2px 0 hsl(0 0% 100% / 0.42);
+}
+
+.machine-core {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(74vw, 410px);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  border-radius: 32% 44% 38% 42%;
+  background:
+    radial-gradient(circle at 36% 28%, hsl(20 100% 68%), transparent 30%),
+    linear-gradient(145deg, hsl(15 96% 55%), hsl(12 92% 38%));
+  box-shadow:
+    0 46px 110px hsl(12 95% 18% / 0.55),
+    inset 0 10px 24px hsl(35 100% 88% / 0.35),
+    inset 0 -24px 42px hsl(355 80% 25% / 0.45);
+}
+
+.machine-core::before {
+  content: '';
+  position: absolute;
+  inset: 13%;
+  border-radius: 38% 34% 42% 36%;
+  background: linear-gradient(145deg, hsl(35 18% 95%), hsl(207 22% 72%));
+  box-shadow: inset 0 -12px 22px hsl(208 20% 44% / 0.3);
+}
+
+.machine-glyph {
+  position: relative;
+  font-family: 'Newsreader Variable', ui-serif, serif;
+  font-size: clamp(7rem, 20vw, 13rem);
+  font-weight: 760;
+  line-height: 0.72;
+  color: hsl(204 12% 16%);
+  text-shadow: 0 12px 22px hsl(205 20% 8% / 0.22);
+}
+
+.machine-capsule {
+  position: absolute;
+  width: 58px;
+  height: 38px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, hsl(18 95% 62%), hsl(12 82% 46%));
+  box-shadow: 0 18px 34px hsl(210 30% 5% / 0.38), inset 0 2px 0 hsl(35 100% 84% / 0.35);
+}
+
+.machine-capsule:nth-child(1) {
+  left: 5%;
+  bottom: 18%;
+  transform: rotate(13deg);
+}
+
+.machine-capsule:nth-child(2) {
+  right: 3%;
+  top: 28%;
+  transform: rotate(-14deg);
+}
+
+.machine-capsule:nth-child(3) {
+  left: 45%;
+  bottom: 3%;
+  transform: rotate(-5deg);
+}
+
+.shiki-wrap pre {
   margin: 0;
   padding: 0;
   background: transparent !important;
 }
 
-.shiki-wrap :global(code) {
+.shiki-wrap code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.875rem;
   line-height: 1.6;
