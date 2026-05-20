@@ -23,6 +23,9 @@ importers:
       '@fontsource-variable/work-sans':
         specifier: ^5.2.8
         version: 5.2.8
+      '@iconify-svelte/skill-icons':
+        specifier: ^1.0.3
+        version: 1.0.3(svelte@5.55.8)
       '@lucide/svelte':
         specifier: ^1.0.1
         version: 1.16.0(svelte@5.55.8)
@@ -107,6 +110,17 @@ packages:
 
   '@fontsource-variable/work-sans@5.2.8':
     resolution: {integrity: sha512-8uWtTt0/B5NxGie9xUVD5y5Ch4Q+Hy7kFYKtUpwYbzSAgJEoaMxT8rMnfnK7zfAYSLC8GnGO1/tXrFtKIYYQVQ==}
+
+  '@iconify-svelte/skill-icons@1.0.3':
+    resolution: {integrity: sha512-XcDMZfDzt0GYLAAZIUISPFlEHPCU9V3dwIFtNrrx3bK7wH0y8nsPy7dMN6C7eW+3xnuLze0GQrjPTM3s6TtDcw==}
+
+  '@iconify/css-svelte@1.0.1':
+    resolution: {integrity: sha512-f9w1anXXBm48VjDEWDrGTybdiwnDTIChcUpBK/UtXR/AhNp/Co/VPp00t7dO93j+4Je0OwMKyc/HvI7Lpv3PKg==}
+    peerDependencies:
+      svelte: '>4.0.0'
+
+  '@iconify/types@2.0.0':
+    resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -1045,6 +1059,19 @@ snapshots:
   '@fontsource-variable/newsreader@5.2.10': {}
 
   '@fontsource-variable/work-sans@5.2.8': {}
+
+  '@iconify-svelte/skill-icons@1.0.3(svelte@5.55.8)':
+    dependencies:
+      '@iconify/css-svelte': 1.0.1(svelte@5.55.8)
+    transitivePeerDependencies:
+      - svelte
+
+  '@iconify/css-svelte@1.0.1(svelte@5.55.8)':
+    dependencies:
+      '@iconify/types': 2.0.0
+      svelte: 5.55.8
+
+  '@iconify/types@2.0.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

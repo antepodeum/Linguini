@@ -15,7 +15,12 @@ nav_web
 locale_label
 hero_eyebrow
 hero_title
+hero_tagline
 hero_copy
+hero_term
+hero_term_kind
+hero_term_hint
+hero_intro
 hero_trait_typed
 hero_trait_compiled
 hero_trait_native
@@ -29,6 +34,7 @@ codegen_ts_desc
 codegen_svelte_title
 codegen_svelte_desc
 codegen_planned_title
+codegen_planned_intro
 codegen_rust
 codegen_kotlin
 codegen_swift

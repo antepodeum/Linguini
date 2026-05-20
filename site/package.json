@@ -17,6 +17,7 @@
 		"@antepod/linguini-web": "file:../packages/linguini-web",
 		"@fontsource-variable/newsreader": "^5.2.8",
 		"@fontsource-variable/work-sans": "^5.2.8",
+		"@iconify-svelte/skill-icons": "^1.0.3",
 		"@lucide/svelte": "^1.0.1",
 		"clsx": "^2.1.1",
 		"shiki": "^4.0.2",

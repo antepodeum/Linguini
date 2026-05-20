@@ -19,7 +19,7 @@
 
   const classes = $derived(
     cn(
-      'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+      'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
       size === 'sm' ? 'h-9 px-4' : 'h-11 px-5',
       variant === 'primary' &&
         'border-primary bg-primary text-primary-foreground hover:bg-primary/90',

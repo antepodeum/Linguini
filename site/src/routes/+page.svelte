@@ -1,19 +1,33 @@
 <script lang="ts">
   import {
     ArrowRight,
-    Braces,
     Code2,
-    Component,
     Cookie,
-    FileCode2,
-    Globe2,
-    Hash,
-    Languages,
     Route,
-    Sparkles,
-    Terminal,
-    Zap
   } from '@lucide/svelte';
+  import CsharpIcon from '@iconify-svelte/skill-icons/cs';
+  import AngularIcon from '@iconify-svelte/skill-icons/angular-dark';
+  import AstroIcon from '@iconify-svelte/skill-icons/astro';
+  import DartIcon from '@iconify-svelte/skill-icons/dart-dark';
+  import ElixirIcon from '@iconify-svelte/skill-icons/elixir-dark';
+  import FlutterIcon from '@iconify-svelte/skill-icons/flutter-dark';
+  import GoIcon from '@iconify-svelte/skill-icons/golang';
+  import JavaIcon from '@iconify-svelte/skill-icons/java-dark';
+  import KotlinIcon from '@iconify-svelte/skill-icons/kotlin-dark';
+  import NextIcon from '@iconify-svelte/skill-icons/nextjs-dark';
+  import NodeIcon from '@iconify-svelte/skill-icons/nodejs-dark';
+  import NuxtIcon from '@iconify-svelte/skill-icons/nuxtjs-dark';
+  import PhpIcon from '@iconify-svelte/skill-icons/php-dark';
+  import PythonIcon from '@iconify-svelte/skill-icons/python-dark';
+  import ReactIcon from '@iconify-svelte/skill-icons/react-dark';
+  import RustIcon from '@iconify-svelte/skill-icons/rust';
+  import SolidIcon from '@iconify-svelte/skill-icons/solidjs-dark';
+  import SvelteIcon from '@iconify-svelte/skill-icons/svelte';
+  import SwiftIcon from '@iconify-svelte/skill-icons/swift';
+  import TypeScriptIcon from '@iconify-svelte/skill-icons/typescript';
+  import VueIcon from '@iconify-svelte/skill-icons/vuejs-dark';
+  import ZigIcon from '@iconify-svelte/skill-icons/zig-dark';
+  import brandIcon from '$lib/assets/linguini-icon.png';
   import Button from '$lib/components/button.svelte';
   import { l, linguini, localizeHref, setLocale } from '$lib/generated/linguini/svelte';
   import { locales, type Locale } from '$lib/generated/linguini';
@@ -28,7 +42,6 @@
 
   const dateValue = $derived(new Date(`${dateInput}T12:00:00Z`) as unknown as string);
   const localizedRoot = $derived(localizeHref('/'));
-  const localizedPlayground = $derived(localizeHref('/playground'));
 
   const nav = $derived([
     { id: 'why', label: l.main.nav_why },
@@ -39,13 +52,13 @@
 
   const shippedTargets = $derived([
     {
-      icon: FileCode2,
+      icon: TypeScriptIcon,
       title: l.main.codegen_ts_title,
       description: l.main.codegen_ts_desc,
       status: l.main.codegen_status_shipped
     },
     {
-      icon: Component,
+      icon: SvelteIcon,
       title: l.main.codegen_svelte_title,
       description: l.main.codegen_svelte_desc,
       status: l.main.codegen_status_shipped
@@ -53,12 +66,26 @@
   ]);
 
   const plannedTargets = $derived([
-    { icon: Braces, label: l.main.codegen_rust },
-    { icon: Zap, label: l.main.codegen_swift },
-    { icon: Terminal, label: l.main.codegen_go },
-    { icon: Hash, label: l.main.codegen_csharp },
-    { icon: Code2, label: l.main.codegen_kotlin },
-    { icon: Languages, label: l.main.codegen_python }
+    { icon: RustIcon, label: l.main.codegen_rust },
+    { icon: SwiftIcon, label: l.main.codegen_swift },
+    { icon: GoIcon, label: l.main.codegen_go },
+    { icon: CsharpIcon, label: l.main.codegen_csharp },
+    { icon: KotlinIcon, label: l.main.codegen_kotlin },
+    { icon: PythonIcon, label: l.main.codegen_python },
+    { icon: JavaIcon, label: 'Java' },
+    { icon: PhpIcon, label: 'PHP' },
+    { icon: DartIcon, label: 'Dart' },
+    { icon: ElixirIcon, label: 'Elixir' },
+    { icon: ZigIcon, label: 'Zig' },
+    { icon: NodeIcon, label: 'Node.js' },
+    { icon: ReactIcon, label: 'React' },
+    { icon: VueIcon, label: 'Vue' },
+    { icon: AngularIcon, label: 'Angular' },
+    { icon: SolidIcon, label: 'Solid' },
+    { icon: NextIcon, label: 'Next.js' },
+    { icon: NuxtIcon, label: 'Nuxt' },
+    { icon: AstroIcon, label: 'Astro' },
+    { icon: FlutterIcon, label: 'Flutter' }
   ]);
 
   const playgroundLines = $derived([
@@ -88,18 +115,18 @@
 </script>
 
 <svelte:head>
-  <title>{l.main.hero_title} — typed localization language</title>
+  <title>{l.main.hero_title} | typed localization language</title>
   <meta name="description" content={l.main.hero_copy} />
 </svelte:head>
 
 <div class="grain"></div>
 
-<main class="relative overflow-hidden">
+<main class="relative overflow-visible">
   <nav class="sticky top-0 z-20 border-b border-border/70 bg-background/88 backdrop-blur-xl">
     <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
     <a href={localizedRoot} class="flex items-center gap-3 font-semibold tracking-normal">
-      <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_0_32px_hsl(15_96%_55%_/_0.35)]">
-        <Globe2 size={18} />
+      <span class="brand-nav-mark">
+        <img src={brandIcon} alt="" />
       </span>
       <span class="text-lg tracking-[0.28em]">{l.main.hero_title.toUpperCase()}</span>
     </a>
@@ -110,16 +137,16 @@
       {/each}
     </div>
 
-    <div class="flex max-w-full flex-wrap items-center rounded-full border border-border bg-muted/70 p-1 shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.05)]">
+    <div class="locale-nav flex max-w-full flex-wrap items-center">
       <span class="px-3 text-xs text-muted-foreground">{l.main.locale_label}</span>
       {#each locales as item (item)}
         <a
           href={localizeHref('/', item)}
           data-linguini-ignore
           class={[
-            'flex h-8 items-center rounded-full px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
+            'flex h-8 items-center px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
             linguini.locale === item
-              ? 'bg-primary text-primary-foreground'
+              ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground'
           ]}
           onclick={(event) => {
@@ -134,20 +161,51 @@
     </div>
   </nav>
 
-  <section class="mx-auto grid min-h-[calc(100vh-4.5rem)] max-w-7xl items-center gap-10 px-5 pb-20 pt-14 sm:px-8 lg:grid-cols-[0.86fr_1.14fr]">
-    <div class="max-w-3xl self-center">
-      <div class="mb-7 inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/10 px-3 py-2 text-sm text-primary">
-        <Sparkles size={16} class="text-primary" />
-        {l.main.hero_eyebrow}
-      </div>
-      <h1 class="font-serif text-7xl font-semibold leading-[0.86] tracking-normal text-foreground sm:text-8xl lg:text-[10.5rem]">
-        {l.main.hero_title}
-      </h1>
-      <p class="mt-7 max-w-2xl text-xl leading-8 text-muted-foreground sm:text-2xl sm:leading-9">
-        {l.main.hero_copy}
-      </p>
+  <section class="hero-shell mx-auto min-h-[calc(100vh-4.5rem)] max-w-7xl px-5 pb-20 pt-10 sm:px-8 lg:pt-14">
+    <svg class="brand-waves" viewBox="0 0 1400 390" aria-hidden="true">
+      <path d="M-80 76C92 72 156 162 323 154C486 147 528 82 686 65C856 47 948 87 1119 66C1267 48 1340 12 1480 -3" />
+      <path d="M-90 151C71 134 158 225 314 225C486 225 531 157 692 134C862 111 952 138 1119 120C1278 103 1349 76 1484 58" />
+      <path d="M-92 285C73 264 176 288 323 237C480 183 545 134 711 142C886 151 991 206 1152 246C1289 280 1362 282 1482 270" />
+      <path d="M-82 340C92 321 179 350 336 300C489 252 563 202 731 216C901 230 997 286 1165 322C1300 351 1373 344 1480 323" />
+    </svg>
 
-      <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+    <div class="brand-stage">
+      <div class="brand-panel">
+        <div class="brand-icon" aria-hidden="true">
+          <img src={brandIcon} alt="" />
+        </div>
+
+        <div class="brand-copy">
+          <h1>{l.main.hero_title}</h1>
+          <p class="brand-subtitle">{l.main.hero_tagline}</p>
+        </div>
+      </div>
+
+      <div class="brand-code-card">
+        <div class="mb-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
+          <span class="font-mono text-xs text-muted-foreground">linguini/locale/main/en.lgl</span>
+          <span class="rounded-md bg-primary/10 px-2.5 py-1 text-xs text-primary">{l.main.codegen_status_shipped}</span>
+        </div>
+        <div class="grid gap-2 font-mono text-sm leading-6 text-foreground/90">
+          <p><span class="text-primary">cart_summary</span> = Cart has &#123;count&#125; &#123;fruit.nom(count)&#125;</p>
+          <p><span class="text-primary">currency_format</span> = Currency formatting: &#123;amount&#125;</p>
+          <p><span class="text-primary">date_format</span> = Date formatting: &#123;date&#125;</p>
+          <p><span class="text-accent">form</span> SizeWord(Size) &#123; small =&gt; compact, big =&gt; full-size &#125;</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-explain">
+      <div>
+        <div class="term-line">
+          <span>{l.main.hero_term}</span>
+          <b>{l.main.hero_term_kind}</b>
+          <p>{l.main.hero_term_hint}</p>
+        </div>
+        <p class="explain-copy">{l.main.hero_intro}</p>
+      </div>
+
+      <div class="mt-8 flex flex-col gap-3 sm:flex-row lg:mt-0">
         <Button href="https://github.com/antepodeum/Linguini/blob/main/docs/getting-started.md">
           {l.main.primary_cta}
           <ArrowRight size={17} />
@@ -156,34 +214,6 @@
           <Code2 size={17} />
           {l.main.secondary_cta}
         </Button>
-      </div>
-
-      <div class="mt-10 grid max-w-xl grid-cols-3 overflow-hidden rounded-2xl border border-border bg-muted/35 text-center text-sm">
-        <span class="px-3 py-3 text-muted-foreground">{l.main.hero_trait_typed}</span>
-        <span class="border-x border-border px-3 py-3 text-muted-foreground">{l.main.hero_trait_compiled}</span>
-        <span class="px-3 py-3 text-muted-foreground">{l.main.hero_trait_native}</span>
-      </div>
-    </div>
-
-    <div class="hero-machine relative min-h-[560px] overflow-hidden">
-      <div class="machine-track"></div>
-      <div class="machine-capsule"></div>
-      <div class="machine-capsule"></div>
-      <div class="machine-capsule"></div>
-      <div class="machine-core mt-16">
-        <span class="machine-glyph">L</span>
-      </div>
-      <div class="absolute bottom-3 left-0 right-0 mx-auto w-[min(94%,620px)] overflow-hidden rounded-[1.45rem] border border-border bg-background/78 p-4 shadow-[0_26px_80px_hsl(205_30%_4%_/_0.58)] backdrop-blur-md">
-        <div class="mb-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-          <span class="font-mono text-xs text-muted-foreground">linguini/schema/main.lgs</span>
-          <span class="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary">{l.main.codegen_status_shipped}</span>
-        </div>
-        <div class="grid gap-2 font-mono text-sm leading-6 text-foreground/90">
-          <p><span class="text-primary">type</span> Money = Decimal <span class="text-accent">@currency</span></p>
-          <p><span class="text-primary">type</span> ShortDate = Date <span class="text-accent">@date</span>(style = "short")</p>
-          <p><span class="text-primary">enum</span> Fruit &#123; apple, pear, orange &#125;</p>
-          <p>playground_sentence(fruit: Fruit, count: Number, amount: Money)</p>
-        </div>
       </div>
     </div>
   </section>
@@ -197,15 +227,49 @@
   </section>
 
   <section id="codegen" class="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+    <div class="pipeline">
+      <article class="pipeline-panel">
+        <p class="pipeline-label">schema</p>
+        <pre><code>enum Fruit &#123; apple, pear &#125;
+
+type Money = Decimal @currency
+
+checkout(count: Number, fruit: Fruit, total: Money)</code></pre>
+      </article>
+
+      <article class="pipeline-panel">
+        <p class="pipeline-label">locale + impl</p>
+        <pre><code>impl Fruit &#123;
+  apple &#123;
+    form nom(Plural) &#123;
+      one =&gt; apple
+      _ =&gt; apples
+    &#125;
+  &#125;
+&#125;
+
+checkout = &#123;count&#125; &#123;fruit.nom(count)&#125;, &#123;total&#125;</code></pre>
+      </article>
+
+      <article class="pipeline-panel pipeline-panel-output">
+        <p class="pipeline-label">SvelteKit</p>
+        <pre><code>import &#123; l, localizeHref &#125; from '$lib/linguini/svelte';
+
+&lt;a href=&#123;localizeHref('/checkout')&#125;&gt;
+  &#123;l.main.checkout(count, fruit, total)&#125;
+&lt;/a&gt;</code></pre>
+      </article>
+    </div>
+
     <div class="grid gap-4 lg:grid-cols-2">
       {#each shippedTargets as target (target.title)}
         {@const Icon = target.icon}
         <article class="group rounded-2xl border border-border bg-muted/25 p-6 transition hover:border-primary/30 hover:bg-muted/40">
           <div class="mb-5 flex items-start justify-between gap-4">
-            <span class="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-              <Icon size={24} />
+            <span class="flex h-12 w-12 items-center justify-center">
+              <Icon width="40" height="40" />
             </span>
-            <span class="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            <span class="rounded-md border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
               {target.status}
             </span>
           </div>
@@ -215,20 +279,15 @@
       {/each}
     </div>
 
-    <div class="mt-10 rounded-2xl border border-dashed border-border bg-background/40 p-6 sm:p-8">
+    <div class="mt-10 planned-strip">
       <p class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{l.main.codegen_planned_title}</p>
-      <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <p class="mt-2 max-w-3xl text-sm text-muted-foreground">{l.main.codegen_planned_intro}</p>
+      <div class="planned-icons" aria-label={l.main.codegen_planned_title}>
         {#each plannedTargets as target (target.label)}
           {@const Icon = target.icon}
-          <div class="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
-            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground">
-              <Icon size={18} />
-            </span>
-            <div class="min-w-0">
-              <p class="font-medium">{target.label}</p>
-              <p class="text-xs text-muted-foreground">{l.main.codegen_status_planned}</p>
-            </div>
-          </div>
+          <span class="planned-icon" title={target.label} aria-label={target.label}>
+            <Icon width="34" height="34" />
+          </span>
         {/each}
       </div>
     </div>
@@ -240,11 +299,35 @@
         <div>
           <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.nav_language}</p>
           <h2 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.web_title}</h2>
+          <p class="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.web_intro}</p>
         </div>
         <Button href="https://github.com/antepodeum/Linguini/blob/main/docs/reference.md" variant="ghost">
           {l.main.primary_cta}
           <ArrowRight size={17} />
         </Button>
+      </div>
+
+      <div class="web-grid">
+        <article>
+          <p>01</p>
+          <h3>{l.main.web_routing}</h3>
+        </article>
+        <article>
+          <p>02</p>
+          <h3>{l.main.web_cookie}</h3>
+        </article>
+        <article>
+          <p>03</p>
+          <h3>{l.main.web_fallback}</h3>
+        </article>
+        <article>
+          <p>04</p>
+          <h3>{l.main.web_reactivity}</h3>
+        </article>
+        <article>
+          <p>05</p>
+          <h3>{l.main.web_links}</h3>
+        </article>
       </div>
     </div>
   </section>
@@ -255,7 +338,7 @@
         <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.playground_kicker}</p>
         <h2 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.playground_title}</h2>
         <div class="mt-8 grid gap-3 text-sm text-muted-foreground">
-          <p class="flex items-center gap-2"><Route size={16} class="text-primary" /> {l.main.route_label}: {localizedPlayground}</p>
+          <p class="flex items-center gap-2"><Route size={16} class="text-primary" /> {l.main.route_label}: {localizedRoot}</p>
           <p class="flex items-center gap-2"><Cookie size={16} class="text-primary" /> {l.main.cookie_label}: LINGUINI_SITE_LOCALE={linguini.locale}</p>
         </div>
       </div>
@@ -305,7 +388,7 @@
           <p class="mb-6 font-mono text-sm text-primary">{localizedRoot}</p>
           <div class="grid gap-3">
             {#each playgroundLines as line (line)}
-              <p class="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-foreground">{line}</p>
+              <p class="px-1 py-1 text-foreground">{line}</p>
             {/each}
           </div>
         </div>
