@@ -114,7 +114,7 @@ localized_path_label = Localized route
 cookie_label = Cookie
 route_label = Route prefix
 
-playground_sentence = {Delivered(count, gender)} {count} {SizeWord(size)} {fruit.nom(count)} for {GenderPronoun(gender)}. Total {amount}; ship date {date}.
+playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeWord(size)} {fruit.nom(count)} for {GenderPronoun(gender)}. Total {amount}; ship date {date}.
 cart_summary = Cart has {count} {fruit.nom(count)}
 number_format = Number formatting: {value}
 currency_format = Currency formatting: {amount}

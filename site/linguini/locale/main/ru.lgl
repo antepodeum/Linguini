@@ -139,7 +139,7 @@ localized_path_label = Локализованный route
 cookie_label = Cookie
 route_label = Route prefix
 
-playground_sentence = {Delivered(count, gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} для {GenderPronoun(gender)}. Итого {amount @currency(code = "RUB")}; дата {date}.
+playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} для {GenderPronoun(gender)}. Итого {amount @currency(code = "RUB")}; дата {date}.
 cart_summary = В корзине {count} {fruit.nom(count)}
 number_format = Формат числа: {value}
 currency_format = Формат валюты: {amount @currency(code = "RUB")}

@@ -141,7 +141,7 @@ localized_path_label = Rota localizada
 cookie_label = Cookie
 route_label = Prefixo da rota
 
-playground_sentence = {Delivered(count, gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} para {GenderPronoun(gender)}. Total {amount @currency(code = "BRL")}; data {date}.
+playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} para {GenderPronoun(gender)}. Total {amount @currency(code = "BRL")}; data {date}.
 cart_summary = O carrinho tem {count} {fruit.nom(count)}
 number_format = Formato numérico: {value}
 currency_format = Formato de moeda: {amount @currency(code = "BRL")}

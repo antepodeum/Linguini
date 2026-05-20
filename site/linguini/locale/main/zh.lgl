@@ -105,7 +105,7 @@ localized_path_label = 本地化路由
 cookie_label = Cookie
 route_label = 路由前缀
 
-playground_sentence = {Delivered(count, gender)} {count} 个 {SizeWord(size)} {fruit.nom(count)}，指代 {GenderPronoun(gender)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
+playground_sentence = {Delivered(count, fruit.Gender)} {count} 个 {SizeWord(size)} {fruit.nom(count)}，指代 {GenderPronoun(gender)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
 cart_summary = 购物车中有 {count} 个 {fruit.nom(count)}
 number_format = 数字格式：{value}
 currency_format = 货币格式：{amount @currency(code = "CNY")}
