@@ -1,7 +1,10 @@
 use std::env;
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 const PLURALS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/plurals.json";
 const LAYOUT_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-misc-full/main";
@@ -10,6 +13,8 @@ const DATES_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-dates-full/main";
 const LOCAL_CLDR_SOURCE_RELATIVE_PATH: &str = "vendor/cldr-json";
 const CLDR_SOURCE_CONFIG_RELATIVE_PATH: &str = "cldr-json.toml";
 const CLDR_SOURCE_CHECKOUT_ENV: &str = "LINGUINI_CLDR_SOURCE_CHECKOUT_DIR";
+const CLDR_FETCH_LOCK_RETRIES: usize = 120;
+const CLDR_FETCH_LOCK_SLEEP_MS: u64 = 500;
 
 pub(crate) fn plural_source_path() -> Result<PathBuf, String> {
     if let Ok(path) = env::var("LINGUINI_CLDR_PLURALS_JSON") {
@@ -64,9 +69,9 @@ fn cldr_source_dir() -> Result<PathBuf, String> {
     }
 
     let macro_manifest_dir = macro_manifest_dir();
-    let source_dir = macro_manifest_dir.join(LOCAL_CLDR_SOURCE_RELATIVE_PATH);
-    if is_usable_cldr_source_dir(&source_dir) {
-        return Ok(source_dir);
+    let default_source_dir = macro_manifest_dir.join(LOCAL_CLDR_SOURCE_RELATIVE_PATH);
+    if is_usable_cldr_source_dir(&default_source_dir) {
+        return Ok(default_source_dir);
     }
 
     if matches!(
@@ -75,15 +80,28 @@ fn cldr_source_dir() -> Result<PathBuf, String> {
     ) {
         return Err(format!(
             "missing local CLDR JSON checkout at {}. Provide LINGUINI_CLDR_SOURCE_DIR or unset LINGUINI_CLDR_AUTO_FETCH=0 to allow fetching the pinned CLDR source.",
-            source_dir.display()
+            default_source_dir.display()
         ));
+    }
+
+    let source_checkout = env::var(CLDR_SOURCE_CHECKOUT_ENV)
+        .map(PathBuf::from)
+        .unwrap_or(default_source_dir);
+    if is_usable_cldr_source_dir(&source_checkout) {
+        return Ok(source_checkout);
+    }
+
+    let lock_dir = cldr_fetch_lock_dir(&source_checkout);
+    let _lock = CldrFetchLock::acquire(&lock_dir)?;
+
+    // Another rustc/proc-macro process may have populated the checkout while we
+    // were waiting for the lock. Re-check before deleting and fetching.
+    if is_usable_cldr_source_dir(&source_checkout) {
+        return Ok(source_checkout);
     }
 
     let config_path = macro_manifest_dir.join(CLDR_SOURCE_CONFIG_RELATIVE_PATH);
     let config = read_cldr_source_config(&config_path)?;
-    let source_checkout = env::var(CLDR_SOURCE_CHECKOUT_ENV)
-        .map(PathBuf::from)
-        .unwrap_or(source_dir);
     fetch_cldr_json(&source_checkout, &config)?;
     Ok(source_checkout)
 }
@@ -227,21 +245,14 @@ fn fetch_cldr_json(source_dir: &Path, config: &CldrSourceConfig) -> Result<(), S
 
 fn run_git<'a>(args: impl IntoIterator<Item = &'a str>) -> Result<(), String> {
     let args: Vec<&str> = args.into_iter().collect();
-    let status = Command::new("git")
+    let output = Command::new("git")
         .args(&args)
-        .status()
+        .output()
         .map_err(|error| format!("git {}: {error}", args.join(" ")))?;
-    if status.success() {
+    if output.status.success() {
         Ok(())
     } else {
-        Err(format!(
-            "git {} failed with status {}",
-            args.join(" "),
-            status
-                .code()
-                .map(|code| code.to_string())
-                .unwrap_or_else(|| "unknown".to_owned())
-        ))
+        Err(format_command_error("git", &args, &output))
     }
 }
 
@@ -254,15 +265,71 @@ fn git_output<'a>(args: impl IntoIterator<Item = &'a str>) -> Result<String, Str
     if output.status.success() {
         String::from_utf8(output.stdout).map_err(|error| error.to_string())
     } else {
+        Err(format_command_error("git", &args, &output))
+    }
+}
+
+fn format_command_error(command: &str, args: &[&str], output: &std::process::Output) -> String {
+    let status = output
+        .status
+        .code()
+        .map(|code| code.to_string())
+        .unwrap_or_else(|| "unknown".to_owned());
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    [
+        format!("{command} {} failed with status {status}", args.join(" ")),
+        stderr,
+        stdout,
+    ]
+    .into_iter()
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join("\n")
+}
+
+fn cldr_fetch_lock_dir(source_dir: &Path) -> PathBuf {
+    let lock_name = source_dir
+        .file_name()
+        .map(|name| format!("{}.fetch.lock", name.to_string_lossy()))
+        .unwrap_or_else(|| "cldr-json.fetch.lock".to_owned());
+    source_dir.with_file_name(lock_name)
+}
+
+struct CldrFetchLock {
+    path: PathBuf,
+}
+
+impl CldrFetchLock {
+    fn acquire(path: &Path) -> Result<Self, String> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| format!("{}: {error}", parent.display()))?;
+        }
+
+        for _ in 0..CLDR_FETCH_LOCK_RETRIES {
+            match fs::create_dir(path) {
+                Ok(()) => {
+                    return Ok(Self {
+                        path: path.to_path_buf(),
+                    });
+                }
+                Err(error) if error.kind() == ErrorKind::AlreadyExists => {
+                    thread::sleep(Duration::from_millis(CLDR_FETCH_LOCK_SLEEP_MS));
+                }
+                Err(error) => return Err(format!("{}: {error}", path.display())),
+            }
+        }
+
         Err(format!(
-            "git {} failed with status {}",
-            args.join(" "),
-            output
-                .status
-                .code()
-                .map(|code| code.to_string())
-                .unwrap_or_else(|| "unknown".to_owned())
+            "timed out waiting for CLDR source fetch lock at {}",
+            path.display()
         ))
+    }
+}
+
+impl Drop for CldrFetchLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir(&self.path);
     }
 }
 

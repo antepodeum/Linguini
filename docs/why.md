@@ -132,8 +132,7 @@ call sites are compile-time errors. Nothing falls back to a wrong string silentl
 **The output is native typed code.**
 
 Messages compile to typed functions. Arguments are validated at the call site
-by the type system of the target language. Unused messages are eliminated by
-the bundler. There is no runtime parser.
+by the type system of the target language. There is no runtime parser.
 
 ---
 

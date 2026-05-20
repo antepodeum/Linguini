@@ -430,11 +430,17 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit.contents.contains("export const handle"));
     assert!(sveltekit.contents.contains("export const reroute"));
     assert!(sveltekit.contents.contains("export const load"));
+    assert!(sveltekit
+        .contents
+        .contains("cookie: event.request.headers.get(\"cookie\") ?? undefined"));
 
     let sveltekit_declaration = files
         .iter()
         .find(|file| file.path == "sveltekit.d.ts")
         .expect("sveltekit declaration");
+    assert!(sveltekit_declaration
+        .contents
+        .contains("interface SerializedLinguiniContext"));
     assert!(sveltekit_declaration.contents.contains("interface Locals"));
     assert!(sveltekit_declaration
         .contents

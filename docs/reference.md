@@ -108,17 +108,11 @@ auth {
 }
 ```
 
-### Imports and exports
+### Multiple schema files
 
-Enums and types can be shared across schema files.
-
-```lgs
-// shared.lgs
-export enum Status { active, inactive, pending }
-
-// orders.lgs
-import { Status } from "./shared.lgs"
-```
+A project can contain multiple `.lgs` files under the configured schema directory.
+Declarations from those files are loaded into one project-level schema namespace.
+Source-level `import` and `export` syntax is not part of the current language.
 
 ---
 
@@ -324,7 +318,7 @@ form F(Gender) {
 
 ## Lints (`linguini check`)
 
-All lints are `warn` by default. Suppress with `#[allow(lint_name)]`.
+Lints are reported by `linguini check`. Inline lint suppression syntax is not part of the current language.
 
 | Lint                 | Description                                      |
 | -------------------- | ------------------------------------------------ |

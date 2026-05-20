@@ -6,7 +6,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  rust:
+    name: Rust workspace
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,6 +20,14 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
+
+  javascript:
+    name: JavaScript packages and site
+    runs-on: ubuntu-latest
+    needs: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - uses: pnpm/action-setup@v4
         with:
           version: 11.1.0
@@ -26,7 +35,26 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: site/pnpm-lock.yaml
-      - name: Check site
+          cache-dependency-path: |
+            site/pnpm-lock.yaml
+            plugins/vite/pnpm-lock.yaml
+      - name: Install and test Vite plugin
+        working-directory: plugins/vite
+        run: pnpm install --frozen-lockfile && pnpm test
+      - name: Install and check site
         working-directory: site
-        run: pnpm install --frozen-lockfile && pnpm check
+        run: pnpm install --frozen-lockfile && pnpm check && pnpm build
+
+  vscode:
+    name: VS Code extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - name: Install and compile extension
+        working-directory: editors/vscode
+        run: npm ci && npm run compile

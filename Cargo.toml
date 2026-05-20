@@ -12,7 +12,6 @@ members = [
   "crates/linguini-ir",
   "crates/linguini-locale",
   "crates/linguini-lsp",
-  "crates/linguini-package",
   "crates/linguini-schema",
   "crates/linguini-syntax",
   "crates/linguini-test-support",

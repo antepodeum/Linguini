@@ -223,6 +223,14 @@ pub fn generate_project_sveltekit_declaration() -> String {
     output.push_str("export declare const handle: Handle;\n");
     output.push_str("export declare const reroute: Reroute;\n");
     output.push_str("export declare const load: ServerLoad;\n\n");
+    output.push_str("export interface SerializedLinguiniContext<Locale extends string = string> {\n");
+    output.push_str("  locale: Locale;\n");
+    output.push_str("  baseLocale: Locale;\n");
+    output.push_str("  locales: readonly Locale[];\n");
+    output.push_str("  direction: TextDirection;\n");
+    output.push_str("  lang: Locale;\n");
+    output.push_str("  htmlAttrs: { lang: Locale; dir: TextDirection };\n");
+    output.push_str("}\n\n");
     output.push_str("declare global {\n");
     output.push_str("  namespace App {\n");
     output.push_str("    interface Locals {\n");
@@ -422,8 +430,10 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
 
     const context = await web.resolveRequest(event.request, {
       url: event.url,
-      cookies: event.cookies,
+      currentUrl: event.url,
+      origin: event.url.origin,
       headers: event.request.headers,
+      cookie: event.request.headers.get("cookie") ?? undefined,
     });
 
     const locals = event.locals as Record<string, unknown>;
@@ -702,7 +712,7 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
   const matchLocale = (locale: unknown) => runtime.normalizeLocale?.(locale) ?? matchLocaleValue(runtime.locales, locale);
   const getTextDirection = (locale: Locale) => runtime.getTextDirection?.(locale) ?? runtime.localeDirections?.[locale] ?? "ltr";
 
-  function createRequestContext(locale: Locale): LinguiniRequestContext<Locale, Linguini> {
+  function createRequestContext(locale: Locale, contextInput: Record<string, unknown> = {}): LinguiniRequestContext<Locale, Linguini> {
     const resolved = matchLocale(locale) ?? runtime.baseLocale;
     const messages = runtime.createLinguini(resolved);
     return {
@@ -715,13 +725,13 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
       messages,
       l: messages,
       htmlAttrs: htmlAttrs(resolved),
-      localizeHref: (href, nextLocale = resolved, input = {}) => localizeHref(href, nextLocale, input),
-      localizeUrl: (url, nextLocale = resolved, input = {}) => localizeUrl(url, nextLocale, input),
-      shouldLocalizeHref: (href, input = {}) => shouldLocalizeHref(href, input),
-      localizeHrefAttribute: (href, nextLocale = resolved, input = {}) => localizeHrefAttribute(href, nextLocale, input),
-      localizeMarkupLinks: (html, nextLocale = resolved, input = {}) => localizeMarkupLinks(html, nextLocale, input),
-      delocalizeUrl: (url, input = {}) => delocalizeUrl(url, input),
-      alternateLinks: (url, input = {}) => alternateLinks(url, input),
+      localizeHref: (href, nextLocale = resolved, input = contextInput) => localizeHref(href, nextLocale, input),
+      localizeUrl: (url, nextLocale = resolved, input = contextInput) => localizeUrl(url, nextLocale, input),
+      shouldLocalizeHref: (href, input = contextInput) => shouldLocalizeHref(href, input),
+      localizeHrefAttribute: (href, nextLocale = resolved, input = contextInput) => localizeHrefAttribute(href, nextLocale, input),
+      localizeMarkupLinks: (html, nextLocale = resolved, input = contextInput) => localizeMarkupLinks(html, nextLocale, input),
+      delocalizeUrl: (url, input = contextInput) => delocalizeUrl(url, input),
+      alternateLinks: (url, input = contextInput) => alternateLinks(url, input),
     };
   }
 
@@ -837,7 +847,16 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     const sink = target as { headers?: Headers; cookies?: { set(name: string, value: string, options?: Record<string, unknown>): void }; setHeaders?: (headers: Record<string, string>) => void };
     if (sink.setHeaders) sink.setHeaders({ "set-cookie": cookie });
     else if (sink.headers?.append) sink.headers.append("set-cookie", cookie);
-    else if (sink.cookies?.set) sink.cookies.set(normalized.cookieName, locale, { path: normalized.cookiePath });
+    else if (sink.cookies?.set) {
+      sink.cookies.set(normalized.cookieName, locale, {
+        path: normalized.cookiePath,
+        domain: normalized.cookieDomain,
+        maxAge: input.maxAge ?? normalized.cookieMaxAge,
+        sameSite: normalized.cookieSameSite,
+        secure: input.secure ?? normalized.cookieSecure,
+        httpOnly: input.httpOnly ?? normalized.cookieHttpOnly,
+      });
+    }
   }
 
   return {
@@ -846,7 +865,10 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     matchLocale,
     resolveLocale: async (input = {}) => resolveLocaleSync(input),
     resolveLocaleSync,
-    resolveRequest: async (_request, input = {}) => createRequestContext(resolveLocaleSync(input)),
+    resolveRequest: async (request, input = {}) => {
+      const requestInput = inputFromRequest(request, input);
+      return createRequestContext(resolveLocaleSync(requestInput), requestInput);
+    },
     createRequestContext,
     localizeUrl,
     localizeHref,
@@ -863,6 +885,25 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     serializeLocaleCookie,
     getTextDirection,
   };
+}
+
+function inputFromRequest(request: Request, input: Record<string, unknown> = {}) {
+  const requestInput: Record<string, unknown> = { ...input };
+  requestInput.url ??= request.url;
+  requestInput.currentUrl ??= requestInput.url;
+  requestInput.headers ??= request.headers;
+  requestInput.cookie ??= readHeader(requestInput.headers, "cookie") ?? readHeader(request.headers, "cookie") ?? undefined;
+  return requestInput;
+}
+
+function readHeader(headers: unknown, name: string) {
+  if (!headers) return undefined;
+  const getter = (headers as { get?: (header: string) => string | null | undefined }).get;
+  if (typeof getter === "function") return getter.call(headers, name) ?? undefined;
+  const record = headers as Record<string, unknown>;
+  const value = record[name] ?? record[name.toLowerCase()];
+  if (Array.isArray(value)) return value.join(", ");
+  return typeof value === "string" ? value : undefined;
 }
 
 function normalizeOptions(options: LinguiniWebOptions & { baseLocale: string }) {
