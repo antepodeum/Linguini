@@ -5,6 +5,7 @@ mod formatters;
 mod names;
 mod project;
 mod shared;
+mod templates;
 mod tree;
 
 use std::fmt;

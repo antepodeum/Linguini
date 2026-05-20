@@ -15,6 +15,7 @@ use super::names::{
     escape_comment, escape_string, function_name, property_key, safe_identifier, string_literal,
     ts_type,
 };
+use super::templates::{render_template, SINGLE_INDEX_RUNTIME};
 use super::tree::{nested_message_tree, MessageTree};
 use super::TypeScriptOptions;
 
@@ -185,42 +186,14 @@ pub fn emit_index(options: &TypeScriptOptions, output: &mut String) {
     let locale = safe_identifier(&options.locale);
     let locale_path = escape_string(&options.locale);
     let locale_literal = string_literal(&options.locale);
-    output.push_str(&format!(
-        "import {locale} from \"./locales/{locale_path}\";\n\n"
-    ));
-    output.push_str(&format!(
-        "const localeModules = {{ {locale} }} as const;\n\n"
-    ));
-    output.push_str("type LinguiniLanguage = keyof typeof localeModules;\n");
-    output.push_str("export type Linguini = (typeof localeModules)[LinguiniLanguage];\n\n");
-    output.push_str(&format!(
-        "type LinguiniLanguageInput = LinguiniLanguage | {locale_literal};\n\n"
-    ));
-    output
-        .push_str("export function createLinguini(language: LinguiniLanguageInput): Linguini {\n");
-    output.push_str("  return localeModules[language as LinguiniLanguage];\n");
-    output.push_str("}\n\n");
-    output.push_str("export function createLinguiniProvider(options: {\n");
-    output.push_str("  resolveLanguage: () => LinguiniLanguageInput;\n");
-    output.push_str("}): Linguini {\n");
-    output.push_str("  return new Proxy({} as Linguini, {\n");
-    output.push_str("    get(_target, property) {\n");
-    output.push_str(
-        "      return createLinguini(options.resolveLanguage())[property as keyof Linguini];\n",
-    );
-    output.push_str("    },\n");
-    output.push_str("  });\n");
-    output.push_str("}\n\n");
-    output.push_str("export function configureLinguini(options: {\n");
-    output.push_str("  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n");
-    output.push_str("}): Linguini {\n");
-    output.push_str("  if (typeof options.language === \"function\") {\n");
-    output.push_str("    return createLinguiniProvider({ resolveLanguage: options.language });\n");
-    output.push_str("  }\n");
-    output.push_str("  return createLinguini(options.language);\n");
-    output.push_str("}\n\n");
-    output.push_str(&format!(
-        "export const lgl: Linguini = createLinguini({locale_literal});\n"
+
+    output.push_str(&render_template(
+        SINGLE_INDEX_RUNTIME,
+        &[
+            ("LOCALE_IDENTIFIER", locale),
+            ("LOCALE_PATH", locale_path),
+            ("LOCALE_LITERAL", locale_literal),
+        ],
     ));
 }
 

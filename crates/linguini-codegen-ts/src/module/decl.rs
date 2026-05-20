@@ -1,101 +1,27 @@
 use linguini_ir::{IrMessage, IrModule};
 
 use super::names::{escape_comment, escape_string, function_name, property_key, ts_type};
+use super::templates::{render_template, SHARED_DECLARATIONS, SINGLE_INDEX_DECLARATIONS};
 use super::tree::{nested_message_tree, MessageTree};
 use super::TypeScriptOptions;
 
 pub fn generate_shared_declaration() -> String {
-    let mut output = String::new();
-    output.push_str(
-        r#"export type FormatterWidth = "full" | "long" | "medium" | "short";
-
-export type NumberFormatterOptions = Record<string, never>;
-
-export type CurrencyFormatterOptions = {
-  code?: string;
-  accounting?: "true" | "false";
-};
-
-export type DateFormatterOptions = {
-  style?: FormatterWidth;
-};
-
-export type FormatterOptions = NumberFormatterOptions | CurrencyFormatterOptions | DateFormatterOptions;
-
-export type CldrFormatWidths = Record<FormatterWidth, string>;
-
-export type CldrFormatterData = {
-  locale: string;
-  numbers?: {
-    decimalSymbol: string;
-    groupSymbol: string;
-    decimalPattern: string;
-    percentPattern: string;
-  };
-  currency?: {
-    standardPattern: string;
-    accountingPattern?: string;
-  };
-  date?: {
-    dateFormats: CldrFormatWidths;
-    timeFormats: CldrFormatWidths;
-    dateTimeFormats: CldrFormatWidths;
-  };
-};
-
-export declare function formatNumber(
-  value: number | string,
-  data: CldrFormatterData,
-): string;
-
-export declare function formatCurrency(
-  value: number | string,
-  data: CldrFormatterData,
-  options?: CurrencyFormatterOptions,
-): string;
-
-export declare function formatDate(
-  value: Date | number | string,
-  data: CldrFormatterData,
-  options?: DateFormatterOptions,
-): string;
-
-export declare function selectBranch(
-  key: string,
-  branches: Record<string, string>,
-): string;
-"#,
-    );
-    output
+    SHARED_DECLARATIONS.to_owned()
 }
 
 pub fn generate_index_declaration(options: &TypeScriptOptions) -> String {
     let locale = options.locale.replace('-', "_");
     let locale_path = escape_string(&options.locale);
     let locale_literal = format!("\"{}\"", escape_string(&options.locale));
-    let mut output = String::new();
-    output.push_str(&format!(
-        "import {locale} from \"./locales/{locale_path}\";\n\n"
-    ));
-    output.push_str(&format!(
-        "declare const localeModules: {{ readonly {locale}: typeof {locale} }};\n\n"
-    ));
-    output.push_str("type LinguiniLanguage = keyof typeof localeModules;\n");
-    output.push_str("export type Linguini = (typeof localeModules)[LinguiniLanguage];\n\n");
-    output.push_str(&format!(
-        "type LinguiniLanguageInput = LinguiniLanguage | {locale_literal};\n\n"
-    ));
-    output.push_str(
-        "export declare function createLinguini(language: LinguiniLanguageInput): Linguini;\n\n",
-    );
-    output.push_str("export declare function createLinguiniProvider(options: {\n");
-    output.push_str("  resolveLanguage: () => LinguiniLanguageInput;\n");
-    output.push_str("}): Linguini;\n\n");
-    output.push_str("export declare function configureLinguini(options: {\n");
-    output.push_str("  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n");
-    output.push_str("}): Linguini;\n\n");
-    output.push_str("export declare const lgl: Linguini;\n");
-    output
+
+    render_template(
+        SINGLE_INDEX_DECLARATIONS,
+        &[
+            ("LOCALE_IDENTIFIER", locale),
+            ("LOCALE_PATH", locale_path),
+            ("LOCALE_LITERAL", locale_literal),
+        ],
+    )
 }
 
 pub fn generate_locale_declaration(schema: &IrModule) -> String {
