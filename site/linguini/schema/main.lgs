@@ -55,8 +55,17 @@ playground_kicker
 playground_title
 count_label
 fruit_label
+fruit_apple_label
+fruit_pear_label
+fruit_orange_label
 size_label
+size_small_label
+size_big_label
 gender_label
+gender_male_label
+gender_female_label
+gender_neuter_label
+gender_other_label
 amount_label
 date_label
 localized_path_label

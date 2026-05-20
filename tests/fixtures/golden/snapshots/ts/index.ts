@@ -28,60 +28,20 @@ export type LinguiniProviderOptions = {
 };
 
 function localeFallbackTags(locale: string): string[] {
-const tags: string[] = [];
-let tag = locale;
-while (tag) {
-tags.push(tag);
-const dash = tag.lastIndexOf("-");
-if (dash <= 0) break;
-tag = tag.slice(0, dash);
-}
-return tags;
-}
-
-function localeFallbackChain(locale: Locale): Locale[] {
-const chain: Locale[] = [];
-for (const tag of localeFallbackTags(locale)) {
-const exact = locales.find((entry) => entry.toLowerCase() === tag.toLowerCase());
-if (exact && !chain.includes(exact)) chain.push(exact);
-}
-if (!chain.includes(baseLocale)) chain.push(baseLocale);
-return chain;
-}
-
-function mergeLocaleChain(chain: Locale[]): Linguini {
-let merged = {} as Linguini;
-for (const locale of [...chain].reverse()) {
-merged = mergeLocaleModule(merged, localeModules[locale as LinguiniLanguage]);
-}
-return merged;
-}
-
-type LinguiniRecord = Record<string, unknown>;
-
-function isPlainLocaleObject(value: unknown): value is LinguiniRecord {
-return !!value && typeof value === "object" && !Array.isArray(value) && typeof (value as { call?: unknown }).call !== "function";
-}
-
-function mergeLocaleModule(target: Linguini, source: Linguini): Linguini {
-const targetRecord = target as unknown as LinguiniRecord;
-const sourceRecord = source as unknown as LinguiniRecord;
-const result: LinguiniRecord = { ...targetRecord };
-for (const key of Object.keys(sourceRecord)) {
-const value = sourceRecord[key];
-const existing = targetRecord[key];
-if (isPlainLocaleObject(value) && isPlainLocaleObject(existing)) {
-result[key] = mergeLocaleModule(existing as unknown as Linguini, value as unknown as Linguini);
-} else {
-result[key] = value;
-}
-}
-return result as unknown as Linguini;
+  const tags: string[] = [];
+  let tag = locale;
+  while (tag) {
+    tags.push(tag);
+    const dash = tag.lastIndexOf("-");
+    if (dash <= 0) break;
+    tag = tag.slice(0, dash);
+  }
+  return tags;
 }
 
 export function createLinguini(language: LinguiniLanguageInput): Linguini {
   const locale = normalizeLocale(language) ?? baseLocale;
-  return mergeLocaleChain(localeFallbackChain(locale));
+  return localeModules[locale];
 }
 
 export function createLinguiniProvider(options: LinguiniProviderOptions = {}): Linguini {

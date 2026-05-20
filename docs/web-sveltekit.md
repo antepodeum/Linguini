@@ -1,9 +1,11 @@
 # Web and SvelteKit setup
 
-Install the helpers you need:
+Install the Vite plugin. The web and SvelteKit runtime helpers are generated
+into your output directory, so app users do not install separate Linguini
+runtime packages.
 
 ```sh
-npm install @antepod/linguini-web @antepod/linguini-sveltekit @antepod/linguini-vite
+npm install @antepod/linguini-vite
 ```
 
 `linguini init` does not enable web output. Enable it explicitly in
@@ -231,10 +233,10 @@ export function load({ locals }) {
 }
 ```
 
-For non-SvelteKit frameworks, use `@antepod/linguini-web` directly:
+For non-SvelteKit frameworks, import the generated web runtime:
 
 ```ts
-import { createWebI18n } from "@antepod/linguini-web";
+import { createWebI18n } from "./generated/linguini/web";
 import * as runtime from "./generated/linguini";
 
 const i18n = createWebI18n(runtime, {

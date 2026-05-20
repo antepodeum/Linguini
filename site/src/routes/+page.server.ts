@@ -17,6 +17,12 @@ enum Size {
   big
 }
 
+enum Gender {
+  male,
+  female,
+  neuter
+}
+
 type Money = Decimal @currency(code = "USD")
 
 checkout(
@@ -28,6 +34,8 @@ checkout(
 
 const localeExample = `impl Fruit {
   apple {
+    Gender = neuter
+
     form nom(Plural) {
       one => apple
       _ => apples
@@ -35,6 +43,8 @@ const localeExample = `impl Fruit {
   }
 
   pear {
+    Gender = female
+
     form nom(Plural) {
       one => pear
       _ => pears

@@ -404,6 +404,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .map(|file| file.path.as_str())
         .collect::<Vec<_>>();
     assert!(paths.contains(&"svelte.ts"));
+    assert!(paths.contains(&"web.ts"));
     assert!(paths.contains(&"sveltekit.ts"));
 
     let svelte = files
@@ -412,7 +413,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .expect("svelte module");
     assert!(svelte
         .contents
-        .contains("@antepod/linguini-sveltekit/client"));
+        .contains("import { createWebI18n } from \"./web\";"));
+    assert!(!svelte.contents.contains("@antepod/"));
     assert!(svelte.contents.contains("export const l = linguini.l;"));
     assert!(svelte.contents.contains("cookieName: \"SHOP_LOCALE\""));
     assert!(svelte.contents.contains("localizeLinks: false"));
@@ -423,7 +425,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .expect("sveltekit module");
     assert!(sveltekit
         .contents
-        .contains("@antepod/linguini-sveltekit/server"));
+        .contains("import { createWebI18n } from \"./web\";"));
+    assert!(!sveltekit.contents.contains("@antepod/"));
     assert!(sveltekit.contents.contains("export const handle"));
     assert!(sveltekit.contents.contains("export const reroute"));
     assert!(sveltekit.contents.contains("export const load"));
@@ -435,8 +438,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit_declaration.contents.contains("interface Locals"));
     assert!(sveltekit_declaration
         .contents
-        .contains("linguini: import(\"@antepod/linguini-web\").LinguiniRequestContext"));
-    assert!(!sveltekit_declaration.contents.contains("import type"));
+        .contains("linguini: LinguiniRequestContext<Locale, Linguini>"));
+    assert!(!sveltekit_declaration.contents.contains("@antepod/"));
 }
 
 #[test]

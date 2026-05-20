@@ -23,11 +23,28 @@ IrModule {
             name: "Money",
             target: "Decimal",
             docs: [],
+            formatters: [
+                IrFormatter {
+                    kind: Currency,
+                    arguments: [],
+                },
+            ],
         },
         IrTypeAlias {
             name: "ShortDate",
             target: "Date",
             docs: [],
+            formatters: [
+                IrFormatter {
+                    kind: Date,
+                    arguments: [
+                        IrFormatterArgument {
+                            name: "style",
+                            value: "short",
+                        },
+                    ],
+                },
+            ],
         },
     ],
     messages: [

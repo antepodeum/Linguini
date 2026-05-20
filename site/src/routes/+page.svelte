@@ -91,6 +91,24 @@
     { icon: FlutterIcon, label: 'Flutter' }
   ]);
 
+  const fruitOptions = $derived([
+    { value: 'apple' as const, label: l.main.fruit_apple_label },
+    { value: 'pear' as const, label: l.main.fruit_pear_label },
+    { value: 'orange' as const, label: l.main.fruit_orange_label }
+  ]);
+
+  const sizeOptions = $derived([
+    { value: 'small' as const, label: l.main.size_small_label },
+    { value: 'big' as const, label: l.main.size_big_label }
+  ]);
+
+  const genderOptions = $derived([
+    { value: 'male' as const, label: l.main.gender_male_label },
+    { value: 'female' as const, label: l.main.gender_female_label },
+    { value: 'neuter' as const, label: l.main.gender_neuter_label },
+    { value: 'other' as const, label: l.main.gender_other_label }
+  ]);
+
   const playgroundLines = $derived([
     l.main.playground_sentence(fruit, size, gender, count, amount, dateValue),
     l.main.cart_summary(count, fruit),
@@ -125,7 +143,7 @@
 <div class="grain"></div>
 
 <main class="relative overflow-visible">
-  <nav class="sticky top-0 z-20 border-b border-border/70 bg-background/88 backdrop-blur-xl">
+  <nav class="sticky top-0 z-50 border-b border-border/70 bg-background/88 backdrop-blur-xl">
     <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
     <a href={localizedRoot} class="flex items-center gap-3 font-semibold tracking-normal">
       <span class="brand-nav-mark">
@@ -283,7 +301,7 @@
           <h2 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.web_title}</h2>
           <p class="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.web_intro}</p>
         </div>
-        <Button href="https://github.com/antepodeum/Linguini/blob/main/docs/reference.md" variant="ghost">
+        <Button href="https://github.com/antepodeum/Linguini/blob/main/docs/web-sveltekit.md" variant="ghost">
           {l.main.primary_cta}
           <ArrowRight size={17} />
         </Button>
@@ -334,25 +352,25 @@
           <label class="grid gap-2 text-sm">
             {l.main.fruit_label}
             <select class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" bind:value={fruit}>
-              <option value="apple">apple</option>
-              <option value="pear">pear</option>
-              <option value="orange">orange</option>
+              {#each fruitOptions as option (option.value)}
+                <option value={option.value}>{option.label}</option>
+              {/each}
             </select>
           </label>
           <label class="grid gap-2 text-sm">
             {l.main.size_label}
             <select class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" bind:value={size}>
-              <option value="small">small</option>
-              <option value="big">big</option>
+              {#each sizeOptions as option (option.value)}
+                <option value={option.value}>{option.label}</option>
+              {/each}
             </select>
           </label>
           <label class="grid gap-2 text-sm">
             {l.main.gender_label}
             <select class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" bind:value={gender}>
-              <option value="male">male</option>
-              <option value="female">female</option>
-              <option value="neuter">neuter</option>
-              <option value="other">other</option>
+              {#each genderOptions as option (option.value)}
+                <option value={option.value}>{option.label}</option>
+              {/each}
             </select>
           </label>
           <label class="grid gap-2 text-sm">

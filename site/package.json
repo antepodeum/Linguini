@@ -12,9 +12,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"dependencies": {
-		"@antepod/linguini-sveltekit": "file:../packages/linguini-sveltekit",
 		"@antepod/linguini-vite": "file:../plugins/vite",
-		"@antepod/linguini-web": "file:../packages/linguini-web",
 		"@fontsource-variable/newsreader": "^5.2.8",
 		"@fontsource-variable/work-sans": "^5.2.8",
 		"@iconify-svelte/skill-icons": "^1.0.3",

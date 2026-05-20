@@ -188,7 +188,9 @@ pub fn generate_typescript_project_files(
         });
     }
 
-    for locale in locales {
+    let fallback_locales = fallback_locale_modules(locales, options.base_locale.as_deref());
+
+    for locale in &fallback_locales {
         let locale_options = project_locale_options(&locale.locale, options)?;
         let visible_schema = visible_schema(schema, &locale_options);
         files.push(TypeScriptGeneratedFile {
@@ -221,6 +223,16 @@ pub fn generate_typescript_project_files(
         .framework
         .is_some_and(TypeScriptFramework::needs_svelte_module)
     {
+        files.push(TypeScriptGeneratedFile {
+            path: "web.ts".to_owned(),
+            contents: project::generate_project_web_module(),
+        });
+        if options.declaration {
+            files.push(TypeScriptGeneratedFile {
+                path: "web.d.ts".to_owned(),
+                contents: project::generate_project_web_declaration(),
+            });
+        }
         files.push(TypeScriptGeneratedFile {
             path: "svelte.ts".to_owned(),
             contents: project::generate_project_svelte_module(&options.web),
@@ -340,6 +352,101 @@ fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
         })
     });
     visible
+}
+
+fn fallback_locale_modules(
+    locales: &[TypeScriptLocaleModule],
+    base_locale: Option<&str>,
+) -> Vec<TypeScriptLocaleModule> {
+    locales
+        .iter()
+        .map(|locale| TypeScriptLocaleModule {
+            locale: locale.locale.clone(),
+            module: fallback_locale_module(locales, &locale.locale, base_locale),
+        })
+        .collect()
+}
+
+fn fallback_locale_module(
+    locales: &[TypeScriptLocaleModule],
+    locale: &str,
+    base_locale: Option<&str>,
+) -> IrModule {
+    let mut chain = locale_fallback_chain(locales, locale, base_locale);
+    chain.reverse();
+
+    let mut merged = IrModule::default();
+    for fallback_locale in chain {
+        if let Some(source) = locales.iter().find(|entry| entry.locale == fallback_locale) {
+            merge_locale_module(&mut merged, &source.module);
+        }
+    }
+    merged
+}
+
+fn locale_fallback_chain(
+    locales: &[TypeScriptLocaleModule],
+    locale: &str,
+    base_locale: Option<&str>,
+) -> Vec<String> {
+    let mut chain = Vec::new();
+    for tag in locale_fallback_tags(locale) {
+        if let Some(exact) = locales
+            .iter()
+            .find(|entry| entry.locale.eq_ignore_ascii_case(&tag))
+            .map(|entry| entry.locale.clone())
+        {
+            if !chain.contains(&exact) {
+                chain.push(exact);
+            }
+        }
+    }
+    let base = base_locale
+        .filter(|candidate| locales.iter().any(|entry| entry.locale == *candidate))
+        .or_else(|| locales.first().map(|entry| entry.locale.as_str()));
+    if let Some(base) = base {
+        if !chain.iter().any(|entry| entry == base) {
+            chain.push(base.to_owned());
+        }
+    }
+    chain
+}
+
+fn locale_fallback_tags(locale: &str) -> Vec<String> {
+    let mut tags = Vec::new();
+    let mut tag = locale.to_owned();
+    while !tag.is_empty() {
+        tags.push(tag.clone());
+        let Some(dash) = tag.rfind('-') else {
+            break;
+        };
+        if dash == 0 {
+            break;
+        }
+        tag.truncate(dash);
+    }
+    tags
+}
+
+fn merge_locale_module(target: &mut IrModule, source: &IrModule) {
+    merge_named_items(&mut target.messages, &source.messages, |message| {
+        &message.name
+    });
+    merge_named_items(&mut target.forms, &source.forms, |form| &form.name);
+    merge_named_items(&mut target.functions, &source.functions, |function| {
+        &function.name
+    });
+}
+
+fn merge_named_items<T: Clone>(target: &mut Vec<T>, source: &[T], key: impl Fn(&T) -> &str) {
+    for item in source {
+        let name = key(item);
+        if let Some(existing) = target.iter_mut().find(|existing| key(existing) == name) {
+            *existing = item.clone();
+        } else {
+            target.push(item.clone());
+        }
+    }
 }
 
 fn plural_function_name(locale: &str) -> String {

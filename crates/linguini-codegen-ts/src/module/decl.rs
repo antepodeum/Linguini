@@ -6,54 +6,66 @@ use super::TypeScriptOptions;
 
 pub fn generate_shared_declaration() -> String {
     let mut output = String::new();
-    output
-        .push_str("export type FormatterWidth = \"full\" | \"long\" | \"medium\" | \"short\";\n\n");
-    output.push_str("export type NumberFormatterOptions = Record<string, never>;\n\n");
-    output.push_str("export type CurrencyFormatterOptions = {\n");
-    output.push_str("  code?: string;\n");
-    output.push_str("  accounting?: \"true\" | \"false\";\n");
-    output.push_str("};\n\n");
-    output.push_str("export type DateFormatterOptions = {\n");
-    output.push_str("  style?: FormatterWidth;\n");
-    output.push_str("};\n\n");
-    output.push_str("export type FormatterOptions = NumberFormatterOptions | CurrencyFormatterOptions | DateFormatterOptions;\n\n");
-    output.push_str("export type CldrFormatWidths = Record<FormatterWidth, string>;\n\n");
-    output.push_str("export type CldrFormatterData = {\n");
-    output.push_str("  locale: string;\n");
-    output.push_str("  numbers?: {\n");
-    output.push_str("    decimalSymbol: string;\n");
-    output.push_str("    groupSymbol: string;\n");
-    output.push_str("    decimalPattern: string;\n");
-    output.push_str("    percentPattern: string;\n");
-    output.push_str("  };\n");
-    output.push_str("  currency?: {\n");
-    output.push_str("    standardPattern: string;\n");
-    output.push_str("    accountingPattern?: string;\n");
-    output.push_str("  };\n");
-    output.push_str("  date?: {\n");
-    output.push_str("    dateFormats: CldrFormatWidths;\n");
-    output.push_str("    timeFormats: CldrFormatWidths;\n");
-    output.push_str("    dateTimeFormats: CldrFormatWidths;\n");
-    output.push_str("  };\n");
-    output.push_str("};\n\n");
-    output.push_str("export declare function formatNumber(\n");
-    output.push_str("  value: number | string,\n");
-    output.push_str("  data: CldrFormatterData,\n");
-    output.push_str("): string;\n\n");
-    output.push_str("export declare function formatCurrency(\n");
-    output.push_str("  value: number | string,\n");
-    output.push_str("  data: CldrFormatterData,\n");
-    output.push_str("  options?: CurrencyFormatterOptions,\n");
-    output.push_str("): string;\n\n");
-    output.push_str("export declare function formatDate(\n");
-    output.push_str("  value: Date | number | string,\n");
-    output.push_str("  data: CldrFormatterData,\n");
-    output.push_str("  options?: DateFormatterOptions,\n");
-    output.push_str("): string;\n\n");
-    output.push_str("export declare function selectBranch(\n");
-    output.push_str("  key: string,\n");
-    output.push_str("  branches: Record<string, string>,\n");
-    output.push_str("): string;\n");
+    output.push_str(
+        r#"export type FormatterWidth = "full" | "long" | "medium" | "short";
+
+export type NumberFormatterOptions = Record<string, never>;
+
+export type CurrencyFormatterOptions = {
+  code?: string;
+  accounting?: "true" | "false";
+};
+
+export type DateFormatterOptions = {
+  style?: FormatterWidth;
+};
+
+export type FormatterOptions = NumberFormatterOptions | CurrencyFormatterOptions | DateFormatterOptions;
+
+export type CldrFormatWidths = Record<FormatterWidth, string>;
+
+export type CldrFormatterData = {
+  locale: string;
+  numbers?: {
+    decimalSymbol: string;
+    groupSymbol: string;
+    decimalPattern: string;
+    percentPattern: string;
+  };
+  currency?: {
+    standardPattern: string;
+    accountingPattern?: string;
+  };
+  date?: {
+    dateFormats: CldrFormatWidths;
+    timeFormats: CldrFormatWidths;
+    dateTimeFormats: CldrFormatWidths;
+  };
+};
+
+export declare function formatNumber(
+  value: number | string,
+  data: CldrFormatterData,
+): string;
+
+export declare function formatCurrency(
+  value: number | string,
+  data: CldrFormatterData,
+  options?: CurrencyFormatterOptions,
+): string;
+
+export declare function formatDate(
+  value: Date | number | string,
+  data: CldrFormatterData,
+  options?: DateFormatterOptions,
+): string;
+
+export declare function selectBranch(
+  key: string,
+  branches: Record<string, string>,
+): string;
+"#,
+    );
     output
 }
 

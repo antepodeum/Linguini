@@ -8,15 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@antepod/linguini-sveltekit':
-        specifier: file:../packages/linguini-sveltekit
-        version: file:../packages/linguini-sveltekit(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)
       '@antepod/linguini-vite':
         specifier: file:../plugins/vite
         version: file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
-      '@antepod/linguini-web':
-        specifier: file:../packages/linguini-web
-        version: file:../packages/linguini-web
       '@fontsource-variable/newsreader':
         specifier: ^5.2.8
         version: 5.2.10
@@ -79,22 +73,10 @@ packages:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
 
-  '@antepod/linguini-sveltekit@file:../packages/linguini-sveltekit':
-    resolution: {directory: ../packages/linguini-sveltekit, type: directory}
-    peerDependencies:
-      '@sveltejs/kit': ^2.0.0
-      svelte: ^5.0.0
-
   '@antepod/linguini-vite@file:../plugins/vite':
     resolution: {directory: ../plugins/vite, type: directory}
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0
-
-  '@antepod/linguini-web@0.1.0-alpha.0':
-    resolution: {integrity: sha512-MuaBm2D+awgIStOhPMRdhwAEOzqgeJIe1t+6TjyuHLWCgtbvP1BHPaH1CDHjv9wJssuYcSVtcGpZz6X8866HNg==}
-
-  '@antepod/linguini-web@file:../packages/linguini-web':
-    resolution: {directory: ../packages/linguini-web, type: directory}
 
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
@@ -1026,19 +1008,9 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@antepod/linguini-sveltekit@file:../packages/linguini-sveltekit(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)':
-    dependencies:
-      '@antepod/linguini-web': 0.1.0-alpha.0
-      '@sveltejs/kit': 2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
-      svelte: 5.55.8
-
   '@antepod/linguini-vite@file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
     dependencies:
       vite: 8.0.13(@types/node@24.12.4)(jiti@1.21.7)
-
-  '@antepod/linguini-web@0.1.0-alpha.0': {}
-
-  '@antepod/linguini-web@file:../packages/linguini-web': {}
 
   '@emnapi/core@1.10.0':
     dependencies:
