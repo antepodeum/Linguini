@@ -161,6 +161,7 @@
         <a
           href={localeHref(item)}
           aria-current={linguini.locale === item ? 'page' : undefined}
+          data-linguini-no-localize
           class={[
             'flex h-8 cursor-pointer appearance-none items-center bg-transparent px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
             linguini.locale === item
