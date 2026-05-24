@@ -29,20 +29,24 @@ pub fn emit_imports(
     schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,
+    shared_import_path: &str,
     output: &mut String,
 ) {
     let type_names = schema_type_names(schema);
     if !type_names.is_empty() {
         output.push_str(&format!(
-            "import type {{ {} }} from \"../shared\";\n",
-            type_names.join(", ")
+            "import type {{ {} }} from \"{}\";\n",
+            type_names.join(", "),
+            shared_import_path
         ));
     }
 
     let uses_forms = !locale.forms.is_empty();
     let uses_dispatch = !locale.functions.is_empty();
     if uses_forms || uses_dispatch {
-        output.push_str("import { selectBranch } from \"../shared\";\n");
+        output.push_str(&format!(
+            "import {{ selectBranch }} from \"{shared_import_path}\";\n"
+        ));
         if options.plural_source.is_none() {
             if let Some(path) = &options.plural_import {
                 output.push_str(&format!(
@@ -62,12 +66,17 @@ pub fn emit_imports(
     }
 }
 
-pub fn emit_schema_type_reexports(schema: &IrModule, output: &mut String) {
+pub fn emit_schema_type_reexports(
+    schema: &IrModule,
+    shared_import_path: &str,
+    output: &mut String,
+) {
     let type_names = schema_type_names(schema);
     if !type_names.is_empty() {
         output.push_str(&format!(
-            "export type {{ {} }} from \"../shared\";\n\n",
-            type_names.join(", ")
+            "export type {{ {} }} from \"{}\";\n\n",
+            type_names.join(", "),
+            shared_import_path
         ));
     }
 }

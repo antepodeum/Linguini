@@ -194,14 +194,57 @@ pub fn generate_typescript_project_files(
     for locale in &fallback_locales {
         let locale_options = project_locale_options(&locale.locale, options)?;
         let visible_schema = visible_schema(schema, &locale_options);
+        let namespaces = top_level_namespaces(&visible_schema);
+        for namespace in &namespaces {
+            let namespace_schema = namespace_module(&visible_schema, namespace);
+            let namespace_locale = namespace_module(&locale.module, namespace);
+            files.push(TypeScriptGeneratedFile {
+                path: format!("locales/{}/{}.ts", locale.locale, namespace),
+                contents: generate_typescript_module_with_shared_import(
+                    &namespace_schema,
+                    &namespace_locale,
+                    &locale_options,
+                    "../../shared",
+                    Some(namespace),
+                ),
+            });
+            if options.declaration {
+                files.push(TypeScriptGeneratedFile {
+                    path: format!("locales/{}/{}.d.ts", locale.locale, namespace),
+                    contents: decl::generate_locale_declaration_with_shared_import(
+                        &namespace_schema,
+                        "../../shared",
+                        Some(namespace),
+                    ),
+                });
+            }
+        }
+
+        let (barrel_schema, barrel_locale) = if namespaces.is_empty() {
+            (visible_schema.clone(), locale.module.clone())
+        } else {
+            (
+                root_module(&visible_schema),
+                root_module_with_locale_items(&locale.module),
+            )
+        };
         files.push(TypeScriptGeneratedFile {
             path: format!("locales/{}.ts", locale.locale),
-            contents: generate_typescript_module(&visible_schema, &locale.module, &locale_options),
+            contents: generate_typescript_module_with_namespaces(
+                &barrel_schema,
+                &barrel_locale,
+                &locale_options,
+                &namespaces,
+            ),
         });
         if options.declaration {
             files.push(TypeScriptGeneratedFile {
                 path: format!("locales/{}.d.ts", locale.locale),
-                contents: decl::generate_locale_declaration(&visible_schema),
+                contents: decl::generate_locale_declaration_with_namespaces(
+                    &barrel_schema,
+                    &locale.locale,
+                    &namespaces,
+                ),
             });
         }
     }
@@ -303,16 +346,60 @@ pub fn generate_typescript_module(
     locale: &IrModule,
     options: &TypeScriptOptions,
 ) -> String {
+    generate_typescript_module_with_namespaces(schema, locale, options, &[])
+}
+
+fn generate_typescript_module_with_namespaces(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+    namespaces: &[String],
+) -> String {
     let schema = visible_schema(schema, options);
     let mut output = String::new();
-    emit_imports(&schema, locale, options, &mut output);
+    for namespace in namespaces {
+        output.push_str(&format!(
+            "import {{ {} }} from \"./{}/{}\";\n",
+            namespace, options.locale, namespace
+        ));
+    }
+    emit_imports(&schema, locale, options, "../shared", &mut output);
+    if !namespaces.is_empty() {
+        output.push('\n');
+    }
     emit::emit_plural_helpers(options, &mut output);
     emit_formatter_data(&schema, locale, options, &mut output);
-    emit_schema_type_reexports(&schema, &mut output);
+    emit_schema_type_reexports(&schema, "../shared", &mut output);
+    for namespace in namespaces {
+        output.push_str(&format!("export {{ {namespace} }};\n\n"));
+    }
     emit_forms(locale, options, &mut output);
     emit_local_functions(locale, options, &mut output);
     let exports = emit_messages(&schema, locale, options, &mut output);
-    emit_locale_default(&exports, &mut output);
+    emit_locale_default(&exports, namespaces, &mut output);
+    output
+}
+
+fn generate_typescript_module_with_shared_import(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+    shared_import_path: &str,
+    namespace_alias: Option<&str>,
+) -> String {
+    let schema = visible_schema(schema, options);
+    let mut output = String::new();
+    emit_imports(&schema, locale, options, shared_import_path, &mut output);
+    emit::emit_plural_helpers(options, &mut output);
+    emit_formatter_data(&schema, locale, options, &mut output);
+    emit_schema_type_reexports(&schema, shared_import_path, &mut output);
+    emit_forms(locale, options, &mut output);
+    emit_local_functions(locale, options, &mut output);
+    let exports = emit_messages(&schema, locale, options, &mut output);
+    emit_locale_default(&exports, &[], &mut output);
+    if let Some(namespace_alias) = namespace_alias {
+        output.push_str(&format!("\nexport const {namespace_alias} = lgl;\n"));
+    }
     output
 }
 
@@ -352,6 +439,45 @@ fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
         })
     });
     visible
+}
+
+fn top_level_namespaces(module: &IrModule) -> Vec<String> {
+    let mut namespaces = module
+        .messages
+        .iter()
+        .filter_map(|message| message.name.split_once('.').map(|(namespace, _)| namespace))
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    namespaces.sort();
+    namespaces.dedup();
+    namespaces
+}
+
+fn namespace_module(module: &IrModule, namespace: &str) -> IrModule {
+    let prefix = format!("{namespace}.");
+    let mut output = module.clone();
+    output.messages = module
+        .messages
+        .iter()
+        .filter(|message| message.name.starts_with(&prefix))
+        .cloned()
+        .collect();
+    output
+}
+
+fn root_module(module: &IrModule) -> IrModule {
+    let mut output = module.clone();
+    output
+        .messages
+        .retain(|message| !message.name.contains('.'));
+    output
+}
+
+fn root_module_with_locale_items(module: &IrModule) -> IrModule {
+    let mut output = root_module(module);
+    output.forms.clear();
+    output.functions.clear();
+    output
 }
 
 fn fallback_locale_modules(
@@ -482,9 +608,14 @@ fn generate_index_module(options: &TypeScriptOptions) -> String {
     output
 }
 
-fn emit_locale_default(exports: &emit::ModuleExports, output: &mut String) {
+fn emit_locale_default(exports: &emit::ModuleExports, namespaces: &[String], output: &mut String) {
     output.push_str("const lgl = {\n");
-    for name in exports.top_level.iter().chain(exports.groups.iter()) {
+    for name in exports
+        .top_level
+        .iter()
+        .chain(exports.groups.iter())
+        .chain(namespaces.iter())
+    {
         output.push_str(&format!("  {name},\n"));
     }
     output.push_str("} as const;\n\n");

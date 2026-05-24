@@ -29,30 +29,74 @@ pub fn generate_index_declaration(options: &TypeScriptOptions) -> String {
 }
 
 pub fn generate_locale_declaration(schema: &IrModule) -> String {
+    generate_locale_declaration_with_shared_import(schema, "../shared", None)
+}
+
+pub fn generate_locale_declaration_with_namespaces(
+    schema: &IrModule,
+    locale: &str,
+    namespaces: &[String],
+) -> String {
     let mut output = String::new();
-    emit_type_imports(schema, &mut output);
-    emit_type_reexports(schema, &mut output);
+    for namespace in namespaces {
+        output.push_str(&format!(
+            "import {{ {} }} from \"./{}/{}\";\n",
+            namespace,
+            escape_string(locale),
+            escape_string(namespace)
+        ));
+    }
+    if !namespaces.is_empty() {
+        output.push('\n');
+    }
+    emit_type_imports(schema, "../shared", &mut output);
+    emit_type_reexports(schema, "../shared", &mut output);
+    for namespace in namespaces {
+        output.push_str(&format!(
+            "export declare const {namespace}: typeof {namespace};\n\n"
+        ));
+    }
     let exports = emit_message_declarations(schema, &mut output);
-    emit_default_declaration(&exports, &mut output);
+    emit_default_declaration_with_namespaces(&exports, namespaces, &mut output);
     output
 }
 
-fn emit_type_imports(schema: &IrModule, output: &mut String) {
+pub fn generate_locale_declaration_with_shared_import(
+    schema: &IrModule,
+    shared_import_path: &str,
+    namespace_alias: Option<&str>,
+) -> String {
+    let mut output = String::new();
+    emit_type_imports(schema, shared_import_path, &mut output);
+    emit_type_reexports(schema, shared_import_path, &mut output);
+    let exports = emit_message_declarations(schema, &mut output);
+    emit_default_declaration(&exports, &mut output);
+    if let Some(namespace_alias) = namespace_alias {
+        output.push_str(&format!(
+            "\nexport declare const {namespace_alias}: typeof lgl;\n"
+        ));
+    }
+    output
+}
+
+fn emit_type_imports(schema: &IrModule, shared_import_path: &str, output: &mut String) {
     let type_names = schema_type_names(schema);
     if !type_names.is_empty() {
         output.push_str(&format!(
-            "import type {{ {} }} from \"../shared\";\n\n",
-            type_names.join(", ")
+            "import type {{ {} }} from \"{}\";\n\n",
+            type_names.join(", "),
+            shared_import_path
         ));
     }
 }
 
-fn emit_type_reexports(schema: &IrModule, output: &mut String) {
+fn emit_type_reexports(schema: &IrModule, shared_import_path: &str, output: &mut String) {
     let type_names = schema_type_names(schema);
     if !type_names.is_empty() {
         output.push_str(&format!(
-            "export type {{ {} }} from \"../shared\";\n\n",
-            type_names.join(", ")
+            "export type {{ {} }} from \"{}\";\n\n",
+            type_names.join(", "),
+            shared_import_path
         ));
     }
 }
@@ -149,8 +193,16 @@ fn group_property_type(signature: &IrMessage) -> String {
 }
 
 fn emit_default_declaration(exports: &[String], output: &mut String) {
+    emit_default_declaration_with_namespaces(exports, &[], output);
+}
+
+fn emit_default_declaration_with_namespaces(
+    exports: &[String],
+    namespaces: &[String],
+    output: &mut String,
+) {
     output.push_str("declare const lgl: {\n");
-    for name in exports {
+    for name in exports.iter().chain(namespaces.iter()) {
         output.push_str(&format!("  readonly {name}: typeof {name};\n"));
     }
     output.push_str("};\n\n");

@@ -441,7 +441,7 @@ fn date_pattern_expression(pattern: &str, dates: &linguini_cldr::DateFormatData)
     while let Some(character) = chars.next() {
         if character == '\'' {
             let mut literal = String::new();
-            while let Some(next) = chars.next() {
+            for next in chars.by_ref() {
                 if next == '\'' {
                     break;
                 }

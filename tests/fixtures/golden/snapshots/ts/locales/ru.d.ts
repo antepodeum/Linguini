@@ -1,6 +1,10 @@
+import { email_input } from "./ru/email_input";
+
 import type { Fruit, Size, Money, ShortDate } from "../shared";
 
 export type { Fruit, Size, Money, ShortDate } from "../shared";
+
+export declare const email_input: typeof email_input;
 
 /**  Displayed on the product delivery confirmation card. */
 export declare function delivery(fruit: Fruit, size: Size, count: number): string;
@@ -9,12 +13,6 @@ export declare function delivery(fruit: Fruit, size: Size, count: number): strin
 export declare function counted(count: number, fruit: Fruit): string;
 
 export declare function price(amount: Money, date: ShortDate): string;
-
-export declare const email_input: {
-  readonly label: string;
-  readonly placeholder: string;
-  readonly aria: string;
-};
 
 declare const lgl: {
   readonly delivery: typeof delivery;

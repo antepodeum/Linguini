@@ -225,9 +225,17 @@ fn build_generates_typescript_project_files_without_cldr_cache() {
     let generated_locale =
         fs::read_to_string(project.path().join("src/generated/linguini/locales/en.ts"))
             .expect("read generated locale");
-    assert!(generated_locale.contains("export const shop = {"));
-    assert!(generated_locale.contains("  delivery: {"));
-    assert!(generated_locale.contains("    delivery: (count: number) =>"));
+    assert!(generated_locale.contains("import { shop } from \"./en/shop\";"));
+    assert!(generated_locale.contains("  shop,"));
+    let generated_shop = fs::read_to_string(
+        project
+            .path()
+            .join("src/generated/linguini/locales/en/shop.ts"),
+    )
+    .expect("read generated shop locale");
+    assert!(generated_shop.contains("export const shop = {"));
+    assert!(generated_shop.contains("  delivery: {"));
+    assert!(generated_shop.contains("    delivery: (count: number) =>"));
     assert!(!stale_file.exists());
     assert!(!project.path().join(".linguini/cache").exists());
 }

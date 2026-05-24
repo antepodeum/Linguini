@@ -190,7 +190,16 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
         .expect("locale module");
     assert!(locale_module.contents.contains("export function keep"));
     assert!(!locale_module.contents.contains("export function drop"));
-    assert!(locale_module.contents.contains("label: \"Label\""));
+    assert!(locale_module
+        .contents
+        .contains("import { group } from \"./en/group\";"));
+
+    let group_module = files
+        .iter()
+        .find(|file| file.path == "locales/en/group.ts")
+        .expect("group locale module");
+    assert!(group_module.contents.contains("label: \"Label\""));
+    assert!(!group_module.contents.contains("help: \"Help\""));
     assert!(!locale_module.contents.contains("help: \"Help\""));
 }
 
@@ -329,10 +338,17 @@ fn project_codegen_emits_schema_namespace_objects() {
         .iter()
         .find(|file| file.path == "locales/en.ts")
         .expect("locale module");
-    assert!(locale_module.contents.contains("export const checkout = {"));
-    assert!(locale_module.contents.contains("  order_ready: \"Ready\","));
-    assert!(locale_module.contents.contains("  cart_summary: \"Cart\","));
+    assert!(locale_module
+        .contents
+        .contains("import { checkout } from \"./en/checkout\";"));
     assert!(locale_module.contents.contains("  checkout,"));
+
+    let checkout_module = files
+        .iter()
+        .find(|file| file.path == "locales/en/checkout.ts")
+        .expect("checkout locale module");
+    assert!(checkout_module.contents.contains("order_ready: \"Ready\""));
+    assert!(checkout_module.contents.contains("cart_summary: \"Cart\""));
 
     let declaration = files
         .iter()
@@ -340,10 +356,7 @@ fn project_codegen_emits_schema_namespace_objects() {
         .expect("locale declaration");
     assert!(declaration
         .contents
-        .contains("export declare const checkout: {"));
-    assert!(declaration
-        .contents
-        .contains("  readonly order_ready: string;"));
+        .contains("export declare const checkout: typeof checkout;"));
 }
 
 #[test]
