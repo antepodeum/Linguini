@@ -25,7 +25,20 @@ pub struct ModuleExports {
     pub groups: Vec<String>,
 }
 
-pub fn emit_imports(locale: &IrModule, options: &TypeScriptOptions, output: &mut String) {
+pub fn emit_imports(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+    output: &mut String,
+) {
+    let type_names = schema_type_names(schema);
+    if !type_names.is_empty() {
+        output.push_str(&format!(
+            "import type {{ {} }} from \"../shared\";\n",
+            type_names.join(", ")
+        ));
+    }
+
     let uses_forms = !locale.forms.is_empty();
     let uses_dispatch = !locale.functions.is_empty();
     if uses_forms || uses_dispatch {
@@ -44,6 +57,28 @@ pub fn emit_imports(locale: &IrModule, options: &TypeScriptOptions, output: &mut
             output.push('\n');
         }
     }
+    if !type_names.is_empty() && !uses_forms && !uses_dispatch {
+        output.push('\n');
+    }
+}
+
+pub fn emit_schema_type_reexports(schema: &IrModule, output: &mut String) {
+    let type_names = schema_type_names(schema);
+    if !type_names.is_empty() {
+        output.push_str(&format!(
+            "export type {{ {} }} from \"../shared\";\n\n",
+            type_names.join(", ")
+        ));
+    }
+}
+
+pub fn schema_type_names(schema: &IrModule) -> Vec<String> {
+    schema
+        .enums
+        .iter()
+        .map(|item| item.name.clone())
+        .chain(schema.type_aliases.iter().map(|item| item.name.clone()))
+        .collect()
 }
 
 pub fn emit_plural_helpers(options: &TypeScriptOptions, output: &mut String) {

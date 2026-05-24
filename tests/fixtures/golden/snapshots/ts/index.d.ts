@@ -1,4 +1,5 @@
 import locale_ru from "./locales/ru";
+export type * from "./shared";
 
 export declare const locales: readonly ["ru"];
 export declare const baseLocale: "ru";

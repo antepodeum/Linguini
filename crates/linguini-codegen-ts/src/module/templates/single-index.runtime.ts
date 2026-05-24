@@ -1,4 +1,5 @@
 import {{LOCALE_IDENTIFIER}} from "./locales/{{LOCALE_PATH}}";
+export type * from "./shared";
 
 const localeModules = { {{LOCALE_IDENTIFIER}} } as const;
 

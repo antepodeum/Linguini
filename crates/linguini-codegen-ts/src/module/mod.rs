@@ -14,8 +14,8 @@ use linguini_cldr::built_in_plural_rules;
 use linguini_ir::IrModule;
 
 use self::emit::{
-    emit_enums, emit_formatter_data, emit_forms, emit_imports, emit_index, emit_local_functions,
-    emit_messages, emit_type_aliases,
+    emit_formatter_data, emit_forms, emit_imports, emit_index, emit_local_functions, emit_messages,
+    emit_schema_type_reexports,
 };
 use self::shared::emit_shared;
 use super::plural::generate_plural_function;
@@ -179,13 +179,13 @@ pub fn generate_typescript_project_files(
 ) -> Result<Vec<TypeScriptGeneratedFile>, TypeScriptCodegenError> {
     let mut files = vec![TypeScriptGeneratedFile {
         path: "shared.ts".to_owned(),
-        contents: generate_shared_module(),
+        contents: generate_shared_module(schema),
     }];
 
     if options.declaration {
         files.push(TypeScriptGeneratedFile {
             path: "shared.d.ts".to_owned(),
-            contents: decl::generate_shared_declaration(),
+            contents: decl::generate_shared_declaration(schema),
         });
     }
 
@@ -273,11 +273,11 @@ pub fn generate_typescript_files(
     vec![
         TypeScriptGeneratedFile {
             path: "shared.ts".to_owned(),
-            contents: generate_shared_module(),
+            contents: generate_shared_module(schema),
         },
         TypeScriptGeneratedFile {
             path: "shared.d.ts".to_owned(),
-            contents: decl::generate_shared_declaration(),
+            contents: decl::generate_shared_declaration(schema),
         },
         TypeScriptGeneratedFile {
             path: format!("locales/{}.ts", options.locale),
@@ -305,11 +305,10 @@ pub fn generate_typescript_module(
 ) -> String {
     let schema = visible_schema(schema, options);
     let mut output = String::new();
-    emit_imports(locale, options, &mut output);
+    emit_imports(&schema, locale, options, &mut output);
     emit::emit_plural_helpers(options, &mut output);
     emit_formatter_data(&schema, locale, options, &mut output);
-    emit_enums(&schema, &mut output);
-    emit_type_aliases(&schema, &mut output);
+    emit_schema_type_reexports(&schema, &mut output);
     emit_forms(locale, options, &mut output);
     emit_local_functions(locale, options, &mut output);
     let exports = emit_messages(&schema, locale, options, &mut output);
@@ -471,9 +470,9 @@ fn pascal_identifier(value: &str) -> String {
         .collect::<String>()
 }
 
-fn generate_shared_module() -> String {
+fn generate_shared_module(schema: &IrModule) -> String {
     let mut output = String::new();
-    emit_shared(&mut output);
+    emit_shared(schema, &mut output);
     output
 }
 

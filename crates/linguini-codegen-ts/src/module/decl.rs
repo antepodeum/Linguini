@@ -1,12 +1,16 @@
 use linguini_ir::{IrMessage, IrModule};
 
+use super::emit::schema_type_names;
 use super::names::{escape_comment, escape_string, function_name, property_key, ts_type};
 use super::templates::{render_template, SHARED_DECLARATIONS, SINGLE_INDEX_DECLARATIONS};
 use super::tree::{nested_message_tree, MessageTree};
 use super::TypeScriptOptions;
 
-pub fn generate_shared_declaration() -> String {
-    SHARED_DECLARATIONS.to_owned()
+pub fn generate_shared_declaration(schema: &IrModule) -> String {
+    let mut output = String::new();
+    emit_type_declarations(schema, &mut output);
+    output.push_str(SHARED_DECLARATIONS);
+    output
 }
 
 pub fn generate_index_declaration(options: &TypeScriptOptions) -> String {
@@ -26,10 +30,31 @@ pub fn generate_index_declaration(options: &TypeScriptOptions) -> String {
 
 pub fn generate_locale_declaration(schema: &IrModule) -> String {
     let mut output = String::new();
-    emit_type_declarations(schema, &mut output);
+    emit_type_imports(schema, &mut output);
+    emit_type_reexports(schema, &mut output);
     let exports = emit_message_declarations(schema, &mut output);
     emit_default_declaration(&exports, &mut output);
     output
+}
+
+fn emit_type_imports(schema: &IrModule, output: &mut String) {
+    let type_names = schema_type_names(schema);
+    if !type_names.is_empty() {
+        output.push_str(&format!(
+            "import type {{ {} }} from \"../shared\";\n\n",
+            type_names.join(", ")
+        ));
+    }
+}
+
+fn emit_type_reexports(schema: &IrModule, output: &mut String) {
+    let type_names = schema_type_names(schema);
+    if !type_names.is_empty() {
+        output.push_str(&format!(
+            "export type {{ {} }} from \"../shared\";\n\n",
+            type_names.join(", ")
+        ));
+    }
 }
 
 fn emit_type_declarations(schema: &IrModule, output: &mut String) {

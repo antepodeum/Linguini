@@ -1,4 +1,5 @@
 {{IMPORTS}}
+export type * from "./shared";
 
 export declare const locales: readonly [{{LOCALES}}];
 export declare const baseLocale: {{BASE_LOCALE}};

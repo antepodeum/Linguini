@@ -1,4 +1,5 @@
 {{IMPORTS}}
+export type * from "./shared";
 
 export const locales = [{{LOCALES}}] as const;
 export const baseLocale = {{BASE_LOCALE}};

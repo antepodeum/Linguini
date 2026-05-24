@@ -1,3 +1,4 @@
+import type { Fruit, Size, Money, ShortDate } from "../shared";
 import { selectBranch } from "../shared";
 
 function pluralRu(value: number | string): string {
@@ -130,13 +131,7 @@ function padNumber(value: number, length: number): string {
   return String(value).padStart(length, "0");
 }
 
-export type Fruit = "apple" | "pear" | "orange";
-
-export type Size = "small" | "big";
-
-export type Money = number;
-
-export type ShortDate = string;
+export type { Fruit, Size, Money, ShortDate } from "../shared";
 
 const FruitForms = {
   apple: { Gender: "neuter", emoji: "🍎", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "яблоко", few: "яблока", _: "яблок" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "яблока", _: "яблок" }), display: { short: "ябл.", long: "спелое яблоко" } },

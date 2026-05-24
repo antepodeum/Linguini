@@ -1,4 +1,5 @@
 import {{LOCALE_IDENTIFIER}} from "./locales/{{LOCALE_PATH}}";
+export type * from "./shared";
 
 declare const localeModules: { readonly {{LOCALE_IDENTIFIER}}: typeof {{LOCALE_IDENTIFIER}} };
 

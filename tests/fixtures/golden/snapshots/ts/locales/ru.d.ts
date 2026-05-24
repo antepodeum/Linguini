@@ -1,10 +1,6 @@
-export type Fruit = "apple" | "pear" | "orange";
+import type { Fruit, Size, Money, ShortDate } from "../shared";
 
-export type Size = "small" | "big";
-
-export type Money = number;
-
-export type ShortDate = string;
+export type { Fruit, Size, Money, ShortDate } from "../shared";
 
 /**  Displayed on the product delivery confirmation card. */
 export declare function delivery(fruit: Fruit, size: Size, count: number): string;
