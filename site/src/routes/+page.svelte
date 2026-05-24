@@ -30,7 +30,7 @@
   import ZigIcon from '@iconify-svelte/skill-icons/zig-dark';
   import Button from '$lib/components/button.svelte';
   import CodeBlock from '$lib/components/code-block.svelte';
-  import { l, linguini } from '$lib/generated/linguini/svelte';
+  import { l, linguini, setLocale } from '$lib/generated/linguini/svelte';
   import { locales, type Locale } from '$lib/generated/linguini';
   import type { Fruit, Gender, Size } from '$lib/generated/linguini/locales/en';
   import type { PageData } from './$types';
@@ -159,20 +159,22 @@
 
     <div class="locale-nav flex max-w-full flex-wrap items-center">
       <span class="px-3 text-xs text-muted-foreground">{l.main.locale_label}</span>
-      {#each locales as locale (locale)}
-        <a
-          href={`${base}/${locale}/`}
-          data-linguini-no-localize
-          aria-current={linguini.locale === locale ? 'page' : undefined}
+      {#each locales as item (item)}
+        <button
+          type="button"
+          aria-pressed={linguini.locale === item}
           class={[
-            linguini.locale === locale
-            'flex h-8 items-center px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
+            'flex h-8 cursor-pointer appearance-none items-center bg-transparent px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
+            linguini.locale === item
               ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground'
           ]}
+          onclick={(event) => {
+            chooseLocale(item);
+          }}
         >
-          {localeLabel(locale)}
-        </a>
+          {localeLabel(item)}
+        </button>
       {/each}
     </div>
     </div>
