@@ -29,21 +29,30 @@ function createLinguiniRune(runtime: typeof import("./index"), options = {}) {
 
   async function setLocale(nextLocale: string, setOptions: Record<string, unknown> = {}) {
     const resolved = web.matchLocale(nextLocale) ?? web.baseLocale;
+    const options = {
+      cookie: true,
+      navigate: true,
+      replaceState: false,
+      invalidateAll: true,
+      keepFocus: true,
+      noScroll: true,
+      ...setOptions,
+    };
     clientLocale = resolved;
 
     if (browser) {
       writeLocalStorage(web, resolved);
-      if (setOptions.cookie !== false) {
+      if (options.cookie) {
         document.cookie = web.serializeLocaleCookie(resolved, { httpOnly: false });
       }
-      if (setOptions.navigate !== false) {
+      if (options.navigate) {
         const href = web.localizeHref(window.location.href, resolved);
         await goto(href, {
-          replaceState: Boolean(setOptions.replaceState ?? false),
-          invalidateAll: Boolean(setOptions.invalidateAll ?? true),
-          keepFocus: setOptions.keepFocus as boolean | undefined,
-          noScroll: setOptions.noScroll as boolean | undefined,
-          state: setOptions.state as App.PageState | undefined,
+          replaceState: Boolean(options.replaceState),
+          invalidateAll: Boolean(options.invalidateAll),
+          keepFocus: options.keepFocus as boolean | undefined,
+          noScroll: options.noScroll as boolean | undefined,
+          state: options.state as App.PageState | undefined,
         });
       }
       localizeDocumentLinks(web, resolved);

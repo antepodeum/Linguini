@@ -124,13 +124,7 @@
   }
 
   async function chooseLocale(locale: Locale) {
-    await setLocale(locale, {
-      cookie: true,
-      navigate: true,
-      replaceState: false,
-      keepFocus: true,
-      noScroll: true
-    });
+    await setLocale(locale);
   }
 </script>
 

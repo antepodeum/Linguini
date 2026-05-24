@@ -423,6 +423,10 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(svelte.contents.contains("export const l = linguini.l;"));
     assert!(svelte.contents.contains("cookieName: \"SHOP_LOCALE\""));
     assert!(svelte.contents.contains("localizeLinks: false"));
+    assert!(svelte.contents.contains("cookie: true"));
+    assert!(svelte.contents.contains("navigate: true"));
+    assert!(svelte.contents.contains("keepFocus: true"));
+    assert!(svelte.contents.contains("noScroll: true"));
 
     let sveltekit = files
         .iter()
