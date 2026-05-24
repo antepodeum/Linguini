@@ -146,7 +146,7 @@
 <div class="grain"></div>
 
 <main class="relative overflow-visible">
-  <nav class="sticky top-0 z-50 border-b border-border/70 bg-background/88 backdrop-blur-xl">
+  <nav class="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-8 sm:py-4">
     <a href={localizedRoot} class="flex min-w-0 items-center gap-2.5 font-semibold tracking-normal sm:gap-3">
       <span class="brand-nav-mark">
