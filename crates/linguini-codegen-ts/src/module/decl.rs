@@ -72,9 +72,11 @@ pub fn generate_locale_declaration_with_shared_import(
     let exports = emit_message_declarations(schema, &mut output);
     emit_default_declaration(&exports, &mut output);
     if let Some(namespace_alias) = namespace_alias {
-        output.push_str(&format!(
-            "\nexport declare const {namespace_alias}: typeof lgl;\n"
-        ));
+        if !exports.iter().any(|export| export == namespace_alias) {
+            output.push_str(&format!(
+                "\nexport declare const {namespace_alias}: typeof lgl;\n"
+            ));
+        }
     }
     output
 }

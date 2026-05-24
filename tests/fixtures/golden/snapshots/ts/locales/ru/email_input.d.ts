@@ -13,5 +13,3 @@ declare const lgl: {
 };
 
 export default lgl;
-
-export declare const email_input: typeof lgl;

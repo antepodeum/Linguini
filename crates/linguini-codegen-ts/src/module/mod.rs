@@ -398,7 +398,14 @@ fn generate_typescript_module_with_shared_import(
     let exports = emit_messages(&schema, locale, options, &mut output);
     emit_locale_default(&exports, &[], &mut output);
     if let Some(namespace_alias) = namespace_alias {
-        output.push_str(&format!("\nexport const {namespace_alias} = lgl;\n"));
+        let alias_is_exported = exports
+            .top_level
+            .iter()
+            .chain(exports.groups.iter())
+            .any(|export| export == namespace_alias);
+        if !alias_is_exported {
+            output.push_str(&format!("\nexport const {namespace_alias} = lgl;\n"));
+        }
     }
     output
 }

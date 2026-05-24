@@ -162,5 +162,3 @@ const lgl = {
 } as const;
 
 export default lgl;
-
-export const email_input = lgl;
