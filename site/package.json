@@ -6,12 +6,12 @@
 	"scripts": {
 		"dev": "vite dev",
 		"linguini:build": "cargo run -p linguini-cli -- build",
-		"pages:configure": "node scripts/configure-github-pages.mjs",
 		"build": "cargo run -p linguini-cli -- build && vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "cargo run -p linguini-cli -- build && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"pages:configure": "node ./scripts/configure-github-pages.mjs"
 	},
 	"dependencies": {
 		"@antepod/linguini-vite": "file:../plugins/vite",

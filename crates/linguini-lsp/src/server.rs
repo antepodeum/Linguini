@@ -176,7 +176,7 @@ impl Backend {
 
     fn project_context_for_path(&self, path: &Path) -> Option<ProjectContext> {
         let path = normalize_existing_path(path);
-        let mut fallback = None;
+        let mut nearest_config_context = None;
 
         for root in path.ancestors() {
             let config_path = root.join(DEFAULT_CONFIG_FILE);
@@ -186,16 +186,16 @@ impl Backend {
             let Some(context) = load_project_context(root) else {
                 continue;
             };
-            if fallback.is_none() {
-                fallback = Some(context.clone());
+            if nearest_config_context.is_none() {
+                nearest_config_context = Some(context.clone());
             }
             if path_matches_context(&path, &context) {
                 return Some(context);
             }
         }
 
-        if fallback.is_some() {
-            return fallback;
+        if nearest_config_context.is_some() {
+            return nearest_config_context;
         }
 
         discover_workspace_project_contexts(self.workspace_roots())

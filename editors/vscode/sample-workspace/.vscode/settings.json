@@ -1,8 +1,7 @@
 {
   "linguini.server.path": "linguini",
-  "linguini.server.args": [
-    "lsp"
-  ],
+  "linguini.server.args": ["lsp"],
+  "linguini.formatting.args": ["formatting"],
   "linguini.semanticHighlighting.enabled": true,
   "[linguini-schema]": {
     "editor.defaultFormatter": "antepod.linguini-vscode",

@@ -120,7 +120,7 @@ jobs:
         working-directory: site
         run: pnpm build
 
-      - name: Add GitHub Pages metadata
+      - name: Add GitHub Pages custom domain metadata
         working-directory: site
         shell: bash
         run: |
