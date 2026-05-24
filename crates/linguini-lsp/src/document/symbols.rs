@@ -2,17 +2,19 @@ use super::{LinguiniDocument, Symbol};
 use linguini_format::SourceKind;
 use linguini_syntax::{
     parse_locale_with_recovery, parse_schema_with_recovery, DocComment, LocaleDeclaration,
-    MessageSignature, Name, Parameter, SchemaDeclaration, TextPart, TextPattern,
+    MessageSignature, Name, Parameter, SchemaDeclaration, SchemaFile, TextPart, TextPattern,
 };
+use std::collections::BTreeMap;
 
 pub(super) fn symbols(document: &LinguiniDocument) -> Vec<Symbol> {
     match document.kind {
         SourceKind::Schema => parse_schema_with_recovery(&document.text)
             .ast
             .map(|file| {
+                let samples = schema_sample_values(&file);
                 file.declarations
                     .iter()
-                    .flat_map(schema_declaration_symbols)
+                    .flat_map(|declaration| schema_declaration_symbols(declaration, &samples))
                     .collect()
             })
             .unwrap_or_default(),
@@ -28,19 +30,22 @@ pub(super) fn symbols(document: &LinguiniDocument) -> Vec<Symbol> {
     }
 }
 
-fn schema_declaration_symbols(declaration: &SchemaDeclaration) -> Vec<Symbol> {
+fn schema_declaration_symbols(
+    declaration: &SchemaDeclaration,
+    samples: &BTreeMap<String, String>,
+) -> Vec<Symbol> {
     match declaration {
         SchemaDeclaration::Enum(item) => vec![symbol(&item.name, "enum", &item.docs)],
         SchemaDeclaration::TypeAlias(item) => vec![symbol(&item.name, "type", &item.docs)],
         SchemaDeclaration::Message(item) => {
-            vec![schema_message_symbol(item, None)]
+            vec![schema_message_symbol(item, None, samples)]
         }
         SchemaDeclaration::Group(item) => {
             let mut output = vec![symbol(&item.name, "message group", &item.docs)];
             output.extend(
                 item.messages
                     .iter()
-                    .map(|message| schema_message_symbol(message, Some(&item.name.value))),
+                    .map(|message| schema_message_symbol(message, Some(&item.name.value), samples)),
             );
             output
         }
@@ -84,10 +89,18 @@ fn symbol(name: &Name, detail: &str, docs: &[DocComment]) -> Symbol {
     }
 }
 
-fn schema_message_symbol(message: &MessageSignature, group: Option<&str>) -> Symbol {
+fn schema_message_symbol(
+    message: &MessageSignature,
+    group: Option<&str>,
+    samples: &BTreeMap<String, String>,
+) -> Symbol {
     let mut symbol = symbol(&message.name, "message", &message.docs);
     let display_name = qualified_name(group, &message.name.value);
-    symbol.preview = Some(schema_message_preview(&display_name, &message.parameters));
+    symbol.preview = Some(schema_message_preview(
+        &display_name,
+        &message.parameters,
+        samples,
+    ));
     symbol
 }
 
@@ -103,14 +116,18 @@ fn locale_message_symbol(
     symbol
 }
 
-fn schema_message_preview(name: &str, parameters: &[Parameter]) -> String {
+fn schema_message_preview(
+    name: &str,
+    parameters: &[Parameter],
+    samples: &BTreeMap<String, String>,
+) -> String {
     let arguments = parameters
         .iter()
         .map(|parameter| {
             format!(
                 "{}: {}",
                 parameter.name.value,
-                sample_value_for_type(&parameter.ty.value)
+                sample_value_for_type(&parameter.ty.value, samples)
             )
         })
         .collect::<Vec<_>>()
@@ -118,14 +135,34 @@ fn schema_message_preview(name: &str, parameters: &[Parameter]) -> String {
     format!("{name}({arguments})")
 }
 
-fn sample_value_for_type(ty: &str) -> &'static str {
+fn sample_value_for_type(ty: &str, samples: &BTreeMap<String, String>) -> String {
     match ty {
-        "Number" => "3",
-        "Decimal" => "12.5",
-        "String" => "\"Sample\"",
-        "Date" => "2026-05-15",
-        _ => "sample",
+        "Number" => "3".to_owned(),
+        "Decimal" => "12.5".to_owned(),
+        "String" => "\"Sample\"".to_owned(),
+        "Date" => "2026-05-15".to_owned(),
+        _ => samples
+            .get(ty)
+            .cloned()
+            .unwrap_or_else(|| "sample".to_owned()),
     }
+}
+
+fn schema_sample_values(file: &SchemaFile) -> BTreeMap<String, String> {
+    file.declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            SchemaDeclaration::Enum(item) => item
+                .variants
+                .first()
+                .map(|variant| (item.name.value.clone(), variant.value.clone())),
+            SchemaDeclaration::TypeAlias(item) => Some((
+                item.name.value.clone(),
+                sample_value_for_type(&item.target.value, &BTreeMap::new()),
+            )),
+            SchemaDeclaration::Message(_) | SchemaDeclaration::Group(_) => None,
+        })
+        .collect()
 }
 
 fn text_preview(value: &TextPattern) -> String {

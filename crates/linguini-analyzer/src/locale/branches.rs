@@ -3,8 +3,8 @@ use crate::{
     Replacement,
 };
 use linguini_syntax::{
-    FormDeclaration, FunctionBranch, FunctionBranchValue, LocaleDeclaration, LocaleFile,
-    SchemaDeclaration, SchemaFile, Span,
+    FormAttribute, FormDeclaration, FormEntry, FunctionBranch, FunctionBranchValue,
+    LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, SchemaDeclaration, SchemaFile, Span,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -118,6 +118,17 @@ fn validate_impl_variants(
         &branches,
         form,
     ));
+
+    for variant in &form.variants {
+        validate_form_entries(
+            &format!(
+                "impl `{}` variant `{}`",
+                form.name.value, variant.name.value
+            ),
+            &variant.entries,
+            diagnostics,
+        );
+    }
 }
 
 fn analyze_impl_coverage(
@@ -179,7 +190,7 @@ fn validate_dispatch_branches(
     };
     let branch_spans = branches
         .iter()
-        .map(|branch| NamedSpan::new(&branch.key.value, branch.key.span))
+        .map(|branch| NamedSpan::new(&branch.key.value, branch.span))
         .collect::<Vec<_>>();
     let span = branch_list_span(branches);
     let subject = format!("function `{function_name}`");
@@ -208,6 +219,78 @@ fn validate_dispatch_branches(
             );
         }
     }
+}
+
+fn validate_form_entries(subject: &str, entries: &[FormEntry], diagnostics: &mut Vec<Diagnostic>) {
+    let branches = entries
+        .iter()
+        .filter_map(|entry| match entry {
+            FormEntry::Branch(branch) => Some(branch.clone()),
+            FormEntry::Attribute(_) => None,
+        })
+        .collect::<Vec<_>>();
+    if !branches.is_empty() {
+        analyze_map_branches(subject, &branches, diagnostics);
+    }
+
+    for entry in entries {
+        if let FormEntry::Attribute(attribute) = entry {
+            validate_form_attribute(subject, attribute, diagnostics);
+        }
+    }
+}
+
+fn validate_form_attribute(
+    subject: &str,
+    attribute: &FormAttribute,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    match &attribute.value {
+        LocaleValue::Text(_) => {}
+        LocaleValue::Map(branches) => {
+            analyze_map_branches(
+                &format!("{subject} form `{}`", attribute.name.value),
+                branches,
+                diagnostics,
+            );
+        }
+        LocaleValue::Object(entries) => {
+            validate_form_entries(
+                &format!("{subject} attribute `{}`", attribute.name.value),
+                entries,
+                diagnostics,
+            );
+        }
+    }
+}
+
+fn analyze_map_branches(subject: &str, branches: &[MapBranch], diagnostics: &mut Vec<Diagnostic>) {
+    let branch_spans = branches
+        .iter()
+        .filter_map(|branch| {
+            let key = branch.keys.first()?;
+            Some(NamedSpan::new(&key.value, branch.span))
+        })
+        .collect::<Vec<_>>();
+    if branch_spans.is_empty() {
+        return;
+    }
+    diagnostics.extend(require_other_branch(
+        subject,
+        &branch_spans,
+        branch_list_span_for_map(branches),
+    ));
+}
+
+fn branch_list_span_for_map(branches: &[MapBranch]) -> Span {
+    let Some(first) = branches.first() else {
+        return Span::new(0, 0);
+    };
+    let end = branches
+        .last()
+        .map(|branch| branch.span.end)
+        .unwrap_or(first.span.end);
+    Span::new(first.span.start, end)
 }
 
 fn branch_list_span(branches: &[FunctionBranch]) -> Span {

@@ -1,6 +1,7 @@
 use super::{
-    completion_items, diagnostics, document_symbols, format_document, hover_at, prepare_rename_at,
-    references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument, CRATE_PURPOSE,
+    completion_items, definition_at_with_workspace, diagnostics, document_symbols, format_document,
+    hover_at, hover_at_with_workspace, prepare_rename_at, references_at, rename_workspace_edits,
+    semantic_tokens, LinguiniDocument, CRATE_PURPOSE,
 };
 
 #[test]
@@ -37,6 +38,37 @@ fn hover_uses_doc_comments_for_schema_symbols() {
     assert!(hover.contains("Delivery label"));
     assert!(hover.contains("Sample"));
     assert!(hover.contains("delivery(count: 3)"));
+}
+
+#[test]
+fn hover_uses_enum_samples_for_schema_messages() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "enum Fruit { apple, pear }\ndelivery(fruit: Fruit)\n",
+    );
+    let offset = document.text.find("delivery").expect("delivery offset");
+
+    let hover = hover_at(&document, offset).expect("hover");
+
+    assert!(hover.contains("delivery(fruit: apple)"));
+}
+
+#[test]
+fn locale_hover_inherits_schema_docs_from_workspace() {
+    let schema = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "/// Delivery label\ndelivery(count: Number)\n",
+    );
+    let locale =
+        LinguiniDocument::new("file:///ru.lgl", "linguini-locale", "delivery = Доставка\n");
+    let offset = locale.text.find("delivery").expect("delivery offset");
+
+    let hover = hover_at_with_workspace(&locale, offset, [schema]).expect("hover");
+
+    assert!(hover.contains("Delivery label"));
+    assert!(hover.contains("delivery -> Доставка"));
 }
 
 #[test]
@@ -202,6 +234,24 @@ fn rename_workspace_edits_schema_symbol_and_locale_references() {
             .collect::<Vec<_>>(),
         ["delivery", "delivery"]
     );
+}
+
+#[test]
+fn definition_from_locale_message_jumps_to_schema_message() {
+    let schema = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "delivery(count: Number)\n",
+    );
+    let locale =
+        LinguiniDocument::new("file:///ru.lgl", "linguini-locale", "delivery = Доставка\n");
+    let offset = locale.text.find("delivery").expect("delivery offset");
+
+    let (uri, span) =
+        definition_at_with_workspace(&locale, offset, [schema.clone()]).expect("definition");
+
+    assert_eq!(uri, schema.uri);
+    assert_eq!(&schema.text[span.start..span.end], "delivery");
 }
 
 #[test]

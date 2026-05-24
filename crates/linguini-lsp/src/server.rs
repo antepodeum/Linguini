@@ -2,9 +2,9 @@
 
 use crate::{
     code_action::{analyzer_quick_fix_actions, diagnostic_display_actions, to_lsp_diagnostic},
-    completion_items, diagnostics_with_workspace, document_symbols, format_document, hover_at,
-    prepare_rename_at, references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument,
-    SemanticLegend,
+    completion_items, definition_at_with_workspace, diagnostics_with_workspace, document_symbols,
+    format_document, hover_at_with_workspace, prepare_rename_at, references_at,
+    rename_workspace_edits, semantic_tokens, LinguiniDocument, SemanticLegend,
 };
 use linguini_config::{
     discover_locale_files, discover_schema_files, parse_config, LinguiniConfig, DEFAULT_CONFIG_FILE,
@@ -335,13 +335,16 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let offset = document.offset(position.line, position.character);
-        Ok(hover_at(&document, offset).map(|value| Hover {
-            contents: HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value,
-            }),
-            range: None,
-        }))
+        Ok(
+            hover_at_with_workspace(&document, offset, self.workspace_documents_for(&document))
+                .map(|value| Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value,
+                    }),
+                    range: None,
+                }),
+        )
     }
 
     async fn goto_definition(
@@ -356,12 +359,26 @@ impl LanguageServer for Backend {
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
         );
-        let Some(span) = references_at(&document, offset).into_iter().next() else {
+        let Some((target_uri, span)) = definition_at_with_workspace(
+            &document,
+            offset,
+            self.workspace_documents_for(&document),
+        ) else {
             return Ok(None);
         };
+        let uri = match target_uri.parse::<Uri>() {
+            Ok(parsed) => parsed,
+            Err(_) => uri,
+        };
+        let target_document = self
+            .document(&uri)
+            .or_else(|| {
+                uri_to_file_path(&uri.to_string()).and_then(|path| read_document_from_path(&path))
+            })
+            .unwrap_or_else(|| document.clone());
         Ok(Some(GotoDefinitionResponse::Scalar(Location {
             uri,
-            range: to_range(&document, span),
+            range: to_range(&target_document, span),
         })))
     }
 

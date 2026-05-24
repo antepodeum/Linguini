@@ -2,7 +2,6 @@ use crate::{Diagnostic, DiagnosticSeverity, QuickFix, Replacement};
 use linguini_syntax::{
     DocComment, LocaleDeclaration, LocaleFile, SchemaDeclaration, SchemaFile, Span,
 };
-use std::collections::BTreeMap;
 
 mod branches;
 mod messages;
@@ -141,8 +140,6 @@ pub fn analyze_locale_message_coverage_with_options(
     if !unknown.is_empty() {
         diagnostics.push(unknown_messages_diagnostic(&unknown));
     }
-
-    diagnostics.extend(missing_doc_comment_diagnostics(&schema, &locale));
 
     diagnostics
 }
@@ -297,31 +294,6 @@ fn collect_locale_messages(
         | LocaleDeclaration::Form(_)
         | LocaleDeclaration::Function(_) => {}
     }
-}
-
-fn missing_doc_comment_diagnostics(
-    schema: &BTreeMap<&str, &RequiredLocaleMessage>,
-    locale: &BTreeMap<&str, &ImplementedLocaleMessage>,
-) -> Vec<Diagnostic> {
-    schema
-        .iter()
-        .filter_map(|(name, schema_message)| {
-            if schema_message.docs.is_empty() {
-                return None;
-            }
-            let locale_message = locale.get(name)?;
-            if !locale_message.docs.is_empty() {
-                return None;
-            }
-            Some(
-                Diagnostic::warning(
-                    format!("locale message `{name}` is missing schema doc comment"),
-                    locale_message.span,
-                )
-                .with_note("copy or adapt the schema documentation for translator context"),
-            )
-        })
-        .collect()
 }
 
 fn qualified_name(group: Option<&str>, name: &str) -> String {

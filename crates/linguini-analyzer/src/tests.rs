@@ -81,18 +81,33 @@ fn locale_analysis_accepts_wildcard_for_enum_branch_coverage() {
 }
 
 #[test]
-fn locale_coverage_reports_missing_locale_doc_comment() {
+fn locale_analysis_reports_missing_impl_form_fallback() {
+    let source = "enum Fruit { apple }\nimpl Fruit {\n  apple {\n    form nom(Plural) {\n      one => apple\n    }\n  }\n}\n";
+    let locale = parse_locale(source).expect("locale parses");
+
+    let diagnostics = analyze_locale_file(&locale);
+
+    assert_eq!(diagnostics.len(), 1);
+    assert!(diagnostics[0]
+        .message
+        .contains("impl `Fruit` variant `apple` form `nom` is missing required `other` branch"));
+    let replacement = diagnostics[0].quick_fixes[0]
+        .replacement
+        .as_ref()
+        .expect("replacement");
+    assert_eq!(replacement.text, "\n_ => TODO");
+    assert_eq!(&source[replacement.span.start..replacement.span.end], "");
+    assert!(source[replacement.span.start..].starts_with("\n    }\n"));
+}
+
+#[test]
+fn locale_coverage_accepts_missing_locale_doc_comment() {
     let schema = parse_schema("/// Translator context\ndelivery\n").expect("schema parses");
     let locale = parse_locale("delivery = Delivered\n").expect("locale parses");
 
     let diagnostics = analyze_locale_coverage(&schema, &locale);
 
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(
-        diagnostics[0].message,
-        "locale message `delivery` is missing schema doc comment"
-    );
-    assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Warning);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
 }
 
 #[test]
@@ -232,7 +247,15 @@ fn required_other_branch_reports_missing_fallback() {
         "plural map `Fruit.nom` is missing required `other` branch"
     );
     assert_eq!(diagnostics[0].quick_fixes.len(), 1);
-    assert_eq!(diagnostics[0].quick_fixes[0].title, "add `other` branch");
+    assert_eq!(diagnostics[0].quick_fixes[0].title, "add `_` branch");
+    assert_eq!(
+        diagnostics[0].quick_fixes[0]
+            .replacement
+            .as_ref()
+            .expect("replacement")
+            .text,
+        "\n_ => TODO"
+    );
 }
 
 #[test]

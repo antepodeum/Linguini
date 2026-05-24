@@ -77,10 +77,10 @@ pub fn require_other_branch(subject: &str, branches: &[NamedSpan], span: Span) -
             span,
         )
         .with_quick_fix(QuickFix::replacement(
-            "add `other` branch",
+            "add `_` branch",
             Replacement {
                 span: insertion,
-                text: "\nother => TODO".to_owned(),
+                text: "\n_ => TODO".to_owned(),
             },
         ))]
     }

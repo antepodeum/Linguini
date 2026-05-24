@@ -27,12 +27,26 @@ pub(crate) fn analyzer_quick_fix_actions(
     diagnostics: impl IntoIterator<Item = AnalyzerDiagnostic>,
 ) -> Vec<CodeActionOrCommand> {
     let mut actions = Vec::new();
+    let mut grouped_replacements: HashMap<String, Vec<TextEdit>> = HashMap::new();
+    let mut all_replacements = Vec::new();
     for diagnostic in diagnostics {
         if !diagnostic_has_action_for_range(document, &diagnostic, range) {
             continue;
         }
         let lsp_diagnostic = to_lsp_diagnostic(document, &diagnostic);
+        let mut first_replacement = None;
         for quick_fix in diagnostic.quick_fixes {
+            if let Some(replacement) = &quick_fix.replacement {
+                let edit = TextEdit {
+                    range: to_range(document, replacement.span),
+                    new_text: replacement.text.clone(),
+                };
+                grouped_replacements
+                    .entry(quick_fix_group_title(&quick_fix.title))
+                    .or_default()
+                    .push(edit.clone());
+                first_replacement.get_or_insert(edit);
+            }
             actions.push(quick_fix_code_action(
                 uri,
                 document,
@@ -40,6 +54,28 @@ pub(crate) fn analyzer_quick_fix_actions(
                 quick_fix,
             ));
         }
+        if let Some(edit) = first_replacement {
+            all_replacements.push(edit);
+        }
+    }
+
+    for (title, edits) in grouped_replacements {
+        if edits.len() < 2 {
+            continue;
+        }
+        actions.push(workspace_edit_action(
+            format!("Apply all {title} fixes in file"),
+            uri,
+            edits,
+        ));
+    }
+
+    if all_replacements.len() > 1 {
+        actions.push(workspace_edit_action(
+            "Apply all Linguini quick fixes in file".to_owned(),
+            uri,
+            all_replacements,
+        ));
     }
     actions
 }
@@ -113,6 +149,38 @@ fn quick_fix_code_action(
         command,
         ..Default::default()
     })
+}
+
+fn workspace_edit_action(title: String, uri: &Uri, edits: Vec<TextEdit>) -> CodeActionOrCommand {
+    let mut changes = HashMap::new();
+    changes.insert(uri.clone(), edits);
+    CodeActionOrCommand::CodeAction(CodeAction {
+        title,
+        kind: Some(CodeActionKind::QUICKFIX),
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        }),
+        ..Default::default()
+    })
+}
+
+fn quick_fix_group_title(title: &str) -> String {
+    let mut output = String::new();
+    let mut in_code = false;
+    for ch in title.chars() {
+        if ch == '`' {
+            in_code = !in_code;
+            if !in_code {
+                output.push_str("`...`");
+            }
+            continue;
+        }
+        if !in_code {
+            output.push(ch);
+        }
+    }
+    output
 }
 
 fn to_range(document: &LinguiniDocument, span: linguini_syntax::Span) -> Range {

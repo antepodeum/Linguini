@@ -3,11 +3,13 @@ mod symbols;
 mod tokens;
 
 use linguini_analyzer::{
-    analyze_locale_coverage_with_options, analyze_locale_file, Diagnostic, DiagnosticSeverity,
-    LocaleCoverageOptions,
+    analyze_locale_coverage_with_options, analyze_locale_file, schema_public_messages, Diagnostic,
+    DiagnosticSeverity, LocaleCoverageOptions,
 };
 use linguini_format::{format_source, FormatOptions, SourceKind};
-use linguini_syntax::{parse_locale_with_recovery, parse_schema_with_recovery, Span};
+use linguini_syntax::{
+    parse_locale_with_recovery, parse_schema_with_recovery, LocaleDeclaration, Span,
+};
 
 use self::plural_hover::plural_branch_hover;
 use self::symbols::symbols;
@@ -199,25 +201,39 @@ pub fn completion_items(document: &LinguiniDocument, offset: usize) -> Vec<Strin
 }
 
 pub fn hover_at(document: &LinguiniDocument, offset: usize) -> Option<String> {
+    hover_at_with_workspace(document, offset, [])
+}
+
+pub fn hover_at_with_workspace(
+    document: &LinguiniDocument,
+    offset: usize,
+    workspace: impl IntoIterator<Item = LinguiniDocument>,
+) -> Option<String> {
     if let Some(hover) = plural_branch_hover(document, offset) {
         return Some(hover);
     }
 
-    symbols(document)
+    let mut symbol = symbols(document)
         .into_iter()
-        .find(|symbol| contains(symbol.span, offset))
-        .map(|symbol| {
-            let mut parts = Vec::new();
-            parts.push(format!("{} `{}`", symbol.detail, symbol.name));
-            if symbol.docs.is_empty() {
-            } else {
-                parts.push(symbol.docs.join("\n"));
+        .find(|symbol| contains(symbol.span, offset))?;
+
+    if document.kind == SourceKind::Locale && symbol.docs.is_empty() {
+        if let Some(name) = locale_message_name_at(document, offset) {
+            if let Some(docs) = schema_docs_for_message(workspace, &name) {
+                symbol.docs = docs;
             }
-            if let Some(preview) = symbol.preview {
-                parts.push(format!("Sample\n\n```text\n{preview}\n```"));
-            }
-            parts.join("\n\n")
-        })
+        }
+    }
+
+    let mut parts = Vec::new();
+    parts.push(format!("{} `{}`", symbol.detail, symbol.name));
+    if !symbol.docs.is_empty() {
+        parts.push(symbol.docs.join("\n"));
+    }
+    if let Some(preview) = symbol.preview {
+        parts.push(format!("Sample\n\n```text\n{preview}\n```"));
+    }
+    Some(parts.join("\n\n"))
 }
 
 pub fn references_at(document: &LinguiniDocument, offset: usize) -> Vec<Span> {
@@ -225,6 +241,37 @@ pub fn references_at(document: &LinguiniDocument, offset: usize) -> Vec<Span> {
         return Vec::new();
     };
     matching_identifier_spans(document, &word)
+}
+
+pub fn definition_at_with_workspace(
+    document: &LinguiniDocument,
+    offset: usize,
+    workspace: impl IntoIterator<Item = LinguiniDocument>,
+) -> Option<(String, Span)> {
+    if document.kind == SourceKind::Locale {
+        if let Some(name) = locale_message_name_at(document, offset) {
+            for candidate in workspace {
+                if candidate.kind != SourceKind::Schema {
+                    continue;
+                }
+                let Some(schema) = parse_schema_with_recovery(&candidate.text).ast else {
+                    continue;
+                };
+                let Some(message) = schema_public_messages(&schema)
+                    .into_iter()
+                    .find(|message| message.name == name)
+                else {
+                    continue;
+                };
+                return Some((candidate.uri, message.span));
+            }
+        }
+    }
+
+    references_at(document, offset)
+        .into_iter()
+        .next()
+        .map(|span| (document.uri.clone(), span))
 }
 
 pub fn prepare_rename_at(document: &LinguiniDocument, offset: usize) -> Option<Span> {
@@ -305,6 +352,77 @@ pub fn format_document(
 
 pub(super) fn contains(span: Span, offset: usize) -> bool {
     span.start <= offset && offset <= span.end
+}
+
+fn schema_docs_for_message(
+    workspace: impl IntoIterator<Item = LinguiniDocument>,
+    name: &str,
+) -> Option<Vec<String>> {
+    for candidate in workspace {
+        if candidate.kind != SourceKind::Schema {
+            continue;
+        }
+        let Some(schema) = parse_schema_with_recovery(&candidate.text).ast else {
+            continue;
+        };
+        let Some(message) = schema_public_messages(&schema)
+            .into_iter()
+            .find(|message| message.name == name)
+        else {
+            continue;
+        };
+        if !message.docs.is_empty() {
+            return Some(message.docs);
+        }
+    }
+    None
+}
+
+fn locale_message_name_at(document: &LinguiniDocument, offset: usize) -> Option<String> {
+    let locale = parse_locale_with_recovery(&document.text).ast?;
+    for declaration in &locale.declarations {
+        if let Some(name) = locale_declaration_message_name_at(declaration, None, offset) {
+            return Some(name);
+        }
+    }
+    None
+}
+
+fn locale_declaration_message_name_at(
+    declaration: &LocaleDeclaration,
+    group: Option<&str>,
+    offset: usize,
+) -> Option<String> {
+    match declaration {
+        LocaleDeclaration::Message(message) if contains(message.name.span, offset) => {
+            Some(qualified_name(group, &message.name.value))
+        }
+        LocaleDeclaration::Group(group_declaration) => {
+            for message in &group_declaration.messages {
+                if contains(message.name.span, offset) {
+                    return Some(qualified_name(
+                        Some(&group_declaration.name.value),
+                        &message.name.value,
+                    ));
+                }
+            }
+            None
+        }
+        LocaleDeclaration::Override(inner) => {
+            locale_declaration_message_name_at(inner, group, offset)
+        }
+        LocaleDeclaration::Enum(_)
+        | LocaleDeclaration::Form(_)
+        | LocaleDeclaration::Function(_) => None,
+        LocaleDeclaration::Message(_) => None,
+    }
+}
+
+fn qualified_name(group: Option<&str>, name: &str) -> String {
+    match group {
+        Some(group) => format!("{group}.{name}"),
+        None => name.to_owned(),
+    }
 }
 
 fn utf16_len(text: &str) -> usize {
