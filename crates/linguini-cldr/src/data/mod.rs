@@ -57,8 +57,8 @@ pub struct DateFormatData {
     pub date_formats: FormatWidths,
     pub time_formats: FormatWidths,
     pub date_time_formats: FormatWidths,
-    pub months: DateSymbolWidths,
-    pub weekdays: DateSymbolWidths,
+    pub months: DateSymbolWidths<12>,
+    pub weekdays: DateSymbolWidths<7>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,9 +70,9 @@ pub struct FormatWidths {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DateSymbolWidths {
-    pub wide: &'static [&'static str],
-    pub abbreviated: &'static [&'static str],
+pub struct DateSymbolWidths<const N: usize> {
+    pub wide: [&'static str; N],
+    pub abbreviated: [&'static str; N],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -482,16 +482,16 @@ fn date_field_expression(
     match field {
         'y' if width == 2 => "padNumber(date.getFullYear() % 100, 2)".to_owned(),
         'y' => "String(date.getFullYear())".to_owned(),
-        'M' | 'L' if width >= 4 => indexed_string_literal(dates.months.wide, "date.getMonth()"),
+        'M' | 'L' if width >= 4 => indexed_string_literal(&dates.months.wide, "date.getMonth()"),
         'M' | 'L' if width == 3 => {
-            indexed_string_literal(dates.months.abbreviated, "date.getMonth()")
+            indexed_string_literal(&dates.months.abbreviated, "date.getMonth()")
         }
         'M' | 'L' if width == 2 => "padNumber(date.getMonth() + 1, 2)".to_owned(),
         'M' | 'L' => "String(date.getMonth() + 1)".to_owned(),
         'd' if width == 2 => "padNumber(date.getDate(), 2)".to_owned(),
         'd' => "String(date.getDate())".to_owned(),
-        'E' if width >= 4 => indexed_string_literal(dates.weekdays.wide, "date.getDay()"),
-        'E' => indexed_string_literal(dates.weekdays.abbreviated, "date.getDay()"),
+        'E' if width >= 4 => indexed_string_literal(&dates.weekdays.wide, "date.getDay()"),
+        'E' => indexed_string_literal(&dates.weekdays.abbreviated, "date.getDay()"),
         _ => "\"\"".to_owned(),
     }
 }

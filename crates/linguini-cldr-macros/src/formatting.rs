@@ -1,8 +1,9 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
+use syn::LitStr;
 
 pub(crate) fn generate_text_direction_table(layout_main: &Path) -> Result<TokenStream, String> {
     let mut directions = Vec::new();
@@ -308,8 +309,10 @@ fn symbol_widths_tokens(value: &SymbolWidthData) -> TokenStream {
 }
 
 fn string_vec_tokens(values: &[String]) -> TokenStream {
-    let values = values.iter().map(|value| quote! { #value });
-    quote! { &[#(#values),*] }
+    let values = values
+        .iter()
+        .map(|value| LitStr::new(value, Span::call_site()));
+    quote! { [#(#values),*] }
 }
 
 fn number_pattern_tokens(pattern: &NumberPattern) -> TokenStream {
