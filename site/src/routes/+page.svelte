@@ -35,8 +35,6 @@
   import type { Fruit, Gender, Size } from '$lib/generated/linguini/locales/en';
   import type { PageData } from './$types';
 
-  const brandIcon = `${base}/linguini-icon.png`;
-
   let { data }: { data: PageData } = $props();
 
   let count = $state(3);
@@ -148,7 +146,7 @@
     <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
     <a href={localizedRoot} class="flex items-center gap-3 font-semibold tracking-normal">
       <span class="brand-nav-mark">
-        <img src={brandIcon} alt="" />
+        <img src="/icons/favicon.svg" alt="linguini logo" />
       </span>
       <span class="text-lg tracking-[0.28em]">{l.main.hero_title.toUpperCase()}</span>
     </a>
@@ -194,7 +192,7 @@
     <div class="brand-stage">
       <div class="brand-panel">
         <div class="brand-icon" aria-hidden="true">
-          <img src={brandIcon} alt="" />
+          <img src="/icons/favicon.svg" alt="linguini logo" />
         </div>
 
         <div class="brand-copy">
