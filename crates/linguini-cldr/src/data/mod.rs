@@ -40,15 +40,15 @@ pub struct NumberFormatData {
     pub locale: String,
     pub decimal_symbol: String,
     pub group_symbol: String,
-    pub decimal_pattern: String,
-    pub percent_pattern: String,
+    pub decimal_pattern: NumberPattern,
+    pub percent_pattern: NumberPattern,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CurrencyFormatData {
     pub locale: String,
-    pub standard_pattern: String,
-    pub accounting_pattern: Option<String>,
+    pub standard_pattern: NumberPattern,
+    pub accounting_pattern: Option<NumberPattern>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +65,23 @@ pub struct FormatWidths {
     pub long: String,
     pub medium: String,
     pub short: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NumberPattern {
+    pub positive: NumberPatternPart,
+    pub negative: Option<NumberPatternPart>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NumberPatternPart {
+    pub prefix: String,
+    pub suffix: String,
+    pub min_integer_digits: u8,
+    pub min_fraction_digits: u8,
+    pub max_fraction_digits: u8,
+    pub primary_group_size: Option<u8>,
+    pub secondary_group_size: Option<u8>,
 }
 
 #[cfg(test)]

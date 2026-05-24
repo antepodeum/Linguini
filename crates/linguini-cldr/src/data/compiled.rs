@@ -1,6 +1,6 @@
 use super::{
-    CurrencyFormatData, DateFormatData, FormatWidths, NumberFormatData, PluralCategoryRule,
-    PluralRules,
+    CurrencyFormatData, DateFormatData, FormatWidths, NumberFormatData, NumberPattern,
+    NumberPatternPart, PluralCategoryRule, PluralRules,
 };
 use crate::plural::{
     Condition, Operand, OperandExpression, PluralOperands, PluralRule, Range, RangeList, Relation,

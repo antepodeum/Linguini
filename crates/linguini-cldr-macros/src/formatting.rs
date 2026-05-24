@@ -109,26 +109,32 @@ pub(crate) fn generate_formatting_tables(
 fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
     let decimal_symbol = numbers.decimal_symbol;
     let group_symbol = numbers.group_symbol;
-    let decimal_pattern = numbers.decimal_pattern;
-    let percent_pattern = numbers.percent_pattern;
+    let decimal_pattern = number_pattern_tokens(&numbers.decimal_pattern);
+    let percent_pattern = number_pattern_tokens(&numbers.percent_pattern);
     quote! {
         #locale => Some(NumberFormatData {
             locale: #locale.to_owned(),
             decimal_symbol: #decimal_symbol.to_owned(),
             group_symbol: #group_symbol.to_owned(),
-            decimal_pattern: #decimal_pattern.to_owned(),
-            percent_pattern: #percent_pattern.to_owned(),
+            decimal_pattern: #decimal_pattern,
+            percent_pattern: #percent_pattern,
         }),
     }
 }
 
 fn currency_arm(locale: &str, currency: CurrencyData) -> TokenStream {
-    let standard_pattern = currency.standard_pattern;
-    let accounting_pattern = option_string_tokens(currency.accounting_pattern.as_deref());
+    let standard_pattern = number_pattern_tokens(&currency.standard_pattern);
+    let accounting_pattern = currency.accounting_pattern.as_ref().map_or_else(
+        || quote! { None },
+        |pattern| {
+            let pattern = number_pattern_tokens(pattern);
+            quote! { Some(#pattern) }
+        },
+    );
     quote! {
         #locale => Some(CurrencyFormatData {
             locale: #locale.to_owned(),
-            standard_pattern: #standard_pattern.to_owned(),
+            standard_pattern: #standard_pattern,
             accounting_pattern: #accounting_pattern,
         }),
     }
@@ -231,13 +237,6 @@ fn string_field(value: &Value, key: &str) -> Option<String> {
     value.get(key)?.as_str().map(str::to_owned)
 }
 
-fn option_string_tokens(value: Option<&str>) -> TokenStream {
-    value.map_or_else(
-        || quote! { None },
-        |value| quote! { Some(#value.to_owned()) },
-    )
-}
-
 fn widths_tokens(value: &WidthData) -> TokenStream {
     let full = &value.full;
     let long = &value.long;
@@ -250,6 +249,113 @@ fn widths_tokens(value: &WidthData) -> TokenStream {
             medium: #medium.to_owned(),
             short: #short.to_owned(),
         }
+    }
+}
+
+fn number_pattern_tokens(pattern: &str) -> TokenStream {
+    let pattern = parse_number_pattern(pattern);
+    let positive = number_pattern_part_tokens(&pattern.positive);
+    let negative = pattern.negative.as_ref().map_or_else(
+        || quote! { None },
+        |part| {
+            let part = number_pattern_part_tokens(part);
+            quote! { Some(#part) }
+        },
+    );
+    quote! {
+        NumberPattern {
+            positive: #positive,
+            negative: #negative,
+        }
+    }
+}
+
+fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
+    let prefix = &part.prefix;
+    let suffix = &part.suffix;
+    let min_integer_digits = part.min_integer_digits;
+    let min_fraction_digits = part.min_fraction_digits;
+    let max_fraction_digits = part.max_fraction_digits;
+    let primary_group_size = option_u8_tokens(part.primary_group_size);
+    let secondary_group_size = option_u8_tokens(part.secondary_group_size);
+    quote! {
+        NumberPatternPart {
+            prefix: #prefix.to_owned(),
+            suffix: #suffix.to_owned(),
+            min_integer_digits: #min_integer_digits,
+            min_fraction_digits: #min_fraction_digits,
+            max_fraction_digits: #max_fraction_digits,
+            primary_group_size: #primary_group_size,
+            secondary_group_size: #secondary_group_size,
+        }
+    }
+}
+
+fn option_u8_tokens(value: Option<u8>) -> TokenStream {
+    value.map_or_else(|| quote! { None }, |value| quote! { Some(#value) })
+}
+
+struct NumberPattern {
+    positive: NumberPatternPart,
+    negative: Option<NumberPatternPart>,
+}
+
+struct NumberPatternPart {
+    prefix: String,
+    suffix: String,
+    min_integer_digits: u8,
+    min_fraction_digits: u8,
+    max_fraction_digits: u8,
+    primary_group_size: Option<u8>,
+    secondary_group_size: Option<u8>,
+}
+
+fn parse_number_pattern(pattern: &str) -> NumberPattern {
+    let mut parts = pattern.splitn(2, ';');
+    let positive = parse_number_pattern_part(parts.next().unwrap_or(""));
+    let negative = parts.next().map(parse_number_pattern_part);
+    NumberPattern { positive, negative }
+}
+
+fn parse_number_pattern_part(pattern: &str) -> NumberPatternPart {
+    let number_start = pattern
+        .find(|character| matches!(character, '#' | '0' | ',' | '.'))
+        .unwrap_or(pattern.len());
+    let number_end = pattern
+        .rfind(|character| matches!(character, '#' | '0' | ',' | '.'))
+        .map_or(number_start, |index| index + 1);
+    let prefix = pattern[..number_start].to_owned();
+    let suffix = pattern[number_end..].to_owned();
+    let number = &pattern[number_start..number_end];
+    let (integer, fraction) = number.split_once('.').unwrap_or((number, ""));
+
+    let group_sizes = integer
+        .rsplit(',')
+        .map(|group| {
+            group
+                .chars()
+                .filter(|character| matches!(character, '#' | '0'))
+                .count()
+        })
+        .collect::<Vec<_>>();
+
+    NumberPatternPart {
+        prefix,
+        suffix,
+        min_integer_digits: integer
+            .chars()
+            .filter(|character| *character == '0')
+            .count() as u8,
+        min_fraction_digits: fraction
+            .chars()
+            .filter(|character| *character == '0')
+            .count() as u8,
+        max_fraction_digits: fraction
+            .chars()
+            .filter(|character| matches!(character, '#' | '0'))
+            .count() as u8,
+        primary_group_size: (group_sizes.len() > 1).then_some(group_sizes[0] as u8),
+        secondary_group_size: (group_sizes.len() > 2).then_some(group_sizes[1] as u8),
     }
 }
 

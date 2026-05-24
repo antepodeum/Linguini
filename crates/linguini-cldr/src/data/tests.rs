@@ -74,9 +74,13 @@ fn compiled_formatting_data_is_typed_not_json() {
     let dates = compiled_date_formatting("en").expect("dates");
 
     assert_eq!(numbers.decimal_symbol, ".");
-    assert_eq!(
-        currency.accounting_pattern.as_deref(),
-        Some("\u{a4}#,##0.00;(\u{a4}#,##0.00)")
-    );
+    assert_eq!(numbers.decimal_pattern.positive.primary_group_size, Some(3));
+    assert_eq!(numbers.decimal_pattern.positive.max_fraction_digits, 3);
+    let accounting = currency.accounting_pattern.expect("accounting pattern");
+    assert_eq!(accounting.positive.prefix, "\u{a4}");
+    assert_eq!(accounting.positive.min_fraction_digits, 2);
+    let accounting_negative = accounting.negative.expect("negative accounting pattern");
+    assert_eq!(accounting_negative.prefix, "(\u{a4}");
+    assert_eq!(accounting_negative.suffix, ")");
     assert_eq!(dates.time_formats.short, "h:mm\u{202f}a");
 }
