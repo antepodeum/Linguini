@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"linguini:build": "cargo run -p linguini-cli -- build",
+		"pages:configure": "node scripts/configure-github-pages.mjs",
 		"build": "cargo run -p linguini-cli -- build && vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",

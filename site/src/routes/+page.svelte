@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import {
     ArrowRight,
     Code2,
@@ -34,7 +35,7 @@
   import type { Fruit, Gender, Size } from '$lib/generated/linguini/locales/en';
   import type { PageData } from './$types';
 
-  const brandIcon = '/linguini-icon.png';
+  const brandIcon = `${base}/linguini-icon.png`;
 
   let { data }: { data: PageData } = $props();
 
