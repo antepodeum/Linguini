@@ -72,6 +72,26 @@ fn locale_hover_inherits_schema_docs_from_workspace() {
 }
 
 #[test]
+fn locale_hover_renders_message_sample_from_schema_values() {
+    let schema = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "enum Fruit { apple, pear }\nenum Size { small, big }\ndelivery(fruit: Fruit, size: Size, count: Number)\n",
+    );
+    let locale = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "impl Fruit {\n  apple { form nom(Plural) { one => apple\n_ => apples } }\n}\nform SizeWord(Size, Plural) {\n  small { _ => small }\n  big { _ => big }\n}\ndelivery = Delivered {count} {SizeWord(size, count)} {fruit.nom(count)}.\n",
+    );
+    let offset = locale.text.find("delivery").expect("delivery offset");
+
+    let hover = hover_at_with_workspace(&locale, offset, [schema]).expect("hover");
+
+    assert!(hover.contains("delivery -> Delivered 3 small apples."));
+    assert!(!hover.contains("{SizeWord(size, count)}"));
+}
+
+#[test]
 fn hover_previews_locale_message_output_shape() {
     let document = LinguiniDocument::new(
         "file:///ru.lgl",

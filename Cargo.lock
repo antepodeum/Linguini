@@ -560,6 +560,7 @@ dependencies = [
  "linguini-cldr",
  "linguini-config",
  "linguini-format",
+ "linguini-ir",
  "linguini-syntax",
  "tokio",
  "tower-lsp-server",

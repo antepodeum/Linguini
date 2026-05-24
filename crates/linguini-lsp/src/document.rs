@@ -1,4 +1,5 @@
 mod plural_hover;
+mod sample;
 mod symbols;
 mod tokens;
 
@@ -12,6 +13,7 @@ use linguini_syntax::{
 };
 
 use self::plural_hover::plural_branch_hover;
+use self::sample::render_message_sample;
 use self::symbols::symbols;
 use self::tokens::{
     base_keywords, identifier_at, is_placeholder_context, matching_identifier_spans,
@@ -209,6 +211,7 @@ pub fn hover_at_with_workspace(
     offset: usize,
     workspace: impl IntoIterator<Item = LinguiniDocument>,
 ) -> Option<String> {
+    let workspace = workspace.into_iter().collect::<Vec<_>>();
     if let Some(hover) = plural_branch_hover(document, offset) {
         return Some(hover);
     }
@@ -217,11 +220,20 @@ pub fn hover_at_with_workspace(
         .into_iter()
         .find(|symbol| contains(symbol.span, offset))?;
 
+    let message_name = (document.kind == SourceKind::Locale)
+        .then(|| locale_message_name_at(document, offset))
+        .flatten();
+
     if document.kind == SourceKind::Locale && symbol.docs.is_empty() {
-        if let Some(name) = locale_message_name_at(document, offset) {
-            if let Some(docs) = schema_docs_for_message(workspace, &name) {
+        if let Some(name) = &message_name {
+            if let Some(docs) = schema_docs_for_message(workspace.clone(), name) {
                 symbol.docs = docs;
             }
+        }
+    }
+    if let Some(name) = message_name {
+        if let Some(sample) = render_message_sample(document, workspace, &name) {
+            symbol.preview = Some(format!("{name} -> {sample}"));
         }
     }
 
