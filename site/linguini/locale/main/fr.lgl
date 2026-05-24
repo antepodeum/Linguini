@@ -5,7 +5,7 @@ impl Fruit {
 
     form nom(Plural) {
       one => pomme
-      _ => pommes
+      _   => pommes
     }
   }
 
@@ -15,7 +15,7 @@ impl Fruit {
 
     form nom(Plural) {
       one => poire
-      _ => poires
+      _   => poires
     }
   }
 
@@ -25,7 +25,7 @@ impl Fruit {
 
     form nom(Plural) {
       one => orange
-      _ => oranges
+      _   => oranges
     }
   }
 }
@@ -33,30 +33,30 @@ impl Fruit {
 form SizeAdj(Size, Plural, Gender) {
   small {
     one {
-      male => petit
+      male   => petit
       female => petite
       neuter => petit
-      _ => petit
+      _      => petit
     }
     _ {
-      male => petits
+      male   => petits
       female => petites
       neuter => petits
-      _ => petits
+      _      => petits
     }
   }
   big {
     one {
-      male => grand
+      male   => grand
       female => grande
       neuter => grand
-      _ => grand
+      _      => grand
     }
     _ {
-      male => grands
+      male   => grands
       female => grandes
       neuter => grands
-      _ => grands
+      _      => grands
     }
   }
   _ => normaux
@@ -64,26 +64,26 @@ form SizeAdj(Size, Plural, Gender) {
 
 form SizeWord(Size) {
   small => petit
-  big => grand
+  big   => grand
 }
 
 form GenderPronoun(Gender) {
-  male => lui
+  male   => lui
   female => elle
   neuter => lui
-  _ => lui
+  _      => lui
 }
 
 form GenderWord(Gender) {
-  male => masculin
+  male   => masculin
   female => féminin
   neuter => neutre
-  _ => neutre
+  _      => neutre
 }
 
 form Delivered(Plural, Gender) {
   one => Livré
-  _ => Livrés
+  _   => Livrés
 }
 
 nav_why = Pourquoi

@@ -5,7 +5,7 @@ impl Fruit {
 
     form nom(Plural) {
       one => apple
-      _ => apples
+      _   => apples
     }
   }
 
@@ -15,7 +15,7 @@ impl Fruit {
 
     form nom(Plural) {
       one => pear
-      _ => pears
+      _   => pears
     }
   }
 
@@ -25,36 +25,36 @@ impl Fruit {
 
     form nom(Plural) {
       one => orange
-      _ => oranges
+      _   => oranges
     }
   }
 }
 
 form SizeWord(Size) {
   small => compact
-  big => full-size
+  big   => full-size
 }
 
 form GenderPronoun(Gender) {
-  male => him
+  male   => him
   female => her
   neuter => it
-  _ => them
+  _      => them
 }
 
 form GenderWord(Gender) {
-  male => masculine
+  male   => masculine
   female => feminine
   neuter => neuter
-  _ => neutral
+  _      => neutral
 }
 
 form Delivered(Plural, Gender) {
   one {
-    male => Delivered
+    male   => Delivered
     female => Delivered
     neuter => Delivered
-    _ => Delivered
+    _      => Delivered
   }
   _ => Delivered
 }

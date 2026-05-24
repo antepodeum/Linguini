@@ -29,25 +29,21 @@ impl Fruit {
 
 form SizeWord(Size) {
   small => 小
-  big => 大
+  big   => 大
 }
 
 form GenderPronoun(Gender) {
-  male => 他
+  male   => 他
   female => 她
   neuter => 它
-  _ => 它
+  _      => 它
 }
 
 form GenderWord(Gender) {
-  male => 阳性
+  male   => 阳性
   female => 阴性
   neuter => 中性
-  _ => 中性
-}
-
-form Delivered(Plural, Gender) {
-  _ => 已配送
+  _      => 中性
 }
 
 nav_why = 为什么
@@ -114,11 +110,11 @@ localized_path_label = 本地化路由
 cookie_label = Cookie
 route_label = 路由前缀
 
-playground_sentence = {Delivered(count, fruit.Gender)} {count} 个 {SizeWord(size)} {fruit.nom(count)}，指代 {GenderPronoun(gender)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
+playground_sentence = 已配送 {count} 个 {SizeWord(size)} {fruit.nom(count)}，指代 {GenderPronoun(gender)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
 cart_summary = 购物车中有 {count} 个 {fruit.nom(count)}
-number_format = 数字格式：{value}
-currency_format = 货币格式：{amount @currency(code = "CNY")}
-date_format = 日期格式：{date}
+number_format = 数字格式： {value}
+currency_format = 货币格式： {amount @currency(code = "CNY")}
+date_format = 日期格式： {date}
 override_format = Locale override: {amount @number} / {date @date(style = "long")}
-gender_line = 性别形式：{GenderWord(gender)}
-size_line = 大小形式：{SizeWord(size)}
+gender_line = 性别形式： {GenderWord(gender)}
+size_line = 大小形式： {SizeWord(size)}

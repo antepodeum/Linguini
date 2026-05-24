@@ -5,7 +5,7 @@ impl Fruit {
 
     form nom(Plural) {
       one => Apfel
-      _ => Äpfel
+      _   => Äpfel
     }
   }
 
@@ -15,7 +15,7 @@ impl Fruit {
 
     form nom(Plural) {
       one => Birne
-      _ => Birnen
+      _   => Birnen
     }
   }
 
@@ -25,7 +25,7 @@ impl Fruit {
 
     form nom(Plural) {
       one => Orange
-      _ => Orangen
+      _   => Orangen
     }
   }
 }
@@ -33,19 +33,19 @@ impl Fruit {
 form SizeAdj(Size, Plural, Gender) {
   small {
     one {
-      male => kleiner
+      male   => kleiner
       female => kleine
       neuter => kleines
-      _ => kleiner
+      _      => kleiner
     }
     _ => kleine
   }
   big {
     one {
-      male => großer
+      male   => großer
       female => große
       neuter => großes
-      _ => großer
+      _      => großer
     }
     _ => große
   }
@@ -54,26 +54,26 @@ form SizeAdj(Size, Plural, Gender) {
 
 form SizeWord(Size) {
   small => klein
-  big => groß
+  big   => groß
 }
 
 form GenderPronoun(Gender) {
-  male => ihn
+  male   => ihn
   female => sie
   neuter => es
-  _ => es
+  _      => es
 }
 
 form GenderWord(Gender) {
-  male => maskulin
+  male   => maskulin
   female => feminin
   neuter => neutrum
-  _ => neutral
+  _      => neutral
 }
 
 form Delivered(Plural, Gender) {
   one => Geliefert
-  _ => Geliefert
+  _   => Geliefert
 }
 
 nav_why = Warum
