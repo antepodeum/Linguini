@@ -318,11 +318,9 @@ fn parse_number_pattern(pattern: &str) -> NumberPattern {
 }
 
 fn parse_number_pattern_part(pattern: &str) -> NumberPatternPart {
-    let number_start = pattern
-        .find(|character| matches!(character, '#' | '0' | ',' | '.'))
-        .unwrap_or(pattern.len());
+    let number_start = pattern.find(['#', '0', ',', '.']).unwrap_or(pattern.len());
     let number_end = pattern
-        .rfind(|character| matches!(character, '#' | '0' | ',' | '.'))
+        .rfind(['#', '0', ',', '.'])
         .map_or(number_start, |index| index + 1);
     let prefix = pattern[..number_start].to_owned();
     let suffix = pattern[number_end..].to_owned();

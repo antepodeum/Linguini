@@ -29,12 +29,7 @@ pub fn emit_imports(locale: &IrModule, options: &TypeScriptOptions, output: &mut
     let uses_forms = !locale.forms.is_empty();
     let uses_dispatch = !locale.functions.is_empty();
     if uses_forms || uses_dispatch {
-        let mut imports = Vec::new();
-        imports.push("selectBranch");
-        output.push_str(&format!(
-            "import {{ {} }} from \"../shared\";\n",
-            imports.join(", ")
-        ));
+        output.push_str("import { selectBranch } from \"../shared\";\n");
         if options.plural_source.is_none() {
             if let Some(path) = &options.plural_import {
                 output.push_str(&format!(

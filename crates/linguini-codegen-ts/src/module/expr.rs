@@ -106,7 +106,7 @@ fn expression_string(
     } else {
         expression.formatters.as_slice()
     };
-    let formatted = apply_formatters(value, formatters, options);
+    let formatted = apply_formatters(value, formatters);
     format!("String({formatted})")
 }
 
@@ -194,11 +194,7 @@ fn expression_value(
     }
 }
 
-fn apply_formatters(
-    value: String,
-    formatters: &[IrFormatter],
-    _options: &TypeScriptOptions,
-) -> String {
+fn apply_formatters(value: String, formatters: &[IrFormatter]) -> String {
     formatters.iter().fold(value, |current, formatter| {
         let formatter_options = formatter_options(formatter);
         match formatter.kind {
