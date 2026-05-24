@@ -24,23 +24,33 @@ impl SampleValue {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct MessageSample {
+    pub signature: String,
+    pub rendered: String,
+}
+
 pub(super) fn render_message_sample(
     document: &LinguiniDocument,
     workspace: impl IntoIterator<Item = LinguiniDocument>,
     name: &str,
-) -> Option<String> {
+) -> Option<MessageSample> {
     let locale_file = parse_locale_with_recovery(&document.text).ast?;
     let locale_module = lower_locale(&locale_file);
-    let (schema_module, inputs) = sample_inputs_for_message(workspace, name)?;
+    let (schema_module, signature, inputs) = sample_inputs_for_message(workspace, name)?;
     let locale = locale_from_uri(&document.uri).unwrap_or_else(|| "en".to_owned());
-    Some(Renderer::new(&schema_module, &locale_module, &locale).render_message(name, &inputs))
-        .filter(|value| !value.is_empty())
+    let rendered =
+        Renderer::new(&schema_module, &locale_module, &locale).render_message(name, &inputs);
+    (!rendered.is_empty()).then_some(MessageSample {
+        signature,
+        rendered,
+    })
 }
 
 fn sample_inputs_for_message(
     workspace: impl IntoIterator<Item = LinguiniDocument>,
     name: &str,
-) -> Option<(IrModule, BTreeMap<String, SampleValue>)> {
+) -> Option<(IrModule, String, BTreeMap<String, SampleValue>)> {
     for document in workspace {
         if document.kind != SourceKind::Schema {
             continue;
@@ -52,6 +62,16 @@ fn sample_inputs_for_message(
         let Some(message) = module.messages.iter().find(|message| message.name == name) else {
             continue;
         };
+        let signature = format!(
+            "{}({})",
+            message.name,
+            message
+                .parameters
+                .iter()
+                .map(|parameter| format!("{}: {}", parameter.name, parameter.ty))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         let inputs = message
             .parameters
             .iter()
@@ -63,7 +83,7 @@ fn sample_inputs_for_message(
                 )
             })
             .collect();
-        return Some((module, inputs));
+        return Some((module, signature, inputs));
     }
     None
 }

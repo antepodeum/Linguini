@@ -233,7 +233,7 @@ pub fn hover_at_with_workspace(
     }
     if let Some(name) = message_name {
         if let Some(sample) = render_message_sample(document, workspace, &name) {
-            symbol.preview = Some(format!("{name} -> {sample}"));
+            symbol.preview = Some(format!("{}\n=> {}", sample.signature, sample.rendered));
         }
     }
 

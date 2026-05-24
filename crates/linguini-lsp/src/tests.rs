@@ -87,7 +87,8 @@ fn locale_hover_renders_message_sample_from_schema_values() {
 
     let hover = hover_at_with_workspace(&locale, offset, [schema]).expect("hover");
 
-    assert!(hover.contains("delivery -> Delivered 3 small apples."));
+    assert!(hover.contains("delivery(fruit: Fruit, size: Size, count: Number)"));
+    assert!(hover.contains("=> Delivered 3 small apples."));
     assert!(!hover.contains("{SizeWord(size, count)}"));
 }
 
