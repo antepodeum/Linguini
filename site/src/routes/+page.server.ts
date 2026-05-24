@@ -1,6 +1,20 @@
 import { highlightCode } from "$lib/server/highlight";
 
-const heroLocaleCode = `form SizeWord(Size) {
+const heroLocaleCode = `impl Fruit {
+  apple {
+    Gender = neuter
+    emoji = 🍎
+
+    form nom(Plural) {
+      one => apple
+      _ => apples
+    }
+  }
+
+  ...
+}
+
+form SizeWord(Size) {
   small => compact
   big => full-size
 }
@@ -65,7 +79,7 @@ const sveltekitExample = `<script lang="ts">
 </script>
 
 <a href="/checkout">
-  {l.main.checkout(count, fruit, size, total)}
+  {l.main.checkout(3, "apple", "big", 1234)}
 </a>
 
 {#each locales as locale}

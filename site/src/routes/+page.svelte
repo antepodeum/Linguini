@@ -242,17 +242,17 @@
   <section id="codegen" class="mx-auto max-w-7xl px-5 py-16 sm:px-8">
     <div class="pipeline">
       <article class="pipeline-panel">
-        <p class="pipeline-label">schema</p>
+        <p class="pipeline-label">schema (/linguini/schema/main.lgs)</p>
         <CodeBlock html={data.codeBlocks.schema} />
       </article>
 
       <article class="pipeline-panel">
-        <p class="pipeline-label">locale</p>
+        <p class="pipeline-label">locale (/linguini/locale/main/en.lgl)</p>
         <CodeBlock html={data.codeBlocks.locale} />
       </article>
 
       <article class="pipeline-panel pipeline-panel-output">
-        <p class="pipeline-label">SvelteKit</p>
+        <p class="pipeline-label">SvelteKit (/src/+page.svelte)</p>
         <CodeBlock html={data.codeBlocks.sveltekit} />
       </article>
     </div>
