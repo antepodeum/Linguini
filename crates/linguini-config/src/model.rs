@@ -38,6 +38,7 @@ pub struct TypeScriptTargetConfig {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WebConfig {
+    pub configured: bool,
     pub strategy: Vec<String>,
     pub cookie_name: String,
     pub cookie_path: String,
@@ -60,6 +61,7 @@ pub struct WebConfig {
 impl Default for WebConfig {
     fn default() -> Self {
         Self {
+            configured: false,
             strategy: vec![
                 "url".to_owned(),
                 "cookie".to_owned(),

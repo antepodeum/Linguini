@@ -375,7 +375,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         }],
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::SvelteKit),
-            web: TypeScriptWebOptions {
+            web: Some(TypeScriptWebOptions {
                 strategy: vec![
                     "url".to_owned(),
                     "cookie".to_owned(),
@@ -398,7 +398,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                 origin: Some("https://example.com".to_owned()),
                 exclude: vec!["/api/**".to_owned()],
                 localize_links: false,
-            },
+            }),
             ..TypeScriptProjectOptions::default()
         },
     )
@@ -451,6 +451,45 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .contents
         .contains("linguini: LinguiniRequestContext<Locale, Linguini>"));
     assert!(!sveltekit_declaration.contents.contains("@antepod/"));
+}
+
+#[test]
+fn project_codegen_emits_context_only_svelte_without_web_config() {
+    use crate::{
+        generate_typescript_project_files, TypeScriptFramework, TypeScriptLocaleModule,
+        TypeScriptProjectOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let files = generate_typescript_project_files(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &TypeScriptProjectOptions {
+            framework: Some(TypeScriptFramework::SvelteKit),
+            web: None,
+            ..TypeScriptProjectOptions::default()
+        },
+    )
+    .expect("project codegen");
+
+    let paths = files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&"svelte.ts"));
+    assert!(!paths.contains(&"web.ts"));
+    assert!(!paths.contains(&"sveltekit.ts"));
+
+    let svelte = files
+        .iter()
+        .find(|file| file.path == "svelte.ts")
+        .expect("svelte module");
+    assert!(svelte.contents.contains("activeLocale"));
+    assert!(!svelte.contents.contains("$app/navigation"));
+    assert!(!svelte.contents.contains("createWebI18n"));
 }
 
 #[test]

@@ -53,7 +53,7 @@ pub struct TypeScriptProjectOptions {
     pub tree_shaking: bool,
     pub included_messages: Vec<String>,
     pub base_locale: Option<String>,
-    pub web: TypeScriptWebOptions,
+    pub web: Option<TypeScriptWebOptions>,
     pub framework: Option<TypeScriptFramework>,
 }
 
@@ -109,7 +109,7 @@ impl Default for TypeScriptProjectOptions {
             tree_shaking: false,
             included_messages: Vec::new(),
             base_locale: None,
-            web: TypeScriptWebOptions::default(),
+            web: None,
             framework: None,
         }
     }
@@ -267,35 +267,39 @@ pub fn generate_typescript_project_files(
         .framework
         .is_some_and(TypeScriptFramework::needs_svelte_module)
     {
-        files.push(TypeScriptGeneratedFile {
-            path: "web.ts".to_owned(),
-            contents: project::generate_project_web_module(),
-        });
-        if options.declaration {
+        if options.web.is_some() {
             files.push(TypeScriptGeneratedFile {
-                path: "web.d.ts".to_owned(),
-                contents: project::generate_project_web_declaration(),
+                path: "web.ts".to_owned(),
+                contents: project::generate_project_web_module(),
             });
+            if options.declaration {
+                files.push(TypeScriptGeneratedFile {
+                    path: "web.d.ts".to_owned(),
+                    contents: project::generate_project_web_declaration(),
+                });
+            }
         }
         files.push(TypeScriptGeneratedFile {
             path: "svelte.ts".to_owned(),
-            contents: project::generate_project_svelte_module(&options.web),
+            contents: project::generate_project_svelte_module(options.web.as_ref()),
         });
         if options.declaration {
             files.push(TypeScriptGeneratedFile {
                 path: "svelte.d.ts".to_owned(),
-                contents: project::generate_project_svelte_declaration(),
+                contents: project::generate_project_svelte_declaration(options.web.is_some()),
             });
         }
     }
 
-    if options
-        .framework
-        .is_some_and(TypeScriptFramework::needs_sveltekit_module)
+    if options.web.is_some()
+        && options
+            .framework
+            .is_some_and(TypeScriptFramework::needs_sveltekit_module)
     {
+        let web = options.web.as_ref().expect("checked above");
         files.push(TypeScriptGeneratedFile {
             path: "sveltekit.ts".to_owned(),
-            contents: project::generate_project_sveltekit_module(&options.web),
+            contents: project::generate_project_sveltekit_module(web),
         });
         if options.declaration {
             files.push(TypeScriptGeneratedFile {

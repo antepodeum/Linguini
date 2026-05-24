@@ -1,8 +1,8 @@
 use super::names::{escape_string, property_key, safe_identifier};
 use super::templates::{
     render_template, INDEX_RUNTIME, INDEX_RUNTIME_DECLARATIONS, PROJECT_INDEX_DECLARATIONS,
-    PROJECT_INDEX_ENTRY, SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_DECLARATIONS,
-    SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
+    PROJECT_INDEX_ENTRY, SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS,
+    SVELTE_CONTEXT_RUNTIME, SVELTE_DECLARATIONS, SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
 };
 use super::{TypeScriptLocaleModule, TypeScriptWebOptions};
 use linguini_cldr::built_in_text_direction;
@@ -55,12 +55,21 @@ pub fn generate_project_index_declaration(
     )
 }
 
-pub fn generate_project_svelte_module(options: &TypeScriptWebOptions) -> String {
-    render_template(SVELTE_RUNTIME, &[("OPTIONS", web_options_literal(options))])
+pub fn generate_project_svelte_module(options: Option<&TypeScriptWebOptions>) -> String {
+    match options {
+        Some(options) => {
+            render_template(SVELTE_RUNTIME, &[("OPTIONS", web_options_literal(options))])
+        }
+        None => SVELTE_CONTEXT_RUNTIME.to_owned(),
+    }
 }
 
-pub fn generate_project_svelte_declaration() -> String {
-    SVELTE_DECLARATIONS.to_owned()
+pub fn generate_project_svelte_declaration(web: bool) -> String {
+    if web {
+        SVELTE_DECLARATIONS.to_owned()
+    } else {
+        SVELTE_CONTEXT_DECLARATIONS.to_owned()
+    }
 }
 
 pub fn generate_project_sveltekit_module(options: &TypeScriptWebOptions) -> String {

@@ -71,7 +71,7 @@ fn generate_typescript_target(
             tree_shaking: target.tree_shaking,
             included_messages: target.messages.clone(),
             base_locale: Some(config.project.default_locale.clone()),
-            web: TypeScriptWebOptions {
+            web: config.web.configured.then(|| TypeScriptWebOptions {
                 strategy: config.web.strategy.clone(),
                 cookie_name: config.web.cookie_name.clone(),
                 cookie_path: config.web.cookie_path.clone(),
@@ -89,7 +89,7 @@ fn generate_typescript_target(
                 origin: config.web.origin.clone(),
                 exclude: config.web.exclude.clone(),
                 localize_links: config.web.localize_links,
-            },
+            }),
             framework: TypeScriptFramework::from_config(target.framework.as_deref()),
         },
     )

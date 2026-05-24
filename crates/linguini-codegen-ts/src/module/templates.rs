@@ -8,6 +8,8 @@ pub const SINGLE_INDEX_RUNTIME: &str = include_str!("templates/single-index.runt
 pub const SINGLE_INDEX_DECLARATIONS: &str = include_str!("templates/single-index.runtime.d.ts");
 pub const SVELTE_RUNTIME: &str = include_str!("templates/svelte.runtime.ts");
 pub const SVELTE_DECLARATIONS: &str = include_str!("templates/svelte.runtime.d.ts");
+pub const SVELTE_CONTEXT_RUNTIME: &str = include_str!("templates/svelte.context.runtime.ts");
+pub const SVELTE_CONTEXT_DECLARATIONS: &str = include_str!("templates/svelte.context.runtime.d.ts");
 pub const SVELTEKIT_RUNTIME: &str = include_str!("templates/sveltekit.runtime.ts");
 pub const SVELTEKIT_DECLARATIONS: &str = include_str!("templates/sveltekit.runtime.d.ts");
 pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
@@ -39,6 +41,8 @@ mod tests {
         assert!(WEB_DECLARATIONS.contains("LinguiniRequestContext"));
         assert!(SVELTE_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_DECLARATIONS.contains("LinguiniRune"));
+        assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
+        assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
         assert!(SVELTEKIT_DECLARATIONS.contains("SerializedLinguiniContext"));
     }

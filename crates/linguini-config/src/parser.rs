@@ -23,6 +23,7 @@ struct TargetsBuilder {
 
 #[derive(Default)]
 struct WebBuilder {
+    configured: bool,
     strategy: Option<Vec<String>>,
     cookie_name: Option<String>,
     cookie_path: Option<String>,
@@ -71,7 +72,11 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
             .and_then(|line| line.strip_suffix(']'))
         {
             match name {
-                "project" | "paths" | "targets.ts" | "web" => section = name.to_owned(),
+                "project" | "paths" | "targets.ts" => section = name.to_owned(),
+                "web" => {
+                    section = name.to_owned();
+                    web.configured = true;
+                }
                 name => return Err(ConfigError::UnexpectedSection(name.to_owned())),
             }
             continue;
@@ -280,6 +285,7 @@ fn required<T>(value: Option<T>, field: &'static str) -> ConfigResult<T> {
 fn build_web_config(web: WebBuilder) -> WebConfig {
     let defaults = WebConfig::default();
     WebConfig {
+        configured: web.configured,
         strategy: web.strategy.unwrap_or(defaults.strategy),
         cookie_name: web.cookie_name.unwrap_or(defaults.cookie_name),
         cookie_path: web.cookie_path.unwrap_or(defaults.cookie_path),
@@ -326,6 +332,7 @@ mod tests {
         assert_eq!(config.project.locales, ["ru", "en-US"]);
         assert_eq!(config.paths.schema, "linguini/schema");
         assert_eq!(config.paths.locale, "linguini/locale");
+        assert!(!config.web.configured);
         assert!(config.targets.ts.is_none());
     }
 
@@ -443,6 +450,7 @@ mod tests {
             config.web.strategy,
             ["url", "cookie", "header", "baseLocale"]
         );
+        assert!(config.web.configured);
         assert_eq!(config.web.cookie_name, "SHOP_LOCALE");
         assert_eq!(config.web.cookie_path, "/shop");
         assert_eq!(config.web.cookie_domain.as_deref(), Some("example.com"));
