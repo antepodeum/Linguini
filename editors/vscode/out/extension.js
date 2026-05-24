@@ -48,7 +48,9 @@ const documentSelector = [
 async function activate(context) {
     traceOutputChannel = vscode.window.createOutputChannel('Linguini Language Server Trace');
     client = createClient(context);
-    context.subscriptions.push(traceOutputChannel, vscode.commands.registerCommand('linguini.restartServer', () => restartClient(context)), vscode.workspace.onDidChangeConfiguration((event) => {
+    const configWatcher = vscode.workspace.createFileSystemWatcher('**/linguini.toml');
+    const restartForConfigChange = () => restartClient(context);
+    context.subscriptions.push(traceOutputChannel, configWatcher, configWatcher.onDidCreate(restartForConfigChange), configWatcher.onDidChange(restartForConfigChange), configWatcher.onDidDelete(restartForConfigChange), vscode.commands.registerCommand('linguini.restartServer', () => restartClient(context)), vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration('linguini.server') ||
             event.affectsConfiguration('linguini.semanticHighlighting')) {
             void restartClient(context);
@@ -86,6 +88,7 @@ async function restartClient(context) {
     const previous = client;
     client = createClient(context);
     await previous?.stop();
+    context.subscriptions.push(client);
     await startClient(client);
 }
 async function startClient(nextClient) {

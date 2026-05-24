@@ -20,7 +20,8 @@
   ],
   "activationEvents": [
     "onLanguage:linguini-schema",
-    "onLanguage:linguini-locale"
+    "onLanguage:linguini-locale",
+    "workspaceContains:**/linguini.toml"
   ],
   "main": "./out/extension.js",
   "scripts": {

@@ -1,5 +1,5 @@
-use crate::{diagnostics, LinguiniDocument};
-use linguini_analyzer::QuickFix;
+use crate::LinguiniDocument;
+use linguini_analyzer::{Diagnostic as AnalyzerDiagnostic, QuickFix};
 use std::collections::HashMap;
 use tower_lsp_server::ls_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Command, Diagnostic, DiagnosticSeverity,
@@ -24,9 +24,10 @@ pub(crate) fn analyzer_quick_fix_actions(
     uri: &Uri,
     document: &LinguiniDocument,
     range: Range,
+    diagnostics: impl IntoIterator<Item = AnalyzerDiagnostic>,
 ) -> Vec<CodeActionOrCommand> {
     let mut actions = Vec::new();
-    for diagnostic in diagnostics(document) {
+    for diagnostic in diagnostics {
         if !diagnostic_has_action_for_range(document, &diagnostic, range) {
             continue;
         }

@@ -1,14 +1,15 @@
 {
   "linguini.server.path": "linguini",
-  "linguini.server.args": ["lsp"],
-  "linguini.formatting.args": ["formatting"],
+  "linguini.server.args": [
+    "lsp"
+  ],
   "linguini.semanticHighlighting.enabled": true,
   "[linguini-schema]": {
-    "editor.defaultFormatter": "linguini.linguini-vscode",
+    "editor.defaultFormatter": "antepod.linguini-vscode",
     "editor.semanticHighlighting.enabled": true
   },
   "[linguini-locale]": {
-    "editor.defaultFormatter": "linguini.linguini-vscode",
+    "editor.defaultFormatter": "antepod.linguini-vscode",
     "editor.semanticHighlighting.enabled": true
   }
 }

@@ -20,8 +20,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   traceOutputChannel = vscode.window.createOutputChannel('Linguini Language Server Trace');
   client = createClient(context);
 
+  const configWatcher = vscode.workspace.createFileSystemWatcher('**/linguini.toml');
+  const restartForConfigChange = () => restartClient(context);
+
   context.subscriptions.push(
     traceOutputChannel,
+    configWatcher,
+    configWatcher.onDidCreate(restartForConfigChange),
+    configWatcher.onDidChange(restartForConfigChange),
+    configWatcher.onDidDelete(restartForConfigChange),
     vscode.commands.registerCommand('linguini.restartServer', () => restartClient(context)),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('linguini.server') ||
@@ -76,6 +83,7 @@ async function restartClient(context: vscode.ExtensionContext): Promise<void> {
   client = createClient(context);
 
   await previous?.stop();
+  context.subscriptions.push(client);
   await startClient(client);
 }
 

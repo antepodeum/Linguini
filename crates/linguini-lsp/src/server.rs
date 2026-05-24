@@ -6,14 +6,27 @@ use crate::{
     prepare_rename_at, references_at, rename_workspace_edits, semantic_tokens, LinguiniDocument,
     SemanticLegend,
 };
-use std::collections::HashMap;
+use linguini_config::{
+    discover_locale_files, discover_schema_files, parse_config, LinguiniConfig, DEFAULT_CONFIG_FILE,
+};
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use tower_lsp_server::{jsonrpc::Result, ls_types::*, Client, LanguageServer, LspService, Server};
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct ProjectContext {
+    root: PathBuf,
+    schema_root: PathBuf,
+    locale_root: PathBuf,
+}
 
 #[derive(Debug)]
 struct Backend {
     client: Client,
     documents: Arc<RwLock<HashMap<Uri, LinguiniDocument>>>,
+    workspace_roots: Arc<RwLock<Vec<PathBuf>>>,
 }
 
 impl Backend {
@@ -21,17 +34,13 @@ impl Backend {
         Self {
             client,
             documents: Arc::new(RwLock::new(HashMap::new())),
+            workspace_roots: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
     async fn publish(&self, document: &LinguiniDocument) {
-        let workspace = self
-            .documents
-            .read()
-            .ok()
-            .map(|documents| documents.values().cloned().collect::<Vec<_>>())
-            .unwrap_or_default();
-        let diagnostics = diagnostics_with_workspace(document, workspace)
+        let diagnostics = self
+            .diagnostics_for(document)
             .into_iter()
             .map(|diagnostic| to_lsp_diagnostic(document, &diagnostic))
             .collect();
@@ -43,13 +52,163 @@ impl Backend {
             .await;
     }
 
+    async fn publish_related(&self, document: &LinguiniDocument) {
+        let related = self.related_open_documents(document);
+        if related.is_empty() {
+            self.publish(document).await;
+            return;
+        }
+
+        for related_document in related {
+            self.publish(&related_document).await;
+        }
+    }
+
+    fn diagnostics_for(&self, document: &LinguiniDocument) -> Vec<linguini_analyzer::Diagnostic> {
+        diagnostics_with_workspace(document, self.workspace_documents_for(document))
+    }
+
+    fn workspace_documents_for(&self, document: &LinguiniDocument) -> Vec<LinguiniDocument> {
+        let open_documents = self.open_documents();
+        let Some(path) = document_file_path(document) else {
+            return open_documents;
+        };
+        let Some(context) = self.project_context_for_path(&path) else {
+            return open_documents
+                .into_iter()
+                .filter(|candidate| {
+                    document_file_path(candidate)
+                        .and_then(|candidate_path| self.project_context_for_path(&candidate_path))
+                        .is_none()
+                })
+                .collect();
+        };
+
+        self.config_workspace_documents(&context, &open_documents)
+    }
+
+    fn config_workspace_documents(
+        &self,
+        context: &ProjectContext,
+        open_documents: &[LinguiniDocument],
+    ) -> Vec<LinguiniDocument> {
+        let mut documents = Vec::new();
+        let mut seen_paths = HashSet::new();
+        let open_by_path = open_documents
+            .iter()
+            .filter_map(|document| document_file_path(document).map(|path| (path, document)))
+            .collect::<HashMap<_, _>>();
+
+        for source_path in discover_config_source_paths(context) {
+            let path = normalize_existing_path(&source_path);
+            if !seen_paths.insert(path.clone()) {
+                continue;
+            }
+
+            if let Some(open_document) = open_by_path.get(&path) {
+                documents.push((**open_document).clone());
+                continue;
+            }
+
+            let Some(document) = read_document_from_path(&path) else {
+                continue;
+            };
+            documents.push(document);
+        }
+
+        for document in open_documents {
+            let Some(path) = document_file_path(document) else {
+                continue;
+            };
+            if !path_matches_context(&path, context) || !seen_paths.insert(path) {
+                continue;
+            }
+            documents.push(document.clone());
+        }
+
+        documents
+    }
+
+    fn related_open_documents(&self, document: &LinguiniDocument) -> Vec<LinguiniDocument> {
+        let open_documents = self.open_documents();
+        let Some(path) = document_file_path(document) else {
+            return vec![document.clone()];
+        };
+        let context = self.project_context_for_path(&path);
+
+        open_documents
+            .into_iter()
+            .filter(|candidate| {
+                let Some(candidate_path) = document_file_path(candidate) else {
+                    return false;
+                };
+                self.project_context_for_path(&candidate_path) == context
+            })
+            .collect()
+    }
+
+    fn open_documents(&self) -> Vec<LinguiniDocument> {
+        self.documents
+            .read()
+            .ok()
+            .map(|documents| documents.values().cloned().collect())
+            .unwrap_or_default()
+    }
+
     fn document(&self, uri: &Uri) -> Option<LinguiniDocument> {
         self.documents.read().ok()?.get(uri).cloned()
+    }
+
+    fn set_workspace_roots(&self, roots: Vec<PathBuf>) {
+        if let Ok(mut workspace_roots) = self.workspace_roots.write() {
+            *workspace_roots = roots;
+        }
+    }
+
+    fn workspace_roots(&self) -> Vec<PathBuf> {
+        self.workspace_roots
+            .read()
+            .ok()
+            .filter(|roots| !roots.is_empty())
+            .map(|roots| roots.clone())
+            .unwrap_or_else(|| std::env::current_dir().into_iter().collect())
+    }
+
+    fn project_context_for_path(&self, path: &Path) -> Option<ProjectContext> {
+        let path = normalize_existing_path(path);
+        let mut fallback = None;
+
+        for root in path.ancestors() {
+            let config_path = root.join(DEFAULT_CONFIG_FILE);
+            if !config_path.is_file() {
+                continue;
+            }
+            let Some(context) = load_project_context(root) else {
+                continue;
+            };
+            if fallback.is_none() {
+                fallback = Some(context.clone());
+            }
+            if path_matches_context(&path, &context) {
+                return Some(context);
+            }
+        }
+
+        if fallback.is_some() {
+            return fallback;
+        }
+
+        discover_workspace_project_contexts(self.workspace_roots())
+            .into_iter()
+            .filter(|context| path_matches_context(&path, context))
+            .max_by_key(|context| context.root.components().count())
     }
 }
 
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        self.set_workspace_roots(workspace_roots_from_initialize(&params));
+
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
                 name: "linguini-lsp".to_owned(),
@@ -119,7 +278,7 @@ impl LanguageServer for Backend {
                 documents.insert(uri, document.clone());
             }
         }
-        self.publish(&document).await;
+        self.publish_related(&document).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -138,7 +297,7 @@ impl LanguageServer for Backend {
         if let Ok(mut documents) = self.documents.write() {
             documents.insert(params.text_document.uri, document.clone());
         }
-        self.publish(&document).await;
+        self.publish_related(&document).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -302,6 +461,7 @@ impl LanguageServer for Backend {
             &params.text_document.uri,
             &document,
             params.range,
+            self.diagnostics_for(&document),
         ));
 
         if params.range.start == params.range.end {
@@ -358,28 +518,37 @@ impl LanguageServer for Backend {
             params.text_document_position.position.line,
             params.text_document_position.position.character,
         );
+        let workspace_documents = self.workspace_documents_for(&document);
+        let documents_by_uri = workspace_documents
+            .iter()
+            .filter_map(|document| {
+                document
+                    .uri
+                    .parse::<Uri>()
+                    .ok()
+                    .map(|uri| (uri, (*document).clone()))
+            })
+            .collect::<HashMap<_, _>>();
         let mut changes = HashMap::new();
-        if let Ok(documents) = self.documents.read() {
-            for workspace_edit in rename_workspace_edits(
-                documents.values().cloned().collect::<Vec<_>>(),
-                &document,
-                offset,
-                &params.new_name,
-            ) {
-                let Ok(edit_uri) = workspace_edit.uri.parse::<Uri>() else {
-                    continue;
-                };
-                let Some(edit_document) = documents.get(&edit_uri) else {
-                    continue;
-                };
-                changes
-                    .entry(edit_uri)
-                    .or_insert_with(Vec::new)
-                    .push(TextEdit {
-                        range: to_range(edit_document, workspace_edit.edit.span),
-                        new_text: workspace_edit.edit.new_text,
-                    });
-            }
+        for workspace_edit in rename_workspace_edits(
+            workspace_documents,
+            &document,
+            offset,
+            &params.new_name,
+        ) {
+            let Ok(edit_uri) = workspace_edit.uri.parse::<Uri>() else {
+                continue;
+            };
+            let Some(edit_document) = documents_by_uri.get(&edit_uri) else {
+                continue;
+            };
+            changes
+                .entry(edit_uri)
+                .or_insert_with(Vec::new)
+                .push(TextEdit {
+                    range: to_range(edit_document, workspace_edit.edit.span),
+                    new_text: workspace_edit.edit.new_text,
+                });
         }
         Ok(Some(WorkspaceEdit {
             changes: Some(changes),
@@ -397,6 +566,242 @@ pub async fn run_stdio() {
 pub fn run_stdio_blocking() {
     let runtime = tokio::runtime::Runtime::new().expect("create Tokio runtime for Linguini LSP");
     runtime.block_on(run_stdio());
+}
+
+fn workspace_roots_from_initialize(params: &InitializeParams) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+
+    if let Some(workspace_folders) = &params.workspace_folders {
+        for folder in workspace_folders {
+            if let Some(path) = uri_to_file_path(&folder.uri.to_string()) {
+                roots.push(normalize_existing_path(path));
+            }
+        }
+    }
+
+    if roots.is_empty() {
+        if let Some(uri) = &params.root_uri {
+            if let Some(path) = uri_to_file_path(&uri.to_string()) {
+                roots.push(normalize_existing_path(path));
+            }
+        }
+    }
+
+    if roots.is_empty() {
+        if let Some(root_path) = &params.root_path {
+            roots.push(normalize_existing_path(root_path.as_str()));
+        }
+    }
+
+    if roots.is_empty() {
+        roots.extend(std::env::current_dir().ok());
+    }
+
+    roots.sort();
+    roots.dedup();
+    roots
+}
+
+fn discover_workspace_project_contexts(roots: Vec<PathBuf>) -> Vec<ProjectContext> {
+    let mut contexts = Vec::new();
+    let mut seen = HashSet::new();
+
+    for root in roots {
+        discover_project_contexts_recursively(&root, &mut seen, &mut contexts);
+    }
+
+    contexts
+}
+
+fn discover_project_contexts_recursively(
+    directory: &Path,
+    seen: &mut HashSet<PathBuf>,
+    contexts: &mut Vec<ProjectContext>,
+) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            if should_skip_discovery_directory(name) {
+                continue;
+            }
+            discover_project_contexts_recursively(&path, seen, contexts);
+            continue;
+        }
+
+        if path.file_name().and_then(|name| name.to_str()) != Some(DEFAULT_CONFIG_FILE) {
+            continue;
+        }
+        let Some(root) = path.parent() else {
+            continue;
+        };
+        let root = normalize_existing_path(root);
+        if !seen.insert(root.clone()) {
+            continue;
+        }
+        if let Some(context) = load_project_context(&root) {
+            contexts.push(context);
+        }
+    }
+}
+
+fn should_skip_discovery_directory(name: &str) -> bool {
+    matches!(
+        name,
+        ".git"
+            | ".hg"
+            | ".svn"
+            | ".svelte-kit"
+            | ".next"
+            | ".nuxt"
+            | ".turbo"
+            | "node_modules"
+            | "target"
+            | "dist"
+            | "build"
+            | "coverage"
+            | "vendor"
+    )
+}
+
+fn load_project_context(root: &Path) -> Option<ProjectContext> {
+    let config = load_config(root)?;
+    Some(ProjectContext {
+        root: normalize_existing_path(root),
+        schema_root: normalize_existing_path(root.join(&config.paths.schema)),
+        locale_root: normalize_existing_path(root.join(&config.paths.locale)),
+    })
+}
+
+fn load_config(root: &Path) -> Option<LinguiniConfig> {
+    let source = fs::read_to_string(root.join(DEFAULT_CONFIG_FILE)).ok()?;
+    parse_config(&source).ok()
+}
+
+fn discover_config_source_paths(context: &ProjectContext) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    if let Ok(schema_files) = discover_schema_files(&context.schema_root) {
+        paths.extend(schema_files.into_iter().map(|file| file.path));
+    }
+
+    if let Ok(locale_files) = discover_locale_files(&context.locale_root) {
+        paths.extend(locale_files.into_iter().map(|file| file.path));
+    }
+
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
+fn path_matches_context(path: &Path, context: &ProjectContext) -> bool {
+    path.starts_with(&context.schema_root) || path.starts_with(&context.locale_root)
+}
+
+fn document_file_path(document: &LinguiniDocument) -> Option<PathBuf> {
+    uri_to_file_path(&document.uri).map(normalize_existing_path)
+}
+
+fn read_document_from_path(path: &Path) -> Option<LinguiniDocument> {
+    let source = fs::read_to_string(path).ok()?;
+    let uri = path_to_file_uri(path);
+    let language_id = match path.extension().and_then(|extension| extension.to_str()) {
+        Some("lgs") => "linguini-schema",
+        Some("lgl") => "linguini-locale",
+        _ => return None,
+    };
+
+    Some(LinguiniDocument::new(uri, language_id, source))
+}
+
+fn normalize_existing_path(path: impl AsRef<Path>) -> PathBuf {
+    fs::canonicalize(path.as_ref()).unwrap_or_else(|_| path.as_ref().to_path_buf())
+}
+
+fn uri_to_file_path(uri: &str) -> Option<PathBuf> {
+    let rest = uri.strip_prefix("file://")?;
+    let path_part = if rest.starts_with('/') {
+        rest
+    } else {
+        let slash = rest.find('/')?;
+        &rest[slash..]
+    };
+    let decoded = percent_decode(path_part)?;
+
+    #[cfg(windows)]
+    {
+        let decoded = decoded.trim_start_matches('/');
+        return Some(PathBuf::from(decoded));
+    }
+
+    #[cfg(not(windows))]
+    {
+        Some(PathBuf::from(decoded))
+    }
+}
+
+fn path_to_file_uri(path: &Path) -> String {
+    let path = normalize_existing_path(path);
+    let path = path.to_string_lossy().replace('\\', "/");
+
+    #[cfg(windows)]
+    let path = format!("/{path}");
+
+    format!("file://{}", percent_encode_path(&path))
+}
+
+fn percent_decode(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut output = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let high = bytes.get(index + 1).copied()?;
+            let low = bytes.get(index + 2).copied()?;
+            output.push((hex_value(high)? << 4) | hex_value(low)?);
+            index += 3;
+        } else {
+            output.push(bytes[index]);
+            index += 1;
+        }
+    }
+
+    String::from_utf8(output).ok()
+}
+
+fn percent_encode_path(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b'0'..=b'9'
+            | b'/'
+            | b'-'
+            | b'_'
+            | b'.'
+            | b'~'
+            | b':' => encoded.push(byte as char),
+            byte => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 fn to_range(document: &LinguiniDocument, span: linguini_syntax::Span) -> Range {

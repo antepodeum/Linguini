@@ -558,6 +558,7 @@ version = "0.1.0-alpha.3"
 dependencies = [
  "linguini-analyzer",
  "linguini-cldr",
+ "linguini-config",
  "linguini-format",
  "linguini-syntax",
  "tokio",
