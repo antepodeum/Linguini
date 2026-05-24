@@ -27,6 +27,8 @@
   import SwiftIcon from '@iconify-svelte/skill-icons/swift';
   import TypeScriptIcon from '@iconify-svelte/skill-icons/typescript';
   import VueIcon from '@iconify-svelte/skill-icons/vuejs-dark';
+  import VscodeIcon from '@iconify-svelte/skill-icons/vscode-dark';
+  import VscodiumIcon from '@iconify-svelte/skill-icons/vscodium-dark';
   import ZigIcon from '@iconify-svelte/skill-icons/zig-dark';
   import Button from '$lib/components/button.svelte';
   import CodeBlock from '$lib/components/code-block.svelte';
@@ -127,6 +129,10 @@
     return locale === 'pt-BR' ? 'PT-BR' : locale.toUpperCase();
   }
 
+  function chooseLocaleFromSelect(event: Event) {
+    chooseLocale((event.currentTarget as HTMLSelectElement).value as Locale);
+  }
+
   async function chooseLocale(locale: Locale) {
     await setLocale(locale);
   }
@@ -141,12 +147,12 @@
 
 <main class="relative overflow-visible">
   <nav class="sticky top-0 z-50 border-b border-border/70 bg-background/88 backdrop-blur-xl">
-    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
-    <a href={localizedRoot} class="flex items-center gap-3 font-semibold tracking-normal">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-8 sm:py-4">
+    <a href={localizedRoot} class="flex min-w-0 items-center gap-2.5 font-semibold tracking-normal sm:gap-3">
       <span class="brand-nav-mark">
         <img src={`${base}/icons/favicon.svg`} alt="linguini logo" />
       </span>
-      <span class="text-lg tracking-[0.28em]">{l.main.hero_title.toUpperCase()}</span>
+      <span class="truncate text-base tracking-[0.18em] sm:text-lg sm:tracking-[0.28em]">{l.main.hero_title.toUpperCase()}</span>
     </a>
 
     <div class="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
@@ -155,27 +161,40 @@
       {/each}
     </div>
 
-    <div class="locale-nav flex max-w-full flex-wrap items-center">
-      <span class="px-3 text-xs text-muted-foreground">{l.main.locale_label}</span>
-      {#each locales as item (item)}
-        <a
-          href={localeHref(item)}
-          aria-current={linguini.locale === item ? 'page' : undefined}
-          data-linguini-no-localize
-          class={[
-            'flex h-8 cursor-pointer appearance-none items-center bg-transparent px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
-            linguini.locale === item
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          ]}
-          onclick={(event) => {
-            event.preventDefault();
-            chooseLocale(item);
-          }}
-        >
-          {localeLabel(item)}
-        </a>
-      {/each}
+    <div class="locale-nav flex shrink-0 items-center">
+      <label for="locale-select" class="locale-label px-2 text-xs text-muted-foreground sm:px-3">{l.main.locale_label}</label>
+      <select
+        id="locale-select"
+        class="locale-select sm:hidden"
+        aria-label={l.main.locale_label}
+        value={linguini.locale}
+        onchange={chooseLocaleFromSelect}
+      >
+        {#each locales as item (item)}
+          <option value={item}>{localeLabel(item)}</option>
+        {/each}
+      </select>
+      <div class="locale-links hidden items-center sm:flex">
+        {#each locales as item (item)}
+          <a
+            href={localeHref(item)}
+            aria-current={linguini.locale === item ? 'page' : undefined}
+            data-linguini-no-localize
+            class={[
+              'flex h-8 cursor-pointer appearance-none items-center bg-transparent px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
+              linguini.locale === item
+                ? 'text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            ]}
+            onclick={(event) => {
+              event.preventDefault();
+              chooseLocale(item);
+            }}
+          >
+            {localeLabel(item)}
+          </a>
+        {/each}
+      </div>
     </div>
     </div>
   </nav>
@@ -227,19 +246,48 @@
           <Code2 size={17} />
           {l.main.secondary_cta}
         </Button>
+        <Button
+          href="https://marketplace.visualstudio.com/items?itemName=antepod.linguini-vscode"
+          variant="secondary"
+          rel="external noopener"
+        >
+          <VscodeIcon width="17" height="17" />
+          VS Code
+        </Button>
+        <Button
+          href="https://open-vsx.org/extension/antepod/linguini-vscode"
+          variant="ghost"
+          rel="external noopener"
+        >
+          <VscodiumIcon width="17" height="17" />
+          Open VSX
+        </Button>
       </div>
     </div>
   </section>
 
   <section id="why" class="border-y border-border/80 bg-muted/20">
     <div class="mx-auto max-w-7xl px-5 py-20 sm:px-8">
-      <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.codegen_kicker}</p>
-      <h2 class="mt-3 max-w-3xl font-serif text-4xl font-semibold leading-tight sm:text-5xl">{l.main.codegen_title}</h2>
-      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.codegen_intro}</p>
+      <header class="section-heading">
+        <p>01</p>
+        <h2>{l.main.nav_why}</h2>
+      </header>
+      <h3 class="mt-8 max-w-3xl font-serif text-4xl font-semibold leading-tight sm:text-5xl">{l.main.hero_tagline}</h3>
+      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.hero_intro}</p>
     </div>
   </section>
 
   <section id="codegen" class="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+    <header class="section-heading mb-8">
+      <p>02</p>
+      <h2>{l.main.nav_codegen}</h2>
+    </header>
+    <div class="mb-10">
+      <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.codegen_kicker}</p>
+      <h3 class="mt-3 max-w-3xl font-serif text-4xl font-semibold leading-tight sm:text-5xl">{l.main.codegen_title}</h3>
+      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.codegen_intro}</p>
+    </div>
+
     <div class="pipeline">
       <article class="pipeline-panel">
         <p class="pipeline-label">schema (/linguini/schema/main.lgs)</p>
@@ -293,10 +341,14 @@
 
   <section id="language" class="border-t border-border/80">
     <div class="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+      <header class="section-heading mb-8">
+        <p>03</p>
+        <h2>{l.main.nav_language}</h2>
+      </header>
       <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.nav_language}</p>
-          <h2 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.web_title}</h2>
+          <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.web_kicker}</p>
+          <h3 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.web_title}</h3>
           <p class="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.web_intro}</p>
         </div>
         <Button href="https://github.com/antepodeum/Linguini/blob/main/docs/web-sveltekit.md" variant="ghost">
@@ -333,8 +385,12 @@
   <section id="web" class="border-t border-border bg-muted/30 px-5 py-16 sm:px-8">
     <div class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
       <div>
+        <header class="section-heading mb-8">
+          <p>04</p>
+          <h2>{l.main.nav_web}</h2>
+        </header>
         <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.playground_kicker}</p>
-        <h2 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.playground_title}</h2>
+        <h3 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.playground_title}</h3>
         <div class="mt-8 grid gap-3 text-sm text-muted-foreground">
           <p class="flex items-center gap-2"><Route size={16} class="text-primary" /> {l.main.route_label}: {localizedRoot}</p>
           <p class="flex items-center gap-2"><Cookie size={16} class="text-primary" /> {l.main.cookie_label}: LINGUINI_SITE_LOCALE={linguini.locale}</p>
