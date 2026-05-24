@@ -233,22 +233,21 @@ raw = Raw {price @number}
         .expect("locale module");
     assert!(locale_module
         .contents
-        .contains("import { formatCurrency, formatDate, formatNumber } from \"../shared\";"));
+        .contains("const FORMATTER_LOCALE = \"en\";"));
+    assert!(!locale_module.contents.contains("FORMATTER_DATA"));
+    assert!(!locale_module.contents.contains("replace(/[#0"));
+    assert!(locale_module.contents.contains("function formatCurrency("));
     assert!(locale_module
         .contents
-        .contains("const FORMATTER_DATA = { locale: \"en\""));
+        .contains("formatCurrency(price, { code: \"EUR\" })"));
+    assert!(locale_module.contents.contains("function formatDate("));
     assert!(locale_module
         .contents
-        .contains("formatCurrency(price, FORMATTER_DATA"));
-    assert!(locale_module
-        .contents
-        .contains("formatDate(created, FORMATTER_DATA"));
+        .contains("formatDate(created, { style: \"short\" })"));
     assert!(locale_module
         .contents
         .contains("export function raw(price: Price): string"));
-    assert!(locale_module
-        .contents
-        .contains("formatNumber(price, FORMATTER_DATA"));
+    assert!(locale_module.contents.contains("formatNumber(price)"));
 }
 
 #[test]
@@ -273,15 +272,9 @@ fn project_codegen_applies_primitive_schema_formatters() {
         .iter()
         .find(|file| file.path == "locales/en.ts")
         .expect("locale module");
-    assert!(locale_module
-        .contents
-        .contains("formatNumber(count, FORMATTER_DATA)"));
-    assert!(locale_module
-        .contents
-        .contains("formatNumber(amount, FORMATTER_DATA)"));
-    assert!(locale_module
-        .contents
-        .contains("formatDate(created, FORMATTER_DATA"));
+    assert!(locale_module.contents.contains("formatNumber(count)"));
+    assert!(locale_module.contents.contains("formatNumber(amount)"));
+    assert!(locale_module.contents.contains("formatDate(created"));
 }
 
 #[test]

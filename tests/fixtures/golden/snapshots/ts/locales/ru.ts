@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate, formatNumber, selectBranch } from "../shared";
+import { selectBranch } from "../shared";
 
 function pluralRu(value: number | string): string {
   const operands = pluralOperands(value);
@@ -25,7 +25,113 @@ function pluralOperands(value: number | string) {
   };
 }
 
-const FORMATTER_DATA = { locale: "ru", numbers: { decimalSymbol: ",", groupSymbol: " ", decimalPattern: "#,##0.###", percentPattern: "#,##0 %" }, currency: { standardPattern: "#,##0.00 ¤", accountingPattern: "#,##0.00 ¤" }, date: { dateFormats: { full: "EEEE, d MMMM y 'г'.", long: "d MMMM y 'г'.", medium: "d MMM y 'г'.", short: "dd.MM.y" }, timeFormats: { full: "HH:mm:ss zzzz", long: "HH:mm:ss z", medium: "HH:mm:ss", short: "HH:mm" }, dateTimeFormats: { full: "{1}, {0}", long: "{1}, {0}", medium: "{1}, {0}", short: "{1}, {0}" } } };
+type GeneratedNumberPatternPart = { prefix: string; suffix: string; minIntegerDigits: number; minFractionDigits: number; maxFractionDigits: number; primaryGroupSize?: number; secondaryGroupSize?: number };
+type GeneratedNumberPattern = { positive: GeneratedNumberPatternPart; negative?: GeneratedNumberPatternPart };
+type GeneratedCurrencyFormatterOptions = { code?: string; accounting?: "true" | "false" };
+type GeneratedDateFormatterOptions = { style?: "full" | "long" | "medium" | "short" };
+
+const FORMATTER_LOCALE = "ru";
+const NUMBER_DECIMAL_SYMBOL = ",";
+const NUMBER_GROUP_SYMBOL = " ";
+const NUMBER_DECIMAL_PATTERN: GeneratedNumberPattern | undefined = { positive: { prefix: "", suffix: "", minIntegerDigits: 1, minFractionDigits: 0, maxFractionDigits: 3, primaryGroupSize: 3, secondaryGroupSize: undefined }, negative: undefined };
+const CURRENCY_STANDARD_PATTERN: GeneratedNumberPattern | undefined = { positive: { prefix: "", suffix: " ¤", minIntegerDigits: 1, minFractionDigits: 2, maxFractionDigits: 2, primaryGroupSize: 3, secondaryGroupSize: undefined }, negative: undefined };
+const CURRENCY_ACCOUNTING_PATTERN: GeneratedNumberPattern | undefined = { positive: { prefix: "", suffix: " ¤", minIntegerDigits: 1, minFractionDigits: 2, maxFractionDigits: 2, primaryGroupSize: 3, secondaryGroupSize: undefined }, negative: undefined };
+const DATE_FORMATS = { full: "EEEE, d MMMM y 'г'.", long: "d MMMM y 'г'.", medium: "d MMM y 'г'.", short: "dd.MM.y" };
+
+function formatNumber(value: number | string): string {
+  return formatGeneratedNumber(Number(value), NUMBER_DECIMAL_PATTERN);
+}
+
+function formatCurrency(
+  value: number | string,
+  options: GeneratedCurrencyFormatterOptions = {},
+): string {
+  const currency = options.code ?? "USD";
+  const pattern = options.accounting === "true"
+    ? CURRENCY_ACCOUNTING_PATTERN ?? CURRENCY_STANDARD_PATTERN
+    : CURRENCY_STANDARD_PATTERN;
+  return formatGeneratedNumber(Number(value), pattern, currencySymbol(currency));
+}
+
+function formatDate(
+  value: Date | number | string,
+  options: GeneratedDateFormatterOptions = {},
+): string {
+  if (typeof value === "string") return value;
+  const style = options.style ?? "medium";
+  if (!DATE_FORMATS?.[style]) return new Intl.DateTimeFormat(FORMATTER_LOCALE).format(value);
+  return new Intl.DateTimeFormat(FORMATTER_LOCALE, { dateStyle: style }).format(value);
+}
+
+function formatGeneratedNumber(
+  value: number,
+  pattern: GeneratedNumberPattern | undefined,
+  currency?: string,
+): string {
+  if (!Number.isFinite(value)) return String(value);
+  const negative = value < 0 || Object.is(value, -0);
+  const positive = pattern?.positive;
+  const part = negative ? pattern?.negative ?? negativePatternPart(positive) : positive;
+  if (!part) return String(value);
+
+  const rounded = roundToFractionDigits(Math.abs(value), part.maxFractionDigits);
+  let [integer, fraction = ""] = rounded.toFixed(part.maxFractionDigits).split(".");
+  integer = integer.padStart(part.minIntegerDigits, "0");
+  fraction = trimOptionalFractionDigits(fraction, part.minFractionDigits);
+
+  const grouped = groupIntegerDigits(integer, part.primaryGroupSize, part.secondaryGroupSize);
+  const formatted = fraction ? `${grouped}${NUMBER_DECIMAL_SYMBOL ?? "."}${fraction}` : grouped;
+  return `${formatNumberAffix(part.prefix, currency)}${formatted}${formatNumberAffix(part.suffix, currency)}`;
+}
+
+function negativePatternPart(part: GeneratedNumberPatternPart | undefined): GeneratedNumberPatternPart | undefined {
+  return part ? { ...part, prefix: `-${part.prefix}` } : undefined;
+}
+
+function roundToFractionDigits(value: number, digits: number): number {
+  if (digits <= 0) return Math.round(value);
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function trimOptionalFractionDigits(fraction: string, minDigits: number): string {
+  while (fraction.length > minDigits && fraction.endsWith("0")) {
+    fraction = fraction.slice(0, -1);
+  }
+  return fraction;
+}
+
+function groupIntegerDigits(
+  integer: string,
+  primaryGroupSize: number | undefined,
+  secondaryGroupSize: number | undefined,
+): string {
+  if (!primaryGroupSize || integer.length <= primaryGroupSize) return integer;
+  const groups: string[] = [];
+  let end = integer.length;
+  let groupSize = primaryGroupSize;
+  while (end > 0) {
+    const start = Math.max(0, end - groupSize);
+    groups.unshift(integer.slice(start, end));
+    end = start;
+    groupSize = secondaryGroupSize ?? primaryGroupSize;
+  }
+  return groups.join(NUMBER_GROUP_SYMBOL ?? ",");
+}
+
+function formatNumberAffix(affix: string, currency: string | undefined): string {
+  let output = "";
+  for (const character of affix) {
+    output += character === "¤" ? currency ?? "" : character;
+  }
+  return output;
+}
+
+function currencySymbol(currency: string): string {
+  return new Intl.NumberFormat("ru", { style: "currency", currency })
+    .formatToParts(0)
+    .find((part) => part.type === "currency")?.value ?? currency;
+}
 
 export type Fruit = "apple" | "pear" | "orange";
 
@@ -60,11 +166,11 @@ export function delivery(fruit: Fruit, size: Size, count: number): string {
 
 /**  Shown near cart item count. */
 export function counted(count: number, fruit: Fruit): string {
-  return "В корзине " + String(formatNumber(count, FORMATTER_DATA)) + " " + String(FruitForms[fruit].nom(count));
+  return "В корзине " + String(formatNumber(count)) + " " + String(FruitForms[fruit].nom(count));
 }
 
 export function price(amount: Money, date: ShortDate): string {
-  return "Цена " + String(formatCurrency(amount, FORMATTER_DATA, { code: "RUB" })) + " на " + String(formatDate(date, FORMATTER_DATA, { style: "short" }));
+  return "Цена " + String(formatCurrency(amount, { code: "RUB" })) + " на " + String(formatDate(date, { style: "short" }));
 }
 
 export const email_input = {

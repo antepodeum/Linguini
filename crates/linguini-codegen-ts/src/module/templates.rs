@@ -31,8 +31,8 @@ mod tests {
         assert!(INDEX_RUNTIME_DECLARATIONS.contains("createLinguini"));
         assert!(PROJECT_INDEX_ENTRY.contains("{{INDEX_RUNTIME}}"));
         assert!(PROJECT_INDEX_DECLARATIONS.contains("{{INDEX_RUNTIME_DECLARATIONS}}"));
-        assert!(SHARED_RUNTIME.contains("formatNumber"));
-        assert!(SHARED_DECLARATIONS.contains("formatNumber"));
+        assert!(SHARED_RUNTIME.contains("selectBranch"));
+        assert!(SHARED_DECLARATIONS.contains("selectBranch"));
         assert!(SINGLE_INDEX_RUNTIME.contains("createLinguini"));
         assert!(SINGLE_INDEX_DECLARATIONS.contains("createLinguini"));
         assert!(WEB_RUNTIME.contains("createWebI18n"));

@@ -26,23 +26,15 @@ pub struct ModuleExports {
 }
 
 pub fn emit_imports(
-    schema: &IrModule,
+    _schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,
     output: &mut String,
 ) {
     let uses_forms = !locale.forms.is_empty();
     let uses_dispatch = !locale.functions.is_empty();
-    let uses_formatters = module_uses_formatters(schema)
-        || module_uses_formatters(locale)
-        || schema_uses_auto_formatters(schema);
-    if uses_forms || uses_dispatch || uses_formatters {
+    if uses_forms || uses_dispatch {
         let mut imports = Vec::new();
-        if uses_formatters {
-            imports.push("formatCurrency");
-            imports.push("formatDate");
-            imports.push("formatNumber");
-        }
         if uses_forms || uses_dispatch {
             imports.push("selectBranch");
         }
