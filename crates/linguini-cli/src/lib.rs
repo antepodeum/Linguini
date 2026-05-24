@@ -79,6 +79,12 @@ pub(crate) struct FixArgs {
     /// Apply every available automatic fix
     #[arg(long)]
     pub(crate) all: bool,
+    /// Apply every available fix of this type, for example `missing-messages`
+    #[arg(long = "type")]
+    pub(crate) types: Vec<String>,
+    /// Limit fixes to one project file
+    #[arg(long)]
+    pub(crate) file: Option<PathBuf>,
     /// Fix ids printed by `linguini check`, for example `missing-messages:shop:ru`
     pub(crate) ids: Vec<String>,
 }

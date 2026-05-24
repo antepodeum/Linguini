@@ -23,11 +23,25 @@ enum FixOperation {
     AppendFile { path: PathBuf, contents: String },
 }
 
+impl ProjectFix {
+    fn kind(&self) -> &str {
+        self.id
+            .split_once(':')
+            .map_or(self.id.as_str(), |(kind, _)| kind)
+    }
+
+    fn path(&self) -> &Path {
+        match &self.operation {
+            FixOperation::CreateFile { path, .. } | FixOperation::AppendFile { path, .. } => path,
+        }
+    }
+}
+
 pub(crate) fn fix_project(root: &Path, args: &FixArgs) -> CliResult<String> {
     let config = read_project_config(root)?;
     let fixes = available_project_fixes(root, &config)?;
 
-    if !args.all && args.ids.is_empty() {
+    if !args.all && args.ids.is_empty() && args.types.is_empty() && args.file.is_none() {
         return Ok(render_fix_list(&fixes));
     }
 
@@ -54,7 +68,7 @@ fn render_fix_list(fixes: &[ProjectFix]) -> String {
     for fix in fixes {
         output.push_str(&format!("- {}: {}\n", fix.id, fix.title));
     }
-    output.push_str("run `linguini fix --all` or `linguini fix <id>...`\n");
+    output.push_str("run `linguini fix --all`, `linguini fix --type <type>`, `linguini fix --file <path> --all`, or `linguini fix <id>...`\n");
     output
 }
 
@@ -114,13 +128,22 @@ fn available_project_fixes(root: &Path, config: &LinguiniConfig) -> CliResult<Ve
 }
 
 fn select_fixes(fixes: &[ProjectFix], args: &FixArgs) -> CliResult<Vec<ProjectFix>> {
-    if args.all {
-        return Ok(fixes.to_vec());
+    let candidates = fixes
+        .iter()
+        .filter(|fix| {
+            args.file
+                .as_ref()
+                .is_none_or(|file| fix_matches_file(fix, file, fix.path()))
+        })
+        .collect::<Vec<_>>();
+
+    if args.all && args.types.is_empty() && args.ids.is_empty() {
+        return Ok(candidates.into_iter().cloned().collect());
     }
 
-    let by_id = fixes
+    let by_id = candidates
         .iter()
-        .map(|fix| (fix.id.as_str(), fix))
+        .map(|fix| (fix.id.as_str(), *fix))
         .collect::<BTreeMap<_, _>>();
     let mut selected = Vec::new();
     let mut missing = Vec::new();
@@ -132,6 +155,19 @@ fn select_fixes(fixes: &[ProjectFix], args: &FixArgs) -> CliResult<Vec<ProjectFi
         }
     }
 
+    for kind in &args.types {
+        let matches = candidates
+            .iter()
+            .filter(|fix| fix.kind() == kind)
+            .copied()
+            .collect::<Vec<_>>();
+        if matches.is_empty() {
+            missing.push(format!("--type {kind}"));
+            continue;
+        }
+        selected.extend(matches.into_iter().cloned());
+    }
+
     if !missing.is_empty() {
         return Err(CliError::Diagnostics(format!(
             "unknown fix {}: {}\nrun `linguini fix` to list available fixes\n",
@@ -140,7 +176,23 @@ fn select_fixes(fixes: &[ProjectFix], args: &FixArgs) -> CliResult<Vec<ProjectFi
         )));
     }
 
+    if selected.is_empty() && args.file.is_some() {
+        selected.extend(candidates.into_iter().cloned());
+    }
+
+    selected.sort_by(|left, right| left.id.cmp(&right.id));
+    selected.dedup_by(|left, right| left.id == right.id);
     Ok(selected)
+}
+
+fn fix_matches_file(fix: &ProjectFix, file: &Path, path: &Path) -> bool {
+    let root = path.ancestors().last().unwrap_or_else(|| Path::new(""));
+    path == file
+        || path.ends_with(file)
+        || file
+            .strip_prefix(root)
+            .is_ok_and(|relative| path.ends_with(relative))
+        || fix.title.contains(&file.display().to_string())
 }
 
 fn apply_project_fix(root: &Path, fix: &ProjectFix, output: &mut String) -> CliResult<()> {

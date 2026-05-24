@@ -298,6 +298,70 @@ declaration = true
 }
 
 #[test]
+fn fix_command_applies_fix_type_and_file_scope() {
+    let project = TempDir::new().expect("temp project");
+    linguini()
+        .current_dir(project.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"[project]
+name = "shop"
+default_locale = "en"
+locales = ["en", "ru"]
+
+[paths]
+schema = "schema"
+locale = "locales"
+
+[targets.ts]
+out = "src/generated/linguini"
+module = "esm"
+declaration = true
+"#,
+    )
+    .expect("config");
+
+    let schema_dir = project.path().join("schema");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&schema_dir).expect("schema dir");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(schema_dir.join("shop.lgs"), "delivery\ncounted\n").expect("schema file");
+    fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\n").expect("en locale");
+    fs::write(locale_dir.join("ru.lgl"), "delivery = Доставлено\n").expect("ru locale");
+
+    linguini()
+        .current_dir(project.path())
+        .args(["fix", "--file", "locales/shop/ru.lgl", "--all"])
+        .assert()
+        .success()
+        .stdout(contains("applied missing-messages:shop:ru"))
+        .stdout(
+            predicates::str::is_match("missing-messages:shop:en")
+                .unwrap()
+                .not(),
+        );
+
+    let en = fs::read_to_string(locale_dir.join("en.lgl")).expect("en locale");
+    let ru = fs::read_to_string(locale_dir.join("ru.lgl")).expect("ru locale");
+    assert!(!en.contains("counted = TODO"));
+    assert!(ru.contains("counted = TODO"));
+
+    linguini()
+        .current_dir(project.path())
+        .args(["fix", "--type", "missing-messages"])
+        .assert()
+        .success()
+        .stdout(contains("applied missing-messages:shop:en"));
+
+    let en = fs::read_to_string(locale_dir.join("en.lgl")).expect("en locale");
+    assert!(en.contains("counted = TODO"));
+}
+
+#[test]
 fn build_command_generates_typescript_and_does_not_require_cldr_cache() {
     let project = TempDir::new().expect("temp project");
     linguini()
