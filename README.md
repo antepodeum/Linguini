@@ -9,7 +9,7 @@
 
 No more JSON archaeology, string-key roulette, and runtime localization surprises.
 
-> Linguini is in a very early stage of development. APIs, generated output, and package boundaries can change quickly while the core model is still being hardened.
+> Linguini is in a very early stage of development. APIs, generated output, and package boundaries can change quickly while the core model is still being hardened. [Check repository state](./REPOSITORY_STATE.md)
 
 **[Why Linguini](./docs/why.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)** · **[Web/SvelteKit](./docs/web-sveltekit.md)**
 
@@ -109,10 +109,10 @@ Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer 
 | --------- | ------------------------------------------------------------------------------------------------------------------ |
 | Language  | `.lgs` schemas and `.lgl` locale implementations                                                                   |
 | Grammar   | CLDR plural categories, forms, enum metadata, nested selectors, local helpers                                      |
-| Analyzer  | missing implementations, invalid references, incomplete branches, diagnostics                                    |
+| Analyzer  | missing implementations, invalid references, incomplete branches, diagnostics                                      |
 | Formatter | `.lgs` / `.lgl` formatting and `--check` mode                                                                      |
 | LSP       | diagnostics, completion, hover, definition, references, symbols, semantic tokens, formatting, rename, code actions |
-| Codegen   | TypeScript and generated Svelte 5/SvelteKit adapters today; other targets are not part of the current release       |
+| Codegen   | TypeScript and generated Svelte 5/SvelteKit adapters today; other targets are not part of the current release      |
 | Editor    | VS Code extension                                                                                                  |
 
 ---

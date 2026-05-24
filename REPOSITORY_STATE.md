@@ -13,20 +13,108 @@ This file tracks the current repository surface and the remaining desloppifying 
 
 ## Desloppifying Progress
 
-- [ ] `crates/linguini-analyzer`
-- [ ] `crates/linguini-cldr`
-- [ ] `crates/linguini-cldr-macros`
-- [ ] `crates/linguini-cli`
-- [ ] `crates/linguini-codegen-ts`
-- [ ] `crates/linguini-config`
-- [ ] `crates/linguini-core`
-- [ ] `crates/linguini-format`
-- [ ] `crates/linguini-ir`
-- [ ] `crates/linguini-locale`
-- [ ] `crates/linguini-lsp`
-- [ ] `crates/linguini-schema`
-- [ ] `crates/linguini-syntax`
-- [ ] `crates/linguini-test-support`
-- [ ] `plugins/vite`
-- [ ] `editors/vscode`
-- [ ] `site`
+Review in this order. Each step should leave the crate or package easier to
+reason about before reviewing its dependents.
+
+- [ ] 1. `crates/linguini-core`
+  - [ ] Audit public types for minimal, stable ownership and naming.
+  - [ ] Remove unused exports, helpers, and compatibility leftovers.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Confirm docs explain the shared contracts expected by dependent crates.
+  - [ ] Run focused tests or `cargo test -p linguini-core`.
+- [ ] 2. `crates/linguini-test-support`
+  - [ ] Keep fixtures and helpers generic enough for all downstream crates.
+  - [ ] Remove helpers that only wrap one call site without adding clarity.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Confirm failure output stays readable for snapshot and CLI tests.
+  - [ ] Run focused tests or a downstream crate that uses the helpers.
+- [ ] 3. `crates/linguini-config`
+  - [ ] Review config model defaults, validation, and error messages.
+  - [ ] Check path discovery for predictable relative and absolute behavior.
+  - [ ] Remove duplicated parsing or normalization logic.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run focused tests or `cargo test -p linguini-config`.
+- [ ] 4. `crates/linguini-syntax`
+  - [ ] Review lexer and parser boundaries before semantic crates depend on them.
+  - [ ] Check AST shape, spans, and diagnostics for stable downstream use.
+  - [ ] Remove parser special cases that can be expressed through grammar helpers.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run lexer, parser, and golden syntax tests.
+- [ ] 5. `crates/linguini-ir`
+  - [ ] Review lowering from syntax into IR for clear ownership and invariants.
+  - [ ] Check reference resolution surfaces used by codegen and LSP.
+  - [ ] Remove duplicated AST walking that belongs in syntax or analyzer layers.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run focused tests or `cargo test -p linguini-ir`.
+- [ ] 6. `crates/linguini-analyzer`
+  - [ ] Review schema and locale diagnostics for precise spans and messages.
+  - [ ] Check coverage logic for missing, extra, and mismatched implementations.
+  - [ ] Consolidate repeated validation flows across analyzer modules.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run analyzer tests and implementation coverage tests.
+- [ ] 7. `crates/linguini-schema`
+  - [ ] Review schema helper API against analyzer and syntax contracts.
+  - [ ] Remove helpers that duplicate public analyzer or syntax behavior.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Confirm package publish status and intended public surface are explicit.
+  - [ ] Run focused tests or dependent analyzer checks.
+- [ ] 8. `crates/linguini-locale`
+  - [ ] Review locale helper API against analyzer and syntax contracts.
+  - [ ] Remove helpers that duplicate public analyzer or syntax behavior.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Confirm package publish status and intended public surface are explicit.
+  - [ ] Run focused tests or dependent analyzer checks.
+- [ ] 9. `crates/linguini-cldr-macros`
+  - [ ] Review generated-data inputs, source paths, and error handling.
+  - [ ] Check macro output for deterministic ordering and small public surface.
+  - [ ] Remove formatting or plural parsing duplication hidden in generation code.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run focused tests or `cargo test -p linguini-cldr-macros`.
+- [ ] 10. `crates/linguini-cldr`
+  - [ ] Review compiled plural and formatting APIs after macro cleanup.
+  - [ ] Check runtime evaluation behavior against generated data assumptions.
+  - [ ] Remove stale generated-data adapters or redundant lookup layers.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run focused tests or `cargo test -p linguini-cldr`.
+- [ ] 11. `crates/linguini-format`
+  - [ ] Review formatting IR and engine after syntax shape is settled.
+  - [ ] Check idempotence, comments, whitespace, and malformed-input behavior.
+  - [ ] Remove formatting branches that duplicate parser recovery decisions.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run formatter tests and any snapshot checks.
+- [ ] 12. `crates/linguini-codegen-ts`
+  - [ ] Review module tree, naming, declaration, and template boundaries.
+  - [ ] Check generated TypeScript, Svelte, and SvelteKit runtime contracts.
+  - [ ] Remove repeated string assembly when a shared emitter helper is clearer.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run codegen tests and snapshot review/update commands as needed.
+- [ ] 13. `crates/linguini-lsp`
+  - [ ] Review document model, hover, tokens, code actions, and server state.
+  - [ ] Check diagnostics, previews, and formatting use the finalized crate APIs.
+  - [ ] Remove duplicated parse/analyze flows that can share document helpers.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run focused tests or `cargo test -p linguini-lsp`.
+- [ ] 14. `crates/linguini-cli`
+  - [ ] Review command boundaries after all library APIs are stable.
+  - [ ] Check project IO, source discovery, fixes, check, and codegen workflows.
+  - [ ] Remove CLI-only duplication that now belongs in library crates.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run CLI tests and representative end-to-end commands.
+- [ ] 15. `plugins/vite`
+  - [ ] Review plugin contract against the CLI and generated output layout.
+  - [ ] Check watch, rebuild, error reporting, and package entrypoints.
+  - [ ] Remove duplicated config or path handling that should come from CLI output.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run plugin tests.
+- [ ] 16. `editors/vscode`
+  - [ ] Review extension activation, language configuration, and grammar files.
+  - [ ] Check LSP launch/configuration against the finalized CLI and LSP behavior.
+  - [ ] Remove duplicated sample workspace files unless they document real flows.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run extension tests or packaging smoke checks.
+- [ ] 17. `site`
+  - [ ] Review docs and examples against the finalized CLI, codegen, and plugin APIs.
+  - [ ] Check locale routing, generated site messages, and prerender behavior.
+  - [ ] Remove stale preview copy, outdated snippets, and duplicated examples.
+  - [ ] Remove placeholder tests that do not assert real behavior.
+  - [ ] Run site build and preview smoke checks.
