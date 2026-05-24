@@ -1,0 +1,42 @@
+impl Fruit {
+  apple {
+    emoji = 🍎
+
+    form nom(Plural) {
+      one => apple
+      _ => apples
+    }
+  }
+
+  pear {
+    emoji = 🍐
+
+    form nom(Plural) {
+      one => pear
+      _ => pears
+    }
+  }
+
+  orange {
+    emoji = 🍊
+
+    form nom(Plural) {
+      one => orange
+      _ => oranges
+    }
+  }
+}
+
+form SizeWord(Size) {
+  small => small
+  big => big
+}
+
+delivery = Delivered {count} {SizeWord(size)} {fruit.nom(count)}.
+counted = Cart contains {count} {fruit.nom(count)}.
+price = Price is {amount} on {date}.
+email_input {
+  label = Email
+  placeholder = name@example.com
+  aria = Email address
+}

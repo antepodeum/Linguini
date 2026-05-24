@@ -1,6 +1,14 @@
 {
-  "linguini.server.path": "linguini",
-  "linguini.server.args": ["lsp"],
+  "linguini.server.path": "cargo",
+  "linguini.server.args": [
+    "run",
+    "--manifest-path",
+    "${workspaceFolder}/../../../Cargo.toml",
+    "-p",
+    "linguini-cli",
+    "--",
+    "lsp"
+  ],
   "linguini.formatting.args": ["formatting"],
   "linguini.semanticHighlighting.enabled": true,
   "[linguini-schema]": {

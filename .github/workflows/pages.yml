@@ -37,6 +37,7 @@ jobs:
           cache-dependency-path: site/pnpm-lock.yaml
 
       - name: Setup GitHub Pages
+        id: pages
         uses: actions/configure-pages@v5
 
       - name: Install site dependencies
@@ -46,9 +47,9 @@ jobs:
       - name: Resolve GitHub Pages routing
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          CONFIGURE_PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          CONFIGURE_PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
           PAGES_BASE_PATH: ${{ vars.PAGES_BASE_PATH || '__AUTO__' }}
-          PAGES_CUSTOM_DOMAIN: ${{ vars.PAGES_CUSTOM_DOMAIN }}
         run: |
           set -euo pipefail
 
@@ -58,6 +59,7 @@ jobs:
             value="${value%${value##*[![:space:]]}}"
             value="${value#/}"
             value="${value%/}"
+
             if [[ -z "$value" || "$value" == "/" ]]; then
               printf ''
             else
@@ -65,51 +67,16 @@ jobs:
             fi
           }
 
-          first_line() {
-            local file="$1"
-            [[ -f "$file" ]] || return 0
-            sed -n '1{s/[[:space:]]*$//;p;q;}' "$file"
-          }
-
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          owner_lower="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
-          repo_lower="$(printf '%s' "$repo_name" | tr '[:upper:]' '[:lower:]')"
-
-          custom_domain="${PAGES_CUSTOM_DOMAIN:-}"
-          if [[ -z "$custom_domain" ]]; then
-            custom_domain="$(first_line site/static/CNAME)"
-          fi
-          if [[ -z "$custom_domain" ]]; then
-            custom_domain="$(first_line CNAME)"
-          fi
-
-          if [[ -z "$custom_domain" ]]; then
-            pages_json="$(curl -fsSL \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pages" 2>/dev/null || true)"
-
-            if [[ -n "$pages_json" ]]; then
-              custom_domain="$(PAGES_JSON="$pages_json" node -e 'const data = JSON.parse(process.env.PAGES_JSON || "{}"); process.stdout.write(data.custom_domain || "");')"
-            fi
-          fi
-
           if [[ "$PAGES_BASE_PATH" != "__AUTO__" ]]; then
             base_path="$(normalize_base_path "$PAGES_BASE_PATH")"
-          elif [[ -n "$custom_domain" ]]; then
-            base_path=""
-          elif [[ "$repo_lower" == "$owner_lower.github.io" ]]; then
-            base_path=""
           else
-            base_path="/$(printf '%s' "$repo_name" | sed 's#^/*##; s#/*$##')"
+            base_path="$(normalize_base_path "$CONFIGURE_PAGES_BASE_PATH")"
           fi
 
           echo "BASE_PATH=$base_path" >> "$GITHUB_ENV"
-          echo "PAGES_CUSTOM_DOMAIN_RESOLVED=$custom_domain" >> "$GITHUB_ENV"
           printf 'Resolved BASE_PATH=%s\n' "${base_path:-/}"
-          if [[ -n "$custom_domain" ]]; then
-            printf 'Resolved custom domain=%s\n' "$custom_domain"
+          if [[ -n "${CONFIGURE_PAGES_BASE_URL:-}" ]]; then
+            printf 'GitHub Pages base URL=%s\n' "$CONFIGURE_PAGES_BASE_URL"
           fi
 
       - name: Configure site for GitHub Pages
@@ -123,11 +90,13 @@ jobs:
       - name: Add GitHub Pages custom domain metadata
         working-directory: site
         shell: bash
+        env:
+          PAGES_CUSTOM_DOMAIN: ${{ vars.PAGES_CUSTOM_DOMAIN }}
         run: |
           set -euo pipefail
 
-          if [[ -n "${PAGES_CUSTOM_DOMAIN_RESOLVED:-}" ]]; then
-            printf '%s\n' "$PAGES_CUSTOM_DOMAIN_RESOLVED" > build/CNAME
+          if [[ -n "${PAGES_CUSTOM_DOMAIN:-}" ]]; then
+            printf '%s\n' "$PAGES_CUSTOM_DOMAIN" > build/CNAME
           elif [[ -f static/CNAME ]]; then
             cp static/CNAME build/CNAME
           elif [[ -f ../CNAME ]]; then

@@ -1,0 +1,53 @@
+impl Fruit {
+  apple {
+    emoji = 🍎
+
+    form nom(Plural) {
+      one => яблоко
+      few => яблока
+      _ => яблок
+    }
+  }
+
+  pear {
+    emoji = 🍐
+
+    form nom(Plural) {
+      one => груша
+      few => груши
+      _ => груш
+    }
+  }
+
+  orange {
+    emoji = 🍊
+
+    form nom(Plural) {
+      one => апельсин
+      few => апельсина
+      _ => апельсинов
+    }
+  }
+}
+
+form SizeWord(Size, Plural) {
+  small {
+    one => маленький
+    few => маленьких
+    _ => маленьких
+  }
+  big {
+    one => большой
+    few => больших
+    _ => больших
+  }
+}
+
+delivery = Доставлено {count} {SizeWord(size, count)} {fruit.nom(count)}.
+counted = В корзине {count} {fruit.nom(count)}.
+price = Цена {amount} на {date}.
+email_input {
+  label = Email
+  placeholder = name@example.com
+  aria = Адрес электронной почты
+}

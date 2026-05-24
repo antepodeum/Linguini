@@ -1,0 +1,8 @@
+[project]
+name = "vscode-sample"
+default_locale = "en"
+locales = ["en", "ru"]
+
+[paths]
+schema = "linguini/schema"
+locale = "linguini/locale"
