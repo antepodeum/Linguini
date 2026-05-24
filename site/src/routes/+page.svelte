@@ -30,7 +30,7 @@
   import ZigIcon from '@iconify-svelte/skill-icons/zig-dark';
   import Button from '$lib/components/button.svelte';
   import CodeBlock from '$lib/components/code-block.svelte';
-  import { l, linguini, setLocale } from '$lib/generated/linguini/svelte';
+  import { l, linguini } from '$lib/generated/linguini/svelte';
   import { locales, type Locale } from '$lib/generated/linguini';
   import type { Fruit, Gender, Size } from '$lib/generated/linguini/locales/en';
   import type { PageData } from './$types';
@@ -122,6 +122,16 @@
   function localeLabel(locale: Locale) {
     return locale === 'pt-BR' ? 'PT-BR' : locale.toUpperCase();
   }
+
+  async function chooseLocale(locale: Locale) {
+    await setLocale(locale, {
+      cookie: true,
+      navigate: true,
+      replaceState: false,
+      keepFocus: true,
+      noScroll: true
+    });
+  }
 </script>
 
 <svelte:head>
@@ -155,8 +165,8 @@
           data-linguini-no-localize
           aria-current={linguini.locale === locale ? 'page' : undefined}
           class={[
-            'flex h-8 items-center px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
             linguini.locale === locale
+            'flex h-8 items-center px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
               ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground'
           ]}
