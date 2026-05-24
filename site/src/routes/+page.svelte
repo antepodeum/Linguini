@@ -52,7 +52,6 @@
   const nav = $derived([
     { id: 'why', label: l.main.nav_why },
     { id: 'codegen', label: l.main.nav_codegen },
-    { id: 'language', label: l.main.nav_language },
     { id: 'web', label: l.main.nav_web }
   ]);
 
@@ -339,11 +338,11 @@
     </div>
   </section>
 
-  <section id="language" class="border-t border-border/80">
+  <section id="web" class="border-t border-border/80">
     <div class="mx-auto max-w-7xl px-5 py-16 sm:px-8">
       <header class="section-heading mb-8">
         <p>03</p>
-        <h2>{l.main.nav_language}</h2>
+        <h2>{l.main.nav_web}</h2>
       </header>
       <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
@@ -382,13 +381,9 @@
     </div>
   </section>
 
-  <section id="web" class="border-t border-border bg-muted/30 px-5 py-16 sm:px-8">
+  <section class="border-t border-border bg-muted/30 px-5 py-16 sm:px-8">
     <div class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
       <div>
-        <header class="section-heading mb-8">
-          <p>04</p>
-          <h2>{l.main.nav_web}</h2>
-        </header>
         <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.playground_kicker}</p>
         <h3 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.playground_title}</h3>
         <div class="mt-8 grid gap-3 text-sm text-muted-foreground">
