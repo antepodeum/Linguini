@@ -25,19 +25,12 @@ pub struct ModuleExports {
     pub groups: Vec<String>,
 }
 
-pub fn emit_imports(
-    _schema: &IrModule,
-    locale: &IrModule,
-    options: &TypeScriptOptions,
-    output: &mut String,
-) {
+pub fn emit_imports(locale: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     let uses_forms = !locale.forms.is_empty();
     let uses_dispatch = !locale.functions.is_empty();
     if uses_forms || uses_dispatch {
         let mut imports = Vec::new();
-        if uses_forms || uses_dispatch {
-            imports.push("selectBranch");
-        }
+        imports.push("selectBranch");
         output.push_str(&format!(
             "import {{ {} }} from \"../shared\";\n",
             imports.join(", ")
