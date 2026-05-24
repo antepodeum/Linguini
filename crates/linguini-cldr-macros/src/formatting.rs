@@ -144,12 +144,16 @@ fn date_arm(locale: &str, dates: DateData) -> TokenStream {
     let date_formats = widths_tokens(&dates.date_formats);
     let time_formats = widths_tokens(&dates.time_formats);
     let date_time_formats = widths_tokens(&dates.date_time_formats);
+    let months = symbol_widths_tokens(&dates.months);
+    let weekdays = symbol_widths_tokens(&dates.weekdays);
     quote! {
         #locale => Some(DateFormatData {
             locale: #locale.to_owned(),
             date_formats: #date_formats,
             time_formats: #time_formats,
             date_time_formats: #date_time_formats,
+            months: #months,
+            weekdays: #weekdays,
         }),
     }
 }
@@ -170,6 +174,8 @@ struct DateData {
     date_formats: WidthData,
     time_formats: WidthData,
     date_time_formats: WidthData,
+    months: SymbolWidthData,
+    weekdays: SymbolWidthData,
 }
 
 struct WidthData {
@@ -177,6 +183,11 @@ struct WidthData {
     long: String,
     medium: String,
     short: String,
+}
+
+struct SymbolWidthData {
+    wide: Vec<String>,
+    abbreviated: Vec<String>,
 }
 
 fn read_json(path: &Path) -> Result<Value, String> {
@@ -221,6 +232,8 @@ fn extract_dates(value: &Value, locale: &str) -> Option<DateData> {
         date_formats: extract_widths(gregorian.get("dateFormats")?)?,
         time_formats: extract_widths(gregorian.get("timeFormats")?)?,
         date_time_formats: extract_widths(gregorian.get("dateTimeFormats")?)?,
+        months: extract_months(gregorian)?,
+        weekdays: extract_weekdays(gregorian)?,
     })
 }
 
@@ -231,6 +244,36 @@ fn extract_widths(value: &Value) -> Option<WidthData> {
         medium: string_field(value, "medium")?,
         short: string_field(value, "short")?,
     })
+}
+
+fn extract_months(gregorian: &Value) -> Option<SymbolWidthData> {
+    let format = gregorian.get("months")?.get("format")?;
+    Some(SymbolWidthData {
+        wide: extract_numbered_symbols(format.get("wide")?, 1..=12)?,
+        abbreviated: extract_numbered_symbols(format.get("abbreviated")?, 1..=12)?,
+    })
+}
+
+fn extract_weekdays(gregorian: &Value) -> Option<SymbolWidthData> {
+    let format = gregorian.get("days")?.get("format")?;
+    let keys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    Some(SymbolWidthData {
+        wide: extract_named_symbols(format.get("wide")?, &keys)?,
+        abbreviated: extract_named_symbols(format.get("abbreviated")?, &keys)?,
+    })
+}
+
+fn extract_numbered_symbols(
+    value: &Value,
+    range: std::ops::RangeInclusive<u8>,
+) -> Option<Vec<String>> {
+    range
+        .map(|index| string_field(value, &index.to_string()))
+        .collect()
+}
+
+fn extract_named_symbols(value: &Value, keys: &[&str]) -> Option<Vec<String>> {
+    keys.iter().map(|key| string_field(value, key)).collect()
 }
 
 fn string_field(value: &Value, key: &str) -> Option<String> {
@@ -250,6 +293,22 @@ fn widths_tokens(value: &WidthData) -> TokenStream {
             short: #short.to_owned(),
         }
     }
+}
+
+fn symbol_widths_tokens(value: &SymbolWidthData) -> TokenStream {
+    let wide = string_vec_tokens(&value.wide);
+    let abbreviated = string_vec_tokens(&value.abbreviated);
+    quote! {
+        DateSymbolWidths {
+            wide: #wide,
+            abbreviated: #abbreviated,
+        }
+    }
+}
+
+fn string_vec_tokens(values: &[String]) -> TokenStream {
+    let values = values.iter().map(|value| quote! { #value.to_owned() });
+    quote! { vec![#(#values),*] }
 }
 
 fn number_pattern_tokens(pattern: &str) -> TokenStream {

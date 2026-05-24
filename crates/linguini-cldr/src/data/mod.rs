@@ -57,6 +57,8 @@ pub struct DateFormatData {
     pub date_formats: FormatWidths,
     pub time_formats: FormatWidths,
     pub date_time_formats: FormatWidths,
+    pub months: DateSymbolWidths,
+    pub weekdays: DateSymbolWidths,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +67,12 @@ pub struct FormatWidths {
     pub long: String,
     pub medium: String,
     pub short: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DateSymbolWidths {
+    pub wide: Vec<String>,
+    pub abbreviated: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

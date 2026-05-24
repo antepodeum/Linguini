@@ -83,4 +83,6 @@ fn compiled_formatting_data_is_typed_not_json() {
     assert_eq!(accounting_negative.prefix, "(\u{a4}");
     assert_eq!(accounting_negative.suffix, ")");
     assert_eq!(dates.time_formats.short, "h:mm\u{202f}a");
+    assert_eq!(dates.months.wide[0], "January");
+    assert_eq!(dates.weekdays.abbreviated[0], "Sun");
 }
