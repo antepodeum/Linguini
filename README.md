@@ -5,6 +5,8 @@
 <p align="center">
   <img alt="Status" src="https://img.shields.io/badge/status-preview-orange?style=flat">
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat">
+  <a href="https://marketplace.visualstudio.com/items?itemName=antepod.linguini-vscode"><img alt="VS Code Marketplace" src="https://img.shields.io/visual-studio-marketplace/v/antepod.linguini-vscode?label=VS%20Code&style=flat"></a>
+  <a href="https://open-vsx.org/extension/antepod/linguini-vscode"><img alt="Open VSX" src="https://img.shields.io/open-vsx/v/antepod/linguini-vscode?label=Open%20VSX&style=flat"></a>
 </p>
 
 No more JSON archaeology, string-key roulette, and runtime localization surprises.
