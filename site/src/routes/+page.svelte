@@ -146,7 +146,7 @@
     <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
     <a href={localizedRoot} class="flex items-center gap-3 font-semibold tracking-normal">
       <span class="brand-nav-mark">
-        <img src="/icons/favicon.svg" alt="linguini logo" />
+        <img src={`${base}/icons/favicon.svg`} alt="linguini logo" />
       </span>
       <span class="text-lg tracking-[0.28em]">{l.main.hero_title.toUpperCase()}</span>
     </a>
@@ -159,23 +159,24 @@
 
     <div class="locale-nav flex max-w-full flex-wrap items-center">
       <span class="px-3 text-xs text-muted-foreground">{l.main.locale_label}</span>
-      {#each locales as item (item)}
-        <button
-          type="button"
-          aria-pressed={linguini.locale === item}
+      {#each locales as locale (locale)}
+        <a
+          href={`${base}/${locale}/`}
+          data-linguini-no-localize
+          aria-current={linguini.locale === locale ? 'page' : undefined}
           class={[
             'flex h-8 cursor-pointer appearance-none items-center bg-transparent px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
-            linguini.locale === item
+            linguini.locale === locale
               ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground'
           ]}
           onclick={(event) => {
             event.preventDefault();
-            chooseLocale(item);
+            chooseLocale(locale);
           }}
         >
-          {localeLabel(item)}
-        </button>
+          {localeLabel(locale)}
+        </a>
       {/each}
     </div>
     </div>
@@ -192,7 +193,7 @@
     <div class="brand-stage">
       <div class="brand-panel">
         <div class="brand-icon" aria-hidden="true">
-          <img src="/icons/favicon.svg" alt="linguini logo" />
+          <img src={`${base}/icons/favicon.svg`} alt="linguini logo" />
         </div>
 
         <div class="brand-copy">
