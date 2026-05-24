@@ -231,10 +231,9 @@ raw = Raw {price @number}
         .iter()
         .find(|file| file.path == "locales/en.ts")
         .expect("locale module");
-    assert!(locale_module
-        .contents
-        .contains("const FORMATTER_LOCALE = \"en\";"));
     assert!(!locale_module.contents.contains("FORMATTER_DATA"));
+    assert!(!locale_module.contents.contains("GeneratedNumberPattern"));
+    assert!(!locale_module.contents.contains("Intl.DateTimeFormat"));
     assert!(!locale_module.contents.contains("replace(/[#0"));
     assert!(locale_module.contents.contains("function formatCurrency("));
     assert!(locale_module

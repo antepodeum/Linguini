@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use linguini_cldr::{
     compiled_currency_formatting, compiled_date_formatting, compiled_number_formatting,
-    NumberPattern, NumberPatternPart,
+    NumberPattern,
 };
 use linguini_ir::{
     IrBranch, IrExpression, IrFormEntry, IrFormatter, IrFormatterKind, IrText, IrTextPart, IrValue,
@@ -223,149 +223,60 @@ fn formatter_options(formatter: &IrFormatter) -> String {
 }
 
 pub fn formatter_data_declaration(locale: &str) -> String {
-    format!(
-        "{}\n{}",
-        formatter_constants(locale),
-        formatter_functions(locale)
-    )
-}
-
-fn formatter_constants(locale: &str) -> String {
     let numbers = compiled_number_formatting(locale);
     let currency = compiled_currency_formatting(locale);
     let dates = compiled_date_formatting(locale);
 
     format!(
-        "type GeneratedNumberPatternPart = {{ prefix: string; suffix: string; minIntegerDigits: number; minFractionDigits: number; maxFractionDigits: number; primaryGroupSize?: number; secondaryGroupSize?: number }};\n\
-type GeneratedNumberPattern = {{ positive: GeneratedNumberPatternPart; negative?: GeneratedNumberPatternPart }};\n\
-type GeneratedCurrencyFormatterOptions = {{ code?: string; accounting?: \"true\" | \"false\" }};\n\
+        "type GeneratedCurrencyFormatterOptions = {{ code?: string; accounting?: \"true\" | \"false\" }};\n\
 type GeneratedDateFormatterOptions = {{ style?: \"full\" | \"long\" | \"medium\" | \"short\" }};\n\n\
-const FORMATTER_LOCALE = {};\n\
-const NUMBER_DECIMAL_SYMBOL = {};\n\
-const NUMBER_GROUP_SYMBOL = {};\n\
-const NUMBER_DECIMAL_PATTERN: GeneratedNumberPattern | undefined = {};\n\
-const CURRENCY_STANDARD_PATTERN: GeneratedNumberPattern | undefined = {};\n\
-const CURRENCY_ACCOUNTING_PATTERN: GeneratedNumberPattern | undefined = {};\n\
-const DATE_FORMATS = {};\n",
-        string_literal(locale),
-        numbers.as_ref().map_or_else(
-            || "undefined".to_owned(),
-            |data| string_literal(&data.decimal_symbol)
-        ),
-        numbers.as_ref().map_or_else(
-            || "undefined".to_owned(),
-            |data| string_literal(&data.group_symbol)
-        ),
-        numbers.as_ref().map_or_else(
-            || "undefined".to_owned(),
-            |data| number_pattern_literal(&data.decimal_pattern)
-        ),
-        currency.as_ref().map_or_else(
-            || "undefined".to_owned(),
-            |data| number_pattern_literal(&data.standard_pattern)
-        ),
-        currency
-            .as_ref()
-            .and_then(|data| data.accounting_pattern.as_ref())
-            .map_or_else(|| "undefined".to_owned(), number_pattern_literal),
-        dates.as_ref().map_or_else(
-            || "undefined".to_owned(),
-            |data| widths_literal(&data.date_formats)
-        )
+{}{}{}{}",
+        generated_number_function(numbers.as_ref()),
+        generated_currency_function(locale, numbers.as_ref(), currency.as_ref()),
+        generated_date_function(dates.as_ref()),
+        formatter_helpers()
     )
 }
 
-fn formatter_functions(locale: &str) -> String {
-    let locale = string_literal(locale);
+fn generated_number_function(numbers: Option<&linguini_cldr::NumberFormatData>) -> String {
+    let Some(numbers) = numbers else {
+        return "function formatNumber(value: number | string): string {\n  return String(value);\n}\n\n"
+            .to_owned();
+    };
+    format!(
+        "function formatNumber(value: number | string): string {{\n  return formatGeneratedNumber(Number(value), {});\n}}\n\n",
+        number_pattern_args(&numbers.decimal_pattern, None, numbers)
+    )
+}
+
+fn generated_currency_function(
+    locale: &str,
+    numbers: Option<&linguini_cldr::NumberFormatData>,
+    currency: Option<&linguini_cldr::CurrencyFormatData>,
+) -> String {
+    let (Some(numbers), Some(currency)) = (numbers, currency) else {
+        return "function formatCurrency(value: number | string, options: GeneratedCurrencyFormatterOptions = {}): string {\n  return `${options.code ?? \"USD\"} ${value}`;\n}\n\n".to_owned();
+    };
+    let standard = number_pattern_args(&currency.standard_pattern, Some("symbol"), numbers);
+    let accounting = number_pattern_args(
+        currency
+            .accounting_pattern
+            .as_ref()
+            .unwrap_or(&currency.standard_pattern),
+        Some("symbol"),
+        numbers,
+    );
     format!(
         "\
-function formatNumber(value: number | string): string {{
-  return formatGeneratedNumber(Number(value), NUMBER_DECIMAL_PATTERN);
-}}
-
 function formatCurrency(
   value: number | string,
   options: GeneratedCurrencyFormatterOptions = {{}},
 ): string {{
-  const currency = options.code ?? \"USD\";
-  const pattern = options.accounting === \"true\"
-    ? CURRENCY_ACCOUNTING_PATTERN ?? CURRENCY_STANDARD_PATTERN
-    : CURRENCY_STANDARD_PATTERN;
-  return formatGeneratedNumber(Number(value), pattern, currencySymbol(currency));
-}}
-
-function formatDate(
-  value: Date | number | string,
-  options: GeneratedDateFormatterOptions = {{}},
-): string {{
-  if (typeof value === \"string\") return value;
-  const style = options.style ?? \"medium\";
-  if (!DATE_FORMATS?.[style]) return new Intl.DateTimeFormat(FORMATTER_LOCALE).format(value);
-  return new Intl.DateTimeFormat(FORMATTER_LOCALE, {{ dateStyle: style }}).format(value);
-}}
-
-function formatGeneratedNumber(
-  value: number,
-  pattern: GeneratedNumberPattern | undefined,
-  currency?: string,
-): string {{
-  if (!Number.isFinite(value)) return String(value);
-  const negative = value < 0 || Object.is(value, -0);
-  const positive = pattern?.positive;
-  const part = negative ? pattern?.negative ?? negativePatternPart(positive) : positive;
-  if (!part) return String(value);
-
-  const rounded = roundToFractionDigits(Math.abs(value), part.maxFractionDigits);
-  let [integer, fraction = \"\"] = rounded.toFixed(part.maxFractionDigits).split(\".\");
-  integer = integer.padStart(part.minIntegerDigits, \"0\");
-  fraction = trimOptionalFractionDigits(fraction, part.minFractionDigits);
-
-  const grouped = groupIntegerDigits(integer, part.primaryGroupSize, part.secondaryGroupSize);
-  const formatted = fraction ? `${{grouped}}${{NUMBER_DECIMAL_SYMBOL ?? \".\"}}${{fraction}}` : grouped;
-  return `${{formatNumberAffix(part.prefix, currency)}}${{formatted}}${{formatNumberAffix(part.suffix, currency)}}`;
-}}
-
-function negativePatternPart(part: GeneratedNumberPatternPart | undefined): GeneratedNumberPatternPart | undefined {{
-  return part ? {{ ...part, prefix: `-${{part.prefix}}` }} : undefined;
-}}
-
-function roundToFractionDigits(value: number, digits: number): number {{
-  if (digits <= 0) return Math.round(value);
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
-}}
-
-function trimOptionalFractionDigits(fraction: string, minDigits: number): string {{
-  while (fraction.length > minDigits && fraction.endsWith(\"0\")) {{
-    fraction = fraction.slice(0, -1);
+  const symbol = currencySymbol(options.code ?? \"USD\");
+  if (options.accounting === \"true\") {{
+    return formatGeneratedNumber(Number(value), {});
   }}
-  return fraction;
-}}
-
-function groupIntegerDigits(
-  integer: string,
-  primaryGroupSize: number | undefined,
-  secondaryGroupSize: number | undefined,
-): string {{
-  if (!primaryGroupSize || integer.length <= primaryGroupSize) return integer;
-  const groups: string[] = [];
-  let end = integer.length;
-  let groupSize = primaryGroupSize;
-  while (end > 0) {{
-    const start = Math.max(0, end - groupSize);
-    groups.unshift(integer.slice(start, end));
-    end = start;
-    groupSize = secondaryGroupSize ?? primaryGroupSize;
-  }}
-  return groups.join(NUMBER_GROUP_SYMBOL ?? \",\");
-}}
-
-function formatNumberAffix(affix: string, currency: string | undefined): string {{
-  let output = \"\";
-  for (const character of affix) {{
-    output += character === \"¤\" ? currency ?? \"\" : character;
-  }}
-  return output;
+  return formatGeneratedNumber(Number(value), {});
 }}
 
 function currencySymbol(currency: string): string {{
@@ -375,46 +286,223 @@ function currencySymbol(currency: string): string {{
 }}
 
 ",
-        locale
+        accounting,
+        standard,
+        string_literal(locale)
     )
 }
 
-fn number_pattern_literal(pattern: &NumberPattern) -> String {
+fn generated_date_function(dates: Option<&linguini_cldr::DateFormatData>) -> String {
+    let Some(dates) = dates else {
+        return "function formatDate(value: Date | number | string, options: GeneratedDateFormatterOptions = {}): string {\n  return String(value);\n}\n\n".to_owned();
+    };
     format!(
-        "{{ positive: {}, negative: {} }}",
-        number_pattern_part_literal(&pattern.positive),
-        pattern
-            .negative
-            .as_ref()
-            .map_or_else(|| "undefined".to_owned(), number_pattern_part_literal)
+        "\
+function formatDate(
+  value: Date | number | string,
+  options: GeneratedDateFormatterOptions = {{}},
+): string {{
+  if (typeof value === \"string\") return value;
+  const date = value instanceof Date ? value : new Date(value);
+  switch (options.style ?? \"medium\") {{
+    case \"full\":
+      return {};
+    case \"long\":
+      return {};
+    case \"short\":
+      return {};
+    default:
+      return {};
+  }}
+}}
+
+",
+        date_pattern_expression(&dates.date_formats.full, dates),
+        date_pattern_expression(&dates.date_formats.long, dates),
+        date_pattern_expression(&dates.date_formats.short, dates),
+        date_pattern_expression(&dates.date_formats.medium, dates)
     )
 }
 
-fn number_pattern_part_literal(part: &NumberPatternPart) -> String {
-    let primary_group_size = option_u8_literal(part.primary_group_size);
-    let secondary_group_size = option_u8_literal(part.secondary_group_size);
+fn formatter_helpers() -> &'static str {
+    "\
+function formatGeneratedNumber(
+  value: number,
+  prefix: string,
+  suffix: string,
+  negativePrefix: string | undefined,
+  negativeSuffix: string | undefined,
+  minIntegerDigits: number,
+  minFractionDigits: number,
+  maxFractionDigits: number,
+  primaryGroupSize: number | undefined,
+  secondaryGroupSize: number | undefined,
+  decimalSymbol: string,
+  groupSymbol: string,
+): string {
+  if (!Number.isFinite(value)) return String(value);
+  const negative = value < 0 || Object.is(value, -0);
+  const rounded = roundToFractionDigits(Math.abs(value), maxFractionDigits);
+  let [integer, fraction = \"\"] = rounded.toFixed(maxFractionDigits).split(\".\");
+  integer = integer.padStart(minIntegerDigits, \"0\");
+  fraction = trimOptionalFractionDigits(fraction, minFractionDigits);
+
+  const grouped = groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol);
+  const formatted = fraction ? `${grouped}${decimalSymbol}${fraction}` : grouped;
+  if (negative) return `${negativePrefix ?? `-${prefix}`}${formatted}${negativeSuffix ?? suffix}`;
+  return `${prefix}${formatted}${suffix}`;
+}
+
+function roundToFractionDigits(value: number, digits: number): number {
+  if (digits <= 0) return Math.round(value);
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function trimOptionalFractionDigits(fraction: string, minDigits: number): string {
+  while (fraction.length > minDigits && fraction.endsWith(\"0\")) {
+    fraction = fraction.slice(0, -1);
+  }
+  return fraction;
+}
+
+function groupIntegerDigits(
+  integer: string,
+  primaryGroupSize: number | undefined,
+  secondaryGroupSize: number | undefined,
+  groupSymbol: string,
+): string {
+  if (!primaryGroupSize || integer.length <= primaryGroupSize) return integer;
+  const groups: string[] = [];
+  let end = integer.length;
+  let groupSize = primaryGroupSize;
+  while (end > 0) {
+    const start = Math.max(0, end - groupSize);
+    groups.unshift(integer.slice(start, end));
+    end = start;
+    groupSize = secondaryGroupSize ?? primaryGroupSize;
+  }
+  return groups.join(groupSymbol);
+}
+
+function padNumber(value: number, length: number): string {
+  return String(value).padStart(length, \"0\");
+}
+
+"
+}
+
+fn number_pattern_args(
+    pattern: &NumberPattern,
+    currency_symbol: Option<&str>,
+    numbers: &linguini_cldr::NumberFormatData,
+) -> String {
+    let negative = pattern.negative.as_ref();
     format!(
-        "{{ prefix: {}, suffix: {}, minIntegerDigits: {}, minFractionDigits: {}, maxFractionDigits: {}, primaryGroupSize: {}, secondaryGroupSize: {} }}",
-        string_literal(&part.prefix),
-        string_literal(&part.suffix),
-        part.min_integer_digits,
-        part.min_fraction_digits,
-        part.max_fraction_digits,
-        primary_group_size,
-        secondary_group_size
+        "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
+        affix_expression(&pattern.positive.prefix, currency_symbol),
+        affix_expression(&pattern.positive.suffix, currency_symbol),
+        negative.map_or_else(
+            || "undefined".to_owned(),
+            |part| affix_expression(&part.prefix, currency_symbol)
+        ),
+        negative.map_or_else(
+            || "undefined".to_owned(),
+            |part| affix_expression(&part.suffix, currency_symbol)
+        ),
+        pattern.positive.min_integer_digits,
+        pattern.positive.min_fraction_digits,
+        pattern.positive.max_fraction_digits,
+        option_u8_literal(pattern.positive.primary_group_size),
+        option_u8_literal(pattern.positive.secondary_group_size),
+        string_literal(&numbers.decimal_symbol),
+        string_literal(&numbers.group_symbol)
     )
+}
+
+fn affix_expression(value: &str, currency_symbol: Option<&str>) -> String {
+    let Some(symbol) = currency_symbol else {
+        return string_literal(value);
+    };
+    value
+        .split('\u{a4}')
+        .map(string_literal)
+        .collect::<Vec<_>>()
+        .join(&format!(" + {symbol} + "))
 }
 
 fn option_u8_literal(value: Option<u8>) -> String {
     value.map_or_else(|| "undefined".to_owned(), |value| value.to_string())
 }
 
-fn widths_literal(widths: &linguini_cldr::FormatWidths) -> String {
+fn date_pattern_expression(pattern: &str, dates: &linguini_cldr::DateFormatData) -> String {
+    let mut parts = Vec::new();
+    let mut chars = pattern.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '\'' {
+            let mut literal = String::new();
+            while let Some(next) = chars.next() {
+                if next == '\'' {
+                    break;
+                }
+                literal.push(next);
+            }
+            if !literal.is_empty() {
+                parts.push(string_literal(&literal));
+            }
+            continue;
+        }
+        if matches!(character, 'y' | 'M' | 'L' | 'd' | 'E') {
+            let mut width = 1;
+            while chars.peek() == Some(&character) {
+                chars.next();
+                width += 1;
+            }
+            parts.push(date_field_expression(character, width, dates));
+            continue;
+        }
+        let mut literal = character.to_string();
+        while let Some(next) = chars.peek().copied() {
+            if next == '\'' || matches!(next, 'y' | 'M' | 'L' | 'd' | 'E') {
+                break;
+            }
+            chars.next();
+            literal.push(next);
+        }
+        parts.push(string_literal(&literal));
+    }
+    parts.join(" + ")
+}
+
+fn date_field_expression(
+    field: char,
+    width: usize,
+    dates: &linguini_cldr::DateFormatData,
+) -> String {
+    match field {
+        'y' if width == 2 => "padNumber(date.getFullYear() % 100, 2)".to_owned(),
+        'y' => "String(date.getFullYear())".to_owned(),
+        'M' | 'L' if width >= 4 => indexed_string_literal(&dates.months.wide, "date.getMonth()"),
+        'M' | 'L' if width == 3 => {
+            indexed_string_literal(&dates.months.abbreviated, "date.getMonth()")
+        }
+        'M' | 'L' if width == 2 => "padNumber(date.getMonth() + 1, 2)".to_owned(),
+        'M' | 'L' => "String(date.getMonth() + 1)".to_owned(),
+        'd' if width == 2 => "padNumber(date.getDate(), 2)".to_owned(),
+        'd' => "String(date.getDate())".to_owned(),
+        'E' if width >= 4 => indexed_string_literal(&dates.weekdays.wide, "date.getDay()"),
+        'E' => indexed_string_literal(&dates.weekdays.abbreviated, "date.getDay()"),
+        _ => "\"\"".to_owned(),
+    }
+}
+
+fn indexed_string_literal(values: &[String], index: &str) -> String {
     format!(
-        "{{ full: {}, long: {}, medium: {}, short: {} }}",
-        string_literal(&widths.full),
-        string_literal(&widths.long),
-        string_literal(&widths.medium),
-        string_literal(&widths.short)
+        "[{}][{index}]",
+        values
+            .iter()
+            .map(|value| string_literal(value))
+            .collect::<Vec<_>>()
+            .join(", ")
     )
 }
