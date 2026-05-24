@@ -113,9 +113,9 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
     let percent_pattern = number_pattern_tokens(&numbers.percent_pattern);
     quote! {
         #locale => Some(NumberFormatData {
-            locale: #locale.to_owned(),
-            decimal_symbol: #decimal_symbol.to_owned(),
-            group_symbol: #group_symbol.to_owned(),
+            locale: #locale,
+            decimal_symbol: #decimal_symbol,
+            group_symbol: #group_symbol,
             decimal_pattern: #decimal_pattern,
             percent_pattern: #percent_pattern,
         }),
@@ -133,7 +133,7 @@ fn currency_arm(locale: &str, currency: CurrencyData) -> TokenStream {
     );
     quote! {
         #locale => Some(CurrencyFormatData {
-            locale: #locale.to_owned(),
+            locale: #locale,
             standard_pattern: #standard_pattern,
             accounting_pattern: #accounting_pattern,
         }),
@@ -148,7 +148,7 @@ fn date_arm(locale: &str, dates: DateData) -> TokenStream {
     let weekdays = symbol_widths_tokens(&dates.weekdays);
     quote! {
         #locale => Some(DateFormatData {
-            locale: #locale.to_owned(),
+            locale: #locale,
             date_formats: #date_formats,
             time_formats: #time_formats,
             date_time_formats: #date_time_formats,
@@ -161,13 +161,13 @@ fn date_arm(locale: &str, dates: DateData) -> TokenStream {
 struct NumberData {
     decimal_symbol: String,
     group_symbol: String,
-    decimal_pattern: String,
-    percent_pattern: String,
+    decimal_pattern: NumberPattern,
+    percent_pattern: NumberPattern,
 }
 
 struct CurrencyData {
-    standard_pattern: String,
-    accounting_pattern: Option<String>,
+    standard_pattern: NumberPattern,
+    accounting_pattern: Option<NumberPattern>,
 }
 
 struct DateData {
@@ -204,8 +204,8 @@ fn extract_numbers(value: &Value, locale: &str) -> Option<NumberData> {
     Some(NumberData {
         decimal_symbol: string_field(symbols, "decimal")?,
         group_symbol: string_field(symbols, "group")?,
-        decimal_pattern: string_field(decimal_formats, "standard")?,
-        percent_pattern: string_field(percent_formats, "standard")?,
+        decimal_pattern: parse_number_pattern(&string_field(decimal_formats, "standard")?),
+        percent_pattern: parse_number_pattern(&string_field(percent_formats, "standard")?),
     })
 }
 
@@ -216,8 +216,9 @@ fn extract_currency(value: &Value, locale: &str) -> Option<CurrencyData> {
         .get("numbers")?
         .get("currencyFormats-numberSystem-latn")?;
     Some(CurrencyData {
-        standard_pattern: string_field(currency_formats, "standard")?,
-        accounting_pattern: string_field(currency_formats, "accounting"),
+        standard_pattern: parse_number_pattern(&string_field(currency_formats, "standard")?),
+        accounting_pattern: string_field(currency_formats, "accounting")
+            .map(|pattern| parse_number_pattern(&pattern)),
     })
 }
 
@@ -287,10 +288,10 @@ fn widths_tokens(value: &WidthData) -> TokenStream {
     let short = &value.short;
     quote! {
         FormatWidths {
-            full: #full.to_owned(),
-            long: #long.to_owned(),
-            medium: #medium.to_owned(),
-            short: #short.to_owned(),
+            full: #full,
+            long: #long,
+            medium: #medium,
+            short: #short,
         }
     }
 }
@@ -307,12 +308,11 @@ fn symbol_widths_tokens(value: &SymbolWidthData) -> TokenStream {
 }
 
 fn string_vec_tokens(values: &[String]) -> TokenStream {
-    let values = values.iter().map(|value| quote! { #value.to_owned() });
-    quote! { vec![#(#values),*] }
+    let values = values.iter().map(|value| quote! { #value });
+    quote! { &[#(#values),*] }
 }
 
-fn number_pattern_tokens(pattern: &str) -> TokenStream {
-    let pattern = parse_number_pattern(pattern);
+fn number_pattern_tokens(pattern: &NumberPattern) -> TokenStream {
     let positive = number_pattern_part_tokens(&pattern.positive);
     let negative = pattern.negative.as_ref().map_or_else(
         || quote! { None },
@@ -339,8 +339,8 @@ fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
     let secondary_group_size = option_u8_tokens(part.secondary_group_size);
     quote! {
         NumberPatternPart {
-            prefix: #prefix.to_owned(),
-            suffix: #suffix.to_owned(),
+            prefix: #prefix,
+            suffix: #suffix,
             min_integer_digits: #min_integer_digits,
             min_fraction_digits: #min_fraction_digits,
             max_fraction_digits: #max_fraction_digits,
