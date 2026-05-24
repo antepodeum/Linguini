@@ -133,7 +133,7 @@ fn select_fixes(fixes: &[ProjectFix], args: &FixArgs) -> CliResult<Vec<ProjectFi
         .filter(|fix| {
             args.file
                 .as_ref()
-                .is_none_or(|file| fix_matches_file(fix, file, fix.path()))
+                .map_or(true, |file| fix_matches_file(fix, file, fix.path()))
         })
         .collect::<Vec<_>>();
 

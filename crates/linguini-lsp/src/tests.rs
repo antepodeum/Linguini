@@ -68,7 +68,8 @@ fn locale_hover_inherits_schema_docs_from_workspace() {
     let hover = hover_at_with_workspace(&locale, offset, [schema]).expect("hover");
 
     assert!(hover.contains("Delivery label"));
-    assert!(hover.contains("delivery -> Доставка"));
+    assert!(hover.contains("delivery(count: Number)"));
+    assert!(hover.contains("=> Доставка"));
 }
 
 #[test]

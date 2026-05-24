@@ -291,12 +291,11 @@ pub fn generate_typescript_project_files(
         }
     }
 
-    if options.web.is_some()
-        && options
+    if let Some(web) = options.web.as_ref().filter(|_| {
+        options
             .framework
             .is_some_and(TypeScriptFramework::needs_sveltekit_module)
-    {
-        let web = options.web.as_ref().expect("checked above");
+    }) {
         files.push(TypeScriptGeneratedFile {
             path: "sveltekit.ts".to_owned(),
             contents: project::generate_project_sveltekit_module(web),
