@@ -496,7 +496,7 @@ fn date_field_expression(
     }
 }
 
-fn indexed_string_literal(values: &[String], index: &str) -> String {
+fn indexed_string_literal(values: &[&str], index: &str) -> String {
     format!(
         "[{}][{index}]",
         values

@@ -35,25 +35,25 @@ pub struct PluralCategoryRule {
     pub rule: PluralRule,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NumberFormatData {
-    pub locale: String,
-    pub decimal_symbol: String,
-    pub group_symbol: String,
+    pub locale: &'static str,
+    pub decimal_symbol: &'static str,
+    pub group_symbol: &'static str,
     pub decimal_pattern: NumberPattern,
     pub percent_pattern: NumberPattern,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CurrencyFormatData {
-    pub locale: String,
+    pub locale: &'static str,
     pub standard_pattern: NumberPattern,
     pub accounting_pattern: Option<NumberPattern>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DateFormatData {
-    pub locale: String,
+    pub locale: &'static str,
     pub date_formats: FormatWidths,
     pub time_formats: FormatWidths,
     pub date_time_formats: FormatWidths,
@@ -61,30 +61,30 @@ pub struct DateFormatData {
     pub weekdays: DateSymbolWidths,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FormatWidths {
-    pub full: String,
-    pub long: String,
-    pub medium: String,
-    pub short: String,
+    pub full: &'static str,
+    pub long: &'static str,
+    pub medium: &'static str,
+    pub short: &'static str,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DateSymbolWidths {
-    pub wide: Vec<String>,
-    pub abbreviated: Vec<String>,
+    pub wide: &'static [&'static str],
+    pub abbreviated: &'static [&'static str],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NumberPattern {
     pub positive: NumberPatternPart,
     pub negative: Option<NumberPatternPart>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NumberPatternPart {
-    pub prefix: String,
-    pub suffix: String,
+    pub prefix: &'static str,
+    pub suffix: &'static str,
     pub min_integer_digits: u8,
     pub min_fraction_digits: u8,
     pub max_fraction_digits: u8,
