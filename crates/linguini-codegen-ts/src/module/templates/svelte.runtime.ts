@@ -29,7 +29,14 @@ function createLinguiniRune(runtime: typeof import("./index"), options = {}) {
 
   async function setLocale(nextLocale: string, setOptions: Record<string, unknown> = {}) {
     const resolved = web.matchLocale(nextLocale) ?? web.baseLocale;
-    const options = {
+    const options: Record<string, unknown> & {
+      cookie: boolean;
+      navigate: boolean;
+      replaceState: boolean;
+      invalidateAll: boolean;
+      keepFocus: boolean;
+      noScroll: boolean;
+    } = {
       cookie: true,
       navigate: true,
       replaceState: false,

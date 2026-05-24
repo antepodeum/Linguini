@@ -97,11 +97,12 @@ body {
   align-items: center;
 }
 
-.locale-nav button {
+.locale-nav a {
   border-bottom: 2px solid transparent;
+  text-decoration: none;
 }
 
-.locale-nav button.text-primary {
+.locale-nav a.text-primary {
   border-bottom-color: hsl(var(--primary));
 }
 

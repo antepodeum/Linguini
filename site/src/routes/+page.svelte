@@ -119,6 +119,10 @@
     l.main.size_line(size)
   ]);
 
+  function localeHref(locale: Locale) {
+    return linguini.localizeHref('/', locale);
+  }
+
   function localeLabel(locale: Locale) {
     return locale === 'pt-BR' ? 'PT-BR' : locale.toUpperCase();
   }
@@ -154,9 +158,9 @@
     <div class="locale-nav flex max-w-full flex-wrap items-center">
       <span class="px-3 text-xs text-muted-foreground">{l.main.locale_label}</span>
       {#each locales as item (item)}
-        <button
-          type="button"
-          aria-pressed={linguini.locale === item}
+        <a
+          href={localeHref(item)}
+          aria-current={linguini.locale === item ? 'page' : undefined}
           class={[
             'flex h-8 cursor-pointer appearance-none items-center bg-transparent px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm',
             linguini.locale === item
@@ -164,11 +168,12 @@
               : 'text-muted-foreground hover:text-foreground'
           ]}
           onclick={(event) => {
+            event.preventDefault();
             chooseLocale(item);
           }}
         >
           {localeLabel(item)}
-        </button>
+        </a>
       {/each}
     </div>
     </div>
