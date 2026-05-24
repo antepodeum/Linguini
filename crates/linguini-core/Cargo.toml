@@ -1,6 +1,6 @@
 [package]
 name = "linguini-core"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 description = "Shared core types for Linguini"
 edition.workspace = true
 license.workspace = true

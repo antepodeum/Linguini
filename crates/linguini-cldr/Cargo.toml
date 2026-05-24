@@ -1,6 +1,6 @@
 [package]
 name = "linguini-cldr"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 description = "Compiled CLDR plural and formatting data for Linguini"
 edition.workspace = true
 license.workspace = true
@@ -8,7 +8,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-linguini-cldr-macros = { path = "../linguini-cldr-macros", version = "0.1.0-alpha.3" }
+linguini-cldr-macros = { path = "../linguini-cldr-macros", version = "0.1.0-alpha.4" }
 
 [dev-dependencies]
 linguini-test-support = { path = "../linguini-test-support" }

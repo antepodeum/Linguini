@@ -466,7 +466,7 @@ checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
 name = "linguini-analyzer"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "ariadne",
  "linguini-syntax",
@@ -474,7 +474,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-cldr"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-cldr-macros",
  "linguini-test-support",
@@ -482,7 +482,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-cldr-macros"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-test-support",
  "proc-macro2",
@@ -493,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-cli"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -512,7 +512,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-codegen-ts"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-cldr",
  "linguini-core",
@@ -522,22 +522,22 @@ dependencies = [
 
 [[package]]
 name = "linguini-config"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 
 [[package]]
 name = "linguini-core"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 
 [[package]]
 name = "linguini-format"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-syntax",
 ]
 
 [[package]]
 name = "linguini-ir"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-core",
  "linguini-syntax",
@@ -545,7 +545,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-locale"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-analyzer",
  "linguini-syntax",
@@ -554,7 +554,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-lsp"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-analyzer",
  "linguini-cldr",
@@ -568,7 +568,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-schema"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-analyzer",
  "linguini-core",
@@ -577,7 +577,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-syntax"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 dependencies = [
  "chumsky",
  "linguini-core",
@@ -585,7 +585,7 @@ dependencies = [
 
 [[package]]
 name = "linguini-test-support"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 
 [[package]]
 name = "linux-raw-sys"

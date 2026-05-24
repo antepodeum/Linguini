@@ -1,6 +1,6 @@
 [package]
 name = "linguini-cldr-macros"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 description = "Internal CLDR code generation macros for Linguini"
 edition.workspace = true
 license.workspace = true

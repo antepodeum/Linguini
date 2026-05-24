@@ -9,7 +9,7 @@
 ## Install the CLI
 
 ```bash
-cargo install linguini-cli --version 0.1.0-alpha.3
+cargo install linguini-cli --version 0.1.0-alpha.4
 ```
 
 ## Scaffold a project

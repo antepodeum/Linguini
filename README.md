@@ -159,7 +159,7 @@ Linguini CLI must be installed. The VS Code extension and generated tooling use
 the `linguini` command by default and do not include a bundled binary.
 
 ```bash
-cargo install linguini-cli --version 0.1.0-alpha.3
+cargo install linguini-cli --version 0.1.0-alpha.4
 ```
 
 Preview builds use vendored CLDR JSON data from the repository. If that data is
