@@ -317,10 +317,10 @@ function formatDate(
 }}
 
 ",
-        date_pattern_expression(&dates.date_formats.full, dates),
-        date_pattern_expression(&dates.date_formats.long, dates),
-        date_pattern_expression(&dates.date_formats.short, dates),
-        date_pattern_expression(&dates.date_formats.medium, dates)
+        date_pattern_expression(dates.date_formats.full, dates),
+        date_pattern_expression(dates.date_formats.long, dates),
+        date_pattern_expression(dates.date_formats.short, dates),
+        date_pattern_expression(dates.date_formats.medium, dates)
     )
 }
 
@@ -400,23 +400,23 @@ fn number_pattern_args(
     let negative = pattern.negative.as_ref();
     format!(
         "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
-        affix_expression(&pattern.positive.prefix, currency_symbol),
-        affix_expression(&pattern.positive.suffix, currency_symbol),
+        affix_expression(pattern.positive.prefix, currency_symbol),
+        affix_expression(pattern.positive.suffix, currency_symbol),
         negative.map_or_else(
             || "undefined".to_owned(),
-            |part| affix_expression(&part.prefix, currency_symbol)
+            |part| affix_expression(part.prefix, currency_symbol)
         ),
         negative.map_or_else(
             || "undefined".to_owned(),
-            |part| affix_expression(&part.suffix, currency_symbol)
+            |part| affix_expression(part.suffix, currency_symbol)
         ),
         pattern.positive.min_integer_digits,
         pattern.positive.min_fraction_digits,
         pattern.positive.max_fraction_digits,
         option_u8_literal(pattern.positive.primary_group_size),
         option_u8_literal(pattern.positive.secondary_group_size),
-        string_literal(&numbers.decimal_symbol),
-        string_literal(&numbers.group_symbol)
+        string_literal(numbers.decimal_symbol),
+        string_literal(numbers.group_symbol)
     )
 }
 
@@ -482,16 +482,16 @@ fn date_field_expression(
     match field {
         'y' if width == 2 => "padNumber(date.getFullYear() % 100, 2)".to_owned(),
         'y' => "String(date.getFullYear())".to_owned(),
-        'M' | 'L' if width >= 4 => indexed_string_literal(&dates.months.wide, "date.getMonth()"),
+        'M' | 'L' if width >= 4 => indexed_string_literal(dates.months.wide, "date.getMonth()"),
         'M' | 'L' if width == 3 => {
-            indexed_string_literal(&dates.months.abbreviated, "date.getMonth()")
+            indexed_string_literal(dates.months.abbreviated, "date.getMonth()")
         }
         'M' | 'L' if width == 2 => "padNumber(date.getMonth() + 1, 2)".to_owned(),
         'M' | 'L' => "String(date.getMonth() + 1)".to_owned(),
         'd' if width == 2 => "padNumber(date.getDate(), 2)".to_owned(),
         'd' => "String(date.getDate())".to_owned(),
-        'E' if width >= 4 => indexed_string_literal(&dates.weekdays.wide, "date.getDay()"),
-        'E' => indexed_string_literal(&dates.weekdays.abbreviated, "date.getDay()"),
+        'E' if width >= 4 => indexed_string_literal(dates.weekdays.wide, "date.getDay()"),
+        'E' => indexed_string_literal(dates.weekdays.abbreviated, "date.getDay()"),
         _ => "\"\"".to_owned(),
     }
 }
