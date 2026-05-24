@@ -9,6 +9,8 @@
 
 No more JSON archaeology, string-key roulette, and runtime localization surprises.
 
+> Linguini is in a very early stage of development. APIs, generated output, and package boundaries can change quickly while the core model is still being hardened.
+
 **[Why Linguini](./docs/why.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)** · **[Web/SvelteKit](./docs/web-sveltekit.md)**
 
 ---
