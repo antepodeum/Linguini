@@ -530,12 +530,9 @@ impl LanguageServer for Backend {
             })
             .collect::<HashMap<_, _>>();
         let mut changes = HashMap::new();
-        for workspace_edit in rename_workspace_edits(
-            workspace_documents,
-            &document,
-            offset,
-            &params.new_name,
-        ) {
+        for workspace_edit in
+            rename_workspace_edits(workspace_documents, &document, offset, &params.new_name)
+        {
             let Ok(edit_uri) = workspace_edit.uri.parse::<Uri>() else {
                 continue;
             };
@@ -780,15 +777,9 @@ fn percent_encode_path(value: &str) -> String {
     let mut encoded = String::new();
     for byte in value.bytes() {
         match byte {
-            b'A'..=b'Z'
-            | b'a'..=b'z'
-            | b'0'..=b'9'
-            | b'/'
-            | b'-'
-            | b'_'
-            | b'.'
-            | b'~'
-            | b':' => encoded.push(byte as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'/' | b'-' | b'_' | b'.' | b'~' | b':' => {
+                encoded.push(byte as char)
+            }
             byte => encoded.push_str(&format!("%{byte:02X}")),
         }
     }
