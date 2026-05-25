@@ -13,9 +13,6 @@ This file tracks the current repository surface and the remaining desloppifying 
 
 ## Desloppifying Progress
 
-Review in this order. Each step should leave the crate or package easier to
-reason about before reviewing its dependents.
-
 - [ ] 1. `crates/linguini-core`
   - [ ] Audit public types for minimal, stable ownership and naming.
   - [ ] Remove unused exports, helpers, and compatibility leftovers.
