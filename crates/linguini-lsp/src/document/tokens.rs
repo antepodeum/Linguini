@@ -88,15 +88,20 @@ fn is_trivia(kind: &TokenKind) -> bool {
 pub(super) fn base_keywords(kind: SourceKind) -> Vec<String> {
     match kind {
         SourceKind::Schema => ["enum", "type"].into_iter().map(str::to_owned).collect(),
-        SourceKind::Locale => ["enum", "impl", "form", "fn", "override", "Plural", "_"]
-            .into_iter()
-            .map(str::to_owned)
-            .collect(),
+        SourceKind::Locale => [
+            "enum", "impl", "form", "fn", "let", "override", "Plural", "_",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect(),
     }
 }
 
 fn is_keyword(value: &str) -> bool {
-    matches!(value, "enum" | "type" | "impl" | "form" | "fn" | "override")
+    matches!(
+        value,
+        "enum" | "type" | "impl" | "form" | "fn" | "let" | "override"
+    )
 }
 
 pub(super) fn is_placeholder_context(source: &str, offset: usize) -> bool {

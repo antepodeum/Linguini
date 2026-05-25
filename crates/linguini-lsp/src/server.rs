@@ -855,6 +855,7 @@ fn symbol_kind(detail: &str) -> SymbolKind {
     match detail {
         "enum" => SymbolKind::ENUM,
         "type" => SymbolKind::TYPE_PARAMETER,
+        "variable" => SymbolKind::VARIABLE,
         "function" => SymbolKind::FUNCTION,
         "message group" => SymbolKind::NAMESPACE,
         _ => SymbolKind::STRING,

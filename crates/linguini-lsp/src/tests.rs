@@ -143,12 +143,14 @@ fn completion_includes_keywords_and_document_symbols() {
     let document = LinguiniDocument::new(
         "file:///shop.lgl",
         "linguini-locale",
-        "enum Fruit { apple, pear }\ndelivery = {Fruit}\n",
+        "let cart_label = Cart\nenum Fruit { apple, pear }\ndelivery = {Fruit}\n",
     );
 
     let items = completion_items(&document, document.text.len());
 
     assert!(items.contains(&"impl".to_owned()));
+    assert!(items.contains(&"let".to_owned()));
+    assert!(items.contains(&"cart_label".to_owned()));
     assert!(items.contains(&"Fruit".to_owned()));
 }
 
@@ -157,7 +159,7 @@ fn semantic_tokens_include_keywords_comments_and_text() {
     let document = LinguiniDocument::new(
         "file:///shop.lgl",
         "linguini-locale",
-        "// comment\nenum Fruit { apple }\ndelivery = Delivered\n",
+        "// comment\nlet cart_label = Cart\nenum Fruit { apple }\ndelivery = Delivered\n",
     );
 
     let tokens = semantic_tokens(&document);
@@ -259,6 +261,53 @@ fn rename_workspace_edits_schema_symbol_and_locale_references() {
 }
 
 #[test]
+fn definition_from_locale_variable_reference_jumps_to_let_declaration() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgl",
+        "linguini-locale",
+        "let cart_label = Cart\nsummary = {cart_label}: {count}\n",
+    );
+    let offset = document.text.rfind("cart_label").expect("reference offset");
+
+    let (uri, span) = definition_at_with_workspace(&document, offset, []).expect("definition");
+
+    assert_eq!(uri, document.uri);
+    assert_eq!(&document.text[span.start..span.end], "cart_label");
+    assert_eq!(
+        span.start,
+        document
+            .text
+            .find("cart_label")
+            .expect("declaration offset")
+    );
+}
+
+#[test]
+fn rename_updates_locale_variable_declaration_and_references() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgl",
+        "linguini-locale",
+        "let cart_label = Cart\nsummary = {cart_label}: {count}\n",
+    );
+    let offset = document
+        .text
+        .find("cart_label")
+        .expect("declaration offset");
+
+    let edits = rename_workspace_edits([document.clone()], &document, offset, "cart_title");
+
+    assert_eq!(edits.len(), 2);
+    assert!(edits.iter().all(|edit| edit.uri == document.uri));
+    assert_eq!(
+        edits
+            .iter()
+            .map(|edit| &document.text[edit.edit.span.start..edit.edit.span.end])
+            .collect::<Vec<_>>(),
+        ["cart_label", "cart_label"]
+    );
+}
+
+#[test]
 fn definition_from_locale_message_jumps_to_schema_message() {
     let schema = LinguiniDocument::new(
         "file:///shop.lgs",
@@ -279,9 +328,9 @@ fn definition_from_locale_message_jumps_to_schema_message() {
 #[test]
 fn document_symbols_expose_top_level_items() {
     let document = LinguiniDocument::new(
-        "file:///shop.lgs",
-        "linguini-schema",
-        "enum Fruit { apple, pear }\ndelivery(count: Number)\n",
+        "file:///shop.lgl",
+        "linguini-locale",
+        "let cart_label = Cart\nenum Fruit { apple, pear }\ndelivery = Delivered\n",
     );
 
     let symbols = document_symbols(&document);
@@ -291,7 +340,7 @@ fn document_symbols_expose_top_level_items() {
             .iter()
             .map(|symbol| symbol.name.as_str())
             .collect::<Vec<_>>(),
-        ["Fruit", "delivery"]
+        ["cart_label", "Fruit", "delivery"]
     );
 }
 
