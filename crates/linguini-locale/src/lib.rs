@@ -113,6 +113,14 @@ impl LocaleScopeLoader {
                 &declaration.docs,
                 ScopeKind::Enum,
             ),
+            LocaleDeclaration::Variable(declaration) => self.register(
+                source_index,
+                source_path,
+                is_override,
+                &declaration.name,
+                &declaration.docs,
+                ScopeKind::Message,
+            ),
             LocaleDeclaration::Form(declaration) => self.register(
                 source_index,
                 source_path,

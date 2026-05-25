@@ -36,6 +36,7 @@ pub enum SchemaDeclaration {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LocaleDeclaration {
     Enum(EnumDeclaration),
+    Variable(VariableDeclaration),
     Form(FormDeclaration),
     Function(FunctionDeclaration),
     Message(MessageImplementation),
@@ -151,6 +152,14 @@ pub struct FunctionDeclaration {
 pub struct FunctionParameter {
     pub name: Option<Name>,
     pub ty: Name,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VariableDeclaration {
+    pub docs: Vec<DocComment>,
+    pub name: Name,
+    pub value: TextPattern,
     pub span: Span,
 }
 

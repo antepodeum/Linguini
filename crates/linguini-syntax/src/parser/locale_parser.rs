@@ -4,7 +4,7 @@ use crate::{
     Expression, FormAttribute, FormDeclaration, FormEntry, FormVariant, FunctionBranch,
     FunctionBranchValue, FunctionDeclaration, FunctionParameter, LocaleDeclaration, LocaleFile,
     LocaleValue, MapBranch, MessageImplementation, MessageImplementationGroup, Placeholder,
-    RawText, Span, TextPart, TextPattern, TokenKind,
+    RawText, Span, TextPart, TextPattern, TokenKind, VariableDeclaration,
 };
 
 use super::{annotation, doc_comment, enum_declaration, keyword, name, Extra};
@@ -50,11 +50,29 @@ where
 {
     choice((
         enum_declaration().map(LocaleDeclaration::Enum),
+        variable_declaration().map(LocaleDeclaration::Variable),
         impl_declaration().map(LocaleDeclaration::Form),
         form_function_declaration().map(LocaleDeclaration::Function),
         function_declaration().map(LocaleDeclaration::Function),
         group_or_message(),
     ))
+}
+
+fn variable_declaration<'tokens, I>(
+) -> impl Parser<'tokens, I, VariableDeclaration, Extra<'tokens>> + Clone
+where
+    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
+{
+    keyword("let")
+        .ignore_then(name())
+        .then_ignore(just(TokenKind::Equals))
+        .then(text_pattern())
+        .map_with(|(name, value), extra| VariableDeclaration {
+            docs: Vec::new(),
+            name,
+            value,
+            span: extra.span(),
+        })
 }
 
 fn impl_declaration<'tokens, I>() -> impl Parser<'tokens, I, FormDeclaration, Extra<'tokens>> + Clone
@@ -444,6 +462,7 @@ impl LocaleDeclarationDocs for LocaleDeclaration {
     fn set_docs(&mut self, docs: Vec<crate::DocComment>) {
         match self {
             LocaleDeclaration::Enum(declaration) => declaration.docs = docs,
+            LocaleDeclaration::Variable(declaration) => declaration.docs = docs,
             LocaleDeclaration::Form(declaration) => declaration.docs = docs,
             LocaleDeclaration::Function(declaration) => declaration.docs = docs,
             LocaleDeclaration::Message(declaration) => declaration.docs = docs,

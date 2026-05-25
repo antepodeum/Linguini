@@ -275,6 +275,7 @@ fn expression_analysis_accepts_valid_delivery_message() {
         .expect("locale parses");
     let value = message_value(&locale, "delivery");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
         messages: vec![MessageToAnalyze::new(
             "delivery",
             value,
@@ -301,6 +302,7 @@ fn expression_analysis_accepts_valid_delivery_message() {
 fn expression_analysis_reports_unknown_variable() {
     let locale = parse_locale("delivery = {fruit.nom}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
         messages: vec![MessageToAnalyze::new(
             "delivery",
             message_value(&locale, "delivery"),
@@ -318,6 +320,7 @@ fn expression_analysis_reports_unknown_variable() {
 fn expression_analysis_reports_unknown_form_property() {
     let locale = parse_locale("delivery = {fruit.acc}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
         messages: vec![MessageToAnalyze::new(
             "delivery",
             message_value(&locale, "delivery"),
@@ -342,6 +345,7 @@ fn expression_analysis_reports_unknown_form_property() {
 fn expression_analysis_reports_function_arity() {
     let locale = parse_locale("delivery = {size(fruit)}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
         messages: vec![MessageToAnalyze::new(
             "delivery",
             message_value(&locale, "delivery"),
@@ -362,6 +366,7 @@ fn expression_analysis_reports_function_arity() {
 fn expression_analysis_reports_unknown_function_call() {
     let locale = parse_locale("delivery = {missing(fruit)}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
         messages: vec![MessageToAnalyze::new(
             "delivery",
             message_value(&locale, "delivery"),
@@ -380,6 +385,7 @@ fn expression_analysis_accepts_int_plural_argument() {
     let locale =
         parse_locale("delivery = {SizeAdj(size, count, fruit.Gender)}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
         messages: vec![MessageToAnalyze::new(
             "delivery",
             message_value(&locale, "delivery"),
@@ -417,6 +423,7 @@ fn function_pattern_analysis_reports_dispatch_depth() {
 fn expression_analysis_reports_ambiguous_implicit_plural_argument() {
     let locale = parse_locale("summary = {fruit.nom}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
         messages: vec![MessageToAnalyze::new(
             "summary",
             message_value(&locale, "summary"),
@@ -453,6 +460,7 @@ fn expression_analysis_reports_ambiguous_implicit_plural_argument() {
 fn expression_analysis_accepts_single_implicit_plural_argument() {
     let locale = parse_locale("summary = {fruit.nom}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
         messages: vec![MessageToAnalyze::new(
             "summary",
             message_value(&locale, "summary"),

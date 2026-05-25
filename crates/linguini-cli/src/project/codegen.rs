@@ -336,6 +336,7 @@ fn namespace_messages(mut module: IrModule, namespace: &str) -> IrModule {
 pub(super) fn merge_module(target: &mut IrModule, source: IrModule) {
     target.enums.extend(source.enums);
     target.type_aliases.extend(source.type_aliases);
+    target.variables.extend(source.variables);
     target.messages.extend(source.messages);
     target.forms.extend(source.forms);
     target.functions.extend(source.functions);
@@ -367,6 +368,15 @@ pub(super) fn merge_module_fallback(target: &mut IrModule, source: IrModule) {
             .any(|existing| existing.name == item.name)
         {
             target.messages.push(item);
+        }
+    }
+    for item in source.variables {
+        if !target
+            .variables
+            .iter()
+            .any(|existing| existing.name == item.name)
+        {
+            target.variables.push(item);
         }
     }
     for item in source.forms {

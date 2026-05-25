@@ -153,7 +153,7 @@ export function delivery(fruit: Fruit, size: Size, count: number): string {
 
 /**  Shown near cart item count. */
 export function counted(count: number, fruit: Fruit): string {
-  return "В корзине " + String(formatNumber(count)) + " " + String(FruitForms[fruit].nom(count));
+  return String(cart_label) + " " + String(formatNumber(count)) + " " + String(FruitForms[fruit].nom(count));
 }
 
 export function price(amount: Money, date: ShortDate): string {

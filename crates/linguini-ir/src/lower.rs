@@ -1,7 +1,7 @@
 use crate::model::{
     IrBranch, IrEnum, IrExpression, IrForm, IrFormEntry, IrFormVariant, IrFormatter,
     IrFormatterArgument, IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter,
-    IrMessage, IrModule, IrParameter, IrText, IrTextPart, IrTypeAlias, IrValue,
+    IrMessage, IrModule, IrParameter, IrText, IrTextPart, IrTypeAlias, IrValue, IrVariable,
 };
 use linguini_syntax::{
     Annotation, DocComment, Expression, FormEntry, FunctionBranchValue, LocaleDeclaration,
@@ -106,6 +106,11 @@ fn lower_locale_declaration(declaration: &LocaleDeclaration, module: &mut IrModu
                 .iter()
                 .map(lower_function_branch)
                 .collect(),
+        }),
+        LocaleDeclaration::Variable(variable) => module.variables.push(IrVariable {
+            name: variable.name.value.clone(),
+            docs: docs(&variable.docs),
+            value: lower_text(&variable.value),
         }),
         LocaleDeclaration::Message(message) => module.messages.push(IrMessage {
             name: message.name.value.clone(),

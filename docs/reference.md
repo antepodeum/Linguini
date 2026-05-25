@@ -136,6 +136,18 @@ greeting = Hello, {name}!
 price    = Total: {amount} {currency}
 ```
 
+### Local variables
+
+Use `let` in locale files for reusable local text fragments. Local variables are
+not part of the schema API and can be referenced from messages, forms, and
+functions in the same locale module.
+
+```lgl
+let cart_label = Cart
+
+cart_summary = {cart_label}: {count} {item.nom(count)}
+```
+
 ### `Plural` — built-in
 
 `Plural` is always available with variants `one | few | many | other`.

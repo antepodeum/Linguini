@@ -424,6 +424,7 @@ fn locale_declaration_message_name_at(
             locale_declaration_message_name_at(inner, group, offset)
         }
         LocaleDeclaration::Enum(_)
+        | LocaleDeclaration::Variable(_)
         | LocaleDeclaration::Form(_)
         | LocaleDeclaration::Function(_) => None,
         LocaleDeclaration::Message(_) => None,

@@ -2,6 +2,8 @@ enum Tone { formal, casual }
 
 override enum Channel { email, sms }
 
+let product_name = Linguini
+
 form Greeting(Tone, Plural) {
   formal {
     one => Hello

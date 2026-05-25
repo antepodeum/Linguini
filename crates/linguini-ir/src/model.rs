@@ -4,6 +4,7 @@ pub use linguini_core::FormatterKind as IrFormatterKind;
 pub struct IrModule {
     pub enums: Vec<IrEnum>,
     pub type_aliases: Vec<IrTypeAlias>,
+    pub variables: Vec<IrVariable>,
     pub messages: Vec<IrMessage>,
     pub forms: Vec<IrForm>,
     pub functions: Vec<IrFunction>,
@@ -36,6 +37,13 @@ pub struct IrMessage {
 pub struct IrParameter {
     pub name: String,
     pub ty: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrVariable {
+    pub name: String,
+    pub docs: Vec<String>,
+    pub value: IrText,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

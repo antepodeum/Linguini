@@ -55,6 +55,7 @@ fn schema_declaration_symbols(
 fn locale_declaration_symbols(declaration: &LocaleDeclaration) -> Vec<Symbol> {
     match declaration {
         LocaleDeclaration::Enum(item) => vec![symbol(&item.name, "enum", &item.docs)],
+        LocaleDeclaration::Variable(item) => vec![symbol(&item.name, "variable", &item.docs)],
         LocaleDeclaration::Form(item) => vec![symbol(&item.name, "impl", &item.docs)],
         LocaleDeclaration::Function(item) => vec![symbol(&item.name, "function", &item.docs)],
         LocaleDeclaration::Message(item) => vec![locale_message_symbol(

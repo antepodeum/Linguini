@@ -14,6 +14,11 @@ pub fn ensure_no_unresolved_references(
 ) -> Result<(), Vec<IrReferenceError>> {
     let context = ReferenceContext::new(schema, locale);
     let mut errors = Vec::new();
+    let variables: BTreeSet<_> = locale
+        .variables
+        .iter()
+        .map(|variable| variable.name.clone())
+        .collect();
 
     for message in &locale.messages {
         let Some(parameters) = context.message_parameters.get(&message.name) else {
@@ -23,15 +28,29 @@ pub fn ensure_no_unresolved_references(
             continue;
         };
         if let Some(body) = &message.body {
-            check_text(body, parameters, &context, &mut errors);
+            let variables = variables
+                .iter()
+                .cloned()
+                .chain(parameters.iter().cloned())
+                .collect();
+            check_text(body, &variables, &context, &mut errors);
         }
     }
 
+    for variable in &locale.variables {
+        check_text(&variable.value, &variables, &context, &mut errors);
+    }
+
     for function in &locale.functions {
-        let variables: BTreeSet<_> = function
-            .parameters
+        let variables: BTreeSet<_> = variables
             .iter()
-            .filter_map(|parameter| parameter.name.clone())
+            .cloned()
+            .chain(
+                function
+                    .parameters
+                    .iter()
+                    .filter_map(|parameter| parameter.name.clone()),
+            )
             .collect();
         for branch in &function.branches {
             check_function_branch(branch, &variables, &context, &mut errors);
@@ -65,6 +84,7 @@ struct ReferenceContext {
     message_parameters: BTreeMap<String, BTreeSet<String>>,
     functions: BTreeSet<String>,
     forms: BTreeSet<String>,
+    variables: BTreeSet<String>,
 }
 
 impl ReferenceContext {
@@ -90,6 +110,11 @@ impl ReferenceContext {
                 .map(|function| function.name.clone())
                 .collect(),
             forms: locale.forms.iter().map(|form| form.name.clone()).collect(),
+            variables: locale
+                .variables
+                .iter()
+                .map(|variable| variable.name.clone())
+                .collect(),
         }
     }
 }
@@ -123,6 +148,7 @@ fn check_expression(
     let resolved = variables.contains(root)
         || context.forms.contains(root)
         || context.functions.contains(root)
+        || context.variables.contains(root)
         || root == "plural";
 
     if !resolved {

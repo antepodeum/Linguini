@@ -42,6 +42,7 @@ pub struct MessageToAnalyze {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpressionAnalysis {
+    pub variables: Vec<Variable>,
     pub messages: Vec<MessageToAnalyze>,
     pub functions: Vec<FunctionSignature>,
     pub forms: Vec<FormSignature>,
@@ -127,12 +128,16 @@ pub fn analyze_expressions(input: ExpressionAnalysis) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
     for message in input.messages {
-        let variables: BTreeMap<_, _> = message
+        let all_variables = input
             .variables
             .iter()
-            .map(|variable| (variable.name.as_str(), variable))
+            .chain(message.variables.iter())
+            .collect::<Vec<_>>();
+        let variables: BTreeMap<_, _> = all_variables
+            .iter()
+            .map(|variable| (variable.name.as_str(), *variable))
             .collect();
-        let numeric_variables = numeric_variables(&message.variables);
+        let numeric_variables = numeric_variables(&all_variables);
         analyze_text(
             &message.value,
             &variables,
@@ -398,10 +403,11 @@ fn validate_branch_depth(
     }
 }
 
-fn numeric_variables(variables: &[Variable]) -> Vec<&Variable> {
+fn numeric_variables<'a>(variables: &[&'a Variable]) -> Vec<&'a Variable> {
     variables
         .iter()
         .filter(|variable| matches!(variable.ty.as_str(), "Number" | "Decimal"))
+        .copied()
         .collect()
 }
 

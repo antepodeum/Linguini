@@ -15,7 +15,7 @@ use linguini_ir::IrModule;
 
 use self::emit::{
     emit_formatter_data, emit_forms, emit_imports, emit_index, emit_local_functions, emit_messages,
-    emit_schema_type_reexports,
+    emit_schema_type_reexports, emit_variables,
 };
 use self::shared::emit_shared;
 use super::plural::generate_plural_function;
@@ -385,6 +385,7 @@ fn generate_typescript_module_with_namespaces(
     for namespace in namespaces {
         output.push_str(&format!("export {{ {namespace} }};\n\n"));
     }
+    emit_variables(locale, options, &mut output);
     emit_forms(locale, options, &mut output);
     emit_local_functions(locale, options, &mut output);
     let exports = emit_messages(&schema, locale, options, &mut output);
@@ -405,6 +406,7 @@ fn generate_typescript_module_with_shared_import(
     emit::emit_plural_helpers(options, &mut output);
     emit_formatter_data(&schema, locale, options, &mut output);
     emit_schema_type_reexports(&schema, shared_import_path, &mut output);
+    emit_variables(locale, options, &mut output);
     emit_forms(locale, options, &mut output);
     emit_local_functions(locale, options, &mut output);
     let exports = emit_messages(&schema, locale, options, &mut output);
@@ -496,6 +498,7 @@ fn root_module_with_locale_items(module: &IrModule) -> IrModule {
     let mut output = root_module(module);
     output.forms.clear();
     output.functions.clear();
+    output.variables.clear();
     output
 }
 
@@ -576,6 +579,9 @@ fn locale_fallback_tags(locale: &str) -> Vec<String> {
 fn merge_locale_module(target: &mut IrModule, source: &IrModule) {
     merge_named_items(&mut target.messages, &source.messages, |message| {
         &message.name
+    });
+    merge_named_items(&mut target.variables, &source.variables, |variable| {
+        &variable.name
     });
     merge_named_items(&mut target.forms, &source.forms, |form| &form.name);
     merge_named_items(&mut target.functions, &source.functions, |function| {

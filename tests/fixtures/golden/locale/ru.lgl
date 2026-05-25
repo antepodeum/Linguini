@@ -1,5 +1,7 @@
 enum Gender { male, female, neuter, other }
 
+let cart_label = В корзине
+
 impl Fruit {
   apple {
     Gender = neuter
@@ -98,7 +100,7 @@ fn DeliveryNote(item: String, Plural, Gender) {
 /// Product delivery sentence.
 delivery = {Delivered(count, fruit.Gender)} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}
 
-counted = В корзине {count} {fruit.nom(count)}
+counted = {cart_label} {count} {fruit.nom(count)}
 
 price = Цена {amount @currency(code = "RUB")} на {date @date(style = "short")}
 

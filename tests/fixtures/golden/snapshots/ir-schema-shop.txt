@@ -47,6 +47,7 @@ IrModule {
             ],
         },
     ],
+    variables: [],
     messages: [
         IrMessage {
             name: "delivery",

@@ -41,6 +41,7 @@ fn declaration_plural_branch_hover(
             declaration_plural_branch_hover(inner, offset, locale, rules)
         }
         LocaleDeclaration::Enum(_)
+        | LocaleDeclaration::Variable(_)
         | LocaleDeclaration::Form(_)
         | LocaleDeclaration::Message(_)
         | LocaleDeclaration::Group(_) => None,

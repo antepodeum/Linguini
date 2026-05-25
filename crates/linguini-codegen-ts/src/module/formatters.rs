@@ -8,6 +8,10 @@ pub fn module_uses_formatters(module: &IrModule) -> bool {
         .type_aliases
         .iter()
         .any(|alias| !alias.formatters.is_empty())
+        || module
+            .variables
+            .iter()
+            .any(|variable| text_uses_formatters(&variable.value))
         || module.messages.iter().any(message_uses_formatters)
         || module.forms.iter().any(|form| {
             form.variants

@@ -158,6 +158,19 @@ pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut S
     }
 }
 
+pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
+    for variable in &module.variables {
+        for doc in &variable.docs {
+            output.push_str(&format!("/** {} */\n", escape_comment(doc)));
+        }
+        output.push_str(&format!(
+            "const {} = {};\n\n",
+            variable.name,
+            text_expression(&variable.value, options)
+        ));
+    }
+}
+
 pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     for function in &module.functions {
         let params = function_parameters(function)

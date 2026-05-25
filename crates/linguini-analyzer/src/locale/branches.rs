@@ -59,6 +59,7 @@ fn collect_locale_enum_variants(
         }
         LocaleDeclaration::Override(inner) => collect_locale_enum_variants(inner, enum_variants),
         LocaleDeclaration::Form(_)
+        | LocaleDeclaration::Variable(_)
         | LocaleDeclaration::Function(_)
         | LocaleDeclaration::Message(_)
         | LocaleDeclaration::Group(_) => {}
@@ -93,6 +94,7 @@ fn collect_branch_coverage_diagnostics(
             collect_branch_coverage_diagnostics(inner, enum_variants, diagnostics);
         }
         LocaleDeclaration::Enum(_)
+        | LocaleDeclaration::Variable(_)
         | LocaleDeclaration::Message(_)
         | LocaleDeclaration::Group(_) => {}
     }

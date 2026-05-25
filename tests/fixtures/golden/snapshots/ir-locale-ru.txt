@@ -1,6 +1,19 @@
 IrModule {
     enums: [],
     type_aliases: [],
+    variables: [
+        IrVariable {
+            name: "cart_label",
+            docs: [],
+            value: IrText {
+                parts: [
+                    Text(
+                        "В корзине",
+                    ),
+                ],
+            },
+        },
+    ],
     messages: [
         IrMessage {
             name: "delivery",
@@ -103,8 +116,17 @@ IrModule {
             body: Some(
                 IrText {
                     parts: [
+                        Placeholder(
+                            IrExpression {
+                                path: [
+                                    "cart_label",
+                                ],
+                                arguments: [],
+                                formatters: [],
+                            },
+                        ),
                         Text(
-                            "В корзине ",
+                            " ",
                         ),
                         Placeholder(
                             IrExpression {

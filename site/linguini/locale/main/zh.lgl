@@ -1,3 +1,4 @@
+
 impl Fruit {
   apple {
     emoji = 🍎
@@ -28,6 +29,8 @@ form SizeWord(Size) {
   small => 小
   big   => 大
 }
+
+let size_form_label = 大小形式
 
 nav {
   why = 为什么
@@ -106,5 +109,6 @@ playground {
   currency_format = 货币格式： {amount @currency(code = "CNY")}
   date_format = 日期格式： {date}
   override_format = Locale override: {amount @number} / {date @date(style = "long")}
-  size_line = 大小形式： {SizeWord(size)}
+
+  size_line = {size_form_label}: {SizeWord(size)}
 }

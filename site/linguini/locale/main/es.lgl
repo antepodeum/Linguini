@@ -1,3 +1,4 @@
+
 enum Gender { male, female, neuter, other }
 
 impl Fruit {
@@ -73,6 +74,8 @@ form Delivered(Plural, Gender) {
   one => Entregado
   _   => Entregados
 }
+
+let size_form_label = Forma de tamaño
 
 nav {
   why = Por qué
@@ -151,5 +154,6 @@ playground {
   currency_format = Formato moneda: {amount @currency(code = "EUR")}
   date_format = Formato fecha: {date}
   override_format = Locale override: {amount @number} / {date @date(style = "long")}
-  size_line = Forma de tamaño: {SizeWord(size)}
+
+  size_line = {size_form_label}: {SizeWord(size)}
 }

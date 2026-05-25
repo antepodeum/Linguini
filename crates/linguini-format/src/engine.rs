@@ -203,7 +203,10 @@ fn is_declaration_keyword(kind: &TokenKind) -> bool {
     matches!(
         kind,
         TokenKind::Ident(keyword)
-            if matches!(keyword.as_str(), "enum" | "type" | "impl" | "fn" | "form" | "override")
+            if matches!(
+                keyword.as_str(),
+                "enum" | "type" | "impl" | "fn" | "form" | "override" | "let"
+            )
     )
 }
 

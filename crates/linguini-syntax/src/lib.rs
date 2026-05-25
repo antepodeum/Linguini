@@ -12,7 +12,7 @@ pub use ast::{
     FunctionDeclaration, FunctionParameter, LocaleDeclaration, LocaleFile, LocaleValue, MapBranch,
     MessageGroup, MessageImplementation, MessageImplementationGroup, MessageSignature, Name,
     Parameter, Placeholder, RawText, SchemaDeclaration, SchemaFile, StringLiteral, TextPart,
-    TextPattern, TypeAliasDeclaration,
+    TextPattern, TypeAliasDeclaration, VariableDeclaration,
 };
 pub use lexer::{
     lex, lex_schema, lex_schema_with_recovery, lex_with_recovery, LexError, LexOutput,
