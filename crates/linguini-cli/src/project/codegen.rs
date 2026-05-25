@@ -68,6 +68,7 @@ fn generate_typescript_target(
         &locales,
         &TypeScriptProjectOptions {
             declaration: target.declaration,
+            gitignore: target.gitignore,
             tree_shaking: target.tree_shaking,
             included_messages: target.messages.clone(),
             base_locale: Some(config.project.default_locale.clone()),

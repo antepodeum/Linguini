@@ -34,7 +34,8 @@ pub fn escape_comment(value: &str) -> String {
 
 pub fn ts_type(name: &str) -> String {
     match name {
-        "String" | "Date" => "string".to_owned(),
+        "String" => "string".to_owned(),
+        "Date" => "Date | number | string".to_owned(),
         "Number" | "Decimal" => "number".to_owned(),
         "Boolean" => "boolean".to_owned(),
         other => other.to_owned(),

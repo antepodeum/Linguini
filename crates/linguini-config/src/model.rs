@@ -31,6 +31,7 @@ pub struct TypeScriptTargetConfig {
     pub out: String,
     pub module: String,
     pub declaration: bool,
+    pub gitignore: bool,
     pub tree_shaking: bool,
     pub messages: Vec<String>,
     pub framework: Option<String>,

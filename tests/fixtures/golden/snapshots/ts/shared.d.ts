@@ -4,7 +4,7 @@ export type Size = "small" | "big";
 
 export type Money = number;
 
-export type ShortDate = string;
+export type ShortDate = Date | number | string;
 
 export declare function selectBranch(
   key: string,

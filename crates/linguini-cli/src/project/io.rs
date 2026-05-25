@@ -41,6 +41,7 @@ locale = "locales"
 out = "src/generated/linguini"
 module = "esm"
 declaration = true
+gitignore = true
 "#
 }
 

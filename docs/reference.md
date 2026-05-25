@@ -347,4 +347,5 @@ locale = "linguini/locale"
 out         = "src/generated/linguini"
 module      = "esm"                     # esm | cjs
 declaration = true
+gitignore   = true                      # emit generated .gitignore
 ```

@@ -55,8 +55,7 @@ function formatDate(
   value: Date | number | string,
   options: GeneratedDateFormatterOptions = {},
 ): string {
-  if (typeof value === "string") return value;
-  const date = value instanceof Date ? value : new Date(value);
+  const date = coerceDate(value);
   switch (options.style ?? "medium") {
     case "full":
       return ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"][date.getDay()] + ", " + String(date.getDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getMonth()] + " " + String(date.getFullYear()) + " " + "г" + ".";
@@ -130,6 +129,17 @@ function groupIntegerDigits(
 
 function padNumber(value: number, length: number): string {
   return String(value).padStart(length, "0");
+}
+
+function coerceDate(value: Date | number | string): Date {
+  if (value instanceof Date) return value;
+  if (typeof value === "string") {
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (dateOnly) {
+      return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+    }
+  }
+  return new Date(value);
 }
 
 export type { Fruit, Size, Money, ShortDate } from "../shared";

@@ -48,6 +48,7 @@ locale = "linguini/locale"
 out         = "src/generated/linguini"
 module      = "esm"
 declaration = true
+gitignore   = true
 ```
 
 ## Write a schema

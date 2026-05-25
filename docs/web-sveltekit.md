@@ -30,6 +30,7 @@ locale = "locales"
 out = "src/lib/generated/linguini"
 module = "esm"
 declaration = true
+gitignore = true
 framework = "sveltekit"
 ```
 

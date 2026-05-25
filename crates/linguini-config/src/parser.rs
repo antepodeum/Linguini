@@ -48,6 +48,7 @@ struct TypeScriptTargetBuilder {
     out: Option<String>,
     module: Option<String>,
     declaration: Option<bool>,
+    gitignore: Option<bool>,
     tree_shaking: Option<bool>,
     messages: Option<Vec<String>>,
     framework: Option<String>,
@@ -117,6 +118,7 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
                     .unwrap_or_else(|| "src/generated/linguini".to_owned()),
                 module: ts.module.unwrap_or_else(|| "esm".to_owned()),
                 declaration: ts.declaration.unwrap_or(true),
+                gitignore: ts.gitignore.unwrap_or(true),
                 tree_shaking: ts.tree_shaking.unwrap_or(false),
                 messages: ts.messages.unwrap_or_default(),
                 framework: ts.framework,
@@ -165,6 +167,12 @@ fn assign_value(
                 .ts
                 .get_or_insert_with(TypeScriptTargetBuilder::default);
             assign_bool(&mut ts.declaration, key, value)
+        }
+        ("targets.ts", "gitignore") => {
+            let ts = targets
+                .ts
+                .get_or_insert_with(TypeScriptTargetBuilder::default);
+            assign_bool(&mut ts.gitignore, key, value)
         }
         ("targets.ts", "tree_shaking") => {
             let ts = targets
@@ -373,6 +381,7 @@ mod tests {
             out = "src/generated/linguini"
             module = "esm"
             declaration = false
+            gitignore = false
             tree_shaking = true
             messages = ["delivery", "email_input.label"]
             framework = "sveltekit"
@@ -384,6 +393,7 @@ mod tests {
         assert_eq!(target.out, "src/generated/linguini");
         assert_eq!(target.module, "esm");
         assert!(!target.declaration);
+        assert!(!target.gitignore);
         assert!(target.tree_shaking);
         assert_eq!(target.messages, ["delivery", "email_input.label"]);
         assert_eq!(target.framework.as_deref(), Some("sveltekit"));
