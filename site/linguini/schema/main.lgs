@@ -2,8 +2,6 @@ enum Fruit { apple, pear, orange }
 
 enum Size { small, big }
 
-enum Gender { male, female, neuter, other }
-
 type Money = Decimal @currency(code = "USD")
 type ShortDate = Date @date(style = "short")
 type Measurement = Number @number
@@ -61,22 +59,16 @@ fruit_orange_label
 size_label
 size_small_label
 size_big_label
-gender_label
-gender_male_label
-gender_female_label
-gender_neuter_label
-gender_other_label
 amount_label
 date_label
 localized_path_label
 cookie_label
 route_label
 
-playground_sentence(fruit: Fruit, size: Size, gender: Gender, count: Number, amount: Money, date: ShortDate)
+playground_sentence(fruit: Fruit, size: Size, count: Number, amount: Money, date: ShortDate)
 cart_summary(count: Number, fruit: Fruit)
 number_format(value: Measurement)
 currency_format(amount: Money)
 date_format(date: ShortDate)
 override_format(amount: Money, date: ShortDate)
-gender_line(gender: Gender)
 size_line(size: Size)

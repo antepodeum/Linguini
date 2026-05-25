@@ -1,3 +1,5 @@
+enum Gender { male, female, neuter, other }
+
 impl Fruit {
   apple {
     Gender = neuter
@@ -57,25 +59,6 @@ form SizeWord(Size) {
   big   => groß
 }
 
-form GenderPronoun(Gender) {
-  male   => ihn
-  female => sie
-  neuter => es
-  _      => es
-}
-
-form GenderWord(Gender) {
-  male   => maskulin
-  female => feminin
-  neuter => neutrum
-  _      => neutral
-}
-
-form Delivered(Plural, Gender) {
-  one => Geliefert
-  _   => Geliefert
-}
-
 nav_why = Warum
 nav_language = Sprache
 nav_codegen = Codegen
@@ -120,7 +103,7 @@ web_fallback = Daten der Basis-Locale werden beim Build in generierte Locale-Mod
 web_reactivity = The l rune updates UI text immediately after setLocale.
 web_links = Einzelne Links können ihre ursprüngliche URL behalten, wenn keine Lokalisierung gewünscht ist.
 playground_kicker = Live Playground
-playground_title = Ändere count, fruit, size, gender, amount, date oder locale.
+playground_title = Ändere count, fruit, size, amount, date oder locale.
 count_label = Anzahl
 fruit_label = Frucht
 fruit_apple_label = Apfel
@@ -129,22 +112,16 @@ fruit_orange_label = Orange
 size_label = Größe
 size_small_label = klein
 size_big_label = groß
-gender_label = Genus
-gender_male_label = maskulin
-gender_female_label = feminin
-gender_neuter_label = neutrum
-gender_other_label = neutral
 amount_label = Betrag
 date_label = Datum
 localized_path_label = Lokalisierte Route
 cookie_label = Cookie
 route_label = Route-Präfix
 
-playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} für {GenderPronoun(gender)}. Summe {amount @currency(code = "EUR")}; Datum {date}.
+playground_sentence = Geliefert {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}. Summe {amount @currency(code = "EUR")}; Datum {date}.
 cart_summary = Warenkorb enthält {count} {fruit.nom(count)}
 number_format = Zahlenformat: {value}
 currency_format = Währungsformat: {amount @currency(code = "EUR")}
 date_format = Datumsformat: {date}
 override_format = Locale override: {amount @number} / {date @date(style = "long")}
-gender_line = Genus-Form: {GenderWord(gender)}
 size_line = Größenform: {SizeWord(size)}

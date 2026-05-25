@@ -1,6 +1,5 @@
 impl Fruit {
   apple {
-    Gender = neuter
     emoji = 🍎
 
     form nom(Plural) {
@@ -10,7 +9,6 @@ impl Fruit {
   }
 
   pear {
-    Gender = female
     emoji = 🍐
 
     form nom(Plural) {
@@ -20,7 +18,6 @@ impl Fruit {
   }
 
   orange {
-    Gender = male
     emoji = 🍊
 
     form nom(Plural) {
@@ -33,30 +30,6 @@ impl Fruit {
 form SizeWord(Size) {
   small => compact
   big   => full-size
-}
-
-form GenderPronoun(Gender) {
-  male   => him
-  female => her
-  neuter => it
-  _      => them
-}
-
-form GenderWord(Gender) {
-  male   => masculine
-  female => feminine
-  neuter => neuter
-  _      => neutral
-}
-
-form Delivered(Plural, Gender) {
-  one {
-    male   => Delivered
-    female => Delivered
-    neuter => Delivered
-    _      => Delivered
-  }
-  _ => Delivered
 }
 
 nav_why = Why
@@ -103,7 +76,7 @@ web_fallback = Base-locale data is baked into generated locale modules at build 
 web_reactivity = The l rune updates UI text immediately after setLocale.
 web_links = Individual links can keep their original URL when localization is not wanted.
 playground_kicker = Live playground
-playground_title = Change count, fruit, size, gender, amount, date, or locale.
+playground_title = Change count, fruit, size, amount, date, or locale.
 count_label = Count
 fruit_label = Fruit
 fruit_apple_label = apple
@@ -112,22 +85,16 @@ fruit_orange_label = orange
 size_label = Size
 size_small_label = compact
 size_big_label = full-size
-gender_label = Gender
-gender_male_label = masculine
-gender_female_label = feminine
-gender_neuter_label = neuter
-gender_other_label = neutral
 amount_label = Amount
 date_label = Date
 localized_path_label = Localized route
 cookie_label = Cookie
 route_label = Route prefix
 
-playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeWord(size)} {fruit.nom(count)} for {GenderPronoun(gender)}. Total {amount}; ship date {date}.
+playground_sentence = Delivered {count} {SizeWord(size)} {fruit.nom(count)}. Total {amount}; ship date {date}.
 cart_summary = Cart has {count} {fruit.nom(count)}
 number_format = Number formatting: {value}
 currency_format = Currency formatting: {amount}
 date_format = Date formatting: {date}
 override_format = Locale override: {amount @number} / {date @date(style = "long")}
-gender_line = Gender form: {GenderWord(gender)}
 size_line = Size form: {SizeWord(size)}

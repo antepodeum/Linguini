@@ -1,3 +1,5 @@
+enum Gender { male, female, neuter, other }
+
 impl Fruit {
   apple {
     Gender = neuter
@@ -67,20 +69,6 @@ form SizeWord(Size) {
   big   => grande
 }
 
-form GenderPronoun(Gender) {
-  male   => él
-  female => ella
-  neuter => ello
-  _      => ello
-}
-
-form GenderWord(Gender) {
-  male   => masculino
-  female => femenino
-  neuter => neutro
-  _      => neutral
-}
-
 form Delivered(Plural, Gender) {
   one => Entregado
   _   => Entregados
@@ -130,7 +118,7 @@ web_fallback = Los datos de la locale base se integran en los módulos generados
 web_reactivity = The l rune updates UI text immediately after setLocale.
 web_links = Algunos enlaces pueden conservar su URL original cuando no deben localizarse.
 playground_kicker = Playground en vivo
-playground_title = Cambia count, fruit, size, gender, amount, date o locale.
+playground_title = Cambia count, fruit, size, amount, date o locale.
 count_label = Cantidad
 fruit_label = Fruta
 fruit_apple_label = manzana
@@ -139,22 +127,16 @@ fruit_orange_label = naranja
 size_label = Tamaño
 size_small_label = pequeño
 size_big_label = grande
-gender_label = Género
-gender_male_label = masculino
-gender_female_label = femenino
-gender_neuter_label = neutro
-gender_other_label = neutral
 amount_label = Importe
 date_label = Fecha
 localized_path_label = Ruta localizada
 cookie_label = Cookie
 route_label = Prefijo de ruta
 
-playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} para {GenderPronoun(gender)}. Total {amount @currency(code = "EUR")}; fecha {date}.
+playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}. Total {amount @currency(code = "EUR")}; fecha {date}.
 cart_summary = El carrito tiene {count} {fruit.nom(count)}
 number_format = Formato numérico: {value}
 currency_format = Formato moneda: {amount @currency(code = "EUR")}
 date_format = Formato fecha: {date}
 override_format = Locale override: {amount @number} / {date @date(style = "long")}
-gender_line = Forma de género: {GenderWord(gender)}
 size_line = Forma de tamaño: {SizeWord(size)}

@@ -34,7 +34,7 @@
   import CodeBlock from '$lib/components/code-block.svelte';
   import { l, linguini, setLocale } from '$lib/generated/linguini/svelte';
   import { locales, type Locale } from '$lib/generated/linguini';
-  import type { Fruit, Gender, Size } from '$lib/generated/linguini/locales/en';
+  import type { Fruit, Size } from '$lib/generated/linguini/locales/en';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
@@ -42,7 +42,6 @@
   let count = $state(3);
   let fruit = $state<Fruit>('apple');
   let size = $state<Size>('small');
-  let gender = $state<Gender>('neuter');
   let amount = $state(1299.5);
   let dateInput = $state('2026-05-19');
 
@@ -102,21 +101,13 @@
     { value: 'big' as const, label: l.main.size_big_label }
   ]);
 
-  const genderOptions = $derived([
-    { value: 'male' as const, label: l.main.gender_male_label },
-    { value: 'female' as const, label: l.main.gender_female_label },
-    { value: 'neuter' as const, label: l.main.gender_neuter_label },
-    { value: 'other' as const, label: l.main.gender_other_label }
-  ]);
-
   const playgroundLines = $derived([
-    l.main.playground_sentence(fruit, size, gender, count, amount, dateValue),
+    l.main.playground_sentence(fruit, size, count, amount, dateValue),
     l.main.cart_summary(count, fruit),
     l.main.number_format(amount),
     l.main.currency_format(amount),
     l.main.date_format(dateValue),
     l.main.override_format(amount, dateValue),
-    l.main.gender_line(gender),
     l.main.size_line(size)
   ]);
 
@@ -410,14 +401,6 @@
             {l.main.size_label}
             <select class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" bind:value={size}>
               {#each sizeOptions as option (option.value)}
-                <option value={option.value}>{option.label}</option>
-              {/each}
-            </select>
-          </label>
-          <label class="grid gap-2 text-sm">
-            {l.main.gender_label}
-            <select class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" bind:value={gender}>
-              {#each genderOptions as option (option.value)}
                 <option value={option.value}>{option.label}</option>
               {/each}
             </select>

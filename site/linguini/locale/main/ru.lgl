@@ -1,3 +1,5 @@
+enum Gender { male, female, neuter, other }
+
 impl Fruit {
   apple {
     Gender = neuter
@@ -83,20 +85,6 @@ form SizeWord(Size) {
   _     => обычный
 }
 
-form GenderWord(Gender) {
-  male   => мужской
-  female => женский
-  neuter => средний
-  _      => другой
-}
-
-form GenderPronoun(Gender) {
-  male   => него
-  female => неё
-  neuter => него
-  _      => них
-}
-
 form Delivered(Plural, Gender) {
   one {
     male   => Доставлен
@@ -160,22 +148,16 @@ fruit_orange_label = апельсин
 size_label = Размер
 size_small_label = маленький
 size_big_label = большой
-gender_label = Род
-gender_male_label = мужской
-gender_female_label = женский
-gender_neuter_label = средний
-gender_other_label = другой
 amount_label = Сумма
 date_label = Дата
 localized_path_label = Локализованный маршрут
 cookie_label = Cookie
 route_label = Префикс маршрута
 
-playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)} для {GenderPronoun(gender)}. Итого {amount @currency(code = "RUB")}; дата {date}.
+playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}. Итого {amount @currency(code = "RUB")}; дата {date}.
 cart_summary = В корзине {count} {fruit.nom(count)}
 number_format = Формат числа: {value}
 currency_format = Формат валюты: {amount @currency(code = "RUB")}
 date_format = Формат даты: {date}
 override_format = Переопределение локали: {amount @number} / {date @date(style = "long")}
-gender_line = Форма рода: {GenderWord(gender)}
 size_line = Форма размера: {SizeWord(size)}
