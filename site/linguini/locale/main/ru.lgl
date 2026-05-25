@@ -95,69 +95,82 @@ form Delivered(Plural, Gender) {
   _ => Доставлено
 }
 
-nav_why = Зачем
-nav_language = Язык
-nav_codegen = Кодогенерация
-nav_web = Веб
-locale_label = Локаль
-hero_eyebrow = Типизированная локализация для продуктовых команд
-hero_title = Linguini
-hero_tagline = Интернационализация для всех нас
-hero_copy = Компилируемый язык локализации, где схемы, грамматика локали, CLDR-форматирование, хуки SvelteKit, cookie-файлы и локализованные маршруты генерируются из одного источника.
-hero_term = /lɪŋˈɡwiːni/
-hero_term_kind = СУЩ.
-hero_term_hint = длинная тонкая ленточная паста
-hero_intro = Linguini превращает типизированные файлы локализации в код, который можно подключить к любому приложению. Сообщения, грамматика, форматтеры, fallback-локали и web-маршруты проверяются на этапе сборки.
-hero_trait_typed = Типизированный
-hero_trait_compiled = Компилируемый
-hero_trait_native = Нативный
-primary_cta = Документация
-secondary_cta = GitHub
-codegen_kicker = Генерация кода
-codegen_title = Одна схема — типизированный вывод для каждого рантайма
-codegen_intro = Linguini один раз анализирует контракты .lgs и логику .lgl, затем на этапе сборки генерирует модули под целевой рантайм с CLDR-форматированием, plural-селекторами и адаптерами фреймворков.
-codegen_ts_title = TypeScript / ESM
-codegen_ts_desc = Типизированные функции сообщений, общий runtime, файлы деклараций и tree-shaking по локалям.
-codegen_svelte_title = Svelte 5 + SvelteKit
-codegen_svelte_desc = Сгенерированный rune l, переключение локали, localizeHref и экспорты handle / reroute / load.
-codegen_planned_title = Запланированные таргеты
-codegen_planned_intro = План намеренно широкий: Linguini должен поддерживать все практичные рантаймы, языки и web-фреймворки.
-codegen_rust = Rust
-codegen_kotlin = Kotlin
-codegen_swift = Swift
-codegen_go = Go
-codegen_python = Python
-codegen_csharp = C#
-codegen_status_shipped = Стабильно
-codegen_status_planned = В планах
-web_kicker = SvelteKit
-web_title = Локализованный SvelteKit без ручной i18n-обвязки
-web_intro = Пишите обычные маршруты SvelteKit и вызывайте сгенерированные сообщения. Linguini хранит активную локаль, реактивно обновляет текст и превращает неверные аргументы сообщений в ошибки TypeScript.
-web_routing = Используйте обычные внутренние ссылки; сгенерированный хук reroute обрабатывает локализованные URL.
-web_cookie = Смена локали сохраняется через cookie и хранилище браузера без app-level state.
-web_fallback = Данные из базовой локали встраиваются в сгенерированные locale-модули на этапе сборки.
-web_reactivity = Rune l обновляет текст UI сразу после setLocale.
-web_links = Для отдельных ссылок можно оставить исходный URL нелокализованным.
-playground_kicker = Интерактивная песочница
-playground_title = Меняйте количество, фрукт, размер, род, сумму, дату или локаль.
-count_label = Количество
-fruit_label = Фрукт
-fruit_apple_label = яблоко
-fruit_pear_label = груша
-fruit_orange_label = апельсин
-size_label = Размер
-size_small_label = маленький
-size_big_label = большой
-amount_label = Сумма
-date_label = Дата
-localized_path_label = Локализованный маршрут
-cookie_label = Cookie
-route_label = Префикс маршрута
+nav {
+  why = Зачем
+  language = Язык
+  codegen = Кодогенерация
+  web = Веб
+  locale_label = Локаль
+}
 
-playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}. Итого {amount @currency(code = "RUB")}; дата {date}.
-cart_summary = В корзине {count} {fruit.nom(count)}
-number_format = Формат числа: {value}
-currency_format = Формат валюты: {amount @currency(code = "RUB")}
-date_format = Формат даты: {date}
-override_format = Переопределение локали: {amount @number} / {date @date(style = "long")}
-size_line = Форма размера: {SizeWord(size)}
+hero {
+  eyebrow = Типизированная локализация для продуктовых команд
+  title = Linguini
+  tagline = Интернационализация для всех нас
+  copy = Компилируемый язык локализации, где схемы, грамматика локали, CLDR-форматирование, хуки SvelteKit, cookie-файлы и локализованные маршруты генерируются из одного источника.
+  term = /lɪŋˈɡwiːni/
+  term_kind = СУЩ.
+  term_hint = длинная тонкая ленточная паста
+  intro = Linguini превращает типизированные файлы локализации в код, который можно подключить к любому приложению. Сообщения, грамматика, форматтеры, fallback-локали и web-маршруты проверяются на этапе сборки.
+  trait_typed = Типизированный
+  trait_compiled = Компилируемый
+  trait_native = Нативный
+  primary_cta = Документация
+  secondary_cta = GitHub
+}
+
+codegen {
+  kicker = Генерация кода
+  title = Одна схема — типизированный вывод для каждого рантайма
+  intro = Linguini один раз анализирует контракты .lgs и логику .lgl, затем на этапе сборки генерирует модули под целевой рантайм с CLDR-форматированием, plural-селекторами и адаптерами фреймворков.
+  ts_title = TypeScript / ESM
+  ts_desc = Типизированные функции сообщений, общий runtime, файлы деклараций и tree-shaking по локалям.
+  svelte_title = Svelte 5 + SvelteKit
+  svelte_desc = Сгенерированный rune l, переключение локали, localizeHref и экспорты handle / reroute / load.
+  planned_title = Запланированные таргеты
+  planned_intro = План намеренно широкий: Linguini должен поддерживать все практичные рантаймы, языки и web-фреймворки.
+  rust = Rust
+  kotlin = Kotlin
+  swift = Swift
+  go = Go
+  python = Python
+  csharp = C#
+  status_shipped = Стабильно
+  status_planned = В планах
+}
+
+web {
+  kicker = SvelteKit
+  title = Локализованный SvelteKit без ручной i18n-обвязки
+  intro = Пишите обычные маршруты SvelteKit и вызывайте сгенерированные сообщения. Linguini хранит активную локаль, реактивно обновляет текст и превращает неверные аргументы сообщений в ошибки TypeScript.
+  routing = Используйте обычные внутренние ссылки; сгенерированный хук reroute обрабатывает локализованные URL.
+  cookie = Смена локали сохраняется через cookie и хранилище браузера без app-level state.
+  fallback = Данные из базовой локали встраиваются в сгенерированные locale-модули на этапе сборки.
+  reactivity = Rune l обновляет текст UI сразу после setLocale.
+  links = Для отдельных ссылок можно оставить исходный URL нелокализованным.
+}
+
+playground {
+  kicker = Интерактивная песочница
+  title = Меняйте количество, фрукт, размер, род, сумму, дату или локаль.
+  count_label = Количество
+  fruit_label = Фрукт
+  fruit_apple_label = яблоко
+  fruit_pear_label = груша
+  fruit_orange_label = апельсин
+  size_label = Размер
+  size_small_label = маленький
+  size_big_label = большой
+  amount_label = Сумма
+  date_label = Дата
+  localized_path_label = Локализованный маршрут
+  cookie_label = Cookie
+  route_label = Префикс маршрута
+  sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}. Итого {amount @currency(code = "RUB")}; дата {date}.
+  cart_summary = В корзине {count} {fruit.nom(count)}
+  number_format = Формат числа: {value}
+  currency_format = Формат валюты: {amount @currency(code = "RUB")}
+  date_format = Формат даты: {date}
+  override_format = Переопределение локали: {amount @number} / {date @date(style = "long")}
+  size_line = Форма размера: {SizeWord(size)}
+}

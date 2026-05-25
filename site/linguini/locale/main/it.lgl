@@ -74,69 +74,82 @@ form Delivered(Plural, Gender) {
   _   => Consegnati
 }
 
-nav_why = Perché
-nav_language = Lingua
-nav_codegen = Codegen
-nav_web = Web
-locale_label = Lingua
-hero_eyebrow = Localizzazione tipizzata per team di prodotto
-hero_title = Linguini
-hero_tagline = Internazionalizzazione per tutti noi
-hero_copy = Un linguaggio di localizzazione compilato dove schemi, grammatica, formattazione CLDR, hook SvelteKit, cookie e route localizzate vengono da una sola fonte.
-hero_term = /lɪŋˈɡwiːni/
-hero_term_kind = NOME
-hero_term_hint = pasta lunga e stretta a nastri
-hero_intro = Linguini trasforma file di localizzazione tipizzati in codice usabile da qualsiasi app. Messaggi, grammatica, formattatori, fallback delle locale e routing web vengono controllati in build.
-hero_trait_typed = Tipizzato
-hero_trait_compiled = Compilato
-hero_trait_native = Nativo
-primary_cta = Leggi docs
-secondary_cta = Vedi GitHub
-codegen_kicker = Generazione codice
-codegen_title = Uno schema, output tipizzato per ogni runtime
-codegen_intro = Linguini analizza contratti .lgs e logica .lgl una volta, poi emette moduli specifici con formattatori CLDR, selettori plurali e adapter framework a build time.
-codegen_ts_title = TypeScript / ESM
-codegen_ts_desc = Funzioni messaggio tipizzate, runtime condiviso, declaration file e tree shaking opzionale per locale.
-codegen_svelte_title = Svelte 5 + SvelteKit
-codegen_svelte_desc = Rune l generato, cambio locale, helper localizeHref ed export handle / reroute / load.
-codegen_planned_title = Target pianificati
-codegen_planned_intro = La roadmap è volutamente ampia: Linguini punta a supportare ogni runtime, linguaggio e framework web pratico.
-codegen_rust = Rust
-codegen_kotlin = Kotlin
-codegen_swift = Swift
-codegen_go = Go
-codegen_python = Python
-codegen_csharp = C#
-codegen_status_shipped = Disponibile
-codegen_status_planned = Pianificato
-web_kicker = SvelteKit
-web_title = SvelteKit localizzato senza cablaggio i18n manuale
-web_intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale, updates messages reactively, and turns invalid message arguments into TypeScript errors.
-web_routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
-web_cookie = Locale changes persist through cookies and browser storage without app-level state.
-web_fallback = I dati della locale base vengono integrati nei moduli generati durante la build.
-web_reactivity = The l rune updates UI text immediately after setLocale.
-web_links = Alcuni link possono mantenere l'URL originale quando non vanno localizzati.
-playground_kicker = Playground live
-playground_title = Cambia count, fruit, size, amount, date o locale.
-count_label = Quantità
-fruit_label = Frutta
-fruit_apple_label = mela
-fruit_pear_label = pera
-fruit_orange_label = arancia
-size_label = Dimensione
-size_small_label = piccolo
-size_big_label = grande
-amount_label = Importo
-date_label = Data
-localized_path_label = Route localizzata
-cookie_label = Cookie
-route_label = Prefisso route
+nav {
+  why = Perché
+  language = Lingua
+  codegen = Codegen
+  web = Web
+  locale_label = Lingua
+}
 
-playground_sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}. Totale {amount @currency(code = "EUR")}; data {date}.
-cart_summary = Il carrello ha {count} {fruit.nom(count)}
-number_format = Formato numero: {value}
-currency_format = Formato valuta: {amount @currency(code = "EUR")}
-date_format = Formato data: {date}
-override_format = Locale override: {amount @number} / {date @date(style = "long")}
-size_line = Forma dimensione: {SizeWord(size)}
+hero {
+  eyebrow = Localizzazione tipizzata per team di prodotto
+  title = Linguini
+  tagline = Internazionalizzazione per tutti noi
+  copy = Un linguaggio di localizzazione compilato dove schemi, grammatica, formattazione CLDR, hook SvelteKit, cookie e route localizzate vengono da una sola fonte.
+  term = /lɪŋˈɡwiːni/
+  term_kind = NOME
+  term_hint = pasta lunga e stretta a nastri
+  intro = Linguini trasforma file di localizzazione tipizzati in codice usabile da qualsiasi app. Messaggi, grammatica, formattatori, fallback delle locale e routing web vengono controllati in build.
+  trait_typed = Tipizzato
+  trait_compiled = Compilato
+  trait_native = Nativo
+  primary_cta = Leggi docs
+  secondary_cta = Vedi GitHub
+}
+
+codegen {
+  kicker = Generazione codice
+  title = Uno schema, output tipizzato per ogni runtime
+  intro = Linguini analizza contratti .lgs e logica .lgl una volta, poi emette moduli specifici con formattatori CLDR, selettori plurali e adapter framework a build time.
+  ts_title = TypeScript / ESM
+  ts_desc = Funzioni messaggio tipizzate, runtime condiviso, declaration file e tree shaking opzionale per locale.
+  svelte_title = Svelte 5 + SvelteKit
+  svelte_desc = Rune l generato, cambio locale, helper localizeHref ed export handle / reroute / load.
+  planned_title = Target pianificati
+  planned_intro = La roadmap è volutamente ampia: Linguini punta a supportare ogni runtime, linguaggio e framework web pratico.
+  rust = Rust
+  kotlin = Kotlin
+  swift = Swift
+  go = Go
+  python = Python
+  csharp = C#
+  status_shipped = Disponibile
+  status_planned = Pianificato
+}
+
+web {
+  kicker = SvelteKit
+  title = SvelteKit localizzato senza cablaggio i18n manuale
+  intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale, updates messages reactively, and turns invalid message arguments into TypeScript errors.
+  routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
+  cookie = Locale changes persist through cookies and browser storage without app-level state.
+  fallback = I dati della locale base vengono integrati nei moduli generati durante la build.
+  reactivity = The l rune updates UI text immediately after setLocale.
+  links = Alcuni link possono mantenere l'URL originale quando non vanno localizzati.
+}
+
+playground {
+  kicker = Playground live
+  title = Cambia count, fruit, size, amount, date o locale.
+  count_label = Quantità
+  fruit_label = Frutta
+  fruit_apple_label = mela
+  fruit_pear_label = pera
+  fruit_orange_label = arancia
+  size_label = Dimensione
+  size_small_label = piccolo
+  size_big_label = grande
+  amount_label = Importo
+  date_label = Data
+  localized_path_label = Route localizzata
+  cookie_label = Cookie
+  route_label = Prefisso route
+  sentence = {Delivered(count, fruit.Gender)} {count} {SizeAdj(size, count, fruit.Gender)} {fruit.nom(count)}. Totale {amount @currency(code = "EUR")}; data {date}.
+  cart_summary = Il carrello ha {count} {fruit.nom(count)}
+  number_format = Formato numero: {value}
+  currency_format = Formato valuta: {amount @currency(code = "EUR")}
+  date_format = Formato data: {date}
+  override_format = Locale override: {amount @number} / {date @date(style = "long")}
+  size_line = Forma dimensione: {SizeWord(size)}
+}

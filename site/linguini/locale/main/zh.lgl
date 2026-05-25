@@ -29,69 +29,82 @@ form SizeWord(Size) {
   big   => 大
 }
 
-nav_why = 为什么
-nav_language = 语言
-nav_codegen = 代码生成
-nav_web = Web
-locale_label = 语言
-hero_eyebrow = 面向产品团队的类型化本地化
-hero_title = Linguini
-hero_tagline = 为每个人而做的国际化
-hero_copy = 一种编译型本地化语言，把 schema、locale 语法、CLDR 格式化、SvelteKit hooks、cookie 和本地化路由放在同一个生成流程里。
-hero_term = /lɪŋˈɡwiːni/
-hero_term_kind = 名词
-hero_term_hint = 细长扁平的意式面
-hero_intro = Linguini 将类型化本地化文件转换成任何应用都能使用的代码。消息、语法、格式化器、locale fallback 和 Web 路由都会在构建时检查。
-hero_trait_typed = 类型化
-hero_trait_compiled = 编译型
-hero_trait_native = 原生
-primary_cta = 阅读文档
-secondary_cta = 查看 GitHub
-codegen_kicker = 代码生成
-codegen_title = 一份 schema，为每个运行时生成类型化输出
-codegen_intro = Linguini 一次性分析 .lgs 契约与 .lgl 语言逻辑，然后在构建期生成目标模块，内置 CLDR 格式化、复数选择器与框架适配器。
-codegen_ts_title = TypeScript / ESM
-codegen_ts_desc = 类型化消息函数、共享 runtime、声明文件，以及按 locale 的可选 tree shaking。
-codegen_svelte_title = Svelte 5 + SvelteKit
-codegen_svelte_desc = 生成 l rune、切换 locale、localizeHref 辅助函数，以及 handle / reroute / load 导出。
-codegen_planned_title = 计划中的目标
-codegen_planned_intro = 路线图刻意保持宽广：Linguini 计划支持所有实用的 runtime、语言和 Web 框架。
-codegen_rust = Rust
-codegen_kotlin = Kotlin
-codegen_swift = Swift
-codegen_go = Go
-codegen_python = Python
-codegen_csharp = C#
-codegen_status_shipped = 已发布
-codegen_status_planned = 计划中
-web_kicker = SvelteKit
-web_title = 无需手写 i18n 粘合代码的本地化 SvelteKit
-web_intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale, updates messages reactively, and turns invalid message arguments into TypeScript errors.
-web_routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
-web_cookie = Locale changes persist through cookies and browser storage without app-level state.
-web_fallback = 基础 locale 数据会在构建时写入生成的 locale 模块。
-web_reactivity = The l rune updates UI text immediately after setLocale.
-web_links = 不需要本地化的链接可以保留原始 URL。
-playground_kicker = 实时 Playground
-playground_title = 修改 count、fruit、size、amount、date 或 locale。
-count_label = 数量
-fruit_label = 水果
-fruit_apple_label = 苹果
-fruit_pear_label = 梨
-fruit_orange_label = 橙子
-size_label = 大小
-size_small_label = 小
-size_big_label = 大
-amount_label = 金额
-date_label = 日期
-localized_path_label = 本地化路由
-cookie_label = Cookie
-route_label = 路由前缀
+nav {
+  why = 为什么
+  language = 语言
+  codegen = 代码生成
+  web = Web
+  locale_label = 语言
+}
 
-playground_sentence = 已配送 {count} 个 {SizeWord(size)} {fruit.nom(count)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
-cart_summary = 购物车中有 {count} 个 {fruit.nom(count)}
-number_format = 数字格式： {value}
-currency_format = 货币格式： {amount @currency(code = "CNY")}
-date_format = 日期格式： {date}
-override_format = Locale override: {amount @number} / {date @date(style = "long")}
-size_line = 大小形式： {SizeWord(size)}
+hero {
+  eyebrow = 面向产品团队的类型化本地化
+  title = Linguini
+  tagline = 为每个人而做的国际化
+  copy = 一种编译型本地化语言，把 schema、locale 语法、CLDR 格式化、SvelteKit hooks、cookie 和本地化路由放在同一个生成流程里。
+  term = /lɪŋˈɡwiːni/
+  term_kind = 名词
+  term_hint = 细长扁平的意式面
+  intro = Linguini 将类型化本地化文件转换成任何应用都能使用的代码。消息、语法、格式化器、locale fallback 和 Web 路由都会在构建时检查。
+  trait_typed = 类型化
+  trait_compiled = 编译型
+  trait_native = 原生
+  primary_cta = 阅读文档
+  secondary_cta = 查看 GitHub
+}
+
+codegen {
+  kicker = 代码生成
+  title = 一份 schema，为每个运行时生成类型化输出
+  intro = Linguini 一次性分析 .lgs 契约与 .lgl 语言逻辑，然后在构建期生成目标模块，内置 CLDR 格式化、复数选择器与框架适配器。
+  ts_title = TypeScript / ESM
+  ts_desc = 类型化消息函数、共享 runtime、声明文件，以及按 locale 的可选 tree shaking。
+  svelte_title = Svelte 5 + SvelteKit
+  svelte_desc = 生成 l rune、切换 locale、localizeHref 辅助函数，以及 handle / reroute / load 导出。
+  planned_title = 计划中的目标
+  planned_intro = 路线图刻意保持宽广：Linguini 计划支持所有实用的 runtime、语言和 Web 框架。
+  rust = Rust
+  kotlin = Kotlin
+  swift = Swift
+  go = Go
+  python = Python
+  csharp = C#
+  status_shipped = 已发布
+  status_planned = 计划中
+}
+
+web {
+  kicker = SvelteKit
+  title = 无需手写 i18n 粘合代码的本地化 SvelteKit
+  intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale, updates messages reactively, and turns invalid message arguments into TypeScript errors.
+  routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
+  cookie = Locale changes persist through cookies and browser storage without app-level state.
+  fallback = 基础 locale 数据会在构建时写入生成的 locale 模块。
+  reactivity = The l rune updates UI text immediately after setLocale.
+  links = 不需要本地化的链接可以保留原始 URL。
+}
+
+playground {
+  kicker = 实时 Playground
+  title = 修改 count、fruit、size、amount、date 或 locale。
+  count_label = 数量
+  fruit_label = 水果
+  fruit_apple_label = 苹果
+  fruit_pear_label = 梨
+  fruit_orange_label = 橙子
+  size_label = 大小
+  size_small_label = 小
+  size_big_label = 大
+  amount_label = 金额
+  date_label = 日期
+  localized_path_label = 本地化路由
+  cookie_label = Cookie
+  route_label = 路由前缀
+  sentence = 已配送 {count} 个 {SizeWord(size)} {fruit.nom(count)}。总计 {amount @currency(code = "CNY")}；日期 {date}.
+  cart_summary = 购物车中有 {count} 个 {fruit.nom(count)}
+  number_format = 数字格式： {value}
+  currency_format = 货币格式： {amount @currency(code = "CNY")}
+  date_format = 日期格式： {date}
+  override_format = Locale override: {amount @number} / {date @date(style = "long")}
+  size_line = 大小形式： {SizeWord(size)}
+}

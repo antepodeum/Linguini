@@ -49,31 +49,31 @@
   const localizedRoot = $derived(linguini.localizeHref('/'));
 
   const nav = $derived([
-    { id: 'why', label: l.main.nav_why },
-    { id: 'codegen', label: l.main.nav_codegen },
-    { id: 'web', label: l.main.nav_web }
+    { id: 'why', label: l.main.nav.why },
+    { id: 'codegen', label: l.main.nav.codegen },
+    { id: 'web', label: l.main.nav.web }
   ]);
 
   const shippedTargets = $derived([
     {
       icon: TypeScriptIcon,
-      title: l.main.codegen_ts_title,
-      description: l.main.codegen_ts_desc
+      title: l.main.codegen.ts_title,
+      description: l.main.codegen.ts_desc
     },
     {
       icon: SvelteIcon,
-      title: l.main.codegen_svelte_title,
-      description: l.main.codegen_svelte_desc
+      title: l.main.codegen.svelte_title,
+      description: l.main.codegen.svelte_desc
     }
   ]);
 
   const plannedTargets = $derived([
-    { icon: RustIcon, label: l.main.codegen_rust },
-    { icon: SwiftIcon, label: l.main.codegen_swift },
-    { icon: GoIcon, label: l.main.codegen_go },
-    { icon: CsharpIcon, label: l.main.codegen_csharp },
-    { icon: KotlinIcon, label: l.main.codegen_kotlin },
-    { icon: PythonIcon, label: l.main.codegen_python },
+    { icon: RustIcon, label: l.main.codegen.rust },
+    { icon: SwiftIcon, label: l.main.codegen.swift },
+    { icon: GoIcon, label: l.main.codegen.go },
+    { icon: CsharpIcon, label: l.main.codegen.csharp },
+    { icon: KotlinIcon, label: l.main.codegen.kotlin },
+    { icon: PythonIcon, label: l.main.codegen.python },
     { icon: JavaIcon, label: 'Java' },
     { icon: PhpIcon, label: 'PHP' },
     { icon: DartIcon, label: 'Dart' },
@@ -91,24 +91,24 @@
   ]);
 
   const fruitOptions = $derived([
-    { value: 'apple' as const, label: l.main.fruit_apple_label },
-    { value: 'pear' as const, label: l.main.fruit_pear_label },
-    { value: 'orange' as const, label: l.main.fruit_orange_label }
+    { value: 'apple' as const, label: l.main.playground.fruit_apple_label },
+    { value: 'pear' as const, label: l.main.playground.fruit_pear_label },
+    { value: 'orange' as const, label: l.main.playground.fruit_orange_label }
   ]);
 
   const sizeOptions = $derived([
-    { value: 'small' as const, label: l.main.size_small_label },
-    { value: 'big' as const, label: l.main.size_big_label }
+    { value: 'small' as const, label: l.main.playground.size_small_label },
+    { value: 'big' as const, label: l.main.playground.size_big_label }
   ]);
 
   const playgroundLines = $derived([
-    l.main.playground_sentence(fruit, size, count, amount, dateValue),
-    l.main.cart_summary(count, fruit),
-    l.main.number_format(amount),
-    l.main.currency_format(amount),
-    l.main.date_format(dateValue),
-    l.main.override_format(amount, dateValue),
-    l.main.size_line(size)
+    l.main.playground.sentence(fruit, size, count, amount, dateValue),
+    l.main.playground.cart_summary(count, fruit),
+    l.main.playground.number_format(amount),
+    l.main.playground.currency_format(amount),
+    l.main.playground.date_format(dateValue),
+    l.main.playground.override_format(amount, dateValue),
+    l.main.playground.size_line(size)
   ]);
 
   function localeHref(locale: Locale) {
@@ -129,8 +129,8 @@
 </script>
 
 <svelte:head>
-  <title>{l.main.hero_title} | typed localization language</title>
-  <meta name="description" content={l.main.hero_copy} />
+  <title>{l.main.hero.title} | typed localization language</title>
+  <meta name="description" content={l.main.hero.copy} />
 </svelte:head>
 
 <div class="grain"></div>
@@ -142,7 +142,7 @@
       <span class="brand-nav-mark">
         <img src={`${base}/icons/favicon.svg`} alt="linguini logo" />
       </span>
-      <span class="truncate text-base tracking-[0.18em] sm:text-lg sm:tracking-[0.28em]">{l.main.hero_title.toUpperCase()}</span>
+      <span class="truncate text-base tracking-[0.18em] sm:text-lg sm:tracking-[0.28em]">{l.main.hero.title.toUpperCase()}</span>
     </a>
 
     <div class="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
@@ -152,11 +152,11 @@
     </div>
 
     <div class="locale-nav flex shrink-0 items-center">
-      <label for="locale-select" class="locale-label px-2 text-xs text-muted-foreground sm:px-3">{l.main.locale_label}</label>
+      <label for="locale-select" class="locale-label px-2 text-xs text-muted-foreground sm:px-3">{l.main.nav.locale_label}</label>
       <select
         id="locale-select"
         class="locale-select sm:hidden"
-        aria-label={l.main.locale_label}
+        aria-label={l.main.nav.locale_label}
         value={linguini.locale}
         onchange={chooseLocaleFromSelect}
       >
@@ -204,8 +204,8 @@
         </div>
 
         <div class="brand-copy">
-          <h1>{l.main.hero_title}</h1>
-          <p class="brand-subtitle">{l.main.hero_tagline}</p>
+          <h1>{l.main.hero.title}</h1>
+          <p class="brand-subtitle">{l.main.hero.tagline}</p>
         </div>
       </div>
 
@@ -220,21 +220,21 @@
     <div class="hero-explain">
       <div>
         <div class="term-line">
-          <span>{l.main.hero_term}</span>
-          <b>{l.main.hero_term_kind}</b>
-          <p>{l.main.hero_term_hint}</p>
+          <span>{l.main.hero.term}</span>
+          <b>{l.main.hero.term_kind}</b>
+          <p>{l.main.hero.term_hint}</p>
         </div>
-        <p class="explain-copy">{l.main.hero_intro}</p>
+        <p class="explain-copy">{l.main.hero.intro}</p>
       </div>
 
       <div class="mt-8 flex flex-col gap-3 sm:flex-row lg:mt-0">
         <Button href="https://github.com/antepodeum/Linguini/blob/main/docs/getting-started.md">
-          {l.main.primary_cta}
+          {l.main.hero.primary_cta}
           <ArrowRight size={17} />
         </Button>
         <Button href="https://github.com/antepodeum/Linguini" variant="secondary">
           <Code2 size={17} />
-          {l.main.secondary_cta}
+          {l.main.hero.secondary_cta}
         </Button>
         <Button
           href="https://marketplace.visualstudio.com/items?itemName=antepod.linguini-vscode"
@@ -260,22 +260,22 @@
     <div class="mx-auto max-w-7xl px-5 py-20 sm:px-8">
       <header class="section-heading">
         <p>01</p>
-        <h2>{l.main.nav_why}</h2>
+        <h2>{l.main.nav.why}</h2>
       </header>
-      <h3 class="mt-8 max-w-3xl font-serif text-4xl font-semibold leading-tight sm:text-5xl">{l.main.hero_tagline}</h3>
-      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.hero_intro}</p>
+      <h3 class="mt-8 max-w-3xl font-serif text-4xl font-semibold leading-tight sm:text-5xl">{l.main.hero.tagline}</h3>
+      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.hero.intro}</p>
     </div>
   </section>
 
   <section id="codegen" class="mx-auto max-w-7xl px-5 py-16 sm:px-8">
     <header class="section-heading mb-8">
       <p>02</p>
-      <h2>{l.main.nav_codegen}</h2>
+      <h2>{l.main.nav.codegen}</h2>
     </header>
     <div class="mb-10">
-      <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.codegen_kicker}</p>
-      <h3 class="mt-3 max-w-3xl font-serif text-4xl font-semibold leading-tight sm:text-5xl">{l.main.codegen_title}</h3>
-      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.codegen_intro}</p>
+      <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.codegen.kicker}</p>
+      <h3 class="mt-3 max-w-3xl font-serif text-4xl font-semibold leading-tight sm:text-5xl">{l.main.codegen.title}</h3>
+      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.codegen.intro}</p>
     </div>
 
     <div class="pipeline">
@@ -311,9 +311,9 @@
     </div>
 
     <div class="mt-10 planned-strip">
-      <p class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{l.main.codegen_planned_title}</p>
-      <p class="mt-2 max-w-3xl text-sm text-muted-foreground">{l.main.codegen_planned_intro}</p>
-      <div class="planned-icons" aria-label={l.main.codegen_planned_title}>
+      <p class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{l.main.codegen.planned_title}</p>
+      <p class="mt-2 max-w-3xl text-sm text-muted-foreground">{l.main.codegen.planned_intro}</p>
+      <div class="planned-icons" aria-label={l.main.codegen.planned_title}>
         {#each plannedTargets as target, index (target.label)}
           {@const Icon = target.icon}
           <span
@@ -333,16 +333,16 @@
     <div class="mx-auto max-w-7xl px-5 py-16 sm:px-8">
       <header class="section-heading mb-8">
         <p>03</p>
-        <h2>{l.main.nav_web}</h2>
+        <h2>{l.main.nav.web}</h2>
       </header>
       <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.web_kicker}</p>
-          <h3 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.web_title}</h3>
-          <p class="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.web_intro}</p>
+          <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.web.kicker}</p>
+          <h3 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.web.title}</h3>
+          <p class="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.web.intro}</p>
         </div>
         <Button href="https://github.com/antepodeum/Linguini/blob/main/docs/web-sveltekit.md" variant="ghost">
-          {l.main.primary_cta}
+          {l.main.hero.primary_cta}
           <ArrowRight size={17} />
         </Button>
       </div>
@@ -350,23 +350,23 @@
       <div class="web-grid">
         <article>
           <p>01</p>
-          <h3>{l.main.web_routing}</h3>
+          <h3>{l.main.web.routing}</h3>
         </article>
         <article>
           <p>02</p>
-          <h3>{l.main.web_cookie}</h3>
+          <h3>{l.main.web.cookie}</h3>
         </article>
         <article>
           <p>03</p>
-          <h3>{l.main.web_fallback}</h3>
+          <h3>{l.main.web.fallback}</h3>
         </article>
         <article>
           <p>04</p>
-          <h3>{l.main.web_reactivity}</h3>
+          <h3>{l.main.web.reactivity}</h3>
         </article>
         <article>
           <p>05</p>
-          <h3>{l.main.web_links}</h3>
+          <h3>{l.main.web.links}</h3>
         </article>
       </div>
     </div>
@@ -375,22 +375,22 @@
   <section class="border-t border-border bg-muted/30 px-5 py-16 sm:px-8">
     <div class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
       <div>
-        <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.playground_kicker}</p>
-        <h3 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.playground_title}</h3>
+        <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.playground.kicker}</p>
+        <h3 class="mt-3 font-serif text-4xl font-semibold sm:text-5xl">{l.main.playground.title}</h3>
         <div class="mt-8 grid gap-3 text-sm text-muted-foreground">
-          <p class="flex items-center gap-2"><Route size={16} class="text-primary" /> {l.main.route_label}: {localizedRoot}</p>
-          <p class="flex items-center gap-2"><Cookie size={16} class="text-primary" /> {l.main.cookie_label}: LINGUINI_SITE_LOCALE={linguini.locale}</p>
+          <p class="flex items-center gap-2"><Route size={16} class="text-primary" /> {l.main.playground.route_label}: {localizedRoot}</p>
+          <p class="flex items-center gap-2"><Cookie size={16} class="text-primary" /> {l.main.playground.cookie_label}: LINGUINI_SITE_LOCALE={linguini.locale}</p>
         </div>
       </div>
 
       <div class="grid gap-4">
         <div class="grid gap-3 rounded-3xl border border-border bg-background/50 p-5 sm:grid-cols-2 lg:grid-cols-3">
           <label class="grid gap-2 text-sm">
-            {l.main.count_label}
+            {l.main.playground.count_label}
             <input class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" type="number" min="0" bind:value={count} />
           </label>
           <label class="grid gap-2 text-sm">
-            {l.main.fruit_label}
+            {l.main.playground.fruit_label}
             <select class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" bind:value={fruit}>
               {#each fruitOptions as option (option.value)}
                 <option value={option.value}>{option.label}</option>
@@ -398,7 +398,7 @@
             </select>
           </label>
           <label class="grid gap-2 text-sm">
-            {l.main.size_label}
+            {l.main.playground.size_label}
             <select class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" bind:value={size}>
               {#each sizeOptions as option (option.value)}
                 <option value={option.value}>{option.label}</option>
@@ -406,17 +406,17 @@
             </select>
           </label>
           <label class="grid gap-2 text-sm">
-            {l.main.amount_label}
+            {l.main.playground.amount_label}
             <input class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" type="number" step="0.01" bind:value={amount} />
           </label>
           <label class="grid gap-2 text-sm">
-            {l.main.date_label}
+            {l.main.playground.date_label}
             <input class="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-foreground" type="date" bind:value={dateInput} />
           </label>
         </div>
 
         <div class="rounded-3xl border border-border bg-background/50 p-5">
-          <p class="mb-4 text-sm uppercase tracking-wide text-muted-foreground">{l.main.localized_path_label}</p>
+          <p class="mb-4 text-sm uppercase tracking-wide text-muted-foreground">{l.main.playground.localized_path_label}</p>
           <p class="mb-6 font-mono text-sm text-primary">{localizedRoot}</p>
           <div class="grid gap-3">
             {#each playgroundLines as line (line)}
