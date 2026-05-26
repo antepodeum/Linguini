@@ -1,20 +1,12 @@
 # Web and SvelteKit setup
 
-Install the Vite plugin. The web and SvelteKit runtime helpers are generated
-into your output directory, so app users do not install separate Linguini
-runtime packages.
+Install the Vite plugin.
 
 ```sh
 npm install @antepod/linguini-vite
 ```
 
-`linguini init` does not enable web output. Enable it explicitly in
-`linguini.toml` when the app needs Svelte or SvelteKit integration.
-
 ## Linguini config
-
-Locale tags and fallback messages stay in the normal Linguini project config.
-The TypeScript target chooses the framework with one option:
 
 ```toml
 [project]
@@ -38,9 +30,6 @@ Use `framework = "svelte"` for a Svelte-only app. Omit `framework` to generate
 only the framework-agnostic TypeScript runtime.
 
 ## Web config
-
-Add `[web]` only when the generated Svelte/SvelteKit helpers need non-default
-locale routing or persistence behavior.
 
 ```toml
 [web]
@@ -231,19 +220,4 @@ export function load({ locals }) {
     canonical: locals.linguini.localizeHref("/pricing"),
   };
 }
-```
-
-For non-SvelteKit frameworks, import the generated web runtime:
-
-```ts
-import { createWebI18n } from "./generated/linguini/web";
-import * as runtime from "./generated/linguini";
-
-const i18n = createWebI18n(runtime, {
-  strategy: ["url", "cookie", "header", "baseLocale"],
-});
-
-const context = await i18n.resolveRequest(request);
-const htmlAttrs = context.htmlAttrs;
-const pricingHref = context.localizeHref("/pricing", "ru");
 ```
