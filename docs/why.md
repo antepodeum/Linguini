@@ -91,7 +91,7 @@ impl Item {
 `item.Gender` is a typed field. `item.acc(amount)` calls an inflection form.
 The word knows itself. Nothing leaks into the call site.
 
-**Forms nest by grammatical category, not by combinatorial product.**
+**Forms nest by grammatical category.**
 
 Each level of a `form` dispatches on exactly one parameter. `_` collapses all
 remaining variants. The 24-row ICU matrix for one adjective:
@@ -124,7 +124,7 @@ form SizeAdj(Size, Plural, Gender) {
 Pass a `Number` anywhere a `Plural` is expected. CLDR plural rules for the
 active locale apply automatically. No wrapper function, no explicit conversion.
 
-**Hard errors, not silent fallbacks.**
+**Hard errors.**
 
 Non-exhaustive match expressions are compile-time errors. Type mismatches at
 call sites are compile-time errors. Nothing falls back to a wrong string silently.
