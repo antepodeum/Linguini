@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use linguini_core::{FormatterKind, TypeKind};
 use linguini_ir::{
@@ -361,22 +361,36 @@ fn schema_uses_auto_formatters(schema: &IrModule) -> bool {
 }
 
 fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatter>> {
-    if let Some(alias) = schema.type_aliases.iter().find(|alias| alias.name == ty) {
-        if !alias.formatters.is_empty() {
-            return Some(alias.formatters.clone());
-        }
-        return default_type_formatters(schema, &alias.target);
-    }
+    let mut current = ty;
+    let mut visited = BTreeSet::new();
 
-    let kind = match TypeKind::from_name(ty)? {
-        TypeKind::Number | TypeKind::Decimal => FormatterKind::Number,
-        TypeKind::Date => FormatterKind::Date,
-        TypeKind::String | TypeKind::Boolean => return None,
-    };
-    Some(vec![IrFormatter {
-        kind,
-        arguments: Vec::<IrFormatterArgument>::new(),
-    }])
+    loop {
+        if !visited.insert(current) {
+            return None;
+        }
+
+        if let Some(alias) = schema
+            .type_aliases
+            .iter()
+            .find(|alias| alias.name == current)
+        {
+            if !alias.formatters.is_empty() {
+                return Some(alias.formatters.clone());
+            }
+            current = &alias.target;
+            continue;
+        }
+
+        let kind = match TypeKind::from_name(current)? {
+            TypeKind::Number | TypeKind::Decimal => FormatterKind::Number,
+            TypeKind::Date => FormatterKind::Date,
+            TypeKind::String | TypeKind::Boolean => return None,
+        };
+        return Some(vec![IrFormatter {
+            kind,
+            arguments: Vec::<IrFormatterArgument>::new(),
+        }]);
+    }
 }
 
 fn signature_params(signature: &IrMessage) -> String {

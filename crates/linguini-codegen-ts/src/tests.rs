@@ -332,6 +332,123 @@ fn project_codegen_applies_primitive_schema_formatters() {
 }
 
 #[test]
+fn project_codegen_emits_callable_form_variants_with_attributes() {
+    let schema = lower_schema(
+        &parse_schema("enum Fruit { apple }\nlabel(fruit: Fruit, count: Number)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            r#"
+impl Fruit {
+  apple {
+    one => apple
+    _ => apples
+    label = Apple
+  }
+}
+label = {fruit(count)}: {fruit.label}
+"#,
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_typescript_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions::default(),
+    )
+    .expect("project codegen");
+
+    let locale_module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+    assert!(locale_module.contents.contains(
+        "apple: Object.assign((value: number | string) => \
+selectBranch(pluralEn(value), { one: \"apple\", _: \"apples\" }), { label: \"Apple\" })"
+    ));
+    assert!(locale_module.contents.contains(
+        "return String(FruitForms[fruit](count)) + \": \" + \
+String(FruitForms[fruit].label);"
+    ));
+}
+
+#[test]
+fn project_codegen_preserves_every_multi_key_branch() {
+    let schema = lower_schema(
+        &parse_schema("enum Fruit { apple }\nlabel(fruit: Fruit, count: Number)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            r#"
+impl Fruit {
+  apple {
+    one, few, many => apples
+    _ => fruit
+  }
+}
+label = {fruit(count)}
+"#,
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_typescript_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions::default(),
+    )
+    .expect("project codegen");
+
+    let locale_module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+    assert!(locale_module.contents.contains(
+        "apple: (value: number | string) => selectBranch(pluralEn(value), \
+{ one: \"apples\", few: \"apples\", many: \"apples\", _: \"fruit\" })"
+    ));
+}
+
+#[test]
+fn project_codegen_stops_formatter_alias_cycles() {
+    let schema = lower_schema(
+        &parse_schema("type First = Second\ntype Second = First\nlabel(value: First)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(&parse_locale("label = {value}\n").expect("locale implementation"));
+
+    let files = generate_typescript_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions::default(),
+    )
+    .expect("cyclic aliases must not overflow codegen");
+
+    let locale_module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+    assert!(locale_module
+        .contents
+        .contains("export function label(value: First): string"));
+    assert!(locale_module.contents.contains("return String(value);"));
+    assert!(!locale_module.contents.contains("function formatNumber("));
+    assert!(!locale_module.contents.contains("function formatDate("));
+}
+
+#[test]
 fn project_codegen_emits_schema_namespace_objects() {
     use linguini_ir::{IrMessage, IrModule, IrText, IrTextPart};
 

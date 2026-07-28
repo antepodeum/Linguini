@@ -24,7 +24,25 @@ pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> Stri
         })
         .collect::<Vec<_>>()
         .join(", ");
-    format!("{{ {fields} }}")
+    let object = format!("{{ {fields} }}");
+    let branches = entries
+        .iter()
+        .filter_map(|entry| match entry {
+            IrFormEntry::Attribute { .. } => None,
+            IrFormEntry::Branch(branch) => Some(branch.clone()),
+        })
+        .collect::<Vec<_>>();
+
+    if branches.is_empty() {
+        object
+    } else {
+        let dispatcher = map_expression(&branches, options);
+        if fields.is_empty() {
+            dispatcher
+        } else {
+            format!("Object.assign({dispatcher}, {object})")
+        }
+    }
 }
 
 pub fn value_expression(value: &IrValue, options: &TypeScriptOptions) -> String {
@@ -78,13 +96,16 @@ pub fn is_static_text(text: &IrText) -> bool {
 fn branch_items(branches: &[IrBranch], options: &TypeScriptOptions) -> String {
     branches
         .iter()
-        .map(|branch| {
-            let key = branch.keys.first().map(String::as_str).unwrap_or("_");
-            format!(
-                "{}: {}",
-                property_key(key),
-                text_expression(&branch.value, options)
-            )
+        .flat_map(|branch| {
+            let value = text_expression(&branch.value, options);
+            if branch.keys.is_empty() {
+                return vec![format!("{}: {value}", property_key("_"))];
+            }
+            branch
+                .keys
+                .iter()
+                .map(|key| format!("{}: {value}", property_key(key)))
+                .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>()
         .join(", ")
