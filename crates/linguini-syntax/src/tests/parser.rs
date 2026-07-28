@@ -1,7 +1,8 @@
 use crate::{
-    parse_locale, parse_locale_with_recovery, parse_schema, parse_schema_with_recovery, FormEntry,
-    FormatterKind, FunctionBranchValue, LocaleDeclaration, LocaleValue, SchemaDeclaration,
-    TextPart,
+    parse_locale, parse_locale_in, parse_locale_with_recovery, parse_schema,
+    parse_schema_with_recovery, validate_locale_ast, validate_schema_ast, FormEntry, FormatterKind,
+    FunctionBranchValue, FunctionKind, LocaleDeclaration, LocaleValue, SchemaDeclaration, SourceId,
+    TextBlockMode, TextPart,
 };
 use std::fs;
 use std::path::Path;
@@ -123,14 +124,30 @@ email_input {
 }
 
 #[test]
-fn rejects_empty_schema_message_parentheses() {
-    assert!(parse_schema("nav_label()\n").is_err());
+fn supports_empty_schema_message_parentheses() {
+    let schema = parse_schema("nav_label()\n").expect("zero-argument message");
+    let SchemaDeclaration::Message(message) = &schema.declarations[0] else {
+        panic!("expected message");
+    };
+    assert!(message.parameters.is_empty());
 }
 
 #[test]
-fn rejects_empty_locale_function_parentheses() {
-    assert!(parse_locale("fn Label() { _ => Label }\n").is_err());
-    assert!(parse_locale("form Label() { _ => Label }\n").is_err());
+fn supports_empty_locale_function_parentheses_and_preserves_kind() {
+    let locale = parse_locale("fn Label() { _ => Label }\nform FormLabel() { _ => Label }\n")
+        .expect("zero-argument functions");
+
+    let LocaleDeclaration::Function(function) = &locale.declarations[0] else {
+        panic!("expected function");
+    };
+    assert!(function.parameters.is_empty());
+    assert_eq!(function.kind, FunctionKind::Function);
+
+    let LocaleDeclaration::Function(form) = &locale.declarations[1] else {
+        panic!("expected form");
+    };
+    assert!(form.parameters.is_empty());
+    assert_eq!(form.kind, FunctionKind::Form);
 }
 
 #[test]
@@ -327,12 +344,244 @@ fn parses_locale_override_declaration() {
     match &locale.declarations[0] {
         LocaleDeclaration::Override(declaration) => match declaration.as_ref() {
             LocaleDeclaration::Enum(declaration) => {
-                assert_eq!(declaration.name.value, "Gender")
+                assert_eq!(declaration.name.value, "Gender");
+                assert_eq!(declaration.span.start, 0);
             }
             other => panic!("expected enum override, got {other:?}"),
         },
         other => panic!("expected override, got {other:?}"),
     }
+}
+
+#[test]
+fn distinguishes_reference_from_zero_argument_call() {
+    let locale = parse_locale("value = {reference} {call()}\n").expect("locale parses");
+    let LocaleDeclaration::Message(message) = &locale.declarations[0] else {
+        panic!("expected message");
+    };
+    let expressions: Vec<_> = message
+        .value
+        .parts
+        .iter()
+        .filter_map(|part| match part {
+            TextPart::Placeholder(placeholder) => Some(&placeholder.expression),
+            TextPart::Text(_) => None,
+        })
+        .collect();
+
+    assert_eq!(expressions[0].kind, crate::ExpressionKind::Reference);
+    assert_eq!(expressions[1].kind, crate::ExpressionKind::Call);
+    assert!(expressions[1].arguments.is_empty());
+}
+
+#[test]
+fn parses_recursive_schema_and_locale_groups() {
+    let schema = parse_schema("shop {\n  main {\n    checkout {\n      title\n    }\n  }\n}\n")
+        .expect("nested schema");
+    let SchemaDeclaration::Group(shop) = &schema.declarations[0] else {
+        panic!("expected schema group");
+    };
+    assert_eq!(shop.groups[0].groups[0].messages[0].name.value, "title");
+
+    let locale =
+        parse_locale("shop {\n  main {\n    checkout {\n      title = Checkout\n    }\n  }\n}\n")
+            .expect("nested locale");
+    let LocaleDeclaration::Group(shop) = &locale.declarations[0] else {
+        panic!("expected locale group");
+    };
+    assert_eq!(shop.groups[0].groups[0].messages[0].name.value, "title");
+}
+
+#[test]
+fn parses_dedented_and_raw_multiline_patterns() {
+    let source = concat!(
+        "receipt = \"\"\"\r\n",
+        "\tOrder {order_id}\r\n",
+        "\t  {item_count} items  \r\n",
+        "\tThank you.\r\n",
+        "\"\"\"\n",
+        "wire = raw\"\"\"  leading\r\n",
+        "\tindentation is data\r\n",
+        "trailing spaces stay  \"\"\"\n",
+    );
+    let locale = parse_locale(source).expect("multiline locale");
+
+    let LocaleDeclaration::Message(receipt) = &locale.declarations[0] else {
+        panic!("expected receipt");
+    };
+    assert_eq!(receipt.value.mode, TextBlockMode::Dedented);
+    assert_eq!(
+        render_pattern(&receipt.value),
+        "Order {order_id}\n  {item_count} items  \nThank you."
+    );
+
+    let LocaleDeclaration::Message(wire) = &locale.declarations[1] else {
+        panic!("expected wire");
+    };
+    assert_eq!(wire.value.mode, TextBlockMode::Raw);
+    assert_eq!(
+        render_pattern(&wire.value),
+        "  leading\r\n\tindentation is data\r\ntrailing spaces stay  "
+    );
+}
+
+#[test]
+fn supports_empty_one_line_and_quote_rich_multiline_blocks() {
+    let locale = parse_locale(
+        "empty = \"\"\"\"\"\"\none = \"\"\"hello\"\"\"\nquotes = \"\"\"a \"\" b\"\"\"\n",
+    )
+    .expect("multiline variants");
+
+    let values: Vec<_> = locale
+        .declarations
+        .iter()
+        .map(|declaration| match declaration {
+            LocaleDeclaration::Message(message) => render_pattern(&message.value),
+            other => panic!("expected message, got {other:?}"),
+        })
+        .collect();
+    assert_eq!(values, ["", "hello", "a \"\" b"]);
+}
+
+#[test]
+fn parses_literal_brace_escapes() {
+    let locale = parse_locale("value = {{name}} = {name}\nblock = \"\"\"{{x}}\"\"\"\n")
+        .expect("escaped braces");
+
+    let LocaleDeclaration::Message(value) = &locale.declarations[0] else {
+        panic!("expected message");
+    };
+    assert_eq!(render_pattern(&value.value), "{name} = {name}");
+    let LocaleDeclaration::Message(block) = &locale.declarations[1] else {
+        panic!("expected message");
+    };
+    assert_eq!(render_pattern(&block.value), "{x}");
+}
+
+#[test]
+fn validates_empty_enums_duplicates_names_and_paths() {
+    for source in [
+        "enum Empty {}\n",
+        "enum Fruit { apple, apple }\n",
+        "enum fruit { apple }\n",
+        "enum Fruit { Apple }\n",
+        "delivery(count: Number, count: Number)\n",
+        "fn\n",
+    ] {
+        assert!(parse_schema(source).is_err(), "{source}");
+    }
+
+    assert!(parse_locale("value = {a.b.c}\n").is_err());
+    assert!(parse_locale("fn note(item: String, item: String) { _ => x }\n").is_err());
+    assert!(parse_locale("empty {}\n").is_err());
+}
+
+#[test]
+fn rejects_group_member_collisions_and_excessive_nesting() {
+    assert!(parse_schema("shop { main main { title } }\n").is_err());
+    assert!(parse_locale("shop { main = X\nmain { title = Y } }\n").is_err());
+
+    let mut source = String::new();
+    for depth in 0..70 {
+        source.push_str(&format!("g{depth} {{ "));
+    }
+    source.push_str("title = X");
+    for _ in 0..70 {
+        source.push_str(" }");
+    }
+    assert!(parse_locale(&source).is_err());
+}
+
+#[test]
+fn rejects_detached_docs_and_does_not_stitch_lex_errors() {
+    assert!(parse_schema("/// docs\n\nmessage\n").is_err());
+
+    let output = parse_locale_with_recovery("first = ok\n#\nsecond = fine\n");
+    assert!(output.ast.is_none());
+    assert!(!output.errors.is_empty());
+}
+
+#[test]
+fn source_id_propagates_to_all_spans() {
+    let source_id = SourceId(42);
+    let locale = parse_locale_in("value = text\n", source_id).expect("locale parses");
+    assert_eq!(locale.span.source, source_id);
+    let LocaleDeclaration::Message(message) = &locale.declarations[0] else {
+        panic!("expected message");
+    };
+    assert_eq!(message.name.span.source, source_id);
+    assert_eq!(message.value.span.source, source_id);
+}
+
+#[test]
+fn explicit_ast_validation_catches_invalid_manual_mutation() {
+    let mut schema = parse_schema("enum Fruit { apple }\n").expect("schema");
+    let SchemaDeclaration::Enum(item) = &mut schema.declarations[0] else {
+        panic!("expected enum");
+    };
+    item.variants.clear();
+    assert!(validate_schema_ast(&schema)
+        .iter()
+        .any(|error| error.message.contains("at least one variant")));
+
+    let mut locale = parse_locale("value = {name}\n").expect("locale");
+    let LocaleDeclaration::Message(message) = &mut locale.declarations[0] else {
+        panic!("expected message");
+    };
+    let TextPart::Placeholder(placeholder) = &mut message.value.parts[0] else {
+        panic!("expected placeholder");
+    };
+    placeholder
+        .expression
+        .arguments
+        .push(placeholder.expression.clone());
+    assert!(validate_locale_ast(&locale)
+        .iter()
+        .any(|error| error.message.contains("reference expression")));
+}
+
+#[test]
+fn parser_is_panic_free_for_unicode_recovery_corpus() {
+    let mut corpus = vec![
+        "",
+        "\0",
+        "🔥",
+        "value = {",
+        "value = \"\"\"\r\n\tй\n",
+        "enum E { а, а }",
+        "/// docs\n// detached\nvalue",
+        "value = {{literal}}",
+    ];
+    let large = "message = value\n".repeat(256);
+    corpus.push(&large);
+
+    for source in corpus {
+        let result = std::panic::catch_unwind(|| {
+            let _ = parse_locale_with_recovery(source);
+            let _ = parse_schema_with_recovery(source);
+        });
+        assert!(result.is_ok(), "parser panicked for {source:?}");
+    }
+}
+
+fn render_pattern(pattern: &crate::TextPattern) -> String {
+    pattern
+        .parts
+        .iter()
+        .map(|part| match part {
+            TextPart::Text(text) => text.value.clone(),
+            TextPart::Placeholder(placeholder) => format!(
+                "{{{}}}",
+                placeholder
+                    .expression
+                    .path
+                    .iter()
+                    .map(|name| name.value.as_str())
+                    .collect::<Vec<_>>()
+                    .join(".")
+            ),
+        })
+        .collect()
 }
 
 fn fixture_files(root: &Path) -> Vec<std::path::PathBuf> {

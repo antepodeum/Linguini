@@ -3,11 +3,15 @@ use chumsky::{input::IterInput, input::ValueInput, prelude::*};
 mod locale_parser;
 #[cfg(test)]
 mod locale_tests;
+mod validate;
+
+use validate::{validate_locale, validate_schema};
 
 use crate::{
-    lex, lex_schema, lex_schema_with_recovery, lex_with_recovery, Annotation, AnnotationArgument,
-    DocComment, EnumDeclaration, LocaleFile, MessageGroup, MessageSignature, Name, Parameter,
-    SchemaDeclaration, SchemaFile, Span, StringLiteral, TokenKind, TypeAliasDeclaration,
+    lex_in, lex_schema_in, lex_schema_with_recovery_in, lex_with_recovery_in, Annotation,
+    AnnotationArgument, DocComment, EnumDeclaration, LocaleFile, MessageGroup, MessageSignature,
+    Name, Parameter, SchemaDeclaration, SchemaFile, SourceId, Span, StringLiteral, TokenKind,
+    TypeAliasDeclaration,
 };
 
 type Extra<'tokens> = extra::Err<Rich<'tokens, TokenKind, Span>>;
@@ -24,8 +28,20 @@ pub struct ParseOutput<T> {
     pub errors: Vec<ParseError>,
 }
 
+pub fn validate_locale_ast(file: &LocaleFile) -> Vec<ParseError> {
+    validate_locale(file)
+}
+
+pub fn validate_schema_ast(file: &SchemaFile) -> Vec<ParseError> {
+    validate_schema(file)
+}
+
 pub fn parse_locale(source: &str) -> Result<LocaleFile, Vec<ParseError>> {
-    let tokens = lex(source).map_err(|error| {
+    parse_locale_in(source, SourceId::default())
+}
+
+pub fn parse_locale_in(source: &str, source_id: SourceId) -> Result<LocaleFile, Vec<ParseError>> {
+    let tokens = lex_in(source, source_id).map_err(|error| {
         vec![ParseError {
             message: error.message,
             span: error.span,
@@ -35,20 +51,36 @@ pub fn parse_locale(source: &str) -> Result<LocaleFile, Vec<ParseError>> {
         .into_iter()
         .map(|token| (token.kind, token.span))
         .collect();
-    let eof = Span::new(source.len(), source.len());
+    let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, errors) = locale_parser::locale_parser()
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
         .into_output_errors();
 
-    if errors.is_empty() {
-        Ok(ast.expect("parser produced an AST without errors"))
+    let mut errors: Vec<_> = errors.into_iter().map(parse_error_from_rich).collect();
+    if let Some(ast) = ast {
+        errors.extend(validate_locale(&ast));
+        if errors.is_empty() {
+            Ok(ast)
+        } else {
+            Err(errors)
+        }
     } else {
-        Err(errors.into_iter().map(parse_error_from_rich).collect())
+        if errors.is_empty() {
+            errors.push(ParseError {
+                message: "parser produced no syntax tree".to_owned(),
+                span: eof,
+            });
+        }
+        Err(errors)
     }
 }
 
 pub fn parse_locale_with_recovery(source: &str) -> ParseOutput<LocaleFile> {
-    let lexed = lex_with_recovery(source);
+    parse_locale_with_recovery_in(source, SourceId::default())
+}
+
+pub fn parse_locale_with_recovery_in(source: &str, source_id: SourceId) -> ParseOutput<LocaleFile> {
+    let lexed = lex_with_recovery_in(source, source_id);
     let mut errors: Vec<_> = lexed
         .errors
         .into_iter()
@@ -57,23 +89,28 @@ pub fn parse_locale_with_recovery(source: &str) -> ParseOutput<LocaleFile> {
             span: error.span,
         })
         .collect();
+    if !errors.is_empty() {
+        return ParseOutput { ast: None, errors };
+    }
     let syntax_tokens: Vec<_> = strip_trivia(lexed.tokens)
         .into_iter()
-        .filter(|token| !matches!(token.kind, TokenKind::Error(_)))
         .map(|token| (token.kind, token.span))
         .collect();
-    let eof = Span::new(source.len(), source.len());
+    let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, parse_errors) = locale_parser::locale_parser()
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
         .into_output_errors();
 
     errors.extend(parse_errors.into_iter().map(parse_error_from_rich));
-
     ParseOutput { ast, errors }
 }
 
 pub fn parse_schema(source: &str) -> Result<SchemaFile, Vec<ParseError>> {
-    let tokens = lex_schema(source).map_err(|error| {
+    parse_schema_in(source, SourceId::default())
+}
+
+pub fn parse_schema_in(source: &str, source_id: SourceId) -> Result<SchemaFile, Vec<ParseError>> {
+    let tokens = lex_schema_in(source, source_id).map_err(|error| {
         vec![ParseError {
             message: error.message,
             span: error.span,
@@ -83,20 +120,36 @@ pub fn parse_schema(source: &str) -> Result<SchemaFile, Vec<ParseError>> {
         .into_iter()
         .map(|token| (token.kind, token.span))
         .collect();
-    let eof = Span::new(source.len(), source.len());
+    let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, errors) = schema_parser()
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
         .into_output_errors();
 
-    if errors.is_empty() {
-        Ok(ast.expect("parser produced an AST without errors"))
+    let mut errors: Vec<_> = errors.into_iter().map(parse_error_from_rich).collect();
+    if let Some(ast) = ast {
+        errors.extend(validate_schema(&ast));
+        if errors.is_empty() {
+            Ok(ast)
+        } else {
+            Err(errors)
+        }
     } else {
-        Err(errors.into_iter().map(parse_error_from_rich).collect())
+        if errors.is_empty() {
+            errors.push(ParseError {
+                message: "parser produced no syntax tree".to_owned(),
+                span: eof,
+            });
+        }
+        Err(errors)
     }
 }
 
 pub fn parse_schema_with_recovery(source: &str) -> ParseOutput<SchemaFile> {
-    let lexed = lex_schema_with_recovery(source);
+    parse_schema_with_recovery_in(source, SourceId::default())
+}
+
+pub fn parse_schema_with_recovery_in(source: &str, source_id: SourceId) -> ParseOutput<SchemaFile> {
+    let lexed = lex_schema_with_recovery_in(source, source_id);
     let mut errors: Vec<_> = lexed
         .errors
         .into_iter()
@@ -105,18 +158,19 @@ pub fn parse_schema_with_recovery(source: &str) -> ParseOutput<SchemaFile> {
             span: error.span,
         })
         .collect();
+    if !errors.is_empty() {
+        return ParseOutput { ast: None, errors };
+    }
     let syntax_tokens: Vec<_> = strip_trivia(lexed.tokens)
         .into_iter()
-        .filter(|token| !matches!(token.kind, TokenKind::Error(_)))
         .map(|token| (token.kind, token.span))
         .collect();
-    let eof = Span::new(source.len(), source.len());
+    let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, parse_errors) = schema_parser()
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
         .into_output_errors();
 
     errors.extend(parse_errors.into_iter().map(parse_error_from_rich));
-
     ParseOutput { ast, errors }
 }
 
@@ -154,15 +208,55 @@ fn join_expected(mut expected: Vec<String>) -> String {
 }
 
 fn strip_trivia(tokens: Vec<crate::Token>) -> Vec<crate::Token> {
-    tokens
-        .into_iter()
-        .filter(|token| {
-            !matches!(
-                token.kind,
-                TokenKind::Whitespace | TokenKind::Newline | TokenKind::Comment(_)
-            )
-        })
-        .collect()
+    let mut output = Vec::new();
+    let mut pending_doc_span = None;
+    let mut line_breaks_after_doc = 0usize;
+    let mut comment_after_doc = false;
+
+    for token in tokens {
+        match token.kind {
+            TokenKind::Whitespace => {}
+            TokenKind::Newline => {
+                if pending_doc_span.is_some() {
+                    line_breaks_after_doc += 1;
+                }
+            }
+            TokenKind::Comment(_) => {
+                if pending_doc_span.is_some() {
+                    comment_after_doc = true;
+                }
+            }
+            TokenKind::DocComment(_) => {
+                if let Some(span) = pending_doc_span {
+                    if line_breaks_after_doc > 1 || comment_after_doc {
+                        output.push(crate::Token::new(
+                            TokenKind::Error("detached doc comment".to_owned()),
+                            span,
+                        ));
+                    }
+                }
+                pending_doc_span = Some(token.span);
+                line_breaks_after_doc = 0;
+                comment_after_doc = false;
+                output.push(token);
+            }
+            _ => {
+                if let Some(span) = pending_doc_span.take() {
+                    if line_breaks_after_doc > 1 || comment_after_doc {
+                        output.push(crate::Token::new(
+                            TokenKind::Error("detached doc comment".to_owned()),
+                            span,
+                        ));
+                    }
+                }
+                line_breaks_after_doc = 0;
+                comment_after_doc = false;
+                output.push(token);
+            }
+        }
+    }
+
+    output
 }
 
 fn schema_parser<'tokens, I>() -> impl Parser<'tokens, I, SchemaFile, Extra<'tokens>> + Clone
@@ -246,60 +340,96 @@ fn group_or_message_declaration<'tokens, I>(
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    name()
-        .then(choice((
-            parameters().map_with(|parameters, extra| GroupOrMessage::Message {
-                parameters,
-                span: extra.span(),
-            }),
-            message_signature_body()
-                .repeated()
-                .collect::<Vec<_>>()
-                .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace))
-                .map_with(|messages, extra| GroupOrMessage::Group {
-                    messages,
-                    span: extra.span(),
-                }),
-            empty().map_with(|_, extra| GroupOrMessage::Message {
-                parameters: Vec::new(),
-                span: extra.span(),
-            }),
-        )))
-        .map(|(name, body)| match body {
-            GroupOrMessage::Message { parameters, span } => {
-                let declaration_span = name.span.union(span);
-                SchemaDeclaration::Message(MessageSignature {
-                    docs: Vec::new(),
-                    name,
-                    parameters,
-                    span: declaration_span,
-                })
-            }
-            GroupOrMessage::Group { messages, span } => SchemaDeclaration::Group(MessageGroup {
-                docs: Vec::new(),
-                span: name.span.union(span),
-                name,
-                messages,
-            }),
-        })
+    schema_group_member().map(|member| match member {
+        SchemaGroupMember::Message(message) => SchemaDeclaration::Message(message),
+        SchemaGroupMember::Group(group) => SchemaDeclaration::Group(group),
+    })
 }
 
-fn message_signature_body<'tokens, I>(
-) -> impl Parser<'tokens, I, MessageSignature, Extra<'tokens>> + Clone
+fn schema_group_member<'tokens, I>(
+) -> impl Parser<'tokens, I, SchemaGroupMember, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    doc_comment()
-        .repeated()
-        .collect::<Vec<_>>()
-        .then(name())
-        .then(parameters().or_not())
-        .map_with(|((docs, name), parameters), extra| MessageSignature {
-            docs,
-            name,
-            parameters: parameters.unwrap_or_default(),
-            span: extra.span(),
-        })
+    recursive(|member| {
+        let body = name()
+            .then(choice((
+                parameters().map_with(|parameters, extra| GroupOrMessage::Message {
+                    parameters,
+                    span: extra.span(),
+                }),
+                member
+                    .clone()
+                    .repeated()
+                    .collect::<Vec<_>>()
+                    .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace))
+                    .map_with(|members, extra| GroupOrMessage::Group {
+                        members,
+                        span: extra.span(),
+                    }),
+                empty().map_with(|_, extra| GroupOrMessage::Message {
+                    parameters: Vec::new(),
+                    span: extra.span(),
+                }),
+            )))
+            .map(|(name, body)| match body {
+                GroupOrMessage::Message { parameters, span } => {
+                    SchemaGroupMember::Message(MessageSignature {
+                        docs: Vec::new(),
+                        span: name.span.union(span),
+                        name,
+                        parameters,
+                    })
+                }
+                GroupOrMessage::Group { members, span } => {
+                    let (messages, groups) = split_schema_group_members(members);
+                    SchemaGroupMember::Group(MessageGroup {
+                        docs: Vec::new(),
+                        span: name.span.union(span),
+                        name,
+                        messages,
+                        groups,
+                    })
+                }
+            });
+
+        doc_comment()
+            .repeated()
+            .collect::<Vec<_>>()
+            .then(body)
+            .map(|(docs, mut member)| {
+                member.set_docs(docs);
+                member
+            })
+    })
+}
+
+fn split_schema_group_members(
+    members: Vec<SchemaGroupMember>,
+) -> (Vec<MessageSignature>, Vec<MessageGroup>) {
+    let mut messages = Vec::new();
+    let mut groups = Vec::new();
+    for member in members {
+        match member {
+            SchemaGroupMember::Message(message) => messages.push(message),
+            SchemaGroupMember::Group(group) => groups.push(group),
+        }
+    }
+    (messages, groups)
+}
+
+impl SchemaGroupMember {
+    fn set_docs(&mut self, docs: Vec<DocComment>) {
+        match self {
+            Self::Message(message) => message.docs = docs,
+            Self::Group(group) => group.docs = docs,
+        }
+    }
+}
+
+enum SchemaGroupMember {
+    Message(MessageSignature),
+    Group(MessageGroup),
 }
 
 fn parameters<'tokens, I>() -> impl Parser<'tokens, I, Vec<Parameter>, Extra<'tokens>> + Clone
@@ -315,7 +445,6 @@ where
             span: extra.span(),
         })
         .separated_by(just(TokenKind::Comma))
-        .at_least(1)
         .allow_trailing()
         .collect::<Vec<_>>()
         .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen))
@@ -400,7 +529,7 @@ enum GroupOrMessage {
         span: Span,
     },
     Group {
-        messages: Vec<MessageSignature>,
+        members: Vec<SchemaGroupMember>,
         span: Span,
     },
 }

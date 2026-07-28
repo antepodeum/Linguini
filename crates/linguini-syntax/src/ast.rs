@@ -74,6 +74,7 @@ pub struct MessageGroup {
     pub docs: Vec<DocComment>,
     pub name: Name,
     pub messages: Vec<MessageSignature>,
+    pub groups: Vec<MessageGroup>,
     pub span: Span,
 }
 
@@ -142,10 +143,17 @@ pub enum LocaleValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionDeclaration {
     pub docs: Vec<DocComment>,
+    pub kind: FunctionKind,
     pub name: Name,
     pub parameters: Vec<FunctionParameter>,
     pub branches: Vec<FunctionBranch>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FunctionKind {
+    Form,
+    Function,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,13 +204,22 @@ pub struct MessageImplementationGroup {
     pub docs: Vec<DocComment>,
     pub name: Name,
     pub messages: Vec<MessageImplementation>,
+    pub groups: Vec<MessageImplementationGroup>,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextPattern {
     pub parts: Vec<TextPart>,
+    pub mode: TextBlockMode,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextBlockMode {
+    Inline,
+    Dedented,
+    Raw,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -225,8 +242,15 @@ pub struct Placeholder {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expression {
+    pub kind: ExpressionKind,
     pub path: Vec<Name>,
     pub arguments: Vec<Expression>,
     pub annotations: Vec<Annotation>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExpressionKind {
+    Reference,
+    Call,
 }

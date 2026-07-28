@@ -103,12 +103,12 @@ fn lexes_multiline_text_with_placeholder() {
             TokenKind::Whitespace,
             TokenKind::Equals,
             TokenKind::TripleQuote,
-            TokenKind::Newline,
+            TokenKind::RawText("\n".into()),
             TokenKind::RawText("Hello, ".into()),
             TokenKind::LBrace,
             TokenKind::Ident("name".into()),
             TokenKind::RBrace,
-            TokenKind::Newline,
+            TokenKind::RawText("\n".into()),
             TokenKind::TripleQuote,
             TokenKind::Newline,
         ]
@@ -170,6 +170,46 @@ fn reports_unterminated_placeholder_with_recovered_prefix() {
         .any(|token| token.kind == TokenKind::Ident("next".into())));
     assert_eq!(output.errors.len(), 1);
     assert_eq!(output.errors[0].message, "unterminated placeholder");
+}
+
+#[test]
+fn decodes_string_escapes() {
+    let tokens =
+        lex_schema(r#"type Label = String @number(note = "a\n\u{41}\\\"")"#).expect("source lexes");
+
+    assert!(tokens
+        .iter()
+        .any(|token| token.kind == TokenKind::String("a\nA\\\"".into())));
+}
+
+#[test]
+fn escaped_braces_are_text_not_placeholders() {
+    let tokens = lex("value = {{left}} and {{right}}\n").expect("source lexes");
+    let kinds: Vec<_> = tokens.into_iter().map(|token| token.kind).collect();
+
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| matches!(kind, TokenKind::LBrace | TokenKind::RBrace))
+            .count(),
+        0
+    );
+    assert!(kinds.contains(&TokenKind::RawText("{".into())));
+    assert!(kinds.contains(&TokenKind::RawText("}".into())));
+}
+
+#[test]
+fn malformed_equals_does_not_poison_following_line() {
+    let output = lex_with_recovery("=\nnext = valid\n");
+
+    assert!(output
+        .tokens
+        .iter()
+        .any(|token| token.kind == TokenKind::Ident("next".into())));
+    assert!(output
+        .tokens
+        .iter()
+        .any(|token| token.kind == TokenKind::RawText(" valid".into())));
 }
 
 #[test]

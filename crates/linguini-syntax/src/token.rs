@@ -1,36 +1,72 @@
 use std::fmt;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SourceId(pub u32);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
+    pub source: SourceId,
     pub start: usize,
     pub end: usize,
 }
 
 impl Span {
     pub const fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
+        Self {
+            source: SourceId(0),
+            start,
+            end,
+        }
+    }
+
+    pub const fn in_source(source: SourceId, start: usize, end: usize) -> Self {
+        Self { source, start, end }
     }
 
     pub const fn shift(self, offset: usize) -> Self {
         Self {
+            source: self.source,
             start: self.start + offset,
             end: self.end + offset,
+        }
+    }
+
+    pub const fn union(self, other: Self) -> Self {
+        if self.source.0 == other.source.0 {
+            Self {
+                source: self.source,
+                start: if self.start < other.start {
+                    self.start
+                } else {
+                    other.start
+                },
+                end: if self.end > other.end {
+                    self.end
+                } else {
+                    other.end
+                },
+            }
+        } else {
+            self
         }
     }
 }
 
 impl chumsky::span::Span for Span {
-    type Context = ();
+    type Context = SourceId;
     type Offset = usize;
 
-    fn new(_: Self::Context, range: std::ops::Range<Self::Offset>) -> Self {
+    fn new(source: Self::Context, range: std::ops::Range<Self::Offset>) -> Self {
         Self {
+            source,
             start: range.start,
             end: range.end,
         }
     }
 
-    fn context(&self) -> Self::Context {}
+    fn context(&self) -> Self::Context {
+        self.source
+    }
 
     fn start(&self) -> Self::Offset {
         self.start
@@ -71,6 +107,7 @@ pub enum TokenKind {
     Dot,
     At,
     TripleQuote,
+    RawTripleQuote,
     Newline,
     Whitespace,
     Comment(String),
@@ -96,6 +133,7 @@ impl fmt::Display for TokenKind {
             Self::Dot => f.write_str("`.`"),
             Self::At => f.write_str("`@`"),
             Self::TripleQuote => f.write_str("`\"\"\"`"),
+            Self::RawTripleQuote => f.write_str("`raw\"\"\"`"),
             Self::Newline => f.write_str("newline"),
             Self::Whitespace => f.write_str("whitespace"),
             Self::Comment(_) => f.write_str("comment"),
