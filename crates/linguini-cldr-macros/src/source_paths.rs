@@ -1,386 +1,389 @@
-use std::env;
-use std::fs;
-use std::io::ErrorKind;
+use crate::sha256::{hex, Sha256};
+use serde_json::Value;
+use std::collections::BTreeSet;
+use std::fs::{self, File};
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::thread;
-use std::time::Duration;
+
+pub(crate) const SOURCE_REPOSITORY: &str = "https://github.com/unicode-org/cldr-json.git";
+pub(crate) const SOURCE_REF: &str = "48.2.0";
+pub(crate) const SOURCE_COMMIT: &str = "bb334e8d6250c9363e957e131bf7e6d08ec72f91";
+pub(crate) const SOURCE_GIT_TREE: &str = "b297a9501ae136e59d006f0497204524a5478cc9";
+pub(crate) const SOURCE_TREE_SHA256: &str =
+    "784a63e309fb16ba4a34598164f26a99b0e3a9d17d74dc9cfd9f6f3ae9c4f679";
+pub(crate) const CLDR_VERSION: &str = "48.2.0";
+pub(crate) const UNICODE_VERSION: &str = "16.0.0";
+pub(crate) const EXPECTED_LOCALE_COUNT: usize = 766;
 
 const PLURALS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/plurals.json";
 const LAYOUT_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-misc-full/main";
 const NUMBERS_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-numbers-full/main";
 const DATES_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-dates-full/main";
-const LOCAL_CLDR_SOURCE_RELATIVE_PATH: &str = "vendor/cldr-json";
-const CLDR_SOURCE_CONFIG_RELATIVE_PATH: &str = "cldr-json.toml";
-const CLDR_SOURCE_CHECKOUT_ENV: &str = "LINGUINI_CLDR_SOURCE_CHECKOUT_DIR";
-const CLDR_FETCH_LOCK_RETRIES: usize = 120;
-const CLDR_FETCH_LOCK_SLEEP_MS: u64 = 500;
+const PACKAGE_RELATIVE_PATHS: [&str; 4] = [
+    "cldr-json/cldr-core/package.json",
+    "cldr-json/cldr-numbers-full/package.json",
+    "cldr-json/cldr-dates-full/package.json",
+    "cldr-json/cldr-misc-full/package.json",
+];
 
-pub(crate) fn plural_source_path() -> Result<PathBuf, String> {
-    if let Ok(path) = env::var("LINGUINI_CLDR_PLURALS_JSON") {
-        return Ok(PathBuf::from(path));
-    }
-
-    let source_dir = cldr_source_dir()?;
-    plural_source_path_from_source_dir(source_dir)
+pub(crate) struct CldrSource {
+    root: PathBuf,
+    plurals: PathBuf,
+    layout_main: PathBuf,
+    numbers_main: PathBuf,
+    dates_main: PathBuf,
+    locales: Vec<String>,
+    input_files: Vec<PathBuf>,
+    source_tree_sha256: String,
 }
 
-pub(crate) fn layout_main_source_path() -> Result<PathBuf, String> {
-    if let Ok(path) = env::var("LINGUINI_CLDR_LAYOUT_MAIN_DIR") {
-        return Ok(PathBuf::from(path));
+impl CldrSource {
+    pub(crate) fn open(root: &Path) -> Result<Self, String> {
+        let root = root
+            .canonicalize()
+            .map_err(|error| format!("{}: {error}", root.display()))?;
+        if !root.is_dir() {
+            return Err(format!(
+                "CLDR source root is not a directory: {}",
+                root.display()
+            ));
+        }
+
+        verify_checkout_identity(&root)?;
+        for package in PACKAGE_RELATIVE_PATHS {
+            verify_package_identity(&root.join(package))?;
+        }
+
+        let plurals = checked_file(&root, PLURALS_RELATIVE_PATH)?;
+        let layout_main = checked_dir(&root, LAYOUT_MAIN_RELATIVE_PATH)?;
+        let numbers_main = checked_dir(&root, NUMBERS_MAIN_RELATIVE_PATH)?;
+        let dates_main = checked_dir(&root, DATES_MAIN_RELATIVE_PATH)?;
+
+        let number_locales = locale_directories(&numbers_main)?;
+        let date_locales = locale_directories(&dates_main)?;
+        let layout_locales = locale_directories(&layout_main)?;
+        if number_locales != date_locales || number_locales != layout_locales {
+            return Err(locale_set_mismatch(
+                &number_locales,
+                &date_locales,
+                &layout_locales,
+            ));
+        }
+        if number_locales.len() != EXPECTED_LOCALE_COUNT {
+            return Err(format!(
+                "CLDR locale manifest has {} locales, expected {EXPECTED_LOCALE_COUNT}",
+                number_locales.len()
+            ));
+        }
+        let locales: Vec<_> = number_locales.into_iter().collect();
+
+        let mut input_files = Vec::with_capacity(5 + locales.len() * 3);
+        input_files.push(plurals.clone());
+        for package in PACKAGE_RELATIVE_PATHS {
+            input_files.push(checked_file(&root, package)?);
+        }
+        for locale in &locales {
+            input_files.push(checked_file(
+                &root,
+                &format!("{NUMBERS_MAIN_RELATIVE_PATH}/{locale}/numbers.json"),
+            )?);
+            input_files.push(checked_file(
+                &root,
+                &format!("{DATES_MAIN_RELATIVE_PATH}/{locale}/ca-gregorian.json"),
+            )?);
+            input_files.push(checked_file(
+                &root,
+                &format!("{LAYOUT_MAIN_RELATIVE_PATH}/{locale}/layout.json"),
+            )?);
+        }
+        input_files.sort();
+
+        let source_tree_sha256 = hash_source_tree(&root, &input_files)?;
+        if source_tree_sha256 != SOURCE_TREE_SHA256 {
+            return Err(format!(
+                "CLDR source tree SHA-256 mismatch: got {source_tree_sha256}, expected {SOURCE_TREE_SHA256}"
+            ));
+        }
+
+        Ok(Self {
+            root,
+            plurals,
+            layout_main,
+            numbers_main,
+            dates_main,
+            locales,
+            input_files,
+            source_tree_sha256,
+        })
     }
 
-    let source_dir = cldr_source_dir()?;
-    layout_main_source_path_from_source_dir(source_dir)
+    pub(crate) fn plurals(&self) -> &Path {
+        &self.plurals
+    }
+
+    pub(crate) fn layout_main(&self) -> &Path {
+        &self.layout_main
+    }
+
+    pub(crate) fn numbers_main(&self) -> &Path {
+        &self.numbers_main
+    }
+
+    pub(crate) fn dates_main(&self) -> &Path {
+        &self.dates_main
+    }
+
+    pub(crate) fn locales(&self) -> &[String] {
+        &self.locales
+    }
+
+    pub(crate) fn input_file_count(&self) -> usize {
+        self.input_files.len()
+    }
+
+    pub(crate) fn input_bytes(&self) -> Result<u64, String> {
+        self.input_files.iter().try_fold(0u64, |total, path| {
+            let bytes = fs::metadata(path)
+                .map_err(|error| format!("{}: {error}", path.display()))?
+                .len();
+            total
+                .checked_add(bytes)
+                .ok_or_else(|| "CLDR input size exceeds u64".to_owned())
+        })
+    }
+
+    pub(crate) fn source_tree_sha256(&self) -> &str {
+        &self.source_tree_sha256
+    }
+
+    pub(crate) fn verify_unchanged(&self) -> Result<(), String> {
+        let actual = hash_source_tree(&self.root, &self.input_files)?;
+        if actual == self.source_tree_sha256 {
+            Ok(())
+        } else {
+            Err(format!(
+                "CLDR source tree changed during generation: got {actual}, started with {}",
+                self.source_tree_sha256
+            ))
+        }
+    }
 }
 
-pub(crate) fn numbers_main_source_path() -> Result<PathBuf, String> {
-    if let Ok(path) = env::var("LINGUINI_CLDR_NUMBERS_MAIN_DIR") {
-        return Ok(PathBuf::from(path));
-    }
-
-    let source_dir = cldr_source_dir()?;
-    main_source_path_from_source_dir(
-        source_dir,
-        NUMBERS_MAIN_RELATIVE_PATH,
-        "cldr-numbers-full/main",
-    )
-}
-
-pub(crate) fn dates_main_source_path() -> Result<PathBuf, String> {
-    if let Ok(path) = env::var("LINGUINI_CLDR_DATES_MAIN_DIR") {
-        return Ok(PathBuf::from(path));
-    }
-
-    let source_dir = cldr_source_dir()?;
-    main_source_path_from_source_dir(source_dir, DATES_MAIN_RELATIVE_PATH, "cldr-dates-full/main")
-}
-
-#[derive(Debug)]
-struct CldrSourceConfig {
-    repo: String,
-    git_ref: String,
-    commit_prefix: String,
-}
-
-fn cldr_source_dir() -> Result<PathBuf, String> {
-    if let Ok(source_dir) = env::var("LINGUINI_CLDR_SOURCE_DIR") {
-        return Ok(PathBuf::from(source_dir));
-    }
-
-    let macro_manifest_dir = macro_manifest_dir();
-    let default_source_dir = macro_manifest_dir.join(LOCAL_CLDR_SOURCE_RELATIVE_PATH);
-    if is_usable_cldr_source_dir(&default_source_dir) {
-        return Ok(default_source_dir);
-    }
-
-    if matches!(
-        env::var("LINGUINI_CLDR_AUTO_FETCH").as_deref(),
-        Ok("0") | Ok("false")
-    ) {
+fn verify_checkout_identity(root: &Path) -> Result<(), String> {
+    let git_metadata = root.join(".git");
+    let git_dir = if git_metadata.is_dir() {
+        git_metadata
+    } else {
+        let source = fs::read_to_string(&git_metadata)
+            .map_err(|error| format!("{}: {error}", git_metadata.display()))?;
+        let relative = source
+            .trim()
+            .strip_prefix("gitdir: ")
+            .ok_or_else(|| format!("{}: invalid gitdir file", git_metadata.display()))?;
+        root.join(relative)
+    };
+    let head_path = git_dir.join("HEAD");
+    let head = fs::read_to_string(&head_path)
+        .map_err(|error| format!("{}: {error}", head_path.display()))?;
+    let head = head.trim();
+    if head != SOURCE_COMMIT {
         return Err(format!(
-            "missing local CLDR JSON checkout at {}. Provide LINGUINI_CLDR_SOURCE_DIR or unset LINGUINI_CLDR_AUTO_FETCH=0 to allow fetching the pinned CLDR source.",
-            default_source_dir.display()
+            "CLDR checkout HEAD is `{head}`, expected full commit `{SOURCE_COMMIT}`"
         ));
     }
-
-    let source_checkout = env::var(CLDR_SOURCE_CHECKOUT_ENV)
-        .map(PathBuf::from)
-        .unwrap_or(default_source_dir);
-    if is_usable_cldr_source_dir(&source_checkout) {
-        return Ok(source_checkout);
+    if head.len() != 40 || !head.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("CLDR checkout HEAD is not a full 40-digit commit identity".to_owned());
     }
-
-    let lock_dir = cldr_fetch_lock_dir(&source_checkout);
-    let _lock = CldrFetchLock::acquire(&lock_dir)?;
-
-    // Another rustc/proc-macro process may have populated the checkout while we
-    // were waiting for the lock. Re-check before deleting and fetching.
-    if is_usable_cldr_source_dir(&source_checkout) {
-        return Ok(source_checkout);
-    }
-
-    let config_path = macro_manifest_dir.join(CLDR_SOURCE_CONFIG_RELATIVE_PATH);
-    let config = read_cldr_source_config(&config_path)?;
-    fetch_cldr_json(&source_checkout, &config)?;
-    Ok(source_checkout)
-}
-
-fn macro_manifest_dir() -> PathBuf {
-    let compile_manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    if has_source_config(&compile_manifest_dir) {
-        return compile_manifest_dir;
-    }
-
-    if let Ok(runtime_manifest_dir) = env::var("CARGO_MANIFEST_DIR").map(PathBuf::from) {
-        if has_source_config(&runtime_manifest_dir) {
-            return runtime_manifest_dir;
-        }
-        if let Some(sibling) = macro_crate_sibling(&runtime_manifest_dir) {
-            return sibling;
-        }
-    }
-
-    if let Ok(current_dir) = env::current_dir() {
-        for ancestor in current_dir.ancestors() {
-            if has_source_config(ancestor) {
-                return ancestor.to_path_buf();
-            }
-            let candidate = ancestor.join("crates/linguini-cldr-macros");
-            if has_source_config(&candidate) {
-                return candidate;
-            }
-        }
-    }
-
-    compile_manifest_dir
-}
-
-fn has_source_config(path: &Path) -> bool {
-    path.join(CLDR_SOURCE_CONFIG_RELATIVE_PATH).is_file()
-}
-
-fn macro_crate_sibling(path: &Path) -> Option<PathBuf> {
-    let parent = path.parent()?;
-    let sibling = parent.join("linguini-cldr-macros");
-    has_source_config(&sibling).then_some(sibling)
-}
-
-fn is_usable_cldr_source_dir(path: &Path) -> bool {
-    path.join("cldr-json/cldr-core/supplemental/plurals.json")
-        .is_file()
-        && path.join("cldr-json/cldr-misc-full/main").is_dir()
-}
-
-fn read_cldr_source_config(path: &Path) -> Result<CldrSourceConfig, String> {
-    let source =
-        fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
-    let repo = toml_string_value(&source, "repo")
-        .ok_or_else(|| format!("{}: missing `repo`", path.display()))?;
-    let git_ref = toml_string_value(&source, "ref")
-        .ok_or_else(|| format!("{}: missing `ref`", path.display()))?;
-    let commit_prefix = toml_string_value(&source, "commit_prefix")
-        .ok_or_else(|| format!("{}: missing `commit_prefix`", path.display()))?;
-    Ok(CldrSourceConfig {
-        repo,
-        git_ref,
-        commit_prefix,
-    })
-}
-
-fn toml_string_value(source: &str, key: &str) -> Option<String> {
-    for line in source.lines() {
-        let line = line
-            .split_once('#')
-            .map_or(line, |(before, _)| before)
-            .trim();
-        let Some((left, right)) = line.split_once('=') else {
-            continue;
-        };
-        if left.trim() != key {
-            continue;
-        }
-        let value = right.trim();
-        if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
-            return Some(value[1..value.len() - 1].to_owned());
-        }
-    }
-    None
-}
-
-fn fetch_cldr_json(source_dir: &Path, config: &CldrSourceConfig) -> Result<(), String> {
-    if source_dir.exists() {
-        fs::remove_dir_all(source_dir)
-            .map_err(|error| format!("{}: {error}", source_dir.display()))?;
-    }
-    if let Some(parent) = source_dir.parent() {
-        fs::create_dir_all(parent).map_err(|error| format!("{}: {error}", parent.display()))?;
-    }
-
-    let source_dir_arg = source_dir.to_string_lossy().into_owned();
-    run_git(["init", source_dir_arg.as_str()])?;
-    run_git([
-        "-C",
-        source_dir_arg.as_str(),
-        "remote",
-        "add",
-        "origin",
-        config.repo.as_str(),
-    ])?;
-    run_git([
-        "-C",
-        source_dir_arg.as_str(),
-        "fetch",
-        "--depth=1",
-        "origin",
-        config.git_ref.as_str(),
-    ])?;
-    run_git([
-        "-C",
-        source_dir_arg.as_str(),
-        "checkout",
-        "--detach",
-        "FETCH_HEAD",
-    ])?;
-
-    let head = git_output(["-C", source_dir_arg.as_str(), "rev-parse", "HEAD"])?;
-    if !head.trim().starts_with(&config.commit_prefix) {
-        return Err(format!(
-            "CLDR JSON ref `{}` resolved to {}, expected commit prefix {}",
-            config.git_ref,
-            head.trim(),
-            config.commit_prefix
-        ));
-    }
-
-    if !is_usable_cldr_source_dir(source_dir) {
-        return Err(format!(
-            "CLDR JSON checkout at {} does not contain expected cldr-json data",
-            source_dir.display()
-        ));
-    }
-
     Ok(())
 }
 
-fn run_git<'a>(args: impl IntoIterator<Item = &'a str>) -> Result<(), String> {
-    let args: Vec<&str> = args.into_iter().collect();
-    let output = Command::new("git")
-        .args(&args)
-        .output()
-        .map_err(|error| format!("git {}: {error}", args.join(" ")))?;
-    if output.status.success() {
+fn verify_package_identity(path: &Path) -> Result<(), String> {
+    let source =
+        fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let value: Value =
+        serde_json::from_str(&source).map_err(|error| format!("{}: {error}", path.display()))?;
+    require_json_string(&value, "version", CLDR_VERSION, path)?;
+    require_json_string(&value, "cldrVersion", "48", path)?;
+    require_json_string(&value, "unicodeVersion", UNICODE_VERSION, path)?;
+    Ok(())
+}
+
+fn require_json_string(
+    value: &Value,
+    key: &str,
+    expected: &str,
+    path: &Path,
+) -> Result<(), String> {
+    let actual = value
+        .get(key)
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("{}: missing string `{key}`", path.display()))?;
+    if actual == expected {
         Ok(())
     } else {
-        Err(format_command_error("git", &args, &output))
-    }
-}
-
-fn git_output<'a>(args: impl IntoIterator<Item = &'a str>) -> Result<String, String> {
-    let args: Vec<&str> = args.into_iter().collect();
-    let output = Command::new("git")
-        .args(&args)
-        .output()
-        .map_err(|error| format!("git {}: {error}", args.join(" ")))?;
-    if output.status.success() {
-        String::from_utf8(output.stdout).map_err(|error| error.to_string())
-    } else {
-        Err(format_command_error("git", &args, &output))
-    }
-}
-
-fn format_command_error(command: &str, args: &[&str], output: &std::process::Output) -> String {
-    let status = output
-        .status
-        .code()
-        .map(|code| code.to_string())
-        .unwrap_or_else(|| "unknown".to_owned());
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    [
-        format!("{command} {} failed with status {status}", args.join(" ")),
-        stderr,
-        stdout,
-    ]
-    .into_iter()
-    .filter(|part| !part.is_empty())
-    .collect::<Vec<_>>()
-    .join("\n")
-}
-
-fn cldr_fetch_lock_dir(source_dir: &Path) -> PathBuf {
-    let lock_name = source_dir
-        .file_name()
-        .map(|name| format!("{}.fetch.lock", name.to_string_lossy()))
-        .unwrap_or_else(|| "cldr-json.fetch.lock".to_owned());
-    source_dir.with_file_name(lock_name)
-}
-
-struct CldrFetchLock {
-    path: PathBuf,
-}
-
-impl CldrFetchLock {
-    fn acquire(path: &Path) -> Result<Self, String> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| format!("{}: {error}", parent.display()))?;
-        }
-
-        for _ in 0..CLDR_FETCH_LOCK_RETRIES {
-            match fs::create_dir(path) {
-                Ok(()) => {
-                    return Ok(Self {
-                        path: path.to_path_buf(),
-                    });
-                }
-                Err(error) if error.kind() == ErrorKind::AlreadyExists => {
-                    thread::sleep(Duration::from_millis(CLDR_FETCH_LOCK_SLEEP_MS));
-                }
-                Err(error) => return Err(format!("{}: {error}", path.display())),
-            }
-        }
-
         Err(format!(
-            "timed out waiting for CLDR source fetch lock at {}",
+            "{}: `{key}` is `{actual}`, expected `{expected}`",
             path.display()
         ))
     }
 }
 
-impl Drop for CldrFetchLock {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir(&self.path);
-    }
+fn checked_file(root: &Path, relative: &str) -> Result<PathBuf, String> {
+    checked_path(root, relative, true)
 }
 
-fn plural_source_path_from_source_dir(source_dir: PathBuf) -> Result<PathBuf, String> {
-    for candidate in [
-        source_dir.join(PLURALS_RELATIVE_PATH),
-        source_dir.join("cldr-core/supplemental/plurals.json"),
-        source_dir.join("supplemental/plurals.json"),
-    ] {
-        if candidate.is_file() {
-            return Ok(candidate);
-        }
-    }
-    Err(format!(
-        "LINGUINI_CLDR_SOURCE_DIR={} does not contain {PLURALS_RELATIVE_PATH}",
-        source_dir.display()
-    ))
+fn checked_dir(root: &Path, relative: &str) -> Result<PathBuf, String> {
+    checked_path(root, relative, false)
 }
 
-fn layout_main_source_path_from_source_dir(source_dir: PathBuf) -> Result<PathBuf, String> {
-    for candidate in [
-        source_dir.join(LAYOUT_MAIN_RELATIVE_PATH),
-        source_dir.join("cldr-misc-full/main"),
-        source_dir.join("main"),
-    ] {
-        if candidate.is_dir() {
-            return Ok(candidate);
-        }
+fn checked_path(root: &Path, relative: &str, file: bool) -> Result<PathBuf, String> {
+    let path = root.join(relative);
+    let metadata =
+        fs::symlink_metadata(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    if metadata.file_type().is_symlink() {
+        return Err(format!(
+            "CLDR input must not be a symlink: {}",
+            path.display()
+        ));
     }
-    Err(format!(
-        "LINGUINI_CLDR_SOURCE_DIR={} does not contain {LAYOUT_MAIN_RELATIVE_PATH}",
-        source_dir.display()
-    ))
+    if file && !metadata.is_file() {
+        return Err(format!("CLDR input is not a file: {}", path.display()));
+    }
+    if !file && !metadata.is_dir() {
+        return Err(format!("CLDR input is not a directory: {}", path.display()));
+    }
+    let canonical = path
+        .canonicalize()
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+    if !canonical.starts_with(root) {
+        return Err(format!(
+            "CLDR input escapes source root: {}",
+            path.display()
+        ));
+    }
+    Ok(canonical)
 }
 
-fn main_source_path_from_source_dir(
-    source_dir: PathBuf,
-    relative_path: &str,
-    fallback_path: &str,
-) -> Result<PathBuf, String> {
-    for candidate in [
-        source_dir.join(relative_path),
-        source_dir.join(fallback_path),
-        source_dir.join("main"),
-    ] {
-        if candidate.is_dir() {
-            return Ok(candidate);
+fn locale_directories(main: &Path) -> Result<BTreeSet<String>, String> {
+    let mut locales = BTreeSet::new();
+    for entry in fs::read_dir(main).map_err(|error| format!("{}: {error}", main.display()))? {
+        let entry = entry.map_err(|error| format!("{}: {error}", main.display()))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|error| format!("{}: {error}", entry.path().display()))?;
+        if file_type.is_symlink() {
+            return Err(format!(
+                "CLDR locale entry must not be a symlink: {}",
+                entry.path().display()
+            ));
+        }
+        if !file_type.is_dir() {
+            continue;
+        }
+        let locale = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| format!("non-UTF-8 CLDR locale in {}", main.display()))?;
+        locales.insert(locale);
+    }
+    Ok(locales)
+}
+
+fn locale_set_mismatch(
+    numbers: &BTreeSet<String>,
+    dates: &BTreeSet<String>,
+    layouts: &BTreeSet<String>,
+) -> String {
+    format!(
+        "CLDR locale manifests differ: numbers-only={:?}, dates-only={:?}, layout-only={:?}",
+        numbers
+            .difference(dates)
+            .chain(numbers.difference(layouts))
+            .collect::<Vec<_>>(),
+        dates
+            .difference(numbers)
+            .chain(dates.difference(layouts))
+            .collect::<Vec<_>>(),
+        layouts
+            .difference(numbers)
+            .chain(layouts.difference(dates))
+            .collect::<Vec<_>>()
+    )
+}
+
+fn hash_source_tree(root: &Path, files: &[PathBuf]) -> Result<String, String> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"linguini-cldr-source-tree-v1\0");
+    let mut buffer = [0u8; 64 * 1024];
+    for path in files {
+        let relative = path.strip_prefix(root).map_err(|_| {
+            format!(
+                "CLDR input {} is outside source root {}",
+                path.display(),
+                root.display()
+            )
+        })?;
+        let relative = relative
+            .to_str()
+            .ok_or_else(|| format!("non-UTF-8 CLDR input path: {}", path.display()))?
+            .replace(std::path::MAIN_SEPARATOR, "/");
+        let relative_bytes = relative.as_bytes();
+        hasher.update(&(relative_bytes.len() as u64).to_be_bytes());
+        hasher.update(relative_bytes);
+
+        let metadata =
+            fs::metadata(path).map_err(|error| format!("{}: {error}", path.display()))?;
+        hasher.update(&metadata.len().to_be_bytes());
+        let mut file = File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
+        loop {
+            let read = file
+                .read(&mut buffer)
+                .map_err(|error| format!("{}: {error}", path.display()))?;
+            if read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..read]);
         }
     }
-    Err(format!(
-        "LINGUINI_CLDR_SOURCE_DIR={} does not contain {relative_path}",
-        source_dir.display()
-    ))
+    Ok(hex(&hasher.finalize()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{hash_source_tree, verify_checkout_identity, SOURCE_COMMIT};
+    use linguini_test_support::temp_project_dir;
+    use std::fs;
+
+    #[test]
+    fn checkout_identity_requires_exact_full_commit() {
+        let project = temp_project_dir("cldr_full_commit").expect("temporary project");
+        let git = project.path().join(".git");
+        fs::create_dir(&git).expect("git metadata");
+        fs::write(git.join("HEAD"), format!("{SOURCE_COMMIT}\n")).expect("full HEAD");
+        verify_checkout_identity(project.path()).expect("full commit accepted");
+
+        fs::write(git.join("HEAD"), &SOURCE_COMMIT[..7]).expect("short HEAD");
+        let error = verify_checkout_identity(project.path()).expect_err("short commit rejected");
+        assert!(error.contains("expected full commit"));
+    }
+
+    #[test]
+    fn source_tree_hash_detects_content_tampering() {
+        let project = temp_project_dir("cldr_tree_hash").expect("temporary project");
+        let first = project.path().join("a.json");
+        let second = project.path().join("b.json");
+        fs::write(&first, b"first").expect("first input");
+        fs::write(&second, b"second").expect("second input");
+        let root = project.path().canonicalize().expect("canonical root");
+        let files = vec![
+            first.canonicalize().expect("canonical first"),
+            second.canonicalize().expect("canonical second"),
+        ];
+        let original = hash_source_tree(&root, &files).expect("original hash");
+
+        fs::write(&second, b"tamper").expect("tampered input");
+        let tampered = hash_source_tree(&root, &files).expect("tampered hash");
+
+        assert_ne!(tampered, original);
+    }
 }

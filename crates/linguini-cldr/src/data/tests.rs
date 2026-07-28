@@ -1,6 +1,7 @@
 use super::{
     built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
     compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
+    CLDR_DATA_MANIFEST_JSON,
 };
 
 #[test]
@@ -43,9 +44,8 @@ fn compiled_plural_rules_need_no_runtime_json() {
 }
 
 #[test]
-fn compiled_plural_rules_are_generated_from_full_cldr_at_cargo_build_time() {
-    let arabic =
-        compiled_plural_rules("ar").expect("arabic generated from CLDR at cargo build time");
+fn compiled_plural_rules_come_from_checked_in_full_cldr_artifact() {
+    let arabic = compiled_plural_rules("ar").expect("arabic generated from pinned CLDR artifact");
 
     assert_eq!(arabic.category_for("0").expect("ar zero"), "zero");
     assert_eq!(arabic.category_for("1").expect("ar one"), "one");
@@ -53,6 +53,25 @@ fn compiled_plural_rules_are_generated_from_full_cldr_at_cargo_build_time() {
     assert_eq!(arabic.category_for("3").expect("ar few"), "few");
     assert_eq!(arabic.category_for("11").expect("ar many"), "many");
     assert_eq!(arabic.category_for("100").expect("ar other"), "other");
+}
+
+#[test]
+fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
+    let manifest: serde_json::Value =
+        serde_json::from_str(CLDR_DATA_MANIFEST_JSON).expect("valid CLDR manifest");
+
+    assert_eq!(manifest["schema"], 1);
+    assert_eq!(manifest["source"]["cldr_version"], "48.2.0");
+    assert_eq!(
+        manifest["source"]["commit"],
+        "bb334e8d6250c9363e957e131bf7e6d08ec72f91"
+    );
+    assert_eq!(
+        manifest["artifact"]["sha256"],
+        "80d6373d0e4c3c2f09bc72aa694aa448e4d4a43f64c42b86155bd6dbf90ee404"
+    );
+    assert_eq!(manifest["coverage"]["number_locales"], 766);
+    assert_eq!(manifest["coverage"]["date_locales"], 765);
 }
 
 #[test]

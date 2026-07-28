@@ -1,0 +1,55 @@
+{
+  "artifact": {
+    "bytes": 2299373,
+    "path": "cldr_tables.rs",
+    "sha256": "80d6373d0e4c3c2f09bc72aa694aa448e4d4a43f64c42b86155bd6dbf90ee404"
+  },
+  "coverage": {
+    "currency_locales": 766,
+    "date_locales": 765,
+    "excluded": {
+      "date": [
+        {
+          "locale": "haw",
+          "reason": "short date uses unsupported M=romanlow numbering override"
+        }
+      ],
+      "text_direction": [
+        {
+          "locale": "mn-Mong",
+          "reason": "vertical top-to-bottom layout is not representable as ltr/rtl"
+        },
+        {
+          "locale": "mn-Mong-MN",
+          "reason": "vertical top-to-bottom layout is not representable as ltr/rtl"
+        }
+      ]
+    },
+    "number_locales": 766,
+    "plural_categories": 499,
+    "plural_locales": 224,
+    "source_locales": 766,
+    "text_direction_locales": 764
+  },
+  "generator": {
+    "artifact_schema": 1,
+    "name": "linguini-cldr-macros"
+  },
+  "inputs": {
+    "bytes": 19951907,
+    "file_count": 2303,
+    "profile": "plurals+latn-numbers+latn-currency+gregorian+layout-v1",
+    "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
+    "tree_sha256": "784a63e309fb16ba4a34598164f26a99b0e3a9d17d74dc9cfd9f6f3ae9c4f679"
+  },
+  "schema": 1,
+  "source": {
+    "cldr_version": "48.2.0",
+    "commit": "bb334e8d6250c9363e957e131bf7e6d08ec72f91",
+    "git_tree": "b297a9501ae136e59d006f0497204524a5478cc9",
+    "license": "Unicode-3.0",
+    "ref": "48.2.0",
+    "repository": "https://github.com/unicode-org/cldr-json.git",
+    "unicode_version": "16.0.0"
+  }
+}

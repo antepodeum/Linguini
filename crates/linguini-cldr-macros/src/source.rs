@@ -1,36 +1,48 @@
-use crate::formatting::{generate_formatting_tables, generate_text_direction_table};
-use crate::plural_rule::{
+use crate::formatting::{
+    generate_formatting_tables, generate_text_direction_table, FormattingCoverage,
+};
+use crate::source_paths::CldrSource;
+use linguini_cldr::{
     parse_plural_rule, Condition, Operand, OperandExpression, PluralRule, Range, RangeList,
     Relation, RelationOperator,
-};
-use crate::source_paths::{
-    dates_main_source_path, layout_main_source_path, numbers_main_source_path, plural_source_path,
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use serde_json::Value;
 use std::fs;
 
-pub(crate) fn generate_compiled_tables() -> Result<TokenStream, String> {
-    let plurals = plural_source_path()?;
-    let layout_main = layout_main_source_path()?;
-    let numbers_main = numbers_main_source_path()?;
-    let dates_main = dates_main_source_path()?;
+pub(crate) struct GeneratedTables {
+    pub(crate) tokens: TokenStream,
+    pub(crate) plural_locales: usize,
+    pub(crate) plural_categories: usize,
+    pub(crate) formatting: FormattingCoverage,
+}
 
-    let source =
-        fs::read_to_string(&plurals).map_err(|error| format!("{}: {error}", plurals.display()))?;
-    let plural_tables = generate_plural_tables(&source)?;
-    let direction_table = generate_text_direction_table(&layout_main)?;
-    let formatting_tables = generate_formatting_tables(&numbers_main, &dates_main)?;
+pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedTables, String> {
+    let plural_source = fs::read_to_string(source.plurals())
+        .map_err(|error| format!("{}: {error}", source.plurals().display()))?;
+    let (plural_tables, plural_locales, plural_categories) =
+        generate_plural_tables(&plural_source)?;
+    let (direction_table, text_direction_locales, text_direction_exclusions) =
+        generate_text_direction_table(source.layout_main(), source.locales())?;
+    let (formatting_tables, mut formatting) =
+        generate_formatting_tables(source.numbers_main(), source.dates_main(), source.locales())?;
+    formatting.text_direction_locales = text_direction_locales;
+    formatting.text_direction_exclusions = text_direction_exclusions;
 
-    Ok(quote! {
-        #plural_tables
-        #direction_table
-        #formatting_tables
+    Ok(GeneratedTables {
+        tokens: quote! {
+            #plural_tables
+            #direction_table
+            #formatting_tables
+        },
+        plural_locales,
+        plural_categories,
+        formatting,
     })
 }
 
-fn generate_plural_tables(source: &str) -> Result<TokenStream, String> {
+fn generate_plural_tables(source: &str) -> Result<(TokenStream, usize, usize), String> {
     let value: Value = serde_json::from_str(source).map_err(|error| error.to_string())?;
     let cardinal = value
         .get("supplemental")
@@ -46,6 +58,8 @@ fn generate_plural_tables(source: &str) -> Result<TokenStream, String> {
     let mut category_tables = Vec::new();
     let mut predicate_functions = Vec::new();
     let mut source_functions = Vec::new();
+    let plural_locales = locales.len();
+    let mut plural_categories = 0;
 
     for (locale, value) in locales {
         let object = value
@@ -66,6 +80,7 @@ fn generate_plural_tables(source: &str) -> Result<TokenStream, String> {
         if categories.is_empty() {
             return Err(format!("locale `{locale}` has no plural categories"));
         }
+        plural_categories += categories.len();
         categories.sort_by(|left, right| {
             category_rank(&left.0)
                 .cmp(&category_rank(&right.0))
@@ -127,33 +142,37 @@ fn generate_plural_tables(source: &str) -> Result<TokenStream, String> {
         });
     }
 
-    Ok(quote! {
-        fn generated_plural_rules(locale: &str) -> Option<CompiledPluralRules> {
-            match locale {
-                #(#compiled_match_arms)*
-                _ => None,
+    Ok((
+        quote! {
+            fn generated_plural_rules(locale: &str) -> Option<CompiledPluralRules> {
+                match locale {
+                    #(#compiled_match_arms)*
+                    _ => None,
+                }
             }
-        }
 
-        fn generated_plural_rule_sources(locale: &str) -> Option<PluralRules> {
-            match locale {
-                #(#source_match_arms)*
-                _ => None,
+            fn generated_plural_rule_sources(locale: &str) -> Option<PluralRules> {
+                match locale {
+                    #(#source_match_arms)*
+                    _ => None,
+                }
             }
-        }
 
-        fn integer_value(value: (f64, bool)) -> Option<u64> {
-            if value.1 && value.0 >= 0.0 {
-                Some(value.0 as u64)
-            } else {
-                None
+            fn integer_value(value: (f64, bool)) -> Option<u64> {
+                if value.1 && value.0 >= 0.0 {
+                    Some(value.0 as u64)
+                } else {
+                    None
+                }
             }
-        }
 
-        #(#category_tables)*
-        #(#source_functions)*
-        #(#predicate_functions)*
-    })
+            #(#category_tables)*
+            #(#source_functions)*
+            #(#predicate_functions)*
+        },
+        plural_locales,
+        plural_categories,
+    ))
 }
 
 fn plural_rule_tokens(rule: &PluralRule) -> TokenStream {
@@ -224,7 +243,7 @@ fn plural_rule_match_tokens(rule: &PluralRule, operands: &proc_macro2::Ident) ->
         .conditions
         .iter()
         .map(|condition| condition_match_tokens(condition, operands));
-    quote! { false #(|| (#conditions))* }
+    join_boolean_tokens(conditions, false)
 }
 
 fn condition_match_tokens(condition: &Condition, operands: &proc_macro2::Ident) -> TokenStream {
@@ -232,7 +251,7 @@ fn condition_match_tokens(condition: &Condition, operands: &proc_macro2::Ident) 
         .relations
         .iter()
         .map(|relation| relation_match_tokens(relation, operands));
-    quote! { true #(&& (#relations))* }
+    join_boolean_tokens(relations, true)
 }
 
 fn relation_match_tokens(relation: &Relation, operands: &proc_macro2::Ident) -> TokenStream {
@@ -274,7 +293,8 @@ fn operand_expression_value_tokens(
         Operand::E => quote! { (#operands.e as f64, true) },
     };
     expression.modulo.map_or(operand.clone(), |modulo| {
-        quote! { { let value = #operand; (value.0 % (#modulo as f64), value.1) } }
+        let modulo = proc_macro2::Literal::f64_unsuffixed(modulo as f64);
+        quote! { { let value = #operand; (value.0 % #modulo, value.1) } }
     })
 }
 
@@ -288,20 +308,43 @@ fn integer_ranges_match_tokens(ranges: &[Range]) -> TokenStream {
             quote! { (#start..=#end).contains(&value) }
         }
     });
-    quote! { false #(|| (#ranges))* }
+    join_boolean_tokens(ranges, false)
 }
 
 fn float_ranges_match_tokens(ranges: &[Range]) -> TokenStream {
     let ranges = ranges.iter().map(|range| {
-        let start = range.start;
-        let end = range.end;
-        if start == end {
-            quote! { value == (#start as f64) }
+        let start_value = range.start;
+        let end_value = range.end;
+        let start = proc_macro2::Literal::f64_unsuffixed(start_value as f64);
+        let end = proc_macro2::Literal::f64_unsuffixed(end_value as f64);
+        if start_value == end_value {
+            quote! { value == #start }
         } else {
-            quote! { ((#start as f64)..=(#end as f64)).contains(&value) }
+            quote! { (#start..=#end).contains(&value) }
         }
     });
-    quote! { false #(|| (#ranges))* }
+    join_boolean_tokens(ranges, false)
+}
+
+fn join_boolean_tokens(
+    tokens: impl IntoIterator<Item = TokenStream>,
+    empty_value: bool,
+) -> TokenStream {
+    let mut tokens = tokens.into_iter();
+    let Some(first) = tokens.next() else {
+        return if empty_value {
+            quote! { true }
+        } else {
+            quote! { false }
+        };
+    };
+    tokens.fold(first, |left, right| {
+        if empty_value {
+            quote! { (#left) && (#right) }
+        } else {
+            quote! { (#left) || (#right) }
+        }
+    })
 }
 
 fn category_rank(category: &str) -> usize {

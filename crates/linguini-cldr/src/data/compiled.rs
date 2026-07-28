@@ -34,6 +34,9 @@ pub struct CompiledPluralCategory {
     pub matches: fn(&PluralOperands) -> bool,
 }
 
+/// Verified identity and coverage manifest for the checked-in CLDR artifact.
+pub const CLDR_DATA_MANIFEST_JSON: &str = include_str!("generated/manifest.json");
+
 fn resolve_locale_tag<T>(locale: &str, mut lookup: impl FnMut(&str) -> Option<T>) -> Option<T> {
     let mut tag = locale;
     loop {
@@ -60,7 +63,7 @@ pub fn built_in_text_direction(locale: &str) -> Option<&'static str> {
     resolve_locale_tag(locale, generated_text_direction)
 }
 
-linguini_cldr_macros::compiled_cldr_tables!();
+include!("generated/cldr_tables.rs");
 
 pub fn compiled_number_formatting(locale: &str) -> Option<NumberFormatData> {
     resolve_locale_tag(locale, generated_number_formatting)

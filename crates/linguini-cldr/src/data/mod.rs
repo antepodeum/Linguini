@@ -4,7 +4,7 @@ use crate::plural::{PluralOperands, PluralRule};
 pub use compiled::{
     built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
     compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
-    CompiledPluralCategory, CompiledPluralRules,
+    CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
