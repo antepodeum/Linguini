@@ -1,10 +1,12 @@
 mod engine;
 mod ir;
+mod semantics;
 
 use linguini_syntax::{
-    lex_schema_with_recovery, lex_with_recovery, parse_locale_with_recovery,
-    parse_schema_with_recovery, ParseError, Span, LOCALE_EXTENSION, SCHEMA_EXTENSION,
+    lex_schema_with_recovery, lex_with_recovery, parse_locale, parse_schema, ParseError, Span,
+    LOCALE_EXTENSION, SCHEMA_EXTENSION,
 };
+use semantics::FormatSemantics;
 use std::fmt;
 use std::path::Path;
 
@@ -18,10 +20,16 @@ pub enum SourceKind {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FormatOptions {
-    pub indent_width: usize,
-    /// Maximum width for structural lines. `0` disables structural wrapping.
+    /// Number of ASCII spaces emitted for each structural indentation level.
     ///
-    /// Raw message text is never wrapped because doing so would change its value.
+    /// `0` disables indentation. Values greater than 64 are rejected to bound allocations.
+    pub indent_width: usize,
+    /// Preferred display-column width for safely wrappable structural lines.
+    ///
+    /// `0` disables wrapping. Message text, string contents, comments, and indivisible tokens are
+    /// never split, so those lines may exceed this value. Width uses terminal display columns
+    /// rather than UTF-8 bytes or Unicode scalar counts. Values greater than 1,000,000 are
+    /// rejected to keep configuration mistakes bounded.
     pub max_line_width: usize,
 }
 
@@ -31,6 +39,8 @@ pub enum FormatError {
     UnsupportedExtension(String),
     InvalidOptions(String),
     InvalidTokenSpan(Span),
+    InvalidSyntaxSpan(Span),
+    SyntaxMismatch(String),
 }
 
 impl fmt::Display for FormatError {
@@ -51,6 +61,14 @@ impl fmt::Display for FormatError {
                 "lexer returned an invalid token span {}..{}",
                 span.start, span.end
             ),
+            Self::InvalidSyntaxSpan(span) => write!(
+                f,
+                "parser returned an invalid syntax span {}..{}",
+                span.start, span.end
+            ),
+            Self::SyntaxMismatch(message) => {
+                write!(f, "lexer and parser disagree: {message}")
+            }
         }
     }
 }
@@ -67,6 +85,9 @@ impl Default for FormatOptions {
 }
 
 impl SourceKind {
+    /// Infers a Linguini source kind from an exact `.lgs` or `.lgl` extension.
+    ///
+    /// Unknown, missing, and non-UTF-8 extensions return `None`.
     pub fn from_path(path: &Path) -> Option<Self> {
         match path.extension().and_then(|extension| extension.to_str()) {
             Some(SCHEMA_EXTENSION) => Some(Self::Schema),
@@ -76,37 +97,67 @@ impl SourceKind {
     }
 }
 
+/// Formats source after inferring its kind from `path`.
+///
+/// Unknown or missing extensions are rejected; they never default to locale syntax.
 pub fn format_path_source(path: &Path, source: &str) -> Result<String, FormatError> {
     let kind = SourceKind::from_path(path).ok_or_else(|| {
-        FormatError::UnsupportedExtension(
-            path.extension()
-                .and_then(|extension| extension.to_str())
-                .unwrap_or("<non-UTF-8>")
-                .to_owned(),
-        )
+        let extension = match path.extension() {
+            Some(extension) => extension.to_str().unwrap_or("<non-UTF-8>"),
+            None => "<none>",
+        };
+        FormatError::UnsupportedExtension(extension.to_owned())
     })?;
     format_source(kind, source, &FormatOptions::default())
 }
 
+/// Formats a complete, valid Linguini source file.
+///
+/// Parsing and semantic validation happen before rendering, so invalid input returns an error
+/// without partial formatted output. Structural newlines follow the first newline sequence in the
+/// source, while newline bytes inside raw text remain verbatim.
 pub fn format_source(
     kind: SourceKind,
     source: &str,
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
     validate_options(options)?;
-    validate_source(kind, source)?;
-    let tokens = match kind {
-        SourceKind::Schema => lex_schema_with_recovery(source).tokens,
-        SourceKind::Locale => lex_with_recovery(source).tokens,
+    let semantics = match kind {
+        SourceKind::Schema => {
+            parse_schema(source).map_err(FormatError::Parse)?;
+            FormatSemantics::schema()
+        }
+        SourceKind::Locale => {
+            let ast = parse_locale(source).map_err(FormatError::Parse)?;
+            FormatSemantics::locale(&ast, source)?
+        }
     };
 
-    let newline = detect_newline(source);
-    let formatted = engine::render_tokens(source, &tokens, options)?;
-    if newline == "\r\n" {
-        Ok(formatted.replace('\n', "\r\n"))
-    } else {
-        Ok(formatted)
+    let lexed = match kind {
+        SourceKind::Schema => lex_schema_with_recovery(source),
+        SourceKind::Locale => lex_with_recovery(source),
+    };
+    if !lexed.errors.is_empty() {
+        return Err(FormatError::Parse(
+            lexed
+                .errors
+                .into_iter()
+                .map(|error| ParseError {
+                    message: error.message,
+                    span: error.span,
+                })
+                .collect(),
+        ));
     }
+
+    semantics.validate_tokens(source, &lexed.tokens)?;
+    engine::render_tokens(
+        source,
+        &lexed.tokens,
+        &semantics,
+        options,
+        detect_newline(source),
+    )
 }
 
 const MAX_INDENT_WIDTH: usize = 64;
@@ -129,28 +180,14 @@ fn validate_options(options: &FormatOptions) -> Result<(), FormatError> {
 fn detect_newline(source: &str) -> &'static str {
     let bytes = source.as_bytes();
     for (index, byte) in bytes.iter().enumerate() {
-        if *byte == b'\n' {
-            return if index > 0 && bytes[index - 1] == b'\r' {
-                "\r\n"
-            } else {
-                "\n"
-            };
+        match *byte {
+            b'\r' if bytes.get(index + 1) == Some(&b'\n') => return "\r\n",
+            b'\r' => return "\r",
+            b'\n' => return "\n",
+            _ => {}
         }
     }
     "\n"
-}
-
-fn validate_source(kind: SourceKind, source: &str) -> Result<(), FormatError> {
-    let errors = match kind {
-        SourceKind::Schema => parse_schema_with_recovery(source).errors,
-        SourceKind::Locale => parse_locale_with_recovery(source).errors,
-    };
-
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(FormatError::Parse(errors))
-    }
 }
 
 #[cfg(test)]

@@ -1,19 +1,26 @@
 use crate::{
     ir::{FormatIr, FormatItem},
+    semantics::FormatSemantics,
     FormatError, FormatOptions,
 };
-use linguini_syntax::{Span, Token, TokenKind};
+use linguini_syntax::{SourceId, Span, Token, TokenKind};
 use std::borrow::Cow;
 
 pub(crate) fn render_tokens(
     source: &str,
     tokens: &[Token],
+    semantics: &FormatSemantics,
     options: &FormatOptions,
+    newline: &str,
 ) -> Result<String, FormatError> {
-    lower_tokens(source, tokens)?.render(options)
+    lower_tokens(source, tokens, semantics)?.render(options, newline)
 }
 
-fn lower_tokens(source: &str, tokens: &[Token]) -> Result<FormatIr, FormatError> {
+fn lower_tokens(
+    source: &str,
+    tokens: &[Token],
+    semantics: &FormatSemantics,
+) -> Result<FormatIr, FormatError> {
     let mut ir = FormatIr::default();
     let mut previous: Option<&TokenKind> = None;
     let mut pending_space = false;
@@ -38,11 +45,11 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> Result<FormatIr, FormatError>
                 if pending_space {
                     ir.push(FormatItem::Space);
                 }
-                ir.text(format!("//{}", text.trim_end()));
+                ir.verbatim(format!("//{}", text.trim_end()));
                 pending_space = false;
             }
             TokenKind::DocComment(text) => {
-                ir.text(format!("///{}", text.trim_end()));
+                ir.verbatim(format!("///{}", text.trim_end()));
                 pending_space = false;
             }
             TokenKind::RBrace => {
@@ -53,6 +60,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> Result<FormatIr, FormatError>
                 lower_token_text(
                     source,
                     token,
+                    semantics,
                     &mut ir,
                     previous,
                     pending_space,
@@ -61,10 +69,11 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> Result<FormatIr, FormatError>
                 pending_space = false;
             }
             TokenKind::LBrace => {
-                let placeholder_brace = is_text_placeholder_start(previous, next);
+                let placeholder_brace = semantics.is_placeholder_open(token.span);
                 lower_token_text(
                     source,
                     token,
+                    semantics,
                     &mut ir,
                     previous,
                     pending_space,
@@ -80,6 +89,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> Result<FormatIr, FormatError>
                 lower_token_text(
                     source,
                     token,
+                    semantics,
                     &mut ir,
                     previous,
                     pending_space,
@@ -93,6 +103,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> Result<FormatIr, FormatError>
                 lower_token_text(
                     source,
                     token,
+                    semantics,
                     &mut ir,
                     previous,
                     pending_space,
@@ -104,6 +115,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> Result<FormatIr, FormatError>
                 lower_token_text(
                     source,
                     token,
+                    semantics,
                     &mut ir,
                     previous,
                     pending_space,
@@ -127,34 +139,6 @@ fn next_significant_kind(tokens: &[Token], start: usize) -> Option<&TokenKind> {
         .skip(start)
         .find(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Newline))
         .map(|token| &token.kind)
-}
-
-fn is_text_placeholder_start(previous: Option<&TokenKind>, next: Option<&TokenKind>) -> bool {
-    let Some(previous) = previous else {
-        return false;
-    };
-
-    if matches!(
-        previous,
-        TokenKind::Equals | TokenKind::Arrow | TokenKind::RawText(_) | TokenKind::TripleQuote
-    ) {
-        return true;
-    }
-
-    matches!(previous, TokenKind::RBrace) && is_placeholder_content_start(next)
-}
-
-fn is_placeholder_content_start(next: Option<&TokenKind>) -> bool {
-    matches!(
-        next,
-        Some(
-            TokenKind::Ident(_)
-                | TokenKind::LocaleTag(_)
-                | TokenKind::String(_)
-                | TokenKind::At
-                | TokenKind::RBrace
-        )
-    )
 }
 
 fn should_collapse_newline(
@@ -200,6 +184,7 @@ fn is_hard_layout_boundary(kind: &TokenKind) -> bool {
             | TokenKind::DocComment(_)
             | TokenKind::RawText(_)
             | TokenKind::TripleQuote
+            | TokenKind::RawTripleQuote
     )
 }
 
@@ -228,6 +213,7 @@ fn is_annotation_target(kind: &TokenKind) -> bool {
 fn lower_token_text(
     source: &str,
     token: &Token,
+    semantics: &FormatSemantics,
     ir: &mut FormatIr,
     previous: Option<&TokenKind>,
     pending_space: bool,
@@ -239,7 +225,7 @@ fn lower_token_text(
         return Ok(());
     }
 
-    if should_preserve_line_start(&token.kind) {
+    if should_preserve_line_start(&token.kind) && !semantics.is_opening_text_delimiter(token) {
         ir.push(FormatItem::RawLineStart);
     }
 
@@ -257,6 +243,8 @@ fn lower_token_text(
         ir.push(FormatItem::ArmMarkerStart);
         ir.text(text);
         ir.push(FormatItem::ArmMarkerEnd);
+    } else if semantics.is_verbatim_text(token) {
+        ir.verbatim(text);
     } else {
         ir.text(text);
     }
@@ -272,17 +260,20 @@ fn rendered_token_text<'a>(source_text: &'a str, kind: &TokenKind) -> Cow<'a, st
 }
 
 fn should_preserve_token_source(kind: &TokenKind) -> bool {
-    matches!(
-        kind,
-        TokenKind::RawText(_) | TokenKind::String(_) | TokenKind::TripleQuote
-    )
+    matches!(kind, TokenKind::RawText(_) | TokenKind::String(_))
 }
 
 fn should_preserve_line_start(kind: &TokenKind) -> bool {
-    matches!(kind, TokenKind::RawText(_) | TokenKind::TripleQuote)
+    matches!(
+        kind,
+        TokenKind::RawText(_) | TokenKind::TripleQuote | TokenKind::RawTripleQuote
+    )
 }
 
 fn token_source<'a>(source: &'a str, token: &Token) -> Result<&'a str, FormatError> {
+    if token.span.source != SourceId::default() {
+        return Err(FormatError::InvalidTokenSpan(token.span));
+    }
     source
         .get(span_range(token.span))
         .ok_or(FormatError::InvalidTokenSpan(token.span))
