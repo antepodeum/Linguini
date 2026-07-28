@@ -1,5 +1,16 @@
 IrModule {
-    enums: [],
+    enums: [
+        IrEnum {
+            name: "Gender",
+            docs: [],
+            variants: [
+                "male",
+                "female",
+                "neuter",
+                "other",
+            ],
+        },
+    ],
     type_aliases: [],
     variables: [
         IrVariable {
@@ -11,6 +22,14 @@ IrModule {
                         "В корзине",
                     ),
                 ],
+                mode: Inline,
+                span: Span {
+                    source: SourceId(
+                        0,
+                    ),
+                    start: 61,
+                    end: 79,
+                },
             },
         },
     ],
@@ -18,7 +37,7 @@ IrModule {
         IrMessage {
             name: "delivery",
             docs: [
-                " Product delivery sentence.",
+                "Product delivery sentence.",
             ],
             parameters: [],
             body: Some(
@@ -26,27 +45,51 @@ IrModule {
                     parts: [
                         Placeholder(
                             IrExpression {
+                                kind: Call,
                                 path: [
                                     "Delivered",
                                 ],
                                 arguments: [
                                     IrExpression {
+                                        kind: Reference,
                                         path: [
                                             "count",
                                         ],
                                         arguments: [],
                                         formatters: [],
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1761,
+                                            end: 1766,
+                                        },
                                     },
                                     IrExpression {
+                                        kind: Reference,
                                         path: [
                                             "fruit",
                                             "Gender",
                                         ],
                                         arguments: [],
                                         formatters: [],
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1768,
+                                            end: 1780,
+                                        },
                                     },
                                 ],
                                 formatters: [],
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1751,
+                                    end: 1781,
+                                },
                             },
                         ),
                         Text(
@@ -54,34 +97,66 @@ IrModule {
                         ),
                         Placeholder(
                             IrExpression {
+                                kind: Call,
                                 path: [
                                     "SizeAdj",
                                 ],
                                 arguments: [
                                     IrExpression {
+                                        kind: Reference,
                                         path: [
                                             "size",
                                         ],
                                         arguments: [],
                                         formatters: [],
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1792,
+                                            end: 1796,
+                                        },
                                     },
                                     IrExpression {
+                                        kind: Reference,
                                         path: [
                                             "count",
                                         ],
                                         arguments: [],
                                         formatters: [],
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1798,
+                                            end: 1803,
+                                        },
                                     },
                                     IrExpression {
+                                        kind: Reference,
                                         path: [
                                             "fruit",
                                             "Gender",
                                         ],
                                         arguments: [],
                                         formatters: [],
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1805,
+                                            end: 1817,
+                                        },
                                     },
                                 ],
                                 formatters: [],
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1784,
+                                    end: 1818,
+                                },
                             },
                         ),
                         Text(
@@ -89,23 +164,47 @@ IrModule {
                         ),
                         Placeholder(
                             IrExpression {
+                                kind: Call,
                                 path: [
                                     "fruit",
                                     "nom",
                                 ],
                                 arguments: [
                                     IrExpression {
+                                        kind: Reference,
                                         path: [
                                             "count",
                                         ],
                                         arguments: [],
                                         formatters: [],
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1831,
+                                            end: 1836,
+                                        },
                                     },
                                 ],
                                 formatters: [],
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1821,
+                                    end: 1837,
+                                },
                             },
                         ),
                     ],
+                    mode: Inline,
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1749,
+                        end: 1838,
+                    },
                 },
             ),
         },
@@ -118,11 +217,19 @@ IrModule {
                     parts: [
                         Placeholder(
                             IrExpression {
+                                kind: Reference,
                                 path: [
                                     "cart_label",
                                 ],
                                 arguments: [],
                                 formatters: [],
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1851,
+                                    end: 1861,
+                                },
                             },
                         ),
                         Text(
@@ -130,11 +237,19 @@ IrModule {
                         ),
                         Placeholder(
                             IrExpression {
+                                kind: Reference,
                                 path: [
                                     "count",
                                 ],
                                 arguments: [],
                                 formatters: [],
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1864,
+                                    end: 1869,
+                                },
                             },
                         ),
                         Text(
@@ -142,23 +257,47 @@ IrModule {
                         ),
                         Placeholder(
                             IrExpression {
+                                kind: Call,
                                 path: [
                                     "fruit",
                                     "nom",
                                 ],
                                 arguments: [
                                     IrExpression {
+                                        kind: Reference,
                                         path: [
                                             "count",
                                         ],
                                         arguments: [],
                                         formatters: [],
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1882,
+                                            end: 1887,
+                                        },
                                     },
                                 ],
                                 formatters: [],
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1872,
+                                    end: 1888,
+                                },
                             },
                         ),
                     ],
+                    mode: Inline,
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1849,
+                        end: 1889,
+                    },
                 },
             ),
         },
@@ -174,6 +313,7 @@ IrModule {
                         ),
                         Placeholder(
                             IrExpression {
+                                kind: Reference,
                                 path: [
                                     "amount",
                                 ],
@@ -189,6 +329,13 @@ IrModule {
                                         ],
                                     },
                                 ],
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1909,
+                                    end: 1939,
+                                },
                             },
                         ),
                         Text(
@@ -196,6 +343,7 @@ IrModule {
                         ),
                         Placeholder(
                             IrExpression {
+                                kind: Reference,
                                 path: [
                                     "date",
                                 ],
@@ -211,9 +359,24 @@ IrModule {
                                         ],
                                     },
                                 ],
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1947,
+                                    end: 1974,
+                                },
                             },
                         ),
                     ],
+                    mode: Inline,
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1898,
+                        end: 1975,
+                    },
                 },
             ),
         },
@@ -228,6 +391,14 @@ IrModule {
                             "Email",
                         ),
                     ],
+                    mode: Inline,
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 2000,
+                        end: 2006,
+                    },
                 },
             ),
         },
@@ -242,6 +413,14 @@ IrModule {
                             "name@example.com",
                         ),
                     ],
+                    mode: Inline,
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 2022,
+                        end: 2039,
+                    },
                 },
             ),
         },
@@ -256,6 +435,14 @@ IrModule {
                             "Адрес электронной почты",
                         ),
                     ],
+                    mode: Inline,
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 2048,
+                        end: 2093,
+                    },
                 },
             ),
         },
@@ -277,6 +464,14 @@ IrModule {
                                             "neuter",
                                         ),
                                     ],
+                                    mode: Inline,
+                                    span: Span {
+                                        source: SourceId(
+                                            0,
+                                        ),
+                                        start: 116,
+                                        end: 123,
+                                    },
                                 },
                             ),
                         },
@@ -289,6 +484,14 @@ IrModule {
                                             "🍎",
                                         ),
                                     ],
+                                    mode: Inline,
+                                    span: Span {
+                                        source: SourceId(
+                                            0,
+                                        ),
+                                        start: 135,
+                                        end: 140,
+                                    },
                                 },
                             ),
                         },
@@ -306,6 +509,21 @@ IrModule {
                                                     "яблоко",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 177,
+                                                end: 190,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 171,
+                                            end: 190,
                                         },
                                     },
                                     IrBranch {
@@ -318,6 +536,21 @@ IrModule {
                                                     "яблока",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 203,
+                                                end: 216,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 197,
+                                            end: 216,
                                         },
                                     },
                                     IrBranch {
@@ -330,6 +563,21 @@ IrModule {
                                                     "яблок",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 227,
+                                                end: 238,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 223,
+                                            end: 238,
                                         },
                                     },
                                 ],
@@ -349,6 +597,21 @@ IrModule {
                                                     "яблока",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 281,
+                                                end: 294,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 275,
+                                            end: 294,
                                         },
                                     },
                                     IrBranch {
@@ -361,6 +624,21 @@ IrModule {
                                                     "яблок",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 305,
+                                                end: 316,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 301,
+                                            end: 316,
                                         },
                                     },
                                 ],
@@ -379,6 +657,14 @@ IrModule {
                                                         "ябл.",
                                                     ),
                                                 ],
+                                                mode: Inline,
+                                                span: Span {
+                                                    source: SourceId(
+                                                        0,
+                                                    ),
+                                                    start: 351,
+                                                    end: 359,
+                                                },
                                             },
                                         ),
                                     },
@@ -391,6 +677,14 @@ IrModule {
                                                         "спелое яблоко",
                                                     ),
                                                 ],
+                                                mode: Inline,
+                                                span: Span {
+                                                    source: SourceId(
+                                                        0,
+                                                    ),
+                                                    start: 372,
+                                                    end: 398,
+                                                },
                                             },
                                         ),
                                     },
@@ -411,6 +705,14 @@ IrModule {
                                             "female",
                                         ),
                                     ],
+                                    mode: Inline,
+                                    span: Span {
+                                        source: SourceId(
+                                            0,
+                                        ),
+                                        start: 431,
+                                        end: 438,
+                                    },
                                 },
                             ),
                         },
@@ -423,6 +725,14 @@ IrModule {
                                             "🍐",
                                         ),
                                     ],
+                                    mode: Inline,
+                                    span: Span {
+                                        source: SourceId(
+                                            0,
+                                        ),
+                                        start: 450,
+                                        end: 455,
+                                    },
                                 },
                             ),
                         },
@@ -440,6 +750,21 @@ IrModule {
                                                     "груша",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 492,
+                                                end: 503,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 486,
+                                            end: 503,
                                         },
                                     },
                                     IrBranch {
@@ -452,6 +777,21 @@ IrModule {
                                                     "груши",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 516,
+                                                end: 527,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 510,
+                                            end: 527,
                                         },
                                     },
                                     IrBranch {
@@ -464,6 +804,21 @@ IrModule {
                                                     "груш",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 538,
+                                                end: 547,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 534,
+                                            end: 547,
                                         },
                                     },
                                 ],
@@ -483,6 +838,21 @@ IrModule {
                                                     "груши",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 590,
+                                                end: 601,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 584,
+                                            end: 601,
                                         },
                                     },
                                     IrBranch {
@@ -495,6 +865,21 @@ IrModule {
                                                     "груш",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 612,
+                                                end: 621,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 608,
+                                            end: 621,
                                         },
                                     },
                                 ],
@@ -514,6 +899,14 @@ IrModule {
                                             "male",
                                         ),
                                     ],
+                                    mode: Inline,
+                                    span: Span {
+                                        source: SourceId(
+                                            0,
+                                        ),
+                                        start: 656,
+                                        end: 661,
+                                    },
                                 },
                             ),
                         },
@@ -526,6 +919,14 @@ IrModule {
                                             "🍊",
                                         ),
                                     ],
+                                    mode: Inline,
+                                    span: Span {
+                                        source: SourceId(
+                                            0,
+                                        ),
+                                        start: 673,
+                                        end: 678,
+                                    },
                                 },
                             ),
                         },
@@ -543,6 +944,21 @@ IrModule {
                                                     "апельсин",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 715,
+                                                end: 732,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 709,
+                                            end: 732,
                                         },
                                     },
                                     IrBranch {
@@ -555,6 +971,21 @@ IrModule {
                                                     "апельсина",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 745,
+                                                end: 764,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 739,
+                                            end: 764,
                                         },
                                     },
                                     IrBranch {
@@ -567,6 +998,21 @@ IrModule {
                                                     "апельсинов",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 775,
+                                                end: 796,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 771,
+                                            end: 796,
                                         },
                                     },
                                 ],
@@ -586,6 +1032,21 @@ IrModule {
                                                     "апельсина",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 839,
+                                                end: 858,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 833,
+                                            end: 858,
                                         },
                                     },
                                     IrBranch {
@@ -598,6 +1059,21 @@ IrModule {
                                                     "апельсинов",
                                                 ),
                                             ],
+                                            mode: Inline,
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 869,
+                                                end: 890,
+                                            },
+                                        },
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 865,
+                                            end: 890,
                                         },
                                     },
                                 ],
@@ -610,6 +1086,7 @@ IrModule {
     ],
     functions: [
         IrFunction {
+            kind: Form,
             name: "Delivered",
             docs: [],
             parameters: [
@@ -636,8 +1113,23 @@ IrModule {
                                                 "Доставлен",
                                             ),
                                         ],
+                                        mode: Inline,
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 956,
+                                            end: 975,
+                                        },
                                     },
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 949,
+                                    end: 975,
+                                },
                             },
                             IrFunctionBranch {
                                 key: "female",
@@ -648,8 +1140,23 @@ IrModule {
                                                 "Доставлена",
                                             ),
                                         ],
+                                        mode: Inline,
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 989,
+                                            end: 1010,
+                                        },
                                     },
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 980,
+                                    end: 1010,
+                                },
                             },
                             IrFunctionBranch {
                                 key: "neuter",
@@ -660,8 +1167,23 @@ IrModule {
                                                 "Доставлено",
                                             ),
                                         ],
+                                        mode: Inline,
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1024,
+                                            end: 1045,
+                                        },
                                     },
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1015,
+                                    end: 1045,
+                                },
                             },
                             IrFunctionBranch {
                                 key: "_",
@@ -672,11 +1194,33 @@ IrModule {
                                                 "Доставлено",
                                             ),
                                         ],
+                                        mode: Inline,
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1054,
+                                            end: 1075,
+                                        },
                                     },
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1050,
+                                    end: 1075,
+                                },
                             },
                         ],
                     ),
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 939,
+                        end: 1079,
+                    },
                 },
                 IrFunctionBranch {
                     key: "_",
@@ -687,12 +1231,28 @@ IrModule {
                                     "Доставлены",
                                 ),
                             ],
+                            mode: Inline,
+                            span: Span {
+                                source: SourceId(
+                                    0,
+                                ),
+                                start: 1086,
+                                end: 1107,
+                            },
                         },
                     ),
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1082,
+                        end: 1107,
+                    },
                 },
             ],
         },
         IrFunction {
+            kind: Form,
             name: "SizeAdj",
             docs: [],
             parameters: [
@@ -727,8 +1287,23 @@ IrModule {
                                                             "маленький",
                                                         ),
                                                     ],
+                                                    mode: Inline,
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1181,
+                                                        end: 1200,
+                                                    },
                                                 },
                                             ),
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 1174,
+                                                end: 1200,
+                                            },
                                         },
                                         IrFunctionBranch {
                                             key: "female",
@@ -739,8 +1314,23 @@ IrModule {
                                                             "маленькая",
                                                         ),
                                                     ],
+                                                    mode: Inline,
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1216,
+                                                        end: 1235,
+                                                    },
                                                 },
                                             ),
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 1207,
+                                                end: 1235,
+                                            },
                                         },
                                         IrFunctionBranch {
                                             key: "neuter",
@@ -751,8 +1341,23 @@ IrModule {
                                                             "маленькое",
                                                         ),
                                                     ],
+                                                    mode: Inline,
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1251,
+                                                        end: 1270,
+                                                    },
                                                 },
                                             ),
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 1242,
+                                                end: 1270,
+                                            },
                                         },
                                         IrFunctionBranch {
                                             key: "_",
@@ -763,11 +1368,33 @@ IrModule {
                                                             "маленький",
                                                         ),
                                                     ],
+                                                    mode: Inline,
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1281,
+                                                        end: 1300,
+                                                    },
                                                 },
                                             ),
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 1277,
+                                                end: 1300,
+                                            },
                                         },
                                     ],
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1162,
+                                    end: 1306,
+                                },
                             },
                             IrFunctionBranch {
                                 key: "_",
@@ -778,11 +1405,33 @@ IrModule {
                                                 "маленьких",
                                             ),
                                         ],
+                                        mode: Inline,
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1315,
+                                            end: 1334,
+                                        },
                                     },
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1311,
+                                    end: 1334,
+                                },
                             },
                         ],
                     ),
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1150,
+                        end: 1338,
+                    },
                 },
                 IrFunctionBranch {
                     key: "big",
@@ -801,8 +1450,23 @@ IrModule {
                                                             "большой",
                                                         ),
                                                     ],
+                                                    mode: Inline,
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1370,
+                                                        end: 1385,
+                                                    },
                                                 },
                                             ),
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 1363,
+                                                end: 1385,
+                                            },
                                         },
                                         IrFunctionBranch {
                                             key: "female",
@@ -813,8 +1477,23 @@ IrModule {
                                                             "большая",
                                                         ),
                                                     ],
+                                                    mode: Inline,
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1401,
+                                                        end: 1416,
+                                                    },
                                                 },
                                             ),
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 1392,
+                                                end: 1416,
+                                            },
                                         },
                                         IrFunctionBranch {
                                             key: "neuter",
@@ -825,8 +1504,23 @@ IrModule {
                                                             "большое",
                                                         ),
                                                     ],
+                                                    mode: Inline,
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1432,
+                                                        end: 1447,
+                                                    },
                                                 },
                                             ),
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 1423,
+                                                end: 1447,
+                                            },
                                         },
                                         IrFunctionBranch {
                                             key: "_",
@@ -837,11 +1531,33 @@ IrModule {
                                                             "большой",
                                                         ),
                                                     ],
+                                                    mode: Inline,
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1458,
+                                                        end: 1473,
+                                                    },
                                                 },
                                             ),
+                                            span: Span {
+                                                source: SourceId(
+                                                    0,
+                                                ),
+                                                start: 1454,
+                                                end: 1473,
+                                            },
                                         },
                                     ],
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1351,
+                                    end: 1479,
+                                },
                             },
                             IrFunctionBranch {
                                 key: "_",
@@ -852,11 +1568,33 @@ IrModule {
                                                 "больших",
                                             ),
                                         ],
+                                        mode: Inline,
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1488,
+                                            end: 1503,
+                                        },
                                     },
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1484,
+                                    end: 1503,
+                                },
                             },
                         ],
                     ),
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1341,
+                        end: 1507,
+                    },
                 },
                 IrFunctionBranch {
                     key: "_",
@@ -867,12 +1605,28 @@ IrModule {
                                     "обычные",
                                 ),
                             ],
+                            mode: Inline,
+                            span: Span {
+                                source: SourceId(
+                                    0,
+                                ),
+                                start: 1514,
+                                end: 1529,
+                            },
                         },
                     ),
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1510,
+                        end: 1529,
+                    },
                 },
             ],
         },
         IrFunction {
+            kind: Function,
             name: "DeliveryNote",
             docs: [],
             parameters: [
@@ -906,16 +1660,39 @@ IrModule {
                                             ),
                                             Placeholder(
                                                 IrExpression {
+                                                    kind: Reference,
                                                     path: [
                                                         "item",
                                                     ],
                                                     arguments: [],
                                                     formatters: [],
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1625,
+                                                        end: 1629,
+                                                    },
                                                 },
                                             ),
                                         ],
+                                        mode: Inline,
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1602,
+                                            end: 1630,
+                                        },
                                     },
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1593,
+                                    end: 1630,
+                                },
                             },
                             IrFunctionBranch {
                                 key: "_",
@@ -927,19 +1704,49 @@ IrModule {
                                             ),
                                             Placeholder(
                                                 IrExpression {
+                                                    kind: Reference,
                                                     path: [
                                                         "item",
                                                     ],
                                                     arguments: [],
                                                     formatters: [],
+                                                    span: Span {
+                                                        source: SourceId(
+                                                            0,
+                                                        ),
+                                                        start: 1660,
+                                                        end: 1664,
+                                                    },
                                                 },
                                             ),
                                         ],
+                                        mode: Inline,
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1639,
+                                            end: 1665,
+                                        },
                                     },
                                 ),
+                                span: Span {
+                                    source: SourceId(
+                                        0,
+                                    ),
+                                    start: 1635,
+                                    end: 1665,
+                                },
                             },
                         ],
                     ),
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1583,
+                        end: 1669,
+                    },
                 },
                 IrFunctionBranch {
                     key: "_",
@@ -951,18 +1758,199 @@ IrModule {
                                 ),
                                 Placeholder(
                                     IrExpression {
+                                        kind: Reference,
                                         path: [
                                             "item",
                                         ],
                                         arguments: [],
                                         formatters: [],
+                                        span: Span {
+                                            source: SourceId(
+                                                0,
+                                            ),
+                                            start: 1699,
+                                            end: 1703,
+                                        },
                                     },
                                 ),
                             ],
+                            mode: Inline,
+                            span: Span {
+                                source: SourceId(
+                                    0,
+                                ),
+                                start: 1676,
+                                end: 1704,
+                            },
                         },
                     ),
+                    span: Span {
+                        source: SourceId(
+                            0,
+                        ),
+                        start: 1672,
+                        end: 1704,
+                    },
                 },
             ],
+        },
+    ],
+    origins: [
+        IrOrigin {
+            kind: Enum,
+            name: "Gender",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 0,
+                end: 43,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Variable,
+            name: "cart_label",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 45,
+                end: 79,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Form,
+            name: "Fruit",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 81,
+                end: 902,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Form,
+            name: "Delivered",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 904,
+                end: 1109,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Form,
+            name: "SizeAdj",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 1111,
+                end: 1531,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Function,
+            name: "DeliveryNote",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 1533,
+                end: 1706,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "delivery",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 1739,
+                end: 1838,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "counted",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 1840,
+                end: 1889,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "price",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 1891,
+                end: 1975,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Group,
+            name: "email_input",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 1977,
+                end: 2095,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "email_input.label",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 1993,
+                end: 2006,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "email_input.placeholder",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 2009,
+                end: 2039,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "email_input.aria",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 2042,
+                end: 2093,
+            },
+            is_override: false,
         },
     ],
 }

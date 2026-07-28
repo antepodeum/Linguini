@@ -23,7 +23,8 @@ pub fn analyze_message_coverage(
 ) -> Vec<Diagnostic> {
     let schema = message_map(schema_messages);
     let locale = message_map(locale_messages);
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = duplicate_messages("schema", schema_messages);
+    diagnostics.extend(duplicate_messages("locale", locale_messages));
 
     for schema_message in schema_messages {
         if !locale.contains_key(schema_message.name.as_str()) {
@@ -35,6 +36,7 @@ pub fn analyze_message_coverage(
                     ),
                     schema_message.span,
                 )
+                .with_code("linguini.missing_message")
                 .with_note("add this message to the locale file"),
             );
         }
@@ -53,10 +55,29 @@ pub fn analyze_message_coverage(
                 ),
                 locale_message.span,
             )
+            .with_code("linguini.unknown_message")
             .with_note("remove this message or add it to the schema"),
         );
     }
 
+    diagnostics
+}
+
+fn duplicate_messages(scope: &str, messages: &[PublicMessage]) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    let mut seen = BTreeMap::new();
+    for message in messages {
+        if let Some(first) = seen.insert(message.name.as_str(), message.span) {
+            diagnostics.push(
+                Diagnostic::error(
+                    format!("duplicate {scope} public message `{}`", message.name),
+                    message.span,
+                )
+                .with_code("linguini.duplicate_message")
+                .with_related(first, "first public message is here"),
+            );
+        }
+    }
     diagnostics
 }
 

@@ -1,4 +1,5 @@
 pub use linguini_core::FormatterKind as IrFormatterKind;
+use linguini_syntax::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct IrModule {
@@ -8,6 +9,53 @@ pub struct IrModule {
     pub messages: Vec<IrMessage>,
     pub forms: Vec<IrForm>,
     pub functions: Vec<IrFunction>,
+    /// Lossless declaration provenance, including entries superseded by `override`.
+    pub origins: Vec<IrOrigin>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SchemaIr(pub(crate) IrModule);
+
+impl SchemaIr {
+    pub fn as_module(&self) -> &IrModule {
+        &self.0
+    }
+
+    pub fn into_module(self) -> IrModule {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LocaleIr(pub(crate) IrModule);
+
+impl LocaleIr {
+    pub fn as_module(&self) -> &IrModule {
+        &self.0
+    }
+
+    pub fn into_module(self) -> IrModule {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IrSymbolKind {
+    Enum,
+    TypeAlias,
+    Variable,
+    Message,
+    Form,
+    Function,
+    Group,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrOrigin {
+    pub kind: IrSymbolKind,
+    pub name: String,
+    pub span: Span,
+    pub is_override: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,10 +122,17 @@ pub enum IrValue {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrFunction {
+    pub kind: IrFunctionKind,
     pub name: String,
     pub docs: Vec<String>,
     pub parameters: Vec<IrFunctionParameter>,
     pub branches: Vec<IrFunctionBranch>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrFunctionKind {
+    Form,
+    Function,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,6 +145,7 @@ pub struct IrFunctionParameter {
 pub struct IrFunctionBranch {
     pub key: String,
     pub value: IrFunctionBranchValue,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,11 +158,21 @@ pub enum IrFunctionBranchValue {
 pub struct IrBranch {
     pub keys: Vec<String>,
     pub value: IrText,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrText {
     pub parts: Vec<IrTextPart>,
+    pub mode: IrTextBlockMode,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrTextBlockMode {
+    Inline,
+    Dedented,
+    Raw,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,9 +183,17 @@ pub enum IrTextPart {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrExpression {
+    pub kind: IrExpressionKind,
     pub path: Vec<String>,
     pub arguments: Vec<IrExpression>,
     pub formatters: Vec<IrFormatter>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrExpressionKind {
+    Reference,
+    Call,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

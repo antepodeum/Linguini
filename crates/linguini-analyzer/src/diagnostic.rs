@@ -10,6 +10,14 @@ pub enum DiagnosticSeverity {
     Advice,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticCategory {
+    Syntax,
+    Semantic,
+    Lint,
+    Project,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelatedSpan {
     pub span: Span,
@@ -19,8 +27,23 @@ pub struct RelatedSpan {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuickFix {
     pub title: String,
+    /// Canonical atomic action. The legacy `id` and `replacement` projections remain available
+    /// for older CLI/LSP consumers.
+    pub action: QuickFixAction,
     pub id: Option<String>,
     pub replacement: Option<Replacement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QuickFixAction {
+    Hint,
+    Command {
+        id: String,
+    },
+    Replace {
+        id: Option<String>,
+        replacement: Replacement,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,9 +54,16 @@ pub struct Replacement {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnostic {
+    /// Stable machine-readable identifier. Human-readable message text is not an API.
+    pub code: &'static str,
+    pub category: DiagnosticCategory,
+    pub lint_name: Option<&'static str>,
     pub severity: DiagnosticSeverity,
     pub message: String,
+    /// Compatibility accessor for source-backed diagnostics.
     pub span: Span,
+    /// `None` represents a genuinely source-less project diagnostic.
+    pub source_span: Option<Span>,
     pub note: Option<String>,
     pub related: Vec<RelatedSpan>,
     pub quick_fixes: Vec<QuickFix>,
@@ -56,9 +86,13 @@ impl std::error::Error for RenderError {}
 impl Diagnostic {
     pub fn error(message: impl Into<String>, span: Span) -> Self {
         Self {
+            code: "linguini.semantic",
+            category: DiagnosticCategory::Semantic,
+            lint_name: None,
             severity: DiagnosticSeverity::Error,
             message: message.into(),
             span,
+            source_span: Some(span),
             note: None,
             related: Vec::new(),
             quick_fixes: Vec::new(),
@@ -68,9 +102,13 @@ impl Diagnostic {
 
     pub fn warning(message: impl Into<String>, span: Span) -> Self {
         Self {
+            code: "linguini.semantic",
+            category: DiagnosticCategory::Semantic,
+            lint_name: None,
             severity: DiagnosticSeverity::Warning,
             message: message.into(),
             span,
+            source_span: Some(span),
             note: None,
             related: Vec::new(),
             quick_fixes: Vec::new(),
@@ -80,9 +118,13 @@ impl Diagnostic {
 
     pub fn advice(message: impl Into<String>, span: Span) -> Self {
         Self {
+            code: "linguini.semantic",
+            category: DiagnosticCategory::Semantic,
+            lint_name: None,
             severity: DiagnosticSeverity::Advice,
             message: message.into(),
             span,
+            source_span: Some(span),
             note: None,
             related: Vec::new(),
             quick_fixes: Vec::new(),
@@ -92,6 +134,23 @@ impl Diagnostic {
 
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.note = Some(note.into());
+        self
+    }
+
+    pub fn with_code(mut self, code: &'static str) -> Self {
+        self.code = code;
+        self
+    }
+
+    pub fn with_category(mut self, category: DiagnosticCategory) -> Self {
+        self.category = category;
+        self
+    }
+
+    pub fn as_lint(mut self, name: &'static str) -> Self {
+        self.category = DiagnosticCategory::Lint;
+        self.lint_name = Some(name);
+        self.code = name;
         self
     }
 
@@ -110,6 +169,7 @@ impl Diagnostic {
 
     pub fn without_source(mut self) -> Self {
         self.show_source = false;
+        self.source_span = None;
         self
     }
 }
@@ -118,6 +178,7 @@ impl QuickFix {
     pub fn hint(title: impl Into<String>) -> Self {
         Self {
             title: title.into(),
+            action: QuickFixAction::Hint,
             id: None,
             replacement: None,
         }
@@ -126,14 +187,20 @@ impl QuickFix {
     pub fn command(id: impl Into<String>, title: impl Into<String>) -> Self {
         Self {
             title: title.into(),
-            id: Some(id.into()),
+            action: QuickFixAction::Command { id: id.into() },
+            id: None,
             replacement: None,
         }
+        .synchronize_legacy_fields()
     }
 
     pub fn replacement(title: impl Into<String>, replacement: Replacement) -> Self {
         Self {
             title: title.into(),
+            action: QuickFixAction::Replace {
+                id: None,
+                replacement: replacement.clone(),
+            },
             id: None,
             replacement: Some(replacement),
         }
@@ -144,15 +211,46 @@ impl QuickFix {
         title: impl Into<String>,
         replacement: Replacement,
     ) -> Self {
+        let id = id.into();
         Self {
             title: title.into(),
-            id: Some(id.into()),
+            action: QuickFixAction::Replace {
+                id: Some(id),
+                replacement: replacement.clone(),
+            },
+            id: None,
             replacement: Some(replacement),
         }
+        .synchronize_legacy_fields()
     }
 
     pub fn with_id(mut self, id: impl Into<String>) -> Self {
-        self.id = Some(id.into());
+        let id = id.into();
+        self.action = match self.action {
+            QuickFixAction::Replace { replacement, .. } => QuickFixAction::Replace {
+                id: Some(id),
+                replacement,
+            },
+            QuickFixAction::Hint | QuickFixAction::Command { .. } => QuickFixAction::Command { id },
+        };
+        self.synchronize_legacy_fields()
+    }
+
+    fn synchronize_legacy_fields(mut self) -> Self {
+        match &self.action {
+            QuickFixAction::Hint => {
+                self.id = None;
+                self.replacement = None;
+            }
+            QuickFixAction::Command { id } => {
+                self.id = Some(id.clone());
+                self.replacement = None;
+            }
+            QuickFixAction::Replace { id, replacement } => {
+                self.id = id.clone();
+                self.replacement = Some(replacement.clone());
+            }
+        }
         self
     }
 }
@@ -171,34 +269,42 @@ pub fn render_diagnostics_with_color(
     diagnostics: &[Diagnostic],
     color: bool,
 ) -> Result<String, RenderError> {
+    let source_length = source.len();
     let source = Source::from(source);
     let config = Config::default()
         .with_color(color)
-        .with_char_set(CharSet::Ascii)
+        .with_char_set(CharSet::Unicode)
         .with_index_type(IndexType::Byte);
     let mut output = Vec::new();
 
     for diagnostic in diagnostics {
-        if !diagnostic.show_source {
+        let Some(primary_span) = diagnostic.source_span else {
             render_summary_diagnostic(path, &mut output, diagnostic, color);
             continue;
-        }
+        };
 
         let mut builder = Report::build(
             report_kind(diagnostic.severity),
-            (path.to_string(), span_range(diagnostic.span)),
+            (path.to_string(), span_range(primary_span, source_length)),
         )
         .with_config(config)
         .with_message(&diagnostic.message)
         .with_label(
-            Label::new((path.to_string(), span_range(diagnostic.span)))
+            Label::new((path.to_string(), span_range(primary_span, source_length)))
                 .with_color(label_color(diagnostic.severity))
                 .with_message(&diagnostic.message),
         );
 
         for related in &diagnostic.related {
+            if related.span.source != primary_span.source {
+                builder = builder.with_note(format!(
+                    "{} (related source #{})",
+                    related.message, related.span.source.0
+                ));
+                continue;
+            }
             builder = builder.with_label(
-                Label::new((path.to_string(), span_range(related.span)))
+                Label::new((path.to_string(), span_range(related.span, source_length)))
                     .with_color(Color::Cyan)
                     .with_message(&related.message),
             );
@@ -218,9 +324,22 @@ pub fn render_diagnostics_with_color(
             .map_err(|source| RenderError { source })?;
     }
 
-    String::from_utf8(output).map_err(|source| RenderError {
+    let rendered = String::from_utf8(output).map_err(|source| RenderError {
         source: io::Error::new(io::ErrorKind::InvalidData, source),
-    })
+    })?;
+    Ok(trim_trailing_layout_padding(&rendered))
+}
+
+fn trim_trailing_layout_padding(rendered: &str) -> String {
+    let mut output = rendered
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
+    if rendered.ends_with('\n') {
+        output.push('\n');
+    }
+    output
 }
 
 fn render_summary_diagnostic(
@@ -292,6 +411,8 @@ fn label_color(severity: DiagnosticSeverity) -> Color {
     }
 }
 
-fn span_range(span: Span) -> std::ops::Range<usize> {
-    span.start..span.end
+fn span_range(span: Span, source_length: usize) -> std::ops::Range<usize> {
+    let start = span.start.min(source_length);
+    let end = span.end.max(start).min(source_length);
+    start..end
 }

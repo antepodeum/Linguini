@@ -1,10 +1,11 @@
 use super::{
     analyze_branch_coverage, analyze_expressions, analyze_function_patterns,
     analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
-    analyze_message_coverage, detect_reference_cycles, render_diagnostics, require_other_branch,
-    BranchCoverage, Diagnostic, DiagnosticSeverity, ExpressionAnalysis, FormProperty,
-    FormSignature, FunctionSignature, LocaleCoverageOptions, MessageToAnalyze, NamedSpan,
-    PublicMessage, QuickFix, ReferenceNode, Variable,
+    analyze_message_coverage, analyze_project_expressions, detect_reference_cycles,
+    render_diagnostics, require_other_branch, BranchCoverage, Diagnostic, DiagnosticCategory,
+    DiagnosticSeverity, ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature,
+    LocaleCoverageOptions, MessageToAnalyze, NamedSpan, PublicMessage, QuickFix, ReferenceNode,
+    Variable,
 };
 use linguini_syntax::{parse_locale, parse_schema, Span};
 
@@ -51,6 +52,7 @@ fn locale_analysis_reports_incomplete_nested_enum_branch_coverage() {
     assert_eq!(
         diagnostics
             .iter()
+            .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
             .map(|diagnostic| diagnostic.message.as_str())
             .collect::<Vec<_>>(),
         [
@@ -77,7 +79,12 @@ fn locale_analysis_accepts_wildcard_for_enum_branch_coverage() {
 
     let diagnostics = analyze_locale_file(&locale);
 
-    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{diagnostics:?}"
+    );
 }
 
 #[test]
@@ -412,7 +419,7 @@ fn function_pattern_analysis_reports_dispatch_depth() {
         .expect("locale parses");
     let diagnostics = analyze_function_patterns(&locale);
 
-    assert_eq!(diagnostics.len(), 2);
+    assert_eq!(diagnostics.len(), 1);
     assert_eq!(
         diagnostics[0].message,
         "function `Choose` branch pattern expects 2 value(s), got 1"
@@ -493,6 +500,218 @@ fn reference_cycle_analysis_reports_cycle() {
         diagnostics[0].message,
         "cyclic reference `delivery -> delivery`"
     );
+}
+
+#[test]
+fn zero_argument_call_is_not_treated_as_a_reference() {
+    let locale = parse_locale("delivery = {ready()}\n").expect("locale parses");
+    let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![Variable::new("ready", "String", Span::new(0, 0))],
+        messages: vec![MessageToAnalyze::new(
+            "delivery",
+            message_value(&locale, "delivery"),
+            vec![],
+        )],
+        functions: vec![FunctionSignature::new("ready", 0, Span::new(0, 0))],
+        forms: vec![],
+    });
+
+    assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+}
+
+#[test]
+fn explicit_plural_argument_must_be_numeric() {
+    let locale = parse_locale("delivery = {plural(label)}\n").expect("locale parses");
+    let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
+        messages: vec![MessageToAnalyze::new(
+            "delivery",
+            message_value(&locale, "delivery"),
+            vec![Variable::new("label", "String", Span::new(0, 0))],
+        )],
+        functions: vec![],
+        forms: vec![],
+    });
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].code, "linguini.type_mismatch");
+}
+
+#[test]
+fn implicit_plural_requires_a_numeric_variable() {
+    let locale = parse_locale("delivery = {fruit.nom}\n").expect("locale parses");
+    let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
+        messages: vec![MessageToAnalyze::new(
+            "delivery",
+            message_value(&locale, "delivery"),
+            vec![Variable::new("fruit", "Fruit", Span::new(0, 0))],
+        )],
+        functions: vec![],
+        forms: vec![FormSignature::new(
+            "Fruit",
+            vec![FormProperty::plural("nom", Span::new(0, 0))],
+            Span::new(0, 0),
+        )],
+    });
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].code, "linguini.missing_plural_argument");
+}
+
+#[test]
+fn typed_function_arguments_are_checked() {
+    let locale = parse_locale("delivery = {choose(label)}\n").expect("locale parses");
+    let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
+        messages: vec![MessageToAnalyze::new(
+            "delivery",
+            message_value(&locale, "delivery"),
+            vec![Variable::new("label", "String", Span::new(0, 0))],
+        )],
+        functions: vec![FunctionSignature::typed(
+            "choose",
+            ["Number"],
+            Span::new(0, 0),
+        )],
+        forms: vec![],
+    });
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].code, "linguini.type_mismatch");
+}
+
+#[test]
+fn wildcard_order_duplicates_and_unreachable_arms_are_diagnosed() {
+    let diagnostics = analyze_branch_coverage(BranchCoverage {
+        subject: "form `Choose`",
+        enum_name: "Gender",
+        variants: vec![NamedSpan::new("male", Span::new(0, 4))],
+        branches: vec![
+            NamedSpan::new("_", Span::new(10, 11)),
+            NamedSpan::new("male", Span::new(12, 16)),
+            NamedSpan::new("male", Span::new(17, 21)),
+        ],
+        span: Span::new(10, 21),
+    });
+
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "linguini.wildcard_order"));
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.lint_name == Some("unreachable_arm")));
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "linguini.duplicate_branch"));
+}
+
+#[test]
+fn complete_enum_with_wildcard_reports_redundant_wildcard_lint() {
+    let diagnostics = analyze_branch_coverage(BranchCoverage {
+        subject: "form `Choose`",
+        enum_name: "Gender",
+        variants: vec![NamedSpan::new("male", Span::new(0, 4))],
+        branches: vec![
+            NamedSpan::new("male", Span::new(10, 14)),
+            NamedSpan::new("_", Span::new(15, 16)),
+        ],
+        span: Span::new(10, 16),
+    });
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].lint_name, Some("redundant_wildcard"));
+    assert_eq!(diagnostics[0].category, DiagnosticCategory::Lint);
+}
+
+#[test]
+fn nested_message_groups_use_canonical_paths_and_recursive_stubs() {
+    let schema = parse_schema("shop { main { title subtitle } }\n").expect("nested schema parses");
+    let locale = parse_locale("shop { main { title = Shop } }\n").expect("nested locale parses");
+    let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+    let missing = diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.message.contains("shop.main.subtitle"))
+        .expect("nested missing message");
+    let replacement = missing.quick_fixes[0]
+        .replacement
+        .as_ref()
+        .expect("recursive stub replacement");
+    assert!(replacement
+        .text
+        .contains("shop {\n  main {\n    subtitle = TODO\n  }\n}"));
+}
+
+#[test]
+fn reference_cycle_analysis_reports_one_scc_with_all_edges() {
+    let diagnostics = detect_reference_cycles(&[
+        ReferenceNode::new(
+            "a",
+            vec![NamedSpan::new("b", Span::new(1, 2))],
+            Span::new(0, 2),
+        ),
+        ReferenceNode::new(
+            "b",
+            vec![NamedSpan::new("a", Span::new(4, 5))],
+            Span::new(3, 5),
+        ),
+    ]);
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].related.len(), 2);
+    assert_eq!(diagnostics[0].code, "linguini.reference_cycle");
+}
+
+#[test]
+fn project_expression_analysis_checks_real_message_calls() {
+    let schema = parse_schema("delivery(count: Number)\n").expect("schema parses");
+    let locale = parse_locale(
+        "fn choose(value: String, Number) { _ => {value} }\ndelivery = {choose(count, count)}\n",
+    )
+    .expect("locale parses");
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "linguini.type_mismatch"));
+}
+
+#[test]
+fn source_less_diagnostic_has_no_source_span() {
+    let diagnostic = Diagnostic::error("project problem", Span::new(0, 0)).without_source();
+
+    assert!(diagnostic.source_span.is_none());
+}
+
+#[test]
+fn function_style_lints_are_attached_by_name() {
+    let locale = parse_locale(
+        "enum Gender { male, female }\n\
+         fn Same(Gender) {\n\
+           male => same\n\
+           female => same\n\
+         }\n",
+    )
+    .expect("locale parses");
+    let diagnostics = analyze_locale_file(&locale);
+    let lint_names = diagnostics
+        .iter()
+        .filter_map(|diagnostic| diagnostic.lint_name)
+        .collect::<std::collections::BTreeSet<_>>();
+
+    assert!(lint_names.contains("fn_without_strings"));
+    assert!(lint_names.contains("collapsible_arms"));
+}
+
+#[test]
+fn non_dispatchable_primitive_is_rejected() {
+    let locale = parse_locale("form ByDate(Date) { _ => today }\n").expect("locale parses");
+    let diagnostics = analyze_locale_file(&locale);
+
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "linguini.invalid_dispatch_type"));
 }
 
 fn message_value(locale: &linguini_syntax::LocaleFile, name: &str) -> linguini_syntax::TextPattern {

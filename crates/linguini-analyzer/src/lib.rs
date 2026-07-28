@@ -9,12 +9,12 @@ pub use branch_coverage::{
     analyze_branch_coverage, require_other_branch, BranchCoverage, NamedSpan,
 };
 pub use diagnostic::{
-    render_diagnostics, render_diagnostics_with_color, Diagnostic, DiagnosticSeverity, QuickFix,
-    RelatedSpan, RenderError, Replacement,
+    render_diagnostics, render_diagnostics_with_color, Diagnostic, DiagnosticCategory,
+    DiagnosticSeverity, QuickFix, QuickFixAction, RelatedSpan, RenderError, Replacement,
 };
 pub use expression::{
-    analyze_expressions, analyze_function_patterns, ExpressionAnalysis, FormProperty,
-    FormSignature, FunctionSignature, MessageToAnalyze, Variable,
+    analyze_expressions, analyze_function_patterns, analyze_project_expressions,
+    ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature, MessageToAnalyze, Variable,
 };
 pub use locale::{
     analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,

@@ -1,8 +1,8 @@
 use linguini_analyzer::Diagnostic;
-use linguini_core::TypeKind;
+use linguini_core::{FormatterKind, TypeKind};
 use linguini_syntax::{
-    DocComment, MessageSignature, Name, Parameter, SchemaDeclaration, SchemaFile, Span,
-    TypeAliasDeclaration,
+    Annotation, DocComment, MessageGroup, MessageSignature, Name, Parameter, SchemaDeclaration,
+    SchemaFile, Span, TypeAliasDeclaration,
 };
 use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
@@ -34,7 +34,16 @@ pub struct VariantSymbol {
 pub struct TypeAliasSymbol {
     pub name: String,
     pub target: String,
+    pub target_span: Span,
     pub docs: Vec<String>,
+    pub formatters: Vec<FormatterSymbol>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FormatterSymbol {
+    pub kind: FormatterKind,
+    pub arguments: BTreeMap<String, String>,
     pub span: Span,
 }
 
@@ -50,7 +59,9 @@ pub struct MessageSymbol {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParameterSymbol {
     pub name: String,
+    pub name_span: Span,
     pub ty: String,
+    pub type_span: Span,
     pub span: Span,
 }
 
@@ -58,14 +69,27 @@ pub struct ParameterSymbol {
 pub struct GroupSymbol {
     pub name: String,
     pub messages: Vec<String>,
+    pub groups: Vec<String>,
     pub docs: Vec<String>,
     pub span: Span,
 }
 
 pub fn build_schema_symbols(schema: &SchemaFile) -> (SchemaSymbols, Vec<Diagnostic>) {
+    build_schema_symbols_from_files(std::slice::from_ref(schema))
+}
+
+/// Builds one canonical symbol table for all schema sources.
+///
+/// Cross-file duplicate checking is intentionally part of this operation. Callers that compile a
+/// project must use this function before lowering or code generation rather than concatenating
+/// independently lowered vectors.
+pub fn build_schema_symbols_from_files(schemas: &[SchemaFile]) -> (SchemaSymbols, Vec<Diagnostic>) {
     let mut builder = SchemaSymbolBuilder::default();
-    builder.register_declarations(schema);
+    for schema in schemas {
+        builder.register_declarations(schema);
+    }
     builder.resolve_type_references();
+    builder.detect_alias_cycles();
     (builder.symbols, builder.diagnostics)
 }
 
@@ -81,12 +105,15 @@ impl SchemaSymbolBuilder {
         for declaration in &schema.declarations {
             match declaration {
                 SchemaDeclaration::Enum(declaration) => {
-                    if self.register_name(&declaration.name) {
+                    self.validate_pascal_name(&declaration.name, "enum");
+                    if self.register_name(&declaration.name.value, declaration.name.span) {
+                        let variants =
+                            self.variants(&declaration.name.value, &declaration.variants);
                         self.symbols.enums.insert(
                             declaration.name.value.clone(),
                             EnumSymbol {
                                 name: declaration.name.value.clone(),
-                                variants: variants(&declaration.variants),
+                                variants,
                                 docs: doc_texts(&declaration.docs),
                                 span: declaration.span,
                             },
@@ -95,90 +122,190 @@ impl SchemaSymbolBuilder {
                 }
                 SchemaDeclaration::TypeAlias(declaration) => self.register_type_alias(declaration),
                 SchemaDeclaration::Message(declaration) => {
-                    self.register_message(None, declaration);
+                    self.register_message(None, &declaration.name.value, declaration);
                 }
-                SchemaDeclaration::Group(declaration) => {
-                    if self.register_name(&declaration.name) {
-                        let group_name = declaration.name.value.clone();
-                        let mut messages = Vec::new();
-                        for message in &declaration.messages {
-                            let full_name = grouped_name(&group_name, &message.name.value);
-                            messages.push(full_name.clone());
-                            self.register_grouped_message(&group_name, full_name, message);
-                        }
-                        self.symbols.groups.insert(
-                            group_name.clone(),
-                            GroupSymbol {
-                                name: group_name,
-                                messages,
-                                docs: doc_texts(&declaration.docs),
-                                span: declaration.span,
-                            },
-                        );
-                    }
-                }
+                SchemaDeclaration::Group(declaration) => self.register_group(None, declaration),
             }
         }
     }
 
     fn register_type_alias(&mut self, declaration: &TypeAliasDeclaration) {
-        if self.register_name(&declaration.name) {
+        self.validate_pascal_name(&declaration.name, "type alias");
+        if self.register_name(&declaration.name.value, declaration.name.span) {
+            let formatters = self.formatters(&declaration.annotations);
             self.symbols.type_aliases.insert(
                 declaration.name.value.clone(),
                 TypeAliasSymbol {
                     name: declaration.name.value.clone(),
                     target: declaration.target.value.clone(),
+                    target_span: declaration.target.span,
                     docs: doc_texts(&declaration.docs),
+                    formatters,
                     span: declaration.span,
                 },
             );
         }
     }
 
-    fn register_message(&mut self, group: Option<&str>, declaration: &MessageSignature) {
-        if self.register_name(&declaration.name) {
-            self.insert_message(declaration.name.value.clone(), group, declaration);
+    fn register_group(&mut self, parent: Option<&str>, declaration: &MessageGroup) {
+        self.validate_lower_name(&declaration.name, "group");
+        let name = qualified_name(parent, &declaration.name.value);
+        if !self.register_name(&name, declaration.name.span) {
+            return;
         }
-    }
 
-    fn register_grouped_message(
-        &mut self,
-        group: &str,
-        full_name: String,
-        declaration: &MessageSignature,
-    ) {
-        match self.symbols.messages.entry(full_name.clone()) {
-            Entry::Vacant(entry) => {
-                entry.insert(message_symbol(full_name, Some(group), declaration));
+        let mut messages = Vec::new();
+        for message in &declaration.messages {
+            let full_name = qualified_name(Some(&name), &message.name.value);
+            if self.register_message(Some(&name), &full_name, message) {
+                messages.push(full_name);
             }
-            Entry::Occupied(first) => self.diagnostics.push(duplicate_diagnostic(
-                &full_name,
-                declaration.name.span,
-                first.get().span,
-            )),
         }
+
+        let mut groups = Vec::new();
+        for child in &declaration.groups {
+            let child_name = qualified_name(Some(&name), &child.name.value);
+            let existed = self.declarations.contains_key(&child_name);
+            self.register_group(Some(&name), child);
+            if !existed && self.symbols.groups.contains_key(&child_name) {
+                groups.push(child_name);
+            }
+        }
+
+        self.symbols.groups.insert(
+            name.clone(),
+            GroupSymbol {
+                name,
+                messages,
+                groups,
+                docs: doc_texts(&declaration.docs),
+                span: declaration.span,
+            },
+        );
     }
 
-    fn insert_message(
+    fn register_message(
         &mut self,
-        name: String,
         group: Option<&str>,
+        full_name: &str,
         declaration: &MessageSignature,
-    ) {
-        self.symbols
-            .messages
-            .insert(name.clone(), message_symbol(name, group, declaration));
+    ) -> bool {
+        self.validate_lower_name(&declaration.name, "message");
+        if !self.register_name(full_name, declaration.name.span) {
+            return false;
+        }
+
+        let parameters = self.parameters(full_name, &declaration.parameters);
+        self.symbols.messages.insert(
+            full_name.to_owned(),
+            MessageSymbol {
+                name: full_name.to_owned(),
+                group: group.map(str::to_owned),
+                parameters,
+                docs: doc_texts(&declaration.docs),
+                span: declaration.span,
+            },
+        );
+        true
     }
 
-    fn register_name(&mut self, name: &Name) -> bool {
-        match self.declarations.entry(name.value.clone()) {
+    fn variants(&mut self, enum_name: &str, variants: &[Name]) -> BTreeMap<String, VariantSymbol> {
+        let mut output = BTreeMap::new();
+        for variant in variants {
+            self.validate_lower_name(variant, "enum variant");
+            match output.entry(variant.value.clone()) {
+                Entry::Vacant(entry) => {
+                    entry.insert(VariantSymbol {
+                        name: variant.value.clone(),
+                        span: variant.span,
+                    });
+                }
+                Entry::Occupied(first) => self.diagnostics.push(
+                    Diagnostic::error(
+                        format!(
+                            "duplicate variant `{}` in enum `{enum_name}`",
+                            variant.value
+                        ),
+                        variant.span,
+                    )
+                    .with_related(first.get().span, "first variant is here"),
+                ),
+            }
+        }
+        output
+    }
+
+    fn parameters(&mut self, message_name: &str, parameters: &[Parameter]) -> Vec<ParameterSymbol> {
+        let mut output = Vec::new();
+        let mut names = BTreeMap::<&str, Span>::new();
+        for parameter in parameters {
+            self.validate_lower_name(&parameter.name, "message parameter");
+            match names.entry(parameter.name.value.as_str()) {
+                Entry::Vacant(entry) => {
+                    entry.insert(parameter.name.span);
+                    output.push(ParameterSymbol {
+                        name: parameter.name.value.clone(),
+                        name_span: parameter.name.span,
+                        ty: parameter.ty.value.clone(),
+                        type_span: parameter.ty.span,
+                        span: parameter.span,
+                    });
+                }
+                Entry::Occupied(first) => self.diagnostics.push(
+                    Diagnostic::error(
+                        format!(
+                            "duplicate parameter `{}` in message `{message_name}`",
+                            parameter.name.value
+                        ),
+                        parameter.name.span,
+                    )
+                    .with_related(*first.get(), "first parameter is here"),
+                ),
+            }
+        }
+        output
+    }
+
+    fn formatters(&mut self, annotations: &[Annotation]) -> Vec<FormatterSymbol> {
+        let mut output = Vec::new();
+        for annotation in annotations {
+            if let FormatterKind::Unknown(name) = &annotation.kind {
+                self.diagnostics.push(Diagnostic::error(
+                    format!("unknown formatter `{name}`"),
+                    annotation.span,
+                ));
+            }
+
+            let mut arguments = BTreeMap::new();
+            for argument in &annotation.arguments {
+                match arguments.entry(argument.name.value.clone()) {
+                    Entry::Vacant(entry) => {
+                        entry.insert(argument.value.value.clone());
+                    }
+                    Entry::Occupied(_) => self.diagnostics.push(Diagnostic::error(
+                        format!("duplicate formatter option `{}`", argument.name.value),
+                        argument.name.span,
+                    )),
+                }
+            }
+            output.push(FormatterSymbol {
+                kind: annotation.kind.clone(),
+                arguments,
+                span: annotation.span,
+            });
+        }
+        output
+    }
+
+    fn register_name(&mut self, name: &str, span: Span) -> bool {
+        match self.declarations.entry(name.to_owned()) {
             Entry::Vacant(entry) => {
-                entry.insert(name.span);
+                entry.insert(span);
                 true
             }
             Entry::Occupied(first) => {
                 self.diagnostics
-                    .push(duplicate_diagnostic(&name.value, name.span, *first.get()));
+                    .push(duplicate_diagnostic(name, span, *first.get()));
                 false
             }
         }
@@ -190,7 +317,7 @@ impl SchemaSymbolBuilder {
         for alias in aliases {
             if !known.contains(&alias.target) {
                 self.diagnostics
-                    .push(unknown_type_diagnostic(&alias.target, alias.span));
+                    .push(unknown_type_diagnostic(&alias.target, alias.target_span));
             }
         }
 
@@ -199,11 +326,70 @@ impl SchemaSymbolBuilder {
             for parameter in message.parameters {
                 if !known.contains(&parameter.ty) {
                     self.diagnostics.push(
-                        unknown_type_diagnostic(&parameter.ty, parameter.span)
+                        unknown_type_diagnostic(&parameter.ty, parameter.type_span)
                             .with_related(message.span, "while checking this message"),
                     );
                 }
             }
+        }
+    }
+
+    fn detect_alias_cycles(&mut self) {
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum State {
+            Visiting,
+            Complete,
+        }
+
+        fn visit(
+            name: &str,
+            aliases: &BTreeMap<String, TypeAliasSymbol>,
+            states: &mut BTreeMap<String, State>,
+            stack: &mut Vec<String>,
+            diagnostics: &mut Vec<Diagnostic>,
+        ) {
+            if states.get(name) == Some(&State::Complete) {
+                return;
+            }
+            if states.get(name) == Some(&State::Visiting) {
+                let offset = stack.iter().position(|item| item == name).unwrap_or(0);
+                let mut cycle = stack[offset..].to_vec();
+                cycle.push(name.to_owned());
+                let alias = &aliases[name];
+                let mut diagnostic = Diagnostic::error(
+                    format!("cyclic type alias `{}`", cycle.join(" -> ")),
+                    alias.target_span,
+                );
+                for member in &stack[offset..] {
+                    diagnostic = diagnostic
+                        .with_related(aliases[member].span, format!("alias `{member}` is here"));
+                }
+                diagnostics.push(diagnostic);
+                return;
+            }
+
+            states.insert(name.to_owned(), State::Visiting);
+            stack.push(name.to_owned());
+            if let Some(target) = aliases.get(name).map(|alias| alias.target.as_str()) {
+                if aliases.contains_key(target) {
+                    visit(target, aliases, states, stack, diagnostics);
+                }
+            }
+            stack.pop();
+            states.insert(name.to_owned(), State::Complete);
+        }
+
+        let aliases = self.symbols.type_aliases.clone();
+        let mut states = BTreeMap::new();
+        let mut stack = Vec::new();
+        for name in aliases.keys() {
+            visit(
+                name,
+                &aliases,
+                &mut states,
+                &mut stack,
+                &mut self.diagnostics,
+            );
         }
     }
 
@@ -215,54 +401,35 @@ impl SchemaSymbolBuilder {
             .chain(self.symbols.type_aliases.keys().cloned())
             .collect()
     }
-}
 
-fn variants(variants: &[Name]) -> BTreeMap<String, VariantSymbol> {
-    variants
-        .iter()
-        .map(|variant| {
-            (
-                variant.value.clone(),
-                VariantSymbol {
-                    name: variant.value.clone(),
-                    span: variant.span,
-                },
-            )
-        })
-        .collect()
-}
-
-fn message_symbol(
-    name: String,
-    group: Option<&str>,
-    declaration: &MessageSignature,
-) -> MessageSymbol {
-    MessageSymbol {
-        name,
-        group: group.map(str::to_owned),
-        parameters: parameters(&declaration.parameters),
-        docs: doc_texts(&declaration.docs),
-        span: declaration.span,
+    fn validate_lower_name(&mut self, name: &Name, kind: &str) {
+        if !is_lower_name(&name.value) {
+            self.diagnostics.push(Diagnostic::error(
+                format!("{kind} `{}` must use lowercase_snake_case", name.value),
+                name.span,
+            ));
+        }
     }
-}
 
-fn parameters(parameters: &[Parameter]) -> Vec<ParameterSymbol> {
-    parameters
-        .iter()
-        .map(|parameter| ParameterSymbol {
-            name: parameter.name.value.clone(),
-            ty: parameter.ty.value.clone(),
-            span: parameter.span,
-        })
-        .collect()
+    fn validate_pascal_name(&mut self, name: &Name, kind: &str) {
+        if !is_pascal_name(&name.value) {
+            self.diagnostics.push(Diagnostic::error(
+                format!("{kind} `{}` must use PascalCase", name.value),
+                name.span,
+            ));
+        }
+    }
 }
 
 fn doc_texts(docs: &[DocComment]) -> Vec<String> {
     docs.iter().map(|doc| doc.text.trim().to_owned()).collect()
 }
 
-fn grouped_name(group: &str, message: &str) -> String {
-    format!("{group}.{message}")
+fn qualified_name(parent: Option<&str>, name: &str) -> String {
+    match parent {
+        Some(parent) => format!("{parent}.{name}"),
+        None => name.to_owned(),
+    }
 }
 
 fn duplicate_diagnostic(name: &str, span: Span, first_span: Span) -> Diagnostic {
@@ -274,10 +441,31 @@ fn unknown_type_diagnostic(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(format!("unknown schema type `{name}`"), span)
 }
 
+fn is_lower_name(value: &str) -> bool {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    (first == '_' || (first.is_alphabetic() && !first.is_uppercase()))
+        && chars.all(|character| {
+            character == '_'
+                || (character.is_alphabetic() && !character.is_uppercase())
+                || character.is_numeric()
+        })
+}
+
+fn is_pascal_name(value: &str) -> bool {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    first.is_uppercase() && chars.all(char::is_alphanumeric)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::build_schema_symbols;
-    use linguini_syntax::parse_schema;
+    use super::{build_schema_symbols, build_schema_symbols_from_files};
+    use linguini_syntax::{parse_schema, parse_schema_in, parse_schema_with_recovery, SourceId};
 
     #[test]
     fn registers_schema_fixture_symbols() {
@@ -285,9 +473,10 @@ mod tests {
         let schema = parse_schema(source).expect("schema parses");
         let (symbols, diagnostics) = build_schema_symbols(&schema);
 
-        assert!(diagnostics.is_empty());
+        assert!(diagnostics.is_empty(), "{diagnostics:#?}");
         assert!(symbols.enums["Fruit"].variants.contains_key("apple"));
         assert_eq!(symbols.type_aliases["Money"].target, "Decimal");
+        assert_eq!(symbols.type_aliases["Money"].formatters.len(), 1);
         assert!(symbols.messages.contains_key("delivery"));
         assert!(symbols.messages.contains_key("email_input.label"));
         assert_eq!(
@@ -311,20 +500,93 @@ mod tests {
     }
 
     #[test]
-    fn reports_unknown_schema_type() {
+    fn reports_unknown_schema_type_at_type_token() {
         let schema = parse_schema("paint(color: Color)\n").expect("schema parses");
         let (_symbols, diagnostics) = build_schema_symbols(&schema);
 
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].message, "unknown schema type `Color`");
+        assert_eq!(
+            &"paint(color: Color)\n"[diagnostics[0].span.start..diagnostics[0].span.end],
+            "Color"
+        );
     }
 
     #[test]
-    fn stores_group_doc_comments() {
-        let schema = parse_schema("/// Input fields\nemail { label }\n").expect("schema parses");
+    fn stores_recursive_group_symbols() {
+        let schema = parse_schema(
+            "/// Shop\nshop {\n  main {\n    title\n  }\n  local {\n    title\n  }\n}\n",
+        )
+        .expect("schema parses");
         let (symbols, diagnostics) = build_schema_symbols(&schema);
 
-        assert!(diagnostics.is_empty());
-        assert_eq!(symbols.groups["email"].docs, vec!["Input fields"]);
+        assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+        assert_eq!(
+            symbols.groups["shop"].groups,
+            vec!["shop.main", "shop.local"]
+        );
+        assert_eq!(
+            symbols.groups["shop.main"].messages,
+            vec!["shop.main.title"]
+        );
+        assert!(symbols.messages.contains_key("shop.local.title"));
+        assert_eq!(symbols.groups["shop"].docs, vec!["Shop"]);
+    }
+
+    #[test]
+    fn reports_alias_cycles_once() {
+        let schema = parse_schema("type A = B\ntype B = C\ntype C = A\n").expect("schema parses");
+        let (_symbols, diagnostics) = build_schema_symbols(&schema);
+
+        let cycles = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.message.starts_with("cyclic type alias"))
+            .collect::<Vec<_>>();
+        assert_eq!(cycles.len(), 1, "{diagnostics:#?}");
+        assert_eq!(cycles[0].related.len(), 3);
+    }
+
+    #[test]
+    fn reports_cross_file_duplicates_with_source_identity() {
+        let first = parse_schema_in("delivery\n", SourceId(1)).expect("first schema source parses");
+        let second =
+            parse_schema_in("delivery\n", SourceId(2)).expect("second schema source parses");
+        let (_symbols, diagnostics) = build_schema_symbols_from_files(&[first, second]);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].span.source, SourceId(2));
+        assert_eq!(diagnostics[0].related[0].span.source, SourceId(1));
+    }
+
+    #[test]
+    fn semantic_builder_defends_against_duplicate_variants_in_recovered_ast() {
+        let recovered = parse_schema_with_recovery("enum Fruit { apple, apple }\n");
+        let schema = recovered.ast.expect("recovered schema AST");
+        let (_symbols, diagnostics) = build_schema_symbols(&schema);
+
+        assert!(diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message == "duplicate variant `apple` in enum `Fruit`"));
+    }
+
+    #[test]
+    fn semantic_builder_defends_against_duplicate_parameters_in_recovered_ast() {
+        let recovered = parse_schema_with_recovery("message(value: String, value: Number)\n");
+        let schema = recovered.ast.expect("recovered schema AST");
+        let (_symbols, diagnostics) = build_schema_symbols(&schema);
+
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.message == "duplicate parameter `value` in message `message`"
+        }));
+    }
+
+    #[test]
+    fn reports_self_alias_cycle() {
+        let schema = parse_schema("type Value = Value\n").expect("schema parses");
+        let (_symbols, diagnostics) = build_schema_symbols(&schema);
+
+        assert!(diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message == "cyclic type alias `Value -> Value`"));
     }
 }

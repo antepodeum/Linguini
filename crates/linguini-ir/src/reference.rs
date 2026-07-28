@@ -1,73 +1,652 @@
 use crate::model::{
-    IrExpression, IrFunctionBranch, IrFunctionBranchValue, IrModule, IrText, IrTextPart,
+    IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFunction, IrFunctionBranch,
+    IrFunctionBranchValue, IrModule, IrText, IrTextPart, IrValue,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use linguini_core::{FormatterKind, TypeKind};
+use linguini_syntax::Span;
+use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
+
+pub const BUILTIN_PLURAL: &str = "plural";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrRelatedError {
+    pub span: Span,
+    pub message: String,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrReferenceError {
+    pub code: &'static str,
     pub message: String,
+    pub span: Option<Span>,
+    pub related: Vec<IrRelatedError>,
+}
+
+impl IrReferenceError {
+    fn new(code: &'static str, message: impl Into<String>, span: Option<Span>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            span,
+            related: Vec::new(),
+        }
+    }
+
+    fn at(code: &'static str, message: impl Into<String>, span: Span) -> Self {
+        Self::new(code, message, Some(span))
+    }
+
+    fn related(mut self, span: Span, message: impl Into<String>) -> Self {
+        self.related.push(IrRelatedError {
+            span,
+            message: message.into(),
+        });
+        self
+    }
+}
+
+/// Capability proving that both modules passed structural, reference, type, cycle and formatter
+/// validation. Production emitters should accept this type instead of raw [`IrModule`] values.
+#[derive(Debug)]
+pub struct ValidatedIr<'a> {
+    schema: &'a IrModule,
+    locale: &'a IrModule,
+}
+
+impl<'a> ValidatedIr<'a> {
+    pub fn schema(&self) -> &'a IrModule {
+        self.schema
+    }
+
+    pub fn locale(&self) -> &'a IrModule {
+        self.locale
+    }
+}
+
+pub fn validate_ir<'a>(
+    schema: &'a IrModule,
+    locale: &'a IrModule,
+) -> Result<ValidatedIr<'a>, Vec<IrReferenceError>> {
+    let mut errors = Vec::new();
+    validate_structure("schema", schema, &mut errors);
+    validate_structure("locale", locale, &mut errors);
+
+    let context = ReferenceContext::new(schema, locale, &mut errors);
+    validate_schema_types(schema, &context, &mut errors);
+    validate_locale(schema, locale, &context, &mut errors);
+    validate_reference_cycles(locale, &context, &mut errors);
+
+    if errors.is_empty() {
+        Ok(ValidatedIr { schema, locale })
+    } else {
+        Err(errors)
+    }
+}
+
+pub fn validate_typed_ir<'a>(
+    schema: &'a crate::SchemaIr,
+    locale: &'a crate::LocaleIr,
+) -> Result<ValidatedIr<'a>, Vec<IrReferenceError>> {
+    validate_ir(schema.as_module(), locale.as_module())
 }
 
 pub fn ensure_no_unresolved_references(
     schema: &IrModule,
     locale: &IrModule,
 ) -> Result<(), Vec<IrReferenceError>> {
-    let context = ReferenceContext::new(schema, locale);
-    let mut errors = Vec::new();
-    let variables: BTreeSet<_> = locale
+    validate_ir(schema, locale).map(|_| ())
+}
+
+fn validate_structure(label: &str, module: &IrModule, errors: &mut Vec<IrReferenceError>) {
+    let mut origin_names = BTreeMap::new();
+    for origin in &module.origins {
+        match origin_names.entry(origin.name.as_str()) {
+            Entry::Vacant(entry) => {
+                entry.insert((origin.kind, origin.span));
+            }
+            Entry::Occupied(mut first) if origin.is_override => {
+                first.insert((origin.kind, origin.span));
+            }
+            Entry::Occupied(first) => errors.push(
+                IrReferenceError::at(
+                    "IR000",
+                    format!(
+                        "duplicate {label} path `{}` ({:?} conflicts with {:?})",
+                        origin.name,
+                        origin.kind,
+                        first.get().0
+                    ),
+                    origin.span,
+                )
+                .related(first.get().1, "first path declaration is here"),
+            ),
+        }
+    }
+
+    unique_named(
+        label,
+        "enum",
+        module.enums.iter().map(|item| item.name.as_str()),
+        module,
+        errors,
+    );
+    unique_named(
+        label,
+        "type alias",
+        module.type_aliases.iter().map(|item| item.name.as_str()),
+        module,
+        errors,
+    );
+    unique_named(
+        label,
+        "variable",
+        module.variables.iter().map(|item| item.name.as_str()),
+        module,
+        errors,
+    );
+    unique_named(
+        label,
+        "message",
+        module.messages.iter().map(|item| item.name.as_str()),
+        module,
+        errors,
+    );
+    unique_named(
+        label,
+        "form",
+        module.forms.iter().map(|item| item.name.as_str()),
+        module,
+        errors,
+    );
+    unique_named(
+        label,
+        "function",
+        module.functions.iter().map(|item| item.name.as_str()),
+        module,
+        errors,
+    );
+
+    let mut all_names = BTreeMap::<&str, (&str, Option<Span>)>::new();
+    for (kind, names) in [
+        (
+            "enum",
+            module
+                .enums
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect::<Vec<_>>(),
+        ),
+        (
+            "type alias",
+            module
+                .type_aliases
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect(),
+        ),
+        (
+            "variable",
+            module
+                .variables
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect(),
+        ),
+        (
+            "message",
+            module
+                .messages
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect(),
+        ),
+        (
+            "form",
+            module.forms.iter().map(|item| item.name.as_str()).collect(),
+        ),
+        (
+            "function",
+            module
+                .functions
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect(),
+        ),
+    ] {
+        for name in names {
+            let span = origin_span(module, name);
+            match all_names.entry(name) {
+                Entry::Vacant(entry) => {
+                    entry.insert((kind, span));
+                }
+                Entry::Occupied(first) if first.get().0 != kind => {
+                    let mut error = IrReferenceError::new(
+                        "IR002",
+                        format!(
+                            "{label} symbol `{name}` is both {} and {kind}",
+                            first.get().0
+                        ),
+                        span,
+                    );
+                    if let Some(first_span) = first.get().1 {
+                        error = error.related(first_span, "first declaration is here");
+                    }
+                    errors.push(error);
+                }
+                Entry::Occupied(_) => {}
+            }
+        }
+    }
+
+    for item in &module.enums {
+        duplicate_strings(
+            &format!("enum `{}` variant", item.name),
+            &item.variants,
+            origin_span(module, &item.name),
+            errors,
+        );
+    }
+    for item in &module.messages {
+        duplicate_strings(
+            &format!("message `{}` parameter", item.name),
+            &item
+                .parameters
+                .iter()
+                .map(|parameter| parameter.name.clone())
+                .collect::<Vec<_>>(),
+            origin_span(module, &item.name),
+            errors,
+        );
+    }
+    for form in &module.forms {
+        duplicate_strings(
+            &format!("form `{}` variant", form.name),
+            &form
+                .variants
+                .iter()
+                .map(|variant| variant.name.clone())
+                .collect::<Vec<_>>(),
+            origin_span(module, &form.name),
+            errors,
+        );
+        for variant in &form.variants {
+            validate_form_entries(
+                &format!("form `{}` variant `{}`", form.name, variant.name),
+                &variant.entries,
+                errors,
+            );
+        }
+    }
+    for function in &module.functions {
+        validate_function_branches(&function.name, &function.branches, errors);
+    }
+}
+
+fn unique_named<'a>(
+    module_label: &str,
+    kind: &str,
+    names: impl Iterator<Item = &'a str>,
+    module: &IrModule,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let mut seen = BTreeSet::new();
+    for name in names {
+        if !seen.insert(name) {
+            errors.push(IrReferenceError::new(
+                "IR001",
+                format!("duplicate {module_label} {kind} `{name}`"),
+                origin_span(module, name),
+            ));
+        }
+    }
+}
+
+fn duplicate_strings(
+    subject: &str,
+    values: &[String],
+    span: Option<Span>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let mut seen = BTreeSet::new();
+    for value in values {
+        if !seen.insert(value) {
+            errors.push(IrReferenceError::new(
+                "IR003",
+                format!("duplicate {subject} `{value}`"),
+                span,
+            ));
+        }
+    }
+}
+
+fn validate_form_entries(
+    subject: &str,
+    entries: &[IrFormEntry],
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let mut attributes = BTreeSet::new();
+    let mut branch_patterns = BTreeSet::new();
+    for entry in entries {
+        match entry {
+            IrFormEntry::Attribute { name, value } => {
+                if !attributes.insert(name) {
+                    errors.push(IrReferenceError::new(
+                        "IR004",
+                        format!("duplicate {subject} attribute `{name}`"),
+                        value_span(value),
+                    ));
+                }
+                match value {
+                    IrValue::Text(_) => {}
+                    IrValue::Map(branches) => validate_map_branches(subject, branches, errors),
+                    IrValue::Object(children) => {
+                        validate_form_entries(&format!("{subject}.{name}"), children, errors);
+                    }
+                }
+            }
+            IrFormEntry::Branch(branch) => {
+                let pattern = branch.keys.join("\u{1f}");
+                if !branch_patterns.insert(pattern) {
+                    errors.push(IrReferenceError::at(
+                        "IR005",
+                        format!("duplicate {subject} branch `{}`", branch.keys.join(", ")),
+                        branch.span,
+                    ));
+                }
+            }
+        }
+    }
+}
+
+fn validate_map_branches(
+    subject: &str,
+    branches: &[crate::IrBranch],
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let mut patterns = BTreeSet::new();
+    for branch in branches {
+        let pattern = branch.keys.join("\u{1f}");
+        if !patterns.insert(pattern) {
+            errors.push(IrReferenceError::at(
+                "IR005",
+                format!(
+                    "duplicate {subject} map branch `{}`",
+                    branch.keys.join(", ")
+                ),
+                branch.span,
+            ));
+        }
+    }
+}
+
+fn validate_function_branches(
+    function: &str,
+    branches: &[IrFunctionBranch],
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let mut keys = BTreeSet::new();
+    for branch in branches {
+        if !keys.insert(branch.key.as_str()) {
+            errors.push(IrReferenceError::at(
+                "IR006",
+                format!("duplicate function `{function}` branch `{}`", branch.key),
+                branch.span,
+            ));
+        }
+        if let IrFunctionBranchValue::Dispatch(children) = &branch.value {
+            validate_function_branches(function, children, errors);
+        }
+    }
+}
+
+fn value_span(value: &IrValue) -> Option<Span> {
+    match value {
+        IrValue::Text(text) => Some(text.span),
+        IrValue::Map(branches) => branches.first().map(|branch| branch.span),
+        IrValue::Object(entries) => entries.iter().find_map(|entry| match entry {
+            IrFormEntry::Attribute { value, .. } => value_span(value),
+            IrFormEntry::Branch(branch) => Some(branch.span),
+        }),
+    }
+}
+
+struct ReferenceContext<'a> {
+    messages: BTreeMap<&'a str, &'a crate::IrMessage>,
+    functions: BTreeMap<&'a str, &'a IrFunction>,
+    forms: BTreeMap<&'a str, &'a IrForm>,
+    variables: BTreeMap<&'a str, &'a crate::IrVariable>,
+    enums: BTreeMap<&'a str, &'a crate::IrEnum>,
+    aliases: BTreeMap<&'a str, &'a crate::IrTypeAlias>,
+}
+
+impl<'a> ReferenceContext<'a> {
+    fn new(schema: &'a IrModule, locale: &'a IrModule, errors: &mut Vec<IrReferenceError>) -> Self {
+        let mut enums = first_wins(schema.enums.iter().map(|item| (item.name.as_str(), item)));
+        for item in &locale.enums {
+            if let Some(schema_enum) = enums.get(item.name.as_str()) {
+                errors.push(
+                    IrReferenceError::new(
+                        "IR007",
+                        format!(
+                            "locale enum `{}` conflicts with a schema enum of the same name",
+                            item.name
+                        ),
+                        origin_span(locale, &item.name),
+                    )
+                    .related(
+                        origin_span(schema, &schema_enum.name).unwrap_or_else(|| Span::new(0, 0)),
+                        "schema enum is here",
+                    ),
+                );
+            } else {
+                enums.insert(item.name.as_str(), item);
+            }
+        }
+
+        Self {
+            messages: first_wins(
+                schema
+                    .messages
+                    .iter()
+                    .map(|item| (item.name.as_str(), item)),
+            ),
+            functions: first_wins(
+                locale
+                    .functions
+                    .iter()
+                    .map(|item| (item.name.as_str(), item)),
+            ),
+            forms: first_wins(locale.forms.iter().map(|item| (item.name.as_str(), item))),
+            variables: first_wins(
+                locale
+                    .variables
+                    .iter()
+                    .map(|item| (item.name.as_str(), item)),
+            ),
+            enums,
+            aliases: first_wins(
+                schema
+                    .type_aliases
+                    .iter()
+                    .map(|item| (item.name.as_str(), item)),
+            ),
+        }
+    }
+
+    fn resolve_alias<'b>(&'b self, ty: &'b str) -> Result<&'b str, Vec<&'b str>> {
+        let mut current = ty;
+        let mut path = Vec::new();
+        while let Some(alias) = self.aliases.get(current) {
+            if let Some(offset) = path.iter().position(|item| *item == current) {
+                path.push(current);
+                return Err(path[offset..].to_vec());
+            }
+            path.push(current);
+            current = &alias.target;
+        }
+        Ok(current)
+    }
+
+    fn known_type(&self, ty: &str) -> bool {
+        self.resolve_alias(ty).is_ok_and(|resolved| {
+            TypeKind::from_name(resolved).is_some() || self.enums.contains_key(resolved)
+        })
+    }
+}
+
+fn first_wins<K: Ord, V>(items: impl Iterator<Item = (K, V)>) -> BTreeMap<K, V> {
+    let mut output = BTreeMap::new();
+    for (key, value) in items {
+        output.entry(key).or_insert(value);
+    }
+    output
+}
+
+fn validate_schema_types(
+    schema: &IrModule,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let mut reported_alias_cycles = BTreeSet::new();
+    for alias in &schema.type_aliases {
+        match context.resolve_alias(&alias.name) {
+            Err(cycle) => {
+                let mut identity = cycle[..cycle.len().saturating_sub(1)].to_vec();
+                identity.sort_unstable();
+                identity.dedup();
+                if reported_alias_cycles.insert(identity.join("\u{1f}")) {
+                    errors.push(IrReferenceError::new(
+                        "IR008",
+                        format!("cyclic type alias `{}`", cycle.join(" -> ")),
+                        origin_span(schema, &alias.name),
+                    ));
+                }
+            }
+            Ok(resolved)
+                if TypeKind::from_name(resolved).is_none()
+                    && !context.enums.contains_key(resolved) =>
+            {
+                errors.push(IrReferenceError::new(
+                    "IR009",
+                    format!("unknown type `{resolved}` in alias `{}`", alias.name),
+                    origin_span(schema, &alias.name),
+                ));
+            }
+            Ok(_) => {}
+        }
+        validate_formatters(
+            &alias.formatters,
+            Some(&alias.target),
+            None,
+            context,
+            errors,
+        );
+    }
+
+    for message in &schema.messages {
+        for parameter in &message.parameters {
+            if !context.known_type(&parameter.ty) {
+                errors.push(IrReferenceError::new(
+                    "IR009",
+                    format!(
+                        "unknown type `{}` for message `{}.{}`",
+                        parameter.ty, message.name, parameter.name
+                    ),
+                    origin_span(schema, &message.name),
+                ));
+            }
+        }
+    }
+}
+
+fn validate_locale(
+    schema: &IrModule,
+    locale: &IrModule,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let global_variables = context
         .variables
-        .iter()
-        .map(|variable| variable.name.clone())
-        .collect();
+        .keys()
+        .map(|name| ((*name).to_owned(), "String".to_owned()))
+        .collect::<BTreeMap<_, _>>();
 
     for message in &locale.messages {
-        let Some(parameters) = context.message_parameters.get(&message.name) else {
-            errors.push(IrReferenceError {
-                message: format!("unresolved message `{}`", message.name),
-            });
+        let Some(signature) = context.messages.get(message.name.as_str()) else {
+            errors.push(IrReferenceError::new(
+                "IR010",
+                format!("unresolved message `{}`", message.name),
+                origin_span(locale, &message.name),
+            ));
             continue;
         };
+        let mut variables = global_variables.clone();
+        for parameter in &signature.parameters {
+            if variables
+                .insert(parameter.name.clone(), parameter.ty.clone())
+                .is_some()
+            {
+                errors.push(IrReferenceError::new(
+                    "IR011",
+                    format!(
+                        "message parameter `{}` shadows a global variable",
+                        parameter.name
+                    ),
+                    origin_span(schema, &signature.name),
+                ));
+            }
+        }
         if let Some(body) = &message.body {
-            let variables = variables
-                .iter()
-                .cloned()
-                .chain(parameters.iter().cloned())
-                .collect();
-            check_text(body, &variables, &context, &mut errors);
+            check_text(body, &variables, context, errors);
         }
     }
 
     for variable in &locale.variables {
-        check_text(&variable.value, &variables, &context, &mut errors);
+        check_text(&variable.value, &global_variables, context, errors);
     }
 
     for function in &locale.functions {
-        let variables: BTreeSet<_> = variables
-            .iter()
-            .cloned()
-            .chain(
-                function
-                    .parameters
-                    .iter()
-                    .filter_map(|parameter| parameter.name.clone()),
-            )
-            .collect();
+        let mut variables = global_variables.clone();
+        for parameter in &function.parameters {
+            if !context.known_type(&parameter.ty) && parameter.ty != "Plural" {
+                errors.push(IrReferenceError::new(
+                    "IR009",
+                    format!(
+                        "unknown parameter type `{}` in function `{}`",
+                        parameter.ty, function.name
+                    ),
+                    origin_span(locale, &function.name),
+                ));
+            }
+            if let Some(name) = &parameter.name {
+                if variables
+                    .insert(name.clone(), parameter.ty.clone())
+                    .is_some()
+                {
+                    errors.push(IrReferenceError::new(
+                        "IR011",
+                        format!("function parameter `{name}` shadows a global variable"),
+                        origin_span(locale, &function.name),
+                    ));
+                }
+            }
+        }
         for branch in &function.branches {
-            check_function_branch(branch, &variables, &context, &mut errors);
+            check_function_branch(branch, &variables, context, errors);
         }
     }
 
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors)
+    for form in &locale.forms {
+        for variant in &form.variants {
+            check_form_entries(&variant.entries, &global_variables, context, errors);
+        }
     }
 }
 
 fn check_function_branch(
     branch: &IrFunctionBranch,
-    variables: &BTreeSet<String>,
-    context: &ReferenceContext,
+    variables: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) {
     match &branch.value {
@@ -80,84 +659,716 @@ fn check_function_branch(
     }
 }
 
-struct ReferenceContext {
-    message_parameters: BTreeMap<String, BTreeSet<String>>,
-    functions: BTreeSet<String>,
-    forms: BTreeSet<String>,
-    variables: BTreeSet<String>,
+fn check_form_entries(
+    entries: &[IrFormEntry],
+    variables: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    for entry in entries {
+        match entry {
+            IrFormEntry::Attribute { value, .. } => {
+                check_value(value, variables, context, errors);
+            }
+            IrFormEntry::Branch(branch) => {
+                check_text(&branch.value, variables, context, errors);
+            }
+        }
+    }
 }
 
-impl ReferenceContext {
-    fn new(schema: &IrModule, locale: &IrModule) -> Self {
-        Self {
-            message_parameters: schema
-                .messages
-                .iter()
-                .map(|message| {
-                    (
-                        message.name.clone(),
-                        message
-                            .parameters
-                            .iter()
-                            .map(|parameter| parameter.name.clone())
-                            .collect(),
-                    )
-                })
-                .collect(),
-            functions: locale
-                .functions
-                .iter()
-                .map(|function| function.name.clone())
-                .collect(),
-            forms: locale.forms.iter().map(|form| form.name.clone()).collect(),
-            variables: locale
-                .variables
-                .iter()
-                .map(|variable| variable.name.clone())
-                .collect(),
+fn check_value(
+    value: &IrValue,
+    variables: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    match value {
+        IrValue::Text(text) => check_text(text, variables, context, errors),
+        IrValue::Map(branches) => {
+            for branch in branches {
+                check_text(&branch.value, variables, context, errors);
+            }
         }
+        IrValue::Object(entries) => check_form_entries(entries, variables, context, errors),
     }
 }
 
 fn check_text(
     text: &IrText,
-    variables: &BTreeSet<String>,
-    context: &ReferenceContext,
+    variables: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) {
     for part in &text.parts {
         if let IrTextPart::Placeholder(expression) = part {
-            check_expression(expression, variables, context, errors);
+            let ty = infer_expression(expression, variables, context, errors);
+            validate_formatters(
+                &expression.formatters,
+                ty.as_deref(),
+                Some(expression.span),
+                context,
+                errors,
+            );
         }
     }
 }
 
-fn check_expression(
+fn infer_expression(
     expression: &IrExpression,
-    variables: &BTreeSet<String>,
-    context: &ReferenceContext,
+    variables: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
-) {
-    let Some(root) = expression.path.first() else {
-        errors.push(IrReferenceError {
-            message: "unresolved empty expression".to_owned(),
-        });
-        return;
+) -> Option<String> {
+    let argument_types = expression
+        .arguments
+        .iter()
+        .map(|argument| infer_expression(argument, variables, context, errors))
+        .collect::<Vec<_>>();
+
+    if expression.path.is_empty() {
+        errors.push(IrReferenceError::at(
+            "IR012",
+            "unresolved empty expression",
+            expression.span,
+        ));
+        return None;
+    }
+
+    match expression.kind {
+        IrExpressionKind::Reference if !expression.arguments.is_empty() => {
+            errors.push(IrReferenceError::at(
+                "IR013",
+                "reference expression contains call arguments",
+                expression.span,
+            ));
+            None
+        }
+        IrExpressionKind::Reference => infer_reference(expression, variables, context, errors),
+        IrExpressionKind::Call => {
+            infer_call(expression, &argument_types, variables, context, errors)
+        }
+    }
+}
+
+fn infer_reference(
+    expression: &IrExpression,
+    variables: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) -> Option<String> {
+    let root = &expression.path[0];
+    let Some(root_type) = variables.get(root) else {
+        if context.functions.contains_key(root.as_str()) || root == BUILTIN_PLURAL {
+            errors.push(IrReferenceError::at(
+                "IR014",
+                format!("callable `{root}` must be called with parentheses"),
+                expression.span,
+            ));
+        } else {
+            errors.push(IrReferenceError::at(
+                "IR015",
+                format!("unresolved reference `{}`", expression.path.join(".")),
+                expression.span,
+            ));
+        }
+        return None;
     };
 
-    let resolved = variables.contains(root)
-        || context.forms.contains(root)
-        || context.functions.contains(root)
-        || context.variables.contains(root)
-        || root == "plural";
+    if expression.path.len() == 1 {
+        return Some(root_type.clone());
+    }
+    resolve_form_path(
+        root_type,
+        &expression.path[1..],
+        false,
+        &[],
+        variables,
+        context,
+        expression.span,
+        errors,
+    )
+}
 
-    if !resolved {
-        errors.push(IrReferenceError {
-            message: format!("unresolved reference `{}`", expression.path.join(".")),
+fn infer_call(
+    expression: &IrExpression,
+    argument_types: &[Option<String>],
+    variables: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) -> Option<String> {
+    if expression.path.len() == 1 {
+        let name = &expression.path[0];
+        if name == BUILTIN_PLURAL {
+            validate_arity(
+                BUILTIN_PLURAL,
+                1,
+                argument_types.len(),
+                expression.span,
+                errors,
+            );
+            if let Some(Some(ty)) = argument_types.first() {
+                require_numeric(BUILTIN_PLURAL, ty, expression.span, context, errors);
+            }
+            return Some("String".to_owned());
+        }
+
+        if let Some(function) = context.functions.get(name.as_str()) {
+            validate_arity(
+                &function.name,
+                function.parameters.len(),
+                argument_types.len(),
+                expression.span,
+                errors,
+            );
+            for (index, (parameter, actual)) in
+                function.parameters.iter().zip(argument_types).enumerate()
+            {
+                if let Some(actual) = actual {
+                    require_assignable(
+                        &format!("argument {} to `{}`", index + 1, function.name),
+                        &parameter.ty,
+                        actual,
+                        expression.span,
+                        context,
+                        errors,
+                    );
+                }
+            }
+            return Some("String".to_owned());
+        }
+
+        if let Some(root_type) = variables.get(name) {
+            return resolve_form_path(
+                root_type,
+                &[],
+                true,
+                argument_types,
+                variables,
+                context,
+                expression.span,
+                errors,
+            );
+        }
+
+        errors.push(IrReferenceError::at(
+            "IR016",
+            format!("unknown function `{name}`"),
+            expression.span,
+        ));
+        return None;
+    }
+
+    let root = &expression.path[0];
+    let Some(root_type) = variables.get(root) else {
+        errors.push(IrReferenceError::at(
+            "IR015",
+            format!("unresolved call target `{}`", expression.path.join(".")),
+            expression.span,
+        ));
+        return None;
+    };
+    resolve_form_path(
+        root_type,
+        &expression.path[1..],
+        true,
+        argument_types,
+        variables,
+        context,
+        expression.span,
+        errors,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn resolve_form_path(
+    root_type: &str,
+    path: &[String],
+    called: bool,
+    argument_types: &[Option<String>],
+    variables: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
+    span: Span,
+    errors: &mut Vec<IrReferenceError>,
+) -> Option<String> {
+    let resolved_type = context.resolve_alias(root_type).unwrap_or(root_type);
+    let Some(form) = context.forms.get(resolved_type) else {
+        errors.push(IrReferenceError::at(
+            "IR017",
+            format!("type `{root_type}` has no form implementation"),
+            span,
+        ));
+        return None;
+    };
+
+    if path.is_empty() {
+        if called {
+            errors.push(IrReferenceError::at(
+                "IR018",
+                format!("type `{root_type}` has no unnamed callable form"),
+                span,
+            ));
+        }
+        return Some(root_type.to_owned());
+    }
+
+    let mut kinds = Vec::new();
+    for variant in &form.variants {
+        if let Some(kind) = form_path_kind(&variant.entries, path, context) {
+            kinds.push(kind);
+        }
+    }
+    if kinds.len() != form.variants.len() {
+        errors.push(IrReferenceError::at(
+            "IR019",
+            format!(
+                "form property `{}` is not defined for every variant of `{root_type}`",
+                path.join(".")
+            ),
+            span,
+        ));
+        return None;
+    }
+    let Some(kind) = kinds.first() else {
+        errors.push(IrReferenceError::at(
+            "IR019",
+            format!(
+                "unknown form property `{}` on `{root_type}`",
+                path.join(".")
+            ),
+            span,
+        ));
+        return None;
+    };
+    if kinds.iter().any(|candidate| candidate != kind) {
+        errors.push(IrReferenceError::at(
+            "IR020",
+            format!(
+                "form property `{}` has inconsistent shapes across `{root_type}` variants",
+                path.join(".")
+            ),
+            span,
+        ));
+        return None;
+    }
+
+    match kind {
+        FormPathKind::Text(ty) if called => {
+            errors.push(IrReferenceError::at(
+                "IR021",
+                format!("form property `{}` is not callable", path.join(".")),
+                span,
+            ));
+            Some(ty.clone())
+        }
+        FormPathKind::Text(ty) => Some(ty.clone()),
+        FormPathKind::Map if called => {
+            validate_arity(&path.join("."), 1, argument_types.len(), span, errors);
+            if let Some(Some(ty)) = argument_types.first() {
+                require_numeric(&path.join("."), ty, span, context, errors);
+            }
+            Some("String".to_owned())
+        }
+        FormPathKind::Map => {
+            let numeric = variables
+                .values()
+                .filter(|ty| is_numeric(ty, context))
+                .count();
+            if numeric == 0 {
+                errors.push(IrReferenceError::at(
+                    "IR022",
+                    format!(
+                        "form property `{}` needs an explicit numeric argument",
+                        path.join(".")
+                    ),
+                    span,
+                ));
+            } else if numeric > 1 {
+                errors.push(IrReferenceError::at(
+                    "IR023",
+                    format!(
+                        "form property `{}` has an ambiguous implicit numeric argument",
+                        path.join(".")
+                    ),
+                    span,
+                ));
+            }
+            Some("String".to_owned())
+        }
+        FormPathKind::Object => {
+            errors.push(IrReferenceError::at(
+                "IR024",
+                format!("form object `{}` is not a value", path.join(".")),
+                span,
+            ));
+            None
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum FormPathKind {
+    Text(String),
+    Map,
+    Object,
+}
+
+fn form_path_kind(
+    entries: &[IrFormEntry],
+    path: &[String],
+    context: &ReferenceContext<'_>,
+) -> Option<FormPathKind> {
+    let (segment, rest) = path.split_first()?;
+    let value = entries.iter().find_map(|entry| match entry {
+        IrFormEntry::Attribute { name, value } if name == segment => Some(value),
+        IrFormEntry::Attribute { .. } | IrFormEntry::Branch(_) => None,
+    })?;
+    if rest.is_empty() {
+        return Some(match value {
+            IrValue::Text(_) => {
+                if context.enums.contains_key(segment.as_str()) {
+                    FormPathKind::Text(segment.clone())
+                } else {
+                    FormPathKind::Text("String".to_owned())
+                }
+            }
+            IrValue::Map(_) => FormPathKind::Map,
+            IrValue::Object(_) => FormPathKind::Object,
         });
     }
-
-    for argument in &expression.arguments {
-        check_expression(argument, variables, context, errors);
+    match value {
+        IrValue::Object(children) => form_path_kind(children, rest, context),
+        IrValue::Text(_) | IrValue::Map(_) => None,
     }
+}
+
+fn validate_arity(
+    name: &str,
+    expected: usize,
+    actual: usize,
+    span: Span,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    if expected != actual {
+        errors.push(IrReferenceError::at(
+            "IR025",
+            format!("`{name}` expects {expected} argument(s), got {actual}"),
+            span,
+        ));
+    }
+}
+
+fn require_numeric(
+    subject: &str,
+    actual: &str,
+    span: Span,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    if !is_numeric(actual, context) {
+        errors.push(IrReferenceError::at(
+            "IR026",
+            format!("`{subject}` expects Number or Decimal, got `{actual}`"),
+            span,
+        ));
+    }
+}
+
+fn require_assignable(
+    subject: &str,
+    expected: &str,
+    actual: &str,
+    span: Span,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    if expected == "Plural" {
+        require_numeric(subject, actual, span, context, errors);
+        return;
+    }
+    let expected = context.resolve_alias(expected).unwrap_or(expected);
+    let actual = context.resolve_alias(actual).unwrap_or(actual);
+    if expected != actual
+        && !(matches!(expected, "Number" | "Decimal") && matches!(actual, "Number" | "Decimal"))
+    {
+        errors.push(IrReferenceError::at(
+            "IR027",
+            format!("type mismatch for {subject}: expected `{expected}`, got `{actual}`"),
+            span,
+        ));
+    }
+}
+
+fn is_numeric(ty: &str, context: &ReferenceContext<'_>) -> bool {
+    matches!(
+        context.resolve_alias(ty).unwrap_or(ty),
+        "Number" | "Decimal"
+    )
+}
+
+fn validate_formatters(
+    formatters: &[crate::IrFormatter],
+    value_type: Option<&str>,
+    span: Option<Span>,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    for formatter in formatters {
+        let (allowed, expected_type): (&[&str], Option<&str>) = match &formatter.kind {
+            FormatterKind::Number => (&[], Some("numeric")),
+            FormatterKind::Currency => (&["code", "accounting"], Some("numeric")),
+            FormatterKind::Date => (&["style"], Some("Date")),
+            FormatterKind::Unknown(name) => {
+                errors.push(IrReferenceError::new(
+                    "IR028",
+                    format!("unknown formatter `{name}`"),
+                    span,
+                ));
+                continue;
+            }
+        };
+
+        let mut names = BTreeSet::new();
+        for argument in &formatter.arguments {
+            if !names.insert(argument.name.as_str()) {
+                errors.push(IrReferenceError::new(
+                    "IR029",
+                    format!("duplicate formatter option `{}`", argument.name),
+                    span,
+                ));
+            }
+            if !allowed.contains(&argument.name.as_str()) {
+                errors.push(IrReferenceError::new(
+                    "IR030",
+                    format!(
+                        "formatter `{}` does not support option `{}`",
+                        formatter.kind.as_str(),
+                        argument.name
+                    ),
+                    span,
+                ));
+            }
+            match (formatter.kind.as_str(), argument.name.as_str()) {
+                ("currency", "code")
+                    if argument.value.len() != 3
+                        || !argument
+                            .value
+                            .chars()
+                            .all(|value| value.is_ascii_alphabetic()) =>
+                {
+                    errors.push(IrReferenceError::new(
+                        "IR031",
+                        "currency formatter option `code` must be a three-letter currency code",
+                        span,
+                    ));
+                }
+                ("currency", "accounting")
+                    if !matches!(argument.value.as_str(), "true" | "false") =>
+                {
+                    errors.push(IrReferenceError::new(
+                        "IR031",
+                        "currency formatter option `accounting` must be `true` or `false`",
+                        span,
+                    ));
+                }
+                ("date", "style")
+                    if !matches!(
+                        argument.value.as_str(),
+                        "full" | "long" | "medium" | "short"
+                    ) =>
+                {
+                    errors.push(IrReferenceError::new(
+                        "IR031",
+                        "date formatter option `style` must be full, long, medium, or short",
+                        span,
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        if let (Some(expected), Some(actual)) = (expected_type, value_type) {
+            let valid = if expected == "numeric" {
+                is_numeric(actual, context)
+            } else {
+                context.resolve_alias(actual).unwrap_or(actual) == expected
+            };
+            if !valid {
+                errors.push(IrReferenceError::new(
+                    "IR032",
+                    format!(
+                        "formatter `{}` cannot format value of type `{actual}`",
+                        formatter.kind.as_str()
+                    ),
+                    span,
+                ));
+            }
+        }
+    }
+}
+
+fn validate_reference_cycles(
+    locale: &IrModule,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let mut graph = BTreeMap::<String, Vec<(String, Span)>>::new();
+    for variable in &locale.variables {
+        let edges = graph.entry(variable.name.clone()).or_default();
+        collect_text_edges(&variable.value, context, edges);
+    }
+    for function in &locale.functions {
+        let edges = graph.entry(function.name.clone()).or_default();
+        for branch in &function.branches {
+            collect_function_edges(branch, context, edges);
+        }
+    }
+
+    let mut visited = BTreeSet::new();
+    let mut order = Vec::new();
+    for node in graph.keys() {
+        finish_order(node, &graph, &mut visited, &mut order);
+    }
+    let reverse = reverse_graph(&graph);
+    visited.clear();
+    while let Some(node) = order.pop() {
+        if visited.contains(&node) {
+            continue;
+        }
+        let mut component = Vec::new();
+        collect_component(&node, &reverse, &mut visited, &mut component);
+        component.sort();
+        let component_set = component
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        let self_cycle = component.len() == 1
+            && graph
+                .get(&component[0])
+                .is_some_and(|edges| edges.iter().any(|(target, _)| target == &component[0]));
+        if component.len() <= 1 && !self_cycle {
+            continue;
+        }
+
+        let primary = component.first().and_then(|name| origin_span(locale, name));
+        let mut error = IrReferenceError::new(
+            "IR033",
+            format!("cyclic reference component `{}`", component.join(" -> ")),
+            primary,
+        );
+        for source in &component {
+            if let Some(edges) = graph.get(source) {
+                for (target, span) in edges {
+                    if component_set.contains(target.as_str()) {
+                        error = error.related(*span, format!("`{source}` references `{target}`"));
+                    }
+                }
+            }
+        }
+        errors.push(error);
+    }
+}
+
+fn collect_function_edges(
+    branch: &IrFunctionBranch,
+    context: &ReferenceContext<'_>,
+    edges: &mut Vec<(String, Span)>,
+) {
+    match &branch.value {
+        IrFunctionBranchValue::Text(text) => collect_text_edges(text, context, edges),
+        IrFunctionBranchValue::Dispatch(children) => {
+            for child in children {
+                collect_function_edges(child, context, edges);
+            }
+        }
+    }
+}
+
+fn collect_text_edges(
+    text: &IrText,
+    context: &ReferenceContext<'_>,
+    edges: &mut Vec<(String, Span)>,
+) {
+    for part in &text.parts {
+        if let IrTextPart::Placeholder(expression) = part {
+            collect_expression_edges(expression, context, edges);
+        }
+    }
+}
+
+fn collect_expression_edges(
+    expression: &IrExpression,
+    context: &ReferenceContext<'_>,
+    edges: &mut Vec<(String, Span)>,
+) {
+    if let Some(root) = expression.path.first() {
+        if context.variables.contains_key(root.as_str())
+            || context.functions.contains_key(root.as_str())
+        {
+            edges.push((root.clone(), expression.span));
+        }
+    }
+    for argument in &expression.arguments {
+        collect_expression_edges(argument, context, edges);
+    }
+}
+
+fn finish_order(
+    node: &str,
+    graph: &BTreeMap<String, Vec<(String, Span)>>,
+    visited: &mut BTreeSet<String>,
+    order: &mut Vec<String>,
+) {
+    if !visited.insert(node.to_owned()) {
+        return;
+    }
+    if let Some(edges) = graph.get(node) {
+        for (target, _) in edges {
+            if graph.contains_key(target) {
+                finish_order(target, graph, visited, order);
+            }
+        }
+    }
+    order.push(node.to_owned());
+}
+
+fn reverse_graph(graph: &BTreeMap<String, Vec<(String, Span)>>) -> BTreeMap<String, Vec<String>> {
+    let mut reverse = graph
+        .keys()
+        .map(|node| (node.clone(), Vec::new()))
+        .collect::<BTreeMap<_, _>>();
+    for (source, edges) in graph {
+        for (target, _) in edges {
+            if let Some(incoming) = reverse.get_mut(target) {
+                incoming.push(source.clone());
+            }
+        }
+    }
+    reverse
+}
+
+fn collect_component(
+    node: &str,
+    graph: &BTreeMap<String, Vec<String>>,
+    visited: &mut BTreeSet<String>,
+    output: &mut Vec<String>,
+) {
+    if !visited.insert(node.to_owned()) {
+        return;
+    }
+    output.push(node.to_owned());
+    if let Some(edges) = graph.get(node) {
+        for target in edges {
+            collect_component(target, graph, visited, output);
+        }
+    }
+}
+
+fn origin_span(module: &IrModule, name: &str) -> Option<Span> {
+    module
+        .origins
+        .iter()
+        .rev()
+        .find(|origin| origin.name == name)
+        .map(|origin| origin.span)
 }

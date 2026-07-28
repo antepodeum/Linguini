@@ -1,4 +1,7 @@
-use crate::{Diagnostic, DiagnosticSeverity, QuickFix, Replacement};
+use crate::{
+    analyze_function_patterns, analyze_project_expressions, Diagnostic, DiagnosticSeverity,
+    QuickFix, Replacement,
+};
 use linguini_syntax::{
     DocComment, LocaleDeclaration, LocaleFile, SchemaDeclaration, SchemaFile, Span,
 };
@@ -73,7 +76,9 @@ impl Default for LocaleCoverageOptions {
 }
 
 pub fn analyze_locale_file(locale: &LocaleFile) -> Vec<Diagnostic> {
-    analyze_locale_branch_coverage(None, locale)
+    let mut diagnostics = analyze_locale_branch_coverage(None, locale);
+    diagnostics.extend(analyze_function_patterns(locale));
+    diagnostics
 }
 
 pub fn analyze_locale_coverage(schema: &SchemaFile, locale: &LocaleFile) -> Vec<Diagnostic> {
@@ -92,6 +97,8 @@ pub fn analyze_locale_coverage_with_options(
         options,
     );
     diagnostics.extend(analyze_locale_branch_coverage(Some(schema), locale));
+    diagnostics.extend(analyze_function_patterns(locale));
+    diagnostics.extend(analyze_project_expressions(schema, locale));
     diagnostics
 }
 
@@ -120,7 +127,8 @@ pub fn analyze_locale_message_coverage_with_options(
         .iter()
         .filter(|schema_message| !locale.contains_key(schema_message.name.as_str()))
         .collect::<Vec<_>>();
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = duplicate_required_messages(schema_messages);
+    diagnostics.extend(duplicate_implemented_messages(locale_messages));
 
     if !missing.is_empty() {
         diagnostics.push(missing_messages_diagnostic(
@@ -251,13 +259,21 @@ fn collect_schema_messages(
             .with_docs(&message.docs),
         ),
         SchemaDeclaration::Group(group_declaration) => {
+            let group_name = qualified_name(group, &group_declaration.name.value);
             for message in &group_declaration.messages {
                 messages.push(
                     RequiredLocaleMessage::new(
-                        qualified_name(Some(&group_declaration.name.value), &message.name.value),
+                        qualified_name(Some(&group_name), &message.name.value),
                         message.name.span,
                     )
                     .with_docs(&message.docs),
+                );
+            }
+            for child in &group_declaration.groups {
+                collect_schema_messages(
+                    &SchemaDeclaration::Group(child.clone()),
+                    Some(&group_name),
+                    messages,
                 );
             }
         }
@@ -279,13 +295,21 @@ fn collect_locale_messages(
             .with_docs(&message.docs),
         ),
         LocaleDeclaration::Group(group_declaration) => {
+            let group_name = qualified_name(group, &group_declaration.name.value);
             for message in &group_declaration.messages {
                 messages.push(
                     ImplementedLocaleMessage::new(
-                        qualified_name(Some(&group_declaration.name.value), &message.name.value),
+                        qualified_name(Some(&group_name), &message.name.value),
                         message.name.span,
                     )
                     .with_docs(&message.docs),
+                );
+            }
+            for child in &group_declaration.groups {
+                collect_locale_messages(
+                    &LocaleDeclaration::Group(child.clone()),
+                    Some(&group_name),
+                    messages,
                 );
             }
         }
@@ -302,4 +326,40 @@ fn qualified_name(group: Option<&str>, name: &str) -> String {
         Some(group) => format!("{group}.{name}"),
         None => name.to_owned(),
     }
+}
+
+fn duplicate_required_messages(messages: &[RequiredLocaleMessage]) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    let mut seen = std::collections::BTreeMap::<&str, Span>::new();
+    for message in messages {
+        if let Some(first) = seen.insert(message.name.as_str(), message.span) {
+            diagnostics.push(
+                Diagnostic::error(
+                    format!("duplicate schema message `{}`", message.name),
+                    message.span,
+                )
+                .with_code("linguini.duplicate_message")
+                .with_related(first, "first schema message is here"),
+            );
+        }
+    }
+    diagnostics
+}
+
+fn duplicate_implemented_messages(messages: &[ImplementedLocaleMessage]) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    let mut seen = std::collections::BTreeMap::<&str, Span>::new();
+    for message in messages {
+        if let Some(first) = seen.insert(message.name.as_str(), message.span) {
+            diagnostics.push(
+                Diagnostic::error(
+                    format!("duplicate locale message `{}`", message.name),
+                    message.span,
+                )
+                .with_code("linguini.duplicate_message")
+                .with_related(first, "first locale message is here"),
+            );
+        }
+    }
+    diagnostics
 }

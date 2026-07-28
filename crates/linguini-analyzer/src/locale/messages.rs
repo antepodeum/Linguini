@@ -36,33 +36,39 @@ pub(super) fn format_name_list(names: &[&str]) -> String {
 }
 
 pub(super) fn missing_message_stub_text(names: &[&str]) -> String {
-    let mut output = String::new();
-    let mut groups: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    let mut top_level = Vec::new();
-
+    let mut root = StubNode::default();
     for name in names {
-        if let Some((group, message)) = name.split_once('.') {
-            groups.entry(group).or_default().push(message);
-        } else {
-            top_level.push(*name);
+        let mut node = &mut root;
+        for segment in name.split('.') {
+            node = node.children.entry(segment).or_default();
         }
+        node.message = true;
     }
 
-    if !top_level.is_empty() || !groups.is_empty() {
+    let mut output = String::new();
+    if !root.children.is_empty() {
         output.push('\n');
+        render_stub_children(&root, 0, &mut output);
     }
-
-    for name in top_level {
-        output.push_str(&format!("{name} = TODO\n"));
-    }
-
-    for (group, messages) in groups {
-        output.push_str(&format!("{group} {{\n"));
-        for message in messages {
-            output.push_str(&format!("  {message} = TODO\n"));
-        }
-        output.push_str("}\n");
-    }
-
     output
+}
+
+#[derive(Default)]
+struct StubNode<'a> {
+    message: bool,
+    children: BTreeMap<&'a str, StubNode<'a>>,
+}
+
+fn render_stub_children(node: &StubNode<'_>, indent: usize, output: &mut String) {
+    let prefix = "  ".repeat(indent);
+    for (name, child) in &node.children {
+        if child.message {
+            output.push_str(&format!("{prefix}{name} = TODO\n"));
+        }
+        if !child.children.is_empty() {
+            output.push_str(&format!("{prefix}{name} {{\n"));
+            render_stub_children(child, indent + 1, output);
+            output.push_str(&format!("{prefix}}}\n"));
+        }
+    }
 }

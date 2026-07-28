@@ -52,7 +52,7 @@ IrModule {
         IrMessage {
             name: "delivery",
             docs: [
-                " Displayed on the product delivery confirmation card.",
+                "Displayed on the product delivery confirmation card.",
             ],
             parameters: [
                 IrParameter {
@@ -73,7 +73,7 @@ IrModule {
         IrMessage {
             name: "counted",
             docs: [
-                " Shown near cart item count.",
+                "Shown near cart item count.",
             ],
             parameters: [
                 IrParameter {
@@ -123,4 +123,138 @@ IrModule {
     ],
     forms: [],
     functions: [],
+    origins: [
+        IrOrigin {
+            kind: Enum,
+            name: "Fruit",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 0,
+                end: 34,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Enum,
+            name: "Size",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 36,
+                end: 60,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: TypeAlias,
+            name: "Money",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 62,
+                end: 92,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: TypeAlias,
+            name: "ShortDate",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 93,
+                end: 137,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "delivery",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 196,
+                end: 245,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "counted",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 279,
+                end: 315,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "price",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 317,
+                end: 354,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Group,
+            name: "email_input",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 356,
+                end: 400,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "email_input.label",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 372,
+                end: 377,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "email_input.placeholder",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 380,
+                end: 391,
+            },
+            is_override: false,
+        },
+        IrOrigin {
+            kind: Message,
+            name: "email_input.aria",
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 394,
+                end: 398,
+            },
+            is_override: false,
+        },
+    ],
 }

@@ -2,13 +2,18 @@ mod lower;
 mod model;
 mod reference;
 
-pub use lower::{lower_locale, lower_schema};
+pub use lower::{lower_locale, lower_locale_typed, lower_schema, lower_schema_typed};
 pub use model::{
-    IrBranch, IrExpression, IrForm, IrFormEntry, IrFormVariant, IrFormatter, IrFormatterArgument,
-    IrFormatterKind, IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter,
-    IrMessage, IrModule, IrParameter, IrText, IrTextPart, IrValue,
+    IrBranch, IrEnum, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFormVariant,
+    IrFormatter, IrFormatterArgument, IrFormatterKind, IrFunction, IrFunctionBranch,
+    IrFunctionBranchValue, IrFunctionKind, IrFunctionParameter, IrMessage, IrModule, IrOrigin,
+    IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart, IrTypeAlias, IrValue,
+    IrVariable, LocaleIr, SchemaIr,
 };
-pub use reference::{ensure_no_unresolved_references, IrReferenceError};
+pub use reference::{
+    ensure_no_unresolved_references, validate_ir, validate_typed_ir, IrReferenceError,
+    IrRelatedError, ValidatedIr, BUILTIN_PLURAL,
+};
 
 pub const CRATE_PURPOSE: &str = "target-independent IR";
 

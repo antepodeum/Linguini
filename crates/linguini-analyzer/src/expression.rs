@@ -1,6 +1,7 @@
 use crate::{Diagnostic, QuickFix, Replacement};
 use linguini_syntax::{
-    Expression, FunctionBranchValue, FunctionDeclaration, LocaleDeclaration, LocaleFile, TextPart,
+    Expression, ExpressionKind, FormEntry, FormatterKind, FunctionBranchValue, FunctionDeclaration,
+    LocaleDeclaration, LocaleFile, LocaleValue, SchemaDeclaration, SchemaFile, TextPart,
     TextPattern,
 };
 use std::collections::BTreeMap;
@@ -24,12 +25,14 @@ pub struct FormProperty {
     pub name: String,
     pub span: linguini_syntax::Span,
     pub needs_number: bool,
+    pub result_type: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionSignature {
     pub name: String,
     pub arity: usize,
+    pub parameter_types: Vec<Option<String>>,
     pub span: linguini_syntax::Span,
 }
 
@@ -68,6 +71,7 @@ impl FormProperty {
             name: name.into(),
             span,
             needs_number: false,
+            result_type: "String".to_owned(),
         }
     }
 
@@ -76,6 +80,20 @@ impl FormProperty {
             name: name.into(),
             span,
             needs_number: true,
+            result_type: "String".to_owned(),
+        }
+    }
+
+    pub fn typed(
+        name: impl Into<String>,
+        result_type: impl Into<String>,
+        span: linguini_syntax::Span,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            span,
+            needs_number: false,
+            result_type: result_type.into(),
         }
     }
 }
@@ -99,6 +117,24 @@ impl FunctionSignature {
         Self {
             name: name.into(),
             arity,
+            parameter_types: vec![None; arity],
+            span,
+        }
+    }
+
+    pub fn typed(
+        name: impl Into<String>,
+        parameter_types: impl IntoIterator<Item = impl Into<String>>,
+        span: linguini_syntax::Span,
+    ) -> Self {
+        let parameter_types = parameter_types
+            .into_iter()
+            .map(|ty| Some(ty.into()))
+            .collect::<Vec<_>>();
+        Self {
+            name: name.into(),
+            arity: parameter_types.len(),
+            parameter_types,
             span,
         }
     }
@@ -133,10 +169,22 @@ pub fn analyze_expressions(input: ExpressionAnalysis) -> Vec<Diagnostic> {
             .iter()
             .chain(message.variables.iter())
             .collect::<Vec<_>>();
-        let variables: BTreeMap<_, _> = all_variables
-            .iter()
-            .map(|variable| (variable.name.as_str(), *variable))
-            .collect();
+        let mut variables = BTreeMap::new();
+        for variable in &all_variables {
+            if let Some(previous) = variables.insert(variable.name.as_str(), *variable) {
+                diagnostics.push(
+                    Diagnostic::error(
+                        format!(
+                            "message-local variable `{}` shadows another variable",
+                            variable.name
+                        ),
+                        variable.span,
+                    )
+                    .with_code("linguini.shadowed_name")
+                    .with_related(previous.span, "previous variable is here"),
+                );
+            }
+        }
         let numeric_variables = numeric_variables(&all_variables);
         analyze_text(
             &message.value,
@@ -149,6 +197,217 @@ pub fn analyze_expressions(input: ExpressionAnalysis) -> Vec<Diagnostic> {
     }
 
     diagnostics
+}
+
+pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> Vec<Diagnostic> {
+    let mut schema_messages = BTreeMap::new();
+    for declaration in &schema.declarations {
+        collect_schema_messages(declaration, None, &mut schema_messages);
+    }
+    let enum_names = schema
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            SchemaDeclaration::Enum(item) => Some(item.name.value.as_str()),
+            SchemaDeclaration::TypeAlias(_)
+            | SchemaDeclaration::Message(_)
+            | SchemaDeclaration::Group(_) => None,
+        })
+        .chain(locale.declarations.iter().filter_map(|declaration| {
+            let LocaleDeclaration::Enum(item) = declaration else {
+                return None;
+            };
+            Some(item.name.value.as_str())
+        }))
+        .collect::<std::collections::BTreeSet<_>>();
+
+    let mut functions = Vec::new();
+    let mut forms = Vec::new();
+    let mut variables = Vec::new();
+    let mut messages = Vec::new();
+    for declaration in &locale.declarations {
+        collect_locale_expression_inputs(
+            declaration,
+            None,
+            &schema_messages,
+            &enum_names,
+            &mut functions,
+            &mut forms,
+            &mut variables,
+            &mut messages,
+        );
+    }
+    analyze_expressions(ExpressionAnalysis {
+        variables,
+        messages,
+        functions,
+        forms,
+    })
+}
+
+fn collect_schema_messages<'a>(
+    declaration: &'a SchemaDeclaration,
+    namespace: Option<&str>,
+    messages: &mut BTreeMap<String, &'a linguini_syntax::MessageSignature>,
+) {
+    match declaration {
+        SchemaDeclaration::Message(message) => {
+            messages.insert(qualified_name(namespace, &message.name.value), message);
+        }
+        SchemaDeclaration::Group(group) => {
+            collect_schema_group(group, namespace, messages);
+        }
+        SchemaDeclaration::Enum(_) | SchemaDeclaration::TypeAlias(_) => {}
+    }
+}
+
+fn collect_schema_group<'a>(
+    group: &'a linguini_syntax::MessageGroup,
+    namespace: Option<&str>,
+    messages: &mut BTreeMap<String, &'a linguini_syntax::MessageSignature>,
+) {
+    let group_name = qualified_name(namespace, &group.name.value);
+    for message in &group.messages {
+        messages.insert(
+            qualified_name(Some(&group_name), &message.name.value),
+            message,
+        );
+    }
+    for child in &group.groups {
+        collect_schema_group(child, Some(&group_name), messages);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_locale_expression_inputs(
+    declaration: &LocaleDeclaration,
+    namespace: Option<&str>,
+    schema_messages: &BTreeMap<String, &linguini_syntax::MessageSignature>,
+    enum_names: &std::collections::BTreeSet<&str>,
+    functions: &mut Vec<FunctionSignature>,
+    forms: &mut Vec<FormSignature>,
+    variables: &mut Vec<Variable>,
+    messages: &mut Vec<MessageToAnalyze>,
+) {
+    match declaration {
+        LocaleDeclaration::Variable(variable) => variables.push(Variable::new(
+            &variable.name.value,
+            "String",
+            variable.name.span,
+        )),
+        LocaleDeclaration::Function(function) => functions.push(FunctionSignature::typed(
+            &function.name.value,
+            function
+                .parameters
+                .iter()
+                .map(|parameter| parameter.ty.value.as_str()),
+            function.span,
+        )),
+        LocaleDeclaration::Form(form) => {
+            let mut properties = BTreeMap::new();
+            for variant in &form.variants {
+                collect_form_properties(&variant.entries, enum_names, &mut properties);
+            }
+            forms.push(FormSignature::new(
+                &form.name.value,
+                properties.into_values().collect(),
+                form.span,
+            ));
+        }
+        LocaleDeclaration::Message(message) => {
+            let name = qualified_name(namespace, &message.name.value);
+            let parameters = schema_messages
+                .get(&name)
+                .map(|signature| {
+                    signature
+                        .parameters
+                        .iter()
+                        .map(|parameter| {
+                            Variable::new(
+                                &parameter.name.value,
+                                &parameter.ty.value,
+                                parameter.span,
+                            )
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            messages.push(MessageToAnalyze::new(
+                name,
+                message.value.clone(),
+                parameters,
+            ));
+        }
+        LocaleDeclaration::Group(group) => {
+            let group_name = qualified_name(namespace, &group.name.value);
+            for message in &group.messages {
+                let declaration = LocaleDeclaration::Message(message.clone());
+                collect_locale_expression_inputs(
+                    &declaration,
+                    Some(&group_name),
+                    schema_messages,
+                    enum_names,
+                    functions,
+                    forms,
+                    variables,
+                    messages,
+                );
+            }
+            for child in &group.groups {
+                let declaration = LocaleDeclaration::Group(child.clone());
+                collect_locale_expression_inputs(
+                    &declaration,
+                    Some(&group_name),
+                    schema_messages,
+                    enum_names,
+                    functions,
+                    forms,
+                    variables,
+                    messages,
+                );
+            }
+        }
+        LocaleDeclaration::Override(inner) => collect_locale_expression_inputs(
+            inner,
+            namespace,
+            schema_messages,
+            enum_names,
+            functions,
+            forms,
+            variables,
+            messages,
+        ),
+        LocaleDeclaration::Enum(_) => {}
+    }
+}
+
+fn collect_form_properties(
+    entries: &[FormEntry],
+    enum_names: &std::collections::BTreeSet<&str>,
+    properties: &mut BTreeMap<String, FormProperty>,
+) {
+    for entry in entries {
+        let FormEntry::Attribute(attribute) = entry else {
+            continue;
+        };
+        let property = match &attribute.value {
+            LocaleValue::Map(_) => FormProperty::plural(&attribute.name.value, attribute.span),
+            LocaleValue::Text(_) if enum_names.contains(attribute.name.value.as_str()) => {
+                FormProperty::typed(&attribute.name.value, &attribute.name.value, attribute.span)
+            }
+            LocaleValue::Text(_) | LocaleValue::Object(_) => {
+                FormProperty::new(&attribute.name.value, attribute.span)
+            }
+        };
+        properties.entry(property.name.clone()).or_insert(property);
+    }
+}
+
+fn qualified_name(namespace: Option<&str>, name: &str) -> String {
+    match namespace {
+        Some(namespace) => format!("{namespace}.{name}"),
+        None => name.to_owned(),
+    }
 }
 
 pub fn analyze_function_patterns(file: &LocaleFile) -> Vec<Diagnostic> {
@@ -204,17 +463,20 @@ fn analyze_expression(
         return;
     }
 
-    if expression.arguments.is_empty() {
-        analyze_path(expression, variables, forms, numeric_variables, diagnostics);
-    } else {
-        analyze_call(
-            expression,
-            variables,
-            functions,
-            forms,
-            numeric_variables,
-            diagnostics,
-        );
+    match expression.kind {
+        ExpressionKind::Reference => {
+            analyze_path(expression, variables, forms, numeric_variables, diagnostics);
+        }
+        ExpressionKind::Call => {
+            analyze_call(
+                expression,
+                variables,
+                functions,
+                forms,
+                numeric_variables,
+                diagnostics,
+            );
+        }
     }
 }
 
@@ -235,6 +497,7 @@ fn analyze_path(
     };
 
     if expression.path.len() == 1 {
+        analyze_formatters(expression, Some(&variable.ty), diagnostics);
         return;
     }
 
@@ -264,7 +527,34 @@ fn analyze_path(
         return;
     };
 
-    if property_signature.needs_number && numeric_variables.len() > 1 {
+    if expression.path.len() > 2 {
+        diagnostics.push(Diagnostic::error(
+            format!(
+                "type `{}` does not define nested property `{}`",
+                variable.ty,
+                expression.path[1..]
+                    .iter()
+                    .map(|part| part.value.as_str())
+                    .collect::<Vec<_>>()
+                    .join(".")
+            ),
+            expression.path[2].span,
+        ));
+        return;
+    }
+
+    if property_signature.needs_number && numeric_variables.is_empty() {
+        diagnostics.push(
+            Diagnostic::error(
+                format!(
+                    "implicit plural use for `{}` requires a numeric variable or an explicit argument",
+                    expression_path(expression)
+                ),
+                expression.span,
+            )
+            .with_code("linguini.missing_plural_argument"),
+        );
+    } else if property_signature.needs_number && numeric_variables.len() > 1 {
         let expression_path = expression_path(expression);
         let mut diagnostic = Diagnostic::error(
             format!(
@@ -283,6 +573,11 @@ fn analyze_path(
         }
         diagnostics.push(diagnostic);
     }
+    analyze_formatters(
+        expression,
+        Some(&property_signature.result_type),
+        diagnostics,
+    );
 }
 
 fn analyze_call(
@@ -304,6 +599,24 @@ fn analyze_call(
                     ),
                     expression.span,
                 ));
+            }
+            if let Some(argument) = expression.arguments.first() {
+                let argument_type = expression_type(argument, variables, forms);
+                if argument_type
+                    .as_deref()
+                    .is_some_and(|ty| !matches!(ty, "Number" | "Decimal"))
+                {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            format!(
+                                "function `plural` expects Number or Decimal, got `{}`",
+                                argument_type.unwrap_or_default()
+                            ),
+                            argument.span,
+                        )
+                        .with_code("linguini.type_mismatch"),
+                    );
+                }
             }
             return;
         }
@@ -330,10 +643,206 @@ fn analyze_call(
                 .with_related(function.span, "function is declared here"),
             );
         }
+        for (index, (expected, argument)) in function
+            .parameter_types
+            .iter()
+            .zip(&expression.arguments)
+            .enumerate()
+        {
+            let (Some(expected), Some(actual)) = (
+                expected.as_deref(),
+                expression_type(argument, variables, forms),
+            ) else {
+                continue;
+            };
+            let compatible = expected == actual
+                || (matches!(expected, "Number" | "Decimal")
+                    && matches!(actual.as_str(), "Number" | "Decimal"));
+            if !compatible {
+                diagnostics.push(
+                    Diagnostic::error(
+                        format!(
+                            "argument {} to `{}` expects `{expected}`, got `{actual}`",
+                            index + 1,
+                            name.value
+                        ),
+                        argument.span,
+                    )
+                    .with_code("linguini.type_mismatch")
+                    .with_related(function.span, "function is declared here"),
+                );
+            }
+        }
         return;
     }
 
-    analyze_path(expression, variables, forms, numeric_variables, diagnostics);
+    analyze_form_call(expression, variables, forms, numeric_variables, diagnostics);
+}
+
+fn analyze_form_call(
+    expression: &Expression,
+    variables: &BTreeMap<&str, &Variable>,
+    forms: &BTreeMap<&str, &FormSignature>,
+    numeric_variables: &[&Variable],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let root = &expression.path[0];
+    let Some(variable) = variables.get(root.value.as_str()) else {
+        diagnostics.push(Diagnostic::error(
+            format!("unknown variable `{}`", root.value),
+            root.span,
+        ));
+        return;
+    };
+    let Some(property_name) = expression.path.get(1) else {
+        diagnostics.push(Diagnostic::error(
+            format!("type `{}` has no unnamed form", variable.ty),
+            expression.span,
+        ));
+        return;
+    };
+    let Some(form) = forms.get(variable.ty.as_str()) else {
+        diagnostics.push(Diagnostic::error(
+            format!("unknown form target type `{}`", variable.ty),
+            property_name.span,
+        ));
+        return;
+    };
+    let Some(property) = form
+        .properties
+        .iter()
+        .find(|candidate| candidate.name == property_name.value)
+    else {
+        diagnostics.push(
+            Diagnostic::error(
+                format!(
+                    "unknown form property `{}` on type `{}`",
+                    property_name.value, variable.ty
+                ),
+                property_name.span,
+            )
+            .with_related(form.span, "form is declared here"),
+        );
+        return;
+    };
+    if expression.path.len() > 2 {
+        diagnostics.push(Diagnostic::error(
+            format!(
+                "unknown nested form property `{}`",
+                expression.path[1..]
+                    .iter()
+                    .map(|part| part.value.as_str())
+                    .collect::<Vec<_>>()
+                    .join(".")
+            ),
+            expression.path[2].span,
+        ));
+    }
+    let expected = usize::from(property.needs_number);
+    if property.needs_number && expression.arguments.len() != expected {
+        diagnostics.push(
+            Diagnostic::error(
+                format!(
+                    "form property `{}.{}` expects {expected} argument(s), got {}",
+                    variable.ty,
+                    property.name,
+                    expression.arguments.len()
+                ),
+                expression.span,
+            )
+            .with_code("linguini.call_arity"),
+        );
+    }
+    if property.needs_number {
+        if let Some(argument) = expression.arguments.first() {
+            let actual = expression_type(argument, variables, forms);
+            if actual
+                .as_deref()
+                .is_some_and(|ty| !matches!(ty, "Number" | "Decimal"))
+            {
+                diagnostics.push(
+                    Diagnostic::error(
+                        format!(
+                            "form property `{}.{}` expects Number or Decimal, got `{}`",
+                            variable.ty,
+                            property.name,
+                            actual.unwrap_or_default()
+                        ),
+                        argument.span,
+                    )
+                    .with_code("linguini.type_mismatch"),
+                );
+            }
+        } else if numeric_variables.is_empty() {
+            // The arity diagnostic above is the actionable error. This branch documents why an
+            // implicit fallback cannot be selected.
+        }
+    }
+    analyze_formatters(expression, Some(&property.result_type), diagnostics);
+}
+
+fn expression_type(
+    expression: &Expression,
+    variables: &BTreeMap<&str, &Variable>,
+    forms: &BTreeMap<&str, &FormSignature>,
+) -> Option<String> {
+    let root = expression.path.first()?;
+    if expression.kind == ExpressionKind::Call {
+        return Some("String".to_owned());
+    }
+    let variable = variables.get(root.value.as_str())?;
+    if expression.path.len() == 1 {
+        return Some(variable.ty.clone());
+    }
+    let property = forms
+        .get(variable.ty.as_str())?
+        .properties
+        .iter()
+        .find(|property| property.name == expression.path[1].value)?;
+    Some(property.result_type.clone())
+}
+
+fn analyze_formatters(
+    expression: &Expression,
+    value_type: Option<&str>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for formatter in &expression.annotations {
+        match &formatter.kind {
+            FormatterKind::Unknown(name) => diagnostics.push(
+                Diagnostic::error(format!("unknown formatter `{name}`"), formatter.span)
+                    .with_code("linguini.unknown_formatter"),
+            ),
+            FormatterKind::Number | FormatterKind::Currency
+                if value_type.is_some_and(|ty| !matches!(ty, "Number" | "Decimal")) =>
+            {
+                diagnostics.push(
+                    Diagnostic::error(
+                        format!(
+                            "formatter `{}` requires Number or Decimal, got `{}`",
+                            formatter.kind.as_str(),
+                            value_type.unwrap_or("unknown")
+                        ),
+                        formatter.span,
+                    )
+                    .with_code("linguini.formatter_type"),
+                );
+            }
+            FormatterKind::Date if value_type.is_some_and(|ty| ty != "Date") => {
+                diagnostics.push(
+                    Diagnostic::error(
+                        format!(
+                            "formatter `date` requires Date, got `{}`",
+                            value_type.unwrap_or("unknown")
+                        ),
+                        formatter.span,
+                    )
+                    .with_code("linguini.formatter_type"),
+                );
+            }
+            FormatterKind::Number | FormatterKind::Currency | FormatterKind::Date => {}
+        }
+    }
 }
 
 fn collect_function_pattern_diagnostics(
@@ -358,7 +867,10 @@ fn validate_function_branch_patterns(
     let dispatch_parameter_count = function
         .parameters
         .iter()
-        .filter(|parameter| parameter.ty.value != "String")
+        .filter(|parameter| {
+            parameter.name.is_none()
+                && !matches!(parameter.ty.value.as_str(), "Date" | "Boolean" | "String")
+        })
         .count();
     validate_branch_depth(
         &function.branches,
@@ -378,7 +890,10 @@ fn validate_branch_depth(
 ) {
     for branch in branches {
         match &branch.value {
-            FunctionBranchValue::Text(_) if depth + 1 != dispatch_parameter_count => {
+            FunctionBranchValue::Text(_)
+                if depth + 1 > dispatch_parameter_count
+                    || (depth + 1 < dispatch_parameter_count && branch.key.value != "_") =>
+            {
                 diagnostics.push(Diagnostic::error(
                     format!(
                         "function `{}` branch pattern expects {} value(s), got {}",
