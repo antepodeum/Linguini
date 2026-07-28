@@ -1,0 +1,9 @@
+{
+  "name": "@linguini/cli-win32-arm64",
+  "version": "0.1.0-alpha.4",
+  "description": "Linguini native binary for Windows arm64",
+  "license": "Apache-2.0",
+  "os": ["win32"],
+  "cpu": ["arm64"],
+  "files": ["bin", "README.md"]
+}

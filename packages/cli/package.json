@@ -1,0 +1,29 @@
+{
+  "name": "@linguini/cli",
+  "version": "0.1.0-alpha.4",
+  "description": "Native Linguini compiler, CLI, and language-server launcher",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "linguini": "./bin/linguini.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "optionalDependencies": {
+    "@linguini/cli-darwin-arm64": "0.1.0-alpha.4",
+    "@linguini/cli-darwin-x64": "0.1.0-alpha.4",
+    "@linguini/cli-linux-arm64": "0.1.0-alpha.4",
+    "@linguini/cli-linux-x64": "0.1.0-alpha.4",
+    "@linguini/cli-win32-arm64": "0.1.0-alpha.4",
+    "@linguini/cli-win32-x64": "0.1.0-alpha.4"
+  }
+}

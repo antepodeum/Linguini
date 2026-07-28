@@ -1,9 +1,13 @@
 src/**
 sample-workspace/**
 .vscode/**
+.gitignore
 scripts/**
-dist/**
+test/**
+dist/*.vsix
+dist/**/*.map
 *.vsix
 tsconfig.json
 node_modules/**
+out/**
 package-lock.json

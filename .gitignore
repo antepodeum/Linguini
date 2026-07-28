@@ -1,3 +1,5 @@
 /target/
+/release/
+/packages/cli-*/bin/
 editors/vscode/dist/
 crates/linguini-cldr-macros/vendor/

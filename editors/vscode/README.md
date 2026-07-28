@@ -2,8 +2,10 @@
 
 VS Code support for Linguini schema (`.lgs`) and locale (`.lgl`) files.
 
-Install Linguini CLI separately. The extension starts `linguini lsp` by default
-and does not bundle the CLI.
+Published desktop VSIX packages contain one matching native Linguini server.
+Development resolution is deterministic: explicit override, optional
+workspace-pinned CLI, bundled binary, then a compatible CLI on `PATH`. Every
+server must pass the protocol and compiler-version handshake.
 
 ## Features
 
@@ -12,3 +14,6 @@ and does not bundle the CLI.
 - Semantic token scope mappings for schema and locale files.
 - Language client activation through `vscode-languageclient/node`.
 - Document formatting is provided by the Linguini LSP.
+- Config changes and manual restarts are debounced and serialized.
+- Multi-root workspaces are passed through the LSP workspace-folders protocol;
+  no arbitrary “first folder” is selected as the process root.

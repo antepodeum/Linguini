@@ -3,7 +3,7 @@
   "displayName": "Linguini",
   "description": "VS Code language support for Linguini schema and locale files.",
   "icon": "assets/icon.png",
-  "version": "0.1.4",
+  "version": "0.1.0-alpha.4",
   "publisher": "antepod",
   "license": "Apache-2.0",
   "repository": {
@@ -12,7 +12,7 @@
     "directory": "editors/vscode"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.120.0"
   },
   "categories": [
     "Programming Languages",
@@ -23,14 +23,17 @@
     "onLanguage:linguini-locale",
     "workspaceContains:**/linguini.toml"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "scripts": {
     "compile": "tsc -p ./",
+    "test": "npm run compile && node --test out/restart.test.js out/server-resolution.test.js",
+    "bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=dist/extension.js --sourcemap --sources-content=false",
+    "test:integration": "npm run bundle && node ./scripts/run-integration-tests.js",
     "package:vsix": "node ./scripts/package-vsix.js",
     "watch": "tsc -watch -p ./",
     "open:dev": "npm run compile && code --extensionDevelopmentPath=. ./sample-workspace",
     "audit:prod": "npm audit --omit=dev",
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm test",
     "check": "npm run compile && npm audit --audit-level=moderate",
     "dev:host": "npm run compile && node ./scripts/open-extension-host.js"
   },
@@ -90,8 +93,13 @@
       "properties": {
         "linguini.server.path": {
           "type": "string",
-          "default": "linguini",
-          "description": "Path to the Linguini CLI binary used to start `linguini lsp`. The extension does not bundle the CLI; install it separately or set an absolute path here."
+          "default": "",
+          "description": "Optional explicit Linguini CLI path. Resolution otherwise checks an enabled workspace CLI, the bundled platform binary, then PATH."
+        },
+        "linguini.server.useWorkspaceCli": {
+          "type": "boolean",
+          "default": false,
+          "description": "Prefer a project-pinned `node_modules/.bin/linguini` in a single-folder workspace."
         },
         "linguini.server.args": {
           "type": "array",
@@ -101,7 +109,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Arguments passed to the Linguini language server binary. Supports `${workspaceFolder}`."
+          "description": "Arguments passed to the Linguini server. `${workspaceFolder}` is supported only in a single-folder workspace."
         },
         "linguini.trace.server": {
           "type": "string",
@@ -195,11 +203,15 @@
     ]
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "10.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.2",
-    "@types/vscode": "^1.90.0",
-    "typescript": "^5.4.5"
+    "@types/node": "20.14.2",
+    "@types/vscode": "1.120.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "3.9.2",
+    "esbuild": "0.28.1",
+    "ovsx": "1.0.2",
+    "typescript": "5.9.3"
   }
 }
