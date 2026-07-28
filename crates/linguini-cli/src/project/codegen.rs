@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use linguini_analyzer::DiagnosticSeverity;
@@ -7,15 +6,17 @@ use linguini_codegen_ts::{
     generate_typescript_project_files, TypeScriptFramework, TypeScriptGeneratedFile,
     TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
 };
-use linguini_config::{LinguiniConfig, TypeScriptTargetConfig};
+use linguini_config::{
+    CanonicalMode, CookiePath, LinguiniConfig, LinkMode, LocalePrefixMode, SecurePolicy,
+    TypeScriptTargetConfig,
+};
 use linguini_ir::{ensure_no_unresolved_references, lower_locale, lower_schema, IrModule};
 
 use crate::{CliError, CliResult};
 
 use super::check::{check_project, reject_locale_files_without_schema_namespace};
-use super::io::{
-    create_dir_all, path_for_output, read_project_config, render_file_diagnostics, write_file,
-};
+use super::io::{path_for_output, read_project_config, render_file_diagnostics};
+use super::output::{replace_owned_files, GeneratedFile, SafeOutputRoot};
 use super::sources::{
     coverage_options, expected_locale_path, load_locale_sources, load_schema_sources, locale_index,
 };
@@ -72,31 +73,78 @@ fn generate_typescript_target(
             tree_shaking: target.tree_shaking,
             included_messages: target.messages.clone(),
             base_locale: Some(config.project.default_locale.clone()),
-            web: config.web.configured.then(|| TypeScriptWebOptions {
-                strategy: config.web.strategy.clone(),
-                cookie_name: config.web.cookie_name.clone(),
-                cookie_path: config.web.cookie_path.clone(),
-                cookie_domain: config.web.cookie_domain.clone(),
-                cookie_max_age: config.web.cookie_max_age,
-                cookie_same_site: config.web.cookie_same_site.clone(),
-                cookie_secure: config.web.cookie_secure,
-                cookie_http_only: config.web.cookie_http_only,
-                local_storage_key: config.web.local_storage_key.clone(),
-                global_variable_name: config.web.global_variable_name.clone(),
-                prefix_default_locale: config.web.prefix_default_locale,
-                base_path: config.web.base_path.clone(),
-                trailing_slash: config.web.trailing_slash.clone(),
-                redirect: config.web.redirect,
-                origin: config.web.origin.clone(),
-                exclude: config.web.exclude.clone(),
-                localize_links: config.web.localize_links,
-            }),
+            web: config
+                .web
+                .configured
+                .then(|| legacy_web_codegen_options(config)),
             framework: TypeScriptFramework::from_config(target.framework.as_deref()),
         },
     )
     .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
 
-    write_codegen_tree(root, &root.join(&target.out), &files)
+    let output = SafeOutputRoot::new(
+        root,
+        Path::new(&target.out),
+        &[
+            Path::new(&config.paths.schema),
+            Path::new(&config.paths.locale),
+        ],
+    )?;
+    write_codegen_tree(root, &output, &files)
+}
+
+fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
+    let cookie = config.web.cookie.as_ref();
+    let local_storage = config.web.local_storage.as_ref();
+    let mut strategy = config
+        .web
+        .locale
+        .sources
+        .iter()
+        .map(|source| match source {
+            linguini_config::LocaleSource::Path => "url",
+            linguini_config::LocaleSource::Cookie => "cookie",
+            linguini_config::LocaleSource::LocalStorage => "localStorage",
+            linguini_config::LocaleSource::AcceptLanguage => "header",
+        })
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    strategy.push("baseLocale".to_owned());
+
+    TypeScriptWebOptions {
+        strategy,
+        cookie_name: cookie
+            .map(|cookie| cookie.name.clone())
+            .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
+        cookie_path: cookie
+            .map(|cookie| match &cookie.path {
+                CookiePath::Auto => "/".to_owned(),
+                CookiePath::Explicit(path) => path.clone(),
+            })
+            .unwrap_or_else(|| "/".to_owned()),
+        cookie_domain: cookie.and_then(|cookie| cookie.domain.clone()),
+        cookie_max_age: cookie
+            .map(|cookie| cookie.max_age_seconds)
+            .unwrap_or(365 * 24 * 60 * 60),
+        cookie_same_site: cookie
+            .map(|cookie| cookie.same_site.as_str().to_owned())
+            .unwrap_or_else(|| "lax".to_owned()),
+        cookie_secure: cookie
+            .map(|cookie| cookie.secure == SecurePolicy::Always)
+            .unwrap_or(false),
+        cookie_http_only: cookie.map(|cookie| cookie.http_only).unwrap_or(false),
+        local_storage_key: local_storage
+            .map(|storage| storage.key.clone())
+            .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
+        global_variable_name: None,
+        prefix_default_locale: config.web.routing.locale_prefix == LocalePrefixMode::Always,
+        base_path: String::new(),
+        trailing_slash: "ignore".to_owned(),
+        redirect: config.web.routing.canonical == CanonicalMode::Redirect,
+        origin: None,
+        exclude: config.web.routes.exclude.clone(),
+        localize_links: config.web.links.mode == LinkMode::Runtime,
+    }
 }
 
 fn build_locale_ir(
@@ -190,79 +238,29 @@ fn ensure_locale_ir_resolves(
 
 fn write_codegen_tree(
     root: &Path,
-    out_dir: &Path,
+    out_dir: &SafeOutputRoot,
     files: &[TypeScriptGeneratedFile],
 ) -> CliResult<String> {
-    let staging_dir = temp_codegen_path(out_dir, "tmp");
-    let backup_dir = temp_codegen_path(out_dir, "old");
-
-    remove_path_if_exists(&staging_dir)?;
-    remove_path_if_exists(&backup_dir)?;
-    create_dir_all(&staging_dir)?;
-
+    let mut generated = Vec::with_capacity(files.len());
     let mut output = String::from("generated files:\n");
     for file in files {
         let relative_path = relative_codegen_path(&file.path)?;
-        let staging_path = staging_dir.join(&relative_path);
-        if let Some(parent) = staging_path.parent() {
-            create_dir_all(parent)?;
-        }
-        write_file(&staging_path, &file.contents)?;
+        generated.push(GeneratedFile {
+            path: relative_path.clone(),
+            contents: &file.contents,
+        });
         output.push_str(&format!(
             "- {}\n",
-            path_for_output(root, &out_dir.join(relative_path))
+            path_for_output(root, &out_dir.path().join(relative_path))
         ));
     }
 
-    commit_codegen_tree(out_dir, &staging_dir, &backup_dir)?;
+    replace_owned_files(out_dir, &generated)?;
     output.push_str(&format!(
         "replaced generated tree: {}\n",
-        path_for_output(root, out_dir)
+        path_for_output(root, out_dir.path())
     ));
     Ok(output)
-}
-
-fn commit_codegen_tree(out_dir: &Path, staging_dir: &Path, backup_dir: &Path) -> CliResult<()> {
-    if let Some(parent) = out_dir.parent() {
-        create_dir_all(parent)?;
-    }
-
-    remove_path_if_exists(backup_dir)?;
-    let had_existing = match fs::symlink_metadata(out_dir) {
-        Ok(_) => {
-            fs::rename(out_dir, backup_dir).map_err(|source| CliError::Io {
-                path: out_dir.to_path_buf(),
-                source,
-            })?;
-            true
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-        Err(source) => {
-            return Err(CliError::Io {
-                path: out_dir.to_path_buf(),
-                source,
-            });
-        }
-    };
-
-    match fs::rename(staging_dir, out_dir) {
-        Ok(()) => {
-            if had_existing {
-                remove_path_if_exists(backup_dir)?;
-            }
-            Ok(())
-        }
-        Err(source) => {
-            if had_existing {
-                let _ = remove_path_if_exists(out_dir);
-                let _ = fs::rename(backup_dir, out_dir);
-            }
-            Err(CliError::Io {
-                path: out_dir.to_path_buf(),
-                source,
-            })
-        }
-    }
 }
 
 fn relative_codegen_path(path: &str) -> CliResult<PathBuf> {
@@ -281,34 +279,6 @@ fn relative_codegen_path(path: &str) -> CliResult<PathBuf> {
         )));
     }
     Ok(path.to_path_buf())
-}
-
-fn temp_codegen_path(out_dir: &Path, purpose: &str) -> PathBuf {
-    let name = out_dir
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("linguini-generated");
-    out_dir.with_file_name(format!(".{name}.{purpose}-{}", std::process::id()))
-}
-
-fn remove_path_if_exists(path: &Path) -> CliResult<()> {
-    match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.is_dir() => {
-            fs::remove_dir_all(path).map_err(|source| CliError::Io {
-                path: path.to_path_buf(),
-                source,
-            })
-        }
-        Ok(_) => fs::remove_file(path).map_err(|source| CliError::Io {
-            path: path.to_path_buf(),
-            source,
-        }),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(source) => Err(CliError::Io {
-            path: path.to_path_buf(),
-            source,
-        }),
-    }
 }
 
 fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> IrModule {

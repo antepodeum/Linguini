@@ -9,22 +9,29 @@ locale = "linguini/locale"
 
 [targets.ts]
 out = "src/lib/generated/linguini"
-module = "esm"
 declaration = true
 framework = "sveltekit"
 
-[web]
-strategy = ["url", "cookie", "localStorage", "preferredLanguage", "baseLocale"]
-cookie_name = "LINGUINI_SITE_LOCALE"
-cookie_path = "/"
-cookie_max_age = 31536000
-cookie_same_site = "lax"
-cookie_secure = false
-cookie_http_only = false
-local_storage_key = "LINGUINI_SITE_LOCALE"
-prefix_default_locale = true
-base_path = ""
-trailing_slash = "always"
-redirect = true
+[web.routing]
+locale_prefix = "always"
+canonical = "redirect"
+
+[web.locale]
+sources = ["path", "cookie", "local-storage", "accept-language"]
+
+[web.cookie]
+name = "LINGUINI_SITE_LOCALE"
+path = "/"
+max_age = "365d"
+same_site = "lax"
+secure = false
+http_only = false
+
+[web.local_storage]
+key = "LINGUINI_SITE_LOCALE"
+
+[web.links]
+mode = "runtime"
+
+[web.routes]
 exclude = ["/_app/**", "/favicon.ico", "/robots.txt"]
-localize_links = true

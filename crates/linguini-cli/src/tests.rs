@@ -23,7 +23,7 @@ fn cli_argument_parser_is_clap_backed() {
 
 #[test]
 fn init_creates_valid_project() {
-    let project = temp_project_dir("init_creates_valid_project");
+    let project = temp_project_dir("init_creates_valid_project").expect("create temporary project");
 
     init_project(project.path()).expect("init project");
 
@@ -40,8 +40,22 @@ fn init_creates_valid_project() {
 }
 
 #[test]
+fn init_reports_existing_project_items_truthfully() {
+    let project = temp_project_dir("init_reports_existing").expect("create temporary project");
+
+    init_project(project.path()).expect("initial init");
+    let output = init_project(project.path()).expect("second init");
+
+    assert!(output.contains("kept existing linguini.toml"));
+    assert!(output.contains("kept existing schema"));
+    assert!(output.contains("kept existing locales"));
+    assert!(!output.contains("created"));
+}
+
+#[test]
 fn check_lists_discovered_files() {
-    let project = temp_project_dir("check_lists_discovered_files");
+    let project =
+        temp_project_dir("check_lists_discovered_files").expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     let schema_dir = project.path().join("schema/shop");
@@ -59,7 +73,8 @@ fn check_lists_discovered_files() {
 
 #[test]
 fn format_command_formats_discovered_project_files() {
-    let project = temp_project_dir("format_command_formats_discovered_project_files");
+    let project = temp_project_dir("format_command_formats_discovered_project_files")
+        .expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     fs::write(
@@ -86,8 +101,82 @@ fn format_command_formats_discovered_project_files() {
 }
 
 #[test]
+fn format_command_rejects_files_outside_project() {
+    let project = temp_project_dir("format_rejects_outside").expect("create temporary project");
+    init_project(project.path()).expect("init project");
+    let outside = tempfile::TempDir::new().expect("outside");
+    let outside_file = outside.path().join("outside.lgs");
+    fs::write(&outside_file, "delivery(count:Number)\n").expect("outside source");
+
+    let error = super::run(
+        vec![
+            "format".to_owned(),
+            outside_file.to_string_lossy().into_owned(),
+        ],
+        Ok(project.path().to_path_buf()),
+    )
+    .expect_err("outside format target must fail");
+
+    assert!(error.to_string().contains("outside the project root"));
+    assert_eq!(
+        fs::read_to_string(outside_file).expect("outside source"),
+        "delivery(count:Number)\n"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn format_command_rejects_symlink_targets() {
+    use std::os::unix::fs::symlink;
+
+    let project = temp_project_dir("format_rejects_symlink").expect("create temporary project");
+    init_project(project.path()).expect("init project");
+    let outside = tempfile::TempDir::new().expect("outside");
+    let outside_file = outside.path().join("outside.lgs");
+    fs::write(&outside_file, "delivery(count:Number)\n").expect("outside source");
+    symlink(&outside_file, project.path().join("linked.lgs")).expect("symlink");
+
+    let error = super::run(
+        vec!["format".to_owned(), "linked.lgs".to_owned()],
+        Ok(project.path().to_path_buf()),
+    )
+    .expect_err("symlink format target must fail");
+
+    assert!(error.to_string().contains("symbolic-link target"));
+    assert_eq!(
+        fs::read_to_string(outside_file).expect("outside source"),
+        "delivery(count:Number)\n"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn format_command_preserves_file_permissions() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project =
+        temp_project_dir("format_preserves_permissions").expect("create temporary project");
+    init_project(project.path()).expect("init project");
+    let source = project.path().join("schema/permissions.lgs");
+    fs::write(&source, "delivery(count:Number)\n").expect("source");
+    fs::set_permissions(&source, fs::Permissions::from_mode(0o640)).expect("permissions");
+
+    super::run(
+        vec!["format".to_owned(), "schema/permissions.lgs".to_owned()],
+        Ok(project.path().to_path_buf()),
+    )
+    .expect("format");
+
+    assert_eq!(
+        fs::metadata(source).expect("metadata").permissions().mode() & 0o777,
+        0o640
+    );
+}
+
+#[test]
 fn check_reports_schema_syntax_diagnostics() {
-    let project = temp_project_dir("check_reports_schema_syntax_diagnostics");
+    let project = temp_project_dir("check_reports_schema_syntax_diagnostics")
+        .expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     let schema_dir = project.path().join("schema/shop");
@@ -103,8 +192,57 @@ fn check_reports_schema_syntax_diagnostics() {
 }
 
 #[test]
+fn check_keeps_independent_project_diagnostics_after_syntax_errors() {
+    let project = temp_project_dir("check_keeps_independent_project_diagnostics")
+        .expect("create temporary project");
+    init_project(project.path()).expect("init project");
+
+    fs::write(project.path().join("schema/shop.lgs"), "delivery\n").expect("schema file");
+    fs::write(
+        project.path().join("schema/broken.lgs"),
+        "broken(value: String\n",
+    )
+    .expect("broken schema");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(locale_dir.join("en.lgl"), "").expect("empty locale");
+
+    let error = check_project(project.path()).expect_err("project must fail");
+    let rendered = error.to_string();
+    assert!(rendered.contains("schema syntax error"), "{rendered}");
+    assert!(
+        rendered.contains("locale `en` for schema namespace `shop` is missing 1 schema message"),
+        "{rendered}"
+    );
+}
+
+#[test]
+fn check_blocks_locale_semantic_errors() {
+    let project =
+        temp_project_dir("check_blocks_locale_semantic_errors").expect("create temporary project");
+    init_project(project.path()).expect("init project");
+
+    fs::write(project.path().join("schema/shop.lgs"), "delivery\n").expect("schema file");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(
+        locale_dir.join("en.lgl"),
+        "form Count(Plural) {\n  one => item\n}\ndelivery = Delivered\n",
+    )
+    .expect("locale file");
+
+    let error = check_project(project.path()).expect_err("semantic error must block check");
+    let rendered = error.to_string();
+    assert!(
+        rendered.contains("function `Count` is missing required `other` branch"),
+        "{rendered}"
+    );
+}
+
+#[test]
 fn check_reports_missing_schema_message_for_empty_locale_file() {
-    let project = temp_project_dir("check_reports_missing_schema_message");
+    let project =
+        temp_project_dir("check_reports_missing_schema_message").expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     let schema_dir = project.path().join("schema/shop");
@@ -128,7 +266,8 @@ fn check_reports_missing_schema_message_for_empty_locale_file() {
 
 #[test]
 fn check_rejects_root_locale_file_for_schema_namespace() {
-    let project = temp_project_dir("check_rejects_root_locale_file");
+    let project =
+        temp_project_dir("check_rejects_root_locale_file").expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     fs::write(project.path().join("schema/shop.lgs"), "delivery\n").expect("schema file");
@@ -149,7 +288,8 @@ fn check_rejects_root_locale_file_for_schema_namespace() {
 
 #[test]
 fn check_warns_for_secondary_locale_missing_messages() {
-    let project = temp_project_dir("check_warns_for_secondary_locale_missing_messages");
+    let project = temp_project_dir("check_warns_for_secondary_locale_missing_messages")
+        .expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     fs::write(
@@ -165,7 +305,6 @@ locale = "locales"
 
 [targets.ts]
 out = "src/generated/linguini"
-module = "esm"
 declaration = true
 "#,
     )
@@ -194,7 +333,7 @@ declaration = true
 
 #[test]
 fn build_generates_typescript_project_files_without_cldr_cache() {
-    let project = temp_project_dir("build_generates_typescript");
+    let project = temp_project_dir("build_generates_typescript").expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     let schema_dir = project.path().join("schema/shop");
@@ -203,10 +342,6 @@ fn build_generates_typescript_project_files_without_cldr_cache() {
     fs::create_dir_all(&locale_dir).expect("locale dir");
     fs::write(schema_dir.join("delivery.lgs"), "delivery(count: Number)\n").expect("schema file");
     fs::write(locale_dir.join("en.lgl"), "delivery = {count} deliveries\n").expect("locale file");
-
-    let stale_file = project.path().join("src/generated/linguini/stale.ts");
-    fs::create_dir_all(stale_file.parent().expect("stale parent")).expect("generated dir");
-    fs::write(&stale_file, "export const stale = true;\\n").expect("stale file");
 
     let output = build_project(project.path()).expect("build project");
 
@@ -244,13 +379,17 @@ fn build_generates_typescript_project_files_without_cldr_cache() {
     assert!(generated_shop.contains("export const shop = {"));
     assert!(generated_shop.contains("  delivery: {"));
     assert!(generated_shop.contains("    delivery: (count: number) =>"));
-    assert!(!stale_file.exists());
+    assert!(project
+        .path()
+        .join("src/generated/linguini/.linguini-generated-manifest")
+        .is_file());
     assert!(!project.path().join(".linguini/cache").exists());
 }
 
 #[test]
-fn build_replaces_existing_generated_tree() {
-    let project = temp_project_dir("build_replaces_existing_generated_tree");
+fn build_replaces_owned_files_and_preserves_unowned_files() {
+    let project = temp_project_dir("build_replaces_existing_generated_tree")
+        .expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     let schema_dir = project.path().join("schema/shop");
@@ -284,13 +423,20 @@ fn build_replaces_existing_generated_tree() {
         fs::read_to_string(&locale_path).expect("read regenerated locale"),
         original_locale
     );
-    assert!(!out_dir.join("stale.ts").exists());
-    assert!(!out_dir.join("obsolete").exists());
+    assert_eq!(
+        fs::read_to_string(out_dir.join("stale.ts")).expect("unowned file"),
+        "export const stale = true;\n"
+    );
+    assert_eq!(
+        fs::read_to_string(out_dir.join("obsolete/nested/file.ts")).expect("nested unowned file"),
+        "obsolete\n"
+    );
 }
 
 #[test]
 fn generate_renders_locale_enum_and_plural_matrix() {
-    let project = temp_project_dir("generate_renders_locale_enum_and_plural_matrix");
+    let project = temp_project_dir("generate_renders_locale_enum_and_plural_matrix")
+        .expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     let schema_dir = project.path().join("schema");
@@ -311,10 +457,10 @@ fn generate_renders_locale_enum_and_plural_matrix() {
     let output = generate_project_data(project.path()).expect("generated data");
     let plain = strip_ansi(&output);
 
-    assert!(output.contains("\x1b["));
+    assert!(!output.contains("\x1b["));
     assert!(!output.contains("\"locales\""));
     assert!(plain.contains("locale en"));
-    assert!(plain.contains("message counted"));
+    assert!(plain.contains("message shop.counted"));
     assert!(plain.contains("fruit=apple"));
     assert!(plain.contains("fruit=pear"));
     assert!(plain.contains("count=5"));

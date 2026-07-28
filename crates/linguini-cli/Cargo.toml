@@ -21,9 +21,9 @@ linguini-format = { path = "../linguini-format", version = "0.1.0-alpha.4" }
 linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.4" }
 linguini-lsp = { path = "../linguini-lsp", version = "0.1.0-alpha.4" }
 linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.4" }
+tempfile = "3.27.0"
 
 [dev-dependencies]
 assert_cmd = "2.1.2"
 linguini-test-support = { path = "../linguini-test-support" }
 predicates = "3.1.4"
-tempfile = "3.27.0"

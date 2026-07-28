@@ -2,6 +2,7 @@ mod check;
 mod codegen;
 mod fixes;
 mod io;
+mod output;
 mod sources;
 mod test_data;
 mod util;
@@ -13,6 +14,7 @@ pub use check::check_project;
 pub use codegen::build_project;
 pub(crate) use fixes::fix_project;
 pub use io::init_project;
+pub(crate) use io::{atomic_write_file, resolve_project_file};
 pub(crate) use test_data::generate_project_data;
 
 #[derive(Debug, Clone)]

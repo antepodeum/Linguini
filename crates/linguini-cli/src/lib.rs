@@ -50,7 +50,11 @@ impl From<linguini_config::ConfigError> for CliError {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "linguini", about = "Experimental localization toolkit CLI")]
+#[command(
+    name = "linguini",
+    version,
+    about = "Experimental localization toolkit CLI"
+)]
 pub struct Cli {
     #[command(subcommand)]
     command: CliCommand,
@@ -145,11 +149,7 @@ fn format_project(root: &std::path::Path, args: &FormatArgs) -> CliResult<String
 
     let mut changed = Vec::new();
     for relative_path in paths {
-        let path = if relative_path.is_absolute() {
-            relative_path
-        } else {
-            root.join(relative_path)
-        };
+        let path = project::resolve_project_file(root, &relative_path)?;
         let source = fs::read_to_string(&path).map_err(|source| CliError::Io {
             path: path.clone(),
             source,
@@ -163,10 +163,7 @@ fn format_project(root: &std::path::Path, args: &FormatArgs) -> CliResult<String
                     .to_string(),
             );
             if !args.check {
-                fs::write(&path, formatted).map_err(|source| CliError::Io {
-                    path: path.clone(),
-                    source,
-                })?;
+                project::atomic_write_file(&path, formatted.as_bytes())?;
             }
         }
     }

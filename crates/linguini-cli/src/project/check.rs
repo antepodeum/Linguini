@@ -52,6 +52,7 @@ pub fn check_project(root: &Path) -> CliResult<String> {
     let locale_files = discover_locale_files(root.join(&config.paths.locale))?;
     let mut parsed_schema_files = Vec::new();
     let mut parsed_locale_files = Vec::new();
+    let mut invalid_locale_keys = BTreeSet::new();
     let mut error_output = String::new();
     let mut warning_output = String::new();
 
@@ -65,7 +66,8 @@ pub fn check_project(root: &Path) -> CliResult<String> {
         ));
         let source = read_file(&file.path)?;
         let parsed = parse_schema_with_recovery(&source);
-        if !parsed.errors.is_empty() {
+        let has_syntax_errors = !parsed.errors.is_empty();
+        if has_syntax_errors {
             error_output.push_str(&render_parse_errors(
                 root,
                 &file.path,
@@ -74,7 +76,10 @@ pub fn check_project(root: &Path) -> CliResult<String> {
                 parsed.errors,
             ));
         }
-        if let Some(ast) = parsed.ast {
+        if !has_syntax_errors {
+            let Some(ast) = parsed.ast else {
+                continue;
+            };
             parsed_schema_files.push(ParsedSchemaSource {
                 file: file.clone(),
                 source,
@@ -93,7 +98,9 @@ pub fn check_project(root: &Path) -> CliResult<String> {
         ));
         let source = read_file(&file.path)?;
         let parsed = parse_locale_with_recovery(&source);
-        if !parsed.errors.is_empty() {
+        let has_syntax_errors = !parsed.errors.is_empty();
+        if has_syntax_errors {
+            invalid_locale_keys.insert((file.namespace.clone(), file.locale.clone()));
             error_output.push_str(&render_parse_errors(
                 root,
                 &file.path,
@@ -104,15 +111,16 @@ pub fn check_project(root: &Path) -> CliResult<String> {
         } else if let Some(locale) = parsed.ast.as_ref() {
             let diagnostics = analyze_locale_file(locale);
             if !diagnostics.is_empty() {
-                warning_output.push_str(&render_file_diagnostics(
-                    root,
-                    &file.path,
-                    &source,
-                    &diagnostics,
-                ));
+                let mut rendered = ProjectDiagnosticOutput::default();
+                rendered.push(root, &file.path, &source, &diagnostics);
+                error_output.push_str(&rendered.errors);
+                warning_output.push_str(&rendered.warnings);
             }
         }
-        if let Some(ast) = parsed.ast {
+        if !has_syntax_errors {
+            let Some(ast) = parsed.ast else {
+                continue;
+            };
             parsed_locale_files.push(ParsedLocaleSource {
                 file: file.clone(),
                 source,
@@ -121,16 +129,20 @@ pub fn check_project(root: &Path) -> CliResult<String> {
         }
     }
 
-    if error_output.is_empty() {
-        let project_diagnostics = render_project_coverage_diagnostics(
-            root,
-            &config,
-            &parsed_schema_files,
-            &parsed_locale_files,
-        )?;
-        error_output.push_str(&project_diagnostics.errors);
-        warning_output.push_str(&project_diagnostics.warnings);
-    }
+    let schema_namespaces = schema_files
+        .iter()
+        .map(|file| file.namespace.clone())
+        .collect::<BTreeSet<_>>();
+    let project_diagnostics = render_project_coverage_diagnostics(
+        root,
+        &config,
+        &parsed_schema_files,
+        &parsed_locale_files,
+        &schema_namespaces,
+        &invalid_locale_keys,
+    )?;
+    error_output.push_str(&project_diagnostics.errors);
+    warning_output.push_str(&project_diagnostics.warnings);
 
     if !error_output.is_empty() {
         return Err(CliError::Diagnostics(error_output));
@@ -146,11 +158,9 @@ fn render_project_coverage_diagnostics(
     config: &LinguiniConfig,
     schema_files: &[ParsedSchemaSource],
     locale_files: &[ParsedLocaleSource],
+    schema_namespaces: &BTreeSet<String>,
+    invalid_locale_keys: &BTreeSet<(String, String)>,
 ) -> CliResult<ProjectDiagnosticOutput> {
-    let schema_namespaces: BTreeSet<_> = schema_files
-        .iter()
-        .map(|schema| schema.file.namespace.clone())
-        .collect();
     let locale_index = locale_index(locale_files);
     let mut output = ProjectDiagnosticOutput::default();
 
@@ -173,6 +183,8 @@ fn render_project_coverage_diagnostics(
                         &diagnostics,
                     );
                 }
+                None if invalid_locale_keys
+                    .contains(&(schema_file.file.namespace.clone(), locale.clone())) => {}
                 None if locale == &config.project.default_locale => {
                     missing_default_locale.push(locale.clone());
                 }
@@ -198,7 +210,7 @@ fn render_project_coverage_diagnostics(
         );
     }
 
-    for locale_files in locale_files_without_schema_namespace(locale_files, &schema_namespaces) {
+    for locale_files in locale_files_without_schema_namespace(locale_files, schema_namespaces) {
         let primary = &locale_files[0];
         let affected = locale_files
             .iter()
