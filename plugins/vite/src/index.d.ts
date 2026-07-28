@@ -11,6 +11,7 @@ export interface LinguiniViteOptions {
   command?: string;
   args?: string[];
   buildOnStart?: boolean;
+  debounceMs?: number;
   generatedModulePatterns?: string[];
   build?: (context: LinguiniBuildContext) => void | Promise<void>;
 }
@@ -23,10 +24,25 @@ export declare function discoverLinguiniFiles(
   configFile?: string
 ): Promise<string[]>;
 
+export interface LinguiniProjectLayout {
+  readonly projectRoot: string;
+  readonly configPath: string;
+  readonly configExists: boolean;
+  readonly schemaRoot: string;
+  readonly localeRoot: string;
+  readonly generatedRoot: string;
+}
+
+export declare function readProjectLayout(
+  root: string,
+  configFile?: string
+): Promise<LinguiniProjectLayout>;
+
 export declare function isLinguiniSource(
   file: string,
   root?: string,
-  configFile?: string
+  configFile?: string,
+  layout?: LinguiniProjectLayout
 ): boolean;
 
 export type { ViteDevServer };

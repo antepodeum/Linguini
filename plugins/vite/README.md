@@ -2,9 +2,10 @@
 
 Vite plugin for Linguini projects.
 
-It watches `linguini.toml`, `.lgs`, and `.lgl` files, runs `linguini build`
-after changes, invalidates generated Linguini modules, and emits a
-`linguini:update` HMR event.
+It watches `linguini.toml` and only the `.lgs`/`.lgl` files below the configured
+source roots. Changes are debounced and serialized, including changes that arrive
+during a build. Additions and deletions refresh the watch set. Build failures use
+Vite's error overlay.
 
 ```js
 import { defineConfig } from "vite";
@@ -22,4 +23,10 @@ Options:
 - `command`: Linguini executable. Defaults to `linguini`.
 - `args`: build command arguments. Defaults to `["build"]`.
 - `buildOnStart`: run codegen during Vite startup. Defaults to `true`.
-- `generatedModulePatterns`: substrings used to invalidate generated modules.
+- `debounceMs`: source-change debounce. Defaults to `40`.
+- `generatedModulePatterns`: optional extra module substrings to invalidate. The
+  configured `targets.ts.out` directory and Linguini virtual modules are detected
+  automatically.
+
+The published entry point is native Node ESM and supports Vite 5–8. The package
+ships its source entry intentionally; it does not require a transpilation step.
