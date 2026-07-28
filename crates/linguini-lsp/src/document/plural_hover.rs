@@ -1,17 +1,19 @@
-use super::{contains, LinguiniDocument};
+use super::{contains, parsed_locale, LinguiniDocument};
 use linguini_format::SourceKind;
 use linguini_syntax::{
-    parse_locale_with_recovery, FunctionBranch, FunctionBranchValue, FunctionDeclaration,
-    LocaleDeclaration,
+    FunctionBranch, FunctionBranchValue, FunctionDeclaration, LocaleDeclaration,
 };
 
 pub(super) fn plural_branch_hover(document: &LinguiniDocument, offset: usize) -> Option<String> {
     let SourceKind::Locale = document.kind else {
         return None;
     };
-    let locale = locale_from_uri(&document.uri)?;
+    let locale = document
+        .locale
+        .clone()
+        .or_else(|| locale_from_uri(&document.uri))?;
     let rules = linguini_cldr::compiled_plural_rules(&locale)?;
-    let file = parse_locale_with_recovery(&document.text).ast?;
+    let file = parsed_locale(document)?.ast.as_ref()?;
 
     for declaration in &file.declarations {
         if let Some(hover) = declaration_plural_branch_hover(declaration, offset, &locale, &rules) {

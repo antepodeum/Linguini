@@ -1,7 +1,8 @@
 use super::{
-    completion_items, definition_at_with_workspace, diagnostics, document_symbols, format_document,
-    hover_at, hover_at_with_workspace, prepare_rename_at, references_at, rename_workspace_edits,
-    semantic_tokens, LinguiniDocument, CRATE_PURPOSE,
+    completion_items, definition_at_with_workspace, diagnostics, diagnostics_with_workspace,
+    document_symbols, format_document, hover_at, hover_at_with_workspace, prepare_rename_at,
+    references_at, references_at_with_workspace, rename_workspace_edits, semantic_tokens,
+    LinguiniDocument, CRATE_PURPOSE,
 };
 
 #[test]
@@ -69,11 +70,11 @@ fn locale_hover_inherits_schema_docs_from_workspace() {
 
     assert!(hover.contains("Delivery label"));
     assert!(hover.contains("delivery(count: Number)"));
-    assert!(hover.contains("=> Доставка"));
+    assert!(hover.contains("delivery -> Доставка"));
 }
 
 #[test]
-fn locale_hover_renders_message_sample_from_schema_values() {
+fn locale_hover_shows_schema_signature_without_runtime_emulation() {
     let schema = LinguiniDocument::new(
         "file:///shop.lgs",
         "linguini-schema",
@@ -89,8 +90,9 @@ fn locale_hover_renders_message_sample_from_schema_values() {
     let hover = hover_at_with_workspace(&locale, offset, [schema]).expect("hover");
 
     assert!(hover.contains("delivery(fruit: Fruit, size: Size, count: Number)"));
-    assert!(hover.contains("=> Delivered 3 small apples."));
-    assert!(!hover.contains("{SizeWord(size, count)}"));
+    assert!(
+        hover.contains("delivery -> Delivered {count} {SizeWord(size, count)} {fruit.nom(count)}.")
+    );
 }
 
 #[test]
@@ -356,4 +358,247 @@ fn formatting_returns_whole_document_edit() {
 
     assert_eq!(edit.new_text, "delivery(count: Number)\n");
     assert_eq!(edit.span.end, document.text.len());
+}
+
+#[test]
+fn locale_diagnostics_use_only_matching_schema_namespace() {
+    let shop_schema = LinguiniDocument::new(
+        "file:///schema/shop.lgs",
+        "linguini-schema",
+        "delivery(count: Number)\n",
+    )
+    .with_source_identity("shop", None);
+    let account_schema = LinguiniDocument::new(
+        "file:///schema/account.lgs",
+        "linguini-schema",
+        "sign_in(email: String)\n",
+    )
+    .with_source_identity("account", None);
+    let locale = LinguiniDocument::new(
+        "file:///locales/shop/en.lgl",
+        "linguini-locale",
+        "delivery = Delivered\n",
+    )
+    .with_source_identity("shop", Some("en".to_owned()));
+
+    let diagnostics = diagnostics_with_workspace(&locale, [shop_schema, account_schema]);
+
+    assert!(diagnostics
+        .iter()
+        .all(|diagnostic| !diagnostic.message.contains("sign_in")));
+}
+
+#[test]
+fn schema_semantic_diagnostics_are_reported() {
+    let schema = LinguiniDocument::new(
+        "file:///schema/shop.lgs",
+        "linguini-schema",
+        "enum Fruit { apple, apple }\ndelivery(count: Missing)\n",
+    );
+
+    let diagnostics = diagnostics(&schema);
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.message.contains("duplicate") && diagnostic.message.contains("variant")
+    }));
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message.contains("unknown schema type")));
+}
+
+#[test]
+fn token_end_is_not_inside_rename_target() {
+    let document = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery()\n");
+    let end = document.text.find("delivery").expect("offset") + "delivery".len();
+
+    assert!(prepare_rename_at(&document, end).is_none());
+}
+
+#[test]
+fn rename_does_not_touch_unrelated_same_text() {
+    let schema = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery()\n");
+    let locale = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "let delivery = Local\nsummary = {delivery}\n",
+    );
+    let offset = schema.text.find("delivery").expect("offset");
+
+    let edits = rename_workspace_edits([schema.clone(), locale], &schema, offset, "shipping");
+
+    assert_eq!(edits.len(), 1);
+    assert_eq!(edits[0].uri, schema.uri);
+}
+
+#[test]
+fn rename_rejects_reserved_names_and_collisions() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "delivery()\nshipping()\n",
+    );
+    let offset = document.text.find("delivery").expect("offset");
+
+    assert!(rename_workspace_edits([document.clone()], &document, offset, "enum").is_empty());
+    assert!(rename_workspace_edits([document.clone()], &document, offset, "shipping").is_empty());
+}
+
+#[test]
+fn semantic_resolution_handles_zero_argument_calls_and_grouped_paths() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgl",
+        "linguini-locale",
+        "fn label() { _ => Label }\nshop { title = Title }\nsummary = {label()} {shop.title}\n",
+    );
+
+    let call = document.text.rfind("label").expect("call offset");
+    let (call_uri, call_span) =
+        definition_at_with_workspace(&document, call, []).expect("function definition");
+    assert_eq!(call_uri, document.uri);
+    assert_eq!(&document.text[call_span.start..call_span.end], "label");
+    assert_eq!(
+        call_span.start,
+        document.text.find("label").expect("declaration")
+    );
+
+    let grouped = document.text.rfind("title").expect("grouped reference");
+    let (group_uri, group_span) =
+        definition_at_with_workspace(&document, grouped, []).expect("grouped definition");
+    assert_eq!(group_uri, document.uri);
+    assert_eq!(&document.text[group_span.start..group_span.end], "title");
+}
+
+#[test]
+fn schema_parameter_references_bind_across_locale_documents() {
+    let schema = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "greeting(name: String)\n",
+    );
+    let locale = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "greeting = Hello, {name}!\n",
+    );
+    let reference = locale.text.rfind("name").expect("parameter reference");
+
+    let (uri, span) =
+        definition_at_with_workspace(&locale, reference, [schema.clone()]).expect("definition");
+    assert_eq!(uri, schema.uri);
+    assert_eq!(&schema.text[span.start..span.end], "name");
+
+    let declaration = schema.text.find("name").expect("parameter declaration");
+    let edits = rename_workspace_edits(
+        [schema.clone(), locale.clone()],
+        &schema,
+        declaration,
+        "customer",
+    );
+    assert_eq!(edits.len(), 2);
+    assert!(edits.iter().any(|edit| edit.uri == schema.uri));
+    assert!(edits.iter().any(|edit| edit.uri == locale.uri));
+}
+
+#[test]
+fn rename_rejects_cross_kind_declaration_collisions() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgl",
+        "linguini-locale",
+        "let shipping = Shipping\ndelivery = Delivered\n",
+    );
+    let offset = document.text.find("delivery").expect("message declaration");
+
+    assert!(rename_workspace_edits([document.clone()], &document, offset, "shipping").is_empty());
+}
+
+#[test]
+fn workspace_references_include_declaration_metadata() {
+    let schema = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery()\n");
+    let locale = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "delivery = Delivered\nsummary = {delivery}\n",
+    );
+    let offset = schema.text.find("delivery").expect("offset");
+
+    let references = references_at_with_workspace(&schema, offset, [schema.clone(), locale]);
+
+    assert_eq!(references.len(), 3);
+    assert_eq!(
+        references
+            .iter()
+            .filter(|reference| reference.declaration)
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn definition_does_not_fall_back_to_undefined_reference() {
+    let locale = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "summary = {ghost}\nother = {ghost}\n",
+    );
+    let offset = locale.text.find("ghost").expect("offset");
+
+    assert!(definition_at_with_workspace(&locale, offset, []).is_none());
+}
+
+#[test]
+fn ambiguous_unqualified_schema_definition_is_rejected() {
+    let first = LinguiniDocument::new("file:///one.lgs", "linguini-schema", "delivery()\n");
+    let second = LinguiniDocument::new("file:///two.lgs", "linguini-schema", "delivery()\n");
+    let locale = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "delivery = Delivered\n",
+    );
+    let offset = locale.text.find("delivery").expect("offset");
+
+    assert!(definition_at_with_workspace(&locale, offset, [first, second]).is_none());
+}
+
+#[test]
+fn semantic_tokens_split_multiline_raw_text() {
+    let locale = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "message = \"\"\"\nfirst\nsecond\n\"\"\"\n",
+    );
+
+    let text_tokens = semantic_tokens(&locale)
+        .into_iter()
+        .filter(|token| token.token_type == 4)
+        .collect::<Vec<_>>();
+
+    assert!(text_tokens.iter().any(|token| token.line == 1));
+    assert!(text_tokens.iter().any(|token| token.line == 2));
+}
+
+#[test]
+fn unsupported_language_id_is_rejected() {
+    assert!(LinguiniDocument::try_new("file:///notes.txt", "plaintext", "notes").is_none());
+}
+
+#[test]
+fn oversized_documents_are_rejected_before_indexing_lines() {
+    let source = "x".repeat(4 * 1024 * 1024 + 1);
+
+    assert!(LinguiniDocument::try_new("file:///huge.lgl", "linguini-locale", source).is_none());
+}
+
+#[test]
+fn configured_locale_drives_plural_hover_for_custom_layout() {
+    let document = LinguiniDocument::new(
+        "file:///translations/current.lgl",
+        "linguini-locale",
+        "form Count(Plural) {\n  one => item\n  _ => items\n}\n",
+    )
+    .with_source_identity("main", Some("ru".to_owned()));
+    let offset = document.text.find("one").expect("offset");
+
+    let hover = hover_at(&document, offset).expect("hover");
+
+    assert!(hover.contains("Locale `ru` category `one`"));
 }

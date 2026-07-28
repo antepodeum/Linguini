@@ -1,25 +1,25 @@
-use super::{LinguiniDocument, Symbol};
+use super::{parsed_locale, parsed_schema, LinguiniDocument, Symbol};
 use linguini_format::SourceKind;
 use linguini_syntax::{
-    parse_locale_with_recovery, parse_schema_with_recovery, DocComment, LocaleDeclaration,
-    MessageSignature, Name, Parameter, SchemaDeclaration, SchemaFile, TextPart, TextPattern,
+    DocComment, LocaleDeclaration, MessageSignature, Name, Parameter, SchemaDeclaration,
+    SchemaFile, TextPart, TextPattern,
 };
 use std::collections::BTreeMap;
 
 pub(super) fn symbols(document: &LinguiniDocument) -> Vec<Symbol> {
     match document.kind {
-        SourceKind::Schema => parse_schema_with_recovery(&document.text)
-            .ast
+        SourceKind::Schema => parsed_schema(document)
+            .and_then(|parsed| parsed.ast.as_ref())
             .map(|file| {
-                let samples = schema_sample_values(&file);
+                let samples = schema_sample_values(file);
                 file.declarations
                     .iter()
                     .flat_map(|declaration| schema_declaration_symbols(declaration, &samples))
                     .collect()
             })
             .unwrap_or_default(),
-        SourceKind::Locale => parse_locale_with_recovery(&document.text)
-            .ast
+        SourceKind::Locale => parsed_locale(document)
+            .and_then(|parsed| parsed.ast.as_ref())
             .map(|file| {
                 file.declarations
                     .iter()
@@ -40,16 +40,27 @@ fn schema_declaration_symbols(
         SchemaDeclaration::Message(item) => {
             vec![schema_message_symbol(item, None, samples)]
         }
-        SchemaDeclaration::Group(item) => {
-            let mut output = vec![symbol(&item.name, "message group", &item.docs)];
-            output.extend(
-                item.messages
-                    .iter()
-                    .map(|message| schema_message_symbol(message, Some(&item.name.value), samples)),
-            );
-            output
-        }
+        SchemaDeclaration::Group(item) => schema_group_symbols(item, None, samples),
     }
+}
+
+fn schema_group_symbols(
+    group: &linguini_syntax::MessageGroup,
+    parent: Option<&str>,
+    samples: &BTreeMap<String, String>,
+) -> Vec<Symbol> {
+    let path = qualified_name(parent, &group.name.value);
+    let mut output = vec![symbol(&group.name, "message group", &group.docs)];
+    output.extend(
+        group
+            .messages
+            .iter()
+            .map(|message| schema_message_symbol(message, Some(&path), samples)),
+    );
+    for child in &group.groups {
+        output.extend(schema_group_symbols(child, Some(&path), samples));
+    }
+    output
 }
 
 fn locale_declaration_symbols(declaration: &LocaleDeclaration) -> Vec<Symbol> {
@@ -64,20 +75,24 @@ fn locale_declaration_symbols(declaration: &LocaleDeclaration) -> Vec<Symbol> {
             &item.docs,
             &item.value,
         )],
-        LocaleDeclaration::Group(item) => {
-            let mut output = vec![symbol(&item.name, "message group", &item.docs)];
-            output.extend(item.messages.iter().map(|message| {
-                locale_message_symbol(
-                    &message.name,
-                    Some(&item.name.value),
-                    &message.docs,
-                    &message.value,
-                )
-            }));
-            output
-        }
+        LocaleDeclaration::Group(item) => locale_group_symbols(item, None),
         LocaleDeclaration::Override(inner) => locale_declaration_symbols(inner),
     }
+}
+
+fn locale_group_symbols(
+    group: &linguini_syntax::MessageImplementationGroup,
+    parent: Option<&str>,
+) -> Vec<Symbol> {
+    let path = qualified_name(parent, &group.name.value);
+    let mut output = vec![symbol(&group.name, "message group", &group.docs)];
+    output.extend(group.messages.iter().map(|message| {
+        locale_message_symbol(&message.name, Some(&path), &message.docs, &message.value)
+    }));
+    for child in &group.groups {
+        output.extend(locale_group_symbols(child, Some(&path)));
+    }
+    output
 }
 
 fn symbol(name: &Name, detail: &str, docs: &[DocComment]) -> Symbol {
