@@ -8,6 +8,11 @@ pub enum ConfigError {
     DuplicateKey(String),
     InvalidArray(String),
     InvalidLocaleTag(String),
+    InvalidPath {
+        field: &'static str,
+        value: String,
+        reason: &'static str,
+    },
     InvalidString(String),
     MissingField(&'static str),
     UnexpectedSection(String),
@@ -21,6 +26,11 @@ impl Display for ConfigError {
             Self::DuplicateKey(key) => write!(f, "duplicate config key `{key}`"),
             Self::InvalidArray(value) => write!(f, "invalid string array `{value}`"),
             Self::InvalidLocaleTag(tag) => write!(f, "invalid locale tag `{tag}`"),
+            Self::InvalidPath {
+                field,
+                value,
+                reason,
+            } => write!(f, "invalid path for `{field}`: `{value}` ({reason})"),
             Self::InvalidString(value) => write!(f, "invalid string value `{value}`"),
             Self::MissingField(field) => write!(f, "missing required config field `{field}`"),
             Self::UnexpectedSection(section) => write!(f, "unexpected config section `{section}`"),

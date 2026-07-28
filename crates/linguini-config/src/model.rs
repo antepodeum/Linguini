@@ -1,4 +1,5 @@
 use crate::error::{ConfigError, ConfigResult};
+use std::path::{Component, Path};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LinguiniConfig {
@@ -92,6 +93,9 @@ impl Default for WebConfig {
 
 impl LinguiniConfig {
     pub fn validate(&self) -> ConfigResult<()> {
+        validate_relative_path("paths.schema", &self.paths.schema)?;
+        validate_relative_path("paths.locale", &self.paths.locale)?;
+
         validate_locale_tag(&self.project.default_locale)?;
 
         if !self
@@ -108,9 +112,9 @@ impl LinguiniConfig {
         }
 
         if let Some(ts) = &self.targets.ts {
-            if ts.out.trim().is_empty() {
-                return Err(ConfigError::MissingField("targets.ts.out"));
-            }
+            validate_relative_path("targets.ts.out", &ts.out)?;
+            reject_path_overlap("targets.ts.out", &ts.out, "paths.schema", &self.paths.schema)?;
+            reject_path_overlap("targets.ts.out", &ts.out, "paths.locale", &self.paths.locale)?;
             if ts.module != "esm" {
                 return Err(ConfigError::InvalidString(ts.module.clone()));
             }
@@ -139,6 +143,86 @@ impl LinguiniConfig {
 
         Ok(())
     }
+}
+
+fn validate_relative_path(field: &'static str, value: &str) -> ConfigResult<()> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(ConfigError::InvalidPath {
+            field,
+            value: value.to_owned(),
+            reason: "path must not be empty",
+        });
+    }
+
+    let portable = trimmed.replace('\\', "/");
+    let has_windows_prefix = portable
+        .as_bytes()
+        .get(1)
+        .is_some_and(|character| *character == b':');
+    if portable.starts_with('/') || has_windows_prefix || Path::new(trimmed).is_absolute() {
+        return Err(ConfigError::InvalidPath {
+            field,
+            value: value.to_owned(),
+            reason: "path must be project-relative",
+        });
+    }
+
+    if portable.split('/').any(|segment| segment == "..")
+        || Path::new(trimmed)
+            .components()
+            .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err(ConfigError::InvalidPath {
+            field,
+            value: value.to_owned(),
+            reason: "parent traversal is not allowed",
+        });
+    }
+
+    if portable
+        .split('/')
+        .all(|segment| segment.is_empty() || segment == ".")
+    {
+        return Err(ConfigError::InvalidPath {
+            field,
+            value: value.to_owned(),
+            reason: "path must not resolve to the project root",
+        });
+    }
+
+    Ok(())
+}
+
+fn reject_path_overlap(
+    left_field: &'static str,
+    left: &str,
+    right_field: &'static str,
+    right: &str,
+) -> ConfigResult<()> {
+    let left = portable_components(left);
+    let right = portable_components(right);
+    if left.starts_with(&right) || right.starts_with(&left) {
+        return Err(ConfigError::InvalidPath {
+            field: left_field,
+            value: left.join("/"),
+            reason: match right_field {
+                "paths.schema" => "path overlaps the schema source root",
+                "paths.locale" => "path overlaps the locale source root",
+                _ => "path overlaps another project root",
+            },
+        });
+    }
+    Ok(())
+}
+
+fn portable_components(value: &str) -> Vec<String> {
+    value
+        .replace('\\', "/")
+        .split('/')
+        .filter(|segment| !segment.is_empty() && *segment != ".")
+        .map(str::to_owned)
+        .collect()
 }
 
 fn validate_web_strategy(strategy: &[String]) -> ConfigResult<()> {
@@ -201,7 +285,7 @@ pub fn validate_locale_tag(tag: &str) -> ConfigResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_locale_tag;
+    use super::{validate_locale_tag, LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig};
 
     #[test]
     fn accepts_spec_locale_tags() {
@@ -214,6 +298,45 @@ mod tests {
     fn rejects_non_bcp47_like_locale_tags() {
         for tag in ["r", "EN", "en-us", "zh-hant", "en-US-extra"] {
             assert!(validate_locale_tag(tag).is_err(), "{tag}");
+        }
+    }
+
+    #[test]
+    fn rejects_unsafe_or_overlapping_codegen_paths() {
+        for out in [
+            "/tmp/generated",
+            "../generated",
+            r"..\generated",
+            r"C:\generated",
+            ".",
+            "schema/generated",
+            "locales",
+        ] {
+            let config = LinguiniConfig {
+                project: ProjectConfig {
+                    name: "shop".to_owned(),
+                    default_locale: "en".to_owned(),
+                    locales: vec!["en".to_owned()],
+                },
+                paths: PathsConfig {
+                    schema: "schema".to_owned(),
+                    locale: "locales".to_owned(),
+                },
+                targets: TargetsConfig {
+                    ts: Some(super::TypeScriptTargetConfig {
+                        out: out.to_owned(),
+                        module: "esm".to_owned(),
+                        declaration: true,
+                        gitignore: true,
+                        tree_shaking: false,
+                        messages: Vec::new(),
+                        framework: None,
+                    }),
+                },
+                web: super::WebConfig::default(),
+            };
+
+            assert!(config.validate().is_err(), "{out}");
         }
     }
 }
