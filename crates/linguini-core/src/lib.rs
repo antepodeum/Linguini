@@ -1,11 +1,9 @@
-pub const CRATE_PURPOSE: &str = "shared core Linguini types";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FormatterKind {
     Number,
     Currency,
     Date,
-    Unknown,
+    Unknown(String),
 }
 
 impl FormatterKind {
@@ -14,16 +12,16 @@ impl FormatterKind {
             "number" => Self::Number,
             "currency" => Self::Currency,
             "date" => Self::Date,
-            _ => Self::Unknown,
+            _ => Self::Unknown(value.to_owned()),
         }
     }
 
-    pub const fn as_str(self) -> &'static str {
+    pub fn as_str(&self) -> &str {
         match self {
             Self::Number => "number",
             Self::Currency => "currency",
             Self::Date => "date",
-            Self::Unknown => "unknown",
+            Self::Unknown(name) => name,
         }
     }
 
@@ -72,6 +70,18 @@ impl TypeKind {
             Self::Boolean,
         ]
     }
+
+    pub const fn supports_dispatch(self) -> bool {
+        matches!(self, Self::String | Self::Number | Self::Decimal)
+    }
+
+    pub const fn default_formatter(self) -> Option<FormatterKind> {
+        match self {
+            Self::Number | Self::Decimal => Some(FormatterKind::Number),
+            Self::Date => Some(FormatterKind::Date),
+            Self::String | Self::Boolean => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -80,10 +90,14 @@ mod tests {
 
     #[test]
     fn formatter_kind_round_trips_known_names() {
-        for &kind in FormatterKind::all_known() {
-            assert_eq!(FormatterKind::from_name(kind.as_str()), kind);
+        for kind in FormatterKind::all_known() {
+            assert_eq!(FormatterKind::from_name(kind.as_str()), *kind);
         }
-        assert_eq!(FormatterKind::from_name("unknown"), FormatterKind::Unknown);
+        assert_eq!(
+            FormatterKind::from_name("custom"),
+            FormatterKind::Unknown("custom".to_owned())
+        );
+        assert_eq!(FormatterKind::from_name("custom").as_str(), "custom");
     }
 
     #[test]
@@ -92,5 +106,22 @@ mod tests {
             assert_eq!(TypeKind::from_name(kind.as_str()), Some(kind));
         }
         assert_eq!(TypeKind::from_name("Void"), None);
+    }
+
+    #[test]
+    fn primitive_contract_centralizes_dispatch_and_formatting() {
+        assert!(TypeKind::String.supports_dispatch());
+        assert!(TypeKind::Number.supports_dispatch());
+        assert!(TypeKind::Decimal.supports_dispatch());
+        assert!(!TypeKind::Date.supports_dispatch());
+        assert!(!TypeKind::Boolean.supports_dispatch());
+        assert_eq!(
+            TypeKind::Decimal.default_formatter(),
+            Some(FormatterKind::Number)
+        );
+        assert_eq!(
+            TypeKind::Date.default_formatter(),
+            Some(FormatterKind::Date)
+        );
     }
 }

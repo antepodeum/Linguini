@@ -218,11 +218,11 @@ fn expression_value(
 fn apply_formatters(value: String, formatters: &[IrFormatter]) -> String {
     formatters.iter().fold(value, |current, formatter| {
         let formatter_options = formatter_options(formatter);
-        match formatter.kind {
+        match &formatter.kind {
             IrFormatterKind::Number => format!("formatNumber({current})"),
             IrFormatterKind::Currency => format!("formatCurrency({current}, {formatter_options})"),
             IrFormatterKind::Date => format!("formatDate({current}, {formatter_options})"),
-            IrFormatterKind::Unknown => current,
+            IrFormatterKind::Unknown(_) => current,
         }
     })
 }

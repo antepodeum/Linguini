@@ -203,7 +203,7 @@ fn lower_expression(expression: &Expression) -> IrExpression {
 
 fn lower_formatter(annotation: &Annotation) -> IrFormatter {
     IrFormatter {
-        kind: annotation.kind,
+        kind: annotation.kind.clone(),
         arguments: annotation
             .arguments
             .iter()

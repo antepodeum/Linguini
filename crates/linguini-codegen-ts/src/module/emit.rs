@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use linguini_core::{FormatterKind, TypeKind};
+use linguini_core::TypeKind;
 use linguini_ir::{
     IrFormatter, IrFormatterArgument, IrFunction, IrFunctionBranch, IrFunctionBranchValue,
     IrMessage, IrModule,
@@ -381,11 +381,7 @@ fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatte
             continue;
         }
 
-        let kind = match TypeKind::from_name(current)? {
-            TypeKind::Number | TypeKind::Decimal => FormatterKind::Number,
-            TypeKind::Date => FormatterKind::Date,
-            TypeKind::String | TypeKind::Boolean => return None,
-        };
+        let kind = TypeKind::from_name(current)?.default_formatter()?;
         return Some(vec![IrFormatter {
             kind,
             arguments: Vec::<IrFormatterArgument>::new(),
