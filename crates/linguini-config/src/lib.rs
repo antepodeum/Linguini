@@ -8,7 +8,10 @@ pub use discovery::{
 };
 pub use error::{ConfigError, ConfigResult};
 pub use model::{
-    LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig, TypeScriptTargetConfig, WebConfig,
+    CanonicalMode, CookiePath, LinguiniConfig, LinkMode, LocalePrefixMode, LocaleSource,
+    LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite, SecurePolicy, TargetsConfig,
+    TypeScriptTargetConfig, WebConfig, WebCookieConfig, WebLinksConfig, WebLocalStorageConfig,
+    WebLocaleConfig, WebRoutesConfig, WebRoutingConfig, WebSwitchRouteConfig,
 };
 pub use parser::parse_config;
 

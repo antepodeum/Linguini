@@ -1,52 +1,49 @@
 use crate::error::{ConfigError, ConfigResult};
 use crate::model::{
-    LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig, TypeScriptTargetConfig, WebConfig,
+    canonicalize_locale_tag, CanonicalMode, CookiePath, LinguiniConfig, LinkMode, LocalePrefixMode,
+    LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite, SecurePolicy,
+    TargetsConfig, TypeScriptTargetConfig, WebConfig, WebCookieConfig, WebLinksConfig,
+    WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig, WebRoutingConfig,
+    WebSwitchRouteConfig,
 };
+use serde::Deserialize;
 
-#[derive(Default)]
-struct ProjectBuilder {
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawConfig {
+    project: Option<RawProjectConfig>,
+    paths: Option<RawPathsConfig>,
+    targets: Option<RawTargetsConfig>,
+    web: Option<RawWebConfig>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawProjectConfig {
     name: Option<String>,
     default_locale: Option<String>,
     locales: Option<Vec<String>>,
 }
 
-#[derive(Default)]
-struct PathsBuilder {
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawPathsConfig {
     schema: Option<String>,
     locale: Option<String>,
+    cache: Option<toml::Value>,
 }
 
-#[derive(Default)]
-struct TargetsBuilder {
-    ts: Option<TypeScriptTargetBuilder>,
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawTargetsConfig {
+    ts: Option<RawTypeScriptTargetConfig>,
 }
 
-#[derive(Default)]
-struct WebBuilder {
-    configured: bool,
-    strategy: Option<Vec<String>>,
-    cookie_name: Option<String>,
-    cookie_path: Option<String>,
-    cookie_domain: Option<String>,
-    cookie_max_age: Option<u64>,
-    cookie_same_site: Option<String>,
-    cookie_secure: Option<bool>,
-    cookie_http_only: Option<bool>,
-    local_storage_key: Option<String>,
-    global_variable_name: Option<String>,
-    prefix_default_locale: Option<bool>,
-    base_path: Option<String>,
-    trailing_slash: Option<String>,
-    redirect: Option<bool>,
-    origin: Option<String>,
-    exclude: Option<Vec<String>>,
-    localize_links: Option<bool>,
-}
-
-#[derive(Default)]
-struct TypeScriptTargetBuilder {
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawTypeScriptTargetConfig {
     out: Option<String>,
-    module: Option<String>,
+    module: Option<toml::Value>,
     declaration: Option<bool>,
     gitignore: Option<bool>,
     tree_shaking: Option<bool>,
@@ -54,280 +51,374 @@ struct TypeScriptTargetBuilder {
     framework: Option<String>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWebConfig {
+    routing: Option<RawWebRoutingConfig>,
+    locale: Option<RawWebLocaleConfig>,
+    cookie: Option<RawWebCookieConfig>,
+    local_storage: Option<RawWebLocalStorageConfig>,
+    links: Option<RawWebLinksConfig>,
+    routes: Option<RawWebRoutesConfig>,
+    switch_route: Option<RawWebSwitchRouteConfig>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWebRoutingConfig {
+    locale_prefix: Option<String>,
+    canonical: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWebLocaleConfig {
+    sources: Option<Vec<String>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWebCookieConfig {
+    name: Option<String>,
+    path: Option<String>,
+    domain: Option<String>,
+    max_age: Option<String>,
+    same_site: Option<String>,
+    secure: Option<RawSecurePolicy>,
+    http_only: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum RawSecurePolicy {
+    Boolean(bool),
+    Name(String),
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWebLocalStorageConfig {
+    key: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWebLinksConfig {
+    mode: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWebRoutesConfig {
+    exclude: Option<Vec<String>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWebSwitchRouteConfig {
+    path: Option<String>,
+    return_query: Option<String>,
+    status: Option<u16>,
+}
+
 pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
-    let mut section = String::new();
-    let mut project = ProjectBuilder::default();
-    let mut paths = PathsBuilder::default();
-    let mut targets = TargetsBuilder::default();
-    let mut web = WebBuilder::default();
-
-    for raw_line in source.lines() {
-        let line = raw_line.trim();
-
-        if line.is_empty() || line.starts_with('#') {
-            continue;
+    let raw: RawConfig = toml::from_str(source).map_err(|error| {
+        let span = error.span().map(|span| (span.start, span.end));
+        ConfigError::Toml {
+            message: error.to_string(),
+            span,
         }
+    })?;
 
-        if let Some(name) = line
-            .strip_prefix('[')
-            .and_then(|line| line.strip_suffix(']'))
-        {
-            match name {
-                "project" | "paths" | "targets.ts" => section = name.to_owned(),
-                "web" => {
-                    section = name.to_owned();
-                    web.configured = true;
-                }
-                name => return Err(ConfigError::UnexpectedSection(name.to_owned())),
-            }
-            continue;
-        }
-
-        let Some((key, value)) = line.split_once('=') else {
-            return Err(ConfigError::UnknownKey {
-                section: section.clone(),
-                key: line.to_owned(),
-            });
-        };
-
-        assign_value(
-            &section,
-            key.trim(),
-            value.trim(),
-            &mut project,
-            &mut paths,
-            &mut targets,
-            &mut web,
-        )?;
-    }
-
+    let project = build_project(required(raw.project, "project")?)?;
+    let paths = build_paths(required(raw.paths, "paths")?)?;
+    let targets = build_targets(raw.targets.unwrap_or_default())?;
+    let web = build_web(raw.web, &project.name)?;
     let config = LinguiniConfig {
-        project: ProjectConfig {
-            name: required(project.name, "project.name")?,
-            default_locale: required(project.default_locale, "project.default_locale")?,
-            locales: required(project.locales, "project.locales")?,
-        },
-        paths: PathsConfig {
-            schema: required(paths.schema, "paths.schema")?,
-            locale: required(paths.locale, "paths.locale")?,
-        },
-        targets: TargetsConfig {
-            ts: targets.ts.map(|ts| TypeScriptTargetConfig {
-                out: ts
-                    .out
-                    .unwrap_or_else(|| "src/generated/linguini".to_owned()),
-                module: ts.module.unwrap_or_else(|| "esm".to_owned()),
-                declaration: ts.declaration.unwrap_or(true),
-                gitignore: ts.gitignore.unwrap_or(true),
-                tree_shaking: ts.tree_shaking.unwrap_or(false),
-                messages: ts.messages.unwrap_or_default(),
-                framework: ts.framework,
-            }),
-        },
-        web: build_web_config(web),
+        project,
+        paths,
+        targets,
+        web,
     };
-
     config.validate()?;
     Ok(config)
 }
 
-fn assign_value(
-    section: &str,
-    key: &str,
-    value: &str,
-    project: &mut ProjectBuilder,
-    paths: &mut PathsBuilder,
-    targets: &mut TargetsBuilder,
-    web: &mut WebBuilder,
-) -> ConfigResult<()> {
-    match (section, key) {
-        ("project", "name") => assign_string(&mut project.name, key, value),
-        ("project", "default_locale") => assign_string(&mut project.default_locale, key, value),
-        ("project", "locales") => assign_array(&mut project.locales, key, value),
-        ("paths", "schema") => assign_string(&mut paths.schema, key, value),
-        ("paths", "locale") => assign_string(&mut paths.locale, key, value),
-        ("paths", "cache") => {
-            parse_string(value)?;
-            Ok(())
-        }
-        ("targets.ts", "out") => {
-            let ts = targets
-                .ts
-                .get_or_insert_with(TypeScriptTargetBuilder::default);
-            assign_string(&mut ts.out, key, value)
-        }
-        ("targets.ts", "module") => {
-            let ts = targets
-                .ts
-                .get_or_insert_with(TypeScriptTargetBuilder::default);
-            assign_string(&mut ts.module, key, value)
-        }
-        ("targets.ts", "declaration") => {
-            let ts = targets
-                .ts
-                .get_or_insert_with(TypeScriptTargetBuilder::default);
-            assign_bool(&mut ts.declaration, key, value)
-        }
-        ("targets.ts", "gitignore") => {
-            let ts = targets
-                .ts
-                .get_or_insert_with(TypeScriptTargetBuilder::default);
-            assign_bool(&mut ts.gitignore, key, value)
-        }
-        ("targets.ts", "tree_shaking") => {
-            let ts = targets
-                .ts
-                .get_or_insert_with(TypeScriptTargetBuilder::default);
-            assign_bool(&mut ts.tree_shaking, key, value)
-        }
-        ("targets.ts", "messages") => {
-            let ts = targets
-                .ts
-                .get_or_insert_with(TypeScriptTargetBuilder::default);
-            assign_array(&mut ts.messages, key, value)
-        }
-        ("targets.ts", "framework") => {
-            let ts = targets
-                .ts
-                .get_or_insert_with(TypeScriptTargetBuilder::default);
-            assign_string(&mut ts.framework, key, value)
-        }
-        ("web", "strategy") => assign_array(&mut web.strategy, key, value),
-        ("web", "cookie_name") => assign_string(&mut web.cookie_name, key, value),
-        ("web", "cookie_path") => assign_string(&mut web.cookie_path, key, value),
-        ("web", "cookie_domain") => assign_string(&mut web.cookie_domain, key, value),
-        ("web", "cookie_max_age") => assign_u64(&mut web.cookie_max_age, key, value),
-        ("web", "cookie_same_site") => assign_string(&mut web.cookie_same_site, key, value),
-        ("web", "cookie_secure") => assign_bool(&mut web.cookie_secure, key, value),
-        ("web", "cookie_http_only") => assign_bool(&mut web.cookie_http_only, key, value),
-        ("web", "local_storage_key") => assign_string(&mut web.local_storage_key, key, value),
-        ("web", "global_variable_name") => assign_string(&mut web.global_variable_name, key, value),
-        ("web", "prefix_default_locale") => assign_bool(&mut web.prefix_default_locale, key, value),
-        ("web", "base_path") => assign_string(&mut web.base_path, key, value),
-        ("web", "trailing_slash") => assign_string(&mut web.trailing_slash, key, value),
-        ("web", "redirect") => assign_bool(&mut web.redirect, key, value),
-        ("web", "origin") => assign_string(&mut web.origin, key, value),
-        ("web", "exclude") => assign_array(&mut web.exclude, key, value),
-        ("web", "localize_links") => assign_bool(&mut web.localize_links, key, value),
-        (section, key) => Err(ConfigError::UnknownKey {
-            section: section.to_owned(),
-            key: key.to_owned(),
-        }),
-    }
+fn build_project(raw: RawProjectConfig) -> ConfigResult<ProjectConfig> {
+    let name = required(raw.name, "project.name")?.trim().to_owned();
+    let default_locale =
+        canonicalize_locale_tag(&required(raw.default_locale, "project.default_locale")?)?;
+    let locales = required(raw.locales, "project.locales")?
+        .into_iter()
+        .map(|locale| canonicalize_locale_tag(&locale))
+        .collect::<ConfigResult<Vec<_>>>()?;
+    Ok(ProjectConfig {
+        name,
+        default_locale,
+        locales,
+    })
 }
 
-fn assign_string(slot: &mut Option<String>, key: &str, value: &str) -> ConfigResult<()> {
-    if slot.is_some() {
-        return Err(ConfigError::DuplicateKey(key.to_owned()));
+fn build_paths(raw: RawPathsConfig) -> ConfigResult<PathsConfig> {
+    if raw.cache.is_some() {
+        return Err(ConfigError::RemovedField {
+            field: "paths.cache",
+            replacement: "remove it; Linguini no longer uses a source-tree cache",
+        });
     }
-
-    *slot = Some(parse_string(value)?);
-    Ok(())
+    Ok(PathsConfig {
+        schema: normalize_project_path(required(raw.schema, "paths.schema")?),
+        locale: normalize_project_path(required(raw.locale, "paths.locale")?),
+    })
 }
 
-fn assign_array(slot: &mut Option<Vec<String>>, key: &str, value: &str) -> ConfigResult<()> {
-    if slot.is_some() {
-        return Err(ConfigError::DuplicateKey(key.to_owned()));
-    }
+fn build_targets(raw: RawTargetsConfig) -> ConfigResult<TargetsConfig> {
+    let ts = raw.ts.map(build_typescript_target).transpose()?;
+    Ok(TargetsConfig { ts })
+}
 
-    let Some(inner) = value
-        .strip_prefix('[')
-        .and_then(|value| value.strip_suffix(']'))
-    else {
-        return Err(ConfigError::InvalidArray(value.to_owned()));
+fn build_typescript_target(raw: RawTypeScriptTargetConfig) -> ConfigResult<TypeScriptTargetConfig> {
+    if raw.module.is_some() {
+        return Err(ConfigError::RemovedField {
+            field: "targets.ts.module",
+            replacement: "generated web modules are always ESM",
+        });
+    }
+    Ok(TypeScriptTargetConfig {
+        out: normalize_project_path(
+            raw.out
+                .unwrap_or_else(|| "src/generated/linguini".to_owned()),
+        ),
+        declaration: raw.declaration.unwrap_or(true),
+        gitignore: raw.gitignore.unwrap_or(true),
+        tree_shaking: raw.tree_shaking.unwrap_or(false),
+        messages: raw.messages.unwrap_or_default(),
+        framework: raw.framework,
+    })
+}
+
+fn build_web(raw: Option<RawWebConfig>, project_name: &str) -> ConfigResult<WebConfig> {
+    let configured = raw.is_some();
+    let raw = raw.unwrap_or_default();
+    let raw_routing = raw.routing.unwrap_or_default();
+    let locale_prefix = match raw_routing
+        .locale_prefix
+        .as_deref()
+        .unwrap_or("except-default")
+    {
+        "always" => LocalePrefixMode::Always,
+        "except-default" => LocalePrefixMode::ExceptDefault,
+        "never" => LocalePrefixMode::Never,
+        value => return Err(ConfigError::InvalidString(value.to_owned())),
+    };
+    let canonical = match raw_routing.canonical.as_deref().unwrap_or("redirect") {
+        "redirect" => CanonicalMode::Redirect,
+        "preserve" => CanonicalMode::Preserve,
+        value => return Err(ConfigError::InvalidString(value.to_owned())),
     };
 
-    let mut values = Vec::new();
-    for part in inner.split(',') {
-        let part = part.trim();
-
-        if part.is_empty() {
-            continue;
+    let raw_sources = raw.locale.unwrap_or_default().sources;
+    let sources = match raw_sources {
+        Some(sources) => sources
+            .iter()
+            .map(|source| LocaleSource::parse(source))
+            .collect::<ConfigResult<Vec<_>>>()?,
+        None if locale_prefix == LocalePrefixMode::Never => {
+            vec![LocaleSource::Cookie, LocaleSource::AcceptLanguage]
         }
+        None => vec![
+            LocaleSource::Path,
+            LocaleSource::Cookie,
+            LocaleSource::AcceptLanguage,
+        ],
+    };
 
-        values.push(parse_string(part)?);
+    let wants_cookie = sources.contains(&LocaleSource::Cookie);
+    if !wants_cookie && raw.cookie.is_some() {
+        return Err(ConfigError::InvalidString(
+            "web.cookie is configured but `cookie` is absent from web.locale.sources".to_owned(),
+        ));
     }
+    let cookie = wants_cookie
+        .then(|| build_cookie(raw.cookie.unwrap_or_default(), project_name))
+        .transpose()?;
 
-    *slot = Some(values);
-    Ok(())
-}
-
-fn assign_bool(slot: &mut Option<bool>, key: &str, value: &str) -> ConfigResult<()> {
-    if slot.is_some() {
-        return Err(ConfigError::DuplicateKey(key.to_owned()));
+    let wants_storage = sources.contains(&LocaleSource::LocalStorage);
+    if !wants_storage && raw.local_storage.is_some() {
+        return Err(ConfigError::InvalidString(
+            "web.local_storage is configured but `local-storage` is absent from web.locale.sources"
+                .to_owned(),
+        ));
     }
-
-    *slot = Some(match value {
-        "true" => true,
-        "false" => false,
-        value => return Err(ConfigError::InvalidString(value.to_owned())),
+    let local_storage = wants_storage.then(|| WebLocalStorageConfig {
+        key: raw
+            .local_storage
+            .unwrap_or_default()
+            .key
+            .unwrap_or_else(|| format!("linguini:{}:locale", project_key(project_name))),
     });
-    Ok(())
+
+    let links = match raw
+        .links
+        .unwrap_or_default()
+        .mode
+        .as_deref()
+        .unwrap_or("transform")
+    {
+        "transform" => LinkMode::Transform,
+        "runtime" => LinkMode::Runtime,
+        "manual" => LinkMode::Manual,
+        value => return Err(ConfigError::InvalidString(value.to_owned())),
+    };
+    let routes = WebRoutesConfig {
+        exclude: raw.routes.unwrap_or_default().exclude.unwrap_or_default(),
+    };
+    let switch_route = raw.switch_route.map(|route| WebSwitchRouteConfig {
+        path: route
+            .path
+            .unwrap_or_else(|| "/_linguini/locale/{locale}".to_owned()),
+        return_query: route.return_query.unwrap_or_else(|| "return".to_owned()),
+        status: route.status.unwrap_or(303),
+    });
+    let locale_switch = LocaleSwitchPlan::compile(&sources);
+
+    Ok(WebConfig {
+        configured,
+        routing: WebRoutingConfig {
+            locale_prefix,
+            canonical,
+        },
+        locale: WebLocaleConfig { sources },
+        cookie,
+        local_storage,
+        links: WebLinksConfig { mode: links },
+        routes,
+        switch_route,
+        locale_switch,
+    })
 }
 
-fn assign_u64(slot: &mut Option<u64>, key: &str, value: &str) -> ConfigResult<()> {
-    if slot.is_some() {
-        return Err(ConfigError::DuplicateKey(key.to_owned()));
+fn build_cookie(raw: RawWebCookieConfig, project_name: &str) -> ConfigResult<WebCookieConfig> {
+    let path = match raw.path.as_deref().unwrap_or("auto") {
+        "auto" => CookiePath::Auto,
+        path => CookiePath::Explicit(path.to_owned()),
+    };
+    let same_site = match raw.same_site.as_deref().unwrap_or("lax") {
+        "lax" => SameSite::Lax,
+        "strict" => SameSite::Strict,
+        "none" => SameSite::None,
+        value => return Err(ConfigError::InvalidString(value.to_owned())),
+    };
+    let secure = match raw
+        .secure
+        .unwrap_or(RawSecurePolicy::Name("auto".to_owned()))
+    {
+        RawSecurePolicy::Boolean(true) => SecurePolicy::Always,
+        RawSecurePolicy::Boolean(false) => SecurePolicy::Never,
+        RawSecurePolicy::Name(value) if value == "auto" => SecurePolicy::Auto,
+        RawSecurePolicy::Name(value) => return Err(ConfigError::InvalidString(value)),
+    };
+
+    Ok(WebCookieConfig {
+        name: raw
+            .name
+            .unwrap_or_else(|| format!("LINGUINI_{}_LOCALE", environment_key(project_name))),
+        path,
+        domain: raw.domain,
+        max_age_seconds: parse_duration(
+            raw.max_age.as_deref().unwrap_or("365d"),
+            "web.cookie.max_age",
+        )?,
+        same_site,
+        secure,
+        http_only: raw.http_only.unwrap_or(false),
+    })
+}
+
+fn parse_duration(value: &str, field: &'static str) -> ConfigResult<u64> {
+    let split = value
+        .find(|character: char| !character.is_ascii_digit())
+        .unwrap_or(value.len());
+    let (amount, unit) = value.split_at(split);
+    if amount.is_empty() || unit.len() > 1 {
+        return Err(ConfigError::InvalidString(format!("{field} = {value}")));
     }
-
-    *slot = Some(
-        value
-            .parse::<u64>()
-            .map_err(|_| ConfigError::InvalidString(value.to_owned()))?,
-    );
-    Ok(())
+    let amount = amount
+        .parse::<u64>()
+        .map_err(|_| ConfigError::InvalidString(format!("{field} = {value}")))?;
+    let multiplier = match unit {
+        "" | "s" => 1,
+        "m" => 60,
+        "h" => 60 * 60,
+        "d" => 24 * 60 * 60,
+        "w" => 7 * 24 * 60 * 60,
+        _ => return Err(ConfigError::InvalidString(format!("{field} = {value}"))),
+    };
+    amount
+        .checked_mul(multiplier)
+        .ok_or_else(|| ConfigError::InvalidString(format!("{field} = {value}")))
 }
 
-fn parse_string(value: &str) -> ConfigResult<String> {
+fn normalize_project_path(value: String) -> String {
     value
-        .strip_prefix('"')
-        .and_then(|value| value.strip_suffix('"'))
-        .map(str::to_owned)
-        .ok_or_else(|| ConfigError::InvalidString(value.to_owned()))
+        .trim()
+        .split('/')
+        .filter(|component| !component.is_empty() && *component != ".")
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn environment_key(project_name: &str) -> String {
+    let key = project_name
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character.to_ascii_uppercase()
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    key.trim_matches('_').to_owned()
+}
+
+fn project_key(project_name: &str) -> String {
+    let key = project_name
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>();
+    key.trim_matches('-').to_owned()
 }
 
 fn required<T>(value: Option<T>, field: &'static str) -> ConfigResult<T> {
     value.ok_or(ConfigError::MissingField(field))
 }
 
-fn build_web_config(web: WebBuilder) -> WebConfig {
-    let defaults = WebConfig::default();
-    WebConfig {
-        configured: web.configured,
-        strategy: web.strategy.unwrap_or(defaults.strategy),
-        cookie_name: web.cookie_name.unwrap_or(defaults.cookie_name),
-        cookie_path: web.cookie_path.unwrap_or(defaults.cookie_path),
-        cookie_domain: web.cookie_domain.or(defaults.cookie_domain),
-        cookie_max_age: web.cookie_max_age.unwrap_or(defaults.cookie_max_age),
-        cookie_same_site: web.cookie_same_site.unwrap_or(defaults.cookie_same_site),
-        cookie_secure: web.cookie_secure.unwrap_or(defaults.cookie_secure),
-        cookie_http_only: web.cookie_http_only.unwrap_or(defaults.cookie_http_only),
-        local_storage_key: web.local_storage_key.unwrap_or(defaults.local_storage_key),
-        global_variable_name: web.global_variable_name.or(defaults.global_variable_name),
-        prefix_default_locale: web
-            .prefix_default_locale
-            .unwrap_or(defaults.prefix_default_locale),
-        base_path: web.base_path.unwrap_or(defaults.base_path),
-        trailing_slash: web.trailing_slash.unwrap_or(defaults.trailing_slash),
-        redirect: web.redirect.unwrap_or(defaults.redirect),
-        origin: web.origin.or(defaults.origin),
-        exclude: web.exclude.unwrap_or(defaults.exclude),
-        localize_links: web.localize_links.unwrap_or(defaults.localize_links),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::parse_config;
+    use crate::{
+        CanonicalMode, CookiePath, LinkMode, LocalePrefixMode, LocaleSource, SameSite, SecurePolicy,
+    };
 
     #[test]
-    fn parses_required_project_config() {
+    fn parses_required_project_config_and_canonicalizes_locales() {
         let config = parse_config(
             r#"
             [project]
             name = "shop"
             default_locale = "ru"
-            locales = ["ru", "en-US"]
+            locales = [
+              "ru",
+              "en-us", # TOML comments and multiline arrays are supported.
+              "es-419",
+            ]
 
             [paths]
             schema = "linguini/schema"
@@ -337,7 +428,7 @@ mod tests {
         .expect("valid config");
 
         assert_eq!(config.project.name, "shop");
-        assert_eq!(config.project.locales, ["ru", "en-US"]);
+        assert_eq!(config.project.locales, ["ru", "en-US", "es-419"]);
         assert_eq!(config.paths.schema, "linguini/schema");
         assert_eq!(config.paths.locale, "linguini/locale");
         assert!(!config.web.configured);
@@ -345,23 +436,39 @@ mod tests {
     }
 
     #[test]
-    fn accepts_legacy_cache_path_without_exposing_it_to_runtime() {
-        let config = parse_config(
+    fn rejects_removed_cache_and_module_fields_with_migrations() {
+        let cache = parse_config(
             r#"
             [project]
             name = "shop"
             default_locale = "en"
             locales = ["en"]
-
             [paths]
-            schema = "linguini/schema"
-            locale = "linguini/locale"
+            schema = "schema"
+            locale = "locale"
             cache = ".linguini/cache"
             "#,
         )
-        .expect("legacy config");
+        .expect_err("removed cache");
+        assert!(cache.to_string().contains("`paths.cache` was removed"));
 
-        assert_eq!(config.paths.schema, "linguini/schema");
+        let module = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [targets.ts]
+            module = "esm"
+            "#,
+        )
+        .expect_err("removed module");
+        assert!(module
+            .to_string()
+            .contains("`targets.ts.module` was removed"));
     }
 
     #[test]
@@ -379,7 +486,6 @@ mod tests {
 
             [targets.ts]
             out = "src/generated/linguini"
-            module = "esm"
             declaration = false
             gitignore = false
             tree_shaking = true
@@ -391,7 +497,6 @@ mod tests {
 
         let target = config.targets.ts.expect("ts target");
         assert_eq!(target.out, "src/generated/linguini");
-        assert_eq!(target.module, "esm");
         assert!(!target.declaration);
         assert!(!target.gitignore);
         assert!(target.tree_shaking);
@@ -400,86 +505,205 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_typescript_framework() {
-        let error = parse_config(
-            r#"
-            [project]
-            name = "shop"
-            default_locale = "en"
-            locales = ["en"]
-
-            [paths]
-            schema = "schema"
-            locale = "locale"
-
-            [targets.ts]
-            framework = "react"
-            "#,
-        )
-        .expect_err("invalid framework");
-
-        assert_eq!(error.to_string(), "invalid string value `react`");
-    }
-
-    #[test]
-    fn parses_web_runtime_config() {
+    fn parses_nested_web_policy_and_compiles_switch_plan() {
         let config = parse_config(
             r#"
             [project]
             name = "shop"
             default_locale = "en"
             locales = ["en", "ru"]
-
             [paths]
             schema = "schema"
             locale = "locale"
 
-            [web]
-            strategy = ["url", "cookie", "header", "baseLocale"]
-            cookie_name = "SHOP_LOCALE"
-            cookie_path = "/shop"
-            cookie_domain = "example.com"
-            cookie_max_age = 86400
-            cookie_same_site = "strict"
-            cookie_secure = true
-            cookie_http_only = true
-            local_storage_key = "SHOP_LOCALE"
-            global_variable_name = "__SHOP_LOCALE__"
-            prefix_default_locale = true
-            base_path = "/shop"
-            trailing_slash = "never"
-            redirect = false
-            origin = "https://example.com"
+            [web.routing]
+            locale_prefix = "always"
+            canonical = "preserve"
+            [web.locale]
+            sources = ["path", "cookie", "local-storage", "accept-language"]
+            [web.cookie]
+            name = "SHOP_LOCALE"
+            path = "/shop"
+            domain = "example.com"
+            max_age = "1d"
+            same_site = "strict"
+            secure = true
+            http_only = false
+            [web.local_storage]
+            key = "shop:locale"
+            [web.links]
+            mode = "manual"
+            [web.routes]
             exclude = ["/api/**", "/assets/**"]
-            localize_links = false
+            [web.switch_route]
+            path = "/_linguini/locale/{locale}"
+            return_query = "return"
+            status = 303
             "#,
         )
         .expect("valid config");
 
-        assert_eq!(
-            config.web.strategy,
-            ["url", "cookie", "header", "baseLocale"]
-        );
         assert!(config.web.configured);
-        assert_eq!(config.web.cookie_name, "SHOP_LOCALE");
-        assert_eq!(config.web.cookie_path, "/shop");
-        assert_eq!(config.web.cookie_domain.as_deref(), Some("example.com"));
-        assert_eq!(config.web.cookie_max_age, 86400);
-        assert_eq!(config.web.cookie_same_site, "strict");
-        assert!(config.web.cookie_secure);
-        assert!(config.web.cookie_http_only);
-        assert_eq!(config.web.local_storage_key, "SHOP_LOCALE");
+        assert_eq!(config.web.routing.locale_prefix, LocalePrefixMode::Always);
+        assert_eq!(config.web.routing.canonical, CanonicalMode::Preserve);
         assert_eq!(
-            config.web.global_variable_name.as_deref(),
-            Some("__SHOP_LOCALE__")
+            config.web.locale.sources,
+            [
+                LocaleSource::Path,
+                LocaleSource::Cookie,
+                LocaleSource::LocalStorage,
+                LocaleSource::AcceptLanguage
+            ]
         );
-        assert!(config.web.prefix_default_locale);
-        assert_eq!(config.web.base_path, "/shop");
-        assert_eq!(config.web.trailing_slash, "never");
-        assert!(!config.web.redirect);
-        assert_eq!(config.web.origin.as_deref(), Some("https://example.com"));
-        assert_eq!(config.web.exclude, ["/api/**", "/assets/**"]);
-        assert!(!config.web.localize_links);
+        let cookie = config.web.cookie.expect("cookie feature");
+        assert_eq!(cookie.name, "SHOP_LOCALE");
+        assert_eq!(cookie.path, CookiePath::Explicit("/shop".to_owned()));
+        assert_eq!(cookie.domain.as_deref(), Some("example.com"));
+        assert_eq!(cookie.max_age_seconds, 86_400);
+        assert_eq!(cookie.same_site, SameSite::Strict);
+        assert_eq!(cookie.secure, SecurePolicy::Always);
+        assert_eq!(config.web.links.mode, LinkMode::Manual);
+        assert!(config.web.locale_switch.writes_path);
+        assert!(config.web.locale_switch.writes_cookie);
+        assert!(config.web.locale_switch.writes_local_storage);
+    }
+
+    #[test]
+    fn derives_web_defaults_from_routing() {
+        let prefixed = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [web]
+            "#,
+        )
+        .expect("prefixed defaults");
+        assert_eq!(
+            prefixed.web.locale.sources,
+            [
+                LocaleSource::Path,
+                LocaleSource::Cookie,
+                LocaleSource::AcceptLanguage
+            ]
+        );
+
+        let pathless = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [web.routing]
+            locale_prefix = "never"
+            "#,
+        )
+        .expect("pathless defaults");
+        assert_eq!(
+            pathless.web.locale.sources,
+            [LocaleSource::Cookie, LocaleSource::AcceptLanguage]
+        );
+    }
+
+    #[test]
+    fn accepts_empty_locale_sources_but_rejects_impossible_switch_route() {
+        let base = r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [web.routing]
+            locale_prefix = "never"
+            [web.locale]
+            sources = []
+        "#;
+        assert!(parse_config(base).is_ok());
+
+        let impossible = format!("{base}\n[web.switch_route]\n");
+        assert!(parse_config(&impossible).is_err());
+    }
+
+    #[test]
+    fn rejects_path_source_in_pathless_mode_and_duplicate_sources() {
+        for sources in [
+            r#"["path"]"#,
+            r#"["cookie", "cookie"]"#,
+            r#"["preferredLanguage"]"#,
+        ] {
+            let source = format!(
+                r#"
+                [project]
+                name = "shop"
+                default_locale = "en"
+                locales = ["en"]
+                [paths]
+                schema = "schema"
+                locale = "locale"
+                [web.routing]
+                locale_prefix = "never"
+                [web.locale]
+                sources = {sources}
+                "#
+            );
+            assert!(parse_config(&source).is_err(), "{sources}");
+        }
+    }
+
+    #[test]
+    fn enforces_same_site_none_secure_constraint() {
+        let source = r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [web.locale]
+            sources = ["cookie"]
+            [web.cookie]
+            same_site = "none"
+            secure = "auto"
+        "#;
+        assert!(parse_config(source).is_err());
+    }
+
+    #[test]
+    fn rejects_duplicate_toml_keys_and_unknown_sections() {
+        let duplicate = r#"
+            [project]
+            name = "shop"
+            name = "again"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+        "#;
+        assert!(parse_config(duplicate).is_err());
+
+        let unknown = r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [webpack]
+            enabled = true
+        "#;
+        assert!(parse_config(unknown).is_err());
     }
 
     #[test]

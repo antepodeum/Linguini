@@ -1,4 +1,5 @@
 use crate::error::{ConfigError, ConfigResult};
+use std::collections::BTreeSet;
 use std::path::{Component, Path};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -30,7 +31,6 @@ pub struct TargetsConfig {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TypeScriptTargetConfig {
     pub out: String,
-    pub module: String,
     pub declaration: bool,
     pub gitignore: bool,
     pub tree_shaking: bool,
@@ -41,83 +41,251 @@ pub struct TypeScriptTargetConfig {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WebConfig {
     pub configured: bool,
-    pub strategy: Vec<String>,
-    pub cookie_name: String,
-    pub cookie_path: String,
-    pub cookie_domain: Option<String>,
-    pub cookie_max_age: u64,
-    pub cookie_same_site: String,
-    pub cookie_secure: bool,
-    pub cookie_http_only: bool,
-    pub local_storage_key: String,
-    pub global_variable_name: Option<String>,
-    pub prefix_default_locale: bool,
-    pub base_path: String,
-    pub trailing_slash: String,
-    pub redirect: bool,
-    pub origin: Option<String>,
+    pub routing: WebRoutingConfig,
+    pub locale: WebLocaleConfig,
+    pub cookie: Option<WebCookieConfig>,
+    pub local_storage: Option<WebLocalStorageConfig>,
+    pub links: WebLinksConfig,
+    pub routes: WebRoutesConfig,
+    pub switch_route: Option<WebSwitchRouteConfig>,
+    pub locale_switch: LocaleSwitchPlan,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct WebRoutingConfig {
+    pub locale_prefix: LocalePrefixMode,
+    pub canonical: CanonicalMode,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum LocalePrefixMode {
+    Always,
+    ExceptDefault,
+    Never,
+}
+
+impl LocalePrefixMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Always => "always",
+            Self::ExceptDefault => "except-default",
+            Self::Never => "never",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum CanonicalMode {
+    Redirect,
+    Preserve,
+}
+
+impl CanonicalMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Redirect => "redirect",
+            Self::Preserve => "preserve",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WebLocaleConfig {
+    pub sources: Vec<LocaleSource>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+pub enum LocaleSource {
+    Path,
+    Cookie,
+    LocalStorage,
+    AcceptLanguage,
+}
+
+impl LocaleSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Path => "path",
+            Self::Cookie => "cookie",
+            Self::LocalStorage => "local-storage",
+            Self::AcceptLanguage => "accept-language",
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> ConfigResult<Self> {
+        match value {
+            "path" => Ok(Self::Path),
+            "cookie" => Ok(Self::Cookie),
+            "local-storage" => Ok(Self::LocalStorage),
+            "accept-language" => Ok(Self::AcceptLanguage),
+            _ => Err(ConfigError::InvalidString(value.to_owned())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WebCookieConfig {
+    pub name: String,
+    pub path: CookiePath,
+    pub domain: Option<String>,
+    pub max_age_seconds: u64,
+    pub same_site: SameSite,
+    pub secure: SecurePolicy,
+    pub http_only: bool,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum CookiePath {
+    Auto,
+    Explicit(String),
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum SameSite {
+    Lax,
+    Strict,
+    None,
+}
+
+impl SameSite {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Lax => "lax",
+            Self::Strict => "strict",
+            Self::None => "none",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum SecurePolicy {
+    Auto,
+    Always,
+    Never,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WebLocalStorageConfig {
+    pub key: String,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct WebLinksConfig {
+    pub mode: LinkMode,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum LinkMode {
+    Transform,
+    Runtime,
+    Manual,
+}
+
+impl LinkMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Transform => "transform",
+            Self::Runtime => "runtime",
+            Self::Manual => "manual",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct WebRoutesConfig {
     pub exclude: Vec<String>,
-    pub localize_links: bool,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WebSwitchRouteConfig {
+    pub path: String,
+    pub return_query: String,
+    pub status: u16,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct LocaleSwitchPlan {
+    pub writes_path: bool,
+    pub writes_cookie: bool,
+    pub writes_local_storage: bool,
+}
+
+impl LocaleSwitchPlan {
+    pub(crate) fn compile(sources: &[LocaleSource]) -> Self {
+        Self {
+            writes_path: sources.contains(&LocaleSource::Path),
+            writes_cookie: sources.contains(&LocaleSource::Cookie),
+            writes_local_storage: sources.contains(&LocaleSource::LocalStorage),
+        }
+    }
+
+    pub fn has_server_transport(self) -> bool {
+        self.writes_path || self.writes_cookie
+    }
 }
 
 impl Default for WebConfig {
     fn default() -> Self {
+        let sources = vec![
+            LocaleSource::Path,
+            LocaleSource::Cookie,
+            LocaleSource::AcceptLanguage,
+        ];
         Self {
             configured: false,
-            strategy: vec![
-                "url".to_owned(),
-                "cookie".to_owned(),
-                "localStorage".to_owned(),
-                "preferredLanguage".to_owned(),
-                "baseLocale".to_owned(),
-            ],
-            cookie_name: "LINGUINI_LOCALE".to_owned(),
-            cookie_path: "/".to_owned(),
-            cookie_domain: None,
-            cookie_max_age: 60 * 60 * 24 * 365,
-            cookie_same_site: "lax".to_owned(),
-            cookie_secure: false,
-            cookie_http_only: false,
-            local_storage_key: "LINGUINI_LOCALE".to_owned(),
-            global_variable_name: None,
-            prefix_default_locale: false,
-            base_path: String::new(),
-            trailing_slash: "ignore".to_owned(),
-            redirect: true,
-            origin: None,
-            exclude: Vec::new(),
-            localize_links: true,
+            routing: WebRoutingConfig {
+                locale_prefix: LocalePrefixMode::ExceptDefault,
+                canonical: CanonicalMode::Redirect,
+            },
+            locale: WebLocaleConfig {
+                sources: sources.clone(),
+            },
+            cookie: Some(WebCookieConfig {
+                name: "LINGUINI_LOCALE".to_owned(),
+                path: CookiePath::Auto,
+                domain: None,
+                max_age_seconds: 365 * 24 * 60 * 60,
+                same_site: SameSite::Lax,
+                secure: SecurePolicy::Auto,
+                http_only: false,
+            }),
+            local_storage: None,
+            links: WebLinksConfig {
+                mode: LinkMode::Transform,
+            },
+            routes: WebRoutesConfig::default(),
+            switch_route: None,
+            locale_switch: LocaleSwitchPlan::compile(&sources),
         }
     }
 }
 
 impl LinguiniConfig {
     pub fn validate(&self) -> ConfigResult<()> {
+        validate_project(&self.project)?;
         validate_relative_path("paths.schema", &self.paths.schema)?;
         validate_relative_path("paths.locale", &self.paths.locale)?;
-
-        validate_locale_tag(&self.project.default_locale)?;
-
-        if !self
-            .project
-            .locales
-            .iter()
-            .any(|locale| locale == &self.project.default_locale)
-        {
-            return Err(ConfigError::MissingField("project.locales default_locale"));
-        }
-
-        for locale in &self.project.locales {
-            validate_locale_tag(locale)?;
-        }
+        reject_path_overlap(
+            "paths.schema",
+            &self.paths.schema,
+            "paths.locale",
+            &self.paths.locale,
+        )?;
 
         if let Some(ts) = &self.targets.ts {
             validate_relative_path("targets.ts.out", &ts.out)?;
-            reject_path_overlap("targets.ts.out", &ts.out, "paths.schema", &self.paths.schema)?;
-            reject_path_overlap("targets.ts.out", &ts.out, "paths.locale", &self.paths.locale)?;
-            if ts.module != "esm" {
-                return Err(ConfigError::InvalidString(ts.module.clone()));
-            }
+            reject_path_overlap(
+                "targets.ts.out",
+                &ts.out,
+                "paths.schema",
+                &self.paths.schema,
+            )?;
+            reject_path_overlap(
+                "targets.ts.out",
+                &ts.out,
+                "paths.locale",
+                &self.paths.locale,
+            )?;
             if !ts.tree_shaking && !ts.messages.is_empty() {
                 return Err(ConfigError::InvalidString(
                     "targets.ts.messages requires tree_shaking = true".to_owned(),
@@ -131,18 +299,192 @@ impl LinguiniConfig {
             }
         }
 
-        validate_web_strategy(&self.web.strategy)?;
-        match self.web.trailing_slash.as_str() {
-            "ignore" | "always" | "never" | "directory" => {}
-            value => return Err(ConfigError::InvalidString(value.to_owned())),
-        }
-        match self.web.cookie_same_site.as_str() {
-            "lax" | "strict" | "none" => {}
-            value => return Err(ConfigError::InvalidString(value.to_owned())),
-        }
-
-        Ok(())
+        validate_web(&self.web)
     }
+}
+
+fn validate_project(project: &ProjectConfig) -> ConfigResult<()> {
+    if project.name.trim().is_empty() {
+        return Err(ConfigError::MissingField("project.name"));
+    }
+    if project.name.chars().any(|character| character.is_control()) {
+        return Err(ConfigError::InvalidString(project.name.clone()));
+    }
+    if project.locales.is_empty() {
+        return Err(ConfigError::InvalidArray("project.locales".to_owned()));
+    }
+
+    validate_locale_tag(&project.default_locale)?;
+    let mut locales = BTreeSet::new();
+    for locale in &project.locales {
+        validate_locale_tag(locale)?;
+        let folded = locale.to_ascii_lowercase();
+        if !locales.insert(folded) {
+            return Err(ConfigError::DuplicateKey(format!(
+                "project.locales locale `{locale}`"
+            )));
+        }
+    }
+    if !project
+        .locales
+        .iter()
+        .any(|locale| locale.eq_ignore_ascii_case(&project.default_locale))
+    {
+        return Err(ConfigError::MissingField("project.locales default_locale"));
+    }
+    Ok(())
+}
+
+fn validate_web(web: &WebConfig) -> ConfigResult<()> {
+    let mut sources = BTreeSet::new();
+    for source in &web.locale.sources {
+        if !sources.insert(*source) {
+            return Err(ConfigError::DuplicateKey(format!(
+                "web.locale.sources source `{}`",
+                source.as_str()
+            )));
+        }
+    }
+    if web.routing.locale_prefix == LocalePrefixMode::Never && sources.contains(&LocaleSource::Path)
+    {
+        return Err(ConfigError::InvalidString(
+            "`path` locale source requires a URL locale prefix".to_owned(),
+        ));
+    }
+
+    let wants_cookie = sources.contains(&LocaleSource::Cookie);
+    if wants_cookie != web.cookie.is_some() {
+        return Err(ConfigError::InvalidString(
+            "web.cookie capability must match `cookie` in web.locale.sources".to_owned(),
+        ));
+    }
+    let wants_local_storage = sources.contains(&LocaleSource::LocalStorage);
+    if wants_local_storage != web.local_storage.is_some() {
+        return Err(ConfigError::InvalidString(
+            "web.local_storage capability must match `local-storage` in web.locale.sources"
+                .to_owned(),
+        ));
+    }
+
+    if let Some(cookie) = &web.cookie {
+        validate_cookie(cookie)?;
+    }
+    if let Some(storage) = &web.local_storage {
+        if storage.key.is_empty() || storage.key.chars().any(|character| character.is_control()) {
+            return Err(ConfigError::InvalidString(storage.key.clone()));
+        }
+    }
+    for pattern in &web.routes.exclude {
+        if !pattern.starts_with('/') || pattern.starts_with("//") || pattern.contains(['?', '#']) {
+            return Err(ConfigError::InvalidString(pattern.clone()));
+        }
+    }
+
+    let compiled_plan = LocaleSwitchPlan::compile(&web.locale.sources);
+    if web.locale_switch != compiled_plan {
+        return Err(ConfigError::InvalidString(
+            "web.locale_switch does not match configured locale sources".to_owned(),
+        ));
+    }
+    if let Some(route) = &web.switch_route {
+        validate_switch_route(route)?;
+        if !compiled_plan.has_server_transport() {
+            return Err(ConfigError::InvalidString(
+                "web.switch_route requires `path` or `cookie` in web.locale.sources".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_cookie(cookie: &WebCookieConfig) -> ConfigResult<()> {
+    if cookie.name.is_empty()
+        || cookie.name.bytes().any(|byte| {
+            byte <= 0x20
+                || byte >= 0x7f
+                || matches!(
+                    byte,
+                    b'(' | b')'
+                        | b'<'
+                        | b'>'
+                        | b'@'
+                        | b','
+                        | b';'
+                        | b':'
+                        | b'\\'
+                        | b'"'
+                        | b'/'
+                        | b'['
+                        | b']'
+                        | b'?'
+                        | b'='
+                        | b'{'
+                        | b'}'
+                )
+        })
+    {
+        return Err(ConfigError::InvalidString(cookie.name.clone()));
+    }
+    if let CookiePath::Explicit(path) = &cookie.path {
+        if !path.starts_with('/')
+            || path
+                .bytes()
+                .any(|byte| byte < 0x20 || byte == 0x7f || byte == b';')
+        {
+            return Err(ConfigError::InvalidString(path.clone()));
+        }
+    }
+    if let Some(domain) = &cookie.domain {
+        if domain.is_empty()
+            || domain.starts_with('.')
+            || domain.ends_with('.')
+            || domain
+                .bytes()
+                .any(|byte| !(byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-')))
+        {
+            return Err(ConfigError::InvalidString(domain.clone()));
+        }
+    }
+    if cookie.max_age_seconds == 0 {
+        return Err(ConfigError::InvalidString(
+            "web.cookie.max_age must be positive".to_owned(),
+        ));
+    }
+    if cookie.same_site == SameSite::None && cookie.secure != SecurePolicy::Always {
+        return Err(ConfigError::InvalidString(
+            "SameSite=None requires web.cookie.secure = true".to_owned(),
+        ));
+    }
+    if cookie.http_only {
+        return Err(ConfigError::InvalidString(
+            "web.cookie.http_only must be false while browser locale switching is enabled"
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_switch_route(route: &WebSwitchRouteConfig) -> ConfigResult<()> {
+    if !route.path.starts_with('/')
+        || route.path.starts_with("//")
+        || route.path.matches("{locale}").count() != 1
+        || route.path.contains(['?', '#'])
+        || route.path.split('/').any(|segment| segment == "..")
+    {
+        return Err(ConfigError::InvalidString(route.path.clone()));
+    }
+    if route.return_query.is_empty()
+        || !route
+            .return_query
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    {
+        return Err(ConfigError::InvalidString(route.return_query.clone()));
+    }
+    if !matches!(route.status, 301 | 302 | 303 | 307 | 308) {
+        return Err(ConfigError::InvalidString(route.status.to_string()));
+    }
+    Ok(())
 }
 
 fn validate_relative_path(field: &'static str, value: &str) -> ConfigResult<()> {
@@ -156,6 +498,13 @@ fn validate_relative_path(field: &'static str, value: &str) -> ConfigResult<()> 
     }
 
     let portable = trimmed.replace('\\', "/");
+    if portable != trimmed {
+        return Err(ConfigError::InvalidPath {
+            field,
+            value: value.to_owned(),
+            reason: "use `/` as the portable path separator",
+        });
+    }
     let has_windows_prefix = portable
         .as_bytes()
         .get(1)
@@ -190,7 +539,6 @@ fn validate_relative_path(field: &'static str, value: &str) -> ConfigResult<()> 
             reason: "path must not resolve to the project root",
         });
     }
-
     Ok(())
 }
 
@@ -209,7 +557,7 @@ fn reject_path_overlap(
             reason: match right_field {
                 "paths.schema" => "path overlaps the schema source root",
                 "paths.locale" => "path overlaps the locale source root",
-                _ => "path overlaps another project root",
+                _ => "path overlaps another project source root",
             },
         });
     }
@@ -218,85 +566,226 @@ fn reject_path_overlap(
 
 fn portable_components(value: &str) -> Vec<String> {
     value
-        .replace('\\', "/")
         .split('/')
         .filter(|segment| !segment.is_empty() && *segment != ".")
         .map(str::to_owned)
         .collect()
 }
 
-fn validate_web_strategy(strategy: &[String]) -> ConfigResult<()> {
-    if strategy.is_empty() {
-        return Err(ConfigError::InvalidArray("web.strategy".to_owned()));
-    }
-    for item in strategy {
-        let is_builtin = matches!(
-            item.as_str(),
-            "url"
-                | "cookie"
-                | "localStorage"
-                | "header"
-                | "navigator"
-                | "preferredLanguage"
-                | "globalVariable"
-                | "baseLocale"
-        );
-        if !is_builtin && !item.starts_with("custom-") {
-            return Err(ConfigError::InvalidString(item.clone()));
-        }
-    }
-    Ok(())
+pub fn validate_locale_tag(tag: &str) -> ConfigResult<()> {
+    canonicalize_locale_tag(tag).map(|_| ())
 }
 
-pub fn validate_locale_tag(tag: &str) -> ConfigResult<()> {
-    let mut parts = tag.split('-');
-    let Some(language) = parts.next() else {
-        return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
-    };
-
-    if language.len() < 2
-        || language.len() > 3
-        || !language
-            .chars()
-            .all(|character| character.is_ascii_lowercase())
-    {
+pub(crate) fn canonicalize_locale_tag(tag: &str) -> ConfigResult<String> {
+    if tag.is_empty() || !tag.is_ascii() || tag.contains('_') {
         return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
     }
 
-    for part in parts {
-        let valid = (part.len() == 2
-            && part.chars().all(|character| character.is_ascii_uppercase()))
-            || (part.len() == 4
-                && part.chars().enumerate().all(|(index, character)| {
-                    if index == 0 {
-                        character.is_ascii_uppercase()
-                    } else {
-                        character.is_ascii_lowercase()
-                    }
-                }));
+    if is_grandfathered(tag) {
+        return Ok(tag.to_ascii_lowercase());
+    }
 
-        if !valid {
+    let subtags = tag.split('-').collect::<Vec<_>>();
+    if subtags.iter().any(|part| part.is_empty()) {
+        return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
+    }
+    if subtags[0].eq_ignore_ascii_case("x") {
+        if subtags.len() < 2
+            || !subtags[1..]
+                .iter()
+                .all(|part| valid_alphanumeric(part, 1, 8))
+        {
+            return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
+        }
+        return Ok(subtags
+            .iter()
+            .map(|part| part.to_ascii_lowercase())
+            .collect::<Vec<_>>()
+            .join("-"));
+    }
+
+    let language = subtags[0];
+    if !valid_alpha(language, 2, 8) {
+        return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
+    }
+
+    let mut canonical = vec![language.to_ascii_lowercase()];
+    let mut index = 1;
+    if language.len() <= 3 {
+        let mut extlang_count = 0;
+        while index < subtags.len() && extlang_count < 3 && valid_alpha(subtags[index], 3, 3) {
+            canonical.push(subtags[index].to_ascii_lowercase());
+            index += 1;
+            extlang_count += 1;
+        }
+    }
+    if index < subtags.len() && valid_alpha(subtags[index], 4, 4) {
+        let script = subtags[index].to_ascii_lowercase();
+        canonical.push(format!(
+            "{}{}",
+            script[..1].to_ascii_uppercase(),
+            &script[1..]
+        ));
+        index += 1;
+    }
+    if index < subtags.len()
+        && (valid_alpha(subtags[index], 2, 2) || valid_numeric(subtags[index], 3, 3))
+    {
+        canonical.push(subtags[index].to_ascii_uppercase());
+        index += 1;
+    }
+
+    let mut variants = BTreeSet::new();
+    while index < subtags.len() && valid_variant(subtags[index]) {
+        let variant = subtags[index].to_ascii_lowercase();
+        if !variants.insert(variant.clone()) {
+            return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
+        }
+        canonical.push(variant);
+        index += 1;
+    }
+
+    let mut extensions = BTreeSet::new();
+    while index < subtags.len()
+        && subtags[index].len() == 1
+        && subtags[index]
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric())
+        && !subtags[index].eq_ignore_ascii_case("x")
+    {
+        let singleton = subtags[index].to_ascii_lowercase();
+        if !extensions.insert(singleton.clone()) {
+            return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
+        }
+        canonical.push(singleton);
+        index += 1;
+        let start = index;
+        while index < subtags.len() && valid_alphanumeric(subtags[index], 2, 8) {
+            canonical.push(subtags[index].to_ascii_lowercase());
+            index += 1;
+        }
+        if start == index {
             return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
         }
     }
 
-    Ok(())
+    if index < subtags.len() && subtags[index].eq_ignore_ascii_case("x") {
+        canonical.push("x".to_owned());
+        index += 1;
+        let start = index;
+        while index < subtags.len() && valid_alphanumeric(subtags[index], 1, 8) {
+            canonical.push(subtags[index].to_ascii_lowercase());
+            index += 1;
+        }
+        if start == index {
+            return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
+        }
+    }
+
+    if index != subtags.len() {
+        return Err(ConfigError::InvalidLocaleTag(tag.to_owned()));
+    }
+    Ok(canonical.join("-"))
+}
+
+fn valid_alpha(value: &str, min: usize, max: usize) -> bool {
+    (min..=max).contains(&value.len())
+        && value
+            .chars()
+            .all(|character| character.is_ascii_alphabetic())
+}
+
+fn valid_numeric(value: &str, min: usize, max: usize) -> bool {
+    (min..=max).contains(&value.len()) && value.chars().all(|character| character.is_ascii_digit())
+}
+
+fn valid_alphanumeric(value: &str, min: usize, max: usize) -> bool {
+    (min..=max).contains(&value.len())
+        && value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric())
+}
+
+fn valid_variant(value: &str) -> bool {
+    valid_alphanumeric(value, 5, 8)
+        || (value.len() == 4
+            && value
+                .chars()
+                .next()
+                .is_some_and(|character| character.is_ascii_digit())
+            && value
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric()))
+}
+
+fn is_grandfathered(tag: &str) -> bool {
+    const TAGS: &[&str] = &[
+        "art-lojban",
+        "cel-gaulish",
+        "en-gb-oed",
+        "i-ami",
+        "i-bnn",
+        "i-default",
+        "i-enochian",
+        "i-hak",
+        "i-klingon",
+        "i-lux",
+        "i-mingo",
+        "i-navajo",
+        "i-pwn",
+        "i-tao",
+        "i-tay",
+        "i-tsu",
+        "no-bok",
+        "no-nyn",
+        "sgn-be-fr",
+        "sgn-be-nl",
+        "sgn-ch-de",
+        "zh-guoyu",
+        "zh-hakka",
+        "zh-min",
+        "zh-min-nan",
+        "zh-xiang",
+    ];
+    TAGS.iter().any(|known| tag.eq_ignore_ascii_case(known))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_locale_tag, LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig};
+    use super::{
+        canonicalize_locale_tag, validate_locale_tag, LinguiniConfig, PathsConfig, ProjectConfig,
+        TargetsConfig, TypeScriptTargetConfig,
+    };
 
     #[test]
-    fn accepts_spec_locale_tags() {
-        for tag in ["ru", "en", "en-US", "pt-BR", "zh-Hant"] {
-            assert!(validate_locale_tag(tag).is_ok(), "{tag}");
+    fn accepts_and_canonicalizes_bcp47_tags() {
+        for (input, expected) in [
+            ("ru", "ru"),
+            ("en-us", "en-US"),
+            ("es-419", "es-419"),
+            ("zh-hant-tw", "zh-Hant-TW"),
+            ("de-CH-1901", "de-CH-1901"),
+            ("sl-rozaj-biske", "sl-rozaj-biske"),
+            ("en-u-ca-gregory", "en-u-ca-gregory"),
+            ("x-company-test", "x-company-test"),
+        ] {
+            assert_eq!(canonicalize_locale_tag(input).expect("valid tag"), expected);
         }
     }
 
     #[test]
-    fn rejects_non_bcp47_like_locale_tags() {
-        for tag in ["r", "EN", "en-us", "zh-hant", "en-US-extra"] {
+    fn rejects_invalid_or_duplicate_bcp47_subtags() {
+        for tag in [
+            "",
+            "e",
+            "en_US",
+            "en--US",
+            "en-abc1",
+            "en-u",
+            "en-u-ca-u-nu-latn",
+            "de-1901-1901",
+            "x",
+        ] {
             assert!(validate_locale_tag(tag).is_err(), "{tag}");
         }
     }
@@ -323,9 +812,8 @@ mod tests {
                     locale: "locales".to_owned(),
                 },
                 targets: TargetsConfig {
-                    ts: Some(super::TypeScriptTargetConfig {
+                    ts: Some(TypeScriptTargetConfig {
                         out: out.to_owned(),
-                        module: "esm".to_owned(),
                         declaration: true,
                         gitignore: true,
                         tree_shaking: false,
