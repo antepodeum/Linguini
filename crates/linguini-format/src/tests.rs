@@ -1,4 +1,7 @@
-use super::{format_source, FormatOptions, SourceKind, CRATE_PURPOSE};
+use super::{
+    format_path_source, format_source, FormatError, FormatOptions, SourceKind, CRATE_PURPOSE,
+};
+use std::path::Path;
 
 #[test]
 fn crate_has_unit_test_structure() {
@@ -185,5 +188,53 @@ fn refuses_invalid_source() {
     )
     .expect_err("invalid source");
 
-    assert!(!error.errors.is_empty());
+    assert!(matches!(error, FormatError::Parse(errors) if !errors.is_empty()));
+}
+
+#[test]
+fn rejects_unknown_extensions() {
+    let error = format_path_source(Path::new("notes.txt"), "hello = world\n")
+        .expect_err("unknown extension must not default to locale");
+    assert!(matches!(error, FormatError::UnsupportedExtension(_)));
+}
+
+#[test]
+fn preserves_crlf_newlines() {
+    let source = "first = One\r\n\r\nsecond = Two\r\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+    assert_eq!(formatted, source);
+}
+
+#[test]
+fn preserves_private_use_characters() {
+    let source = "message = Keep \u{E000} and \u{E001}\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+    assert_eq!(formatted, source);
+}
+
+#[test]
+fn aligns_using_display_columns() {
+    let source = "form case(Plural){\n短=>One\nlatin=>Many\n}\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+    assert_eq!(
+        formatted,
+        "form case(Plural) {\n  短    => One\n  latin => Many\n}\n"
+    );
+}
+
+#[test]
+fn rejects_pathological_options() {
+    let error = format_source(
+        SourceKind::Locale,
+        "message = text\n",
+        &FormatOptions {
+            indent_width: usize::MAX,
+            max_line_width: 100,
+        },
+    )
+    .expect_err("unsafe indentation must be rejected");
+    assert!(matches!(error, FormatError::InvalidOptions(_)));
 }

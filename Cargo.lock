@@ -538,6 +538,7 @@ name = "linguini-format"
 version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-syntax",
+ "unicode-width",
 ]
 
 [[package]]

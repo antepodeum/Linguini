@@ -1,15 +1,19 @@
 use crate::{
     ir::{FormatIr, FormatItem},
-    FormatOptions,
+    FormatError, FormatOptions,
 };
 use linguini_syntax::{Span, Token, TokenKind};
 use std::borrow::Cow;
 
-pub(crate) fn render_tokens(source: &str, tokens: &[Token], options: &FormatOptions) -> String {
-    lower_tokens(source, tokens).render(options)
+pub(crate) fn render_tokens(
+    source: &str,
+    tokens: &[Token],
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    lower_tokens(source, tokens)?.render(options)
 }
 
-fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
+fn lower_tokens(source: &str, tokens: &[Token]) -> Result<FormatIr, FormatError> {
     let mut ir = FormatIr::default();
     let mut previous: Option<&TokenKind> = None;
     let mut pending_space = false;
@@ -53,7 +57,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
                     previous,
                     pending_space,
                     placeholder_brace,
-                );
+                )?;
                 pending_space = false;
             }
             TokenKind::LBrace => {
@@ -65,7 +69,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
                     previous,
                     pending_space,
                     placeholder_brace,
-                );
+                )?;
                 brace_stack.push(placeholder_brace);
                 if !placeholder_brace {
                     ir.push(FormatItem::Indent);
@@ -80,7 +84,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
                     previous,
                     pending_space,
                     *brace_stack.last().unwrap_or(&false),
-                );
+                )?;
                 paren_depth += 1;
                 pending_space = false;
             }
@@ -93,7 +97,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
                     previous,
                     pending_space,
                     *brace_stack.last().unwrap_or(&false),
-                );
+                )?;
                 pending_space = false;
             }
             _ => {
@@ -104,7 +108,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
                     previous,
                     pending_space,
                     *brace_stack.last().unwrap_or(&false),
-                );
+                )?;
                 pending_space = false;
             }
         }
@@ -114,7 +118,7 @@ fn lower_tokens(source: &str, tokens: &[Token]) -> FormatIr {
         }
     }
 
-    ir
+    Ok(ir)
 }
 
 fn next_significant_kind(tokens: &[Token], start: usize) -> Option<&TokenKind> {
@@ -228,11 +232,11 @@ fn lower_token_text(
     previous: Option<&TokenKind>,
     pending_space: bool,
     placeholder_brace: bool,
-) {
-    let source_text = token_source(source, token);
+) -> Result<(), FormatError> {
+    let source_text = token_source(source, token)?;
     let text = rendered_token_text(source_text, &token.kind);
     if text.is_empty() {
-        return;
+        return Ok(());
     }
 
     if should_preserve_line_start(&token.kind) {
@@ -256,6 +260,7 @@ fn lower_token_text(
     } else {
         ir.text(text);
     }
+    Ok(())
 }
 
 fn rendered_token_text<'a>(source_text: &'a str, kind: &TokenKind) -> Cow<'a, str> {
@@ -277,8 +282,10 @@ fn should_preserve_line_start(kind: &TokenKind) -> bool {
     matches!(kind, TokenKind::RawText(_) | TokenKind::TripleQuote)
 }
 
-fn token_source<'a>(source: &'a str, token: &Token) -> &'a str {
-    source.get(span_range(token.span)).unwrap_or_default()
+fn token_source<'a>(source: &'a str, token: &Token) -> Result<&'a str, FormatError> {
+    source
+        .get(span_range(token.span))
+        .ok_or(FormatError::InvalidTokenSpan(token.span))
 }
 
 fn span_range(span: Span) -> std::ops::Range<usize> {

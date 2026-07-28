@@ -1,4 +1,6 @@
+use crate::FormatError;
 use crate::FormatOptions;
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum FormatItem {
@@ -29,8 +31,9 @@ impl FormatIr {
         }
     }
 
-    pub(crate) fn render(&self, options: &FormatOptions) -> String {
+    pub(crate) fn render(&self, options: &FormatOptions) -> Result<String, FormatError> {
         let mut out = String::new();
+        let mut arm_offsets = Vec::new();
         let mut indent = 0usize;
         let mut at_line_start = true;
         let mut pending_space = false;
@@ -41,7 +44,7 @@ impl FormatIr {
                 FormatItem::Text(text) => {
                     if raw_line_start && at_line_start {
                     } else {
-                        push_indent(&mut out, indent, options, &mut at_line_start);
+                        push_indent(&mut out, indent, options, &mut at_line_start)?;
                     }
                     raw_line_start = false;
                     if pending_space && !out.ends_with([' ', '\n']) {
@@ -63,27 +66,33 @@ impl FormatIr {
                 FormatItem::Indent => indent += 1,
                 FormatItem::Dedent => indent = indent.saturating_sub(1),
                 FormatItem::RawLineStart => raw_line_start = true,
-                FormatItem::ArmMarkerStart => out.push(ARROW_MARKER_START),
-                FormatItem::ArmMarkerEnd => out.push(ARROW_MARKER_END),
+                FormatItem::ArmMarkerStart => arm_offsets.push(out.len()),
+                FormatItem::ArmMarkerEnd => {}
             }
         }
 
         trim_trailing_blank_lines(&mut out);
-        out = align_marked_match_arms(&out);
+        out = align_marked_match_arms(&out, &arm_offsets);
         out = enforce_line_width(&out, options);
         out.push('\n');
-        out
+        Ok(out)
     }
 }
 
-const ARROW_MARKER_START: char = '\u{E000}';
-const ARROW_MARKER_END: char = '\u{E001}';
-
-fn push_indent(out: &mut String, indent: usize, options: &FormatOptions, at_line_start: &mut bool) {
+fn push_indent(
+    out: &mut String,
+    indent: usize,
+    options: &FormatOptions,
+    at_line_start: &mut bool,
+) -> Result<(), FormatError> {
     if *at_line_start {
-        out.push_str(&" ".repeat(indent * options.indent_width));
+        let width = indent.checked_mul(options.indent_width).ok_or_else(|| {
+            FormatError::InvalidOptions("indentation width overflowed usize".to_owned())
+        })?;
+        out.push_str(&" ".repeat(width));
         *at_line_start = false;
     }
+    Ok(())
 }
 
 fn push_newline(out: &mut String) {
@@ -102,17 +111,28 @@ fn trim_trailing_blank_lines(out: &mut String) {
     }
 }
 
-fn align_marked_match_arms(input: &str) -> String {
+fn align_marked_match_arms(input: &str, arm_offsets: &[usize]) -> String {
     let mut output = Vec::new();
     let mut group = Vec::new();
+    let mut line_start = 0usize;
+    let mut offsets = arm_offsets.iter().copied().peekable();
 
     for line in input.lines() {
-        if line.contains(ARROW_MARKER_START) {
+        let line_end = line_start + line.len();
+        while offsets.peek().is_some_and(|offset| *offset < line_start) {
+            offsets.next();
+        }
+        let marked = offsets
+            .peek()
+            .is_some_and(|offset| *offset >= line_start && *offset <= line_end);
+        if marked {
             group.push(line.to_owned());
+            offsets.next();
         } else {
             flush_arm_group(&mut output, &mut group);
-            output.push(remove_arrow_markers(line));
+            output.push(line.to_owned());
         }
+        line_start = line_end.saturating_add(1);
     }
 
     flush_arm_group(&mut output, &mut group);
@@ -127,7 +147,8 @@ fn flush_arm_group(output: &mut Vec<String>, group: &mut Vec<String>) {
     let max_before_width = group
         .iter()
         .filter_map(|line| {
-            marked_arrow_bounds(line).map(|(start, _)| display_width(line[..start].trim_end()))
+            line.find("=>")
+                .map(|start| display_width(line[..start].trim_end()))
         })
         .max()
         .unwrap_or(0);
@@ -140,12 +161,12 @@ fn flush_arm_group(output: &mut Vec<String>, group: &mut Vec<String>) {
 }
 
 fn align_marked_arm_line(line: &str, max_before_width: usize) -> String {
-    let Some((start, end)) = marked_arrow_bounds(line) else {
-        return remove_arrow_markers(line);
+    let Some(start) = line.find("=>") else {
+        return line.to_owned();
     };
 
     let before = line[..start].trim_end();
-    let after = line[end..].trim_start();
+    let after = line[start + 2..].trim_start();
     let padding = max_before_width.saturating_sub(display_width(before)) + 1;
 
     let mut aligned = String::new();
@@ -159,19 +180,8 @@ fn align_marked_arm_line(line: &str, max_before_width: usize) -> String {
     aligned
 }
 
-fn marked_arrow_bounds(line: &str) -> Option<(usize, usize)> {
-    let start = line.find(ARROW_MARKER_START)?;
-    let arrow_start = start + ARROW_MARKER_START.len_utf8();
-    let marker_end = line[arrow_start..].find(ARROW_MARKER_END)? + arrow_start;
-    Some((start, marker_end + ARROW_MARKER_END.len_utf8()))
-}
-
-fn remove_arrow_markers(line: &str) -> String {
-    line.replace([ARROW_MARKER_START, ARROW_MARKER_END], "")
-}
-
 fn display_width(text: &str) -> usize {
-    text.chars().count()
+    UnicodeWidthStr::width(text)
 }
 
 fn enforce_line_width(input: &str, options: &FormatOptions) -> String {
