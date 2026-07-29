@@ -360,12 +360,18 @@ fn parse_duration(value: &str, field: &'static str) -> ConfigResult<u64> {
 }
 
 fn normalize_project_path(value: String) -> String {
-    value
-        .trim()
+    let value = value.trim();
+    let is_absolute = value.starts_with('/');
+    let normalized = value
         .split('/')
         .filter(|component| !component.is_empty() && *component != ".")
         .collect::<Vec<_>>()
-        .join("/")
+        .join("/");
+    if is_absolute {
+        format!("/{normalized}")
+    } else {
+        normalized
+    }
 }
 
 fn environment_key(project_name: &str) -> String {
@@ -469,6 +475,52 @@ mod tests {
         assert!(module
             .to_string()
             .contains("`targets.ts.module` was removed"));
+    }
+
+    #[test]
+    fn rejects_absolute_paths_before_normalization() {
+        for (field, section) in [
+            (
+                "paths.schema",
+                r#"
+                [paths]
+                schema = "/linguini/schema"
+                locale = "linguini/locale"
+                "#,
+            ),
+            (
+                "paths.locale",
+                r#"
+                [paths]
+                schema = "linguini/schema"
+                locale = "/linguini/locale"
+                "#,
+            ),
+            (
+                "targets.ts.out",
+                r#"
+                [paths]
+                schema = "linguini/schema"
+                locale = "linguini/locale"
+                [targets.ts]
+                out = "/src/generated/linguini"
+                "#,
+            ),
+        ] {
+            let source = format!(
+                r#"
+                [project]
+                name = "shop"
+                default_locale = "en"
+                locales = ["en"]
+                {section}
+                "#
+            );
+            let error = parse_config(&source).expect_err(field);
+            let message = error.to_string();
+            assert!(message.contains(field), "{message}");
+            assert!(message.contains("project-relative"), "{message}");
+        }
     }
 
     #[test]
