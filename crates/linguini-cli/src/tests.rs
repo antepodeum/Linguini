@@ -246,6 +246,28 @@ fn check_blocks_locale_semantic_errors() {
 }
 
 #[test]
+fn check_resolves_schema_enums_in_locale_semantics() {
+    let project = temp_project_dir("check_resolves_schema_enums_in_locale_semantics")
+        .expect("create temporary project");
+    init_project(project.path()).expect("init project");
+
+    fs::write(
+        project.path().join("schema/shop.lgs"),
+        "enum Fruit { apple }\ndelivery(fruit: Fruit, count: Number)\n",
+    )
+    .expect("schema file");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(
+        locale_dir.join("en.lgl"),
+        "impl Fruit {\n  apple {\n    form nom(Plural) {\n      one => apple\n      _ => apples\n    }\n  }\n}\ndelivery = {count} {fruit.nom(count)}\n",
+    )
+    .expect("locale file");
+
+    check_project(project.path()).expect("schema-backed locale semantics are valid");
+}
+
+#[test]
 fn check_reports_missing_schema_message_for_empty_locale_file() {
     let project =
         temp_project_dir("check_reports_missing_schema_message").expect("create temporary project");

@@ -1,7 +1,6 @@
 use crate::{CliError, CliResult};
 use linguini_analyzer::{
-    analyze_locale_coverage_with_options, analyze_locale_file, Diagnostic, DiagnosticSeverity,
-    QuickFix,
+    analyze_locale_coverage_with_options, Diagnostic, DiagnosticSeverity, QuickFix,
 };
 use linguini_config::{discover_locale_files, discover_schema_files, LinguiniConfig};
 use linguini_syntax::{parse_locale_with_recovery_in, parse_schema_with_recovery_in, Span};
@@ -117,14 +116,6 @@ pub(crate) fn check_project_with_options(root: &Path, deny_warnings: bool) -> Cl
                 "locale syntax error",
                 parsed.errors,
             ));
-        } else if let Some(locale) = parsed.ast.as_ref() {
-            let diagnostics = analyze_locale_file(locale);
-            if !diagnostics.is_empty() {
-                let mut rendered = ProjectDiagnosticOutput::default();
-                rendered.push(root, &file.path, &source, &diagnostics);
-                error_output.push_str(&rendered.errors);
-                warning_output.push_str(&rendered.warnings);
-            }
         }
         if !has_syntax_errors {
             let Some(ast) = parsed.ast else {
