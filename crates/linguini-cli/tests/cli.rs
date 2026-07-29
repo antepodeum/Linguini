@@ -197,6 +197,41 @@ fn check_requires_locales_to_follow_schema_namespace_directories() {
 }
 
 #[test]
+fn build_rejects_filesystem_and_group_namespace_collision() {
+    let project = TempDir::new().expect("temp project");
+    linguini()
+        .current_dir(project.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    let nested_schema_dir = project.path().join("schema/shop");
+    let outer_locale_dir = project.path().join("locales/shop");
+    let nested_locale_dir = outer_locale_dir.join("checkout");
+    fs::create_dir_all(&nested_schema_dir).expect("nested schema dir");
+    fs::create_dir_all(&nested_locale_dir).expect("nested locale dir");
+    fs::write(
+        project.path().join("schema/shop.lgs"),
+        "checkout { title }\n",
+    )
+    .expect("outer schema");
+    fs::write(nested_schema_dir.join("checkout.lgs"), "title\n").expect("nested schema");
+    fs::write(
+        outer_locale_dir.join("en.lgl"),
+        "checkout { title = Outer }\n",
+    )
+    .expect("outer locale");
+    fs::write(nested_locale_dir.join("en.lgl"), "title = Nested\n").expect("nested locale");
+
+    linguini()
+        .current_dir(project.path())
+        .arg("build")
+        .assert()
+        .failure()
+        .stderr(contains("duplicate schema path `shop.checkout.title`"));
+}
+
+#[test]
 fn check_command_warns_for_secondary_locale_missing_messages() {
     let project = TempDir::new().expect("temp project");
     linguini()
