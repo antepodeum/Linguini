@@ -805,7 +805,8 @@ fn project_codegen_emits_schema_namespace_objects() {
 #[test]
 fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     use crate::{
-        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
+        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSource,
+        TypeScriptProjectOptions, TypeScriptWebOptions,
     };
     use linguini_ir::IrModule;
 
@@ -818,11 +819,10 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::SvelteKit),
             web: Some(TypeScriptWebOptions {
-                strategy: vec![
-                    "url".to_owned(),
-                    "cookie".to_owned(),
-                    "header".to_owned(),
-                    "baseLocale".to_owned(),
+                sources: vec![
+                    TypeScriptLocaleSource::Path,
+                    TypeScriptLocaleSource::Cookie,
+                    TypeScriptLocaleSource::AcceptLanguage,
                 ],
                 cookie_name: "SHOP_LOCALE".to_owned(),
                 cookie_path: "/shop".to_owned(),
@@ -832,7 +832,6 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                 cookie_secure: true,
                 cookie_http_only: true,
                 local_storage_key: "SHOP_LOCALE".to_owned(),
-                global_variable_name: Some("__SHOP_LOCALE__".to_owned()),
                 prefix_default_locale: true,
                 base_path: "/shop".to_owned(),
                 trailing_slash: "never".to_owned(),
@@ -864,6 +863,11 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(!svelte.contents.contains("@antepod/"));
     assert!(svelte.contents.contains("export const l = linguini.l;"));
     assert!(svelte.contents.contains("cookieName: \"SHOP_LOCALE\""));
+    assert!(svelte
+        .contents
+        .contains("sources: [\"path\", \"cookie\", \"accept-language\"] as const"));
+    assert!(!svelte.contents.contains("preferredLanguage"));
+    assert!(!svelte.contents.contains("globalVariable"));
     assert!(svelte.contents.contains("localizeLinks: false"));
     assert!(svelte.contents.contains("cookie: true"));
     assert!(svelte.contents.contains("navigate: true"));

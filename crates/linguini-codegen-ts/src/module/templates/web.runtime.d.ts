@@ -1,5 +1,5 @@
 export type TextDirection = "ltr" | "rtl";
-export type LocaleStrategy = "url" | "cookie" | "localStorage" | "header" | "navigator" | "preferredLanguage" | "globalVariable" | "baseLocale" | `custom-${string}`;
+export type LocaleSource = "path" | "cookie" | "local-storage" | "accept-language";
 
 export interface LinguiniRuntime<Locale extends string = string, Linguini = unknown> {
   locales: readonly Locale[];
@@ -11,7 +11,7 @@ export interface LinguiniRuntime<Locale extends string = string, Linguini = unkn
 }
 
 export interface LinguiniWebOptions {
-  strategy?: readonly LocaleStrategy[];
+  sources?: readonly LocaleSource[];
   cookieName?: string;
   localStorageKey?: string;
   prefixDefaultLocale?: boolean;
@@ -23,7 +23,6 @@ export interface LinguiniWebOptions {
   cookieSameSite?: "lax" | "strict" | "none";
   cookieSecure?: boolean;
   cookieHttpOnly?: boolean;
-  globalVariableName?: string;
   exclude?: readonly (string | RegExp | ((url: URL) => boolean))[];
   redirect?: boolean;
   origin?: string;
@@ -66,7 +65,7 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
  * fail closed and preserve the original href instead.
  */
 export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniRuntime<Locale, Linguini> {
-  options: Required<Pick<LinguiniWebOptions, "strategy" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
+  options: Required<Pick<LinguiniWebOptions, "sources" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
   matchLocale(locale: unknown): Locale | undefined;
   resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
   resolveLocaleSync(input?: Record<string, unknown>): Locale;

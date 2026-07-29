@@ -68,7 +68,7 @@ test("locale path segments require an exact case-insensitive match", () => {
     },
     {
       origin: "https://app.example",
-      strategy: ["url", "baseLocale"],
+      sources: ["path"],
     },
   );
   assert.equal(
@@ -124,4 +124,126 @@ test("URL transforms share one parse error and boolean detection fails closed", 
   assert.equal(web.shouldLocalizeHref("/account", { origin: invalid }), false);
   assert.equal(web.localizeHrefAttribute(invalid, "fr"), invalid);
   assert.equal(web.resolveLocaleSync({ url: invalid }), "en");
+});
+
+test("default locale sources match the validated web configuration", () => {
+  const web = createWeb();
+
+  assert.deepEqual(web.options.sources, [
+    "path",
+    "cookie",
+    "accept-language",
+  ]);
+  assert.equal(
+    web.resolveLocaleSync({
+      url: "https://app.example/account",
+      cookie: "LINGUINI_LOCALE=fr",
+      headers: new Headers({ "accept-language": "en" }),
+    }),
+    "fr",
+  );
+});
+
+test("Accept-Language uses standard Headers, quality weights, and wildcards", async () => {
+  const web = createWeb({ sources: ["accept-language"] });
+
+  const requestContext = await web.resolveRequest(
+    new Request("https://app.example/account", {
+      headers: { "accept-language": "fr;q=0.9, en;q=0.1" },
+    }),
+  );
+  assert.equal(requestContext.locale, "fr");
+  assert.equal(
+    web.resolveLocaleSync({
+      headers: new Headers({
+        "accept-language": "de;q=1, en;q=0.2, fr;q=0.9",
+      }),
+    }),
+    "fr",
+  );
+  assert.equal(
+    web.resolveLocaleSync({
+      headers: new Headers({
+        "accept-language": "de;q=1, fr;q=0.7",
+      }),
+    }),
+    "fr",
+  );
+  assert.equal(
+    web.resolveLocaleSync({
+      headers: new Headers({
+        "accept-language": "*;q=0.8, en;q=0",
+      }),
+    }),
+    "fr",
+  );
+  assert.equal(
+    web.resolveLocaleSync({
+      headers: new Headers({
+        "accept-language": "fr;q=0, *;q=0.5",
+      }),
+    }),
+    "en",
+  );
+  assert.equal(
+    web.resolveLocaleSync({
+      headers: new Headers({
+        "accept-language": "fr;q=invalid, en;q=0.5",
+      }),
+    }),
+    "en",
+  );
+  assert.equal(
+    web.resolveLocaleSync({
+      headers: { "accept-language": "fr" },
+    }),
+    "en",
+  );
+});
+
+test("malformed locale cookie encoding is ignored", () => {
+  const web = createWeb({ sources: ["cookie"] });
+
+  assert.doesNotThrow(() =>
+    web.resolveLocaleSync({ cookie: "LINGUINI_LOCALE=%E0%A4%A" }),
+  );
+  assert.equal(
+    web.resolveLocaleSync({ cookie: "LINGUINI_LOCALE=%E0%A4%A" }),
+    "en",
+  );
+  assert.equal(
+    web.resolveLocaleSync({ cookie: "LINGUINI_LOCALE=fr" }),
+    "fr",
+  );
+});
+
+test("local-storage source uses only the configured storage capability", () => {
+  const web = createWeb({
+    sources: ["local-storage"],
+    localStorageKey: "SHOP_LOCALE",
+  });
+  let requestedKey: string | undefined;
+
+  assert.equal(
+    web.resolveLocaleSync({
+      localStorage: {
+        getItem(key: string) {
+          requestedKey = key;
+          return "fr";
+        },
+      },
+    }),
+    "fr",
+  );
+  assert.equal(requestedKey, "SHOP_LOCALE");
+  assert.equal(
+    web.resolveLocaleSync({
+      localStorage: {
+        getItem() {
+          throw new Error("storage is unavailable");
+        },
+      },
+    }),
+    "en",
+  );
 });

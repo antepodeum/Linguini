@@ -4,7 +4,7 @@ use super::templates::{
     PROJECT_INDEX_ENTRY, SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS,
     SVELTE_CONTEXT_RUNTIME, SVELTE_DECLARATIONS, SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
 };
-use super::{TypeScriptLocaleModule, TypeScriptWebOptions};
+use super::{TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptWebOptions};
 use linguini_cldr::built_in_text_direction;
 
 pub fn generate_project_index(
@@ -208,10 +208,10 @@ fn base_locale_literal(locales: &[TypeScriptLocaleModule], base_locale: Option<&
 }
 
 fn web_options_literal(options: &TypeScriptWebOptions) -> String {
-    let strategy = js_string_array(&options.strategy);
+    let sources = js_locale_source_array(&options.sources);
     let exclude = js_string_array(&options.exclude);
     let mut fields = vec![
-        format!("strategy: [{strategy}] as const"),
+        format!("sources: [{sources}] as const"),
         format!("cookieName: \"{}\"", escape_string(&options.cookie_name)),
         format!("cookiePath: \"{}\"", escape_string(&options.cookie_path)),
         format!("cookieMaxAge: {}", options.cookie_max_age),
@@ -245,17 +245,19 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
             escape_string(cookie_domain)
         ));
     }
-    if let Some(global_variable_name) = &options.global_variable_name {
-        fields.push(format!(
-            "globalVariableName: \"{}\"",
-            escape_string(global_variable_name)
-        ));
-    }
     if let Some(origin) = &options.origin {
         fields.push(format!("origin: \"{}\"", escape_string(origin)));
     }
 
     format!("{{ {} }} as const", fields.join(", "))
+}
+
+fn js_locale_source_array(values: &[TypeScriptLocaleSource]) -> String {
+    values
+        .iter()
+        .map(|source| format!("\"{}\"", source.as_str()))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn js_string_array(values: &[String]) -> String {

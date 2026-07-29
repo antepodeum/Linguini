@@ -4,7 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use linguini_analyzer::DiagnosticSeverity;
 use linguini_codegen_ts::{
     generate_typescript_project_files, TypeScriptFramework, TypeScriptGeneratedFile,
-    TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
+    TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptProjectOptions, TypeScriptWebOptions,
     ValidatedTypeScriptProject,
 };
 use linguini_config::{
@@ -105,23 +105,21 @@ fn generate_typescript_target(
 fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
     let cookie = config.web.cookie.as_ref();
     let local_storage = config.web.local_storage.as_ref();
-    let mut strategy = config
+    let sources = config
         .web
         .locale
         .sources
         .iter()
         .map(|source| match source {
-            linguini_config::LocaleSource::Path => "url",
-            linguini_config::LocaleSource::Cookie => "cookie",
-            linguini_config::LocaleSource::LocalStorage => "localStorage",
-            linguini_config::LocaleSource::AcceptLanguage => "header",
+            linguini_config::LocaleSource::Path => TypeScriptLocaleSource::Path,
+            linguini_config::LocaleSource::Cookie => TypeScriptLocaleSource::Cookie,
+            linguini_config::LocaleSource::LocalStorage => TypeScriptLocaleSource::LocalStorage,
+            linguini_config::LocaleSource::AcceptLanguage => TypeScriptLocaleSource::AcceptLanguage,
         })
-        .map(str::to_owned)
         .collect::<Vec<_>>();
-    strategy.push("baseLocale".to_owned());
 
     TypeScriptWebOptions {
-        strategy,
+        sources,
         cookie_name: cookie
             .map(|cookie| cookie.name.clone())
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
@@ -145,7 +143,6 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
         local_storage_key: local_storage
             .map(|storage| storage.key.clone())
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
-        global_variable_name: None,
         prefix_default_locale: config.web.routing.locale_prefix == LocalePrefixMode::Always,
         base_path: String::new(),
         trailing_slash: "ignore".to_owned(),

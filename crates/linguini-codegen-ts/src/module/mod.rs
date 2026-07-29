@@ -85,7 +85,7 @@ impl TypeScriptFramework {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptWebOptions {
-    pub strategy: Vec<String>,
+    pub sources: Vec<TypeScriptLocaleSource>,
     pub cookie_name: String,
     pub cookie_path: String,
     pub cookie_domain: Option<String>,
@@ -94,7 +94,6 @@ pub struct TypeScriptWebOptions {
     pub cookie_secure: bool,
     pub cookie_http_only: bool,
     pub local_storage_key: String,
-    pub global_variable_name: Option<String>,
     pub prefix_default_locale: bool,
     pub base_path: String,
     pub trailing_slash: String,
@@ -102,6 +101,25 @@ pub struct TypeScriptWebOptions {
     pub origin: Option<String>,
     pub exclude: Vec<String>,
     pub localize_links: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeScriptLocaleSource {
+    Path,
+    Cookie,
+    LocalStorage,
+    AcceptLanguage,
+}
+
+impl TypeScriptLocaleSource {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Path => "path",
+            Self::Cookie => "cookie",
+            Self::LocalStorage => "local-storage",
+            Self::AcceptLanguage => "accept-language",
+        }
+    }
 }
 
 impl Default for TypeScriptProjectOptions {
@@ -121,12 +139,10 @@ impl Default for TypeScriptProjectOptions {
 impl Default for TypeScriptWebOptions {
     fn default() -> Self {
         Self {
-            strategy: vec![
-                "url".to_owned(),
-                "cookie".to_owned(),
-                "localStorage".to_owned(),
-                "preferredLanguage".to_owned(),
-                "baseLocale".to_owned(),
+            sources: vec![
+                TypeScriptLocaleSource::Path,
+                TypeScriptLocaleSource::Cookie,
+                TypeScriptLocaleSource::AcceptLanguage,
             ],
             cookie_name: "LINGUINI_LOCALE".to_owned(),
             cookie_path: "/".to_owned(),
@@ -136,7 +152,6 @@ impl Default for TypeScriptWebOptions {
             cookie_secure: false,
             cookie_http_only: false,
             local_storage_key: "LINGUINI_LOCALE".to_owned(),
-            global_variable_name: None,
             prefix_default_locale: false,
             base_path: String::new(),
             trailing_slash: "ignore".to_owned(),
