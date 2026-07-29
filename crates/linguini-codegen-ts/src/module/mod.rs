@@ -8,6 +8,7 @@ mod shared;
 mod templates;
 mod tree;
 
+use std::collections::BTreeMap;
 use std::fmt;
 
 use linguini_cldr::built_in_plural_rules;
@@ -17,7 +18,7 @@ use self::emit::{
     emit_formatter_data, emit_forms, emit_imports, emit_local_functions, emit_messages,
     emit_schema_type_reexports, emit_variables,
 };
-use self::names::{escape_string, safe_identifier};
+use self::names::{escape_string, portable_path_component_error, safe_file_stem, safe_identifier};
 use self::shared::emit_shared;
 use super::plural::generate_plural_function;
 
@@ -176,6 +177,18 @@ pub enum TypeScriptCodegenError {
         locale: String,
         conflicts_with: String,
     },
+    InvalidLocalePathComponent {
+        locale: String,
+        reason: &'static str,
+    },
+    InvalidNamespacePathComponent {
+        namespace: String,
+        reason: &'static str,
+    },
+    OutputPathCollision {
+        path: String,
+        conflicts_with: String,
+    },
     MissingBaseLocale,
     UnknownBaseLocale {
         base_locale: String,
@@ -226,6 +239,20 @@ impl fmt::Display for TypeScriptCodegenError {
             } => write!(
                 formatter,
                 "locale `{locale}` conflicts with locale `{conflicts_with}` after case folding"
+            ),
+            Self::InvalidLocalePathComponent { locale, reason } => {
+                write!(formatter, "locale `{locale}` is not a portable filename: {reason}")
+            }
+            Self::InvalidNamespacePathComponent { namespace, reason } => write!(
+                formatter,
+                "namespace `{namespace}` cannot be represented by a portable filename: {reason}"
+            ),
+            Self::OutputPathCollision {
+                path,
+                conflicts_with,
+            } => write!(
+                formatter,
+                "generated output path `{path}` conflicts with `{conflicts_with}` on a case-insensitive filesystem"
             ),
             Self::MissingBaseLocale => {
                 formatter.write_str("TypeScript project requires an explicit base locale")
@@ -311,6 +338,15 @@ fn validate_project_inputs(
         return Err(TypeScriptCodegenError::EmptyLocaleSet);
     }
 
+    for locale in locales {
+        if let Some(reason) = portable_path_component_error(&locale.locale) {
+            return Err(TypeScriptCodegenError::InvalidLocalePathComponent {
+                locale: locale.locale.clone(),
+                reason,
+            });
+        }
+    }
+
     for (index, locale) in locales.iter().enumerate() {
         if let Some(conflict) = locales[..index]
             .iter()
@@ -352,6 +388,52 @@ fn validate_project_inputs(
         validate_text_direction(&locale.locale)?;
     }
 
+    validate_namespace_output_paths(schema, locales, options)?;
+
+    Ok(())
+}
+
+fn validate_namespace_output_paths(
+    schema: &IrModule,
+    locales: &[TypeScriptLocaleModule],
+    options: &TypeScriptProjectOptions,
+) -> Result<(), TypeScriptCodegenError> {
+    let mut output_stems = BTreeMap::<String, (String, String)>::new();
+    for namespace in top_level_namespaces(schema)
+        .into_iter()
+        .filter(|namespace| {
+            !options.tree_shaking
+                || options.included_messages.is_empty()
+                || options.included_messages.iter().any(|selected| {
+                    selected == namespace
+                        || selected
+                            .strip_prefix(namespace)
+                            .is_some_and(|rest| rest.starts_with('.'))
+                        || namespace
+                            .strip_prefix(selected)
+                            .is_some_and(|rest| rest.starts_with('.'))
+                })
+        })
+    {
+        let stem = safe_file_stem(&namespace);
+        if let Some(reason) = portable_path_component_error(&stem) {
+            return Err(TypeScriptCodegenError::InvalidNamespacePathComponent {
+                namespace,
+                reason,
+            });
+        }
+        let folded = stem.to_ascii_lowercase();
+        if let Some((conflicting_namespace, conflicting_stem)) = output_stems.get(&folded) {
+            let locale = &locales[0].locale;
+            return Err(TypeScriptCodegenError::OutputPathCollision {
+                path: format!("locales/{locale}/{stem}.ts"),
+                conflicts_with: format!(
+                    "locales/{locale}/{conflicting_stem}.ts (namespace `{conflicting_namespace}`)"
+                ),
+            });
+        }
+        output_stems.insert(folded, (namespace, stem));
+    }
     Ok(())
 }
 
@@ -399,6 +481,7 @@ pub fn generate_typescript_project_files(
         let visible_locale = locale_module_for_schema(&locale.module, &visible_schema);
         let namespaces = top_level_namespaces(&visible_schema);
         for namespace in &namespaces {
+            let namespace_file_stem = safe_file_stem(namespace);
             let namespace_schema = namespace_module(&visible_schema, namespace);
             let namespace_locale = namespace_module(&visible_locale, namespace);
             let validated = validate_codegen_ir(
@@ -407,7 +490,7 @@ pub fn generate_typescript_project_files(
                 format!("locale `{}` namespace `{namespace}`", locale.locale),
             )?;
             files.push(TypeScriptGeneratedFile {
-                path: format!("locales/{}/{}.ts", locale.locale, namespace),
+                path: format!("locales/{}/{namespace_file_stem}.ts", locale.locale),
                 contents: generate_typescript_module_with_shared_import(
                     &validated,
                     &locale_options,
@@ -417,7 +500,7 @@ pub fn generate_typescript_project_files(
             });
             if options.declaration {
                 files.push(TypeScriptGeneratedFile {
-                    path: format!("locales/{}/{}.d.ts", locale.locale, namespace),
+                    path: format!("locales/{}/{namespace_file_stem}.d.ts", locale.locale),
                     contents: decl::generate_locale_declaration_with_shared_import(
                         &namespace_schema,
                         "../../shared",
@@ -519,7 +602,24 @@ pub fn generate_typescript_project_files(
         }
     }
 
+    validate_generated_output_collisions(&files)?;
     Ok(files)
+}
+
+fn validate_generated_output_collisions(
+    files: &[TypeScriptGeneratedFile],
+) -> Result<(), TypeScriptCodegenError> {
+    let mut paths = BTreeMap::<String, &str>::new();
+    for file in files {
+        let folded = file.path.to_ascii_lowercase();
+        if let Some(conflict) = paths.insert(folded, &file.path) {
+            return Err(TypeScriptCodegenError::OutputPathCollision {
+                path: file.path.clone(),
+                conflicts_with: conflict.to_owned(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn generate_typescript_module_with_namespaces(
@@ -539,11 +639,12 @@ fn generate_typescript_module_unchecked(
     let mut output = String::new();
     for namespace in namespaces {
         let identifier = safe_identifier(namespace);
+        let file_stem = safe_file_stem(namespace);
         output.push_str(&format!(
             "import {{ {} }} from \"./{}/{}\";\n",
             identifier,
             escape_string(&options.locale),
-            escape_string(namespace)
+            escape_string(&file_stem)
         ));
     }
     emit_imports(schema, locale, options, "../shared", &mut output);

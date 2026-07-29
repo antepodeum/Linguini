@@ -7,7 +7,55 @@ pub fn safe_identifier(name: &str) -> String {
         return name.to_owned();
     }
 
-    let mut output = String::from("__lgl_name_");
+    encoded_name("__lgl_name_", name)
+}
+
+pub fn safe_file_stem(name: &str) -> String {
+    if portable_path_component_error(name).is_none() && !name.starts_with("__lgl_path_") {
+        return name.to_owned();
+    }
+
+    encoded_name("__lgl_path_", name)
+}
+
+pub fn portable_path_component_error(name: &str) -> Option<&'static str> {
+    if name.is_empty() {
+        return Some("component is empty");
+    }
+    if name.len() > 240 {
+        return Some("component exceeds the portable 240-byte limit");
+    }
+    if matches!(name, "." | "..") {
+        return Some("component is a traversal segment");
+    }
+    if name.ends_with('.') || name.ends_with(' ') {
+        return Some("component ends with a dot or space");
+    }
+    if name.chars().any(|character| {
+        character.is_control()
+            || matches!(
+                character,
+                '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
+            )
+    }) {
+        return Some(
+            "component contains a separator, control character, or platform-invalid character",
+        );
+    }
+    if !name
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Some("component contains non-portable characters");
+    }
+    if is_windows_reserved_stem(name) {
+        return Some("component is a reserved Windows device name");
+    }
+    None
+}
+
+fn encoded_name(prefix: &str, name: &str) -> String {
+    let mut output = String::from(prefix);
     for byte in name.as_bytes() {
         use std::fmt::Write;
 
@@ -17,13 +65,7 @@ pub fn safe_identifier(name: &str) -> String {
 }
 
 pub fn form_binding_name(name: &str) -> String {
-    let mut output = String::from("__lgl_form_");
-    for byte in name.as_bytes() {
-        use std::fmt::Write;
-
-        write!(output, "{byte:02X}").expect("writing to a String cannot fail");
-    }
-    output
+    encoded_name("__lgl_form_", name)
 }
 
 pub fn property_access(name: &str) -> String {
@@ -108,6 +150,35 @@ fn is_safe_identifier(name: &str) -> bool {
         && !is_reserved_word(name)
 }
 
+fn is_windows_reserved_stem(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or(name);
+    matches!(
+        stem.to_ascii_uppercase().as_str(),
+        "CON"
+            | "PRN"
+            | "AUX"
+            | "NUL"
+            | "COM1"
+            | "COM2"
+            | "COM3"
+            | "COM4"
+            | "COM5"
+            | "COM6"
+            | "COM7"
+            | "COM8"
+            | "COM9"
+            | "LPT1"
+            | "LPT2"
+            | "LPT3"
+            | "LPT4"
+            | "LPT5"
+            | "LPT6"
+            | "LPT7"
+            | "LPT8"
+            | "LPT9"
+    )
+}
+
 fn is_reserved_word(name: &str) -> bool {
     matches!(
         name,
@@ -165,8 +236,9 @@ fn is_reserved_word(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        escape_string, form_binding_name, function_name, path_expression, property_access,
-        property_key, safe_identifier, string_literal,
+        escape_string, form_binding_name, function_name, path_expression,
+        portable_path_component_error, property_access, property_key, safe_file_stem,
+        safe_identifier, string_literal,
     };
 
     #[test]
@@ -202,6 +274,55 @@ mod tests {
         assert_ne!(
             form_binding_name("Fruit"),
             safe_identifier("__lgl_form_4672756974")
+        );
+    }
+
+    #[test]
+    fn file_stems_are_portable_injective_and_avoid_windows_devices() {
+        assert_eq!(safe_file_stem("checkout"), "checkout");
+        assert_eq!(safe_file_stem("en-US"), "en-US");
+        assert_eq!(safe_file_stem("../escape"), "__lgl_path_2E2E2F657363617065");
+        assert_eq!(safe_file_stem("CON"), "__lgl_path_434F4E");
+        assert_eq!(safe_file_stem("日本語"), "__lgl_path_E697A5E69CACE8AA9E");
+        assert_eq!(
+            safe_file_stem("__lgl_path_434F4E"),
+            "__lgl_path_5F5F6C676C5F706174685F343334463445"
+        );
+        assert_ne!(safe_file_stem("CON"), safe_file_stem("__lgl_path_434F4E"));
+    }
+
+    #[test]
+    fn path_component_validation_rejects_cross_platform_hazards() {
+        for component in [
+            "",
+            ".",
+            "..",
+            "../en",
+            "en/us",
+            r"en\us",
+            "name.",
+            "name ",
+            "a:b",
+            "NUL",
+            "COM9",
+            "日本語",
+            "has space",
+        ] {
+            assert!(
+                portable_path_component_error(component).is_some(),
+                "{component:?} must be rejected"
+            );
+        }
+        for component in ["en", "en-US", "zh-Hant-TW", "locale_1"] {
+            assert_eq!(
+                portable_path_component_error(component),
+                None,
+                "{component}"
+            );
+        }
+        assert_eq!(
+            portable_path_component_error(&"a".repeat(241)),
+            Some("component exceeds the portable 240-byte limit")
         );
     }
 

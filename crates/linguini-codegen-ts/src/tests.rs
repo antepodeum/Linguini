@@ -537,6 +537,216 @@ fn project_validation_rejects_duplicate_and_case_folded_locales() {
 }
 
 #[test]
+fn project_validation_rejects_unsafe_locale_filenames() {
+    use linguini_ir::IrModule;
+
+    for locale in [
+        "",
+        ".",
+        "..",
+        "../en",
+        "en/us",
+        r"en\us",
+        "name.",
+        "name ",
+        "a:b",
+        "CON",
+        "LPT9",
+        "日本語",
+    ] {
+        let error = ValidatedTypeScriptProject::try_new(
+            &IrModule::default(),
+            &[TypeScriptLocaleModule {
+                locale: locale.to_owned(),
+                module: IrModule::default(),
+            }],
+            &project_options(locale),
+        )
+        .expect_err("unsafe locale filename must be rejected");
+
+        assert!(
+            matches!(
+                error,
+                TypeScriptCodegenError::InvalidLocalePathComponent {
+                    locale: ref rejected,
+                    ..
+                } if rejected == locale
+            ),
+            "{locale:?}: {error:?}"
+        );
+    }
+}
+
+#[test]
+fn project_validation_rejects_namespace_filenames_beyond_portable_limits() {
+    use linguini_ir::{IrMessage, IrModule};
+
+    let namespace = "x".repeat(241);
+    let schema = IrModule {
+        messages: vec![IrMessage {
+            name: format!("{namespace}.title"),
+            docs: Vec::new(),
+            parameters: Vec::new(),
+            body: None,
+        }],
+        ..IrModule::default()
+    };
+    let error = ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &project_options("en"),
+    )
+    .expect_err("oversized namespace filename must be rejected");
+
+    assert_eq!(
+        error,
+        TypeScriptCodegenError::InvalidNamespacePathComponent {
+            namespace,
+            reason: "component exceeds the portable 240-byte limit",
+        }
+    );
+}
+
+#[test]
+fn project_codegen_encodes_unsafe_namespace_filenames_and_imports() {
+    use linguini_ir::{IrMessage, IrModule, IrText, IrTextBlockMode, IrTextPart};
+    use linguini_syntax::Span;
+
+    let names = [
+        "admin/path.ready",
+        "CON.status",
+        "日本語.title",
+        "__lgl_path_434F4E.literal",
+    ];
+    let schema = IrModule {
+        messages: names
+            .iter()
+            .map(|name| IrMessage {
+                name: (*name).to_owned(),
+                docs: Vec::new(),
+                parameters: Vec::new(),
+                body: None,
+            })
+            .collect(),
+        ..IrModule::default()
+    };
+    let locale = IrModule {
+        messages: names
+            .iter()
+            .map(|name| IrMessage {
+                name: (*name).to_owned(),
+                docs: Vec::new(),
+                parameters: Vec::new(),
+                body: Some(IrText {
+                    parts: vec![IrTextPart::Text("ok".to_owned())],
+                    mode: IrTextBlockMode::Inline,
+                    span: Span::new(0, 2),
+                }),
+            })
+            .collect(),
+        ..IrModule::default()
+    };
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("unsafe logical namespaces are encoded");
+    let paths = files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect::<Vec<_>>();
+    for expected in [
+        "locales/en/__lgl_path_61646D696E2F70617468.ts",
+        "locales/en/__lgl_path_434F4E.ts",
+        "locales/en/__lgl_path_E697A5E69CACE8AA9E.ts",
+        "locales/en/__lgl_path_5F5F6C676C5F706174685F343334463445.ts",
+    ] {
+        assert!(paths.contains(&expected), "missing {expected}: {paths:#?}");
+    }
+    assert!(paths
+        .iter()
+        .all(|path| !path.contains("admin/path") && !path.contains("日本語")));
+
+    let barrel = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale barrel");
+    assert!(barrel
+        .contents
+        .contains("from \"./en/__lgl_path_61646D696E2F70617468\";"));
+    assert!(barrel.contents.contains("from \"./en/__lgl_path_434F4E\";"));
+
+    let declarations = files
+        .iter()
+        .find(|file| file.path == "locales/en.d.ts")
+        .expect("locale declaration barrel");
+    assert!(declarations
+        .contents
+        .contains("from \"./en/__lgl_path_61646D696E2F70617468\";"));
+}
+
+#[test]
+fn project_validation_rejects_case_insensitive_namespace_file_collisions() {
+    use linguini_ir::{IrMessage, IrModule, IrText, IrTextBlockMode, IrTextPart};
+    use linguini_syntax::Span;
+
+    let schema = IrModule {
+        messages: ["Shop.title", "shop.subtitle"]
+            .into_iter()
+            .map(|name| IrMessage {
+                name: name.to_owned(),
+                docs: Vec::new(),
+                parameters: Vec::new(),
+                body: None,
+            })
+            .collect(),
+        ..IrModule::default()
+    };
+    let locale = IrModule {
+        messages: ["Shop.title", "shop.subtitle"]
+            .into_iter()
+            .map(|name| IrMessage {
+                name: name.to_owned(),
+                docs: Vec::new(),
+                parameters: Vec::new(),
+                body: Some(IrText {
+                    parts: vec![IrTextPart::Text("ok".to_owned())],
+                    mode: IrTextBlockMode::Inline,
+                    span: Span::new(0, 2),
+                }),
+            })
+            .collect(),
+        ..IrModule::default()
+    };
+
+    let error = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect_err("case-insensitive namespace collision must be rejected");
+
+    assert_eq!(
+        error,
+        TypeScriptCodegenError::OutputPathCollision {
+            path: "locales/en/shop.ts".to_owned(),
+            conflicts_with: "locales/en/Shop.ts (namespace `Shop`)".to_owned(),
+        }
+    );
+}
+
+#[test]
 fn project_validation_requires_an_explicit_base_locale() {
     use linguini_ir::IrModule;
 

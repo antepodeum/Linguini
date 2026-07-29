@@ -2,7 +2,8 @@ use linguini_ir::{IrMessage, IrModule};
 
 use super::emit::schema_type_names;
 use super::names::{
-    escape_comment, escape_string, function_name, property_key, safe_identifier, ts_type,
+    escape_comment, escape_string, function_name, property_key, safe_file_stem, safe_identifier,
+    ts_type,
 };
 use super::templates::SHARED_DECLARATIONS;
 use super::tree::{nested_message_tree, MessageTree};
@@ -21,11 +22,12 @@ pub fn generate_locale_declaration_with_namespaces(
 ) -> String {
     let mut output = String::new();
     for namespace in namespaces {
+        let file_stem = safe_file_stem(namespace);
         output.push_str(&format!(
             "import {{ {} }} from \"./{}/{}\";\n",
             safe_identifier(namespace),
             escape_string(locale),
-            escape_string(namespace)
+            escape_string(&file_stem)
         ));
     }
     if !namespaces.is_empty() {
