@@ -929,21 +929,26 @@ fn infer_reference(
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) -> Option<String> {
+    let full_path = expression.path.join(".");
+    if let Some(variable_type) = variables.get(&full_path) {
+        return Some(variable_type.clone());
+    }
+    if context.functions.contains_key(full_path.as_str()) || full_path == BUILTIN_PLURAL {
+        errors.push(IrReferenceError::at(
+            "IR014",
+            format!("callable `{full_path}` must be called with parentheses"),
+            expression.span,
+        ));
+        return None;
+    }
+
     let root = &expression.path[0];
     let Some(root_type) = variables.get(root) else {
-        if context.functions.contains_key(root.as_str()) || root == BUILTIN_PLURAL {
-            errors.push(IrReferenceError::at(
-                "IR014",
-                format!("callable `{root}` must be called with parentheses"),
-                expression.span,
-            ));
-        } else {
-            errors.push(IrReferenceError::at(
-                "IR015",
-                format!("unresolved reference `{}`", expression.path.join(".")),
-                expression.span,
-            ));
-        }
+        errors.push(IrReferenceError::at(
+            "IR015",
+            format!("unresolved reference `{full_path}`"),
+            expression.span,
+        ));
         return None;
     };
 
@@ -969,47 +974,48 @@ fn infer_call(
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) -> Option<String> {
+    let full_path = expression.path.join(".");
+    if full_path == BUILTIN_PLURAL {
+        validate_arity(
+            BUILTIN_PLURAL,
+            1,
+            argument_types.len(),
+            expression.span,
+            errors,
+        );
+        if let Some(Some(ty)) = argument_types.first() {
+            require_numeric(BUILTIN_PLURAL, ty, expression.span, context, errors);
+        }
+        return Some("String".to_owned());
+    }
+
+    if let Some(function) = context.functions.get(full_path.as_str()) {
+        validate_arity(
+            &function.name,
+            function.parameters.len(),
+            argument_types.len(),
+            expression.span,
+            errors,
+        );
+        for (index, (parameter, actual)) in
+            function.parameters.iter().zip(argument_types).enumerate()
+        {
+            if let Some(actual) = actual {
+                require_assignable(
+                    &format!("argument {} to `{}`", index + 1, function.name),
+                    &parameter.ty,
+                    actual,
+                    expression.span,
+                    context,
+                    errors,
+                );
+            }
+        }
+        return Some("String".to_owned());
+    }
+
     if expression.path.len() == 1 {
         let name = &expression.path[0];
-        if name == BUILTIN_PLURAL {
-            validate_arity(
-                BUILTIN_PLURAL,
-                1,
-                argument_types.len(),
-                expression.span,
-                errors,
-            );
-            if let Some(Some(ty)) = argument_types.first() {
-                require_numeric(BUILTIN_PLURAL, ty, expression.span, context, errors);
-            }
-            return Some("String".to_owned());
-        }
-
-        if let Some(function) = context.functions.get(name.as_str()) {
-            validate_arity(
-                &function.name,
-                function.parameters.len(),
-                argument_types.len(),
-                expression.span,
-                errors,
-            );
-            for (index, (parameter, actual)) in
-                function.parameters.iter().zip(argument_types).enumerate()
-            {
-                if let Some(actual) = actual {
-                    require_assignable(
-                        &format!("argument {} to `{}`", index + 1, function.name),
-                        &parameter.ty,
-                        actual,
-                        expression.span,
-                        context,
-                        errors,
-                    );
-                }
-            }
-            return Some("String".to_owned());
-        }
-
         if let Some(root_type) = variables.get(name) {
             return resolve_form_path(
                 root_type,

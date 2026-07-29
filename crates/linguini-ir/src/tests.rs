@@ -342,6 +342,26 @@ fn project_namespace_qualifies_declarations_types_references_and_origins() {
     );
 }
 
+#[test]
+fn reference_validation_resolves_qualified_functions_and_variables() {
+    let mut schema = lower_schema(
+        &parse_schema("enum Size { small, big }\nsummary(size: Size)\n").expect("schema parses"),
+    );
+    qualify_module(&mut schema, "shop.checkout");
+    let mut locale = lower_locale(
+        &parse_locale(
+            "form SizeWord(Size) { small => small\n_ => big }\n\
+             let label = Size\n\
+             summary = {label}: {SizeWord(size)}\n",
+        )
+        .expect("locale parses"),
+    );
+    qualify_module(&mut locale, "shop.checkout");
+
+    ensure_no_unresolved_references(&schema, &locale)
+        .expect("qualified locale dependencies resolve");
+}
+
 fn assert_snapshot(path: &str, snapshot: &str) {
     if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
         fs::write(repo_root().join(path), snapshot).expect("write snapshot");
