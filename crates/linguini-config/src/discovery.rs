@@ -10,16 +10,20 @@ const MAX_DISCOVERY_ENTRIES: usize = 100_000;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SchemaFile {
     pub path: PathBuf,
+    /// Dot-separated path relative to the schema root, including the file stem.
     pub namespace: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LocaleFile {
     pub path: PathBuf,
+    /// Validated BCP 47 tag read verbatim from the file stem.
     pub locale: String,
+    /// Dot-separated parent path relative to the locale root.
     pub namespace: String,
 }
 
+/// Discovers `.lgs` files and derives each filesystem namespace from its relative path.
 pub fn discover_schema_files(root: impl AsRef<Path>) -> ConfigResult<Vec<SchemaFile>> {
     let root = prepare_root(root.as_ref())?;
     let mut state = DiscoveryState::new(&root);
@@ -37,6 +41,7 @@ pub fn discover_schema_files(root: impl AsRef<Path>) -> ConfigResult<Vec<SchemaF
     Ok(state.schema_files)
 }
 
+/// Discovers `.lgl` files, using each parent path as its namespace and stem as its locale.
 pub fn discover_locale_files(root: impl AsRef<Path>) -> ConfigResult<Vec<LocaleFile>> {
     let root = prepare_root(root.as_ref())?;
     let mut state = DiscoveryState::new(&root);
@@ -439,5 +444,18 @@ mod tests {
         fs::write(root.path().join("shop.lgs"), "second\n").expect("second");
 
         assert!(discover_schema_files(root.path()).is_err());
+    }
+
+    #[test]
+    fn rejects_flattened_namespace_collisions() {
+        let root = TempDir::new().expect("root");
+        fs::create_dir(root.path().join("shop")).expect("nested directory");
+        fs::write(root.path().join("shop.checkout.lgs"), "first\n").expect("flat source");
+        fs::write(root.path().join("shop/checkout.lgs"), "second\n").expect("nested source");
+
+        let error = discover_schema_files(root.path()).expect_err("namespace collision");
+        assert!(error
+            .to_string()
+            .contains("schema namespace `shop.checkout`"));
     }
 }

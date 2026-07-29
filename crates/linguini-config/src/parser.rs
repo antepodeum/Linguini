@@ -524,6 +524,31 @@ mod tests {
     }
 
     #[test]
+    fn normalizes_safe_project_relative_paths() {
+        let config = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = " ./linguini//schema/ "
+            locale = "./linguini/locale/"
+            [targets.ts]
+            out = "./src//generated/linguini/"
+            "#,
+        )
+        .expect("normalized paths");
+
+        assert_eq!(config.paths.schema, "linguini/schema");
+        assert_eq!(config.paths.locale, "linguini/locale");
+        assert_eq!(
+            config.targets.ts.expect("target").out,
+            "src/generated/linguini"
+        );
+    }
+
+    #[test]
     fn parses_typescript_codegen_target() {
         let config = parse_config(
             r#"
