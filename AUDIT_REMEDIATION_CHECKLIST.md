@@ -45,6 +45,8 @@ production path uses the fix and its relevant tests pass.
 - `d82d239` — append-only locale cookie persistence through supported response sinks.
 - `615b24d` — portable, injective namespace filenames plus locale-component and
   case-insensitive output-collision validation.
+- `8f62f82`, `8ea9901` — absolute-path preservation before validation plus executable
+  project-path normalization and filesystem-namespace collision contracts.
 - `6604bac` — explicit JSON and SARIF 2.1.0 CLI diagnostics with source ranges,
   related locations, stable rule IDs, severities, and quick fixes.
 - `cbd4cb3` — scoped public analyzer/type guarantees, exact lint severities,
@@ -65,8 +67,12 @@ production path uses the fix and its relevant tests pass.
   extension aliases, and one canonical locale-resolution service consumed by CLI and codegen.
 - `581fb85` — removed regex HTML rewriting and response buffering, centralized anchor
   skip policy, and added bounded per-instance browser observers with HMR disposal.
+- `c98a2ac`, `dd275c6` — unambiguous filesystem/group namespace documentation,
+  migration rules, canonical-path collision semantics, and a project-build contract test.
 - `6089d95` — delegated web locale fallback to the generated CLDR resolver and
   delegated trailing-slash canonicalization to SvelteKit page options.
+- `b5b2a69` — added a SHA-pinned workspace public-API compatibility job against
+  each pull request base or pre-push revision.
 - `f378a5f` — formatter parsing now reuses the validated parser's lossless token stream,
   with a regression test proving one lexer invocation per source.
 
@@ -478,7 +484,7 @@ production path uses the fix and its relevant tests pass.
 - [-] #348 — Remove unshipped syntax/CJS claims and align the reference with conformance.
 - [x] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
 - [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
-- [ ] #351 — Define project and path namespace behavior unambiguously.
+- [x] #351 — Define project and path namespace behavior unambiguously.
 - [ ] #352 — Execute examples through compile, typecheck, and runtime golden tests.
 - [ ] #353 — Document actual CLDR formatter limits and fallback behavior.
 - [ ] #354 — Resolve the unfinished contracts tracked by `REPOSITORY_STATE`.
@@ -498,7 +504,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #365 — Land the pinned `rust-toolchain.toml`.
 - [-] #366 — Standardize and reproducibly verify JavaScript package-manager boundaries.
 - [x] #367 — Land automatic release-version synchronization checks.
-- [ ] #368 — Add public API/semantic-version compatibility checks.
+- [x] #368 — Add public API/semantic-version compatibility checks.
 - [ ] #369 — Make documentation and examples an executable conformance suite.
 
 ## Required documentation migration
@@ -521,7 +527,7 @@ production path uses the fix and its relevant tests pass.
 
 ### `docs/reference.md`
 
-- [ ] DOC-F1 — Specify recursive groups, qualified paths, and collisions.
+- [x] DOC-F1 — Specify recursive groups, qualified paths, and collisions.
 - [ ] DOC-F2 — Specify value leaves, positional calls, and named-object overloads.
 - [ ] DOC-F3 — Specify dedented/raw multiline semantics and brace escaping.
 - [ ] DOC-F4 — Specify `///` attachment and generated/editor propagation.
