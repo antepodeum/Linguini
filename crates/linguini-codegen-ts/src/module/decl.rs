@@ -1,6 +1,6 @@
 use linguini_ir::{IrMessage, IrModule};
 
-use super::emit::schema_type_names;
+use super::emit::{schema_type_aliases, schema_type_names};
 use super::names::{
     escape_comment, escape_string, function_name, property_key, safe_file_stem, safe_identifier,
     ts_type,
@@ -85,6 +85,11 @@ fn emit_type_reexports(schema: &IrModule, shared_import_path: &str, output: &mut
             "export type {{ {} }} from \"{}\";\n\n",
             type_names.join(", "),
             shared_import_path
+        ));
+    }
+    for (public_name, generated_name) in schema_type_aliases(schema) {
+        output.push_str(&format!(
+            "export type {public_name} = {generated_name};\n\n"
         ));
     }
 }

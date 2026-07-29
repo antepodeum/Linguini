@@ -77,6 +77,11 @@ pub fn emit_schema_type_reexports(
             shared_import_path
         ));
     }
+    for (public_name, generated_name) in schema_type_aliases(schema) {
+        output.push_str(&format!(
+            "export type {public_name} = {generated_name};\n\n"
+        ));
+    }
 }
 
 pub fn schema_type_names(schema: &IrModule) -> Vec<String> {
@@ -90,6 +95,37 @@ pub fn schema_type_names(schema: &IrModule) -> Vec<String> {
                 .iter()
                 .map(|item| safe_identifier(&item.name)),
         )
+        .collect()
+}
+
+pub fn schema_type_aliases(schema: &IrModule) -> Vec<(String, String)> {
+    let names = schema
+        .enums
+        .iter()
+        .map(|item| item.name.as_str())
+        .chain(schema.type_aliases.iter().map(|item| item.name.as_str()))
+        .collect::<Vec<_>>();
+    let mut public_name_counts = BTreeMap::new();
+    for name in &names {
+        *public_name_counts
+            .entry(name.rsplit('.').next().unwrap_or(name))
+            .or_insert(0_usize) += 1;
+    }
+    let generated_names = names
+        .iter()
+        .map(|name| safe_identifier(name))
+        .collect::<BTreeSet<_>>();
+
+    names
+        .into_iter()
+        .filter_map(|name| {
+            let public_name = safe_identifier(name.rsplit('.').next().unwrap_or(name));
+            let generated_name = safe_identifier(name);
+            (public_name != generated_name
+                && public_name_counts.get(name.rsplit('.').next().unwrap_or(name)) == Some(&1)
+                && !generated_names.contains(&public_name))
+            .then_some((public_name, generated_name))
+        })
         .collect()
 }
 
@@ -458,4 +494,25 @@ fn dispatch_parameter_indices(function: &IrFunction) -> Vec<usize> {
         .enumerate()
         .filter_map(|(index, parameter)| (parameter.ty != "String").then_some(index))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit_schema_type_reexports;
+    use linguini_ir::{lower_schema, qualify_module};
+    use linguini_syntax::parse_schema;
+
+    #[test]
+    fn namespaced_types_keep_unique_public_aliases() {
+        let mut schema = lower_schema(
+            &parse_schema("enum Fruit { apple }\ntype Money = Decimal\n").expect("schema"),
+        );
+        qualify_module(&mut schema, "shop");
+        let mut output = String::new();
+
+        emit_schema_type_reexports(&schema, "./shared", &mut output);
+
+        assert!(output.contains("export type Fruit = __lgl_name_73686F702E4672756974;"));
+        assert!(output.contains("export type Money = __lgl_name_73686F702E4D6F6E6579;"));
+    }
 }
