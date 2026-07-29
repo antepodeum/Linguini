@@ -11,10 +11,10 @@ mod tree;
 use std::fmt;
 
 use linguini_cldr::built_in_plural_rules;
-use linguini_ir::IrModule;
+use linguini_ir::{validate_ir, IrModule, IrReferenceError, ValidatedIr};
 
 use self::emit::{
-    emit_formatter_data, emit_forms, emit_imports, emit_index, emit_local_functions, emit_messages,
+    emit_formatter_data, emit_forms, emit_imports, emit_local_functions, emit_messages,
     emit_schema_type_reexports, emit_variables,
 };
 use self::shared::emit_shared;
@@ -154,31 +154,94 @@ pub struct TypeScriptGeneratedFile {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptCodegenError {
-    message: String,
+pub enum TypeScriptCodegenError {
+    InvalidIr {
+        scope: String,
+        errors: Vec<IrReferenceError>,
+    },
+    MissingPluralRules {
+        locale: String,
+    },
 }
 
 impl TypeScriptCodegenError {
     fn missing_plural_rules(locale: &str) -> Self {
-        Self {
-            message: format!("missing built-in CLDR plural rules for configured locale `{locale}`"),
+        Self::MissingPluralRules {
+            locale: locale.to_owned(),
+        }
+    }
+
+    fn invalid_ir(scope: impl Into<String>, errors: Vec<IrReferenceError>) -> Self {
+        Self::InvalidIr {
+            scope: scope.into(),
+            errors,
         }
     }
 }
 
 impl fmt::Display for TypeScriptCodegenError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.message)
+        match self {
+            Self::InvalidIr { scope, errors } => {
+                write!(formatter, "invalid IR for {scope}")?;
+                for error in errors {
+                    write!(formatter, "\n{}: {}", error.code, error.message)?;
+                }
+                Ok(())
+            }
+            Self::MissingPluralRules { locale } => write!(
+                formatter,
+                "missing built-in CLDR plural rules for configured locale `{locale}`"
+            ),
+        }
     }
 }
 
 impl std::error::Error for TypeScriptCodegenError {}
 
+/// Validated input for project-level TypeScript generation.
+///
+/// Construction validates the schema and every fallback-composed locale module. Its private
+/// fields prevent production callers from bypassing the IR validation boundary.
+#[derive(Debug)]
+pub struct ValidatedTypeScriptProject<'a> {
+    schema: &'a IrModule,
+    locales: Vec<TypeScriptLocaleModule>,
+    options: TypeScriptProjectOptions,
+}
+
+impl<'a> ValidatedTypeScriptProject<'a> {
+    pub fn try_new(
+        schema: &'a IrModule,
+        locales: &[TypeScriptLocaleModule],
+        options: &TypeScriptProjectOptions,
+    ) -> Result<Self, TypeScriptCodegenError> {
+        let empty_locale = IrModule::default();
+        validate_codegen_ir(schema, &empty_locale, "schema")?;
+
+        let locales = fallback_locale_modules(locales, options.base_locale.as_deref());
+        for locale in &locales {
+            validate_codegen_ir(
+                schema,
+                &locale.module,
+                format!("locale `{}`", locale.locale),
+            )?;
+        }
+
+        Ok(Self {
+            schema,
+            locales,
+            options: options.clone(),
+        })
+    }
+}
+
 pub fn generate_typescript_project_files(
-    schema: &IrModule,
-    locales: &[TypeScriptLocaleModule],
-    options: &TypeScriptProjectOptions,
+    project: &ValidatedTypeScriptProject<'_>,
 ) -> Result<Vec<TypeScriptGeneratedFile>, TypeScriptCodegenError> {
+    let schema = project.schema;
+    let locales = &project.locales;
+    let options = &project.options;
     let mut files = vec![TypeScriptGeneratedFile {
         path: "shared.ts".to_owned(),
         contents: generate_shared_module(schema),
@@ -198,20 +261,23 @@ pub fn generate_typescript_project_files(
         });
     }
 
-    let fallback_locales = fallback_locale_modules(locales, options.base_locale.as_deref());
-
-    for locale in &fallback_locales {
+    for locale in locales {
         let locale_options = project_locale_options(&locale.locale, options)?;
         let visible_schema = visible_schema(schema, &locale_options);
+        let visible_locale = locale_module_for_schema(&locale.module, &visible_schema);
         let namespaces = top_level_namespaces(&visible_schema);
         for namespace in &namespaces {
             let namespace_schema = namespace_module(&visible_schema, namespace);
-            let namespace_locale = namespace_module(&locale.module, namespace);
+            let namespace_locale = namespace_module(&visible_locale, namespace);
+            let validated = validate_codegen_ir(
+                &namespace_schema,
+                &namespace_locale,
+                format!("locale `{}` namespace `{namespace}`", locale.locale),
+            )?;
             files.push(TypeScriptGeneratedFile {
                 path: format!("locales/{}/{}.ts", locale.locale, namespace),
                 contents: generate_typescript_module_with_shared_import(
-                    &namespace_schema,
-                    &namespace_locale,
+                    &validated,
                     &locale_options,
                     "../../shared",
                     Some(namespace),
@@ -230,18 +296,22 @@ pub fn generate_typescript_project_files(
         }
 
         let (barrel_schema, barrel_locale) = if namespaces.is_empty() {
-            (visible_schema.clone(), locale.module.clone())
+            (visible_schema.clone(), visible_locale)
         } else {
             (
                 root_module(&visible_schema),
-                root_module_with_locale_items(&locale.module),
+                root_module_with_locale_items(&visible_locale),
             )
         };
+        let validated = validate_codegen_ir(
+            &barrel_schema,
+            &barrel_locale,
+            format!("locale `{}` barrel", locale.locale),
+        )?;
         files.push(TypeScriptGeneratedFile {
             path: format!("locales/{}.ts", locale.locale),
             contents: generate_typescript_module_with_namespaces(
-                &barrel_schema,
-                &barrel_locale,
+                &validated,
                 &locale_options,
                 &namespaces,
             ),
@@ -320,54 +390,20 @@ pub fn generate_typescript_project_files(
     Ok(files)
 }
 
-pub fn generate_typescript_files(
-    schema: &IrModule,
-    locale: &IrModule,
-    options: &TypeScriptOptions,
-) -> Vec<TypeScriptGeneratedFile> {
-    vec![
-        TypeScriptGeneratedFile {
-            path: "shared.ts".to_owned(),
-            contents: generate_shared_module(schema),
-        },
-        TypeScriptGeneratedFile {
-            path: "shared.d.ts".to_owned(),
-            contents: decl::generate_shared_declaration(schema),
-        },
-        TypeScriptGeneratedFile {
-            path: format!("locales/{}.ts", options.locale),
-            contents: generate_typescript_module(schema, locale, options),
-        },
-        TypeScriptGeneratedFile {
-            path: format!("locales/{}.d.ts", options.locale),
-            contents: decl::generate_locale_declaration(schema),
-        },
-        TypeScriptGeneratedFile {
-            path: "index.ts".to_owned(),
-            contents: generate_index_module(options),
-        },
-        TypeScriptGeneratedFile {
-            path: "index.d.ts".to_owned(),
-            contents: decl::generate_index_declaration(options),
-        },
-    ]
-}
-
-pub fn generate_typescript_module(
-    schema: &IrModule,
-    locale: &IrModule,
-    options: &TypeScriptOptions,
-) -> String {
-    generate_typescript_module_with_namespaces(schema, locale, options, &[])
-}
-
 fn generate_typescript_module_with_namespaces(
+    ir: &ValidatedIr<'_>,
+    options: &TypeScriptOptions,
+    namespaces: &[String],
+) -> String {
+    generate_typescript_module_unchecked(ir.schema(), ir.locale(), options, namespaces)
+}
+
+fn generate_typescript_module_unchecked(
     schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,
     namespaces: &[String],
 ) -> String {
-    let schema = visible_schema(schema, options);
     let mut output = String::new();
     for namespace in namespaces {
         output.push_str(&format!(
@@ -375,41 +411,52 @@ fn generate_typescript_module_with_namespaces(
             namespace, options.locale, namespace
         ));
     }
-    emit_imports(&schema, locale, options, "../shared", &mut output);
+    emit_imports(schema, locale, options, "../shared", &mut output);
     if !namespaces.is_empty() {
         output.push('\n');
     }
     emit::emit_plural_helpers(options, &mut output);
-    emit_formatter_data(&schema, locale, options, &mut output);
-    emit_schema_type_reexports(&schema, "../shared", &mut output);
+    emit_formatter_data(schema, locale, options, &mut output);
+    emit_schema_type_reexports(schema, "../shared", &mut output);
     for namespace in namespaces {
         output.push_str(&format!("export {{ {namespace} }};\n\n"));
     }
     emit_variables(locale, options, &mut output);
     emit_forms(locale, options, &mut output);
     emit_local_functions(locale, options, &mut output);
-    let exports = emit_messages(&schema, locale, options, &mut output);
+    let exports = emit_messages(schema, locale, options, &mut output);
     emit_locale_default(&exports, namespaces, &mut output);
     output
 }
 
-fn generate_typescript_module_with_shared_import(
+#[cfg(test)]
+pub(crate) fn generate_unvalidated_typescript_module_for_test(
     schema: &IrModule,
     locale: &IrModule,
+    locale_name: &str,
+) -> String {
+    let options = project_locale_options(locale_name, &TypeScriptProjectOptions::default())
+        .expect("test locale must have built-in plural rules");
+    generate_typescript_module_unchecked(schema, locale, &options, &[])
+}
+
+fn generate_typescript_module_with_shared_import(
+    ir: &ValidatedIr<'_>,
     options: &TypeScriptOptions,
     shared_import_path: &str,
     namespace_alias: Option<&str>,
 ) -> String {
-    let schema = visible_schema(schema, options);
+    let schema = ir.schema();
+    let locale = ir.locale();
     let mut output = String::new();
-    emit_imports(&schema, locale, options, shared_import_path, &mut output);
+    emit_imports(schema, locale, options, shared_import_path, &mut output);
     emit::emit_plural_helpers(options, &mut output);
-    emit_formatter_data(&schema, locale, options, &mut output);
-    emit_schema_type_reexports(&schema, shared_import_path, &mut output);
+    emit_formatter_data(schema, locale, options, &mut output);
+    emit_schema_type_reexports(schema, shared_import_path, &mut output);
     emit_variables(locale, options, &mut output);
     emit_forms(locale, options, &mut output);
     emit_local_functions(locale, options, &mut output);
-    let exports = emit_messages(&schema, locale, options, &mut output);
+    let exports = emit_messages(schema, locale, options, &mut output);
     emit_locale_default(&exports, &[], &mut output);
     if let Some(namespace_alias) = namespace_alias {
         let alias_is_exported = exports
@@ -422,6 +469,14 @@ fn generate_typescript_module_with_shared_import(
         }
     }
     output
+}
+
+fn validate_codegen_ir<'a>(
+    schema: &'a IrModule,
+    locale: &'a IrModule,
+    scope: impl Into<String>,
+) -> Result<ValidatedIr<'a>, TypeScriptCodegenError> {
+    validate_ir(schema, locale).map_err(|errors| TypeScriptCodegenError::invalid_ir(scope, errors))
 }
 
 fn project_locale_options(
@@ -462,6 +517,17 @@ fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
     visible
 }
 
+fn locale_module_for_schema(locale: &IrModule, schema: &IrModule) -> IrModule {
+    let mut visible = locale.clone();
+    visible.messages.retain(|message| {
+        schema
+            .messages
+            .iter()
+            .any(|schema_message| schema_message.name == message.name)
+    });
+    visible
+}
+
 fn top_level_namespaces(module: &IrModule) -> Vec<String> {
     let mut namespaces = module
         .messages
@@ -495,11 +561,7 @@ fn root_module(module: &IrModule) -> IrModule {
 }
 
 fn root_module_with_locale_items(module: &IrModule) -> IrModule {
-    let mut output = root_module(module);
-    output.forms.clear();
-    output.functions.clear();
-    output.variables.clear();
-    output
+    root_module(module)
 }
 
 fn fallback_locale_modules(
@@ -577,6 +639,10 @@ fn locale_fallback_tags(locale: &str) -> Vec<String> {
 }
 
 fn merge_locale_module(target: &mut IrModule, source: &IrModule) {
+    merge_named_items(&mut target.enums, &source.enums, |item| &item.name);
+    merge_named_items(&mut target.type_aliases, &source.type_aliases, |item| {
+        &item.name
+    });
     merge_named_items(&mut target.messages, &source.messages, |message| {
         &message.name
     });
@@ -587,6 +653,19 @@ fn merge_locale_module(target: &mut IrModule, source: &IrModule) {
     merge_named_items(&mut target.functions, &source.functions, |function| {
         &function.name
     });
+    for source_origin in &source.origins {
+        let mut origin = source_origin.clone();
+        if target
+            .origins
+            .iter()
+            .any(|existing| existing.kind == origin.kind && existing.name == origin.name)
+        {
+            // Locale fallback precedence is an explicit semantic replacement. Retain both
+            // provenance records while making that replacement visible to IR validation.
+            origin.is_override = true;
+        }
+        target.origins.push(origin);
+    }
 }
 
 fn merge_named_items<T: Clone>(target: &mut Vec<T>, source: &[T], key: impl Fn(&T) -> &str) {
@@ -624,12 +703,6 @@ fn pascal_identifier(value: &str) -> String {
 fn generate_shared_module(schema: &IrModule) -> String {
     let mut output = String::new();
     emit_shared(schema, &mut output);
-    output
-}
-
-fn generate_index_module(options: &TypeScriptOptions) -> String {
-    let mut output = String::new();
-    emit_index(options, &mut output);
     output
 }
 

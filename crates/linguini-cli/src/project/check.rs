@@ -4,7 +4,7 @@ use linguini_analyzer::{
     QuickFix,
 };
 use linguini_config::{discover_locale_files, discover_schema_files, LinguiniConfig};
-use linguini_syntax::{parse_locale_with_recovery, parse_schema_with_recovery, Span};
+use linguini_syntax::{parse_locale_with_recovery_in, parse_schema_with_recovery_in, Span};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -12,7 +12,10 @@ use super::fixes::missing_locale_fix_id;
 use super::io::{
     path_for_output, read_file, read_project_config, render_file_diagnostics, render_parse_errors,
 };
-use super::sources::{coverage_options, expected_locale_path, locale_index};
+use super::sources::{
+    coverage_options, expected_locale_path, locale_index, project_source_id,
+    schema_project_diagnostics, SourceKind,
+};
 use super::util::{namespace_display, pluralize};
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
@@ -58,14 +61,15 @@ pub fn check_project(root: &Path) -> CliResult<String> {
 
     let mut output = String::new();
     output.push_str("schema files:\n");
-    for file in &schema_files {
+    for (index, file) in schema_files.iter().enumerate() {
         output.push_str(&format!(
             "- {} [{}]\n",
             path_for_output(root, &file.path),
             file.namespace
         ));
         let source = read_file(&file.path)?;
-        let parsed = parse_schema_with_recovery(&source);
+        let parsed =
+            parse_schema_with_recovery_in(&source, project_source_id(SourceKind::Schema, index)?);
         let has_syntax_errors = !parsed.errors.is_empty();
         if has_syntax_errors {
             error_output.push_str(&render_parse_errors(
@@ -89,7 +93,7 @@ pub fn check_project(root: &Path) -> CliResult<String> {
     }
 
     output.push_str("locale files:\n");
-    for file in &locale_files {
+    for (index, file) in locale_files.iter().enumerate() {
         output.push_str(&format!(
             "- {} [{}:{}]\n",
             path_for_output(root, &file.path),
@@ -97,7 +101,8 @@ pub fn check_project(root: &Path) -> CliResult<String> {
             file.namespace
         ));
         let source = read_file(&file.path)?;
-        let parsed = parse_locale_with_recovery(&source);
+        let parsed =
+            parse_locale_with_recovery_in(&source, project_source_id(SourceKind::Locale, index)?);
         let has_syntax_errors = !parsed.errors.is_empty();
         if has_syntax_errors {
             invalid_locale_keys.insert((file.namespace.clone(), file.locale.clone()));
@@ -127,6 +132,24 @@ pub fn check_project(root: &Path) -> CliResult<String> {
                 ast,
             });
         }
+    }
+
+    let schema_semantics = schema_project_diagnostics(&parsed_schema_files);
+    for schema_file in &parsed_schema_files {
+        let diagnostics = schema_semantics
+            .iter()
+            .filter(|diagnostic| diagnostic.span.source == schema_file.ast.span.source)
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut rendered = ProjectDiagnosticOutput::default();
+        rendered.push(
+            root,
+            &schema_file.file.path,
+            &schema_file.source,
+            &diagnostics,
+        );
+        error_output.push_str(&rendered.errors);
+        warning_output.push_str(&rendered.warnings);
     }
 
     let schema_namespaces = schema_files
@@ -161,7 +184,7 @@ fn render_project_coverage_diagnostics(
     schema_namespaces: &BTreeSet<String>,
     invalid_locale_keys: &BTreeSet<(String, String)>,
 ) -> CliResult<ProjectDiagnosticOutput> {
-    let locale_index = locale_index(locale_files);
+    let locale_index = locale_index(locale_files)?;
     let mut output = ProjectDiagnosticOutput::default();
 
     for schema_file in schema_files {

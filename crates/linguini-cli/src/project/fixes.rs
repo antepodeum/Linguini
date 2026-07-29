@@ -84,7 +84,7 @@ fn render_fix_list(fixes: &[ProjectFix]) -> String {
 fn available_project_fixes(root: &Path, config: &LinguiniConfig) -> CliResult<Vec<ProjectFix>> {
     let schema_files = load_schema_sources(root, config)?;
     let locale_files = load_locale_sources(root, config)?;
-    let locale_index = locale_index(&locale_files);
+    let locale_index = locale_index(&locale_files)?;
     let mut fixes = Vec::new();
 
     for schema_file in &schema_files {

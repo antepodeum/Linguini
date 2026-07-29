@@ -10,7 +10,7 @@ use linguini_ir::{lower_locale, lower_schema, IrMessage, IrModule};
 
 use crate::{CliError, CliResult};
 
-use super::codegen::{merge_module, merge_module_fallback};
+use super::codegen::{merge_module, merge_module_fallback, namespaced_module};
 use super::io::read_project_config;
 use super::sources::{load_locale_sources, load_schema_sources, locale_index};
 use super::ParsedSchemaSource;
@@ -114,7 +114,7 @@ fn generate_project_data_with_style(root: &Path, style: OutputStyle) -> CliResul
     let schema_sources = load_schema_sources(root, &config)?;
     let schema = load_merged_schema(&schema_sources);
     let locales = load_locale_sources(root, &config)?;
-    let locale_index = locale_index(&locales);
+    let locale_index = locale_index(&locales)?;
     let mut locale_modules = BTreeMap::new();
 
     for locale in &config.project.locales {
@@ -126,14 +126,14 @@ fn generate_project_data_with_style(root: &Path, style: OutputStyle) -> CliResul
             if let Some(locale_file) = locale_index.get(&locale_key) {
                 merge_module(
                     &mut module,
-                    namespace_messages(lower_locale(&locale_file.ast), namespace),
+                    namespaced_module(lower_locale(&locale_file.ast), namespace),
                 );
             }
             if locale != &config.project.default_locale {
                 if let Some(default_file) = locale_index.get(&default_key) {
                     merge_module_fallback(
                         &mut module,
-                        namespace_messages(lower_locale(&default_file.ast), namespace),
+                        namespaced_module(lower_locale(&default_file.ast), namespace),
                     );
                 }
             }
@@ -150,21 +150,10 @@ fn load_merged_schema(schema_sources: &[ParsedSchemaSource]) -> IrModule {
     for source in schema_sources {
         merge_module(
             &mut schema,
-            namespace_messages(lower_schema(&source.ast), &source.file.namespace),
+            namespaced_module(lower_schema(&source.ast), &source.file.namespace),
         );
     }
     schema
-}
-
-fn namespace_messages(mut module: IrModule, namespace: &str) -> IrModule {
-    if namespace.is_empty() {
-        return module;
-    }
-
-    for message in &mut module.messages {
-        message.name = format!("{namespace}.{}", message.name);
-    }
-    module
 }
 
 fn render_generated_data(
@@ -533,7 +522,7 @@ mod tests {
 
     #[test]
     fn namespace_qualification_matches_codegen_messages() {
-        let qualified = namespace_messages(schema("delivery\n"), "shop.checkout");
+        let qualified = namespaced_module(schema("delivery\n"), "shop.checkout");
 
         assert_eq!(qualified.messages[0].name, "shop.checkout.delivery");
     }

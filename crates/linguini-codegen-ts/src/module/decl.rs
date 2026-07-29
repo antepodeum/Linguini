@@ -2,34 +2,14 @@ use linguini_ir::{IrMessage, IrModule};
 
 use super::emit::schema_type_names;
 use super::names::{escape_comment, escape_string, function_name, property_key, ts_type};
-use super::templates::{render_template, SHARED_DECLARATIONS, SINGLE_INDEX_DECLARATIONS};
+use super::templates::SHARED_DECLARATIONS;
 use super::tree::{nested_message_tree, MessageTree};
-use super::TypeScriptOptions;
 
 pub fn generate_shared_declaration(schema: &IrModule) -> String {
     let mut output = String::new();
     emit_type_declarations(schema, &mut output);
     output.push_str(SHARED_DECLARATIONS);
     output
-}
-
-pub fn generate_index_declaration(options: &TypeScriptOptions) -> String {
-    let locale = options.locale.replace('-', "_");
-    let locale_path = escape_string(&options.locale);
-    let locale_literal = format!("\"{}\"", escape_string(&options.locale));
-
-    render_template(
-        SINGLE_INDEX_DECLARATIONS,
-        &[
-            ("LOCALE_IDENTIFIER", locale),
-            ("LOCALE_PATH", locale_path),
-            ("LOCALE_LITERAL", locale_literal),
-        ],
-    )
-}
-
-pub fn generate_locale_declaration(schema: &IrModule) -> String {
-    generate_locale_declaration_with_shared_import(schema, "../shared", None)
 }
 
 pub fn generate_locale_declaration_with_namespaces(

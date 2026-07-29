@@ -4,7 +4,9 @@ pub const PROJECT_INDEX_ENTRY: &str = include_str!("templates/project-index.entr
 pub const PROJECT_INDEX_DECLARATIONS: &str = include_str!("templates/project-index.entry.d.ts");
 pub const SHARED_RUNTIME: &str = include_str!("templates/shared.runtime.ts");
 pub const SHARED_DECLARATIONS: &str = include_str!("templates/shared.runtime.d.ts");
+#[cfg(test)]
 pub const SINGLE_INDEX_RUNTIME: &str = include_str!("templates/single-index.runtime.ts");
+#[cfg(test)]
 pub const SINGLE_INDEX_DECLARATIONS: &str = include_str!("templates/single-index.runtime.d.ts");
 pub const SVELTE_RUNTIME: &str = include_str!("templates/svelte.runtime.ts");
 pub const SVELTE_DECLARATIONS: &str = include_str!("templates/svelte.runtime.d.ts");

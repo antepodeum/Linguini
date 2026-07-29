@@ -505,6 +505,7 @@ dependencies = [
  "linguini-format",
  "linguini-ir",
  "linguini-lsp",
+ "linguini-schema",
  "linguini-syntax",
  "linguini-test-support",
  "predicates",

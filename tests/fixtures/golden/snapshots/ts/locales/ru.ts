@@ -1,5 +1,6 @@
 import { email_input } from "./ru/email_input";
 import type { Fruit, Size, Money, ShortDate } from "../shared";
+import { selectBranch } from "../shared";
 
 
 function pluralRu(value: number | string): string {
@@ -146,12 +147,32 @@ export type { Fruit, Size, Money, ShortDate } from "../shared";
 
 export { email_input };
 
-/**  Displayed on the product delivery confirmation card. */
+const cart_label = "В корзине";
+
+const FruitForms = {
+  apple: { Gender: "neuter", emoji: "🍎", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "яблоко", few: "яблока", _: "яблок" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "яблока", _: "яблок" }), display: { short: "ябл.", long: "спелое яблоко" } },
+  pear: { Gender: "female", emoji: "🍐", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "груша", few: "груши", _: "груш" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "груши", _: "груш" }) },
+  orange: { Gender: "male", emoji: "🍊", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "апельсин", few: "апельсина", _: "апельсинов" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "апельсина", _: "апельсинов" }) },
+} as const;
+
+function Delivered(p0: string | number, p1: string | number): string {
+  return selectBranch(pluralRu(p0), { one: selectBranch(String(p1), { male: "Доставлен", female: "Доставлена", neuter: "Доставлено", _: "Доставлено" }), _: "Доставлены" });
+}
+
+function SizeAdj(p0: string | number, p1: string | number, p2: string | number): string {
+  return selectBranch(String(p0), { small: selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { male: "маленький", female: "маленькая", neuter: "маленькое", _: "маленький" }), _: "маленьких" }), big: selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { male: "большой", female: "большая", neuter: "большое", _: "большой" }), _: "больших" }), _: "обычные" });
+}
+
+function DeliveryNote(item: string | number, p1: string | number, p2: string | number): string {
+  return selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { female: "Доставлена " + String(item), _: "Доставлен " + String(item) }), _: "Доставлены " + String(item) });
+}
+
+/** Displayed on the product delivery confirmation card. */
 export function delivery(fruit: Fruit, size: Size, count: number): string {
   return String(Delivered(count, FruitForms[fruit].Gender)) + " " + String(SizeAdj(size, count, FruitForms[fruit].Gender)) + " " + String(FruitForms[fruit].nom(count));
 }
 
-/**  Shown near cart item count. */
+/** Shown near cart item count. */
 export function counted(count: number, fruit: Fruit): string {
   return String(cart_label) + " " + String(formatNumber(count)) + " " + String(FruitForms[fruit].nom(count));
 }

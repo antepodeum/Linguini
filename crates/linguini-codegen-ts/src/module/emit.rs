@@ -12,10 +12,8 @@ use super::expr::{
 };
 use super::formatters::module_uses_formatters;
 use super::names::{
-    escape_comment, escape_string, function_name, property_key, safe_identifier, string_literal,
-    ts_type,
+    escape_comment, escape_string, function_name, property_key, safe_identifier, ts_type,
 };
-use super::templates::{render_template, SINGLE_INDEX_RUNTIME};
 use super::tree::{nested_message_tree, MessageTree};
 use super::TypeScriptOptions;
 
@@ -217,21 +215,6 @@ pub fn emit_messages(
     }
 
     exports
-}
-
-pub fn emit_index(options: &TypeScriptOptions, output: &mut String) {
-    let locale = safe_identifier(&options.locale);
-    let locale_path = escape_string(&options.locale);
-    let locale_literal = string_literal(&options.locale);
-
-    output.push_str(&render_template(
-        SINGLE_INDEX_RUNTIME,
-        &[
-            ("LOCALE_IDENTIFIER", locale),
-            ("LOCALE_PATH", locale_path),
-            ("LOCALE_LITERAL", locale_literal),
-        ],
-    ));
 }
 
 fn emit_message_function(

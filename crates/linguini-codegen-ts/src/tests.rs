@@ -1,8 +1,20 @@
-use crate::{generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions};
+use crate::{
+    TypeScriptCodegenError, TypeScriptGeneratedFile, TypeScriptLocaleModule,
+    TypeScriptProjectOptions, ValidatedTypeScriptProject,
+};
 use linguini_ir::{lower_locale, lower_schema};
 use linguini_syntax::{parse_locale, parse_schema};
 use std::fs;
 use std::path::Path;
+
+fn generate_project_files(
+    schema: &linguini_ir::IrModule,
+    locales: &[TypeScriptLocaleModule],
+    options: &TypeScriptProjectOptions,
+) -> Result<Vec<TypeScriptGeneratedFile>, TypeScriptCodegenError> {
+    let project = ValidatedTypeScriptProject::try_new(schema, locales, options)?;
+    crate::generate_typescript_project_files(&project)
+}
 
 #[test]
 fn generated_module_snapshot_is_stable() {
@@ -13,7 +25,7 @@ fn generated_module_snapshot_is_stable() {
     let locale =
         parse_locale(include_str!("../../../tests/fixtures/golden/locale/ru.lgl")).expect("locale");
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &lower_schema(&schema),
         &[TypeScriptLocaleModule {
             locale: "ru".to_owned(),
@@ -61,12 +73,10 @@ fn repo_root() -> &'static Path {
 
 #[test]
 fn project_codegen_owns_multilocale_index_files() {
-    use crate::{
-        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
-    };
+    use crate::{TypeScriptLocaleModule, TypeScriptProjectOptions};
     use linguini_ir::IrModule;
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &IrModule::default(),
         &[
             TypeScriptLocaleModule {
@@ -137,7 +147,7 @@ fn project_codegen_owns_multilocale_index_files() {
 fn project_codegen_can_omit_generated_gitignore() {
     use linguini_ir::IrModule;
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &IrModule::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
@@ -157,7 +167,7 @@ fn project_codegen_can_omit_generated_gitignore() {
 fn project_runtime_index_snapshot_is_stable() {
     use linguini_ir::IrModule;
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &IrModule::default(),
         &[
             TypeScriptLocaleModule {
@@ -191,9 +201,7 @@ fn project_runtime_index_snapshot_is_stable() {
 
 #[test]
 fn project_codegen_filters_messages_in_tree_shaking_mode() {
-    use crate::{
-        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
-    };
+    use crate::{TypeScriptLocaleModule, TypeScriptProjectOptions};
 
     let schema = lower_schema(&parse_schema("keep\ndrop\ngroup { label help }\n").expect("schema"));
     let locale = lower_locale(
@@ -201,7 +209,7 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
             .expect("locale"),
     );
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
@@ -244,7 +252,7 @@ fn project_codegen_applies_schema_formatter_aliases() {
 type Price = Number @currency(code = "EUR")
 type ShortDate = Date @date(style = "short")
 total(price: Price, created: ShortDate)
-raw(price: Price)
+plain(price: Price)
 "#,
         )
         .expect("schema"),
@@ -253,13 +261,13 @@ raw(price: Price)
         &parse_locale(
             r#"
 total = Total {price} on {created}
-raw = Raw {price @number}
+plain = Raw {price @number}
 "#,
         )
         .expect("locale"),
     );
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
@@ -300,7 +308,7 @@ raw = Raw {price @number}
         .contains("export type ShortDate = Date | number | string;"));
     assert!(locale_module
         .contents
-        .contains("export function raw(price: Price): string"));
+        .contains("export function plain(price: Price): string"));
     assert!(locale_module.contents.contains("formatNumber(price)"));
 }
 
@@ -312,7 +320,7 @@ fn project_codegen_applies_primitive_schema_formatters() {
     let locale =
         lower_locale(&parse_locale("summary = {count} / {amount} / {created}\n").expect("locale"));
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
@@ -353,25 +361,13 @@ label = {fruit(count)}: {fruit.label}
         .expect("locale"),
     );
 
-    let files = generate_typescript_project_files(
-        &schema,
-        &[TypeScriptLocaleModule {
-            locale: "en".to_owned(),
-            module: locale,
-        }],
-        &TypeScriptProjectOptions::default(),
-    )
-    .expect("project codegen");
-
-    let locale_module = files
-        .iter()
-        .find(|file| file.path == "locales/en.ts")
-        .expect("locale module");
-    assert!(locale_module.contents.contains(
+    let locale_module =
+        crate::module::generate_unvalidated_typescript_module_for_test(&schema, &locale, "en");
+    assert!(locale_module.contains(
         "apple: Object.assign((value: number | string) => \
 selectBranch(pluralEn(value), { one: \"apple\", _: \"apples\" }), { label: \"Apple\" })"
     ));
-    assert!(locale_module.contents.contains(
+    assert!(locale_module.contains(
         "return String(FruitForms[fruit](count)) + \": \" + \
 String(FruitForms[fruit].label);"
     ));
@@ -398,35 +394,23 @@ label = {fruit(count)}
         .expect("locale"),
     );
 
-    let files = generate_typescript_project_files(
-        &schema,
-        &[TypeScriptLocaleModule {
-            locale: "en".to_owned(),
-            module: locale,
-        }],
-        &TypeScriptProjectOptions::default(),
-    )
-    .expect("project codegen");
-
-    let locale_module = files
-        .iter()
-        .find(|file| file.path == "locales/en.ts")
-        .expect("locale module");
-    assert!(locale_module.contents.contains(
+    let locale_module =
+        crate::module::generate_unvalidated_typescript_module_for_test(&schema, &locale, "en");
+    assert!(locale_module.contains(
         "apple: (value: number | string) => selectBranch(pluralEn(value), \
 { one: \"apples\", few: \"apples\", many: \"apples\", _: \"fruit\" })"
     ));
 }
 
 #[test]
-fn project_codegen_stops_formatter_alias_cycles() {
+fn project_validation_rejects_formatter_alias_cycles() {
     let schema = lower_schema(
         &parse_schema("type First = Second\ntype Second = First\nlabel(value: First)\n")
             .expect("schema"),
     );
     let locale = lower_locale(&parse_locale("label = {value}\n").expect("locale implementation"));
 
-    let files = generate_typescript_project_files(
+    let error = ValidatedTypeScriptProject::try_new(
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
@@ -434,23 +418,94 @@ fn project_codegen_stops_formatter_alias_cycles() {
         }],
         &TypeScriptProjectOptions::default(),
     )
-    .expect("cyclic aliases must not overflow codegen");
+    .expect_err("cyclic aliases must be rejected before codegen");
 
-    let locale_module = files
-        .iter()
-        .find(|file| file.path == "locales/en.ts")
-        .expect("locale module");
-    assert!(locale_module
-        .contents
-        .contains("export function label(value: First): string"));
-    assert!(locale_module.contents.contains("return String(value);"));
-    assert!(!locale_module.contents.contains("function formatNumber("));
-    assert!(!locale_module.contents.contains("function formatDate("));
+    let TypeScriptCodegenError::InvalidIr { errors, .. } = error else {
+        panic!("expected invalid IR error");
+    };
+    assert!(errors.iter().any(|error| error.code == "IR008"));
+}
+
+#[test]
+fn project_validation_rejects_unresolved_locale_messages() {
+    let schema = lower_schema(&parse_schema("known\n").expect("schema"));
+    let locale = lower_locale(&parse_locale("unknown = Unknown\n").expect("locale"));
+
+    let error = ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions::default(),
+    )
+    .expect_err("unresolved locale message must be rejected");
+
+    let TypeScriptCodegenError::InvalidIr { scope, errors } = error else {
+        panic!("expected invalid IR error");
+    };
+    assert_eq!(scope, "locale `en`");
+    assert!(errors.iter().any(|error| error.code == "IR010"));
+}
+
+#[test]
+fn project_validation_checks_fallback_composed_modules() {
+    let schema = lower_schema(&parse_schema("greeting\n").expect("schema"));
+    let base = lower_locale(
+        &parse_locale(
+            r#"
+let name = Base
+fn Wrap(value: String) {
+  _ => {value}
+}
+greeting = {Wrap(name)}
+"#,
+        )
+        .expect("base locale"),
+    );
+    let regional = lower_locale(
+        &parse_locale(
+            r#"
+fn Wrap(value: Number) {
+  _ => {value}
+}
+"#,
+        )
+        .expect("regional locale"),
+    );
+    linguini_ir::validate_ir(&schema, &base).expect("base locale is independently valid");
+    linguini_ir::validate_ir(&schema, &regional).expect("regional locale is independently valid");
+
+    let error = ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[
+            TypeScriptLocaleModule {
+                locale: "en".to_owned(),
+                module: base,
+            },
+            TypeScriptLocaleModule {
+                locale: "en-US".to_owned(),
+                module: regional,
+            },
+        ],
+        &TypeScriptProjectOptions {
+            base_locale: Some("en".to_owned()),
+            ..TypeScriptProjectOptions::default()
+        },
+    )
+    .expect_err("invalid fallback composition must be rejected");
+
+    let TypeScriptCodegenError::InvalidIr { scope, errors } = error else {
+        panic!("expected invalid IR error");
+    };
+    assert_eq!(scope, "locale `en-US`");
+    assert!(errors.iter().any(|error| error.code == "IR027"));
 }
 
 #[test]
 fn project_codegen_emits_schema_namespace_objects() {
-    use linguini_ir::{IrMessage, IrModule, IrText, IrTextPart};
+    use linguini_ir::{IrMessage, IrModule, IrText, IrTextBlockMode, IrTextPart};
+    use linguini_syntax::Span;
 
     fn schema_message(name: &str) -> IrMessage {
         IrMessage {
@@ -468,6 +523,8 @@ fn project_codegen_emits_schema_namespace_objects() {
             parameters: Vec::new(),
             body: Some(IrText {
                 parts: vec![IrTextPart::Text(value.to_owned())],
+                mode: IrTextBlockMode::Inline,
+                span: Span::new(0, value.len()),
             }),
         }
     }
@@ -487,7 +544,7 @@ fn project_codegen_emits_schema_namespace_objects() {
         ..IrModule::default()
     };
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
@@ -525,12 +582,11 @@ fn project_codegen_emits_schema_namespace_objects() {
 #[test]
 fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     use crate::{
-        generate_typescript_project_files, TypeScriptFramework, TypeScriptLocaleModule,
-        TypeScriptProjectOptions, TypeScriptWebOptions,
+        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
     };
     use linguini_ir::IrModule;
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &IrModule::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
@@ -622,13 +678,10 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
 
 #[test]
 fn project_codegen_emits_context_only_svelte_without_web_config() {
-    use crate::{
-        generate_typescript_project_files, TypeScriptFramework, TypeScriptLocaleModule,
-        TypeScriptProjectOptions,
-    };
+    use crate::{TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions};
     use linguini_ir::IrModule;
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &IrModule::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
@@ -661,12 +714,10 @@ fn project_codegen_emits_context_only_svelte_without_web_config() {
 
 #[test]
 fn project_codegen_uses_cldr_text_direction_metadata() {
-    use crate::{
-        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
-    };
+    use crate::{TypeScriptLocaleModule, TypeScriptProjectOptions};
     use linguini_ir::IrModule;
 
-    let files = generate_typescript_project_files(
+    let files = generate_project_files(
         &IrModule::default(),
         &[
             TypeScriptLocaleModule {

@@ -6,10 +6,10 @@ export type { Fruit, Size, Money, ShortDate } from "../shared";
 
 export declare const email_input: typeof email_input;
 
-/**  Displayed on the product delivery confirmation card. */
+/** Displayed on the product delivery confirmation card. */
 export declare function delivery(fruit: Fruit, size: Size, count: number): string;
 
-/**  Shown near cart item count. */
+/** Shown near cart item count. */
 export declare function counted(count: number, fruit: Fruit): string;
 
 export declare function price(amount: Money, date: ShortDate): string;

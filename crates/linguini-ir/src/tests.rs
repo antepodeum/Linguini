@@ -1,6 +1,6 @@
 use crate::{
-    ensure_no_unresolved_references, lower_locale, lower_schema, validate_ir, IrExpressionKind,
-    IrTextBlockMode,
+    ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, validate_ir,
+    IrExpressionKind, IrTextBlockMode, IrTextPart,
 };
 use linguini_syntax::{parse_locale, parse_schema, LocaleDeclaration};
 use std::fs;
@@ -207,6 +207,58 @@ fn override_resolution_replaces_value_but_preserves_provenance() {
         .origins
         .last()
         .is_some_and(|origin| origin.is_override));
+}
+
+#[test]
+fn project_namespace_qualifies_declarations_types_references_and_origins() {
+    let schema = parse_schema(
+        "enum Size { small, big }\ntype ChosenSize = Size\nsummary(size: ChosenSize)\n",
+    )
+    .expect("schema parses");
+    let mut schema = lower_schema(&schema);
+    qualify_module(&mut schema, "shop.checkout");
+
+    assert_eq!(schema.enums[0].name, "shop.checkout.Size");
+    assert_eq!(schema.type_aliases[0].name, "shop.checkout.ChosenSize");
+    assert_eq!(schema.type_aliases[0].target, "shop.checkout.Size");
+    assert_eq!(schema.messages[0].name, "shop.checkout.summary");
+    assert_eq!(
+        schema.messages[0].parameters[0].ty,
+        "shop.checkout.ChosenSize"
+    );
+    assert!(schema
+        .origins
+        .iter()
+        .all(|origin| origin.name.starts_with("shop.checkout.")));
+
+    let locale = parse_locale(
+        "form SizeWord(Size) { small => small, big => big }\n\
+         let label = Size\n\
+         summary = {label}: {SizeWord(size)} {fruit.nom(count)}\n",
+    )
+    .expect("locale parses");
+    let mut locale = lower_locale(&locale);
+    qualify_module(&mut locale, "shop.checkout");
+
+    assert_eq!(locale.functions[0].name, "shop.checkout.SizeWord");
+    assert_eq!(locale.functions[0].parameters[0].ty, "shop.checkout.Size");
+    assert_eq!(locale.variables[0].name, "shop.checkout.label");
+    assert_eq!(locale.messages[0].name, "shop.checkout.summary");
+    let paths = locale.messages[0]
+        .body
+        .as_ref()
+        .expect("message body")
+        .parts
+        .iter()
+        .filter_map(|part| match part {
+            IrTextPart::Placeholder(expression) => Some(expression.path.join(".")),
+            IrTextPart::Text(_) => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        paths,
+        ["shop.checkout.label", "shop.checkout.SizeWord", "fruit.nom"]
+    );
 }
 
 fn assert_snapshot(path: &str, snapshot: &str) {
