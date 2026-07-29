@@ -63,6 +63,8 @@ production path uses the fix and its relevant tests pass.
   coercion and visible invalid-date failures.
 - `16d854e`, `f93e516` — pinned CLDR aliases, parent locales, likely subtags, BCP 47
   extension aliases, and one canonical locale-resolution service consumed by CLI and codegen.
+- `581fb85` — removed regex HTML rewriting and response buffering, centralized anchor
+  skip policy, and added bounded per-instance browser observers with HMR disposal.
 
 ## Numbered findings
 
@@ -331,14 +333,14 @@ production path uses the fix and its relevant tests pass.
 - [x] #225 — Compile exclusion globs without prefix overmatching.
 - [x] #226 — Make regular-expression matching stateless.
 - [x] #227 — Define a consistent URL parse/error contract.
-- [ ] #228 — Replace unsafe regex HTML rewriting.
-- [ ] #229 — Share server/client link skip rules.
-- [ ] #230 — Preserve SvelteKit streaming.
+- [x] #228 — Replace unsafe regex HTML rewriting.
+- [x] #229 — Share server/client link skip rules.
+- [x] #230 — Preserve SvelteKit streaming.
 - [x] #231 — Namespace generated `locals` fields.
 - [x] #232 — Provide explicit hook composition contracts.
 - [x] #233 — Wire configured redirect status or remove the dead option.
-- [ ] #234 — Give runtime link observers per-app/HMR ownership.
-- [ ] #235 — Batch and bound DOM observation.
+- [x] #234 — Give runtime link observers per-app/HMR ownership.
+- [x] #235 — Batch and bound DOM observation.
 - [ ] #236 — Replace eager locale imports.
 
 ### `linguini-cli`
@@ -701,7 +703,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] P2-7 — Positional plus named-object overloads.
 - [-] P2-8 — Nested web config plus generated feature modules.
 - [ ] P2-9 — One shared browser/server locale transition plan.
-- [ ] P2-10 — Safe streaming-compatible link localization.
+- [x] P2-10 — Safe streaming-compatible link localization.
 - [-] P2-11 — Fully incremental/cancellable namespace-aware LSP.
 - [-] P2-12 — Native npm/VSIX plus universal WASM distribution.
 - [x] P2-13 — Real TOML parsing and migration diagnostics.
