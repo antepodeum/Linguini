@@ -53,6 +53,8 @@ production path uses the fix and its relevant tests pass.
   enum-valued form properties, locale-symbol bindings, and collision-safe public type aliases.
 - `a449ce0` — removed the unreachable generated redirect-status override and fixed canonical
   redirects to the runtime contract's temporary 307 response.
+- `b58b66c` — confined generated request state to the typed `locals.linguini` namespace and
+  removed collision-prone generic SvelteKit locals.
 
 ## Numbered findings
 
@@ -324,7 +326,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] #228 — Replace unsafe regex HTML rewriting.
 - [ ] #229 — Share server/client link skip rules.
 - [ ] #230 — Preserve SvelteKit streaming.
-- [ ] #231 — Namespace generated `locals` fields.
+- [x] #231 — Namespace generated `locals` fields.
 - [ ] #232 — Provide explicit hook composition contracts.
 - [x] #233 — Wire configured redirect status or remove the dead option.
 - [ ] #234 — Give runtime link observers per-app/HMR ownership.
