@@ -10,8 +10,8 @@ pub use data::{
     PluralCategoryRule, PluralRules, CLDR_DATA_MANIFEST_JSON,
 };
 pub use locale::{
-    canonicalize_locale, locale_fallback_chain, locale_fallback_chain_for, maximize_locale,
-    LocaleError, LocaleFallbackComponent,
+    canonicalize_locale, locale_fallback_chain, locale_fallback_chain_for,
+    locale_resolution_candidates, maximize_locale, LocaleError, LocaleFallbackComponent,
 };
 pub use plural::{
     evaluate_plural_rule, parse_plural_rule, Condition, Operand, OperandExpression, PluralOperands,

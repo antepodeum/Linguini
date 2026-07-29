@@ -840,15 +840,24 @@ pub(crate) fn locale_fallback_chain(
 ) -> Vec<String> {
     let mut chain = Vec::new();
     let tags = cldr_locale_fallback_chain(locale).unwrap_or_else(|_| vec![locale.to_owned()]);
-    for tag in tags {
-        if let Some(exact) = locales
-            .iter()
-            .find(|entry| {
+    for (index, tag) in tags.into_iter().enumerate() {
+        let raw_match = locales.iter().find(|entry| {
+            if index == 0 {
+                entry.locale.eq_ignore_ascii_case(locale)
+            } else {
+                entry.locale.eq_ignore_ascii_case(&tag)
+            }
+        });
+        let canonical_match = || {
+            locales.iter().find(|entry| {
                 canonicalize_locale(&entry.locale).map_or_else(
                     |_| entry.locale.eq_ignore_ascii_case(&tag),
                     |canonical| canonical.eq_ignore_ascii_case(&tag),
                 )
             })
+        };
+        if let Some(exact) = raw_match
+            .or_else(canonical_match)
             .map(|entry| entry.locale.clone())
         {
             if !chain.contains(&exact) {

@@ -20,4 +20,7 @@ export type Linguini = (typeof localeModules)[LinguiniLanguage];
 
 type LinguiniLanguageInput = LinguiniLanguage;
 
+const localeResolutionOverrides: Readonly<Record<string, Locale | null>> = {
+{{LOCALE_RESOLUTION_OVERRIDES}}};
+
 {{INDEX_RUNTIME}}

@@ -10,7 +10,7 @@ pub(crate) const SOURCE_REF: &str = "48.2.0";
 pub(crate) const SOURCE_COMMIT: &str = "bb334e8d6250c9363e957e131bf7e6d08ec72f91";
 pub(crate) const SOURCE_GIT_TREE: &str = "b297a9501ae136e59d006f0497204524a5478cc9";
 pub(crate) const SOURCE_TREE_SHA256: &str =
-    "24d42c3741c9a8922351847c3ee86e4358100bd8bf4f742061eb8a7a59f07931";
+    "43f9c05e527625fcc5e2df8481c4e2351855e1fc057c0f348acc659cd41ad347";
 pub(crate) const CLDR_VERSION: &str = "48.2.0";
 pub(crate) const UNICODE_VERSION: &str = "16.0.0";
 pub(crate) const EXPECTED_LOCALE_COUNT: usize = 766;
@@ -18,11 +18,13 @@ pub(crate) const EXPECTED_LOCALE_COUNT: usize = 766;
 const ALIASES_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/aliases.json";
 const PARENT_LOCALES_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/parentLocales.json";
 const LIKELY_SUBTAGS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/likelySubtags.json";
+const BCP47_RELATIVE_PATH: &str = "cldr-json/cldr-bcp47/bcp47";
 const PLURALS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/plurals.json";
 const LAYOUT_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-misc-full/main";
 const NUMBERS_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-numbers-full/main";
 const DATES_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-dates-full/main";
-const PACKAGE_RELATIVE_PATHS: [&str; 4] = [
+const PACKAGE_RELATIVE_PATHS: [&str; 5] = [
+    "cldr-json/cldr-bcp47/package.json",
     "cldr-json/cldr-core/package.json",
     "cldr-json/cldr-numbers-full/package.json",
     "cldr-json/cldr-dates-full/package.json",
@@ -34,6 +36,7 @@ pub(crate) struct CldrSource {
     aliases: PathBuf,
     parent_locales: PathBuf,
     likely_subtags: PathBuf,
+    bcp47: PathBuf,
     plurals: PathBuf,
     layout_main: PathBuf,
     numbers_main: PathBuf,
@@ -63,6 +66,7 @@ impl CldrSource {
         let aliases = checked_file(&root, ALIASES_RELATIVE_PATH)?;
         let parent_locales = checked_file(&root, PARENT_LOCALES_RELATIVE_PATH)?;
         let likely_subtags = checked_file(&root, LIKELY_SUBTAGS_RELATIVE_PATH)?;
+        let bcp47 = checked_dir(&root, BCP47_RELATIVE_PATH)?;
         let plurals = checked_file(&root, PLURALS_RELATIVE_PATH)?;
         let layout_main = checked_dir(&root, LAYOUT_MAIN_RELATIVE_PATH)?;
         let numbers_main = checked_dir(&root, NUMBERS_MAIN_RELATIVE_PATH)?;
@@ -86,10 +90,11 @@ impl CldrSource {
         }
         let locales: Vec<_> = number_locales.into_iter().collect();
 
-        let mut input_files = Vec::with_capacity(8 + locales.len() * 3);
+        let mut input_files = Vec::with_capacity(25 + locales.len() * 3);
         input_files.push(aliases.clone());
         input_files.push(parent_locales.clone());
         input_files.push(likely_subtags.clone());
+        input_files.extend(json_files(&bcp47)?);
         input_files.push(plurals.clone());
         for package in PACKAGE_RELATIVE_PATHS {
             input_files.push(checked_file(&root, package)?);
@@ -122,6 +127,7 @@ impl CldrSource {
             aliases,
             parent_locales,
             likely_subtags,
+            bcp47,
             plurals,
             layout_main,
             numbers_main,
@@ -142,6 +148,10 @@ impl CldrSource {
 
     pub(crate) fn likely_subtags(&self) -> &Path {
         &self.likely_subtags
+    }
+
+    pub(crate) fn bcp47(&self) -> &Path {
+        &self.bcp47
     }
 
     pub(crate) fn plurals(&self) -> &Path {
@@ -314,6 +324,45 @@ fn locale_directories(main: &Path) -> Result<BTreeSet<String>, String> {
         locales.insert(locale);
     }
     Ok(locales)
+}
+
+fn json_files(directory: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut files = Vec::new();
+    for entry in
+        fs::read_dir(directory).map_err(|error| format!("{}: {error}", directory.display()))?
+    {
+        let entry = entry.map_err(|error| format!("{}: {error}", directory.display()))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|error| format!("{}: {error}", entry.path().display()))?;
+        if file_type.is_symlink() {
+            return Err(format!(
+                "CLDR input must not be a symlink: {}",
+                entry.path().display()
+            ));
+        }
+        if file_type.is_file()
+            && entry
+                .path()
+                .extension()
+                .is_some_and(|value| value == "json")
+        {
+            files.push(
+                entry
+                    .path()
+                    .canonicalize()
+                    .map_err(|error| format!("{}: {error}", entry.path().display()))?,
+            );
+        }
+    }
+    files.sort();
+    if files.is_empty() {
+        return Err(format!(
+            "no CLDR BCP 47 JSON files in {}",
+            directory.display()
+        ));
+    }
+    Ok(files)
 }
 
 fn locale_set_mismatch(

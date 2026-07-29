@@ -1,6 +1,8 @@
 use crate::data::{
-    generated_language_alias, generated_likely_subtag, generated_parent_locale,
-    generated_script_alias, generated_territory_alias, generated_variant_alias,
+    generated_extension_key_alias, generated_extension_type_alias, generated_language_alias,
+    generated_likely_subtag, generated_parent_locale, generated_script_alias,
+    generated_territory_alias, generated_variant_alias, GENERATED_LOCALE_CANDIDATES,
+    GENERATED_NONLIKELY_SCRIPT_PARENT,
 };
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -69,15 +71,21 @@ pub fn locale_fallback_chain(locale: &str) -> Result<Vec<String>, LocaleError> {
     locale_fallback_chain_for(locale, LocaleFallbackComponent::Main)
 }
 
+/// Locale tags represented by the pinned CLDR supplemental resolution graph.
+pub fn locale_resolution_candidates() -> &'static [&'static str] {
+    GENERATED_LOCALE_CANDIDATES
+}
+
 /// Returns component-aware CLDR inheritance order, from most to least specific.
 pub fn locale_fallback_chain_for(
     locale: &str,
     component: LocaleFallbackComponent,
 ) -> Result<Vec<String>, LocaleError> {
-    let canonical = canonical_locale_id(locale)?;
+    let mut canonical = canonical_locale_id(locale)?;
     if canonical.private_only {
         return Ok(vec![canonical.to_tag()]);
     }
+    normalize_placeholder_subtags(&mut canonical);
 
     let mut chain = Vec::new();
     push_unique(&mut chain, canonical.to_tag());
@@ -117,7 +125,11 @@ fn canonical_locale_id(locale: &str) -> Result<LocaleId, LocaleError> {
         return Err(LocaleError::invalid(locale));
     }
 
-    let mut source = locale.to_owned();
+    let mut source = if locale.eq_ignore_ascii_case("root") {
+        "und".to_owned()
+    } else {
+        locale.to_owned()
+    };
     for _ in 0..8 {
         let Some(replacement) = generated_language_alias(&source.to_ascii_lowercase()) else {
             break;
@@ -131,6 +143,9 @@ fn canonical_locale_id(locale: &str) -> Result<LocaleId, LocaleError> {
     let mut parsed = parse_syntax(&source).map_err(|_| LocaleError::invalid(locale))?;
     if parsed.private_only {
         return Ok(parsed);
+    }
+    if parsed.language == "root" {
+        parsed.language = "und".to_owned();
     }
 
     for _ in 0..8 {
@@ -183,9 +198,7 @@ fn canonical_locale_id(locale: &str) -> Result<LocaleId, LocaleError> {
 
     parsed.variants.sort();
     parsed.variants.dedup();
-    parsed
-        .extensions
-        .sort_by(|left, right| left[0].cmp(&right[0]));
+    canonicalize_extensions(&mut parsed.extensions).map_err(|_| LocaleError::invalid(locale))?;
     Ok(parsed)
 }
 
@@ -227,7 +240,11 @@ fn parse_syntax(locale: &str) -> Result<LocaleId, ()> {
     let mut index = 1;
     let mut extlangs = Vec::new();
     if language.len() <= 3 {
-        while index < subtags.len() && extlangs.len() < 3 && valid_alpha(subtags[index], 3, 3) {
+        while index < subtags.len()
+            && extlangs.len() < 3
+            && valid_alpha(subtags[index], 3, 3)
+            && generated_territory_alias(&subtags[index].to_ascii_uppercase()).is_none()
+        {
             extlangs.push(subtags[index].to_ascii_lowercase());
             index += 1;
         }
@@ -239,7 +256,10 @@ fn parse_syntax(locale: &str) -> Result<LocaleId, ()> {
         script
     });
     let region = (index < subtags.len()
-        && (valid_alpha(subtags[index], 2, 2) || valid_numeric(subtags[index], 3, 3)))
+        && (valid_alpha(subtags[index], 2, 2)
+            || valid_numeric(subtags[index], 3, 3)
+            || (valid_alpha(subtags[index], 3, 3)
+                && generated_territory_alias(&subtags[index].to_ascii_uppercase()).is_some())))
     .then(|| {
         let region = subtags[index].to_ascii_uppercase();
         index += 1;
@@ -305,7 +325,7 @@ fn parse_syntax(locale: &str) -> Result<LocaleId, ()> {
     }
 
     variants.sort();
-    extensions.sort_by(|left, right| left[0].cmp(&right[0]));
+    canonicalize_extensions(&mut extensions)?;
     Ok(LocaleId {
         language,
         extlangs,
@@ -439,8 +459,10 @@ fn choose_territory_replacement(locale: &LocaleId, replacements: &str) -> String
 }
 
 fn maximize_id(locale: &LocaleId) -> Option<LocaleId> {
-    let likely = likely_target(locale)?;
-    let mut maximized = locale.clone();
+    let mut normalized = locale.clone();
+    normalize_placeholder_subtags(&mut normalized);
+    let likely = likely_target(&normalized)?;
+    let mut maximized = normalized;
     if maximized.language == "und" {
         maximized.language = likely.language;
         maximized.extlangs = likely.extlangs;
@@ -452,6 +474,15 @@ fn maximize_id(locale: &LocaleId) -> Option<LocaleId> {
         maximized.region = likely.region;
     }
     Some(maximized)
+}
+
+fn normalize_placeholder_subtags(locale: &mut LocaleId) {
+    if locale.script.as_deref() == Some("Zzzz") {
+        locale.script = None;
+    }
+    if locale.region.as_deref() == Some("ZZ") {
+        locale.region = None;
+    }
 }
 
 fn likely_target(locale: &LocaleId) -> Option<LocaleId> {
@@ -502,8 +533,157 @@ fn parent_for(locale: &LocaleId, component: LocaleFallbackComponent) -> Option<L
     if component != LocaleFallbackComponent::Main {
         return None;
     }
-    let parent = generated_parent_locale(&locale.base_tag())?;
-    parse_syntax(parent).ok()
+    if let Some(parent) = generated_parent_locale(&locale.base_tag()) {
+        return parse_syntax(parent).ok();
+    }
+    if locale.region.is_none()
+        && locale.variants.is_empty()
+        && locale.extlangs.is_empty()
+        && locale.script.is_some()
+    {
+        let default_script = maximize_id(&LocaleId::language_only(&locale.language))?.script?;
+        if locale.script.as_ref() != Some(&default_script) {
+            let parent = if GENERATED_NONLIKELY_SCRIPT_PARENT == "root" {
+                "und"
+            } else {
+                GENERATED_NONLIKELY_SCRIPT_PARENT
+            };
+            return Some(LocaleId::language_only(parent));
+        }
+    }
+    None
+}
+
+fn canonicalize_extensions(extensions: &mut [Vec<String>]) -> Result<(), ()> {
+    for extension in extensions.iter_mut() {
+        match extension.first().map(String::as_str) {
+            Some("u") => canonicalize_unicode_extension(extension)?,
+            Some("t") => canonicalize_transform_extension(extension)?,
+            _ => {}
+        }
+    }
+    extensions.sort_by(|left, right| left[0].cmp(&right[0]));
+    Ok(())
+}
+
+fn canonicalize_unicode_extension(extension: &mut Vec<String>) -> Result<(), ()> {
+    let mut index = 1;
+    let mut attributes = Vec::new();
+    while index < extension.len() && extension[index].len() >= 3 {
+        attributes.push(extension[index].clone());
+        index += 1;
+    }
+    attributes.sort();
+    if attributes.windows(2).any(|pair| pair[0] == pair[1]) {
+        return Err(());
+    }
+
+    let mut fields = Vec::new();
+    let mut keys = BTreeSet::new();
+    while index < extension.len() {
+        let raw_key = extension[index].clone();
+        let key = generated_extension_key_alias("u", &raw_key)
+            .unwrap_or(&raw_key)
+            .to_owned();
+        if raw_key.len() != 2 || !keys.insert(key.clone()) {
+            return Err(());
+        }
+        index += 1;
+        let mut values = Vec::new();
+        while index < extension.len() && extension[index].len() >= 3 {
+            values.push(extension[index].clone());
+            index += 1;
+        }
+        apply_extension_type_alias("u", &key, &mut values);
+        if values == ["true"] {
+            values.clear();
+        }
+        fields.push((key, values));
+    }
+    fields.sort_by(|left, right| left.0.cmp(&right.0));
+
+    extension.truncate(1);
+    extension.extend(attributes);
+    for (key, values) in fields {
+        extension.push(key);
+        extension.extend(values);
+    }
+    Ok(())
+}
+
+fn canonicalize_transform_extension(extension: &mut Vec<String>) -> Result<(), ()> {
+    let first_field = extension[1..]
+        .iter()
+        .position(|subtag| is_transform_key(subtag))
+        .map_or(extension.len(), |position| position + 1);
+    let mut language = extension[1..first_field].to_vec();
+    if !language.is_empty() {
+        let canonical = canonical_locale_id(&language.join("-")).map_err(|_| ())?;
+        language = canonical
+            .to_tag()
+            .to_ascii_lowercase()
+            .split('-')
+            .map(str::to_owned)
+            .collect();
+    }
+    let mut index = first_field;
+    let mut fields = Vec::new();
+    let mut keys = BTreeSet::new();
+    while index < extension.len() {
+        let raw_key = extension[index].clone();
+        let key = generated_extension_key_alias("t", &raw_key)
+            .unwrap_or(&raw_key)
+            .to_owned();
+        if !is_transform_key(&raw_key) || !keys.insert(key.clone()) {
+            return Err(());
+        }
+        index += 1;
+        let start = index;
+        let mut values = Vec::new();
+        while index < extension.len() && !is_transform_key(&extension[index]) {
+            values.push(extension[index].clone());
+            index += 1;
+        }
+        if index == start {
+            return Err(());
+        }
+        apply_extension_type_alias("t", &key, &mut values);
+        fields.push((key, values));
+    }
+    fields.sort_by(|left, right| left.0.cmp(&right.0));
+
+    extension.truncate(1);
+    extension.extend(language);
+    for (key, values) in fields {
+        extension.push(key);
+        extension.extend(values);
+    }
+    Ok(())
+}
+
+fn apply_extension_type_alias(extension: &str, key: &str, values: &mut Vec<String>) {
+    for _ in 0..4 {
+        let source = values.join("-");
+        let Some(replacement) = generated_extension_type_alias(extension, key, &source) else {
+            break;
+        };
+        if replacement == source {
+            break;
+        }
+        *values = replacement.split('-').map(str::to_owned).collect();
+    }
+}
+
+fn is_transform_key(value: &str) -> bool {
+    value.len() == 2
+        && value
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_alphabetic())
+        && value
+            .as_bytes()
+            .get(1)
+            .is_some_and(|byte| byte.is_ascii_digit())
 }
 
 fn structural_parent(locale: &LocaleId) -> Option<LocaleId> {
@@ -626,9 +806,28 @@ mod tests {
             ("hy-SU", "hy-AM"),
             ("ja-Latn-hepburn-heploc", "ja-Latn-alalc97"),
             ("en-gb-oed", "en-GB-oxendict"),
+            ("eng-USA", "en-US"),
+            ("root", "und"),
         ] {
             assert_eq!(canonicalize_locale(input).expect(input), expected);
         }
+        assert_eq!(
+            canonicalize_locale("en-u-foo-bar-nu-thai-ca-buddhist-kk-true")
+                .expect("Unicode extension"),
+            "en-u-bar-foo-ca-buddhist-kk-nu-thai"
+        );
+        assert_eq!(
+            canonicalize_locale("iw-u-ms-imperial").expect("extension type alias"),
+            "he-u-ms-uksystem"
+        );
+        assert_eq!(
+            canonicalize_locale("en-t-iw").expect("transform language alias"),
+            "en-t-he"
+        );
+        assert_eq!(
+            canonicalize_locale("root-u-cu-usd").expect("root with extension"),
+            "und-u-cu-usd"
+        );
     }
 
     #[test]
@@ -640,6 +839,10 @@ mod tests {
         assert_eq!(
             maximize_locale("sr-ME").expect("Serbian locale"),
             "sr-Latn-ME"
+        );
+        assert_eq!(
+            maximize_locale("zh-Zzzz-SG").expect("placeholder script"),
+            "zh-Hans-SG"
         );
     }
 
@@ -656,6 +859,14 @@ mod tests {
         assert_eq!(
             locale_fallback_chain("zh-TW").expect("Chinese locale"),
             ["zh-TW", "zh-Hant-TW", "zh-Hant", "und"]
+        );
+        assert_eq!(
+            locale_fallback_chain("ru-Latn").expect("non-likely script"),
+            ["ru-Latn", "und"]
+        );
+        assert_eq!(
+            locale_fallback_chain("zh-Zzzz-SG").expect("placeholder script"),
+            ["zh-SG", "zh", "und"]
         );
     }
 

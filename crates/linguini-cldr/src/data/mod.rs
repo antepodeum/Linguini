@@ -7,8 +7,10 @@ pub use compiled::{
     CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
 };
 pub(crate) use compiled::{
-    generated_language_alias, generated_likely_subtag, generated_parent_locale,
-    generated_script_alias, generated_territory_alias, generated_variant_alias,
+    generated_extension_key_alias, generated_extension_type_alias, generated_language_alias,
+    generated_likely_subtag, generated_parent_locale, generated_script_alias,
+    generated_territory_alias, generated_variant_alias, GENERATED_LOCALE_CANDIDATES,
+    GENERATED_NONLIKELY_SCRIPT_PARENT,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

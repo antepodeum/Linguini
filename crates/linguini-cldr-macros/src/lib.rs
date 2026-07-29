@@ -49,7 +49,7 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "license": "Unicode-3.0"
         },
         "inputs": {
-            "profile": "locale-aliases+parent-locales+likely-subtags+plurals+latn-numbers+latn-currency+gregorian+layout-v2",
+            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+latn-numbers+latn-currency+gregorian+layout-v3",
             "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
             "tree_sha256": source.source_tree_sha256(),
             "file_count": source.input_file_count(),
@@ -69,7 +69,11 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "territory_aliases": generated.locale.territory_aliases,
             "variant_aliases": generated.locale.variant_aliases,
             "parent_locales": generated.locale.parent_locales,
+            "locale_rules": generated.locale.locale_rules,
             "likely_subtags": generated.locale.likely_subtags,
+            "extension_key_aliases": generated.locale.extension_key_aliases,
+            "extension_type_aliases": generated.locale.extension_type_aliases,
+            "locale_candidates": generated.locale.locale_candidates,
             "number_locales": generated.formatting.number_locales,
             "currency_locales": generated.formatting.currency_locales,
             "date_locales": generated.formatting.date_locales,
@@ -126,9 +130,9 @@ mod tests {
     const CHECKED_MANIFEST: &[u8] =
         include_bytes!("../../linguini-cldr/src/data/generated/manifest.json");
     const GOLDEN_ARTIFACT_SHA256: &str =
-        "d07b3a1dbe48aeff7f4c00fb05c1ef4eef61832140e269906beb073266b6cc48";
+        "8b9c1e60f989e462eb776649dd39a4a021876cf7f2b6532f8d628dbdb4e3fc99";
     const GOLDEN_MANIFEST_SHA256: &str =
-        "3390ce27f01cd3e85afd2e65109def6551e2f1896fe22394e0fc029a3c7f18d7";
+        "ded387231550ca6c6c5dacf462e8be85a37d1335a3c6a859cb2729312df3b8c4";
 
     #[test]
     fn checked_artifact_matches_full_pinned_manifest_and_golden_hash() {
@@ -154,16 +158,20 @@ mod tests {
         );
         assert_eq!(
             manifest["inputs"]["tree_sha256"],
-            "24d42c3741c9a8922351847c3ee86e4358100bd8bf4f742061eb8a7a59f07931"
+            "43f9c05e527625fcc5e2df8481c4e2351855e1fc057c0f348acc659cd41ad347"
         );
-        assert_eq!(manifest["inputs"]["file_count"], 2_306);
+        assert_eq!(manifest["inputs"]["file_count"], 2_322);
         assert_eq!(manifest["coverage"]["source_locales"], 766);
         assert_eq!(manifest["coverage"]["language_aliases"], 500);
         assert_eq!(manifest["coverage"]["script_aliases"], 1);
         assert_eq!(manifest["coverage"]["territory_aliases"], 640);
         assert_eq!(manifest["coverage"]["variant_aliases"], 2);
         assert_eq!(manifest["coverage"]["parent_locales"], 199);
+        assert_eq!(manifest["coverage"]["locale_rules"], 1);
         assert_eq!(manifest["coverage"]["likely_subtags"], 7_788);
+        assert_eq!(manifest["coverage"]["extension_key_aliases"], 0);
+        assert_eq!(manifest["coverage"]["extension_type_aliases"], 49);
+        assert_eq!(manifest["coverage"]["locale_candidates"], 8_460);
         assert_eq!(manifest["coverage"]["plural_locales"], 224);
         assert_eq!(manifest["coverage"]["plural_categories"], 499);
         assert_eq!(manifest["coverage"]["number_locales"], 766);

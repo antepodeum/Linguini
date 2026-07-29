@@ -125,11 +125,15 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "d07b3a1dbe48aeff7f4c00fb05c1ef4eef61832140e269906beb073266b6cc48"
+        "8b9c1e60f989e462eb776649dd39a4a021876cf7f2b6532f8d628dbdb4e3fc99"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
+    assert_eq!(manifest["coverage"]["locale_rules"], 1);
     assert_eq!(manifest["coverage"]["likely_subtags"], 7_788);
+    assert_eq!(manifest["coverage"]["extension_key_aliases"], 0);
+    assert_eq!(manifest["coverage"]["extension_type_aliases"], 49);
+    assert_eq!(manifest["coverage"]["locale_candidates"], 8_460);
     assert_eq!(manifest["coverage"]["number_locales"], 766);
     assert_eq!(manifest["coverage"]["date_locales"], 765);
 }

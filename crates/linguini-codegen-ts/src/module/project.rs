@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use super::names::{escape_string, property_key, safe_identifier};
 use super::templates::{
     render_template, INDEX_RUNTIME, INDEX_RUNTIME_DECLARATIONS, PROJECT_INDEX_DECLARATIONS,
@@ -5,7 +7,9 @@ use super::templates::{
     SVELTE_CONTEXT_RUNTIME, SVELTE_DECLARATIONS, SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
 };
 use super::{TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptWebOptions};
-use linguini_cldr::built_in_text_direction;
+use linguini_cldr::{
+    built_in_text_direction, canonicalize_locale, locale_resolution_candidates, maximize_locale,
+};
 
 pub fn generate_project_index(
     locales: &[TypeScriptLocaleModule],
@@ -20,9 +24,93 @@ pub fn generate_project_index(
             ("LOCALE_DIRECTIONS", project_locale_directions(locales)),
             ("LOCALE_MODULES", project_locale_modules(locales)),
             ("LOCALE_LOADERS", project_locale_loaders(locales)),
+            (
+                "LOCALE_RESOLUTION_OVERRIDES",
+                project_locale_resolution_overrides(locales),
+            ),
             ("INDEX_RUNTIME", template_body(INDEX_RUNTIME)),
         ],
     )
+}
+
+fn project_locale_resolution_overrides(locales: &[TypeScriptLocaleModule]) -> String {
+    let mut candidates = locale_resolution_candidates()
+        .iter()
+        .map(|locale| (*locale).to_owned())
+        .collect::<Vec<_>>();
+    for locale in locales {
+        let Ok(canonical) = canonicalize_locale(&locale.locale) else {
+            continue;
+        };
+        let Some(language) = canonical.split('-').next() else {
+            continue;
+        };
+        let Ok(maximized) = maximize_locale(language) else {
+            continue;
+        };
+        if let Some(script) = maximized
+            .split('-')
+            .nth(1)
+            .filter(|subtag| subtag.len() == 4)
+        {
+            candidates.push(format!("{language}-{script}"));
+        }
+    }
+    candidates.sort();
+    candidates.dedup();
+
+    let mut overrides = BTreeMap::new();
+    for candidate in candidates {
+        let resolved = super::locale_fallback_chain(locales, &candidate, None)
+            .into_iter()
+            .next();
+        let runtime_fallback = runtime_locale_match(locales, &candidate);
+        if resolved != runtime_fallback {
+            overrides.insert(candidate.to_ascii_lowercase(), resolved);
+        }
+    }
+
+    overrides
+        .into_iter()
+        .map(|(candidate, resolved)| {
+            let value = resolved.map_or_else(
+                || "null".to_owned(),
+                |locale| format!("\"{}\"", escape_string(&locale)),
+            );
+            format!("  \"{}\": {value},\n", escape_string(&candidate))
+        })
+        .collect()
+}
+
+fn runtime_locale_match(locales: &[TypeScriptLocaleModule], locale: &str) -> Option<String> {
+    let mut tag = locale;
+    loop {
+        if let Some(locale) = locales
+            .iter()
+            .find(|locale| locale.locale.eq_ignore_ascii_case(tag))
+        {
+            return Some(locale.locale.clone());
+        }
+        if is_language_script_tag(tag) {
+            return None;
+        }
+        let dash = tag.rfind('-')?;
+        if dash == 0 {
+            return None;
+        }
+        tag = &tag[..dash];
+    }
+}
+
+fn is_language_script_tag(locale: &str) -> bool {
+    let Some((language, script)) = locale.split_once('-') else {
+        return false;
+    };
+    !language.contains('-')
+        && (2..=8).contains(&language.len())
+        && language.bytes().all(|byte| byte.is_ascii_alphabetic())
+        && script.len() == 4
+        && script.bytes().all(|byte| byte.is_ascii_alphabetic())
 }
 
 pub fn generate_project_index_declaration(

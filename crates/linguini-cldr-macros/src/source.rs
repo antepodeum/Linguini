@@ -25,6 +25,7 @@ pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedT
         source.aliases(),
         source.parent_locales(),
         source.likely_subtags(),
+        source.bcp47(),
     )?;
     let plural_source = fs::read_to_string(source.plurals())
         .map_err(|error| format!("{}: {error}", source.plurals().display()))?;

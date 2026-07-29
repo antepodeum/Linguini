@@ -958,7 +958,7 @@ fn project_fallback_chain_uses_likely_scripts_and_aliases() {
     use crate::module::locale_fallback_chain;
     use linguini_ir::IrModule;
 
-    let locales = ["en", "zh-Hant", "zh-TW", "he", "iw-IL"]
+    let locales = ["en", "zh-Hant", "zh-TW", "he-IL", "iw-IL", "he"]
         .map(|locale| TypeScriptLocaleModule {
             locale: locale.to_owned(),
             module: IrModule::default(),
@@ -973,6 +973,35 @@ fn project_fallback_chain_uses_likely_scripts_and_aliases() {
         locale_fallback_chain(&locales, "iw-IL", Some("en")),
         ["iw-IL", "he", "en"]
     );
+}
+
+#[test]
+fn project_runtime_embeds_cldr_resolution_overrides() {
+    use linguini_ir::IrModule;
+
+    let locales = ["en", "en-001", "zh-Hant"]
+        .map(|locale| TypeScriptLocaleModule {
+            locale: locale.to_owned(),
+            module: IrModule::default(),
+        })
+        .to_vec();
+    let files = generate_project_files(
+        &IrModule::default(),
+        &locales,
+        &TypeScriptProjectOptions {
+            base_locale: Some("en".to_owned()),
+            ..TypeScriptProjectOptions::default()
+        },
+    )
+    .expect("project codegen");
+    let index = files
+        .iter()
+        .find(|file| file.path == "index.ts")
+        .expect("runtime index");
+
+    assert!(index.contents.contains(r#""en-au": "en-001""#));
+    assert!(index.contents.contains(r#""zh-tw": "zh-Hant""#));
+    assert!(index.contents.contains("isLanguageScriptTag(tag)"));
 }
 
 #[test]
