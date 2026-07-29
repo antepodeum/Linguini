@@ -95,7 +95,7 @@ hero {
   term = /lɪŋˈɡwiːni/
   term_kind = SUST.
   term_hint = tiras largas y estrechas de pasta
-  intro = Linguini convierte archivos de localización tipados en código que puede usar cualquier app. Mensajes, gramática, formateadores, fallback de locales y rutas web se validan durante el build.
+  intro = Linguini convierte archivos de locale vinculados al schema en código generado tipado. Antes de generar, check/build informan implementaciones ausentes y validan usos compatibles de formateadores, llamadas de locale y ramas de dispatch que el analizador puede resolver.
   trait_typed = Tipado
   trait_compiled = Compilado
   trait_native = Nativo
@@ -105,7 +105,7 @@ hero {
 
 codegen {
   kicker = Generación de código
-  title = Un esquema, salida tipada para cada runtime
+  title = Un schema, salida TypeScript tipada
   intro = Linguini analiza contratos .lgs y lógica .lgl una vez, luego emite módulos específicos con formateadores CLDR, selectores plurales y adaptadores de framework en tiempo de compilación.
   ts_title = TypeScript / ESM
   ts_desc = Funciones de mensajes tipadas, runtime compartido, archivos de declaración y tree shaking opcional por locale.
@@ -126,7 +126,7 @@ codegen {
 web {
   kicker = SvelteKit
   title = SvelteKit localizado sin cableado i18n manual
-  intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale, updates messages reactively, and turns invalid message arguments into TypeScript errors.
+  intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale and updates messages reactively. Generated message signatures let TypeScript report invalid arguments when the app runs type checking.
   routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
   cookie = Locale changes persist through cookies and browser storage without app-level state.
   fallback = Los datos de la locale base se integran en los módulos generados durante el build.

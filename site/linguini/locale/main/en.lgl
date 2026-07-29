@@ -51,7 +51,7 @@ hero {
   term = /lɪŋˈɡwiːni/
   term_kind = NOUN
   term_hint = long, narrow ribbons of pasta
-  intro = Linguini turns typed localization files into code you can use from any app. Messages, grammar, formatters, locale fallback, and web routing are checked at build time.
+  intro = Linguini turns schema-backed locale files into typed generated code. Before generation, check/build report missing implementations and validate supported formatter uses plus locale calls and dispatch branches the analyzer can resolve.
   trait_typed = Typed
   trait_compiled = Compiled
   trait_native = Native
@@ -61,7 +61,7 @@ hero {
 
 codegen {
   kicker = Code generation
-  title = One schema, typed output for every runtime
+  title = One schema, typed TypeScript output
   intro = Linguini analyzes .lgs contracts and .lgl locale logic once, then emits target-specific modules with CLDR formatters, plural selectors, and framework adapters baked in at build time.
   ts_title = TypeScript / ESM
   ts_desc = Typed message functions, shared runtime, declaration files, and optional per-locale tree shaking.
@@ -82,7 +82,7 @@ codegen {
 web {
   kicker = SvelteKit
   title = Ship localized SvelteKit without handwritten i18n wiring
-  intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale, updates messages reactively, and turns invalid message arguments into TypeScript errors.
+  intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale and updates messages reactively. Generated message signatures let TypeScript report invalid arguments when the app runs type checking.
   routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
   cookie = Locale changes persist through cookies and browser storage without app-level state.
   fallback = Base-locale data is baked into generated locale modules at build time.

@@ -199,18 +199,20 @@ impl Fruit {
 }
 ```
 
-**Typed fields** use `TypeName = value`. The type is inferred from the
-PascalCase key — no ambiguity with lowercase string fields.
+**Enum-valued properties** use `TypeName = value`. When the PascalCase key
+resolves to an enum, locale-expression analysis treats property access as that
+enum type. The current analyzer does not yet validate the property's text value
+against the enum variants.
 
 ```lgl
-Gender = neuter   // typed: Gender enum
-emoji  = 🍎       // plain string field
+Gender = neuter   // property access is inferred as Gender
+emoji  = 🍎       // plain string property
 ```
 
 **Accessing fields and forms in templates:**
 
 ```lgl
-fruit.Gender      // typed field access
+fruit.Gender      // inferred enum-valued property access
 fruit.nom(count)  // form call — count auto-converts to Plural
 ```
 
@@ -264,8 +266,10 @@ form SizeAdj(Size, Plural, Gender) {
 **Ordering:** parameters should go from the enum with fewest variants to the most.
 This keeps the top levels of the dispatch tree narrow (`param_order` lint).
 
-**Exhaustiveness:** all match expressions must be exhaustive. Cover every variant
-explicitly or include `_`. A non-exhaustive form is a compile-time error.
+**Branch coverage:** `linguini check` and `linguini build` require every dispatch
+level they can resolve against a schema/locale enum or `Plural` to cover each
+variant explicitly or include `_`. A missing branch is a blocking diagnostic.
+This is scoped analyzer coverage, not a whole-program exhaustiveness proof.
 
 ---
 
@@ -314,8 +318,8 @@ form F(Gender) {
 
 ### Errors (block codegen)
 
-- Non-exhaustive match without `_`
-- Type mismatch at call site
+- Missing branch in a resolved enum or `Plural` dispatch
+- Type mismatch in a locale function/form call when both types resolve
 - Unresolved reference in interpolation
 - Missing message implementation in locale
 - `impl` variant not declared in its enum
@@ -323,8 +327,10 @@ form F(Gender) {
 
 ### Warnings
 
-- Unused message — in schema, never referenced in source
-- `fn` with no `String` parameters — suggest `form`
+- Style and reachability lints listed below
+
+Linguini does not scan application source for message usage, so it does not
+currently report schema messages that are unused by the application.
 
 ### Machine-readable diagnostics
 
@@ -347,16 +353,18 @@ command exit unsuccessfully, so redirected output remains a complete JSON docume
 
 ## Lints (`linguini check`)
 
-Lints are reported by `linguini check`. Inline lint suppression syntax is not part of the current language.
+Lints are named diagnostics reported by `linguini check`. Five are warnings;
+`incomplete_impl` is a blocking error. Inline lint suppression syntax is not
+part of the current language.
 
-| Lint                 | Description                                      |
-| -------------------- | ------------------------------------------------ |
-| `param_order`        | Order `form` params from fewest variants to most |
-| `unreachable_arm`    | Arm after `_` at the same level                  |
-| `collapsible_arms`   | Multiple arms with identical output              |
-| `fn_without_strings` | `fn` with no `String` params — use `form`        |
-| `incomplete_impl`    | `impl` missing variants declared in enum         |
-| `redundant_wildcard` | All variants covered, `_` is unreachable         |
+| Lint                 | Severity | Description                                      |
+| -------------------- | -------- | ------------------------------------------------ |
+| `param_order`        | warning  | Order `form` params from fewest variants to most |
+| `unreachable_arm`    | warning  | Arm after `_` at the same level                  |
+| `collapsible_arms`   | warning  | Multiple arms with identical output              |
+| `fn_without_strings` | warning  | `fn` with no `String` params — use `form`        |
+| `incomplete_impl`    | error    | `impl` missing variants declared in enum         |
+| `redundant_wildcard` | warning  | All variants covered, `_` is unreachable         |
 
 ---
 

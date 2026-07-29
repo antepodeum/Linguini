@@ -88,8 +88,10 @@ impl Item {
 }
 ```
 
-`item.Gender` is a typed field. `item.acc(amount)` calls an inflection form.
-The word knows itself. Nothing leaks into the call site.
+When the analyzer resolves `Gender` as an enum, `item.Gender` is treated as an
+enum-valued property in locale expressions. The property value itself is not
+yet checked against the enum variants. `item.acc(amount)` calls an inflection
+form, keeping the grammatical lookup with the word.
 
 **Forms nest by grammatical category.**
 
@@ -124,15 +126,20 @@ form SizeAdj(Size, Plural, Gender) {
 Pass a `Number` anywhere a `Plural` is expected. CLDR plural rules for the
 active locale apply automatically. No wrapper function, no explicit conversion.
 
-**Hard errors.**
+**Scoped checks before generation.**
 
-Non-exhaustive match expressions are compile-time errors. Type mismatches at
-call sites are compile-time errors. Nothing falls back to a wrong string silently.
+`linguini check` and `linguini build` block missing implementations and missing
+branches in enum/`Plural` dispatches the analyzer can resolve. They also reject
+arity and type mismatches in locale function/form calls when both sides have a
+known type. Generated TypeScript exposes schema argument types to the host type
+checker. These checks are not a whole-program proof, and Linguini does not scan
+application source for unused messages.
 
-**The output is native typed code.**
+**Generated TypeScript carries schema signatures.**
 
-Messages compile to typed functions. Arguments are validated at the call site
-by the type system of the target language. There is no runtime parser.
+Messages compile to typed TypeScript functions and declarations, allowing a
+host TypeScript checker to validate application call arguments. There is no
+runtime message parser.
 
 ---
 
@@ -145,4 +152,7 @@ by the type system of the target language. There is no runtime parser.
 | Grammatical gender          | ✗              | ✓       | ✓       | ✗         | ✓        |
 | Morphological agreement     | ✗              | verbose | partial | ✗         | ✓        |
 | Words carry own grammar     | ✗              | ✗       | partial | ✗         | ✓        |
-| Compile-time exhaustiveness | ✗              | ✗       | ✗       | ✗         | ✓        |
+| Checked locale branches     | ✗              | ✗       | ✗       | ✗         | scoped ✓ |
+
+“Checked locale branches” means schema/locale enum and `Plural` dispatches that
+the analyzer can resolve; it does not mean whole-program exhaustiveness.

@@ -627,6 +627,69 @@ fn check_sarif_emits_sarif_2_1_results_and_artifact_changes() {
 }
 
 #[test]
+fn check_matches_documented_resolvable_type_and_branch_scope() {
+    let project = TempDir::new().expect("temp project");
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"[project]
+name = "docs-contract"
+default_locale = "en"
+locales = ["en"]
+
+[paths]
+schema = "schema"
+locale = "locales"
+"#,
+    )
+    .expect("config");
+    fs::create_dir_all(project.path().join("schema")).expect("schema dir");
+    fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "enum Choice { yes, no }\ndelivery(count: Number)\nunused\n",
+    )
+    .expect("schema");
+    fs::write(
+        project.path().join("locales/main/en.lgl"),
+        "form Label(Choice) {\n  yes => Yes\n}\n\
+         fn choose(value: String, Plural) {\n  _ => {value}\n}\n\
+         delivery = {choose(count, count)}\n\
+         unused = Not referenced by application source\n",
+    )
+    .expect("locale");
+
+    let assert = linguini()
+        .current_dir(project.path())
+        .args(["check", "--format", "json"])
+        .assert()
+        .failure()
+        .stderr("");
+    let document: Value =
+        serde_json::from_slice(&assert.get_output().stdout).expect("valid JSON diagnostics");
+    let diagnostics = document["diagnostics"]
+        .as_array()
+        .expect("diagnostic array");
+    let codes = diagnostics
+        .iter()
+        .filter_map(|diagnostic| diagnostic["code"].as_str())
+        .collect::<Vec<_>>();
+
+    assert!(codes.contains(&"linguini.incomplete_match"));
+    assert!(codes.contains(&"linguini.type_mismatch"));
+    assert!(
+        diagnostics.iter().all(|diagnostic| {
+            !diagnostic["code"]
+                .as_str()
+                .is_some_and(|code| code.contains("unused"))
+                && !diagnostic["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains("unused message"))
+        }),
+        "application usage is outside analyzer scope: {diagnostics:#?}"
+    );
+}
+
+#[test]
 fn build_json_keeps_stdout_machine_readable_and_generates_files() {
     let project = TempDir::new().expect("temp project");
     linguini()

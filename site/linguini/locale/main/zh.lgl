@@ -48,7 +48,7 @@ hero {
   term = /lɪŋˈɡwiːni/
   term_kind = 名词
   term_hint = 细长扁平的意式面
-  intro = Linguini 将类型化本地化文件转换成任何应用都能使用的代码。消息、语法、格式化器、locale fallback 和 Web 路由都会在构建时检查。
+  intro = Linguini 将与 schema 对应的 locale 文件转换为类型化生成代码。生成前，check/build 会报告缺失实现，并校验受支持的格式化器用法，以及分析器能够解析的 locale 调用和 dispatch 分支。
   trait_typed = 类型化
   trait_compiled = 编译型
   trait_native = 原生
@@ -58,7 +58,7 @@ hero {
 
 codegen {
   kicker = 代码生成
-  title = 一份 schema，为每个运行时生成类型化输出
+  title = 一份 schema，生成类型化 TypeScript 输出
   intro = Linguini 一次性分析 .lgs 契约与 .lgl 语言逻辑，然后在构建期生成目标模块，内置 CLDR 格式化、复数选择器与框架适配器。
   ts_title = TypeScript / ESM
   ts_desc = 类型化消息函数、共享 runtime、声明文件，以及按 locale 的可选 tree shaking。
@@ -79,7 +79,7 @@ codegen {
 web {
   kicker = SvelteKit
   title = 无需手写 i18n 粘合代码的本地化 SvelteKit
-  intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale, updates messages reactively, and turns invalid message arguments into TypeScript errors.
+  intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale and updates messages reactively. Generated message signatures let TypeScript report invalid arguments when the app runs type checking.
   routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
   cookie = Locale changes persist through cookies and browser storage without app-level state.
   fallback = 基础 locale 数据会在构建时写入生成的 locale 模块。

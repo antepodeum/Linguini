@@ -106,8 +106,9 @@ field_required = Поле «{field}» обязательно для заполн
 linguini check
 ```
 
-The analyzer reports missing implementations, unresolved references, incomplete
-match branches, and type errors. Run this in CI.
+The analyzer reports missing implementations and unresolved references. It also
+checks branch coverage for enum/`Plural` dispatches and locale-call argument
+types when it can resolve the participating declarations. Run this in CI.
 
 ## Apply quick fixes
 

@@ -101,7 +101,10 @@ l.checkout.cart_summary(3, "pasta", 1290);
 // → "В корзине 3 пасты на сумму 1290 рублей"
 ```
 
-Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer diagnostics for schema/locale mismatches, invalid references, incomplete branches, and type errors. Generated modules that can be used from app code.
+Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer diagnostics for
+schema/locale mismatches, invalid references, missing branches in resolved enum/`Plural`
+dispatches, and type mismatches in locale calls whose argument types can be resolved. Generated
+modules that can be used from app code.
 
 ---
 
@@ -111,7 +114,7 @@ Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer 
 | --------- | ------------------------------------------------------------------------------------------------------------------ |
 | Language  | `.lgs` schemas and `.lgl` locale implementations                                                                   |
 | Grammar   | CLDR plural categories, forms, enum metadata, nested selectors, local helpers                                      |
-| Analyzer  | missing implementations, invalid references, incomplete branches, diagnostics                                      |
+| Analyzer  | missing implementations, invalid references, resolved branch coverage and locale-call types                        |
 | Formatter | `.lgs` / `.lgl` formatting and `--check` mode                                                                      |
 | LSP       | diagnostics, completion, hover, definition, references, symbols, semantic tokens, formatting, rename, code actions |
 | Codegen   | TypeScript and generated Svelte 5/SvelteKit adapters today; other targets are not part of the current release      |
