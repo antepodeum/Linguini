@@ -22,6 +22,7 @@ impl PluralRules {
     pub fn category_for_operands(&self, operands: &PluralOperands) -> &str {
         self.categories
             .iter()
+            .filter(|category| category.category != "other")
             .find(|category| category.rule.matches(operands))
             .map(|category| category.category.as_str())
             .unwrap_or("other")

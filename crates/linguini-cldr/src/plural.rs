@@ -62,7 +62,18 @@ pub struct Range {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluralParseError {
+    pub kind: PluralParseErrorKind,
+    pub offset: usize,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum PluralParseErrorKind {
+    EmptyInput,
+    InvalidNumber,
+    NumericOverflow,
+    InvalidRule,
 }
 
 impl Display for PluralParseError {
@@ -257,7 +268,17 @@ fn parse_number(value: Option<&str>) -> Result<u64, PluralParseError> {
 }
 
 pub(crate) fn error(message: impl Into<String>) -> PluralParseError {
+    error_at(PluralParseErrorKind::InvalidRule, 0, message)
+}
+
+pub(crate) fn error_at(
+    kind: PluralParseErrorKind,
+    offset: usize,
+    message: impl Into<String>,
+) -> PluralParseError {
     PluralParseError {
+        kind,
+        offset,
         message: message.into(),
     }
 }
@@ -297,7 +318,8 @@ impl Cursor {
 #[cfg(test)]
 mod tests {
     use super::{
-        evaluate_plural_rule, parse_plural_rule, Operand, PluralOperands, RelationOperator,
+        evaluate_plural_rule, parse_plural_rule, Operand, PluralOperands, PluralParseErrorKind,
+        RelationOperator,
     };
 
     #[test]
@@ -355,6 +377,97 @@ mod tests {
         assert_eq!(operands.w, 2);
         assert_eq!(operands.f, 2300);
         assert_eq!(operands.t, 23);
+    }
+
+    #[test]
+    fn rejects_repeated_and_mixed_signs_with_offsets() {
+        for source in ["--1", "+-1", "-+1", "++1"] {
+            let error = PluralOperands::parse(source).expect_err("malformed sign");
+
+            assert_eq!(error.kind, PluralParseErrorKind::InvalidNumber);
+            assert_eq!(error.offset, 1);
+        }
+
+        let error = PluralOperands::parse("  +-1 ").expect_err("offset includes whitespace");
+        assert_eq!(error.kind, PluralParseErrorKind::InvalidNumber);
+        assert_eq!(error.offset, 3);
+    }
+
+    #[test]
+    fn reports_structured_numeric_overflow() {
+        for source in ["18446744073709551616", "0.18446744073709551616", "1c20"] {
+            let error = PluralOperands::parse(source).expect_err("u64 overflow");
+
+            assert_eq!(error.kind, PluralParseErrorKind::NumericOverflow);
+            assert!(error.offset < source.len());
+        }
+    }
+
+    #[test]
+    fn parses_compact_decimal_operands() {
+        let compact = PluralOperands::parse("1.2c6").expect("compact operands");
+        assert_eq!(compact.n, "1200000");
+        assert_eq!(compact.i, 1_200_000);
+        assert_eq!(compact.v, 0);
+        assert_eq!(compact.w, 0);
+        assert_eq!(compact.f, 0);
+        assert_eq!(compact.t, 0);
+        assert_eq!(compact.c, 6);
+        assert_eq!(compact.e, 6);
+
+        let fractional = PluralOperands::parse("1.20050c3").expect("fractional compact operands");
+        assert_eq!(fractional.n, "1200.50");
+        assert_eq!(fractional.i, 1_200);
+        assert_eq!(fractional.v, 2);
+        assert_eq!(fractional.w, 1);
+        assert_eq!(fractional.f, 50);
+        assert_eq!(fractional.t, 5);
+        assert_eq!(fractional.c, 3);
+        assert_eq!(fractional.e, 3);
+
+        let deprecated_e = PluralOperands::parse("123e5").expect("deprecated e synonym");
+        assert_eq!(deprecated_e.i, 12_300_000);
+        assert_eq!(deprecated_e.c, 5);
+        assert_eq!(deprecated_e.e, 5);
+    }
+
+    #[test]
+    fn rejects_malformed_compact_decimal_exponents() {
+        for (source, offset) in [("1c", 2), ("1c-3", 2), ("1c+3", 2), ("1c2e3", 3)] {
+            let error = PluralOperands::parse(source).expect_err("malformed compact exponent");
+
+            assert_eq!(error.kind, PluralParseErrorKind::InvalidNumber);
+            assert_eq!(error.offset, offset);
+        }
+    }
+
+    #[test]
+    fn evaluates_large_and_long_decimal_operands_without_f64() {
+        let last_digit = parse_plural_rule("n % 10 = 5").expect("last digit");
+        let decimal_remainder = parse_plural_rule("n % 10 within 5..6").expect("decimal remainder");
+        let zero = parse_plural_rule("n = 0").expect("zero");
+
+        assert!(evaluate_plural_rule(&last_digit, "18446744073709551615").expect("maximum u64"));
+        assert!(!evaluate_plural_rule(&last_digit, "18446744073709551615.1")
+            .expect("fraction is not an integer"));
+        assert!(
+            evaluate_plural_rule(&decimal_remainder, "18446744073709551615.1")
+                .expect("exact decimal remainder")
+        );
+
+        let tiny = PluralOperands::parse("0.0000000000000000000000000000001")
+            .expect("long fraction with representable digits");
+        assert_eq!(tiny.i, 0);
+        assert_eq!(tiny.v, 31);
+        assert_eq!(tiny.f, 1);
+        assert!(!zero.matches(&tiny));
+    }
+
+    #[test]
+    fn empty_rule_does_not_shadow_explicit_categories() {
+        let empty = parse_plural_rule("@integer 1").expect("empty fallback rule");
+
+        assert!(!evaluate_plural_rule(&empty, "1").expect("valid operands"));
     }
 
     #[test]

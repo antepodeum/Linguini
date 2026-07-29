@@ -1,12 +1,12 @@
 use super::{
-    error, Operand, OperandExpression, PluralParseError, PluralRule, RangeList, Relation,
-    RelationOperator,
+    error_at, Operand, OperandExpression, PluralParseError, PluralParseErrorKind, PluralRule,
+    RangeList, Relation, RelationOperator,
 };
 
 impl PluralRule {
     pub fn matches(&self, operands: &PluralOperands) -> bool {
-        self.conditions.is_empty()
-            || self.conditions.iter().any(|condition| {
+        !self.conditions.is_empty()
+            && self.conditions.iter().any(|condition| {
                 condition
                     .relations
                     .iter()
@@ -21,8 +21,8 @@ impl Relation {
         match self.operator {
             RelationOperator::Equal => self.ranges.contains_integer(value),
             RelationOperator::NotEqual => !self.ranges.contains_integer(value),
-            RelationOperator::In => value.is_integer && self.ranges.contains_integer(value),
-            RelationOperator::NotIn => !(value.is_integer && self.ranges.contains_integer(value)),
+            RelationOperator::In => !value.has_fraction && self.ranges.contains_integer(value),
+            RelationOperator::NotIn => value.has_fraction || !self.ranges.contains_integer(value),
             RelationOperator::Within => self.ranges.contains_number(value),
             RelationOperator::NotWithin => !self.ranges.contains_number(value),
         }
@@ -49,9 +49,11 @@ impl RangeList {
     }
 
     fn contains_number(&self, value: OperandValue) -> bool {
-        self.ranges
-            .iter()
-            .any(|range| value.number >= range.start as f64 && value.number <= range.end as f64)
+        self.ranges.iter().any(|range| {
+            value.integer >= range.start
+                && (value.integer < range.end
+                    || (value.integer == range.end && !value.has_fraction))
+        })
     }
 }
 
@@ -69,47 +71,193 @@ pub struct PluralOperands {
 
 impl PluralOperands {
     pub fn parse(source: &str) -> Result<Self, PluralParseError> {
-        let source = source.trim();
-        if source.is_empty() {
-            return Err(error("expected plural sample number"));
+        let leading_whitespace = source.len() - source.trim_start().len();
+        let sample = source.trim();
+        if sample.is_empty() {
+            return Err(error_at(
+                PluralParseErrorKind::EmptyInput,
+                leading_whitespace,
+                "expected plural sample number",
+            ));
         }
-        let unsigned = source.trim_start_matches(['+', '-']);
+
+        let (unsigned, unsigned_offset) = match sample.as_bytes().first() {
+            Some(b'+' | b'-') => (&sample[1..], leading_whitespace + 1),
+            _ => (sample, leading_whitespace),
+        };
         if unsigned.is_empty() {
-            return Err(error("expected plural sample number"));
+            return Err(invalid_number(
+                source,
+                unsigned_offset,
+                "expected digits after the sign",
+            ));
+        }
+        if matches!(unsigned.as_bytes().first(), Some(b'+' | b'-')) {
+            return Err(invalid_number(
+                source,
+                unsigned_offset,
+                "plural samples may contain only one leading sign",
+            ));
         }
 
-        let mut parts = unsigned.split('.');
-        let integer = parts.next().unwrap_or_default();
-        let fraction = parts.next().unwrap_or_default();
-        if parts.next().is_some() || integer.is_empty() {
-            return Err(error(format!("invalid plural sample `{source}`")));
+        let exponent_marker = unsigned
+            .char_indices()
+            .find(|(_, character)| matches!(character, 'c' | 'C' | 'e' | 'E'));
+        let (mantissa, exponent, exponent_offset) = if let Some((index, _)) = exponent_marker {
+            let exponent_source = &unsigned[index + 1..];
+            if exponent_source.is_empty() {
+                return Err(invalid_number(
+                    source,
+                    unsigned_offset + index + 1,
+                    "expected a compact decimal exponent",
+                ));
+            }
+            let exponent_offset = unsigned_offset + index + 1;
+            let exponent = parse_digits(
+                exponent_source,
+                exponent_offset,
+                source,
+                "compact decimal exponent",
+            )?;
+            (&unsigned[..index], exponent, exponent_offset)
+        } else {
+            (unsigned, 0, unsigned_offset + unsigned.len())
+        };
+
+        if mantissa.is_empty() {
+            return Err(invalid_number(
+                source,
+                unsigned_offset,
+                "expected digits before the compact decimal exponent",
+            ));
         }
-        if !integer.chars().all(|character| character.is_ascii_digit())
-            || !fraction.chars().all(|character| character.is_ascii_digit())
+
+        let (integer, fraction, fraction_offset) = if let Some(decimal_offset) = mantissa.find('.')
         {
-            return Err(error(format!("invalid plural sample `{source}`")));
+            let fraction_offset = unsigned_offset + decimal_offset + 1;
+            let fraction = &mantissa[decimal_offset + 1..];
+            if let Some(extra_decimal) = fraction.find('.') {
+                return Err(invalid_number(
+                    source,
+                    fraction_offset + extra_decimal,
+                    "plural samples may contain only one decimal point",
+                ));
+            }
+            (&mantissa[..decimal_offset], fraction, fraction_offset)
+        } else {
+            (mantissa, "", unsigned_offset + mantissa.len())
+        };
+
+        if integer.is_empty() {
+            return Err(invalid_number(
+                source,
+                unsigned_offset,
+                "expected integer digits",
+            ));
         }
 
-        let trimmed_fraction = fraction.trim_end_matches('0');
+        validate_digits(integer, unsigned_offset, source)?;
+        validate_digits(fraction, fraction_offset, source)?;
+
+        let fraction_length = u64::try_from(fraction.len())
+            .map_err(|_| overflow(source, fraction_offset, "too many visible fraction digits"))?;
+        let consumed_fraction_digits = exponent.min(fraction_length) as usize;
+        let shifted_integer_fraction = &fraction[..consumed_fraction_digits];
+        let shifted_fraction = &fraction[consumed_fraction_digits..];
+
+        let mut integer_value = 0_u64;
+        accumulate_digits(
+            &mut integer_value,
+            integer,
+            unsigned_offset,
+            source,
+            "integer operand",
+        )?;
+        accumulate_digits(
+            &mut integer_value,
+            shifted_integer_fraction,
+            fraction_offset,
+            source,
+            "integer operand",
+        )?;
+
+        let remaining_shift = exponent - consumed_fraction_digits as u64;
+        if integer_value != 0 && remaining_shift != 0 {
+            let power = u32::try_from(remaining_shift)
+                .ok()
+                .and_then(|power| 10_u64.checked_pow(power))
+                .ok_or_else(|| {
+                    overflow(
+                        source,
+                        exponent_offset,
+                        "compact exponent overflows the integer operand",
+                    )
+                })?;
+            integer_value = integer_value.checked_mul(power).ok_or_else(|| {
+                overflow(
+                    source,
+                    exponent_offset,
+                    "compact exponent overflows the integer operand",
+                )
+            })?;
+        }
+
+        let trimmed_fraction = shifted_fraction.trim_end_matches('0');
+        let fraction_value = parse_digits(
+            shifted_fraction,
+            fraction_offset + consumed_fraction_digits,
+            source,
+            "fraction operand",
+        )?;
+        let trimmed_fraction_value = parse_digits(
+            trimmed_fraction,
+            fraction_offset + consumed_fraction_digits,
+            source,
+            "trimmed fraction operand",
+        )?;
+        let visible_fraction_digits = u64::try_from(shifted_fraction.len()).map_err(|_| {
+            overflow(
+                source,
+                fraction_offset + consumed_fraction_digits,
+                "too many visible fraction digits",
+            )
+        })?;
+        let trimmed_visible_fraction_digits =
+            u64::try_from(trimmed_fraction.len()).map_err(|_| {
+                overflow(
+                    source,
+                    fraction_offset + consumed_fraction_digits,
+                    "too many visible fraction digits",
+                )
+            })?;
+
+        let numeric_source = if exponent_marker.is_some() {
+            if shifted_fraction.is_empty() {
+                integer_value.to_string()
+            } else {
+                format!("{integer_value}.{shifted_fraction}")
+            }
+        } else {
+            unsigned.to_owned()
+        };
+
         Ok(Self {
-            n: unsigned.to_owned(),
-            i: integer
-                .parse()
-                .map_err(|_| error(format!("invalid plural sample `{source}`")))?,
-            v: fraction.len() as u64,
-            w: trimmed_fraction.len() as u64,
-            f: parse_fraction_digits(fraction, source)?,
-            t: parse_fraction_digits(trimmed_fraction, source)?,
-            c: 0,
-            e: 0,
+            n: numeric_source,
+            i: integer_value,
+            v: visible_fraction_digits,
+            w: trimmed_visible_fraction_digits,
+            f: fraction_value,
+            t: trimmed_fraction_value,
+            c: exponent,
+            e: exponent,
         })
     }
 
     fn value(&self, operand: Operand) -> OperandValue {
         match operand {
             Operand::N => OperandValue {
-                number: self.n.parse().unwrap_or(self.i as f64),
-                is_integer: self.v == 0,
+                integer: self.i,
+                has_fraction: self.f != 0,
             },
             Operand::I => OperandValue::integer(self.i),
             Operand::V => OperandValue::integer(self.v),
@@ -124,23 +272,23 @@ impl PluralOperands {
 
 #[derive(Debug, Clone, Copy)]
 struct OperandValue {
-    number: f64,
-    is_integer: bool,
+    integer: u64,
+    has_fraction: bool,
 }
 
 impl OperandValue {
     fn integer(value: u64) -> Self {
         Self {
-            number: value as f64,
-            is_integer: true,
+            integer: value,
+            has_fraction: false,
         }
     }
 
     fn integer_value(self) -> Option<u64> {
-        if self.is_integer && self.number >= 0.0 {
-            Some(self.number as u64)
-        } else {
+        if self.has_fraction {
             None
+        } else {
+            Some(self.integer)
         }
     }
 
@@ -149,8 +297,8 @@ impl OperandValue {
             return self;
         }
         Self {
-            number: self.number % modulo as f64,
-            is_integer: self.is_integer,
+            integer: self.integer % modulo,
+            has_fraction: self.has_fraction,
         }
     }
 }
@@ -160,12 +308,74 @@ pub fn evaluate_plural_rule(rule: &PluralRule, sample: &str) -> Result<bool, Plu
     Ok(rule.matches(&operands))
 }
 
-fn parse_fraction_digits(value: &str, sample: &str) -> Result<u64, PluralParseError> {
-    if value.is_empty() {
-        Ok(0)
+fn validate_digits(value: &str, offset: usize, source: &str) -> Result<(), PluralParseError> {
+    if let Some((index, _)) = value
+        .char_indices()
+        .find(|(_, character)| !character.is_ascii_digit())
+    {
+        Err(invalid_number(
+            source,
+            offset + index,
+            "expected an ASCII decimal digit",
+        ))
     } else {
-        value
-            .parse()
-            .map_err(|_| error(format!("invalid plural sample `{sample}`")))
+        Ok(())
     }
+}
+
+fn parse_digits(
+    value: &str,
+    offset: usize,
+    source: &str,
+    operand: &str,
+) -> Result<u64, PluralParseError> {
+    let mut parsed = 0_u64;
+    accumulate_digits(&mut parsed, value, offset, source, operand)?;
+    Ok(parsed)
+}
+
+fn accumulate_digits(
+    parsed: &mut u64,
+    value: &str,
+    offset: usize,
+    source: &str,
+    operand: &str,
+) -> Result<(), PluralParseError> {
+    for (index, byte) in value.bytes().enumerate() {
+        if !byte.is_ascii_digit() {
+            return Err(invalid_number(
+                source,
+                offset + index,
+                "expected an ASCII decimal digit",
+            ));
+        }
+        let digit = u64::from(byte - b'0');
+        *parsed = parsed
+            .checked_mul(10)
+            .and_then(|current| current.checked_add(digit))
+            .ok_or_else(|| {
+                overflow(
+                    source,
+                    offset + index,
+                    format!("{operand} exceeds the supported u64 range"),
+                )
+            })?;
+    }
+    Ok(())
+}
+
+fn invalid_number(source: &str, offset: usize, detail: impl AsRef<str>) -> PluralParseError {
+    error_at(
+        PluralParseErrorKind::InvalidNumber,
+        offset,
+        format!("invalid plural sample `{source}`: {}", detail.as_ref()),
+    )
+}
+
+fn overflow(source: &str, offset: usize, detail: impl AsRef<str>) -> PluralParseError {
+    error_at(
+        PluralParseErrorKind::NumericOverflow,
+        offset,
+        format!("plural sample `{source}` is too large: {}", detail.as_ref()),
+    )
 }

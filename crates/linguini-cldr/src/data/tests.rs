@@ -1,8 +1,17 @@
 use super::{
     built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
     compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
-    CLDR_DATA_MANIFEST_JSON,
+    CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
 };
+use crate::PluralOperands;
+
+fn always_matches(_: &PluralOperands) -> bool {
+    true
+}
+
+fn matches_one(operands: &PluralOperands) -> bool {
+    operands.i == 1 && operands.f == 0
+}
 
 #[test]
 fn built_in_text_directions_are_generated_from_cldr_layout_data() {
@@ -41,6 +50,27 @@ fn compiled_plural_rules_need_no_runtime_json() {
     assert_eq!(russian.category_for("2").expect("ru few"), "few");
     assert_eq!(russian.category_for("5").expect("ru many"), "many");
     assert_eq!(russian.category_for("1.5").expect("ru other"), "other");
+}
+
+#[test]
+fn explicit_categories_are_independent_of_other_category_order() {
+    static CATEGORIES: &[CompiledPluralCategory] = &[
+        CompiledPluralCategory {
+            category: "other",
+            matches: always_matches,
+        },
+        CompiledPluralCategory {
+            category: "one",
+            matches: matches_one,
+        },
+    ];
+    let rules = CompiledPluralRules {
+        locale: "test",
+        categories: CATEGORIES,
+    };
+
+    assert_eq!(rules.category_for("1").expect("one"), "one");
+    assert_eq!(rules.category_for("2").expect("other"), "other");
 }
 
 #[test]

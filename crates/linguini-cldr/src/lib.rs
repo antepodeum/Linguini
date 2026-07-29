@@ -10,7 +10,8 @@ pub use data::{
 };
 pub use plural::{
     evaluate_plural_rule, parse_plural_rule, Condition, Operand, OperandExpression, PluralOperands,
-    PluralParseError, PluralRule, Range, RangeList, Relation, RelationOperator,
+    PluralParseError, PluralParseErrorKind, PluralRule, Range, RangeList, Relation,
+    RelationOperator,
 };
 
 pub const CRATE_PURPOSE: &str = "compiled CLDR plural and formatting data";
