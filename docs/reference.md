@@ -96,29 +96,130 @@ email_input {
 }
 ```
 
-### Namespaces
+### Namespaces and qualified paths
 
-A block groups related messages under a shared prefix.
+Linguini has two kinds of namespace segment:
+
+1. A **filesystem namespace** comes from a schema path relative to
+   `paths.schema`. It includes the schema file stem. The matching locale
+   namespace comes from the locale file's parent path relative to
+   `paths.locale`; the locale file stem is a locale tag, not a namespace
+   segment.
+2. A **source group** is a recursive `{ ... }` block. It extends message paths
+   inside one schema or locale file.
+
+`project.name` is not a namespace segment. It never prefixes schema identities
+or the generated `l` object.
+
+Given these files:
+
+```text
+linguini/schema/shop/checkout.lgs
+linguini/locale/shop/checkout/en.lgl
+```
+
+both files have filesystem namespace `shop.checkout`. The schema and locale can
+then declare the same recursive group tree:
 
 ```lgs
-auth {
-  sign_in(email: String)
-  sign_out
-  error_invalid_credentials
+receipt {
+  header {
+    title
+    order_number(value: String)
+  }
 }
 ```
 
-### Multiple schema files
+```lgl
+receipt {
+  header {
+    title = Receipt
+    order_number = Order {value}
+  }
+}
+```
 
-A project can contain multiple `.lgs` files under the configured schema directory.
-Declarations from those files are loaded into one project-level schema namespace.
-Source-level `import` and `export` syntax is not part of the current language.
+The canonical message identities are
+`shop.checkout.receipt.header.title` and
+`shop.checkout.receipt.header.order_number`. Generated application access uses
+the same segments:
+
+```ts
+l.shop.checkout.receipt.header.title;
+l.shop.checkout.receipt.header.order_number("A-104");
+```
+
+Canonical paths are used by diagnostics, generated APIs, and fully qualified
+configuration entries such as `targets.ts.messages`. They are not source-level
+imports. Linguini source currently has no `import` or `export` syntax; symbols
+declared in a file are resolved in that file's filesystem namespace.
+
+The filesystem namespace scopes every declaration lowered from a file:
+schema messages, enums, and type aliases, plus locale messages, enums,
+variables, forms, and functions. Source groups contain only messages and child
+groups, so group segments extend message identities only.
+
+#### Path derivation
+
+| Path below its configured root | Derived value |
+| --- | --- |
+| schema `main.lgs` | namespace `main` |
+| schema `shop/cart.lgs` | namespace `shop.cart` |
+| locale `main/en.lgl` | namespace `main`, locale `en` |
+| locale `shop/cart/pt-BR.lgl` | namespace `shop.cart`, locale `pt-BR` |
+
+Configured roots are project-relative and use `/`. Empty and `.` path
+components are normalized away; absolute paths, backslashes, `..`, overlapping
+source/output roots, source-tree symlinks, and non-UTF-8 namespace components
+are rejected.
+
+Filesystem components are joined with `.`. A literal dot therefore creates the
+same canonical namespace as a directory boundary:
+`shop.checkout.lgs` and `shop/checkout.lgs` both derive
+`shop.checkout` and cannot coexist. Namespace collisions are checked
+case-insensitively for portable output, while a schema and its locale directory
+must use the same exact spelling. Prefer `lowercase_snake_case` filesystem
+components for readable generated properties. Locale file stems must be valid
+BCP 47 tags and use the canonical spelling configured in `project.locales`.
+
+#### Group and declaration collisions
+
+Groups are recursive. Schema groups may be empty to reserve a namespace; locale
+groups must contain a message or child group. The language-wide brace nesting
+limit is 64.
+
+Sibling messages and child groups share one member namespace. Reusing a member
+name for two messages, two groups, or one message and one group is invalid:
+
+```lgs
+account {
+  profile
+  profile { title }
+}
+```
+
+Canonical identities must also remain unique after filesystem and group
+segments are combined. For example, these two schema declarations both produce
+`shop.checkout.title` and therefore collide:
+
+```text
+schema/shop.lgs              contains: checkout { title }
+schema/shop/checkout.lgs     contains: title
+```
+
+The same source-local declaration name may be reused in distinct namespaces
+when the final canonical paths differ, such as `shop.title` and `admin.title`.
+Renaming or moving a schema file changes every canonical identity owned by that
+file; move its locale directory and update generated API/configuration paths in
+the same migration.
 
 ---
 
 ## Locale (`.lgl`)
 
-A locale file implements all messages declared in the corresponding schema.
+A locale file implements all messages declared in the schema with the same
+filesystem namespace. Its nested group tree reproduces the schema's canonical
+message paths.
 
 ### Simple messages
 

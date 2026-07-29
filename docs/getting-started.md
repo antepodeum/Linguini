@@ -51,6 +51,39 @@ declaration = true
 gitignore   = true
 ```
 
+### Paths and namespaces
+
+`paths.schema`, `paths.locale`, and `targets.ts.out` are relative to the project
+directory. Use `/` as the separator. Linguini trims surrounding whitespace and
+normalizes repeated `/`, leading `./`, and trailing `/`. Absolute paths, `\`,
+parent traversal (`..`), and overlapping source/output roots are rejected.
+
+`project.name` is project metadata and supplies default cookie/local-storage
+names when those web features are enabled. It is not a source namespace and
+does not appear in generated message paths.
+
+Each schema file owns the filesystem namespace formed from its path below
+`paths.schema`, including its file stem. A locale implementation mirrors that
+path below `paths.locale`; its file stem is the locale tag:
+
+| Schema | English locale | Namespace | Generated prefix |
+| --- | --- | --- | --- |
+| `linguini/schema/main.lgs` | `linguini/locale/main/en.lgl` | `main` | `l.main` |
+| `linguini/schema/shop/cart.lgs` | `linguini/locale/shop/cart/en.lgl` | `shop.cart` | `l.shop.cart` |
+
+Case must match exactly between the schema path and locale directory. A locale
+file stem must use a valid BCP 47 tag and the canonical spelling from
+`project.locales` (`pt-BR`, not `pt-br`). Source groups add more segments after
+the filesystem namespace.
+
+When migrating a layout that treated all schema files as one shared namespace,
+move each locale file beneath the path of its schema. For example,
+`schema/shop/cart.lgs` pairs with `locale/shop/cart/en.lgl`, not
+`locale/en.lgl` or `locale/shop/en.lgl`. Remove a redundant outer source group
+if it would repeat the file namespace (`shop.lgs` plus `shop { ... }` produces
+`l.shop.shop...`). Moving a schema file is a generated-API rename, so update
+application access paths and move every matching locale directory together.
+
 ## Write a schema
 
 Define your messages and the types they work with:

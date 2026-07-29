@@ -151,8 +151,22 @@ module      = "esm"
 declaration = true
 ```
 
-A schema file becomes a namespace. `checkout.lgs` → namespace `checkout`.
-`locale/checkout/ru.lgl` → Russian implementation for that namespace.
+Namespaces come from paths relative to the configured source roots:
+
+| Schema file | Locale file for `ru` | Filesystem namespace |
+| --- | --- | --- |
+| `schema/checkout.lgs` | `locale/checkout/ru.lgl` | `checkout` |
+| `schema/shop/checkout.lgs` | `locale/shop/checkout/ru.lgl` | `shop.checkout` |
+
+The schema file stem is part of its namespace; the locale file stem is the locale
+tag and is not. Nested source groups extend the same canonical path, so
+`receipt { title }` in `schema/shop/checkout.lgs` is generated as
+`l.shop.checkout.receipt.title`.
+
+`project.name` identifies the project and seeds web-persistence defaults. It does
+not prefix schema symbols or the generated `l` API. Moving or renaming a schema
+file therefore changes its public namespace and requires moving the matching
+locale directory. See the [namespace contract](./docs/reference.md#namespaces-and-qualified-paths).
 
 ---
 
