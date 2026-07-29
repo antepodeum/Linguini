@@ -16,6 +16,13 @@ fn generate_project_files(
     crate::generate_typescript_project_files(&project)
 }
 
+fn project_options(base_locale: &str) -> TypeScriptProjectOptions {
+    TypeScriptProjectOptions {
+        base_locale: Some(base_locale.to_owned()),
+        ..TypeScriptProjectOptions::default()
+    }
+}
+
 #[test]
 fn generated_module_snapshot_is_stable() {
     let schema = parse_schema(include_str!(
@@ -155,7 +162,7 @@ fn project_codegen_can_omit_generated_gitignore() {
         }],
         &TypeScriptProjectOptions {
             gitignore: false,
-            ..TypeScriptProjectOptions::default()
+            ..project_options("en")
         },
     )
     .expect("project codegen");
@@ -273,7 +280,7 @@ plain = Raw {price @number}
             locale: "en".to_owned(),
             module: locale,
         }],
-        &TypeScriptProjectOptions::default(),
+        &project_options("en"),
     )
     .expect("project codegen");
 
@@ -326,7 +333,7 @@ fn project_codegen_applies_primitive_schema_formatters() {
             locale: "en".to_owned(),
             module: locale,
         }],
-        &TypeScriptProjectOptions::default(),
+        &project_options("en"),
     )
     .expect("project codegen");
 
@@ -368,8 +375,8 @@ label = {fruit(count)}: {fruit.label}
 selectBranch(pluralEn(value), { one: \"apple\", _: \"apples\" }), { label: \"Apple\" })"
     ));
     assert!(locale_module.contains(
-        "return String(FruitForms[fruit](count)) + \": \" + \
-String(FruitForms[fruit].label);"
+        "return String(__lgl_form_4672756974[fruit](count)) + \": \" + \
+String(__lgl_form_4672756974[fruit].label);"
     ));
 }
 
@@ -403,6 +410,138 @@ label = {fruit(count)}
 }
 
 #[test]
+fn project_validation_rejects_an_empty_locale_set() {
+    let error = ValidatedTypeScriptProject::try_new(
+        &linguini_ir::IrModule::default(),
+        &[],
+        &project_options("en"),
+    )
+    .expect_err("an empty locale set must be rejected");
+
+    assert_eq!(error, TypeScriptCodegenError::EmptyLocaleSet);
+}
+
+#[test]
+fn project_validation_rejects_duplicate_and_case_folded_locales() {
+    use linguini_ir::IrModule;
+
+    for conflicting_locale in ["en", "EN"] {
+        let error = ValidatedTypeScriptProject::try_new(
+            &IrModule::default(),
+            &[
+                TypeScriptLocaleModule {
+                    locale: "en".to_owned(),
+                    module: IrModule::default(),
+                },
+                TypeScriptLocaleModule {
+                    locale: conflicting_locale.to_owned(),
+                    module: IrModule::default(),
+                },
+            ],
+            &project_options("en"),
+        )
+        .expect_err("case-folded locale collisions must be rejected");
+
+        assert_eq!(
+            error,
+            TypeScriptCodegenError::DuplicateLocale {
+                locale: conflicting_locale.to_owned(),
+                conflicts_with: "en".to_owned(),
+            }
+        );
+    }
+}
+
+#[test]
+fn project_validation_requires_an_explicit_base_locale() {
+    use linguini_ir::IrModule;
+
+    let error = ValidatedTypeScriptProject::try_new(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &TypeScriptProjectOptions::default(),
+    )
+    .expect_err("a missing base locale must not fall back to the first locale");
+
+    assert_eq!(error, TypeScriptCodegenError::MissingBaseLocale);
+}
+
+#[test]
+fn project_validation_rejects_an_unknown_base_locale() {
+    use linguini_ir::IrModule;
+
+    let error = ValidatedTypeScriptProject::try_new(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &project_options("fr"),
+    )
+    .expect_err("an unknown base locale must not fall back to the first locale");
+
+    assert_eq!(
+        error,
+        TypeScriptCodegenError::UnknownBaseLocale {
+            base_locale: "fr".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn project_validation_rejects_unknown_included_messages() {
+    use linguini_ir::IrModule;
+
+    let schema = lower_schema(&parse_schema("known\naccount { title }\n").expect("schema"));
+    let options = TypeScriptProjectOptions {
+        tree_shaking: true,
+        included_messages: vec!["missing".to_owned()],
+        ..project_options("en")
+    };
+    let error = ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &options,
+    )
+    .expect_err("unknown tree-shaking roots must be rejected");
+
+    assert_eq!(
+        error,
+        TypeScriptCodegenError::UnknownIncludedMessage {
+            message: "missing".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn project_validation_rejects_locales_without_cldr_text_direction() {
+    use linguini_ir::IrModule;
+
+    let error = ValidatedTypeScriptProject::try_new(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "zz-ZZ".to_owned(),
+            module: IrModule::default(),
+        }],
+        &project_options("zz-ZZ"),
+    )
+    .expect_err("an unknown text direction must not be coerced to LTR");
+
+    assert_eq!(
+        error,
+        TypeScriptCodegenError::MissingTextDirection {
+            locale: "zz-ZZ".to_owned(),
+        }
+    );
+}
+
+#[test]
 fn project_validation_rejects_formatter_alias_cycles() {
     let schema = lower_schema(
         &parse_schema("type First = Second\ntype Second = First\nlabel(value: First)\n")
@@ -416,7 +555,7 @@ fn project_validation_rejects_formatter_alias_cycles() {
             locale: "en".to_owned(),
             module: locale,
         }],
-        &TypeScriptProjectOptions::default(),
+        &project_options("en"),
     )
     .expect_err("cyclic aliases must be rejected before codegen");
 
@@ -437,7 +576,7 @@ fn project_validation_rejects_unresolved_locale_messages() {
             locale: "en".to_owned(),
             module: locale,
         }],
-        &TypeScriptProjectOptions::default(),
+        &project_options("en"),
     )
     .expect_err("unresolved locale message must be rejected");
 
@@ -550,7 +689,7 @@ fn project_codegen_emits_schema_namespace_objects() {
             locale: "en".to_owned(),
             module: locale,
         }],
-        &TypeScriptProjectOptions::default(),
+        &project_options("en"),
     )
     .expect("project codegen");
 
@@ -618,7 +757,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                 exclude: vec!["/api/**".to_owned()],
                 localize_links: false,
             }),
-            ..TypeScriptProjectOptions::default()
+            ..project_options("en")
         },
     )
     .expect("project codegen");
@@ -690,7 +829,7 @@ fn project_codegen_emits_context_only_svelte_without_web_config() {
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::SvelteKit),
             web: None,
-            ..TypeScriptProjectOptions::default()
+            ..project_options("en")
         },
     )
     .expect("project codegen");

@@ -93,7 +93,12 @@ fn qualify_entries(
 ) {
     for entry in entries {
         match entry {
-            IrFormEntry::Attribute { value, .. } => {
+            IrFormEntry::Attribute {
+                parameters, value, ..
+            } => {
+                for parameter in parameters {
+                    qualify_type(&mut parameter.ty, &namespace.join("."));
+                }
                 qualify_value(value, namespace, declaration_roots);
             }
             IrFormEntry::Branch(branch) => {

@@ -457,6 +457,7 @@ IrModule {
                     entries: [
                         Attribute {
                             name: "Gender",
+                            parameters: [],
                             value: Text(
                                 IrText {
                                     parts: [
@@ -477,6 +478,7 @@ IrModule {
                         },
                         Attribute {
                             name: "emoji",
+                            parameters: [],
                             value: Text(
                                 IrText {
                                     parts: [
@@ -497,6 +499,12 @@ IrModule {
                         },
                         Attribute {
                             name: "nom",
+                            parameters: [
+                                IrFunctionParameter {
+                                    name: None,
+                                    ty: "Plural",
+                                },
+                            ],
                             value: Map(
                                 [
                                     IrBranch {
@@ -585,6 +593,12 @@ IrModule {
                         },
                         Attribute {
                             name: "gen",
+                            parameters: [
+                                IrFunctionParameter {
+                                    name: None,
+                                    ty: "Plural",
+                                },
+                            ],
                             value: Map(
                                 [
                                     IrBranch {
@@ -646,10 +660,12 @@ IrModule {
                         },
                         Attribute {
                             name: "display",
+                            parameters: [],
                             value: Object(
                                 [
                                     Attribute {
                                         name: "short",
+                                        parameters: [],
                                         value: Text(
                                             IrText {
                                                 parts: [
@@ -670,6 +686,7 @@ IrModule {
                                     },
                                     Attribute {
                                         name: "long",
+                                        parameters: [],
                                         value: Text(
                                             IrText {
                                                 parts: [
@@ -698,6 +715,7 @@ IrModule {
                     entries: [
                         Attribute {
                             name: "Gender",
+                            parameters: [],
                             value: Text(
                                 IrText {
                                     parts: [
@@ -718,6 +736,7 @@ IrModule {
                         },
                         Attribute {
                             name: "emoji",
+                            parameters: [],
                             value: Text(
                                 IrText {
                                     parts: [
@@ -738,6 +757,12 @@ IrModule {
                         },
                         Attribute {
                             name: "nom",
+                            parameters: [
+                                IrFunctionParameter {
+                                    name: None,
+                                    ty: "Plural",
+                                },
+                            ],
                             value: Map(
                                 [
                                     IrBranch {
@@ -826,6 +851,12 @@ IrModule {
                         },
                         Attribute {
                             name: "gen",
+                            parameters: [
+                                IrFunctionParameter {
+                                    name: None,
+                                    ty: "Plural",
+                                },
+                            ],
                             value: Map(
                                 [
                                     IrBranch {
@@ -892,6 +923,7 @@ IrModule {
                     entries: [
                         Attribute {
                             name: "Gender",
+                            parameters: [],
                             value: Text(
                                 IrText {
                                     parts: [
@@ -912,6 +944,7 @@ IrModule {
                         },
                         Attribute {
                             name: "emoji",
+                            parameters: [],
                             value: Text(
                                 IrText {
                                     parts: [
@@ -932,6 +965,12 @@ IrModule {
                         },
                         Attribute {
                             name: "nom",
+                            parameters: [
+                                IrFunctionParameter {
+                                    name: None,
+                                    ty: "Plural",
+                                },
+                            ],
                             value: Map(
                                 [
                                     IrBranch {
@@ -1020,6 +1059,12 @@ IrModule {
                         },
                         Attribute {
                             name: "gen",
+                            parameters: [
+                                IrFunctionParameter {
+                                    name: None,
+                                    ty: "Plural",
+                                },
+                            ],
                             value: Map(
                                 [
                                     IrBranch {

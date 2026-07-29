@@ -17,6 +17,7 @@ use self::emit::{
     emit_formatter_data, emit_forms, emit_imports, emit_local_functions, emit_messages,
     emit_schema_type_reexports, emit_variables,
 };
+use self::names::{escape_string, safe_identifier};
 use self::shared::emit_shared;
 use super::plural::generate_plural_function;
 
@@ -155,6 +156,25 @@ pub struct TypeScriptGeneratedFile {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeScriptCodegenError {
+    EmptyLocaleSet,
+    DuplicateLocale {
+        locale: String,
+        conflicts_with: String,
+    },
+    MissingBaseLocale,
+    UnknownBaseLocale {
+        base_locale: String,
+    },
+    UnknownIncludedMessage {
+        message: String,
+    },
+    MissingTextDirection {
+        locale: String,
+    },
+    UnsupportedTextDirection {
+        locale: String,
+        direction: String,
+    },
     InvalidIr {
         scope: String,
         errors: Vec<IrReferenceError>,
@@ -182,6 +202,35 @@ impl TypeScriptCodegenError {
 impl fmt::Display for TypeScriptCodegenError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::EmptyLocaleSet => {
+                formatter.write_str("TypeScript project requires at least one locale")
+            }
+            Self::DuplicateLocale {
+                locale,
+                conflicts_with,
+            } => write!(
+                formatter,
+                "locale `{locale}` conflicts with locale `{conflicts_with}` after case folding"
+            ),
+            Self::MissingBaseLocale => {
+                formatter.write_str("TypeScript project requires an explicit base locale")
+            }
+            Self::UnknownBaseLocale { base_locale } => write!(
+                formatter,
+                "configured base locale `{base_locale}` is not present in the project locale set"
+            ),
+            Self::UnknownIncludedMessage { message } => write!(
+                formatter,
+                "configured included message or namespace `{message}` is not present in the schema"
+            ),
+            Self::MissingTextDirection { locale } => write!(
+                formatter,
+                "missing built-in CLDR text direction for configured locale `{locale}`"
+            ),
+            Self::UnsupportedTextDirection { locale, direction } => write!(
+                formatter,
+                "unsupported CLDR text direction `{direction}` for configured locale `{locale}`"
+            ),
             Self::InvalidIr { scope, errors } => {
                 write!(formatter, "invalid IR for {scope}")?;
                 for error in errors {
@@ -216,6 +265,8 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         locales: &[TypeScriptLocaleModule],
         options: &TypeScriptProjectOptions,
     ) -> Result<Self, TypeScriptCodegenError> {
+        validate_project_inputs(schema, locales, options)?;
+
         let empty_locale = IrModule::default();
         validate_codegen_ir(schema, &empty_locale, "schema")?;
 
@@ -233,6 +284,72 @@ impl<'a> ValidatedTypeScriptProject<'a> {
             locales,
             options: options.clone(),
         })
+    }
+}
+
+fn validate_project_inputs(
+    schema: &IrModule,
+    locales: &[TypeScriptLocaleModule],
+    options: &TypeScriptProjectOptions,
+) -> Result<(), TypeScriptCodegenError> {
+    if locales.is_empty() {
+        return Err(TypeScriptCodegenError::EmptyLocaleSet);
+    }
+
+    for (index, locale) in locales.iter().enumerate() {
+        if let Some(conflict) = locales[..index]
+            .iter()
+            .find(|candidate| candidate.locale.eq_ignore_ascii_case(&locale.locale))
+        {
+            return Err(TypeScriptCodegenError::DuplicateLocale {
+                locale: locale.locale.clone(),
+                conflicts_with: conflict.locale.clone(),
+            });
+        }
+    }
+
+    let base_locale = options
+        .base_locale
+        .as_deref()
+        .ok_or(TypeScriptCodegenError::MissingBaseLocale)?;
+    if !locales.iter().any(|locale| locale.locale == base_locale) {
+        return Err(TypeScriptCodegenError::UnknownBaseLocale {
+            base_locale: base_locale.to_owned(),
+        });
+    }
+
+    for selected in &options.included_messages {
+        let is_known = schema.messages.iter().any(|message| {
+            message.name == *selected
+                || message
+                    .name
+                    .strip_prefix(selected)
+                    .is_some_and(|rest| rest.starts_with('.'))
+        });
+        if !is_known {
+            return Err(TypeScriptCodegenError::UnknownIncludedMessage {
+                message: selected.clone(),
+            });
+        }
+    }
+
+    for locale in locales {
+        validate_text_direction(&locale.locale)?;
+    }
+
+    Ok(())
+}
+
+fn validate_text_direction(locale: &str) -> Result<(), TypeScriptCodegenError> {
+    match linguini_cldr::built_in_text_direction(locale) {
+        Some("ltr" | "rtl") => Ok(()),
+        Some(direction) => Err(TypeScriptCodegenError::UnsupportedTextDirection {
+            locale: locale.to_owned(),
+            direction: direction.to_owned(),
+        }),
+        None => Err(TypeScriptCodegenError::MissingTextDirection {
+            locale: locale.to_owned(),
+        }),
     }
 }
 
@@ -406,9 +523,12 @@ fn generate_typescript_module_unchecked(
 ) -> String {
     let mut output = String::new();
     for namespace in namespaces {
+        let identifier = safe_identifier(namespace);
         output.push_str(&format!(
             "import {{ {} }} from \"./{}/{}\";\n",
-            namespace, options.locale, namespace
+            identifier,
+            escape_string(&options.locale),
+            escape_string(namespace)
         ));
     }
     emit_imports(schema, locale, options, "../shared", &mut output);
@@ -419,7 +539,7 @@ fn generate_typescript_module_unchecked(
     emit_formatter_data(schema, locale, options, &mut output);
     emit_schema_type_reexports(schema, "../shared", &mut output);
     for namespace in namespaces {
-        output.push_str(&format!("export {{ {namespace} }};\n\n"));
+        output.push_str(&format!("export {{ {} }};\n\n", safe_identifier(namespace)));
     }
     emit_variables(locale, options, &mut output);
     emit_forms(locale, options, &mut output);
@@ -459,13 +579,14 @@ fn generate_typescript_module_with_shared_import(
     let exports = emit_messages(schema, locale, options, &mut output);
     emit_locale_default(&exports, &[], &mut output);
     if let Some(namespace_alias) = namespace_alias {
+        let identifier = safe_identifier(namespace_alias);
         let alias_is_exported = exports
             .top_level
             .iter()
             .chain(exports.groups.iter())
-            .any(|export| export == namespace_alias);
+            .any(|export| export == &identifier);
         if !alias_is_exported {
-            output.push_str(&format!("\nexport const {namespace_alias} = lgl;\n"));
+            output.push_str(&format!("\nexport const {identifier} = lgl;\n"));
         }
     }
     output
@@ -611,10 +732,7 @@ fn locale_fallback_chain(
             }
         }
     }
-    let base = base_locale
-        .filter(|candidate| locales.iter().any(|entry| entry.locale == *candidate))
-        .or_else(|| locales.first().map(|entry| entry.locale.as_str()));
-    if let Some(base) = base {
+    if let Some(base) = base_locale {
         if !chain.iter().any(|entry| entry == base) {
             chain.push(base.to_owned());
         }
@@ -680,7 +798,7 @@ fn merge_named_items<T: Clone>(target: &mut Vec<T>, source: &[T], key: impl Fn(&
 }
 
 fn plural_function_name(locale: &str) -> String {
-    format!("plural{}", pascal_identifier(locale))
+    safe_identifier(&format!("plural{}", pascal_identifier(locale)))
 }
 
 fn pascal_identifier(value: &str) -> String {
@@ -708,13 +826,11 @@ fn generate_shared_module(schema: &IrModule) -> String {
 
 fn emit_locale_default(exports: &emit::ModuleExports, namespaces: &[String], output: &mut String) {
     output.push_str("const lgl = {\n");
-    for name in exports
-        .top_level
-        .iter()
-        .chain(exports.groups.iter())
-        .chain(namespaces.iter())
-    {
+    for name in exports.top_level.iter().chain(exports.groups.iter()) {
         output.push_str(&format!("  {name},\n"));
+    }
+    for namespace in namespaces {
+        output.push_str(&format!("  {},\n", safe_identifier(namespace)));
     }
     output.push_str("} as const;\n\n");
     output.push_str("export default lgl;\n");

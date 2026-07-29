@@ -145,8 +145,13 @@ impl Validator {
     }
 
     fn function(&mut self, function: &FunctionDeclaration) {
+        self.function_parameters(&function.parameters);
+        self.function_branches(&function.branches);
+    }
+
+    fn function_parameters(&mut self, function_parameters: &[crate::FunctionParameter]) {
         let mut parameters = BTreeMap::new();
-        for parameter in &function.parameters {
+        for parameter in function_parameters {
             self.pascal_name(&parameter.ty, "parameter type");
             let identity = parameter.name.as_ref().unwrap_or(&parameter.ty);
             if parameter.name.is_some() {
@@ -154,7 +159,6 @@ impl Validator {
             }
             self.unique_name(&mut parameters, identity, "function parameter");
         }
-        self.function_branches(&function.branches);
     }
 
     fn function_branches(&mut self, branches: &[FunctionBranch]) {
@@ -177,10 +181,26 @@ impl Validator {
         match entry {
             FormEntry::Attribute(attribute) => {
                 self.unique_name(entries, &attribute.name, "form entry");
+                self.function_parameters(&attribute.parameters);
                 if starts_uppercase(&attribute.name.value) {
                     self.pascal_name(&attribute.name, "form category");
                 } else {
                     self.lower_name(&attribute.name, "form attribute");
+                }
+                if !attribute.parameters.is_empty()
+                    && !matches!(attribute.value, LocaleValue::Map(_))
+                {
+                    self.error(
+                        "form attribute parameters require a branch map",
+                        attribute.span,
+                    );
+                }
+                if attribute.parameters.len() > 1 && matches!(attribute.value, LocaleValue::Map(_))
+                {
+                    self.error(
+                        "a flat form branch map supports one dispatch parameter",
+                        attribute.span,
+                    );
                 }
                 match &attribute.value {
                     LocaleValue::Text(pattern) => self.text_pattern(pattern),

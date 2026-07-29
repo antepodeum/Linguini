@@ -328,7 +328,7 @@ fn validate_form_entries(
     let mut branch_patterns = BTreeSet::new();
     for entry in entries {
         match entry {
-            IrFormEntry::Attribute { name, value } => {
+            IrFormEntry::Attribute { name, value, .. } => {
                 if !attributes.insert(name) {
                     errors.push(IrReferenceError::new(
                         "IR004",
@@ -638,7 +638,13 @@ fn validate_locale(
 
     for form in &locale.forms {
         for variant in &form.variants {
-            check_form_entries(&variant.entries, &global_variables, context, errors);
+            check_form_entries(
+                &form.name,
+                &variant.entries,
+                &global_variables,
+                context,
+                errors,
+            );
         }
     }
 }
@@ -660,6 +666,7 @@ fn check_function_branch(
 }
 
 fn check_form_entries(
+    owner: &str,
     entries: &[IrFormEntry],
     variables: &BTreeMap<String, String>,
     context: &ReferenceContext<'_>,
@@ -667,7 +674,23 @@ fn check_form_entries(
 ) {
     for entry in entries {
         match entry {
-            IrFormEntry::Attribute { value, .. } => {
+            IrFormEntry::Attribute {
+                name,
+                parameters,
+                value,
+            } => {
+                for parameter in parameters {
+                    if !context.known_type(&parameter.ty) && parameter.ty != "Plural" {
+                        errors.push(IrReferenceError::new(
+                            "IR009",
+                            format!(
+                                "unknown parameter type `{}` in form `{}.{name}`",
+                                parameter.ty, owner
+                            ),
+                            value_span(value),
+                        ));
+                    }
+                }
                 check_value(value, variables, context, errors);
             }
             IrFormEntry::Branch(branch) => {
@@ -690,7 +713,9 @@ fn check_value(
                 check_text(&branch.value, variables, context, errors);
             }
         }
-        IrValue::Object(entries) => check_form_entries(entries, variables, context, errors),
+        IrValue::Object(entries) => {
+            check_form_entries("nested", entries, variables, context, errors);
+        }
     }
 }
 
@@ -962,32 +987,58 @@ fn resolve_form_path(
             Some(ty.clone())
         }
         FormPathKind::Text(ty) => Some(ty.clone()),
-        FormPathKind::Map if called => {
-            validate_arity(&path.join("."), 1, argument_types.len(), span, errors);
-            if let Some(Some(ty)) = argument_types.first() {
-                require_numeric(&path.join("."), ty, span, context, errors);
+        FormPathKind::Map(selectors) if called => {
+            let selectors = effective_form_selectors(selectors);
+            validate_arity(
+                &path.join("."),
+                selectors.len(),
+                argument_types.len(),
+                span,
+                errors,
+            );
+            for (index, (expected, actual)) in selectors.iter().zip(argument_types).enumerate() {
+                if let Some(actual) = actual {
+                    require_assignable(
+                        &format!("argument {} to form `{}`", index + 1, path.join(".")),
+                        expected,
+                        actual,
+                        span,
+                        context,
+                        errors,
+                    );
+                }
             }
             Some("String".to_owned())
         }
-        FormPathKind::Map => {
-            let numeric = variables
+        FormPathKind::Map(selectors) => {
+            let selectors = effective_form_selectors(selectors);
+            let candidates = variables
                 .values()
-                .filter(|ty| is_numeric(ty, context))
+                .filter(|actual| {
+                    selectors.iter().any(|expected| {
+                        if expected == "Plural" {
+                            is_numeric(actual, context)
+                        } else {
+                            context.resolve_alias(expected).unwrap_or(expected)
+                                == context.resolve_alias(actual).unwrap_or(actual)
+                        }
+                    })
+                })
                 .count();
-            if numeric == 0 {
+            if candidates == 0 {
                 errors.push(IrReferenceError::at(
                     "IR022",
                     format!(
-                        "form property `{}` needs an explicit numeric argument",
+                        "form property `{}` needs explicit dispatch arguments",
                         path.join(".")
                     ),
                     span,
                 ));
-            } else if numeric > 1 {
+            } else if candidates > 1 || selectors.len() > 1 {
                 errors.push(IrReferenceError::at(
                     "IR023",
                     format!(
-                        "form property `{}` has an ambiguous implicit numeric argument",
+                        "form property `{}` has ambiguous implicit dispatch arguments",
                         path.join(".")
                     ),
                     span,
@@ -1009,7 +1060,7 @@ fn resolve_form_path(
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum FormPathKind {
     Text(String),
-    Map,
+    Map(Vec<String>),
     Object,
 }
 
@@ -1019,8 +1070,12 @@ fn form_path_kind(
     context: &ReferenceContext<'_>,
 ) -> Option<FormPathKind> {
     let (segment, rest) = path.split_first()?;
-    let value = entries.iter().find_map(|entry| match entry {
-        IrFormEntry::Attribute { name, value } if name == segment => Some(value),
+    let (parameters, value) = entries.iter().find_map(|entry| match entry {
+        IrFormEntry::Attribute {
+            name,
+            parameters,
+            value,
+        } if name == segment => Some((parameters, value)),
         IrFormEntry::Attribute { .. } | IrFormEntry::Branch(_) => None,
     })?;
     if rest.is_empty() {
@@ -1032,13 +1087,26 @@ fn form_path_kind(
                     FormPathKind::Text("String".to_owned())
                 }
             }
-            IrValue::Map(_) => FormPathKind::Map,
+            IrValue::Map(_) => FormPathKind::Map(
+                parameters
+                    .iter()
+                    .map(|parameter| parameter.ty.clone())
+                    .collect(),
+            ),
             IrValue::Object(_) => FormPathKind::Object,
         });
     }
     match value {
         IrValue::Object(children) => form_path_kind(children, rest, context),
         IrValue::Text(_) | IrValue::Map(_) => None,
+    }
+}
+
+fn effective_form_selectors(selectors: &[String]) -> Vec<String> {
+    if selectors.is_empty() {
+        vec!["Plural".to_owned()]
+    } else {
+        selectors.to_vec()
     }
 }
 

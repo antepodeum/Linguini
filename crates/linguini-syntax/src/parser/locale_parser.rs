@@ -123,14 +123,11 @@ where
 {
     recursive(|entry| {
         let branch = map_branch().map(FormEntry::Branch);
-        let attribute_name = keyword("form").or_not().ignore_then(name()).then_ignore(
-            name()
-                .then_ignore(just(TokenKind::Comma).or_not())
-                .repeated()
-                .collect::<Vec<_>>()
-                .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen))
-                .or_not(),
-        );
+        let attribute_name = keyword("form")
+            .or_not()
+            .ignore_then(name())
+            .then(function_parameters().or_not())
+            .map(|(name, parameters)| (name, parameters.unwrap_or_default()));
         let attribute = attribute_name
             .then(choice((
                 just(TokenKind::Equals)
@@ -151,9 +148,10 @@ where
                 ))
                 .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace)),
             )))
-            .map_with(|(name, value), extra| {
+            .map_with(|((name, parameters), value), extra| {
                 FormEntry::Attribute(FormAttribute {
                     name,
+                    parameters,
                     value,
                     span: extra.span(),
                 })

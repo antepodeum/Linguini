@@ -1,7 +1,9 @@
 use linguini_ir::{IrMessage, IrModule};
 
 use super::emit::schema_type_names;
-use super::names::{escape_comment, escape_string, function_name, property_key, ts_type};
+use super::names::{
+    escape_comment, escape_string, function_name, property_key, safe_identifier, ts_type,
+};
 use super::templates::SHARED_DECLARATIONS;
 use super::tree::{nested_message_tree, MessageTree};
 
@@ -21,7 +23,7 @@ pub fn generate_locale_declaration_with_namespaces(
     for namespace in namespaces {
         output.push_str(&format!(
             "import {{ {} }} from \"./{}/{}\";\n",
-            namespace,
+            safe_identifier(namespace),
             escape_string(locale),
             escape_string(namespace)
         ));
@@ -32,8 +34,9 @@ pub fn generate_locale_declaration_with_namespaces(
     emit_type_imports(schema, "../shared", &mut output);
     emit_type_reexports(schema, "../shared", &mut output);
     for namespace in namespaces {
+        let identifier = safe_identifier(namespace);
         output.push_str(&format!(
-            "export declare const {namespace}: typeof {namespace};\n\n"
+            "export declare const {identifier}: typeof {identifier};\n\n"
         ));
     }
     let exports = emit_message_declarations(schema, &mut output);
@@ -52,9 +55,10 @@ pub fn generate_locale_declaration_with_shared_import(
     let exports = emit_message_declarations(schema, &mut output);
     emit_default_declaration(&exports, &mut output);
     if let Some(namespace_alias) = namespace_alias {
-        if !exports.iter().any(|export| export == namespace_alias) {
+        let identifier = safe_identifier(namespace_alias);
+        if !exports.iter().any(|export| export == &identifier) {
             output.push_str(&format!(
-                "\nexport declare const {namespace_alias}: typeof lgl;\n"
+                "\nexport declare const {identifier}: typeof lgl;\n"
             ));
         }
     }
@@ -94,7 +98,10 @@ fn emit_type_declarations(schema: &IrModule, output: &mut String) {
             .map(|variant| format!("\"{}\"", escape_string(variant)))
             .collect::<Vec<_>>()
             .join(" | ");
-        output.push_str(&format!("export type {} = {variants};\n\n", item.name));
+        output.push_str(&format!(
+            "export type {} = {variants};\n\n",
+            safe_identifier(&item.name)
+        ));
     }
 
     for item in &schema.type_aliases {
@@ -103,7 +110,7 @@ fn emit_type_declarations(schema: &IrModule, output: &mut String) {
         }
         output.push_str(&format!(
             "export type {} = {};\n\n",
-            item.name,
+            safe_identifier(&item.name),
             ts_type(&item.target)
         ));
     }
@@ -123,14 +130,14 @@ fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<Stri
 
     for (group, messages) in nested.children {
         emit_message_object_declaration(&group, &messages, output);
-        exports.push(group);
+        exports.push(safe_identifier(&group));
     }
 
     exports
 }
 
 fn emit_message_object_declaration(name: &str, tree: &MessageTree, output: &mut String) {
-    output.push_str(&format!("export declare const {name}: "));
+    output.push_str(&format!("export declare const {}: ", safe_identifier(name)));
     emit_object_type(tree, 0, output);
     output.push_str(";\n\n");
 }
@@ -184,8 +191,12 @@ fn emit_default_declaration_with_namespaces(
     output: &mut String,
 ) {
     output.push_str("declare const lgl: {\n");
-    for name in exports.iter().chain(namespaces.iter()) {
+    for name in exports {
         output.push_str(&format!("  readonly {name}: typeof {name};\n"));
+    }
+    for namespace in namespaces {
+        let identifier = safe_identifier(namespace);
+        output.push_str(&format!("  readonly {identifier}: typeof {identifier};\n"));
     }
     output.push_str("};\n\n");
     output.push_str("export default lgl;\n");
@@ -195,7 +206,13 @@ fn signature_params(signature: &IrMessage) -> String {
     signature
         .parameters
         .iter()
-        .map(|parameter| format!("{}: {}", parameter.name, ts_type(&parameter.ty)))
+        .map(|parameter| {
+            format!(
+                "{}: {}",
+                safe_identifier(&parameter.name),
+                ts_type(&parameter.ty)
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }

@@ -149,7 +149,7 @@ export { email_input };
 
 const cart_label = "В корзине";
 
-const FruitForms = {
+const __lgl_form_4672756974 = {
   apple: { Gender: "neuter", emoji: "🍎", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "яблоко", few: "яблока", _: "яблок" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "яблока", _: "яблок" }), display: { short: "ябл.", long: "спелое яблоко" } },
   pear: { Gender: "female", emoji: "🍐", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "груша", few: "груши", _: "груш" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "груши", _: "груш" }) },
   orange: { Gender: "male", emoji: "🍊", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "апельсин", few: "апельсина", _: "апельсинов" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "апельсина", _: "апельсинов" }) },
@@ -169,12 +169,12 @@ function DeliveryNote(item: string | number, p1: string | number, p2: string | n
 
 /** Displayed on the product delivery confirmation card. */
 export function delivery(fruit: Fruit, size: Size, count: number): string {
-  return String(Delivered(count, FruitForms[fruit].Gender)) + " " + String(SizeAdj(size, count, FruitForms[fruit].Gender)) + " " + String(FruitForms[fruit].nom(count));
+  return String(Delivered(count, __lgl_form_4672756974[fruit].Gender)) + " " + String(SizeAdj(size, count, __lgl_form_4672756974[fruit].Gender)) + " " + String(__lgl_form_4672756974[fruit].nom(count));
 }
 
 /** Shown near cart item count. */
 export function counted(count: number, fruit: Fruit): string {
-  return String(cart_label) + " " + String(formatNumber(count)) + " " + String(FruitForms[fruit].nom(count));
+  return String(cart_label) + " " + String(formatNumber(count)) + " " + String(__lgl_form_4672756974[fruit].nom(count));
 }
 
 export function price(amount: Money, date: ShortDate): string {

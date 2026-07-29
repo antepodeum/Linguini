@@ -6,8 +6,9 @@ use linguini_cldr::{
     compiled_number_formatting, DateFormatData, NumberFormatData, NumberPattern,
 };
 use linguini_ir::{
-    IrBranch, IrExpression, IrForm, IrFormEntry, IrFormatter, IrFormatterArgument, IrFormatterKind,
-    IrFunction, IrFunctionBranch, IrFunctionBranchValue, IrModule, IrText, IrTextPart, IrValue,
+    IrBranch, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFormatter,
+    IrFormatterArgument, IrFormatterKind, IrFunction, IrFunctionBranch, IrFunctionBranchValue,
+    IrModule, IrText, IrTextPart, IrValue,
 };
 
 use super::SampleValue;
@@ -209,19 +210,22 @@ impl<'a> Renderer<'a> {
             .collect::<Result<Vec<_>, _>>()?;
 
         match expression.path.as_slice() {
-            [root] if !args.is_empty() && context.contains_key(root) => {
+            [root] if expression.kind == IrExpressionKind::Call && context.contains_key(root) => {
                 self.eval_form_call(root, None, &args, context, inputs, depth + 1)
             }
-            [root, property] if !args.is_empty() && context.contains_key(root) => self
-                .eval_form_call(
+            [root, property]
+                if expression.kind == IrExpressionKind::Call && context.contains_key(root) =>
+            {
+                self.eval_form_call(
                     root,
                     Some(property.as_str()),
                     &args,
                     context,
                     inputs,
                     depth + 1,
-                ),
-            [function] if function == "plural" => {
+                )
+            }
+            [function] if expression.kind == IrExpressionKind::Call && function == "plural" => {
                 if args.len() != 1 {
                     return Err(RenderError::InvalidArity {
                         function: function.clone(),
@@ -231,7 +235,7 @@ impl<'a> Renderer<'a> {
                 }
                 Ok(plural_key(self.locale, &args[0]))
             }
-            [function] if !args.is_empty() => {
+            [function] if expression.kind == IrExpressionKind::Call => {
                 self.eval_function(function, &args, context, inputs, depth + 1)
             }
             [root] => {
@@ -290,16 +294,20 @@ impl<'a> Renderer<'a> {
             })?;
 
         if let Some(property) = property {
-            let value = find_entry_value(&variant.entries, &[property]).ok_or_else(|| {
-                RenderError::MissingProperty {
-                    form: form.name.clone(),
-                    variant: variant_name,
-                    path: property.to_owned(),
-                }
-            })?;
+            let (parameters, value) =
+                find_entry_value(&variant.entries, &[property]).ok_or_else(|| {
+                    RenderError::MissingProperty {
+                        form: form.name.clone(),
+                        variant: variant_name,
+                        path: property.to_owned(),
+                    }
+                })?;
             return self.eval_ir_value(
                 value,
                 args.first().map(String::as_str),
+                parameters
+                    .first()
+                    .map_or(true, |parameter| parameter.ty == "Plural"),
                 context,
                 inputs,
                 depth + 1,
@@ -317,6 +325,7 @@ impl<'a> Renderer<'a> {
         select_branch(
             args.first().map(String::as_str).unwrap_or("other"),
             &branches,
+            true,
             self.locale,
             &format!("form `{}` variant `{variant_name}`", form.name),
             context,
@@ -350,20 +359,30 @@ impl<'a> Renderer<'a> {
                 form: form.name.clone(),
                 variant: variant_name.clone(),
             })?;
-        let value = find_entry_value(&variant.entries, path).ok_or_else(|| {
+        let (parameters, value) = find_entry_value(&variant.entries, path).ok_or_else(|| {
             RenderError::MissingProperty {
                 form: form.name.clone(),
                 variant: variant_name,
                 path: path.join("."),
             }
         })?;
-        self.eval_ir_value(value, None, context, inputs, depth + 1)
+        self.eval_ir_value(
+            value,
+            None,
+            parameters
+                .first()
+                .map_or(true, |parameter| parameter.ty == "Plural"),
+            context,
+            inputs,
+            depth + 1,
+        )
     }
 
     fn eval_ir_value(
         &self,
         value: &IrValue,
         selector: Option<&str>,
+        plural_selector: bool,
         context: &BTreeMap<String, String>,
         inputs: &BTreeMap<String, SampleValue>,
         depth: usize,
@@ -376,6 +395,7 @@ impl<'a> Renderer<'a> {
                 select_branch(
                     selector.unwrap_or("other"),
                     &branches,
+                    plural_selector,
                     self.locale,
                     "form value",
                     context,
@@ -434,19 +454,23 @@ impl<'a> Renderer<'a> {
             .get(dispatch_depth)
             .copied()
             .unwrap_or(dispatch_depth);
-        let selector = args
-            .get(parameter_index)
-            .ok_or_else(|| RenderError::InvalidArity {
-                function: function.name.clone(),
-                expected: parameter_index + 1,
-                actual: args.len(),
-            })?;
+        let selector = if function.parameters.is_empty() {
+            "undefined"
+        } else {
+            args.get(parameter_index)
+                .map(String::as_str)
+                .ok_or_else(|| RenderError::InvalidArity {
+                    function: function.name.clone(),
+                    expected: parameter_index + 1,
+                    actual: args.len(),
+                })?
+        };
         let key = function
             .parameters
             .get(parameter_index)
             .filter(|parameter| parameter.ty == "Plural")
             .map(|_| plural_key(self.locale, selector))
-            .unwrap_or_else(|| selector.clone());
+            .unwrap_or_else(|| selector.to_owned());
         let branch =
             matching_function_branch(branches, &key).ok_or_else(|| RenderError::MissingBranch {
                 owner: format!("function `{}`", function.name),
@@ -640,13 +664,21 @@ fn formatter_argument<'a>(arguments: &'a [IrFormatterArgument], name: &str) -> O
         .map(|argument| argument.value.as_str())
 }
 
-fn find_entry_value<'a>(entries: &'a [IrFormEntry], path: &[&str]) -> Option<&'a IrValue> {
+fn find_entry_value<'a>(
+    entries: &'a [IrFormEntry],
+    path: &[&str],
+) -> Option<(&'a [linguini_ir::IrFunctionParameter], &'a IrValue)> {
     let (head, tail) = path.split_first()?;
     for entry in entries {
-        if let IrFormEntry::Attribute { name, value } = entry {
+        if let IrFormEntry::Attribute {
+            name,
+            parameters,
+            value,
+        } = entry
+        {
             if name == head {
                 return if tail.is_empty() {
-                    Some(value)
+                    Some((parameters, value))
                 } else if let IrValue::Object(entries) = value {
                     find_entry_value(entries, tail)
                 } else {
@@ -681,6 +713,7 @@ fn dispatch_parameter_indices(function: &IrFunction) -> Vec<usize> {
 fn select_branch(
     selector: &str,
     branches: &[&IrBranch],
+    plural_selector: bool,
     locale: &str,
     owner: &str,
     context: &BTreeMap<String, String>,
@@ -689,7 +722,11 @@ fn select_branch(
     depth: usize,
 ) -> Result<String, RenderError> {
     ensure_depth(depth)?;
-    let key = plural_key(locale, selector);
+    let key = if plural_selector {
+        plural_key(locale, selector)
+    } else {
+        selector.to_owned()
+    };
     let branch = branches
         .iter()
         .copied()
@@ -1119,6 +1156,20 @@ mod tests {
                 name: "name".to_owned()
             }
         );
+    }
+
+    #[test]
+    fn zero_argument_calls_are_not_rendered_as_references() {
+        let schema = lower_schema(&parse_schema("hello\n").expect("schema"));
+        let locale = lower_locale(
+            &parse_locale("fn ready() { _ => Ready }\nhello = {ready()}\n").expect("locale"),
+        );
+
+        let rendered = renderer(&schema, &locale, "en")
+            .render_message("hello", &BTreeMap::new())
+            .expect("zero-argument call renders");
+
+        assert_eq!(rendered, "Ready");
     }
 
     #[test]

@@ -12,7 +12,8 @@ use super::expr::{
 };
 use super::formatters::module_uses_formatters;
 use super::names::{
-    escape_comment, escape_string, function_name, property_key, safe_identifier, ts_type,
+    escape_comment, escape_string, form_binding_name, function_name, property_key, safe_identifier,
+    ts_type,
 };
 use super::tree::{nested_message_tree, MessageTree};
 use super::TypeScriptOptions;
@@ -83,8 +84,13 @@ pub fn schema_type_names(schema: &IrModule) -> Vec<String> {
     schema
         .enums
         .iter()
-        .map(|item| item.name.clone())
-        .chain(schema.type_aliases.iter().map(|item| item.name.clone()))
+        .map(|item| safe_identifier(&item.name))
+        .chain(
+            schema
+                .type_aliases
+                .iter()
+                .map(|item| safe_identifier(&item.name)),
+        )
         .collect()
 }
 
@@ -125,7 +131,10 @@ pub fn emit_enums(module: &IrModule, output: &mut String) {
             .map(|variant| format!("\"{}\"", escape_string(variant)))
             .collect::<Vec<_>>()
             .join(" | ");
-        output.push_str(&format!("export type {} = {variants};\n\n", item.name));
+        output.push_str(&format!(
+            "export type {} = {variants};\n\n",
+            safe_identifier(&item.name)
+        ));
     }
 }
 
@@ -136,7 +145,7 @@ pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
         }
         output.push_str(&format!(
             "export type {} = {};\n\n",
-            item.name,
+            safe_identifier(&item.name),
             ts_type(&item.target)
         ));
     }
@@ -144,7 +153,10 @@ pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
 
 pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     for form in &module.forms {
-        output.push_str(&format!("const {}Forms = {{\n", form.name));
+        output.push_str(&format!(
+            "const {} = {{\n",
+            form_binding_name(&form.name)
+        ));
         for variant in &form.variants {
             output.push_str(&format!(
                 "  {}: {},\n",
@@ -163,7 +175,7 @@ pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &m
         }
         output.push_str(&format!(
             "const {} = {};\n\n",
-            variable.name,
+            safe_identifier(&variable.name),
             text_expression(&variable.value, options)
         ));
     }
@@ -178,7 +190,7 @@ pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, outp
             .join(", ");
         output.push_str(&format!(
             "function {}({params}): string {{\n",
-            function.name
+            safe_identifier(&function.name)
         ));
         output.push_str(&format!(
             "  return {};\n",
@@ -211,7 +223,7 @@ pub fn emit_messages(
 
     for (group, messages) in nested.children {
         emit_message_object(schema, &group, &messages, locale, options, output);
-        exports.groups.push(group);
+        exports.groups.push(safe_identifier(&group));
     }
 
     exports
@@ -247,7 +259,7 @@ fn emit_message_object(
     options: &TypeScriptOptions,
     output: &mut String,
 ) {
-    output.push_str(&format!("export const {name} = "));
+    output.push_str(&format!("export const {} = ", safe_identifier(name)));
     emit_object_literal(schema, tree, locale, options, 0, output);
     output.push_str(" as const;\n\n");
 }
@@ -376,7 +388,13 @@ fn signature_params(signature: &IrMessage) -> String {
     signature
         .parameters
         .iter()
-        .map(|parameter| format!("{}: {}", parameter.name, ts_type(&parameter.ty)))
+        .map(|parameter| {
+            format!(
+                "{}: {}",
+                safe_identifier(&parameter.name),
+                ts_type(&parameter.ty)
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }

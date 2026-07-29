@@ -296,7 +296,7 @@ fn expression_analysis_accepts_valid_delivery_message() {
             "Fruit",
             vec![
                 FormProperty::new("Gender", Span::new(0, 0)),
-                FormProperty::new("nom", Span::new(0, 0)),
+                FormProperty::plural("nom", Span::new(0, 0)),
             ],
             Span::new(0, 0),
         )],
@@ -675,6 +675,30 @@ fn project_expression_analysis_checks_real_message_calls() {
     assert!(diagnostics
         .iter()
         .any(|diagnostic| diagnostic.code == "linguini.type_mismatch"));
+}
+
+#[test]
+fn project_expression_analysis_honors_typed_form_map_selectors() {
+    let schema = parse_schema(
+        "enum Fruit { apple }\nenum Gender { male, other }\ndelivery(fruit: Fruit, gender: Gender)\n",
+    )
+    .expect("schema parses");
+    let locale = parse_locale(
+        "impl Fruit {\n\
+           apple {\n\
+             form label(gender: Gender) {\n\
+               male => He\n\
+               _ => They\n\
+             }\n\
+           }\n\
+         }\n\
+         delivery = {fruit.label(gender)}\n",
+    )
+    .expect("locale parses");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(diagnostics.is_empty(), "{diagnostics:#?}");
 }
 
 #[test]

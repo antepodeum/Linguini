@@ -25,6 +25,7 @@ pub struct FormProperty {
     pub name: String,
     pub span: linguini_syntax::Span,
     pub needs_number: bool,
+    pub parameter_types: Vec<String>,
     pub result_type: String,
 }
 
@@ -71,6 +72,7 @@ impl FormProperty {
             name: name.into(),
             span,
             needs_number: false,
+            parameter_types: Vec::new(),
             result_type: "String".to_owned(),
         }
     }
@@ -80,6 +82,25 @@ impl FormProperty {
             name: name.into(),
             span,
             needs_number: true,
+            parameter_types: vec!["Plural".to_owned()],
+            result_type: "String".to_owned(),
+        }
+    }
+
+    pub fn dispatch(
+        name: impl Into<String>,
+        parameter_types: impl IntoIterator<Item = impl Into<String>>,
+        span: linguini_syntax::Span,
+    ) -> Self {
+        let parameter_types = parameter_types
+            .into_iter()
+            .map(Into::into)
+            .collect::<Vec<_>>();
+        Self {
+            name: name.into(),
+            span,
+            needs_number: parameter_types.as_slice() == ["Plural"],
+            parameter_types,
             result_type: "String".to_owned(),
         }
     }
@@ -93,6 +114,7 @@ impl FormProperty {
             name: name.into(),
             span,
             needs_number: false,
+            parameter_types: Vec::new(),
             result_type: result_type.into(),
         }
     }
@@ -391,7 +413,17 @@ fn collect_form_properties(
             continue;
         };
         let property = match &attribute.value {
-            LocaleValue::Map(_) => FormProperty::plural(&attribute.name.value, attribute.span),
+            LocaleValue::Map(_) if attribute.parameters.is_empty() => {
+                FormProperty::plural(&attribute.name.value, attribute.span)
+            }
+            LocaleValue::Map(_) => FormProperty::dispatch(
+                &attribute.name.value,
+                attribute
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.ty.value.as_str()),
+                attribute.span,
+            ),
             LocaleValue::Text(_) if enum_names.contains(attribute.name.value.as_str()) => {
                 FormProperty::typed(&attribute.name.value, &attribute.name.value, attribute.span)
             }
@@ -468,14 +500,7 @@ fn analyze_expression(
             analyze_path(expression, variables, forms, numeric_variables, diagnostics);
         }
         ExpressionKind::Call => {
-            analyze_call(
-                expression,
-                variables,
-                functions,
-                forms,
-                numeric_variables,
-                diagnostics,
-            );
+            analyze_call(expression, variables, functions, forms, diagnostics);
         }
     }
 }
@@ -585,7 +610,6 @@ fn analyze_call(
     variables: &BTreeMap<&str, &Variable>,
     functions: &BTreeMap<&str, &FunctionSignature>,
     forms: &BTreeMap<&str, &FormSignature>,
-    numeric_variables: &[&Variable],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     if expression.path.len() == 1 {
@@ -676,14 +700,13 @@ fn analyze_call(
         return;
     }
 
-    analyze_form_call(expression, variables, forms, numeric_variables, diagnostics);
+    analyze_form_call(expression, variables, forms, diagnostics);
 }
 
 fn analyze_form_call(
     expression: &Expression,
     variables: &BTreeMap<&str, &Variable>,
     forms: &BTreeMap<&str, &FormSignature>,
-    numeric_variables: &[&Variable],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let root = &expression.path[0];
@@ -738,8 +761,8 @@ fn analyze_form_call(
             expression.path[2].span,
         ));
     }
-    let expected = usize::from(property.needs_number);
-    if property.needs_number && expression.arguments.len() != expected {
+    let expected = property.parameter_types.len();
+    if expression.arguments.len() != expected {
         diagnostics.push(
             Diagnostic::error(
                 format!(
@@ -753,29 +776,32 @@ fn analyze_form_call(
             .with_code("linguini.call_arity"),
         );
     }
-    if property.needs_number {
-        if let Some(argument) = expression.arguments.first() {
-            let actual = expression_type(argument, variables, forms);
-            if actual
-                .as_deref()
-                .is_some_and(|ty| !matches!(ty, "Number" | "Decimal"))
-            {
+    for (index, (expected, argument)) in property
+        .parameter_types
+        .iter()
+        .zip(&expression.arguments)
+        .enumerate()
+    {
+        if let Some(actual) = expression_type(argument, variables, forms) {
+            let compatible = if expected == "Plural" {
+                matches!(actual.as_str(), "Number" | "Decimal")
+            } else {
+                expected == &actual
+            };
+            if !compatible {
                 diagnostics.push(
                     Diagnostic::error(
                         format!(
-                            "form property `{}.{}` expects Number or Decimal, got `{}`",
+                            "argument {} to form property `{}.{}` expects `{expected}`, got `{actual}`",
+                            index + 1,
                             variable.ty,
                             property.name,
-                            actual.unwrap_or_default()
                         ),
                         argument.span,
                     )
                     .with_code("linguini.type_mismatch"),
                 );
             }
-        } else if numeric_variables.is_empty() {
-            // The arity diagnostic above is the actionable error. This branch documents why an
-            // implicit fallback cannot be selected.
         }
     }
     analyze_formatters(expression, Some(&property.result_type), diagnostics);

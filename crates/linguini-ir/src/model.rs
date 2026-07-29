@@ -109,7 +109,11 @@ pub struct IrFormVariant {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrFormEntry {
-    Attribute { name: String, value: IrValue },
+    Attribute {
+        name: String,
+        parameters: Vec<IrFunctionParameter>,
+        value: IrValue,
+    },
     Branch(IrBranch),
 }
 

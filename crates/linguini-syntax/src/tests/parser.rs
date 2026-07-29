@@ -244,10 +244,14 @@ email_input {
             assert_eq!(form.variants[0].name.value, "apple");
             assert_eq!(form.variants[0].entries.len(), 2);
             match &form.variants[0].entries[1] {
-                FormEntry::Attribute(attribute) => match &attribute.value {
-                    LocaleValue::Map(branches) => assert_eq!(branches.len(), 3),
-                    other => panic!("expected map value, got {other:?}"),
-                },
+                FormEntry::Attribute(attribute) => {
+                    assert_eq!(attribute.parameters.len(), 1);
+                    assert_eq!(attribute.parameters[0].ty.value, "Plural");
+                    match &attribute.value {
+                        LocaleValue::Map(branches) => assert_eq!(branches.len(), 3),
+                        other => panic!("expected map value, got {other:?}"),
+                    }
+                }
                 other => panic!("expected form attribute, got {other:?}"),
             }
         }

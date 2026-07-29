@@ -324,6 +324,14 @@ fn lower_form_entry(entry: &FormEntry) -> IrFormEntry {
     match entry {
         FormEntry::Attribute(attribute) => IrFormEntry::Attribute {
             name: attribute.name.value.clone(),
+            parameters: attribute
+                .parameters
+                .iter()
+                .map(|parameter| IrFunctionParameter {
+                    name: parameter.name.as_ref().map(|name| name.value.clone()),
+                    ty: parameter.ty.value.clone(),
+                })
+                .collect(),
             value: lower_value(&attribute.value),
         },
         FormEntry::Branch(branch) => IrFormEntry::Branch(lower_branch(branch)),

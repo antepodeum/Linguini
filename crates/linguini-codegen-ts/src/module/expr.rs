@@ -5,20 +5,28 @@ use linguini_cldr::{
     NumberPattern,
 };
 use linguini_ir::{
-    IrBranch, IrExpression, IrFormEntry, IrFormatter, IrFormatterKind, IrText, IrTextPart, IrValue,
+    IrBranch, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter, IrFormatterKind,
+    IrFunctionParameter, IrText, IrTextPart, IrValue,
 };
 
-use super::names::{escape_string, property_key, string_literal};
+use super::names::{
+    escape_string, form_binding_name, path_expression, property_access, property_key,
+    safe_identifier, string_literal,
+};
 use super::TypeScriptOptions;
 
 pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> String {
     let fields = entries
         .iter()
         .filter_map(|entry| match entry {
-            IrFormEntry::Attribute { name, value } => Some(format!(
+            IrFormEntry::Attribute {
+                name,
+                parameters,
+                value,
+            } => Some(format!(
                 "{}: {}",
                 property_key(name),
-                value_expression(value, options)
+                value_expression_with_parameters(value, parameters, options)
             )),
             IrFormEntry::Branch(_) => None,
         })
@@ -36,7 +44,7 @@ pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> Stri
     if branches.is_empty() {
         object
     } else {
-        let dispatcher = map_expression(&branches, options);
+        let dispatcher = map_expression(&branches, &[], options);
         if fields.is_empty() {
             dispatcher
         } else {
@@ -45,20 +53,37 @@ pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> Stri
     }
 }
 
-pub fn value_expression(value: &IrValue, options: &TypeScriptOptions) -> String {
+fn value_expression_with_parameters(
+    value: &IrValue,
+    parameters: &[IrFunctionParameter],
+    options: &TypeScriptOptions,
+) -> String {
     match value {
         IrValue::Text(text) => text_expression(text, options),
-        IrValue::Map(branches) => map_expression(branches, options),
+        IrValue::Map(branches) => map_expression(branches, parameters, options),
         IrValue::Object(entries) => form_object(entries, options),
     }
 }
 
-pub fn map_expression(branches: &[IrBranch], options: &TypeScriptOptions) -> String {
+pub fn map_expression(
+    branches: &[IrBranch],
+    parameters: &[IrFunctionParameter],
+    options: &TypeScriptOptions,
+) -> String {
     let items = branch_items(branches, options);
-    format!(
-        "(value: number | string) => selectBranch({}(value), {{ {items} }})",
-        options.plural_function
-    )
+    let parameter = parameters
+        .first()
+        .and_then(|parameter| parameter.name.as_deref())
+        .map(safe_identifier)
+        .unwrap_or_else(|| "value".to_owned());
+    let selector = parameters
+        .first()
+        .filter(|parameter| parameter.ty != "Plural")
+        .map_or_else(
+            || format!("{}({parameter})", options.plural_function),
+            |_| format!("String({parameter})"),
+        );
+    format!("({parameter}: number | string) => selectBranch({selector}, {{ {items} }})")
 }
 
 pub fn text_expression(text: &IrText, options: &TypeScriptOptions) -> String {
@@ -140,7 +165,7 @@ fn expression_value(
         return "\"\"".to_owned();
     }
 
-    if !expression.arguments.is_empty() {
+    if expression.kind == IrExpressionKind::Call {
         if let [root] = expression.path.as_slice() {
             if root == "plural" {
                 return format!(
@@ -159,7 +184,9 @@ fn expression_value(
         if let [root] = expression.path.as_slice() {
             if let Some(ty) = context.get(root) {
                 return format!(
-                    "{ty}Forms[{root}]({})",
+                    "{}[{}]({})",
+                    form_binding_name(ty),
+                    safe_identifier(root),
                     expression
                         .arguments
                         .iter()
@@ -173,7 +200,10 @@ fn expression_value(
         if let [root, property] = expression.path.as_slice() {
             if let Some(ty) = context.get(root) {
                 return format!(
-                    "{ty}Forms[{root}].{property}({})",
+                    "{}[{}]{}({})",
+                    form_binding_name(ty),
+                    safe_identifier(root),
+                    property_access(property),
                     expression
                         .arguments
                         .iter()
@@ -186,7 +216,7 @@ fn expression_value(
 
         return format!(
             "{}({})",
-            expression.path.join("."),
+            path_expression(&expression.path),
             expression
                 .arguments
                 .iter()
@@ -198,20 +228,34 @@ fn expression_value(
 
     match expression.path.as_slice() {
         [root, property] => context.get(root).map_or_else(
-            || expression.path.join("."),
-            |ty| format!("{ty}Forms[{root}].{property}"),
+            || path_expression(&expression.path),
+            |ty| {
+                format!(
+                    "{}[{}]{}",
+                    form_binding_name(ty),
+                    safe_identifier(root),
+                    property_access(property)
+                )
+            },
         ),
         [root, property, rest @ ..] => {
             let suffix = rest
                 .iter()
-                .map(|part| format!(".{part}"))
+                .map(|part| property_access(part))
                 .collect::<String>();
             context.get(root).map_or_else(
-                || expression.path.join("."),
-                |ty| format!("{ty}Forms[{root}].{property}{suffix}"),
+                || path_expression(&expression.path),
+                |ty| {
+                    format!(
+                        "{}[{}]{}{suffix}",
+                        form_binding_name(ty),
+                        safe_identifier(root),
+                        property_access(property)
+                    )
+                },
             )
         }
-        _ => expression.path.join("."),
+        _ => path_expression(&expression.path),
     }
 }
 
@@ -536,4 +580,128 @@ fn indexed_string_literal(values: &[&str], index: &str) -> String {
             .collect::<Vec<_>>()
             .join(", ")
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{expression_value, form_object, TypeScriptOptions};
+    use linguini_ir::{lower_locale, IrExpression, IrExpressionKind};
+    use linguini_syntax::{parse_locale, Span};
+    use std::collections::BTreeMap;
+
+    fn expression(kind: IrExpressionKind, path: &[&str]) -> IrExpression {
+        IrExpression {
+            kind,
+            path: path.iter().map(|part| (*part).to_owned()).collect(),
+            arguments: Vec::new(),
+            formatters: Vec::new(),
+            span: Span::new(0, 0),
+        }
+    }
+
+    #[test]
+    fn zero_argument_global_call_differs_from_reference() {
+        let context = BTreeMap::new();
+        let options = TypeScriptOptions::default();
+
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Call, &["ready"]),
+                &context,
+                &options
+            ),
+            "ready()"
+        );
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Reference, &["ready"]),
+                &context,
+                &options
+            ),
+            "ready"
+        );
+    }
+
+    #[test]
+    fn zero_argument_builtin_plural_call_uses_configured_function() {
+        let context = BTreeMap::new();
+        let options = TypeScriptOptions {
+            plural_function: "selectPlural".to_owned(),
+            ..TypeScriptOptions::default()
+        };
+
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Call, &["plural"]),
+                &context,
+                &options
+            ),
+            "selectPlural()"
+        );
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Reference, &["plural"]),
+                &context,
+                &options
+            ),
+            "plural"
+        );
+    }
+
+    #[test]
+    fn zero_argument_form_calls_differ_from_form_references() {
+        let context = BTreeMap::from([("item".to_owned(), "Item".to_owned())]);
+        let options = TypeScriptOptions::default();
+
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Call, &["item"]),
+                &context,
+                &options
+            ),
+            "__lgl_form_4974656D[item]()"
+        );
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Reference, &["item"]),
+                &context,
+                &options
+            ),
+            "item"
+        );
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Call, &["item", "label"]),
+                &context,
+                &options
+            ),
+            "__lgl_form_4974656D[item].label()"
+        );
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Reference, &["item", "label"]),
+                &context,
+                &options
+            ),
+            "__lgl_form_4974656D[item].label"
+        );
+    }
+
+    #[test]
+    fn explicit_non_plural_form_selector_uses_string_dispatch() {
+        let locale = lower_locale(
+            &parse_locale(
+                "impl Fruit {\n  apple {\n    form label(gender: Gender) {\n      male => He\n      _ => They\n    }\n  }\n}\n",
+            )
+            .expect("locale"),
+        );
+        let entries = &locale.forms[0].variants[0].entries;
+
+        let emitted = form_object(entries, &TypeScriptOptions::default());
+
+        assert!(
+            emitted.contains("label: (gender: number | string) => selectBranch(String(gender),")
+        );
+        assert!(!emitted.contains("pluralEn(gender)"));
+    }
 }

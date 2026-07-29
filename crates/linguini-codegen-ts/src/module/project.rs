@@ -199,13 +199,12 @@ fn locale_literals(locales: &[TypeScriptLocaleModule]) -> Vec<String> {
 }
 
 fn base_locale_literal(locales: &[TypeScriptLocaleModule], base_locale: Option<&str>) -> String {
-    let selected = base_locale
-        .filter(|base_locale| locales.iter().any(|locale| locale.locale == *base_locale))
-        .or_else(|| locales.first().map(|locale| locale.locale.as_str()));
-
-    selected
-        .map(|locale| format!("\"{}\"", escape_string(locale)))
-        .unwrap_or_else(|| "\"\" as LinguiniLanguageInput".to_owned())
+    let locale = base_locale.expect("validated TypeScript projects have an explicit base locale");
+    debug_assert!(
+        locales.iter().any(|entry| entry.locale == locale),
+        "validated TypeScript projects contain the configured base locale"
+    );
+    format!("\"{}\"", escape_string(locale))
 }
 
 fn web_options_literal(options: &TypeScriptWebOptions) -> String {
