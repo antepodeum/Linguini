@@ -61,6 +61,8 @@ production path uses the fix and its relevant tests pass.
   `sequence`, reroute-priority, and load-merge composition contracts.
 - `858d5cf` — host-time-zone-independent generated date formatting with strict ISO
   coercion and visible invalid-date failures.
+- `16d854e`, `f93e516` — pinned CLDR aliases, parent locales, likely subtags, BCP 47
+  extension aliases, and one canonical locale-resolution service consumed by CLI and codegen.
 
 ## Numbered findings
 
@@ -248,7 +250,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #153 — Parse plural operands once.
 - [x] #154 — Remove category-order dependence for empty rules.
 - [x] #155 — Return structured plural parse errors with offsets.
-- [ ] #156 — Implement canonical aliases, parent locales, and likely subtags.
+- [x] #156 — Implement canonical aliases, parent locales, and likely subtags.
 - [ ] #157 — Support CLDR numbering systems beyond `latn`.
 - [ ] #158 — Expand date/calendar/context/time-zone/skeleton support.
 - [ ] #159 — Apply currency symbols, digits, increments, and spacing.
@@ -686,7 +688,7 @@ production path uses the fix and its relevant tests pass.
 - [x] P1-5 — Preserve call/declaration kinds, sources, and spans.
 - [-] P1-6 — Finish the single project symbol/type/exhaustiveness database.
 - [-] P1-7 — Make CLI and LSP consume that same database.
-- [ ] P1-8 — Implement one CLDR locale fallback service.
+- [x] P1-8 — Implement one CLDR locale fallback service.
 
 ### P2
 
