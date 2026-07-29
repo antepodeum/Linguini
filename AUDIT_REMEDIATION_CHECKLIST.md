@@ -55,6 +55,8 @@ production path uses the fix and its relevant tests pass.
   redirects to the runtime contract's temporary 307 response.
 - `b58b66c` — confined generated request state to the typed `locals.linguini` namespace and
   removed collision-prone generic SvelteKit locals.
+- `110fce9` — added collision-free generated hook/load aliases plus explicit SvelteKit
+  `sequence`, reroute-priority, and load-merge composition contracts.
 
 ## Numbered findings
 
@@ -327,7 +329,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] #229 — Share server/client link skip rules.
 - [ ] #230 — Preserve SvelteKit streaming.
 - [x] #231 — Namespace generated `locals` fields.
-- [ ] #232 — Provide explicit hook composition contracts.
+- [x] #232 — Provide explicit hook composition contracts.
 - [x] #233 — Wire configured redirect status or remove the dead option.
 - [ ] #234 — Give runtime link observers per-app/HMR ownership.
 - [ ] #235 — Batch and bound DOM observation.
