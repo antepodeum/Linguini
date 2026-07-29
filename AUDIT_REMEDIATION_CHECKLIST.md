@@ -41,6 +41,7 @@ production path uses the fix and its relevant tests pass.
 - `def8e52` — warning promotion for both CLI checks and pre-write builds.
 - `b3b93b6` — closed generated locale-source contracts, configuration-aligned defaults,
   weighted `Accept-Language` negotiation, strict SvelteKit headers, and safe cookie decoding.
+- `220b8a3` — lexer-derived TextMate and language-configuration golden tests.
 
 ## Numbered findings
 
@@ -440,7 +441,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #341 — Add unit, packaging, and real-server smoke coverage.
 - [x] #342 — Pin packaging tools and avoid `npx --yes`.
 - [x] #343 — Use one lockfile convention inside the extension.
-- [ ] #344 — Add lexer-derived grammar and language-configuration golden tests.
+- [x] #344 — Add lexer-derived grammar and language-configuration golden tests.
 - [x] #345 — Perform a compiler/LSP protocol version handshake.
 - [x] #346 — Verify clean extension install, compile, package, and VSIX contents.
 
