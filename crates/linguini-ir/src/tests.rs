@@ -345,14 +345,21 @@ fn project_namespace_qualifies_declarations_types_references_and_origins() {
 #[test]
 fn reference_validation_resolves_qualified_functions_and_variables() {
     let mut schema = lower_schema(
-        &parse_schema("enum Size { small, big }\nsummary(size: Size)\n").expect("schema parses"),
+        &parse_schema(
+            "enum Size { small, big }\n\
+             enum Fruit { apple }\n\
+             enum Gender { male, other }\n\
+             summary(size: Size, fruit: Fruit)\n",
+        )
+        .expect("schema parses"),
     );
     qualify_module(&mut schema, "shop.checkout");
     let mut locale = lower_locale(
         &parse_locale(
             "form SizeWord(Size) { small => small\n_ => big }\n\
+             impl Fruit { apple { Gender = male } }\n\
              let label = Size\n\
-             summary = {label}: {SizeWord(size)}\n",
+             summary = {label}: {SizeWord(size)} {fruit.Gender}\n",
         )
         .expect("locale parses"),
     );

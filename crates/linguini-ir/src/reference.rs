@@ -1092,7 +1092,7 @@ fn resolve_form_path(
 
     let mut kinds = Vec::new();
     for variant in &form.variants {
-        if let Some(kind) = form_path_kind(&variant.entries, path, context) {
+        if let Some(kind) = form_path_kind(&variant.entries, path, resolved_type, context) {
             kinds.push(kind);
         }
     }
@@ -1220,6 +1220,7 @@ enum FormPathKind {
 fn form_path_kind(
     entries: &[IrFormEntry],
     path: &[String],
+    owner_type: &str,
     context: &ReferenceContext<'_>,
 ) -> Option<FormPathKind> {
     let (segment, rest) = path.split_first()?;
@@ -1234,8 +1235,8 @@ fn form_path_kind(
     if rest.is_empty() {
         return Some(match value {
             IrValue::Text(_) => {
-                if context.enums.contains_key(segment.as_str()) {
-                    FormPathKind::Text(segment.clone())
+                if let Some(ty) = relative_enum_type(segment, owner_type, context) {
+                    FormPathKind::Text(ty)
                 } else {
                     FormPathKind::Text("String".to_owned())
                 }
@@ -1250,9 +1251,26 @@ fn form_path_kind(
         });
     }
     match value {
-        IrValue::Object(children) => form_path_kind(children, rest, context),
+        IrValue::Object(children) => form_path_kind(children, rest, owner_type, context),
         IrValue::Text(_) | IrValue::Map(_) => None,
     }
+}
+
+fn relative_enum_type(
+    name: &str,
+    owner_type: &str,
+    context: &ReferenceContext<'_>,
+) -> Option<String> {
+    let candidates = std::iter::once(name.to_owned()).chain(
+        owner_type
+            .rsplit_once('.')
+            .map(|(namespace, _)| format!("{namespace}.{name}")),
+    );
+    candidates.into_iter().find(|candidate| {
+        context
+            .resolve_alias(candidate)
+            .is_ok_and(|resolved| context.enums.contains_key(resolved))
+    })
 }
 
 fn effective_form_selectors(selectors: &[String]) -> Vec<String> {
