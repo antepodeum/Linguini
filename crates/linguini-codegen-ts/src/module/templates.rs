@@ -49,6 +49,8 @@ mod tests {
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
+        assert!(SVELTEKIT_RUNTIME.contains("status: 307"));
+        assert!(!SVELTEKIT_RUNTIME.contains("redirectStatus"));
         assert!(SVELTEKIT_DECLARATIONS.contains("SerializedLinguiniContext"));
     }
 

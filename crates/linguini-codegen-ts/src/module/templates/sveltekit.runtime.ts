@@ -10,7 +10,6 @@ export const load: ServerLoad = createLoad();
 
 function createHandle(runtime: typeof import("./index"), options: Record<string, unknown> = {}) {
   const web = createWebI18n(runtime, options.web as Record<string, unknown> | undefined ?? options);
-  const redirectStatus = Number(options.redirectStatus ?? 307);
   const persistCookie = options.persistCookie !== false;
 
   return async function linguiniHandle({ event, resolve }: Parameters<Handle>[0]) {
@@ -35,7 +34,7 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
     const redirectLocation = web.getCanonicalRedirect(event.url, context.locale);
     if (redirectLocation) {
       const response = new Response(null, {
-        status: redirectStatus,
+        status: 307,
         headers: { location: redirectLocation },
       });
       if (persistCookie) web.setLocaleCookie(response, context.locale);
