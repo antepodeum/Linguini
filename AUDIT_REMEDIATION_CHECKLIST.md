@@ -47,6 +47,10 @@ production path uses the fix and its relevant tests pass.
   case-insensitive output-collision validation.
 - `6604bac` — explicit JSON and SARIF 2.1.0 CLI diagnostics with source ranges,
   related locations, stable rule IDs, severities, and quick fixes.
+- `03bdfaf` — checked-in manifest-owned site codegen, Cargo-free frontend checks/builds,
+  offline no-`git` verification, and generated GitHub Pages runtime configuration.
+- `7e8fa50`, `a6e5f7b`, `7cbb209`, `27aa665` — namespace-aware dependency validation,
+  enum-valued form properties, locale-symbol bindings, and collision-safe public type aliases.
 
 ## Numbered findings
 
@@ -61,7 +65,7 @@ production path uses the fix and its relevant tests pass.
 - [-] #7 — Use one namespace model for every declaration kind and every pipeline.
 - [ ] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
-- [-] #10 — Keep builds hermetic; remove the remaining site-to-Cargo build dependency.
+- [x] #10 — Keep builds hermetic; remove the remaining site-to-Cargo build dependency.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [-] #12 — Hide invalid mutable public model states behind validated constructors.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
@@ -452,10 +456,10 @@ production path uses the fix and its relevant tests pass.
 
 ### Site and documentation
 
-- [ ] #347 — Build/check the site without Cargo, network, `git`, or a Rust toolchain.
+- [x] #347 — Build/check the site without Cargo, network, `git`, or a Rust toolchain.
 - [-] #348 — Remove unshipped syntax/CJS claims and align the reference with conformance.
 - [ ] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
-- [ ] #350 — Replace the unsupported site `preferredLanguage` strategy.
+- [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
 - [ ] #351 — Define project and path namespace behavior unambiguously.
 - [ ] #352 — Execute examples through compile, typecheck, and runtime golden tests.
 - [ ] #353 — Document actual CLDR formatter limits and fallback behavior.
