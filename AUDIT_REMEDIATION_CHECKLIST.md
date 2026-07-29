@@ -65,6 +65,8 @@ production path uses the fix and its relevant tests pass.
   extension aliases, and one canonical locale-resolution service consumed by CLI and codegen.
 - `581fb85` — removed regex HTML rewriting and response buffering, centralized anchor
   skip policy, and added bounded per-instance browser observers with HMR disposal.
+- `6089d95` — delegated web locale fallback to the generated CLDR resolver and
+  delegated trailing-slash canonicalization to SvelteKit page options.
 - `f378a5f` — formatter parsing now reuses the validated parser's lossless token stream,
   with a regression test proving one lexer invocation per source.
 
@@ -79,7 +81,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #5 — Implement retained exhaustiveness and unreachable-pattern checks.
 - [x] #6 — Carry stable source identity through syntax, diagnostics, and semantic IR.
 - [-] #7 — Use one namespace model for every declaration kind and every pipeline.
-- [ ] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
+- [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
 - [x] #10 — Keep builds hermetic; remove the remaining site-to-Cargo build dependency.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
@@ -331,7 +333,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #221 — Append rather than overwrite existing `Set-Cookie` headers.
 - [x] #222 — Prevent public URL localization from rewriting external URLs.
 - [x] #223 — Match only exact locale path segments.
-- [ ] #224 — Derive trailing-slash behavior from SvelteKit routes.
+- [x] #224 — Derive trailing-slash behavior from SvelteKit routes.
 - [x] #225 — Compile exclusion globs without prefix overmatching.
 - [x] #226 — Make regular-expression matching stateless.
 - [x] #227 — Define a consistent URL parse/error contract.
@@ -357,7 +359,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #244 — Make cross-file schema validation mandatory before generation.
 - [x] #245 — Namespace forms, functions, variables, and origins consistently.
 - [x] #246 — Diagnose duplicate `(namespace, locale)` inputs.
-- [ ] #247 — Use one fallback service shared with codegen/runtime.
+- [x] #247 — Use one fallback service shared with codegen/runtime.
 - [x] #248 — Route analyzer errors as blocking errors.
 - [x] #249 — Continue safe independent semantic checks after syntax errors.
 - [x] #250 — Add `--deny-warnings`.
