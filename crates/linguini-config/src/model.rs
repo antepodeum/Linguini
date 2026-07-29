@@ -7,6 +7,7 @@ pub struct LinguiniConfig {
     pub project: ProjectConfig,
     pub paths: PathsConfig,
     pub targets: TargetsConfig,
+    pub analysis: AnalysisConfig,
     pub web: WebConfig,
 }
 
@@ -21,6 +22,19 @@ pub struct ProjectConfig {
 pub struct PathsConfig {
     pub schema: String,
     pub locale: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct AnalysisConfig {
+    pub unused_messages: Option<UnusedMessagesConfig>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct UnusedMessagesConfig {
+    pub sources: Vec<String>,
+    pub exclude: Vec<String>,
+    /// Canonical message paths or namespace/group prefixes whose use is resolved dynamically.
+    pub ignore: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
@@ -271,6 +285,7 @@ impl LinguiniConfig {
             "paths.locale",
             &self.paths.locale,
         )?;
+        validate_analysis(&self.analysis)?;
 
         if let Some(ts) = &self.targets.ts {
             validate_relative_path("targets.ts.out", &ts.out)?;
@@ -301,6 +316,58 @@ impl LinguiniConfig {
 
         validate_web(&self.web)
     }
+}
+
+fn validate_analysis(analysis: &AnalysisConfig) -> ConfigResult<()> {
+    let Some(unused) = &analysis.unused_messages else {
+        return Ok(());
+    };
+    if unused.sources.is_empty() {
+        return Err(ConfigError::InvalidArray(
+            "analysis.unused_messages.sources".to_owned(),
+        ));
+    }
+
+    validate_distinct_paths("analysis.unused_messages.sources", &unused.sources)?;
+    validate_distinct_paths("analysis.unused_messages.exclude", &unused.exclude)?;
+
+    let mut ignored = BTreeSet::new();
+    for prefix in &unused.ignore {
+        if prefix.is_empty()
+            || prefix.starts_with('.')
+            || prefix.ends_with('.')
+            || prefix.split('.').any(|segment| {
+                segment.is_empty()
+                    || segment
+                        .chars()
+                        .any(|character| character.is_whitespace() || character.is_control())
+            })
+        {
+            return Err(ConfigError::InvalidString(format!(
+                "analysis.unused_messages.ignore = {prefix}"
+            )));
+        }
+        if !ignored.insert(prefix) {
+            return Err(ConfigError::DuplicateKey(format!(
+                "analysis.unused_messages.ignore prefix `{prefix}`"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_distinct_paths(field: &'static str, paths: &[String]) -> ConfigResult<()> {
+    let mut seen = BTreeSet::new();
+    for path in paths {
+        validate_relative_path(field, path)?;
+        let normalized = portable_components(path).join("/");
+        if !seen.insert(normalized.clone()) {
+            return Err(ConfigError::DuplicateKey(format!(
+                "{field} path `{normalized}`"
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_project(project: &ProjectConfig) -> ConfigResult<()> {
@@ -821,6 +888,7 @@ mod tests {
                         framework: None,
                     }),
                 },
+                analysis: super::AnalysisConfig::default(),
                 web: super::WebConfig::default(),
             };
 

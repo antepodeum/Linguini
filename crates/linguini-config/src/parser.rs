@@ -1,10 +1,10 @@
 use crate::error::{ConfigError, ConfigResult};
 use crate::model::{
-    canonicalize_locale_tag, CanonicalMode, CookiePath, LinguiniConfig, LinkMode, LocalePrefixMode,
-    LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite, SecurePolicy,
-    TargetsConfig, TypeScriptTargetConfig, WebConfig, WebCookieConfig, WebLinksConfig,
-    WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig, WebRoutingConfig,
-    WebSwitchRouteConfig,
+    canonicalize_locale_tag, AnalysisConfig, CanonicalMode, CookiePath, LinguiniConfig, LinkMode,
+    LocalePrefixMode, LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite,
+    SecurePolicy, TargetsConfig, TypeScriptTargetConfig, UnusedMessagesConfig, WebConfig,
+    WebCookieConfig, WebLinksConfig, WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig,
+    WebRoutingConfig, WebSwitchRouteConfig,
 };
 use serde::Deserialize;
 
@@ -14,6 +14,7 @@ struct RawConfig {
     project: Option<RawProjectConfig>,
     paths: Option<RawPathsConfig>,
     targets: Option<RawTargetsConfig>,
+    analysis: Option<RawAnalysisConfig>,
     web: Option<RawWebConfig>,
 }
 
@@ -37,6 +38,20 @@ struct RawPathsConfig {
 #[serde(deny_unknown_fields)]
 struct RawTargetsConfig {
     ts: Option<RawTypeScriptTargetConfig>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawAnalysisConfig {
+    unused_messages: Option<RawUnusedMessagesConfig>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawUnusedMessagesConfig {
+    sources: Option<Vec<String>>,
+    exclude: Option<Vec<String>>,
+    ignore: Option<Vec<String>>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -133,11 +148,13 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
     let project = build_project(required(raw.project, "project")?)?;
     let paths = build_paths(required(raw.paths, "paths")?)?;
     let targets = build_targets(raw.targets.unwrap_or_default())?;
+    let analysis = build_analysis(raw.analysis.unwrap_or_default());
     let web = build_web(raw.web, &project.name)?;
     let config = LinguiniConfig {
         project,
         paths,
         targets,
+        analysis,
         web,
     };
     config.validate()?;
@@ -175,6 +192,31 @@ fn build_paths(raw: RawPathsConfig) -> ConfigResult<PathsConfig> {
 fn build_targets(raw: RawTargetsConfig) -> ConfigResult<TargetsConfig> {
     let ts = raw.ts.map(build_typescript_target).transpose()?;
     Ok(TargetsConfig { ts })
+}
+
+fn build_analysis(raw: RawAnalysisConfig) -> AnalysisConfig {
+    AnalysisConfig {
+        unused_messages: raw.unused_messages.map(|unused| UnusedMessagesConfig {
+            sources: unused
+                .sources
+                .unwrap_or_default()
+                .into_iter()
+                .map(normalize_project_path)
+                .collect(),
+            exclude: unused
+                .exclude
+                .unwrap_or_default()
+                .into_iter()
+                .map(normalize_project_path)
+                .collect(),
+            ignore: unused
+                .ignore
+                .unwrap_or_default()
+                .into_iter()
+                .map(|prefix| prefix.trim().to_owned())
+                .collect(),
+        }),
+    }
 }
 
 fn build_typescript_target(raw: RawTypeScriptTargetConfig) -> ConfigResult<TypeScriptTargetConfig> {
@@ -579,6 +621,62 @@ mod tests {
         assert!(target.tree_shaking);
         assert_eq!(target.messages, ["delivery", "email_input.label"]);
         assert_eq!(target.framework.as_deref(), Some("sveltekit"));
+    }
+
+    #[test]
+    fn parses_explicit_unused_message_scope() {
+        let config = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+
+            [paths]
+            schema = "linguini/schema"
+            locale = "linguini/locale"
+
+            [analysis.unused_messages]
+            sources = [" ./src/ ", "tests//ui"]
+            exclude = ["src/generated"]
+            ignore = ["main.runtime_selected", "admin"]
+            "#,
+        )
+        .expect("valid config");
+
+        let unused = config
+            .analysis
+            .unused_messages
+            .expect("unused-message analysis");
+        assert_eq!(unused.sources, ["src", "tests/ui"]);
+        assert_eq!(unused.exclude, ["src/generated"]);
+        assert_eq!(unused.ignore, ["main.runtime_selected", "admin"]);
+    }
+
+    #[test]
+    fn rejects_incomplete_or_unsafe_unused_message_scope() {
+        for analysis in [
+            "[analysis.unused_messages]\nsources = []",
+            "[analysis.unused_messages]\nsources = [\"../src\"]",
+            "[analysis.unused_messages]\nsources = [\"src\", \"./src\"]",
+            "[analysis.unused_messages]\nsources = [\"src\"]\nexclude = [\"/tmp\"]",
+            "[analysis.unused_messages]\nsources = [\"src\"]\nignore = [\"main..title\"]",
+            "[analysis.unused_messages]\nsources = [\"src\"]\nignore = [\"main\", \"main\"]",
+        ] {
+            let source = format!(
+                r#"
+                [project]
+                name = "shop"
+                default_locale = "en"
+                locales = ["en"]
+                [paths]
+                schema = "schema"
+                locale = "locale"
+                {analysis}
+                "#
+            );
+            assert!(parse_config(&source).is_err(), "{analysis}");
+        }
     }
 
     #[test]
