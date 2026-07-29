@@ -26,13 +26,15 @@ production path uses the fix and its relevant tests pass.
 - `b362a79` — native npm packages, target VSIX packaging, and protocol handshake.
 - `3ce2c7e` — typed semantic analysis and a validated-IR capability.
 - `9c64ec4` — namespace-aware indexed LSP operations.
+- `9ab0c88` — stable project source IDs, canonical namespaces, merge provenance, cross-file
+  schema checks, duplicate locale rejection, and a sealed validated codegen boundary.
 
 ## Numbered findings
 
 ### Cross-cutting architecture and product claims
 
 - [-] #1 — Align specification with shipped syntax, linting, typing, and ESM-only scope.
-- [-] #2 — Enforce validated IR as the only production codegen boundary.
+- [x] #2 — Enforce validated IR as the only production codegen boundary.
 - [-] #3 — Consolidate duplicated semantic walks into one project semantic database.
 - [x] #4 — Implement argument, selector, and reference type checks retained by the spec.
 - [x] #5 — Implement retained exhaustiveness and unreachable-pattern checks.
@@ -111,7 +113,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #66 — Attach unknown-type diagnostics to exact type spans.
 - [x] #67 — Preserve related-file source identity.
 - [-] #68 — Make the schema builder a view over the shared semantic database.
-- [-] #69 — Require a cross-file schema merge pass before every codegen entry.
+- [x] #69 — Require a cross-file schema merge pass before every codegen entry.
 - [x] #70 — Cover cycles, duplicate variants/parameters, and cross-file declarations.
 
 ### `linguini-locale`
@@ -144,7 +146,7 @@ production path uses the fix and its relevant tests pass.
 - [-] #93 — Replace mutable public vectors with validated collections.
 - [x] #94 — Diagnose duplicates before set/map insertion.
 - [-] #95 — Finish splitting schema, locale, and validated project IR types.
-- [-] #96 — Make the validated capability mandatory in every public production emitter.
+- [x] #96 — Make the validated capability mandatory in every public production emitter.
 - [x] #97 — Cover nested references, cycles, forms, duplicates, and invalid IR.
 
 ### `linguini-analyzer`
@@ -251,7 +253,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #185 — Preserve every selector in multi-key branches.
 - [ ] #186 — Dispatch maps by their semantic enum/string/plural type.
 - [ ] #187 — Emit explicit zero-argument calls.
-- [-] #188 — Reject unknown formatters at the mandatory validated boundary.
+- [x] #188 — Reject unknown formatters at the mandatory validated boundary.
 - [ ] #189 — Allocate safe, collision-free JavaScript identifiers.
 - [ ] #190 — Allocate safe, collision-free type and parameter identifiers.
 - [ ] #191 — Escape carriage returns and control characters completely.
@@ -313,14 +315,14 @@ production path uses the fix and its relevant tests pass.
 - [x] #241 — Report post-commit cleanup separately from build success.
 - [x] #242 — Surface and recover rollback failures.
 - [x] #243 — Write and enforce a generated-tree ownership manifest.
-- [ ] #244 — Make cross-file schema validation mandatory before generation.
-- [ ] #245 — Namespace forms, functions, variables, and origins consistently.
-- [ ] #246 — Diagnose duplicate `(namespace, locale)` inputs.
+- [x] #244 — Make cross-file schema validation mandatory before generation.
+- [x] #245 — Namespace forms, functions, variables, and origins consistently.
+- [x] #246 — Diagnose duplicate `(namespace, locale)` inputs.
 - [ ] #247 — Use one fallback service shared with codegen/runtime.
 - [x] #248 — Route analyzer errors as blocking errors.
 - [x] #249 — Continue safe independent semantic checks after syntax errors.
 - [ ] #250 — Add `--deny-warnings`.
-- [-] #251 — Replace the remaining incomplete raw-IR reference gate.
+- [x] #251 — Replace the remaining incomplete raw-IR reference gate.
 - [x] #252 — Contain format writes and reject symlink escape.
 - [x] #253 — Make formatting writes atomic.
 - [x] #254 — Use content hashes for optimistic fix concurrency.
@@ -636,7 +638,7 @@ production path uses the fix and its relevant tests pass.
 - [x] P0-1 — Hermetic read-only CLDR compilation.
 - [x] P0-2 — Safe manifest-owned output root.
 - [-] P0-3 — Correct form IR plus JS/JSDoc/`.d.ts` runtime corpus.
-- [-] P0-4 — Validated project capability as the only emitter entry.
+- [x] P0-4 — Validated project capability as the only emitter entry.
 - [x] P0-5 — Blocking CLI error severity.
 - [x] P0-6 — Atomic cross-kind locale indexes.
 - [x] P0-7 — Symbol-resolved workspace rename.
