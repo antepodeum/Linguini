@@ -34,6 +34,10 @@ production path uses the fix and its relevant tests pass.
   overflow checks, structured offsets, and deterministic fallback categories.
 - `451aade` — pinned MSRV/stable CI, platform and release matrices, dependency policy,
   publishable-crate packaging, native artifacts, and synchronized release versions.
+- `08a1ee1` — public parameterless message values across grouped and top-level APIs.
+- `8de3e20` — validated exhaustive dispatch and visible missing-branch failures.
+- `d547858` — same-origin web localization, exact locale segments, safe exclusion matching,
+  and a consistent URL error contract.
 
 ## Numbered findings
 
@@ -283,9 +287,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #209 — Reject an invalid base locale.
 - [x] #210 — Reject unknown text direction.
 - [-] #211 — Remove `targets.ts.module` and all CJS documentation/templates.
-- [ ] #212 — Make all parameterless messages public values.
+- [x] #212 — Make all parameterless messages public values.
 - [x] #213 — Reject empty locale sets.
-- [ ] #214 — Treat missing dispatch branches as validated-IR failures.
+- [x] #214 — Treat missing dispatch branches as validated-IR failures.
 
 ### Generated web/SvelteKit runtime
 
@@ -296,12 +300,12 @@ production path uses the fix and its relevant tests pass.
 - [ ] #219 — Handle malformed cookie percent encoding safely.
 - [-] #220 — Carry validated cookie constraints into the generated runtime.
 - [ ] #221 — Append rather than overwrite existing `Set-Cookie` headers.
-- [ ] #222 — Prevent public URL localization from rewriting external URLs.
-- [ ] #223 — Match only exact locale path segments.
+- [x] #222 — Prevent public URL localization from rewriting external URLs.
+- [x] #223 — Match only exact locale path segments.
 - [ ] #224 — Derive trailing-slash behavior from SvelteKit routes.
-- [ ] #225 — Compile exclusion globs without prefix overmatching.
-- [ ] #226 — Make regular-expression matching stateless.
-- [ ] #227 — Define a consistent URL parse/error contract.
+- [x] #225 — Compile exclusion globs without prefix overmatching.
+- [x] #226 — Make regular-expression matching stateless.
+- [x] #227 — Define a consistent URL parse/error contract.
 - [ ] #228 — Replace unsafe regex HTML rewriting.
 - [ ] #229 — Share server/client link skip rules.
 - [ ] #230 — Preserve SvelteKit streaming.
