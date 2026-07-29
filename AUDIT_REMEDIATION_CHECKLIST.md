@@ -45,6 +45,8 @@ production path uses the fix and its relevant tests pass.
 - `d82d239` — append-only locale cookie persistence through supported response sinks.
 - `615b24d` — portable, injective namespace filenames plus locale-component and
   case-insensitive output-collision validation.
+- `6604bac` — explicit JSON and SARIF 2.1.0 CLI diagnostics with source ranges,
+  related locations, stable rule IDs, severities, and quick fixes.
 
 ## Numbered findings
 
@@ -357,7 +359,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #266 — Return explicit evaluator errors.
 - [x] #267 — Share production/sample formatting semantics.
 - [x] #268 — Cover decimals and large numeric samples.
-- [ ] #269 — Add machine-readable JSON and SARIF output.
+- [x] #269 — Add machine-readable JSON and SARIF output.
 - [x] #270 — Return LSP startup errors instead of panicking.
 
 ### `linguini-lsp`
