@@ -27,9 +27,6 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
 
     const locals = event.locals as Record<string, unknown>;
     locals.linguini = context;
-    locals.locale = context.locale;
-    locals.direction = context.direction;
-    locals.l = context.l;
 
     const redirectLocation = web.getCanonicalRedirect(event.url, context.locale);
     if (redirectLocation) {

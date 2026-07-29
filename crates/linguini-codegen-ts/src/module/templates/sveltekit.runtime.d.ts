@@ -19,9 +19,6 @@ declare global {
   namespace App {
     interface Locals {
       linguini: LinguiniRequestContext<Locale, Linguini>;
-      locale: Locale;
-      direction: TextDirection;
-      l: Linguini;
     }
     interface PageData {
       linguini?: SerializedLinguiniContext<Locale>;

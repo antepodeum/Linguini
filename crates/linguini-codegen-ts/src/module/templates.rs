@@ -51,6 +51,13 @@ mod tests {
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("status: 307"));
         assert!(!SVELTEKIT_RUNTIME.contains("redirectStatus"));
+        assert!(SVELTEKIT_RUNTIME.contains("locals.linguini = context"));
+        assert!(!SVELTEKIT_RUNTIME.contains("locals.locale"));
+        assert!(!SVELTEKIT_RUNTIME.contains("locals.direction"));
+        assert!(!SVELTEKIT_RUNTIME.contains("locals.l ="));
+        assert!(!SVELTEKIT_DECLARATIONS.contains("\n      locale: Locale;"));
+        assert!(!SVELTEKIT_DECLARATIONS.contains("\n      direction: TextDirection;"));
+        assert!(!SVELTEKIT_DECLARATIONS.contains("\n      l: Linguini;"));
         assert!(SVELTEKIT_DECLARATIONS.contains("SerializedLinguiniContext"));
     }
 

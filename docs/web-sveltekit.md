@@ -129,7 +129,9 @@ Use the generated HTML placeholders:
 
 The generated `sveltekit.d.ts` augments `App.Locals` and `App.PageData`, so
 server loads can use the request-scoped locale context without handwritten app
-ambient declarations.
+ambient declarations. Linguini owns only `locals.linguini`; it does not reserve
+generic application fields such as `locals.locale`, `locals.direction`, or
+`locals.l`.
 
 The generated declaration file is a module that imports local generated types
 at the top level and augments SvelteKit's global `App` namespace inside
@@ -214,10 +216,11 @@ import {
 
 ```ts
 export function load({ locals }) {
+  const { linguini } = locals;
   return {
-    title: locals.l.home.title(),
-    locale: locals.locale,
-    canonical: locals.linguini.localizeHref("/pricing"),
+    title: linguini.l.home.title,
+    locale: linguini.locale,
+    canonical: linguini.localizeHref("/pricing"),
   };
 }
 ```
