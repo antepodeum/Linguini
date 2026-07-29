@@ -26,7 +26,7 @@
   "main": "./dist/extension.js",
   "scripts": {
     "compile": "tsc -p ./",
-    "test": "npm run compile && node --test out/restart.test.js out/server-resolution.test.js",
+    "test": "npm run compile && node --test out/grammar.test.js out/restart.test.js out/server-resolution.test.js",
     "bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=dist/extension.js --sourcemap --sources-content=false",
     "test:integration": "npm run bundle && node ./scripts/run-integration-tests.js",
     "package:vsix": "node ./scripts/package-vsix.js",
@@ -212,6 +212,8 @@
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.1",
     "ovsx": "1.0.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.3.2"
   }
 }

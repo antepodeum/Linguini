@@ -233,3 +233,25 @@ fn lexer_locale_snapshot_matches_committed_fixture() {
         &render_tokens(&tokens),
     );
 }
+
+#[test]
+fn vscode_schema_grammar_snapshot_matches_the_lexer() {
+    let source = include_str!("../../../../tests/fixtures/golden/syntax/all.lgs");
+    let tokens = lex_schema(source).expect("VS Code schema fixture lexes");
+
+    assert_snapshot(
+        "tests/fixtures/golden/snapshots/vscode-schema.tokens",
+        &render_tokens(&tokens),
+    );
+}
+
+#[test]
+fn vscode_locale_grammar_snapshot_matches_the_lexer() {
+    let source = include_str!("../../../../tests/fixtures/golden/syntax/all.lgl");
+    let tokens = lex(source).expect("VS Code locale fixture lexes");
+
+    assert_snapshot(
+        "tests/fixtures/golden/snapshots/vscode-locale.tokens",
+        &render_tokens(&tokens),
+    );
+}

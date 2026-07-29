@@ -297,6 +297,10 @@
           "match": ","
         },
         {
+          "name": "punctuation.separator.key-value.linguini.locale",
+          "match": ":"
+        },
+        {
           "name": "punctuation.accessor.dot.linguini.locale",
           "match": "\\."
         }
