@@ -28,6 +28,8 @@ production path uses the fix and its relevant tests pass.
 - `9c64ec4` — namespace-aware indexed LSP operations.
 - `9ab0c88` — stable project source IDs, canonical namespaces, merge provenance, cross-file
   schema checks, duplicate locale rejection, and a sealed validated codegen boundary.
+- `2ea35a4` — typed form-map dispatch, zero-argument calls, injective TypeScript identifiers,
+  complete string escaping, and strict project-input validation.
 
 ## Numbered findings
 
@@ -251,14 +253,14 @@ production path uses the fix and its relevant tests pass.
 
 - [x] #184 — Emit form branches as callable dispatch rather than discarding them.
 - [x] #185 — Preserve every selector in multi-key branches.
-- [ ] #186 — Dispatch maps by their semantic enum/string/plural type.
-- [ ] #187 — Emit explicit zero-argument calls.
+- [x] #186 — Dispatch maps by their semantic enum/string/plural type.
+- [x] #187 — Emit explicit zero-argument calls.
 - [x] #188 — Reject unknown formatters at the mandatory validated boundary.
-- [ ] #189 — Allocate safe, collision-free JavaScript identifiers.
-- [ ] #190 — Allocate safe, collision-free type and parameter identifiers.
-- [ ] #191 — Escape carriage returns and control characters completely.
+- [x] #189 — Allocate safe, collision-free JavaScript identifiers.
+- [x] #190 — Allocate safe, collision-free type and parameter identifiers.
+- [x] #191 — Escape carriage returns and control characters completely.
 - [x] #192 — Guard recursive alias resolution.
-- [ ] #193 — Validate currency codes before runtime.
+- [x] #193 — Validate currency codes before runtime.
 - [ ] #194 — Apply currency minor units and CLDR currency rules.
 - [ ] #195 — Preserve large-number precision.
 - [ ] #196 — Make date output independent of host local time zone.
@@ -268,17 +270,17 @@ production path uses the fix and its relevant tests pass.
 - [ ] #200 — Require every declared message in direct codegen input locales.
 - [ ] #201 — Replace eager locale imports with real bundler-visible splitting.
 - [ ] #202 — Tree-shake transitive forms, functions, variables, and helpers.
-- [ ] #203 — Diagnose unknown `included_messages`.
+- [x] #203 — Diagnose unknown `included_messages`.
 - [ ] #204 — Stop copying all global declarations into every namespace.
 - [ ] #205 — Deduplicate formatter helpers/data per locale.
 - [ ] #206 — Sanitize namespace paths and generated filenames.
-- [ ] #207 — Reject case-folded locale filename collisions.
+- [x] #207 — Reject case-folded locale filename collisions.
 - [ ] #208 — Use the shared CLDR fallback graph.
-- [ ] #209 — Reject an invalid base locale.
-- [ ] #210 — Reject unknown text direction.
+- [x] #209 — Reject an invalid base locale.
+- [x] #210 — Reject unknown text direction.
 - [-] #211 — Remove `targets.ts.module` and all CJS documentation/templates.
 - [ ] #212 — Make all parameterless messages public values.
-- [ ] #213 — Reject empty locale sets.
+- [x] #213 — Reject empty locale sets.
 - [ ] #214 — Treat missing dispatch branches as validated-IR failures.
 
 ### Generated web/SvelteKit runtime
@@ -660,7 +662,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] P2-1 — Shared ECMAScript backend and `TypeModel`.
 - [ ] P2-2 — End-to-end documentation propagation.
 - [-] P2-3 — Emit both multiline modes from semantic text IR.
-- [ ] P2-4 — Collision-safe identifiers and filenames.
+- [-] P2-4 — Collision-safe identifiers and filenames.
 - [ ] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
 - [ ] P2-6 — Compile-time typed `l` namespace transform.
 - [ ] P2-7 — Positional plus named-object overloads.
