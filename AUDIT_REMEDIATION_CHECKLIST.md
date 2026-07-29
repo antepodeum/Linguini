@@ -38,6 +38,7 @@ production path uses the fix and its relevant tests pass.
 - `8de3e20` — validated exhaustive dispatch and visible missing-branch failures.
 - `d547858` — same-origin web localization, exact locale segments, safe exclusion matching,
   and a consistent URL error contract.
+- `def8e52` — warning promotion for both CLI checks and pre-write builds.
 
 ## Numbered findings
 
@@ -331,7 +332,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] #247 — Use one fallback service shared with codegen/runtime.
 - [x] #248 — Route analyzer errors as blocking errors.
 - [x] #249 — Continue safe independent semantic checks after syntax errors.
-- [ ] #250 — Add `--deny-warnings`.
+- [x] #250 — Add `--deny-warnings`.
 - [x] #251 — Replace the remaining incomplete raw-IR reference gate.
 - [x] #252 — Contain format writes and reject symlink escape.
 - [x] #253 — Make formatting writes atomic.
