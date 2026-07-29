@@ -13,6 +13,7 @@ fn sveltekit_page_transform_preserves_streaming() {
 fn generated_runtime_does_not_rewrite_html_with_anchor_regexes() {
     assert!(!WEB_RUNTIME.contains("localizeMarkupLinks"));
     assert!(!WEB_RUNTIME.contains(r"/<a\b"));
+    assert!(!WEB_RUNTIME.contains("\"directory\""));
 }
 
 #[test]

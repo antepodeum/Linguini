@@ -24,7 +24,7 @@ export interface LinguiniWebOptions {
   localStorageKey?: string;
   prefixDefaultLocale?: boolean;
   basePath?: string;
-  trailingSlash?: "ignore" | "always" | "never" | "directory";
+  trailingSlash?: "ignore" | "always" | "never";
   cookiePath?: string;
   cookieDomain?: string;
   cookieMaxAge?: number;
@@ -499,13 +499,10 @@ function matchLocaleValue<Locale extends string>(locales: readonly Locale[], val
   const candidates = Array.isArray(value) ? value : [value];
   for (const candidate of candidates) {
     if (typeof candidate !== "string") continue;
-    let tag = candidate;
-    while (tag) {
-      const exact = locales.find((locale) => locale.toLowerCase() === tag.toLowerCase());
-      if (exact) return exact;
-      const dash = tag.lastIndexOf("-");
-      tag = dash > 0 ? tag.slice(0, dash) : "";
-    }
+    const exact = locales.find(
+      (locale) => locale.toLowerCase() === candidate.toLowerCase(),
+    );
+    if (exact) return exact;
   }
   return undefined;
 }

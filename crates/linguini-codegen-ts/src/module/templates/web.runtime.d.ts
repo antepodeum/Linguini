@@ -16,7 +16,7 @@ export interface LinguiniWebOptions {
   localStorageKey?: string;
   prefixDefaultLocale?: boolean;
   basePath?: string;
-  trailingSlash?: "ignore" | "always" | "never" | "directory";
+  trailingSlash?: "ignore" | "always" | "never";
   cookiePath?: string;
   cookieDomain?: string;
   cookieMaxAge?: number;

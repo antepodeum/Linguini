@@ -1113,7 +1113,6 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                 local_storage_key: "SHOP_LOCALE".to_owned(),
                 prefix_default_locale: true,
                 base_path: "/shop".to_owned(),
-                trailing_slash: "never".to_owned(),
                 redirect: false,
                 origin: Some("https://example.com".to_owned()),
                 exclude: vec!["/api/**".to_owned()],
@@ -1147,6 +1146,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .contains("sources: [\"path\", \"cookie\", \"accept-language\"] as const"));
     assert!(!svelte.contents.contains("preferredLanguage"));
     assert!(!svelte.contents.contains("globalVariable"));
+    assert!(!svelte.contents.contains("trailingSlash"));
     assert!(svelte.contents.contains("localizeLinks: false"));
     assert!(svelte.contents.contains("cookie: true"));
     assert!(svelte.contents.contains("navigate: true"));

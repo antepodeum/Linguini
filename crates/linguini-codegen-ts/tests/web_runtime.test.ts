@@ -62,6 +62,17 @@ test("anchor skip attributes use the same link-localization policy", () => {
   assert.equal(web.shouldLocalizeLink("https://outside.example/account"), false);
 });
 
+test("web locale matching delegates fallback instead of truncating tags", () => {
+  const web = createWeb({ sources: ["cookie"] });
+
+  assert.equal(web.matchLocale("fr"), "fr");
+  assert.equal(web.matchLocale("fr-CA"), undefined);
+  assert.equal(
+    web.resolveLocaleSync({ cookie: "LINGUINI_LOCALE=fr-CA" }),
+    "en",
+  );
+});
+
 test("locale path segments require an exact case-insensitive match", () => {
   const web = createWeb();
 

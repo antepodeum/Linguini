@@ -154,7 +154,6 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
         prefix_default_locale: config.web.routing.locale_prefix == LocalePrefixMode::Always,
         base_path: String::new(),
-        trailing_slash: "ignore".to_owned(),
         redirect: config.web.routing.canonical == CanonicalMode::Redirect,
         origin: None,
         exclude: config.web.routes.exclude.clone(),

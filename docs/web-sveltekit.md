@@ -39,7 +39,6 @@ strategy = ["url", "cookie", "localStorage", "header", "baseLocale"]
 # URL routing and localized URL generation.
 base_path = ""
 prefix_default_locale = false
-trailing_slash = "ignore" # "ignore", "always", "never", or "directory"
 redirect = true
 origin = "https://example.com"
 exclude = ["/api/**", "/_app/**", "/favicon.ico"]
@@ -63,6 +62,15 @@ local_storage_key = "LINGUINI_LOCALE"
 
 # Existing-app escape hatch for strategy = ["globalVariable", ...].
 # global_variable_name = "__LINGUINI_LOCALE__"
+```
+
+Linguini does not define a second trailing-slash policy. SvelteKit owns it per
+route through the `trailingSlash` page option. Set an application-wide default
+in the root layout and override it in child routes when needed:
+
+```ts
+// src/routes/+layout.ts
+export const trailingSlash = "never"; // "never", "always", or "ignore"
 ```
 
 Available strategies:

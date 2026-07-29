@@ -318,10 +318,6 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
             js_bool(options.prefix_default_locale)
         ),
         format!("basePath: \"{}\"", escape_string(&options.base_path)),
-        format!(
-            "trailingSlash: \"{}\"",
-            escape_string(&options.trailing_slash)
-        ),
         format!("redirect: {}", js_bool(options.redirect)),
         format!("exclude: [{exclude}] as const"),
         format!("localizeLinks: {}", js_bool(options.localize_links)),
