@@ -185,6 +185,87 @@ fn validated_ir_rejects_formatter_type_mismatch() {
 }
 
 #[test]
+fn validated_ir_rejects_non_exhaustive_plural_dispatch() {
+    let schema = lower_schema(&parse_schema("").expect("schema parses"));
+    let locale = lower_locale(
+        &parse_locale("form Count(Plural) {\n  one => item\n}\n").expect("locale parses"),
+    );
+
+    let errors = validate_ir(&schema, &locale).expect_err("dispatch must be exhaustive");
+    assert!(errors.iter().any(|error| {
+        error.code == "IR034"
+            && error.message
+                == "function `Count` is not exhaustive for `Plural`; add an `other` or `_` branch"
+    }));
+}
+
+#[test]
+fn validated_ir_accepts_explicitly_exhaustive_enum_dispatch() {
+    let schema = lower_schema(&parse_schema("").expect("schema parses"));
+    let locale = lower_locale(
+        &parse_locale(
+            "enum Tone { formal, casual }\n\
+             form Greeting(Tone) {\n\
+               formal => Hello\n\
+               casual => Hi\n\
+             }\n",
+        )
+        .expect("locale parses"),
+    );
+
+    validate_ir(&schema, &locale).expect("all enum variants are covered");
+}
+
+#[test]
+fn validated_ir_rejects_non_exhaustive_nested_enum_dispatch() {
+    let schema = lower_schema(&parse_schema("").expect("schema parses"));
+    let locale = lower_locale(
+        &parse_locale(
+            "enum Gender { male, female }\n\
+             form Delivered(Plural, Gender) {\n\
+               one {\n\
+                 male => Delivered\n\
+               }\n\
+               _ => Delivered\n\
+             }\n",
+        )
+        .expect("locale parses"),
+    );
+
+    let errors = validate_ir(&schema, &locale).expect_err("nested dispatch must be exhaustive");
+    assert!(errors.iter().any(|error| {
+        error.code == "IR034"
+            && error.message
+                == "function `Delivered` is not exhaustive for enum `Gender`; missing branch `female`"
+    }));
+}
+
+#[test]
+fn validated_ir_rejects_non_exhaustive_impl_map() {
+    let schema = lower_schema(&parse_schema("").expect("schema parses"));
+    let locale = lower_locale(
+        &parse_locale(
+            "enum Fruit { apple }\n\
+             impl Fruit {\n\
+               apple {\n\
+                 form nom(Plural) {\n\
+                   one => apple\n\
+                 }\n\
+               }\n\
+             }\n",
+        )
+        .expect("locale parses"),
+    );
+
+    let errors = validate_ir(&schema, &locale).expect_err("impl map must be exhaustive");
+    assert!(errors.iter().any(|error| {
+        error.code == "IR034"
+            && error.message
+                == "form `Fruit.nom` is not exhaustive for `Plural`; add an `other` or `_` branch"
+    }));
+}
+
+#[test]
 fn override_resolution_replaces_value_but_preserves_provenance() {
     let locale =
         parse_locale("message = first\noverride message = second\n").expect("locale parses");

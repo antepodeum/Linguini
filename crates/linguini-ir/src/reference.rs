@@ -631,6 +631,14 @@ fn validate_locale(
                 }
             }
         }
+        validate_function_dispatch_coverage(
+            function,
+            &function.branches,
+            0,
+            context,
+            origin_span(locale, &function.name),
+            errors,
+        );
         for branch in &function.branches {
             check_function_branch(branch, &variables, context, errors);
         }
@@ -672,6 +680,26 @@ fn check_form_entries(
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) {
+    let direct_branches = entries
+        .iter()
+        .filter_map(|entry| match entry {
+            IrFormEntry::Branch(branch) => Some(branch),
+            IrFormEntry::Attribute { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    if !direct_branches.is_empty() {
+        validate_dispatch_coverage(
+            &format!("form `{owner}`"),
+            "Plural",
+            direct_branches
+                .iter()
+                .flat_map(|branch| branch.keys.iter().map(String::as_str)),
+            direct_branches.first().map(|branch| branch.span),
+            context,
+            errors,
+        );
+    }
+
     for entry in entries {
         match entry {
             IrFormEntry::Attribute {
@@ -691,6 +719,13 @@ fn check_form_entries(
                         ));
                     }
                 }
+                validate_value_dispatch_coverage(
+                    &format!("form `{}.{name}`", owner),
+                    parameters,
+                    value,
+                    context,
+                    errors,
+                );
                 check_value(value, variables, context, errors);
             }
             IrFormEntry::Branch(branch) => {
@@ -698,6 +733,118 @@ fn check_form_entries(
             }
         }
     }
+}
+
+fn validate_value_dispatch_coverage(
+    subject: &str,
+    parameters: &[crate::IrFunctionParameter],
+    value: &IrValue,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    if let IrValue::Map(branches) = value {
+        let ty = parameters
+            .first()
+            .map_or("Plural", |parameter| parameter.ty.as_str());
+        validate_dispatch_coverage(
+            subject,
+            ty,
+            branches
+                .iter()
+                .flat_map(|branch| branch.keys.iter().map(String::as_str)),
+            value_span(value),
+            context,
+            errors,
+        );
+    }
+}
+
+fn validate_function_dispatch_coverage(
+    function: &IrFunction,
+    branches: &[IrFunctionBranch],
+    depth: usize,
+    context: &ReferenceContext<'_>,
+    fallback_span: Option<Span>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let dispatch_types = function
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.ty != "String")
+        .map(|parameter| parameter.ty.as_str())
+        .collect::<Vec<_>>();
+    let ty = dispatch_types.get(depth).copied().unwrap_or("unknown");
+    let subject = format!("function `{}`", function.name);
+    validate_dispatch_coverage(
+        &subject,
+        ty,
+        branches.iter().map(|branch| branch.key.as_str()),
+        branches.first().map(|branch| branch.span).or(fallback_span),
+        context,
+        errors,
+    );
+
+    for branch in branches {
+        if let IrFunctionBranchValue::Dispatch(children) = &branch.value {
+            validate_function_dispatch_coverage(
+                function,
+                children,
+                depth + 1,
+                context,
+                Some(branch.span),
+                errors,
+            );
+        }
+    }
+}
+
+fn validate_dispatch_coverage<'a>(
+    subject: &str,
+    ty: &str,
+    keys: impl Iterator<Item = &'a str>,
+    span: Option<Span>,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let keys = keys.collect::<BTreeSet<_>>();
+    if keys.contains("_") {
+        return;
+    }
+
+    let Ok(resolved) = context.resolve_alias(ty) else {
+        return;
+    };
+    if resolved == "Plural" {
+        if !keys.contains("other") {
+            errors.push(IrReferenceError::new(
+                "IR034",
+                format!("{subject} is not exhaustive for `Plural`; add an `other` or `_` branch"),
+                span,
+            ));
+        }
+        return;
+    }
+
+    if let Some(declaration) = context.enums.get(resolved) {
+        for variant in &declaration.variants {
+            if !keys.contains(variant.as_str()) {
+                errors.push(IrReferenceError::new(
+                    "IR034",
+                    format!(
+                        "{subject} is not exhaustive for enum `{resolved}`; missing branch `{variant}`"
+                    ),
+                    span,
+                ));
+            }
+        }
+        return;
+    }
+
+    errors.push(IrReferenceError::new(
+        "IR034",
+        format!("{subject} cannot dispatch exhaustively on `{ty}` without a `_` branch"),
+        span,
+    ));
 }
 
 fn check_value(
