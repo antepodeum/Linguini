@@ -51,6 +51,8 @@ production path uses the fix and its relevant tests pass.
   offline no-`git` verification, and generated GitHub Pages runtime configuration.
 - `7e8fa50`, `a6e5f7b`, `7cbb209`, `27aa665` — namespace-aware dependency validation,
   enum-valued form properties, locale-symbol bindings, and collision-safe public type aliases.
+- `a449ce0` — removed the unreachable generated redirect-status override and fixed canonical
+  redirects to the runtime contract's temporary 307 response.
 
 ## Numbered findings
 
@@ -324,7 +326,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] #230 — Preserve SvelteKit streaming.
 - [ ] #231 — Namespace generated `locals` fields.
 - [ ] #232 — Provide explicit hook composition contracts.
-- [ ] #233 — Wire configured redirect status or remove the dead option.
+- [x] #233 — Wire configured redirect status or remove the dead option.
 - [ ] #234 — Give runtime link observers per-app/HMR ownership.
 - [ ] #235 — Batch and bound DOM observation.
 - [ ] #236 — Replace eager locale imports.
