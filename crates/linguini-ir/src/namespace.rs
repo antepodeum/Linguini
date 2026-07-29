@@ -150,15 +150,12 @@ fn qualify_expression(
     namespace: &[String],
     declaration_roots: &BTreeSet<String>,
 ) {
-    if expression
+    if let Some(root) = expression
         .path
-        .first()
-        .is_some_and(|root| declaration_roots.contains(root))
-        && !expression.path.starts_with(namespace)
+        .first_mut()
+        .filter(|root| declaration_roots.contains(root.as_str()))
     {
-        let mut qualified = namespace.to_vec();
-        qualified.append(&mut expression.path);
-        expression.path = qualified;
+        *root = qualified_name(&namespace.join("."), root);
     }
 
     for argument in &mut expression.arguments {

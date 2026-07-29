@@ -336,9 +336,28 @@ fn project_namespace_qualifies_declarations_types_references_and_origins() {
             IrTextPart::Text(_) => None,
         })
         .collect::<Vec<_>>();
+    let path_parts = locale.messages[0]
+        .body
+        .as_ref()
+        .expect("message body")
+        .parts
+        .iter()
+        .filter_map(|part| match part {
+            IrTextPart::Placeholder(expression) => Some(expression.path.clone()),
+            IrTextPart::Text(_) => None,
+        })
+        .collect::<Vec<_>>();
     assert_eq!(
         paths,
         ["shop.checkout.label", "shop.checkout.SizeWord", "fruit.nom"]
+    );
+    assert_eq!(
+        path_parts,
+        [
+            vec!["shop.checkout.label"],
+            vec!["shop.checkout.SizeWord"],
+            vec!["fruit", "nom"]
+        ]
     );
 }
 
