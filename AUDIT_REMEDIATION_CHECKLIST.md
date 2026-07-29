@@ -42,6 +42,8 @@ production path uses the fix and its relevant tests pass.
 - `b3b93b6` — closed generated locale-source contracts, configuration-aligned defaults,
   weighted `Accept-Language` negotiation, strict SvelteKit headers, and safe cookie decoding.
 - `220b8a3` — lexer-derived TextMate and language-configuration golden tests.
+- `615b24d` — portable, injective namespace filenames plus locale-component and
+  case-insensitive output-collision validation.
 
 ## Numbered findings
 
@@ -285,7 +287,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #203 — Diagnose unknown `included_messages`.
 - [ ] #204 — Stop copying all global declarations into every namespace.
 - [ ] #205 — Deduplicate formatter helpers/data per locale.
-- [ ] #206 — Sanitize namespace paths and generated filenames.
+- [x] #206 — Sanitize namespace paths and generated filenames.
 - [x] #207 — Reject case-folded locale filename collisions.
 - [ ] #208 — Use the shared CLDR fallback graph.
 - [x] #209 — Reject an invalid base locale.
@@ -674,7 +676,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] P2-1 — Shared ECMAScript backend and `TypeModel`.
 - [ ] P2-2 — End-to-end documentation propagation.
 - [-] P2-3 — Emit both multiline modes from semantic text IR.
-- [-] P2-4 — Collision-safe identifiers and filenames.
+- [x] P2-4 — Collision-safe identifiers and filenames.
 - [ ] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
 - [ ] P2-6 — Compile-time typed `l` namespace transform.
 - [ ] P2-7 — Positional plus named-object overloads.
