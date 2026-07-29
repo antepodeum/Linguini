@@ -39,6 +39,8 @@ production path uses the fix and its relevant tests pass.
 - `d547858` — same-origin web localization, exact locale segments, safe exclusion matching,
   and a consistent URL error contract.
 - `def8e52` — warning promotion for both CLI checks and pre-write builds.
+- `b3b93b6` — closed generated locale-source contracts, configuration-aligned defaults,
+  weighted `Accept-Language` negotiation, strict SvelteKit headers, and safe cookie decoding.
 
 ## Numbered findings
 
@@ -54,7 +56,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
 - [-] #10 — Keep builds hermetic; remove the remaining site-to-Cargo build dependency.
-- [-] #11 — Make accepted web strategies exactly match generated runtime capabilities.
+- [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [-] #12 — Hide invalid mutable public model states behind validated constructors.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
 - [ ] #14 — Execute normative documentation as conformance fixtures.
@@ -294,11 +296,11 @@ production path uses the fix and its relevant tests pass.
 
 ### Generated web/SvelteKit runtime
 
-- [ ] #215 — Remove unsupported strategy dispatch and generate selected source modules.
-- [ ] #216 — Make default source behavior match validated configuration.
-- [ ] #217 — Accept only the supported SvelteKit header interface.
-- [ ] #218 — Parse `Accept-Language` weights and wildcards correctly.
-- [ ] #219 — Handle malformed cookie percent encoding safely.
+- [-] #215 — Remove unsupported strategy dispatch and generate selected source modules.
+- [x] #216 — Make default source behavior match validated configuration.
+- [x] #217 — Accept only the supported SvelteKit header interface.
+- [x] #218 — Parse `Accept-Language` weights and wildcards correctly.
+- [x] #219 — Handle malformed cookie percent encoding safely.
 - [-] #220 — Carry validated cookie constraints into the generated runtime.
 - [ ] #221 — Append rather than overwrite existing `Set-Cookie` headers.
 - [x] #222 — Prevent public URL localization from rewriting external URLs.
