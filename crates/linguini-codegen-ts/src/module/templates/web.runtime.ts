@@ -12,6 +12,12 @@ export interface AlternateLink {
   href: string;
 }
 
+export interface LinkLocalizationAttributes {
+  download?: boolean;
+  ignored?: boolean;
+  rel?: string | null;
+}
+
 export interface LinguiniWebOptions {
   sources?: readonly LocaleSource[];
   cookieName?: string;
@@ -58,8 +64,8 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
   localizeHref(href: string, locale?: Locale, input?: Record<string, unknown>): string;
   localizeUrl(url: string | URL, locale?: Locale, input?: Record<string, unknown>): URL;
   shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
+  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
   localizeHrefAttribute(href: string, locale?: Locale, input?: Record<string, unknown>): string;
-  localizeMarkupLinks(html: string, locale?: Locale, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
 }
@@ -79,8 +85,8 @@ export interface LinguiniWeb<Locale extends string = string, Linguini = unknown>
   localizeUrl(url: string | URL, locale: Locale, input?: Record<string, unknown>): URL;
   localizeHref(href: string, locale: Locale, input?: Record<string, unknown>): string;
   shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
+  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
   localizeHrefAttribute(href: string, locale: Locale, input?: Record<string, unknown>): string;
-  localizeMarkupLinks(html: string, locale: Locale, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
   delocalizePathname(pathname: string, input?: Record<string, unknown>): string;
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
@@ -113,8 +119,8 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
       localizeHref: (href, nextLocale = resolved, input = contextInput) => localizeHref(href, nextLocale, input),
       localizeUrl: (url, nextLocale = resolved, input = contextInput) => localizeUrl(url, nextLocale, input),
       shouldLocalizeHref: (href, input = contextInput) => shouldLocalizeHref(href, input),
+      shouldLocalizeLink: (href, attributes = {}, input = contextInput) => shouldLocalizeLink(href, attributes, input),
       localizeHrefAttribute: (href, nextLocale = resolved, input = contextInput) => localizeHrefAttribute(href, nextLocale, input),
-      localizeMarkupLinks: (html, nextLocale = resolved, input = contextInput) => localizeMarkupLinks(html, nextLocale, input),
       delocalizeUrl: (url, input = contextInput) => delocalizeUrl(url, input),
       alternateLinks: (url, input = contextInput) => alternateLinks(url, input),
     };
@@ -189,17 +195,15 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     return shouldLocalizeHref(href, input) ? localizeHref(href, locale, input) : href;
   }
 
-  function localizeMarkupLinks(html: string, locale: Locale, input: Record<string, unknown> = {}) {
-    if (normalized.localizeLinks === false) return String(html);
-    return String(html).replace(/<a\b[^>]*>/gi, (tag) => {
-      if (/\sdownload(?:\s|=|>)/i.test(tag) || /\sdata-linguini-(?:ignore|no-localize)(?:\s|=|>)/i.test(tag)) return tag;
-      return tag.replace(/\bhref\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i, (attribute, rawValue) => {
-        const quote = rawValue[0] === "\"" || rawValue[0] === "'" ? rawValue[0] : "";
-        const href = quote ? rawValue.slice(1, -1) : rawValue;
-        const localized = localizeHrefAttribute(href, locale, input);
-        return localized === href ? attribute : `href=${quote}${localized}${quote}`;
-      });
-    });
+  function shouldLocalizeLink(
+    href: string,
+    attributes: LinkLocalizationAttributes = {},
+    input: Record<string, unknown> = {},
+  ) {
+    if (attributes.download || attributes.ignored) return false;
+    const relations = String(attributes.rel ?? "").toLowerCase().split(/\s+/);
+    if (relations.includes("external")) return false;
+    return shouldLocalizeHref(href, input);
   }
 
   function delocalizeUrl(url: string | URL, input: Record<string, unknown> = {}) {
@@ -284,8 +288,8 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     localizeUrl,
     localizeHref,
     shouldLocalizeHref,
+    shouldLocalizeLink,
     localizeHrefAttribute,
-    localizeMarkupLinks,
     delocalizeUrl,
     delocalizePathname,
     alternateLinks,

@@ -35,6 +35,12 @@ export interface AlternateLink {
   href: string;
 }
 
+export interface LinkLocalizationAttributes {
+  download?: boolean;
+  ignored?: boolean;
+  rel?: string | null;
+}
+
 /**
  * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL
  * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
@@ -53,8 +59,8 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
   localizeHref(href: string, locale?: Locale, input?: Record<string, unknown>): string;
   localizeUrl(url: string | URL, locale?: Locale, input?: Record<string, unknown>): URL;
   shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
+  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
   localizeHrefAttribute(href: string, locale?: Locale, input?: Record<string, unknown>): string;
-  localizeMarkupLinks(html: string, locale?: Locale, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
 }
@@ -74,8 +80,8 @@ export interface LinguiniWeb<Locale extends string = string, Linguini = unknown>
   localizeUrl(url: string | URL, locale: Locale, input?: Record<string, unknown>): URL;
   localizeHref(href: string, locale: Locale, input?: Record<string, unknown>): string;
   shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
+  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
   localizeHrefAttribute(href: string, locale: Locale, input?: Record<string, unknown>): string;
-  localizeMarkupLinks(html: string, locale: Locale, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
   delocalizePathname(pathname: string, input?: Record<string, unknown>): string;
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];

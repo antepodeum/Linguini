@@ -41,28 +41,12 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
       return response;
     }
 
-    let bufferedHtml = "";
     const response = await resolve(event, {
-      transformPageChunk: ({ html, done }: { html: string; done: boolean }) => {
-        const transformed = html
+      transformPageChunk: ({ html }: { html: string }) =>
+        html
           .replaceAll("%linguini.lang%", context.lang)
           .replaceAll("%linguini.dir%", context.direction)
-          .replaceAll("%linguini.locale%", context.locale);
-
-        if (web.options.localizeLinks === false) return transformed;
-
-        if (done === false) {
-          bufferedHtml += transformed;
-          return "";
-        }
-
-        const fullHtml = bufferedHtml + transformed;
-        bufferedHtml = "";
-        return web.localizeMarkupLinks(fullHtml, context.locale, {
-          currentUrl: event.url,
-          origin: event.url.origin,
-        });
-      },
+          .replaceAll("%linguini.locale%", context.locale),
     });
 
     if (persistCookie) web.setLocaleCookie(response, context.locale);

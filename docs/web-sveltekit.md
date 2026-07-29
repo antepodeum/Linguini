@@ -44,7 +44,7 @@ redirect = true
 origin = "https://example.com"
 exclude = ["/api/**", "/_app/**", "/favicon.ico"]
 
-# SvelteKit auto-localizes internal <a href="..."> links by default.
+# The browser helper auto-localizes internal <a href="..."> links by default.
 # Use data-linguini-ignore on a single link or localize_links = false globally
 # to keep hrefs unchanged.
 localize_links = true
@@ -207,19 +207,26 @@ Components usually import only `l`:
 <h1>{l.home.title()}</h1>
 ```
 
-Internal links are localized automatically by the SvelteKit helper. Write normal
-SvelteKit links:
+The browser helper localizes internal links after hydration and watches links
+created later. For localized SSR output, render the generated helper result
+directly:
 
 ```svelte
-<a href="/pricing">{l.nav.pricing()}</a>
-<a href="/account/settings">{l.nav.settings()}</a>
+<script lang="ts">
+  import { l, localizeHref } from "$lib/generated/linguini/svelte";
+</script>
+
+<a href={localizeHref("/pricing")}>{l.nav.pricing()}</a>
+<a href={localizeHref("/account/settings")}>{l.nav.settings()}</a>
 ```
 
-For the `ru` locale these become `/ru/pricing` and `/ru/account/settings` during
-SSR, and dynamically created client links are updated after hydration. External
-links, `mailto:`/`tel:` links, hash-only links, `download` links, excluded routes,
-and links marked with `data-linguini-ignore` or `data-linguini-no-localize` are
-left unchanged.
+For the `ru` locale these render as `/ru/pricing` and `/ru/account/settings`.
+The generated SvelteKit response hook replaces only the Linguini HTML
+placeholders in each response chunk; it does not parse or buffer arbitrary HTML.
+External links, `mailto:`/`tel:` links, hash-only links, `download` links,
+`rel="external"` links, excluded routes, and links marked with
+`data-linguini-ignore` or `data-linguini-no-localize` are left unchanged by the
+browser observer.
 
 Use the generated helpers for locale switching or programmatic URLs:
 
@@ -247,9 +254,9 @@ import {
   linguini,
   localizeHref,
   localizeHrefAttribute,
-  localizeMarkupLinks,
   localizeUrl,
   shouldLocalizeHref,
+  shouldLocalizeLink,
 } from "$lib/generated/linguini/svelte";
 ```
 

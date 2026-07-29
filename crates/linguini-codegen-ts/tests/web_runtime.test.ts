@@ -51,6 +51,17 @@ test("localization changes only same-origin HTTP URLs", () => {
   );
 });
 
+test("anchor skip attributes use the same link-localization policy", () => {
+  const web = createWeb();
+
+  assert.equal(web.shouldLocalizeLink("/account"), true);
+  assert.equal(web.shouldLocalizeLink("/account", { download: true }), false);
+  assert.equal(web.shouldLocalizeLink("/account", { ignored: true }), false);
+  assert.equal(web.shouldLocalizeLink("/account", { rel: "help EXTERNAL" }), false);
+  assert.equal(web.shouldLocalizeLink("/account", { rel: "help" }), true);
+  assert.equal(web.shouldLocalizeLink("https://outside.example/account"), false);
+});
+
 test("locale path segments require an exact case-insensitive match", () => {
   const web = createWeb();
 
