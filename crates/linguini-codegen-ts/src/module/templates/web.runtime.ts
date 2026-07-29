@@ -255,10 +255,8 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
 
   function setLocaleCookie(target: unknown, locale: Locale, input: Record<string, unknown> = {}) {
     const cookie = serializeLocaleCookie(locale, input);
-    const sink = target as { headers?: Headers; cookies?: { set(name: string, value: string, options?: Record<string, unknown>): void }; setHeaders?: (headers: Record<string, string>) => void };
-    if (sink.setHeaders) sink.setHeaders({ "set-cookie": cookie });
-    else if (sink.headers?.append) sink.headers.append("set-cookie", cookie);
-    else if (sink.cookies?.set) {
+    const sink = target as { headers?: Pick<Headers, "append">; cookies?: { set(name: string, value: string, options?: Record<string, unknown>): void } };
+    if (sink.cookies?.set) {
       sink.cookies.set(normalized.cookieName, locale, {
         path: normalized.cookiePath,
         domain: normalized.cookieDomain,
@@ -267,6 +265,8 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
         secure: input.secure ?? normalized.cookieSecure,
         httpOnly: input.httpOnly ?? normalized.cookieHttpOnly,
       });
+    } else {
+      sink.headers?.append?.("set-cookie", cookie);
     }
   }
 

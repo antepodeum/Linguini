@@ -126,6 +126,62 @@ test("URL transforms share one parse error and boolean detection fails closed", 
   assert.equal(web.resolveLocaleSync({ url: invalid }), "en");
 });
 
+test("locale cookies append without replacing existing response headers", () => {
+  const web = createWeb();
+  const values = ["theme=dark; Path=/"];
+  let overwritten = false;
+  web.setLocaleCookie(
+    {
+      headers: {
+        append(name: string, value: string) {
+          assert.equal(name, "set-cookie");
+          values.push(value);
+        },
+      },
+      setHeaders() {
+        overwritten = true;
+      },
+    },
+    "fr",
+  );
+
+  assert.equal(overwritten, false);
+  assert.equal(values[0], "theme=dark; Path=/");
+  assert.match(values[1], /^LINGUINI_LOCALE=fr;/);
+});
+
+test("locale cookies use the SvelteKit cookies interface when available", () => {
+  const web = createWeb();
+  const calls: unknown[][] = [];
+  web.setLocaleCookie(
+    {
+      cookies: {
+        set(...args: unknown[]) {
+          calls.push(args);
+        },
+      },
+      headers: {
+        append() {
+          assert.fail("headers must not be used when cookies.set is available");
+        },
+      },
+    },
+    "fr",
+  );
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], "LINGUINI_LOCALE");
+  assert.equal(calls[0][1], "fr");
+  assert.deepEqual(calls[0][2], {
+    path: "/",
+    domain: undefined,
+    maxAge: 31_536_000,
+    sameSite: "lax",
+    secure: false,
+    httpOnly: false,
+  });
+});
+
 test("default locale sources match the validated web configuration", () => {
   const web = createWeb();
 
