@@ -450,14 +450,49 @@ function padNumber(value: number, length: number): string {
 }
 
 function coerceDate(value: Date | number | string): Date {
-  if (value instanceof Date) return value;
-  if (typeof value === \"string\") {
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === \"string\") {
     const dateOnly = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(value);
     if (dateOnly) {
-      return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+      const year = Number(dateOnly[1]);
+      const month = Number(dateOnly[2]);
+      const day = Number(dateOnly[3]);
+      date = createUTCDate(year, month, day);
+    } else {
+      const dateTime =
+        /^(\\d{4})-(\\d{2})-(\\d{2})T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d+)?)?(?:Z|[+-]\\d{2}:\\d{2})?$/.exec(value);
+      if (!dateTime) throwInvalidDate();
+      createUTCDate(Number(dateTime[1]), Number(dateTime[2]), Number(dateTime[3]));
+      const hasTimeZone = /(?:Z|[+-]\\d{2}:\\d{2})$/.test(value);
+      date = new Date(hasTimeZone ? value : `${value}Z`);
     }
+  } else {
+    date = new Date(value);
   }
-  return new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    throwInvalidDate();
+  }
+  return date;
+}
+
+function createUTCDate(year: number, month: number, day: number): Date {
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throwInvalidDate();
+  }
+  return date;
+}
+
+function throwInvalidDate(): never {
+  throw new RangeError(\"Linguini: invalid date value\");
 }
 
 "
@@ -551,18 +586,18 @@ fn date_field_expression(
     dates: &linguini_cldr::DateFormatData,
 ) -> String {
     match field {
-        'y' if width == 2 => "padNumber(date.getFullYear() % 100, 2)".to_owned(),
-        'y' => "String(date.getFullYear())".to_owned(),
-        'M' | 'L' if width >= 4 => indexed_string_literal(&dates.months.wide, "date.getMonth()"),
+        'y' if width == 2 => "padNumber(date.getUTCFullYear() % 100, 2)".to_owned(),
+        'y' => "String(date.getUTCFullYear())".to_owned(),
+        'M' | 'L' if width >= 4 => indexed_string_literal(&dates.months.wide, "date.getUTCMonth()"),
         'M' | 'L' if width == 3 => {
-            indexed_string_literal(&dates.months.abbreviated, "date.getMonth()")
+            indexed_string_literal(&dates.months.abbreviated, "date.getUTCMonth()")
         }
-        'M' | 'L' if width == 2 => "padNumber(date.getMonth() + 1, 2)".to_owned(),
-        'M' | 'L' => "String(date.getMonth() + 1)".to_owned(),
-        'd' if width == 2 => "padNumber(date.getDate(), 2)".to_owned(),
-        'd' => "String(date.getDate())".to_owned(),
-        'E' if width >= 4 => indexed_string_literal(&dates.weekdays.wide, "date.getDay()"),
-        'E' => indexed_string_literal(&dates.weekdays.abbreviated, "date.getDay()"),
+        'M' | 'L' if width == 2 => "padNumber(date.getUTCMonth() + 1, 2)".to_owned(),
+        'M' | 'L' => "String(date.getUTCMonth() + 1)".to_owned(),
+        'd' if width == 2 => "padNumber(date.getUTCDate(), 2)".to_owned(),
+        'd' => "String(date.getUTCDate())".to_owned(),
+        'E' if width >= 4 => indexed_string_literal(&dates.weekdays.wide, "date.getUTCDay()"),
+        'E' => indexed_string_literal(&dates.weekdays.abbreviated, "date.getUTCDay()"),
         _ => "\"\"".to_owned(),
     }
 }
@@ -580,7 +615,10 @@ fn indexed_string_literal(values: &[&str], index: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{expression_value, form_object, TypeScriptOptions};
+    use super::{
+        date_pattern_expression, expression_value, form_object, formatter_data_declaration,
+        TypeScriptOptions,
+    };
     use linguini_ir::{lower_locale, IrExpression, IrExpressionKind};
     use linguini_syntax::{parse_locale, Span};
     use std::collections::BTreeMap;
@@ -699,5 +737,56 @@ mod tests {
             emitted.contains("label: (gender: number | string) => selectBranch(String(gender),")
         );
         assert!(!emitted.contains("pluralEn(gender)"));
+    }
+
+    #[test]
+    fn generated_date_runtime_uses_utc_fields_only() {
+        let dates = linguini_cldr::compiled_date_formatting("en").expect("English date data");
+        let emitted = [
+            dates.date_formats.full,
+            dates.date_formats.long,
+            dates.date_formats.medium,
+            dates.date_formats.short,
+        ]
+        .map(|pattern| date_pattern_expression(pattern, &dates))
+        .join("\n");
+
+        assert!(emitted.contains("date.getUTCFullYear()"));
+        assert!(emitted.contains("date.getUTCMonth()"));
+        assert!(emitted.contains("date.getUTCDate()"));
+        assert!(emitted.contains("date.getUTCDay()"));
+        for local_getter in [
+            "date.getFullYear()",
+            "date.getMonth()",
+            "date.getDate()",
+            "date.getDay()",
+        ] {
+            assert!(
+                !emitted.contains(local_getter),
+                "generated date pattern used host-local getter {local_getter}"
+            );
+        }
+    }
+
+    #[test]
+    fn generated_date_runtime_rejects_invalid_values() {
+        let emitted = formatter_data_declaration("en");
+
+        assert!(emitted.contains("function coerceDate(value: Date | number | string): Date"));
+        assert!(emitted.contains("date = createUTCDate(year, month, day);"));
+        assert!(emitted.contains("date = new Date(hasTimeZone ? value : `${value}Z`);"));
+        assert!(emitted
+            .contains("function createUTCDate(year: number, month: number, day: number): Date"));
+        assert!(emitted.contains("date.setUTCFullYear(year, month - 1, day);"));
+        assert!(emitted.contains("date.getUTCFullYear() !== year"));
+        assert!(emitted.contains("date.getUTCMonth() !== month - 1"));
+        assert!(emitted.contains("date.getUTCDate() !== day"));
+        assert!(emitted.contains("if (!Number.isFinite(date.getTime()))"));
+        assert_eq!(
+            emitted
+                .matches("throw new RangeError(\"Linguini: invalid date value\");")
+                .count(),
+            1
+        );
     }
 }

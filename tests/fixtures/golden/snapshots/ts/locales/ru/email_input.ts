@@ -57,13 +57,13 @@ function formatDate(
   const date = coerceDate(value);
   switch (options.style ?? "medium") {
     case "full":
-      return ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"][date.getDay()] + ", " + String(date.getDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getMonth()] + " " + String(date.getFullYear()) + " " + "г" + ".";
+      return ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"][date.getUTCDay()] + ", " + String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".";
     case "long":
-      return String(date.getDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getMonth()] + " " + String(date.getFullYear()) + " " + "г" + ".";
+      return String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".";
     case "short":
-      return padNumber(date.getDate(), 2) + "." + padNumber(date.getMonth() + 1, 2) + "." + String(date.getFullYear());
+      return padNumber(date.getUTCDate(), 2) + "." + padNumber(date.getUTCMonth() + 1, 2) + "." + String(date.getUTCFullYear());
     default:
-      return String(date.getDate()) + " " + ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."][date.getMonth()] + " " + String(date.getFullYear()) + " " + "г" + ".";
+      return String(date.getUTCDate()) + " " + ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".";
   }
 }
 
@@ -131,14 +131,49 @@ function padNumber(value: number, length: number): string {
 }
 
 function coerceDate(value: Date | number | string): Date {
-  if (value instanceof Date) return value;
-  if (typeof value === "string") {
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === "string") {
     const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (dateOnly) {
-      return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+      const year = Number(dateOnly[1]);
+      const month = Number(dateOnly[2]);
+      const day = Number(dateOnly[3]);
+      date = createUTCDate(year, month, day);
+    } else {
+      const dateTime =
+        /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/.exec(value);
+      if (!dateTime) throwInvalidDate();
+      createUTCDate(Number(dateTime[1]), Number(dateTime[2]), Number(dateTime[3]));
+      const hasTimeZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
+      date = new Date(hasTimeZone ? value : `${value}Z`);
     }
+  } else {
+    date = new Date(value);
   }
-  return new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    throwInvalidDate();
+  }
+  return date;
+}
+
+function createUTCDate(year: number, month: number, day: number): Date {
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throwInvalidDate();
+  }
+  return date;
+}
+
+function throwInvalidDate(): never {
+  throw new RangeError("Linguini: invalid date value");
 }
 
 export type { Fruit, Size, Money, ShortDate } from "../../shared";
