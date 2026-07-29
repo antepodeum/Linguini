@@ -57,6 +57,8 @@ production path uses the fix and its relevant tests pass.
   removed collision-prone generic SvelteKit locals.
 - `110fce9` — added collision-free generated hook/load aliases plus explicit SvelteKit
   `sequence`, reroute-priority, and load-merge composition contracts.
+- `858d5cf` — host-time-zone-independent generated date formatting with strict ISO
+  coercion and visible invalid-date failures.
 
 ## Numbered findings
 
@@ -290,8 +292,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #193 — Validate currency codes before runtime.
 - [ ] #194 — Apply currency minor units and CLDR currency rules.
 - [ ] #195 — Preserve large-number precision.
-- [ ] #196 — Make date output independent of host local time zone.
-- [ ] #197 — Reject invalid dates.
+- [x] #196 — Make date output independent of host local time zone.
+- [x] #197 — Reject invalid dates.
 - [ ] #198 — Fail visibly on missing required CLDR data.
 - [ ] #199 — Emit source maps back to Linguini sources.
 - [ ] #200 — Require every declared message in direct codegen input locales.
