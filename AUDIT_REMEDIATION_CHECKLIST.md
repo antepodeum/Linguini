@@ -32,6 +32,8 @@ production path uses the fix and its relevant tests pass.
   complete string escaping, and strict project-input validation.
 - `bead89b` — exact CLDR plural operand parsing/evaluation with compact exponents,
   overflow checks, structured offsets, and deterministic fallback categories.
+- `451aade` — pinned MSRV/stable CI, platform and release matrices, dependency policy,
+  publishable-crate packaging, native artifacts, and synchronized release versions.
 
 ## Numbered findings
 
@@ -449,18 +451,18 @@ production path uses the fix and its relevant tests pass.
 
 ### CI, release, and supply chain
 
-- [-] #356 — Make the declared Rust 1.76 MSRV pass as a dedicated CI job.
+- [x] #356 — Make the declared Rust 1.76 MSRV pass as a dedicated CI job.
 - [x] #357 — Compile from packaged, offline, read-only CLDR data.
 - [-] #358 — Land and execute Linux, Windows, and macOS CI.
-- [-] #359 — Land dependency, license, and advisory checks.
+- [x] #359 — Land dependency, license, and advisory checks.
 - [-] #360 — Add enforceable coverage plus parser/formatter property jobs.
 - [ ] #361 — Add a generated JS/JSDoc/`.d.ts` typecheck and runtime corpus.
 - [-] #362 — Complete real Vite, native VSIX, npm CLI, and WASM LSP integration CI.
-- [-] #363 — Land and verify packaging for every publishable crate.
-- [-] #364 — Land commit-SHA-pinned GitHub Actions.
-- [-] #365 — Land the pinned `rust-toolchain.toml`.
+- [x] #363 — Land and verify packaging for every publishable crate.
+- [x] #364 — Land commit-SHA-pinned GitHub Actions.
+- [x] #365 — Land the pinned `rust-toolchain.toml`.
 - [-] #366 — Standardize and reproducibly verify JavaScript package-manager boundaries.
-- [-] #367 — Land automatic release-version synchronization checks.
+- [x] #367 — Land automatic release-version synchronization checks.
 - [ ] #368 — Add public API/semantic-version compatibility checks.
 - [ ] #369 — Make documentation and examples an executable conformance suite.
 
