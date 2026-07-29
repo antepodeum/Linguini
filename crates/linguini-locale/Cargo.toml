@@ -13,4 +13,4 @@ linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.4" }
 linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.4" }
 
 [dev-dependencies]
-linguini-test-support = { path = "../linguini-test-support" }
+linguini-test-support = { path = "../linguini-test-support", version = "0.1.0-alpha.4" }

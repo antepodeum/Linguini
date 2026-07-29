@@ -5,7 +5,7 @@ use std::fs;
 use tempfile::TempDir;
 
 fn linguini() -> Command {
-    Command::cargo_bin("linguini").expect("linguini binary")
+    assert_cmd::cargo::cargo_bin_cmd!("linguini")
 }
 
 #[test]

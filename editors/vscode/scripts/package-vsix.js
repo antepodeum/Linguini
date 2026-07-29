@@ -55,7 +55,7 @@ function vendorServer() {
   if (version.error || version.status !== 0) {
     throw version.error || new Error(`Cannot execute ${sourceBinary}: ${version.stderr}`);
   }
-  if (!version.stdout.includes(packageJson.version)) {
+  if (version.stdout.trim() !== `linguini ${packageJson.version}`) {
     throw new Error(
       `Server version mismatch: expected ${packageJson.version}, received ${version.stdout.trim()}`
     );

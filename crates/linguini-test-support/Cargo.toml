@@ -9,4 +9,4 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-tempfile = "3.27.0"
+tempfile = "=3.10.1"

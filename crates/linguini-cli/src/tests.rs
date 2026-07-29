@@ -1,7 +1,13 @@
 use super::{build_project, check_project, init_project, project::generate_project_data, Cli};
 use clap::CommandFactory;
-use linguini_test_support::temp_project_dir;
 use std::fs;
+use tempfile::{Builder, TempDir};
+
+fn temp_project_dir(name: &str) -> std::io::Result<TempDir> {
+    Builder::new()
+        .prefix(&format!("linguini-{name}-"))
+        .tempdir()
+}
 
 #[test]
 fn cli_argument_parser_is_clap_backed() {

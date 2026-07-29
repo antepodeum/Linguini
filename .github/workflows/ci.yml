@@ -5,56 +5,145 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
 jobs:
   rust:
     name: Rust workspace
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.93.1
           components: clippy, rustfmt
       - name: Check formatting
         run: cargo fmt --all --check
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Test
-        run: cargo test --workspace
+        run: cargo test --locked --workspace
 
-  javascript:
-    name: JavaScript packages and site
-    runs-on: ubuntu-latest
-    needs: rust
+  msrv:
+    name: Rust 1.76 MSRV
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.76.0
+      - name: Verify selected MSRV toolchain
+        run: rustc +1.76.0 --version
+      - name: Check workspace on MSRV
+        run: cargo +1.76.0 check --locked --workspace --all-targets
+
+  platforms:
+    name: Rust (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.93.1
+      - run: cargo test --locked --workspace
+
+  security:
+    name: Dependency policy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
+        with:
+          command: check
+      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  package:
+    name: Package crates
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.93.1
+      - name: Dry-package every publishable crate
+        run: >-
+          cargo package --locked --workspace --no-verify
+          --exclude linguini-cldr-macros
+          --exclude linguini-locale
+          --exclude linguini-test-support
+
+  vite:
+    name: Vite ${{ matrix.vite }}
+    strategy:
+      fail-fast: false
+      matrix:
+        vite: [5, 6, 7, 8]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
         with:
           version: 11.1.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
-          cache-dependency-path: |
-            site/pnpm-lock.yaml
-            plugins/vite/pnpm-lock.yaml
-      - name: Install and test Vite plugin
+          cache-dependency-path: plugins/vite/pnpm-lock.yaml
+      - name: Install plugin dependencies
         working-directory: plugins/vite
-        run: pnpm install --frozen-lockfile && pnpm test
-      - name: Install and check site
+        run: pnpm install --frozen-lockfile
+      - name: Select tested Vite major
+        working-directory: plugins/vite
+        run: pnpm add --save-dev --lockfile=false "vite@^${{ matrix.vite }}.0.0"
+      - name: Test plugin against real Vite
+        working-directory: plugins/vite
+        run: pnpm test
+
+  site:
+    name: SvelteKit site
+    runs-on: ubuntu-24.04
+    needs: rust
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.93.1
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+      - name: Install site dependencies
         working-directory: site
-        run: pnpm install --frozen-lockfile && pnpm check && pnpm build
+        run: pnpm install --frozen-lockfile
+      - name: Check and build site
+        working-directory: site
+        run: pnpm check && pnpm build
 
   vscode:
     name: VS Code extension
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: editors/vscode/package-lock.json
-      - name: Install and compile extension
+      - name: Install, test, and compile extension
         working-directory: editors/vscode
-        run: npm ci && npm run compile
+        run: npm ci && npm test && npm run compile
