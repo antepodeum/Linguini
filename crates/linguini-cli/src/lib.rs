@@ -3,7 +3,7 @@ mod project;
 #[cfg(test)]
 mod tests;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use linguini_format::format_path_source;
 use std::fmt::{self, Display};
 use std::fs;
@@ -19,6 +19,7 @@ pub enum CliError {
     Args(clap::Error),
     Config(linguini_config::ConfigError),
     Diagnostics(String),
+    MachineDiagnostics(String),
     Format(linguini_format::FormatError),
     Io { path: PathBuf, source: io::Error },
 }
@@ -28,7 +29,7 @@ impl Display for CliError {
         match self {
             Self::Args(error) => Display::fmt(error, f),
             Self::Config(error) => Display::fmt(error, f),
-            Self::Diagnostics(output) => f.write_str(output),
+            Self::Diagnostics(output) | Self::MachineDiagnostics(output) => f.write_str(output),
             Self::Format(error) => Display::fmt(error, f),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
         }
@@ -98,6 +99,16 @@ pub(crate) struct DiagnosticArgs {
     /// Exit unsuccessfully when the project emits any warning
     #[arg(long)]
     pub(crate) deny_warnings: bool,
+    /// Select diagnostic output for terminals, CI, or editor integrations
+    #[arg(long, value_enum, default_value = "human")]
+    pub(crate) format: DiagnosticFormat,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, ValueEnum)]
+pub(crate) enum DiagnosticFormat {
+    Human,
+    Json,
+    Sarif,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Args)]
@@ -121,9 +132,13 @@ pub fn run(
 
     match cli.command {
         CliCommand::Init => init_project(&root),
-        CliCommand::Check(args) => project::check_project_with_options(&root, args.deny_warnings),
+        CliCommand::Check(args) => {
+            project::check_project_with_options(&root, args.deny_warnings, args.format)
+        }
         CliCommand::Fix(args) => project::fix_project(&root, &args),
-        CliCommand::Build(args) => project::build_project_with_options(&root, args.deny_warnings),
+        CliCommand::Build(args) => {
+            project::build_project_with_options(&root, args.deny_warnings, args.format)
+        }
         CliCommand::Generate => project::generate_project_data(&root),
         CliCommand::Format(args) => format_project(&root, &args),
         CliCommand::Lsp => {

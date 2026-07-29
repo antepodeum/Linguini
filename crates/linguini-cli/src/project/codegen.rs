@@ -17,7 +17,7 @@ use linguini_ir::{
     IrSymbolKind,
 };
 
-use crate::{CliError, CliResult};
+use crate::{CliError, CliResult, DiagnosticFormat};
 
 use super::check::{check_project_with_options, reject_locale_files_without_schema_namespace};
 use super::io::{path_for_output, read_project_config, render_file_diagnostics};
@@ -29,15 +29,23 @@ use super::sources::{
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
 pub fn build_project(root: &Path) -> CliResult<String> {
-    build_project_with_options(root, false)
+    build_project_with_options(root, false, DiagnosticFormat::Human)
 }
 
-pub(crate) fn build_project_with_options(root: &Path, deny_warnings: bool) -> CliResult<String> {
-    let check_output = check_project_with_options(root, deny_warnings)?;
+pub(crate) fn build_project_with_options(
+    root: &Path,
+    deny_warnings: bool,
+    format: DiagnosticFormat,
+) -> CliResult<String> {
+    let check_output = check_project_with_options(root, deny_warnings, format)?;
     let config = read_project_config(root)?;
     let codegen_output = generate_project(root, &config)?;
 
-    Ok(format!("{check_output}{codegen_output}build: ok\n"))
+    if format == DiagnosticFormat::Human {
+        Ok(format!("{check_output}{codegen_output}build: ok\n"))
+    } else {
+        Ok(check_output)
+    }
 }
 
 fn generate_project(root: &Path, config: &LinguiniConfig) -> CliResult<String> {

@@ -1,6 +1,7 @@
 use assert_cmd::Command;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
+use serde_json::Value;
 use std::fs;
 use tempfile::TempDir;
 
@@ -509,4 +510,181 @@ fn generate_command_outputs_rendered_locale_matrix() {
         .stdout(contains("=> 1 apple"))
         .stdout(contains("=> 5 apples"))
         .stdout(predicates::str::contains("\"locales\"").not());
+}
+
+#[test]
+fn check_exposes_machine_diagnostic_formats() {
+    linguini()
+        .args(["check", "--help"])
+        .assert()
+        .success()
+        .stdout(contains("--format <FORMAT>"))
+        .stdout(contains("possible values: human, json, sarif"));
+}
+
+#[test]
+fn check_json_reports_structured_diagnostics_and_fixes() {
+    let project = machine_diagnostic_project();
+    let assert = linguini()
+        .current_dir(project.path())
+        .args(["check", "--format", "json"])
+        .assert()
+        .failure()
+        .stderr("");
+    let document: Value =
+        serde_json::from_slice(&assert.get_output().stdout).expect("valid JSON diagnostics");
+
+    assert_eq!(document["version"], 1);
+    assert_eq!(document["tool"]["name"], "linguini");
+    assert_eq!(document["success"], false);
+    let diagnostics = document["diagnostics"]
+        .as_array()
+        .expect("diagnostic array");
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic["code"] == "linguini.syntax"
+            && diagnostic["category"] == "syntax"
+            && diagnostic["severity"] == "error"
+            && diagnostic["path"] == "schema/broken.lgs"
+            && diagnostic["range"]["start"]["line"].as_u64().is_some()
+    }));
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic["severity"] == "warning" && diagnostic["path"] == "locales/shop/ru.lgl"
+    }));
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic["related"].as_array().is_some_and(|related| {
+            related.iter().any(|location| {
+                location["path"] == "locales/shop/en.lgl"
+                    && location["range"]["start"]["byteOffset"].as_u64().is_some()
+            })
+        })
+    }));
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic["fixes"].as_array().is_some_and(|fixes| {
+            fixes.iter().any(|fix| {
+                fix["kind"] == "replace"
+                    && fix["path"].as_str().is_some()
+                    && fix["range"]["start"]["line"].as_u64().is_some()
+                    && fix["replacement"]
+                        .as_str()
+                        .is_some_and(|text| !text.is_empty())
+            })
+        })
+    }));
+}
+
+#[test]
+fn check_sarif_emits_sarif_2_1_results_and_artifact_changes() {
+    let project = machine_diagnostic_project();
+    let assert = linguini()
+        .current_dir(project.path())
+        .args(["check", "--format", "sarif"])
+        .assert()
+        .failure()
+        .stderr("");
+    let document: Value =
+        serde_json::from_slice(&assert.get_output().stdout).expect("valid SARIF JSON");
+
+    assert_eq!(document["version"], "2.1.0");
+    assert_eq!(
+        document["$schema"],
+        "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
+    );
+    let run = &document["runs"][0];
+    assert_eq!(run["tool"]["driver"]["name"], "Linguini");
+    assert_eq!(run["invocations"][0]["executionSuccessful"], false);
+    assert!(run["tool"]["driver"]["rules"]
+        .as_array()
+        .is_some_and(|rules| rules.iter().any(|rule| rule["id"] == "linguini.syntax")));
+    let results = run["results"].as_array().expect("SARIF results");
+    assert!(results.iter().any(|result| result["level"] == "error"));
+    assert!(results.iter().any(|result| result["level"] == "warning"));
+    assert!(results.iter().any(|result| {
+        result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "schema/broken.lgs"
+            && result["locations"][0]["physicalLocation"]["region"]["startLine"]
+                .as_u64()
+                .is_some()
+    }));
+    assert!(results.iter().any(|result| {
+        result["relatedLocations"]
+            .as_array()
+            .is_some_and(|locations| !locations.is_empty())
+    }));
+    assert!(results.iter().any(|result| {
+        result["fixes"].as_array().is_some_and(|fixes| {
+            fixes.iter().any(|fix| {
+                fix["artifactChanges"][0]["artifactLocation"]["uri"]
+                    .as_str()
+                    .is_some()
+                    && fix["artifactChanges"][0]["replacements"][0]["deletedRegion"]["startLine"]
+                        .as_u64()
+                        .is_some()
+                    && fix["artifactChanges"][0]["replacements"][0]["insertedContent"]["text"]
+                        .as_str()
+                        .is_some_and(|text| !text.is_empty())
+            })
+        })
+    }));
+}
+
+#[test]
+fn build_json_keeps_stdout_machine_readable_and_generates_files() {
+    let project = TempDir::new().expect("temp project");
+    linguini()
+        .current_dir(project.path())
+        .arg("init")
+        .assert()
+        .success();
+    let schema_dir = project.path().join("schema/shop");
+    let locale_dir = project.path().join("locales/shop/delivery");
+    fs::create_dir_all(&schema_dir).expect("schema dir");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(schema_dir.join("delivery.lgs"), "delivery\n").expect("schema file");
+    fs::write(locale_dir.join("en.lgl"), "delivery = Delivered\n").expect("locale file");
+
+    let assert = linguini()
+        .current_dir(project.path())
+        .args(["build", "--format", "json"])
+        .assert()
+        .success()
+        .stderr("");
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("UTF-8 output");
+    let document: Value = serde_json::from_str(&stdout).expect("valid JSON build diagnostics");
+
+    assert_eq!(document["success"], true);
+    assert_eq!(document["diagnostics"].as_array().map(Vec::len), Some(0));
+    assert!(!stdout.contains("build: ok"));
+    assert!(project
+        .path()
+        .join("src/generated/linguini/index.ts")
+        .exists());
+}
+
+fn machine_diagnostic_project() -> TempDir {
+    let project = TempDir::new().expect("temp project");
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"[project]
+name = "shop"
+default_locale = "en"
+locales = ["en", "ru"]
+
+[paths]
+schema = "schema"
+locale = "locales"
+"#,
+    )
+    .expect("config");
+    let schema_dir = project.path().join("schema");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&schema_dir).expect("schema dir");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(schema_dir.join("shop.lgs"), "delivery\ncounted\n").expect("valid schema");
+    fs::write(schema_dir.join("broken.lgs"), "broken(value: String\n").expect("invalid schema");
+    fs::write(
+        locale_dir.join("en.lgl"),
+        "delivery = Delivered\ndelivery = Duplicate\n",
+    )
+    .expect("default locale");
+    fs::write(locale_dir.join("ru.lgl"), "delivery = Доставлено\n").expect("secondary locale");
+    project
 }

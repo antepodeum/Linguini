@@ -18,6 +18,10 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Err(linguini_cli::CliError::MachineDiagnostics(output)) => {
+            print!("{output}");
+            ExitCode::FAILURE
+        }
         Err(error) => {
             eprintln!("{error}");
             ExitCode::FAILURE

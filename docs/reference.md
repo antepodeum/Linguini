@@ -326,6 +326,23 @@ form F(Gender) {
 - Unused message — in schema, never referenced in source
 - `fn` with no `String` parameters — suggest `form`
 
+### Machine-readable diagnostics
+
+`check` and `build` keep terminal-oriented output by default. CI and editor integrations can
+select JSON or SARIF 2.1.0 explicitly:
+
+```bash
+linguini check --format json
+linguini check --format sarif > linguini.sarif
+linguini build --format json
+```
+
+JSON diagnostics include stable codes, categories, severities, project-relative paths, byte and
+line/column ranges, related locations, notes, and quick fixes. SARIF replacement fixes use standard
+`artifactChanges` and `replacements`; command-style Linguini fixes are also retained in result
+properties. Machine-readable diagnostics are written to stdout even when diagnostics make the
+command exit unsuccessfully, so redirected output remains a complete JSON document.
+
 ---
 
 ## Lints (`linguini check`)

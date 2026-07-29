@@ -621,6 +621,7 @@ dependencies = [
  "linguini-schema",
  "linguini-syntax",
  "predicates",
+ "serde_json",
  "tempfile",
 ]
 

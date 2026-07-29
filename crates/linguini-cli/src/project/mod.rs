@@ -1,5 +1,6 @@
 mod check;
 mod codegen;
+mod diagnostics;
 mod fixes;
 mod io;
 mod output;

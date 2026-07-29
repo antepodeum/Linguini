@@ -1,16 +1,16 @@
-use crate::{CliError, CliResult};
+use crate::{CliError, CliResult, DiagnosticFormat};
 use linguini_analyzer::{
-    analyze_locale_coverage_with_options, Diagnostic, DiagnosticSeverity, QuickFix,
+    analyze_locale_coverage_with_options, Diagnostic, DiagnosticCategory, DiagnosticSeverity,
+    QuickFix,
 };
 use linguini_config::{discover_locale_files, discover_schema_files, LinguiniConfig};
 use linguini_syntax::{parse_locale_with_recovery_in, parse_schema_with_recovery_in, Span};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use super::diagnostics::ProjectDiagnostics;
 use super::fixes::missing_locale_fix_id;
-use super::io::{
-    path_for_output, read_file, read_project_config, render_file_diagnostics, render_parse_errors,
-};
+use super::io::{path_for_output, read_file, read_project_config, render_file_diagnostics};
 use super::sources::{
     coverage_options, expected_locale_path, locale_index, project_source_id,
     schema_project_diagnostics, SourceKind,
@@ -18,49 +18,22 @@ use super::sources::{
 use super::util::{namespace_display, pluralize};
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
-#[derive(Debug, Default)]
-struct ProjectDiagnosticOutput {
-    errors: String,
-    warnings: String,
-}
-
-impl ProjectDiagnosticOutput {
-    fn push(&mut self, root: &Path, path: &Path, source: &str, diagnostics: &[Diagnostic]) {
-        let errors = diagnostics
-            .iter()
-            .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
-            .cloned()
-            .collect::<Vec<_>>();
-        let warnings = diagnostics
-            .iter()
-            .filter(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
-            .cloned()
-            .collect::<Vec<_>>();
-
-        if !errors.is_empty() {
-            self.errors
-                .push_str(&render_file_diagnostics(root, path, source, &errors));
-        }
-        if !warnings.is_empty() {
-            self.warnings
-                .push_str(&render_file_diagnostics(root, path, source, &warnings));
-        }
-    }
-}
-
 pub fn check_project(root: &Path) -> CliResult<String> {
-    check_project_with_options(root, false)
+    check_project_with_options(root, false, DiagnosticFormat::Human)
 }
 
-pub(crate) fn check_project_with_options(root: &Path, deny_warnings: bool) -> CliResult<String> {
+pub(crate) fn check_project_with_options(
+    root: &Path,
+    deny_warnings: bool,
+    format: DiagnosticFormat,
+) -> CliResult<String> {
     let config = read_project_config(root)?;
     let schema_files = discover_schema_files(root.join(&config.paths.schema))?;
     let locale_files = discover_locale_files(root.join(&config.paths.locale))?;
     let mut parsed_schema_files = Vec::new();
     let mut parsed_locale_files = Vec::new();
     let mut invalid_locale_keys = BTreeSet::new();
-    let mut error_output = String::new();
-    let mut warning_output = String::new();
+    let mut diagnostics = ProjectDiagnostics::default();
 
     let mut output = String::new();
     output.push_str("schema files:\n");
@@ -71,17 +44,18 @@ pub(crate) fn check_project_with_options(root: &Path, deny_warnings: bool) -> Cl
             file.namespace
         ));
         let source = read_file(&file.path)?;
-        let parsed =
-            parse_schema_with_recovery_in(&source, project_source_id(SourceKind::Schema, index)?);
+        let source_id = project_source_id(SourceKind::Schema, index)?;
+        diagnostics.register_source(source_id, root, &file.path, &source);
+        let parsed = parse_schema_with_recovery_in(&source, source_id);
         let has_syntax_errors = !parsed.errors.is_empty();
         if has_syntax_errors {
-            error_output.push_str(&render_parse_errors(
+            diagnostics.push_parse_errors(
                 root,
                 &file.path,
                 &source,
                 "schema syntax error",
                 parsed.errors,
-            ));
+            );
         }
         if !has_syntax_errors {
             let Some(ast) = parsed.ast else {
@@ -104,18 +78,19 @@ pub(crate) fn check_project_with_options(root: &Path, deny_warnings: bool) -> Cl
             file.namespace
         ));
         let source = read_file(&file.path)?;
-        let parsed =
-            parse_locale_with_recovery_in(&source, project_source_id(SourceKind::Locale, index)?);
+        let source_id = project_source_id(SourceKind::Locale, index)?;
+        diagnostics.register_source(source_id, root, &file.path, &source);
+        let parsed = parse_locale_with_recovery_in(&source, source_id);
         let has_syntax_errors = !parsed.errors.is_empty();
         if has_syntax_errors {
             invalid_locale_keys.insert((file.namespace.clone(), file.locale.clone()));
-            error_output.push_str(&render_parse_errors(
+            diagnostics.push_parse_errors(
                 root,
                 &file.path,
                 &source,
                 "locale syntax error",
                 parsed.errors,
-            ));
+            );
         }
         if !has_syntax_errors {
             let Some(ast) = parsed.ast else {
@@ -131,59 +106,71 @@ pub(crate) fn check_project_with_options(root: &Path, deny_warnings: bool) -> Cl
 
     let schema_semantics = schema_project_diagnostics(&parsed_schema_files);
     for schema_file in &parsed_schema_files {
-        let diagnostics = schema_semantics
+        let file_diagnostics = schema_semantics
             .iter()
             .filter(|diagnostic| diagnostic.span.source == schema_file.ast.span.source)
             .cloned()
             .collect::<Vec<_>>();
-        let mut rendered = ProjectDiagnosticOutput::default();
-        rendered.push(
+        diagnostics.push(
             root,
             &schema_file.file.path,
             &schema_file.source,
-            &diagnostics,
+            &file_diagnostics,
         );
-        error_output.push_str(&rendered.errors);
-        warning_output.push_str(&rendered.warnings);
     }
 
     let schema_namespaces = schema_files
         .iter()
         .map(|file| file.namespace.clone())
         .collect::<BTreeSet<_>>();
-    let project_diagnostics = render_project_coverage_diagnostics(
+    collect_project_coverage_diagnostics(
         root,
         &config,
         &parsed_schema_files,
         &parsed_locale_files,
         &schema_namespaces,
         &invalid_locale_keys,
+        &mut diagnostics,
     )?;
-    error_output.push_str(&project_diagnostics.errors);
-    warning_output.push_str(&project_diagnostics.warnings);
 
-    if !error_output.is_empty() {
-        return Err(CliError::Diagnostics(error_output));
+    let has_errors = diagnostics.has_errors();
+    let has_non_errors = diagnostics.has_non_errors();
+    let failed = has_errors || (deny_warnings && has_non_errors);
+    if format == DiagnosticFormat::Human {
+        if has_errors {
+            return Err(CliError::Diagnostics(diagnostics.render_human(true)));
+        }
+        if deny_warnings && has_non_errors {
+            return Err(CliError::Diagnostics(diagnostics.render_human(false)));
+        }
+        if has_non_errors {
+            output.push_str(&diagnostics.render_human(false));
+        }
+        return Ok(output);
     }
-    if deny_warnings && !warning_output.is_empty() {
-        return Err(CliError::Diagnostics(warning_output));
+
+    let output = diagnostics
+        .render_machine(format, failed)
+        .map_err(|error| {
+            CliError::Diagnostics(format!("failed to serialize diagnostics: {error}\n"))
+        })?;
+    if failed {
+        Err(CliError::MachineDiagnostics(output))
+    } else {
+        Ok(output)
     }
-    if !warning_output.is_empty() {
-        output.push_str(&warning_output);
-    }
-    Ok(output)
 }
 
-fn render_project_coverage_diagnostics(
+fn collect_project_coverage_diagnostics(
     root: &Path,
     config: &LinguiniConfig,
     schema_files: &[ParsedSchemaSource],
     locale_files: &[ParsedLocaleSource],
     schema_namespaces: &BTreeSet<String>,
     invalid_locale_keys: &BTreeSet<(String, String)>,
-) -> CliResult<ProjectDiagnosticOutput> {
+    output: &mut ProjectDiagnostics,
+) -> CliResult<()> {
     let locale_index = locale_index(locale_files)?;
-    let mut output = ProjectDiagnosticOutput::default();
 
     for schema_file in schema_files {
         let mut missing_default_locale = Vec::new();
@@ -219,7 +206,7 @@ fn render_project_coverage_diagnostics(
             schema_file,
             &missing_default_locale,
             DiagnosticSeverity::Error,
-            &mut output,
+            output,
         );
         emit_missing_locale_files(
             root,
@@ -227,7 +214,7 @@ fn render_project_coverage_diagnostics(
             schema_file,
             &missing_secondary_locales,
             DiagnosticSeverity::Warning,
-            &mut output,
+            output,
         );
     }
 
@@ -245,6 +232,8 @@ fn render_project_coverage_diagnostics(
             ),
             Span::new(0, 0),
         )
+        .with_code("linguini.unknown_locale_namespace")
+        .with_category(DiagnosticCategory::Project)
         .without_source()
         .with_note(format!(
             "move these files under locales/<schema-namespace>/<locale>.lgl: {affected}"
@@ -252,7 +241,7 @@ fn render_project_coverage_diagnostics(
         output.push(root, &primary.file.path, &primary.source, &[diagnostic]);
     }
 
-    Ok(output)
+    Ok(())
 }
 
 fn emit_missing_locale_files(
@@ -261,7 +250,7 @@ fn emit_missing_locale_files(
     schema_file: &ParsedSchemaSource,
     locales: &[String],
     severity: DiagnosticSeverity,
-    output: &mut ProjectDiagnosticOutput,
+    output: &mut ProjectDiagnostics,
 ) {
     if locales.is_empty() {
         return;
@@ -300,6 +289,8 @@ pub(crate) fn reject_locale_files_without_schema_namespace(
                     ),
                     Span::new(0, 0),
                 )
+                .with_code("linguini.unknown_locale_namespace")
+                .with_category(DiagnosticCategory::Project)
                 .without_source()
                 .with_note("move this file under locales/<schema-namespace>/<locale>.lgl")],
             )));
@@ -345,6 +336,8 @@ fn missing_locale_files_diagnostic(
         DiagnosticSeverity::Warning => Diagnostic::warning(message, Span::new(0, 0)),
         DiagnosticSeverity::Advice => Diagnostic::advice(message, Span::new(0, 0)),
     }
+    .with_code("linguini.missing_locale_file")
+    .with_category(DiagnosticCategory::Project)
     .without_source()
     .with_note(note);
 
