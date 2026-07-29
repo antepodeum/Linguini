@@ -11,7 +11,9 @@ use linguini_config::{LocaleFile as DiscoveredLocaleFile, SchemaFile as Discover
 use linguini_syntax::{LocaleFile as LocaleAst, SchemaFile as SchemaAst};
 
 pub use check::check_project;
+pub(crate) use check::check_project_with_options;
 pub use codegen::build_project;
+pub(crate) use codegen::build_project_with_options;
 pub(crate) use fixes::fix_project;
 pub use io::init_project;
 pub(crate) use io::{atomic_write_file, resolve_project_file};

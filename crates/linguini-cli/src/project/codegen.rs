@@ -18,7 +18,7 @@ use linguini_ir::{
 
 use crate::{CliError, CliResult};
 
-use super::check::{check_project, reject_locale_files_without_schema_namespace};
+use super::check::{check_project_with_options, reject_locale_files_without_schema_namespace};
 use super::io::{path_for_output, read_project_config, render_file_diagnostics};
 use super::output::{replace_owned_files, GeneratedFile, SafeOutputRoot};
 use super::sources::{
@@ -28,7 +28,11 @@ use super::sources::{
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
 pub fn build_project(root: &Path) -> CliResult<String> {
-    let check_output = check_project(root)?;
+    build_project_with_options(root, false)
+}
+
+pub(crate) fn build_project_with_options(root: &Path, deny_warnings: bool) -> CliResult<String> {
+    let check_output = check_project_with_options(root, deny_warnings)?;
     let config = read_project_config(root)?;
     let codegen_output = generate_project(root, &config)?;
 

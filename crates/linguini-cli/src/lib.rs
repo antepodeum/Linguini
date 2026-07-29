@@ -65,11 +65,11 @@ enum CliCommand {
     /// Create a Linguini project skeleton
     Init,
     /// Parse configured schema and locale files and report diagnostics
-    Check,
+    Check(DiagnosticArgs),
     /// Apply analyzer quick fixes such as missing locale files and message stubs
     Fix(FixArgs),
     /// Build the localization project and write configured codegen outputs
-    Build,
+    Build(DiagnosticArgs),
     /// Generate rendered sample data for configured locales and enum variants
     Generate,
     /// Format `.lgs` and `.lgl` files
@@ -94,6 +94,13 @@ pub(crate) struct FixArgs {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Args)]
+pub(crate) struct DiagnosticArgs {
+    /// Exit unsuccessfully when the project emits any warning
+    #[arg(long)]
+    pub(crate) deny_warnings: bool,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Args)]
 pub(crate) struct FormatArgs {
     /// Check whether files are already formatted without writing changes
     #[arg(long)]
@@ -114,9 +121,9 @@ pub fn run(
 
     match cli.command {
         CliCommand::Init => init_project(&root),
-        CliCommand::Check => check_project(&root),
+        CliCommand::Check(args) => project::check_project_with_options(&root, args.deny_warnings),
         CliCommand::Fix(args) => project::fix_project(&root, &args),
-        CliCommand::Build => build_project(&root),
+        CliCommand::Build(args) => project::build_project_with_options(&root, args.deny_warnings),
         CliCommand::Generate => project::generate_project_data(&root),
         CliCommand::Format(args) => format_project(&root, &args),
         CliCommand::Lsp => {

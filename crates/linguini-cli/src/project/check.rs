@@ -50,6 +50,10 @@ impl ProjectDiagnosticOutput {
 }
 
 pub fn check_project(root: &Path) -> CliResult<String> {
+    check_project_with_options(root, false)
+}
+
+pub(crate) fn check_project_with_options(root: &Path, deny_warnings: bool) -> CliResult<String> {
     let config = read_project_config(root)?;
     let schema_files = discover_schema_files(root.join(&config.paths.schema))?;
     let locale_files = discover_locale_files(root.join(&config.paths.locale))?;
@@ -169,6 +173,9 @@ pub fn check_project(root: &Path) -> CliResult<String> {
 
     if !error_output.is_empty() {
         return Err(CliError::Diagnostics(error_output));
+    }
+    if deny_warnings && !warning_output.is_empty() {
+        return Err(CliError::Diagnostics(warning_output));
     }
     if !warning_output.is_empty() {
         output.push_str(&warning_output);

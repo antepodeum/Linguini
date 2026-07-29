@@ -248,6 +248,60 @@ declaration = true
 }
 
 #[test]
+fn check_and_build_can_deny_project_warnings() {
+    let project = TempDir::new().expect("temp project");
+    linguini()
+        .current_dir(project.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"[project]
+name = "shop"
+default_locale = "en"
+locales = ["en", "ru"]
+
+[paths]
+schema = "schema"
+locale = "locales"
+
+[targets.ts]
+out = "src/generated/linguini"
+declaration = true
+"#,
+    )
+    .expect("config");
+
+    let schema_dir = project.path().join("schema");
+    let locale_dir = project.path().join("locales/shop");
+    fs::create_dir_all(&schema_dir).expect("schema dir");
+    fs::create_dir_all(&locale_dir).expect("locale dir");
+    fs::write(schema_dir.join("shop.lgs"), "delivery\ncounted\n").expect("schema file");
+    fs::write(
+        locale_dir.join("en.lgl"),
+        "delivery = Delivered\ncounted = Counted\n",
+    )
+    .expect("default locale file");
+    fs::write(locale_dir.join("ru.lgl"), "delivery = Доставлено\n").expect("secondary locale file");
+
+    for command in ["check", "build"] {
+        linguini()
+            .current_dir(project.path())
+            .args([command, "--deny-warnings"])
+            .assert()
+            .failure()
+            .stderr(contains("Warning:"))
+            .stderr(contains(
+                "locale `ru` for schema namespace `shop` is missing 1 schema message: `counted`",
+            ));
+    }
+
+    assert!(!project.path().join("src/generated/linguini").exists());
+}
+
+#[test]
 fn fix_command_applies_missing_locale_and_message_stubs() {
     let project = TempDir::new().expect("temp project");
     linguini()
