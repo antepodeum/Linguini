@@ -65,6 +65,8 @@ production path uses the fix and its relevant tests pass.
   extension aliases, and one canonical locale-resolution service consumed by CLI and codegen.
 - `581fb85` — removed regex HTML rewriting and response buffering, centralized anchor
   skip policy, and added bounded per-instance browser observers with HMR disposal.
+- `f378a5f` — formatter parsing now reuses the validated parser's lossless token stream,
+  with a regression test proving one lexer invocation per source.
 
 ## Numbered findings
 
@@ -237,7 +239,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #141 — Enforce the documented line-width contract.
 - [x] #142 — Bound indentation/width allocation and overflow.
 - [x] #143 — Preserve comments under recovery.
-- [ ] #144 — Eliminate redundant parse/lex passes.
+- [x] #144 — Eliminate redundant parse/lex passes.
 - [x] #145 — Document and test zero-width “unlimited” behavior.
 - [x] #146 — Prove formatting preserves message semantics.
 - [x] #147 — Add idempotence, comment, Unicode, CRLF, and malformed-input properties.
