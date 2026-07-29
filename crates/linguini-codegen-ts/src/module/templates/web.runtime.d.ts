@@ -36,6 +36,11 @@ export interface AlternateLink {
   href: string;
 }
 
+/**
+ * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL
+ * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
+ * fail closed and preserve the original href instead.
+ */
 export interface LinguiniRequestContext<Locale extends string = string, Linguini = unknown> {
   locale: Locale;
   baseLocale: Locale;
@@ -55,6 +60,11 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
 }
 
+/**
+ * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL
+ * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
+ * fail closed and preserve the original href instead.
+ */
 export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniRuntime<Locale, Linguini> {
   options: Required<Pick<LinguiniWebOptions, "strategy" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
   matchLocale(locale: unknown): Locale | undefined;

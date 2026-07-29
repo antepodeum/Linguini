@@ -1,5 +1,7 @@
 const DEFAULT_STRATEGY = ["url", "cookie", "localStorage", "preferredLanguage", "baseLocale"] as const;
 const DEFAULT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const FALLBACK_URL = "http://localhost";
+const INVALID_URL_MESSAGE = "Linguini: invalid URL";
 
 export type TextDirection = "ltr" | "rtl";
 export type LocaleStrategy = "url" | "cookie" | "localStorage" | "header" | "navigator" | "preferredLanguage" | "globalVariable" | "baseLocale" | `custom-${string}`;
@@ -39,6 +41,11 @@ export interface LinguiniRuntime<Locale extends string = string, Linguini = unkn
   getTextDirection?(locale: Locale): TextDirection;
 }
 
+/**
+ * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL
+ * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
+ * fail closed and preserve the original href instead.
+ */
 export interface LinguiniRequestContext<Locale extends string = string, Linguini = unknown> {
   locale: Locale;
   baseLocale: Locale;
@@ -58,6 +65,11 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
 }
 
+/**
+ * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL
+ * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
+ * fail closed and preserve the original href instead.
+ */
 export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniRuntime<Locale, Linguini> {
   options: Required<Pick<LinguiniWebOptions, "strategy" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
   matchLocale(locale: unknown): Locale | undefined;
@@ -112,7 +124,7 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
   function resolveLocaleSync(input: Record<string, unknown> = {}) {
     for (const strategy of normalized.strategy) {
       const locale = readStrategy(strategy, input, normalized);
-      const resolved = matchLocale(locale);
+      const resolved = strategy === "url" ? matchExactLocale(runtime.locales, locale) : matchLocale(locale);
       if (resolved) return resolved;
     }
     return runtime.baseLocale;
@@ -120,16 +132,33 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
 
   function localizeUrl(url: string | URL, locale: Locale, input: Record<string, unknown> = {}) {
     const resolved = matchLocale(locale) ?? runtime.baseLocale;
-    const copy = new URL(String(url), String(input.currentUrl ?? input.url ?? input.origin ?? normalized.origin ?? "http://localhost"));
+    const base = resolveBaseUrl(normalized, input);
+    const copy = parseUrl(url, base);
+    if (!isInternalHttpUrl(copy, base.origin)) return copy;
+    return localizeParsedUrl(copy, resolved);
+  }
+
+  function localizeParsedUrl(copy: URL, locale: Locale) {
     const path = stripBasePath(copy.pathname, normalized.basePath);
-    const withoutLocale = stripLeadingLocale(path, runtime.locales, matchLocale);
-    copy.pathname = applyTrailingSlash(joinPath(normalized.basePath, shouldPrefixLocale(normalized, resolved) ? joinPath("/", resolved, withoutLocale) : withoutLocale), normalized.trailingSlash);
+    const withoutLocale = stripLeadingLocale(path, runtime.locales);
+    copy.pathname = applyTrailingSlash(joinPath(normalized.basePath, shouldPrefixLocale(normalized, locale) ? joinPath("/", locale, withoutLocale) : withoutLocale), normalized.trailingSlash);
     return copy;
   }
 
   function localizeHref(href: string, locale: Locale, input: Record<string, unknown> = {}) {
-    const url = localizeUrl(href, locale, input);
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(String(href))) return url.toString();
+    const value = String(href);
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) return value;
+    const scheme = trimmed.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+    if (scheme && !["http", "https"].includes(scheme[1].toLowerCase())) return value;
+
+    const base = resolveBaseUrl(normalized, input);
+    const url = parseUrl(value, base);
+    if (!isInternalHttpUrl(url, base.origin)) return value;
+
+    const resolved = matchLocale(locale) ?? runtime.baseLocale;
+    localizeParsedUrl(url, resolved);
+    if (scheme) return url.toString();
     return `${url.pathname}${url.search}${url.hash}`;
   }
 
@@ -140,13 +169,14 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     const scheme = value.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
     if (scheme && !["http", "https"].includes(scheme[1].toLowerCase())) return false;
     let parsed: URL;
+    let base: URL;
     try {
-      parsed = new URL(value, String(input.currentUrl ?? input.url ?? input.origin ?? normalized.origin ?? "http://localhost"));
+      base = resolveBaseUrl(normalized, input);
+      parsed = parseUrl(value, base);
     } catch {
       return false;
     }
-    if (!["http:", "https:"].includes(parsed.protocol)) return false;
-    if (parsed.origin !== currentOrigin(normalized, input)) return false;
+    if (!isInternalHttpUrl(parsed, base.origin)) return false;
     return !shouldExclude(parsed, input);
   }
 
@@ -168,8 +198,10 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
   }
 
   function delocalizeUrl(url: string | URL, input: Record<string, unknown> = {}) {
-    const copy = new URL(String(url), String(input.currentUrl ?? input.url ?? input.origin ?? normalized.origin ?? "http://localhost"));
-    copy.pathname = joinPath(normalized.basePath, stripLeadingLocale(stripBasePath(copy.pathname, normalized.basePath), runtime.locales, matchLocale));
+    const base = resolveBaseUrl(normalized, input);
+    const copy = parseUrl(url, base);
+    if (!isInternalHttpUrl(copy, base.origin)) return copy;
+    copy.pathname = joinPath(normalized.basePath, stripLeadingLocale(stripBasePath(copy.pathname, normalized.basePath), runtime.locales));
     return copy;
   }
 
@@ -178,7 +210,7 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
   }
 
   function alternateLinks(url: string | URL, input: Record<string, unknown> = {}) {
-    const parsed = new URL(String(url), String(input.currentUrl ?? input.url ?? input.origin ?? normalized.origin ?? "http://localhost"));
+    const parsed = parseRuntimeUrl(url, normalized, input);
     const links: AlternateLink[] = runtime.locales.map((locale) => ({
       rel: "alternate" as const,
       hreflang: locale,
@@ -195,13 +227,13 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
 
   function getCanonicalRedirect(url: string | URL, locale: Locale, input: Record<string, unknown> = {}) {
     if (normalized.redirect === false || shouldExclude(url, input)) return undefined;
-    const parsed = new URL(String(url), String(input.origin ?? normalized.origin ?? "http://localhost"));
+    const parsed = parseRuntimeUrl(url, normalized, input);
     const canonical = localizeUrl(parsed, locale, input);
     return canonical.pathname === parsed.pathname ? undefined : `${canonical.pathname}${canonical.search}${canonical.hash}`;
   }
 
   function shouldExclude(url: string | URL, input: Record<string, unknown> = {}) {
-    const parsed = new URL(String(url), String(input.origin ?? normalized.origin ?? "http://localhost"));
+    const parsed = parseRuntimeUrl(url, normalized, input);
     return normalized.exclude.some((matcher) => matchesRoute(matcher, parsed));
   }
 
@@ -350,15 +382,25 @@ function matchLocaleValue<Locale extends string>(locales: readonly Locale[], val
   return undefined;
 }
 
+function matchExactLocale<Locale extends string>(locales: readonly Locale[], value: unknown): Locale | undefined {
+  if (typeof value !== "string") return undefined;
+  return locales.find((locale) => locale.toLowerCase() === value.toLowerCase());
+}
+
 function firstPathSegment(url: URL | string | undefined, basePath = "") {
   if (!url) return undefined;
-  const parsed = new URL(String(url), "http://localhost");
+  let parsed: URL;
+  try {
+    parsed = parseUrl(url, FALLBACK_URL);
+  } catch {
+    return undefined;
+  }
   return stripBasePath(parsed.pathname, basePath).split("/").filter(Boolean)[0];
 }
 
-function stripLeadingLocale<Locale extends string>(pathname: string, locales: readonly Locale[], matchLocale: (locale: unknown) => Locale | undefined) {
+function stripLeadingLocale<Locale extends string>(pathname: string, locales: readonly Locale[]) {
   const parts = pathname.split("/").filter(Boolean);
-  return matchLocale(parts[0]) ? ensureSlash(parts.slice(1).join("/")) : ensureSlash(parts.join("/"));
+  return matchExactLocale(locales, parts[0]) ? ensureSlash(parts.slice(1).join("/")) : ensureSlash(parts.join("/"));
 }
 
 function stripBasePath(pathname: string, basePath: string) {
@@ -396,11 +438,45 @@ function shouldPrefixLocale(options: ReturnType<typeof normalizeOptions>, locale
 
 function matchesRoute(pattern: string | RegExp | ((url: URL) => boolean), url: URL) {
   if (typeof pattern === "function") return Boolean(pattern(url));
-  if (pattern instanceof RegExp) return pattern.test(url.pathname);
-  if (pattern.endsWith("/**")) return url.pathname.startsWith(pattern.slice(0, -3));
+  if (pattern instanceof RegExp) {
+    if (!pattern.global && !pattern.sticky) return pattern.test(url.pathname);
+    pattern.lastIndex = 0;
+    try {
+      return pattern.test(url.pathname);
+    } finally {
+      pattern.lastIndex = 0;
+    }
+  }
+  if (pattern.endsWith("/**")) {
+    const prefix = pattern.slice(0, -3).replace(/\/+$/, "");
+    return !prefix || prefix === "/" || url.pathname === prefix || url.pathname.startsWith(`${prefix}/`);
+  }
   return url.pathname === pattern;
 }
 
-function currentOrigin(options: ReturnType<typeof normalizeOptions>, input: Record<string, unknown> = {}) {
-  return new URL(String(input.currentUrl ?? input.url ?? input.origin ?? options.origin ?? "http://localhost")).origin;
+function resolveBaseUrl(options: ReturnType<typeof normalizeOptions>, input: Record<string, unknown> = {}) {
+  const origin = parseUrl(input.origin ?? options.origin ?? browserLocationHref() ?? FALLBACK_URL, FALLBACK_URL);
+  const current = input.currentUrl ?? input.url;
+  return current === undefined ? origin : parseUrl(current, origin);
+}
+
+function parseRuntimeUrl(url: string | URL, options: ReturnType<typeof normalizeOptions>, input: Record<string, unknown> = {}) {
+  return parseUrl(url, resolveBaseUrl(options, input));
+}
+
+function parseUrl(value: unknown, base: string | URL) {
+  try {
+    return new URL(String(value), String(base));
+  } catch {
+    throw new TypeError(INVALID_URL_MESSAGE);
+  }
+}
+
+function isInternalHttpUrl(url: URL, origin: string) {
+  return ["http:", "https:"].includes(url.protocol) && url.origin === origin;
+}
+
+function browserLocationHref() {
+  const href = (globalThis as { location?: { href?: unknown } }).location?.href;
+  return typeof href === "string" ? href : undefined;
 }
