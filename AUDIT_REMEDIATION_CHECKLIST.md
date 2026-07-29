@@ -47,6 +47,8 @@ production path uses the fix and its relevant tests pass.
   case-insensitive output-collision validation.
 - `6604bac` — explicit JSON and SARIF 2.1.0 CLI diagnostics with source ranges,
   related locations, stable rule IDs, severities, and quick fixes.
+- `cbd4cb3` — scoped public analyzer/type guarantees, exact lint severities,
+  explicit unused-message limits, and an executable CLI documentation contract.
 - `03bdfaf` — checked-in manifest-owned site codegen, Cargo-free frontend checks/builds,
   offline no-`git` verification, and generated GitHub Pages runtime configuration.
 - `7e8fa50`, `a6e5f7b`, `7cbb209`, `27aa665` — namespace-aware dependency validation,
@@ -466,7 +468,7 @@ production path uses the fix and its relevant tests pass.
 
 - [x] #347 — Build/check the site without Cargo, network, `git`, or a Rust toolchain.
 - [-] #348 — Remove unshipped syntax/CJS claims and align the reference with conformance.
-- [ ] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
+- [x] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
 - [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
 - [ ] #351 — Define project and path namespace behavior unambiguously.
 - [ ] #352 — Execute examples through compile, typecheck, and runtime golden tests.
@@ -517,7 +519,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] DOC-F4 — Specify `///` attachment and generated/editor propagation.
 - [ ] DOC-F5 — Remove inline `fn` from normative grammar.
 - [ ] DOC-F6 — Remove CJS completely.
-- [ ] DOC-F7 — Match formatter, plural, lint, typing, and exhaustiveness claims to tests.
+- [-] DOC-F7 — Match formatter, plural, lint, typing, and exhaustiveness claims to tests.
 
 ### `docs/web-sveltekit.md`
 
@@ -541,7 +543,7 @@ production path uses the fix and its relevant tests pass.
 
 ### `docs/why.md`
 
-- [ ] DOC-Y1 — Remove claims for incomplete typing, lints, exhaustiveness, and usage.
+- [x] DOC-Y1 — Remove claims for incomplete typing, lints, exhaustiveness, and usage.
 - [ ] DOC-Y2 — Label intended advantages as goals until conformance proves them.
 - [ ] DOC-Y3 — Explain the exact per-message bundler-native graph.
 - [ ] DOC-Y4 — Require reproducible evidence for payload-reduction claims.
