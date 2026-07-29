@@ -71,8 +71,10 @@ form SizeWord(Size) {
 }
 
 form Delivered(Plural, Gender) {
-  one => Entregado
-  _   => Entregados
+  one {
+    _ => Entregado
+  }
+  _ => Entregados
 }
 
 let size_form_label = Forma de tamaño

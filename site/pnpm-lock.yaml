@@ -842,6 +842,10 @@ packages:
     resolution: {integrity: sha512-2wcC/oGxHis/BoHkkPwldgiPSYcpZK3JU28WoMVv55yHJgcZ8rlXvuG9iZggz+sU1d4bRgIGASwyWqjxu3FM0g==}
     engines: {node: '>=18'}
 
+  smol-toml@1.7.1:
+    resolution: {integrity: sha512-PPlsspAZ4jbMBu5DMFhfUGDQLu/vrL4SyBROVS37x8ynnVmFIs1VPBz1Co8Xks3TvpIaZXmU85y4DrQ+UyVFoQ==}
+    engines: {node: '>= 18'}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -1010,6 +1014,7 @@ snapshots:
 
   '@antepod/linguini-vite@file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
     dependencies:
+      smol-toml: 1.7.1
       vite: 8.0.13(@types/node@24.12.4)(jiti@1.21.7)
 
   '@emnapi/core@1.10.0':
@@ -1689,6 +1694,8 @@ snapshots:
       '@polka/url': 1.0.0-next.29
       mrmime: 2.0.1
       totalist: 3.0.1
+
+  smol-toml@1.7.1: {}
 
   source-map-js@1.2.1: {}
 

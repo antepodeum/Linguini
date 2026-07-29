@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "linguini:build": "cargo run -p linguini-cli -- build",
-    "build": "cargo run -p linguini-cli -- build && vite build",
+    "linguini:build": "cargo run --locked -p linguini-cli -- build",
+    "linguini:verify": "pnpm linguini:build && git diff --exit-code -- src/lib/generated/linguini",
+    "build": "vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
-    "check": "cargo run -p linguini-cli -- build && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --test scripts/*.test.mjs",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "pages:configure": "node ./scripts/configure-github-pages.mjs"
   },

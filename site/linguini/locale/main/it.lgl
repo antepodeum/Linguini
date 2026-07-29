@@ -71,8 +71,10 @@ form SizeWord(Size) {
 }
 
 form Delivered(Plural, Gender) {
-  one => Consegnato
-  _   => Consegnati
+  one {
+    _ => Consegnato
+  }
+  _ => Consegnati
 }
 
 let size_form_label = Forma dimensione

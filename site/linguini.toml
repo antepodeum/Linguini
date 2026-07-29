@@ -11,6 +11,7 @@ locale = "linguini/locale"
 out = "src/lib/generated/linguini"
 declaration = true
 framework = "sveltekit"
+gitignore = false
 
 [web.routing]
 locale_prefix = "always"

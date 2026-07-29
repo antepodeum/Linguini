@@ -3,31 +3,51 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const configPath = resolve(here, '../linguini.toml');
-const basePath = normalizeBasePath(process.env.BASE_PATH ?? '');
-const cookiePath = basePath || '/';
+const defaultGeneratedFiles = [
+  resolve(here, '../src/lib/generated/linguini/svelte.ts'),
+  resolve(here, '../src/lib/generated/linguini/sveltekit.ts')
+];
 
-let source = readFileSync(configPath, 'utf8');
-source = replaceStringSetting(source, 'base_path', basePath);
-source = replaceStringSetting(source, 'cookie_path', cookiePath);
-writeFileSync(configPath, source);
+if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
+  const basePath = configureGeneratedRuntime(
+    process.env.BASE_PATH ?? '',
+    defaultGeneratedFiles
+  );
+  console.log(`Configured Linguini for GitHub Pages with base_path=${basePath || '(root)'}`);
+}
 
-console.log(`Configured Linguini for GitHub Pages with base_path=${basePath || '(root)'}`);
+export function configureGeneratedRuntime(rawBasePath, generatedFiles) {
+  const basePath = normalizeBasePath(rawBasePath);
+  const cookiePath = basePath || '/';
 
-function normalizeBasePath(value) {
+  for (const generatedFile of generatedFiles) {
+    let source = readFileSync(generatedFile, 'utf8');
+    source = replaceGeneratedOption(source, 'basePath', basePath, generatedFile);
+    source = replaceGeneratedOption(source, 'cookiePath', cookiePath, generatedFile);
+    writeFileSync(generatedFile, source);
+  }
+
+  return basePath;
+}
+
+export function normalizeBasePath(value) {
   const trimmed = String(value).trim();
   if (!trimmed || trimmed === '/') return '';
   return `/${trimmed.replace(/^\/+|\/+$/g, '')}`;
 }
 
-function replaceStringSetting(source, key, value) {
-  const pattern = new RegExp(`^${key}\\s*=\\s*".*"$`, 'm');
+function replaceGeneratedOption(source, key, value, file) {
+  const pattern = new RegExp(`\\b${key}:\\s*"(?:[^"\\\\]|\\\\.)*"`);
   if (!pattern.test(source)) {
-    throw new Error(`Could not find ${key} in linguini.toml`);
+    throw new Error(`Could not find generated ${key} option in ${file}`);
   }
-  return source.replace(pattern, `${key} = "${escapeTomlString(value)}"`);
+  return source.replace(pattern, `${key}: "${escapeTypeScriptString(value)}"`);
 }
 
-function escapeTomlString(value) {
-  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+function escapeTypeScriptString(value) {
+  return String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n');
 }
