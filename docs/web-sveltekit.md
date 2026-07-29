@@ -116,6 +116,49 @@ export { reroute } from "$lib/generated/linguini/sveltekit";
 export { load } from "$lib/generated/linguini/sveltekit";
 ```
 
+The short `handle`, `reroute`, and `load` exports are for applications that do
+not already define those hooks. For composition, import the collision-free
+`linguiniHandle`, `linguiniReroute`, and `linguiniLoad` exports instead.
+SvelteKit's `sequence` helper composes server handles; put Linguini first when a
+later handle reads `event.locals.linguini`:
+
+```ts
+// src/hooks.server.ts
+import { sequence } from "@sveltejs/kit/hooks";
+import { linguiniHandle } from "$lib/generated/linguini/sveltekit";
+import { appHandle } from "$lib/server/app-handle";
+
+export const handle = sequence(linguiniHandle, appHandle);
+```
+
+SvelteKit accepts one `reroute` hook. Give the application hook explicit
+priority and use Linguini when it does not reroute the URL:
+
+```ts
+// src/hooks.ts
+import type { Reroute } from "@sveltejs/kit";
+import { linguiniReroute } from "$lib/generated/linguini/sveltekit";
+import { appReroute } from "$lib/app-reroute";
+
+export const reroute: Reroute = async (event) =>
+  (await appReroute(event)) ?? (await linguiniReroute(event));
+```
+
+Compose root server-load results explicitly. Spread the Linguini result last so
+the reserved `data.linguini` field cannot be replaced accidentally:
+
+```ts
+// src/routes/+layout.server.ts
+import type { LayoutServerLoad } from "./$types";
+import { linguiniLoad } from "$lib/generated/linguini/sveltekit";
+import { appLoad } from "$lib/server/app-load";
+
+export const load: LayoutServerLoad = async (event) => ({
+  ...(await appLoad(event)),
+  ...(await linguiniLoad(event)),
+});
+```
+
 Use the generated HTML placeholders:
 
 ```html

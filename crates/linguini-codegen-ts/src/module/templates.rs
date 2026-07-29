@@ -49,6 +49,12 @@ mod tests {
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
+        assert!(SVELTEKIT_RUNTIME.contains("export const linguiniHandle"));
+        assert!(SVELTEKIT_RUNTIME.contains("export const linguiniReroute"));
+        assert!(SVELTEKIT_RUNTIME.contains("export const linguiniLoad"));
+        assert!(SVELTEKIT_DECLARATIONS.contains("linguiniHandle: Handle"));
+        assert!(SVELTEKIT_DECLARATIONS.contains("linguiniReroute: Reroute"));
+        assert!(SVELTEKIT_DECLARATIONS.contains("linguiniLoad: ServerLoad"));
         assert!(SVELTEKIT_RUNTIME.contains("status: 307"));
         assert!(!SVELTEKIT_RUNTIME.contains("redirectStatus"));
         assert!(SVELTEKIT_RUNTIME.contains("locals.linguini = context"));

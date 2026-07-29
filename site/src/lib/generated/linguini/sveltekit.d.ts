@@ -2,6 +2,9 @@ import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";
 import type { LinguiniRequestContext } from "./web";
 import type { Locale, Linguini, TextDirection } from "./index";
 
+export declare const linguiniHandle: Handle;
+export declare const linguiniReroute: Reroute;
+export declare const linguiniLoad: ServerLoad;
 export declare const handle: Handle;
 export declare const reroute: Reroute;
 export declare const load: ServerLoad;
