@@ -33,8 +33,12 @@ pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedT
         generate_plural_tables(&plural_source)?;
     let (direction_table, text_direction_locales, text_direction_exclusions) =
         generate_text_direction_table(source.layout_main(), source.locales())?;
-    let (formatting_tables, mut formatting) =
-        generate_formatting_tables(source.numbers_main(), source.dates_main(), source.locales())?;
+    let (formatting_tables, mut formatting) = generate_formatting_tables(
+        source.numbers_main(),
+        source.dates_main(),
+        source.currency_data(),
+        source.locales(),
+    )?;
     formatting.text_direction_locales = text_direction_locales;
     formatting.text_direction_exclusions = text_direction_exclusions;
 

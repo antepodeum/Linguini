@@ -1,7 +1,7 @@
 use super::{
     built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
-    compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
-    CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
+    compiled_currency_fraction, compiled_date_formatting, compiled_number_formatting,
+    compiled_plural_rules, CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
 };
 use crate::PluralOperands;
 
@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "8b9c1e60f989e462eb776649dd39a4a021876cf7f2b6532f8d628dbdb4e3fc99"
+        "d5a6acab50bf98cd05ba2087b92cba64b9832e6fdf9e530d1dd7ab9648a7a1ca"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -135,6 +135,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     assert_eq!(manifest["coverage"]["extension_type_aliases"], 49);
     assert_eq!(manifest["coverage"]["locale_candidates"], 8_460);
     assert_eq!(manifest["coverage"]["number_locales"], 766);
+    assert_eq!(manifest["coverage"]["currency_fraction_rules"], 75);
     assert_eq!(manifest["coverage"]["date_locales"], 765);
 }
 
@@ -168,4 +169,31 @@ fn compiled_formatting_data_is_typed_not_json() {
     assert_eq!(dates.time_formats.short, "h:mm\u{202f}a");
     assert_eq!(dates.months.wide[0], "January");
     assert_eq!(dates.weekdays.abbreviated[0], "Sun");
+}
+
+#[test]
+fn compiled_currency_fractions_apply_overrides_and_defaults() {
+    let jpy = compiled_currency_fraction("jpy").expect("JPY rules");
+    assert_eq!(jpy.digits, 0);
+    assert_eq!(jpy.rounding, 0);
+
+    let kwd = compiled_currency_fraction("KWD").expect("KWD rules");
+    assert_eq!(kwd.digits, 3);
+
+    let clf = compiled_currency_fraction("CLF").expect("CLF rules");
+    assert_eq!(clf.digits, 4);
+
+    let chf = compiled_currency_fraction("CHF").expect("CHF rules");
+    assert_eq!(chf.digits, 2);
+    assert_eq!(chf.cash_digits, 2);
+    assert_eq!(chf.cash_rounding, 5);
+
+    let default = compiled_currency_fraction("USD").expect("default USD rules");
+    assert_eq!(default.digits, 2);
+    assert_eq!(default.rounding, 0);
+    assert_eq!(default.cash_digits, 2);
+    assert_eq!(default.cash_rounding, 0);
+
+    assert_eq!(compiled_currency_fraction("US"), None);
+    assert_eq!(compiled_currency_fraction("12$"), None);
 }

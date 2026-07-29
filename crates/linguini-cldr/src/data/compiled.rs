@@ -1,6 +1,6 @@
 use super::{
-    CurrencyFormatData, DateFormatData, DateSymbolWidths, FormatWidths, NumberFormatData,
-    NumberPattern, NumberPatternPart, PluralCategoryRule, PluralRules,
+    CurrencyFormatData, CurrencyFractionData, DateFormatData, DateSymbolWidths, FormatWidths,
+    NumberFormatData, NumberPattern, NumberPatternPart, PluralCategoryRule, PluralRules,
 };
 use crate::plural::{
     Condition, Operand, OperandExpression, PluralOperands, PluralRule, Range, RangeList, Relation,
@@ -100,6 +100,18 @@ pub fn compiled_currency_formatting(locale: &str) -> Option<CurrencyFormatData> 
         LocaleFallbackComponent::Main,
         generated_currency_formatting,
     )
+}
+
+/// Returns CLDR supplemental fraction and rounding rules for a currency code.
+///
+/// CLDR's `DEFAULT` rule applies to well-formed three-letter codes without a
+/// currency-specific override. Malformed codes return `None`.
+pub fn compiled_currency_fraction(currency: &str) -> Option<CurrencyFractionData> {
+    if currency.len() != 3 || !currency.bytes().all(|byte| byte.is_ascii_alphabetic()) {
+        return None;
+    }
+    let currency = currency.to_ascii_uppercase();
+    generated_currency_fraction(&currency).or_else(|| generated_currency_fraction("DEFAULT"))
 }
 
 pub fn compiled_date_formatting(locale: &str) -> Option<DateFormatData> {

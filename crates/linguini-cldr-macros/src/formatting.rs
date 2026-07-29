@@ -9,6 +9,7 @@ pub(crate) struct FormattingCoverage {
     pub(crate) text_direction_locales: usize,
     pub(crate) number_locales: usize,
     pub(crate) currency_locales: usize,
+    pub(crate) currency_fraction_rules: usize,
     pub(crate) date_locales: usize,
     pub(crate) text_direction_exclusions: Vec<String>,
     pub(crate) date_exclusions: Vec<String>,
@@ -81,6 +82,7 @@ fn require_exact_exclusions(
 pub(crate) fn generate_formatting_tables(
     numbers_main: &Path,
     dates_main: &Path,
+    currency_data: &Path,
     locales: &[String],
 ) -> Result<(TokenStream, FormattingCoverage), String> {
     let mut number_arms = Vec::new();
@@ -108,11 +110,15 @@ pub(crate) fn generate_formatting_tables(
         }
     }
     require_exact_exclusions("date", &date_exclusions, &DATE_EXCLUSIONS)?;
+    let currency_fractions = extract_currency_fractions(currency_data)?;
+    let currency_fraction_rules = currency_fractions.len();
+    let currency_fraction_arms = currency_fractions.iter().map(currency_fraction_arm);
 
     let coverage = FormattingCoverage {
         text_direction_locales: 0,
         number_locales: number_arms.len(),
         currency_locales: currency_arms.len(),
+        currency_fraction_rules,
         date_locales: date_arms.len(),
         text_direction_exclusions: Vec::new(),
         date_exclusions,
@@ -133,6 +139,13 @@ pub(crate) fn generate_formatting_tables(
                 }
             }
 
+            fn generated_currency_fraction(currency: &str) -> Option<CurrencyFractionData> {
+                match currency {
+                    #(#currency_fraction_arms)*
+                    _ => None,
+                }
+            }
+
             fn generated_date_formatting(locale: &str) -> Option<DateFormatData> {
                 match locale {
                     #(#date_arms)*
@@ -142,6 +155,21 @@ pub(crate) fn generate_formatting_tables(
         },
         coverage,
     ))
+}
+
+fn currency_fraction_arm((currency, rule): &(String, CurrencyFractionRule)) -> TokenStream {
+    let digits = rule.digits;
+    let rounding = rule.rounding;
+    let cash_digits = rule.cash_digits;
+    let cash_rounding = rule.cash_rounding;
+    quote! {
+        #currency => Some(CurrencyFractionData {
+            digits: #digits,
+            rounding: #rounding,
+            cash_digits: #cash_digits,
+            cash_rounding: #cash_rounding,
+        }),
+    }
 }
 
 fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
@@ -208,6 +236,14 @@ struct CurrencyData {
     accounting_pattern: Option<NumberPattern>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CurrencyFractionRule {
+    digits: u8,
+    rounding: u16,
+    cash_digits: u8,
+    cash_rounding: u16,
+}
+
 struct DateData {
     date_formats: WidthData,
     time_formats: WidthData,
@@ -270,6 +306,107 @@ fn extract_currency(value: &Value, locale: &str) -> Result<CurrencyData, String>
         standard_pattern: parse_number_pattern(&standard)?,
         accounting_pattern,
     })
+}
+
+fn extract_currency_fractions(path: &Path) -> Result<Vec<(String, CurrencyFractionRule)>, String> {
+    let value = read_json(path)?;
+    let fractions = required_field(
+        required_field(
+            required_field(&value, "supplemental", "root")?,
+            "currencyData",
+            "supplemental",
+        )?,
+        "fractions",
+        "supplemental.currencyData",
+    )?
+    .as_object()
+    .ok_or_else(|| "supplemental.currencyData.fractions is not an object".to_owned())?;
+
+    if !fractions.contains_key("DEFAULT") {
+        return Err("currency fractions are missing the CLDR `DEFAULT` rule".to_owned());
+    }
+
+    let mut rules = Vec::with_capacity(fractions.len());
+    for (currency, value) in fractions {
+        if currency != "DEFAULT"
+            && (currency.len() != 3 || !currency.bytes().all(|byte| byte.is_ascii_uppercase()))
+        {
+            return Err(format!(
+                "currency fraction key `{currency}` is not `DEFAULT` or an uppercase ISO code"
+            ));
+        }
+        let context = format!("currency fractions.{currency}");
+        let digits = unsigned_u8_field(value, "_digits", &context)?;
+        let rounding = unsigned_u16_field(value, "_rounding", &context)?;
+        let cash_digits =
+            optional_unsigned_u8_field(value, "_cashDigits", &context)?.unwrap_or(digits);
+        let cash_rounding =
+            optional_unsigned_u16_field(value, "_cashRounding", &context)?.unwrap_or(rounding);
+        rules.push((
+            currency.clone(),
+            CurrencyFractionRule {
+                digits,
+                rounding,
+                cash_digits,
+                cash_rounding,
+            },
+        ));
+    }
+    rules.sort_by(|left, right| left.0.cmp(&right.0));
+    Ok(rules)
+}
+
+fn unsigned_u8_field(value: &Value, key: &str, context: &str) -> Result<u8, String> {
+    optional_unsigned_u8_field(value, key, context)?
+        .ok_or_else(|| format!("{context}: missing `{key}`"))
+}
+
+fn optional_unsigned_u8_field(
+    value: &Value,
+    key: &str,
+    context: &str,
+) -> Result<Option<u8>, String> {
+    optional_unsigned_field(value, key, context)?
+        .map(|source| {
+            source
+                .parse::<u8>()
+                .map_err(|_| format!("{context}.{key} is not a valid u8"))
+        })
+        .transpose()
+}
+
+fn unsigned_u16_field(value: &Value, key: &str, context: &str) -> Result<u16, String> {
+    optional_unsigned_u16_field(value, key, context)?
+        .ok_or_else(|| format!("{context}: missing `{key}`"))
+}
+
+fn optional_unsigned_u16_field(
+    value: &Value,
+    key: &str,
+    context: &str,
+) -> Result<Option<u16>, String> {
+    optional_unsigned_field(value, key, context)?
+        .map(|source| {
+            source
+                .parse::<u16>()
+                .map_err(|_| format!("{context}.{key} is not a valid u16"))
+        })
+        .transpose()
+}
+
+fn optional_unsigned_field<'a>(
+    value: &'a Value,
+    key: &str,
+    context: &str,
+) -> Result<Option<&'a str>, String> {
+    value
+        .get(key)
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or_else(|| format!("{context}.{key} is not a string"))
+        })
+        .transpose()
 }
 
 fn extract_dates(value: &Value, locale: &str) -> Result<Option<DateData>, String> {

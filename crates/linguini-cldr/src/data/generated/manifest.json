@@ -1,10 +1,11 @@
 {
   "artifact": {
-    "bytes": 2657494,
+    "bytes": 2666544,
     "path": "cldr_tables.rs",
-    "sha256": "8b9c1e60f989e462eb776649dd39a4a021876cf7f2b6532f8d628dbdb4e3fc99"
+    "sha256": "d5a6acab50bf98cd05ba2087b92cba64b9832e6fdf9e530d1dd7ab9648a7a1ca"
   },
   "coverage": {
+    "currency_fraction_rules": 75,
     "currency_locales": 766,
     "date_locales": 765,
     "excluded": {
@@ -46,11 +47,11 @@
     "name": "linguini-cldr-macros"
   },
   "inputs": {
-    "bytes": 20448368,
-    "file_count": 2322,
-    "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+latn-numbers+latn-currency+gregorian+layout-v3",
+    "bytes": 20519494,
+    "file_count": 2323,
+    "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+latn-numbers+latn-currency+gregorian+layout-v3",
     "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
-    "tree_sha256": "43f9c05e527625fcc5e2df8481c4e2351855e1fc057c0f348acc659cd41ad347"
+    "tree_sha256": "56a882b24a6f978d514c6940afd18f96d9b9078b7d967b3f6b4d76b5516387b5"
   },
   "schema": 1,
   "source": {

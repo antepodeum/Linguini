@@ -3,8 +3,8 @@ mod compiled;
 use crate::plural::{PluralOperands, PluralRule};
 pub use compiled::{
     built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
-    compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
-    CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
+    compiled_currency_fraction, compiled_date_formatting, compiled_number_formatting,
+    compiled_plural_rules, CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
 };
 pub(crate) use compiled::{
     generated_extension_key_alias, generated_extension_type_alias, generated_language_alias,
@@ -56,6 +56,19 @@ pub struct CurrencyFormatData {
     pub locale: &'static str,
     pub standard_pattern: NumberPattern,
     pub accounting_pattern: Option<NumberPattern>,
+}
+
+/// CLDR supplemental currency fraction and rounding rules.
+///
+/// Rounding values are integer increments at the corresponding number of
+/// fraction digits. For example, `rounding = 5` with `digits = 2` means an
+/// increment of `0.05`. A zero increment means ordinary decimal rounding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CurrencyFractionData {
+    pub digits: u8,
+    pub rounding: u16,
+    pub cash_digits: u8,
+    pub cash_rounding: u16,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

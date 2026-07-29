@@ -10,7 +10,7 @@ pub(crate) const SOURCE_REF: &str = "48.2.0";
 pub(crate) const SOURCE_COMMIT: &str = "bb334e8d6250c9363e957e131bf7e6d08ec72f91";
 pub(crate) const SOURCE_GIT_TREE: &str = "b297a9501ae136e59d006f0497204524a5478cc9";
 pub(crate) const SOURCE_TREE_SHA256: &str =
-    "43f9c05e527625fcc5e2df8481c4e2351855e1fc057c0f348acc659cd41ad347";
+    "56a882b24a6f978d514c6940afd18f96d9b9078b7d967b3f6b4d76b5516387b5";
 pub(crate) const CLDR_VERSION: &str = "48.2.0";
 pub(crate) const UNICODE_VERSION: &str = "16.0.0";
 pub(crate) const EXPECTED_LOCALE_COUNT: usize = 766;
@@ -20,6 +20,7 @@ const PARENT_LOCALES_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/par
 const LIKELY_SUBTAGS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/likelySubtags.json";
 const BCP47_RELATIVE_PATH: &str = "cldr-json/cldr-bcp47/bcp47";
 const PLURALS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/plurals.json";
+const CURRENCY_DATA_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/currencyData.json";
 const LAYOUT_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-misc-full/main";
 const NUMBERS_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-numbers-full/main";
 const DATES_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-dates-full/main";
@@ -38,6 +39,7 @@ pub(crate) struct CldrSource {
     likely_subtags: PathBuf,
     bcp47: PathBuf,
     plurals: PathBuf,
+    currency_data: PathBuf,
     layout_main: PathBuf,
     numbers_main: PathBuf,
     dates_main: PathBuf,
@@ -68,6 +70,7 @@ impl CldrSource {
         let likely_subtags = checked_file(&root, LIKELY_SUBTAGS_RELATIVE_PATH)?;
         let bcp47 = checked_dir(&root, BCP47_RELATIVE_PATH)?;
         let plurals = checked_file(&root, PLURALS_RELATIVE_PATH)?;
+        let currency_data = checked_file(&root, CURRENCY_DATA_RELATIVE_PATH)?;
         let layout_main = checked_dir(&root, LAYOUT_MAIN_RELATIVE_PATH)?;
         let numbers_main = checked_dir(&root, NUMBERS_MAIN_RELATIVE_PATH)?;
         let dates_main = checked_dir(&root, DATES_MAIN_RELATIVE_PATH)?;
@@ -96,6 +99,7 @@ impl CldrSource {
         input_files.push(likely_subtags.clone());
         input_files.extend(json_files(&bcp47)?);
         input_files.push(plurals.clone());
+        input_files.push(currency_data.clone());
         for package in PACKAGE_RELATIVE_PATHS {
             input_files.push(checked_file(&root, package)?);
         }
@@ -129,6 +133,7 @@ impl CldrSource {
             likely_subtags,
             bcp47,
             plurals,
+            currency_data,
             layout_main,
             numbers_main,
             dates_main,
@@ -156,6 +161,10 @@ impl CldrSource {
 
     pub(crate) fn plurals(&self) -> &Path {
         &self.plurals
+    }
+
+    pub(crate) fn currency_data(&self) -> &Path {
+        &self.currency_data
     }
 
     pub(crate) fn layout_main(&self) -> &Path {

@@ -4,10 +4,10 @@ mod plural;
 
 pub use data::{
     built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
-    compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
-    CompiledPluralCategory, CompiledPluralRules, CurrencyFormatData, DateFormatData,
-    DateSymbolWidths, FormatWidths, NumberFormatData, NumberPattern, NumberPatternPart,
-    PluralCategoryRule, PluralRules, CLDR_DATA_MANIFEST_JSON,
+    compiled_currency_fraction, compiled_date_formatting, compiled_number_formatting,
+    compiled_plural_rules, CompiledPluralCategory, CompiledPluralRules, CurrencyFormatData,
+    CurrencyFractionData, DateFormatData, DateSymbolWidths, FormatWidths, NumberFormatData,
+    NumberPattern, NumberPatternPart, PluralCategoryRule, PluralRules, CLDR_DATA_MANIFEST_JSON,
 };
 pub use locale::{
     canonicalize_locale, locale_fallback_chain, locale_fallback_chain_for,
