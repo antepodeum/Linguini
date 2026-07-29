@@ -30,6 +30,8 @@ production path uses the fix and its relevant tests pass.
   schema checks, duplicate locale rejection, and a sealed validated codegen boundary.
 - `2ea35a4` — typed form-map dispatch, zero-argument calls, injective TypeScript identifiers,
   complete string escaping, and strict project-input validation.
+- `bead89b` — exact CLDR plural operand parsing/evaluation with compact exponents,
+  overflow checks, structured offsets, and deterministic fallback categories.
 
 ## Numbered findings
 
@@ -209,14 +211,14 @@ production path uses the fix and its relevant tests pass.
 
 ### `linguini-cldr`
 
-- [ ] #148 — Reject repeated or mixed numeric signs.
-- [ ] #149 — Support exponent notation and compact operands `c`/`e`.
-- [ ] #150 — Avoid integer overflow in plural operands.
-- [ ] #151 — Avoid lossy `f64` conversion.
-- [ ] #152 — Define exact integer conversion semantics.
-- [ ] #153 — Parse plural operands once.
-- [ ] #154 — Remove category-order dependence for empty rules.
-- [ ] #155 — Return structured plural parse errors with offsets.
+- [x] #148 — Reject repeated or mixed numeric signs.
+- [x] #149 — Support exponent notation and compact operands `c`/`e`.
+- [x] #150 — Avoid integer overflow in plural operands.
+- [x] #151 — Avoid lossy `f64` conversion.
+- [x] #152 — Define exact integer conversion semantics.
+- [x] #153 — Parse plural operands once.
+- [x] #154 — Remove category-order dependence for empty rules.
+- [x] #155 — Return structured plural parse errors with offsets.
 - [ ] #156 — Implement canonical aliases, parent locales, and likely subtags.
 - [ ] #157 — Support CLDR numbering systems beyond `latn`.
 - [ ] #158 — Expand date/calendar/context/time-zone/skeleton support.
