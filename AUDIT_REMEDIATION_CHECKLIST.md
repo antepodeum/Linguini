@@ -42,6 +42,7 @@ production path uses the fix and its relevant tests pass.
 - `b3b93b6` — closed generated locale-source contracts, configuration-aligned defaults,
   weighted `Accept-Language` negotiation, strict SvelteKit headers, and safe cookie decoding.
 - `220b8a3` — lexer-derived TextMate and language-configuration golden tests.
+- `d82d239` — append-only locale cookie persistence through supported response sinks.
 - `615b24d` — portable, injective namespace filenames plus locale-component and
   case-insensitive output-collision validation.
 
@@ -305,7 +306,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #218 — Parse `Accept-Language` weights and wildcards correctly.
 - [x] #219 — Handle malformed cookie percent encoding safely.
 - [-] #220 — Carry validated cookie constraints into the generated runtime.
-- [ ] #221 — Append rather than overwrite existing `Set-Cookie` headers.
+- [x] #221 — Append rather than overwrite existing `Set-Cookie` headers.
 - [x] #222 — Prevent public URL localization from rewriting external URLs.
 - [x] #223 — Match only exact locale path segments.
 - [ ] #224 — Derive trailing-slash behavior from SvelteKit routes.
