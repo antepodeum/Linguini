@@ -10,11 +10,14 @@ pub(crate) const SOURCE_REF: &str = "48.2.0";
 pub(crate) const SOURCE_COMMIT: &str = "bb334e8d6250c9363e957e131bf7e6d08ec72f91";
 pub(crate) const SOURCE_GIT_TREE: &str = "b297a9501ae136e59d006f0497204524a5478cc9";
 pub(crate) const SOURCE_TREE_SHA256: &str =
-    "784a63e309fb16ba4a34598164f26a99b0e3a9d17d74dc9cfd9f6f3ae9c4f679";
+    "24d42c3741c9a8922351847c3ee86e4358100bd8bf4f742061eb8a7a59f07931";
 pub(crate) const CLDR_VERSION: &str = "48.2.0";
 pub(crate) const UNICODE_VERSION: &str = "16.0.0";
 pub(crate) const EXPECTED_LOCALE_COUNT: usize = 766;
 
+const ALIASES_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/aliases.json";
+const PARENT_LOCALES_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/parentLocales.json";
+const LIKELY_SUBTAGS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/likelySubtags.json";
 const PLURALS_RELATIVE_PATH: &str = "cldr-json/cldr-core/supplemental/plurals.json";
 const LAYOUT_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-misc-full/main";
 const NUMBERS_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-numbers-full/main";
@@ -28,6 +31,9 @@ const PACKAGE_RELATIVE_PATHS: [&str; 4] = [
 
 pub(crate) struct CldrSource {
     root: PathBuf,
+    aliases: PathBuf,
+    parent_locales: PathBuf,
+    likely_subtags: PathBuf,
     plurals: PathBuf,
     layout_main: PathBuf,
     numbers_main: PathBuf,
@@ -54,6 +60,9 @@ impl CldrSource {
             verify_package_identity(&root.join(package))?;
         }
 
+        let aliases = checked_file(&root, ALIASES_RELATIVE_PATH)?;
+        let parent_locales = checked_file(&root, PARENT_LOCALES_RELATIVE_PATH)?;
+        let likely_subtags = checked_file(&root, LIKELY_SUBTAGS_RELATIVE_PATH)?;
         let plurals = checked_file(&root, PLURALS_RELATIVE_PATH)?;
         let layout_main = checked_dir(&root, LAYOUT_MAIN_RELATIVE_PATH)?;
         let numbers_main = checked_dir(&root, NUMBERS_MAIN_RELATIVE_PATH)?;
@@ -77,7 +86,10 @@ impl CldrSource {
         }
         let locales: Vec<_> = number_locales.into_iter().collect();
 
-        let mut input_files = Vec::with_capacity(5 + locales.len() * 3);
+        let mut input_files = Vec::with_capacity(8 + locales.len() * 3);
+        input_files.push(aliases.clone());
+        input_files.push(parent_locales.clone());
+        input_files.push(likely_subtags.clone());
         input_files.push(plurals.clone());
         for package in PACKAGE_RELATIVE_PATHS {
             input_files.push(checked_file(&root, package)?);
@@ -107,6 +119,9 @@ impl CldrSource {
 
         Ok(Self {
             root,
+            aliases,
+            parent_locales,
+            likely_subtags,
             plurals,
             layout_main,
             numbers_main,
@@ -115,6 +130,18 @@ impl CldrSource {
             input_files,
             source_tree_sha256,
         })
+    }
+
+    pub(crate) fn aliases(&self) -> &Path {
+        &self.aliases
+    }
+
+    pub(crate) fn parent_locales(&self) -> &Path {
+        &self.parent_locales
+    }
+
+    pub(crate) fn likely_subtags(&self) -> &Path {
+        &self.likely_subtags
     }
 
     pub(crate) fn plurals(&self) -> &Path {

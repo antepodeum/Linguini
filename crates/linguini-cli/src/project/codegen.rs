@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
 use linguini_analyzer::DiagnosticSeverity;
+use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
     generate_typescript_project_files, TypeScriptFramework, TypeScriptGeneratedFile,
     TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptProjectOptions, TypeScriptWebOptions,
@@ -165,7 +166,6 @@ fn build_locale_ir(
     for schema_file in schema_files {
         let namespace = &schema_file.file.namespace;
         let locale_key = (namespace.clone(), locale.to_owned());
-        let default_key = (namespace.clone(), config.project.default_locale.clone());
         let locale_file = locale_index.get(&locale_key);
 
         if locale == config.project.default_locale.as_str() && locale_file.is_none() {
@@ -184,8 +184,13 @@ fn build_locale_ir(
             );
         }
 
-        if locale != config.project.default_locale.as_str() {
-            if let Some(default_locale_file) = locale_index.get(&default_key) {
+        for fallback_locale in project_locale_fallbacks(
+            &config.project.locales,
+            locale,
+            &config.project.default_locale,
+        ) {
+            let fallback_key = (namespace.clone(), fallback_locale.to_owned());
+            if let Some(default_locale_file) = locale_index.get(&fallback_key) {
                 merge_module_fallback(
                     &mut locale_ir,
                     namespaced_module(lower_locale(&default_locale_file.ast), namespace),
@@ -195,6 +200,38 @@ fn build_locale_ir(
     }
 
     Ok(locale_ir)
+}
+
+fn project_locale_fallbacks<'a>(
+    locales: &'a [String],
+    locale: &str,
+    default_locale: &'a str,
+) -> Vec<&'a str> {
+    let tags = locale_fallback_chain(locale).unwrap_or_else(|_| vec![locale.to_owned()]);
+    let mut fallbacks = Vec::new();
+    for tag in tags {
+        let Some(configured) = locales.iter().find(|candidate| {
+            canonicalize_locale(candidate)
+                .is_ok_and(|canonical| canonical.eq_ignore_ascii_case(&tag))
+        }) else {
+            continue;
+        };
+        if !configured.eq_ignore_ascii_case(locale)
+            && !fallbacks
+                .iter()
+                .any(|existing: &&str| existing.eq_ignore_ascii_case(configured))
+        {
+            fallbacks.push(configured.as_str());
+        }
+    }
+    if !default_locale.eq_ignore_ascii_case(locale)
+        && !fallbacks
+            .iter()
+            .any(|existing| existing.eq_ignore_ascii_case(default_locale))
+    {
+        fallbacks.push(default_locale);
+    }
+    fallbacks
 }
 
 fn ensure_locale_has_required_messages(
@@ -423,7 +460,7 @@ fn is_descendant(name: &str, parent: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{merge_module, merge_module_fallback, namespaced_module};
+    use super::{merge_module, merge_module_fallback, namespaced_module, project_locale_fallbacks};
     use linguini_ir::lower_locale;
     use linguini_syntax::parse_locale;
 
@@ -481,6 +518,32 @@ mod tests {
                 .map(|message| message.name.as_str())
                 .collect::<Vec<_>>(),
             ["shop.present", "shop.extra.nested"]
+        );
+    }
+
+    #[test]
+    fn project_fallbacks_follow_cldr_parents_and_likely_scripts() {
+        let locales = ["en", "en-001", "en-AU", "zh-Hant", "zh-TW"]
+            .map(str::to_owned)
+            .to_vec();
+
+        assert_eq!(
+            project_locale_fallbacks(&locales, "en-AU", "en"),
+            ["en-001", "en"]
+        );
+        assert_eq!(
+            project_locale_fallbacks(&locales, "zh-TW", "en"),
+            ["zh-Hant", "en"]
+        );
+    }
+
+    #[test]
+    fn project_fallbacks_match_canonical_aliases() {
+        let locales = ["en", "he", "iw-IL"].map(str::to_owned).to_vec();
+
+        assert_eq!(
+            project_locale_fallbacks(&locales, "iw-IL", "en"),
+            ["he", "en"]
         );
     }
 }

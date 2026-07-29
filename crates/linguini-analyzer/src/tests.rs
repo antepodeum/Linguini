@@ -702,6 +702,38 @@ fn project_expression_analysis_honors_typed_form_map_selectors() {
 }
 
 #[test]
+fn project_expression_analysis_resolves_aliases_and_numeric_plural_arguments() {
+    let schema = parse_schema(
+        "enum Fruit { apple }\n\
+         type Produce = Fruit\n\
+         type Money = Decimal\n\
+         type ShortDate = Date\n\
+         delivery(fruit: Produce, count: Number, amount: Money, date: ShortDate)\n",
+    )
+    .expect("schema parses");
+    let locale = parse_locale(
+        "impl Fruit {\n\
+           apple {\n\
+             form label(Plural) {\n\
+               one => apple\n\
+               _ => apples\n\
+             }\n\
+           }\n\
+         }\n\
+         form Delivered(Plural) {\n\
+           one => Delivered\n\
+           _ => Delivered\n\
+         }\n\
+         delivery = {Delivered(count)} {fruit.label(count)} {amount @currency} {date @date}\n",
+    )
+    .expect("locale parses");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+}
+
+#[test]
 fn source_less_diagnostic_has_no_source_span() {
     let diagnostic = Diagnostic::error("project problem", Span::new(0, 0)).without_source();
 

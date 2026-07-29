@@ -21,6 +21,11 @@ fn built_in_text_directions_are_generated_from_cldr_layout_data() {
 }
 
 #[test]
+fn unknown_locale_does_not_silently_use_root_text_direction() {
+    assert_eq!(built_in_text_direction("zz-ZZ"), None);
+}
+
+#[test]
 fn compiled_cldr_data_falls_back_to_parent_locale_tags() {
     let portuguese = compiled_number_formatting("pt").expect("pt compiled");
     let brazil = compiled_number_formatting("pt-BR").expect("pt-BR falls back to pt");
@@ -36,6 +41,28 @@ fn compiled_cldr_data_falls_back_to_parent_locale_tags() {
     assert_eq!(
         built_in_text_direction("pt-BR"),
         built_in_text_direction("pt")
+    );
+}
+
+#[test]
+fn compiled_lookups_share_alias_likely_subtag_and_component_fallbacks() {
+    assert_eq!(
+        compiled_number_formatting("zh-TW")
+            .expect("Traditional Chinese via likely script")
+            .locale,
+        "zh-Hant"
+    );
+    assert_eq!(
+        compiled_number_formatting("iw-IL")
+            .expect("deprecated Hebrew alias")
+            .locale,
+        "he"
+    );
+    assert_eq!(
+        compiled_plural_rules("sh")
+            .expect("Serbo-Croatian plural fallback")
+            .locale,
+        "sr"
     );
 }
 
@@ -98,8 +125,11 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "80d6373d0e4c3c2f09bc72aa694aa448e4d4a43f64c42b86155bd6dbf90ee404"
+        "d07b3a1dbe48aeff7f4c00fb05c1ef4eef61832140e269906beb073266b6cc48"
     );
+    assert_eq!(manifest["coverage"]["language_aliases"], 500);
+    assert_eq!(manifest["coverage"]["parent_locales"], 199);
+    assert_eq!(manifest["coverage"]["likely_subtags"], 7_788);
     assert_eq!(manifest["coverage"]["number_locales"], 766);
     assert_eq!(manifest["coverage"]["date_locales"], 765);
 }

@@ -4,7 +4,7 @@ use linguini_syntax::{
     LocaleDeclaration, LocaleFile, LocaleValue, SchemaDeclaration, SchemaFile, TextPart,
     TextPattern,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Variable {
@@ -226,7 +226,19 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
     for declaration in &schema.declarations {
         collect_schema_messages(declaration, None, &mut schema_messages);
     }
-    let enum_names = schema
+    let type_aliases = schema
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            SchemaDeclaration::TypeAlias(item) => {
+                Some((item.name.value.as_str(), item.target.value.as_str()))
+            }
+            SchemaDeclaration::Enum(_)
+            | SchemaDeclaration::Message(_)
+            | SchemaDeclaration::Group(_) => None,
+        })
+        .collect::<BTreeMap<_, _>>();
+    let schema_enum_names = schema
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
@@ -235,13 +247,25 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
             | SchemaDeclaration::Message(_)
             | SchemaDeclaration::Group(_) => None,
         })
+        .collect::<BTreeSet<_>>();
+    let enum_names = schema_enum_names
+        .iter()
+        .map(|name| (*name).to_owned())
+        .chain(
+            type_aliases
+                .keys()
+                .filter(|name| {
+                    schema_enum_names.contains(resolve_schema_type(name, &type_aliases).as_str())
+                })
+                .map(|name| (*name).to_owned()),
+        )
         .chain(locale.declarations.iter().filter_map(|declaration| {
             let LocaleDeclaration::Enum(item) = declaration else {
                 return None;
             };
-            Some(item.name.value.as_str())
+            Some(item.name.value.clone())
         }))
-        .collect::<std::collections::BTreeSet<_>>();
+        .collect::<BTreeSet<_>>();
 
     let mut functions = Vec::new();
     let mut forms = Vec::new();
@@ -253,6 +277,7 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
             None,
             &schema_messages,
             &enum_names,
+            &type_aliases,
             &mut functions,
             &mut forms,
             &mut variables,
@@ -305,7 +330,8 @@ fn collect_locale_expression_inputs(
     declaration: &LocaleDeclaration,
     namespace: Option<&str>,
     schema_messages: &BTreeMap<String, &linguini_syntax::MessageSignature>,
-    enum_names: &std::collections::BTreeSet<&str>,
+    enum_names: &BTreeSet<String>,
+    type_aliases: &BTreeMap<&str, &str>,
     functions: &mut Vec<FunctionSignature>,
     forms: &mut Vec<FormSignature>,
     variables: &mut Vec<Variable>,
@@ -322,16 +348,21 @@ fn collect_locale_expression_inputs(
             function
                 .parameters
                 .iter()
-                .map(|parameter| parameter.ty.value.as_str()),
+                .map(|parameter| resolve_schema_type(&parameter.ty.value, type_aliases)),
             function.span,
         )),
         LocaleDeclaration::Form(form) => {
             let mut properties = BTreeMap::new();
             for variant in &form.variants {
-                collect_form_properties(&variant.entries, enum_names, &mut properties);
+                collect_form_properties(
+                    &variant.entries,
+                    enum_names,
+                    type_aliases,
+                    &mut properties,
+                );
             }
             forms.push(FormSignature::new(
-                &form.name.value,
+                resolve_schema_type(&form.name.value, type_aliases),
                 properties.into_values().collect(),
                 form.span,
             ));
@@ -347,7 +378,7 @@ fn collect_locale_expression_inputs(
                         .map(|parameter| {
                             Variable::new(
                                 &parameter.name.value,
-                                &parameter.ty.value,
+                                resolve_schema_type(&parameter.ty.value, type_aliases),
                                 parameter.span,
                             )
                         })
@@ -369,6 +400,7 @@ fn collect_locale_expression_inputs(
                     Some(&group_name),
                     schema_messages,
                     enum_names,
+                    type_aliases,
                     functions,
                     forms,
                     variables,
@@ -382,6 +414,7 @@ fn collect_locale_expression_inputs(
                     Some(&group_name),
                     schema_messages,
                     enum_names,
+                    type_aliases,
                     functions,
                     forms,
                     variables,
@@ -394,6 +427,7 @@ fn collect_locale_expression_inputs(
             namespace,
             schema_messages,
             enum_names,
+            type_aliases,
             functions,
             forms,
             variables,
@@ -405,7 +439,8 @@ fn collect_locale_expression_inputs(
 
 fn collect_form_properties(
     entries: &[FormEntry],
-    enum_names: &std::collections::BTreeSet<&str>,
+    enum_names: &BTreeSet<String>,
+    type_aliases: &BTreeMap<&str, &str>,
     properties: &mut BTreeMap<String, FormProperty>,
 ) {
     for entry in entries {
@@ -421,7 +456,7 @@ fn collect_form_properties(
                 attribute
                     .parameters
                     .iter()
-                    .map(|parameter| parameter.ty.value.as_str()),
+                    .map(|parameter| resolve_schema_type(&parameter.ty.value, type_aliases)),
                 attribute.span,
             ),
             LocaleValue::Text(_) if enum_names.contains(attribute.name.value.as_str()) => {
@@ -433,6 +468,18 @@ fn collect_form_properties(
         };
         properties.entry(property.name.clone()).or_insert(property);
     }
+}
+
+fn resolve_schema_type(ty: &str, aliases: &BTreeMap<&str, &str>) -> String {
+    let mut current = ty;
+    let mut visited = BTreeSet::new();
+    while let Some(target) = aliases.get(current).copied() {
+        if !visited.insert(current) {
+            break;
+        }
+        current = target;
+    }
+    current.to_owned()
 }
 
 fn qualified_name(namespace: Option<&str>, name: &str) -> String {
@@ -679,9 +726,7 @@ fn analyze_call(
             ) else {
                 continue;
             };
-            let compatible = expected == actual
-                || (matches!(expected, "Number" | "Decimal")
-                    && matches!(actual.as_str(), "Number" | "Decimal"));
+            let compatible = types_compatible(expected, &actual);
             if !compatible {
                 diagnostics.push(
                     Diagnostic::error(
@@ -783,11 +828,7 @@ fn analyze_form_call(
         .enumerate()
     {
         if let Some(actual) = expression_type(argument, variables, forms) {
-            let compatible = if expected == "Plural" {
-                matches!(actual.as_str(), "Number" | "Decimal")
-            } else {
-                expected == &actual
-            };
+            let compatible = types_compatible(expected, &actual);
             if !compatible {
                 diagnostics.push(
                     Diagnostic::error(
@@ -805,6 +846,12 @@ fn analyze_form_call(
         }
     }
     analyze_formatters(expression, Some(&property.result_type), diagnostics);
+}
+
+fn types_compatible(expected: &str, actual: &str) -> bool {
+    expected == actual
+        || (expected == "Plural" && matches!(actual, "Number" | "Decimal"))
+        || (matches!(expected, "Number" | "Decimal") && matches!(actual, "Number" | "Decimal"))
 }
 
 fn expression_type(

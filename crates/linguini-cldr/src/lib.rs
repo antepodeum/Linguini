@@ -1,4 +1,5 @@
 mod data;
+mod locale;
 mod plural;
 
 pub use data::{
@@ -7,6 +8,10 @@ pub use data::{
     CompiledPluralCategory, CompiledPluralRules, CurrencyFormatData, DateFormatData,
     DateSymbolWidths, FormatWidths, NumberFormatData, NumberPattern, NumberPatternPart,
     PluralCategoryRule, PluralRules, CLDR_DATA_MANIFEST_JSON,
+};
+pub use locale::{
+    canonicalize_locale, locale_fallback_chain, locale_fallback_chain_for, maximize_locale,
+    LocaleError, LocaleFallbackComponent,
 };
 pub use plural::{
     evaluate_plural_rule, parse_plural_rule, Condition, Operand, OperandExpression, PluralOperands,

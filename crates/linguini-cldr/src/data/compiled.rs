@@ -6,6 +6,7 @@ use crate::plural::{
     Condition, Operand, OperandExpression, PluralOperands, PluralRule, Range, RangeList, Relation,
     RelationOperator,
 };
+use crate::{canonicalize_locale, locale_fallback_chain_for, LocaleFallbackComponent};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CompiledPluralRules {
@@ -38,42 +39,73 @@ pub struct CompiledPluralCategory {
 /// Verified identity and coverage manifest for the checked-in CLDR artifact.
 pub const CLDR_DATA_MANIFEST_JSON: &str = include_str!("generated/manifest.json");
 
-fn resolve_locale_tag<T>(locale: &str, mut lookup: impl FnMut(&str) -> Option<T>) -> Option<T> {
-    let mut tag = locale;
-    loop {
-        if let Some(value) = lookup(tag) {
+fn resolve_locale_tag<T>(
+    locale: &str,
+    component: LocaleFallbackComponent,
+    mut lookup: impl FnMut(&str) -> Option<T>,
+) -> Option<T> {
+    let canonical = canonicalize_locale(locale).ok()?;
+    let allow_root_data = canonical
+        .split('-')
+        .next()
+        .is_some_and(|language| language == "und");
+    for tag in locale_fallback_chain_for(locale, component).ok()? {
+        if tag == "und" && !allow_root_data {
+            break;
+        }
+        if let Some(value) = lookup(&tag) {
             return Some(value);
         }
-        tag = match tag.rfind('-') {
-            Some(index) if index > 0 => &tag[..index],
-            _ => break,
-        };
     }
     None
 }
 
 pub fn compiled_plural_rules(locale: &str) -> Option<CompiledPluralRules> {
-    resolve_locale_tag(locale, generated_plural_rules)
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Plurals,
+        generated_plural_rules,
+    )
 }
 
 pub fn built_in_plural_rules(locale: &str) -> Option<PluralRules> {
-    resolve_locale_tag(locale, generated_plural_rule_sources)
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Plurals,
+        generated_plural_rule_sources,
+    )
 }
 
 pub fn built_in_text_direction(locale: &str) -> Option<&'static str> {
-    resolve_locale_tag(locale, generated_text_direction)
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Main,
+        generated_text_direction,
+    )
 }
 
 include!("generated/cldr_tables.rs");
 
 pub fn compiled_number_formatting(locale: &str) -> Option<NumberFormatData> {
-    resolve_locale_tag(locale, generated_number_formatting)
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Main,
+        generated_number_formatting,
+    )
 }
 
 pub fn compiled_currency_formatting(locale: &str) -> Option<CurrencyFormatData> {
-    resolve_locale_tag(locale, generated_currency_formatting)
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Main,
+        generated_currency_formatting,
+    )
 }
 
 pub fn compiled_date_formatting(locale: &str) -> Option<DateFormatData> {
-    resolve_locale_tag(locale, generated_date_formatting)
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Main,
+        generated_date_formatting,
+    )
 }

@@ -1,8 +1,8 @@
 {
   "artifact": {
-    "bytes": 2299373,
+    "bytes": 2584050,
     "path": "cldr_tables.rs",
-    "sha256": "80d6373d0e4c3c2f09bc72aa694aa448e4d4a43f64c42b86155bd6dbf90ee404"
+    "sha256": "d07b3a1dbe48aeff7f4c00fb05c1ef4eef61832140e269906beb073266b6cc48"
   },
   "coverage": {
     "currency_locales": 766,
@@ -25,22 +25,28 @@
         }
       ]
     },
+    "language_aliases": 500,
+    "likely_subtags": 7788,
     "number_locales": 766,
+    "parent_locales": 199,
     "plural_categories": 499,
     "plural_locales": 224,
+    "script_aliases": 1,
     "source_locales": 766,
-    "text_direction_locales": 764
+    "territory_aliases": 640,
+    "text_direction_locales": 764,
+    "variant_aliases": 2
   },
   "generator": {
     "artifact_schema": 1,
     "name": "linguini-cldr-macros"
   },
   "inputs": {
-    "bytes": 19951907,
-    "file_count": 2303,
-    "profile": "plurals+latn-numbers+latn-currency+gregorian+layout-v1",
+    "bytes": 20315359,
+    "file_count": 2306,
+    "profile": "locale-aliases+parent-locales+likely-subtags+plurals+latn-numbers+latn-currency+gregorian+layout-v2",
     "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
-    "tree_sha256": "784a63e309fb16ba4a34598164f26a99b0e3a9d17d74dc9cfd9f6f3ae9c4f679"
+    "tree_sha256": "24d42c3741c9a8922351847c3ee86e4358100bd8bf4f742061eb8a7a59f07931"
   },
   "schema": 1,
   "source": {

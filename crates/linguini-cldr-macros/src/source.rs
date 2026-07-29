@@ -1,6 +1,7 @@
 use crate::formatting::{
     generate_formatting_tables, generate_text_direction_table, FormattingCoverage,
 };
+use crate::locale::{generate_locale_tables, LocaleCoverage};
 use crate::source_paths::CldrSource;
 use linguini_cldr::{
     parse_plural_rule, Condition, Operand, OperandExpression, PluralRule, Range, RangeList,
@@ -15,10 +16,16 @@ pub(crate) struct GeneratedTables {
     pub(crate) tokens: TokenStream,
     pub(crate) plural_locales: usize,
     pub(crate) plural_categories: usize,
+    pub(crate) locale: LocaleCoverage,
     pub(crate) formatting: FormattingCoverage,
 }
 
 pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedTables, String> {
+    let (locale_tables, locale) = generate_locale_tables(
+        source.aliases(),
+        source.parent_locales(),
+        source.likely_subtags(),
+    )?;
     let plural_source = fs::read_to_string(source.plurals())
         .map_err(|error| format!("{}: {error}", source.plurals().display()))?;
     let (plural_tables, plural_locales, plural_categories) =
@@ -32,12 +39,14 @@ pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedT
 
     Ok(GeneratedTables {
         tokens: quote! {
+            #locale_tables
             #plural_tables
             #direction_table
             #formatting_tables
         },
         plural_locales,
         plural_categories,
+        locale,
         formatting,
     })
 }

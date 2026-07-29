@@ -6,6 +6,10 @@ pub use compiled::{
     compiled_date_formatting, compiled_number_formatting, compiled_plural_rules,
     CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
 };
+pub(crate) use compiled::{
+    generated_language_alias, generated_likely_subtag, generated_parent_locale,
+    generated_script_alias, generated_territory_alias, generated_variant_alias,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluralRules {

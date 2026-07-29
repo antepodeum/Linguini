@@ -11,7 +11,9 @@ mod tree;
 use std::collections::BTreeMap;
 use std::fmt;
 
-use linguini_cldr::built_in_plural_rules;
+use linguini_cldr::{
+    built_in_plural_rules, canonicalize_locale, locale_fallback_chain as cldr_locale_fallback_chain,
+};
 use linguini_ir::{validate_ir, IrModule, IrReferenceError, ValidatedIr};
 
 use self::emit::{
@@ -831,16 +833,22 @@ fn fallback_locale_module(
     merged
 }
 
-fn locale_fallback_chain(
+pub(crate) fn locale_fallback_chain(
     locales: &[TypeScriptLocaleModule],
     locale: &str,
     base_locale: Option<&str>,
 ) -> Vec<String> {
     let mut chain = Vec::new();
-    for tag in locale_fallback_tags(locale) {
+    let tags = cldr_locale_fallback_chain(locale).unwrap_or_else(|_| vec![locale.to_owned()]);
+    for tag in tags {
         if let Some(exact) = locales
             .iter()
-            .find(|entry| entry.locale.eq_ignore_ascii_case(&tag))
+            .find(|entry| {
+                canonicalize_locale(&entry.locale).map_or_else(
+                    |_| entry.locale.eq_ignore_ascii_case(&tag),
+                    |canonical| canonical.eq_ignore_ascii_case(&tag),
+                )
+            })
             .map(|entry| entry.locale.clone())
         {
             if !chain.contains(&exact) {
@@ -854,22 +862,6 @@ fn locale_fallback_chain(
         }
     }
     chain
-}
-
-fn locale_fallback_tags(locale: &str) -> Vec<String> {
-    let mut tags = Vec::new();
-    let mut tag = locale.to_owned();
-    while !tag.is_empty() {
-        tags.push(tag.clone());
-        let Some(dash) = tag.rfind('-') else {
-            break;
-        };
-        if dash == 0 {
-            break;
-        }
-        tag.truncate(dash);
-    }
-    tags
 }
 
 fn merge_locale_module(target: &mut IrModule, source: &IrModule) {

@@ -936,6 +936,46 @@ fn Wrap(value: Number) {
 }
 
 #[test]
+fn project_fallback_chain_uses_cldr_parent_locales() {
+    use crate::module::locale_fallback_chain;
+    use linguini_ir::IrModule;
+
+    let locales = ["en", "en-001", "en-AU"]
+        .map(|locale| TypeScriptLocaleModule {
+            locale: locale.to_owned(),
+            module: IrModule::default(),
+        })
+        .to_vec();
+
+    assert_eq!(
+        locale_fallback_chain(&locales, "en-AU", Some("en")),
+        ["en-AU", "en-001", "en"]
+    );
+}
+
+#[test]
+fn project_fallback_chain_uses_likely_scripts_and_aliases() {
+    use crate::module::locale_fallback_chain;
+    use linguini_ir::IrModule;
+
+    let locales = ["en", "zh-Hant", "zh-TW", "he", "iw-IL"]
+        .map(|locale| TypeScriptLocaleModule {
+            locale: locale.to_owned(),
+            module: IrModule::default(),
+        })
+        .to_vec();
+
+    assert_eq!(
+        locale_fallback_chain(&locales, "zh-TW", Some("en")),
+        ["zh-TW", "zh-Hant", "en"]
+    );
+    assert_eq!(
+        locale_fallback_chain(&locales, "iw-IL", Some("en")),
+        ["iw-IL", "he", "en"]
+    );
+}
+
+#[test]
 fn project_codegen_emits_schema_namespace_objects() {
     use linguini_ir::{IrMessage, IrModule, IrText, IrTextBlockMode, IrTextPart};
     use linguini_syntax::Span;
