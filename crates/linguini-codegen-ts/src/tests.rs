@@ -236,8 +236,10 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
         .iter()
         .find(|file| file.path == "locales/en.ts")
         .expect("locale module");
-    assert!(locale_module.contents.contains("export function keep"));
-    assert!(!locale_module.contents.contains("export function drop"));
+    assert!(locale_module
+        .contents
+        .contains("export const keep = \"Keep\";"));
+    assert!(!locale_module.contents.contains("export const drop"));
     assert!(locale_module
         .contents
         .contains("import { group } from \"./en/group\";"));
@@ -249,6 +251,88 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
     assert!(group_module.contents.contains("label: \"Label\""));
     assert!(!group_module.contents.contains("help: \"Help\""));
     assert!(!locale_module.contents.contains("help: \"Help\""));
+}
+
+#[test]
+fn project_codegen_emits_parameterless_messages_as_values() {
+    let schema = lower_schema(
+        &parse_schema(
+            r#"
+title
+account {
+  label
+  personalized(name: String)
+}
+"#,
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            r#"
+let product = Linguini
+title = Welcome to {product}
+account {
+  label = Your {product} account
+  personalized = Hello {name}
+}
+"#,
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions {
+            declaration: true,
+            ..project_options("en")
+        },
+    )
+    .expect("project codegen");
+
+    let locale_module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+    assert!(locale_module
+        .contents
+        .contains("export const title = \"Welcome to \" + String(product);"));
+    assert!(!locale_module.contents.contains("function title("));
+
+    let account_module = files
+        .iter()
+        .find(|file| file.path == "locales/en/account.ts")
+        .expect("account locale module");
+    assert!(account_module
+        .contents
+        .contains("label: \"Your \" + String(product) + \" account\","));
+    assert!(!account_module.contents.contains("label: () =>"));
+    assert!(account_module
+        .contents
+        .contains("personalized: (name: string) => \"Hello \" + String(name),"));
+
+    let locale_declaration = files
+        .iter()
+        .find(|file| file.path == "locales/en.d.ts")
+        .expect("locale declaration");
+    assert!(locale_declaration
+        .contents
+        .contains("export declare const title: string;"));
+    assert!(!locale_declaration.contents.contains("function title("));
+    let account_declaration = files
+        .iter()
+        .find(|file| file.path == "locales/en/account.d.ts")
+        .expect("account locale declaration");
+    assert!(account_declaration
+        .contents
+        .contains("readonly label: string;"));
+    assert!(account_declaration
+        .contents
+        .contains("readonly personalized: (name: string) => string;"));
 }
 
 #[test]

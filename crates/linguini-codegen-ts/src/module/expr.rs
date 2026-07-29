@@ -114,10 +114,6 @@ pub fn text_expression_with_context(
     }
 }
 
-pub fn is_static_text(text: &IrText) -> bool {
-    matches!(text.parts.as_slice(), [IrTextPart::Text(_)])
-}
-
 fn branch_items(branches: &[IrBranch], options: &TypeScriptOptions) -> String {
     branches
         .iter()

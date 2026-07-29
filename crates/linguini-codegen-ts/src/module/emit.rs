@@ -7,8 +7,7 @@ use linguini_ir::{
 };
 
 use super::expr::{
-    form_object, formatter_data_declaration, is_static_text, text_expression,
-    text_expression_with_context,
+    form_object, formatter_data_declaration, text_expression, text_expression_with_context,
 };
 use super::formatters::module_uses_formatters;
 use super::names::{
@@ -153,10 +152,7 @@ pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
 
 pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     for form in &module.forms {
-        output.push_str(&format!(
-            "const {} = {{\n",
-            form_binding_name(&form.name)
-        ));
+        output.push_str(&format!("const {} = {{\n", form_binding_name(&form.name)));
         for variant in &form.variants {
             output.push_str(&format!(
                 "  {}: {},\n",
@@ -244,10 +240,14 @@ fn emit_message_function(
     }
     let params = signature_params(signature);
     let body = message_body(schema, signature, implementation, options);
-    output.push_str(&format!(
-        "export function {}({params}): string {{\n  return {body};\n}}\n\n",
-        function_name(&signature.name)
-    ));
+    let name = function_name(&signature.name);
+    if signature.parameters.is_empty() {
+        output.push_str(&format!("export const {name} = {body};\n\n"));
+    } else {
+        output.push_str(&format!(
+            "export function {name}({params}): string {{\n  return {body};\n}}\n\n"
+        ));
+    }
     true
 }
 
@@ -299,11 +299,8 @@ fn group_property_value(
     implementation: &IrMessage,
     options: &TypeScriptOptions,
 ) -> String {
-    let Some(body) = &implementation.body else {
-        return "\"\"".to_owned();
-    };
-    if signature.parameters.is_empty() && is_static_text(body) {
-        text_expression(body, options)
+    if signature.parameters.is_empty() {
+        message_body(schema, signature, implementation, options)
     } else {
         format!(
             "({}) => {}",

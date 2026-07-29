@@ -166,11 +166,15 @@ fn emit_function_declaration(signature: &IrMessage, output: &mut String) {
     for doc in &signature.docs {
         output.push_str(&format!("/** {} */\n", escape_comment(doc)));
     }
-    output.push_str(&format!(
-        "export declare function {}({}): string;\n\n",
-        function_name(&signature.name),
-        signature_params(signature)
-    ));
+    let name = function_name(&signature.name);
+    if signature.parameters.is_empty() {
+        output.push_str(&format!("export declare const {name}: string;\n\n"));
+    } else {
+        output.push_str(&format!(
+            "export declare function {name}({}): string;\n\n",
+            signature_params(signature)
+        ));
+    }
 }
 
 fn group_property_type(signature: &IrMessage) -> String {
