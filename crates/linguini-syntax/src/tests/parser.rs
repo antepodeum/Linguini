@@ -1,8 +1,10 @@
 use crate::{
-    parse_locale, parse_locale_in, parse_locale_with_recovery, parse_schema,
-    parse_schema_with_recovery, validate_locale_ast, validate_schema_ast, FormEntry, FormatterKind,
-    FunctionBranchValue, FunctionKind, LocaleDeclaration, LocaleValue, SchemaDeclaration, SourceId,
-    TextBlockMode, TextPart,
+    lexer::{lexer_invocation_count, reset_lexer_invocation_count},
+    parse_locale, parse_locale_in, parse_locale_with_recovery, parse_locale_with_tokens,
+    parse_schema, parse_schema_with_recovery, parse_schema_with_tokens, validate_locale_ast,
+    validate_schema_ast, FormEntry, FormatterKind, FunctionBranchValue, FunctionKind,
+    LocaleDeclaration, LocaleValue, SchemaDeclaration, SourceId, TextBlockMode, TextPart,
+    TokenKind,
 };
 use std::fs;
 use std::path::Path;
@@ -44,6 +46,34 @@ fn parses_syntax_coverage_fixtures() {
 
     assert!(parse_schema(schema).is_ok());
     assert!(parse_locale(locale).is_ok());
+}
+
+#[test]
+fn parsing_with_tokens_lexes_once_and_retains_trivia() {
+    reset_lexer_invocation_count();
+    let schema =
+        parse_schema_with_tokens("// note\n/// docs\ndelivery(count: Number)\n").expect("schema");
+    assert_eq!(lexer_invocation_count(), 1);
+    assert!(schema
+        .tokens
+        .iter()
+        .any(|token| matches!(token.kind, TokenKind::Comment(_))));
+    assert!(schema
+        .tokens
+        .iter()
+        .any(|token| matches!(token.kind, TokenKind::Whitespace)));
+
+    reset_lexer_invocation_count();
+    let locale = parse_locale_with_tokens("// note\nmessage = Hello {name}\n").expect("locale");
+    assert_eq!(lexer_invocation_count(), 1);
+    assert!(locale
+        .tokens
+        .iter()
+        .any(|token| matches!(token.kind, TokenKind::Comment(_))));
+    assert!(locale
+        .tokens
+        .iter()
+        .any(|token| matches!(token.kind, TokenKind::RawText(_))));
 }
 
 #[test]

@@ -3,8 +3,8 @@ mod ir;
 mod semantics;
 
 use linguini_syntax::{
-    lex_schema_with_recovery, lex_with_recovery, parse_locale, parse_schema, ParseError, Span,
-    LOCALE_EXTENSION, SCHEMA_EXTENSION,
+    parse_locale_with_tokens, parse_schema_with_tokens, ParseError, Span, LOCALE_EXTENSION,
+    SCHEMA_EXTENSION,
 };
 use semantics::FormatSemantics;
 use std::fmt;
@@ -122,42 +122,20 @@ pub fn format_source(
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
     validate_options(options)?;
-    let semantics = match kind {
+    let (tokens, semantics) = match kind {
         SourceKind::Schema => {
-            parse_schema(source).map_err(FormatError::Parse)?;
-            FormatSemantics::schema()
+            let parsed = parse_schema_with_tokens(source).map_err(FormatError::Parse)?;
+            (parsed.tokens, FormatSemantics::schema())
         }
         SourceKind::Locale => {
-            let ast = parse_locale(source).map_err(FormatError::Parse)?;
-            FormatSemantics::locale(&ast, source)?
+            let parsed = parse_locale_with_tokens(source).map_err(FormatError::Parse)?;
+            let semantics = FormatSemantics::locale(&parsed.ast, source)?;
+            (parsed.tokens, semantics)
         }
     };
 
-    let lexed = match kind {
-        SourceKind::Schema => lex_schema_with_recovery(source),
-        SourceKind::Locale => lex_with_recovery(source),
-    };
-    if !lexed.errors.is_empty() {
-        return Err(FormatError::Parse(
-            lexed
-                .errors
-                .into_iter()
-                .map(|error| ParseError {
-                    message: error.message,
-                    span: error.span,
-                })
-                .collect(),
-        ));
-    }
-
-    semantics.validate_tokens(source, &lexed.tokens)?;
-    engine::render_tokens(
-        source,
-        &lexed.tokens,
-        &semantics,
-        options,
-        detect_newline(source),
-    )
+    semantics.validate_tokens(source, &tokens)?;
+    engine::render_tokens(source, &tokens, &semantics, options, detect_newline(source))
 }
 
 const MAX_INDENT_WIDTH: usize = 64;

@@ -1,8 +1,15 @@
+#[cfg(test)]
+use std::cell::Cell;
 use std::collections::BTreeSet;
 
 use crate::{SourceId, Span, Token, TokenKind};
 
 const MAX_NESTING_DEPTH: usize = 64;
+
+#[cfg(test)]
+thread_local! {
+    static LEX_INVOCATIONS: Cell<usize> = const { Cell::new(0) };
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LexError {
@@ -93,6 +100,16 @@ pub fn lex_schema_with_recovery_in(source: &str, source_id: SourceId) -> LexOutp
         .lex()
 }
 
+#[cfg(test)]
+pub(crate) fn reset_lexer_invocation_count() {
+    LEX_INVOCATIONS.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn lexer_invocation_count() -> usize {
+    LEX_INVOCATIONS.get()
+}
+
 struct Lexer<'src> {
     source: &'src str,
     source_id: SourceId,
@@ -128,6 +145,9 @@ impl<'src> Lexer<'src> {
     }
 
     fn lex(mut self) -> LexOutput {
+        #[cfg(test)]
+        LEX_INVOCATIONS.set(LEX_INVOCATIONS.get() + 1);
+
         while self.offset < self.source.len() {
             let result = match self.mode {
                 Mode::Code => self.next_code(),

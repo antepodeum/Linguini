@@ -10,8 +10,8 @@ use validate::{validate_locale, validate_schema};
 use crate::{
     lex_in, lex_schema_in, lex_schema_with_recovery_in, lex_with_recovery_in, Annotation,
     AnnotationArgument, DocComment, EnumDeclaration, LocaleFile, MessageGroup, MessageSignature,
-    Name, Parameter, SchemaDeclaration, SchemaFile, SourceId, Span, StringLiteral, TokenKind,
-    TypeAliasDeclaration,
+    Name, Parameter, SchemaDeclaration, SchemaFile, SourceId, Span, StringLiteral, Token,
+    TokenKind, TypeAliasDeclaration,
 };
 
 type Extra<'tokens> = extra::Err<Rich<'tokens, TokenKind, Span>>;
@@ -28,6 +28,13 @@ pub struct ParseOutput<T> {
     pub errors: Vec<ParseError>,
 }
 
+/// A validated syntax tree and the lossless token stream produced by the same lexer pass.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedSource<T> {
+    pub ast: T,
+    pub tokens: Vec<Token>,
+}
+
 pub fn validate_locale_ast(file: &LocaleFile) -> Vec<ParseError> {
     validate_locale(file)
 }
@@ -37,20 +44,30 @@ pub fn validate_schema_ast(file: &SchemaFile) -> Vec<ParseError> {
 }
 
 pub fn parse_locale(source: &str) -> Result<LocaleFile, Vec<ParseError>> {
-    parse_locale_in(source, SourceId::default())
+    parse_locale_with_tokens(source).map(|parsed| parsed.ast)
 }
 
 pub fn parse_locale_in(source: &str, source_id: SourceId) -> Result<LocaleFile, Vec<ParseError>> {
+    parse_locale_with_tokens_in(source, source_id).map(|parsed| parsed.ast)
+}
+
+/// Parses and validates locale source while retaining trivia from the same lexer pass.
+pub fn parse_locale_with_tokens(source: &str) -> Result<ParsedSource<LocaleFile>, Vec<ParseError>> {
+    parse_locale_with_tokens_in(source, SourceId::default())
+}
+
+/// Parses and validates locale source with an explicit source ID while retaining its tokens.
+pub fn parse_locale_with_tokens_in(
+    source: &str,
+    source_id: SourceId,
+) -> Result<ParsedSource<LocaleFile>, Vec<ParseError>> {
     let tokens = lex_in(source, source_id).map_err(|error| {
         vec![ParseError {
             message: error.message,
             span: error.span,
         }]
     })?;
-    let syntax_tokens: Vec<_> = strip_trivia(tokens)
-        .into_iter()
-        .map(|token| (token.kind, token.span))
-        .collect();
+    let syntax_tokens = strip_trivia(&tokens);
     let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, errors) = locale_parser::locale_parser()
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
@@ -60,7 +77,7 @@ pub fn parse_locale_in(source: &str, source_id: SourceId) -> Result<LocaleFile, 
     if let Some(ast) = ast {
         errors.extend(validate_locale(&ast));
         if errors.is_empty() {
-            Ok(ast)
+            Ok(ParsedSource { ast, tokens })
         } else {
             Err(errors)
         }
@@ -92,10 +109,7 @@ pub fn parse_locale_with_recovery_in(source: &str, source_id: SourceId) -> Parse
     if !errors.is_empty() {
         return ParseOutput { ast: None, errors };
     }
-    let syntax_tokens: Vec<_> = strip_trivia(lexed.tokens)
-        .into_iter()
-        .map(|token| (token.kind, token.span))
-        .collect();
+    let syntax_tokens = strip_trivia(&lexed.tokens);
     let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, parse_errors) = locale_parser::locale_parser()
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
@@ -106,20 +120,30 @@ pub fn parse_locale_with_recovery_in(source: &str, source_id: SourceId) -> Parse
 }
 
 pub fn parse_schema(source: &str) -> Result<SchemaFile, Vec<ParseError>> {
-    parse_schema_in(source, SourceId::default())
+    parse_schema_with_tokens(source).map(|parsed| parsed.ast)
 }
 
 pub fn parse_schema_in(source: &str, source_id: SourceId) -> Result<SchemaFile, Vec<ParseError>> {
+    parse_schema_with_tokens_in(source, source_id).map(|parsed| parsed.ast)
+}
+
+/// Parses and validates schema source while retaining trivia from the same lexer pass.
+pub fn parse_schema_with_tokens(source: &str) -> Result<ParsedSource<SchemaFile>, Vec<ParseError>> {
+    parse_schema_with_tokens_in(source, SourceId::default())
+}
+
+/// Parses and validates schema source with an explicit source ID while retaining its tokens.
+pub fn parse_schema_with_tokens_in(
+    source: &str,
+    source_id: SourceId,
+) -> Result<ParsedSource<SchemaFile>, Vec<ParseError>> {
     let tokens = lex_schema_in(source, source_id).map_err(|error| {
         vec![ParseError {
             message: error.message,
             span: error.span,
         }]
     })?;
-    let syntax_tokens: Vec<_> = strip_trivia(tokens)
-        .into_iter()
-        .map(|token| (token.kind, token.span))
-        .collect();
+    let syntax_tokens = strip_trivia(&tokens);
     let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, errors) = schema_parser()
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
@@ -129,7 +153,7 @@ pub fn parse_schema_in(source: &str, source_id: SourceId) -> Result<SchemaFile, 
     if let Some(ast) = ast {
         errors.extend(validate_schema(&ast));
         if errors.is_empty() {
-            Ok(ast)
+            Ok(ParsedSource { ast, tokens })
         } else {
             Err(errors)
         }
@@ -161,10 +185,7 @@ pub fn parse_schema_with_recovery_in(source: &str, source_id: SourceId) -> Parse
     if !errors.is_empty() {
         return ParseOutput { ast: None, errors };
     }
-    let syntax_tokens: Vec<_> = strip_trivia(lexed.tokens)
-        .into_iter()
-        .map(|token| (token.kind, token.span))
-        .collect();
+    let syntax_tokens = strip_trivia(&lexed.tokens);
     let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, parse_errors) = schema_parser()
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
@@ -207,14 +228,14 @@ fn join_expected(mut expected: Vec<String>) -> String {
     }
 }
 
-fn strip_trivia(tokens: Vec<crate::Token>) -> Vec<crate::Token> {
+fn strip_trivia(tokens: &[Token]) -> Vec<(TokenKind, Span)> {
     let mut output = Vec::new();
     let mut pending_doc_span = None;
     let mut line_breaks_after_doc = 0usize;
     let mut comment_after_doc = false;
 
     for token in tokens {
-        match token.kind {
+        match &token.kind {
             TokenKind::Whitespace => {}
             TokenKind::Newline => {
                 if pending_doc_span.is_some() {
@@ -229,29 +250,23 @@ fn strip_trivia(tokens: Vec<crate::Token>) -> Vec<crate::Token> {
             TokenKind::DocComment(_) => {
                 if let Some(span) = pending_doc_span {
                     if line_breaks_after_doc > 1 || comment_after_doc {
-                        output.push(crate::Token::new(
-                            TokenKind::Error("detached doc comment".to_owned()),
-                            span,
-                        ));
+                        output.push((TokenKind::Error("detached doc comment".to_owned()), span));
                     }
                 }
                 pending_doc_span = Some(token.span);
                 line_breaks_after_doc = 0;
                 comment_after_doc = false;
-                output.push(token);
+                output.push((token.kind.clone(), token.span));
             }
             _ => {
                 if let Some(span) = pending_doc_span.take() {
                     if line_breaks_after_doc > 1 || comment_after_doc {
-                        output.push(crate::Token::new(
-                            TokenKind::Error("detached doc comment".to_owned()),
-                            span,
-                        ));
+                        output.push((TokenKind::Error("detached doc comment".to_owned()), span));
                     }
                 }
                 line_breaks_after_doc = 0;
                 comment_after_doc = false;
-                output.push(token);
+                output.push((token.kind.clone(), token.span));
             }
         }
     }

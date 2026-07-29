@@ -21,8 +21,10 @@ pub use lexer::{
 };
 pub use parser::{
     parse_locale, parse_locale_in, parse_locale_with_recovery, parse_locale_with_recovery_in,
-    parse_schema, parse_schema_in, parse_schema_with_recovery, parse_schema_with_recovery_in,
-    validate_locale_ast, validate_schema_ast, ParseError, ParseOutput,
+    parse_locale_with_tokens, parse_locale_with_tokens_in, parse_schema, parse_schema_in,
+    parse_schema_with_recovery, parse_schema_with_recovery_in, parse_schema_with_tokens,
+    parse_schema_with_tokens_in, validate_locale_ast, validate_schema_ast, ParseError, ParseOutput,
+    ParsedSource,
 };
 pub use token::{SourceId, Span, Token, TokenKind};
 
