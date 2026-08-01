@@ -77,6 +77,10 @@ production path uses the fix and its relevant tests pass.
   with a regression test proving one lexer invocation per source.
 - `1dd4223` — removed unsupported inline `fn` syntax from the normative reference and
   locked the parser rejection contract with an executable test.
+- `10fc9d7` — implemented value-based inline `fn` plus selector-first/payload-last named
+  functions across syntax, IR, analyzer, formatter, CLI preview, TypeScript codegen, LSP,
+  TextMate grammar, docs, and generated-site runtime; also added bounded exact numeric/plural
+  evaluation, CLDR currency minor units and rounding, and visible invalid/missing-data failures.
 
 ## Numbered findings
 
@@ -130,7 +134,7 @@ production path uses the fix and its relevant tests pass.
 
 ### `linguini-syntax`
 
-- [x] #40 — Remove inline `fn` from normative docs until a tested grammar exists.
+- [x] #40 — Implement and test the normative inline `fn` grammar end to end.
 - [x] #41 — Distinguish a reference from a zero-argument call.
 - [x] #42 — Support zero-argument form/function declarations consistently.
 - [x] #43 — Preserve `form` versus `fn` declaration identity.
@@ -267,7 +271,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #156 — Implement canonical aliases, parent locales, and likely subtags.
 - [ ] #157 — Support CLDR numbering systems beyond `latn`.
 - [ ] #158 — Expand date/calendar/context/time-zone/skeleton support.
-- [ ] #159 — Apply currency symbols, digits, increments, and spacing.
+- [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [ ] #160 — Share one plural grammar implementation across all targets.
 - [ ] #161 — Correct documented plural-category examples.
 - [ ] #162 — Add ICU/CLDR differential conformance tests.
@@ -308,11 +312,11 @@ production path uses the fix and its relevant tests pass.
 - [x] #191 — Escape carriage returns and control characters completely.
 - [x] #192 — Guard recursive alias resolution.
 - [x] #193 — Validate currency codes before runtime.
-- [ ] #194 — Apply currency minor units and CLDR currency rules.
-- [ ] #195 — Preserve large-number precision.
+- [x] #194 — Apply currency minor units and CLDR currency rules.
+- [x] #195 — Preserve large-number precision.
 - [x] #196 — Make date output independent of host local time zone.
 - [x] #197 — Reject invalid dates.
-- [ ] #198 — Fail visibly on missing required CLDR data.
+- [x] #198 — Fail visibly on missing required CLDR data.
 - [ ] #199 — Emit source maps back to Linguini sources.
 - [ ] #200 — Require every declared message in direct codegen input locales.
 - [ ] #201 — Replace eager locale imports with real bundler-visible splitting.
@@ -533,7 +537,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] DOC-F2 — Specify value leaves, positional calls, and named-object overloads.
 - [ ] DOC-F3 — Specify dedented/raw multiline semantics and brace escaping.
 - [ ] DOC-F4 — Specify `///` attachment and generated/editor propagation.
-- [x] DOC-F5 — Remove inline `fn` from normative grammar.
+- [x] DOC-F5 — Specify the implemented inline `fn` grammar and semantics.
 - [ ] DOC-F6 — Remove CJS completely.
 - [-] DOC-F7 — Match formatter, plural, lint, typing, and exhaustiveness claims to tests.
 
@@ -580,7 +584,7 @@ production path uses the fix and its relevant tests pass.
 ### Nested compile-time SvelteKit web policy
 
 - [x] WEB-A1 — Parse typed optional `[web.routing]`, `[web.locale]`, `[web.cookie]`,
-  `[web.local_storage]`, `[web.links]`, `[web.routes]`, and `[web.switch_route]`.
+      `[web.local_storage]`, `[web.links]`, `[web.routes]`, and `[web.switch_route]`.
 - [x] WEB-A2 — Replace `prefix_default_locale` with `always | except-default | never`.
 - [x] WEB-A3 — Default routing to `except-default`.
 - [x] WEB-A4 — Replace `redirect` with `canonical = redirect | preserve`.
@@ -604,7 +608,7 @@ production path uses the fix and its relevant tests pass.
 ### One SvelteKit/ESM ECMAScript backend
 
 - [-] ESM-A1 — Remove `targets.ts.module` from the model and all public surfaces.
-- [ ] ESM-A2 — Treat SvelteKit as the primary supported adapter.
+- [ ] ESM-A2 — Treat SvelteKit as the primary supported adapter for now. Its not the only one in the future.
 - [ ] ESM-A3 — Introduce one structured ECMAScript module emitter.
 - [ ] ESM-A4 — Introduce one shared language-neutral `TypeModel`.
 - [ ] ESM-A5 — Render JavaScript plus JSDoc from the shared models.
