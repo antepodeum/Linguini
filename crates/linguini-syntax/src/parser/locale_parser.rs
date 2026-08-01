@@ -123,11 +123,12 @@ where
 {
     recursive(|entry| {
         let branch = map_branch().map(FormEntry::Branch);
-        let attribute_name = keyword("form")
-            .or_not()
-            .ignore_then(name())
-            .then(function_parameters().or_not())
-            .map(|(name, parameters)| (name, parameters.unwrap_or_default()));
+        let attribute_name = choice((
+            keyword("form")
+                .ignore_then(name())
+                .then(function_parameters()),
+            name().map(|name| (name, Vec::new())),
+        ));
         let attribute = attribute_name
             .then(choice((
                 just(TokenKind::Equals)

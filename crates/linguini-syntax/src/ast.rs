@@ -129,9 +129,7 @@ pub enum FormEntry {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormAttribute {
     pub name: Name,
-    /// Dispatch parameters written after a form attribute name.
-    ///
-    /// An empty list preserves the legacy implicit-plural map behavior.
+    /// The explicit dispatch parameter of a branch-map attribute.
     pub parameters: Vec<FunctionParameter>,
     pub value: LocaleValue,
     pub span: Span,

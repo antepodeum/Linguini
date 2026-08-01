@@ -856,12 +856,20 @@ fn validate_value_dispatch_coverage(
     errors: &mut Vec<IrReferenceError>,
 ) {
     if let IrValue::Map(branches) = value {
-        let ty = parameters
-            .first()
-            .map_or("Plural", |parameter| parameter.ty.as_str());
+        let Some(parameter) = parameters.first().filter(|_| parameters.len() == 1) else {
+            errors.push(IrReferenceError::new(
+                "IR039",
+                format!(
+                    "{subject} branch map requires exactly one dispatch parameter, got {}",
+                    parameters.len()
+                ),
+                value_span(value),
+            ));
+            return;
+        };
         validate_dispatch_coverage(
             subject,
-            ty,
+            &parameter.ty,
             branches
                 .iter()
                 .flat_map(|branch| branch.keys.iter().map(String::as_str)),
@@ -1489,7 +1497,6 @@ fn resolve_form_path(
         }
         FormPathKind::Text(ty) => Some(ty.clone()),
         FormPathKind::Map(selectors) if called => {
-            let selectors = effective_form_selectors(selectors);
             validate_arity(
                 &path.join("."),
                 selectors.len(),
@@ -1512,7 +1519,6 @@ fn resolve_form_path(
             Some("String".to_owned())
         }
         FormPathKind::Map(selectors) => {
-            let selectors = effective_form_selectors(selectors);
             let candidates = variables
                 .values()
                 .filter(|actual| {
@@ -1619,14 +1625,6 @@ fn relative_enum_type(
             .resolve_alias(candidate)
             .is_ok_and(|resolved| context.enums.contains_key(resolved))
     })
-}
-
-fn effective_form_selectors(selectors: &[String]) -> Vec<String> {
-    if selectors.is_empty() {
-        vec!["Plural".to_owned()]
-    } else {
-        selectors.to_vec()
-    }
 }
 
 fn validate_arity(

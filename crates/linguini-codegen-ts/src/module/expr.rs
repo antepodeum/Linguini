@@ -46,7 +46,14 @@ pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> Stri
     if branches.is_empty() {
         object
     } else {
-        let dispatcher = map_expression(&branches, &[], options);
+        let dispatcher = map_expression(
+            &branches,
+            &[IrFunctionParameter {
+                name: None,
+                ty: "Plural".to_owned(),
+            }],
+            options,
+        );
         if fields.is_empty() {
             dispatcher
         } else {
@@ -82,28 +89,24 @@ pub fn map_expression(
         })
         .collect::<BTreeMap<_, _>>();
     let items = branch_items(branches, &context, options);
-    let parameter = parameters
+    let dispatch = parameters
         .first()
-        .and_then(|parameter| parameter.name.as_deref())
+        .expect("validated form maps have one dispatch parameter");
+    let parameter = dispatch
+        .name
+        .as_deref()
         .map(safe_identifier)
         .unwrap_or_else(|| "value".to_owned());
-    let selector = parameters
-        .first()
-        .filter(|parameter| parameter.ty != "Plural")
-        .map_or_else(
-            || format!("{}({parameter})", options.plural_function),
-            |_| format!("String({parameter})"),
-        );
-    let parameter_type = parameters.first().map_or_else(
-        || "number | bigint | string".to_owned(),
-        |parameter| {
-            if parameter.ty == "Plural" {
-                "number | bigint | string".to_owned()
-            } else {
-                ts_type(&parameter.ty)
-            }
-        },
-    );
+    let selector = if dispatch.ty == "Plural" {
+        format!("{}({parameter})", options.plural_function)
+    } else {
+        format!("String({parameter})")
+    };
+    let parameter_type = if dispatch.ty == "Plural" {
+        "number | bigint | string".to_owned()
+    } else {
+        ts_type(&dispatch.ty)
+    };
     format!("({parameter}: {parameter_type}) => selectBranch({selector}, {{ {items} }})")
 }
 

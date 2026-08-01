@@ -1,6 +1,6 @@
 use crate::{
     ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, validate_ir,
-    IrExpressionKind, IrInlineFunctionInput, IrTextBlockMode, IrTextPart,
+    IrExpressionKind, IrFormEntry, IrInlineFunctionInput, IrTextBlockMode, IrTextPart,
 };
 use linguini_syntax::{parse_locale, parse_schema, LocaleDeclaration};
 use std::fs;
@@ -375,6 +375,37 @@ fn ir_boundary_rejects_named_payload_before_dispatch_parameter() {
             && error
                 .message
                 .contains("dispatch parameters must precede named payload parameters")
+    }));
+}
+
+#[test]
+fn ir_boundary_rejects_implicit_plural_form_maps() {
+    let schema = lower_schema(&parse_schema("enum Fruit { apple }\n").expect("schema"));
+    let mut locale = lower_locale(
+        &parse_locale(
+            "impl Fruit {\n\
+               apple {\n\
+                 form nom(Plural) {\n\
+                   one => apple\n\
+                   other => apples\n\
+                 }\n\
+               }\n\
+             }\n",
+        )
+        .expect("locale"),
+    );
+    let IrFormEntry::Attribute { parameters, .. } = &mut locale.forms[0].variants[0].entries[0]
+    else {
+        panic!("form attribute");
+    };
+    parameters.clear();
+
+    let errors = validate_ir(&schema, &locale).expect_err("implicit dispatch must fail in IR");
+    assert!(errors.iter().any(|error| {
+        error.code == "IR039"
+            && error
+                .message
+                .contains("requires exactly one dispatch parameter, got 0")
     }));
 }
 

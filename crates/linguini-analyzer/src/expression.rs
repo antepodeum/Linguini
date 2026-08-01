@@ -648,9 +648,6 @@ fn collect_form_properties(
             continue;
         };
         let property = match &attribute.value {
-            LocaleValue::Map(_) if attribute.parameters.is_empty() => {
-                FormProperty::plural(&attribute.name.value, attribute.span)
-            }
             LocaleValue::Map(_) => FormProperty::dispatch(
                 &attribute.name.value,
                 attribute

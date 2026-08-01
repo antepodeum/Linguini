@@ -154,12 +154,8 @@ email_input {
 }
 
 #[test]
-fn supports_empty_schema_message_parentheses() {
-    let schema = parse_schema("nav_label()\n").expect("zero-argument message");
-    let SchemaDeclaration::Message(message) = &schema.declarations[0] else {
-        panic!("expected message");
-    };
-    assert!(message.parameters.is_empty());
+fn rejects_redundant_empty_schema_message_parentheses() {
+    assert!(parse_schema("nav_label()\n").is_err());
 }
 
 #[test]
@@ -178,6 +174,27 @@ fn supports_empty_locale_function_parentheses_and_preserves_kind() {
     };
     assert!(form.parameters.is_empty());
     assert_eq!(form.kind, FunctionKind::Form);
+}
+
+#[test]
+fn form_attribute_maps_require_canonical_explicit_dispatch_syntax() {
+    let implicit = parse_locale(
+        "impl Fruit {\n  apple {\n    nom {\n      one => apple\n      other => apples\n    }\n  }\n}\n",
+    )
+    .expect_err("implicit plural maps are not canonical");
+    assert!(implicit.iter().any(|error| error
+        .message
+        .contains("requires exactly one dispatch parameter")));
+
+    assert!(parse_locale(
+        "impl Fruit {\n  apple {\n    nom(Plural) {\n      one => apple\n      other => apples\n    }\n  }\n}\n",
+    )
+    .is_err());
+
+    parse_locale(
+        "impl Fruit {\n  apple {\n    form nom(Plural) {\n      one => apple\n      other => apples\n    }\n  }\n}\n",
+    )
+    .expect("canonical form attribute syntax parses");
 }
 
 #[test]

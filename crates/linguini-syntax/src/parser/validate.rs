@@ -221,20 +221,20 @@ impl Validator {
                 } else {
                     self.lower_name(&attribute.name, "form attribute");
                 }
-                if !attribute.parameters.is_empty()
-                    && !matches!(attribute.value, LocaleValue::Map(_))
-                {
-                    self.error(
-                        "form attribute parameters require a branch map",
+                match &attribute.value {
+                    LocaleValue::Map(_) if attribute.parameters.len() != 1 => self.error(
+                        "a form attribute branch map requires exactly one dispatch parameter",
                         attribute.span,
-                    );
-                }
-                if attribute.parameters.len() > 1 && matches!(attribute.value, LocaleValue::Map(_))
-                {
-                    self.error(
-                        "a flat form branch map supports one dispatch parameter",
-                        attribute.span,
-                    );
+                    ),
+                    LocaleValue::Text(_) | LocaleValue::Object(_)
+                        if !attribute.parameters.is_empty() =>
+                    {
+                        self.error(
+                            "form attribute parameters require a branch map",
+                            attribute.span,
+                        );
+                    }
+                    LocaleValue::Text(_) | LocaleValue::Map(_) | LocaleValue::Object(_) => {}
                 }
                 match &attribute.value {
                     LocaleValue::Text(pattern) => self.text_pattern(pattern),

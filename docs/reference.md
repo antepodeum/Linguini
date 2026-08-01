@@ -87,6 +87,7 @@ delivery(fruit: Fruit, size: Size, count: Number)
 ### Parameterless messages
 
 A bare identifier inside a namespace block is a message with no parameters.
+Empty parentheses are not an alternate spelling: write `label`, not `label()`.
 
 ```lgs
 email_input {
@@ -319,6 +320,10 @@ emoji  = 🍎       // plain string property
 fruit.Gender      // inferred enum-valued property access
 fruit.nom(count)  // form call — count auto-converts to Plural
 ```
+
+An `impl` branch-map attribute always uses `form name(Type)`. The `form`
+keyword and its single dispatch type are required; implicit plural maps and
+bare `name(Type)` spellings are invalid.
 
 ---
 
