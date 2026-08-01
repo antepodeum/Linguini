@@ -1,6 +1,11 @@
+mod ecmascript;
 mod module;
 mod plural;
 
+pub use ecmascript::{
+    EcmaImport, EcmaImportBindings, EcmaModule, EcmaNamedImport, EcmaSource, EcmaStatement,
+    RenderedEcmaModule,
+};
 pub use module::{
     generate_typescript_project_files, TypeScriptCodegenError, TypeScriptFramework,
     TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptOptions,

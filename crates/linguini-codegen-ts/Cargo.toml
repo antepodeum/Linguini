@@ -11,6 +11,6 @@ rust-version.workspace = true
 linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.4" }
 linguini-core = { path = "../linguini-core", version = "0.1.0-alpha.4" }
 linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.4" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.4" }
 
 [dev-dependencies]
-linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.4" }
