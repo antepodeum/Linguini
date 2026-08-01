@@ -1,5 +1,5 @@
 use crate::LinguiniDocument;
-use linguini_analyzer::{Diagnostic as AnalyzerDiagnostic, QuickFix};
+use linguini_analyzer::{Diagnostic as AnalyzerDiagnostic, QuickFix, QuickFixAction};
 use std::collections::{BTreeMap, HashMap};
 use tower_lsp_server::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, DiagnosticRelatedInformation,
@@ -23,7 +23,7 @@ pub(crate) fn analyzer_quick_fix_actions(
         let lsp_diagnostic = to_lsp_diagnostic(document, &diagnostic);
         let mut first_replacement = None;
         for quick_fix in diagnostic.quick_fixes {
-            if let Some(replacement) = &quick_fix.replacement {
+            if let Some(replacement) = quick_fix.action.replacement() {
                 let edit = TextEdit {
                     range: to_range(document, replacement.span),
                     new_text: replacement.text.clone(),
@@ -112,9 +112,9 @@ pub(crate) fn to_lsp_diagnostic_with_workspace(
                 .quick_fixes
                 .iter()
                 .map(|quick_fix| serde_json::json!({
-                    "id": quick_fix.id.as_deref(),
+                    "id": quick_fix.action.id(),
                     "title": &quick_fix.title,
-                    "hasReplacement": quick_fix.replacement.is_some(),
+                    "hasReplacement": quick_fix.action.replacement().is_some(),
                 }))
                 .collect::<Vec<_>>(),
         })
@@ -168,7 +168,9 @@ fn quick_fix_code_action(
     diagnostic: Diagnostic,
     quick_fix: QuickFix,
 ) -> Option<CodeActionOrCommand> {
-    let replacement = quick_fix.replacement?;
+    let QuickFixAction::Replace { replacement, .. } = quick_fix.action else {
+        return None;
+    };
     let mut changes = HashMap::new();
     changes.insert(
         uri.clone(),

@@ -4,8 +4,8 @@ use super::{
     analyze_message_coverage, analyze_project_expressions, detect_reference_cycles,
     render_diagnostics, require_other_branch, BranchCoverage, Diagnostic, DiagnosticCategory,
     DiagnosticSeverity, ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature,
-    LocaleCoverageOptions, MessageToAnalyze, NamedSpan, PublicMessage, QuickFix, ReferenceNode,
-    Variable,
+    LocaleCoverageOptions, MessageToAnalyze, NamedSpan, PublicMessage, QuickFix, QuickFixAction,
+    ReferenceNode, Variable,
 };
 use linguini_syntax::{parse_locale, parse_schema, Span};
 
@@ -23,6 +23,26 @@ fn renders_primary_span_related_span_note_and_quick_fix() {
         rendered,
         include_str!("../../../tests/fixtures/golden/snapshots/diagnostic-schema-syntax.txt")
     );
+}
+
+#[test]
+fn quick_fix_action_owns_command_id_and_replacement() {
+    let fix = QuickFix::replacement(
+        "replace value",
+        super::Replacement {
+            span: Span::new(2, 7),
+            text: "fixed".to_owned(),
+        },
+    )
+    .with_id("replace-value");
+
+    assert_eq!(fix.action.id(), Some("replace-value"));
+    let QuickFixAction::Replace { id, replacement } = &fix.action else {
+        panic!("expected replacement action");
+    };
+    assert_eq!(id.as_deref(), Some("replace-value"));
+    assert_eq!(replacement.span, Span::new(2, 7));
+    assert_eq!(replacement.text, "fixed");
 }
 
 #[test]
@@ -367,8 +387,8 @@ fn locale_analysis_reports_missing_impl_form_fallback() {
         .message
         .contains("impl `Fruit` variant `apple` form `nom` is missing required `other` branch"));
     let replacement = diagnostics[0].quick_fixes[0]
-        .replacement
-        .as_ref()
+        .action
+        .replacement()
         .expect("replacement");
     assert_eq!(replacement.text, "\n_ => TODO");
     assert_eq!(&source[replacement.span.start..replacement.span.end], "");
@@ -423,8 +443,8 @@ fn locale_coverage_groups_missing_grouped_schema_messages() {
         "locale is missing 2 schema messages: `email_input.placeholder`, `email_input.error`"
     );
     let replacement = diagnostics[0].quick_fixes[0]
-        .replacement
-        .as_ref()
+        .action
+        .replacement()
         .expect("quick fix replacement");
     assert!(replacement.text.contains("email_input {"));
     assert!(replacement.text.contains("  placeholder = TODO"));
@@ -525,8 +545,8 @@ fn required_other_branch_reports_missing_fallback() {
     assert_eq!(diagnostics[0].quick_fixes[0].title, "add `_` branch");
     assert_eq!(
         diagnostics[0].quick_fixes[0]
-            .replacement
-            .as_ref()
+            .action
+            .replacement()
             .expect("replacement")
             .text,
         "\n_ => TODO"
@@ -921,8 +941,8 @@ fn nested_message_groups_use_canonical_paths_and_recursive_stubs() {
         .find(|diagnostic| diagnostic.message.contains("shop.main.subtitle"))
         .expect("nested missing message");
     let replacement = missing.quick_fixes[0]
-        .replacement
-        .as_ref()
+        .action
+        .replacement()
         .expect("recursive stub replacement");
     assert!(replacement
         .text

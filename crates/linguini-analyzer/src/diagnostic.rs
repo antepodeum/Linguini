@@ -27,11 +27,7 @@ pub struct RelatedSpan {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuickFix {
     pub title: String,
-    /// Canonical atomic action. The legacy `id` and `replacement` projections remain available
-    /// for older CLI/LSP consumers.
     pub action: QuickFixAction,
-    pub id: Option<String>,
-    pub replacement: Option<Replacement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -179,8 +175,6 @@ impl QuickFix {
         Self {
             title: title.into(),
             action: QuickFixAction::Hint,
-            id: None,
-            replacement: None,
         }
     }
 
@@ -188,10 +182,7 @@ impl QuickFix {
         Self {
             title: title.into(),
             action: QuickFixAction::Command { id: id.into() },
-            id: None,
-            replacement: None,
         }
-        .synchronize_legacy_fields()
     }
 
     pub fn replacement(title: impl Into<String>, replacement: Replacement) -> Self {
@@ -199,10 +190,8 @@ impl QuickFix {
             title: title.into(),
             action: QuickFixAction::Replace {
                 id: None,
-                replacement: replacement.clone(),
+                replacement,
             },
-            id: None,
-            replacement: Some(replacement),
         }
     }
 
@@ -216,12 +205,9 @@ impl QuickFix {
             title: title.into(),
             action: QuickFixAction::Replace {
                 id: Some(id),
-                replacement: replacement.clone(),
+                replacement,
             },
-            id: None,
-            replacement: Some(replacement),
         }
-        .synchronize_legacy_fields()
     }
 
     pub fn with_id(mut self, id: impl Into<String>) -> Self {
@@ -233,25 +219,24 @@ impl QuickFix {
             },
             QuickFixAction::Hint | QuickFixAction::Command { .. } => QuickFixAction::Command { id },
         };
-        self.synchronize_legacy_fields()
+        self
+    }
+}
+
+impl QuickFixAction {
+    pub fn id(&self) -> Option<&str> {
+        match self {
+            Self::Hint => None,
+            Self::Command { id } => Some(id),
+            Self::Replace { id, .. } => id.as_deref(),
+        }
     }
 
-    fn synchronize_legacy_fields(mut self) -> Self {
-        match &self.action {
-            QuickFixAction::Hint => {
-                self.id = None;
-                self.replacement = None;
-            }
-            QuickFixAction::Command { id } => {
-                self.id = Some(id.clone());
-                self.replacement = None;
-            }
-            QuickFixAction::Replace { id, replacement } => {
-                self.id = id.clone();
-                self.replacement = Some(replacement.clone());
-            }
+    pub fn replacement(&self) -> Option<&Replacement> {
+        match self {
+            Self::Replace { replacement, .. } => Some(replacement),
+            Self::Hint | Self::Command { .. } => None,
         }
-        self
     }
 }
 
@@ -378,7 +363,7 @@ fn push_line(output: &mut Vec<u8>, line: &str) {
 }
 
 fn quick_fix_description(quick_fix: &QuickFix) -> String {
-    match &quick_fix.id {
+    match quick_fix.action.id() {
         Some(id) => format!(
             "{} (run `linguini fix {}` or `linguini fix --all`)",
             quick_fix.title, id
