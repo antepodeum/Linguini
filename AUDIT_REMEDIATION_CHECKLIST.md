@@ -51,8 +51,8 @@ production path uses the fix and its relevant tests pass.
   related locations, stable rule IDs, severities, and quick fixes.
 - `cbd4cb3` — scoped public analyzer/type guarantees, exact lint severities,
   explicit unused-message limits, and an executable CLI documentation contract.
-- `03bdfaf` — checked-in manifest-owned site codegen, Cargo-free frontend checks/builds,
-  offline no-`git` verification, and generated GitHub Pages runtime configuration.
+- `bd80239` — removed the generated site tree from Git tracking and made CI regenerate it
+  before runtime, type, and production-build verification.
 - `7e8fa50`, `a6e5f7b`, `7cbb209`, `27aa665` — namespace-aware dependency validation,
   enum-valued form properties, locale-symbol bindings, and collision-safe public type aliases.
 - `a449ce0` — removed the unreachable generated redirect-status override and fixed canonical
@@ -81,6 +81,8 @@ production path uses the fix and its relevant tests pass.
   functions across syntax, IR, analyzer, formatter, CLI preview, TypeScript codegen, LSP,
   TextMate grammar, docs, and generated-site runtime; also added bounded exact numeric/plural
   evaluation, CLDR currency minor units and rounding, and visible invalid/missing-data failures.
+- `3ae3a38` — added opt-in, bounded application-source discovery plus conservative static and
+  dynamic-prefix message usage analysis to CLI check/build, JSON, SARIF, and warning policy.
 
 ## Numbered findings
 
@@ -95,7 +97,8 @@ production path uses the fix and its relevant tests pass.
 - [-] #7 — Use one namespace model for every declaration kind and every pipeline.
 - [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
-- [x] #10 — Keep builds hermetic; remove the remaining site-to-Cargo build dependency.
+- [-] #10 — Keep builds hermetic; the untracked site output is regenerated through Cargo until
+  a source-checkout-native packaged generator path replaces it.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [-] #12 — Hide invalid mutable public model states behind validated constructors.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
@@ -226,7 +229,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #117 — Prevent locale enums from silently overwriting schema enums.
 - [x] #118 — Diagnose unknown form targets and types.
 - [x] #119 — Implement the retained lint set with stable codes.
-- [ ] #120 — Add project/application usage data for unused-message analysis.
+- [x] #120 — Add project/application usage data for unused-message analysis.
 - [x] #121 — Diagnose cross-file and cross-kind duplicate declarations.
 - [x] #122 — Preserve both declarations when reference-graph nodes collide.
 - [x] #123 — Report one complete strongly connected component per cycle.
@@ -486,7 +489,8 @@ production path uses the fix and its relevant tests pass.
 
 ### Site and documentation
 
-- [x] #347 — Build/check the site without Cargo, network, `git`, or a Rust toolchain.
+- [-] #347 — Build/check the site without Cargo, network, `git`, or a Rust toolchain; generated
+  output is no longer tracked, so clean verification currently needs the Rust generator.
 - [-] #348 — Remove unshipped syntax/CJS claims and align the reference with conformance.
 - [x] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
 - [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
