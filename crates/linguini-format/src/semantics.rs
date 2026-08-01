@@ -1,7 +1,8 @@
 use crate::FormatError;
 use linguini_syntax::{
-    FormEntry, FunctionBranch, FunctionBranchValue, LocaleDeclaration, LocaleFile, LocaleValue,
-    MapBranch, SourceId, Span, TextBlockMode, TextPart, TextPattern, Token, TokenKind,
+    Expression, ExpressionKind, FormEntry, FunctionBranch, FunctionBranchValue,
+    InlineFunctionInput, LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, SourceId, Span,
+    TextBlockMode, TextPart, TextPattern, Token, TokenKind,
 };
 use std::collections::BTreeSet;
 
@@ -201,6 +202,7 @@ impl FormatSemantics {
                 TextPart::Placeholder(placeholder) => {
                     self.placeholder_starts
                         .insert((placeholder.span.source, placeholder.span.start));
+                    self.expression(&placeholder.expression, source)?;
                     placeholder.span
                 }
             };
@@ -208,6 +210,23 @@ impl FormatSemantics {
             if !contains(pattern.span, span) {
                 return Err(FormatError::InvalidSyntaxSpan(span));
             }
+        }
+        Ok(())
+    }
+
+    fn expression(&mut self, expression: &Expression, source: &str) -> Result<(), FormatError> {
+        for argument in &expression.arguments {
+            self.expression(argument, source)?;
+        }
+        if let ExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
+            for input in inputs {
+                let value = match input {
+                    InlineFunctionInput::Binding { value, .. }
+                    | InlineFunctionInput::Selector { value, .. } => value,
+                };
+                self.expression(value, source)?;
+            }
+            self.function_branches(branches, source)?;
         }
         Ok(())
     }
@@ -220,10 +239,10 @@ impl FormatSemantics {
         let index = self
             .patterns
             .partition_point(|pattern| pattern.span.start <= span.start);
-        index
-            .checked_sub(1)
-            .and_then(|index| self.patterns.get(index))
-            .filter(|pattern| contains(pattern.span, span))
+        self.patterns[..index]
+            .iter()
+            .rev()
+            .find(|pattern| contains(pattern.span, span))
     }
 }
 

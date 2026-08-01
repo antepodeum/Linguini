@@ -254,7 +254,7 @@ form Adjective(Size, Gender) {
   }
 }
 
-fn note(item: String, Gender) {
+fn note(Gender, item: String) {
   female => Доставлена {item}
   _ => Доставлен {item}
 }
@@ -302,8 +302,10 @@ email_input {
         LocaleDeclaration::Function(function) => {
             assert_eq!(function.name.value, "note");
             assert_eq!(function.parameters.len(), 2);
+            assert_eq!(function.parameters[0].ty.value, "Gender");
+            assert!(function.parameters[0].name.is_none());
             assert_eq!(
-                function.parameters[0]
+                function.parameters[1]
                     .name
                     .as_ref()
                     .expect("named parameter")
@@ -511,9 +513,216 @@ fn validates_empty_enums_duplicates_names_and_paths() {
 }
 
 #[test]
-fn rejects_unsupported_inline_function_expressions() {
-    let source = "greeting = Hello {fn(Gender) { masculine => dear, _ => friend }} {name}!\n";
-    assert!(parse_locale(source).is_err());
+fn parses_inline_function_with_selectors_and_trailing_bindings() {
+    let source = "greeting = Hello {fn(gender, name: GreetingName(name)) {\n  masculine => dear, kind {name}\n  feminine => thoughtful {name}\n  _ => friend {name}\n}}!\n";
+    let locale = parse_locale(source).expect("inline fn parses");
+    let LocaleDeclaration::Message(message) = &locale.declarations[0] else {
+        panic!("expected message");
+    };
+    let expression = message
+        .value
+        .parts
+        .iter()
+        .find_map(|part| match part {
+            TextPart::Placeholder(placeholder)
+                if matches!(
+                    &placeholder.expression.kind,
+                    crate::ExpressionKind::InlineFunction { .. }
+                ) =>
+            {
+                Some(&placeholder.expression)
+            }
+            TextPart::Text(_) | TextPart::Placeholder(_) => None,
+        })
+        .expect("inline expression");
+
+    assert!(expression.arguments.is_empty());
+    let crate::ExpressionKind::InlineFunction { inputs, branches } = &expression.kind else {
+        panic!("expected inline function");
+    };
+    assert!(expression.path.is_empty());
+    assert_eq!(
+        inline_input_shape(inputs),
+        [
+            "selector:Reference:gender()".to_owned(),
+            "binding:name=Call:GreetingName(Reference:name())".to_owned(),
+        ]
+    );
+    assert_eq!(
+        branches
+            .iter()
+            .map(|branch| branch.key.value.as_str())
+            .collect::<Vec<_>>(),
+        ["masculine", "feminine", "_"]
+    );
+    let FunctionBranchValue::Text(masculine) = &branches[0].value else {
+        panic!("expected text branch");
+    };
+    assert_eq!(render_pattern(masculine), "dear, kind {name}");
+}
+
+#[test]
+fn parses_nested_inline_selectors_bindings_and_quoted_delimiters() {
+    let source = "summary = {fn(gender, Plural(count), name: GreetingName(tone, count)) {\n  masculine {\n    one => \"Dear, } \"{name}\n    other => Dear {name}\n  }\n  _ {\n    _ => Friend {name}\n  }\n}}\n";
+    let locale = parse_locale(source).expect("nested inline fn parses");
+    let LocaleDeclaration::Message(message) = &locale.declarations[0] else {
+        panic!("expected message");
+    };
+    let TextPart::Placeholder(placeholder) = &message.value.parts[0] else {
+        panic!("expected inline placeholder");
+    };
+    let expression = &placeholder.expression;
+
+    assert!(expression.arguments.is_empty());
+    let crate::ExpressionKind::InlineFunction { inputs, branches } = &expression.kind else {
+        panic!("expected inline function");
+    };
+    assert_eq!(
+        inline_input_shape(inputs),
+        [
+            "selector:Reference:gender()".to_owned(),
+            "selector:Call:Plural(Reference:count())".to_owned(),
+            "binding:name=Call:GreetingName(Reference:tone(),Reference:count())".to_owned(),
+        ]
+    );
+    let FunctionBranchValue::Dispatch(children) = &branches[0].value else {
+        panic!("expected nested dispatch");
+    };
+    let FunctionBranchValue::Text(one) = &children[0].value else {
+        panic!("expected leaf text");
+    };
+    assert_eq!(render_pattern(one), "Dear, } {name}");
+}
+
+#[test]
+fn parses_multiline_leaf_inside_inline_function() {
+    let source = "summary = {fn(tone, name: name) {\n  formal => \"\"\"\n    Dear {name}\n  \"\"\"\n  _ => Friend\n}}\n";
+    let locale = parse_locale(source).expect("inline multiline leaf parses");
+    let LocaleDeclaration::Message(message) = &locale.declarations[0] else {
+        panic!("expected message");
+    };
+    let TextPart::Placeholder(placeholder) = &message.value.parts[0] else {
+        panic!("expected inline function");
+    };
+    let crate::ExpressionKind::InlineFunction { branches, .. } = &placeholder.expression.kind
+    else {
+        panic!("expected inline function");
+    };
+    let FunctionBranchValue::Text(formal) = &branches[0].value else {
+        panic!("expected multiline text branch");
+    };
+
+    assert_eq!(formal.mode, TextBlockMode::Dedented);
+    assert_eq!(render_pattern(formal), "Dear {name}");
+}
+
+#[test]
+fn named_and_inline_functions_share_branch_ast_shapes() {
+    let source = "fn Greeting(Tone, Plural, name: String) {\n  formal {\n    one => \"Dear, } \"{name}\n    _ => Dear {name}\n  }\n  _ {\n    _ => Friend\n  }\n}\nsummary = {fn(tone, Plural(count), name: name) {\n  formal {\n    one => \"Dear, } \"{name}\n    _ => Dear {name}\n  }\n  _ {\n    _ => Friend\n  }\n}}\n";
+    let locale = parse_locale(source).expect("named and inline functions parse");
+    let LocaleDeclaration::Function(named) = &locale.declarations[0] else {
+        panic!("expected named function");
+    };
+    let LocaleDeclaration::Message(message) = &locale.declarations[1] else {
+        panic!("expected message");
+    };
+    let TextPart::Placeholder(placeholder) = &message.value.parts[0] else {
+        panic!("expected inline function");
+    };
+    let crate::ExpressionKind::InlineFunction {
+        inputs,
+        branches: inline_branches,
+    } = &placeholder.expression.kind
+    else {
+        panic!("expected inline function");
+    };
+
+    assert_eq!(
+        function_parameter_shape(&named.parameters),
+        [
+            (None, "Tone".to_owned()),
+            (None, "Plural".to_owned()),
+            (Some("name".to_owned()), "String".to_owned()),
+        ]
+    );
+    assert_eq!(
+        inline_input_shape(inputs),
+        [
+            "selector:Reference:tone()".to_owned(),
+            "selector:Call:Plural(Reference:count())".to_owned(),
+            "binding:name=Reference:name()".to_owned(),
+        ]
+    );
+    assert_eq!(
+        function_branch_shape(&named.branches),
+        function_branch_shape(inline_branches)
+    );
+}
+
+#[test]
+fn parses_nested_calls_commas_and_inline_binding_values() {
+    let source = "summary = {fn(Outer(first(a, b), second(c)), label: Wrap(left(a, b), right), nested: fn(tone) {\n  formal => inner, value\n  _ => fallback\n}) {\n  formal => {label}\n  _ => outer, fallback\n}}\n";
+    let locale = parse_locale(source).expect("nested inline input expressions parse");
+    let LocaleDeclaration::Message(message) = &locale.declarations[0] else {
+        panic!("expected message");
+    };
+    let TextPart::Placeholder(placeholder) = &message.value.parts[0] else {
+        panic!("expected inline function");
+    };
+    let crate::ExpressionKind::InlineFunction { inputs, branches } = &placeholder.expression.kind
+    else {
+        panic!("expected inline function");
+    };
+
+    assert_eq!(inputs.len(), 3);
+    assert!(matches!(
+        &inputs[2],
+        crate::InlineFunctionInput::Binding {
+            value: crate::Expression {
+                kind: crate::ExpressionKind::InlineFunction { .. },
+                ..
+            },
+            ..
+        }
+    ));
+    let FunctionBranchValue::Text(outer_fallback) = &branches[1].value else {
+        panic!("expected outer text branch");
+    };
+    assert_eq!(render_pattern(outer_fallback), "outer, fallback");
+}
+
+#[test]
+fn validates_inline_input_and_named_function_parameter_order() {
+    parse_locale("summary = {fn() { _ => value }}\n")
+        .expect("zero-input inline function is valid syntax");
+    parse_locale("summary = {fn(value: source) { _ => {value} }}\n")
+        .expect("binding-only inline function is valid syntax");
+    assert!(
+        parse_locale("summary = {fn(tone, name: first, name: second) { _ => value }}\n").is_err()
+    );
+    assert!(parse_locale("summary = {fn(tone, Name: value) { _ => value }}\n").is_err());
+
+    let selector_after_binding =
+        parse_locale("summary = {fn(tone, name: value, Plural(count)) { _ => value }}\n")
+            .expect_err("selector after binding must fail validation");
+    assert!(
+        selector_after_binding.iter().any(|error| {
+            error.message == "inline fn selector inputs must precede named bindings"
+        }),
+        "unexpected diagnostics: {:?}",
+        selector_after_binding
+    );
+
+    let dispatch_after_payload = parse_locale("fn Broken(value: String, Tone) { _ => value }\n")
+        .expect_err("dispatch parameter after payload must fail validation");
+    assert!(dispatch_after_payload.iter().any(|error| {
+        error.message == "unnamed dispatch parameter `Tone` must precede named payload parameters"
+    }));
+
+    parse_locale(
+        "fn Wrap(Tone, value: String) { formal => {value} _ => {value} }\nsummary = {fn(tone, Plural(count), greet: Greeting(tone, count)) { _ => {greet} }}\n",
+    )
+    .expect("leading dispatch inputs and trailing payload bindings are valid");
 }
 
 #[test]
@@ -602,6 +811,74 @@ fn parser_is_panic_free_for_unicode_recovery_corpus() {
         });
         assert!(result.is_ok(), "parser panicked for {source:?}");
     }
+}
+
+fn function_parameter_shape(
+    parameters: &[crate::FunctionParameter],
+) -> Vec<(Option<String>, String)> {
+    parameters
+        .iter()
+        .map(|parameter| {
+            (
+                parameter.name.as_ref().map(|name| name.value.clone()),
+                parameter.ty.value.clone(),
+            )
+        })
+        .collect()
+}
+
+fn inline_input_shape(inputs: &[crate::InlineFunctionInput]) -> Vec<String> {
+    inputs
+        .iter()
+        .map(|input| match input {
+            crate::InlineFunctionInput::Binding { name, value, .. } => {
+                format!("binding:{}={}", name.value, expression_shape(value))
+            }
+            crate::InlineFunctionInput::Selector { value, .. } => {
+                format!("selector:{}", expression_shape(value))
+            }
+        })
+        .collect()
+}
+
+fn expression_shape(expression: &crate::Expression) -> String {
+    let kind = match &expression.kind {
+        crate::ExpressionKind::Reference => "Reference",
+        crate::ExpressionKind::Call => "Call",
+        crate::ExpressionKind::InlineFunction { .. } => "InlineFunction",
+    };
+    let path = expression
+        .path
+        .iter()
+        .map(|name| name.value.as_str())
+        .collect::<Vec<_>>()
+        .join(".");
+    let arguments = expression
+        .arguments
+        .iter()
+        .map(expression_shape)
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{kind}:{path}({arguments})")
+}
+
+fn function_branch_shape(branches: &[crate::FunctionBranch]) -> Vec<String> {
+    branches
+        .iter()
+        .map(|branch| match &branch.value {
+            FunctionBranchValue::Text(text) => format!(
+                "{}=>{:?}:{}",
+                branch.key.value,
+                text.mode,
+                render_pattern(text)
+            ),
+            FunctionBranchValue::Dispatch(children) => format!(
+                "{}{{{}}}",
+                branch.key.value,
+                function_branch_shape(children).join("|")
+            ),
+        })
+        .collect()
 }
 
 fn render_pattern(pattern: &crate::TextPattern) -> String {

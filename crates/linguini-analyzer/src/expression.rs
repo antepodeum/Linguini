@@ -1,8 +1,13 @@
-use crate::{Diagnostic, QuickFix, Replacement};
+use crate::branch_coverage::validate_branch_sequence;
+use crate::{
+    analyze_branch_coverage, require_other_branch, BranchCoverage, Diagnostic, NamedSpan, QuickFix,
+    Replacement,
+};
+use linguini_core::{is_plural_intrinsic, PLURAL_TYPE_NAME};
 use linguini_syntax::{
     Expression, ExpressionKind, FormEntry, FormatterKind, FunctionBranchValue, FunctionDeclaration,
-    LocaleDeclaration, LocaleFile, LocaleValue, SchemaDeclaration, SchemaFile, TextPart,
-    TextPattern,
+    InlineFunctionInput, LocaleDeclaration, LocaleFile, LocaleValue, SchemaDeclaration, SchemaFile,
+    Span, TextPart, TextPattern,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -173,6 +178,14 @@ impl MessageToAnalyze {
 }
 
 pub fn analyze_expressions(input: ExpressionAnalysis) -> Vec<Diagnostic> {
+    analyze_expressions_with_enums(input, &BTreeMap::new(), &BTreeMap::new())
+}
+
+fn analyze_expressions_with_enums(
+    input: ExpressionAnalysis,
+    enum_variants: &BTreeMap<String, Vec<NamedSpan>>,
+    type_aliases: &BTreeMap<&str, &str>,
+) -> Vec<Diagnostic> {
     let functions: BTreeMap<_, _> = input
         .functions
         .iter()
@@ -183,6 +196,11 @@ pub fn analyze_expressions(input: ExpressionAnalysis) -> Vec<Diagnostic> {
         .iter()
         .map(|form| (form.type_name.as_str(), form))
         .collect();
+    let global_variables = input
+        .variables
+        .iter()
+        .map(|variable| (variable.name.as_str(), variable))
+        .collect::<BTreeMap<_, _>>();
     let mut diagnostics = Vec::new();
 
     for message in input.messages {
@@ -211,8 +229,11 @@ pub fn analyze_expressions(input: ExpressionAnalysis) -> Vec<Diagnostic> {
         analyze_text(
             &message.value,
             &variables,
+            &global_variables,
             &functions,
             &forms,
+            enum_variants,
+            type_aliases,
             &numeric_variables,
             &mut diagnostics,
         );
@@ -248,6 +269,31 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
             | SchemaDeclaration::Group(_) => None,
         })
         .collect::<BTreeSet<_>>();
+    let mut enum_variants = schema
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            SchemaDeclaration::Enum(item) => Some((
+                item.name.value.clone(),
+                item.variants
+                    .iter()
+                    .map(|variant| NamedSpan::new(&variant.value, variant.span))
+                    .collect(),
+            )),
+            SchemaDeclaration::TypeAlias(_)
+            | SchemaDeclaration::Message(_)
+            | SchemaDeclaration::Group(_) => None,
+        })
+        .collect::<BTreeMap<_, _>>();
+    for alias in type_aliases.keys() {
+        let resolved = resolve_schema_type(alias, &type_aliases);
+        if let Some(variants) = enum_variants.get(&resolved).cloned() {
+            enum_variants.insert((*alias).to_owned(), variants);
+        }
+    }
+    for declaration in &locale.declarations {
+        collect_expression_enum_variants(declaration, &mut enum_variants);
+    }
     let enum_names = schema_enum_names
         .iter()
         .map(|name| (*name).to_owned())
@@ -284,12 +330,42 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
             &mut messages,
         );
     }
-    analyze_expressions(ExpressionAnalysis {
-        variables,
-        messages,
-        functions,
-        forms,
-    })
+    analyze_expressions_with_enums(
+        ExpressionAnalysis {
+            variables,
+            messages,
+            functions,
+            forms,
+        },
+        &enum_variants,
+        &type_aliases,
+    )
+}
+
+fn collect_expression_enum_variants(
+    declaration: &LocaleDeclaration,
+    enum_variants: &mut BTreeMap<String, Vec<NamedSpan>>,
+) {
+    match declaration {
+        LocaleDeclaration::Enum(item) => {
+            enum_variants
+                .entry(item.name.value.clone())
+                .or_insert_with(|| {
+                    item.variants
+                        .iter()
+                        .map(|variant| NamedSpan::new(&variant.value, variant.span))
+                        .collect()
+                });
+        }
+        LocaleDeclaration::Override(inner) => {
+            collect_expression_enum_variants(inner, enum_variants);
+        }
+        LocaleDeclaration::Form(_)
+        | LocaleDeclaration::Variable(_)
+        | LocaleDeclaration::Function(_)
+        | LocaleDeclaration::Message(_)
+        | LocaleDeclaration::Group(_) => {}
+    }
 }
 
 fn collect_schema_messages<'a>(
@@ -338,19 +414,35 @@ fn collect_locale_expression_inputs(
     messages: &mut Vec<MessageToAnalyze>,
 ) {
     match declaration {
-        LocaleDeclaration::Variable(variable) => variables.push(Variable::new(
-            &variable.name.value,
-            "String",
-            variable.name.span,
-        )),
-        LocaleDeclaration::Function(function) => functions.push(FunctionSignature::typed(
-            &function.name.value,
-            function
-                .parameters
-                .iter()
-                .map(|parameter| resolve_schema_type(&parameter.ty.value, type_aliases)),
-            function.span,
-        )),
+        LocaleDeclaration::Variable(variable) => {
+            variables.push(Variable::new(
+                &variable.name.value,
+                "String",
+                variable.name.span,
+            ));
+            messages.push(MessageToAnalyze::new(
+                format!("variable `{}`", variable.name.value),
+                variable.value.clone(),
+                Vec::new(),
+            ));
+        }
+        LocaleDeclaration::Function(function) => {
+            functions.push(FunctionSignature::typed(
+                &function.name.value,
+                function
+                    .parameters
+                    .iter()
+                    .map(|parameter| resolve_schema_type(&parameter.ty.value, type_aliases)),
+                function.span,
+            ));
+            let parameters = named_function_parameters(&function.parameters, type_aliases);
+            collect_function_branch_expression_inputs(
+                &format!("function `{}`", function.name.value),
+                &function.branches,
+                &parameters,
+                messages,
+            );
+        }
         LocaleDeclaration::Form(form) => {
             let mut properties = BTreeMap::new();
             for variant in &form.variants {
@@ -359,6 +451,16 @@ fn collect_locale_expression_inputs(
                     enum_names,
                     type_aliases,
                     &mut properties,
+                );
+                collect_form_entry_expression_inputs(
+                    &format!(
+                        "form `{}` variant `{}`",
+                        form.name.value, variant.name.value
+                    ),
+                    &variant.entries,
+                    &[],
+                    type_aliases,
+                    messages,
                 );
             }
             forms.push(FormSignature::new(
@@ -437,6 +539,104 @@ fn collect_locale_expression_inputs(
     }
 }
 
+fn named_function_parameters(
+    parameters: &[linguini_syntax::FunctionParameter],
+    type_aliases: &BTreeMap<&str, &str>,
+) -> Vec<Variable> {
+    parameters
+        .iter()
+        .filter_map(|parameter| {
+            parameter.name.as_ref().map(|name| {
+                Variable::new(
+                    &name.value,
+                    resolve_schema_type(&parameter.ty.value, type_aliases),
+                    name.span,
+                )
+            })
+        })
+        .collect()
+}
+
+fn collect_function_branch_expression_inputs(
+    owner: &str,
+    branches: &[linguini_syntax::FunctionBranch],
+    variables: &[Variable],
+    messages: &mut Vec<MessageToAnalyze>,
+) {
+    for branch in branches {
+        match &branch.value {
+            FunctionBranchValue::Text(text) => messages.push(MessageToAnalyze::new(
+                owner,
+                text.clone(),
+                variables.to_vec(),
+            )),
+            FunctionBranchValue::Dispatch(children) => {
+                collect_function_branch_expression_inputs(owner, children, variables, messages);
+            }
+        }
+    }
+}
+
+fn collect_form_entry_expression_inputs(
+    owner: &str,
+    entries: &[FormEntry],
+    inherited_variables: &[Variable],
+    type_aliases: &BTreeMap<&str, &str>,
+    messages: &mut Vec<MessageToAnalyze>,
+) {
+    for entry in entries {
+        match entry {
+            FormEntry::Branch(branch) => messages.push(MessageToAnalyze::new(
+                owner,
+                branch.value.clone(),
+                inherited_variables.to_vec(),
+            )),
+            FormEntry::Attribute(attribute) => {
+                let mut variables = inherited_variables.to_vec();
+                variables.extend(named_function_parameters(
+                    &attribute.parameters,
+                    type_aliases,
+                ));
+                collect_locale_value_expression_inputs(
+                    owner,
+                    &attribute.value,
+                    &variables,
+                    type_aliases,
+                    messages,
+                );
+            }
+        }
+    }
+}
+
+fn collect_locale_value_expression_inputs(
+    owner: &str,
+    value: &LocaleValue,
+    variables: &[Variable],
+    type_aliases: &BTreeMap<&str, &str>,
+    messages: &mut Vec<MessageToAnalyze>,
+) {
+    match value {
+        LocaleValue::Text(text) => messages.push(MessageToAnalyze::new(
+            owner,
+            text.clone(),
+            variables.to_vec(),
+        )),
+        LocaleValue::Map(branches) => {
+            for branch in branches {
+                messages.push(MessageToAnalyze::new(
+                    owner,
+                    branch.value.clone(),
+                    variables.to_vec(),
+                ));
+            }
+        }
+        LocaleValue::Object(entries) => {
+            collect_form_entry_expression_inputs(owner, entries, variables, type_aliases, messages)
+        }
+    }
+}
+
 fn collect_form_properties(
     entries: &[FormEntry],
     enum_names: &BTreeSet<String>,
@@ -497,11 +697,15 @@ pub fn analyze_function_patterns(file: &LocaleFile) -> Vec<Diagnostic> {
     diagnostics
 }
 
+#[allow(clippy::too_many_arguments)]
 fn analyze_text(
     text: &TextPattern,
     variables: &BTreeMap<&str, &Variable>,
+    global_variables: &BTreeMap<&str, &Variable>,
     functions: &BTreeMap<&str, &FunctionSignature>,
     forms: &BTreeMap<&str, &FormSignature>,
+    enum_variants: &BTreeMap<String, Vec<NamedSpan>>,
+    type_aliases: &BTreeMap<&str, &str>,
     numeric_variables: &[&Variable],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
@@ -510,8 +714,11 @@ fn analyze_text(
             analyze_expression(
                 &placeholder.expression,
                 variables,
+                global_variables,
                 functions,
                 forms,
+                enum_variants,
+                type_aliases,
                 numeric_variables,
                 diagnostics,
             );
@@ -519,11 +726,15 @@ fn analyze_text(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn analyze_expression(
     expression: &Expression,
     variables: &BTreeMap<&str, &Variable>,
+    global_variables: &BTreeMap<&str, &Variable>,
     functions: &BTreeMap<&str, &FunctionSignature>,
     forms: &BTreeMap<&str, &FormSignature>,
+    enum_variants: &BTreeMap<String, Vec<NamedSpan>>,
+    type_aliases: &BTreeMap<&str, &str>,
     numeric_variables: &[&Variable],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
@@ -531,25 +742,317 @@ fn analyze_expression(
         analyze_expression(
             argument,
             variables,
+            global_variables,
             functions,
             forms,
+            enum_variants,
+            type_aliases,
             numeric_variables,
             diagnostics,
         );
     }
 
-    if expression.path.is_empty() {
-        return;
-    }
-
-    match expression.kind {
+    match &expression.kind {
+        ExpressionKind::InlineFunction { inputs, branches } => {
+            analyze_inline_function(
+                inputs,
+                branches,
+                variables,
+                global_variables,
+                functions,
+                forms,
+                enum_variants,
+                type_aliases,
+                numeric_variables,
+                diagnostics,
+            );
+            analyze_formatters(expression, Some("String"), diagnostics);
+        }
         ExpressionKind::Reference => {
+            if expression.path.is_empty() {
+                return;
+            }
             analyze_path(expression, variables, forms, numeric_variables, diagnostics);
         }
         ExpressionKind::Call => {
+            if expression.path.is_empty() {
+                return;
+            }
             analyze_call(expression, variables, functions, forms, diagnostics);
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn analyze_inline_function(
+    inputs: &[InlineFunctionInput],
+    branches: &[linguini_syntax::FunctionBranch],
+    variables: &BTreeMap<&str, &Variable>,
+    global_variables: &BTreeMap<&str, &Variable>,
+    functions: &BTreeMap<&str, &FunctionSignature>,
+    forms: &BTreeMap<&str, &FormSignature>,
+    enum_variants: &BTreeMap<String, Vec<NamedSpan>>,
+    type_aliases: &BTreeMap<&str, &str>,
+    outer_numeric_variables: &[&Variable],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mut binding_variables = Vec::new();
+    let mut dispatch_types = Vec::new();
+    let mut seen_bindings = BTreeMap::new();
+    let mut first_binding = None;
+
+    for input in inputs {
+        let value = match input {
+            InlineFunctionInput::Binding { value, .. }
+            | InlineFunctionInput::Selector { value, .. } => value,
+        };
+        analyze_expression(
+            value,
+            variables,
+            global_variables,
+            functions,
+            forms,
+            enum_variants,
+            type_aliases,
+            outer_numeric_variables,
+            diagnostics,
+        );
+
+        match input {
+            InlineFunctionInput::Selector { value, span } => {
+                if let Some(binding_span) = first_binding {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "inline fn selectors must precede named payload bindings",
+                            *span,
+                        )
+                        .with_code("linguini.parameter_order")
+                        .with_related(binding_span, "first named payload binding is here"),
+                    );
+                }
+
+                let selector_type = expression_type(value, variables, forms)
+                    .map(|ty| resolve_schema_type(&ty, type_aliases));
+                let valid_type = selector_type.as_ref().filter(|ty| {
+                    ty.as_str() == PLURAL_TYPE_NAME || enum_variants.contains_key(ty.as_str())
+                });
+                if let Some(selector_type) = selector_type.as_deref() {
+                    if valid_type.is_none() {
+                        let guidance = if matches!(selector_type, "Number" | "Decimal") {
+                            "; wrap numeric values in `Plural(...)`"
+                        } else {
+                            ""
+                        };
+                        diagnostics.push(
+                            Diagnostic::error(
+                                format!(
+                                    "inline fn selector must resolve to an enum or `Plural`, got `{selector_type}`{guidance}"
+                                ),
+                                value.span,
+                            )
+                            .with_code("linguini.invalid_dispatch_type"),
+                        );
+                    }
+                }
+                dispatch_types.push(valid_type.cloned());
+            }
+            InlineFunctionInput::Binding { name, value, span } => {
+                first_binding.get_or_insert(*span);
+                if let Some(previous) = seen_bindings.insert(name.value.as_str(), name.span) {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            format!("duplicate inline fn binding `{}`", name.value),
+                            name.span,
+                        )
+                        .with_code("linguini.duplicate_parameter")
+                        .with_related(previous, "first binding is here"),
+                    );
+                }
+                let ty = expression_type(value, variables, forms)
+                    .map(|ty| resolve_schema_type(&ty, type_aliases))
+                    .unwrap_or_else(|| "String".to_owned());
+                binding_variables.push(Variable::new(&name.value, ty, name.span));
+            }
+        }
+    }
+
+    let mut branch_variables = variables.clone();
+    for binding in &binding_variables {
+        branch_variables.insert(binding.name.as_str(), binding);
+    }
+    let branch_variable_refs = branch_variables.values().copied().collect::<Vec<_>>();
+    let branch_numeric_variables = numeric_variables(&branch_variable_refs);
+    analyze_inline_branch_level(
+        branches,
+        &dispatch_types,
+        0,
+        &branch_variables,
+        global_variables,
+        functions,
+        forms,
+        enum_variants,
+        type_aliases,
+        &branch_numeric_variables,
+        diagnostics,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn analyze_inline_branch_level(
+    branches: &[linguini_syntax::FunctionBranch],
+    dispatch_types: &[Option<String>],
+    depth: usize,
+    variables: &BTreeMap<&str, &Variable>,
+    global_variables: &BTreeMap<&str, &Variable>,
+    functions: &BTreeMap<&str, &FunctionSignature>,
+    forms: &BTreeMap<&str, &FormSignature>,
+    enum_variants: &BTreeMap<String, Vec<NamedSpan>>,
+    type_aliases: &BTreeMap<&str, &str>,
+    numeric_variables: &[&Variable],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    validate_inline_selector_coverage(
+        branches,
+        dispatch_types.get(depth).and_then(Option::as_deref),
+        enum_variants,
+        diagnostics,
+    );
+    let dispatch_count = dispatch_types.len();
+    for branch in branches {
+        match &branch.value {
+            FunctionBranchValue::Text(text) => {
+                if dispatch_count == 0 && branch.key.value != "_" {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            "inline fn without dispatch parameters only accepts a `_` branch",
+                            branch.key.span,
+                        )
+                        .with_code("linguini.inline_fn_depth"),
+                    );
+                } else if depth + 1 < dispatch_count && branch.key.value != "_" {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            format!(
+                                "inline fn branch pattern expects {dispatch_count} dispatch value(s), got {}",
+                                depth + 1
+                            ),
+                            branch.span,
+                        )
+                        .with_code("linguini.inline_fn_depth"),
+                    );
+                }
+                analyze_text(
+                    text,
+                    variables,
+                    global_variables,
+                    functions,
+                    forms,
+                    enum_variants,
+                    type_aliases,
+                    numeric_variables,
+                    diagnostics,
+                );
+            }
+            FunctionBranchValue::Dispatch(children) => {
+                if depth + 1 >= dispatch_count {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            format!(
+                                "inline fn branch pattern exceeds its {dispatch_count} dispatch value(s)"
+                            ),
+                            branch.span,
+                        )
+                        .with_code("linguini.inline_fn_depth"),
+                    );
+                } else {
+                    analyze_inline_branch_level(
+                        children,
+                        dispatch_types,
+                        depth + 1,
+                        variables,
+                        global_variables,
+                        functions,
+                        forms,
+                        enum_variants,
+                        type_aliases,
+                        numeric_variables,
+                        diagnostics,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn validate_inline_selector_coverage(
+    branches: &[linguini_syntax::FunctionBranch],
+    selector_type: Option<&str>,
+    enum_variants: &BTreeMap<String, Vec<NamedSpan>>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let branch_spans = branches
+        .iter()
+        .map(|branch| NamedSpan::new(&branch.key.value, branch.span))
+        .collect::<Vec<_>>();
+    let span = branches
+        .first()
+        .map_or_else(|| Span::new(0, 0), |branch| branch.span);
+    let Some(selector_type) = selector_type else {
+        diagnostics.extend(validate_branch_sequence(&branch_spans));
+        return;
+    };
+    let keys = branches
+        .iter()
+        .map(|branch| branch.key.value.as_str())
+        .collect::<BTreeSet<_>>();
+    let has_wildcard = keys.contains("_");
+
+    if selector_type == PLURAL_TYPE_NAME {
+        let known = ["zero", "one", "two", "few", "many", "other", "_"];
+        for branch in branches {
+            if !known.contains(&branch.key.value.as_str()) {
+                diagnostics.push(
+                    Diagnostic::error(
+                        format!(
+                            "inline fn uses unknown plural category `{}`",
+                            branch.key.value
+                        ),
+                        branch.key.span,
+                    )
+                    .with_code("linguini.unknown_plural_category"),
+                );
+            }
+        }
+        diagnostics.extend(require_other_branch("inline fn", &branch_spans, span));
+        if has_wildcard
+            && known[..known.len() - 1]
+                .iter()
+                .all(|category| keys.contains(category))
+        {
+            if let Some(wildcard) = branches.iter().find(|branch| branch.key.value == "_") {
+                diagnostics.push(
+                    Diagnostic::warning(
+                        "inline fn has a redundant wildcard after covering every `Plural` branch",
+                        wildcard.span,
+                    )
+                    .as_lint("redundant_wildcard"),
+                );
+            }
+        }
+        return;
+    }
+
+    let Some(variants) = enum_variants.get(selector_type) else {
+        diagnostics.extend(validate_branch_sequence(&branch_spans));
+        return;
+    };
+    diagnostics.extend(analyze_branch_coverage(BranchCoverage {
+        subject: "inline fn",
+        enum_name: selector_type,
+        variants: variants.clone(),
+        branches: branch_spans,
+        span,
+    }));
 }
 
 fn analyze_path(
@@ -661,11 +1164,11 @@ fn analyze_call(
 ) {
     if expression.path.len() == 1 {
         let name = &expression.path[0];
-        if name.value == "plural" {
+        if is_plural_intrinsic(&name.value) {
             if expression.arguments.len() != 1 {
                 diagnostics.push(Diagnostic::error(
                     format!(
-                        "function `plural` expects 1 argument(s), got {}",
+                        "intrinsic `{PLURAL_TYPE_NAME}` expects 1 argument(s), got {}",
                         expression.arguments.len()
                     ),
                     expression.span,
@@ -680,7 +1183,7 @@ fn analyze_call(
                     diagnostics.push(
                         Diagnostic::error(
                             format!(
-                                "function `plural` expects Number or Decimal, got `{}`",
+                                "intrinsic `{PLURAL_TYPE_NAME}` expects Number or Decimal, got `{}`",
                                 argument_type.unwrap_or_default()
                             ),
                             argument.span,
@@ -859,8 +1362,14 @@ fn expression_type(
     variables: &BTreeMap<&str, &Variable>,
     forms: &BTreeMap<&str, &FormSignature>,
 ) -> Option<String> {
+    if matches!(&expression.kind, ExpressionKind::InlineFunction { .. }) {
+        return Some("String".to_owned());
+    }
     let root = expression.path.first()?;
     if expression.kind == ExpressionKind::Call {
+        if expression.path.len() == 1 && is_plural_intrinsic(&root.value) {
+            return Some(PLURAL_TYPE_NAME.to_owned());
+        }
         return Some("String".to_owned());
     }
     let variable = variables.get(root.value.as_str())?;

@@ -406,7 +406,7 @@ fn build_generates_typescript_project_files_without_cldr_cache() {
     .expect("read generated shop locale");
     assert!(generated_shop.contains("export const shop = {"));
     assert!(generated_shop.contains("  delivery: {"));
-    assert!(generated_shop.contains("    delivery: (count: number) =>"));
+    assert!(generated_shop.contains("    delivery: (count: number | bigint | string) =>"));
     assert!(project
         .path()
         .join("src/generated/linguini/.linguini-generated-manifest")

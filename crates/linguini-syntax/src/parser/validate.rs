@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 
 use crate::{
     Annotation, EnumDeclaration, Expression, ExpressionKind, FormEntry, FunctionBranch,
-    FunctionBranchValue, FunctionDeclaration, LocaleDeclaration, LocaleFile, LocaleValue,
-    MapBranch, MessageGroup, MessageImplementationGroup, MessageSignature, Name, SchemaDeclaration,
-    SchemaFile, Span, TextPart, TextPattern,
+    FunctionBranchValue, FunctionDeclaration, InlineFunctionInput, LocaleDeclaration, LocaleFile,
+    LocaleValue, MapBranch, MessageGroup, MessageImplementationGroup, MessageSignature, Name,
+    SchemaDeclaration, SchemaFile, Span, TextPart, TextPattern,
 };
 
 use super::ParseError;
@@ -151,13 +151,47 @@ impl Validator {
 
     fn function_parameters(&mut self, function_parameters: &[crate::FunctionParameter]) {
         let mut parameters = BTreeMap::new();
+        let mut saw_named = false;
         for parameter in function_parameters {
             self.pascal_name(&parameter.ty, "parameter type");
             let identity = parameter.name.as_ref().unwrap_or(&parameter.ty);
             if parameter.name.is_some() {
                 self.lower_name(identity, "function parameter");
+                saw_named = true;
+            } else if saw_named {
+                self.error(
+                    format!(
+                        "unnamed dispatch parameter `{}` must precede named payload parameters",
+                        parameter.ty.value
+                    ),
+                    parameter.span,
+                );
             }
             self.unique_name(&mut parameters, identity, "function parameter");
+        }
+    }
+
+    fn inline_function_inputs(&mut self, inputs: &[InlineFunctionInput]) {
+        let mut bindings = BTreeMap::new();
+        let mut saw_binding = false;
+        for input in inputs {
+            match input {
+                InlineFunctionInput::Selector { value, span } => {
+                    if saw_binding {
+                        self.error(
+                            "inline fn selector inputs must precede named bindings",
+                            *span,
+                        );
+                    }
+                    self.expression(value);
+                }
+                InlineFunctionInput::Binding { name, value, .. } => {
+                    saw_binding = true;
+                    self.lower_name(name, "inline fn binding");
+                    self.unique_name(&mut bindings, name, "inline fn binding");
+                    self.expression(value);
+                }
+            }
         }
     }
 
@@ -240,25 +274,53 @@ impl Validator {
     }
 
     fn expression(&mut self, expression: &Expression) {
-        if expression.path.is_empty() {
-            self.error("expression path must not be empty", expression.span);
-        } else {
-            for name in &expression.path {
-                self.not_reserved(name, "expression segment");
+        match &expression.kind {
+            ExpressionKind::InlineFunction { inputs, branches } => {
+                if !expression.path.is_empty() {
+                    self.error(
+                        "inline fn expression cannot contain a path",
+                        expression.span,
+                    );
+                }
+                if !expression.arguments.is_empty() {
+                    self.error(
+                        "inline fn expression cannot contain call arguments",
+                        expression.span,
+                    );
+                }
+                if branches.is_empty() {
+                    self.error(
+                        "inline fn expression requires at least one branch",
+                        expression.span,
+                    );
+                }
+                self.inline_function_inputs(inputs);
+                self.function_branches(branches);
+            }
+            ExpressionKind::Reference | ExpressionKind::Call => {
+                if expression.path.is_empty() {
+                    self.error("expression path must not be empty", expression.span);
+                } else {
+                    for name in &expression.path {
+                        self.not_reserved(name, "expression segment");
+                    }
+                }
+                if expression.path.len() > 2 {
+                    self.error(
+                        "expression paths support at most one property segment",
+                        expression.span,
+                    );
+                }
             }
         }
-        if expression.path.len() > 2 {
-            self.error(
-                "expression paths support at most one property segment",
-                expression.span,
-            );
-        }
-        match expression.kind {
+        match &expression.kind {
             ExpressionKind::Reference if !expression.arguments.is_empty() => self.error(
                 "reference expression cannot contain call arguments",
                 expression.span,
             ),
-            ExpressionKind::Reference | ExpressionKind::Call => {}
+            ExpressionKind::Reference
+            | ExpressionKind::Call
+            | ExpressionKind::InlineFunction { .. } => {}
         }
         for argument in &expression.arguments {
             self.expression(argument);

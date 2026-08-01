@@ -88,7 +88,9 @@ pub fn path_expression(path: &[String]) -> String {
 }
 
 pub fn property_key(name: &str) -> String {
-    if is_safe_identifier(name) {
+    if name == "__proto__" {
+        format!("[{}]", string_literal(name))
+    } else if is_safe_identifier(name) {
         name.to_owned()
     } else {
         string_literal(name)
@@ -132,7 +134,7 @@ pub fn ts_type(name: &str) -> String {
     match name {
         "String" => "string".to_owned(),
         "Date" => "Date | number | string".to_owned(),
-        "Number" | "Decimal" => "number".to_owned(),
+        "Number" | "Decimal" => "number | bigint | string".to_owned(),
         "Boolean" => "boolean".to_owned(),
         other => safe_identifier(other),
     }
@@ -345,6 +347,7 @@ mod tests {
         assert_eq!(property_key("with-dash"), "\"with-dash\"");
         assert_eq!(property_key("日本語"), "\"日本語\"");
         assert_eq!(property_key("line\nbreak"), "\"line\\nbreak\"");
+        assert_eq!(property_key("__proto__"), "[\"__proto__\"]");
     }
 
     #[test]

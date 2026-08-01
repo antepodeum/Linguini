@@ -253,8 +253,33 @@ pub struct Expression {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InlineFunctionInput {
+    /// A trailing payload binding. The expression is evaluated once and made
+    /// available to branch text under `name`, but does not add a dispatch
+    /// level.
+    Binding {
+        name: Name,
+        value: Expression,
+        span: Span,
+    },
+    /// An unnamed selector expression. Selectors define anonymous-function
+    /// dispatch order from left to right.
+    Selector { value: Expression, span: Span },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpressionKind {
     Reference,
     Call,
+    /// An immediately evaluated anonymous dispatch.
+    ///
+    /// `inputs` contains selector expressions followed by optional named
+    /// payload bindings. Branch grammar matches a named locale function.
+    /// `Expression::path` and `Expression::arguments` are empty for this
+    /// variant.
+    InlineFunction {
+        inputs: Vec<InlineFunctionInput>,
+        branches: Vec<FunctionBranch>,
+    },
 }

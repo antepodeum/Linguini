@@ -89,6 +89,13 @@ fn collect_branch_coverage_diagnostics(
     match declaration {
         LocaleDeclaration::Form(form) => validate_impl_variants(form, enum_variants, diagnostics),
         LocaleDeclaration::Function(function) => {
+            if function.kind == FunctionKind::Function {
+                validate_named_function_parameter_order(
+                    &function.name.value,
+                    &function.parameters,
+                    diagnostics,
+                );
+            }
             let dispatch_types = function
                 .parameters
                 .iter()
@@ -154,6 +161,31 @@ fn collect_branch_coverage_diagnostics(
         | LocaleDeclaration::Variable(_)
         | LocaleDeclaration::Message(_)
         | LocaleDeclaration::Group(_) => {}
+    }
+}
+
+fn validate_named_function_parameter_order(
+    function_name: &str,
+    parameters: &[linguini_syntax::FunctionParameter],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mut first_payload = None;
+    for parameter in parameters {
+        if parameter.name.is_some() {
+            first_payload.get_or_insert(parameter.span);
+        } else if let Some(payload_span) = first_payload {
+            diagnostics.push(
+                Diagnostic::error(
+                    format!(
+                        "function `{function_name}` must place unnamed selectors before named payload parameters"
+                    ),
+                    parameter.span,
+                )
+                .with_code("linguini.parameter_order")
+                .with_related(payload_span, "first named payload parameter is here"),
+            );
+            return;
+        }
     }
 }
 

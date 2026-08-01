@@ -3,47 +3,123 @@ import type { Fruit, Size, Money, ShortDate } from "../shared";
 import { selectBranch } from "../shared";
 
 
-function pluralRu(value: number | string): string {
+function pluralRu(value: number | bigint | string): string {
+  if (value === "zero" || value === "one" || value === "two" || value === "few" || value === "many" || value === "other") return value;
   const operands = pluralOperands(value);
-  if (((operands.v === 0) && ((operands.i % 10) === 1) && !((operands.i % 100) === 11))) return "one";
-  if (((operands.v === 0) && (((operands.i % 10) >= 2 && (operands.i % 10) <= 4)) && !(((operands.i % 100) >= 12 && (operands.i % 100) <= 14)))) return "few";
-  if (((operands.v === 0) && ((operands.i % 10) === 0)) || ((operands.v === 0) && (((operands.i % 10) >= 5 && (operands.i % 10) <= 9))) || ((operands.v === 0) && (((operands.i % 100) >= 11 && (operands.i % 100) <= 14)))) return "many";
+  if ((pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 10n, false, [[1n, 1n]]) && !pluralOperandMatches(operands.i, 100n, false, [[11n, 11n]]))) return "one";
+  if ((pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 10n, false, [[2n, 4n]]) && !pluralOperandMatches(operands.i, 100n, false, [[12n, 14n]]))) return "few";
+  if ((pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 10n, false, [[0n, 0n]])) || (pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 10n, false, [[5n, 9n]])) || (pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 100n, false, [[11n, 14n]]))) return "many";
   return "other";
 }
 
-function pluralOperands(value: number | string) {
-  const source = String(value).replace(/^[+-]/, "");
-  const [integer, fraction = ""] = source.split(".");
+type PluralOperand = { integer: bigint; hasFraction: boolean };
+const MAX_PLURAL_DECIMAL_DIGITS = 8192;
+
+function pluralOperands(value: number | bigint | string) {
+  if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
+  const source = String(value).trim();
+  // CLDR c/e notation is a non-negative compact-decimal exponent. It is not
+  // JavaScript's signed scientific notation, even though `e` is its legacy
+  // spelling. Native numbers are the exception: JavaScript may stringify a
+  // finite value with a signed e exponent, which describes only its value and
+  // must not set the CLDR c/e operands.
+  const match = typeof value === "number"
+    ? /^([+-]?)(\d+)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(source)
+    : /^([+-]?)(\d+)(?:\.(\d*))?(?:[cCeE](\d+))?$/.exec(source);
+  if (!match) throwInvalidPluralNumber();
+
+  const whole = match[2];
+  const sourceFraction = match[3] ?? "";
+  const exponent = Number(match[4] ?? "0");
+  if (
+    !Number.isSafeInteger(exponent) ||
+    Math.abs(exponent) > MAX_PLURAL_DECIMAL_DIGITS ||
+    (match[4]?.length ?? 0) > MAX_PLURAL_DECIMAL_DIGITS ||
+    whole.length + sourceFraction.length > MAX_PLURAL_DECIMAL_DIGITS
+  ) {
+    throwInvalidPluralNumber();
+  }
+
+  const digits = `${whole}${sourceFraction}` || "0";
+  const decimalPosition = whole.length + exponent;
+  const expandedLength = decimalPosition <= 0
+    ? -decimalPosition + digits.length
+    : Math.max(decimalPosition, digits.length);
+  if (expandedLength > MAX_PLURAL_DECIMAL_DIGITS) throwInvalidPluralNumber();
+
+  let integer: string;
+  let fraction: string;
+  if (decimalPosition <= 0) {
+    integer = "0";
+    fraction = `${"0".repeat(-decimalPosition)}${digits}`;
+  } else if (decimalPosition >= digits.length) {
+    integer = `${digits}${"0".repeat(decimalPosition - digits.length)}`;
+    fraction = "";
+  } else {
+    integer = digits.slice(0, decimalPosition);
+    fraction = digits.slice(decimalPosition);
+  }
+  integer = integer.replace(/^0+(?=\d)/, "");
   const trimmedFraction = fraction.replace(/0+$/, "");
+  const compactExponent = typeof value === "string" ? match[4] ?? "0" : "0";
+  const operand = (digits: string, hasFraction = false): PluralOperand => ({
+    integer: BigInt(digits || "0"),
+    hasFraction,
+  });
 
   return {
-    n: Number(source),
-    i: Number(integer),
-    v: fraction.length,
-    w: trimmedFraction.length,
-    f: fraction === "" ? 0 : Number(fraction),
-    t: trimmedFraction === "" ? 0 : Number(trimmedFraction),
-    c: 0,
-    e: 0,
+    n: operand(integer, /[1-9]/.test(fraction)),
+    i: operand(integer),
+    v: operand(String(fraction.length)),
+    w: operand(String(trimmedFraction.length)),
+    f: operand(fraction),
+    t: operand(trimmedFraction),
+    c: operand(compactExponent),
+    e: operand(compactExponent),
   };
 }
 
+function pluralOperandMatches(
+  value: PluralOperand,
+  modulo: bigint | undefined,
+  allowFraction: boolean,
+  ranges: readonly (readonly [bigint, bigint])[],
+): boolean {
+  const integer = modulo === undefined || modulo === 0n
+    ? value.integer
+    : value.integer % modulo;
+  return ranges.some(([start, end]) => {
+    if (!allowFraction) {
+      return !value.hasFraction && integer >= start && integer <= end;
+    }
+    return integer >= start &&
+      (integer < end || (integer === end && !value.hasFraction));
+  });
+}
+
+function throwInvalidPluralNumber(): never {
+  throw new RangeError("Linguini: invalid plural numeric value");
+}
+
+type GeneratedNumeric = number | bigint | string;
 type GeneratedCurrencyFormatterOptions = { code?: string; accounting?: "true" | "false" };
 type GeneratedDateFormatterOptions = { style?: "full" | "long" | "medium" | "short" };
 
-function formatNumber(value: number | string): string {
-  return formatGeneratedNumber(Number(value), "", "", undefined, undefined, 1, 0, 3, 3, undefined, ",", " ");
+function formatNumber(value: GeneratedNumeric): string {
+  return formatGeneratedNumber(value, "", "", undefined, undefined, 1, 0, 3, 3, undefined, ",", " ");
 }
 
 function formatCurrency(
-  value: number | string,
+  value: GeneratedNumeric,
+  fractionDigits: number,
+  roundingIncrement: number,
   options: GeneratedCurrencyFormatterOptions = {},
 ): string {
   const symbol = currencySymbol(options.code ?? "USD");
   if (options.accounting === "true") {
-    return formatGeneratedNumber(Number(value), "", " " + symbol + "", undefined, undefined, 1, 2, 2, 3, undefined, ",", " ");
+    return formatGeneratedNumber(value, "", " " + symbol + "", undefined, undefined, 1, 2, 2, 3, undefined, ",", " ", fractionDigits, fractionDigits, roundingIncrement);
   }
-  return formatGeneratedNumber(Number(value), "", " " + symbol + "", undefined, undefined, 1, 2, 2, 3, undefined, ",", " ");
+  return formatGeneratedNumber(value, "", " " + symbol + "", undefined, undefined, 1, 2, 2, 3, undefined, ",", " ", fractionDigits, fractionDigits, roundingIncrement);
 }
 
 function currencySymbol(currency: string): string {
@@ -69,8 +145,11 @@ function formatDate(
   }
 }
 
+type GeneratedDecimal = { negative: boolean; integer: string; fraction: string };
+const MAX_GENERATED_DECIMAL_DIGITS = 8192;
+
 function formatGeneratedNumber(
-  value: number,
+  value: GeneratedNumeric,
   prefix: string,
   suffix: string,
   negativePrefix: string | undefined,
@@ -82,24 +161,112 @@ function formatGeneratedNumber(
   secondaryGroupSize: number | undefined,
   decimalSymbol: string,
   groupSymbol: string,
+  minFractionDigitsOverride?: number,
+  maxFractionDigitsOverride?: number,
+  roundingIncrement = 0,
 ): string {
-  if (!Number.isFinite(value)) return String(value);
-  const negative = value < 0 || Object.is(value, -0);
-  const rounded = roundToFractionDigits(Math.abs(value), maxFractionDigits);
-  let [integer, fraction = ""] = rounded.toFixed(maxFractionDigits).split(".");
-  integer = integer.padStart(minIntegerDigits, "0");
-  fraction = trimOptionalFractionDigits(fraction, minFractionDigits);
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const effectiveMinFractionDigits = minFractionDigitsOverride ?? minFractionDigits;
+  const effectiveMaxFractionDigits = maxFractionDigitsOverride ?? maxFractionDigits;
+  const rounded = roundGeneratedDecimal(decimal, effectiveMaxFractionDigits, roundingIncrement);
+  let integer = rounded.integer.padStart(minIntegerDigits, "0");
+  const fraction = trimOptionalFractionDigits(
+    rounded.fraction,
+    effectiveMinFractionDigits,
+  );
 
-  const grouped = groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol);
-  const formatted = fraction ? `${grouped}${decimalSymbol}${fraction}` : grouped;
-  if (negative) return `${negativePrefix ?? `-${prefix}`}${formatted}${negativeSuffix ?? suffix}`;
+  integer = groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol);
+  const formatted = fraction ? `${integer}${decimalSymbol}${fraction}` : integer;
+  if (decimal.negative) {
+    return `${negativePrefix ?? `-${prefix}`}${formatted}${negativeSuffix ?? suffix}`;
+  }
   return `${prefix}${formatted}${suffix}`;
 }
 
-function roundToFractionDigits(value: number, digits: number): number {
-  if (digits <= 0) return Math.round(value);
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
+function parseGeneratedDecimal(value: GeneratedNumeric): GeneratedDecimal | undefined {
+  if (typeof value === "number" && !Number.isFinite(value)) return undefined;
+  const negativeZero = typeof value === "number" && Object.is(value, -0);
+  const source = String(value);
+  const match = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(source);
+  if (!match || (match[2] === "" && (match[3] ?? "") === "")) throwInvalidNumber();
+
+  const whole = match[2];
+  const fractional = match[3] ?? "";
+  const exponent = Number(match[4] ?? "0");
+  if (
+    !Number.isSafeInteger(exponent) ||
+    Math.abs(exponent) > MAX_GENERATED_DECIMAL_DIGITS ||
+    (match[4]?.length ?? 0) > MAX_GENERATED_DECIMAL_DIGITS ||
+    whole.length + fractional.length > MAX_GENERATED_DECIMAL_DIGITS
+  ) {
+    throwInvalidNumber();
+  }
+
+  const digits = `${whole}${fractional}` || "0";
+  const decimalPosition = whole.length + exponent;
+  const expandedLength = decimalPosition <= 0
+    ? -decimalPosition + digits.length
+    : Math.max(decimalPosition, digits.length);
+  if (expandedLength > MAX_GENERATED_DECIMAL_DIGITS) throwInvalidNumber();
+
+  let integer: string;
+  let fraction: string;
+  if (decimalPosition <= 0) {
+    integer = "0";
+    fraction = `${"0".repeat(-decimalPosition)}${digits}`;
+  } else if (decimalPosition >= digits.length) {
+    integer = `${digits}${"0".repeat(decimalPosition - digits.length)}`;
+    fraction = "";
+  } else {
+    integer = digits.slice(0, decimalPosition);
+    fraction = digits.slice(decimalPosition);
+  }
+  integer = integer.replace(/^0+(?=\d)/, "");
+  fraction = fraction.replace(/0+$/, "");
+  return {
+    negative: match[1] === "-" || negativeZero,
+    integer,
+    fraction,
+  };
+}
+
+function roundGeneratedDecimal(
+  decimal: GeneratedDecimal,
+  fractionDigits: number,
+  roundingIncrement: number,
+): { integer: string; fraction: string } {
+  if (
+    !Number.isSafeInteger(fractionDigits) ||
+    fractionDigits < 0 ||
+    fractionDigits > MAX_GENERATED_DECIMAL_DIGITS ||
+    !Number.isSafeInteger(roundingIncrement) ||
+    roundingIncrement < 0
+  ) {
+    throwInvalidNumber();
+  }
+
+  const keptFraction = decimal.fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0");
+  const discarded = decimal.fraction.slice(fractionDigits);
+  const scaled = BigInt(`${decimal.integer}${keptFraction}` || "0");
+  const quantum = BigInt(roundingIncrement || 1);
+  const remainder = scaled % quantum;
+  let roundUp: boolean;
+  if (discarded === "") {
+    roundUp = remainder * 2n >= quantum;
+  } else {
+    const denominator = 10n ** BigInt(discarded.length);
+    const exactRemainder = remainder * denominator + BigInt(discarded);
+    roundUp = exactRemainder * 2n >= quantum * denominator;
+  }
+  const rounded = (scaled / quantum + (roundUp ? 1n : 0n)) * quantum;
+  const digits = rounded.toString().padStart(fractionDigits + 1, "0");
+  return fractionDigits === 0
+    ? { integer: digits, fraction: "" }
+    : {
+        integer: digits.slice(0, -fractionDigits),
+        fraction: digits.slice(-fractionDigits),
+      };
 }
 
 function trimOptionalFractionDigits(fraction: string, minDigits: number): string {
@@ -126,6 +293,10 @@ function groupIntegerDigits(
     groupSize = secondaryGroupSize ?? primaryGroupSize;
   }
   return groups.join(groupSymbol);
+}
+
+function throwInvalidNumber(): never {
+  throw new RangeError("Linguini: invalid numeric value");
 }
 
 function padNumber(value: number, length: number): string {
@@ -180,40 +351,42 @@ function throwInvalidDate(): never {
 
 export type { Fruit, Size, Money, ShortDate } from "../shared";
 
+type Gender = "male" | "female" | "neuter" | "other";
+
 export { email_input };
 
 const cart_label = "В корзине";
 
 const __lgl_form_4672756974 = {
-  apple: { Gender: "neuter", emoji: "🍎", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "яблоко", few: "яблока", _: "яблок" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "яблока", _: "яблок" }), display: { short: "ябл.", long: "спелое яблоко" } },
-  pear: { Gender: "female", emoji: "🍐", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "груша", few: "груши", _: "груш" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "груши", _: "груш" }) },
-  orange: { Gender: "male", emoji: "🍊", nom: (value: number | string) => selectBranch(pluralRu(value), { one: "апельсин", few: "апельсина", _: "апельсинов" }), gen: (value: number | string) => selectBranch(pluralRu(value), { one: "апельсина", _: "апельсинов" }) },
+  apple: { Gender: "neuter", emoji: "🍎", nom: (value: number | bigint | string) => selectBranch(pluralRu(value), { one: "яблоко", few: "яблока", _: "яблок" }), gen: (value: number | bigint | string) => selectBranch(pluralRu(value), { one: "яблока", _: "яблок" }), display: { short: "ябл.", long: "спелое яблоко" } },
+  pear: { Gender: "female", emoji: "🍐", nom: (value: number | bigint | string) => selectBranch(pluralRu(value), { one: "груша", few: "груши", _: "груш" }), gen: (value: number | bigint | string) => selectBranch(pluralRu(value), { one: "груши", _: "груш" }) },
+  orange: { Gender: "male", emoji: "🍊", nom: (value: number | bigint | string) => selectBranch(pluralRu(value), { one: "апельсин", few: "апельсина", _: "апельсинов" }), gen: (value: number | bigint | string) => selectBranch(pluralRu(value), { one: "апельсина", _: "апельсинов" }) },
 } as const;
 
-function Delivered(p0: string | number, p1: string | number): string {
-  return selectBranch(pluralRu(p0), { one: selectBranch(String(p1), { male: "Доставлен", female: "Доставлена", neuter: "Доставлено", _: "Доставлено" }), _: "Доставлены" });
+function Delivered(__lgl_p0: number | bigint | string, __lgl_p1: Gender): string {
+  return selectBranch(pluralRu(__lgl_p0), { one: (): string => selectBranch(String(__lgl_p1), { male: (): string => "Доставлен", female: (): string => "Доставлена", neuter: (): string => "Доставлено", _: (): string => "Доставлено" })(), _: (): string => "Доставлены" })();
 }
 
-function SizeAdj(p0: string | number, p1: string | number, p2: string | number): string {
-  return selectBranch(String(p0), { small: selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { male: "маленький", female: "маленькая", neuter: "маленькое", _: "маленький" }), _: "маленьких" }), big: selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { male: "большой", female: "большая", neuter: "большое", _: "большой" }), _: "больших" }), _: "обычные" });
+function SizeAdj(__lgl_p0: Size, __lgl_p1: number | bigint | string, __lgl_p2: Gender): string {
+  return selectBranch(String(__lgl_p0), { small: (): string => selectBranch(pluralRu(__lgl_p1), { one: (): string => selectBranch(String(__lgl_p2), { male: (): string => "маленький", female: (): string => "маленькая", neuter: (): string => "маленькое", _: (): string => "маленький" })(), _: (): string => "маленьких" })(), big: (): string => selectBranch(pluralRu(__lgl_p1), { one: (): string => selectBranch(String(__lgl_p2), { male: (): string => "большой", female: (): string => "большая", neuter: (): string => "большое", _: (): string => "большой" })(), _: (): string => "больших" })(), _: (): string => "обычные" })();
 }
 
-function DeliveryNote(item: string | number, p1: string | number, p2: string | number): string {
-  return selectBranch(pluralRu(p1), { one: selectBranch(String(p2), { female: "Доставлена " + String(item), _: "Доставлен " + String(item) }), _: "Доставлены " + String(item) });
+function DeliveryNote(__lgl_p0: number | bigint | string, __lgl_p1: Gender, item: string): string {
+  return selectBranch(pluralRu(__lgl_p0), { one: (): string => selectBranch(String(__lgl_p1), { female: (): string => "Доставлена " + String(item), _: (): string => "Доставлен " + String(item) })(), _: (): string => "Доставлены " + String(item) })();
 }
 
 /** Displayed on the product delivery confirmation card. */
-export function delivery(fruit: Fruit, size: Size, count: number): string {
+export function delivery(fruit: Fruit, size: Size, count: number | bigint | string): string {
   return String(Delivered(count, __lgl_form_4672756974[fruit].Gender)) + " " + String(SizeAdj(size, count, __lgl_form_4672756974[fruit].Gender)) + " " + String(__lgl_form_4672756974[fruit].nom(count));
 }
 
 /** Shown near cart item count. */
-export function counted(count: number, fruit: Fruit): string {
+export function counted(count: number | bigint | string, fruit: Fruit): string {
   return String(cart_label) + " " + String(formatNumber(count)) + " " + String(__lgl_form_4672756974[fruit].nom(count));
 }
 
 export function price(amount: Money, date: ShortDate): string {
-  return "Цена " + String(formatCurrency(amount, { code: "RUB" })) + " на " + String(formatDate(date, { style: "short" }));
+  return "Цена " + String(formatCurrency(amount, 2, 0, { code: "RUB" })) + " на " + String(formatDate(date, { style: "short" }));
 }
 
 const lgl = {

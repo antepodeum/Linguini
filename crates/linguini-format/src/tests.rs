@@ -84,6 +84,74 @@ fn preserves_branch_arm_placeholders_without_inner_spaces_or_punctuation_gaps() 
 }
 
 #[test]
+fn formats_inline_function_branches_idempotently() {
+    let source =
+        "greeting = Hello {fn(gender,name:name) {\nmasculine=>Dear {name}\n_=>Friend {name}\n}}!\n";
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+    let second = format_source(SourceKind::Locale, &formatted, &FormatOptions::default())
+        .expect("format again");
+
+    assert_eq!(formatted, second);
+    assert!(formatted.contains("masculine => Dear {name}"));
+    assert!(formatted.contains("_         => Friend {name}"));
+    parse_locale(&formatted).expect("formatted inline fn parses");
+}
+
+#[test]
+fn formats_nested_inline_inputs_and_quoted_delimiters_idempotently() {
+    let source = "greeting={fn(gender,Plural(count),name:GreetingName(tone,count)){\nmasculine{\none=>\"Dear, } \"{name}\nother=>Dear {name}\n}\n_{\n_=>Friend {name}\n}\n}}\n";
+    let before = message_semantics(source);
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+    let second = format_source(SourceKind::Locale, &formatted, &FormatOptions::default())
+        .expect("format again");
+
+    assert_eq!(formatted, second);
+    assert!(formatted.contains("fn(gender, Plural(count), name: GreetingName(tone, count))"));
+    assert!(formatted.contains("\"Dear, } \""));
+    assert!(formatted.contains("{name}"));
+    assert_eq!(message_semantics(&formatted), before);
+    parse_locale(&formatted).expect("formatted nested inline fn parses");
+}
+
+#[test]
+fn formats_inline_function_signature_like_named_function_idempotently() {
+    let source = "fn Greeting(Tone,Plural,name:String){\nformal{\none=>\"Dear, } \"{name}\nother=>Dear {name}\n}\n_{\n_=>Friend\n}\n}\ngreeting={fn(tone,Plural(count),name:name){\nformal{\none=>\"Dear, } \"{name}\nother=>Dear {name}\n}\n_{\n_=>Friend\n}\n}}\n";
+    let before = message_semantics(source);
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+    let second = format_source(SourceKind::Locale, &formatted, &FormatOptions::default())
+        .expect("format again");
+
+    assert_eq!(formatted, second);
+    assert!(formatted.contains("fn Greeting(Tone, Plural, name: String)"));
+    assert!(formatted.contains("fn(tone, Plural(count), name: name)"));
+    assert!(formatted.contains("\"Dear, } \"{name}"));
+    assert_eq!(message_semantics(&formatted), before);
+    parse_locale(&formatted).expect("formatted inline function parses");
+}
+
+#[test]
+fn formats_zero_input_binding_only_and_nested_inline_inputs_idempotently() {
+    let source = "empty={fn(){_=>empty, value}}\nbound={fn(value:Wrap(source,nested(a,b))){_=>{value}}}\nnested={fn(tone,payload:fn(tone){\nformal=>inner, value\n_=>fallback\n}){\nformal=>{payload}\n_=>outer, fallback\n}}\n";
+    let before = message_semantics(source);
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+    let second = format_source(SourceKind::Locale, &formatted, &FormatOptions::default())
+        .expect("format again");
+
+    assert_eq!(formatted, second);
+    assert!(formatted.contains("fn()"));
+    assert!(formatted.contains("fn(value: Wrap(source, nested(a, b)))"));
+    assert!(formatted.contains("payload: fn(tone)"));
+    assert!(formatted.contains("empty, value"));
+    assert!(formatted.contains("outer, fallback"));
+    assert_eq!(message_semantics(&formatted), before);
+    parse_locale(&formatted).expect("formatted nested inline inputs parse");
+}
+
+#[test]
 fn collapses_multiple_blank_lines_to_one_blank_line() {
     let source = "first = One\n\n\nsecond = Two\n";
     let formatted =
@@ -588,7 +656,47 @@ fn expression_semantics(expression: &Expression) -> String {
         })
         .collect::<Vec<_>>()
         .join(",");
-    format!("{:?}:{path}({arguments})[{annotations}]", expression.kind)
+    let kind = match &expression.kind {
+        linguini_syntax::ExpressionKind::Reference => "Reference".to_owned(),
+        linguini_syntax::ExpressionKind::Call => "Call".to_owned(),
+        linguini_syntax::ExpressionKind::InlineFunction { inputs, branches } => {
+            let inputs = inputs
+                .iter()
+                .map(|input| match input {
+                    linguini_syntax::InlineFunctionInput::Binding { name, value, .. } => {
+                        format!("{}:{}", name.value, expression_semantics(value))
+                    }
+                    linguini_syntax::InlineFunctionInput::Selector { value, .. } => {
+                        expression_semantics(value)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!(
+                "InlineFunction({inputs}){{{}}}",
+                inline_branch_semantics(branches)
+            )
+        }
+    };
+    format!("{kind}:{path}({arguments})[{annotations}]")
+}
+
+fn inline_branch_semantics(branches: &[linguini_syntax::FunctionBranch]) -> String {
+    branches
+        .iter()
+        .map(|branch| {
+            let value = match &branch.value {
+                linguini_syntax::FunctionBranchValue::Text(text) => {
+                    pattern_semantics(text).join("+")
+                }
+                linguini_syntax::FunctionBranchValue::Dispatch(children) => {
+                    inline_branch_semantics(children)
+                }
+            };
+            format!("{}=>{value}", branch.key.value)
+        })
+        .collect::<Vec<_>>()
+        .join("|")
 }
 
 fn comments(kind: SourceKind, source: &str) -> Vec<(bool, String)> {

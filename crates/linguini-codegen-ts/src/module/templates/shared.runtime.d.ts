@@ -1,4 +1,4 @@
-export declare function selectBranch(
+export declare function selectBranch<T>(
   key: string,
-  branches: Record<string, string>,
-): string;
+  branches: Record<string, T>,
+): T;

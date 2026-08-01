@@ -7,7 +7,7 @@ import * as runtime from "./index";
 const AUTO_LINK_MAX_PENDING_ROOTS = 128;
 const AUTO_LINK_NODE_BUDGET = 256;
 
-export const linguini = createLinguiniRune(runtime, { sources: ["path", "cookie", "local-storage", "accept-language"] as const, cookieName: "LINGUINI_SITE_LOCALE", cookiePath: "/", cookieMaxAge: 31536000, cookieSameSite: "lax", cookieSecure: false, cookieHttpOnly: false, localStorageKey: "LINGUINI_SITE_LOCALE", prefixDefaultLocale: true, basePath: "", trailingSlash: "ignore", redirect: true, exclude: ["/_app/**", "/favicon.ico", "/robots.txt"] as const, localizeLinks: true } as const);
+export const linguini = createLinguiniRune(runtime, { sources: ["path", "cookie", "local-storage", "accept-language"] as const, cookieName: "LINGUINI_SITE_LOCALE", cookiePath: "/", cookieMaxAge: 31536000, cookieSameSite: "lax", cookieSecure: false, cookieHttpOnly: false, localStorageKey: "LINGUINI_SITE_LOCALE", prefixDefaultLocale: true, basePath: "", redirect: true, exclude: ["/_app/**", "/favicon.ico", "/robots.txt"] as const, localizeLinks: true } as const);
 export const l = linguini.l;
 export const messages = linguini.messages;
 export const setLocale = linguini.setLocale;

@@ -107,11 +107,23 @@ playground {
   cookie_label = Cookie
   route_label = Route prefix
   sentence = Delivered {count} {SizeWord(size)} {fruit.nom(count)}. Total {amount}; ship date {date}.
-  cart_summary = Cart has {count} {fruit.nom(count)}
+  cart_summary = {fn(fruit, Plural(count)) {
+    apple {
+      one => Cart has {count} {fruit.nom(count)}
+      other => Cart has {count} {fruit.nom(count)}
+    }
+    _ {
+      one => Cart has {count} {fruit.nom(count)}
+      other => Cart has {count} {fruit.nom(count)}
+    }
+  }}
   number_format = Number formatting: {value}
   currency_format = Currency formatting: {amount}
   date_format = Date formatting: {date}
   override_format = Locale override: {amount @number} / {date @date(style = "long")}
 
-  size_line = {size_form_label}: {SizeWord(size)}
+  size_line = {fn(size, label: SizeWord(size)) {
+    small => {size_form_label}: {label}
+    _ => {size_form_label}: {label}
+  }}
 }

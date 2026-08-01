@@ -128,7 +128,7 @@ pub fn require_other_branch(subject: &str, branches: &[NamedSpan], span: Span) -
     }
 }
 
-fn validate_branch_sequence(branches: &[NamedSpan]) -> Vec<Diagnostic> {
+pub(crate) fn validate_branch_sequence(branches: &[NamedSpan]) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let mut seen = std::collections::BTreeMap::<&str, Span>::new();
     let mut wildcard = None;

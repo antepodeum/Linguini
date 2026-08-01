@@ -15,15 +15,30 @@ form Greeting(Tone, Plural) {
   }
 }
 
-fn Wrap(value: String, Tone) {
+fn Wrap(Tone, value: String) {
   formal => {value}
   _ => {value}
 }
 
 /// Greeting shown in account header.
-greeting = {Greeting(tone, count)}, {Wrap(name, tone)}
+greeting = {Greeting(tone, count)}, {Wrap(tone, name)}
 
 account {
   title = Account
   subtitle = {count} updates
 }
+
+inline_greeting = Hello {fn(tone) {
+  formal => "Dear, " {name},
+  _ => Hi {name}
+}}!
+
+inline_nested = {fn(tone, Plural(count), greet: Greeting(tone, count)) {
+  formal {
+    one => "Dear, } "{greet} {name}
+    other => Dear {greet} {name}
+  }
+  _ {
+    _ => Hi {name}
+  }
+}}

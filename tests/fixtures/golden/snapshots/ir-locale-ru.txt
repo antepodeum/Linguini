@@ -1676,18 +1676,18 @@ IrModule {
             docs: [],
             parameters: [
                 IrFunctionParameter {
-                    name: Some(
-                        "item",
-                    ),
-                    ty: "String",
-                },
-                IrFunctionParameter {
                     name: None,
                     ty: "Plural",
                 },
                 IrFunctionParameter {
                     name: None,
                     ty: "Gender",
+                },
+                IrFunctionParameter {
+                    name: Some(
+                        "item",
+                    ),
+                    ty: "String",
                 },
             ],
             branches: [

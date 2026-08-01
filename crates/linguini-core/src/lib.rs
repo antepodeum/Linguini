@@ -1,3 +1,14 @@
+/// Canonical source-language name of the built-in CLDR plural selector type and
+/// its numeric conversion intrinsic.
+pub const PLURAL_TYPE_NAME: &str = "Plural";
+
+/// Pre-canonicalization spelling accepted for existing locale files.
+pub const LEGACY_PLURAL_INTRINSIC_NAME: &str = "plural";
+
+pub fn is_plural_intrinsic(name: &str) -> bool {
+    matches!(name, PLURAL_TYPE_NAME | LEGACY_PLURAL_INTRINSIC_NAME)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FormatterKind {
     Number,
@@ -86,7 +97,17 @@ impl TypeKind {
 
 #[cfg(test)]
 mod tests {
-    use super::{FormatterKind, TypeKind};
+    use super::{
+        is_plural_intrinsic, FormatterKind, TypeKind, LEGACY_PLURAL_INTRINSIC_NAME,
+        PLURAL_TYPE_NAME,
+    };
+
+    #[test]
+    fn plural_intrinsic_has_one_canonical_name_and_a_compatibility_alias() {
+        assert!(is_plural_intrinsic(PLURAL_TYPE_NAME));
+        assert!(is_plural_intrinsic(LEGACY_PLURAL_INTRINSIC_NAME));
+        assert!(!is_plural_intrinsic("PLURAL"));
+    }
 
     #[test]
     fn formatter_kind_round_trips_known_names() {

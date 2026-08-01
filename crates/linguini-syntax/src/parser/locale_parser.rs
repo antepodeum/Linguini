@@ -3,9 +3,9 @@ use chumsky::{input::ValueInput, prelude::*};
 use crate::{
     Expression, ExpressionKind, FormAttribute, FormDeclaration, FormEntry, FormVariant,
     FunctionBranch, FunctionBranchValue, FunctionDeclaration, FunctionKind, FunctionParameter,
-    LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, MessageImplementation,
-    MessageImplementationGroup, Placeholder, RawText, Span, TextBlockMode, TextPart, TextPattern,
-    TokenKind, VariableDeclaration,
+    InlineFunctionInput, LocaleDeclaration, LocaleFile, LocaleValue, MapBranch,
+    MessageImplementation, MessageImplementationGroup, Placeholder, RawText, Span, TextBlockMode,
+    TextPart, TextPattern, TokenKind, VariableDeclaration,
 };
 
 use super::{annotation, doc_comment, enum_declaration, keyword, name, Extra};
@@ -169,12 +169,7 @@ where
     keyword("fn")
         .ignore_then(name())
         .then(function_parameters())
-        .then(
-            function_branch()
-                .repeated()
-                .collect::<Vec<_>>()
-                .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace)),
-        )
+        .then(function_body(text_pattern()))
         .map_with(
             |((name, parameters), branches), extra| FunctionDeclaration {
                 docs: Vec::new(),
@@ -195,12 +190,7 @@ where
     keyword("form")
         .ignore_then(name())
         .then(function_parameters())
-        .then(
-            function_branch()
-                .repeated()
-                .collect::<Vec<_>>()
-                .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace)),
-        )
+        .then(function_body(text_pattern()))
         .map_with(
             |((name, parameters), branches), extra| FunctionDeclaration {
                 docs: Vec::new(),
@@ -218,7 +208,7 @@ fn function_parameters<'tokens, I>(
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    name()
+    let parameter = name()
         .then(just(TokenKind::Colon).ignore_then(name()).or_not())
         .map_with(|(first, ty), extra| {
             if let Some(ty) = ty {
@@ -234,22 +224,46 @@ where
                     span: extra.span(),
                 }
             }
-        })
-        .separated_by(just(TokenKind::Comma))
+        });
+
+    parenthesized_list(parameter)
+}
+
+fn parenthesized_list<'tokens, I, O>(
+    item: impl Parser<'tokens, I, O, Extra<'tokens>> + Clone + 'tokens,
+) -> impl Parser<'tokens, I, Vec<O>, Extra<'tokens>> + Clone
+where
+    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
+{
+    item.separated_by(just(TokenKind::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
         .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen))
 }
 
-fn function_branch<'tokens, I>() -> impl Parser<'tokens, I, FunctionBranch, Extra<'tokens>> + Clone
+fn function_body<'tokens, I>(
+    text_pattern: impl Parser<'tokens, I, TextPattern, Extra<'tokens>> + Clone + 'tokens,
+) -> impl Parser<'tokens, I, Vec<FunctionBranch>, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    recursive(|branch| {
+    function_branch(text_pattern)
+        .repeated()
+        .collect::<Vec<_>>()
+        .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace))
+}
+
+fn function_branch<'tokens, I>(
+    text_pattern: impl Parser<'tokens, I, TextPattern, Extra<'tokens>> + Clone + 'tokens,
+) -> impl Parser<'tokens, I, FunctionBranch, Extra<'tokens>> + Clone
+where
+    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
+{
+    recursive(move |branch| {
         name()
             .then(choice((
                 just(TokenKind::Arrow)
-                    .ignore_then(text_pattern())
+                    .ignore_then(text_pattern.clone())
                     .map(FunctionBranchValue::Text),
                 branch
                     .repeated()
@@ -368,18 +382,29 @@ fn text_pattern<'tokens, I>() -> impl Parser<'tokens, I, TextPattern, Extra<'tok
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    choice((
-        raw_multiline_pattern(),
-        dedented_multiline_pattern(),
-        inline_pattern(),
-    ))
+    text_pattern_with_expression(expression())
 }
 
-fn inline_pattern<'tokens, I>() -> impl Parser<'tokens, I, TextPattern, Extra<'tokens>> + Clone
+fn text_pattern_with_expression<'tokens, I>(
+    expression: impl Parser<'tokens, I, Expression, Extra<'tokens>> + Clone + 'tokens,
+) -> impl Parser<'tokens, I, TextPattern, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    text_atom()
+    choice((
+        raw_multiline_pattern_with_expression(expression.clone()),
+        dedented_multiline_pattern_with_expression(expression.clone()),
+        inline_pattern_with_expression(expression),
+    ))
+}
+
+fn inline_pattern_with_expression<'tokens, I>(
+    expression: impl Parser<'tokens, I, Expression, Extra<'tokens>> + Clone + 'tokens,
+) -> impl Parser<'tokens, I, TextPattern, Extra<'tokens>> + Clone
+where
+    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
+{
+    text_atom_with_expression(expression)
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
@@ -390,7 +415,9 @@ where
         })
 }
 
-fn text_atom<'tokens, I>() -> impl Parser<'tokens, I, TextAtom, Extra<'tokens>> + Clone
+fn text_atom_with_expression<'tokens, I>(
+    expression: impl Parser<'tokens, I, Expression, Extra<'tokens>> + Clone + 'tokens,
+) -> impl Parser<'tokens, I, TextAtom, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
@@ -409,19 +436,25 @@ where
             }),
             trim_edges: false,
         }),
-        placeholder().map(|placeholder| TextAtom {
-            part: TextPart::Placeholder(placeholder),
-            trim_edges: false,
-        }),
+        expression
+            .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace))
+            .map_with(|expression, extra| TextAtom {
+                part: TextPart::Placeholder(Placeholder {
+                    expression,
+                    span: extra.span(),
+                }),
+                trim_edges: false,
+            }),
     ))
 }
 
-fn dedented_multiline_pattern<'tokens, I>(
+fn dedented_multiline_pattern_with_expression<'tokens, I>(
+    expression: impl Parser<'tokens, I, Expression, Extra<'tokens>> + Clone + 'tokens,
 ) -> impl Parser<'tokens, I, TextPattern, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    block_part()
+    block_part_with_expression(expression)
         .repeated()
         .collect::<Vec<_>>()
         .delimited_by(just(TokenKind::TripleQuote), just(TokenKind::TripleQuote))
@@ -432,12 +465,13 @@ where
         })
 }
 
-fn raw_multiline_pattern<'tokens, I>(
+fn raw_multiline_pattern_with_expression<'tokens, I>(
+    expression: impl Parser<'tokens, I, Expression, Extra<'tokens>> + Clone + 'tokens,
 ) -> impl Parser<'tokens, I, TextPattern, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
-    block_part()
+    block_part_with_expression(expression)
         .repeated()
         .collect::<Vec<_>>()
         .delimited_by(
@@ -451,7 +485,9 @@ where
         })
 }
 
-fn block_part<'tokens, I>() -> impl Parser<'tokens, I, TextPart, Extra<'tokens>> + Clone
+fn block_part_with_expression<'tokens, I>(
+    expression: impl Parser<'tokens, I, Expression, Extra<'tokens>> + Clone + 'tokens,
+) -> impl Parser<'tokens, I, TextPart, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
@@ -462,7 +498,14 @@ where
                 span: extra.span(),
             })
         }),
-        placeholder().map(TextPart::Placeholder),
+        expression
+            .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace))
+            .map_with(|expression, extra| {
+                TextPart::Placeholder(Placeholder {
+                    expression,
+                    span: extra.span(),
+                })
+            }),
     ))
 }
 
@@ -680,34 +723,16 @@ fn unit_character(unit: &BlockUnit) -> Option<char> {
     }
 }
 
-fn placeholder<'tokens, I>() -> impl Parser<'tokens, I, Placeholder, Extra<'tokens>> + Clone
-where
-    I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
-{
-    expression()
-        .delimited_by(just(TokenKind::LBrace), just(TokenKind::RBrace))
-        .map_with(|expression, extra| Placeholder {
-            expression,
-            span: extra.span(),
-        })
-}
-
 fn expression<'tokens, I>() -> impl Parser<'tokens, I, Expression, Extra<'tokens>> + Clone
 where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
     recursive(|expr| {
-        name()
+        let path_expression = name()
             .separated_by(just(TokenKind::Dot))
             .at_least(1)
             .collect::<Vec<_>>()
-            .then(
-                expr.separated_by(just(TokenKind::Comma))
-                    .allow_trailing()
-                    .collect::<Vec<_>>()
-                    .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen))
-                    .or_not(),
-            )
+            .then(parenthesized_list(expr.clone()).or_not())
             .then(annotation().repeated().collect::<Vec<_>>())
             .map_with(|((path, arguments), annotations), extra| Expression {
                 kind: if arguments.is_some() {
@@ -719,7 +744,39 @@ where
                 arguments: arguments.unwrap_or_default(),
                 annotations,
                 span: extra.span(),
-            })
+            });
+
+        let inline_text = text_pattern_with_expression(expr.clone());
+        let inline_binding = name()
+            .then_ignore(just(TokenKind::Colon))
+            .then(expr.clone())
+            .map_with(|(name, value), extra| InlineFunctionInput::Binding {
+                name,
+                value,
+                span: extra.span(),
+            });
+        let inline_selector = expr
+            .clone()
+            .map_with(|value, extra| InlineFunctionInput::Selector {
+                value,
+                span: extra.span(),
+            });
+        let inline_function = keyword("fn")
+            .ignore_then(parenthesized_list(choice((
+                inline_binding,
+                inline_selector,
+            ))))
+            .then(function_body(inline_text))
+            .then(annotation().repeated().collect::<Vec<_>>())
+            .map_with(|((inputs, branches), annotations), extra| Expression {
+                kind: ExpressionKind::InlineFunction { inputs, branches },
+                path: Vec::new(),
+                arguments: Vec::new(),
+                annotations,
+                span: extra.span(),
+            });
+
+        choice((inline_function, path_expression))
     })
 }
 

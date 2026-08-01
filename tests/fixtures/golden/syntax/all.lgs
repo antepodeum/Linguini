@@ -3,7 +3,9 @@ enum Tone { formal, casual }
 type Price = Decimal @currency(code = "USD")
 
 /// Greeting shown in account header.
-greeting(name: String, tone: Tone)
+greeting(name: String, tone: Tone, count: Number)
+inline_greeting(name: String, tone: Tone)
+inline_nested(name: String, tone: Tone, count: Number)
 
 account {
   title

@@ -89,7 +89,7 @@ form SizeAdj(Size, Plural, Gender) {
   _ => обычные
 }
 
-fn DeliveryNote(item: String, Plural, Gender) {
+fn DeliveryNote(Plural, Gender, item: String) {
   one {
     female => Доставлена {item}
     _ => Доставлен {item}

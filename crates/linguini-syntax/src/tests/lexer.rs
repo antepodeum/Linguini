@@ -91,6 +91,113 @@ fn lexes_arrow_raw_text_and_comments() {
 }
 
 #[test]
+fn lexes_inline_function_branches_and_resumes_message_text() {
+    let source = "greeting = Hello {fn(gender, name: GreetingName(name)) {\n  masculine => dear {name}\n  _ => friend\n}}!\n";
+    let tokens = lex(source).expect("inline fn source lexes");
+    let kinds = tokens
+        .into_iter()
+        .map(|token| token.kind)
+        .collect::<Vec<_>>();
+
+    assert!(kinds.windows(5).any(|window| {
+        window
+            == [
+                TokenKind::Ident("masculine".into()),
+                TokenKind::Whitespace,
+                TokenKind::Arrow,
+                TokenKind::RawText(" dear ".into()),
+                TokenKind::LBrace,
+            ]
+    }));
+    assert!(kinds.windows(3).any(|window| {
+        window
+            == [
+                TokenKind::RBrace,
+                TokenKind::RawText("!".into()),
+                TokenKind::Newline,
+            ]
+    }));
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| matches!(kind, TokenKind::Arrow))
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn lexes_inline_function_selector_and_binding_expressions() {
+    let source = "summary = {fn(tone, Plural(count), name: GreetingName(tone, count)) {\n  formal {\n    one => {name}\n    _ => many\n  }\n  _ => other\n}}\n";
+    let significant = lex(source)
+        .expect("inline function inputs lex")
+        .into_iter()
+        .map(|token| token.kind)
+        .filter(|kind| !matches!(kind, TokenKind::Whitespace | TokenKind::Newline))
+        .collect::<Vec<_>>();
+
+    assert!(significant.windows(5).any(|window| {
+        window
+            == [
+                TokenKind::Ident("Plural".into()),
+                TokenKind::LParen,
+                TokenKind::Ident("count".into()),
+                TokenKind::RParen,
+                TokenKind::Comma,
+            ]
+    }));
+    assert!(significant.windows(4).any(|window| {
+        window
+            == [
+                TokenKind::Ident("name".into()),
+                TokenKind::Colon,
+                TokenKind::Ident("GreetingName".into()),
+                TokenKind::LParen,
+            ]
+    }));
+    assert_eq!(
+        significant
+            .iter()
+            .filter(|kind| matches!(kind, TokenKind::Equals))
+            .count(),
+        1
+    );
+    assert_eq!(
+        significant
+            .iter()
+            .filter(|kind| matches!(kind, TokenKind::Arrow))
+            .count(),
+        3
+    );
+}
+
+#[test]
+fn lexes_multiline_leaf_inside_inline_function() {
+    let source = "summary = {fn(tone, name: name) {\n  formal => \"\"\"\nDear {name}\n\"\"\"\n  _ => Friend\n}}\n";
+    let kinds = lex(source)
+        .expect("inline multiline leaf lexes")
+        .into_iter()
+        .map(|token| token.kind)
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| matches!(kind, TokenKind::TripleQuote))
+            .count(),
+        2
+    );
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| matches!(kind, TokenKind::Arrow))
+            .count(),
+        2
+    );
+    assert!(matches!(kinds.last(), Some(TokenKind::Newline)));
+}
+
+#[test]
 fn lexes_multiline_text_with_placeholder() {
     let source = "body = \"\"\"\nHello, {name}\n\"\"\"\n";
     let tokens = lex(source).expect("source lexes");

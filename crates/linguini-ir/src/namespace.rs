@@ -58,7 +58,17 @@ pub fn qualify_module(module: &mut IrModule, namespace: &str) {
         for parameter in &mut item.parameters {
             qualify_type(&mut parameter.ty, namespace);
         }
-        qualify_function_branches(&mut item.branches, &namespace_parts, &declaration_roots);
+        let local_names = item
+            .parameters
+            .iter()
+            .filter_map(|parameter| parameter.name.clone())
+            .collect::<BTreeSet<_>>();
+        qualify_function_branches_scoped(
+            &mut item.branches,
+            &namespace_parts,
+            &declaration_roots,
+            &local_names,
+        );
     }
     for origin in &mut module.origins {
         origin.name = qualified_name(namespace, &origin.name);
@@ -91,56 +101,93 @@ fn qualify_entries(
     namespace: &[String],
     declaration_roots: &BTreeSet<String>,
 ) {
+    qualify_entries_scoped(entries, namespace, declaration_roots, &BTreeSet::new());
+}
+
+fn qualify_entries_scoped(
+    entries: &mut [IrFormEntry],
+    namespace: &[String],
+    declaration_roots: &BTreeSet<String>,
+    local_names: &BTreeSet<String>,
+) {
     for entry in entries {
         match entry {
             IrFormEntry::Attribute {
                 parameters, value, ..
             } => {
+                let mut attribute_names = local_names.clone();
                 for parameter in parameters {
                     qualify_type(&mut parameter.ty, &namespace.join("."));
+                    if let Some(name) = &parameter.name {
+                        attribute_names.insert(name.clone());
+                    }
                 }
-                qualify_value(value, namespace, declaration_roots);
+                qualify_value_scoped(value, namespace, declaration_roots, &attribute_names);
             }
             IrFormEntry::Branch(branch) => {
-                qualify_text(&mut branch.value, namespace, declaration_roots);
+                qualify_text_scoped(&mut branch.value, namespace, declaration_roots, local_names);
             }
         }
     }
 }
 
-fn qualify_value(value: &mut IrValue, namespace: &[String], declaration_roots: &BTreeSet<String>) {
+fn qualify_value_scoped(
+    value: &mut IrValue,
+    namespace: &[String],
+    declaration_roots: &BTreeSet<String>,
+    local_names: &BTreeSet<String>,
+) {
     match value {
-        IrValue::Text(text) => qualify_text(text, namespace, declaration_roots),
+        IrValue::Text(text) => {
+            qualify_text_scoped(text, namespace, declaration_roots, local_names);
+        }
         IrValue::Map(branches) => {
             for branch in branches {
-                qualify_text(&mut branch.value, namespace, declaration_roots);
+                qualify_text_scoped(&mut branch.value, namespace, declaration_roots, local_names);
             }
         }
-        IrValue::Object(entries) => qualify_entries(entries, namespace, declaration_roots),
+        IrValue::Object(entries) => {
+            qualify_entries_scoped(entries, namespace, declaration_roots, local_names);
+        }
     }
 }
 
-fn qualify_function_branches(
+fn qualify_function_branches_scoped(
     branches: &mut [IrFunctionBranch],
     namespace: &[String],
     declaration_roots: &BTreeSet<String>,
+    local_names: &BTreeSet<String>,
 ) {
     for branch in branches {
         match &mut branch.value {
             IrFunctionBranchValue::Text(text) => {
-                qualify_text(text, namespace, declaration_roots);
+                qualify_text_scoped(text, namespace, declaration_roots, local_names);
             }
             IrFunctionBranchValue::Dispatch(children) => {
-                qualify_function_branches(children, namespace, declaration_roots);
+                qualify_function_branches_scoped(
+                    children,
+                    namespace,
+                    declaration_roots,
+                    local_names,
+                );
             }
         }
     }
 }
 
 fn qualify_text(text: &mut IrText, namespace: &[String], declaration_roots: &BTreeSet<String>) {
+    qualify_text_scoped(text, namespace, declaration_roots, &BTreeSet::new());
+}
+
+fn qualify_text_scoped(
+    text: &mut IrText,
+    namespace: &[String],
+    declaration_roots: &BTreeSet<String>,
+    local_names: &BTreeSet<String>,
+) {
     for part in &mut text.parts {
         if let IrTextPart::Placeholder(expression) = part {
-            qualify_expression(expression, namespace, declaration_roots);
+            qualify_expression(expression, namespace, declaration_roots, local_names);
         }
     }
 }
@@ -149,17 +196,32 @@ fn qualify_expression(
     expression: &mut IrExpression,
     namespace: &[String],
     declaration_roots: &BTreeSet<String>,
+    local_names: &BTreeSet<String>,
 ) {
-    if let Some(root) = expression
-        .path
-        .first_mut()
-        .filter(|root| declaration_roots.contains(root.as_str()))
-    {
+    if let Some(root) = expression.path.first_mut().filter(|root| {
+        declaration_roots.contains(root.as_str()) && !local_names.contains(root.as_str())
+    }) {
         *root = qualified_name(&namespace.join("."), root);
     }
 
     for argument in &mut expression.arguments {
-        qualify_expression(argument, namespace, declaration_roots);
+        qualify_expression(argument, namespace, declaration_roots, local_names);
+    }
+    if let crate::IrExpressionKind::InlineFunction { inputs, branches } = &mut expression.kind {
+        let mut inline_names = local_names.clone();
+        for input in inputs {
+            let (value, binding_name) = match input {
+                crate::IrInlineFunctionInput::Binding { name, value, .. } => {
+                    (value, Some(name.clone()))
+                }
+                crate::IrInlineFunctionInput::Selector { value, .. } => (value, None),
+            };
+            qualify_expression(value, namespace, declaration_roots, local_names);
+            if let Some(name) = binding_name {
+                inline_names.insert(name);
+            }
+        }
+        qualify_function_branches_scoped(branches, namespace, declaration_roots, &inline_names);
     }
 }
 

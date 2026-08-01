@@ -1,14 +1,15 @@
 use crate::model::{
     IrBranch, IrEnum, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFormVariant,
     IrFormatter, IrFormatterArgument, IrFunction, IrFunctionBranch, IrFunctionBranchValue,
-    IrFunctionKind, IrFunctionParameter, IrMessage, IrModule, IrOrigin, IrParameter, IrSymbolKind,
-    IrText, IrTextBlockMode, IrTextPart, IrTypeAlias, IrValue, IrVariable, LocaleIr, SchemaIr,
+    IrFunctionKind, IrFunctionParameter, IrInlineFunctionInput, IrMessage, IrModule, IrOrigin,
+    IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart, IrTypeAlias, IrValue,
+    IrVariable, LocaleIr, SchemaIr,
 };
 use linguini_syntax::{
     Annotation, DocComment, Expression, ExpressionKind, FormEntry, FunctionBranchValue,
-    FunctionKind, LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, MessageGroup,
-    MessageImplementationGroup, MessageSignature, SchemaDeclaration, SchemaFile, TextBlockMode,
-    TextPart, TextPattern,
+    FunctionKind, InlineFunctionInput, LocaleDeclaration, LocaleFile, LocaleValue, MapBranch,
+    MessageGroup, MessageImplementationGroup, MessageSignature, SchemaDeclaration, SchemaFile,
+    TextBlockMode, TextPart, TextPattern,
 };
 
 pub fn lower_schema(schema: &SchemaFile) -> IrModule {
@@ -176,10 +177,7 @@ fn lower_locale_declaration(
                 parameters: function
                     .parameters
                     .iter()
-                    .map(|parameter| IrFunctionParameter {
-                        name: parameter.name.as_ref().map(|name| name.value.clone()),
-                        ty: parameter.ty.value.clone(),
-                    })
+                    .map(lower_function_parameter)
                     .collect(),
                 branches: function
                     .branches
@@ -320,6 +318,13 @@ fn lower_function_branch(branch: &linguini_syntax::FunctionBranch) -> IrFunction
     }
 }
 
+fn lower_function_parameter(parameter: &linguini_syntax::FunctionParameter) -> IrFunctionParameter {
+    IrFunctionParameter {
+        name: parameter.name.as_ref().map(|name| name.value.clone()),
+        ty: parameter.ty.value.clone(),
+    }
+}
+
 fn lower_form_entry(entry: &FormEntry) -> IrFormEntry {
     match entry {
         FormEntry::Attribute(attribute) => IrFormEntry::Attribute {
@@ -327,10 +332,7 @@ fn lower_form_entry(entry: &FormEntry) -> IrFormEntry {
             parameters: attribute
                 .parameters
                 .iter()
-                .map(|parameter| IrFunctionParameter {
-                    name: parameter.name.as_ref().map(|name| name.value.clone()),
-                    ty: parameter.ty.value.clone(),
-                })
+                .map(lower_function_parameter)
                 .collect(),
             value: lower_value(&attribute.value),
         },
@@ -379,9 +381,15 @@ fn lower_text(text: &TextPattern) -> IrText {
 
 fn lower_expression(expression: &Expression) -> IrExpression {
     IrExpression {
-        kind: match expression.kind {
+        kind: match &expression.kind {
             ExpressionKind::Reference => IrExpressionKind::Reference,
             ExpressionKind::Call => IrExpressionKind::Call,
+            ExpressionKind::InlineFunction { inputs, branches } => {
+                IrExpressionKind::InlineFunction {
+                    inputs: inputs.iter().map(lower_inline_function_input).collect(),
+                    branches: branches.iter().map(lower_function_branch).collect(),
+                }
+            }
         },
         path: expression
             .path
@@ -391,6 +399,20 @@ fn lower_expression(expression: &Expression) -> IrExpression {
         arguments: expression.arguments.iter().map(lower_expression).collect(),
         formatters: expression.annotations.iter().map(lower_formatter).collect(),
         span: expression.span,
+    }
+}
+
+fn lower_inline_function_input(input: &InlineFunctionInput) -> IrInlineFunctionInput {
+    match input {
+        InlineFunctionInput::Binding { name, value, span } => IrInlineFunctionInput::Binding {
+            name: name.value.clone(),
+            value: lower_expression(value),
+            span: *span,
+        },
+        InlineFunctionInput::Selector { value, span } => IrInlineFunctionInput::Selector {
+            value: lower_expression(value),
+            span: *span,
+        },
     }
 }
 

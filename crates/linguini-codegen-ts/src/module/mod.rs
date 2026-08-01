@@ -12,14 +12,17 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use linguini_cldr::{
-    built_in_plural_rules, canonicalize_locale, locale_fallback_chain as cldr_locale_fallback_chain,
+    built_in_plural_rules, canonicalize_locale, compiled_currency_formatting,
+    compiled_date_formatting, compiled_number_formatting,
+    locale_fallback_chain as cldr_locale_fallback_chain,
 };
 use linguini_ir::{validate_ir, IrModule, IrReferenceError, ValidatedIr};
 
 use self::emit::{
-    emit_formatter_data, emit_forms, emit_imports, emit_local_functions, emit_messages,
-    emit_schema_type_reexports, emit_variables,
+    emit_formatter_data, emit_forms, emit_imports, emit_local_functions, emit_locale_enum_types,
+    emit_messages, emit_schema_type_reexports, emit_variables,
 };
+use self::formatters::formatter_requirements;
 use self::names::{escape_string, portable_path_component_error, safe_file_stem, safe_identifier};
 use self::shared::emit_shared;
 use super::plural::generate_plural_function;
@@ -210,6 +213,15 @@ pub enum TypeScriptCodegenError {
     MissingPluralRules {
         locale: String,
     },
+    MissingNumberFormatting {
+        locale: String,
+    },
+    MissingCurrencyFormatting {
+        locale: String,
+    },
+    MissingDateFormatting {
+        locale: String,
+    },
 }
 
 impl TypeScriptCodegenError {
@@ -284,6 +296,18 @@ impl fmt::Display for TypeScriptCodegenError {
                 formatter,
                 "missing built-in CLDR plural rules for configured locale `{locale}`"
             ),
+            Self::MissingNumberFormatting { locale } => write!(
+                formatter,
+                "missing required CLDR number formatting data for configured locale `{locale}`"
+            ),
+            Self::MissingCurrencyFormatting { locale } => write!(
+                formatter,
+                "missing required CLDR currency formatting data for configured locale `{locale}`"
+            ),
+            Self::MissingDateFormatting { locale } => write!(
+                formatter,
+                "missing required CLDR date formatting data for configured locale `{locale}`"
+            ),
         }
     }
 }
@@ -319,6 +343,7 @@ impl<'a> ValidatedTypeScriptProject<'a> {
                 &locale.module,
                 format!("locale `{}`", locale.locale),
             )?;
+            validate_formatter_data(schema, &locale.module, &locale.locale)?;
         }
 
         Ok(Self {
@@ -327,6 +352,30 @@ impl<'a> ValidatedTypeScriptProject<'a> {
             options: options.clone(),
         })
     }
+}
+
+fn validate_formatter_data(
+    schema: &IrModule,
+    locale: &IrModule,
+    locale_name: &str,
+) -> Result<(), TypeScriptCodegenError> {
+    let requirements = formatter_requirements(schema, locale);
+    if requirements.needs_number_data() && compiled_number_formatting(locale_name).is_none() {
+        return Err(TypeScriptCodegenError::MissingNumberFormatting {
+            locale: locale_name.to_owned(),
+        });
+    }
+    if requirements.currency && compiled_currency_formatting(locale_name).is_none() {
+        return Err(TypeScriptCodegenError::MissingCurrencyFormatting {
+            locale: locale_name.to_owned(),
+        });
+    }
+    if requirements.date && compiled_date_formatting(locale_name).is_none() {
+        return Err(TypeScriptCodegenError::MissingDateFormatting {
+            locale: locale_name.to_owned(),
+        });
+    }
+    Ok(())
 }
 
 fn validate_project_inputs(
@@ -654,6 +703,7 @@ fn generate_typescript_module_unchecked(
     emit::emit_plural_helpers(options, &mut output);
     emit_formatter_data(schema, locale, options, &mut output);
     emit_schema_type_reexports(schema, "../shared", &mut output);
+    emit_locale_enum_types(schema, locale, &mut output);
     for namespace in namespaces {
         output.push_str(&format!("export {{ {} }};\n\n", safe_identifier(namespace)));
     }
@@ -689,6 +739,7 @@ fn generate_typescript_module_with_shared_import(
     emit::emit_plural_helpers(options, &mut output);
     emit_formatter_data(schema, locale, options, &mut output);
     emit_schema_type_reexports(schema, shared_import_path, &mut output);
+    emit_locale_enum_types(schema, locale, &mut output);
     emit_variables(locale, options, &mut output);
     emit_forms(locale, options, &mut output);
     emit_local_functions(locale, options, &mut output);

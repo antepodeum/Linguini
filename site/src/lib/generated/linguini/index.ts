@@ -55,6 +55,56 @@ export type Linguini = (typeof localeModules)[LinguiniLanguage];
 
 type LinguiniLanguageInput = LinguiniLanguage;
 
+const localeResolutionOverrides: Readonly<Record<string, Locale | null>> = {
+  "chi": "zh",
+  "cmn": "zh",
+  "de-latn": "de",
+  "deu": "de",
+  "en-latn": "en",
+  "eng": "en",
+  "es-latn": "es",
+  "fr-latn": "fr",
+  "fra": "fr",
+  "fre": "fr",
+  "ger": "de",
+  "hat": "fr",
+  "hi-latn": "en",
+  "ht": "fr",
+  "i-default": "en",
+  "it-latn": "it",
+  "ita": "it",
+  "por": "pt",
+  "pt-latn": "pt",
+  "ru-cyrl": "ru",
+  "rus": "ru",
+  "spa": "es",
+  "zh-au": null,
+  "zh-bn": null,
+  "zh-cmn-hant": null,
+  "zh-gan": null,
+  "zh-gb": null,
+  "zh-gf": null,
+  "zh-hakka": null,
+  "zh-hans": "zh",
+  "zh-hk": null,
+  "zh-id": null,
+  "zh-min": null,
+  "zh-min-nan": null,
+  "zh-mo": null,
+  "zh-pa": null,
+  "zh-pf": null,
+  "zh-ph": null,
+  "zh-sr": null,
+  "zh-th": null,
+  "zh-tw": null,
+  "zh-us": null,
+  "zh-vn": null,
+  "zh-wuu": null,
+  "zh-xiang": null,
+  "zh-yue": null,
+  "zho": "zh",
+};
+
 export type LinguiniProviderOptions = {
   getLocale?: () => LinguiniLanguageInput;
   resolveLanguage?: () => LinguiniLanguageInput;
@@ -70,6 +120,13 @@ function localeFallbackTags(locale: string): string[] {
     tag = tag.slice(0, dash);
   }
   return tags;
+}
+
+function isLanguageScriptTag(locale: string): boolean {
+  const parts = locale.split("-");
+  return parts.length === 2
+    && /^[A-Za-z]{2,8}$/.test(parts[0])
+    && /^[A-Za-z]{4}$/.test(parts[1]);
 }
 
 export function createLinguini(language: LinguiniLanguageInput): Linguini {
@@ -106,6 +163,11 @@ export function normalizeLocale(locale: unknown): Locale | undefined {
   for (const tag of localeFallbackTags(locale)) {
     const exact = locales.find((entry) => entry.toLowerCase() === tag.toLowerCase());
     if (exact) return exact;
+    const key = tag.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(localeResolutionOverrides, key)) {
+      return localeResolutionOverrides[key] ?? undefined;
+    }
+    if (isLanguageScriptTag(tag)) return undefined;
   }
   return undefined;
 }

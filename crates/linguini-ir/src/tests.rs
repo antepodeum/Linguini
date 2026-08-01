@@ -1,6 +1,6 @@
 use crate::{
     ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, validate_ir,
-    IrExpressionKind, IrTextBlockMode, IrTextPart,
+    IrExpressionKind, IrInlineFunctionInput, IrTextBlockMode, IrTextPart,
 };
 use linguini_syntax::{parse_locale, parse_schema, LocaleDeclaration};
 use std::fs;
@@ -82,6 +82,360 @@ fn lowering_preserves_zero_argument_call_kind_and_source_span() {
     assert_eq!(expression.kind, IrExpressionKind::Call);
     assert!(expression.arguments.is_empty());
     assert!(expression.span.end > expression.span.start);
+}
+
+#[test]
+fn lowering_and_validation_preserve_inline_function_dispatch() {
+    let schema = lower_schema(
+        &parse_schema(
+            "enum Gender { masculine, feminine, other }\ngreeting(name: String, gender: Gender)\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "greeting = {fn(gender, label: name) {\n\
+               masculine => Dear {label}\n\
+               feminine => Kind {label}\n\
+               _ => Friend {label}\n\
+             }}\n",
+        )
+        .expect("locale"),
+    );
+    let body = locale.messages[0].body.as_ref().expect("message body");
+    let IrTextPart::Placeholder(expression) = &body.parts[0] else {
+        panic!("inline placeholder");
+    };
+
+    assert!(expression.arguments.is_empty());
+    let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind else {
+        panic!("inline kind");
+    };
+    let IrInlineFunctionInput::Selector { value, .. } = &inputs[0] else {
+        panic!("selector input");
+    };
+    assert_eq!(value.path, ["gender"]);
+    let IrInlineFunctionInput::Binding { name, value, .. } = &inputs[1] else {
+        panic!("payload binding");
+    };
+    assert_eq!(name, "label");
+    assert_eq!(value.path, ["name"]);
+    assert_eq!(
+        branches
+            .iter()
+            .map(|branch| branch.key.as_str())
+            .collect::<Vec<_>>(),
+        ["masculine", "feminine", "_"]
+    );
+    validate_ir(&schema, &locale).expect("inline dispatch validates");
+}
+
+#[test]
+fn ir_validation_requires_inline_function_enum_coverage() {
+    let schema = lower_schema(
+        &parse_schema("enum Gender { masculine, feminine, other }\ngreeting(gender: Gender)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale("greeting = {fn(gender) {\n  masculine => Dear\n  feminine => Kind\n}}\n")
+            .expect("locale"),
+    );
+
+    let errors = validate_ir(&schema, &locale).expect_err("missing inline branch must fail");
+
+    assert!(errors.iter().any(|error| {
+        error.code == "IR034"
+            && error
+                .message
+                .contains("inline fn is not exhaustive for enum `Gender`")
+    }));
+}
+
+#[test]
+fn ir_validation_accepts_nested_enum_and_plural_inline_dispatch() {
+    let schema = lower_schema(
+        &parse_schema(
+            "enum Gender { masculine, feminine, other }\nsummary(gender: Gender, count: Number)\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "summary = {fn(gender, Plural(count)) {\n  masculine {\n    one => one\n    other => many\n  }\n  feminine {\n    one => one\n    other => many\n  }\n  other {\n    one => one\n    other => many\n  }\n}}\n",
+        )
+        .expect("locale"),
+    );
+
+    validate_ir(&schema, &locale).expect("enum and plural selectors validate");
+}
+
+#[test]
+fn inline_function_lowering_matches_named_function_input_roles_and_branches() {
+    let schema = lower_schema(
+        &parse_schema(
+            "type Label = String\nenum Tone { formal, casual }\ngreeting(label: Label, tone: Tone)\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "fn Named(Tone, label: Label) {\n\
+               formal => {label}\n\
+               casual => {label}\n\
+             }\n\
+             greeting = {fn(tone, value: label) {\n\
+               formal => {value}\n\
+               casual => {value}\n\
+             }}\n",
+        )
+        .expect("locale"),
+    );
+    let body = locale.messages[0].body.as_ref().expect("message body");
+    let IrTextPart::Placeholder(expression) = &body.parts[0] else {
+        panic!("inline placeholder");
+    };
+    let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind else {
+        panic!("inline kind");
+    };
+
+    assert!(matches!(inputs[0], IrInlineFunctionInput::Selector { .. }));
+    assert!(matches!(inputs[1], IrInlineFunctionInput::Binding { .. }));
+    assert!(locale.functions[0].parameters[0].name.is_none());
+    assert_eq!(
+        locale.functions[0].parameters[1].name.as_deref(),
+        Some("label")
+    );
+    assert_eq!(
+        branches
+            .iter()
+            .map(|branch| branch.key.as_str())
+            .collect::<Vec<_>>(),
+        locale.functions[0]
+            .branches
+            .iter()
+            .map(|branch| branch.key.as_str())
+            .collect::<Vec<_>>()
+    );
+    assert!(expression.path.is_empty());
+    assert!(expression.arguments.is_empty());
+    validate_ir(&schema, &locale).expect("named and inline function semantics match");
+}
+
+#[test]
+fn inline_function_plural_selector_accepts_numeric_outer_value() {
+    let schema = lower_schema(&parse_schema("summary(count: Decimal)\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale(
+            "summary = {fn(Plural(count)) {\n\
+               one => one {count}\n\
+               other => many {count}\n\
+             }}\n",
+        )
+        .expect("locale"),
+    );
+
+    validate_ir(&schema, &locale).expect("Plural selector accepts Decimal");
+}
+
+#[test]
+fn inline_function_rejects_unresolved_binding_rhs() {
+    let schema = lower_schema(&parse_schema("summary(count: String)\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale("summary = {fn(label: missing) {\n  _ => {label}\n}}\n").expect("locale"),
+    );
+
+    let errors = validate_ir(&schema, &locale).expect_err("binding RHS must resolve");
+    assert!(errors
+        .iter()
+        .any(|error| error.code == "IR015" && error.message == "unresolved reference `missing`"));
+}
+
+#[test]
+fn inline_function_branch_is_a_lexical_closure_over_outer_parameters() {
+    let schema = lower_schema(
+        &parse_schema("enum Tone { formal, casual }\ngreeting(tone: Tone, hidden: String)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale("greeting = {fn(tone) {\n  formal => {hidden}\n  casual => visible\n}}\n")
+            .expect("locale"),
+    );
+
+    validate_ir(&schema, &locale).expect("outer parameters remain visible in branch text");
+}
+
+#[test]
+fn inline_function_binding_can_evaluate_a_global_in_lexical_scope() {
+    let schema = lower_schema(&parse_schema("greeting\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale("let label = global\ngreeting = {fn(value: label) {\n  _ => {value}\n}}\n")
+            .expect("locale"),
+    );
+
+    validate_ir(&schema, &locale).expect("global can initialize local payload binding");
+}
+
+#[test]
+fn binding_only_and_zero_input_inline_functions_use_the_structural_wildcard() {
+    let schema = lower_schema(&parse_schema("greeting(name: String)\nplain\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale(
+            "greeting = {fn(label: name) {\n  _ => {label} / {name}\n}}\n\
+             plain = {fn() {\n  _ => ready\n}}\n",
+        )
+        .expect("locale"),
+    );
+
+    validate_ir(&schema, &locale).expect("selectorless inline functions validate");
+}
+
+#[test]
+fn inline_bindings_have_simultaneous_rhs_scope() {
+    let schema = lower_schema(&parse_schema("greeting(name: String)\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale(
+            "greeting = {fn(first: name, second: first) {\n  _ => {first} {second}\n}}\n",
+        )
+        .expect("locale"),
+    );
+
+    let errors = validate_ir(&schema, &locale).expect_err("sibling RHS must stay invisible");
+    assert!(errors
+        .iter()
+        .any(|error| error.code == "IR015" && error.message == "unresolved reference `first`"));
+}
+
+#[test]
+fn ir_boundary_rejects_selector_after_inline_binding() {
+    let schema = lower_schema(
+        &parse_schema("enum Tone { formal, casual }\ngreeting(name: String, tone: Tone)\n")
+            .expect("schema"),
+    );
+    let mut locale = lower_locale(
+        &parse_locale(
+            "greeting = {fn(tone, label: name) {\n  formal => {label}\n  casual => {label}\n}}\n",
+        )
+        .expect("locale"),
+    );
+    let body = locale.messages[0].body.as_mut().expect("body");
+    let IrTextPart::Placeholder(expression) = &mut body.parts[0] else {
+        panic!("inline placeholder");
+    };
+    let IrExpressionKind::InlineFunction { inputs, .. } = &mut expression.kind else {
+        panic!("inline function");
+    };
+    inputs.swap(0, 1);
+
+    let errors = validate_ir(&schema, &locale).expect_err("input order must be validated in IR");
+    assert!(errors.iter().any(|error| {
+        error.code == "IR038"
+            && error
+                .message
+                .contains("selectors must precede named payload bindings")
+    }));
+}
+
+#[test]
+fn named_function_dispatch_uses_only_leading_unnamed_parameters() {
+    let schema = lower_schema(
+        &parse_schema("enum Tone { formal, casual }\ngreeting(tone: Tone)\n").expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "fn Payload(tone: Tone) {\n  _ => {tone}\n}\n\
+             greeting = {Payload(tone)}\n",
+        )
+        .expect("locale"),
+    );
+
+    validate_ir(&schema, &locale).expect("named enum payload does not add dispatch");
+}
+
+#[test]
+fn ir_boundary_rejects_named_payload_before_dispatch_parameter() {
+    let schema = lower_schema(
+        &parse_schema("enum Tone { formal, casual }\ngreeting(label: String, tone: Tone)\n")
+            .expect("schema"),
+    );
+    let mut locale = lower_locale(
+        &parse_locale(
+            "fn Ordered(Tone, label: String) {\n\
+               formal => {label}\n\
+               casual => {label}\n\
+             }\n\
+             greeting = {Ordered(tone, label)}\n",
+        )
+        .expect("locale"),
+    );
+    locale.functions[0].parameters.swap(0, 1);
+
+    let errors = validate_ir(&schema, &locale).expect_err("parameter order must validate in IR");
+    assert!(errors.iter().any(|error| {
+        error.code == "IR038"
+            && error
+                .message
+                .contains("dispatch parameters must precede named payload parameters")
+    }));
+}
+
+#[test]
+fn inline_function_closes_over_named_form_attribute_parameters() {
+    let schema = lower_schema(&parse_schema("enum Fruit { apple }\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale(
+            "enum Gender { male, female }\n\
+             impl Fruit {\n\
+               apple {\n\
+                 form label(gender: Gender) {\n\
+                   male => {fn(gender) {\n\
+                     male => male\n\
+                     female => female\n\
+                   }}\n\
+                   female => female\n\
+                 }\n\
+               }\n\
+             }\n",
+        )
+        .expect("locale"),
+    );
+
+    validate_ir(&schema, &locale).expect("form attribute parameter is in lexical scope");
+}
+
+#[test]
+fn ir_validation_rejects_unknown_inline_enum_branch_even_with_wildcard() {
+    let schema = lower_schema(
+        &parse_schema("enum Gender { masculine, other }\ngreeting(gender: Gender)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale("greeting = {fn(gender) {\n  typo => Wrong\n  _ => Friend\n}}\n")
+            .expect("locale"),
+    );
+
+    let errors = validate_ir(&schema, &locale).expect_err("unknown branch must fail");
+
+    assert!(errors.iter().any(|error| {
+        error.code == "IR036"
+            && error
+                .message
+                .contains("unknown enum `Gender` branch `typo`")
+    }));
+}
+
+#[test]
+fn ir_validation_rejects_inline_branches_after_wildcard() {
+    let schema = lower_schema(&parse_schema("greeting(value: String)\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale("greeting = {fn(value) {\n  _ => Friend\n  later => Unreachable\n}}\n")
+            .expect("locale"),
+    );
+
+    let errors = validate_ir(&schema, &locale).expect_err("wildcard ordering must fail");
+
+    assert!(errors
+        .iter()
+        .any(|error| error.code == "IR037" && error.message.contains("unreachable after `_`")));
 }
 
 #[test]
@@ -359,6 +713,46 @@ fn project_namespace_qualifies_declarations_types_references_and_origins() {
             vec!["fruit", "nom"]
         ]
     );
+}
+
+#[test]
+fn project_namespace_qualifies_inline_input_calls_but_keeps_bindings_local() {
+    let locale = parse_locale(
+        "enum Tone { formal, casual }\n\
+         fn Wrap(value: String) { _ => {value} }\n\
+         greeting = {fn(tone, label: Wrap(name)) {\n\
+           formal => {label}\n\
+           casual => {label}\n\
+         }}\n",
+    )
+    .expect("locale parses");
+    let mut locale = lower_locale(&locale);
+    qualify_module(&mut locale, "shop.checkout");
+
+    let body = locale.messages[0].body.as_ref().expect("message body");
+    let IrTextPart::Placeholder(expression) = &body.parts[0] else {
+        panic!("inline placeholder");
+    };
+    let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind else {
+        panic!("inline kind");
+    };
+
+    let IrInlineFunctionInput::Selector { value, .. } = &inputs[0] else {
+        panic!("selector input");
+    };
+    assert_eq!(value.path, ["tone"]);
+    let IrInlineFunctionInput::Binding { name, value, .. } = &inputs[1] else {
+        panic!("payload binding");
+    };
+    assert_eq!(name, "label");
+    assert_eq!(value.path, ["shop.checkout.Wrap"]);
+    let crate::IrFunctionBranchValue::Text(text) = &branches[0].value else {
+        panic!("text branch");
+    };
+    let IrTextPart::Placeholder(reference) = &text.parts[0] else {
+        panic!("capture reference");
+    };
+    assert_eq!(reference.path, ["label"]);
 }
 
 #[test]

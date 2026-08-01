@@ -2,7 +2,7 @@ import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";
 import { createWebI18n } from "./web";
 import * as runtime from "./index";
 
-const options = { sources: ["path", "cookie", "local-storage", "accept-language"] as const, cookieName: "LINGUINI_SITE_LOCALE", cookiePath: "/", cookieMaxAge: 31536000, cookieSameSite: "lax", cookieSecure: false, cookieHttpOnly: false, localStorageKey: "LINGUINI_SITE_LOCALE", prefixDefaultLocale: true, basePath: "", trailingSlash: "ignore", redirect: true, exclude: ["/_app/**", "/favicon.ico", "/robots.txt"] as const, localizeLinks: true } as const;
+const options = { sources: ["path", "cookie", "local-storage", "accept-language"] as const, cookieName: "LINGUINI_SITE_LOCALE", cookiePath: "/", cookieMaxAge: 31536000, cookieSameSite: "lax", cookieSecure: false, cookieHttpOnly: false, localStorageKey: "LINGUINI_SITE_LOCALE", prefixDefaultLocale: true, basePath: "", redirect: true, exclude: ["/_app/**", "/favicon.ico", "/robots.txt"] as const, localizeLinks: true } as const;
 
 export const linguiniHandle: Handle = createHandle(runtime, options);
 export const linguiniReroute: Reroute = createReroute(runtime, options);

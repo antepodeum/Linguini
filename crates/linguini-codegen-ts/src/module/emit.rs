@@ -1,15 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use linguini_core::TypeKind;
-use linguini_ir::{
-    IrFormatter, IrFormatterArgument, IrFunction, IrFunctionBranch, IrFunctionBranchValue,
-    IrMessage, IrModule,
-};
+use linguini_ir::{IrFormatter, IrFormatterArgument, IrFunction, IrMessage, IrModule};
 
 use super::expr::{
-    form_object, formatter_data_declaration, text_expression, text_expression_with_context,
+    form_object, formatter_data_declaration, function_dispatch_expression, text_expression,
+    text_expression_with_context,
 };
-use super::formatters::module_uses_formatters;
+use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
     escape_comment, escape_string, form_binding_name, function_name, property_key, safe_identifier,
     ts_type,
@@ -40,7 +38,7 @@ pub fn emit_imports(
     }
 
     let uses_forms = !locale.forms.is_empty();
-    let uses_dispatch = !locale.functions.is_empty();
+    let uses_dispatch = !locale.functions.is_empty() || module_uses_inline_functions(locale);
     if uses_forms || uses_dispatch {
         output.push_str(&format!(
             "import {{ selectBranch }} from \"{shared_import_path}\";\n"
@@ -147,11 +145,9 @@ pub fn emit_formatter_data(
     options: &TypeScriptOptions,
     output: &mut String,
 ) {
-    if module_uses_formatters(schema)
-        || module_uses_formatters(locale)
-        || schema_uses_auto_formatters(schema)
-    {
-        output.push_str(&formatter_data_declaration(&options.locale));
+    let requirements = formatter_requirements(schema, locale);
+    if requirements.any() {
+        output.push_str(&formatter_data_declaration(&options.locale, requirements));
     }
 }
 
@@ -168,6 +164,29 @@ pub fn emit_enums(module: &IrModule, output: &mut String) {
             .join(" | ");
         output.push_str(&format!(
             "export type {} = {variants};\n\n",
+            safe_identifier(&item.name)
+        ));
+    }
+}
+
+pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut String) {
+    for item in &locale.enums {
+        let supplied_by_schema = schema.enums.iter().any(|schema| schema.name == item.name)
+            || schema
+                .type_aliases
+                .iter()
+                .any(|schema| schema.name == item.name);
+        if supplied_by_schema {
+            continue;
+        }
+        let variants = item
+            .variants
+            .iter()
+            .map(|variant| format!("\"{}\"", escape_string(variant)))
+            .collect::<Vec<_>>()
+            .join(" | ");
+        output.push_str(&format!(
+            "type {} = {variants};\n\n",
             safe_identifier(&item.name)
         ));
     }
@@ -215,18 +234,43 @@ pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &m
 
 pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     for function in &module.functions {
-        let params = function_parameters(function)
+        let parameter_names = function_parameters(function);
+        let params = parameter_names
             .iter()
-            .map(|name| format!("{name}: string | number"))
+            .zip(&function.parameters)
+            .map(|(name, parameter)| {
+                let ty = if parameter.ty == "Plural" {
+                    "number | bigint | string".to_owned()
+                } else {
+                    ts_type(&parameter.ty)
+                };
+                format!("{name}: {ty}")
+            })
             .collect::<Vec<_>>()
             .join(", ");
         output.push_str(&format!(
             "function {}({params}): string {{\n",
             safe_identifier(&function.name)
         ));
+        let context = function
+            .parameters
+            .iter()
+            .filter_map(|parameter| {
+                parameter
+                    .name
+                    .as_ref()
+                    .map(|name| (name.clone(), parameter.ty.clone()))
+            })
+            .collect::<BTreeMap<_, _>>();
         output.push_str(&format!(
             "  return {};\n",
-            dispatch_expression(function, &function.branches, 0, options)
+            function_dispatch_expression(
+                &function.parameters,
+                &function.branches,
+                &context,
+                &BTreeMap::new(),
+                options,
+            )
         ));
         output.push_str("}\n\n");
     }
@@ -379,15 +423,6 @@ fn parameter_formatters(
         .collect()
 }
 
-fn schema_uses_auto_formatters(schema: &IrModule) -> bool {
-    schema.messages.iter().any(|message| {
-        message
-            .parameters
-            .iter()
-            .any(|parameter| default_type_formatters(schema, &parameter.ty).is_some())
-    })
-}
-
 fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatter>> {
     let mut current = ty;
     let mut visited = BTreeSet::new();
@@ -446,53 +481,8 @@ fn function_parameters(function: &IrFunction) -> Vec<String> {
                 .name
                 .as_deref()
                 .map(safe_identifier)
-                .unwrap_or_else(|| format!("p{index}"))
+                .unwrap_or_else(|| format!("__lgl_p{index}"))
         })
-        .collect()
-}
-
-fn dispatch_expression(
-    function: &IrFunction,
-    branches: &[IrFunctionBranch],
-    depth: usize,
-    options: &TypeScriptOptions,
-) -> String {
-    let parameter_index = dispatch_parameter_indices(function)
-        .get(depth)
-        .copied()
-        .unwrap_or(depth);
-    let parameter = function_parameters(function)
-        .get(parameter_index)
-        .cloned()
-        .unwrap_or_else(|| "undefined".to_owned());
-    let selector = function
-        .parameters
-        .get(parameter_index)
-        .filter(|parameter| parameter.ty == "Plural")
-        .map(|_| format!("{}({parameter})", options.plural_function))
-        .unwrap_or_else(|| format!("String({parameter})"));
-    let items = branches
-        .iter()
-        .map(|branch| {
-            let value = match &branch.value {
-                IrFunctionBranchValue::Text(text) => text_expression(text, options),
-                IrFunctionBranchValue::Dispatch(branches) => {
-                    dispatch_expression(function, branches, depth + 1, options)
-                }
-            };
-            format!("{}: {value}", property_key(&branch.key))
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!("selectBranch({selector}, {{ {items} }})")
-}
-
-fn dispatch_parameter_indices(function: &IrFunction) -> Vec<usize> {
-    function
-        .parameters
-        .iter()
-        .enumerate()
-        .filter_map(|(index, parameter)| (parameter.ty != "String").then_some(index))
         .collect()
 }
 

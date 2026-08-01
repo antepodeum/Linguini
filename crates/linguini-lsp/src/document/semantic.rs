@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use linguini_format::SourceKind;
 use linguini_syntax::{
@@ -66,7 +66,9 @@ pub(super) fn resolved_occurrences(
         SemanticKey::FormAttribute { .. } | SemanticKey::Variable(_) | SemanticKey::Function(_) => {
             true
         }
-        SemanticKey::Parameter { owner, .. } => owner.starts_with("fn:"),
+        SemanticKey::Parameter { owner, .. } => {
+            owner.starts_with("fn:") || owner.starts_with("inline:")
+        }
         SemanticKey::Message(_) | SemanticKey::Type(_) | SemanticKey::EnumVariant { .. } => false,
     };
     let schema_anchor = if document_local || source.namespace.is_some() {
@@ -426,19 +428,15 @@ fn collect_locale_declaration(
                 .iter()
                 .filter_map(|parameter| {
                     parameter.name.as_ref().map(|name| {
-                        push(
-                            output,
-                            SemanticKey::Parameter {
-                                owner: owner.clone(),
-                                name: name.value.clone(),
-                            },
-                            name.span,
-                            true,
-                        );
-                        name.value.clone()
+                        let key = SemanticKey::Parameter {
+                            owner: owner.clone(),
+                            name: name.value.clone(),
+                        };
+                        push(output, key.clone(), name.span, true);
+                        (name.value.clone(), key)
                     })
                 })
-                .collect::<BTreeSet<_>>();
+                .collect::<BTreeMap<_, _>>();
             for parameter in &item.parameters {
                 if !is_builtin_type(&parameter.ty.value) && parameter.ty.value != "Plural" {
                     push(
@@ -551,17 +549,17 @@ fn collect_map_branch(
 fn collect_function_branches(
     branches: &[FunctionBranch],
     owner: &str,
-    parameters: &BTreeSet<String>,
+    bindings: &BTreeMap<String, SemanticKey>,
     names: &LocaleNames,
     output: &mut Vec<SemanticOccurrence>,
 ) {
     for branch in branches {
         match &branch.value {
             FunctionBranchValue::Text(text) => {
-                collect_text_with_parameters(text, owner, parameters, names, output);
+                collect_text_with_bindings(text, owner, bindings, names, output);
             }
             FunctionBranchValue::Dispatch(children) => {
-                collect_function_branches(children, owner, parameters, names, output);
+                collect_function_branches(children, owner, bindings, names, output);
             }
         }
     }
@@ -578,7 +576,7 @@ fn collect_text(
             collect_expression(
                 &placeholder.expression,
                 message_owner,
-                &BTreeSet::new(),
+                &BTreeMap::new(),
                 names,
                 output,
             );
@@ -586,10 +584,10 @@ fn collect_text(
     }
 }
 
-fn collect_text_with_parameters(
+fn collect_text_with_bindings(
     text: &TextPattern,
     owner: &str,
-    parameters: &BTreeSet<String>,
+    bindings: &BTreeMap<String, SemanticKey>,
     names: &LocaleNames,
     output: &mut Vec<SemanticOccurrence>,
 ) {
@@ -598,7 +596,7 @@ fn collect_text_with_parameters(
             collect_expression(
                 &placeholder.expression,
                 Some(owner),
-                parameters,
+                bindings,
                 names,
                 output,
             );
@@ -609,7 +607,7 @@ fn collect_text_with_parameters(
 fn collect_expression(
     expression: &Expression,
     owner: Option<&str>,
-    parameters: &BTreeSet<String>,
+    bindings: &BTreeMap<String, SemanticKey>,
     names: &LocaleNames,
     output: &mut Vec<SemanticOccurrence>,
 ) {
@@ -622,14 +620,8 @@ fn collect_expression(
             .join(".");
         let (key, span) = if names.messages.contains(&full_path) {
             (Some(SemanticKey::Message(full_path)), last.span)
-        } else if parameters.contains(&root.value) {
-            (
-                owner.map(|owner| SemanticKey::Parameter {
-                    owner: owner.to_owned(),
-                    name: root.value.clone(),
-                }),
-                root.span,
-            )
+        } else if let Some(key) = bindings.get(&root.value) {
+            (Some(key.clone()), root.span)
         } else if expression.kind == ExpressionKind::Reference
             && names.variables.contains(&root.value)
         {
@@ -639,6 +631,11 @@ fn collect_expression(
             && names.functions.contains(&root.value)
         {
             (Some(SemanticKey::Function(root.value.clone())), root.span)
+        } else if expression.kind == ExpressionKind::Call
+            && expression.path.len() == 1
+            && linguini_ir::is_plural_intrinsic(&root.value)
+        {
+            (Some(SemanticKey::Type("Plural".to_owned())), root.span)
         } else if let Some(owner) = owner {
             (
                 Some(SemanticKey::Parameter {
@@ -657,7 +654,55 @@ fn collect_expression(
         }
     }
     for argument in &expression.arguments {
-        collect_expression(argument, owner, parameters, names, output);
+        collect_expression(argument, owner, bindings, names, output);
+    }
+    if let ExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
+        // Inline inputs have ordinary call semantics: every RHS resolves in
+        // the enclosing lexical scope before any new binding is introduced.
+        for input in inputs {
+            let value = match input {
+                linguini_syntax::InlineFunctionInput::Binding { value, .. }
+                | linguini_syntax::InlineFunctionInput::Selector { value, .. } => value,
+            };
+            collect_expression(value, owner, bindings, names, output);
+        }
+
+        let inline_owner = format!("inline:{}", expression.span.start);
+        let mut branch_bindings = bindings.clone();
+        for input in inputs {
+            if let linguini_syntax::InlineFunctionInput::Binding { name, .. } = input {
+                let key = SemanticKey::Parameter {
+                    owner: inline_owner.clone(),
+                    name: name.value.clone(),
+                };
+                push(output, key.clone(), name.span, true);
+                branch_bindings.insert(name.value.clone(), key);
+            }
+        }
+        collect_inline_function_branches(branches, owner, &branch_bindings, names, output);
+    }
+}
+
+fn collect_inline_function_branches(
+    branches: &[FunctionBranch],
+    owner: Option<&str>,
+    bindings: &BTreeMap<String, SemanticKey>,
+    names: &LocaleNames,
+    output: &mut Vec<SemanticOccurrence>,
+) {
+    for branch in branches {
+        match &branch.value {
+            FunctionBranchValue::Text(text) => {
+                for part in &text.parts {
+                    if let TextPart::Placeholder(placeholder) = part {
+                        collect_expression(&placeholder.expression, owner, bindings, names, output);
+                    }
+                }
+            }
+            FunctionBranchValue::Dispatch(children) => {
+                collect_inline_function_branches(children, owner, bindings, names, output)
+            }
+        }
     }
 }
 

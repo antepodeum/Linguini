@@ -195,6 +195,23 @@ fn text_preview(value: &TextPattern) -> String {
 }
 
 fn expression_preview(expression: &linguini_syntax::Expression) -> String {
+    if let linguini_syntax::ExpressionKind::InlineFunction { inputs, .. } = &expression.kind {
+        return format!(
+            "fn({}) {{ … }}",
+            inputs
+                .iter()
+                .map(|input| match input {
+                    linguini_syntax::InlineFunctionInput::Selector { value, .. } => {
+                        expression_preview(value)
+                    }
+                    linguini_syntax::InlineFunctionInput::Binding { name, value, .. } => {
+                        format!("{}: {}", name.value, expression_preview(value))
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
     let mut output = expression
         .path
         .iter()

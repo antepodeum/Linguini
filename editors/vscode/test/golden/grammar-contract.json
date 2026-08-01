@@ -362,10 +362,262 @@
       ]
     },
     {
+      "kind": "Comma",
+      "text": ",",
+      "line": 6,
+      "column": 34,
+      "scopes": [
+        "punctuation.separator.comma.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "count",
+      "line": 6,
+      "column": 36,
+      "scopes": [
+        "variable.parameter.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Colon",
+      "text": ":",
+      "line": 6,
+      "column": 41,
+      "scopes": [
+        "punctuation.separator.key-value.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "Number",
+      "line": 6,
+      "column": 43,
+      "scopes": [
+        "support.type.linguini.schema"
+      ]
+    },
+    {
       "kind": "RParen",
       "text": ")",
       "line": 6,
-      "column": 34,
+      "column": 49,
+      "scopes": [
+        "punctuation.section.parameters.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "inline_greeting",
+      "line": 7,
+      "column": 1,
+      "scopes": [
+        "entity.name.function.message.linguini.schema"
+      ]
+    },
+    {
+      "kind": "LParen",
+      "text": "(",
+      "line": 7,
+      "column": 16,
+      "scopes": [
+        "punctuation.section.parameters.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 7,
+      "column": 17,
+      "scopes": [
+        "variable.parameter.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Colon",
+      "text": ":",
+      "line": 7,
+      "column": 21,
+      "scopes": [
+        "punctuation.separator.key-value.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "String",
+      "line": 7,
+      "column": 23,
+      "scopes": [
+        "support.type.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Comma",
+      "text": ",",
+      "line": 7,
+      "column": 29,
+      "scopes": [
+        "punctuation.separator.comma.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "tone",
+      "line": 7,
+      "column": 31,
+      "scopes": [
+        "variable.parameter.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Colon",
+      "text": ":",
+      "line": 7,
+      "column": 35,
+      "scopes": [
+        "punctuation.separator.key-value.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "Tone",
+      "line": 7,
+      "column": 37,
+      "scopes": [
+        "support.type.linguini.schema"
+      ]
+    },
+    {
+      "kind": "RParen",
+      "text": ")",
+      "line": 7,
+      "column": 41,
+      "scopes": [
+        "punctuation.section.parameters.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "inline_nested",
+      "line": 8,
+      "column": 1,
+      "scopes": [
+        "entity.name.function.message.linguini.schema"
+      ]
+    },
+    {
+      "kind": "LParen",
+      "text": "(",
+      "line": 8,
+      "column": 14,
+      "scopes": [
+        "punctuation.section.parameters.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 8,
+      "column": 15,
+      "scopes": [
+        "variable.parameter.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Colon",
+      "text": ":",
+      "line": 8,
+      "column": 19,
+      "scopes": [
+        "punctuation.separator.key-value.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "String",
+      "line": 8,
+      "column": 21,
+      "scopes": [
+        "support.type.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Comma",
+      "text": ",",
+      "line": 8,
+      "column": 27,
+      "scopes": [
+        "punctuation.separator.comma.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "tone",
+      "line": 8,
+      "column": 29,
+      "scopes": [
+        "variable.parameter.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Colon",
+      "text": ":",
+      "line": 8,
+      "column": 33,
+      "scopes": [
+        "punctuation.separator.key-value.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "Tone",
+      "line": 8,
+      "column": 35,
+      "scopes": [
+        "support.type.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Comma",
+      "text": ",",
+      "line": 8,
+      "column": 39,
+      "scopes": [
+        "punctuation.separator.comma.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "count",
+      "line": 8,
+      "column": 41,
+      "scopes": [
+        "variable.parameter.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Colon",
+      "text": ":",
+      "line": 8,
+      "column": 46,
+      "scopes": [
+        "punctuation.separator.key-value.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "Number",
+      "line": 8,
+      "column": 48,
+      "scopes": [
+        "support.type.linguini.schema"
+      ]
+    },
+    {
+      "kind": "RParen",
+      "text": ")",
+      "line": 8,
+      "column": 54,
       "scopes": [
         "punctuation.section.parameters.linguini.schema"
       ]
@@ -373,7 +625,7 @@
     {
       "kind": "Ident",
       "text": "account",
-      "line": 8,
+      "line": 10,
       "column": 1,
       "scopes": [
         "entity.name.function.message.linguini.schema"
@@ -382,7 +634,7 @@
     {
       "kind": "LBrace",
       "text": "{",
-      "line": 8,
+      "line": 10,
       "column": 9,
       "scopes": [
         "punctuation.section.block.linguini.schema"
@@ -391,7 +643,7 @@
     {
       "kind": "Ident",
       "text": "title",
-      "line": 9,
+      "line": 11,
       "column": 3,
       "scopes": [
         "variable.other.member.linguini.schema"
@@ -400,7 +652,7 @@
     {
       "kind": "Ident",
       "text": "subtitle",
-      "line": 10,
+      "line": 12,
       "column": 3,
       "scopes": [
         "entity.name.function.message.linguini.schema"
@@ -409,7 +661,7 @@
     {
       "kind": "LParen",
       "text": "(",
-      "line": 10,
+      "line": 12,
       "column": 11,
       "scopes": [
         "punctuation.section.parameters.linguini.schema"
@@ -418,7 +670,7 @@
     {
       "kind": "Ident",
       "text": "count",
-      "line": 10,
+      "line": 12,
       "column": 12,
       "scopes": [
         "variable.parameter.linguini.schema"
@@ -427,7 +679,7 @@
     {
       "kind": "Colon",
       "text": ":",
-      "line": 10,
+      "line": 12,
       "column": 17,
       "scopes": [
         "punctuation.separator.key-value.linguini.schema"
@@ -436,7 +688,7 @@
     {
       "kind": "Ident",
       "text": "Number",
-      "line": 10,
+      "line": 12,
       "column": 19,
       "scopes": [
         "support.type.linguini.schema"
@@ -445,7 +697,7 @@
     {
       "kind": "RParen",
       "text": ")",
-      "line": 10,
+      "line": 12,
       "column": 25,
       "scopes": [
         "punctuation.section.parameters.linguini.schema"
@@ -454,7 +706,7 @@
     {
       "kind": "RBrace",
       "text": "}",
-      "line": 11,
+      "line": 13,
       "column": 1,
       "scopes": [
         "punctuation.section.block.linguini.schema"
@@ -900,23 +1152,41 @@
       "line": 18,
       "column": 8,
       "scopes": [
-        "punctuation.section.parameters.linguini.locale"
+        "punctuation.section.parameters.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "Tone",
+      "line": 18,
+      "column": 9,
+      "scopes": [
+        "entity.name.type.selector.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Comma",
+      "text": ",",
+      "line": 18,
+      "column": 13,
+      "scopes": [
+        "punctuation.separator.comma.linguini.locale"
       ]
     },
     {
       "kind": "Ident",
       "text": "value",
       "line": 18,
-      "column": 9,
+      "column": 15,
       "scopes": [
-        "variable.other.member.linguini.locale"
+        "variable.parameter.payload.linguini.locale"
       ]
     },
     {
       "kind": "Colon",
       "text": ":",
       "line": 18,
-      "column": 14,
+      "column": 20,
       "scopes": [
         "punctuation.separator.key-value.linguini.locale"
       ]
@@ -925,27 +1195,9 @@
       "kind": "Ident",
       "text": "String",
       "line": 18,
-      "column": 16,
-      "scopes": [
-        "support.type.primitive.linguini.locale"
-      ]
-    },
-    {
-      "kind": "Comma",
-      "text": ",",
-      "line": 18,
       "column": 22,
       "scopes": [
-        "punctuation.separator.comma.linguini.locale"
-      ]
-    },
-    {
-      "kind": "Ident",
-      "text": "Tone",
-      "line": 18,
-      "column": 24,
-      "scopes": [
-        "entity.name.type.reference.linguini.locale"
+        "support.type.primitive.linguini.locale"
       ]
     },
     {
@@ -954,7 +1206,7 @@
       "line": 18,
       "column": 28,
       "scopes": [
-        "punctuation.section.parameters.linguini.locale"
+        "punctuation.section.parameters.end.linguini.locale"
       ]
     },
     {
@@ -1230,7 +1482,7 @@
     },
     {
       "kind": "Ident",
-      "text": "name",
+      "text": "tone",
       "line": 24,
       "column": 43,
       "scopes": [
@@ -1248,7 +1500,7 @@
     },
     {
       "kind": "Ident",
-      "text": "tone",
+      "text": "name",
       "line": 24,
       "column": 49,
       "scopes": [
@@ -1388,6 +1640,775 @@
       "column": 1,
       "scopes": [
         "punctuation.section.block.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "inline_greeting",
+      "line": 31,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.message.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Equals",
+      "text": "=",
+      "line": 31,
+      "column": 17,
+      "scopes": [
+        "keyword.operator.assignment.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " Hello ",
+      "line": 31,
+      "column": 18,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 31,
+      "column": 25,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "fn",
+      "line": 31,
+      "column": 26,
+      "scopes": [
+        "keyword.control.function.inline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LParen",
+      "text": "(",
+      "line": 31,
+      "column": 28,
+      "scopes": [
+        "punctuation.section.parameters.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "tone",
+      "line": 31,
+      "column": 29,
+      "scopes": [
+        "variable.other.reference.inline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RParen",
+      "text": ")",
+      "line": 31,
+      "column": 33,
+      "scopes": [
+        "punctuation.section.parameters.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 31,
+      "column": 35,
+      "scopes": [
+        "punctuation.section.block.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "formal",
+      "line": 32,
+      "column": 3,
+      "scopes": [
+        "variable.other.enummember.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Arrow",
+      "text": "=>",
+      "line": 32,
+      "column": 10,
+      "scopes": [
+        "keyword.operator.arrow.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " ",
+      "line": 32,
+      "column": 12,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "String",
+      "text": "\"Dear, \"",
+      "line": 32,
+      "column": 13,
+      "scopes": [
+        "punctuation.definition.string.begin.linguini.locale",
+        "string.quoted.double.linguini.locale",
+        "punctuation.definition.string.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " ",
+      "line": 32,
+      "column": 21,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 32,
+      "column": 22,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 32,
+      "column": 23,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 32,
+      "column": 27,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": ",",
+      "line": 32,
+      "column": 28,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "_",
+      "line": 33,
+      "column": 3,
+      "scopes": [
+        "constant.language.placeholder.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Arrow",
+      "text": "=>",
+      "line": 33,
+      "column": 5,
+      "scopes": [
+        "keyword.operator.arrow.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " Hi ",
+      "line": 33,
+      "column": 7,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 33,
+      "column": 11,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 33,
+      "column": 12,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 33,
+      "column": 16,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 34,
+      "column": 1,
+      "scopes": [
+        "punctuation.section.block.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 34,
+      "column": 2,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "!",
+      "line": 34,
+      "column": 3,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "inline_nested",
+      "line": 36,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.message.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Equals",
+      "text": "=",
+      "line": 36,
+      "column": 15,
+      "scopes": [
+        "keyword.operator.assignment.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " ",
+      "line": 36,
+      "column": 16,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 36,
+      "column": 17,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "fn",
+      "line": 36,
+      "column": 18,
+      "scopes": [
+        "keyword.control.function.inline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LParen",
+      "text": "(",
+      "line": 36,
+      "column": 20,
+      "scopes": [
+        "punctuation.section.parameters.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "tone",
+      "line": 36,
+      "column": 21,
+      "scopes": [
+        "variable.other.reference.inline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Comma",
+      "text": ",",
+      "line": 36,
+      "column": 25,
+      "scopes": [
+        "punctuation.separator.comma.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "Plural",
+      "line": 36,
+      "column": 27,
+      "scopes": [
+        "support.type.builtin.plural.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LParen",
+      "text": "(",
+      "line": 36,
+      "column": 33,
+      "scopes": [
+        "punctuation.section.parameters.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "count",
+      "line": 36,
+      "column": 34,
+      "scopes": [
+        "variable.other.reference.inline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RParen",
+      "text": ")",
+      "line": 36,
+      "column": 39,
+      "scopes": [
+        "punctuation.section.parameters.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Comma",
+      "text": ",",
+      "line": 36,
+      "column": 40,
+      "scopes": [
+        "punctuation.separator.comma.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "greet",
+      "line": 36,
+      "column": 42,
+      "scopes": [
+        "variable.other.definition.local.inline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Colon",
+      "text": ":",
+      "line": 36,
+      "column": 47,
+      "scopes": [
+        "punctuation.separator.key-value.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "Greeting",
+      "line": 36,
+      "column": 49,
+      "scopes": [
+        "entity.name.function.call.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LParen",
+      "text": "(",
+      "line": 36,
+      "column": 57,
+      "scopes": [
+        "punctuation.section.parameters.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "tone",
+      "line": 36,
+      "column": 58,
+      "scopes": [
+        "variable.other.reference.inline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Comma",
+      "text": ",",
+      "line": 36,
+      "column": 62,
+      "scopes": [
+        "punctuation.separator.comma.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "count",
+      "line": 36,
+      "column": 64,
+      "scopes": [
+        "variable.other.reference.inline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RParen",
+      "text": ")",
+      "line": 36,
+      "column": 69,
+      "scopes": [
+        "punctuation.section.parameters.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RParen",
+      "text": ")",
+      "line": 36,
+      "column": 70,
+      "scopes": [
+        "punctuation.section.parameters.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 36,
+      "column": 72,
+      "scopes": [
+        "punctuation.section.block.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "formal",
+      "line": 37,
+      "column": 3,
+      "scopes": [
+        "variable.other.enummember.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 37,
+      "column": 10,
+      "scopes": [
+        "punctuation.section.block.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "one",
+      "line": 38,
+      "column": 5,
+      "scopes": [
+        "constant.other.selector.plural.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Arrow",
+      "text": "=>",
+      "line": 38,
+      "column": 9,
+      "scopes": [
+        "keyword.operator.arrow.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " ",
+      "line": 38,
+      "column": 11,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "String",
+      "text": "\"Dear, } \"",
+      "line": 38,
+      "column": 12,
+      "scopes": [
+        "punctuation.definition.string.begin.linguini.locale",
+        "string.quoted.double.linguini.locale",
+        "punctuation.definition.string.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 38,
+      "column": 22,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "greet",
+      "line": 38,
+      "column": 23,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 38,
+      "column": 28,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " ",
+      "line": 38,
+      "column": 29,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 38,
+      "column": 30,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 38,
+      "column": 31,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 38,
+      "column": 35,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "other",
+      "line": 39,
+      "column": 5,
+      "scopes": [
+        "constant.other.selector.plural.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Arrow",
+      "text": "=>",
+      "line": 39,
+      "column": 11,
+      "scopes": [
+        "keyword.operator.arrow.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " Dear ",
+      "line": 39,
+      "column": 13,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 39,
+      "column": 19,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "greet",
+      "line": 39,
+      "column": 20,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 39,
+      "column": 25,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " ",
+      "line": 39,
+      "column": 26,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 39,
+      "column": 27,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 39,
+      "column": 28,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 39,
+      "column": 32,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 40,
+      "column": 3,
+      "scopes": [
+        "punctuation.section.block.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "_",
+      "line": 41,
+      "column": 3,
+      "scopes": [
+        "constant.language.placeholder.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 41,
+      "column": 5,
+      "scopes": [
+        "punctuation.section.block.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "_",
+      "line": 42,
+      "column": 5,
+      "scopes": [
+        "constant.language.placeholder.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Arrow",
+      "text": "=>",
+      "line": 42,
+      "column": 7,
+      "scopes": [
+        "keyword.operator.arrow.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " Hi ",
+      "line": 42,
+      "column": 9,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 42,
+      "column": 13,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 42,
+      "column": 14,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 42,
+      "column": 18,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 43,
+      "column": 3,
+      "scopes": [
+        "punctuation.section.block.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 44,
+      "column": 1,
+      "scopes": [
+        "punctuation.section.block.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 44,
+      "column": 2,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
       ]
     }
   ]

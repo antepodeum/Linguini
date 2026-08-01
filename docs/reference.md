@@ -251,9 +251,13 @@ cart_summary = {cart_label}: {count} {item.nom(count)}
 
 ### `Plural` — built-in
 
-`Plural` is always available with variants `one | few | many | other`.
-Any `Number` passed where `Plural` is expected converts automatically
-using CLDR plural rules for the active locale. No wrapper function needed.
+`Plural` is always available. CLDR plural rules may return
+`zero | one | two | few | many | other`, depending on the active locale.
+Any `Number` passed to a typed `Plural` parameter converts automatically using
+CLDR plural rules for the active locale. In a value-based inline selector, use
+`Plural(value)` to request that conversion explicitly; a value already typed as
+`Plural` can be selected directly. Lowercase `plural(value)` remains a
+compatibility alias.
 
 ---
 
@@ -367,34 +371,99 @@ form SizeAdj(Size, Plural, Gender) {
 **Ordering:** parameters should go from the enum with fewest variants to the most.
 This keeps the top levels of the dispatch tree narrow (`param_order` lint).
 
-**Branch coverage:** `linguini check` and `linguini build` require every dispatch
-level they can resolve against a schema/locale enum or `Plural` to cover each
-variant explicitly or include `_`. A missing branch is a blocking diagnostic.
-This is scoped analyzer coverage, not a whole-program exhaustiveness proof.
+**Branch coverage:** `linguini check` and `linguini build` require every enum
+dispatch level they can resolve to cover each variant explicitly or include
+`_`. A `Plural` level must contain `other` or `_`; `other` is the fallback for
+CLDR categories without an exact arm. Unknown enum variants and plural category
+names are blocking diagnostics. This is scoped analyzer coverage, not a
+whole-program exhaustiveness proof.
 
 ---
 
 ### `fn` — forms with string interpolation
 
-`fn` works like `form` but can accept named `String` parameters and interpolate
-them into output values.
+`fn` works like `form`, then adds named payload parameters that can be
+interpolated or passed to other locale callables. Leading unnamed enum or
+`Plural` parameters are dispatch inputs; other primitive types are rejected as
+dispatch dimensions. Named parameters form one trailing payload group and
+never add dispatch levels, regardless of their type.
 
 ```lgl
-fn delivery_note(item: String, Plural, Gender) {
+fn delivery_note(Plural, Gender, item: String) {
   one {
     feminine  => Доставлена {item}
     _         => Доставлен {item}
   }
   _ => Доставлены {item}
 }
+
+delivery = {delivery_note(count, gender, item)}
 ```
 
 Use `form` when output depends only on grammatical categories.
 Use `fn` when output embeds a dynamic string value.
 
-Functions are module declarations. Inline `fn` expressions are not part of the
-language grammar; declare the function once and call it from message
-interpolation.
+### Inline functions
+
+An inline `fn` is the ordinary locale `fn` without a name. It reuses the same
+branch grammar, evaluates immediately, and returns selected text. Its input
+list contains expressions rather than type declarations:
+
+- leading unnamed expressions are selectors and define dispatch order;
+- trailing `name: expression` entries are local payload bindings and never
+  dispatch.
+
+```lgs
+enum Gender { masculine, feminine, other }
+greeting(name: String, gender: Gender, count: Number)
+```
+
+```lgl
+greeting = {fn(gender, Plural(count)) {
+  masculine {
+    one => Dear {name}: one item
+    other => Dear {name}: many items
+  }
+  feminine {
+    one => Hello {name}: one item
+    other => Hello {name}: many items
+  }
+  _ {
+    one => Hi {name}: one item
+    other => Hi {name}: many items
+  }
+}}
+```
+
+Selector types are inferred from their expressions. Here `gender` dispatches as
+`Gender`, while `Plural(count)` explicitly converts a numeric value using the
+active locale's CLDR rules. If a surrounding locale-function payload already
+has type `Plural`, write it directly; inline dispatch still accepts either a
+numeric operand or a pre-classified plural category.
+
+Bindings can hold call results, for example
+`fn(gender, Plural(count), greet: Greeting(gender, count))`. Binding names are
+available in every branch, but bindings are simultaneous: each right-hand
+expression sees the surrounding callable scope, not earlier bindings in the
+same list. All selectors must precede the first binding. A selector after a
+binding is invalid.
+
+Surrounding message or function parameters form the inline lexical closure.
+Locale variables, forms, and functions remain ordinary lexical symbols and can
+be referenced or called in input expressions and branch text. They are not
+turned into ad-hoc selectors. A selector or binding can be omitted when its
+value is not needed; unlisted surrounding parameters remain available through
+the lexical closure.
+
+Inline functions are expressions, not declarations or JavaScript function
+values. Their result type is `String`; enum selector levels must be exhaustive
+or contain a final `_`, while `Plural` levels require `other` or `_`. Branch
+arms use the same newline and block boundaries as a named locale function;
+commas in branch text are ordinary output. Put a literal closing brace in a
+quoted fragment (for example, `"result }"`). `{{` still emits a literal opening
+brace, consistently with ordinary message text. `fn()` and binding-only inline
+functions are valid; with zero selectors, their body has only the structural
+`_` branch.
 
 ---
 

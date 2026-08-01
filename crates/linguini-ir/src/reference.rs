@@ -1,12 +1,12 @@
 use crate::model::{
     IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFunction, IrFunctionBranch,
-    IrFunctionBranchValue, IrModule, IrText, IrTextPart, IrValue,
+    IrFunctionBranchValue, IrInlineFunctionInput, IrModule, IrText, IrTextPart, IrValue,
 };
-use linguini_core::{FormatterKind, TypeKind};
+use linguini_core::{is_plural_intrinsic, FormatterKind, TypeKind, PLURAL_TYPE_NAME};
 use linguini_syntax::Span;
 use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
-pub const BUILTIN_PLURAL: &str = "plural";
+pub const BUILTIN_PLURAL: &str = PLURAL_TYPE_NAME;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrRelatedError {
@@ -278,7 +278,43 @@ fn validate_structure(label: &str, module: &IrModule, errors: &mut Vec<IrReferen
         }
     }
     for function in &module.functions {
+        validate_parameter_order(
+            &format!("function `{}`", function.name),
+            &function.parameters,
+            origin_span(module, &function.name),
+            errors,
+        );
         validate_function_branches(&function.name, &function.branches, errors);
+    }
+}
+
+fn validate_parameter_order(
+    subject: &str,
+    parameters: &[crate::IrFunctionParameter],
+    span: Option<Span>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let mut saw_payload = false;
+    let mut names = BTreeSet::new();
+    for parameter in parameters {
+        match &parameter.name {
+            Some(name) => {
+                saw_payload = true;
+                if !names.insert(name) {
+                    errors.push(IrReferenceError::new(
+                        "IR003",
+                        format!("duplicate {subject} payload parameter `{name}`"),
+                        span,
+                    ));
+                }
+            }
+            None if saw_payload => errors.push(IrReferenceError::new(
+                "IR038",
+                format!("{subject} dispatch parameters must precede named payload parameters"),
+                span,
+            )),
+            None => {}
+        }
     }
 }
 
@@ -328,7 +364,11 @@ fn validate_form_entries(
     let mut branch_patterns = BTreeSet::new();
     for entry in entries {
         match entry {
-            IrFormEntry::Attribute { name, value, .. } => {
+            IrFormEntry::Attribute {
+                name,
+                parameters,
+                value,
+            } => {
                 if !attributes.insert(name) {
                     errors.push(IrReferenceError::new(
                         "IR004",
@@ -336,6 +376,12 @@ fn validate_form_entries(
                         value_span(value),
                     ));
                 }
+                validate_parameter_order(
+                    &format!("{subject} attribute `{name}`"),
+                    parameters,
+                    value_span(value),
+                    errors,
+                );
                 match value {
                     IrValue::Text(_) => {}
                     IrValue::Map(branches) => validate_map_branches(subject, branches, errors),
@@ -385,6 +431,7 @@ fn validate_function_branches(
     errors: &mut Vec<IrReferenceError>,
 ) {
     let mut keys = BTreeSet::new();
+    let mut wildcard = None;
     for branch in branches {
         if !keys.insert(branch.key.as_str()) {
             errors.push(IrReferenceError::at(
@@ -392,6 +439,22 @@ fn validate_function_branches(
                 format!("duplicate function `{function}` branch `{}`", branch.key),
                 branch.span,
             ));
+        }
+        if let Some(wildcard_span) = wildcard {
+            errors.push(
+                IrReferenceError::at(
+                    "IR037",
+                    format!(
+                        "function `{function}` branch `{}` is unreachable after `_`",
+                        branch.key
+                    ),
+                    branch.span,
+                )
+                .related(wildcard_span, "wildcard branch is here"),
+            );
+        }
+        if branch.key == "_" && wildcard.is_none() {
+            wildcard = Some(branch.span);
         }
         if let IrFunctionBranchValue::Dispatch(children) = &branch.value {
             validate_function_branches(function, children, errors);
@@ -565,11 +628,8 @@ fn validate_locale(
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) {
-    let global_variables = context
-        .variables
-        .keys()
-        .map(|name| ((*name).to_owned(), "String".to_owned()))
-        .collect::<BTreeMap<_, _>>();
+    let global_variables = global_variables(context);
+    let no_capture_candidates = BTreeMap::new();
 
     for message in &locale.messages {
         let Some(signature) = context.messages.get(message.name.as_str()) else {
@@ -581,6 +641,7 @@ fn validate_locale(
             continue;
         };
         let mut variables = global_variables.clone();
+        let mut capture_candidates = BTreeMap::new();
         for parameter in &signature.parameters {
             if variables
                 .insert(parameter.name.clone(), parameter.ty.clone())
@@ -595,18 +656,26 @@ fn validate_locale(
                     origin_span(schema, &signature.name),
                 ));
             }
+            capture_candidates.insert(parameter.name.clone(), parameter.ty.clone());
         }
         if let Some(body) = &message.body {
-            check_text(body, &variables, context, errors);
+            check_text(body, &variables, &capture_candidates, context, errors);
         }
     }
 
     for variable in &locale.variables {
-        check_text(&variable.value, &global_variables, context, errors);
+        check_text(
+            &variable.value,
+            &global_variables,
+            &no_capture_candidates,
+            context,
+            errors,
+        );
     }
 
     for function in &locale.functions {
         let mut variables = global_variables.clone();
+        let mut capture_candidates = BTreeMap::new();
         for parameter in &function.parameters {
             if !context.known_type(&parameter.ty) && parameter.ty != "Plural" {
                 errors.push(IrReferenceError::new(
@@ -629,6 +698,7 @@ fn validate_locale(
                         origin_span(locale, &function.name),
                     ));
                 }
+                capture_candidates.insert(name.clone(), parameter.ty.clone());
             }
         }
         validate_function_dispatch_coverage(
@@ -640,7 +710,7 @@ fn validate_locale(
             errors,
         );
         for branch in &function.branches {
-            check_function_branch(branch, &variables, context, errors);
+            check_function_branch(branch, &variables, &capture_candidates, context, errors);
         }
     }
 
@@ -650,6 +720,7 @@ fn validate_locale(
                 &form.name,
                 &variant.entries,
                 &global_variables,
+                &no_capture_candidates,
                 context,
                 errors,
             );
@@ -657,17 +728,28 @@ fn validate_locale(
     }
 }
 
+fn global_variables(context: &ReferenceContext<'_>) -> BTreeMap<String, String> {
+    context
+        .variables
+        .keys()
+        .map(|name| ((*name).to_owned(), "String".to_owned()))
+        .collect()
+}
+
 fn check_function_branch(
     branch: &IrFunctionBranch,
     variables: &BTreeMap<String, String>,
+    capture_candidates: &BTreeMap<String, String>,
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) {
     match &branch.value {
-        IrFunctionBranchValue::Text(text) => check_text(text, variables, context, errors),
+        IrFunctionBranchValue::Text(text) => {
+            check_text(text, variables, capture_candidates, context, errors);
+        }
         IrFunctionBranchValue::Dispatch(branches) => {
             for branch in branches {
-                check_function_branch(branch, variables, context, errors);
+                check_function_branch(branch, variables, capture_candidates, context, errors);
             }
         }
     }
@@ -677,6 +759,7 @@ fn check_form_entries(
     owner: &str,
     entries: &[IrFormEntry],
     variables: &BTreeMap<String, String>,
+    capture_candidates: &BTreeMap<String, String>,
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) {
@@ -707,6 +790,8 @@ fn check_form_entries(
                 parameters,
                 value,
             } => {
+                let mut attribute_variables = variables.clone();
+                let mut attribute_capture_candidates = BTreeMap::new();
                 for parameter in parameters {
                     if !context.known_type(&parameter.ty) && parameter.ty != "Plural" {
                         errors.push(IrReferenceError::new(
@@ -718,6 +803,22 @@ fn check_form_entries(
                             value_span(value),
                         ));
                     }
+                    if let Some(parameter_name) = &parameter.name {
+                        if attribute_variables
+                            .insert(parameter_name.clone(), parameter.ty.clone())
+                            .is_some()
+                        {
+                            errors.push(IrReferenceError::new(
+                                "IR011",
+                                format!(
+                                    "form parameter `{parameter_name}` shadows a global variable"
+                                ),
+                                value_span(value),
+                            ));
+                        }
+                        attribute_capture_candidates
+                            .insert(parameter_name.clone(), parameter.ty.clone());
+                    }
                 }
                 validate_value_dispatch_coverage(
                     &format!("form `{}.{name}`", owner),
@@ -726,10 +827,22 @@ fn check_form_entries(
                     context,
                     errors,
                 );
-                check_value(value, variables, context, errors);
+                check_value(
+                    value,
+                    &attribute_variables,
+                    &attribute_capture_candidates,
+                    context,
+                    errors,
+                );
             }
             IrFormEntry::Branch(branch) => {
-                check_text(&branch.value, variables, context, errors);
+                check_text(
+                    &branch.value,
+                    variables,
+                    capture_candidates,
+                    context,
+                    errors,
+                );
             }
         }
     }
@@ -767,35 +880,41 @@ fn validate_function_dispatch_coverage(
     fallback_span: Option<Span>,
     errors: &mut Vec<IrReferenceError>,
 ) {
-    let dispatch_types = function
-        .parameters
-        .iter()
-        .filter(|parameter| parameter.ty != "String")
-        .map(|parameter| parameter.ty.as_str())
-        .collect::<Vec<_>>();
-    let ty = dispatch_types.get(depth).copied().unwrap_or("unknown");
-    let subject = format!("function `{}`", function.name);
-    validate_dispatch_coverage(
-        &subject,
-        ty,
-        branches.iter().map(|branch| branch.key.as_str()),
-        branches.first().map(|branch| branch.span).or(fallback_span),
+    validate_parameter_dispatch_coverage(
+        &format!("function `{}`", function.name),
+        &function.parameters,
+        branches,
+        depth,
         context,
+        fallback_span,
         errors,
     );
+}
 
-    for branch in branches {
-        if let IrFunctionBranchValue::Dispatch(children) = &branch.value {
-            validate_function_dispatch_coverage(
-                function,
-                children,
-                depth + 1,
-                context,
-                Some(branch.span),
-                errors,
-            );
-        }
-    }
+#[allow(clippy::too_many_arguments)]
+fn validate_parameter_dispatch_coverage(
+    subject: &str,
+    parameters: &[crate::IrFunctionParameter],
+    branches: &[IrFunctionBranch],
+    depth: usize,
+    context: &ReferenceContext<'_>,
+    fallback_span: Option<Span>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    let dispatch_types = parameters
+        .iter()
+        .filter(|parameter| parameter.name.is_none())
+        .map(|parameter| parameter.ty.clone())
+        .collect::<Vec<_>>();
+    validate_typed_dispatch_coverage(
+        subject,
+        &dispatch_types,
+        branches,
+        depth,
+        context,
+        fallback_span,
+        errors,
+    );
 }
 
 fn validate_dispatch_coverage<'a>(
@@ -807,14 +926,23 @@ fn validate_dispatch_coverage<'a>(
     errors: &mut Vec<IrReferenceError>,
 ) {
     let keys = keys.collect::<BTreeSet<_>>();
-    if keys.contains("_") {
-        return;
-    }
-
     let Ok(resolved) = context.resolve_alias(ty) else {
         return;
     };
     if resolved == "Plural" {
+        let known = ["zero", "one", "two", "few", "many", "other", "_"];
+        for key in &keys {
+            if !known.contains(key) {
+                errors.push(IrReferenceError::new(
+                    "IR036",
+                    format!("{subject} contains unknown `Plural` branch `{key}`"),
+                    span,
+                ));
+            }
+        }
+        if keys.contains("_") {
+            return;
+        }
         if !keys.contains("other") {
             errors.push(IrReferenceError::new(
                 "IR034",
@@ -826,6 +954,18 @@ fn validate_dispatch_coverage<'a>(
     }
 
     if let Some(declaration) = context.enums.get(resolved) {
+        for key in &keys {
+            if *key != "_" && !declaration.variants.iter().any(|variant| variant == *key) {
+                errors.push(IrReferenceError::new(
+                    "IR036",
+                    format!("{subject} contains unknown enum `{resolved}` branch `{key}`"),
+                    span,
+                ));
+            }
+        }
+        if keys.contains("_") {
+            return;
+        }
         for variant in &declaration.variants {
             if !keys.contains(variant.as_str()) {
                 errors.push(IrReferenceError::new(
@@ -840,6 +980,10 @@ fn validate_dispatch_coverage<'a>(
         return;
     }
 
+    if keys.contains("_") {
+        return;
+    }
+
     errors.push(IrReferenceError::new(
         "IR034",
         format!("{subject} cannot dispatch exhaustively on `{ty}` without a `_` branch"),
@@ -850,18 +994,32 @@ fn validate_dispatch_coverage<'a>(
 fn check_value(
     value: &IrValue,
     variables: &BTreeMap<String, String>,
+    capture_candidates: &BTreeMap<String, String>,
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) {
     match value {
-        IrValue::Text(text) => check_text(text, variables, context, errors),
+        IrValue::Text(text) => check_text(text, variables, capture_candidates, context, errors),
         IrValue::Map(branches) => {
             for branch in branches {
-                check_text(&branch.value, variables, context, errors);
+                check_text(
+                    &branch.value,
+                    variables,
+                    capture_candidates,
+                    context,
+                    errors,
+                );
             }
         }
         IrValue::Object(entries) => {
-            check_form_entries("nested", entries, variables, context, errors);
+            check_form_entries(
+                "nested",
+                entries,
+                variables,
+                capture_candidates,
+                context,
+                errors,
+            );
         }
     }
 }
@@ -869,12 +1027,13 @@ fn check_value(
 fn check_text(
     text: &IrText,
     variables: &BTreeMap<String, String>,
+    capture_candidates: &BTreeMap<String, String>,
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) {
     for part in &text.parts {
         if let IrTextPart::Placeholder(expression) = part {
-            let ty = infer_expression(expression, variables, context, errors);
+            let ty = infer_expression(expression, variables, capture_candidates, context, errors);
             validate_formatters(
                 &expression.formatters,
                 ty.as_deref(),
@@ -889,25 +1048,17 @@ fn check_text(
 fn infer_expression(
     expression: &IrExpression,
     variables: &BTreeMap<String, String>,
+    capture_candidates: &BTreeMap<String, String>,
     context: &ReferenceContext<'_>,
     errors: &mut Vec<IrReferenceError>,
 ) -> Option<String> {
     let argument_types = expression
         .arguments
         .iter()
-        .map(|argument| infer_expression(argument, variables, context, errors))
+        .map(|argument| infer_expression(argument, variables, capture_candidates, context, errors))
         .collect::<Vec<_>>();
 
-    if expression.path.is_empty() {
-        errors.push(IrReferenceError::at(
-            "IR012",
-            "unresolved empty expression",
-            expression.span,
-        ));
-        return None;
-    }
-
-    match expression.kind {
+    match &expression.kind {
         IrExpressionKind::Reference if !expression.arguments.is_empty() => {
             errors.push(IrReferenceError::at(
                 "IR013",
@@ -916,9 +1067,206 @@ fn infer_expression(
             ));
             None
         }
+        IrExpressionKind::Reference if expression.path.is_empty() => {
+            errors.push(IrReferenceError::at(
+                "IR012",
+                "unresolved empty expression",
+                expression.span,
+            ));
+            None
+        }
         IrExpressionKind::Reference => infer_reference(expression, variables, context, errors),
+        IrExpressionKind::Call if expression.path.is_empty() => {
+            errors.push(IrReferenceError::at(
+                "IR012",
+                "unresolved empty call expression",
+                expression.span,
+            ));
+            None
+        }
         IrExpressionKind::Call => {
             infer_call(expression, &argument_types, variables, context, errors)
+        }
+        IrExpressionKind::InlineFunction { inputs, branches } => {
+            if !expression.path.is_empty() {
+                errors.push(IrReferenceError::at(
+                    "IR035",
+                    "inline fn expression cannot contain a reference path",
+                    expression.span,
+                ));
+            }
+            if !expression.arguments.is_empty() {
+                errors.push(IrReferenceError::at(
+                    "IR035",
+                    "inline fn expression cannot contain call arguments",
+                    expression.span,
+                ));
+            }
+            if branches.is_empty() {
+                errors.push(IrReferenceError::at(
+                    "IR035",
+                    "inline fn requires at least one branch",
+                    expression.span,
+                ));
+            }
+
+            let (selector_types, branch_variables, branch_capture_candidates) =
+                infer_inline_inputs(inputs, variables, capture_candidates, context, errors);
+            validate_function_branches("inline fn", branches, errors);
+            validate_typed_dispatch_coverage(
+                "inline fn",
+                &selector_types,
+                branches,
+                0,
+                context,
+                Some(expression.span),
+                errors,
+            );
+            for branch in branches {
+                check_function_branch(
+                    branch,
+                    &branch_variables,
+                    &branch_capture_candidates,
+                    context,
+                    errors,
+                );
+            }
+            Some("String".to_owned())
+        }
+    }
+}
+
+fn infer_inline_inputs(
+    inputs: &[IrInlineFunctionInput],
+    variables: &BTreeMap<String, String>,
+    capture_candidates: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) -> (
+    Vec<String>,
+    BTreeMap<String, String>,
+    BTreeMap<String, String>,
+) {
+    let mut selector_types = Vec::new();
+    let mut branch_variables = variables.clone();
+    let mut branch_capture_candidates = capture_candidates.clone();
+    let mut names = BTreeSet::new();
+    let mut saw_binding = false;
+
+    for input in inputs {
+        let (value, span) = match input {
+            IrInlineFunctionInput::Binding { value, span, .. }
+            | IrInlineFunctionInput::Selector { value, span } => (value, *span),
+        };
+        let inferred = infer_expression(value, variables, capture_candidates, context, errors);
+        match input {
+            IrInlineFunctionInput::Selector { .. } => {
+                if saw_binding {
+                    errors.push(IrReferenceError::at(
+                        "IR038",
+                        "inline fn selectors must precede named payload bindings",
+                        span,
+                    ));
+                }
+                selector_types.push(inferred.unwrap_or_else(|| "unknown".to_owned()));
+            }
+            IrInlineFunctionInput::Binding { name, .. } => {
+                saw_binding = true;
+                if !names.insert(name.as_str()) {
+                    errors.push(IrReferenceError::at(
+                        "IR003",
+                        format!("duplicate inline fn payload binding `{name}`"),
+                        span,
+                    ));
+                }
+                let Some(ty) = inferred else {
+                    continue;
+                };
+                branch_variables.insert(name.clone(), ty.clone());
+                branch_capture_candidates.insert(name.clone(), ty);
+            }
+        }
+    }
+
+    (selector_types, branch_variables, branch_capture_candidates)
+}
+
+fn validate_typed_dispatch_coverage(
+    subject: &str,
+    dispatch_types: &[String],
+    branches: &[IrFunctionBranch],
+    depth: usize,
+    context: &ReferenceContext<'_>,
+    fallback_span: Option<Span>,
+    errors: &mut Vec<IrReferenceError>,
+) {
+    if dispatch_types.is_empty() {
+        for branch in branches {
+            if branch.key != "_" {
+                errors.push(IrReferenceError::at(
+                    "IR038",
+                    format!("{subject} without selectors only accepts a `_` branch"),
+                    branch.span,
+                ));
+            }
+            if matches!(branch.value, IrFunctionBranchValue::Dispatch(_)) {
+                errors.push(IrReferenceError::at(
+                    "IR038",
+                    format!("{subject} without selectors cannot contain nested dispatch"),
+                    branch.span,
+                ));
+            }
+        }
+        return;
+    }
+
+    if depth >= dispatch_types.len() {
+        errors.push(IrReferenceError::new(
+            "IR038",
+            format!(
+                "{subject} branch pattern exceeds its {} selector(s)",
+                dispatch_types.len()
+            ),
+            fallback_span,
+        ));
+        return;
+    }
+
+    let ty = dispatch_types.get(depth).map_or("unknown", String::as_str);
+    validate_dispatch_coverage(
+        subject,
+        ty,
+        branches.iter().map(|branch| branch.key.as_str()),
+        branches.first().map(|branch| branch.span).or(fallback_span),
+        context,
+        errors,
+    );
+
+    for branch in branches {
+        match &branch.value {
+            IrFunctionBranchValue::Text(_)
+                if depth + 1 < dispatch_types.len() && branch.key != "_" =>
+            {
+                errors.push(IrReferenceError::at(
+                    "IR038",
+                    format!(
+                        "{subject} branch pattern expects {} selector(s), got {}",
+                        dispatch_types.len(),
+                        depth + 1
+                    ),
+                    branch.span,
+                ));
+            }
+            IrFunctionBranchValue::Dispatch(children) => validate_typed_dispatch_coverage(
+                subject,
+                dispatch_types,
+                children,
+                depth + 1,
+                context,
+                Some(branch.span),
+                errors,
+            ),
+            IrFunctionBranchValue::Text(_) => {}
         }
     }
 }
@@ -933,7 +1281,7 @@ fn infer_reference(
     if let Some(variable_type) = variables.get(&full_path) {
         return Some(variable_type.clone());
     }
-    if context.functions.contains_key(full_path.as_str()) || full_path == BUILTIN_PLURAL {
+    if context.functions.contains_key(full_path.as_str()) || is_plural_intrinsic(&full_path) {
         errors.push(IrReferenceError::at(
             "IR014",
             format!("callable `{full_path}` must be called with parentheses"),
@@ -975,7 +1323,7 @@ fn infer_call(
     errors: &mut Vec<IrReferenceError>,
 ) -> Option<String> {
     let full_path = expression.path.join(".");
-    if full_path == BUILTIN_PLURAL {
+    if is_plural_intrinsic(&full_path) {
         validate_arity(
             BUILTIN_PLURAL,
             1,
@@ -986,7 +1334,7 @@ fn infer_call(
         if let Some(Some(ty)) = argument_types.first() {
             require_numeric(BUILTIN_PLURAL, ty, expression.span, context, errors);
         }
-        return Some("String".to_owned());
+        return Some("Plural".to_owned());
     }
 
     if let Some(function) = context.functions.get(full_path.as_str()) {
@@ -1458,8 +1806,13 @@ fn validate_reference_cycles(
     }
     for function in &locale.functions {
         let edges = graph.entry(function.name.clone()).or_default();
+        let local_names = function
+            .parameters
+            .iter()
+            .filter_map(|parameter| parameter.name.clone())
+            .collect::<BTreeSet<_>>();
         for branch in &function.branches {
-            collect_function_edges(branch, context, edges);
+            collect_function_edges_scoped(branch, context, &local_names, edges);
         }
     }
 
@@ -1508,16 +1861,19 @@ fn validate_reference_cycles(
     }
 }
 
-fn collect_function_edges(
+fn collect_function_edges_scoped(
     branch: &IrFunctionBranch,
     context: &ReferenceContext<'_>,
+    local_names: &BTreeSet<String>,
     edges: &mut Vec<(String, Span)>,
 ) {
     match &branch.value {
-        IrFunctionBranchValue::Text(text) => collect_text_edges(text, context, edges),
+        IrFunctionBranchValue::Text(text) => {
+            collect_text_edges_scoped(text, context, local_names, edges);
+        }
         IrFunctionBranchValue::Dispatch(children) => {
             for child in children {
-                collect_function_edges(child, context, edges);
+                collect_function_edges_scoped(child, context, local_names, edges);
             }
         }
     }
@@ -1528,9 +1884,18 @@ fn collect_text_edges(
     context: &ReferenceContext<'_>,
     edges: &mut Vec<(String, Span)>,
 ) {
+    collect_text_edges_scoped(text, context, &BTreeSet::new(), edges);
+}
+
+fn collect_text_edges_scoped(
+    text: &IrText,
+    context: &ReferenceContext<'_>,
+    local_names: &BTreeSet<String>,
+    edges: &mut Vec<(String, Span)>,
+) {
     for part in &text.parts {
         if let IrTextPart::Placeholder(expression) = part {
-            collect_expression_edges(expression, context, edges);
+            collect_expression_edges(expression, context, local_names, edges);
         }
     }
 }
@@ -1538,17 +1903,36 @@ fn collect_text_edges(
 fn collect_expression_edges(
     expression: &IrExpression,
     context: &ReferenceContext<'_>,
+    local_names: &BTreeSet<String>,
     edges: &mut Vec<(String, Span)>,
 ) {
     if let Some(root) = expression.path.first() {
-        if context.variables.contains_key(root.as_str())
-            || context.functions.contains_key(root.as_str())
+        if !local_names.contains(root)
+            && (context.variables.contains_key(root.as_str())
+                || context.functions.contains_key(root.as_str()))
         {
             edges.push((root.clone(), expression.span));
         }
     }
     for argument in &expression.arguments {
-        collect_expression_edges(argument, context, edges);
+        collect_expression_edges(argument, context, local_names, edges);
+    }
+    if let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
+        for input in inputs {
+            let value = match input {
+                IrInlineFunctionInput::Binding { value, .. }
+                | IrInlineFunctionInput::Selector { value, .. } => value,
+            };
+            collect_expression_edges(value, context, local_names, edges);
+        }
+        let mut inline_names = local_names.clone();
+        inline_names.extend(inputs.iter().filter_map(|input| match input {
+            IrInlineFunctionInput::Binding { name, .. } => Some(name.clone()),
+            IrInlineFunctionInput::Selector { .. } => None,
+        }));
+        for branch in branches {
+            collect_function_edges_scoped(branch, context, &inline_names, edges);
+        }
     }
 }
 

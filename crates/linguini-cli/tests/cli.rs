@@ -687,7 +687,7 @@ locale = "locales"
     fs::write(
         project.path().join("locales/main/en.lgl"),
         "form Label(Choice) {\n  yes => Yes\n}\n\
-         fn choose(value: String, Plural) {\n  _ => {value}\n}\n\
+         fn choose(Plural, value: String) {\n  _ => {value}\n}\n\
          delivery = {choose(count, count)}\n\
          unused = Not referenced by application source\n",
     )

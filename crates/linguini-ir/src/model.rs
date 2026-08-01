@@ -194,10 +194,30 @@ pub struct IrExpression {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrExpressionKind {
     Reference,
     Call,
+    /// Immediately dispatches selector expressions and exposes trailing named
+    /// bindings to its branch body. `IrExpression::path` and
+    /// `IrExpression::arguments` are empty for this variant.
+    InlineFunction {
+        inputs: Vec<IrInlineFunctionInput>,
+        branches: Vec<IrFunctionBranch>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrInlineFunctionInput {
+    Binding {
+        name: String,
+        value: IrExpression,
+        span: Span,
+    },
+    Selector {
+        value: IrExpression,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

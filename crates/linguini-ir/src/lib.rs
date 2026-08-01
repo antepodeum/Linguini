@@ -3,13 +3,14 @@ mod model;
 mod namespace;
 mod reference;
 
+pub use linguini_core::{is_plural_intrinsic, LEGACY_PLURAL_INTRINSIC_NAME, PLURAL_TYPE_NAME};
 pub use lower::{lower_locale, lower_locale_typed, lower_schema, lower_schema_typed};
 pub use model::{
     IrBranch, IrEnum, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFormVariant,
     IrFormatter, IrFormatterArgument, IrFormatterKind, IrFunction, IrFunctionBranch,
-    IrFunctionBranchValue, IrFunctionKind, IrFunctionParameter, IrMessage, IrModule, IrOrigin,
-    IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart, IrTypeAlias, IrValue,
-    IrVariable, LocaleIr, SchemaIr,
+    IrFunctionBranchValue, IrFunctionKind, IrFunctionParameter, IrInlineFunctionInput, IrMessage,
+    IrModule, IrOrigin, IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart,
+    IrTypeAlias, IrValue, IrVariable, LocaleIr, SchemaIr,
 };
 pub use namespace::qualify_module;
 pub use reference::{

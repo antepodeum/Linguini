@@ -9,8 +9,8 @@ pub const LOCALE_EXTENSION: &str = "lgl";
 pub use ast::{
     Annotation, AnnotationArgument, DocComment, EnumDeclaration, Expression, ExpressionKind,
     FormAttribute, FormDeclaration, FormEntry, FormVariant, FormatterKind, FunctionBranch,
-    FunctionBranchValue, FunctionDeclaration, FunctionKind, FunctionParameter, LocaleDeclaration,
-    LocaleFile, LocaleValue, MapBranch, MessageGroup, MessageImplementation,
+    FunctionBranchValue, FunctionDeclaration, FunctionKind, FunctionParameter, InlineFunctionInput,
+    LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, MessageGroup, MessageImplementation,
     MessageImplementationGroup, MessageSignature, Name, Parameter, Placeholder, RawText,
     SchemaDeclaration, SchemaFile, StringLiteral, TextBlockMode, TextPart, TextPattern,
     TypeAliasDeclaration, VariableDeclaration,

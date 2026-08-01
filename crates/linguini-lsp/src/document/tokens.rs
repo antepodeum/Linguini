@@ -18,6 +18,7 @@ pub(super) fn semantic_token_type(tokens: &[Token], index: usize) -> Option<u32>
     let kind = &tokens.get(index)?.kind;
     match kind {
         TokenKind::Ident(value) if is_keyword(value) => Some(0),
+        TokenKind::Ident(value) if value == "Plural" => Some(2),
         TokenKind::Ident(_) | TokenKind::LocaleTag(_) => None,
         TokenKind::String(_) | TokenKind::RawText(_) => Some(4),
         TokenKind::Comment(_) | TokenKind::DocComment(_) => Some(5),

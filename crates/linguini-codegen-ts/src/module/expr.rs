@@ -1,17 +1,19 @@
 use std::collections::BTreeMap;
 
 use linguini_cldr::{
-    compiled_currency_formatting, compiled_date_formatting, compiled_number_formatting,
-    NumberPattern,
+    compiled_currency_formatting, compiled_currency_fraction, compiled_date_formatting,
+    compiled_number_formatting, NumberPattern,
 };
 use linguini_ir::{
-    IrBranch, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter, IrFormatterKind,
-    IrFunctionParameter, IrText, IrTextPart, IrValue,
+    is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter,
+    IrFormatterKind, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter,
+    IrInlineFunctionInput, IrText, IrTextPart, IrValue,
 };
 
+use super::formatters::FormatterRequirements;
 use super::names::{
     escape_string, form_binding_name, path_expression, property_access, property_key,
-    safe_identifier, string_literal,
+    safe_identifier, string_literal, ts_type,
 };
 use super::TypeScriptOptions;
 
@@ -70,7 +72,16 @@ pub fn map_expression(
     parameters: &[IrFunctionParameter],
     options: &TypeScriptOptions,
 ) -> String {
-    let items = branch_items(branches, options);
+    let context = parameters
+        .iter()
+        .filter_map(|parameter| {
+            parameter
+                .name
+                .as_ref()
+                .map(|name| (name.clone(), parameter.ty.clone()))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let items = branch_items(branches, &context, options);
     let parameter = parameters
         .first()
         .and_then(|parameter| parameter.name.as_deref())
@@ -83,7 +94,17 @@ pub fn map_expression(
             || format!("{}({parameter})", options.plural_function),
             |_| format!("String({parameter})"),
         );
-    format!("({parameter}: number | string) => selectBranch({selector}, {{ {items} }})")
+    let parameter_type = parameters.first().map_or_else(
+        || "number | bigint | string".to_owned(),
+        |parameter| {
+            if parameter.ty == "Plural" {
+                "number | bigint | string".to_owned()
+            } else {
+                ts_type(&parameter.ty)
+            }
+        },
+    );
+    format!("({parameter}: {parameter_type}) => selectBranch({selector}, {{ {items} }})")
 }
 
 pub fn text_expression(text: &IrText, options: &TypeScriptOptions) -> String {
@@ -114,11 +135,16 @@ pub fn text_expression_with_context(
     }
 }
 
-fn branch_items(branches: &[IrBranch], options: &TypeScriptOptions) -> String {
+fn branch_items(
+    branches: &[IrBranch],
+    context: &BTreeMap<String, String>,
+    options: &TypeScriptOptions,
+) -> String {
     branches
         .iter()
         .flat_map(|branch| {
-            let value = text_expression(&branch.value, options);
+            let value =
+                text_expression_with_context(&branch.value, context, &BTreeMap::new(), options);
             if branch.keys.is_empty() {
                 return vec![format!("{}: {value}", property_key("_"))];
             }
@@ -138,7 +164,7 @@ fn expression_string(
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
 ) -> String {
-    let value = expression_value(expression, context, options);
+    let value = expression_value(expression, context, default_formatters, options);
     let formatters = if expression.formatters.is_empty() {
         expression
             .path
@@ -155,22 +181,28 @@ fn expression_string(
 fn expression_value(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
+    default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
 ) -> String {
+    if let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
+        return inline_function_expression(inputs, branches, context, default_formatters, options);
+    }
     if expression.path.is_empty() {
         return "\"\"".to_owned();
     }
 
     if expression.kind == IrExpressionKind::Call {
         if let [root] = expression.path.as_slice() {
-            if root == "plural" {
+            if is_plural_intrinsic(root) {
                 return format!(
                     "{}({})",
                     options.plural_function,
                     expression
                         .arguments
                         .iter()
-                        .map(|argument| expression_value(argument, context, options))
+                        .map(|argument| {
+                            expression_value(argument, context, default_formatters, options)
+                        })
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -186,7 +218,9 @@ fn expression_value(
                     expression
                         .arguments
                         .iter()
-                        .map(|argument| expression_value(argument, context, options))
+                        .map(|argument| {
+                            expression_value(argument, context, default_formatters, options)
+                        })
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -203,7 +237,9 @@ fn expression_value(
                     expression
                         .arguments
                         .iter()
-                        .map(|argument| expression_value(argument, context, options))
+                        .map(|argument| {
+                            expression_value(argument, context, default_formatters, options)
+                        })
                         .collect::<Vec<_>>()
                         .join(", ")
                 );
@@ -216,7 +252,9 @@ fn expression_value(
             expression
                 .arguments
                 .iter()
-                .map(|argument| expression_value(argument, context, options))
+                .map(|argument| {
+                    expression_value(argument, context, default_formatters, options)
+                })
                 .collect::<Vec<_>>()
                 .join(", ")
         );
@@ -255,12 +293,197 @@ fn expression_value(
     }
 }
 
+pub(super) fn function_dispatch_expression(
+    parameters: &[IrFunctionParameter],
+    branches: &[IrFunctionBranch],
+    context: &BTreeMap<String, String>,
+    default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
+    options: &TypeScriptOptions,
+) -> String {
+    let selectors = parameters
+        .iter()
+        .enumerate()
+        .filter(|(_, parameter)| parameter.name.is_none())
+        .map(|(index, parameter)| DispatchSelector {
+            value: format!("__lgl_p{index}"),
+            normalize_plural: parameter.ty == "Plural",
+        })
+        .collect::<Vec<_>>();
+    dispatch_expression_level(
+        &selectors,
+        branches,
+        0,
+        context,
+        default_formatters,
+        options,
+    )
+}
+
+#[derive(Debug)]
+struct DispatchSelector {
+    value: String,
+    normalize_plural: bool,
+}
+
+fn inline_function_expression(
+    inputs: &[IrInlineFunctionInput],
+    branches: &[IrFunctionBranch],
+    context: &BTreeMap<String, String>,
+    default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
+    options: &TypeScriptOptions,
+) -> String {
+    let mut parameters = Vec::with_capacity(inputs.len());
+    let mut arguments = Vec::with_capacity(inputs.len());
+    let mut selectors = Vec::new();
+    let mut branch_context = context.clone();
+    let mut branch_formatters = default_formatters.clone();
+
+    for (index, input) in inputs.iter().enumerate() {
+        match input {
+            IrInlineFunctionInput::Selector { value, .. } => {
+                let parameter = format!("__lgl_inline_selector_{index}");
+                parameters.push(parameter.clone());
+                arguments.push(expression_value(
+                    value,
+                    context,
+                    default_formatters,
+                    options,
+                ));
+                // Explicit `Plural(value)` has already produced its category.
+                // A directly referenced `Plural` value still accepts either a
+                // numeric operand or a pre-classified category, matching named
+                // function dispatch.
+                selectors.push(DispatchSelector {
+                    value: parameter,
+                    normalize_plural: inferred_expression_type(value, context).as_deref()
+                        == Some("Plural")
+                        && !is_plural_intrinsic_call(value),
+                });
+            }
+            IrInlineFunctionInput::Binding { name, value, .. } => {
+                parameters.push(safe_identifier(name));
+                arguments.push(expression_value(
+                    value,
+                    context,
+                    default_formatters,
+                    options,
+                ));
+                branch_context.insert(
+                    name.clone(),
+                    inferred_expression_type(value, context).unwrap_or_else(|| "String".to_owned()),
+                );
+                if value.formatters.is_empty()
+                    && value.kind == IrExpressionKind::Reference
+                    && value.path.len() == 1
+                {
+                    if let Some(formatters) = default_formatters.get(&value.path[0]) {
+                        branch_formatters.insert(name.clone(), formatters.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    let body = dispatch_expression_level(
+        &selectors,
+        branches,
+        0,
+        &branch_context,
+        &branch_formatters,
+        options,
+    );
+    format!(
+        "(({}) => {body})({})",
+        parameters.join(", "),
+        arguments.join(", ")
+    )
+}
+
+fn is_plural_intrinsic_call(expression: &IrExpression) -> bool {
+    expression.kind == IrExpressionKind::Call
+        && expression.path.len() == 1
+        && is_plural_intrinsic(&expression.path[0])
+}
+
+fn inferred_expression_type(
+    expression: &IrExpression,
+    context: &BTreeMap<String, String>,
+) -> Option<String> {
+    match &expression.kind {
+        IrExpressionKind::InlineFunction { .. } => Some("String".to_owned()),
+        IrExpressionKind::Call => expression
+            .path
+            .first()
+            .filter(|_| expression.path.len() == 1)
+            .filter(|name| is_plural_intrinsic(name))
+            .map(|_| "Plural".to_owned())
+            .or_else(|| Some("String".to_owned())),
+        IrExpressionKind::Reference if expression.path.len() == 1 => {
+            context.get(&expression.path[0]).cloned()
+        }
+        IrExpressionKind::Reference => None,
+    }
+}
+
+fn dispatch_expression_level(
+    selectors: &[DispatchSelector],
+    branches: &[IrFunctionBranch],
+    depth: usize,
+    context: &BTreeMap<String, String>,
+    default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
+    options: &TypeScriptOptions,
+) -> String {
+    let selector = selectors.get(depth).map_or_else(
+        || "undefined".to_owned(),
+        |selector| {
+            if selector.normalize_plural {
+                format!("{}({})", options.plural_function, selector.value)
+            } else {
+                format!("String({})", selector.value)
+            }
+        },
+    );
+    let items = branches
+        .iter()
+        .map(|branch| {
+            let value = match &branch.value {
+                IrFunctionBranchValue::Text(text) => {
+                    text_expression_with_context(text, context, default_formatters, options)
+                }
+                IrFunctionBranchValue::Dispatch(children) => dispatch_expression_level(
+                    selectors,
+                    children,
+                    depth + 1,
+                    context,
+                    default_formatters,
+                    options,
+                ),
+            };
+            format!("{}: (): string => {value}", property_key(&branch.key))
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("selectBranch({selector}, {{ {items} }})()")
+}
+
 fn apply_formatters(value: String, formatters: &[IrFormatter]) -> String {
     formatters.iter().fold(value, |current, formatter| {
         let formatter_options = formatter_options(formatter);
         match &formatter.kind {
             IrFormatterKind::Number => format!("formatNumber({current})"),
-            IrFormatterKind::Currency => format!("formatCurrency({current}, {formatter_options})"),
+            IrFormatterKind::Currency => {
+                let currency = formatter
+                    .arguments
+                    .iter()
+                    .find(|argument| argument.name == "code")
+                    .map_or("USD", |argument| argument.value.as_str());
+                let fraction = compiled_currency_fraction(currency)
+                    .expect("validated currency formatter must have CLDR fraction rules");
+                format!(
+                    "formatCurrency({current}, {}, {}, {formatter_options})",
+                    fraction.digits, fraction.rounding
+                )
+            }
             IrFormatterKind::Date => format!("formatDate({current}, {formatter_options})"),
             IrFormatterKind::Unknown(_) => current,
         }
@@ -283,41 +506,68 @@ fn formatter_options(formatter: &IrFormatter) -> String {
     format!("{{ {items} }}")
 }
 
-pub fn formatter_data_declaration(locale: &str) -> String {
-    let numbers = compiled_number_formatting(locale);
-    let currency = compiled_currency_formatting(locale);
-    let dates = compiled_date_formatting(locale);
+pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequirements) -> String {
+    let mut output = "type GeneratedNumeric = number | bigint | string;\n".to_owned();
+    if requirements.currency {
+        output.push_str(
+            "type GeneratedCurrencyFormatterOptions = { code?: string; accounting?: \"true\" | \"false\" };\n",
+        );
+    }
+    if requirements.date {
+        output.push_str(
+            "type GeneratedDateFormatterOptions = { style?: \"full\" | \"long\" | \"medium\" | \"short\" };\n",
+        );
+    }
+    output.push('\n');
 
-    format!(
-        "type GeneratedCurrencyFormatterOptions = {{ code?: string; accounting?: \"true\" | \"false\" }};\n\
-type GeneratedDateFormatterOptions = {{ style?: \"full\" | \"long\" | \"medium\" | \"short\" }};\n\n\
-{}{}{}{}",
-        generated_number_function(numbers.as_ref()),
-        generated_currency_function(locale, numbers.as_ref(), currency.as_ref()),
-        generated_date_function(dates.as_ref()),
-        formatter_helpers()
-    )
+    let numbers = requirements.needs_number_data().then(|| {
+        compiled_number_formatting(locale)
+            .expect("validated locale must have required CLDR number formatting data")
+    });
+    if requirements.number {
+        output.push_str(&generated_number_function(
+            numbers
+                .as_ref()
+                .expect("number formatter requires number data"),
+        ));
+    }
+    if requirements.currency {
+        let currency = compiled_currency_formatting(locale)
+            .expect("validated locale must have required CLDR currency formatting data");
+        output.push_str(&generated_currency_function(
+            locale,
+            numbers
+                .as_ref()
+                .expect("currency formatter requires number data"),
+            &currency,
+        ));
+    }
+    if requirements.date {
+        let dates = compiled_date_formatting(locale)
+            .expect("validated locale must have required CLDR date formatting data");
+        output.push_str(&generated_date_function(&dates));
+    }
+    if requirements.needs_number_data() {
+        output.push_str(number_formatter_helpers());
+    }
+    if requirements.date {
+        output.push_str(date_formatter_helpers());
+    }
+    output
 }
 
-fn generated_number_function(numbers: Option<&linguini_cldr::NumberFormatData>) -> String {
-    let Some(numbers) = numbers else {
-        return "function formatNumber(value: number | string): string {\n  return String(value);\n}\n\n"
-            .to_owned();
-    };
+fn generated_number_function(numbers: &linguini_cldr::NumberFormatData) -> String {
     format!(
-        "function formatNumber(value: number | string): string {{\n  return formatGeneratedNumber(Number(value), {});\n}}\n\n",
+        "function formatNumber(value: GeneratedNumeric): string {{\n  return formatGeneratedNumber(value, {});\n}}\n\n",
         number_pattern_args(&numbers.decimal_pattern, None, numbers)
     )
 }
 
 fn generated_currency_function(
     locale: &str,
-    numbers: Option<&linguini_cldr::NumberFormatData>,
-    currency: Option<&linguini_cldr::CurrencyFormatData>,
+    numbers: &linguini_cldr::NumberFormatData,
+    currency: &linguini_cldr::CurrencyFormatData,
 ) -> String {
-    let (Some(numbers), Some(currency)) = (numbers, currency) else {
-        return "function formatCurrency(value: number | string, options: GeneratedCurrencyFormatterOptions = {}): string {\n  return `${options.code ?? \"USD\"} ${value}`;\n}\n\n".to_owned();
-    };
     let standard = number_pattern_args(&currency.standard_pattern, Some("symbol"), numbers);
     let accounting = number_pattern_args(
         currency
@@ -330,14 +580,16 @@ fn generated_currency_function(
     format!(
         "\
 function formatCurrency(
-  value: number | string,
+  value: GeneratedNumeric,
+  fractionDigits: number,
+  roundingIncrement: number,
   options: GeneratedCurrencyFormatterOptions = {{}},
 ): string {{
   const symbol = currencySymbol(options.code ?? \"USD\");
   if (options.accounting === \"true\") {{
-    return formatGeneratedNumber(Number(value), {});
+    return formatGeneratedNumber(value, {}, fractionDigits, fractionDigits, roundingIncrement);
   }}
-  return formatGeneratedNumber(Number(value), {});
+  return formatGeneratedNumber(value, {}, fractionDigits, fractionDigits, roundingIncrement);
 }}
 
 function currencySymbol(currency: string): string {{
@@ -353,10 +605,7 @@ function currencySymbol(currency: string): string {{
     )
 }
 
-fn generated_date_function(dates: Option<&linguini_cldr::DateFormatData>) -> String {
-    let Some(dates) = dates else {
-        return "function formatDate(value: Date | number | string, options: GeneratedDateFormatterOptions = {}): string {\n  return String(value);\n}\n\n".to_owned();
-    };
+fn generated_date_function(dates: &linguini_cldr::DateFormatData) -> String {
     format!(
         "\
 function formatDate(
@@ -384,10 +633,12 @@ function formatDate(
     )
 }
 
-fn formatter_helpers() -> &'static str {
-    "\
+fn number_formatter_helpers() -> &'static str {
+    r#"type GeneratedDecimal = { negative: boolean; integer: string; fraction: string };
+const MAX_GENERATED_DECIMAL_DIGITS = 8192;
+
 function formatGeneratedNumber(
-  value: number,
+  value: GeneratedNumeric,
   prefix: string,
   suffix: string,
   negativePrefix: string | undefined,
@@ -399,28 +650,116 @@ function formatGeneratedNumber(
   secondaryGroupSize: number | undefined,
   decimalSymbol: string,
   groupSymbol: string,
+  minFractionDigitsOverride?: number,
+  maxFractionDigitsOverride?: number,
+  roundingIncrement = 0,
 ): string {
-  if (!Number.isFinite(value)) return String(value);
-  const negative = value < 0 || Object.is(value, -0);
-  const rounded = roundToFractionDigits(Math.abs(value), maxFractionDigits);
-  let [integer, fraction = \"\"] = rounded.toFixed(maxFractionDigits).split(\".\");
-  integer = integer.padStart(minIntegerDigits, \"0\");
-  fraction = trimOptionalFractionDigits(fraction, minFractionDigits);
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const effectiveMinFractionDigits = minFractionDigitsOverride ?? minFractionDigits;
+  const effectiveMaxFractionDigits = maxFractionDigitsOverride ?? maxFractionDigits;
+  const rounded = roundGeneratedDecimal(decimal, effectiveMaxFractionDigits, roundingIncrement);
+  let integer = rounded.integer.padStart(minIntegerDigits, "0");
+  const fraction = trimOptionalFractionDigits(
+    rounded.fraction,
+    effectiveMinFractionDigits,
+  );
 
-  const grouped = groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol);
-  const formatted = fraction ? `${grouped}${decimalSymbol}${fraction}` : grouped;
-  if (negative) return `${negativePrefix ?? `-${prefix}`}${formatted}${negativeSuffix ?? suffix}`;
+  integer = groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol);
+  const formatted = fraction ? `${integer}${decimalSymbol}${fraction}` : integer;
+  if (decimal.negative) {
+    return `${negativePrefix ?? `-${prefix}`}${formatted}${negativeSuffix ?? suffix}`;
+  }
   return `${prefix}${formatted}${suffix}`;
 }
 
-function roundToFractionDigits(value: number, digits: number): number {
-  if (digits <= 0) return Math.round(value);
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
+function parseGeneratedDecimal(value: GeneratedNumeric): GeneratedDecimal | undefined {
+  if (typeof value === "number" && !Number.isFinite(value)) return undefined;
+  const negativeZero = typeof value === "number" && Object.is(value, -0);
+  const source = String(value);
+  const match = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(source);
+  if (!match || (match[2] === "" && (match[3] ?? "") === "")) throwInvalidNumber();
+
+  const whole = match[2];
+  const fractional = match[3] ?? "";
+  const exponent = Number(match[4] ?? "0");
+  if (
+    !Number.isSafeInteger(exponent) ||
+    Math.abs(exponent) > MAX_GENERATED_DECIMAL_DIGITS ||
+    (match[4]?.length ?? 0) > MAX_GENERATED_DECIMAL_DIGITS ||
+    whole.length + fractional.length > MAX_GENERATED_DECIMAL_DIGITS
+  ) {
+    throwInvalidNumber();
+  }
+
+  const digits = `${whole}${fractional}` || "0";
+  const decimalPosition = whole.length + exponent;
+  const expandedLength = decimalPosition <= 0
+    ? -decimalPosition + digits.length
+    : Math.max(decimalPosition, digits.length);
+  if (expandedLength > MAX_GENERATED_DECIMAL_DIGITS) throwInvalidNumber();
+
+  let integer: string;
+  let fraction: string;
+  if (decimalPosition <= 0) {
+    integer = "0";
+    fraction = `${"0".repeat(-decimalPosition)}${digits}`;
+  } else if (decimalPosition >= digits.length) {
+    integer = `${digits}${"0".repeat(decimalPosition - digits.length)}`;
+    fraction = "";
+  } else {
+    integer = digits.slice(0, decimalPosition);
+    fraction = digits.slice(decimalPosition);
+  }
+  integer = integer.replace(/^0+(?=\d)/, "");
+  fraction = fraction.replace(/0+$/, "");
+  return {
+    negative: match[1] === "-" || negativeZero,
+    integer,
+    fraction,
+  };
+}
+
+function roundGeneratedDecimal(
+  decimal: GeneratedDecimal,
+  fractionDigits: number,
+  roundingIncrement: number,
+): { integer: string; fraction: string } {
+  if (
+    !Number.isSafeInteger(fractionDigits) ||
+    fractionDigits < 0 ||
+    fractionDigits > MAX_GENERATED_DECIMAL_DIGITS ||
+    !Number.isSafeInteger(roundingIncrement) ||
+    roundingIncrement < 0
+  ) {
+    throwInvalidNumber();
+  }
+
+  const keptFraction = decimal.fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0");
+  const discarded = decimal.fraction.slice(fractionDigits);
+  const scaled = BigInt(`${decimal.integer}${keptFraction}` || "0");
+  const quantum = BigInt(roundingIncrement || 1);
+  const remainder = scaled % quantum;
+  let roundUp: boolean;
+  if (discarded === "") {
+    roundUp = remainder * 2n >= quantum;
+  } else {
+    const denominator = 10n ** BigInt(discarded.length);
+    const exactRemainder = remainder * denominator + BigInt(discarded);
+    roundUp = exactRemainder * 2n >= quantum * denominator;
+  }
+  const rounded = (scaled / quantum + (roundUp ? 1n : 0n)) * quantum;
+  const digits = rounded.toString().padStart(fractionDigits + 1, "0");
+  return fractionDigits === 0
+    ? { integer: digits, fraction: "" }
+    : {
+        integer: digits.slice(0, -fractionDigits),
+        fraction: digits.slice(-fractionDigits),
+      };
 }
 
 function trimOptionalFractionDigits(fraction: string, minDigits: number): string {
-  while (fraction.length > minDigits && fraction.endsWith(\"0\")) {
+  while (fraction.length > minDigits && fraction.endsWith("0")) {
     fraction = fraction.slice(0, -1);
   }
   return fraction;
@@ -445,16 +784,24 @@ function groupIntegerDigits(
   return groups.join(groupSymbol);
 }
 
-function padNumber(value: number, length: number): string {
-  return String(value).padStart(length, \"0\");
+function throwInvalidNumber(): never {
+  throw new RangeError("Linguini: invalid numeric value");
+}
+
+"#
+}
+
+fn date_formatter_helpers() -> &'static str {
+    r#"function padNumber(value: number, length: number): string {
+  return String(value).padStart(length, "0");
 }
 
 function coerceDate(value: Date | number | string): Date {
   let date: Date;
   if (value instanceof Date) {
     date = value;
-  } else if (typeof value === \"string\") {
-    const dateOnly = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(value);
+  } else if (typeof value === "string") {
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (dateOnly) {
       const year = Number(dateOnly[1]);
       const month = Number(dateOnly[2]);
@@ -462,10 +809,10 @@ function coerceDate(value: Date | number | string): Date {
       date = createUTCDate(year, month, day);
     } else {
       const dateTime =
-        /^(\\d{4})-(\\d{2})-(\\d{2})T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d+)?)?(?:Z|[+-]\\d{2}:\\d{2})?$/.exec(value);
+        /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/.exec(value);
       if (!dateTime) throwInvalidDate();
       createUTCDate(Number(dateTime[1]), Number(dateTime[2]), Number(dateTime[3]));
-      const hasTimeZone = /(?:Z|[+-]\\d{2}:\\d{2})$/.test(value);
+      const hasTimeZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
       date = new Date(hasTimeZone ? value : `${value}Z`);
     }
   } else {
@@ -492,10 +839,10 @@ function createUTCDate(year: number, month: number, day: number): Date {
 }
 
 function throwInvalidDate(): never {
-  throw new RangeError(\"Linguini: invalid date value\");
+  throw new RangeError("Linguini: invalid date value");
 }
 
-"
+"#
 }
 
 fn number_pattern_args(
@@ -617,7 +964,7 @@ fn indexed_string_literal(values: &[&str], index: &str) -> String {
 mod tests {
     use super::{
         date_pattern_expression, expression_value, form_object, formatter_data_declaration,
-        TypeScriptOptions,
+        FormatterRequirements, TypeScriptOptions,
     };
     use linguini_ir::{lower_locale, IrExpression, IrExpressionKind};
     use linguini_syntax::{parse_locale, Span};
@@ -642,6 +989,7 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Call, &["ready"]),
                 &context,
+                &BTreeMap::new(),
                 &options
             ),
             "ready()"
@@ -650,6 +998,7 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Reference, &["ready"]),
                 &context,
+                &BTreeMap::new(),
                 &options
             ),
             "ready"
@@ -657,25 +1006,29 @@ mod tests {
     }
 
     #[test]
-    fn zero_argument_builtin_plural_call_uses_configured_function() {
+    fn canonical_and_legacy_plural_calls_use_configured_function() {
         let context = BTreeMap::new();
         let options = TypeScriptOptions {
             plural_function: "selectPlural".to_owned(),
             ..TypeScriptOptions::default()
         };
 
-        assert_eq!(
-            expression_value(
-                &expression(IrExpressionKind::Call, &["plural"]),
-                &context,
-                &options
-            ),
-            "selectPlural()"
-        );
+        for intrinsic in ["Plural", "plural"] {
+            assert_eq!(
+                expression_value(
+                    &expression(IrExpressionKind::Call, &[intrinsic]),
+                    &context,
+                    &BTreeMap::new(),
+                    &options
+                ),
+                "selectPlural()"
+            );
+        }
         assert_eq!(
             expression_value(
                 &expression(IrExpressionKind::Reference, &["plural"]),
                 &context,
+                &BTreeMap::new(),
                 &options
             ),
             "plural"
@@ -691,6 +1044,7 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Call, &["item"]),
                 &context,
+                &BTreeMap::new(),
                 &options
             ),
             "__lgl_form_4974656D[item]()"
@@ -699,6 +1053,7 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Reference, &["item"]),
                 &context,
+                &BTreeMap::new(),
                 &options
             ),
             "item"
@@ -707,6 +1062,7 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Call, &["item", "label"]),
                 &context,
+                &BTreeMap::new(),
                 &options
             ),
             "__lgl_form_4974656D[item].label()"
@@ -715,6 +1071,7 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Reference, &["item", "label"]),
                 &context,
+                &BTreeMap::new(),
                 &options
             ),
             "__lgl_form_4974656D[item].label"
@@ -733,9 +1090,7 @@ mod tests {
 
         let emitted = form_object(entries, &TypeScriptOptions::default());
 
-        assert!(
-            emitted.contains("label: (gender: number | string) => selectBranch(String(gender),")
-        );
+        assert!(emitted.contains("label: (gender: Gender) => selectBranch(String(gender),"));
         assert!(!emitted.contains("pluralEn(gender)"));
     }
 
@@ -770,7 +1125,13 @@ mod tests {
 
     #[test]
     fn generated_date_runtime_rejects_invalid_values() {
-        let emitted = formatter_data_declaration("en");
+        let emitted = formatter_data_declaration(
+            "en",
+            FormatterRequirements {
+                date: true,
+                ..FormatterRequirements::default()
+            },
+        );
 
         assert!(emitted.contains("function coerceDate(value: Date | number | string): Date"));
         assert!(emitted.contains("date = createUTCDate(year, month, day);"));

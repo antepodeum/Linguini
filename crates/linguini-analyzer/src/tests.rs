@@ -88,6 +88,274 @@ fn locale_analysis_accepts_wildcard_for_enum_branch_coverage() {
 }
 
 #[test]
+fn project_expression_analysis_validates_inline_selectors_bindings_and_branches() {
+    let schema = parse_schema(
+        "enum Gender { masculine, feminine, other }\ngreeting(name: String, gender: Gender)\n",
+    )
+    .expect("schema");
+    let locale = parse_locale(
+        "greeting = Hello {fn(gender, label: name) {\n  masculine => dear {label}\n  feminine => kind {name}\n  _ => friend {label}\n}}\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{diagnostics:#?}"
+    );
+}
+
+#[test]
+fn project_expression_analysis_checks_inline_branch_structure() {
+    let schema = parse_schema("greeting(name: String)\n").expect("schema");
+    let locale = parse_locale(
+        "greeting = {fn(label: missing) { _ => {label} }} {fn() {\n  _ => first\n  later => unreachable\n}}\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message == "unknown variable `missing`"));
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message == "branch `later` is unreachable after `_`"));
+}
+
+#[test]
+fn project_expression_analysis_checks_inline_enum_coverage_and_variants() {
+    let schema = parse_schema(
+        "enum Gender { masculine, feminine, other }\n\
+missing(gender: Gender)\nunknown(gender: Gender)\n",
+    )
+    .expect("schema");
+    let locale = parse_locale(
+        "missing = {fn(gender) {\n  masculine => Dear\n  feminine => Kind\n}}\n\
+unknown = {fn(gender) {\n  masculine => Dear\n  typo => Wrong\n  _ => Friend\n}}\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "linguini.incomplete_match"
+            && diagnostic.message.contains("missing branch `other`")
+    }));
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "linguini.unknown_enum_variant"
+            && diagnostic.message.contains("unknown variant `typo`")
+    }));
+}
+
+#[test]
+fn project_expression_analysis_accepts_inline_plural_and_enum_alias_selectors() {
+    let schema = parse_schema(
+        "enum Gender { masculine, feminine, other }\n\
+type Voice = Gender\n\
+greeting(voice: Voice, count: Number)\n",
+    )
+    .expect("schema");
+    let locale = parse_locale(
+        "greeting = {fn(voice, Plural(count)) {\n\
+  masculine {\n    one => One\n    other => Many\n  }\n\
+  feminine {\n    one => One\n    other => Many\n  }\n\
+  other {\n    one => One\n    other => Many\n  }\n\
+}}\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{diagnostics:#?}"
+    );
+}
+
+#[test]
+fn project_expression_analysis_walks_inline_bindings_in_every_text_context() {
+    let schema = parse_schema("enum Fruit { apple }\n").expect("schema");
+    let locale = parse_locale(
+        "let broken = {fn(value: missing_variable) { _ => {value} }}\n\
+         fn choose(value: String) { _ => {fn(result: missing_function()) { _ => {value} }} }\n\
+         impl Fruit {\n\
+           apple { label = {fn(value: missing_form) { _ => {value} }} }\n\
+         }\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    for message in [
+        "unknown variable `missing_variable`",
+        "unknown function `missing_function`",
+        "unknown variable `missing_form`",
+    ] {
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message == message),
+            "missing diagnostic {message:?}: {diagnostics:#?}"
+        );
+    }
+}
+
+#[test]
+fn inline_function_keeps_typed_bindings_out_of_dispatch() {
+    let schema = parse_schema(
+        "enum Tone { formal, casual }\n\
+         greeting(name: String, tone: Tone, count: Number, amount: Decimal)\n",
+    )
+    .expect("schema");
+    let locale = parse_locale(
+        "greeting = {fn(tone, Plural(count), label: name, formatted: amount) {\n\
+           formal {\n\
+             one => {label}: {formatted @number}\n\
+             other => {label}: {formatted @number}\n\
+           }\n\
+           casual {\n\
+             _ => {name}: {formatted @number}\n\
+           }\n\
+         }}\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{diagnostics:#?}"
+    );
+}
+
+#[test]
+fn inline_function_rejects_non_dispatch_selector_types_and_unknown_binding_values() {
+    let schema = parse_schema("summary(count: String)\n").expect("schema");
+    let locale =
+        parse_locale("summary = {fn(count, label: missing) { _ => {label} }}\n").expect("locale");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "linguini.invalid_dispatch_type"
+            && diagnostic.message.contains("got `String`")
+    }));
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message == "unknown variable `missing`"));
+}
+
+#[test]
+fn inline_function_suggests_plural_for_raw_numeric_selectors() {
+    let schema = parse_schema("summary(count: Number)\n").expect("schema");
+    let locale = parse_locale("summary = {fn(count) { _ => fallback }}\n").expect("locale");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "linguini.invalid_dispatch_type"
+            && diagnostic
+                .message
+                .contains("wrap numeric values in `Plural(...)`")
+    }));
+}
+
+#[test]
+fn inline_function_branch_scope_inherits_enclosing_parameters_and_globals() {
+    let schema = parse_schema("enum Tone { formal, casual }\ngreeting(name: String, tone: Tone)\n")
+        .expect("schema");
+    let locale = parse_locale(
+        "let brand = Linguini\ngreeting = {fn(tone) {\n  formal => {brand}: Hello {name}\n  casual => {brand}: Hi {name}\n}}\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{diagnostics:#?}"
+    );
+}
+
+#[test]
+fn inline_function_binding_only_uses_the_structural_wildcard() {
+    let schema = parse_schema("title(value: String)\n").expect("schema");
+    let locale =
+        parse_locale("title = {fn(label: value) { _ => {label}: {value} }}\n").expect("locale");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+}
+
+#[test]
+fn inline_binding_rhs_values_use_the_outer_scope_simultaneously() {
+    let schema = parse_schema("title(name: String)\n").expect("schema");
+    let locale =
+        parse_locale("title = {fn(first: name, second: first) { _ => {first} {second} }}\n")
+            .expect("locale");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert_eq!(
+        diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.message == "unknown variable `first`")
+            .count(),
+        1,
+        "{diagnostics:#?}"
+    );
+}
+
+#[test]
+fn nested_inline_functions_inherit_lexical_bindings_and_parameters() {
+    let schema = parse_schema("enum Tone { formal, casual }\nsummary(tone: Tone, count: Number)\n")
+        .expect("schema");
+    let locale = parse_locale(
+        "summary = {fn(tone, label: count) {\n  formal => {fn(Plural(count), copy: label) {\n    one => {tone}: {copy}\n    other => {tone}: {copy}\n  }}\n  casual => {label}\n}}\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_project_expressions(&schema, &locale);
+
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{diagnostics:#?}"
+    );
+}
+
+#[test]
+fn inline_binding_can_call_a_named_function() {
+    let schema = parse_schema("enum Tone { formal, casual }\ngreeting(name: String, tone: Tone)\n")
+        .expect("schema");
+    let locale = parse_locale(
+        "fn Greeting(Tone, value: String) {\n  formal => Dear {value}\n  casual => Hi {value}\n}\ngreeting = {fn(tone, greet: Greeting(tone, name)) {\n  formal => {greet}\n  casual => {greet}\n}}\n",
+    )
+    .expect("locale");
+
+    let diagnostics = analyze_locale_coverage(&schema, &locale);
+
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{diagnostics:#?}"
+    );
+}
+
+#[test]
 fn locale_analysis_reports_missing_impl_form_fallback() {
     let source = "enum Fruit { apple }\nimpl Fruit {\n  apple {\n    form nom(Plural) {\n      one => apple\n    }\n  }\n}\n";
     let locale = parse_locale(source).expect("locale parses");
@@ -521,7 +789,7 @@ fn zero_argument_call_is_not_treated_as_a_reference() {
 
 #[test]
 fn explicit_plural_argument_must_be_numeric() {
-    let locale = parse_locale("delivery = {plural(label)}\n").expect("locale parses");
+    let locale = parse_locale("delivery = {Plural(label)}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
         variables: vec![],
         messages: vec![MessageToAnalyze::new(
@@ -535,6 +803,23 @@ fn explicit_plural_argument_must_be_numeric() {
 
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0].code, "linguini.type_mismatch");
+}
+
+#[test]
+fn lowercase_plural_intrinsic_remains_a_compatibility_alias() {
+    let locale = parse_locale("delivery = {plural(count)}\n").expect("locale parses");
+    let diagnostics = analyze_expressions(ExpressionAnalysis {
+        variables: vec![],
+        messages: vec![MessageToAnalyze::new(
+            "delivery",
+            message_value(&locale, "delivery"),
+            vec![Variable::new("count", "Number", Span::new(0, 0))],
+        )],
+        functions: vec![],
+        forms: vec![],
+    });
+
+    assert!(diagnostics.is_empty(), "{diagnostics:#?}");
 }
 
 #[test]
@@ -667,7 +952,7 @@ fn reference_cycle_analysis_reports_one_scc_with_all_edges() {
 fn project_expression_analysis_checks_real_message_calls() {
     let schema = parse_schema("delivery(count: Number)\n").expect("schema parses");
     let locale = parse_locale(
-        "fn choose(value: String, Number) { _ => {value} }\ndelivery = {choose(count, count)}\n",
+        "fn choose(Number, value: String) { _ => {value} }\ndelivery = {choose(count, count)}\n",
     )
     .expect("locale parses");
     let diagnostics = analyze_project_expressions(&schema, &locale);

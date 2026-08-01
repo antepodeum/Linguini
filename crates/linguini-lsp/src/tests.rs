@@ -126,6 +126,40 @@ fn hover_on_plural_branch_lists_locale_samples() {
 }
 
 #[test]
+fn hover_on_inline_plural_branch_lists_locale_samples() {
+    let document = LinguiniDocument::new(
+        "file:///ru.lgl",
+        "linguini-locale",
+        "summary = {fn(Plural(count)) {\n  one => item\n  other => items\n}}\n",
+    );
+    let offset = document.text.find("one").expect("one offset");
+
+    let hover = hover_at(&document, offset).expect("hover");
+
+    assert!(hover.contains("plural branch `one` in `inline fn`"));
+    assert!(hover.contains("Locale `ru` category `one`"));
+    assert!(hover.contains("Sample numbers: 1, 21"));
+}
+
+#[test]
+fn hover_finds_inline_plural_inside_nested_function_dispatch() {
+    let document = LinguiniDocument::new(
+        "file:///ru.lgl",
+        "linguini-locale",
+        "fn summary(Gender, count: Number) {\n  masculine => {fn(Plural(count)) {\n    one => item\n    other => items\n  }}\n  _ => items\n}\n",
+    );
+    let offset = document
+        .text
+        .find("one => item")
+        .expect("inline branch offset");
+
+    let hover = hover_at(&document, offset).expect("hover");
+
+    assert!(hover.contains("plural branch `one` in `inline fn`"));
+    assert!(hover.contains("Locale `ru` category `one`"));
+}
+
+#[test]
 fn diagnostics_include_branch_coverage() {
     let locale = LinguiniDocument::new(
         "file:///ru.lgl",
@@ -202,6 +236,22 @@ fn semantic_tokens_mark_form_names_as_functions() {
 }
 
 #[test]
+fn semantic_tokens_mark_inline_plural_intrinsic_as_the_builtin_selector_type() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgl",
+        "linguini-locale",
+        "summary = {fn(Plural(count)) {\n  one => item\n  other => items\n}}\n",
+    );
+    let (line, start) = document.position(document.text.find("Plural").expect("Plural offset"));
+
+    let tokens = semantic_tokens(&document);
+
+    assert!(tokens
+        .iter()
+        .any(|token| token.token_type == 2 && token.line == line && token.start == start));
+}
+
+#[test]
 fn references_find_matching_identifiers() {
     let document = LinguiniDocument::new(
         "file:///shop.lgl",
@@ -259,6 +309,54 @@ fn rename_workspace_edits_schema_symbol_and_locale_references() {
             .map(|edit| &locale.text[edit.edit.span.start..edit.edit.span.end])
             .collect::<Vec<_>>(),
         ["delivery", "delivery"]
+    );
+}
+
+#[test]
+fn inline_selector_and_body_resolve_to_the_schema_parameter() {
+    let schema = LinguiniDocument::new(
+        "file:///shop.lgs",
+        "linguini-schema",
+        "enum Tone { formal, casual }\ngreeting(tone: Tone)\n",
+    );
+    let locale = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "greeting = {fn(tone) {\n  formal => {tone}\n  casual => {tone}\n}}\n",
+    );
+    let offset = schema.text.find("tone").expect("schema parameter offset");
+
+    let references = references_at_with_workspace(&schema, offset, [locale.clone()]);
+
+    assert_eq!(references.len(), 4);
+    assert_eq!(
+        references
+            .iter()
+            .filter(|reference| reference.uri == locale.uri)
+            .map(|reference| &locale.text[reference.span.start..reference.span.end])
+            .collect::<Vec<_>>(),
+        ["tone", "tone", "tone"]
+    );
+}
+
+#[test]
+fn inline_binding_declaration_and_branch_references_are_document_local() {
+    let document = LinguiniDocument::new(
+        "file:///en.lgl",
+        "linguini-locale",
+        "greeting = {fn(tone, greet: name) {\n  formal => {greet}\n  casual => {greet}\n}}\n",
+    );
+    let offset = document.text.find("greet:").expect("binding offset");
+
+    let references = references_at(&document, offset);
+
+    assert_eq!(references.len(), 3);
+    assert_eq!(
+        references
+            .iter()
+            .map(|span| &document.text[span.start..span.end])
+            .collect::<Vec<_>>(),
+        ["greet", "greet", "greet"]
     );
 }
 

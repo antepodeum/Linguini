@@ -70,8 +70,8 @@ export declare const main: {
     readonly localized_path_label: string;
     readonly cookie_label: string;
     readonly route_label: string;
-    readonly sentence: (fruit: __lgl_name_6D61696E2E4672756974, size: __lgl_name_6D61696E2E53697A65, count: number, amount: __lgl_name_6D61696E2E4D6F6E6579, date: __lgl_name_6D61696E2E53686F727444617465) => string;
-    readonly cart_summary: (count: number, fruit: __lgl_name_6D61696E2E4672756974) => string;
+    readonly sentence: (fruit: __lgl_name_6D61696E2E4672756974, size: __lgl_name_6D61696E2E53697A65, count: number | bigint | string, amount: __lgl_name_6D61696E2E4D6F6E6579, date: __lgl_name_6D61696E2E53686F727444617465) => string;
+    readonly cart_summary: (count: number | bigint | string, fruit: __lgl_name_6D61696E2E4672756974) => string;
     readonly number_format: (value: __lgl_name_6D61696E2E4D6561737572656D656E74) => string;
     readonly currency_format: (amount: __lgl_name_6D61696E2E4D6F6E6579) => string;
     readonly date_format: (date: __lgl_name_6D61696E2E53686F727444617465) => string;

@@ -379,7 +379,7 @@ plain = Raw {price @number}
     assert!(locale_module.contents.contains("function formatCurrency("));
     assert!(locale_module
         .contents
-        .contains("formatCurrency(price, { code: \"EUR\" })"));
+        .contains("formatCurrency(price, 2, 0, { code: \"EUR\" })"));
     assert!(locale_module.contents.contains("function formatDate("));
     assert!(locale_module
         .contents
@@ -401,6 +401,69 @@ plain = Raw {price @number}
         .contents
         .contains("export function plain(price: Price): string"));
     assert!(locale_module.contents.contains("formatNumber(price)"));
+}
+
+#[test]
+fn project_codegen_applies_cldr_currency_minor_units() {
+    let schema = lower_schema(
+        &parse_schema("yen(value: Decimal)\ndinar(value: Decimal)\nuf(value: Decimal)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "yen = {value @currency(code = \"JPY\")}\n\
+dinar = {value @currency(code = \"KWD\")}\n\
+uf = {value @currency(code = \"CLF\")}\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(module
+        .contents
+        .contains("formatCurrency(value, 0, 0, { code: \"JPY\" })"));
+    assert!(module
+        .contents
+        .contains("formatCurrency(value, 3, 0, { code: \"KWD\" })"));
+    assert!(module
+        .contents
+        .contains("formatCurrency(value, 4, 0, { code: \"CLF\" })"));
+}
+
+#[test]
+fn project_validation_rejects_missing_required_formatter_data() {
+    let schema = lower_schema(&parse_schema("dated(value: Date)\n").expect("schema"));
+    let locale = lower_locale(&parse_locale("dated = {value}\n").expect("locale"));
+
+    let error = ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "haw".to_owned(),
+            module: locale,
+        }],
+        &project_options("haw"),
+    )
+    .expect_err("Hawaiian date data is intentionally absent from the compiled CLDR artifact");
+
+    assert_eq!(
+        error,
+        TypeScriptCodegenError::MissingDateFormatting {
+            locale: "haw".to_owned(),
+        }
+    );
 }
 
 #[test]
@@ -431,6 +494,409 @@ fn project_codegen_applies_primitive_schema_formatters() {
 }
 
 #[test]
+fn project_codegen_emits_inline_function_dispatch_with_captured_values() {
+    let schema = lower_schema(
+        &parse_schema(
+            "enum Gender { masculine, feminine, other }\ngreeting(name: String, gender: Gender)\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "greeting = Hello {fn(gender) {\n\
+               masculine => dear {name}\n\
+               feminine => kind {name}\n\
+               _ => friend {name}\n\
+             }}!\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(module
+        .contents
+        .contains("import { selectBranch } from \"../shared\";"));
+    assert!(module.contents.contains(
+        "selectBranch(String(__lgl_inline_selector_0), { masculine: (): string => \"dear \" + String(name), feminine: (): string => \"kind \" + String(name), _: (): string => \"friend \" + String(name) })()"
+    ));
+    assert!(module.contents.contains(") => selectBranch"));
+    assert!(module.contents.contains(")(gender)"));
+}
+
+#[test]
+fn project_codegen_normalizes_inferred_plural_inline_selectors() {
+    let schema = lower_schema(&parse_schema("summary(count: Number)\n").expect("schema"));
+    let locale = lower_locale(
+        &parse_locale(
+            "fn Render(category: Plural) {\n  _ => {fn(category) {\n    one => one\n    _ => other\n  }}\n}\nsummary = {Render(count)}\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(module.contents.contains(
+        "selectBranch(pluralEn(__lgl_inline_selector_0), { one: (): string => \"one\", _: (): string => \"other\" })()"
+    ));
+    assert!(module.contents.contains(")(category)"));
+}
+
+#[test]
+fn project_codegen_keeps_form_parameter_types_in_inline_branches() {
+    let schema = lower_schema(
+        &parse_schema("enum Fruit { apple }\nsummary(fruit: Fruit, count: Number)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "impl Fruit {\n  apple {\n    form label(count: Plural) {\n      one => {fn(count) {\n        one => one\n        _ => other\n      }}\n      _ => fallback\n    }\n  }\n}\nsummary = {fruit.label(count)}\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(module
+        .contents
+        .contains("label: (count: number | bigint | string) => selectBranch(pluralEn(count),"));
+    assert!(module
+        .contents
+        .contains("selectBranch(pluralEn(__lgl_inline_selector_0),"));
+}
+
+#[test]
+fn project_codegen_internal_parameters_do_not_collide_with_source_names() {
+    let schema = lower_schema(
+        &parse_schema("enum Tone { formal, casual }\nsummary(tone: Tone, value: String)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "fn Wrap(Tone, __lgl_p0: String) {\n  formal => {__lgl_p0}\n  _ => {__lgl_p0}\n}\nsummary = {fn(tone, __lgl_inline_selector_0: Wrap(tone, value)) {\n  formal => {__lgl_inline_selector_0}\n  _ => {__lgl_inline_selector_0}\n}}\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(!module
+        .contents
+        .contains("function Wrap(__lgl_p0: Tone, __lgl_p0:"));
+    assert!(!module
+        .contents
+        .contains("(__lgl_inline_selector_0, __lgl_inline_selector_0)"));
+    assert!(module.contents.contains("__lgl_name_"));
+}
+
+#[test]
+fn project_codegen_emits_nested_anonymous_function_dispatch() {
+    let schema = lower_schema(
+        &parse_schema(
+            "enum Gender { masculine, feminine, other }\nsummary(gender: Gender, count: Number, name: String)\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "summary = {fn(gender, Plural(count)) {\n\
+               masculine {\n\
+                 one => One {name}\n\
+                 other => Many {name}\n\
+               }\n\
+               feminine {\n\
+                 one => One {name}\n\
+                 other => Many {name}\n\
+               }\n\
+               other {\n\
+                 one => One {name}\n\
+                 other => Many {name}\n\
+               }\n\
+             }}\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(module
+        .contents
+        .contains("selectBranch(String(__lgl_inline_selector_0),"));
+    assert!(module
+        .contents
+        .contains("selectBranch(String(__lgl_inline_selector_1),"));
+    assert!(module.contents.contains(")(gender, pluralEn(count))"));
+    assert!(module
+        .contents
+        .contains("masculine: (): string => selectBranch"));
+    assert!(module.contents.contains("\"One \" + String(name)"));
+}
+
+#[test]
+fn project_codegen_uses_a_data_property_for_proto_inline_branch() {
+    let schema = lower_schema(
+        &parse_schema("enum Key { __proto__, other }\nlabel(key: Key)\n").expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale("label = {fn(key) {\n  __proto__ => Safe\n  _ => Fallback\n}}\n")
+            .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(module
+        .contents
+        .contains("[\"__proto__\"]: (): string => \"Safe\""));
+}
+
+#[test]
+fn project_codegen_named_and_anonymous_functions_share_dispatch_semantics() {
+    let schema = lower_schema(
+        &parse_schema(
+            "enum Tone { __proto__, formal, casual }\n\
+             named(name: String, tone: Tone, count: Number)\n\
+             anonymous(name: String, tone: Tone, count: Number)\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "fn Echo(value: String) {\n\
+               _ => {value}\n\
+             }\n\
+             fn Choose(Tone, Plural, name: String) {\n\
+               __proto__ {\n\
+                 one => One {name}\n\
+                 other => Many {name}\n\
+               }\n\
+               formal {\n\
+                 one => One {name}\n\
+                 other => Many {name}\n\
+               }\n\
+               casual {\n\
+                 one => One {name}\n\
+                 other => Many {name}\n\
+               }\n\
+             }\n\
+             named = {Choose(tone, count, name)}\n\
+             anonymous = {fn(tone, Plural(count), copy: Echo(name)) {\n\
+               __proto__ {\n\
+                 one => One {copy}\n\
+                 other => Many {name}\n\
+               }\n\
+               formal {\n\
+                 one => One {copy}\n\
+                 other => Many {name}\n\
+               }\n\
+               casual {\n\
+                 one => One {copy}\n\
+                 other => Many {name}\n\
+               }\n\
+             }}\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    let signature =
+        "(name: string, tone: Tone, count: number | bigint | string): string {\n  return ";
+    let named_dispatch = module
+        .contents
+        .split_once("function Choose(__lgl_p0: Tone, __lgl_p1: number | bigint | string, name: string): string {\n  return ")
+        .expect("named function dispatch")
+        .1
+        .split_once(";\n}")
+        .expect("named function end")
+        .0;
+    let anonymous_body = module
+        .contents
+        .split_once(&format!("export function anonymous{signature}"))
+        .expect("anonymous message body")
+        .1
+        .split_once(";\n}")
+        .expect("anonymous message end")
+        .0;
+    assert!(named_dispatch.starts_with("selectBranch(String(__lgl_p0),"));
+    assert!(
+        named_dispatch.contains("[\"__proto__\"]: (): string => selectBranch(pluralEn(__lgl_p1),")
+    );
+    assert!(named_dispatch.contains("one: (): string => \"One \" + String(name)"));
+    assert!(named_dispatch.contains("other: (): string => \"Many \" + String(name)"));
+    assert!(named_dispatch.ends_with(")()"));
+    assert!(anonymous_body.contains(
+        "((__lgl_inline_selector_0, __lgl_inline_selector_1, copy) => selectBranch(String(__lgl_inline_selector_0),"
+    ));
+    assert!(anonymous_body
+        .contains("[\"__proto__\"]: (): string => selectBranch(String(__lgl_inline_selector_1),"));
+    assert!(anonymous_body.contains("one: (): string => \"One \" + String(copy)"));
+    assert!(anonymous_body.contains(")(tone, pluralEn(count), Echo(name))"));
+}
+
+#[test]
+fn project_codegen_types_numeric_and_locale_enum_function_parameters() {
+    let schema = lower_schema(
+        &parse_schema(
+            "enum Fruit { apple }\ndelivery(label: String, count: Number, fruit: Fruit)\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "enum Gender { male, other }\n\
+             impl Fruit { apple { Gender = male } }\n\
+             fn choose(Number, Gender, value: String) {\n\
+               _ {\n\
+                 male => {value}\n\
+                 other => {value}\n\
+               }\n\
+             }\n\
+             delivery = {choose(count, fruit.Gender, label)}\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(module
+        .contents
+        .contains("type Gender = \"male\" | \"other\";"));
+    assert!(module.contents.contains(
+        "function choose(__lgl_p0: number | bigint | string, __lgl_p1: Gender, value: string): string"
+    ));
+}
+
+#[test]
+fn project_codegen_normalizes_a_numeric_value_for_a_plural_form() {
+    let schema = lower_schema(
+        &parse_schema("enum Tone { formal, casual }\ngreeting(tone: Tone, count: Number)\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(
+            "form Greeting(Tone, Plural) {\n\
+               formal { one => Formal one\nother => Formal many }\n\
+               casual { one => Casual one\nother => Casual many }\n\
+             }\n\
+             greeting = {Greeting(tone, count)}\n",
+        )
+        .expect("locale"),
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let module = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(module.contents.contains("Greeting(tone, count)"));
+}
+
+#[test]
 fn project_codegen_emits_callable_form_variants_with_attributes() {
     let schema = lower_schema(
         &parse_schema("enum Fruit { apple }\nlabel(fruit: Fruit, count: Number)\n")
@@ -455,7 +921,7 @@ label = {fruit(count)}: {fruit.label}
     let locale_module =
         crate::module::generate_unvalidated_typescript_module_for_test(&schema, &locale, "en");
     assert!(locale_module.contains(
-        "apple: Object.assign((value: number | string) => \
+        "apple: Object.assign((value: number | bigint | string) => \
 selectBranch(pluralEn(value), { one: \"apple\", _: \"apples\" }), { label: \"Apple\" })"
     ));
     assert!(locale_module.contains(
@@ -488,7 +954,7 @@ label = {fruit(count)}
     let locale_module =
         crate::module::generate_unvalidated_typescript_module_for_test(&schema, &locale, "en");
     assert!(locale_module.contains(
-        "apple: (value: number | string) => selectBranch(pluralEn(value), \
+        "apple: (value: number | bigint | string) => selectBranch(pluralEn(value), \
 { one: \"apples\", few: \"apples\", many: \"apples\", _: \"fruit\" })"
     ));
 }

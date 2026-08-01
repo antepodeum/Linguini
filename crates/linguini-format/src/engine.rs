@@ -323,6 +323,13 @@ fn should_space_before(
         return pending;
     }
 
+    if placeholder_brace
+        && matches!(previous, TokenKind::String(_))
+        && matches!(current, TokenKind::LBrace)
+    {
+        return pending;
+    }
+
     if matches!(previous, TokenKind::RBrace) && matches!(current, TokenKind::RawText(_)) {
         return pending;
     }

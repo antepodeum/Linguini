@@ -36,8 +36,9 @@ impl LexError {
 enum Mode {
     Code,
     SingleLineText,
-    Multiline(MultilineMode),
-    Placeholder(ResumeMode),
+    Multiline(MultilineTextMode),
+    Expression(ExpressionMode),
+    InlineBranchText(InlineBranchTextMode),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,9 +48,26 @@ enum MultilineMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ResumeMode {
-    SingleLineText,
-    Multiline(MultilineMode),
+struct MultilineTextMode {
+    kind: MultilineMode,
+    resume: MultilineResume,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MultilineResume {
+    Code,
+    Expression(ExpressionMode),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ExpressionMode {
+    placeholder_depth: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct InlineBranchTextMode {
+    expression: ExpressionMode,
+    body_depth: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +137,7 @@ struct Lexer<'src> {
     paren_depth: usize,
     brace_depth: usize,
     last_significant: Option<SignificantToken>,
+    resume_modes: Vec<Mode>,
     tokens: Vec<Token>,
     errors: Vec<LexError>,
 }
@@ -134,6 +153,7 @@ impl<'src> Lexer<'src> {
             paren_depth: 0,
             brace_depth: 0,
             last_significant: None,
+            resume_modes: Vec::new(),
             tokens: Vec::new(),
             errors: Vec::new(),
         }
@@ -153,7 +173,8 @@ impl<'src> Lexer<'src> {
                 Mode::Code => self.next_code(),
                 Mode::SingleLineText => self.next_single_line_text(),
                 Mode::Multiline(mode) => self.next_multiline_text(mode),
-                Mode::Placeholder(resume) => self.next_placeholder(resume),
+                Mode::Expression(mode) => self.next_expression(mode),
+                Mode::InlineBranchText(mode) => self.next_inline_branch_text(mode),
             };
 
             match result {
@@ -168,7 +189,7 @@ impl<'src> Lexer<'src> {
             Mode::Multiline(_) => self
                 .errors
                 .push(LexError::new("unterminated multiline text", eof)),
-            Mode::Placeholder(_) => self
+            Mode::Expression(_) | Mode::InlineBranchText(_) => self
                 .errors
                 .push(LexError::new("unterminated placeholder", eof)),
         }
@@ -205,7 +226,10 @@ impl<'src> Lexer<'src> {
         }
         if self.rest().starts_with("\"\"\"") {
             self.offset += 3;
-            self.mode = Mode::Multiline(MultilineMode::Dedented);
+            self.mode = Mode::Multiline(MultilineTextMode {
+                kind: MultilineMode::Dedented,
+                resume: MultilineResume::Code,
+            });
             self.last_significant = Some(SignificantToken::Other);
             return Ok(self.token(TokenKind::TripleQuote, start, self.offset));
         }
@@ -275,7 +299,10 @@ impl<'src> Lexer<'src> {
 
         if let Some((end, kind, mode)) = self.scan_text_block_start(start) {
             self.offset = end;
-            self.mode = Mode::Multiline(mode);
+            self.mode = Mode::Multiline(MultilineTextMode {
+                kind: mode,
+                resume: MultilineResume::Code,
+            });
             return Ok(self.token(kind, start, end));
         }
         if let Some(end) = self.scan_newline(start) {
@@ -296,7 +323,10 @@ impl<'src> Lexer<'src> {
             let end = start + 1;
             self.open_brace(start, end)?;
             self.offset = end;
-            self.mode = Mode::Placeholder(ResumeMode::SingleLineText);
+            self.resume_modes.push(Mode::SingleLineText);
+            self.mode = Mode::Expression(ExpressionMode {
+                placeholder_depth: self.brace_depth,
+            });
             return Ok(self.token(TokenKind::LBrace, start, end));
         }
         if self.current_char() == Some('}') {
@@ -330,15 +360,18 @@ impl<'src> Lexer<'src> {
         ))
     }
 
-    fn next_multiline_text(&mut self, mode: MultilineMode) -> Result<Token, LexError> {
+    fn next_multiline_text(&mut self, mode: MultilineTextMode) -> Result<Token, LexError> {
         let start = self.offset;
 
         if self.rest().starts_with("\"\"\"") {
             self.offset += 3;
-            self.mode = Mode::Code;
+            self.mode = match mode.resume {
+                MultilineResume::Code => Mode::Code,
+                MultilineResume::Expression(expression) => Mode::Expression(expression),
+            };
             self.last_significant = Some(SignificantToken::Other);
             return Ok(self.token(
-                match mode {
+                match mode.kind {
                     MultilineMode::Dedented => TokenKind::TripleQuote,
                     MultilineMode::Raw => TokenKind::RawTripleQuote,
                 },
@@ -358,7 +391,10 @@ impl<'src> Lexer<'src> {
             let end = start + 1;
             self.open_brace(start, end)?;
             self.offset = end;
-            self.mode = Mode::Placeholder(ResumeMode::Multiline(mode));
+            self.resume_modes.push(Mode::Multiline(mode));
+            self.mode = Mode::Expression(ExpressionMode {
+                placeholder_depth: self.brace_depth,
+            });
             return Ok(self.token(TokenKind::LBrace, start, end));
         }
         if self.current_char() == Some('}') {
@@ -390,7 +426,7 @@ impl<'src> Lexer<'src> {
         ))
     }
 
-    fn next_placeholder(&mut self, resume: ResumeMode) -> Result<Token, LexError> {
+    fn next_expression(&mut self, mode: ExpressionMode) -> Result<Token, LexError> {
         let start = self.offset;
 
         if let Some(end) = self.scan_newline(start) {
@@ -407,14 +443,21 @@ impl<'src> Lexer<'src> {
         if self.rest().starts_with("//") {
             return Ok(self.scan_comment(false));
         }
+        if self.rest().starts_with("=>") {
+            self.offset += 2;
+            self.mode = Mode::InlineBranchText(InlineBranchTextMode {
+                expression: mode,
+                body_depth: self.brace_depth,
+            });
+            return Ok(self.token(TokenKind::Arrow, start, self.offset));
+        }
         if self.current_char() == Some('}') {
             let end = start + 1;
             self.close_brace();
             self.offset = end;
-            self.mode = match resume {
-                ResumeMode::SingleLineText => Mode::SingleLineText,
-                ResumeMode::Multiline(mode) => Mode::Multiline(mode),
-            };
+            if self.brace_depth < mode.placeholder_depth {
+                self.mode = self.resume_modes.pop().unwrap_or(Mode::Code);
+            }
             return Ok(self.token(TokenKind::RBrace, start, end));
         }
         if self.current_char() == Some('"') {
@@ -433,10 +476,8 @@ impl<'src> Lexer<'src> {
         let end = start + ch.len_utf8();
         let kind = match ch {
             '{' => {
-                return Err(LexError::new(
-                    "nested `{` is not valid inside an expression",
-                    self.span(start, end),
-                ));
+                self.open_brace(start, end)?;
+                TokenKind::LBrace
             }
             '(' => {
                 self.paren_depth += 1;
@@ -460,6 +501,64 @@ impl<'src> Lexer<'src> {
         };
         self.offset = end;
         Ok(self.token(kind, start, end))
+    }
+
+    fn next_inline_branch_text(&mut self, mode: InlineBranchTextMode) -> Result<Token, LexError> {
+        let start = self.offset;
+
+        if let Some((end, kind, multiline)) = self.scan_text_block_start(start) {
+            self.offset = end;
+            self.mode = Mode::Multiline(MultilineTextMode {
+                kind: multiline,
+                resume: MultilineResume::Expression(mode.expression),
+            });
+            return Ok(self.token(kind, start, end));
+        }
+        if let Some(end) = self.scan_newline(start) {
+            self.offset = end;
+            self.mode = Mode::Expression(mode.expression);
+            return Ok(self.token(TokenKind::Newline, start, end));
+        }
+        if self.current_char() == Some('}') {
+            let end = start + 1;
+            self.close_brace();
+            self.offset = end;
+            self.mode = Mode::Expression(mode.expression);
+            return Ok(self.token(TokenKind::RBrace, start, end));
+        }
+        if self.rest().starts_with("{{") {
+            self.offset += 2;
+            return Ok(self.token(TokenKind::RawText("{".to_owned()), start, self.offset));
+        }
+        if self.current_char() == Some('{') {
+            let end = start + 1;
+            self.open_brace(start, end)?;
+            self.offset = end;
+            self.resume_modes.push(Mode::InlineBranchText(mode));
+            self.mode = Mode::Expression(ExpressionMode {
+                placeholder_depth: self.brace_depth,
+            });
+            return Ok(self.token(TokenKind::LBrace, start, end));
+        }
+        if self.current_char() == Some('"') {
+            return self.scan_string_literal();
+        }
+
+        let end = self.scan_until(start, |_, character| {
+            matches!(character, '{' | '}' | '"' | '\n' | '\r')
+        });
+        if end == start {
+            return self.invalid_current("invalid inline function text token");
+        }
+        self.offset = end;
+        if self.brace_depth < mode.body_depth {
+            self.mode = Mode::Expression(mode.expression);
+        }
+        Ok(self.token(
+            TokenKind::RawText(self.source[start..end].to_owned()),
+            start,
+            end,
+        ))
     }
 
     fn scan_text_block_start(&self, start: usize) -> Option<(usize, TokenKind, MultilineMode)> {
