@@ -464,7 +464,7 @@ fn locale_message_coverage_uses_requested_warning_severity_for_missing_messages(
     );
 
     assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Warning);
-    assert_eq!(diagnostics[0].span, Span::new(0, 0));
+    assert_eq!(diagnostics[0].source_span, None);
     assert_eq!(
         diagnostics[0].message,
         "locale `ru` is missing 1 schema message: `delivery`"

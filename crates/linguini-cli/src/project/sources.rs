@@ -240,7 +240,13 @@ mod tests {
         let diagnostics = schema_project_diagnostics(&[first, duplicate, other]);
 
         assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
-        assert_eq!(diagnostics[0].span.source, SourceId(3));
+        assert_eq!(
+            diagnostics[0]
+                .source_span
+                .expect("duplicate diagnostic source")
+                .source,
+            SourceId(3)
+        );
         assert_eq!(diagnostics[0].related[0].span.source, SourceId(1));
     }
 

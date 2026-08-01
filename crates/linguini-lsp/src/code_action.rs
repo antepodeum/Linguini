@@ -1,5 +1,6 @@
 use crate::LinguiniDocument;
 use linguini_analyzer::{Diagnostic as AnalyzerDiagnostic, QuickFix, QuickFixAction};
+use linguini_syntax::Span;
 use std::collections::{BTreeMap, HashMap};
 use tower_lsp_server::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, DiagnosticRelatedInformation,
@@ -116,11 +117,12 @@ pub(crate) fn to_lsp_diagnostic_with_workspace(
                     "title": &quick_fix.title,
                     "hasReplacement": quick_fix.action.replacement().is_some(),
                 }))
-                .collect::<Vec<_>>(),
+            .collect::<Vec<_>>(),
         })
     });
+    let primary_span = diagnostic.source_span.unwrap_or_else(|| Span::new(0, 0));
     Diagnostic {
-        range: to_range(document, diagnostic.span),
+        range: to_range(document, primary_span),
         severity: Some(match diagnostic.severity {
             linguini_analyzer::DiagnosticSeverity::Error => DiagnosticSeverity::ERROR,
             linguini_analyzer::DiagnosticSeverity::Warning => DiagnosticSeverity::WARNING,
@@ -145,11 +147,14 @@ fn diagnostic_has_action_for_range(
     if diagnostic.quick_fixes.is_empty() {
         return false;
     }
-    if diagnostic.span.start == diagnostic.span.end {
-        let point = to_range(document, diagnostic.span).start;
+    let Some(primary_span) = diagnostic.source_span else {
+        return false;
+    };
+    if primary_span.start == primary_span.end {
+        let point = to_range(document, primary_span).start;
         return range.start <= point && point <= range.end;
     }
-    ranges_overlap(to_range(document, diagnostic.span), range)
+    ranges_overlap(to_range(document, primary_span), range)
 }
 
 fn ranges_overlap(left: Range, right: Range) -> bool {
@@ -382,7 +387,7 @@ mod tests {
         )
         .with_source_id(SourceId(1));
         let schema =
-            LinguiniDocument::new("file:///schema/shop.lgs", "linguini-schema", "delivery()\n")
+            LinguiniDocument::new("file:///schema/shop.lgs", "linguini-schema", "delivery\n")
                 .with_source_id(SourceId(2));
         let diagnostic =
             AnalyzerDiagnostic::error("locale mismatch", Span::in_source(SourceId(1), 0, 8))

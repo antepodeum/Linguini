@@ -108,7 +108,11 @@ pub(crate) fn check_project_with_options(
     for schema_file in &parsed_schema_files {
         let file_diagnostics = schema_semantics
             .iter()
-            .filter(|diagnostic| diagnostic.span.source == schema_file.ast.span.source)
+            .filter(|diagnostic| {
+                diagnostic
+                    .source_span
+                    .is_some_and(|span| span.source == schema_file.ast.span.source)
+            })
             .cloned()
             .collect::<Vec<_>>();
         diagnostics.push(

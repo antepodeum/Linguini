@@ -56,14 +56,11 @@ pub struct Diagnostic {
     pub lint_name: Option<&'static str>,
     pub severity: DiagnosticSeverity,
     pub message: String,
-    /// Compatibility accessor for source-backed diagnostics.
-    pub span: Span,
     /// `None` represents a genuinely source-less project diagnostic.
     pub source_span: Option<Span>,
     pub note: Option<String>,
     pub related: Vec<RelatedSpan>,
     pub quick_fixes: Vec<QuickFix>,
-    pub show_source: bool,
 }
 
 #[derive(Debug)]
@@ -87,12 +84,10 @@ impl Diagnostic {
             lint_name: None,
             severity: DiagnosticSeverity::Error,
             message: message.into(),
-            span,
             source_span: Some(span),
             note: None,
             related: Vec::new(),
             quick_fixes: Vec::new(),
-            show_source: true,
         }
     }
 
@@ -103,12 +98,10 @@ impl Diagnostic {
             lint_name: None,
             severity: DiagnosticSeverity::Warning,
             message: message.into(),
-            span,
             source_span: Some(span),
             note: None,
             related: Vec::new(),
             quick_fixes: Vec::new(),
-            show_source: true,
         }
     }
 
@@ -119,12 +112,10 @@ impl Diagnostic {
             lint_name: None,
             severity: DiagnosticSeverity::Advice,
             message: message.into(),
-            span,
             source_span: Some(span),
             note: None,
             related: Vec::new(),
             quick_fixes: Vec::new(),
-            show_source: true,
         }
     }
 
@@ -164,7 +155,6 @@ impl Diagnostic {
     }
 
     pub fn without_source(mut self) -> Self {
-        self.show_source = false;
         self.source_span = None;
         self
     }

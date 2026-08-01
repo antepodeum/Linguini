@@ -506,10 +506,10 @@ mod tests {
 
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].message, "unknown schema type `Color`");
-        assert_eq!(
-            &"paint(color: Color)\n"[diagnostics[0].span.start..diagnostics[0].span.end],
-            "Color"
-        );
+        let span = diagnostics[0]
+            .source_span
+            .expect("unknown type diagnostic source");
+        assert_eq!(&"paint(color: Color)\n"[span.start..span.end], "Color");
     }
 
     #[test]
@@ -554,7 +554,13 @@ mod tests {
         let (_symbols, diagnostics) = build_schema_symbols_from_files(&[first, second]);
 
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].span.source, SourceId(2));
+        assert_eq!(
+            diagnostics[0]
+                .source_span
+                .expect("duplicate diagnostic source")
+                .source,
+            SourceId(2)
+        );
         assert_eq!(diagnostics[0].related[0].span.source, SourceId(1));
     }
 

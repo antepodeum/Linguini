@@ -283,7 +283,11 @@ fn ensure_schema_project_valid(root: &Path, schema_files: &[ParsedSchemaSource])
     for source in schema_files {
         let source_diagnostics = diagnostics
             .iter()
-            .filter(|diagnostic| diagnostic.span.source == source.ast.span.source)
+            .filter(|diagnostic| {
+                diagnostic
+                    .source_span
+                    .is_some_and(|span| span.source == source.ast.span.source)
+            })
             .cloned()
             .collect::<Vec<_>>();
         if !source_diagnostics.is_empty() {

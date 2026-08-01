@@ -707,7 +707,11 @@ fn schema_builder_diagnostics(
     let (_, diagnostics) = build_schema_symbols_from_files(&schemas);
     diagnostics
         .into_iter()
-        .filter(|diagnostic| diagnostic.span.source == document.source_id)
+        .filter(|diagnostic| {
+            diagnostic
+                .source_span
+                .is_some_and(|span| span.source == document.source_id)
+        })
         .collect()
 }
 
@@ -716,12 +720,10 @@ fn deduplicate_diagnostics(diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
     diagnostics
         .into_iter()
         .filter(|diagnostic| {
-            seen.insert((
-                diagnostic.span.source,
-                diagnostic.span.start,
-                diagnostic.span.end,
-                diagnostic.message.clone(),
-            ))
+            let location = diagnostic
+                .source_span
+                .map(|span| (span.source, span.start, span.end));
+            seen.insert((location, diagnostic.message.clone()))
         })
         .collect()
 }

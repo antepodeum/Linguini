@@ -506,7 +506,7 @@ fn schema_semantic_diagnostics_are_reported() {
 
 #[test]
 fn token_end_is_not_inside_rename_target() {
-    let document = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery()\n");
+    let document = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery\n");
     let end = document.text.find("delivery").expect("offset") + "delivery".len();
 
     assert!(prepare_rename_at(&document, end).is_none());
@@ -514,7 +514,7 @@ fn token_end_is_not_inside_rename_target() {
 
 #[test]
 fn rename_does_not_touch_unrelated_same_text() {
-    let schema = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery()\n");
+    let schema = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery\n");
     let locale = LinguiniDocument::new(
         "file:///en.lgl",
         "linguini-locale",
@@ -533,7 +533,7 @@ fn rename_rejects_reserved_names_and_collisions() {
     let document = LinguiniDocument::new(
         "file:///shop.lgs",
         "linguini-schema",
-        "delivery()\nshipping()\n",
+        "delivery\nshipping\n",
     );
     let offset = document.text.find("delivery").expect("offset");
 
@@ -611,7 +611,7 @@ fn rename_rejects_cross_kind_declaration_collisions() {
 
 #[test]
 fn workspace_references_include_declaration_metadata() {
-    let schema = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery()\n");
+    let schema = LinguiniDocument::new("file:///shop.lgs", "linguini-schema", "delivery\n");
     let locale = LinguiniDocument::new(
         "file:///en.lgl",
         "linguini-locale",
@@ -645,8 +645,8 @@ fn definition_does_not_fall_back_to_undefined_reference() {
 
 #[test]
 fn ambiguous_unqualified_schema_definition_is_rejected() {
-    let first = LinguiniDocument::new("file:///one.lgs", "linguini-schema", "delivery()\n");
-    let second = LinguiniDocument::new("file:///two.lgs", "linguini-schema", "delivery()\n");
+    let first = LinguiniDocument::new("file:///one.lgs", "linguini-schema", "delivery\n");
+    let second = LinguiniDocument::new("file:///two.lgs", "linguini-schema", "delivery\n");
     let locale = LinguiniDocument::new(
         "file:///en.lgl",
         "linguini-locale",
