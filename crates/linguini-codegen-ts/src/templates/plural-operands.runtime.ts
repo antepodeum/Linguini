@@ -4,14 +4,13 @@ const MAX_PLURAL_DECIMAL_DIGITS = 8192;
 function pluralOperands(value: number | bigint | string) {
   if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
   const source = String(value).trim();
-  // CLDR c/e notation is a non-negative compact-decimal exponent. It is not
-  // JavaScript's signed scientific notation, even though `e` is its legacy
-  // spelling. Native numbers are the exception: JavaScript may stringify a
-  // finite value with a signed e exponent, which describes only its value and
+  // Canonical CLDR input uses lowercase c for a non-negative compact-decimal
+  // exponent. Native numbers may stringify with JavaScript's signed e/E
+  // scientific notation; that notation describes only their numeric value and
   // must not set the CLDR c/e operands.
   const match = typeof value === "number"
     ? /^([+-]?)(\d+)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(source)
-    : /^([+-]?)(\d+)(?:\.(\d*))?(?:[cCeE](\d+))?$/.exec(source);
+    : /^([+-]?)(\d+)(?:\.(\d*))?(?:c(\d+))?$/.exec(source);
   if (!match) throwInvalidPluralNumber();
 
   const whole = match[2];

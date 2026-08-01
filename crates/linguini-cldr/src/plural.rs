@@ -425,15 +425,21 @@ mod tests {
         assert_eq!(fractional.c, 3);
         assert_eq!(fractional.e, 3);
 
-        let deprecated_e = PluralOperands::parse("123e5").expect("deprecated e synonym");
-        assert_eq!(deprecated_e.i, 12_300_000);
-        assert_eq!(deprecated_e.c, 5);
-        assert_eq!(deprecated_e.e, 5);
+        let e_operand = parse_plural_rule("e = 6").expect("CLDR e operand");
+        assert!(evaluate_plural_rule(&e_operand, "1.2c6").expect("compact e operand"));
     }
 
     #[test]
     fn rejects_malformed_compact_decimal_exponents() {
-        for (source, offset) in [("1c", 2), ("1c-3", 2), ("1c+3", 2), ("1c2e3", 3)] {
+        for (source, offset) in [
+            ("1c", 2),
+            ("1c-3", 2),
+            ("1c+3", 2),
+            ("1c2e3", 3),
+            ("1C3", 1),
+            ("1e3", 1),
+            ("1E3", 1),
+        ] {
             let error = PluralOperands::parse(source).expect_err("malformed compact exponent");
 
             assert_eq!(error.kind, PluralParseErrorKind::InvalidNumber);

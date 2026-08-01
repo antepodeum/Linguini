@@ -967,7 +967,7 @@ impl ExactPluralOperands {
         }
         let exponent_marker = unsigned
             .char_indices()
-            .find(|(_, character)| matches!(character, 'c' | 'C' | 'e' | 'E'));
+            .find(|(_, character)| *character == 'c');
         let (mantissa, exponent_source) = exponent_marker.map_or((unsigned, "0"), |(index, _)| {
             (&unsigned[..index], &unsigned[index + 1..])
         });
@@ -1901,11 +1901,13 @@ mod tests {
         assert_eq!(operands.trimmed_visible_fraction_digits, "1");
         assert_eq!(operands.compact_exponent, "3");
 
-        let shifted = ExactPluralOperands::parse("  +1.2C6  ").expect("trimmed compact decimal");
+        let shifted = ExactPluralOperands::parse("  +1.2c6  ").expect("trimmed compact decimal");
         assert_eq!(shifted.integer, "1200000");
         assert_eq!(shifted.compact_exponent, "6");
 
-        for invalid in [".5", "1c", "1c-3", "1c+3", "1e-2", "1c2e3", "--1"] {
+        for invalid in [
+            ".5", "1c", "1c-3", "1c+3", "1C3", "1e3", "1E3", "1c2e3", "--1",
+        ] {
             assert!(
                 ExactPluralOperands::parse(invalid).is_err(),
                 "{invalid:?} must be rejected"
@@ -1927,7 +1929,7 @@ mod tests {
             "1.0",
             "1.5",
             "1.20050c3",
-            "  +1.2C6  ",
+            "  +1.2c6  ",
         ];
         for locale in ["en", "ru", "ar", "pl", "cy", "fr", "sl"] {
             let rules = built_in_plural_rules(locale).expect("plural rules");

@@ -136,19 +136,30 @@ mod tests {
 
         let valid = [
             "1.2c6",
-            "123e5",
-            "1.0000001e6",
             "1.20050c3",
             "1c3",
             "2c3",
-            "1e0",
-            "  +1.2C6  ",
-            "-123E5",
+            "  +1.2c6  ",
             "0c6",
             "1.",
         ];
         let malformed = [
-            "1c", "1c-3", "1c+3", "1c2e3", "1e-2", "1e+2", ".5", "1e2.0", "1c2x", "1e2e3", "--1",
+            "1c",
+            "1c-3",
+            "1c+3",
+            "1c2e3",
+            "1C3",
+            "123e5",
+            "1.0000001e6",
+            "1e0",
+            "-123E5",
+            "1e-2",
+            "1e+2",
+            ".5",
+            "1e2.0",
+            "1c2x",
+            "1e2e3",
+            "--1",
         ];
 
         let cases = valid
@@ -206,8 +217,8 @@ for (const [value, expanded] of [
     throw new Error(`${{value}}: native scientific category differs from ${{expanded}}`);
   }}
 }}
-if (pluralOperands("1e21").e.integer !== 21n) {{
-  throw new Error("string e notation must remain a compact-decimal exponent");
+if (pluralOperands(1000000000000000000000n).i.integer !== 1000000000000000000000n) {{
+  throw new Error("bigint plural input must remain exact");
 }}
 for (const sample of [{malformed}]) {{
   let rejected = false;

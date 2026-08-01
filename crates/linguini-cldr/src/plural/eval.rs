@@ -102,7 +102,7 @@ impl PluralOperands {
 
         let exponent_marker = unsigned
             .char_indices()
-            .find(|(_, character)| matches!(character, 'c' | 'C' | 'e' | 'E'));
+            .find(|(_, character)| *character == 'c');
         let (mantissa, exponent, exponent_offset) = if let Some((index, _)) = exponent_marker {
             let exponent_source = &unsigned[index + 1..];
             if exponent_source.is_empty() {
