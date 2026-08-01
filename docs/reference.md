@@ -392,13 +392,9 @@ fn delivery_note(item: String, Plural, Gender) {
 Use `form` when output depends only on grammatical categories.
 Use `fn` when output embeds a dynamic string value.
 
-### Inline forms
-
-A `fn` can be written inline as an interpolation value:
-
-```lgl
-greeting = Привет, {fn(Gender) { masculine => дорогой, feminine => дорогая, _ => дорогой }} {name}!
-```
+Functions are module declarations. Inline `fn` expressions are not part of the
+language grammar; declare the function once and call it from message
+interpolation.
 
 ---
 

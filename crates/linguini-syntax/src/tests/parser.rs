@@ -511,6 +511,12 @@ fn validates_empty_enums_duplicates_names_and_paths() {
 }
 
 #[test]
+fn rejects_unsupported_inline_function_expressions() {
+    let source = "greeting = Hello {fn(Gender) { masculine => dear, _ => friend }} {name}!\n";
+    assert!(parse_locale(source).is_err());
+}
+
+#[test]
 fn rejects_group_member_collisions_and_excessive_nesting() {
     assert!(parse_schema("shop { main main { title } }\n").is_err());
     assert!(parse_locale("shop { main = X\nmain { title = Y } }\n").is_err());
