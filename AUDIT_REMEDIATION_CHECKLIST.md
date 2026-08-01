@@ -75,6 +75,8 @@ production path uses the fix and its relevant tests pass.
   each pull request base or pre-push revision.
 - `f378a5f` — formatter parsing now reuses the validated parser's lossless token stream,
   with a regression test proving one lexer invocation per source.
+- `1dd4223` — removed unsupported inline `fn` syntax from the normative reference and
+  locked the parser rejection contract with an executable test.
 
 ## Numbered findings
 
@@ -128,7 +130,7 @@ production path uses the fix and its relevant tests pass.
 
 ### `linguini-syntax`
 
-- [ ] #40 — Remove inline `fn` from normative docs until a tested grammar exists.
+- [x] #40 — Remove inline `fn` from normative docs until a tested grammar exists.
 - [x] #41 — Distinguish a reference from a zero-argument call.
 - [x] #42 — Support zero-argument form/function declarations consistently.
 - [x] #43 — Preserve `form` versus `fn` declaration identity.
@@ -531,7 +533,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] DOC-F2 — Specify value leaves, positional calls, and named-object overloads.
 - [ ] DOC-F3 — Specify dedented/raw multiline semantics and brace escaping.
 - [ ] DOC-F4 — Specify `///` attachment and generated/editor propagation.
-- [ ] DOC-F5 — Remove inline `fn` from normative grammar.
+- [x] DOC-F5 — Remove inline `fn` from normative grammar.
 - [ ] DOC-F6 — Remove CJS completely.
 - [-] DOC-F7 — Match formatter, plural, lint, typing, and exhaustiveness claims to tests.
 
