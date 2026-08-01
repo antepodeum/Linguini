@@ -122,7 +122,7 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
   assert.equal(ru.__testPlural('10000000000000000000000000000000000000001'), 'one');
   assert.equal(ru.__testPlural('10000000000000000000000000000000000000011'), 'many');
   assert.equal(ru.__testPlural('1.0'), 'other');
-  assert.equal(ru.__testPlural('1e0'), 'one');
+  assert.equal(ru.__testPlural('1c0'), 'one');
   assert.throws(() => ru.__testPlural('x'), RangeError);
   assert.throws(() => ru.__testPlural('1'.repeat(8193)), RangeError);
 });

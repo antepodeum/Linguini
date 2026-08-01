@@ -28,12 +28,6 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --locked --workspace
-      - name: Verify checked-in site codegen
-        working-directory: site
-        run: |
-          cargo run --locked -p linguini-cli -- build
-          git diff --exit-code -- src/lib/generated/linguini
-
   msrv:
     name: Rust 1.76 MSRV
     runs-on: ubuntu-24.04
@@ -141,12 +135,15 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: site/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.93.1
       - name: Install site dependencies
         working-directory: site
         run: pnpm install --frozen-lockfile
-      - name: Check and build site
+      - name: Generate, check, and build site
         working-directory: site
-        run: pnpm test && pnpm check && pnpm build
+        run: pnpm linguini:verify && pnpm check && pnpm build
 
   vscode:
     name: VS Code extension

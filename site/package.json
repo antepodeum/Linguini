@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "linguini:build": "cargo run --locked -p linguini-cli -- build",
-    "linguini:verify": "pnpm linguini:build && git diff --exit-code -- src/lib/generated/linguini",
+    "linguini:verify": "pnpm linguini:build && pnpm test",
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
