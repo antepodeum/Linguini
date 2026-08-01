@@ -3,7 +3,7 @@ mod model;
 mod namespace;
 mod reference;
 
-pub use linguini_core::{is_plural_intrinsic, LEGACY_PLURAL_INTRINSIC_NAME, PLURAL_TYPE_NAME};
+pub use linguini_core::{is_plural_intrinsic, PLURAL_TYPE_NAME};
 pub use lower::{lower_locale, lower_locale_typed, lower_schema, lower_schema_typed};
 pub use model::{
     IrBranch, IrEnum, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFormVariant,

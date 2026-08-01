@@ -806,7 +806,7 @@ fn explicit_plural_argument_must_be_numeric() {
 }
 
 #[test]
-fn lowercase_plural_intrinsic_remains_a_compatibility_alias() {
+fn lowercase_plural_call_is_not_an_intrinsic() {
     let locale = parse_locale("delivery = {plural(count)}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
         variables: vec![],
@@ -819,7 +819,8 @@ fn lowercase_plural_intrinsic_remains_a_compatibility_alias() {
         forms: vec![],
     });
 
-    assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].message, "unknown function `plural`");
 }
 
 #[test]

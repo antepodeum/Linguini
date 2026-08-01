@@ -1006,32 +1006,30 @@ mod tests {
     }
 
     #[test]
-    fn canonical_and_legacy_plural_calls_use_configured_function() {
+    fn canonical_plural_call_uses_configured_function() {
         let context = BTreeMap::new();
         let options = TypeScriptOptions {
             plural_function: "selectPlural".to_owned(),
             ..TypeScriptOptions::default()
         };
 
-        for intrinsic in ["Plural", "plural"] {
-            assert_eq!(
-                expression_value(
-                    &expression(IrExpressionKind::Call, &[intrinsic]),
-                    &context,
-                    &BTreeMap::new(),
-                    &options
-                ),
-                "selectPlural()"
-            );
-        }
         assert_eq!(
             expression_value(
-                &expression(IrExpressionKind::Reference, &["plural"]),
+                &expression(IrExpressionKind::Call, &["Plural"]),
                 &context,
                 &BTreeMap::new(),
                 &options
             ),
-            "plural"
+            "selectPlural()"
+        );
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Call, &["plural"]),
+                &context,
+                &BTreeMap::new(),
+                &options
+            ),
+            "plural()"
         );
     }
 

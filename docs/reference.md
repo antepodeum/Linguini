@@ -256,8 +256,7 @@ cart_summary = {cart_label}: {count} {item.nom(count)}
 Any `Number` passed to a typed `Plural` parameter converts automatically using
 CLDR plural rules for the active locale. In a value-based inline selector, use
 `Plural(value)` to request that conversion explicitly; a value already typed as
-`Plural` can be selected directly. Lowercase `plural(value)` remains a
-compatibility alias.
+`Plural` can be selected directly. Intrinsic names are case-sensitive.
 
 ---
 

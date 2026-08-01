@@ -462,10 +462,6 @@
         {
           "name": "support.type.builtin.plural.linguini.locale",
           "match": "\\bPlural\\b(?=\\s*\\()"
-        },
-        {
-          "name": "support.function.builtin.plural.compatibility.linguini.locale",
-          "match": "\\bplural\\b(?=\\s*\\()"
         }
       ]
     },

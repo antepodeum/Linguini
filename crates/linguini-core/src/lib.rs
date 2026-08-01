@@ -2,11 +2,8 @@
 /// its numeric conversion intrinsic.
 pub const PLURAL_TYPE_NAME: &str = "Plural";
 
-/// Pre-canonicalization spelling accepted for existing locale files.
-pub const LEGACY_PLURAL_INTRINSIC_NAME: &str = "plural";
-
 pub fn is_plural_intrinsic(name: &str) -> bool {
-    matches!(name, PLURAL_TYPE_NAME | LEGACY_PLURAL_INTRINSIC_NAME)
+    name == PLURAL_TYPE_NAME
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -97,15 +94,12 @@ impl TypeKind {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        is_plural_intrinsic, FormatterKind, TypeKind, LEGACY_PLURAL_INTRINSIC_NAME,
-        PLURAL_TYPE_NAME,
-    };
+    use super::{is_plural_intrinsic, FormatterKind, TypeKind, PLURAL_TYPE_NAME};
 
     #[test]
-    fn plural_intrinsic_has_one_canonical_name_and_a_compatibility_alias() {
+    fn plural_intrinsic_has_one_canonical_name() {
         assert!(is_plural_intrinsic(PLURAL_TYPE_NAME));
-        assert!(is_plural_intrinsic(LEGACY_PLURAL_INTRINSIC_NAME));
+        assert!(!is_plural_intrinsic("plural"));
         assert!(!is_plural_intrinsic("PLURAL"));
     }
 
