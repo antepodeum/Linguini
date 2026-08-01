@@ -154,6 +154,15 @@ email_input {
 }
 
 #[test]
+fn annotations_use_bare_syntax_when_no_arguments_are_present() {
+    assert!(parse_schema("type Amount = Number @number\n").is_ok());
+    assert!(parse_locale("amount = {value @number}\n").is_ok());
+
+    assert!(parse_schema("type Amount = Number @number()\n").is_err());
+    assert!(parse_locale("amount = {value @number()}\n").is_err());
+}
+
+#[test]
 fn rejects_redundant_empty_schema_message_parentheses() {
     assert!(parse_schema("nav_label()\n").is_err());
 }

@@ -475,6 +475,7 @@ where
         .then(
             annotation_argument()
                 .separated_by(just(TokenKind::Comma))
+                .at_least(1)
                 .allow_trailing()
                 .collect::<Vec<_>>()
                 .delimited_by(just(TokenKind::LParen), just(TokenKind::RParen))

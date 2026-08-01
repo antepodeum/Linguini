@@ -568,6 +568,18 @@ fn structural_wrapping_does_not_split_commas_inside_strings() {
 }
 
 #[test]
+fn rejects_empty_annotation_parentheses() {
+    for (kind, source) in [
+        (SourceKind::Schema, "type Amount = Number @number()\n"),
+        (SourceKind::Locale, "amount = {value @number()}\n"),
+    ] {
+        let error = format_source(kind, source, &FormatOptions::default())
+            .expect_err("empty annotation parentheses must be rejected");
+        assert!(matches!(error, FormatError::Parse(errors) if !errors.is_empty()));
+    }
+}
+
+#[test]
 fn source_kind_reports_missing_extensions_explicitly() {
     let error =
         format_path_source(Path::new("README"), "").expect_err("extensionless path must fail");
