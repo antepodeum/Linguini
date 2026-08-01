@@ -38,11 +38,6 @@ pub enum ConfigError {
         message: String,
         span: Option<(usize, usize)>,
     },
-    UnexpectedSection(String),
-    UnknownKey {
-        section: String,
-        key: String,
-    },
     UnreadableDirectory(PathBuf),
     UnsupportedSymlink(PathBuf),
 }
@@ -92,10 +87,6 @@ impl Display for ConfigError {
                 } else {
                     write!(f, "invalid TOML: {message}")
                 }
-            }
-            Self::UnexpectedSection(section) => write!(f, "unexpected config section `{section}`"),
-            Self::UnknownKey { section, key } => {
-                write!(f, "unknown config key `{section}.{key}`")
             }
             Self::UnreadableDirectory(path) => {
                 write!(f, "could not read directory `{}`", path.display())
