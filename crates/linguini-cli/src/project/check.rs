@@ -1,9 +1,11 @@
 use crate::{CliError, CliResult, DiagnosticFormat};
 use linguini_analyzer::{
-    analyze_locale_coverage_with_options, Diagnostic, DiagnosticCategory, DiagnosticSeverity,
-    QuickFix,
+    analyze_locale_coverage_with_options, analyze_unused_messages, schema_public_messages,
+    ApplicationUsage, Diagnostic, DiagnosticCategory, DiagnosticSeverity, PublicMessage, QuickFix,
 };
-use linguini_config::{discover_locale_files, discover_schema_files, LinguiniConfig};
+use linguini_config::{
+    discover_application_source_files, discover_locale_files, discover_schema_files, LinguiniConfig,
+};
 use linguini_syntax::{parse_locale_with_recovery_in, parse_schema_with_recovery_in, Span};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -123,6 +125,8 @@ pub(crate) fn check_project_with_options(
         );
     }
 
+    collect_unused_message_diagnostics(root, &config, &parsed_schema_files, &mut diagnostics)?;
+
     let schema_namespaces = schema_files
         .iter()
         .map(|file| file.namespace.clone())
@@ -163,6 +167,51 @@ pub(crate) fn check_project_with_options(
     } else {
         Ok(output)
     }
+}
+
+fn collect_unused_message_diagnostics(
+    root: &Path,
+    config: &LinguiniConfig,
+    schema_files: &[ParsedSchemaSource],
+    output: &mut ProjectDiagnostics,
+) -> CliResult<()> {
+    let Some(options) = &config.analysis.unused_messages else {
+        return Ok(());
+    };
+
+    let mut excluded = options.exclude.clone();
+    if let Some(target) = &config.targets.ts {
+        if !excluded.contains(&target.out) {
+            excluded.push(target.out.clone());
+        }
+    }
+    let application_files = discover_application_source_files(root, &options.sources, &excluded)?;
+    let mut usage = ApplicationUsage::default();
+    for path in application_files {
+        usage.extend_source(&read_file(&path)?);
+    }
+
+    for schema_file in schema_files {
+        let messages = schema_public_messages(&schema_file.ast)
+            .into_iter()
+            .map(|message| {
+                let name = if schema_file.file.namespace.is_empty() {
+                    message.name
+                } else {
+                    format!("{}.{}", schema_file.file.namespace, message.name)
+                };
+                PublicMessage::new(name, message.span)
+            })
+            .collect::<Vec<_>>();
+        let diagnostics = analyze_unused_messages(&messages, &usage, &options.ignore);
+        output.push(
+            root,
+            &schema_file.file.path,
+            &schema_file.source,
+            &diagnostics,
+        );
+    }
+    Ok(())
 }
 
 fn collect_project_coverage_diagnostics(

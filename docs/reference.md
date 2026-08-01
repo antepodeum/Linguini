@@ -498,9 +498,7 @@ form F(Gender) {
 ### Warnings
 
 - Style and reachability lints listed below
-
-Linguini does not scan application source for message usage, so it does not
-currently report schema messages that are unused by the application.
+- Schema messages with no reference found by the configured application scan
 
 ### Machine-readable diagnostics
 
@@ -523,7 +521,7 @@ command exit unsuccessfully, so redirected output remains a complete JSON docume
 
 ## Lints (`linguini check`)
 
-Lints are named diagnostics reported by `linguini check`. Five are warnings;
+Lints are named diagnostics reported by `linguini check`. Six are warnings;
 `incomplete_impl` is a blocking error. Inline lint suppression syntax is not
 part of the current language.
 
@@ -535,6 +533,7 @@ part of the current language.
 | `fn_without_strings` | warning  | `fn` with no `String` params — use `form`        |
 | `incomplete_impl`    | error    | `impl` missing variants declared in enum         |
 | `redundant_wildcard` | warning  | All variants covered, `_` is unreachable         |
+| `unused_message`     | warning  | Configured scan finds no reference to message     |
 
 ---
 
@@ -552,7 +551,38 @@ locale = "linguini/locale"
 
 [targets.ts]
 out         = "src/generated/linguini"
-module      = "esm"                     # esm | cjs
 declaration = true
 gitignore   = true                      # emit generated .gitignore
 ```
+
+### Opt-in unused-message analysis
+
+Application usage is a project-level input, so unused-message analysis is off
+until its source boundary is configured explicitly:
+
+```toml
+[analysis.unused_messages]
+sources = ["src", "tests/ui"]
+exclude = ["src/generated", "src/vendor"]
+ignore  = ["admin.runtime_selected", "experiments"]
+```
+
+`linguini check` and the pre-write phase of `linguini build` recursively scan
+configured `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`,
+`.svelte`, `.vue`, and `.astro` files. A configured source may also be one
+supported file.
+Excludes match an exact project-relative path and every child below it. The
+configured TypeScript output directory is excluded automatically. A source
+root fully covered by an exclude is invalid. Missing or unreadable sources and
+non-excluded symbolic links fail the command instead of producing an unsafe
+unused result.
+
+The scanner understands `l`, `lgl`, `messages`, their named-import aliases,
+member access such as `linguini.l`, the generated `createLinguini`,
+`createLinguiniProvider`, and `configureLinguini` factories, static bracket
+access, and template interpolations. Computed access records the narrowest
+known prefix; passing a message group or the whole message root as a value
+conservatively marks that subtree or project as dynamically used. Add canonical
+message paths or group prefixes to `ignore` for dynamic resolution the scanner
+cannot see. This is a bounded lexical project scan, not a whole-program
+JavaScript type or data-flow proof.

@@ -660,6 +660,8 @@ mod tests {
             "[analysis.unused_messages]\nsources = [\"../src\"]",
             "[analysis.unused_messages]\nsources = [\"src\", \"./src\"]",
             "[analysis.unused_messages]\nsources = [\"src\"]\nexclude = [\"/tmp\"]",
+            "[analysis.unused_messages]\nsources = [\"src/app\"]\nexclude = [\"src\"]",
+            "[analysis.unused_messages]\nsources = [\"SRC/app\"]\nexclude = [\"src\"]",
             "[analysis.unused_messages]\nsources = [\"src\"]\nignore = [\"main..title\"]",
             "[analysis.unused_messages]\nsources = [\"src\"]\nignore = [\"main\", \"main\"]",
         ] {

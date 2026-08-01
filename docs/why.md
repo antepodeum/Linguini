@@ -132,8 +132,10 @@ active locale apply automatically. No wrapper function, no explicit conversion.
 branches in enum/`Plural` dispatches the analyzer can resolve. They also reject
 arity and type mismatches in locale function/form calls when both sides have a
 known type. Generated TypeScript exposes schema argument types to the host type
-checker. These checks are not a whole-program proof, and Linguini does not scan
-application source for unused messages.
+checker. When `[analysis.unused_messages]` explicitly defines application
+source roots, both commands also perform a conservative project scan and warn
+for schema messages that have no static, dynamic-prefix, or ignored use. These
+checks remain bounded and are not a whole-program proof.
 
 **Generated TypeScript carries schema signatures.**
 

@@ -725,6 +725,141 @@ locale = "locales"
 }
 
 #[test]
+fn configured_unused_message_analysis_is_project_scoped_and_machine_readable() {
+    let project = unused_message_project();
+    let assert = linguini()
+        .current_dir(project.path())
+        .args(["check", "--format", "json"])
+        .assert()
+        .success()
+        .stderr("");
+    let document: Value =
+        serde_json::from_slice(&assert.get_output().stdout).expect("valid JSON diagnostics");
+    let diagnostics = document["diagnostics"]
+        .as_array()
+        .expect("diagnostic array");
+    let unused = diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic["code"] == "unused_message")
+        .collect::<Vec<_>>();
+
+    assert_eq!(document["success"], true);
+    assert_eq!(unused.len(), 2, "{diagnostics:#?}");
+    assert!(unused.iter().all(|diagnostic| {
+        diagnostic["category"] == "lint"
+            && diagnostic["lintName"] == "unused_message"
+            && diagnostic["severity"] == "warning"
+            && diagnostic["path"] == "schema/main.lgs"
+            && diagnostic["range"]["start"]["line"].as_u64().is_some()
+    }));
+    let messages = unused
+        .iter()
+        .filter_map(|diagnostic| diagnostic["message"].as_str())
+        .collect::<Vec<_>>();
+    assert!(messages
+        .iter()
+        .any(|message| message.contains("main.unused")));
+    assert!(messages
+        .iter()
+        .any(|message| message.contains("main.excluded_only")));
+    assert!(messages
+        .iter()
+        .all(|message| !message.contains("main.ignored")));
+
+    linguini()
+        .current_dir(project.path())
+        .args(["check", "--deny-warnings"])
+        .assert()
+        .failure()
+        .stderr(contains("schema message `main.unused` is not referenced"));
+    linguini()
+        .current_dir(project.path())
+        .args(["build", "--deny-warnings"])
+        .assert()
+        .failure()
+        .stderr(contains("schema message `main.unused` is not referenced"));
+    assert!(!project.path().join("build/generated").exists());
+}
+
+#[test]
+fn configured_unused_message_analysis_is_emitted_in_sarif() {
+    let project = unused_message_project();
+    let assert = linguini()
+        .current_dir(project.path())
+        .args(["check", "--format", "sarif"])
+        .assert()
+        .success()
+        .stderr("");
+    let document: Value =
+        serde_json::from_slice(&assert.get_output().stdout).expect("valid SARIF diagnostics");
+    let run = &document["runs"][0];
+
+    assert!(run["tool"]["driver"]["rules"]
+        .as_array()
+        .is_some_and(|rules| rules.iter().any(|rule| rule["id"] == "unused_message")));
+    assert!(run["results"].as_array().is_some_and(|results| {
+        results.iter().any(|result| {
+            result["ruleId"] == "unused_message"
+                && result["level"] == "warning"
+                && result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+                    == "schema/main.lgs"
+                && result["locations"][0]["physicalLocation"]["region"]["startLine"]
+                    .as_u64()
+                    .is_some()
+        })
+    }));
+}
+
+#[test]
+fn configured_unused_message_analysis_excludes_typescript_output_automatically() {
+    let project = unused_message_project();
+    let config_path = project.path().join("linguini.toml");
+    let config = fs::read_to_string(&config_path)
+        .expect("config")
+        .replace("out = \"build/generated\"", "out = \"src/generated\"");
+    fs::write(&config_path, config).expect("updated config");
+    fs::create_dir_all(project.path().join("src/generated")).expect("generated output dir");
+    fs::write(
+        project.path().join("src/generated/stale.ts"),
+        "l.main.unused();\n",
+    )
+    .expect("stale generated source");
+
+    let assert = linguini()
+        .current_dir(project.path())
+        .args(["check", "--format", "json"])
+        .assert()
+        .success()
+        .stderr("");
+    let document: Value =
+        serde_json::from_slice(&assert.get_output().stdout).expect("valid JSON diagnostics");
+    let diagnostics = document["diagnostics"]
+        .as_array()
+        .expect("diagnostic array");
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic["code"] == "unused_message"
+            && diagnostic["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("main.unused"))
+    }));
+}
+
+#[test]
+fn configured_unused_message_analysis_fails_for_a_missing_source_root() {
+    let project = unused_message_project();
+    fs::remove_dir_all(project.path().join("src")).expect("remove configured source");
+
+    linguini()
+        .current_dir(project.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(contains("src"))
+        .stderr(contains("NotFound"));
+}
+
+#[test]
 fn build_json_keeps_stdout_machine_readable_and_generates_files() {
     let project = TempDir::new().expect("temp project");
     linguini()
@@ -755,6 +890,64 @@ fn build_json_keeps_stdout_machine_readable_and_generates_files() {
         .path()
         .join("src/generated/linguini/index.ts")
         .exists());
+}
+
+fn unused_message_project() -> TempDir {
+    let project = TempDir::new().expect("temp project");
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"[project]
+name = "unused-analysis"
+default_locale = "en"
+locales = ["en"]
+
+[paths]
+schema = "schema"
+locale = "locales"
+
+[targets.ts]
+out = "build/generated"
+declaration = true
+
+[analysis.unused_messages]
+sources = ["src"]
+exclude = ["src/excluded"]
+ignore = ["main.ignored"]
+"#,
+    )
+    .expect("config");
+    fs::create_dir_all(project.path().join("schema")).expect("schema dir");
+    fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
+    fs::create_dir_all(project.path().join("src/routes")).expect("application dir");
+    fs::create_dir_all(project.path().join("src/excluded")).expect("excluded dir");
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "used\nvalue\ndynamic { one two }\nignored\nexcluded_only\nunused\n",
+    )
+    .expect("schema");
+    fs::write(
+        project.path().join("locales/main/en.lgl"),
+        "used = Used\nvalue = Value\ndynamic {\n  one = One\n  two = Two\n}\n\
+         ignored = Ignored\nexcluded_only = Excluded\nunused = Unused\n",
+    )
+    .expect("locale");
+    fs::write(
+        project.path().join("src/routes/+page.svelte"),
+        r#"<script lang="ts">
+          import { l as messages } from "$lib/generated/linguini/svelte";
+          const value = messages.main.value;
+          const selected = messages.main.dynamic[key];
+        </script>
+        <h1>{messages.main.used()}</h1>
+        "#,
+    )
+    .expect("application source");
+    fs::write(
+        project.path().join("src/excluded/generated.ts"),
+        "l.main.excluded_only();\n",
+    )
+    .expect("excluded application source");
+    project
 }
 
 fn machine_diagnostic_project() -> TempDir {

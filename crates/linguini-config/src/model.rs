@@ -330,6 +330,20 @@ fn validate_analysis(analysis: &AnalysisConfig) -> ConfigResult<()> {
 
     validate_distinct_paths("analysis.unused_messages.sources", &unused.sources)?;
     validate_distinct_paths("analysis.unused_messages.exclude", &unused.exclude)?;
+    for source in &unused.sources {
+        let source_components = portable_folded_components(source);
+        if unused
+            .exclude
+            .iter()
+            .any(|excluded| source_components.starts_with(&portable_folded_components(excluded)))
+        {
+            return Err(ConfigError::InvalidPath {
+                field: "analysis.unused_messages.sources",
+                value: source.clone(),
+                reason: "source is fully covered by analysis.unused_messages.exclude",
+            });
+        }
+    }
 
     let mut ignored = BTreeSet::new();
     for prefix in &unused.ignore {
@@ -554,7 +568,7 @@ fn validate_switch_route(route: &WebSwitchRouteConfig) -> ConfigResult<()> {
     Ok(())
 }
 
-fn validate_relative_path(field: &'static str, value: &str) -> ConfigResult<()> {
+pub(crate) fn validate_relative_path(field: &'static str, value: &str) -> ConfigResult<()> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return Err(ConfigError::InvalidPath {
@@ -636,6 +650,13 @@ fn portable_components(value: &str) -> Vec<String> {
         .split('/')
         .filter(|segment| !segment.is_empty() && *segment != ".")
         .map(str::to_owned)
+        .collect()
+}
+
+fn portable_folded_components(value: &str) -> Vec<String> {
+    portable_components(value)
+        .into_iter()
+        .map(|component| component.to_ascii_lowercase())
         .collect()
 }
 

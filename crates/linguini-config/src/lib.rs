@@ -4,7 +4,8 @@ mod model;
 mod parser;
 
 pub use discovery::{
-    discover_locale_files, discover_schema_files, locale_scope_chain, LocaleFile, SchemaFile,
+    discover_application_source_files, discover_locale_files, discover_schema_files,
+    locale_scope_chain, LocaleFile, SchemaFile,
 };
 pub use error::{ConfigError, ConfigResult};
 pub use model::{

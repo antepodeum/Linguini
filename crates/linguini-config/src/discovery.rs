@@ -1,11 +1,14 @@
 use crate::error::{ConfigError, ConfigResult};
-use crate::model::validate_locale_tag;
+use crate::model::{validate_locale_tag, validate_relative_path};
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 const MAX_DISCOVERY_DEPTH: usize = 128;
 const MAX_DISCOVERY_ENTRIES: usize = 100_000;
+const APPLICATION_SOURCE_EXTENSIONS: [&str; 11] = [
+    "js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "svelte", "vue", "astro",
+];
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SchemaFile {
@@ -59,6 +62,64 @@ pub fn discover_locale_files(root: impl AsRef<Path>) -> ConfigResult<Vec<LocaleF
     Ok(state.locale_files)
 }
 
+/// Discovers configured JavaScript, TypeScript, and component application sources.
+///
+/// `sources` and `exclude` entries are portable project-relative file or directory paths.
+/// Excluded directories are not traversed. Symbolic links are rejected everywhere else.
+pub fn discover_application_source_files(
+    project_root: impl AsRef<Path>,
+    sources: &[String],
+    exclude: &[String],
+) -> ConfigResult<Vec<PathBuf>> {
+    let root = prepare_root(project_root.as_ref())?;
+    let sources = configured_paths("analysis.unused_messages.sources", sources)?;
+    let exclude = configured_paths("analysis.unused_messages.exclude", exclude)?;
+    let mut state = DiscoveryState::new(&root);
+
+    for relative in sources {
+        if path_is_excluded(&relative, &exclude) {
+            return Err(ConfigError::InvalidPath {
+                field: "analysis.unused_messages.sources",
+                value: relative.to_string_lossy().replace('\\', "/"),
+                reason: "source is fully covered by analysis.unused_messages.exclude",
+            });
+        }
+        reject_symlink_components(&root, &relative)?;
+        let path = root.join(&relative);
+        let metadata = fs::symlink_metadata(&path).map_err(|error| io_error(&path, error))?;
+        if metadata.file_type().is_symlink() {
+            return Err(ConfigError::UnsupportedSymlink(path));
+        }
+        if metadata.is_dir() {
+            collect_application_source_files(&root, &path, 0, &exclude, &mut state)?;
+        } else if metadata.is_file() {
+            if !is_application_source_file(&path) {
+                return Err(ConfigError::Io {
+                    path,
+                    kind: std::io::ErrorKind::InvalidInput,
+                    message: "configured application source file has an unsupported extension"
+                        .to_owned(),
+                });
+            }
+            state.count_entry()?;
+            state.add_application_file(path)?;
+        } else {
+            return Err(ConfigError::Io {
+                path,
+                kind: std::io::ErrorKind::InvalidInput,
+                message: "configured application source is neither a file nor a directory"
+                    .to_owned(),
+            });
+        }
+    }
+
+    let mut files = state.application_files.into_iter().collect::<Vec<_>>();
+    files.sort_by(|left, right| {
+        portable_sort_key(&root, left).cmp(&portable_sort_key(&root, right))
+    });
+    Ok(files)
+}
+
 pub fn locale_scope_chain(
     locale_root: impl AsRef<Path>,
     file: impl AsRef<Path>,
@@ -104,6 +165,7 @@ struct DiscoveryState {
     entries: usize,
     schema_files: Vec<SchemaFile>,
     locale_files: Vec<LocaleFile>,
+    application_files: BTreeSet<PathBuf>,
 }
 
 impl DiscoveryState {
@@ -114,10 +176,18 @@ impl DiscoveryState {
             entries: 0,
             schema_files: Vec::new(),
             locale_files: Vec::new(),
+            application_files: BTreeSet::new(),
         }
     }
 
     fn enter(&mut self, directory: &Path, depth: usize) -> ConfigResult<()> {
+        if !self.enter_once(directory, depth)? {
+            return Err(ConfigError::UnsupportedSymlink(directory.to_path_buf()));
+        }
+        Ok(())
+    }
+
+    fn enter_once(&mut self, directory: &Path, depth: usize) -> ConfigResult<bool> {
         if depth > MAX_DISCOVERY_DEPTH {
             return Err(ConfigError::DiscoveryLimit {
                 root: self.root.clone(),
@@ -131,10 +201,7 @@ impl DiscoveryState {
                 path: canonical,
             });
         }
-        if !self.visited.insert(canonical) {
-            return Err(ConfigError::UnsupportedSymlink(directory.to_path_buf()));
-        }
-        Ok(())
+        Ok(self.visited.insert(canonical))
     }
 
     fn count_entry(&mut self) -> ConfigResult<()> {
@@ -145,6 +212,16 @@ impl DiscoveryState {
                 limit: MAX_DISCOVERY_ENTRIES,
             });
         }
+        Ok(())
+    }
+
+    fn add_application_file(&mut self, path: PathBuf) -> ConfigResult<()> {
+        if !is_application_source_file(&path) || self.application_files.contains(&path) {
+            return Ok(());
+        }
+        require_utf8_component(&path)?;
+        fs::File::open(&path).map_err(|error| io_error(&path, error))?;
+        self.application_files.insert(path);
         Ok(())
     }
 }
@@ -211,6 +288,113 @@ fn collect_locale_files(
         }
     }
     Ok(())
+}
+
+fn collect_application_source_files(
+    root: &Path,
+    directory: &Path,
+    depth: usize,
+    exclude: &[PathBuf],
+    state: &mut DiscoveryState,
+) -> ConfigResult<()> {
+    if !state.enter_once(directory, depth)? {
+        return Ok(());
+    }
+    for entry in read_directory(directory)? {
+        state.count_entry()?;
+        let path = entry.path();
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| ConfigError::PathOutsideRoot {
+                root: root.to_path_buf(),
+                path: path.clone(),
+            })?;
+        if path_is_excluded(relative, exclude) {
+            continue;
+        }
+        let file_type = entry.file_type().map_err(|error| io_error(&path, error))?;
+        if file_type.is_symlink() {
+            return Err(ConfigError::UnsupportedSymlink(path));
+        }
+        if file_type.is_dir() {
+            require_utf8_component(&path)?;
+            collect_application_source_files(root, &path, depth + 1, exclude, state)?;
+        } else if file_type.is_file() {
+            state.add_application_file(path)?;
+        }
+    }
+    Ok(())
+}
+
+fn configured_paths(field: &'static str, values: &[String]) -> ConfigResult<Vec<PathBuf>> {
+    let mut paths = BTreeSet::new();
+    for value in values {
+        validate_relative_path(field, value)?;
+        paths.insert(
+            value
+                .trim()
+                .split('/')
+                .filter(|component| !component.is_empty() && *component != ".")
+                .collect::<PathBuf>(),
+        );
+    }
+    let mut paths = paths.into_iter().collect::<Vec<_>>();
+    paths.sort_by(|left, right| {
+        let left = left.to_string_lossy().replace('\\', "/");
+        let right = right.to_string_lossy().replace('\\', "/");
+        (left.to_ascii_lowercase(), &left).cmp(&(right.to_ascii_lowercase(), &right))
+    });
+    Ok(paths)
+}
+
+fn path_is_excluded(relative: &Path, exclude: &[PathBuf]) -> bool {
+    exclude
+        .iter()
+        .any(|excluded| portable_path_starts_with(relative, excluded))
+}
+
+fn portable_path_starts_with(path: &Path, prefix: &Path) -> bool {
+    let mut path_components = path.components();
+    prefix.components().all(|prefix_component| {
+        let Some(path_component) = path_components.next() else {
+            return false;
+        };
+        let (Component::Normal(path_component), Component::Normal(prefix_component)) =
+            (path_component, prefix_component)
+        else {
+            return false;
+        };
+        path_component
+            .to_str()
+            .zip(prefix_component.to_str())
+            .is_some_and(|(path_component, prefix_component)| {
+                path_component.eq_ignore_ascii_case(prefix_component)
+            })
+    })
+}
+
+fn reject_symlink_components(root: &Path, relative: &Path) -> ConfigResult<()> {
+    let mut current = root.to_path_buf();
+    for component in relative.components() {
+        let Component::Normal(component) = component else {
+            return Err(ConfigError::PathOutsideRoot {
+                root: root.to_path_buf(),
+                path: root.join(relative),
+            });
+        };
+        current.push(component);
+        let metadata = fs::symlink_metadata(&current).map_err(|error| io_error(&current, error))?;
+        if metadata.file_type().is_symlink() {
+            return Err(ConfigError::UnsupportedSymlink(current));
+        }
+    }
+    Ok(())
+}
+
+fn is_application_source_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| APPLICATION_SOURCE_EXTENSIONS.contains(&extension))
 }
 
 fn prepare_root(path: &Path) -> ConfigResult<PathBuf> {
@@ -322,7 +506,8 @@ fn io_error(path: &Path, error: std::io::Error) -> ConfigError {
 #[cfg(test)]
 mod tests {
     use super::{
-        discover_locale_files, discover_schema_files, locale_scope_chain, namespace_from_path,
+        discover_application_source_files, discover_locale_files, discover_schema_files,
+        locale_scope_chain, namespace_from_path,
     };
     use crate::ConfigError;
     use std::fs;
@@ -403,6 +588,187 @@ mod tests {
         assert_eq!(locales.len(), 1);
         assert_eq!(locales[0].locale, "en-US");
         assert_eq!(locales[0].namespace, "shop.forms.cart");
+    }
+
+    #[test]
+    fn discovers_supported_application_sources_deterministically() {
+        let root = TempDir::new().expect("root");
+        fs::create_dir_all(root.path().join("src/components/generated")).expect("source dirs");
+        for extension in [
+            "js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "svelte", "vue", "astro",
+        ] {
+            fs::write(
+                root.path()
+                    .join("src/components")
+                    .join(format!("source.{extension}")),
+                "l.main.title();\n",
+            )
+            .expect("application source");
+        }
+        fs::write(root.path().join("src/components/ignored.css"), "body {}")
+            .expect("unsupported source");
+        fs::write(
+            root.path().join("src/components/generated/output.ts"),
+            "generated();\n",
+        )
+        .expect("excluded source");
+
+        let files = discover_application_source_files(
+            root.path(),
+            &["src/components".to_owned(), "src".to_owned()],
+            &["src/components/generated".to_owned()],
+        )
+        .expect("application discovery");
+        let relative = files
+            .iter()
+            .map(|path| {
+                path.strip_prefix(root.path())
+                    .expect("project-relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            relative,
+            [
+                "src/components/source.astro",
+                "src/components/source.cjs",
+                "src/components/source.cts",
+                "src/components/source.js",
+                "src/components/source.jsx",
+                "src/components/source.mjs",
+                "src/components/source.mts",
+                "src/components/source.svelte",
+                "src/components/source.ts",
+                "src/components/source.tsx",
+                "src/components/source.vue",
+            ]
+        );
+    }
+
+    #[test]
+    fn matches_application_excludes_with_portable_ascii_case_folding() {
+        let root = TempDir::new().expect("root");
+        fs::create_dir_all(root.path().join("src/generated")).expect("source dirs");
+        fs::write(root.path().join("src/keep.ts"), "keep();\n").expect("kept source");
+        fs::write(root.path().join("src/generated/drop.ts"), "generated();\n")
+            .expect("excluded source");
+
+        let files = discover_application_source_files(
+            root.path(),
+            &["src".to_owned()],
+            &["SRC/GENERATED".to_owned()],
+        )
+        .expect("case-folded exclusion");
+
+        assert_eq!(
+            files,
+            [fs::canonicalize(root.path().join("src/keep.ts")).unwrap()]
+        );
+    }
+
+    #[test]
+    fn accepts_file_sources_and_exact_file_excludes() {
+        let root = TempDir::new().expect("root");
+        fs::create_dir(root.path().join("src")).expect("source dir");
+        fs::write(root.path().join("src/keep.ts"), "keep();\n").expect("kept source");
+        fs::write(root.path().join("src/drop.ts"), "drop();\n").expect("excluded source");
+
+        let files =
+            discover_application_source_files(root.path(), &["src/keep.ts".to_owned()], &[])
+                .expect("explicit application source");
+
+        assert_eq!(
+            files,
+            [fs::canonicalize(root.path().join("src/keep.ts")).unwrap()]
+        );
+
+        let files = discover_application_source_files(
+            root.path(),
+            &["src".to_owned()],
+            &["src/drop.ts".to_owned()],
+        )
+        .expect("exact file exclusion");
+        assert_eq!(
+            files,
+            [fs::canonicalize(root.path().join("src/keep.ts")).unwrap()]
+        );
+    }
+
+    #[test]
+    fn rejects_application_source_fully_covered_by_exclude() {
+        let root = TempDir::new().expect("root");
+
+        let error = discover_application_source_files(
+            root.path(),
+            &["Missing/Source".to_owned()],
+            &["missing".to_owned()],
+        )
+        .expect_err("fully excluded source rejected");
+
+        assert!(matches!(error, ConfigError::InvalidPath { .. }));
+    }
+
+    #[test]
+    fn rejects_explicit_files_with_unsupported_extensions() {
+        let root = TempDir::new().expect("root");
+        fs::write(root.path().join("styles.css"), "body {}\n").expect("unsupported source");
+
+        let error = discover_application_source_files(root.path(), &["styles.css".to_owned()], &[])
+            .expect_err("unsupported explicit file rejected");
+
+        assert!(matches!(
+            error,
+            ConfigError::Io {
+                kind: std::io::ErrorKind::InvalidInput,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn reports_missing_application_source_paths() {
+        let root = TempDir::new().expect("root");
+
+        let error = discover_application_source_files(root.path(), &["missing.ts".to_owned()], &[])
+            .expect_err("missing source rejected");
+
+        assert!(matches!(
+            error,
+            ConfigError::Io {
+                kind: std::io::ErrorKind::NotFound,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_unsafe_application_source_paths() {
+        let root = TempDir::new().expect("root");
+
+        let error =
+            discover_application_source_files(root.path(), &["../outside.ts".to_owned()], &[])
+                .expect_err("outside source rejected");
+
+        assert!(matches!(error, ConfigError::InvalidPath { .. }));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_application_source_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let root = TempDir::new().expect("root");
+        let outside = TempDir::new().expect("outside");
+        fs::write(outside.path().join("hidden.ts"), "hidden();\n").expect("outside source");
+        symlink(outside.path(), root.path().join("linked")).expect("symlink");
+
+        let error =
+            discover_application_source_files(root.path(), &["linked/hidden.ts".to_owned()], &[])
+                .expect_err("symlink rejected");
+
+        assert!(matches!(error, ConfigError::UnsupportedSymlink(_)));
     }
 
     #[cfg(unix)]
