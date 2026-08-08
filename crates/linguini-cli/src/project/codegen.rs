@@ -4,9 +4,9 @@ use std::path::{Component, Path, PathBuf};
 use linguini_analyzer::DiagnosticSeverity;
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
-    generate_typescript_project_files, TypeScriptFramework, TypeScriptGeneratedFile,
-    TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptProjectOptions, TypeScriptWebOptions,
-    ValidatedTypeScriptProject,
+    compile_typescript_message_module, generate_typescript_project_files, EcmaSource,
+    TypeScriptFramework, TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleSource,
+    TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
 };
 use linguini_config::{
     CanonicalMode, CookiePath, LinguiniConfig, LinkMode, LocalePrefixMode, SecurePolicy,
@@ -97,8 +97,16 @@ fn generate_typescript_target(
     };
     let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-    let files = generate_typescript_project_files(&project)
+    let mut files = generate_typescript_project_files(&project)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+    let sources = ecma_sources(root, &schema_files, &locale_files)?;
+    files.extend(generate_bundler_files(
+        &project,
+        &sources,
+        &target.out,
+        &config.project.locales,
+        &config.project.default_locale,
+    )?);
 
     let output = SafeOutputRoot::new(
         root,
@@ -109,6 +117,221 @@ fn generate_typescript_target(
         ],
     )?;
     write_codegen_tree(root, &output, &files)
+}
+
+fn ecma_sources(
+    root: &Path,
+    schema_files: &[ParsedSchemaSource],
+    locale_files: &[ParsedLocaleSource],
+) -> CliResult<Vec<EcmaSource>> {
+    let mut sources = schema_files
+        .iter()
+        .map(|source| {
+            Ok(EcmaSource::new(
+                source.ast.span.source,
+                project_relative_source_path(root, &source.file.path)?,
+                source.source.clone(),
+            ))
+        })
+        .chain(locale_files.iter().map(|source| {
+            Ok(EcmaSource::new(
+                source.ast.span.source,
+                project_relative_source_path(root, &source.file.path)?,
+                source.source.clone(),
+            ))
+        }))
+        .collect::<CliResult<Vec<_>>>()?;
+    sources.sort_by_key(|source| source.id);
+    Ok(sources)
+}
+
+fn project_relative_source_path(root: &Path, path: &Path) -> CliResult<String> {
+    let relative = path.strip_prefix(root).map_err(|_| {
+        CliError::Diagnostics(format!(
+            "localization source path is outside the project root: `{}`\n",
+            path.display()
+        ))
+    })?;
+    let mut components = Vec::new();
+    for component in relative.components() {
+        let Component::Normal(component) = component else {
+            return Err(CliError::Diagnostics(format!(
+                "localization source path is not a clean project-relative path: `{}`\n",
+                path.display()
+            )));
+        };
+        let component = component.to_str().ok_or_else(|| {
+            CliError::Diagnostics(format!(
+                "localization source path contains a non-UTF-8 component: `{}`\n",
+                path.display()
+            ))
+        })?;
+        if component.is_empty() || component == "." || component == ".." {
+            return Err(CliError::Diagnostics(format!(
+                "localization source path contains an empty, dot, or parent component: `{}`\n",
+                path.display()
+            )));
+        }
+        if component.contains('\\') {
+            return Err(CliError::Diagnostics(format!(
+                "localization source path contains a literal backslash and cannot be represented as a portable POSIX path: `{}`\n",
+                path.display()
+            )));
+        }
+        components.push(component);
+    }
+    if components.is_empty() {
+        return Err(CliError::Diagnostics(format!(
+            "localization source path resolves to the project root: `{}`\n",
+            path.display()
+        )));
+    }
+    Ok(components.join("/"))
+}
+
+fn generate_bundler_files(
+    project: &ValidatedTypeScriptProject<'_>,
+    sources: &[EcmaSource],
+    output_root: &str,
+    configured_locales: &[String],
+    base_locale: &str,
+) -> CliResult<Vec<TypeScriptGeneratedFile>> {
+    let artifacts = project
+        .message_artifacts()
+        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+    let mut files = Vec::with_capacity(artifacts.len() * 2 + 1);
+    let mut messages = BTreeMap::<String, (usize, BTreeMap<String, serde_json::Value>)>::new();
+    let effective_locales = project
+        .effective_locales()
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+
+    for artifact in artifacts {
+        let map_directory = format!(
+            "{output_root}/{}",
+            artifact
+                .source_map_path
+                .rsplit_once('/')
+                .map_or("", |(directory, _)| directory)
+        );
+        let map_sources = sources
+            .iter()
+            .map(|source| {
+                lexical_relative_path(&map_directory, &source.path)
+                    .map(|path| EcmaSource::new(source.id, path, source.contents.clone()))
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|reason| {
+                CliError::Diagnostics(format!(
+                    "bundler message `{}` locale `{}`: cannot rebase source-map paths: {reason}\n",
+                    artifact.message, artifact.locale
+                ))
+            })?;
+        let compiled = compile_typescript_message_module(
+            project,
+            &artifact.locale,
+            &artifact.message,
+            &artifact.output_file_name,
+            &artifact.shared_import_path,
+            &map_sources,
+        )
+        .map_err(|error| {
+            CliError::Diagnostics(format!(
+                "bundler message `{}` locale `{}`: {error}\n",
+                artifact.message, artifact.locale
+            ))
+        })?;
+        let locale_entry = serde_json::json!({
+            "module": artifact.module_path,
+            "source_ids": compiled.source_ids().iter().map(|id| id.0).collect::<Vec<_>>(),
+        });
+        messages
+            .entry(artifact.message.clone())
+            .or_insert_with(|| (artifact.arity, BTreeMap::new()))
+            .1
+            .insert(artifact.locale.clone(), locale_entry);
+        files.push(TypeScriptGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+        files.push(TypeScriptGeneratedFile {
+            path: artifact.source_map_path,
+            contents: compiled.source_map,
+        });
+    }
+
+    let messages = messages
+        .into_iter()
+        .map(|(message, (arity, locales))| {
+            (
+                message,
+                serde_json::json!({
+                    "arity": arity,
+                    "locales": locales,
+                }),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let source_table = sources
+        .iter()
+        .map(|source| {
+            serde_json::json!({
+                "id": source.id.0,
+                "path": source.path,
+            })
+        })
+        .collect::<Vec<_>>();
+    let manifest = serde_json::json!({
+        "version": 1,
+        "base_locale": base_locale,
+        "configured_locales": configured_locales,
+        "effective_locales": effective_locales,
+        "sources": source_table,
+        "messages": messages,
+    });
+    let mut contents = serde_json::to_string_pretty(&manifest).map_err(|error| {
+        CliError::Diagnostics(format!("failed to serialize bundler manifest: {error}\n"))
+    })?;
+    contents.push('\n');
+    files.push(TypeScriptGeneratedFile {
+        path: "bundler/manifest.json".to_owned(),
+        contents,
+    });
+    Ok(files)
+}
+
+fn lexical_relative_path(from_directory: &str, target: &str) -> Result<String, &'static str> {
+    let from = portable_relative_components(from_directory)?;
+    let target = portable_relative_components(target)?;
+    let common = from
+        .iter()
+        .zip(&target)
+        .take_while(|(left, right)| left == right)
+        .count();
+    let mut relative = vec![".."; from.len() - common];
+    relative.extend(target[common..].iter().copied());
+    if relative.is_empty() {
+        return Err("source path resolves to the map directory");
+    }
+    Ok(relative.join("/"))
+}
+
+fn portable_relative_components(value: &str) -> Result<Vec<&str>, &'static str> {
+    let has_windows_prefix = value
+        .as_bytes()
+        .get(1)
+        .is_some_and(|character| *character == b':');
+    if value.is_empty() || value.starts_with('/') || value.contains('\\') || has_windows_prefix {
+        return Err("path must be non-empty, project-relative, and use `/` separators");
+    }
+    let components = value
+        .split('/')
+        .filter(|component| !component.is_empty() && *component != ".")
+        .collect::<Vec<_>>();
+    if components.is_empty() || components.contains(&"..") {
+        return Err("path must not contain parent traversal or resolve to the project root");
+    }
+    Ok(components)
 }
 
 fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
@@ -479,9 +702,25 @@ fn contains_non_group_symbol_name(module: &IrModule, name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{merge_module, merge_module_fallback, namespaced_module, project_locale_fallbacks};
+    use super::{
+        merge_module, merge_module_fallback, namespaced_module, project_locale_fallbacks,
+        project_relative_source_path,
+    };
     use linguini_ir::lower_locale;
     use linguini_syntax::parse_locale;
+
+    #[cfg(unix)]
+    #[test]
+    fn project_source_path_rejects_literal_backslash_without_normalizing_identity() {
+        let error = project_relative_source_path(
+            std::path::Path::new("/project"),
+            std::path::Path::new("/project/schema/bad\\name.lgs"),
+        )
+        .expect_err("literal backslash must be rejected");
+
+        assert!(error.to_string().contains("literal backslash"));
+        assert!(error.to_string().contains("bad\\name.lgs"));
+    }
 
     #[test]
     fn module_merge_preserves_all_declaration_origins() {

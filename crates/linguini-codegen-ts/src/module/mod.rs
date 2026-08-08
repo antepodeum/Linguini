@@ -1,3 +1,4 @@
+mod artifacts;
 mod decl;
 mod deps;
 mod emit;
@@ -241,6 +242,11 @@ pub enum TypeScriptCodegenError {
     DuplicateMessageSource {
         source_id: linguini_syntax::SourceId,
     },
+    InvalidMessageArtifactPath {
+        locale: String,
+        message: String,
+        reason: &'static str,
+    },
 }
 
 impl TypeScriptCodegenError {
@@ -347,10 +353,19 @@ impl fmt::Display for TypeScriptCodegenError {
                 "duplicate source record for message dependency source id `{}`",
                 source_id.0
             ),
+            Self::InvalidMessageArtifactPath {
+                locale,
+                message,
+                reason,
+            } => write!(
+                formatter,
+                "cannot derive portable bundler artifact path for message `{message}` and locale `{locale}`: {reason}"
+            ),
         }
     }
 }
 
+pub use artifacts::TypeScriptMessageArtifact;
 pub use message::{compile_typescript_message_module, CompiledTypeScriptMessageModule};
 
 impl std::error::Error for TypeScriptCodegenError {}
@@ -400,6 +415,24 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         message: &str,
     ) -> Result<deps::MessageDependencyClosure, TypeScriptCodegenError> {
         deps::message_dependency_closure(self, locale, message)
+    }
+
+    /// Enumerates every effective message/locale leaf selected by this validated project.
+    ///
+    /// Returned artifact paths are deterministic, project-output-relative, forward-slash paths.
+    /// Their encoding is injective under case folding and avoids platform-reserved names.
+    pub fn message_artifacts(
+        &self,
+    ) -> Result<Vec<TypeScriptMessageArtifact>, TypeScriptCodegenError> {
+        artifacts::message_artifacts(self)
+    }
+
+    /// Locale identities whose fallback-composed modules passed project validation.
+    pub fn effective_locales(&self) -> Vec<&str> {
+        self.locales
+            .iter()
+            .map(|locale| locale.locale.as_str())
+            .collect()
     }
 }
 

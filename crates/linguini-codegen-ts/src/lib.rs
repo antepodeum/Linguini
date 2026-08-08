@@ -9,8 +9,9 @@ pub use ecmascript::{
 pub use module::{
     compile_typescript_message_module, generate_typescript_project_files,
     CompiledTypeScriptMessageModule, TypeScriptCodegenError, TypeScriptFramework,
-    TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptOptions,
-    TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
+    TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleSource,
+    TypeScriptMessageArtifact, TypeScriptOptions, TypeScriptProjectOptions, TypeScriptWebOptions,
+    ValidatedTypeScriptProject,
 };
 pub use plural::generate_plural_function;
 

@@ -462,6 +462,211 @@ fn build_replaces_owned_files_and_preserves_unowned_files() {
 }
 
 #[test]
+fn bundler_artifacts_are_deterministic_fallback_aware_and_transaction_owned() {
+    let long_message = "message_name_longer_than_one_chunk";
+    let project = temp_project_dir("bundler_artifacts").expect("create temporary project");
+    fs::create_dir_all(project.path().join("schema")).expect("schema dir");
+    fs::create_dir_all(project.path().join("locales/a")).expect("locale a dir");
+    fs::create_dir_all(project.path().join("locales/b")).expect("locale b dir");
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"
+[project]
+name = "bundler-artifacts"
+default_locale = "en"
+locales = ["en", "fr"]
+
+[paths]
+schema = "schema"
+locale = "locales"
+
+[targets.ts]
+out = "src/generated/linguini"
+declaration = false
+gitignore = false
+tree_shaking = false
+"#,
+    )
+    .expect("config");
+    fs::write(
+        project.path().join("schema/a.lgs"),
+        "enum Color {\n  red\n}\nfirst(color: Color)\n",
+    )
+    .expect("schema a");
+    fs::write(
+        project.path().join("schema/b.lgs"),
+        format!("{long_message}\n"),
+    )
+    .expect("schema b");
+    fs::write(project.path().join("locales/a/en.lgl"), "first = First\n").expect("locale a en");
+    fs::write(project.path().join("locales/a/fr.lgl"), "first = Premier\n").expect("locale a fr");
+    fs::write(
+        project.path().join("locales/b/en.lgl"),
+        format!("{long_message} = Second\n"),
+    )
+    .expect("locale b en");
+
+    build_project(project.path()).expect("first build");
+    let out = project.path().join("src/generated/linguini");
+    let manifest_path = out.join("bundler/manifest.json");
+    let first_manifest = fs::read_to_string(&manifest_path).expect("manifest");
+    let manifest: serde_json::Value = serde_json::from_str(&first_manifest).expect("manifest JSON");
+    assert_eq!(manifest["version"], 1);
+    assert_eq!(manifest["base_locale"], "en");
+    assert_eq!(
+        manifest["configured_locales"],
+        serde_json::json!(["en", "fr"])
+    );
+    assert_eq!(
+        manifest["effective_locales"],
+        serde_json::json!(["en", "fr"])
+    );
+    assert_eq!(manifest["messages"]["a.first"]["arity"], 1);
+    let long_canonical_message = format!("b.{long_message}");
+    assert_eq!(manifest["messages"][&long_canonical_message]["arity"], 0);
+
+    let source_ids = manifest["sources"]
+        .as_array()
+        .expect("source table")
+        .iter()
+        .map(|source| {
+            (
+                source["path"].as_str().expect("source path"),
+                source["id"].as_u64().expect("source id"),
+            )
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    assert!(source_ids.keys().all(|path| {
+        !path.starts_with('/')
+            && !path.contains('\\')
+            && path
+                .split('/')
+                .all(|component| !component.is_empty() && component != "." && component != "..")
+    }));
+    let fallback_ids = manifest["messages"][&long_canonical_message]["locales"]["fr"]["source_ids"]
+        .as_array()
+        .expect("fallback ids")
+        .iter()
+        .map(|id| id.as_u64().expect("numeric source id"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        fallback_ids,
+        [source_ids["schema/b.lgs"], source_ids["locales/b/en.lgl"]]
+    );
+
+    let module = manifest["messages"]["a.first"]["locales"]["fr"]["module"]
+        .as_str()
+        .expect("module path");
+    let module_code = fs::read_to_string(out.join(module)).expect("module");
+    let file_name = std::path::Path::new(module)
+        .file_name()
+        .expect("module filename")
+        .to_string_lossy();
+    assert!(module_code.contains("from \"../../../shared\""));
+    assert!(module_code.ends_with(&format!("//# sourceMappingURL={file_name}.map\n")));
+    let source_map = fs::read_to_string(out.join(format!("{module}.map"))).expect("source map");
+    let source_map: serde_json::Value = serde_json::from_str(&source_map).expect("source map JSON");
+    assert_eq!(source_map["file"], file_name.as_ref());
+
+    let actual_sources = manifest["sources"]
+        .as_array()
+        .expect("manifest sources")
+        .iter()
+        .map(|source| {
+            project
+                .path()
+                .join(source["path"].as_str().expect("manifest source path"))
+                .canonicalize()
+                .expect("actual source")
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    for message in manifest["messages"]
+        .as_object()
+        .expect("manifest messages")
+        .values()
+    {
+        for locale in message["locales"]
+            .as_object()
+            .expect("message locales")
+            .values()
+        {
+            let module = locale["module"].as_str().expect("locale module");
+            let map_path = out.join(format!("{module}.map"));
+            let map: serde_json::Value = serde_json::from_str(
+                &fs::read_to_string(&map_path).expect("read emitted source map"),
+            )
+            .expect("emitted source map JSON");
+            for source in map["sources"].as_array().expect("map sources") {
+                let source = source.as_str().expect("map source path");
+                assert!(!source.starts_with('/'));
+                assert!(!source.contains('\\'));
+                let resolved = map_path
+                    .parent()
+                    .expect("map directory")
+                    .join(source)
+                    .canonicalize()
+                    .expect("map source resolves");
+                assert!(actual_sources.contains(&resolved));
+            }
+        }
+    }
+    let long_module = manifest["messages"][&long_canonical_message]["locales"]["fr"]["module"]
+        .as_str()
+        .expect("long module");
+    assert!(long_module.matches('/').count() >= 4);
+
+    let first_module = module_code;
+    let first_map = fs::read_to_string(out.join(format!("{module}.map"))).expect("source map");
+    build_project(project.path()).expect("repeat build");
+    assert_eq!(
+        fs::read_to_string(&manifest_path).expect("repeated manifest"),
+        first_manifest
+    );
+    assert_eq!(
+        fs::read_to_string(out.join(module)).expect("repeated module"),
+        first_module
+    );
+    assert_eq!(
+        fs::read_to_string(out.join(format!("{module}.map"))).expect("repeated map"),
+        first_map
+    );
+
+    let stale_module = manifest["messages"][&long_canonical_message]["locales"]["fr"]["module"]
+        .as_str()
+        .expect("stale module")
+        .to_owned();
+    fs::write(
+        out.join("user-owned.ts"),
+        "export const userOwned = true;\n",
+    )
+    .expect("user file");
+    let selected_config = fs::read_to_string(project.path().join("linguini.toml"))
+        .expect("read config")
+        .replace(
+            "tree_shaking = false",
+            "tree_shaking = true\nmessages = [\"a.first\"]",
+        );
+    fs::write(project.path().join("linguini.toml"), selected_config).expect("selected config");
+    build_project(project.path()).expect("tree-shaken build");
+    let selected: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("selected manifest"))
+            .expect("selected manifest JSON");
+    assert_eq!(
+        selected["messages"]
+            .as_object()
+            .expect("selected messages")
+            .keys()
+            .collect::<Vec<_>>(),
+        ["a.first"]
+    );
+    assert!(!out.join(stale_module).exists());
+    assert_eq!(
+        fs::read_to_string(out.join("user-owned.ts")).expect("user file preserved"),
+        "export const userOwned = true;\n"
+    );
+}
+
+#[test]
 fn generate_renders_locale_enum_and_plural_matrix() {
     let project = temp_project_dir("generate_renders_locale_enum_and_plural_matrix")
         .expect("create temporary project");
