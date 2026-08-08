@@ -24,6 +24,7 @@ pub enum EcmaImportBindings {
     Default(String),
     Namespace(String),
     Named(Vec<EcmaNamedImport>),
+    TypeNamed(Vec<EcmaNamedImport>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -137,6 +138,20 @@ fn render_import(item: &EcmaImport, output: &mut String) {
         }
         EcmaImportBindings::Named(bindings) => {
             output.push_str("{ ");
+            for (index, binding) in bindings.iter().enumerate() {
+                if index > 0 {
+                    output.push_str(", ");
+                }
+                output.push_str(&binding.imported);
+                if binding.local != binding.imported {
+                    output.push_str(" as ");
+                    output.push_str(&binding.local);
+                }
+            }
+            output.push_str(" }");
+        }
+        EcmaImportBindings::TypeNamed(bindings) => {
+            output.push_str("type { ");
             for (index, binding) in bindings.iter().enumerate() {
                 if index > 0 {
                     output.push_str(", ");

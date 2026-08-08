@@ -7,7 +7,8 @@ pub use ecmascript::{
     RenderedEcmaModule,
 };
 pub use module::{
-    generate_typescript_project_files, TypeScriptCodegenError, TypeScriptFramework,
+    compile_typescript_message_module, generate_typescript_project_files,
+    CompiledTypeScriptMessageModule, TypeScriptCodegenError, TypeScriptFramework,
     TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptOptions,
     TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
 };

@@ -3,6 +3,7 @@ mod deps;
 mod emit;
 mod expr;
 mod formatters;
+mod message;
 mod names;
 mod project;
 mod shared;
@@ -233,6 +234,12 @@ pub enum TypeScriptCodegenError {
     MissingDateFormatting {
         locale: String,
     },
+    MissingMessageSource {
+        source_id: linguini_syntax::SourceId,
+    },
+    DuplicateMessageSource {
+        source_id: linguini_syntax::SourceId,
+    },
 }
 
 impl TypeScriptCodegenError {
@@ -329,9 +336,21 @@ impl fmt::Display for TypeScriptCodegenError {
                 formatter,
                 "missing required CLDR date formatting data for configured locale `{locale}`"
             ),
+            Self::MissingMessageSource { source_id } => write!(
+                formatter,
+                "missing source record for message dependency source id `{}`",
+                source_id.0
+            ),
+            Self::DuplicateMessageSource { source_id } => write!(
+                formatter,
+                "duplicate source record for message dependency source id `{}`",
+                source_id.0
+            ),
         }
     }
 }
+
+pub use message::{compile_typescript_message_module, CompiledTypeScriptMessageModule};
 
 impl std::error::Error for TypeScriptCodegenError {}
 

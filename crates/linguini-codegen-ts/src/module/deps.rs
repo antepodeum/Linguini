@@ -32,7 +32,6 @@ pub(crate) enum MessageDependencySymbol {
 /// Deterministic dependency metadata for one compiled message.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct MessageDependencyMetadata {
-    pub(crate) symbols: Vec<MessageDependencySymbol>,
     pub(crate) source_ids: Vec<SourceId>,
 }
 
@@ -53,10 +52,6 @@ impl MessageDependencyClosure {
 
     pub(crate) fn locale_module(&self) -> &IrModule {
         &self.locale_module
-    }
-
-    pub(crate) fn symbols(&self) -> &[MessageDependencySymbol] {
-        &self.metadata.symbols
     }
 
     pub(crate) fn source_ids(&self) -> &[SourceId] {
@@ -573,7 +568,6 @@ fn metadata_for(
         }
     }
     MessageDependencyMetadata {
-        symbols: selected.iter().cloned().collect(),
         source_ids: source_ids.into_iter().collect(),
     }
 }
@@ -639,6 +633,25 @@ fn collect_function_branch_sources(branch: &IrFunctionBranch, output: &mut BTree
     }
 }
 
+fn _collect_form_sources(entry: &IrFormEntry, output: &mut BTreeSet<SourceId>) {
+    match entry {
+        IrFormEntry::Attribute { value, .. } => match value {
+            IrValue::Text(text) => collect_text_sources(text, output),
+            IrValue::Map(branches) => branches.iter().for_each(|branch| {
+                output.insert(branch.span.source);
+                collect_text_sources(&branch.value, output);
+            }),
+            IrValue::Object(entries) => entries
+                .iter()
+                .for_each(|entry| _collect_form_sources(entry, output)),
+        },
+        IrFormEntry::Branch(IrBranch { value, span, .. }) => {
+            output.insert(span.source);
+            collect_text_sources(value, output);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{message_dependency_closure, MessageDependencySymbol};
@@ -696,13 +709,7 @@ mod tests {
             .messages
             .iter()
             .any(|item| item.name == "drop"));
-        assert!(closure
-            .symbols()
-            .windows(2)
-            .all(|items| items[0] <= items[1]));
-        assert!(closure
-            .symbols()
-            .contains(&MessageDependencySymbol::SchemaTypeAlias("Text".to_owned())));
+        assert_eq!(closure.schema().type_aliases[0].name, "Text");
         assert_eq!(closure.source_ids(), &[SourceId(7), SourceId(8)]);
     }
 
@@ -737,12 +744,8 @@ mod tests {
         assert_eq!(closure.schema().enums.len(), 1);
         assert_eq!(closure.locale_module().forms.len(), 1);
         assert_eq!(closure.locale_module().functions.len(), 1);
-        assert!(closure
-            .symbols()
-            .contains(&MessageDependencySymbol::LocaleForm("Fruit".into())));
-        assert!(closure
-            .symbols()
-            .contains(&MessageDependencySymbol::LocaleFunction("Render".into())));
+        assert_eq!(closure.locale_module().forms[0].name, "Fruit");
+        assert_eq!(closure.locale_module().functions[0].name, "Render");
     }
 
     #[test]
@@ -753,12 +756,7 @@ mod tests {
         let mut walker = super::ClosureWalker::new(&schema, &locale);
         walker.visit_variable("a");
         let closure = walker.finish("en".into(), "root".into()).expect("closure");
-        let variables = closure
-            .symbols()
-            .iter()
-            .filter(|symbol| matches!(symbol, MessageDependencySymbol::LocaleVariable(_)))
-            .count();
-        assert_eq!(variables, 2);
+        assert_eq!(closure.locale_module().variables.len(), 2);
     }
 
     #[test]
@@ -778,25 +776,5 @@ mod tests {
         assert_eq!(closure.schema().enums.len(), 1);
         assert!(closure.locale_module().enums.is_empty());
         assert_eq!(closure.source_ids(), &[SourceId(7)]);
-    }
-}
-
-#[allow(dead_code)]
-fn _collect_form_sources(entry: &IrFormEntry, output: &mut BTreeSet<SourceId>) {
-    match entry {
-        IrFormEntry::Attribute { value, .. } => match value {
-            IrValue::Text(text) => collect_text_sources(text, output),
-            IrValue::Map(branches) => branches.iter().for_each(|branch| {
-                output.insert(branch.span.source);
-                collect_text_sources(&branch.value, output);
-            }),
-            IrValue::Object(entries) => entries
-                .iter()
-                .for_each(|entry| _collect_form_sources(entry, output)),
-        },
-        IrFormEntry::Branch(IrBranch { value, span, .. }) => {
-            output.insert(span.source);
-            collect_text_sources(value, output);
-        }
     }
 }

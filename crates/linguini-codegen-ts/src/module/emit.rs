@@ -390,7 +390,7 @@ fn group_property_value(
     }
 }
 
-fn message_body(
+pub(crate) fn message_body(
     schema: &IrModule,
     signature: &IrMessage,
     implementation: &IrMessage,
@@ -452,7 +452,7 @@ fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatte
     }
 }
 
-fn signature_params(signature: &IrMessage) -> String {
+pub(crate) fn signature_params(signature: &IrMessage) -> String {
     signature
         .parameters
         .iter()
