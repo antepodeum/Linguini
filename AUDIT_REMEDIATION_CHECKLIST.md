@@ -87,6 +87,8 @@ production path uses the fix and its relevant tests pass.
   validation, project merge/fallback, and bounded codegen projections.
 - `f2faa80` — added a validated, deterministic per-message semantic dependency closure with
   transitive symbol selection and source-ID metadata for later ESM/HMR consumers.
+- `6caec55` — added the public source-mapped single-message TypeScript ESM compiler with exact
+  dependency/helper emission, callable leaf exports, and deterministic source validation.
 
 ## Numbered findings
 
@@ -617,12 +619,16 @@ production path uses the fix and its relevant tests pass.
 
 - [-] ESM-A1 — Remove `targets.ts.module` from the model and all public surfaces.
 - [ ] ESM-A2 — Treat SvelteKit as the primary supported adapter for now. Its not the only one in the future.
-- [ ] ESM-A3 — Introduce one structured ECMAScript module emitter.
+- [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
+      now uses the structured emitter, while legacy project/runtime generation still uses direct
+      TypeScript string assembly.
 - [ ] ESM-A4 — Introduce one shared language-neutral `TypeModel`.
 - [ ] ESM-A5 — Render JavaScript plus JSDoc from the shared models.
 - [ ] ESM-A6 — Render `.d.ts` from the same `TypeModel`.
 - [ ] ESM-A7 — Avoid a parallel TypeScript runtime implementation.
-- [ ] ESM-A8 — Emit source maps and shared runtime helpers from the common backend.
+- [-] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
+      modules now have truthful source maps and demand-selected helpers, but project-wide output
+      has not migrated.
 - [ ] ESM-A9 — Make parameterless public leaves values in both surfaces.
 - [ ] ESM-A10 — Keep JavaScript generation first-class and near-zero-config.
 
@@ -654,13 +660,17 @@ production path uses the fix and its relevant tests pass.
 - [ ] BUNDLE-A1 — Generate recursive declarations for the complete `l` namespace.
 - [ ] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports.
 - [ ] BUNDLE-A3 — Keep parameterless public access as a value.
-- [ ] BUNDLE-A4 — Generate one ESM module per referenced message.
+- [-] BUNDLE-A4 — Generate one ESM module per referenced message; a validated public compiler now
+      generates an exact locale/message ESM module, but CLI/plugin production paths do not invoke
+      it per application reference yet.
 - [-] BUNDLE-A5 — Include only each message's transitive semantic dependencies; the validated
-      closure now selects exact transitive IR and source IDs, but the per-message ESM emitter does
-      not yet consume it.
+      closure and ESM compiler now emit exact transitive IR/helpers, but the production bundler
+      path does not consume them yet.
 - [ ] BUNDLE-A6 — Invalidate only affected virtual modules.
 - [ ] BUNDLE-A7 — Reject dynamic lookup in strict mode; provide an explicit bundle escape hatch.
-- [ ] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
+- [-] BUNDLE-A8 — Share the single-message compiler with a physical-module backend; the compiler
+      returns complete physical `.ts` module code/maps, while file generation and the virtual
+      backend bridge remain pending.
 - [ ] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
 
