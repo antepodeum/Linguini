@@ -95,6 +95,8 @@ production path uses the fix and its relevant tests pass.
   value/call identity, decoded paths, and transform-safe binding provenance.
 - `591c532` — added deterministic physical per-message modules and source maps plus a versioned
   bundler manifest through the transactional CLI output path.
+- `bed72e0` — split canonical locale metadata and reactive Svelte locale state from the eager
+  legacy runtime so per-message wrappers can resolve locale without importing every message.
 
 ## Numbered findings
 
@@ -666,9 +668,12 @@ production path uses the fix and its relevant tests pass.
 
 - [x] BUNDLE-A1 — Generate recursive declarations for the complete `l` namespace.
 - [-] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports; the analyzer now
-      exposes exact source spans and transform-safe imported-binding provenance, while the Vite
-      transform and virtual import replacement remain pending.
-- [ ] BUNDLE-A3 — Keep parameterless public access as a value.
+      exposes exact source spans and transform-safe imported-binding provenance, and generated
+      wrappers can use an eager-runtime-free reactive locale helper; the Vite transform remains
+      pending.
+- [-] BUNDLE-A3 — Keep parameterless public access as a value; recursive declarations and the
+      reactive internal-call runtime are ready, while the value-to-internal-call transform remains
+      pending.
 - [x] BUNDLE-A4 — Generate one ESM module per referenced message.
 - [x] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
 - [ ] BUNDLE-A6 — Invalidate only affected virtual modules.
