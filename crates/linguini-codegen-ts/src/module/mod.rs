@@ -1,4 +1,5 @@
 mod decl;
+mod deps;
 mod emit;
 mod expr;
 mod formatters;
@@ -199,6 +200,16 @@ pub enum TypeScriptCodegenError {
     UnknownIncludedMessage {
         message: String,
     },
+    UnknownLocale {
+        locale: String,
+    },
+    UnknownMessage {
+        message: String,
+    },
+    MissingMessageImplementation {
+        locale: String,
+        message: String,
+    },
     MissingTextDirection {
         locale: String,
     },
@@ -277,6 +288,16 @@ impl fmt::Display for TypeScriptCodegenError {
                 formatter,
                 "configured included message or namespace `{message}` is not present in the schema"
             ),
+            Self::UnknownLocale { locale } => {
+                write!(formatter, "configured locale `{locale}` is not present in the project")
+            }
+            Self::UnknownMessage { message } => {
+                write!(formatter, "schema message `{message}` is not present in the project")
+            }
+            Self::MissingMessageImplementation { locale, message } => write!(
+                formatter,
+                "locale `{locale}` has no fallback implementation for schema message `{message}`"
+            ),
             Self::MissingTextDirection { locale } => write!(
                 formatter,
                 "missing built-in CLDR text direction for configured locale `{locale}`"
@@ -351,6 +372,14 @@ impl<'a> ValidatedTypeScriptProject<'a> {
             locales,
             options: options.clone(),
         })
+    }
+
+    pub(crate) fn message_dependency_closure(
+        &self,
+        locale: &str,
+        message: &str,
+    ) -> Result<deps::MessageDependencyClosure, TypeScriptCodegenError> {
+        deps::message_dependency_closure(self, locale, message)
     }
 }
 
