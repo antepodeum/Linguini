@@ -866,3 +866,232 @@ fn import_like_regex_text_is_not_parsed_as_an_import() {
     assert_eq!(usage.static_paths().collect::<Vec<_>>(), ["main.title"]);
     assert!(usage.dynamic_prefixes().next().is_none());
 }
+
+#[test]
+fn exposes_exact_sole_and_mixed_import_removal_contracts() {
+    let source_id = SourceId(91);
+    let source = concat!(
+        "import { messages as msg } from \"generated-a\";\r\n",
+        "const unicode = \"Привет\";\r\n",
+        "import {\r\n  helper,\r\n  l as tr,\r\n  other\r\n} from \"generated-b\";\r\n",
+        "msg.main.title;\r\n",
+        "tr.main.items(2);\r\n",
+    );
+    let usage = ApplicationUsage::from_source_in(source, source_id);
+    let imports = usage.imports().collect::<Vec<_>>();
+    assert_eq!(imports.len(), 2);
+    assert_eq!(imports[0].id.source, source_id);
+    assert_eq!(imports[0].module_specifier, "generated-a");
+    assert_eq!(imports[0].imported, "messages");
+    assert_eq!(imports[0].local, "msg");
+    assert_eq!(
+        &source[imports[0].declaration_span.start..imports[0].declaration_span.end],
+        "import { messages as msg } from \"generated-a\";"
+    );
+    assert_eq!(imports[0].removal_span, imports[0].declaration_span);
+    assert!(imports[0].exact_uses_only);
+    assert_eq!(
+        &source[imports[1].item_span.start..imports[1].item_span.end],
+        "l as tr"
+    );
+    assert_eq!(
+        &source[imports[1].removal_span.start..imports[1].removal_span.end],
+        "l as tr,"
+    );
+    assert!(imports[1].exact_uses_only);
+    let references = usage.references().collect::<Vec<_>>();
+    assert_eq!(references[0].import_binding, Some(imports[0].id));
+    assert_eq!(references[1].import_binding, Some(imports[1].id));
+}
+
+#[test]
+fn import_safety_rejects_comments_bare_dynamic_optional_and_ambiguity() {
+    for source in [
+        "import { /* keep */ l } from \"generated\";\nl.main.title;",
+        "import { l } from \"generated\";\nl.main.title; consume(l);",
+        "import { l } from \"generated\";\nl.main.title; l.main[key]();",
+        "import { l } from \"generated\";\nl.main.title?.();",
+    ] {
+        let usage = ApplicationUsage::from_source(source);
+        let binding = usage.imports().next().expect("tracked import");
+        assert!(!binding.exact_uses_only, "{source}");
+    }
+
+    let malformed =
+        ApplicationUsage::from_source("import { l as } from \"generated\";\nl.main.title;");
+    assert!(malformed.imports().next().is_none());
+}
+
+#[test]
+fn import_identities_are_deterministic_across_repeated_declarations_and_shadowing() {
+    let source = concat!(
+        "import { l as first } from \"generated\";\n",
+        "import { l as second } from \"generated\";\n",
+        "first.main.title;\n",
+        "{ const first = local; first.main.dynamic; }\n",
+        "second.main.items(1);\n",
+    );
+    let first = ApplicationUsage::from_source_in(source, SourceId(44));
+    let second = ApplicationUsage::from_source_in(source, SourceId(44));
+    assert_eq!(first, second);
+    let imports = first.imports().collect::<Vec<_>>();
+    assert_eq!(imports.len(), 2);
+    assert_ne!(imports[0].id, imports[1].id);
+    assert!(imports.iter().all(|binding| binding.exact_uses_only));
+    assert_eq!(
+        first
+            .references()
+            .filter_map(|reference| reference.import_binding)
+            .collect::<Vec<_>>(),
+        imports.iter().map(|binding| binding.id).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn duplicate_local_imports_are_ambiguous_across_modules_and_symbols() {
+    let source = concat!(
+        "import { l as same } from \"generated-a\";\n",
+        "import { messages as same } from \"generated-b\";\n",
+        "same.main.title;\n",
+    );
+    let usage = ApplicationUsage::from_source_in(source, SourceId(55));
+    let imports = usage.imports().collect::<Vec<_>>();
+    assert_eq!(imports.len(), 2);
+    assert!(imports.iter().all(|binding| !binding.exact_uses_only));
+    assert!(usage
+        .references()
+        .all(|reference| reference.import_binding.is_none()));
+}
+
+#[test]
+fn named_import_list_rejects_empty_chunks_but_accepts_one_trailing_comma() {
+    for source in [
+        "import { , l } from \"generated\";\nl.main.title;",
+        "import { l,, } from \"generated\";\nl.main.title;",
+        "import { l, , helper } from \"generated\";\nl.main.title;",
+        "import { l } from \"generated\" garbage;\nl.main.title;",
+        "import { l } garbage from \"generated\";\nl.main.title;",
+        "import { l } from garbage \"generated\";\nl.main.title;",
+        "import { l + helper } from \"generated\";\nl.main.title;",
+        "import { l } from \"generated\" with { type: \"json\" };\nl.main.title;",
+        "import defaultThing, { l } from \"generated\";\nl.main.title;",
+        "import * as l from \"generated\";\nl.main.title;",
+        "import { l } from \"\";\nl.main.title;",
+    ] {
+        let usage = ApplicationUsage::from_source(source);
+        assert!(usage.imports().next().is_none(), "{source}");
+        assert!(usage
+            .references()
+            .all(|reference| reference.import_binding.is_none()));
+        assert!(usage.references().all(|reference| !matches!(
+            reference.binding.provenance,
+            ApplicationBindingProvenance::Imported { .. }
+        )));
+    }
+
+    let source = "import { l, } from \"generated\";\nl.main.title;";
+    let usage = ApplicationUsage::from_source(source);
+    let binding = usage.imports().next().expect("valid trailing comma");
+    assert!(binding.exact_uses_only);
+    assert_eq!(binding.removal_span, binding.declaration_span);
+    assert_eq!(
+        &source[binding.removal_span.start..binding.removal_span.end],
+        "import { l, } from \"generated\";"
+    );
+
+    let source = "import { messages as msg } from \"generated\"\nmsg.main.title;";
+    let usage = ApplicationUsage::from_source(source);
+    let binding = usage.imports().next().expect("ASI import");
+    assert!(binding.exact_uses_only);
+    assert_eq!(
+        &source[binding.removal_span.start..binding.removal_span.end],
+        "import { messages as msg } from \"generated\""
+    );
+}
+
+#[test]
+fn named_import_aliases_require_strict_module_binding_identifiers() {
+    for alias in [
+        "for",
+        "class",
+        "await",
+        "yield",
+        "let",
+        "static",
+        "enum",
+        "implements",
+        "interface",
+        "package",
+        "private",
+        "protected",
+        "public",
+        "null",
+        "true",
+        "false",
+        "eval",
+        "arguments",
+    ] {
+        let source = format!("import {{ l as {alias} }} from \"generated\";\n{alias}.main.title;");
+        let usage = ApplicationUsage::from_source(&source);
+        assert!(usage.imports().next().is_none(), "{alias}");
+        assert!(
+            usage
+                .references()
+                .all(|reference| reference.import_binding.is_none()),
+            "{alias}"
+        );
+        assert!(
+            usage.references().all(|reference| !matches!(
+                reference.binding.provenance,
+                ApplicationBindingProvenance::Imported { .. }
+            )),
+            "{alias}"
+        );
+    }
+
+    for alias in ["перевод", "$", "_"] {
+        let source = format!("import {{ l as {alias} }} from \"generated\";\n{alias}.main.title;");
+        let usage = ApplicationUsage::from_source(&source);
+        let binding = usage.imports().next().expect("valid binding identifier");
+        assert_eq!(binding.local, alias);
+        assert!(binding.exact_uses_only);
+        assert_eq!(
+            usage
+                .references()
+                .next()
+                .and_then(|reference| reference.import_binding),
+            Some(binding.id)
+        );
+    }
+
+    let usage = ApplicationUsage::from_source("import { l } from \"generated\";\nl.main.title;");
+    assert!(usage.imports().next().is_some());
+}
+
+#[test]
+fn multiline_import_attributes_and_trailing_comments_are_not_transformable() {
+    for source in [
+        "import { l } from \"generated\"\nwith { type: \"json\" };\nl.main.title;",
+        "import { l } from \"generated\"\nassert { type: \"json\" };\nl.main.title;",
+    ] {
+        let usage = ApplicationUsage::from_source(source);
+        assert!(usage.imports().next().is_none(), "{source}");
+        assert!(
+            usage
+                .references()
+                .all(|reference| reference.import_binding.is_none()),
+            "{source}"
+        );
+    }
+
+    for source in [
+        "import { l } from \"generated\" // keep\nl.main.title;",
+        "import { l } from \"generated\" /* keep */\nl.main.title;",
+        "import { l } from \"generated\"; // keep\nl.main.title;",
+        "import { l } from \"generated\"; /* keep */\nl.main.title;",
+    ] {
+        let usage = ApplicationUsage::from_source(source);
+        let binding = usage.imports().next().expect("tracked import");
+        assert!(!binding.exact_uses_only, "{source}");
+    }
+}

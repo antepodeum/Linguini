@@ -2,7 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
 use linguini_analyzer::{
-    ApplicationBindingProvenance, ApplicationReferenceKind, ApplicationUsage, DiagnosticSeverity,
+    ApplicationBindingProvenance, ApplicationImportBindingId, ApplicationReferenceKind,
+    ApplicationUsage, DiagnosticSeverity,
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
@@ -382,7 +383,12 @@ fn application_entry(
 ) -> CliResult<serde_json::Value> {
     let mut references = Vec::new();
     let mut unresolved = Vec::new();
+    let mut poisoned_imports = BTreeSet::new();
     let mut referenced_paths = BTreeSet::new();
+    let import_ids = usage
+        .imports()
+        .map(|binding| binding.id)
+        .collect::<BTreeSet<_>>();
     for reference in usage.references() {
         if reference.span.start > reference.span.end
             || reference.span.end > source.len()
@@ -394,10 +400,20 @@ fn application_entry(
                 reference.canonical_path, reference.span.start, reference.span.end
             )));
         }
+        if reference
+            .import_binding
+            .is_some_and(|binding| !import_ids.contains(&binding))
+        {
+            return Err(CliError::Diagnostics(format!(
+                "bundler analyzer returned unknown import identity for `{}` in `{path}`\n",
+                reference.binding.local
+            )));
+        }
         referenced_paths.insert(reference.canonical_path.as_str());
         if source[reference.span.start..reference.span.end].contains("?.")
             || has_optional_invocation(source, reference.span.end)
         {
+            poisoned_imports.extend(reference.import_binding);
             unresolved.push((
                 reference.span.start,
                 reference.span.end,
@@ -407,11 +423,13 @@ fn application_entry(
                     "start": reference.span.start,
                     "end": reference.span.end,
                     "reason": "optional_chain",
+                    "binding_id": reference.import_binding.map(render_import_binding_id),
                 }),
             ));
             continue;
         }
         let Some(&arity) = messages.get(&reference.canonical_path) else {
+            poisoned_imports.extend(reference.import_binding);
             unresolved.push((
                 reference.span.start,
                 reference.span.end,
@@ -421,6 +439,7 @@ fn application_entry(
                     "start": reference.span.start,
                     "end": reference.span.end,
                     "reason": "non_exact_message_path",
+                    "binding_id": reference.import_binding.map(render_import_binding_id),
                 }),
             ));
             continue;
@@ -432,6 +451,7 @@ fn application_entry(
         let compatible = matches!(reference.kind, ApplicationReferenceKind::Value) && arity == 0
             || matches!(reference.kind, ApplicationReferenceKind::Call) && arity > 0;
         if !compatible {
+            poisoned_imports.extend(reference.import_binding);
             unresolved.push((
                 reference.span.start,
                 reference.span.end,
@@ -443,6 +463,7 @@ fn application_entry(
                     "kind": kind,
                     "arity": arity,
                     "reason": "arity_mismatch",
+                    "binding_id": reference.import_binding.map(render_import_binding_id),
                 }),
             ));
             continue;
@@ -473,6 +494,7 @@ fn application_entry(
                 "local": reference.binding.local,
                 "provenance": provenance,
                 "arity": arity,
+                "binding_id": reference.import_binding.map(render_import_binding_id),
             }),
         ));
     }
@@ -504,6 +526,32 @@ fn application_entry(
         }
         previous_end = reference.1;
     }
+    let imports = usage
+        .imports()
+        .map(|binding| {
+            validate_import_binding(path, source, source_id, binding)?;
+            Ok(serde_json::json!({
+                "binding_id": render_import_binding_id(binding.id),
+                "module_specifier": binding.module_specifier,
+                "imported": binding.imported,
+                "local": binding.local,
+                "declaration_start": binding.declaration_span.start,
+                "declaration_end": binding.declaration_span.end,
+                "item_start": binding.item_span.start,
+                "item_end": binding.item_span.end,
+                "removal_start": binding.removal_span.start,
+                "removal_end": binding.removal_span.end,
+                "module_specifier_start": binding.module_specifier_span.start,
+                "module_specifier_end": binding.module_specifier_span.end,
+                "imported_start": binding.imported_span.start,
+                "imported_end": binding.imported_span.end,
+                "local_start": binding.local_span.start,
+                "local_end": binding.local_span.end,
+                "analyzer_exact_uses_only": binding.exact_uses_only,
+                "transformable": binding.exact_uses_only && !poisoned_imports.contains(&binding.id),
+            }))
+        })
+        .collect::<CliResult<Vec<_>>>()?;
     Ok(serde_json::json!({
         "sha256": format!("{digest:x}"),
         "byte_length": source.len(),
@@ -511,7 +559,58 @@ fn application_entry(
         "references": references.into_iter().map(|entry| entry.3).collect::<Vec<_>>(),
         "unresolved": unresolved.into_iter().map(|entry| entry.3).collect::<Vec<_>>(),
         "analysis_dynamic_prefixes": usage.dynamic_prefixes().collect::<Vec<_>>(),
+        "imports": imports,
     }))
+}
+
+fn render_import_binding_id(id: ApplicationImportBindingId) -> String {
+    format!("{}:{}:{}", id.source.0, id.declaration_start, id.item_start)
+}
+
+fn validate_import_binding(
+    path: &str,
+    source: &str,
+    source_id: SourceId,
+    binding: &linguini_analyzer::ApplicationImportBinding,
+) -> CliResult<()> {
+    if binding.id.source != source_id {
+        return Err(CliError::Diagnostics(format!(
+            "bundler analyzer returned import identity from source {} for `{}` in `{path}`, expected source {}\n",
+            binding.id.source.0, binding.local, source_id.0
+        )));
+    }
+    let spans = [
+        ("declaration", binding.declaration_span),
+        ("item", binding.item_span),
+        ("removal", binding.removal_span),
+        ("module specifier", binding.module_specifier_span),
+        ("imported token", binding.imported_span),
+        ("local token", binding.local_span),
+    ];
+    for (name, span) in spans {
+        if span.source != binding.id.source
+            || span.start > span.end
+            || span.end > source.len()
+            || !source.is_char_boundary(span.start)
+            || !source.is_char_boundary(span.end)
+            || span.start < binding.declaration_span.start
+            || span.end > binding.declaration_span.end
+        {
+            return Err(CliError::Diagnostics(format!(
+                "bundler analyzer returned invalid {name} span for import `{}` in `{path}`: {}..{}\n",
+                binding.local, span.start, span.end
+            )));
+        }
+    }
+    if binding.id.declaration_start != binding.declaration_span.start
+        || binding.id.item_start != binding.item_span.start
+    {
+        return Err(CliError::Diagnostics(format!(
+            "bundler analyzer returned inconsistent import identity for `{}` in `{path}`\n",
+            binding.local
+        )));
+    }
+    Ok(())
 }
 
 fn has_optional_invocation(source: &str, span_end: usize) -> bool {

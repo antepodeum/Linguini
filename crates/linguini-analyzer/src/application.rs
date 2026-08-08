@@ -34,6 +34,31 @@ pub enum ApplicationBindingProvenance {
     Implicit,
 }
 
+/// Stable identity for one removable named application import binding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ApplicationImportBindingId {
+    pub source: SourceId,
+    pub declaration_start: usize,
+    pub item_start: usize,
+}
+
+/// Exact source metadata required to remove an imported application root safely.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApplicationImportBinding {
+    pub id: ApplicationImportBindingId,
+    pub module_specifier: String,
+    pub imported: String,
+    pub local: String,
+    pub declaration_span: Span,
+    pub item_span: Span,
+    pub removal_span: Span,
+    pub module_specifier_span: Span,
+    pub imported_span: Span,
+    pub local_span: Span,
+    /// True only when parsing was unambiguous and every non-shadowed use is an exact static ref.
+    pub exact_uses_only: bool,
+}
+
 /// A deterministic, source-aware static application message reference.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApplicationReference {
@@ -45,6 +70,8 @@ pub struct ApplicationReference {
     pub kind: ApplicationReferenceKind,
     /// Root/local binding metadata for the expression.
     pub binding: ApplicationBinding,
+    /// Exact import identity when this reference originates from a removable named import.
+    pub import_binding: Option<ApplicationImportBindingId>,
 }
 
 impl ApplicationReference {
@@ -53,12 +80,14 @@ impl ApplicationReference {
         span: Span,
         kind: ApplicationReferenceKind,
         binding: ApplicationBinding,
+        import_binding: Option<ApplicationImportBindingId>,
     ) -> Self {
         Self {
             canonical_path,
             span,
             kind,
             binding,
+            import_binding,
         }
     }
 }
@@ -69,6 +98,7 @@ pub struct ApplicationUsage {
     static_paths: BTreeSet<UsagePath>,
     dynamic_prefixes: BTreeSet<UsagePath>,
     references: Vec<ApplicationReference>,
+    imports: Vec<ApplicationImportBinding>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -120,7 +150,10 @@ impl ApplicationUsage {
             imports,
             mut roots,
             factories,
-        } = imported_symbols(&tokens, source);
+            bindings,
+        } = imported_symbols(&tokens, source, source_id, uncertain_syntax);
+        let import_start = self.imports.len();
+        self.imports.extend(bindings);
         for index in 0..tokens.len() {
             let Some((name, after_symbol, _)) = symbol_reference(&tokens, source, index) else {
                 continue;
@@ -244,7 +277,10 @@ impl ApplicationUsage {
             );
             index = next.max(index + 1);
         }
+        self.finalize_import_safety(source, &tokens, &imports, import_start);
+        self.poison_duplicate_import_locals();
         self.sort_references();
+        self.sort_imports();
     }
 
     fn sort_references(&mut self) {
@@ -266,6 +302,10 @@ impl ApplicationUsage {
                     &right.binding,
                 ))
         });
+    }
+
+    fn sort_imports(&mut self) {
+        self.imports.sort_by_key(|binding| binding.id);
     }
 
     fn record_path(
@@ -306,6 +346,7 @@ impl ApplicationUsage {
                 ApplicationReferenceKind::Value
             };
             if context.emit_reference {
+                let import_binding = self.import_binding_id(&context.binding, context.source_id);
                 self.references.push(ApplicationReference::new(
                     path.display,
                     Span::in_source(context.source_id, root_token.start, end),
@@ -318,7 +359,102 @@ impl ApplicationUsage {
                             provenance: context.binding.provenance,
                         }
                     },
+                    import_binding,
                 ));
+            }
+        }
+    }
+
+    fn import_binding_id(
+        &self,
+        binding: &ApplicationBinding,
+        source: SourceId,
+    ) -> Option<ApplicationImportBindingId> {
+        let ApplicationBindingProvenance::Imported { .. } = &binding.provenance else {
+            return None;
+        };
+        let mut matches = self
+            .imports
+            .iter()
+            .filter(|candidate| candidate.id.source == source && candidate.local == binding.local);
+        let id = matches.next()?.id;
+        matches.next().is_none().then_some(id)
+    }
+
+    fn finalize_import_safety(
+        &mut self,
+        source: &str,
+        tokens: &[Token],
+        import_tokens: &BTreeSet<usize>,
+        import_start: usize,
+    ) {
+        for binding_index in import_start..self.imports.len() {
+            let id = self.imports[binding_index].id;
+            let local = self.imports[binding_index].local.clone();
+            let duplicate = self
+                .imports
+                .iter()
+                .filter(|candidate| candidate.id.source == id.source && candidate.local == local)
+                .count()
+                > 1;
+            let mut safe = self.imports[binding_index].exact_uses_only && !duplicate;
+            for (token_index, token) in tokens.iter().enumerate() {
+                if !matches!(&token.kind, TokenKind::Identifier(name) if name == &local)
+                    || import_tokens.contains(&token_index)
+                    || is_member_property(tokens, token_index)
+                {
+                    continue;
+                }
+                if is_binding_declaration(tokens, source, token_index) {
+                    if is_top_level(tokens, source, token_index) {
+                        safe = false;
+                    }
+                    continue;
+                }
+                if is_shadowed_import_binding(tokens, source, token_index, &local) {
+                    continue;
+                }
+                let reference = self.references.iter().find(|reference| {
+                    reference.span.source == id.source
+                        && reference.span.start == token.start
+                        && reference.import_binding == Some(id)
+                });
+                let Some(reference) = reference else {
+                    safe = false;
+                    continue;
+                };
+                if source[reference.span.start..reference.span.end].contains("?.")
+                    || analyzer_optional_invocation(source, reference.span.end)
+                {
+                    safe = false;
+                }
+            }
+            self.imports[binding_index].exact_uses_only = safe;
+        }
+    }
+
+    fn poison_duplicate_import_locals(&mut self) {
+        let mut counts = BTreeMap::<(SourceId, String), usize>::new();
+        for binding in &self.imports {
+            *counts
+                .entry((binding.id.source, binding.local.clone()))
+                .or_default() += 1;
+        }
+        for binding in &mut self.imports {
+            if counts
+                .get(&(binding.id.source, binding.local.clone()))
+                .is_some_and(|count| *count > 1)
+            {
+                binding.exact_uses_only = false;
+            }
+        }
+        for reference in &mut self.references {
+            if reference.import_binding.is_some_and(|id| {
+                counts
+                    .get(&(id.source, reference.binding.local.clone()))
+                    .is_some_and(|count| *count > 1)
+            }) {
+                reference.import_binding = None;
             }
         }
     }
@@ -327,7 +463,10 @@ impl ApplicationUsage {
         self.static_paths.extend(other.static_paths);
         self.dynamic_prefixes.extend(other.dynamic_prefixes);
         self.references.extend(other.references);
+        self.imports.extend(other.imports);
+        self.poison_duplicate_import_locals();
         self.sort_references();
+        self.sort_imports();
     }
 
     pub fn static_paths(&self) -> impl Iterator<Item = &str> {
@@ -343,6 +482,11 @@ impl ApplicationUsage {
     /// Static references in deterministic source/path order.
     pub fn references(&self) -> impl Iterator<Item = &ApplicationReference> {
         self.references.iter()
+    }
+
+    /// Imported `l`/`messages` bindings in deterministic source/declaration order.
+    pub fn imports(&self) -> impl Iterator<Item = &ApplicationImportBinding> {
+        self.imports.iter()
     }
 }
 
@@ -1804,10 +1948,17 @@ struct ImportedSymbols {
     imports: BTreeSet<usize>,
     roots: BTreeMap<String, ApplicationBinding>,
     factories: BTreeMap<String, String>,
+    bindings: Vec<ApplicationImportBinding>,
 }
 
-fn imported_symbols(tokens: &[Token], source: &str) -> ImportedSymbols {
+fn imported_symbols(
+    tokens: &[Token],
+    source: &str,
+    source_id: SourceId,
+    uncertain_syntax: bool,
+) -> ImportedSymbols {
     let mut imported = BTreeSet::new();
+    let mut bindings = Vec::new();
     let mut roots = ["l", "lgl", "messages"]
         .into_iter()
         .map(|local| {
@@ -1880,6 +2031,14 @@ fn imported_symbols(tokens: &[Token], source: &str) -> ImportedSymbols {
                     })
             })
             .unwrap_or_default();
+        bindings.extend(named_application_import_bindings(
+            tokens,
+            source,
+            source_id,
+            index,
+            end,
+            uncertain_syntax,
+        ));
         for alias_index in index..end.saturating_sub(2) {
             let TokenKind::Identifier(imported_name) = &tokens[alias_index].kind else {
                 continue;
@@ -1889,7 +2048,14 @@ fn imported_symbols(tokens: &[Token], source: &str) -> ImportedSymbols {
                 TokenKind::Identifier(name) if name == "as"
             ) {
                 if let TokenKind::Identifier(alias) = &tokens[alias_index + 2].kind {
-                    if roots.contains_key(imported_name) {
+                    if roots.contains_key(imported_name)
+                        && (!matches!(imported_name.as_str(), "l" | "messages")
+                            || bindings.iter().any(|binding| {
+                                binding.id.declaration_start == tokens[index].start
+                                    && binding.imported == *imported_name
+                                    && binding.local == *alias
+                            }))
+                    {
                         roots.insert(
                             alias.clone(),
                             ApplicationBinding {
@@ -1943,7 +2109,14 @@ fn imported_symbols(tokens: &[Token], source: &str) -> ImportedSymbols {
                     if next_is_alias {
                         continue;
                     }
-                    if roots.contains_key(name) {
+                    if roots.contains_key(name)
+                        && (!matches!(name.as_str(), "l" | "messages")
+                            || bindings.iter().any(|binding| {
+                                binding.id.declaration_start == tokens[index].start
+                                    && binding.imported == *name
+                                    && binding.local == *name
+                            }))
+                    {
                         roots.insert(
                             name.clone(),
                             ApplicationBinding {
@@ -1968,7 +2141,241 @@ fn imported_symbols(tokens: &[Token], source: &str) -> ImportedSymbols {
         imports: imported,
         roots,
         factories,
+        bindings,
     }
+}
+
+fn named_application_import_bindings(
+    tokens: &[Token],
+    source: &str,
+    source_id: SourceId,
+    declaration_start: usize,
+    declaration_end: usize,
+    uncertain_syntax: bool,
+) -> Vec<ApplicationImportBinding> {
+    let open = declaration_start + 1;
+    if !token_is_other(tokens.get(open), source, "{") {
+        return Vec::new();
+    }
+    let mut cursor = open + 1;
+    let mut previous_comma = None;
+    let mut parsed_items = Vec::<(usize, usize, Option<usize>, Option<usize>)>::new();
+    let close = loop {
+        if token_is_other(tokens.get(cursor), source, "}") {
+            break cursor;
+        }
+        let Some(Token {
+            kind: TokenKind::Identifier(_),
+            ..
+        }) = tokens.get(cursor)
+        else {
+            return Vec::new();
+        };
+        let imported_index = cursor;
+        cursor += 1;
+        let local_index = if matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Identifier(name)) if name == "as"
+        ) {
+            cursor += 1;
+            let Some(Token {
+                kind: TokenKind::Identifier(_),
+                ..
+            }) = tokens.get(cursor)
+            else {
+                return Vec::new();
+            };
+            let local = cursor;
+            cursor += 1;
+            local
+        } else {
+            imported_index
+        };
+        let Some(TokenKind::Identifier(local)) = tokens.get(local_index).map(|token| &token.kind)
+        else {
+            return Vec::new();
+        };
+        if !is_strict_module_binding_identifier(local) {
+            return Vec::new();
+        }
+        if token_is_other(tokens.get(cursor), source, "}") {
+            parsed_items.push((imported_index, local_index, previous_comma, None));
+            break cursor;
+        }
+        if !token_is_other(tokens.get(cursor), source, ",") {
+            return Vec::new();
+        }
+        let comma = cursor;
+        parsed_items.push((imported_index, local_index, previous_comma, Some(comma)));
+        previous_comma = Some(comma);
+        cursor += 1;
+        if token_is_other(tokens.get(cursor), source, "}") {
+            break cursor;
+        }
+    };
+    cursor = close + 1;
+    if !matches!(
+        tokens.get(cursor).map(|token| &token.kind),
+        Some(TokenKind::Identifier(name)) if name == "from"
+    ) {
+        return Vec::new();
+    }
+    cursor += 1;
+    let Some(Token {
+        kind: TokenKind::StringLiteral(Some(module_specifier)),
+        ..
+    }) = tokens.get(cursor)
+    else {
+        return Vec::new();
+    };
+    if module_specifier.is_empty() {
+        return Vec::new();
+    }
+    let module_index = cursor;
+    cursor += 1;
+    if cursor < declaration_end
+        && (!matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Semicolon)
+        ) || cursor + 1 != declaration_end)
+    {
+        return Vec::new();
+    }
+    let module_token = &tokens[module_index];
+    let declaration_token_end = tokens
+        .get(declaration_end.saturating_sub(1))
+        .map_or(module_token.end, |token| token.end);
+    let declaration_span = Span::in_source(
+        source_id,
+        tokens[declaration_start].start,
+        declaration_token_end,
+    );
+    let declaration_source = &source[declaration_span.start..declaration_span.end];
+    let following_token_start = tokens
+        .get(declaration_end)
+        .map_or(source.len(), |token| token.start);
+    let raw_module_tail = &source[module_token.end..following_token_start];
+    let structurally_safe = !uncertain_syntax
+        && !declaration_source.contains("//")
+        && !declaration_source.contains("/*")
+        && !raw_module_tail.contains("//")
+        && !raw_module_tail.contains("/*");
+
+    let item_count = parsed_items.len();
+    let sole_named_declaration = open == declaration_start + 1 && item_count == 1;
+    let mut bindings = Vec::new();
+    for (imported_index, local_index, previous_comma, next_comma) in parsed_items {
+        let TokenKind::Identifier(imported) = &tokens[imported_index].kind else {
+            continue;
+        };
+        if !matches!(imported.as_str(), "l" | "messages") {
+            continue;
+        }
+        let TokenKind::Identifier(local) = &tokens[local_index].kind else {
+            continue;
+        };
+        let item_span = Span::in_source(
+            source_id,
+            tokens[imported_index].start,
+            tokens[local_index].end,
+        );
+        let removal_span = if sole_named_declaration {
+            declaration_span
+        } else if let Some(comma) = next_comma {
+            Span::in_source(source_id, item_span.start, tokens[comma].end)
+        } else if let Some(comma) = previous_comma {
+            Span::in_source(source_id, tokens[comma].start, item_span.end)
+        } else {
+            continue;
+        };
+        let id = ApplicationImportBindingId {
+            source: source_id,
+            declaration_start: declaration_span.start,
+            item_start: item_span.start,
+        };
+        bindings.push(ApplicationImportBinding {
+            id,
+            module_specifier: module_specifier.clone(),
+            imported: imported.clone(),
+            local: local.clone(),
+            declaration_span,
+            item_span,
+            removal_span,
+            module_specifier_span: Span::in_source(source_id, module_token.start, module_token.end),
+            imported_span: Span::in_source(
+                source_id,
+                tokens[imported_index].start,
+                tokens[imported_index].end,
+            ),
+            local_span: Span::in_source(
+                source_id,
+                tokens[local_index].start,
+                tokens[local_index].end,
+            ),
+            exact_uses_only: structurally_safe,
+        });
+    }
+    bindings
+}
+
+fn token_is_other(token: Option<&Token>, source: &str, expected: &str) -> bool {
+    token.is_some_and(|token| {
+        matches!(token.kind, TokenKind::Other) && &source[token.start..token.end] == expected
+    })
+}
+
+fn is_strict_module_binding_identifier(identifier: &str) -> bool {
+    !matches!(
+        identifier,
+        "arguments"
+            | "await"
+            | "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "enum"
+            | "eval"
+            | "export"
+            | "extends"
+            | "false"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "implements"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "interface"
+            | "let"
+            | "new"
+            | "null"
+            | "package"
+            | "private"
+            | "protected"
+            | "public"
+            | "return"
+            | "static"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "true"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+            | "yield"
+    )
 }
 
 fn is_top_level(tokens: &[Token], source: &str, end: usize) -> bool {
@@ -2105,10 +2512,48 @@ fn import_end(tokens: &[Token], source: &str, start: usize) -> usize {
                 .get(index + 1)
                 .is_some_and(|next| source[tokens[index].end..next.start].contains('\n'))
         {
+            if tokens.get(index + 1).is_some_and(|next| {
+                matches!(
+                    &next.kind,
+                    TokenKind::Identifier(name) if matches!(name.as_str(), "assert" | "with")
+                )
+            }) {
+                continue;
+            }
             return index + 1;
         }
     }
     tokens.len()
+}
+
+fn analyzer_optional_invocation(source: &str, span_end: usize) -> bool {
+    let Some(after_span) = source.get(span_end..) else {
+        return false;
+    };
+    let Some(after_chain) = strip_application_trivia(after_span).strip_prefix("?.") else {
+        return false;
+    };
+    strip_application_trivia(after_chain).starts_with('(')
+}
+
+fn strip_application_trivia(mut source: &str) -> &str {
+    loop {
+        let trimmed = source.trim_start();
+        if let Some(comment) = trimmed.strip_prefix("//") {
+            source = comment
+                .find(['\r', '\n'])
+                .map_or("", |newline| &comment[newline..]);
+            continue;
+        }
+        if let Some(comment) = trimmed.strip_prefix("/*") {
+            let Some(end) = comment.find("*/") else {
+                return trimmed;
+            };
+            source = &comment[end + 2..];
+            continue;
+        }
+        return trimmed;
+    }
 }
 
 fn is_member_property(tokens: &[Token], index: usize) -> bool {

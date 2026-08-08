@@ -737,6 +737,21 @@ exclude = []
     );
     let app_path = project.path().join("src/app/page.svelte");
     fs::write(&app_path, app_source).expect("app");
+    let clean_source = concat!(
+        "import {\r\n  helper,\r\n  messages as clean\r\n} from \"../generated/linguini\";\r\n",
+        "const cleanLabel = clean.main.title;\r\n",
+    );
+    fs::write(project.path().join("src/app/z-clean.ts"), clean_source).expect("clean app");
+    let duplicate_source = concat!(
+        "import { l as same } from \"generated-a\";\r\n",
+        "import { messages as same } from \"generated-b\";\r\n",
+        "const duplicateLabel = same.main.title;\r\n",
+    );
+    fs::write(
+        project.path().join("src/app/z-duplicate.ts"),
+        duplicate_source,
+    )
+    .expect("duplicate app");
 
     build_project(project.path()).expect("build");
     let manifest_path = project
@@ -775,6 +790,8 @@ exclude = []
         "../generated/linguini"
     );
     assert_eq!(references[0]["provenance"]["symbol"], "l");
+    assert!(references[0]["binding_id"].is_string());
+    assert_eq!(references[0]["binding_id"], references[1]["binding_id"]);
     assert_eq!(references[1]["message"], "main.items");
     assert_eq!(references[1]["kind"], "call");
     assert_eq!(references[1]["arity"], 1);
@@ -796,6 +813,43 @@ exclude = []
         .expect("dynamic prefixes")
         .iter()
         .any(|prefix| prefix == "main"));
+    let page_import = &application["imports"][0];
+    assert_eq!(page_import["binding_id"], references[0]["binding_id"]);
+    assert_eq!(page_import["analyzer_exact_uses_only"], false);
+    assert_eq!(page_import["transformable"], false);
+    assert_eq!(
+        &app_source[page_import["removal_start"].as_u64().expect("start") as usize
+            ..page_import["removal_end"].as_u64().expect("end") as usize],
+        "import { l as tr } from \"../generated/linguini\";"
+    );
+    assert!(unresolved
+        .iter()
+        .filter(|entry| !entry["binding_id"].is_null())
+        .all(|entry| entry["binding_id"] == page_import["binding_id"]));
+
+    let clean = &manifest["applications"]["src/app/z-clean.ts"];
+    let clean_import = &clean["imports"][0];
+    assert_eq!(clean_import["imported"], "messages");
+    assert_eq!(clean_import["local"], "clean");
+    assert_eq!(clean_import["analyzer_exact_uses_only"], true);
+    assert_eq!(clean_import["transformable"], true);
+    assert_eq!(
+        clean["references"][0]["binding_id"],
+        clean_import["binding_id"]
+    );
+    assert_eq!(
+        &clean_source[clean_import["removal_start"].as_u64().expect("start") as usize
+            ..clean_import["removal_end"].as_u64().expect("end") as usize],
+        ",\r\n  messages as clean"
+    );
+
+    let duplicate = &manifest["applications"]["src/app/z-duplicate.ts"];
+    assert!(duplicate["imports"]
+        .as_array()
+        .expect("duplicate imports")
+        .iter()
+        .all(|binding| binding["transformable"] == false));
+    assert!(duplicate["references"][0]["binding_id"].is_null());
 
     build_project(project.path()).expect("repeat build");
     assert_eq!(
@@ -837,6 +891,7 @@ exclude = []
         .expect("unresolved")
         .iter()
         .any(|entry| entry["reason"] == "arity_mismatch"));
+    assert_eq!(mismatch_app["imports"][0]["transformable"], false);
 }
 
 #[test]
