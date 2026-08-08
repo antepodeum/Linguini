@@ -1,5 +1,7 @@
 import locale_ru from "./locales/ru";
 export type * from "./shared";
+import type { LinguiniMessages } from "./messages";
+export type { LinguiniMessages } from "./messages";
 
 export declare const locales: readonly ["ru"];
 export declare const baseLocale: "ru";
@@ -19,7 +21,7 @@ export declare const localeLoaders: {
 type LinguiniLanguage = keyof typeof localeModules;
 export type Locale = (typeof locales)[number];
 export type TextDirection = "ltr" | "rtl";
-export type Linguini = (typeof localeModules)[LinguiniLanguage];
+export type Linguini = LinguiniMessages;
 
 type LinguiniLanguageInput = LinguiniLanguage;
 

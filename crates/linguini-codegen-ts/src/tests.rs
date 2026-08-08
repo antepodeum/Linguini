@@ -131,8 +131,10 @@ fn project_codegen_owns_multilocale_index_files() {
             .collect::<Vec<_>>(),
         [
             "shared.ts",
+            "messages.ts",
             ".gitignore",
             "shared.d.ts",
+            "messages.d.ts",
             "locales/en.ts",
             "locales/en.d.ts",
             "locales/ru.ts",
@@ -168,6 +170,199 @@ fn project_codegen_can_omit_generated_gitignore() {
     .expect("project codegen");
 
     assert!(!files.iter().any(|file| file.path == ".gitignore"));
+}
+
+#[test]
+fn project_codegen_always_emits_schema_owned_messages_type_module() {
+    let schema = lower_schema(&parse_schema("title\n").expect("schema"));
+    let locale = lower_locale(&parse_locale("title = Title\n").expect("locale"));
+
+    let without_declarations = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale.clone(),
+        }],
+        &TypeScriptProjectOptions {
+            declaration: false,
+            ..project_options("en")
+        },
+    )
+    .expect("source project");
+    assert!(without_declarations
+        .iter()
+        .any(|file| file.path == "messages.ts"));
+    assert!(!without_declarations
+        .iter()
+        .any(|file| file.path == "messages.d.ts"));
+
+    let with_declarations = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("declaration project");
+    assert!(with_declarations
+        .iter()
+        .any(|file| file.path == "messages.ts"));
+    assert!(with_declarations
+        .iter()
+        .any(|file| file.path == "messages.d.ts"));
+}
+
+#[test]
+fn project_codegen_emits_complete_recursive_schema_namespace_type() {
+    let schema = lower_schema(
+        &parse_schema(
+            "/// Root docs\nroot {\n  /// Nested docs\n  nested {\n    /// Leaf docs\n    title\n    count(value: Number)\n  }\n  empty {}\n}\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale("root { nested { title = Title\ncount = Count {value} } }\n")
+            .expect("locale"),
+    );
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project files");
+    let messages = files
+        .iter()
+        .find(|file| file.path == "messages.ts")
+        .expect("messages type module")
+        .contents
+        .clone();
+    assert!(messages.contains("/** Root docs */"));
+    assert!(messages.contains("/** Nested docs */"));
+    assert!(messages.contains("/** Leaf docs */"));
+    assert!(messages.contains("readonly title: string;"));
+    assert!(messages.contains("readonly count: (value: number | bigint | string) => string;"));
+    assert!(!messages.contains("empty"));
+}
+
+#[test]
+fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
+    use linguini_ir::{
+        IrGroup, IrMessage, IrModule, IrParameter, IrText, IrTextBlockMode, IrTextPart,
+    };
+    use linguini_syntax::Span;
+
+    let names = [
+        "top.class.foo-bar.deep.leaf-value",
+        "top.class.foo-bar.deep.invoke",
+    ];
+    let schema = IrModule {
+        messages: vec![
+            IrMessage {
+                name: names[0].to_owned(),
+                docs: vec!["Value leaf\nsecond */ terminator".to_owned()],
+                parameters: Vec::new(),
+                body: None,
+            },
+            IrMessage {
+                name: names[1].to_owned(),
+                docs: vec!["Callable leaf".to_owned()],
+                parameters: vec![IrParameter {
+                    name: "count".to_owned(),
+                    ty: "Number".to_owned(),
+                }],
+                body: None,
+            },
+        ],
+        groups: vec![
+            IrGroup {
+                name: "top".to_owned(),
+                docs: vec!["Top group\nline */ terminator".to_owned()],
+                span: Span::new(0, 1),
+            },
+            IrGroup {
+                name: "top.class".to_owned(),
+                docs: vec!["Reserved class".to_owned()],
+                span: Span::new(0, 1),
+            },
+            IrGroup {
+                name: "top.class.foo-bar".to_owned(),
+                docs: vec!["Unsafe namespace".to_owned()],
+                span: Span::new(0, 1),
+            },
+            IrGroup {
+                name: "top.class.foo-bar.deep".to_owned(),
+                docs: vec!["Deep namespace".to_owned()],
+                span: Span::new(0, 1),
+            },
+            IrGroup {
+                name: "top.class.foo-bar.deep.empty".to_owned(),
+                docs: vec!["Empty namespace".to_owned()],
+                span: Span::new(0, 1),
+            },
+        ],
+        ..IrModule::default()
+    };
+    let locale = IrModule {
+        messages: names
+            .iter()
+            .map(|name| IrMessage {
+                name: (*name).to_owned(),
+                docs: Vec::new(),
+                parameters: Vec::new(),
+                body: Some(IrText {
+                    parts: vec![IrTextPart::Text("ok".to_owned())],
+                    mode: IrTextBlockMode::Inline,
+                    span: Span::new(0, 2),
+                }),
+            })
+            .collect(),
+        ..IrModule::default()
+    };
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project files");
+    let messages = files
+        .iter()
+        .find(|file| file.path == "messages.ts")
+        .expect("messages type module")
+        .contents
+        .clone();
+
+    assert_eq!(
+        messages,
+        r#"export type LinguiniMessages = {
+  /** Top group
+   * line * / terminator */
+  readonly top: {
+    /** Reserved class */
+    readonly "class": {
+      /** Unsafe namespace */
+      readonly "foo-bar": {
+        /** Deep namespace */
+        readonly deep: {
+          /** Value leaf
+           * second * / terminator */
+          readonly "leaf-value": string;
+          /** Callable leaf */
+          readonly invoke: (count: number | bigint | string) => string;
+        };
+      };
+    };
+  };
+};
+"#
+    );
+    assert!(!messages.contains("empty"));
 }
 
 #[test]
@@ -236,6 +431,15 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
         .iter()
         .find(|file| file.path == "locales/en.ts")
         .expect("locale module");
+    let messages_type = files
+        .iter()
+        .find(|file| file.path == "messages.ts")
+        .expect("messages type module");
+    assert!(messages_type.contents.contains("readonly keep: string;"));
+    assert!(messages_type.contents.contains("readonly group:"));
+    assert!(messages_type.contents.contains("readonly label: string;"));
+    assert!(!messages_type.contents.contains("readonly drop: string;"));
+    assert!(!messages_type.contents.contains("readonly help: string;"));
     assert!(locale_module
         .contents
         .contains("export const keep = \"Keep\";"));

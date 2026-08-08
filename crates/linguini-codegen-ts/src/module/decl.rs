@@ -2,8 +2,8 @@ use linguini_ir::{IrMessage, IrModule};
 
 use super::emit::{schema_type_aliases, schema_type_names};
 use super::names::{
-    escape_comment, escape_string, function_name, property_key, safe_file_stem, safe_identifier,
-    ts_type,
+    emit_docs, escape_comment, escape_string, function_name, property_key, safe_file_stem,
+    safe_identifier, ts_type,
 };
 use super::templates::SHARED_DECLARATIONS;
 use super::tree::{nested_message_tree, MessageTree};
@@ -144,6 +144,7 @@ fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<Stri
 }
 
 fn emit_message_object_declaration(name: &str, tree: &MessageTree, output: &mut String) {
+    emit_docs(&tree.docs, "", output);
     output.push_str(&format!("export declare const {}: ", safe_identifier(name)));
     emit_object_type(tree, 0, output);
     output.push_str(";\n\n");
@@ -154,6 +155,7 @@ fn emit_object_type(tree: &MessageTree, depth: usize, output: &mut String) {
     let child_indent = "  ".repeat(depth + 1);
     output.push_str("{\n");
     for entry in &tree.messages {
+        emit_docs(&entry.signature.docs, &child_indent, output);
         output.push_str(&format!(
             "{child_indent}readonly {}: {};\n",
             property_key(&entry.property),
@@ -161,6 +163,7 @@ fn emit_object_type(tree: &MessageTree, depth: usize, output: &mut String) {
         ));
     }
     for (name, child) in &tree.children {
+        emit_docs(&child.docs, &child_indent, output);
         output.push_str(&format!("{child_indent}readonly {}: ", property_key(name)));
         emit_object_type(child, depth + 1, output);
         output.push_str(";\n");

@@ -1,5 +1,7 @@
 {{IMPORTS}}
 export type * from "./shared";
+import type { LinguiniMessages } from "./messages";
+export type { LinguiniMessages } from "./messages";
 
 export declare const locales: readonly [{{LOCALES}}];
 export declare const baseLocale: {{BASE_LOCALE}};
@@ -16,7 +18,7 @@ export declare const localeLoaders: {
 type LinguiniLanguage = keyof typeof localeModules;
 export type Locale = (typeof locales)[number];
 export type TextDirection = "ltr" | "rtl";
-export type Linguini = (typeof localeModules)[LinguiniLanguage];
+export type Linguini = LinguiniMessages;
 
 type LinguiniLanguageInput = LinguiniLanguage;
 

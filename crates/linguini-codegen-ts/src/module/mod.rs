@@ -4,6 +4,7 @@ mod emit;
 mod expr;
 mod formatters;
 mod message;
+mod messages;
 mod names;
 mod project;
 mod shared;
@@ -553,10 +554,29 @@ pub fn generate_typescript_project_files(
     let schema = project.schema;
     let locales = &project.locales;
     let options = &project.options;
+    let messages_schema = if options.tree_shaking && !options.included_messages.is_empty() {
+        visible_schema(
+            schema,
+            &TypeScriptOptions {
+                included_messages: options.included_messages.clone(),
+                ..TypeScriptOptions::default()
+            },
+        )
+    } else {
+        schema.clone()
+    };
     let mut files = vec![TypeScriptGeneratedFile {
         path: "shared.ts".to_owned(),
         contents: generate_shared_module(schema),
     }];
+
+    // Keep the public namespace contract in its own schema-owned module. This is emitted even
+    // when declaration output is disabled so source-only consumers and the generated runtime
+    // always resolve the same recursive `LinguiniMessages` type.
+    files.push(TypeScriptGeneratedFile {
+        path: "messages.ts".to_owned(),
+        contents: messages::generate_messages_module(&messages_schema),
+    });
 
     if options.gitignore {
         files.push(TypeScriptGeneratedFile {
@@ -569,6 +589,10 @@ pub fn generate_typescript_project_files(
         files.push(TypeScriptGeneratedFile {
             path: "shared.d.ts".to_owned(),
             contents: decl::generate_shared_declaration(schema),
+        });
+        files.push(TypeScriptGeneratedFile {
+            path: "messages.d.ts".to_owned(),
+            contents: messages::generate_messages_module(&messages_schema),
         });
     }
 
@@ -890,12 +914,6 @@ fn top_level_namespaces(module: &IrModule) -> Vec<String> {
         .messages
         .iter()
         .filter_map(|message| message.name.split_once('.').map(|(namespace, _)| namespace))
-        .chain(
-            module
-                .groups
-                .iter()
-                .filter_map(|group| group.name.split_once('.').map(|(namespace, _)| namespace)),
-        )
         .map(str::to_owned)
         .collect::<Vec<_>>();
     namespaces.sort();

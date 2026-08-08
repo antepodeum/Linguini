@@ -130,6 +130,30 @@ pub fn escape_comment(value: &str) -> String {
     value.replace("*/", "* /")
 }
 
+/// Render source documentation as safe JSDoc immediately before a generated declaration.
+///
+/// Each source doc entry remains a separate block, while embedded line breaks are kept as
+/// explicit JSDoc lines. Escaping only the comment terminator preserves the original prose and
+/// prevents generated output from being prematurely closed by hostile text.
+pub fn emit_docs(docs: &[String], indent: &str, output: &mut String) {
+    for doc in docs {
+        output.push_str(indent);
+        output.push_str("/**");
+        let mut lines = doc.lines();
+        if let Some(first) = lines.next() {
+            output.push(' ');
+            output.push_str(&escape_comment(first));
+            for line in lines {
+                output.push('\n');
+                output.push_str(indent);
+                output.push_str(" * ");
+                output.push_str(&escape_comment(line));
+            }
+        }
+        output.push_str(" */\n");
+    }
+}
+
 pub fn ts_type(name: &str) -> String {
     match name {
         "String" => "string".to_owned(),
