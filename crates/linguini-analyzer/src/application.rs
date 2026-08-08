@@ -1,11 +1,74 @@
 use crate::{Diagnostic, PublicMessage};
-use std::collections::BTreeSet;
+use linguini_syntax::{SourceId, Span};
+use std::collections::{BTreeMap, BTreeSet};
+
+/// The syntactic form of a statically resolved application message reference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ApplicationReferenceKind {
+    /// A parameterless message value (for example, `l.main.title`).
+    Value,
+    /// A message invocation (for example, `l.main.items(count)`).
+    Call,
+}
+
+/// The binding which supplied the root of an application reference.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ApplicationBinding {
+    /// The local identifier used in the source expression.
+    pub local: String,
+    /// How the local identifier was established.
+    pub provenance: ApplicationBindingProvenance,
+}
+
+/// Provenance for an application root binding.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ApplicationBindingProvenance {
+    /// A named import, preserving both the exact module specifier and imported symbol.
+    Imported {
+        module_specifier: String,
+        imported: String,
+    },
+    /// A result produced by a supported Linguini factory.
+    Factory { factory: String },
+    /// A conservative implicit root (`l`, `lgl`, or `messages`).
+    Implicit,
+}
+
+/// A deterministic, source-aware static application message reference.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApplicationReference {
+    /// Canonical dotted message path, with safe generated identifiers decoded.
+    pub canonical_path: String,
+    /// Source span from the root through the final static member only.
+    pub span: Span,
+    /// Whether the path is used as a value or called.
+    pub kind: ApplicationReferenceKind,
+    /// Root/local binding metadata for the expression.
+    pub binding: ApplicationBinding,
+}
+
+impl ApplicationReference {
+    fn new(
+        canonical_path: String,
+        span: Span,
+        kind: ApplicationReferenceKind,
+        binding: ApplicationBinding,
+    ) -> Self {
+        Self {
+            canonical_path,
+            span,
+            kind,
+            binding,
+        }
+    }
+}
 
 /// Conservative application-side references to generated `l.*` message paths.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ApplicationUsage {
     static_paths: BTreeSet<UsagePath>,
     dynamic_prefixes: BTreeSet<UsagePath>,
+    references: Vec<ApplicationReference>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -20,14 +83,32 @@ struct UsageSegment {
     decoded: Option<Vec<String>>,
 }
 
+struct ReferenceContext<'a> {
+    tokens: &'a [Token],
+    source: &'a str,
+    source_id: SourceId,
+    root_index: usize,
+    root: &'a str,
+    binding: ApplicationBinding,
+    emit_reference: bool,
+}
+
 impl ApplicationUsage {
     pub fn from_source(source: &str) -> Self {
+        Self::from_source_in(source, SourceId::default())
+    }
+
+    pub fn from_source_in(source: &str, source_id: SourceId) -> Self {
         let mut usage = Self::default();
-        usage.extend_source(source);
+        usage.extend_source_in(source, source_id);
         usage
     }
 
     pub fn extend_source(&mut self, source: &str) {
+        self.extend_source_in(source, SourceId::default());
+    }
+
+    pub fn extend_source_in(&mut self, source: &str, source_id: SourceId) {
         let LexedSource {
             tokens,
             uncertain_syntax,
@@ -35,12 +116,16 @@ impl ApplicationUsage {
         if uncertain_syntax {
             self.dynamic_prefixes.insert(UsagePath::root());
         }
-        let (imports, mut roots, factories) = imported_symbols(&tokens, source);
+        let ImportedSymbols {
+            imports,
+            mut roots,
+            factories,
+        } = imported_symbols(&tokens, source);
         for index in 0..tokens.len() {
             let Some((name, after_symbol, _)) = symbol_reference(&tokens, source, index) else {
                 continue;
             };
-            if imports.contains(&index) || !factories.contains(name) {
+            if imports.contains(&index) || !factories.contains_key(name) {
                 continue;
             }
             let Some(after_call) = call_end(&tokens, source, after_symbol) else {
@@ -48,7 +133,17 @@ impl ApplicationUsage {
             };
             if member_path(&tokens, after_call).0.is_empty() {
                 if let Some((binding, _)) = declaration_binding(&tokens, source, index) {
-                    roots.insert(binding);
+                    let factory = factories
+                        .get(name)
+                        .cloned()
+                        .unwrap_or_else(|| name.to_owned());
+                    roots.insert(
+                        binding.clone(),
+                        ApplicationBinding {
+                            local: binding,
+                            provenance: ApplicationBindingProvenance::Factory { factory },
+                        },
+                    );
                 }
             }
         }
@@ -65,7 +160,7 @@ impl ApplicationUsage {
                 index += 1;
                 continue;
             };
-            if factories.contains(root) {
+            if factories.contains_key(root) {
                 if let Some(after_call) = call_end(&tokens, source, after_symbol) {
                     let (segments, dynamic, next) = member_path(&tokens, after_call);
                     if segments.is_empty() {
@@ -75,7 +170,27 @@ impl ApplicationUsage {
                             self.dynamic_prefixes.insert(UsagePath::root());
                         }
                     } else {
-                        self.record_path(&tokens, source, segments, dynamic, next);
+                        let factory = factories
+                            .get(root)
+                            .cloned()
+                            .unwrap_or_else(|| root.to_owned());
+                        self.record_path(
+                            ReferenceContext {
+                                tokens: &tokens,
+                                source,
+                                source_id,
+                                root_index: index,
+                                root,
+                                binding: ApplicationBinding {
+                                    local: root.to_owned(),
+                                    provenance: ApplicationBindingProvenance::Factory { factory },
+                                },
+                                emit_reference: true,
+                            },
+                            segments,
+                            dynamic,
+                            next,
+                        );
                     }
                     index += 1;
                     continue;
@@ -88,7 +203,7 @@ impl ApplicationUsage {
                 index += 1;
                 continue;
             }
-            if !roots.contains(root)
+            if !roots.contains_key(root)
                 || (!bracket_property
                     && is_member_property(&tokens, index)
                     && !matches!(root, "l" | "lgl" | "messages"))
@@ -98,15 +213,64 @@ impl ApplicationUsage {
             }
 
             let (segments, dynamic, next) = member_path(&tokens, after_symbol);
-            self.record_path(&tokens, source, segments, dynamic, next);
+            let binding = roots
+                .get(root)
+                .cloned()
+                .unwrap_or_else(|| ApplicationBinding {
+                    local: root.to_owned(),
+                    provenance: ApplicationBindingProvenance::Implicit,
+                });
+            let member_property = is_member_property(&tokens, index)
+                || (bracket_property && is_bracket_member_property(&tokens, source, index));
+            let imported = matches!(
+                &binding.provenance,
+                &ApplicationBindingProvenance::Imported { .. }
+            );
+            let emit_reference = !imported
+                || (!member_property && !is_shadowed_import_binding(&tokens, source, index, root));
+            self.record_path(
+                ReferenceContext {
+                    tokens: &tokens,
+                    source,
+                    source_id,
+                    root_index: index,
+                    root,
+                    binding,
+                    emit_reference,
+                },
+                segments,
+                dynamic,
+                next,
+            );
             index = next.max(index + 1);
         }
+        self.sort_references();
+    }
+
+    fn sort_references(&mut self) {
+        self.references.sort_by(|left, right| {
+            (
+                left.span.source,
+                left.span.start,
+                left.span.end,
+                &left.canonical_path,
+                left.kind,
+                &left.binding,
+            )
+                .cmp(&(
+                    right.span.source,
+                    right.span.start,
+                    right.span.end,
+                    &right.canonical_path,
+                    right.kind,
+                    &right.binding,
+                ))
+        });
     }
 
     fn record_path(
         &mut self,
-        tokens: &[Token],
-        source: &str,
+        context: ReferenceContext<'_>,
         segments: Vec<UsageSegment>,
         dynamic: bool,
         next: usize,
@@ -116,16 +280,54 @@ impl ApplicationUsage {
             return;
         }
         let path = UsagePath::new(segments);
-        if dynamic || !is_invocation(tokens, source, next) {
+        let invoked = is_invocation(context.tokens, context.source, next);
+        if dynamic {
             self.dynamic_prefixes.insert(path);
         } else {
-            self.static_paths.insert(path);
+            if invoked {
+                self.static_paths.insert(path.clone());
+            } else {
+                // Keep value reads conservative for unused-message analysis while
+                // still exposing their exact static spans to bundler transforms.
+                self.dynamic_prefixes.insert(path.clone());
+            }
+            let Some(root_token) =
+                reference_root_token(context.tokens, context.source, context.root_index)
+            else {
+                return;
+            };
+            let end = context
+                .tokens
+                .get(next.saturating_sub(1))
+                .map_or(root_token.end, |token| token.end);
+            let kind = if invoked {
+                ApplicationReferenceKind::Call
+            } else {
+                ApplicationReferenceKind::Value
+            };
+            if context.emit_reference {
+                self.references.push(ApplicationReference::new(
+                    path.display,
+                    Span::in_source(context.source_id, root_token.start, end),
+                    kind,
+                    if context.binding.local == context.root {
+                        context.binding
+                    } else {
+                        ApplicationBinding {
+                            local: context.root.to_owned(),
+                            provenance: context.binding.provenance,
+                        }
+                    },
+                ));
+            }
         }
     }
 
     pub fn merge(&mut self, other: Self) {
         self.static_paths.extend(other.static_paths);
         self.dynamic_prefixes.extend(other.dynamic_prefixes);
+        self.references.extend(other.references);
+        self.sort_references();
     }
 
     pub fn static_paths(&self) -> impl Iterator<Item = &str> {
@@ -136,6 +338,605 @@ impl ApplicationUsage {
         self.dynamic_prefixes
             .iter()
             .map(|path| path.display.as_str())
+    }
+
+    /// Static references in deterministic source/path order.
+    pub fn references(&self) -> impl Iterator<Item = &ApplicationReference> {
+        self.references.iter()
+    }
+}
+
+fn reference_root_token<'a>(tokens: &'a [Token], source: &str, index: usize) -> Option<&'a Token> {
+    let token = tokens.get(index)?;
+    if !matches!(token.kind, TokenKind::StringLiteral(Some(_))) {
+        return Some(token);
+    }
+    let receiver = index.checked_sub(2)?;
+    if can_end_member_receiver(&tokens[receiver], source) {
+        return tokens.get(receiver);
+    }
+    if matches!(tokens[receiver].kind, TokenKind::Dot)
+        && matches!(
+            receiver
+                .checked_sub(1)
+                .and_then(|position| tokens.get(position))
+                .map(|token| &token.kind),
+            Some(TokenKind::Question)
+        )
+    {
+        return tokens.get(receiver.checked_sub(2)?);
+    }
+    Some(token)
+}
+
+fn is_bracket_member_property(tokens: &[Token], source: &str, index: usize) -> bool {
+    if !matches!(
+        tokens.get(index).map(|token| &token.kind),
+        Some(TokenKind::StringLiteral(_))
+    ) || !is_bracket_member(tokens, source, index)
+    {
+        return false;
+    }
+    let Some(receiver) = index.checked_sub(2) else {
+        return false;
+    };
+    can_end_member_receiver(&tokens[receiver], source)
+        || (matches!(tokens[receiver].kind, TokenKind::Dot)
+            && matches!(
+                receiver
+                    .checked_sub(1)
+                    .and_then(|position| tokens.get(position))
+                    .map(|token| &token.kind),
+                Some(TokenKind::Question)
+            ))
+}
+
+fn is_shadowed_import_binding(
+    tokens: &[Token],
+    source: &str,
+    reference: usize,
+    name: &str,
+) -> bool {
+    let braces = delimiter_pairs(tokens, source, "{", "}");
+    let mut shadow_ranges = Vec::new();
+    for index in 0..tokens.len() {
+        let Some(TokenKind::Identifier(candidate)) = tokens.get(index).map(|token| &token.kind)
+        else {
+            continue;
+        };
+        if candidate != name || is_import_declaration(tokens, source, index) {
+            continue;
+        }
+
+        if let Some(scope) = variable_binding_scope(tokens, source, index, &braces) {
+            shadow_ranges.push(scope);
+        }
+        if let Some(scope) = declaration_binding_scope(tokens, source, index, &braces) {
+            shadow_ranges.push(scope);
+        }
+        if let Some(scope) = parameter_body_scope(tokens, source, index) {
+            shadow_ranges.push(scope);
+        }
+        if let Some(scope) = expression_name_scope(tokens, source, index, &braces) {
+            shadow_ranges.push(scope);
+        }
+    }
+
+    shadow_ranges
+        .into_iter()
+        .any(|(start, end)| start <= reference && reference < end)
+}
+
+fn delimiter_pairs(
+    tokens: &[Token],
+    source: &str,
+    opening: &str,
+    closing: &str,
+) -> Vec<(usize, usize)> {
+    (0..tokens.len())
+        .filter_map(|index| {
+            (token_spelling(tokens, source, index) == Some(opening))
+                .then(|| matching_delimiter(tokens, source, index, opening, closing))
+                .flatten()
+                .map(|close| (index, close))
+        })
+        .collect()
+}
+
+fn variable_binding_scope(
+    tokens: &[Token],
+    source: &str,
+    binding: usize,
+    braces: &[(usize, usize)],
+) -> Option<(usize, usize)> {
+    let previous = binding.checked_sub(1)?;
+    let direct = matches!(
+        tokens.get(previous).map(|token| &token.kind),
+        Some(TokenKind::Identifier(keyword))
+            if matches!(keyword.as_str(), "const" | "let" | "var")
+    );
+    if direct {
+        return Some(scope_for_index(
+            tokens,
+            source,
+            braces,
+            binding,
+            tokens.len(),
+        ));
+    }
+
+    let mut cursor = previous;
+    let mut pattern_open = None;
+    while cursor > 0 {
+        if matches!(token_spelling(tokens, source, cursor), Some("{" | "[")) {
+            pattern_open = Some(cursor);
+            break;
+        }
+        if matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Semicolon)
+        ) || matches!(
+            token_spelling(tokens, source, cursor),
+            Some("=" | ";" | "=>")
+        ) {
+            return None;
+        }
+        cursor -= 1;
+    }
+    let pattern_open = pattern_open?;
+    let keyword = (0..pattern_open).rev().find(|&index| {
+        matches!(
+            tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::Identifier(keyword))
+                if matches!(keyword.as_str(), "const" | "let" | "var")
+        )
+    })?;
+    if let Some(pattern_start) = (keyword + 1..pattern_open)
+        .find(|&index| matches!(token_spelling(tokens, source, index), Some("{" | "[")))
+    {
+        let pattern_close = matching_delimiter(
+            tokens,
+            source,
+            pattern_start,
+            token_spelling(tokens, source, pattern_start)?,
+            if token_spelling(tokens, source, pattern_start) == Some("{") {
+                "}"
+            } else {
+                "]"
+            },
+        )?;
+        if binding > pattern_close && token_spelling(tokens, source, pattern_close + 1) == Some(":")
+        {
+            return None;
+        }
+    }
+    if matches!(
+        tokens.get(keyword + 1).map(|token| &token.kind),
+        Some(TokenKind::Identifier(_))
+    ) && (keyword + 1..pattern_open)
+        .any(|index| token_spelling(tokens, source, index) == Some(":"))
+    {
+        return None;
+    }
+    if (keyword + 1..pattern_open).any(|index| {
+        matches!(
+            tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::Semicolon)
+        ) || token_spelling(tokens, source, index) == Some("=")
+    }) {
+        return None;
+    }
+    Some(scope_for_index(
+        tokens,
+        source,
+        braces,
+        binding,
+        tokens.len(),
+    ))
+}
+
+fn declaration_binding_scope(
+    tokens: &[Token],
+    source: &str,
+    binding: usize,
+    braces: &[(usize, usize)],
+) -> Option<(usize, usize)> {
+    let keyword = binding.checked_sub(1)?;
+    let declaration = matches!(
+        tokens.get(keyword).map(|token| &token.kind),
+        Some(TokenKind::Identifier(name)) if name == "function" || name == "class"
+    );
+    if !declaration || expression_keyword(tokens, source, keyword) {
+        return None;
+    }
+    Some(scope_for_index(
+        tokens,
+        source,
+        braces,
+        binding,
+        tokens.len(),
+    ))
+}
+
+fn expression_keyword(tokens: &[Token], source: &str, keyword: usize) -> bool {
+    let Some(previous) = keyword.checked_sub(1) else {
+        return false;
+    };
+    matches!(
+        token_spelling(tokens, source, previous),
+        Some("=" | ":" | "," | "(" | "[")
+    ) || matches!(
+        tokens.get(previous).map(|token| &token.kind),
+        Some(TokenKind::Identifier(name)) if name == "return"
+    )
+}
+
+fn parameter_body_scope(
+    tokens: &[Token],
+    source: &str,
+    parameter: usize,
+) -> Option<(usize, usize)> {
+    if token_spelling(tokens, source, parameter + 1) == Some("=")
+        && token_spelling(tokens, source, parameter + 2) == Some(">")
+    {
+        let body_start = parameter + 3;
+        if token_spelling(tokens, source, body_start) == Some("{") {
+            let body_close = matching_delimiter(tokens, source, body_start, "{", "}")?;
+            return Some((body_start, body_close));
+        }
+        let end = concise_arrow_end(tokens, source, body_start);
+        return Some((body_start, end));
+    }
+    let (open, close) = enclosing_delimiter(tokens, source, parameter, "(", ")")?;
+    let function_parameter = function_parameter_list(tokens, source, open);
+    let method_parameter = method_parameter_list(tokens, source, open) && !function_parameter;
+    let tail = signature_tail(tokens, source, close);
+    let arrow_parameter = tail.is_some_and(|tail| matches!(tail, SignatureTail::Arrow(_)));
+    if !function_parameter && !method_parameter && !arrow_parameter {
+        return None;
+    }
+    if arrow_parameter {
+        let SignatureTail::Arrow(arrow) = tail? else {
+            unreachable!();
+        };
+        let body_start = arrow + 2;
+        if token_spelling(tokens, source, body_start) == Some("{") {
+            let body_open = body_start;
+            let body_close = matching_delimiter(tokens, source, body_open, "{", "}")?;
+            return Some((body_open, body_close));
+        }
+        return Some((body_start, concise_arrow_end(tokens, source, body_start)));
+    }
+    let body_open = match tail? {
+        SignatureTail::Body(body_open) => body_open,
+        SignatureTail::Arrow(_) => unreachable!(),
+    };
+    if (function_parameter || method_parameter)
+        && token_spelling(tokens, source, body_open) == Some("{")
+    {
+        let body_close = matching_delimiter(tokens, source, body_open, "{", "}")?;
+        return Some((body_open, body_close));
+    }
+    None
+}
+
+#[derive(Debug, Clone, Copy)]
+enum SignatureTail {
+    Arrow(usize),
+    Body(usize),
+}
+
+fn method_parameter_list(tokens: &[Token], source: &str, open: usize) -> bool {
+    let mut cursor = open.checked_sub(1);
+    if cursor.is_some_and(|index| token_spelling(tokens, source, index) == Some("*")) {
+        cursor = cursor.and_then(|index| index.checked_sub(1));
+    }
+    if cursor.is_some_and(|index| token_spelling(tokens, source, index) == Some(">")) {
+        let Some(generic_close) = cursor else {
+            return false;
+        };
+        let Some(generic_open) = matching_angle_open(tokens, source, generic_close) else {
+            return false;
+        };
+        cursor = generic_open.checked_sub(1);
+        if cursor.is_some_and(|index| token_spelling(tokens, source, index) == Some("*")) {
+            cursor = cursor.and_then(|index| index.checked_sub(1));
+        }
+    }
+    let Some(cursor) = cursor else {
+        return false;
+    };
+    let Some(TokenKind::Identifier(name)) = tokens.get(cursor).map(|token| &token.kind) else {
+        return false;
+    };
+    !matches!(
+        name.as_str(),
+        "if" | "for" | "while" | "switch" | "with" | "catch"
+    )
+}
+
+fn matching_angle_open(tokens: &[Token], source: &str, close: usize) -> Option<usize> {
+    let mut depth = 0_usize;
+    for index in (0..=close).rev() {
+        match token_spelling(tokens, source, index) {
+            Some(">") => depth += 1,
+            Some("<") => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn signature_tail(tokens: &[Token], source: &str, close: usize) -> Option<SignatureTail> {
+    let mut index = close + 1;
+    let mut saw_type = false;
+    while index < tokens.len() {
+        if token_spelling(tokens, source, index) == Some("=")
+            && token_spelling(tokens, source, index + 1) == Some(">")
+        {
+            return Some(SignatureTail::Arrow(index));
+        }
+        if token_spelling(tokens, source, index) == Some(":") {
+            saw_type = true;
+            index += 1;
+            continue;
+        }
+        if matches!(
+            tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::Semicolon)
+        ) || token_spelling(tokens, source, index) == Some("}")
+        {
+            return None;
+        }
+        if token_spelling(tokens, source, index) == Some("{") {
+            let body_close = matching_delimiter(tokens, source, index, "{", "}")?;
+            if saw_type {
+                let after_close = body_close + 1;
+                if token_spelling(tokens, source, after_close) == Some("=")
+                    && token_spelling(tokens, source, after_close + 1) == Some(">")
+                {
+                    return Some(SignatureTail::Arrow(after_close));
+                }
+                if matches!(
+                    token_spelling(tokens, source, after_close),
+                    Some(">" | "," | "{" | "=")
+                ) {
+                    index = after_close + 1;
+                    continue;
+                }
+                return Some(SignatureTail::Body(index));
+            }
+            return Some(SignatureTail::Body(index));
+        }
+        index += 1;
+    }
+    None
+}
+
+fn concise_arrow_end(tokens: &[Token], source: &str, start: usize) -> usize {
+    let mut depth = delimiter_depth_before(tokens, source, start);
+    let baseline = depth;
+    for index in start..tokens.len() {
+        match token_spelling(tokens, source, index) {
+            Some("(") => depth.0 += 1,
+            Some(")") => {
+                if depth.0 == baseline.0 {
+                    return index;
+                }
+                depth.0 = depth.0.saturating_sub(1);
+            }
+            Some("[") => depth.1 += 1,
+            Some("]") => {
+                if depth.1 == baseline.1 {
+                    return index;
+                }
+                depth.1 = depth.1.saturating_sub(1);
+            }
+            Some("{") => depth.2 += 1,
+            Some("}") => {
+                if depth.2 == baseline.2 {
+                    return index;
+                }
+                depth.2 = depth.2.saturating_sub(1);
+            }
+            Some(",") if depth == baseline => return index,
+            Some(";") => return index,
+            _ => {}
+        }
+    }
+    tokens.len()
+}
+
+fn delimiter_depth_before(tokens: &[Token], source: &str, end: usize) -> (usize, usize, usize) {
+    let mut depth = (0_usize, 0_usize, 0_usize);
+    for index in 0..end {
+        match token_spelling(tokens, source, index) {
+            Some("(") => depth.0 += 1,
+            Some(")") => depth.0 = depth.0.saturating_sub(1),
+            Some("[") => depth.1 += 1,
+            Some("]") => depth.1 = depth.1.saturating_sub(1),
+            Some("{") => depth.2 += 1,
+            Some("}") => depth.2 = depth.2.saturating_sub(1),
+            _ => {}
+        }
+    }
+    depth
+}
+
+fn function_parameter_list(tokens: &[Token], source: &str, open: usize) -> bool {
+    let mut cursor = open;
+    while let Some(previous) = cursor.checked_sub(1) {
+        cursor = previous;
+        if matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Semicolon)
+        ) || matches!(
+            token_spelling(tokens, source, cursor),
+            Some("{" | "}" | "=" | ";")
+        ) {
+            break;
+        }
+        if matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Identifier(keyword)) if keyword == "function" || keyword == "catch"
+        ) || matches!(
+            token_spelling(tokens, source, cursor),
+            Some("function" | "catch")
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+fn enclosing_delimiter(
+    tokens: &[Token],
+    source: &str,
+    index: usize,
+    opening: &str,
+    closing: &str,
+) -> Option<(usize, usize)> {
+    (0..index)
+        .rev()
+        .filter(|&open| token_spelling(tokens, source, open) == Some(opening))
+        .find_map(|open| {
+            let close = matching_delimiter(tokens, source, open, opening, closing)?;
+            (index < close).then_some((open, close))
+        })
+}
+
+fn expression_name_scope(
+    tokens: &[Token],
+    source: &str,
+    name: usize,
+    _braces: &[(usize, usize)],
+) -> Option<(usize, usize)> {
+    let keyword = name.checked_sub(1)?;
+    let kind = match tokens.get(keyword).map(|token| &token.kind) {
+        Some(TokenKind::Identifier(kind)) if kind == "function" || kind == "class" => kind,
+        _ => return None,
+    };
+    let _ = kind;
+    let body_open = if kind == "class" {
+        (name + 1..tokens.len())
+            .find(|&index| token_spelling(tokens, source, index) == Some("{"))?
+    } else {
+        let open = (name + 1..tokens.len())
+            .find(|&index| token_spelling(tokens, source, index) == Some("("))?;
+        let close = matching_delimiter(tokens, source, open, "(", ")")?;
+        (close + 1..tokens.len())
+            .find(|&index| token_spelling(tokens, source, index) == Some("{"))?
+    };
+    let body_close = matching_delimiter(tokens, source, body_open, "{", "}")?;
+    let before_keyword = keyword.checked_sub(1);
+    let expression = before_keyword.is_some_and(|index| {
+        matches!(
+            token_spelling(tokens, source, index),
+            Some("=" | ":" | "," | "(" | "[" | "return")
+        ) || matches!(
+            tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::Identifier(value)) if value == "return"
+        )
+    });
+    expression.then_some((body_open, body_close))
+}
+
+fn is_import_declaration(tokens: &[Token], source: &str, index: usize) -> bool {
+    let mut cursor = index;
+    while let Some(previous) = cursor.checked_sub(1) {
+        cursor = previous;
+        if matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Semicolon)
+        ) || token_spelling(tokens, source, cursor) == Some(";")
+        {
+            break;
+        }
+        if matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Identifier(name)) if name == "import"
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+fn scope_for_index(
+    tokens: &[Token],
+    source: &str,
+    braces: &[(usize, usize)],
+    index: usize,
+    token_count: usize,
+) -> (usize, usize) {
+    braces
+        .iter()
+        .filter(|(open, close)| {
+            *open < index && index < *close && !is_binding_pattern_delimiter(tokens, source, *open)
+        })
+        .min_by_key(|(open, close)| close - open)
+        .copied()
+        .unwrap_or((0, token_count))
+}
+
+fn is_binding_pattern_delimiter(tokens: &[Token], source: &str, open: usize) -> bool {
+    let mut cursor = open;
+    while let Some(previous) = cursor.checked_sub(1) {
+        cursor = previous;
+        if matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Semicolon)
+        ) || token_spelling(tokens, source, cursor) == Some("=")
+        {
+            return false;
+        }
+        if matches!(
+            tokens.get(cursor).map(|token| &token.kind),
+            Some(TokenKind::Identifier(keyword))
+                if matches!(keyword.as_str(), "const" | "let" | "var")
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+fn matching_delimiter(
+    tokens: &[Token],
+    source: &str,
+    open: usize,
+    opening: &str,
+    closing: &str,
+) -> Option<usize> {
+    let mut depth = 0_usize;
+    for index in open..tokens.len() {
+        match token_spelling(tokens, source, index) {
+            Some(spelling) if spelling == opening => depth += 1,
+            Some(spelling) if spelling == closing => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn token_spelling<'a>(tokens: &'a [Token], source: &'a str, index: usize) -> Option<&'a str> {
+    let token = tokens.get(index)?;
+    match token.kind {
+        TokenKind::Other => Some(&source[token.start..token.end]),
+        TokenKind::OpenBracket => Some("["),
+        TokenKind::CloseBracket => Some("]"),
+        TokenKind::Semicolon => Some(";"),
+        _ => None,
     }
 }
 
@@ -999,17 +1800,34 @@ fn is_identifier_continue(character: char) -> bool {
     is_identifier_start(character) || character.is_alphanumeric()
 }
 
-fn imported_symbols(
-    tokens: &[Token],
-    source: &str,
-) -> (BTreeSet<usize>, BTreeSet<String>, BTreeSet<String>) {
+struct ImportedSymbols {
+    imports: BTreeSet<usize>,
+    roots: BTreeMap<String, ApplicationBinding>,
+    factories: BTreeMap<String, String>,
+}
+
+fn imported_symbols(tokens: &[Token], source: &str) -> ImportedSymbols {
     let mut imported = BTreeSet::new();
-    let mut roots = BTreeSet::from(["l".to_owned(), "lgl".to_owned(), "messages".to_owned()]);
-    let mut factories = BTreeSet::from([
-        "configureLinguini".to_owned(),
-        "createLinguini".to_owned(),
-        "createLinguiniProvider".to_owned(),
-    ]);
+    let mut roots = ["l", "lgl", "messages"]
+        .into_iter()
+        .map(|local| {
+            (
+                local.to_owned(),
+                ApplicationBinding {
+                    local: local.to_owned(),
+                    provenance: ApplicationBindingProvenance::Implicit,
+                },
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut factories = [
+        "configureLinguini",
+        "createLinguini",
+        "createLinguiniProvider",
+    ]
+    .into_iter()
+    .map(|name| (name.to_owned(), name.to_owned()))
+    .collect::<BTreeMap<_, _>>();
     let mut index = 0;
     while index < tokens.len() {
         if !matches!(&tokens[index].kind, TokenKind::Identifier(name) if name == "import") {
@@ -1051,6 +1869,17 @@ fn imported_symbols(
         for imported_index in index..end {
             imported.insert(imported_index);
         }
+        let module_specifier = (index + 1..end)
+            .find_map(|candidate| {
+                matches!(&tokens[candidate].kind, TokenKind::Identifier(name) if name == "from")
+                    .then(|| tokens.get(candidate + 1))
+                    .flatten()
+                    .and_then(|token| match &token.kind {
+                        TokenKind::StringLiteral(Some(module)) => Some(module.clone()),
+                        _ => None,
+                    })
+            })
+            .unwrap_or_default();
         for alias_index in index..end.saturating_sub(2) {
             let TokenKind::Identifier(imported_name) = &tokens[alias_index].kind else {
                 continue;
@@ -1060,18 +1889,86 @@ fn imported_symbols(
                 TokenKind::Identifier(name) if name == "as"
             ) {
                 if let TokenKind::Identifier(alias) = &tokens[alias_index + 2].kind {
-                    if roots.contains(imported_name) {
-                        roots.insert(alias.clone());
+                    if roots.contains_key(imported_name) {
+                        roots.insert(
+                            alias.clone(),
+                            ApplicationBinding {
+                                local: alias.clone(),
+                                provenance: ApplicationBindingProvenance::Imported {
+                                    module_specifier: module_specifier.clone(),
+                                    imported: imported_name.clone(),
+                                },
+                            },
+                        );
                     }
-                    if factories.contains(imported_name) {
-                        factories.insert(alias.clone());
+                    if factories.contains_key(imported_name) {
+                        factories.insert(alias.clone(), imported_name.clone());
                     }
                 }
             }
         }
+        // Preserve imported symbols without an explicit `as` alias too. Named
+        // imports retain their local spelling, while aliases above retain the
+        // canonical imported symbol.
+        let mut in_named = false;
+        for candidate in index + 1..end {
+            match &tokens[candidate].kind {
+                TokenKind::Other
+                    if &source[tokens[candidate].start..tokens[candidate].end] == "{" =>
+                {
+                    in_named = true;
+                }
+                TokenKind::Other
+                    if &source[tokens[candidate].start..tokens[candidate].end] == "}" =>
+                {
+                    in_named = false;
+                }
+                TokenKind::Identifier(name) if in_named => {
+                    if name == "as" || name == "from" {
+                        continue;
+                    }
+                    if matches!(
+                        candidate
+                            .checked_sub(1)
+                            .and_then(|previous| tokens.get(previous))
+                            .map(|token| &token.kind),
+                        Some(TokenKind::Identifier(previous)) if previous == "as"
+                    ) {
+                        continue;
+                    }
+                    let next_is_alias = matches!(
+                        tokens.get(candidate + 1).map(|token| &token.kind),
+                        Some(TokenKind::Identifier(alias)) if alias == "as"
+                    );
+                    if next_is_alias {
+                        continue;
+                    }
+                    if roots.contains_key(name) {
+                        roots.insert(
+                            name.clone(),
+                            ApplicationBinding {
+                                local: name.clone(),
+                                provenance: ApplicationBindingProvenance::Imported {
+                                    module_specifier: module_specifier.clone(),
+                                    imported: name.clone(),
+                                },
+                            },
+                        );
+                    }
+                    if factories.contains_key(name) {
+                        factories.insert(name.clone(), name.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
         index = end.max(index + 1);
     }
-    (imported, roots, factories)
+    ImportedSymbols {
+        imports: imported,
+        roots,
+        factories,
+    }
 }
 
 fn is_top_level(tokens: &[Token], source: &str, end: usize) -> bool {

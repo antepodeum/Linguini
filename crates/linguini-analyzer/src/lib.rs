@@ -6,7 +6,10 @@ mod locale;
 mod message_coverage;
 mod reference;
 
-pub use application::{analyze_unused_messages, ApplicationUsage};
+pub use application::{
+    analyze_unused_messages, ApplicationBinding, ApplicationBindingProvenance,
+    ApplicationReference, ApplicationReferenceKind, ApplicationUsage,
+};
 pub use branch_coverage::{
     analyze_branch_coverage, require_other_branch, BranchCoverage, NamedSpan,
 };

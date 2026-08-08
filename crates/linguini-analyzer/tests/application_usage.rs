@@ -1,8 +1,495 @@
 use linguini_analyzer::{
-    analyze_unused_messages, ApplicationUsage, DiagnosticCategory, DiagnosticSeverity,
-    PublicMessage,
+    analyze_unused_messages, ApplicationBindingProvenance, ApplicationReferenceKind,
+    ApplicationUsage, DiagnosticCategory, DiagnosticSeverity, PublicMessage,
 };
-use linguini_syntax::Span;
+use linguini_syntax::{SourceId, Span};
+
+#[test]
+fn exposes_source_aware_static_references_and_provenance() {
+    let source = r#"import { l as messages } from "@linguini/messages";
+messages.main.title;
+messages.main.items(count);"#;
+    let usage = ApplicationUsage::from_source_in(source, SourceId(9));
+    let references = usage.references().collect::<Vec<_>>();
+
+    assert_eq!(references.len(), 2);
+    assert_eq!(references[0].canonical_path, "main.title");
+    assert_eq!(references[0].kind, ApplicationReferenceKind::Value);
+    assert_eq!(references[0].span.source, SourceId(9));
+    assert_eq!(
+        references[0].span,
+        Span::in_source(
+            SourceId(9),
+            source.find("messages.main.title").unwrap(),
+            source.find("messages.main.title").unwrap() + "messages.main.title".len()
+        )
+    );
+    assert_eq!(
+        references[0].binding.provenance,
+        ApplicationBindingProvenance::Imported {
+            module_specifier: "@linguini/messages".to_owned(),
+            imported: "l".to_owned(),
+        }
+    );
+    assert_eq!(references[1].kind, ApplicationReferenceKind::Call);
+    assert_eq!(references[1].span.end, source.find("(count)").unwrap());
+}
+
+#[test]
+fn preserves_duplicate_spans_and_marks_implicit_roots() {
+    let source = "l.main.title();\nl.main.title();";
+    let usage = ApplicationUsage::from_source(source);
+    let references = usage.references().collect::<Vec<_>>();
+
+    assert_eq!(references.len(), 2);
+    assert_ne!(references[0].span, references[1].span);
+    assert_eq!(
+        references[0].binding.provenance,
+        ApplicationBindingProvenance::Implicit
+    );
+}
+
+#[test]
+fn records_factory_bindings_and_excludes_dynamic_paths() {
+    let source = r#"import { createLinguini as make } from "@linguini/runtime";
+make("en").main.title();
+make("en").main[group]();"#;
+    let usage = ApplicationUsage::from_source_in(source, SourceId(4));
+    let references = usage.references().collect::<Vec<_>>();
+
+    assert_eq!(references.len(), 1);
+    assert_eq!(references[0].canonical_path, "main.title");
+    assert_eq!(references[0].binding.local, "make");
+    assert_eq!(
+        references[0].binding.provenance,
+        ApplicationBindingProvenance::Factory {
+            factory: "createLinguini".to_owned()
+        }
+    );
+    assert!(usage.dynamic_prefixes().any(|prefix| prefix == "main"));
+}
+
+#[test]
+fn keeps_markup_and_script_reference_offsets_in_the_original_source() {
+    let source = "<script>const label = l.main.script();</script>\n<h1>{l.main.markup()}</h1>";
+    let usage = ApplicationUsage::from_source_in(source, SourceId(12));
+    let mut references = usage.references().collect::<Vec<_>>();
+    references.sort_by_key(|reference| reference.span.start);
+
+    assert_eq!(references.len(), 2);
+    let script_start = source.find("l.main.script").unwrap();
+    let markup_start = source.find("l.main.markup").unwrap();
+    assert_eq!(
+        references[0].span,
+        Span::in_source(
+            SourceId(12),
+            script_start,
+            script_start + "l.main.script".len()
+        )
+    );
+    assert_eq!(
+        references[1].span,
+        Span::in_source(
+            SourceId(12),
+            markup_start,
+            markup_start + "l.main.markup".len()
+        )
+    );
+}
+
+#[test]
+fn spans_optional_and_encoded_bracket_paths_without_call_arguments() {
+    let source = r#"l?.main?.title();
+l["__lgl_name_73686F702E636C617373"]["foo-bar"](value);"#;
+    let usage = ApplicationUsage::from_source(source);
+    let references = usage.references().collect::<Vec<_>>();
+
+    assert_eq!(references.len(), 2);
+    assert_eq!(references[0].canonical_path, "main.title");
+    assert_eq!(references[0].span, Span::new(0, "l?.main?.title".len()));
+    assert_eq!(references[1].canonical_path, "shop.class.foo-bar");
+    assert_eq!(
+        references[1].span,
+        Span::new(source.find("l[").unwrap(), source.find("(value)").unwrap())
+    );
+}
+
+#[test]
+fn factory_bracket_reference_span_includes_its_receiver() {
+    let source = r#"linguini["createLinguini"]("en").main.title();"#;
+    let usage = ApplicationUsage::from_source(source);
+    let references = usage.references().collect::<Vec<_>>();
+
+    assert_eq!(references.len(), 1);
+    assert_eq!(
+        references[0].span,
+        Span::new(
+            0,
+            source.find("(\"en\")").unwrap() + "(\"en\")".len() + ".main.title".len()
+        )
+    );
+}
+
+#[test]
+fn does_not_emit_imported_provenance_for_properties_or_shadowed_bindings() {
+    let source = r#"import { l as messages } from "@linguini/generated";
+messages.main.global();
+obj.messages.main.property();
+obj["messages"].main.bracket_property();
+function render(messages) { messages.main.parameter(); }
+const local = (messages) => { messages.main.arrow(); };
+{
+  const messages = local;
+  messages.main.block();
+}"#;
+    let usage = ApplicationUsage::from_source(source);
+    let references = usage.references().collect::<Vec<_>>();
+
+    assert_eq!(
+        references
+            .iter()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.global"]
+    );
+    assert!(references.iter().all(|reference| {
+        matches!(
+            reference.binding.provenance,
+            ApplicationBindingProvenance::Imported { .. }
+        )
+    }));
+    assert!(usage.static_paths().any(|path| path == "main.property"));
+    assert!(usage.static_paths().any(|path| path == "main.parameter"));
+}
+
+#[test]
+fn isolated_parenthesized_arrow_expression_does_not_use_imported_binding() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+const render = (messages) => messages.main.shadowed();
+messages.main.outer();"#,
+    );
+    let paths = usage
+        .references()
+        .map(|reference| reference.canonical_path.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(paths, ["main.outer"]);
+}
+
+#[test]
+fn isolated_block_arrow_expression_does_not_use_imported_binding() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+const render = (messages) => { messages.main.shadowed(); };
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn isolated_single_parameter_arrow_expression_does_not_use_imported_binding() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+const render = messages => messages.main.shadowed();
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn isolated_typed_and_generic_arrows_do_not_use_imported_binding() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+const typed = (messages: string) => messages.main.typed();
+const generic = <T>(messages: T) => messages.main.generic();
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn isolated_destructured_declarations_shadow_imported_binding() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+{
+  const { messages } = value;
+  messages.main.object_shadowed();
+}
+{
+  const [messages] = values;
+  messages.main.array_shadowed();
+}
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn named_function_and_class_expression_names_end_with_their_bodies() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+const fn = function messages() { messages.main.function_shadowed(); };
+const Cls = class messages { method() { messages.main.class_shadowed(); } };
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn unshadowed_imported_bindings_inside_functions_and_blocks_remain_references() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+function render() { messages.main.function_use(); }
+{ messages.main.block_use(); }
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.function_use", "main.block_use", "main.outer"]
+    );
+}
+
+#[test]
+fn hoisted_function_declaration_shadows_imported_alias_in_its_scope() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+function render() {
+  messages.main.before();
+  function messages() {}
+  messages.main.after();
+}
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn hoisted_class_declaration_shadows_imported_alias_in_its_scope() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+function render() {
+  messages.main.before();
+  class messages {}
+  messages.main.after();
+}
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn concise_arrow_scope_stops_at_call_argument_comma() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+consume(messages => messages.main.shadowed(), messages.main.real());"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.real"]
+    );
+}
+
+#[test]
+fn concise_arrow_scope_stops_at_array_sibling() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+const values = [messages => messages.main.shadowed(), messages.main.real()];"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.real"]
+    );
+}
+
+#[test]
+fn concise_arrow_conditional_keeps_both_branches_shadowed() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+const value = messages => ready ? messages.main.one() : messages.main.two();
+messages.main.real();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.real"]
+    );
+}
+
+#[test]
+fn nested_destructuring_uses_the_containing_lexical_scope() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+{
+  const { nested: { messages } } = value;
+  messages.main.shadowed();
+}
+messages.main.real();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.real"]
+    );
+}
+
+#[test]
+fn class_and_object_method_parameters_shadow_imported_aliases() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+class View {
+  render(messages) { messages.main.class_method(); }
+  *iterate(messages) { messages.main.generator_method(); }
+  constructor(messages) { messages.main.constructor_method(); }
+}
+const object = {
+  render(messages) { messages.main.object_method(); },
+};
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn function_and_arrow_return_annotations_find_the_actual_body() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+function render(messages: string): Result<{ value: string }> {
+  messages.main.function_annotation();
+}
+const arrow = (messages: string): { value: string } => messages.main.arrow_annotation();
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn type_literal_annotations_do_not_shadow_imported_aliases() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+const value: { messages: string } = input;
+messages.main.real();"#,
+    );
+    let references = usage.references().collect::<Vec<_>>();
+    assert_eq!(references.len(), 1);
+    assert_eq!(references[0].canonical_path, "main.real");
+    assert!(matches!(
+        references[0].binding.provenance,
+        ApplicationBindingProvenance::Imported { .. }
+    ));
+}
+
+#[test]
+fn generic_async_and_generator_methods_shadow_imported_aliases() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+class View {
+  async render<T>(messages?: T) { messages.main.async_method(); }
+  *iterate<T>(messages: T) { messages.main.generator_method(); }
+}
+const object = {
+  async render<T>(messages: T) { messages.main.object_async(); },
+  *iterate<T>(messages: T) { messages.main.object_generator(); },
+};
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outer"]
+    );
+}
+
+#[test]
+fn type_literals_after_destructuring_do_not_shadow_imported_properties() {
+    let usage = ApplicationUsage::from_source(
+        r#"import { l as messages } from "generated";
+{
+  const { value }: { messages: string } = input;
+  messages.main.object_type();
+}
+{
+  const [value]: [messages: string] = input;
+  messages.main.array_type();
+}
+messages.main.outer();"#,
+    );
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.object_type", "main.array_type", "main.outer"]
+    );
+}
 
 #[test]
 fn extracts_static_dot_bracket_alias_and_template_references() {
