@@ -97,6 +97,8 @@ production path uses the fix and its relevant tests pass.
   bundler manifest through the transactional CLI output path.
 - `bed72e0` — split canonical locale metadata and reactive Svelte locale state from the eager
   legacy runtime so per-message wrappers can resolve locale without importing every message.
+- `18792cf` — added opt-in typed bundler source discovery and a deterministic application
+  manifest with exact hashes, byte spans, binding provenance, arity, and unresolved references.
 
 ## Numbered findings
 
@@ -668,9 +670,9 @@ production path uses the fix and its relevant tests pass.
 
 - [x] BUNDLE-A1 — Generate recursive declarations for the complete `l` namespace.
 - [-] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports; the analyzer now
-      exposes exact source spans and transform-safe imported-binding provenance, and generated
-      wrappers can use an eager-runtime-free reactive locale helper; the Vite transform remains
-      pending.
+      exposes exact source spans and transform-safe imported-binding provenance, the CLI now
+      bridges verified application references into manifest v2, and generated wrappers can use an
+      eager-runtime-free reactive locale helper; the Vite transform remains pending.
 - [-] BUNDLE-A3 — Keep parameterless public access as a value; recursive declarations and the
       reactive internal-call runtime are ready, while the value-to-internal-call transform remains
       pending.
@@ -678,8 +680,9 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
 - [ ] BUNDLE-A6 — Invalidate only affected virtual modules.
 - [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; the analyzer now separates exact static
-      references from conservative dynamic prefixes, while strict diagnostics and the explicit
-      bundle escape hatch remain pending.
+      references from conservative dynamic prefixes and manifest v2 keeps unresolved optional,
+      arity-mismatched, and non-leaf accesses separate from transformable references; strict
+      diagnostics and the explicit bundle escape hatch remain pending.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [ ] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
