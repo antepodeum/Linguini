@@ -112,6 +112,7 @@ fn generate_typescript_target(
         target,
         &config.project.locales,
         &config.project.default_locale,
+        config.web.configured,
     )?);
 
     let output = SafeOutputRoot::new(
@@ -202,6 +203,7 @@ fn generate_bundler_files(
     target: &TypeScriptTargetConfig,
     configured_locales: &[String],
     base_locale: &str,
+    web_enabled: bool,
 ) -> CliResult<Vec<TypeScriptGeneratedFile>> {
     let output_root = &target.out;
     let artifacts = project
@@ -306,14 +308,26 @@ fn generate_bundler_files(
         let manifest = manifest.as_object_mut().expect("manifest is an object");
         manifest.insert("version".to_owned(), serde_json::json!(2));
         manifest.insert("applications".to_owned(), serde_json::json!(applications));
+        let mut runtime_helpers = serde_json::Map::new();
+        runtime_helpers.insert(
+            "svelte_locale".to_owned(),
+            serde_json::json!({
+                "import": "./svelte-locale.svelte.js",
+                "file": "svelte-locale.svelte.ts",
+            }),
+        );
+        if web_enabled {
+            runtime_helpers.insert(
+                "svelte_effects".to_owned(),
+                serde_json::json!({
+                    "import": "./svelte-effects.svelte.js",
+                    "file": "svelte-effects.svelte.ts",
+                }),
+            );
+        }
         manifest.insert(
             "runtime_helpers".to_owned(),
-            serde_json::json!({
-                "svelte_locale": {
-                    "import": "./svelte-locale.svelte.js",
-                    "file": "svelte-locale.svelte.ts",
-                }
-            }),
+            serde_json::Value::Object(runtime_helpers),
         );
     }
     let mut contents = serde_json::to_string_pretty(&manifest).map_err(|error| {

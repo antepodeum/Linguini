@@ -892,6 +892,30 @@ exclude = []
         .iter()
         .any(|entry| entry["reason"] == "arity_mismatch"));
     assert_eq!(mismatch_app["imports"][0]["transformable"], false);
+
+    let base_config = fs::read_to_string(&config_path).expect("read config");
+    for framework in ["svelte", "sveltekit"] {
+        let web_config = base_config.replace(
+            "framework = \"svelte\"",
+            &format!("framework = \"{framework}\""),
+        ) + "\n[web.routing]\nlocale_prefix = \"always\"\n";
+        fs::write(&config_path, web_config).expect("web config");
+        build_project(project.path()).expect("web build");
+        let web_manifest: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&manifest_path).expect("web manifest"))
+                .expect("web manifest JSON");
+        assert_eq!(
+            web_manifest["runtime_helpers"]["svelte_effects"],
+            serde_json::json!({
+                "import": "./svelte-effects.svelte.js",
+                "file": "svelte-effects.svelte.ts"
+            })
+        );
+        assert!(project
+            .path()
+            .join("src/generated/linguini/svelte-effects.svelte.ts")
+            .exists());
+    }
 }
 
 #[test]

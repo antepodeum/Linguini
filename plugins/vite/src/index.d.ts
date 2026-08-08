@@ -31,6 +31,8 @@ export interface LinguiniProjectLayout {
   readonly schemaRoot: string;
   readonly localeRoot: string;
   readonly generatedRoot: string;
+  readonly bundlerSourceRoots: readonly string[];
+  readonly bundlerExcludeRoots: readonly string[];
 }
 
 export declare function readProjectLayout(

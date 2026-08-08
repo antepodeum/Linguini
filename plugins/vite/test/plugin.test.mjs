@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -30,6 +31,133 @@ async function fixture() {
   await writeFile(path.join(root, "src/schema/shop/delivery.lgs"), "delivery()\n");
   await writeFile(path.join(root, "src/locale/shop/ru.lgl"), "delivery = OK\n");
   return root;
+}
+
+function byteSpan(source, needle) {
+  const bytes = Buffer.from(source, "utf8");
+  const start = bytes.indexOf(Buffer.from(needle, "utf8"));
+  assert.notEqual(start, -1, `missing fixture needle ${needle}`);
+  return [start, start + Buffer.byteLength(needle)];
+}
+
+async function bundlerFixture({ version = 2, source } = {}) {
+  const root = await fixture();
+  const generated = path.join(root, "build/custom-linguini");
+  const application = path.join(root, "src/app/page.svelte");
+  const code =
+    source ??
+    '<script>\r\nimport { l as tr, helper } from "../../build/custom-linguini/svelte.ts";\r\nconst привет = tr.main.title;\r\n</script>\r\n';
+  await mkdir(path.dirname(application), { recursive: true });
+  await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
+  await writeFile(application, code);
+  await writeFile(path.join(generated, "svelte.ts"), "export const l = {};\n");
+  await writeFile(
+    path.join(generated, "svelte-locale.svelte.ts"),
+    'export function getCurrentLocale() { return "en"; }\n'
+  );
+  await writeFile(path.join(generated, "svelte-effects.svelte.ts"), "globalThis.effects = true;\n");
+  await writeFile(
+    path.join(generated, "bundler/messages/main/title/en.ts"),
+    'export function message() { return "Title"; }\n'
+  );
+  const declaration = byteSpan(code, 'import { l as tr, helper } from "../../build/custom-linguini/svelte.ts";');
+  const item = byteSpan(code, "l as tr");
+  const removal = byteSpan(code, "l as tr, ");
+  const reference = byteSpan(code, "tr.main.title");
+  const manifest =
+    version === 1
+      ? {
+          version: 1,
+          base_locale: "en",
+          configured_locales: ["en"],
+          effective_locales: ["en"],
+          sources: [
+            { id: 1, path: "linguini/schema/main.lgs" },
+            { id: 2, path: "linguini/locale/main/en.lgl" }
+          ],
+          messages: {}
+        }
+      : {
+          version,
+          base_locale: "en",
+          configured_locales: ["en"],
+          effective_locales: ["en"],
+          sources: [
+            { id: 1, path: "linguini/schema/main.lgs" },
+            { id: 2, path: "linguini/locale/main/en.lgl" }
+          ],
+          runtime_helpers: {
+            svelte_locale: {
+              import: "./svelte-locale.svelte.js",
+              file: "svelte-locale.svelte.ts"
+            },
+            svelte_effects: {
+              import: "./svelte-effects.svelte.js",
+              file: "svelte-effects.svelte.ts"
+            }
+          },
+          messages: {
+            "main.title": {
+              arity: 0,
+              locales: {
+                en: {
+                  module: "bundler/messages/main/title/en.ts",
+                  source_ids: [1, 2]
+                }
+              }
+            }
+          },
+          applications: {
+            "src/app/page.svelte": {
+              source_id: 2147483648,
+              sha256: createHash("sha256").update(Buffer.from(code)).digest("hex"),
+              byte_length: Buffer.byteLength(code),
+              unresolved: [],
+              analysis_dynamic_prefixes: [],
+              references: [
+                {
+                  message: "main.title",
+                  start: reference[0],
+                  end: reference[1],
+                  kind: "value",
+                  local: "tr",
+                  provenance: {
+                    kind: "imported",
+                    module_specifier: "../../build/custom-linguini/svelte.ts",
+                    symbol: "l"
+                  },
+                  arity: 0,
+                  binding_id: "binding"
+                }
+              ],
+              imports: [
+                {
+                  binding_id: "binding",
+                  module_specifier: "../../build/custom-linguini/svelte.ts",
+                  imported: "l",
+                  local: "tr",
+                  declaration_start: declaration[0],
+                  declaration_end: declaration[1],
+                  item_start: item[0],
+                  item_end: item[1],
+                  removal_start: removal[0],
+                  removal_end: removal[1],
+                  module_specifier_start: declaration[0],
+                  module_specifier_end: declaration[1],
+                  imported_start: item[0],
+                  imported_end: item[0] + 1,
+                  local_start: item[1] - 2,
+                  local_end: item[1],
+                  analyzer_exact_uses_only: true,
+                  transformable: true
+                }
+              ]
+            }
+          }
+        };
+  await mkdir(path.join(generated, "bundler"), { recursive: true });
+  await writeFile(path.join(generated, "bundler/manifest.json"), JSON.stringify(manifest));
+  return { root, generated, application, code, manifest };
 }
 
 function mockServer(modules = []) {
@@ -240,4 +368,297 @@ test("unlink rebuilds and removes obsolete watches", async (context) => {
 
   assert.equal(builds, 1);
   assert.ok(harness.removed.includes(removedFile));
+});
+
+test("v2 transforms Unicode Svelte source and loads exact virtual module", async (context) => {
+  const fixtureData = await bundlerFixture();
+  context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: fixtureData.root, buildOnStart: false });
+  await plugin.configResolved({ root: fixtureData.root });
+  const watched = [];
+  await plugin.buildStart.call({ addWatchFile: (file) => watched.push(file) });
+
+  const result = await plugin.transform.call(
+    {
+      async resolve() {
+        return { id: path.join(fixtureData.generated, "svelte.ts") };
+      }
+    },
+    fixtureData.code,
+    fixtureData.application
+  );
+
+  assert.match(result.code, /import \{ message as __linguini_message_0 \} from "virtual:linguini\/message\/6d61696e2e7469746c65"/);
+  assert.match(result.code, /import \{ helper \}/);
+  assert.doesNotMatch(result.code, /l as tr/);
+  assert.match(result.code, /const привет = __linguini_message_0\(\)/);
+  assert.equal(result.map.sourcesContent[0], fixtureData.code);
+  assert.ok(watched.includes(fixtureData.application));
+
+  const publicId = "virtual:linguini/message/6d61696e2e7469746c65";
+  const resolved = await plugin.resolveId(publicId);
+  assert.equal(resolved, `\0${publicId}`);
+  const virtual = plugin.load(resolved);
+  assert.match(virtual, /getCurrentLocale/);
+  assert.match(virtual, /svelte-effects\.svelte\.ts/);
+  assert.match(virtual, /bundler\/messages\/main\/title\/en\.ts/);
+  assert.doesNotMatch(virtual, /(?:^|\/)index(?:\.|["'])|\/svelte\.ts["']/m);
+  assert.match(virtual, /__linguini_messages\[getCurrentLocale\(\)\]/);
+});
+
+test("v2 rejects stale bytes and skips unsafe bindings", async (context) => {
+  const fixtureData = await bundlerFixture();
+  context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: fixtureData.root, buildOnStart: false });
+  await plugin.configResolved({ root: fixtureData.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await assert.rejects(
+    plugin.transform.call(
+      { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+      fixtureData.code.replace("привет", "hello"),
+      fixtureData.application
+    ),
+    /manifest is stale/
+  );
+  const unchanged = await plugin.transform.call(
+    { resolve: async () => ({ id: path.join(fixtureData.root, "wrong.ts") }) },
+    fixtureData.code,
+    fixtureData.application
+  );
+  assert.equal(unchanged, undefined);
+  assert.equal(
+    await plugin.transform.call(
+      { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+      fixtureData.code,
+      `${fixtureData.application}?svelte&type=script`
+    ),
+    undefined
+  );
+  for (const unsupported of ["page.vue", "page.astro", "page.css", "page.svelte?raw"]) {
+    assert.equal(
+      await plugin.transform.call(
+        { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+        fixtureData.code,
+        path.join(path.dirname(fixtureData.application), unsupported)
+      ),
+      undefined
+    );
+  }
+});
+
+test("keeps virtual imports inside each Svelte script scope and collapses sole import", async (context) => {
+  const fixtureData = await bundlerFixture();
+  context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
+  const source = [
+    '<script context="module">',
+    'const emoji = "😀";',
+    'import { l as moduleL } from "../../build/custom-linguini/svelte.ts";',
+    "const moduleTitle = moduleL.main.title;",
+    "</script>",
+    "<script>",
+    'import { messages as instanceL, helper } from "../../build/custom-linguini/svelte.ts";',
+    "const instanceTitle = instanceL.main.title;",
+    "const implicitTitle = implicit.main.title;",
+    "</script>",
+    ""
+  ].join("\r\n");
+  const binding = (id, declarationText, itemText, removalText, imported, local) => {
+    const declaration = byteSpan(source, declarationText);
+    const item = byteSpan(source, itemText);
+    const removal = byteSpan(source, removalText);
+    return {
+      binding_id: id,
+      module_specifier: "../../build/custom-linguini/svelte.ts",
+      imported,
+      local,
+      declaration_start: declaration[0],
+      declaration_end: declaration[1],
+      item_start: item[0],
+      item_end: item[1],
+      removal_start: removal[0],
+      removal_end: removal[1],
+      module_specifier_start: declaration[0],
+      module_specifier_end: declaration[1],
+      imported_start: item[0],
+      imported_end: item[0] + imported.length,
+      local_start: item[1] - local.length,
+      local_end: item[1],
+      analyzer_exact_uses_only: true,
+      transformable: true
+    };
+  };
+  const reference = (needle, bindingId, local) => {
+    const span = byteSpan(source, needle);
+    return {
+      message: "main.title",
+      start: span[0],
+      end: span[1],
+      kind: "value",
+      local,
+      provenance:
+        bindingId === null
+          ? { kind: "implicit" }
+          : {
+              kind: "imported",
+              module_specifier: "../../build/custom-linguini/svelte.ts",
+              symbol: local === "moduleL" ? "l" : "messages"
+            },
+      arity: 0,
+      binding_id: bindingId
+    };
+  };
+  const moduleDeclaration = 'import { l as moduleL } from "../../build/custom-linguini/svelte.ts";';
+  const instanceDeclaration =
+    'import { messages as instanceL, helper } from "../../build/custom-linguini/svelte.ts";';
+  const application = fixtureData.manifest.applications["src/app/page.svelte"];
+  application.sha256 = createHash("sha256").update(Buffer.from(source)).digest("hex");
+  application.byte_length = Buffer.byteLength(source);
+  application.imports = [
+    binding("module", moduleDeclaration, "l as moduleL", moduleDeclaration, "l", "moduleL"),
+    binding(
+      "instance",
+      instanceDeclaration,
+      "messages as instanceL",
+      "messages as instanceL, ",
+      "messages",
+      "instanceL"
+    )
+  ];
+  application.references = [
+    reference("moduleL.main.title", "module", "moduleL"),
+    reference("instanceL.main.title", "instance", "instanceL"),
+    reference("implicit.main.title", null, "implicit")
+  ];
+  await writeFile(fixtureData.application, source);
+  await writeFile(
+    path.join(fixtureData.generated, "bundler/manifest.json"),
+    JSON.stringify(fixtureData.manifest)
+  );
+  const plugin = linguini({ root: fixtureData.root, buildOnStart: false });
+  await plugin.configResolved({ root: fixtureData.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const result = await plugin.transform.call(
+    { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+    source,
+    fixtureData.application
+  );
+  const [moduleScript, instanceScript] = result.code.split("</script>");
+  assert.match(moduleScript, /message as __linguini_message_0/);
+  assert.doesNotMatch(moduleScript, /__linguini_message_1/);
+  assert.doesNotMatch(moduleScript, /l as moduleL/);
+  assert.match(instanceScript, /message as __linguini_message_1/);
+  assert.match(instanceScript, /import \{ helper \}/);
+  assert.match(instanceScript, /implicit\.main\.title/);
+});
+
+test("missing and v1 manifests stay legacy; unknown versions fail", async (context) => {
+  const missingRoot = await fixture();
+  context.after(() => rm(missingRoot, { recursive: true, force: true }));
+  const missingPlugin = linguini({ root: missingRoot, buildOnStart: false });
+  await missingPlugin.configResolved({ root: missingRoot });
+  await missingPlugin.buildStart.call({ addWatchFile() {} });
+  assert.equal(
+    await missingPlugin.transform.call(
+      { resolve: async () => null },
+      "export const untouched = true;\n",
+      path.join(missingRoot, "src/app.ts")
+    ),
+    undefined
+  );
+
+  const legacy = await bundlerFixture({ version: 1 });
+  context.after(() => rm(legacy.root, { recursive: true, force: true }));
+  const legacyPlugin = linguini({ root: legacy.root, buildOnStart: false });
+  await legacyPlugin.configResolved({ root: legacy.root });
+  await legacyPlugin.buildStart.call({ addWatchFile() {} });
+  assert.equal(
+    await legacyPlugin.transform.call({ resolve: async () => null }, legacy.code, legacy.application),
+    undefined
+  );
+
+  const unknown = await bundlerFixture({ version: 3 });
+  context.after(() => rm(unknown.root, { recursive: true, force: true }));
+  const unknownPlugin = linguini({ root: unknown.root, buildOnStart: false });
+  await unknownPlugin.configResolved({ root: unknown.root });
+  await assert.rejects(
+    unknownPlugin.buildStart.call({ addWatchFile() {} }),
+    /unsupported Linguini bundler manifest version 3/
+  );
+
+  const escaping = await bundlerFixture();
+  context.after(() => rm(escaping.root, { recursive: true, force: true }));
+  escaping.manifest.messages["main.title"].locales.en.module = "../escape.ts";
+  await writeFile(
+    path.join(escaping.generated, "bundler/manifest.json"),
+    JSON.stringify(escaping.manifest)
+  );
+  const escapingPlugin = linguini({ root: escaping.root, buildOnStart: false });
+  await escapingPlugin.configResolved({ root: escaping.root });
+  await assert.rejects(
+    escapingPlugin.buildStart.call({ addWatchFile() {} }),
+    /clean project-relative POSIX path/
+  );
+});
+
+test("application hot update rebuilds without suppressing Vite module update", async (context) => {
+  const fixtureData = await bundlerFixture();
+  context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
+  const harness = mockServer();
+  let builds = 0;
+  const plugin = linguini({
+    root: fixtureData.root,
+    buildOnStart: false,
+    debounceMs: 0,
+    build() {
+      builds += 1;
+    }
+  });
+  await plugin.configResolved({ root: fixtureData.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await plugin.configureServer(harness.server);
+  const result = await plugin.handleHotUpdate({
+    file: fixtureData.application,
+    server: harness.server,
+    timestamp: 8
+  });
+  assert.equal(result, undefined);
+  assert.equal(builds, 1);
+});
+
+test("watches configured application roots so newly added modules rebuild manifest", async (context) => {
+  const fixtureData = await bundlerFixture();
+  context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
+  const configPath = path.join(fixtureData.root, "linguini.toml");
+  await writeFile(
+    configPath,
+    [
+      "[paths]",
+      'schema = "src/schema"',
+      'locale = "src/locale"',
+      "[targets.ts]",
+      'out = "build/custom-linguini"',
+      'framework = "svelte"',
+      "[targets.ts.bundler]",
+      'sources = ["src/app"]',
+      ""
+    ].join("\n")
+  );
+  const harness = mockServer();
+  let builds = 0;
+  const plugin = linguini({
+    root: fixtureData.root,
+    buildOnStart: false,
+    debounceMs: 0,
+    build() {
+      builds += 1;
+    }
+  });
+  await plugin.configResolved({ root: fixtureData.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await plugin.configureServer(harness.server);
+  const newApplication = path.join(fixtureData.root, "src/app/new.ts");
+  await writeFile(newApplication, "export const fresh = true;\n");
+  await harness.handlers.get("add")(newApplication);
+  assert.equal(builds, 1);
+  assert.ok(harness.added.includes(path.join(fixtureData.root, "src/app")));
 });
