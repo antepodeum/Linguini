@@ -116,6 +116,19 @@ fn project_codegen_owns_multilocale_index_files() {
         .contents
         .contains("import locale_ru from \"./locales/ru\";"));
     assert!(index.contents.contains("ru: locale_ru"));
+    assert!(index.contents.contains("from \"./locale\""));
+    assert!(index
+        .contents
+        .contains("export type { Locale, TextDirection }"));
+    let locale = files
+        .iter()
+        .find(|file| file.path == "locale.ts")
+        .expect("locale.ts");
+    assert!(locale
+        .contents
+        .contains("export const locales = [\"en\", \"ru\"]"));
+    assert!(!locale.contents.contains("./locales/"));
+    assert!(!locale.contents.contains("./messages"));
     let gitignore = files
         .iter()
         .find(|file| file.path == ".gitignore")
@@ -139,6 +152,8 @@ fn project_codegen_owns_multilocale_index_files() {
             "locales/en.d.ts",
             "locales/ru.ts",
             "locales/ru.d.ts",
+            "locale.ts",
+            "locale.d.ts",
             "index.ts",
             "index.d.ts",
         ]
@@ -415,7 +430,7 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: locale,
+            module: locale.clone(),
         }],
         &TypeScriptProjectOptions {
             declaration: true,
@@ -455,6 +470,29 @@ fn project_codegen_filters_messages_in_tree_shaking_mode() {
     assert!(group_module.contents.contains("label: \"Label\""));
     assert!(!group_module.contents.contains("help: \"Help\""));
     assert!(!locale_module.contents.contains("help: \"Help\""));
+
+    let full_files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &TypeScriptProjectOptions {
+            declaration: true,
+            tree_shaking: false,
+            base_locale: Some("en".to_owned()),
+            ..TypeScriptProjectOptions::default()
+        },
+    )
+    .expect("full project codegen");
+    for path in ["locale.ts", "locale.d.ts"] {
+        let selected = files.iter().find(|file| file.path == path).expect(path);
+        let full = full_files
+            .iter()
+            .find(|file| file.path == path)
+            .expect(path);
+        assert_eq!(selected.contents, full.contents);
+    }
 }
 
 #[test]
@@ -1664,14 +1702,14 @@ fn project_runtime_embeds_cldr_resolution_overrides() {
         },
     )
     .expect("project codegen");
-    let index = files
+    let locale = files
         .iter()
-        .find(|file| file.path == "index.ts")
-        .expect("runtime index");
+        .find(|file| file.path == "locale.ts")
+        .expect("runtime locale");
 
-    assert!(index.contents.contains(r#""en-au": "en-001""#));
-    assert!(index.contents.contains(r#""zh-tw": "zh-Hant""#));
-    assert!(index.contents.contains("isLanguageScriptTag(tag)"));
+    assert!(locale.contents.contains(r#""en-au": "en-001""#));
+    assert!(locale.contents.contains(r#""zh-tw": "zh-Hant""#));
+    assert!(locale.contents.contains("isLanguageScriptTag(tag)"));
 }
 
 #[test]
@@ -1798,6 +1836,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .map(|file| file.path.as_str())
         .collect::<Vec<_>>();
     assert!(paths.contains(&"svelte.ts"));
+    assert!(paths.contains(&"svelte-locale.svelte.ts"));
+    assert!(paths.contains(&"svelte-locale.svelte.d.ts"));
     assert!(paths.contains(&"web.ts"));
     assert!(paths.contains(&"sveltekit.ts"));
 
@@ -1822,6 +1862,56 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(svelte.contents.contains("navigate: true"));
     assert!(svelte.contents.contains("keepFocus: true"));
     assert!(svelte.contents.contains("noScroll: true"));
+    assert!(svelte.contents.contains("getLocale: getCurrentLocale"));
+    assert!(svelte
+        .contents
+        .contains("initializeCurrentLocale(readInitialLocale(web))"));
+    assert!(svelte.contents.contains("setCurrentLocale(resolved)"));
+    assert!(svelte.contents.contains("clearCurrentLocaleOverride()"));
+    assert!(svelte.contents.contains("./svelte-locale.svelte.js"));
+    assert!(svelte
+        .contents
+        .contains("startAutoLinkLocalization(web, getCurrentLocale)"));
+
+    let svelte_locale = files
+        .iter()
+        .find(|file| file.path == "svelte-locale.svelte.ts")
+        .expect("Svelte locale helper");
+    assert!(svelte_locale.contents.contains("from \"$app/state\""));
+    assert!(svelte_locale
+        .contents
+        .contains("let clientLocale = $state<Locale>(baseLocale)"));
+    assert!(svelte_locale
+        .contents
+        .contains("let hasClientOverride = $state(false)"));
+    assert!(svelte_locale.contents.contains("hasClientOverride\n    ? resolvedClientLocale\n    : normalizeLocale(dataLocale) ?? resolvedClientLocale"));
+    assert!(svelte_locale.contents.contains("hasClientOverride = true"));
+    assert!(svelte_locale.contents.contains("hasClientOverride = false"));
+    assert!(svelte_locale.contents.contains("from \"./locale\""));
+    assert!(!svelte_locale.contents.contains("export let clientLocale"));
+    assert!(!svelte_locale
+        .contents
+        .contains("export let hasClientOverride"));
+    for forbidden in ["./index", "./locales/", "./messages", "createWebI18n"] {
+        assert!(!svelte_locale.contents.contains(forbidden));
+    }
+    let svelte_locale_declaration = files
+        .iter()
+        .find(|file| file.path == "svelte-locale.svelte.d.ts")
+        .expect("Svelte locale helper declaration");
+    assert!(svelte_locale_declaration
+        .contents
+        .contains("initializeCurrentLocale"));
+    assert!(svelte_locale_declaration
+        .contents
+        .contains("clearCurrentLocaleOverride"));
+
+    let goto_position = svelte.contents.find("await goto(").expect("goto call");
+    let clear_position = svelte
+        .contents
+        .find("clearCurrentLocaleOverride();")
+        .expect("override clear");
+    assert!(clear_position > goto_position);
 
     let sveltekit = files
         .iter()
@@ -1876,6 +1966,7 @@ fn project_codegen_emits_context_only_svelte_without_web_config() {
         .map(|file| file.path.as_str())
         .collect::<Vec<_>>();
     assert!(paths.contains(&"svelte.ts"));
+    assert!(paths.contains(&"svelte-locale.svelte.ts"));
     assert!(!paths.contains(&"web.ts"));
     assert!(!paths.contains(&"sveltekit.ts"));
 
@@ -1883,9 +1974,38 @@ fn project_codegen_emits_context_only_svelte_without_web_config() {
         .iter()
         .find(|file| file.path == "svelte.ts")
         .expect("svelte module");
-    assert!(svelte.contents.contains("activeLocale"));
+    assert!(svelte.contents.contains("getLocale: getCurrentLocale"));
     assert!(!svelte.contents.contains("$app/navigation"));
     assert!(!svelte.contents.contains("createWebI18n"));
+
+    let svelte_locale = files
+        .iter()
+        .find(|file| file.path == "svelte-locale.svelte.ts")
+        .expect("context locale helper");
+    assert!(svelte_locale
+        .contents
+        .contains("let activeLocale = $state<Locale>(baseLocale)"));
+    assert!(svelte_locale
+        .contents
+        .contains("normalizeLocale(locale) ?? baseLocale"));
+    assert!(!svelte_locale.contents.contains("$app/"));
+    assert!(!svelte_locale.contents.contains("./index"));
+    assert!(!svelte_locale.contents.contains("./locales/"));
+    assert!(!svelte_locale.contents.contains("export let activeLocale"));
+    assert!(svelte.contents.contains("./svelte-locale.svelte.js"));
+    let svelte_locale_declaration = files
+        .iter()
+        .find(|file| file.path == "svelte-locale.svelte.d.ts")
+        .expect("context locale helper declaration");
+    assert!(svelte_locale_declaration
+        .contents
+        .contains("setCurrentLocale"));
+    assert!(!svelte_locale_declaration
+        .contents
+        .contains("initializeCurrentLocale"));
+    assert!(!svelte_locale_declaration
+        .contents
+        .contains("clearCurrentLocaleOverride"));
 }
 
 #[test]
@@ -1912,10 +2032,10 @@ fn project_codegen_uses_cldr_text_direction_metadata() {
     )
     .expect("project codegen");
 
-    let index = files
+    let locale = files
         .iter()
-        .find(|file| file.path == "index.ts")
-        .expect("index module");
-    assert!(index.contents.contains(r#"en: "ltr""#));
-    assert!(index.contents.contains(r#"ar: "rtl""#));
+        .find(|file| file.path == "locale.ts")
+        .expect("locale module");
+    assert!(locale.contents.contains(r#"en: "ltr""#));
+    assert!(locale.contents.contains(r#"ar: "rtl""#));
 }

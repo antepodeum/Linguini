@@ -698,6 +698,20 @@ pub fn generate_typescript_project_files(
     }
 
     files.push(TypeScriptGeneratedFile {
+        path: "locale.ts".to_owned(),
+        contents: project::generate_project_locale(locales, options.base_locale.as_deref()),
+    });
+    if options.declaration {
+        files.push(TypeScriptGeneratedFile {
+            path: "locale.d.ts".to_owned(),
+            contents: project::generate_project_locale_declaration(
+                locales,
+                options.base_locale.as_deref(),
+            ),
+        });
+    }
+
+    files.push(TypeScriptGeneratedFile {
         path: "index.ts".to_owned(),
         contents: project::generate_project_index(locales, options.base_locale.as_deref()),
     });
@@ -726,6 +740,18 @@ pub fn generate_typescript_project_files(
                     contents: project::generate_project_web_declaration(),
                 });
             }
+        }
+        files.push(TypeScriptGeneratedFile {
+            path: "svelte-locale.svelte.ts".to_owned(),
+            contents: project::generate_project_svelte_locale_module(options.web.is_some()),
+        });
+        if options.declaration {
+            files.push(TypeScriptGeneratedFile {
+                path: "svelte-locale.svelte.d.ts".to_owned(),
+                contents: project::generate_project_svelte_locale_declaration(
+                    options.web.is_some(),
+                ),
+            });
         }
         files.push(TypeScriptGeneratedFile {
             path: "svelte.ts".to_owned(),

@@ -2,9 +2,11 @@ use std::collections::BTreeMap;
 
 use super::names::{escape_string, property_key, safe_identifier};
 use super::templates::{
-    render_template, INDEX_RUNTIME, INDEX_RUNTIME_DECLARATIONS, PROJECT_INDEX_DECLARATIONS,
-    PROJECT_INDEX_ENTRY, SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS,
-    SVELTE_CONTEXT_RUNTIME, SVELTE_DECLARATIONS, SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
+    render_template, INDEX_RUNTIME, INDEX_RUNTIME_DECLARATIONS, LOCALE_DECLARATIONS,
+    LOCALE_RUNTIME, PROJECT_INDEX_DECLARATIONS, PROJECT_INDEX_ENTRY, SVELTEKIT_DECLARATIONS,
+    SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME, SVELTE_DECLARATIONS,
+    SVELTE_LOCALE_CONTEXT_DECLARATIONS, SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS,
+    SVELTE_LOCALE_RUNTIME, SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
 };
 use super::{TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptWebOptions};
 use linguini_cldr::{
@@ -13,22 +15,50 @@ use linguini_cldr::{
 
 pub fn generate_project_index(
     locales: &[TypeScriptLocaleModule],
-    base_locale: Option<&str>,
+    _base_locale: Option<&str>,
 ) -> String {
     render_template(
         PROJECT_INDEX_ENTRY,
         &[
             ("IMPORTS", project_locale_imports(locales)),
+            ("LOCALE_MODULES", project_locale_modules(locales)),
+            ("LOCALE_LOADERS", project_locale_loaders(locales)),
+            ("INDEX_RUNTIME", template_body(INDEX_RUNTIME)),
+        ],
+    )
+}
+
+pub fn generate_project_locale(
+    locales: &[TypeScriptLocaleModule],
+    base_locale: Option<&str>,
+) -> String {
+    render_template(
+        LOCALE_RUNTIME,
+        &[
             ("LOCALES", locale_literals(locales).join(", ")),
             ("BASE_LOCALE", base_locale_literal(locales, base_locale)),
             ("LOCALE_DIRECTIONS", project_locale_directions(locales)),
-            ("LOCALE_MODULES", project_locale_modules(locales)),
-            ("LOCALE_LOADERS", project_locale_loaders(locales)),
             (
                 "LOCALE_RESOLUTION_OVERRIDES",
                 project_locale_resolution_overrides(locales),
             ),
-            ("INDEX_RUNTIME", template_body(INDEX_RUNTIME)),
+        ],
+    )
+}
+
+pub fn generate_project_locale_declaration(
+    locales: &[TypeScriptLocaleModule],
+    base_locale: Option<&str>,
+) -> String {
+    render_template(
+        LOCALE_DECLARATIONS,
+        &[
+            ("LOCALES", locale_literals(locales).join(", ")),
+            ("BASE_LOCALE", base_locale_literal(locales, base_locale)),
+            (
+                "LOCALE_DIRECTIONS",
+                project_locale_direction_declarations(locales),
+            ),
         ],
     )
 }
@@ -115,18 +145,12 @@ fn is_language_script_tag(locale: &str) -> bool {
 
 pub fn generate_project_index_declaration(
     locales: &[TypeScriptLocaleModule],
-    base_locale: Option<&str>,
+    _base_locale: Option<&str>,
 ) -> String {
     render_template(
         PROJECT_INDEX_DECLARATIONS,
         &[
             ("IMPORTS", project_locale_imports(locales)),
-            ("LOCALES", locale_literals(locales).join(", ")),
-            ("BASE_LOCALE", base_locale_literal(locales, base_locale)),
-            (
-                "LOCALE_DIRECTIONS",
-                project_locale_direction_declarations(locales),
-            ),
             (
                 "LOCALE_MODULES",
                 project_locale_module_declarations(locales),
@@ -141,6 +165,22 @@ pub fn generate_project_index_declaration(
             ),
         ],
     )
+}
+
+pub fn generate_project_svelte_locale_module(web: bool) -> String {
+    if web {
+        SVELTE_LOCALE_RUNTIME.to_owned()
+    } else {
+        SVELTE_LOCALE_CONTEXT_RUNTIME.to_owned()
+    }
+}
+
+pub fn generate_project_svelte_locale_declaration(web: bool) -> String {
+    if web {
+        SVELTE_LOCALE_DECLARATIONS.to_owned()
+    } else {
+        SVELTE_LOCALE_CONTEXT_DECLARATIONS.to_owned()
+    }
 }
 
 pub fn generate_project_svelte_module(options: Option<&TypeScriptWebOptions>) -> String {

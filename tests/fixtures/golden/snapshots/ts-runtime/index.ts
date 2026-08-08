@@ -1,16 +1,18 @@
 import locale_en from "./locales/en";
 import locale_ru from "./locales/ru";
+import { baseLocale, normalizeLocale, type Locale } from "./locale";
+export {
+  locales,
+  baseLocale,
+  localeDirections,
+  isLocale,
+  normalizeLocale,
+  getTextDirection,
+} from "./locale";
+export type { Locale, TextDirection } from "./locale";
 export type * from "./shared";
 import type { LinguiniMessages } from "./messages";
 export type { LinguiniMessages } from "./messages";
-
-export const locales = ["en", "ru"] as const;
-export const baseLocale = "en";
-
-export const localeDirections = {
-  en: "ltr",
-  ru: "ltr",
-} as const;
 
 export const localeModules = {
   en: locale_en,
@@ -23,44 +25,14 @@ export const localeLoaders = {
 } as const;
 
 type LinguiniLanguage = keyof typeof localeModules;
-export type Locale = (typeof locales)[number];
-export type TextDirection = "ltr" | "rtl";
 export type Linguini = LinguiniMessages;
 
 type LinguiniLanguageInput = LinguiniLanguage;
-
-const localeResolutionOverrides: Readonly<Record<string, Locale | null>> = {
-  "en-latn": "en",
-  "eng": "en",
-  "hi-latn": "en",
-  "i-default": "en",
-  "ru-cyrl": "ru",
-  "rus": "ru",
-};
 
 export type LinguiniProviderOptions = {
   getLocale?: () => LinguiniLanguageInput;
   resolveLanguage?: () => LinguiniLanguageInput;
 };
-
-function localeFallbackTags(locale: string): string[] {
-  const tags: string[] = [];
-  let tag = locale;
-  while (tag) {
-    tags.push(tag);
-    const dash = tag.lastIndexOf("-");
-    if (dash <= 0) break;
-    tag = tag.slice(0, dash);
-  }
-  return tags;
-}
-
-function isLanguageScriptTag(locale: string): boolean {
-  const parts = locale.split("-");
-  return parts.length === 2
-    && /^[A-Za-z]{2,8}$/.test(parts[0])
-    && /^[A-Za-z]{4}$/.test(parts[1]);
-}
 
 export function createLinguini(language: LinguiniLanguageInput): Linguini {
   const locale = normalizeLocale(language) ?? baseLocale;
@@ -86,25 +58,3 @@ export function configureLinguini(options: {
 }
 
 export const lgl: Linguini = createLinguini(baseLocale);
-
-export function isLocale(locale: unknown): locale is Locale {
-  return normalizeLocale(locale) !== undefined;
-}
-
-export function normalizeLocale(locale: unknown): Locale | undefined {
-  if (typeof locale !== "string") return undefined;
-  for (const tag of localeFallbackTags(locale)) {
-    const exact = locales.find((entry) => entry.toLowerCase() === tag.toLowerCase());
-    if (exact) return exact;
-    const key = tag.toLowerCase();
-    if (Object.prototype.hasOwnProperty.call(localeResolutionOverrides, key)) {
-      return localeResolutionOverrides[key] ?? undefined;
-    }
-    if (isLanguageScriptTag(tag)) return undefined;
-  }
-  return undefined;
-}
-
-export function getTextDirection(locale: Locale): TextDirection {
-  return localeDirections[normalizeLocale(locale) ?? baseLocale];
-}

@@ -12,7 +12,3 @@ export declare function configureLinguini(options: {
 }): Linguini;
 
 export declare const lgl: Linguini;
-
-export declare function isLocale(locale: unknown): locale is Locale;
-export declare function normalizeLocale(locale: unknown): Locale | undefined;
-export declare function getTextDirection(locale: Locale): TextDirection;

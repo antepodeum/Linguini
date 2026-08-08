@@ -1,5 +1,7 @@
 pub const INDEX_RUNTIME: &str = include_str!("templates/index.runtime.ts");
 pub const INDEX_RUNTIME_DECLARATIONS: &str = include_str!("templates/index.runtime.d.ts");
+pub const LOCALE_RUNTIME: &str = include_str!("templates/locale.runtime.ts");
+pub const LOCALE_DECLARATIONS: &str = include_str!("templates/locale.runtime.d.ts");
 pub const PROJECT_INDEX_ENTRY: &str = include_str!("templates/project-index.entry.ts");
 pub const PROJECT_INDEX_DECLARATIONS: &str = include_str!("templates/project-index.entry.d.ts");
 pub const SHARED_RUNTIME: &str = include_str!("templates/shared.runtime.ts");
@@ -12,6 +14,12 @@ pub const SVELTE_RUNTIME: &str = include_str!("templates/svelte.runtime.ts");
 pub const SVELTE_DECLARATIONS: &str = include_str!("templates/svelte.runtime.d.ts");
 pub const SVELTE_CONTEXT_RUNTIME: &str = include_str!("templates/svelte.context.runtime.ts");
 pub const SVELTE_CONTEXT_DECLARATIONS: &str = include_str!("templates/svelte.context.runtime.d.ts");
+pub const SVELTE_LOCALE_RUNTIME: &str = include_str!("templates/svelte-locale.runtime.ts");
+pub const SVELTE_LOCALE_CONTEXT_RUNTIME: &str =
+    include_str!("templates/svelte-locale.context.runtime.ts");
+pub const SVELTE_LOCALE_DECLARATIONS: &str = include_str!("templates/svelte-locale.runtime.d.ts");
+pub const SVELTE_LOCALE_CONTEXT_DECLARATIONS: &str =
+    include_str!("templates/svelte-locale.context.runtime.d.ts");
 pub const SVELTEKIT_RUNTIME: &str = include_str!("templates/sveltekit.runtime.ts");
 pub const SVELTEKIT_DECLARATIONS: &str = include_str!("templates/sveltekit.runtime.d.ts");
 pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
@@ -33,6 +41,8 @@ mod tests {
     fn generated_runtime_templates_are_non_empty() {
         assert!(INDEX_RUNTIME.contains("createLinguini"));
         assert!(INDEX_RUNTIME_DECLARATIONS.contains("createLinguini"));
+        assert!(LOCALE_RUNTIME.contains("normalizeLocale"));
+        assert!(LOCALE_DECLARATIONS.contains("normalizeLocale"));
         assert!(PROJECT_INDEX_ENTRY.contains("{{INDEX_RUNTIME}}"));
         assert!(PROJECT_INDEX_DECLARATIONS.contains("{{INDEX_RUNTIME_DECLARATIONS}}"));
         assert!(SHARED_RUNTIME.contains("selectBranch"));
@@ -48,6 +58,10 @@ mod tests {
         assert!(SVELTE_DECLARATIONS.contains("LinguiniRune"));
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
+        assert!(SVELTE_LOCALE_RUNTIME.contains("getCurrentLocale"));
+        assert!(SVELTE_LOCALE_CONTEXT_RUNTIME.contains("getCurrentLocale"));
+        assert!(SVELTE_LOCALE_DECLARATIONS.contains("getCurrentLocale"));
+        assert!(SVELTE_LOCALE_CONTEXT_DECLARATIONS.contains("getCurrentLocale"));
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniReroute"));

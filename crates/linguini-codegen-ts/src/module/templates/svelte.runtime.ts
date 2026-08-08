@@ -1,8 +1,13 @@
 import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
-import { page } from "$app/state";
 import { createWebI18n } from "./web";
 import * as runtime from "./index";
+import {
+  clearCurrentLocaleOverride,
+  getCurrentLocale,
+  initializeCurrentLocale,
+  setCurrentLocale,
+} from "./svelte-locale.svelte.js";
 
 const AUTO_LINK_MAX_PENDING_ROOTS = 128;
 const AUTO_LINK_NODE_BUDGET = 256;
@@ -26,12 +31,12 @@ hot?.dispose(() => linguini.destroy());
 
 function createLinguiniRune(runtime: typeof import("./index"), options = {}) {
   const web = createWebI18n(runtime, options);
-  let clientLocale = readInitialLocale(web);
+  initializeCurrentLocale(readInitialLocale(web));
   const messages = runtime.createLinguiniProvider({
-    getLocale: () => getCurrentLocale(web, clientLocale),
+    getLocale: getCurrentLocale,
   });
   const autoLinks = browser && web.options.localizeLinks !== false
-    ? startAutoLinkLocalization(web, () => getCurrentLocale(web, clientLocale))
+    ? startAutoLinkLocalization(web, getCurrentLocale)
     : undefined;
 
   async function setLocale(nextLocale: string, setOptions: Record<string, unknown> = {}) {
@@ -52,9 +57,8 @@ function createLinguiniRune(runtime: typeof import("./index"), options = {}) {
       noScroll: true,
       ...setOptions,
     };
-    clientLocale = resolved;
-
     if (browser) {
+      setCurrentLocale(resolved);
       writeLocalStorage(web, resolved);
       if (options.cookie) {
         document.cookie = web.serializeLocaleCookie(resolved, { httpOnly: false });
@@ -68,6 +72,7 @@ function createLinguiniRune(runtime: typeof import("./index"), options = {}) {
           noScroll: options.noScroll as boolean | undefined,
           state: options.state as App.PageState | undefined,
         });
+        clearCurrentLocaleOverride();
       }
       autoLinks?.refresh();
     }
@@ -79,35 +84,30 @@ function createLinguiniRune(runtime: typeof import("./index"), options = {}) {
     messages,
     l: messages,
     get locale() {
-      return getCurrentLocale(web, clientLocale);
+      return getCurrentLocale();
     },
     get lang() {
-      return getCurrentLocale(web, clientLocale);
+      return getCurrentLocale();
     },
     get direction() {
-      return web.getTextDirection(getCurrentLocale(web, clientLocale));
+      return web.getTextDirection(getCurrentLocale());
     },
     get textDirection() {
-      return web.getTextDirection(getCurrentLocale(web, clientLocale));
+      return web.getTextDirection(getCurrentLocale());
     },
     get htmlAttrs() {
-      return web.htmlAttrs(getCurrentLocale(web, clientLocale));
+      return web.htmlAttrs(getCurrentLocale());
     },
     setLocale,
-    localizeHref: (href: string, locale = getCurrentLocale(web, clientLocale), input?: Record<string, unknown>) => web.localizeHref(href, locale, input),
-    localizeUrl: (url: string | URL, locale = getCurrentLocale(web, clientLocale), input?: Record<string, unknown>) => web.localizeUrl(url, locale, input),
+    localizeHref: (href: string, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeHref(href, locale, input),
+    localizeUrl: (url: string | URL, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeUrl(url, locale, input),
     shouldLocalizeHref: (href: string, input?: Record<string, unknown>) => web.shouldLocalizeHref(href, input),
     shouldLocalizeLink: (href: string, attributes = {}, input?: Record<string, unknown>) => web.shouldLocalizeLink(href, attributes, input),
-    localizeHrefAttribute: (href: string, locale = getCurrentLocale(web, clientLocale), input?: Record<string, unknown>) => web.localizeHrefAttribute(href, locale, input),
+    localizeHrefAttribute: (href: string, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeHrefAttribute(href, locale, input),
     delocalizeUrl: (url: string | URL, input?: Record<string, unknown>) => web.delocalizeUrl(url, input),
     alternateLinks: (url: string | URL, input?: Record<string, unknown>) => web.alternateLinks(url, input),
     destroy: () => autoLinks?.destroy(),
   };
-}
-
-function getCurrentLocale(web: ReturnType<typeof createWebI18n>, clientLocale: string): any {
-  const dataLocale = page.data?.linguini?.locale;
-  return web.matchLocale(dataLocale) ?? web.matchLocale(clientLocale) ?? web.baseLocale;
 }
 
 function readInitialLocale(web: ReturnType<typeof createWebI18n>): any {
