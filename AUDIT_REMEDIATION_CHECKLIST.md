@@ -83,6 +83,8 @@ production path uses the fix and its relevant tests pass.
   evaluation, CLDR currency minor units and rounding, and visible invalid/missing-data failures.
 - `3ae3a38` — added opt-in, bounded application-source discovery plus conservative static and
   dynamic-prefix message usage analysis to CLI check/build, JSON, SARIF, and warning policy.
+- `4e648f4` — added explicit group metadata with docs/spans through IR lowering, qualification,
+  validation, project merge/fallback, and bounded codegen projections.
 
 ## Numbered findings
 
@@ -625,7 +627,9 @@ production path uses the fix and its relevant tests pass.
 ### Documentation identity through codegen
 
 - [-] API-D1 — Preserve docs on every declaration kind through semantic IR.
-- [ ] API-D2 — Preserve group docs in recursive namespace metadata.
+- [-] API-D2 — Preserve group docs in recursive namespace metadata; explicit IR group docs/spans
+      now survive project composition, but generated recursive declarations/runtime do not yet
+      consume that metadata.
 - [ ] API-D3 — Use schema docs as canonical public API prose.
 - [ ] API-D4 — Attach docs to exact JSDoc exports and `.d.ts` leaves/overloads.
 - [ ] API-D5 — Preserve paragraphs/line breaks and escape comment terminators.
@@ -684,7 +688,9 @@ production path uses the fix and its relevant tests pass.
 - [x] GROUP-A2 — Use canonical qualified paths across semantic tooling.
 - [x] GROUP-A3 — Detect duplicate segments and message/group collisions.
 - [x] GROUP-A4 — Preserve source IDs/spans for every path segment.
-- [-] GROUP-A5 — Generate nested types/runtime without copying unrelated symbols.
+- [-] GROUP-A5 — Generate nested types/runtime without copying unrelated symbols; IR/codegen
+      projections now retain only selected groups and required ancestors/descendants, while the
+      per-message backend remains pending.
 - [x] GROUP-A6 — Bound traversal depth safely.
 - [x] GROUP-A7 — Define and validate empty-group behavior.
 
