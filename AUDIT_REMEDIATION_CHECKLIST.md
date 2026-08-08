@@ -89,6 +89,8 @@ production path uses the fix and its relevant tests pass.
   transitive symbol selection and source-ID metadata for later ESM/HMR consumers.
 - `6caec55` — added the public source-mapped single-message TypeScript ESM compiler with exact
   dependency/helper emission, callable leaf exports, and deterministic source validation.
+- `cae571a` — added the schema-owned recursive `LinguiniMessages` namespace with value/callable
+  leaves, group/leaf JSDoc, safe keys, effective filtering, and strict TypeScript verification.
 
 ## Numbered findings
 
@@ -635,12 +637,13 @@ production path uses the fix and its relevant tests pass.
 ### Documentation identity through codegen
 
 - [-] API-D1 — Preserve docs on every declaration kind through semantic IR.
-- [-] API-D2 — Preserve group docs in recursive namespace metadata; explicit IR group docs/spans
-      now survive project composition, but generated recursive declarations/runtime do not yet
-      consume that metadata.
+- [x] API-D2 — Preserve group docs in recursive namespace metadata.
 - [ ] API-D3 — Use schema docs as canonical public API prose.
-- [ ] API-D4 — Attach docs to exact JSDoc exports and `.d.ts` leaves/overloads.
-- [ ] API-D5 — Preserve paragraphs/line breaks and escape comment terminators.
+- [-] API-D4 — Attach docs to exact JSDoc exports and `.d.ts` leaves/overloads; recursive group
+      and leaf declarations are covered, while generated overloads remain pending.
+- [-] API-D5 — Preserve paragraphs/line breaks and escape comment terminators; recursive namespace
+      output preserves multiline docs and escapes terminators, but all declaration kinds have not
+      migrated to the shared renderer.
 - [ ] API-D6 — Generate backend tags separately from source prose.
 - [ ] API-D7 — Preserve source identity for hover/navigation and add golden tests.
 
@@ -657,7 +660,7 @@ production path uses the fix and its relevant tests pass.
 
 ### Bundler-native nested message API
 
-- [ ] BUNDLE-A1 — Generate recursive declarations for the complete `l` namespace.
+- [x] BUNDLE-A1 — Generate recursive declarations for the complete `l` namespace.
 - [ ] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports.
 - [ ] BUNDLE-A3 — Keep parameterless public access as a value.
 - [-] BUNDLE-A4 — Generate one ESM module per referenced message; a validated public compiler now
@@ -702,9 +705,7 @@ production path uses the fix and its relevant tests pass.
 - [x] GROUP-A2 — Use canonical qualified paths across semantic tooling.
 - [x] GROUP-A3 — Detect duplicate segments and message/group collisions.
 - [x] GROUP-A4 — Preserve source IDs/spans for every path segment.
-- [-] GROUP-A5 — Generate nested types/runtime without copying unrelated symbols; IR/codegen
-      projections now retain only selected groups and required ancestors/descendants, while the
-      per-message backend remains pending.
+- [x] GROUP-A5 — Generate nested types/runtime without copying unrelated symbols.
 - [x] GROUP-A6 — Bound traversal depth safely.
 - [x] GROUP-A7 — Define and validate empty-group behavior.
 
@@ -725,7 +726,7 @@ production path uses the fix and its relevant tests pass.
 
 - [-] P1-1 — Complete SvelteKit/ESM-only configuration and documentation cleanup.
 - [-] P1-2 — Freeze the tested v0.1 language specification.
-- [-] P1-3 — Carry recursive namespaces through generated output.
+- [x] P1-3 — Carry recursive namespaces through generated output.
 - [-] P1-4 — Complete multiline conformance across all backends.
 - [x] P1-5 — Preserve call/declaration kinds, sources, and spans.
 - [-] P1-6 — Finish the single project symbol/type/exhaustiveness database.
