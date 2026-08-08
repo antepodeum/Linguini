@@ -5,8 +5,10 @@ use super::templates::{
     render_template, INDEX_RUNTIME, INDEX_RUNTIME_DECLARATIONS, LOCALE_DECLARATIONS,
     LOCALE_RUNTIME, PROJECT_INDEX_DECLARATIONS, PROJECT_INDEX_ENTRY, SVELTEKIT_DECLARATIONS,
     SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME, SVELTE_DECLARATIONS,
-    SVELTE_LOCALE_CONTEXT_DECLARATIONS, SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS,
-    SVELTE_LOCALE_RUNTIME, SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
+    SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_LOCALE_CONTEXT_DECLARATIONS,
+    SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS, SVELTE_LOCALE_RUNTIME,
+    SVELTE_LOCALE_STANDALONE_DECLARATIONS, SVELTE_LOCALE_STANDALONE_RUNTIME, SVELTE_RUNTIME,
+    WEB_DECLARATIONS, WEB_RUNTIME,
 };
 use super::{TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptWebOptions};
 use linguini_cldr::{
@@ -167,34 +169,96 @@ pub fn generate_project_index_declaration(
     )
 }
 
-pub fn generate_project_svelte_locale_module(web: bool) -> String {
-    if web {
+pub fn generate_project_svelte_locale_module(web: bool, sveltekit: bool) -> String {
+    if web && sveltekit {
         SVELTE_LOCALE_RUNTIME.to_owned()
+    } else if web {
+        SVELTE_LOCALE_STANDALONE_RUNTIME.to_owned()
     } else {
         SVELTE_LOCALE_CONTEXT_RUNTIME.to_owned()
     }
 }
 
-pub fn generate_project_svelte_locale_declaration(web: bool) -> String {
-    if web {
+pub fn generate_project_svelte_locale_declaration(web: bool, sveltekit: bool) -> String {
+    if web && sveltekit {
         SVELTE_LOCALE_DECLARATIONS.to_owned()
+    } else if web {
+        SVELTE_LOCALE_STANDALONE_DECLARATIONS.to_owned()
     } else {
         SVELTE_LOCALE_CONTEXT_DECLARATIONS.to_owned()
     }
 }
 
-pub fn generate_project_svelte_module(options: Option<&TypeScriptWebOptions>) -> String {
+pub fn generate_project_svelte_effects_module(
+    options: &TypeScriptWebOptions,
+    sveltekit: bool,
+) -> String {
+    let browser_runtime = if sveltekit {
+        "import { browser } from \"$app/environment\";"
+    } else {
+        "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";"
+    };
+    render_template(
+        SVELTE_EFFECTS_RUNTIME,
+        &[
+            ("BROWSER_RUNTIME", browser_runtime.to_owned()),
+            ("OPTIONS", web_options_literal(options)),
+        ],
+    )
+}
+
+pub fn generate_project_svelte_effects_declaration() -> String {
+    SVELTE_EFFECTS_DECLARATIONS.to_owned()
+}
+
+pub fn generate_project_svelte_module(
+    options: Option<&TypeScriptWebOptions>,
+    sveltekit: bool,
+) -> String {
     match options {
-        Some(options) => {
-            render_template(SVELTE_RUNTIME, &[("OPTIONS", web_options_literal(options))])
-        }
+        Some(_) => render_project_svelte_web_module(sveltekit),
         None => SVELTE_CONTEXT_RUNTIME.to_owned(),
     }
 }
 
-pub fn generate_project_svelte_declaration(web: bool) -> String {
+fn render_project_svelte_web_module(sveltekit: bool) -> String {
+    let (navigation_runtime, locale_runtime, navigation) = if sveltekit {
+        (
+            "import { browser } from \"$app/environment\";\nimport { goto } from \"$app/navigation\";",
+            "import {\n  clearCurrentLocaleOverride,\n  getCurrentLocale,\n  setCurrentLocale,\n} from \"./svelte-locale.svelte.js\";",
+            "        const href = web.localizeHref(window.location.href, resolved);\n        await goto(href, {\n          replaceState: Boolean(options.replaceState),\n          invalidateAll: Boolean(options.invalidateAll),\n          keepFocus: options.keepFocus as boolean | undefined,\n          noScroll: options.noScroll as boolean | undefined,\n          state: options.state as App.PageState | undefined,\n        });\n        clearCurrentLocaleOverride();",
+        )
+    } else {
+        (
+            "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";",
+            "import { getCurrentLocale, setCurrentLocale } from \"./svelte-locale.svelte.js\";",
+            "        const href = web.localizeHref(window.location.href, resolved);\n        if (options.replaceState) {\n          window.location.replace(href);\n        } else {\n          window.location.assign(href);\n        }",
+        )
+    };
+    render_template(
+        SVELTE_RUNTIME,
+        &[
+            ("NAVIGATION_RUNTIME", navigation_runtime.to_owned()),
+            ("LOCALE_RUNTIME", locale_runtime.to_owned()),
+            ("NAVIGATION", navigation.to_owned()),
+        ],
+    )
+}
+
+pub fn generate_project_svelte_declaration(web: bool, sveltekit: bool) -> String {
     if web {
-        SVELTE_DECLARATIONS.to_owned()
+        render_template(
+            SVELTE_DECLARATIONS,
+            &[(
+                "PAGE_STATE",
+                if sveltekit {
+                    "App.PageState"
+                } else {
+                    "unknown"
+                }
+                .to_owned(),
+            )],
+        )
     } else {
         SVELTE_CONTEXT_DECLARATIONS.to_owned()
     }

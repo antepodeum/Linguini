@@ -37,13 +37,16 @@ export interface LinguiniWebOptions {
   localizeLinks?: boolean;
 }
 
-export interface LinguiniRuntime<Locale extends string = string, Linguini = unknown> {
+export interface LinguiniLocaleRuntime<Locale extends string = string> {
   locales: readonly Locale[];
   baseLocale: Locale;
   localeDirections?: Readonly<Record<Locale, TextDirection>>;
-  createLinguini(locale: Locale): Linguini;
   normalizeLocale?(locale: unknown): Locale | undefined;
   getTextDirection?(locale: Locale): TextDirection;
+}
+
+export interface LinguiniRuntime<Locale extends string = string, Linguini = unknown> extends LinguiniLocaleRuntime<Locale> {
+  createLinguini(locale: Locale): Linguini;
 }
 
 /**
@@ -75,13 +78,11 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
  * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
  * fail closed and preserve the original href instead.
  */
-export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniRuntime<Locale, Linguini> {
+export interface LinguiniWebLocale<Locale extends string = string> extends LinguiniLocaleRuntime<Locale> {
   options: Required<Pick<LinguiniWebOptions, "sources" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
   matchLocale(locale: unknown): Locale | undefined;
   resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
   resolveLocaleSync(input?: Record<string, unknown>): Locale;
-  resolveRequest(request: Request, input?: Record<string, unknown>): Promise<LinguiniRequestContext<Locale, Linguini>>;
-  createRequestContext(locale: Locale, input?: Record<string, unknown>): LinguiniRequestContext<Locale, Linguini>;
   localizeUrl(url: string | URL, locale: Locale, input?: Record<string, unknown>): URL;
   localizeHref(href: string, locale: Locale, input?: Record<string, unknown>): string;
   shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
@@ -98,33 +99,16 @@ export interface LinguiniWeb<Locale extends string = string, Linguini = unknown>
   serializeLocaleCookie(locale: Locale, input?: Record<string, unknown>): string;
 }
 
-export function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options: LinguiniWebOptions = {}): LinguiniWeb<Locale, Linguini> {
+export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniWebLocale<Locale> {
+  createLinguini(locale: Locale): Linguini;
+  resolveRequest(request: Request, input?: Record<string, unknown>): Promise<LinguiniRequestContext<Locale, Linguini>>;
+  createRequestContext(locale: Locale, input?: Record<string, unknown>): LinguiniRequestContext<Locale, Linguini>;
+}
+
+export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options: LinguiniWebOptions = {}): LinguiniWebLocale<Locale> {
   const normalized = normalizeOptions({ baseLocale: runtime.baseLocale, ...options });
   const matchLocale = (locale: unknown) => runtime.normalizeLocale?.(locale) ?? matchLocaleValue(runtime.locales, locale);
   const getTextDirection = (locale: Locale) => runtime.getTextDirection?.(locale) ?? runtime.localeDirections?.[locale] ?? "ltr";
-
-  function createRequestContext(locale: Locale, contextInput: Record<string, unknown> = {}): LinguiniRequestContext<Locale, Linguini> {
-    const resolved = matchLocale(locale) ?? runtime.baseLocale;
-    const messages = runtime.createLinguini(resolved);
-    return {
-      locale: resolved,
-      baseLocale: runtime.baseLocale,
-      locales: runtime.locales,
-      direction: getTextDirection(resolved),
-      textDirection: getTextDirection(resolved),
-      lang: resolved,
-      messages,
-      l: messages,
-      htmlAttrs: htmlAttrs(resolved),
-      localizeHref: (href, nextLocale = resolved, input = contextInput) => localizeHref(href, nextLocale, input),
-      localizeUrl: (url, nextLocale = resolved, input = contextInput) => localizeUrl(url, nextLocale, input),
-      shouldLocalizeHref: (href, input = contextInput) => shouldLocalizeHref(href, input),
-      shouldLocalizeLink: (href, attributes = {}, input = contextInput) => shouldLocalizeLink(href, attributes, input),
-      localizeHrefAttribute: (href, nextLocale = resolved, input = contextInput) => localizeHrefAttribute(href, nextLocale, input),
-      delocalizeUrl: (url, input = contextInput) => delocalizeUrl(url, input),
-      alternateLinks: (url, input = contextInput) => alternateLinks(url, input),
-    };
-  }
 
   function resolveLocaleSync(input: Record<string, unknown> = {}) {
     for (const source of normalized.sources) {
@@ -280,11 +264,6 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     matchLocale,
     resolveLocale: async (input = {}) => resolveLocaleSync(input),
     resolveLocaleSync,
-    resolveRequest: async (request, input = {}) => {
-      const requestInput = inputFromRequest(request, input);
-      return createRequestContext(resolveLocaleSync(requestInput), requestInput);
-    },
-    createRequestContext,
     localizeUrl,
     localizeHref,
     shouldLocalizeHref,
@@ -299,6 +278,43 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     setLocaleCookie,
     serializeLocaleCookie,
     getTextDirection,
+  };
+}
+
+export function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options: LinguiniWebOptions = {}): LinguiniWeb<Locale, Linguini> {
+  const web = createWebLocaleI18n(runtime, options);
+
+  function createRequestContext(locale: Locale, contextInput: Record<string, unknown> = {}): LinguiniRequestContext<Locale, Linguini> {
+    const resolved = web.matchLocale(locale) ?? runtime.baseLocale;
+    const messages = runtime.createLinguini(resolved);
+    return {
+      locale: resolved,
+      baseLocale: runtime.baseLocale,
+      locales: runtime.locales,
+      direction: web.getTextDirection(resolved),
+      textDirection: web.getTextDirection(resolved),
+      lang: resolved,
+      messages,
+      l: messages,
+      htmlAttrs: web.htmlAttrs(resolved),
+      localizeHref: (href, nextLocale = resolved, input = contextInput) => web.localizeHref(href, nextLocale, input),
+      localizeUrl: (url, nextLocale = resolved, input = contextInput) => web.localizeUrl(url, nextLocale, input),
+      shouldLocalizeHref: (href, input = contextInput) => web.shouldLocalizeHref(href, input),
+      shouldLocalizeLink: (href, attributes = {}, input = contextInput) => web.shouldLocalizeLink(href, attributes, input),
+      localizeHrefAttribute: (href, nextLocale = resolved, input = contextInput) => web.localizeHrefAttribute(href, nextLocale, input),
+      delocalizeUrl: (url, input = contextInput) => web.delocalizeUrl(url, input),
+      alternateLinks: (url, input = contextInput) => web.alternateLinks(url, input),
+    };
+  }
+
+  return {
+    ...web,
+    createLinguini: runtime.createLinguini,
+    resolveRequest: async (request, input = {}) => {
+      const requestInput = inputFromRequest(request, input);
+      return createRequestContext(web.resolveLocaleSync(requestInput), requestInput);
+    },
+    createRequestContext,
   };
 }
 

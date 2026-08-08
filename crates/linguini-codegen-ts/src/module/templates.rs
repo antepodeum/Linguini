@@ -14,12 +14,18 @@ pub const SVELTE_RUNTIME: &str = include_str!("templates/svelte.runtime.ts");
 pub const SVELTE_DECLARATIONS: &str = include_str!("templates/svelte.runtime.d.ts");
 pub const SVELTE_CONTEXT_RUNTIME: &str = include_str!("templates/svelte.context.runtime.ts");
 pub const SVELTE_CONTEXT_DECLARATIONS: &str = include_str!("templates/svelte.context.runtime.d.ts");
+pub const SVELTE_EFFECTS_RUNTIME: &str = include_str!("templates/svelte-effects.runtime.ts");
+pub const SVELTE_EFFECTS_DECLARATIONS: &str = include_str!("templates/svelte-effects.runtime.d.ts");
 pub const SVELTE_LOCALE_RUNTIME: &str = include_str!("templates/svelte-locale.runtime.ts");
 pub const SVELTE_LOCALE_CONTEXT_RUNTIME: &str =
     include_str!("templates/svelte-locale.context.runtime.ts");
+pub const SVELTE_LOCALE_STANDALONE_RUNTIME: &str =
+    include_str!("templates/svelte-locale.standalone.runtime.ts");
 pub const SVELTE_LOCALE_DECLARATIONS: &str = include_str!("templates/svelte-locale.runtime.d.ts");
 pub const SVELTE_LOCALE_CONTEXT_DECLARATIONS: &str =
     include_str!("templates/svelte-locale.context.runtime.d.ts");
+pub const SVELTE_LOCALE_STANDALONE_DECLARATIONS: &str =
+    include_str!("templates/svelte-locale.standalone.runtime.d.ts");
 pub const SVELTEKIT_RUNTIME: &str = include_str!("templates/sveltekit.runtime.ts");
 pub const SVELTEKIT_DECLARATIONS: &str = include_str!("templates/sveltekit.runtime.d.ts");
 pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
@@ -53,15 +59,21 @@ mod tests {
         assert!(SINGLE_INDEX_RUNTIME.contains("createLinguini"));
         assert!(SINGLE_INDEX_DECLARATIONS.contains("createLinguini"));
         assert!(WEB_RUNTIME.contains("createWebI18n"));
+        assert!(WEB_RUNTIME.contains("createWebLocaleI18n"));
         assert!(WEB_DECLARATIONS.contains("LinguiniRequestContext"));
+        assert!(WEB_DECLARATIONS.contains("LinguiniWebLocale"));
         assert!(SVELTE_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_DECLARATIONS.contains("LinguiniRune"));
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
+        assert!(SVELTE_EFFECTS_RUNTIME.contains("startAutoLinkLocalization"));
+        assert!(SVELTE_EFFECTS_DECLARATIONS.contains("destroyLinguiniEffects"));
         assert!(SVELTE_LOCALE_RUNTIME.contains("getCurrentLocale"));
         assert!(SVELTE_LOCALE_CONTEXT_RUNTIME.contains("getCurrentLocale"));
+        assert!(SVELTE_LOCALE_STANDALONE_RUNTIME.contains("initializeCurrentLocale"));
         assert!(SVELTE_LOCALE_DECLARATIONS.contains("getCurrentLocale"));
         assert!(SVELTE_LOCALE_CONTEXT_DECLARATIONS.contains("getCurrentLocale"));
+        assert!(SVELTE_LOCALE_STANDALONE_DECLARATIONS.contains("initializeCurrentLocale"));
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniReroute"));

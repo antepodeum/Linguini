@@ -8,7 +8,7 @@ export interface LinguiniSetLocaleOptions {
   keepFocus?: boolean;
   noScroll?: boolean;
   cookie?: boolean;
-  state?: App.PageState;
+  state?: {{PAGE_STATE}};
 }
 
 export interface LinguiniRune<Locale extends string, Linguini> {

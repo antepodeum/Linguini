@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   createWebI18n,
+  createWebLocaleI18n,
   type LinguiniRuntime,
   type LinguiniWebOptions,
 } from "../src/module/templates/web.runtime.ts";
@@ -21,6 +22,20 @@ function createWeb(options: LinguiniWebOptions = {}) {
     ...options,
   });
 }
+
+test("metadata-only web runtime localizes without a message factory", () => {
+  const web = createWebLocaleI18n(
+    {
+      locales: ["en", "fr"] as const,
+      baseLocale: "en" as const,
+    },
+    { origin: "https://app.example" },
+  );
+
+  assert.equal(web.localizeHref("/en/account", "fr"), "/fr/account");
+  assert.equal("createLinguini" in web, false);
+  assert.equal("createRequestContext" in web, false);
+});
 
 test("localization changes only same-origin HTTP URLs", () => {
   const web = createWeb();

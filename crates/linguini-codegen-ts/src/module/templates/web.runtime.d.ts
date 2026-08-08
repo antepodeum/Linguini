@@ -1,13 +1,16 @@
 export type TextDirection = "ltr" | "rtl";
 export type LocaleSource = "path" | "cookie" | "local-storage" | "accept-language";
 
-export interface LinguiniRuntime<Locale extends string = string, Linguini = unknown> {
+export interface LinguiniLocaleRuntime<Locale extends string = string> {
   locales: readonly Locale[];
   baseLocale: Locale;
   localeDirections?: Readonly<Record<Locale, TextDirection>>;
-  createLinguini(locale: Locale): Linguini;
   normalizeLocale?(locale: unknown): Locale | undefined;
   getTextDirection?(locale: Locale): TextDirection;
+}
+
+export interface LinguiniRuntime<Locale extends string = string, Linguini = unknown> extends LinguiniLocaleRuntime<Locale> {
+  createLinguini(locale: Locale): Linguini;
 }
 
 export interface LinguiniWebOptions {
@@ -70,13 +73,11 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
  * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
  * fail closed and preserve the original href instead.
  */
-export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniRuntime<Locale, Linguini> {
+export interface LinguiniWebLocale<Locale extends string = string> extends LinguiniLocaleRuntime<Locale> {
   options: Required<Pick<LinguiniWebOptions, "sources" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
   matchLocale(locale: unknown): Locale | undefined;
   resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
   resolveLocaleSync(input?: Record<string, unknown>): Locale;
-  resolveRequest(request: Request, input?: Record<string, unknown>): Promise<LinguiniRequestContext<Locale, Linguini>>;
-  createRequestContext(locale: Locale, input?: Record<string, unknown>): LinguiniRequestContext<Locale, Linguini>;
   localizeUrl(url: string | URL, locale: Locale, input?: Record<string, unknown>): URL;
   localizeHref(href: string, locale: Locale, input?: Record<string, unknown>): string;
   shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
@@ -92,5 +93,13 @@ export interface LinguiniWeb<Locale extends string = string, Linguini = unknown>
   setLocaleCookie(target: unknown, locale: Locale, input?: Record<string, unknown>): void;
   serializeLocaleCookie(locale: Locale, input?: Record<string, unknown>): string;
 }
+
+export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniWebLocale<Locale> {
+  createLinguini(locale: Locale): Linguini;
+  resolveRequest(request: Request, input?: Record<string, unknown>): Promise<LinguiniRequestContext<Locale, Linguini>>;
+  createRequestContext(locale: Locale, input?: Record<string, unknown>): LinguiniRequestContext<Locale, Linguini>;
+}
+
+export declare function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options?: LinguiniWebOptions): LinguiniWebLocale<Locale>;
 
 export declare function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options?: LinguiniWebOptions): LinguiniWeb<Locale, Linguini>;

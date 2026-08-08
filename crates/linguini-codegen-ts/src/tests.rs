@@ -1838,6 +1838,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(paths.contains(&"svelte.ts"));
     assert!(paths.contains(&"svelte-locale.svelte.ts"));
     assert!(paths.contains(&"svelte-locale.svelte.d.ts"));
+    assert!(paths.contains(&"svelte-effects.svelte.ts"));
+    assert!(paths.contains(&"svelte-effects.svelte.d.ts"));
     assert!(paths.contains(&"web.ts"));
     assert!(paths.contains(&"sveltekit.ts"));
 
@@ -1845,33 +1847,77 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .iter()
         .find(|file| file.path == "svelte.ts")
         .expect("svelte module");
-    assert!(svelte
-        .contents
-        .contains("import { createWebI18n } from \"./web\";"));
+    assert!(svelte.contents.contains("./svelte-effects.svelte.js"));
+    assert!(svelte.contents.contains("from \"$app/environment\""));
+    assert!(svelte.contents.contains("from \"$app/navigation\""));
+    assert!(!svelte.contents.contains("createWebI18n"));
     assert!(!svelte.contents.contains("@antepod/"));
     assert!(svelte.contents.contains("export const l = linguini.l;"));
-    assert!(svelte.contents.contains("cookieName: \"SHOP_LOCALE\""));
-    assert!(svelte
-        .contents
-        .contains("sources: [\"path\", \"cookie\", \"accept-language\"] as const"));
     assert!(!svelte.contents.contains("preferredLanguage"));
     assert!(!svelte.contents.contains("globalVariable"));
     assert!(!svelte.contents.contains("trailingSlash"));
-    assert!(svelte.contents.contains("localizeLinks: false"));
     assert!(svelte.contents.contains("cookie: true"));
     assert!(svelte.contents.contains("navigate: true"));
     assert!(svelte.contents.contains("keepFocus: true"));
     assert!(svelte.contents.contains("noScroll: true"));
     assert!(svelte.contents.contains("getLocale: getCurrentLocale"));
-    assert!(svelte
-        .contents
-        .contains("initializeCurrentLocale(readInitialLocale(web))"));
     assert!(svelte.contents.contains("setCurrentLocale(resolved)"));
+    assert!(svelte.contents.contains("writeLocaleCookie(web, resolved)"));
     assert!(svelte.contents.contains("clearCurrentLocaleOverride()"));
     assert!(svelte.contents.contains("./svelte-locale.svelte.js"));
-    assert!(svelte
+    assert!(svelte.contents.contains("refreshLinguiniEffects()"));
+    assert!(svelte.contents.contains("destroy: destroyLinguiniEffects"));
+    for forbidden in [
+        "MutationObserver",
+        "AUTO_LINK_MAX_PENDING_ROOTS",
+        "initializeCurrentLocale",
+        "hot?.dispose",
+    ] {
+        assert!(!svelte.contents.contains(forbidden));
+    }
+
+    let svelte_effects = files
+        .iter()
+        .find(|file| file.path == "svelte-effects.svelte.ts")
+        .expect("Svelte effects helper");
+    assert!(svelte_effects.contents.contains("createWebLocaleI18n"));
+    assert!(svelte_effects
         .contents
-        .contains("startAutoLinkLocalization(web, getCurrentLocale)"));
+        .contains("from \"$app/environment\""));
+    assert!(svelte_effects
+        .contents
+        .contains("initializeCurrentLocale(readInitialLocale())"));
+    assert!(svelte_effects
+        .contents
+        .contains("startAutoLinkLocalization(getCurrentLocale)"));
+    assert!(svelte_effects
+        .contents
+        .contains("hot?.dispose(destroyLinguiniEffects)"));
+    assert!(svelte_effects
+        .contents
+        .contains("cookieName: \"SHOP_LOCALE\""));
+    assert!(svelte_effects
+        .contents
+        .contains("sources: [\"path\", \"cookie\", \"accept-language\"] as const"));
+    assert!(svelte_effects.contents.contains("localizeLinks: false"));
+    for capability in [
+        "readBrowserCapability(() => window.location.href)",
+        "readBrowserCapability(() => document.cookie)",
+        "readBrowserCapability(() => window.localStorage)",
+        "readBrowserCapability(() => window.navigator)",
+    ] {
+        assert!(svelte_effects.contents.contains(capability));
+    }
+    for forbidden in ["./index", "./locales/", "./messages", "createLinguini"] {
+        assert!(!svelte_effects.contents.contains(forbidden));
+    }
+    let svelte_effects_declaration = files
+        .iter()
+        .find(|file| file.path == "svelte-effects.svelte.d.ts")
+        .expect("Svelte effects helper declaration");
+    for export in ["web", "refreshLinguiniEffects", "destroyLinguiniEffects"] {
+        assert!(svelte_effects_declaration.contents.contains(export));
+    }
 
     let svelte_locale = files
         .iter()
@@ -1943,6 +1989,84 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
 }
 
 #[test]
+fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
+    use crate::{
+        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let files = generate_project_files(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &TypeScriptProjectOptions {
+            framework: Some(TypeScriptFramework::Svelte),
+            web: Some(TypeScriptWebOptions::default()),
+            ..project_options("en")
+        },
+    )
+    .expect("plain Svelte web codegen");
+
+    let paths = files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect::<Vec<_>>();
+    for path in [
+        "web.ts",
+        "svelte.ts",
+        "svelte.d.ts",
+        "svelte-locale.svelte.ts",
+        "svelte-effects.svelte.ts",
+    ] {
+        assert!(paths.contains(&path));
+    }
+    assert!(!paths.contains(&"sveltekit.ts"));
+
+    let generated = |path: &str| {
+        &files
+            .iter()
+            .find(|file| file.path == path)
+            .unwrap_or_else(|| panic!("missing {path}"))
+            .contents
+    };
+    let svelte = generated("svelte.ts");
+    let locale = generated("svelte-locale.svelte.ts");
+    let effects = generated("svelte-effects.svelte.ts");
+    let declaration = generated("svelte.d.ts");
+
+    for output in [svelte, locale, effects, declaration] {
+        assert!(!output.contains("$app/"));
+    }
+    assert!(svelte.contains("typeof window !== \"undefined\""));
+    assert!(svelte.contains("window.location.assign(href)"));
+    assert!(svelte.contains("window.location.replace(href)"));
+    assert!(!svelte.contains("goto("));
+    assert!(!svelte.contains("clearCurrentLocaleOverride"));
+    assert!(effects.contains("typeof document !== \"undefined\""));
+    assert!(effects.contains("initializeCurrentLocale(readInitialLocale())"));
+    assert!(effects.contains("readBrowserCapability(() => document.cookie)"));
+    assert!(effects.contains("readBrowserCapability(() => window.localStorage)"));
+    assert!(effects.contains("readBrowserCapability(() => window.navigator)"));
+    assert!(locale.contains("let activeLocale = $state<Locale>(baseLocale)"));
+    assert!(locale.contains("export function initializeCurrentLocale"));
+    assert!(locale.contains("export function setCurrentLocale"));
+    assert!(declaration.contains("state?: unknown"));
+    let set_position = svelte
+        .find("setCurrentLocale(resolved)")
+        .expect("synchronous locale update");
+    let navigation_position = svelte
+        .find("if (options.navigate)")
+        .expect("navigation branch");
+    assert!(set_position < navigation_position);
+    assert!(svelte.contains("writeLocaleCookie(web, resolved)"));
+    for forbidden in ["./index", "./locales/", "./messages", "createLinguini"] {
+        assert!(!effects.contains(forbidden));
+    }
+}
+
+#[test]
 fn project_codegen_emits_context_only_svelte_without_web_config() {
     use crate::{TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions};
     use linguini_ir::IrModule;
@@ -1967,6 +2091,8 @@ fn project_codegen_emits_context_only_svelte_without_web_config() {
         .collect::<Vec<_>>();
     assert!(paths.contains(&"svelte.ts"));
     assert!(paths.contains(&"svelte-locale.svelte.ts"));
+    assert!(!paths.contains(&"svelte-effects.svelte.ts"));
+    assert!(!paths.contains(&"svelte-effects.svelte.d.ts"));
     assert!(!paths.contains(&"web.ts"));
     assert!(!paths.contains(&"sveltekit.ts"));
 

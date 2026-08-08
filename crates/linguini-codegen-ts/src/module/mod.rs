@@ -729,7 +729,8 @@ pub fn generate_typescript_project_files(
         .framework
         .is_some_and(TypeScriptFramework::needs_svelte_module)
     {
-        if options.web.is_some() {
+        let sveltekit = options.framework == Some(TypeScriptFramework::SvelteKit);
+        if let Some(web) = options.web.as_ref() {
             files.push(TypeScriptGeneratedFile {
                 path: "web.ts".to_owned(),
                 contents: project::generate_project_web_module(),
@@ -740,27 +741,44 @@ pub fn generate_typescript_project_files(
                     contents: project::generate_project_web_declaration(),
                 });
             }
+            files.push(TypeScriptGeneratedFile {
+                path: "svelte-effects.svelte.ts".to_owned(),
+                contents: project::generate_project_svelte_effects_module(web, sveltekit),
+            });
+            if options.declaration {
+                files.push(TypeScriptGeneratedFile {
+                    path: "svelte-effects.svelte.d.ts".to_owned(),
+                    contents: project::generate_project_svelte_effects_declaration(),
+                });
+            }
         }
         files.push(TypeScriptGeneratedFile {
             path: "svelte-locale.svelte.ts".to_owned(),
-            contents: project::generate_project_svelte_locale_module(options.web.is_some()),
+            contents: project::generate_project_svelte_locale_module(
+                options.web.is_some(),
+                sveltekit,
+            ),
         });
         if options.declaration {
             files.push(TypeScriptGeneratedFile {
                 path: "svelte-locale.svelte.d.ts".to_owned(),
                 contents: project::generate_project_svelte_locale_declaration(
                     options.web.is_some(),
+                    sveltekit,
                 ),
             });
         }
         files.push(TypeScriptGeneratedFile {
             path: "svelte.ts".to_owned(),
-            contents: project::generate_project_svelte_module(options.web.as_ref()),
+            contents: project::generate_project_svelte_module(options.web.as_ref(), sveltekit),
         });
         if options.declaration {
             files.push(TypeScriptGeneratedFile {
                 path: "svelte.d.ts".to_owned(),
-                contents: project::generate_project_svelte_declaration(options.web.is_some()),
+                contents: project::generate_project_svelte_declaration(
+                    options.web.is_some(),
+                    sveltekit,
+                ),
             });
         }
     }
