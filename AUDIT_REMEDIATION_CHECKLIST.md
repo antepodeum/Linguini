@@ -85,6 +85,8 @@ production path uses the fix and its relevant tests pass.
   dynamic-prefix message usage analysis to CLI check/build, JSON, SARIF, and warning policy.
 - `4e648f4` — added explicit group metadata with docs/spans through IR lowering, qualification,
   validation, project merge/fallback, and bounded codegen projections.
+- `f2faa80` — added a validated, deterministic per-message semantic dependency closure with
+  transitive symbol selection and source-ID metadata for later ESM/HMR consumers.
 
 ## Numbered findings
 
@@ -653,7 +655,9 @@ production path uses the fix and its relevant tests pass.
 - [ ] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports.
 - [ ] BUNDLE-A3 — Keep parameterless public access as a value.
 - [ ] BUNDLE-A4 — Generate one ESM module per referenced message.
-- [ ] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
+- [-] BUNDLE-A5 — Include only each message's transitive semantic dependencies; the validated
+      closure now selects exact transitive IR and source IDs, but the per-message ESM emitter does
+      not yet consume it.
 - [ ] BUNDLE-A6 — Invalidate only affected virtual modules.
 - [ ] BUNDLE-A7 — Reject dynamic lookup in strict mode; provide an explicit bundle escape hatch.
 - [ ] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
