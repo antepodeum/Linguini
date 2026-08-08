@@ -2,9 +2,9 @@ use crate::error::{ConfigError, ConfigResult};
 use crate::model::{
     canonicalize_locale_tag, AnalysisConfig, CanonicalMode, CookiePath, LinguiniConfig, LinkMode,
     LocalePrefixMode, LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite,
-    SecurePolicy, TargetsConfig, TypeScriptTargetConfig, UnusedMessagesConfig, WebConfig,
-    WebCookieConfig, WebLinksConfig, WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig,
-    WebRoutingConfig, WebSwitchRouteConfig,
+    SecurePolicy, TargetsConfig, TypeScriptBundlerConfig, TypeScriptTargetConfig,
+    UnusedMessagesConfig, WebConfig, WebCookieConfig, WebLinksConfig, WebLocalStorageConfig,
+    WebLocaleConfig, WebRoutesConfig, WebRoutingConfig, WebSwitchRouteConfig,
 };
 use serde::Deserialize;
 
@@ -64,6 +64,14 @@ struct RawTypeScriptTargetConfig {
     tree_shaking: Option<bool>,
     messages: Option<Vec<String>>,
     framework: Option<String>,
+    bundler: Option<RawTypeScriptBundlerConfig>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawTypeScriptBundlerConfig {
+    sources: Option<Vec<String>>,
+    exclude: Option<Vec<String>>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -236,6 +244,20 @@ fn build_typescript_target(raw: RawTypeScriptTargetConfig) -> ConfigResult<TypeS
         tree_shaking: raw.tree_shaking.unwrap_or(false),
         messages: raw.messages.unwrap_or_default(),
         framework: raw.framework,
+        bundler: raw.bundler.map(|bundler| TypeScriptBundlerConfig {
+            sources: bundler
+                .sources
+                .unwrap_or_default()
+                .into_iter()
+                .map(normalize_project_path)
+                .collect(),
+            exclude: bundler
+                .exclude
+                .unwrap_or_default()
+                .into_iter()
+                .map(normalize_project_path)
+                .collect(),
+        }),
     })
 }
 
@@ -621,6 +643,80 @@ mod tests {
         assert!(target.tree_shaking);
         assert_eq!(target.messages, ["delivery", "email_input.label"]);
         assert_eq!(target.framework.as_deref(), Some("sveltekit"));
+        assert!(target.bundler.is_none());
+    }
+
+    #[test]
+    fn parses_and_validates_typescript_bundler_scope() {
+        let config = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [targets.ts]
+            framework = "svelte"
+            [targets.ts.bundler]
+            sources = [" ./src/ ", "tests//ui"]
+            exclude = ["src/generated"]
+            "#,
+        )
+        .expect("valid bundler config");
+        let bundler = config.targets.ts.expect("target").bundler.expect("bundler");
+        assert_eq!(bundler.sources, ["src", "tests/ui"]);
+        assert_eq!(bundler.exclude, ["src/generated"]);
+
+        for section in [
+            "sources = []",
+            "sources = [\"../src\"]",
+            "sources = [\"src\\\\app\"]",
+            "sources = [\"src\", \"./src\"]",
+            "sources = [\"src/app\"]\nexclude = [\"src\"]",
+            "sources = [\"src\"]\nunknown = true",
+        ] {
+            let source = format!(
+                r#"
+                [project]
+                name = "shop"
+                default_locale = "en"
+                locales = ["en"]
+                [paths]
+                schema = "schema"
+                locale = "locale"
+                [targets.ts]
+                framework = "svelte"
+                [targets.ts.bundler]
+                {section}
+                "#
+            );
+            let error = parse_config(&source).expect_err(section);
+            let message = error.to_string();
+            assert!(
+                message.contains("targets.ts.bundler") || message.contains("unknown field"),
+                "{message}"
+            );
+        }
+
+        let without_framework = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [targets.ts.bundler]
+            sources = ["src"]
+            "#,
+        )
+        .expect_err("bundler framework capability required");
+        assert!(without_framework
+            .to_string()
+            .contains("targets.ts.bundler requires targets.ts.framework"));
     }
 
     #[test]

@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
-use linguini_analyzer::DiagnosticSeverity;
+use linguini_analyzer::{
+    ApplicationBindingProvenance, ApplicationReferenceKind, ApplicationUsage, DiagnosticSeverity,
+};
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
     compile_typescript_message_module, generate_typescript_project_files, EcmaSource,
@@ -9,18 +11,20 @@ use linguini_codegen_ts::{
     TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
 };
 use linguini_config::{
-    CanonicalMode, CookiePath, LinguiniConfig, LinkMode, LocalePrefixMode, SecurePolicy,
-    TypeScriptTargetConfig,
+    discover_application_source_files_with_fields, CanonicalMode, CookiePath, LinguiniConfig,
+    LinkMode, LocalePrefixMode, SecurePolicy, TypeScriptBundlerConfig, TypeScriptTargetConfig,
 };
 use linguini_ir::{
     ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, IrModule,
     IrSymbolKind,
 };
+use linguini_syntax::SourceId;
+use sha2::{Digest, Sha256};
 
 use crate::{CliError, CliResult, DiagnosticFormat};
 
 use super::check::{check_project_with_options, reject_locale_files_without_schema_namespace};
-use super::io::{path_for_output, read_project_config, render_file_diagnostics};
+use super::io::{path_for_output, read_file, read_project_config, render_file_diagnostics};
 use super::output::{replace_owned_files, GeneratedFile, SafeOutputRoot};
 use super::sources::{
     coverage_options, expected_locale_path, load_locale_sources, load_schema_sources, locale_index,
@@ -101,9 +105,10 @@ fn generate_typescript_target(
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let sources = ecma_sources(root, &schema_files, &locale_files)?;
     files.extend(generate_bundler_files(
+        root,
         &project,
         &sources,
-        &target.out,
+        target,
         &config.project.locales,
         &config.project.default_locale,
     )?);
@@ -190,12 +195,14 @@ fn project_relative_source_path(root: &Path, path: &Path) -> CliResult<String> {
 }
 
 fn generate_bundler_files(
+    root: &Path,
     project: &ValidatedTypeScriptProject<'_>,
     sources: &[EcmaSource],
-    output_root: &str,
+    target: &TypeScriptTargetConfig,
     configured_locales: &[String],
     base_locale: &str,
 ) -> CliResult<Vec<TypeScriptGeneratedFile>> {
+    let output_root = &target.out;
     let artifacts = project
         .message_artifacts()
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
@@ -260,6 +267,10 @@ fn generate_bundler_files(
         });
     }
 
+    let message_arities = messages
+        .iter()
+        .map(|(message, (arity, _))| (message.clone(), *arity))
+        .collect::<BTreeMap<_, _>>();
     let messages = messages
         .into_iter()
         .map(|(message, (arity, locales))| {
@@ -281,7 +292,7 @@ fn generate_bundler_files(
             })
         })
         .collect::<Vec<_>>();
-    let manifest = serde_json::json!({
+    let mut manifest = serde_json::json!({
         "version": 1,
         "base_locale": base_locale,
         "configured_locales": configured_locales,
@@ -289,6 +300,21 @@ fn generate_bundler_files(
         "sources": source_table,
         "messages": messages,
     });
+    if let Some(bundler) = &target.bundler {
+        let applications = scan_bundler_applications(root, output_root, bundler, &message_arities)?;
+        let manifest = manifest.as_object_mut().expect("manifest is an object");
+        manifest.insert("version".to_owned(), serde_json::json!(2));
+        manifest.insert("applications".to_owned(), serde_json::json!(applications));
+        manifest.insert(
+            "runtime_helpers".to_owned(),
+            serde_json::json!({
+                "svelte_locale": {
+                    "import": "./svelte-locale.svelte.js",
+                    "file": "svelte-locale.svelte.ts",
+                }
+            }),
+        );
+    }
     let mut contents = serde_json::to_string_pretty(&manifest).map_err(|error| {
         CliError::Diagnostics(format!("failed to serialize bundler manifest: {error}\n"))
     })?;
@@ -298,6 +324,224 @@ fn generate_bundler_files(
         contents,
     });
     Ok(files)
+}
+
+const APPLICATION_SOURCE_ID_BASE: u32 = 0x8000_0000;
+
+fn scan_bundler_applications(
+    root: &Path,
+    output_root: &str,
+    config: &TypeScriptBundlerConfig,
+    messages: &BTreeMap<String, usize>,
+) -> CliResult<BTreeMap<String, serde_json::Value>> {
+    let mut exclude = config.exclude.clone();
+    exclude.push(output_root.to_owned());
+    let paths = discover_application_source_files_with_fields(
+        root,
+        &config.sources,
+        &exclude,
+        "targets.ts.bundler.sources",
+        "targets.ts.bundler.exclude",
+    )?;
+    let mut applications = BTreeMap::new();
+    let mut portable_paths = BTreeSet::new();
+    for (index, path) in paths.into_iter().enumerate() {
+        let path_key = project_relative_source_path(root, &path)?;
+        if !portable_paths.insert(path_key.to_ascii_lowercase()) {
+            return Err(CliError::Diagnostics(format!(
+                "bundler application paths are not case-distinct: `{path_key}`\n"
+            )));
+        }
+        let source = read_file(&path)?;
+        // Localization IDs occupy low odd/even values. Sorted app paths occupy high-bit IDs.
+        let index = u32::try_from(index).map_err(|_| {
+            CliError::Diagnostics("project contains too many application source files\n".to_owned())
+        })?;
+        let source_id = APPLICATION_SOURCE_ID_BASE
+            .checked_add(index)
+            .ok_or_else(|| {
+                CliError::Diagnostics(
+                    "project contains too many application source files\n".to_owned(),
+                )
+            })?;
+        let usage = ApplicationUsage::from_source_in(&source, SourceId(source_id));
+        applications.insert(
+            path_key.clone(),
+            application_entry(&path_key, &source, SourceId(source_id), &usage, messages)?,
+        );
+    }
+    Ok(applications)
+}
+
+fn application_entry(
+    path: &str,
+    source: &str,
+    source_id: SourceId,
+    usage: &ApplicationUsage,
+    messages: &BTreeMap<String, usize>,
+) -> CliResult<serde_json::Value> {
+    let mut references = Vec::new();
+    let mut unresolved = Vec::new();
+    let mut referenced_paths = BTreeSet::new();
+    for reference in usage.references() {
+        if reference.span.start > reference.span.end
+            || reference.span.end > source.len()
+            || !source.is_char_boundary(reference.span.start)
+            || !source.is_char_boundary(reference.span.end)
+        {
+            return Err(CliError::Diagnostics(format!(
+                "bundler analyzer returned an invalid UTF-8 byte span for `{}` in `{path}`: {}..{}\n",
+                reference.canonical_path, reference.span.start, reference.span.end
+            )));
+        }
+        referenced_paths.insert(reference.canonical_path.as_str());
+        if source[reference.span.start..reference.span.end].contains("?.")
+            || has_optional_invocation(source, reference.span.end)
+        {
+            unresolved.push((
+                reference.span.start,
+                reference.span.end,
+                reference.canonical_path.clone(),
+                serde_json::json!({
+                    "message": reference.canonical_path,
+                    "start": reference.span.start,
+                    "end": reference.span.end,
+                    "reason": "optional_chain",
+                }),
+            ));
+            continue;
+        }
+        let Some(&arity) = messages.get(&reference.canonical_path) else {
+            unresolved.push((
+                reference.span.start,
+                reference.span.end,
+                reference.canonical_path.clone(),
+                serde_json::json!({
+                    "message": reference.canonical_path,
+                    "start": reference.span.start,
+                    "end": reference.span.end,
+                    "reason": "non_exact_message_path",
+                }),
+            ));
+            continue;
+        };
+        let kind = match reference.kind {
+            ApplicationReferenceKind::Value => "value",
+            ApplicationReferenceKind::Call => "call",
+        };
+        let compatible = matches!(reference.kind, ApplicationReferenceKind::Value) && arity == 0
+            || matches!(reference.kind, ApplicationReferenceKind::Call) && arity > 0;
+        if !compatible {
+            unresolved.push((
+                reference.span.start,
+                reference.span.end,
+                reference.canonical_path.clone(),
+                serde_json::json!({
+                    "message": reference.canonical_path,
+                    "start": reference.span.start,
+                    "end": reference.span.end,
+                    "kind": kind,
+                    "arity": arity,
+                    "reason": "arity_mismatch",
+                }),
+            ));
+            continue;
+        }
+        let provenance = match &reference.binding.provenance {
+            ApplicationBindingProvenance::Imported {
+                module_specifier,
+                imported,
+            } => serde_json::json!({
+                "kind": "imported",
+                "module_specifier": module_specifier,
+                "symbol": imported,
+            }),
+            ApplicationBindingProvenance::Factory { factory } => {
+                serde_json::json!({"kind": "factory", "factory": factory})
+            }
+            ApplicationBindingProvenance::Implicit => serde_json::json!({"kind": "implicit"}),
+        };
+        references.push((
+            reference.span.start,
+            reference.span.end,
+            reference.canonical_path.clone(),
+            serde_json::json!({
+                "message": reference.canonical_path,
+                "start": reference.span.start,
+                "end": reference.span.end,
+                "kind": kind,
+                "local": reference.binding.local,
+                "provenance": provenance,
+                "arity": arity,
+            }),
+        ));
+    }
+    for static_path in usage.static_paths() {
+        if !referenced_paths.contains(static_path) {
+            unresolved.push((
+                usize::MAX - 1,
+                usize::MAX - 1,
+                static_path.to_owned(),
+                serde_json::json!({
+                    "message": static_path,
+                    "reason": "missing_exact_span",
+                }),
+            ));
+        }
+    }
+    references
+        .sort_by(|left, right| (&left.0, &left.1, &left.2).cmp(&(&right.0, &right.1, &right.2)));
+    unresolved
+        .sort_by(|left, right| (&left.0, &left.1, &left.2).cmp(&(&right.0, &right.1, &right.2)));
+    let digest = Sha256::digest(source.as_bytes());
+    let mut previous_end = 0;
+    for reference in &references {
+        if reference.0 < previous_end {
+            return Err(CliError::Diagnostics(format!(
+                "bundler analyzer returned overlapping reference spans in `{path}` at bytes {}..{}\n",
+                reference.0, reference.1
+            )));
+        }
+        previous_end = reference.1;
+    }
+    Ok(serde_json::json!({
+        "sha256": format!("{digest:x}"),
+        "byte_length": source.len(),
+        "source_id": source_id.0,
+        "references": references.into_iter().map(|entry| entry.3).collect::<Vec<_>>(),
+        "unresolved": unresolved.into_iter().map(|entry| entry.3).collect::<Vec<_>>(),
+        "analysis_dynamic_prefixes": usage.dynamic_prefixes().collect::<Vec<_>>(),
+    }))
+}
+
+fn has_optional_invocation(source: &str, span_end: usize) -> bool {
+    let Some(after_span) = source.get(span_end..) else {
+        return false;
+    };
+    let Some(after_chain) = strip_js_trivia(after_span).strip_prefix("?.") else {
+        return false;
+    };
+    strip_js_trivia(after_chain).starts_with('(')
+}
+
+fn strip_js_trivia(mut source: &str) -> &str {
+    loop {
+        let trimmed = source.trim_start();
+        if let Some(comment) = trimmed.strip_prefix("//") {
+            source = comment
+                .find(['\r', '\n'])
+                .map_or("", |newline| &comment[newline..]);
+            continue;
+        }
+        if let Some(comment) = trimmed.strip_prefix("/*") {
+            let Some(end) = comment.find("*/") else {
+                return trimmed;
+            };
+            source = &comment[end + 2..];
+            continue;
+        }
+        return trimmed;
+    }
 }
 
 fn lexical_relative_path(from_directory: &str, target: &str) -> Result<String, &'static str> {

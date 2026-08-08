@@ -71,17 +71,39 @@ pub fn discover_application_source_files(
     sources: &[String],
     exclude: &[String],
 ) -> ConfigResult<Vec<PathBuf>> {
+    discover_application_source_files_with_fields(
+        project_root,
+        sources,
+        exclude,
+        "analysis.unused_messages.sources",
+        "analysis.unused_messages.exclude",
+    )
+}
+
+/// Discovers application sources while attributing configuration diagnostics to the caller's
+/// source and exclusion fields.
+pub fn discover_application_source_files_with_fields(
+    project_root: impl AsRef<Path>,
+    sources: &[String],
+    exclude: &[String],
+    sources_field: &'static str,
+    exclude_field: &'static str,
+) -> ConfigResult<Vec<PathBuf>> {
     let root = prepare_root(project_root.as_ref())?;
-    let sources = configured_paths("analysis.unused_messages.sources", sources)?;
-    let exclude = configured_paths("analysis.unused_messages.exclude", exclude)?;
+    let sources = configured_paths(sources_field, sources)?;
+    let exclude = configured_paths(exclude_field, exclude)?;
     let mut state = DiscoveryState::new(&root);
 
     for relative in sources {
         if path_is_excluded(&relative, &exclude) {
             return Err(ConfigError::InvalidPath {
-                field: "analysis.unused_messages.sources",
+                field: sources_field,
                 value: relative.to_string_lossy().replace('\\', "/"),
-                reason: "source is fully covered by analysis.unused_messages.exclude",
+                reason: if exclude_field == "targets.ts.bundler.exclude" {
+                    "source is fully covered by targets.ts.bundler.exclude"
+                } else {
+                    "source is fully covered by analysis.unused_messages.exclude"
+                },
             });
         }
         reject_symlink_components(&root, &relative)?;
@@ -708,6 +730,23 @@ mod tests {
         .expect_err("fully excluded source rejected");
 
         assert!(matches!(error, ConfigError::InvalidPath { .. }));
+    }
+
+    #[test]
+    fn attributes_application_discovery_errors_to_requested_fields() {
+        let root = TempDir::new().expect("root");
+        let error = super::discover_application_source_files_with_fields(
+            root.path(),
+            &["src/app".to_owned()],
+            &["src".to_owned()],
+            "targets.ts.bundler.sources",
+            "targets.ts.bundler.exclude",
+        )
+        .expect_err("covered source");
+        let message = error.to_string();
+        assert!(message.contains("targets.ts.bundler.sources"), "{message}");
+        assert!(message.contains("targets.ts.bundler.exclude"), "{message}");
+        assert!(!message.contains("analysis.unused_messages"), "{message}");
     }
 
     #[test]

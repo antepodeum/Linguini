@@ -512,6 +512,26 @@ tree_shaking = false
     let first_manifest = fs::read_to_string(&manifest_path).expect("manifest");
     let manifest: serde_json::Value = serde_json::from_str(&first_manifest).expect("manifest JSON");
     assert_eq!(manifest["version"], 1);
+    assert!(manifest.get("applications").is_none());
+    assert!(manifest.get("runtime_helpers").is_none());
+    assert_eq!(
+        manifest
+            .as_object()
+            .expect("legacy manifest object")
+            .keys()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>(),
+        [
+            "base_locale",
+            "configured_locales",
+            "effective_locales",
+            "messages",
+            "sources",
+            "version",
+        ]
+        .into_iter()
+        .collect()
+    );
     assert_eq!(manifest["base_locale"], "en");
     assert_eq!(
         manifest["configured_locales"],
@@ -664,6 +684,159 @@ tree_shaking = false
         fs::read_to_string(out.join("user-owned.ts")).expect("user file preserved"),
         "export const userOwned = true;\n"
     );
+}
+
+#[test]
+fn bundler_manifest_bridges_application_references_before_output_mutation() {
+    let project = temp_project_dir("bundler-applications").expect("project");
+    fs::create_dir_all(project.path().join("schema")).expect("schema dir");
+    fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
+    fs::create_dir_all(project.path().join("src/app")).expect("app dir");
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"
+[project]
+name = "bundler-applications"
+default_locale = "en"
+locales = ["en"]
+[paths]
+schema = "schema"
+locale = "locales"
+[targets.ts]
+out = "src/generated/linguini"
+declaration = false
+gitignore = false
+framework = "svelte"
+[targets.ts.bundler]
+sources = ["src", "src/app"]
+exclude = []
+"#,
+    )
+    .expect("config");
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "title\nitems(count: Number)\n",
+    )
+    .expect("schema");
+    fs::write(
+        project.path().join("locales/main/en.lgl"),
+        "title = Title\nitems = {count} items\n",
+    )
+    .expect("locale");
+    let app_source = concat!(
+        "import { l as tr } from \"../generated/linguini\";\r\n",
+        "const label = \"Привет\" + tr.main.title;\r\n",
+        "const count = tr.main.items(2);\r\n",
+        "const property = tr.main.title.extra;\r\n",
+        "const optional = tr?.main.title;\r\n",
+        "const optionalCall = tr.main.title?.();\r\n",
+        "const optionalCallWithTrivia = tr.main.title /* trivia */ ?. ();\r\n",
+        "const optionalParameterizedCall = tr.main.items?.(2);\r\n",
+        "const dynamic = tr.main[key];\r\n",
+        "const unrelated = object.main.title;\r\n",
+    );
+    let app_path = project.path().join("src/app/page.svelte");
+    fs::write(&app_path, app_source).expect("app");
+
+    build_project(project.path()).expect("build");
+    let manifest_path = project
+        .path()
+        .join("src/generated/linguini/bundler/manifest.json");
+    let first_text = fs::read_to_string(&manifest_path).expect("manifest");
+    let manifest: serde_json::Value = serde_json::from_str(&first_text).expect("JSON");
+    assert_eq!(manifest["version"], 2);
+    assert_eq!(
+        manifest["runtime_helpers"],
+        serde_json::json!({
+            "svelte_locale": {
+                "import": "./svelte-locale.svelte.js",
+                "file": "svelte-locale.svelte.ts"
+            }
+        })
+    );
+    let application = &manifest["applications"]["src/app/page.svelte"];
+    assert_eq!(application["byte_length"], app_source.len());
+    assert_eq!(application["source_id"], 0x8000_0000_u32);
+    let digest = application["sha256"].as_str().expect("digest");
+    assert_eq!(digest.len(), 64);
+    assert!(digest
+        .bytes()
+        .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
+    assert!(!first_text.contains("Привет"));
+    let references = application["references"].as_array().expect("references");
+    assert_eq!(references.len(), 2);
+    assert_eq!(references[0]["message"], "main.title");
+    assert_eq!(references[0]["kind"], "value");
+    assert_eq!(references[0]["arity"], 0);
+    assert_eq!(references[0]["local"], "tr");
+    assert_eq!(references[0]["provenance"]["kind"], "imported");
+    assert_eq!(
+        references[0]["provenance"]["module_specifier"],
+        "../generated/linguini"
+    );
+    assert_eq!(references[0]["provenance"]["symbol"], "l");
+    assert_eq!(references[1]["message"], "main.items");
+    assert_eq!(references[1]["kind"], "call");
+    assert_eq!(references[1]["arity"], 1);
+    let start = references[0]["start"].as_u64().expect("start") as usize;
+    let end = references[0]["end"].as_u64().expect("end") as usize;
+    assert_eq!(&app_source.as_bytes()[start..end], b"tr.main.title");
+    let unresolved = application["unresolved"].as_array().expect("unresolved");
+    assert!(unresolved.iter().any(|entry| {
+        entry["message"] == "main.title.extra" && entry["reason"] == "non_exact_message_path"
+    }));
+    assert!(unresolved
+        .iter()
+        .any(|entry| entry["message"] == "main.title" && entry["reason"] == "optional_chain"));
+    assert!(unresolved
+        .iter()
+        .any(|entry| entry["message"] == "main.items" && entry["reason"] == "optional_chain"));
+    assert!(application["analysis_dynamic_prefixes"]
+        .as_array()
+        .expect("dynamic prefixes")
+        .iter()
+        .any(|prefix| prefix == "main"));
+
+    build_project(project.path()).expect("repeat build");
+    assert_eq!(
+        fs::read_to_string(&manifest_path).expect("manifest"),
+        first_text
+    );
+    let config_path = project.path().join("linguini.toml");
+    let reordered_config = fs::read_to_string(&config_path).expect("config").replace(
+        "sources = [\"src\", \"src/app\"]",
+        "sources = [\"src/app\", \"src\"]",
+    );
+    fs::write(&config_path, reordered_config).expect("reordered config");
+    build_project(project.path()).expect("reordered source build");
+    assert_eq!(
+        fs::read_to_string(&manifest_path).expect("reordered manifest"),
+        first_text
+    );
+    fs::write(&app_path, app_source.replace("Привет", "Здравствуйте")).expect("stale app");
+    build_project(project.path()).expect("changed app build");
+    let changed_text = fs::read_to_string(&manifest_path).expect("changed manifest");
+    let changed: serde_json::Value = serde_json::from_str(&changed_text).expect("changed JSON");
+    assert_ne!(
+        changed["applications"]["src/app/page.svelte"]["sha256"],
+        application["sha256"]
+    );
+
+    fs::write(&app_path, "import { l } from \"x\";\nl.main.title();\n").expect("mismatch app");
+    build_project(project.path()).expect("arity mismatch remains unresolved");
+    let mismatch: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("mismatch manifest"))
+            .expect("mismatch JSON");
+    let mismatch_app = &mismatch["applications"]["src/app/page.svelte"];
+    assert!(mismatch_app["references"]
+        .as_array()
+        .expect("refs")
+        .is_empty());
+    assert!(mismatch_app["unresolved"]
+        .as_array()
+        .expect("unresolved")
+        .iter()
+        .any(|entry| entry["reason"] == "arity_mismatch"));
 }
 
 #[test]

@@ -50,6 +50,13 @@ pub struct TypeScriptTargetConfig {
     pub tree_shaking: bool,
     pub messages: Vec<String>,
     pub framework: Option<String>,
+    pub bundler: Option<TypeScriptBundlerConfig>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct TypeScriptBundlerConfig {
+    pub sources: Vec<String>,
+    pub exclude: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -312,6 +319,20 @@ impl LinguiniConfig {
                     value => return Err(ConfigError::InvalidString(value.to_owned())),
                 }
             }
+            if let Some(bundler) = &ts.bundler {
+                if !matches!(ts.framework.as_deref(), Some("svelte" | "sveltekit")) {
+                    return Err(ConfigError::InvalidString(
+                        "targets.ts.bundler requires targets.ts.framework = \"svelte\" or \"sveltekit\""
+                            .to_owned(),
+                    ));
+                }
+                validate_application_paths(
+                    "targets.ts.bundler.sources",
+                    &bundler.sources,
+                    "targets.ts.bundler.exclude",
+                    &bundler.exclude,
+                )?;
+            }
         }
 
         validate_web(&self.web)
@@ -322,28 +343,12 @@ fn validate_analysis(analysis: &AnalysisConfig) -> ConfigResult<()> {
     let Some(unused) = &analysis.unused_messages else {
         return Ok(());
     };
-    if unused.sources.is_empty() {
-        return Err(ConfigError::InvalidArray(
-            "analysis.unused_messages.sources".to_owned(),
-        ));
-    }
-
-    validate_distinct_paths("analysis.unused_messages.sources", &unused.sources)?;
-    validate_distinct_paths("analysis.unused_messages.exclude", &unused.exclude)?;
-    for source in &unused.sources {
-        let source_components = portable_folded_components(source);
-        if unused
-            .exclude
-            .iter()
-            .any(|excluded| source_components.starts_with(&portable_folded_components(excluded)))
-        {
-            return Err(ConfigError::InvalidPath {
-                field: "analysis.unused_messages.sources",
-                value: source.clone(),
-                reason: "source is fully covered by analysis.unused_messages.exclude",
-            });
-        }
-    }
+    validate_application_paths(
+        "analysis.unused_messages.sources",
+        &unused.sources,
+        "analysis.unused_messages.exclude",
+        &unused.exclude,
+    )?;
 
     let mut ignored = BTreeSet::new();
     for prefix in &unused.ignore {
@@ -365,6 +370,37 @@ fn validate_analysis(analysis: &AnalysisConfig) -> ConfigResult<()> {
             return Err(ConfigError::DuplicateKey(format!(
                 "analysis.unused_messages.ignore prefix `{prefix}`"
             )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_application_paths(
+    sources_field: &'static str,
+    sources: &[String],
+    exclude_field: &'static str,
+    exclude: &[String],
+) -> ConfigResult<()> {
+    if sources.is_empty() {
+        return Err(ConfigError::InvalidArray(sources_field.to_owned()));
+    }
+    validate_distinct_paths(sources_field, sources)?;
+    validate_distinct_paths(exclude_field, exclude)?;
+    for source in sources {
+        let source_components = portable_folded_components(source);
+        if exclude
+            .iter()
+            .any(|excluded| source_components.starts_with(&portable_folded_components(excluded)))
+        {
+            return Err(ConfigError::InvalidPath {
+                field: sources_field,
+                value: source.clone(),
+                reason: if exclude_field == "targets.ts.bundler.exclude" {
+                    "source is fully covered by targets.ts.bundler.exclude"
+                } else {
+                    "source is fully covered by analysis.unused_messages.exclude"
+                },
+            });
         }
     }
     Ok(())
@@ -907,6 +943,7 @@ mod tests {
                         tree_shaking: false,
                         messages: Vec::new(),
                         framework: None,
+                        bundler: None,
                     }),
                 },
                 analysis: super::AnalysisConfig::default(),
