@@ -93,6 +93,8 @@ production path uses the fix and its relevant tests pass.
   leaves, group/leaf JSDoc, safe keys, effective filtering, and strict TypeScript verification.
 - `b7758fd` — added deterministic source-aware application references with exact leaf spans,
   value/call identity, decoded paths, and transform-safe binding provenance.
+- `591c532` — added deterministic physical per-message modules and source maps plus a versioned
+  bundler manifest through the transactional CLI output path.
 
 ## Numbered findings
 
@@ -667,19 +669,13 @@ production path uses the fix and its relevant tests pass.
       exposes exact source spans and transform-safe imported-binding provenance, while the Vite
       transform and virtual import replacement remain pending.
 - [ ] BUNDLE-A3 — Keep parameterless public access as a value.
-- [-] BUNDLE-A4 — Generate one ESM module per referenced message; a validated public compiler now
-      generates an exact locale/message ESM module, but CLI/plugin production paths do not invoke
-      it per application reference yet.
-- [-] BUNDLE-A5 — Include only each message's transitive semantic dependencies; the validated
-      closure and ESM compiler now emit exact transitive IR/helpers, but the production bundler
-      path does not consume them yet.
+- [x] BUNDLE-A4 — Generate one ESM module per referenced message.
+- [x] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
 - [ ] BUNDLE-A6 — Invalidate only affected virtual modules.
 - [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; the analyzer now separates exact static
       references from conservative dynamic prefixes, while strict diagnostics and the explicit
       bundle escape hatch remain pending.
-- [-] BUNDLE-A8 — Share the single-message compiler with a physical-module backend; the compiler
-      returns complete physical `.ts` module code/maps, while file generation and the virtual
-      backend bridge remain pending.
+- [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [ ] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
 
