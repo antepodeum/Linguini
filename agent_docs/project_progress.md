@@ -42,6 +42,17 @@ Ship checklist `BUNDLE-A1` through `BUNDLE-A10`, completing direct blockers firs
 
 ## Current state
 
-- `BUNDLE-B0` active.
-- Existing uncommitted changes add `IrGroup` and start propagation through IR and CLI merge paths; verification and missing tests remain.
-- Next action: executor completes and self-validates `BUNDLE-B0`, then tester runs focused regressions.
+- `BUNDLE-B0` complete: explicit recursive group metadata is preserved through IR lowering,
+  qualification, validation, merge/fallback, and codegen projections (`4e648f4`).
+- `BUNDLE-B1` complete: the public single-message compiler uses deterministic transitive semantic
+  dependency closure and emits source-mapped TypeScript ESM (`f2faa80`, `6caec55`).
+- `BUNDLE-B2` is active: recursive `LinguiniMessages`, exact application references, physical
+  message artifacts, reactive locale state, and manifest-v2 application bridging are committed
+  (`cae571a`, `b7758fd`, `591c532`, `bed72e0`, `18792cf`). Safe import-removal metadata and a
+  lightweight Svelte side-effect entry are the current parallel blockers for the Vite transform.
+- `BUNDLE-B3` is partial: the physical backend is complete; virtual module serving, strict dynamic
+  diagnostics, and the bounded escape hatch remain.
+- `BUNDLE-B4` and `BUNDLE-B5` remain pending.
+- Next action: verify and commit the transform-safety/runtime-side-effect blockers, then implement
+  exact Vite virtual imports and parameterless value rewrites before selective HMR and locale
+  dynamic boundaries.
