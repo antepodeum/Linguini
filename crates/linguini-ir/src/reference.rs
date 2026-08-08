@@ -153,6 +153,13 @@ fn validate_structure(label: &str, module: &IrModule, errors: &mut Vec<IrReferen
     );
     unique_named(
         label,
+        "group",
+        module.groups.iter().map(|item| item.name.as_str()),
+        module,
+        errors,
+    );
+    unique_named(
+        label,
         "form",
         module.forms.iter().map(|item| item.name.as_str()),
         module,
@@ -196,6 +203,14 @@ fn validate_structure(label: &str, module: &IrModule, errors: &mut Vec<IrReferen
             "message",
             module
                 .messages
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect(),
+        ),
+        (
+            "group",
+            module
+                .groups
                 .iter()
                 .map(|item| item.name.as_str())
                 .collect(),

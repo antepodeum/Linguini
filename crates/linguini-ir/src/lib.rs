@@ -8,8 +8,8 @@ pub use lower::{lower_locale, lower_locale_typed, lower_schema, lower_schema_typ
 pub use model::{
     IrBranch, IrEnum, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFormVariant,
     IrFormatter, IrFormatterArgument, IrFormatterKind, IrFunction, IrFunctionBranch,
-    IrFunctionBranchValue, IrFunctionKind, IrFunctionParameter, IrInlineFunctionInput, IrMessage,
-    IrModule, IrOrigin, IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart,
+    IrFunctionBranchValue, IrFunctionKind, IrFunctionParameter, IrGroup, IrInlineFunctionInput,
+    IrMessage, IrModule, IrOrigin, IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart,
     IrTypeAlias, IrValue, IrVariable, LocaleIr, SchemaIr,
 };
 pub use namespace::qualify_module;

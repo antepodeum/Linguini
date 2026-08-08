@@ -7,6 +7,11 @@ pub struct IrModule {
     pub type_aliases: Vec<IrTypeAlias>,
     pub variables: Vec<IrVariable>,
     pub messages: Vec<IrMessage>,
+    /// Explicit declared message namespaces in canonical path order.
+    ///
+    /// A group is not inferred from dots in message names: project namespaces and declared
+    /// groups share the same path syntax but have different documentation and source identity.
+    pub groups: Vec<IrGroup>,
     pub forms: Vec<IrForm>,
     pub functions: Vec<IrFunction>,
     /// Lossless declaration provenance, including entries superseded by `override`.
@@ -79,6 +84,13 @@ pub struct IrMessage {
     pub docs: Vec<String>,
     pub parameters: Vec<IrParameter>,
     pub body: Option<IrText>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrGroup {
+    pub name: String,
+    pub docs: Vec<String>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

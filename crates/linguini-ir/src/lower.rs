@@ -1,8 +1,8 @@
 use crate::model::{
     IrBranch, IrEnum, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFormVariant,
     IrFormatter, IrFormatterArgument, IrFunction, IrFunctionBranch, IrFunctionBranchValue,
-    IrFunctionKind, IrFunctionParameter, IrInlineFunctionInput, IrMessage, IrModule, IrOrigin,
-    IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart, IrTypeAlias, IrValue,
+    IrFunctionKind, IrFunctionParameter, IrGroup, IrInlineFunctionInput, IrMessage, IrModule,
+    IrOrigin, IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart, IrTypeAlias, IrValue,
     IrVariable, LocaleIr, SchemaIr,
 };
 use linguini_syntax::{
@@ -106,6 +106,11 @@ fn lower_schema_group(group: &MessageGroup, namespace: Option<&str>, module: &mu
         name: name.clone(),
         span: group.span,
         is_override: false,
+    });
+    module.groups.push(IrGroup {
+        name: name.clone(),
+        docs: docs(&group.docs),
+        span: group.span,
     });
     for message in &group.messages {
         lower_schema_message(message, Some(&name), module);
@@ -261,6 +266,14 @@ fn remove_overridden_declaration(
                     .strip_prefix(&name)
                     .is_some_and(|suffix| suffix.starts_with('.')))
     });
+    module.groups.retain(|item| {
+        item.name != name
+            && (!namespace_prefix
+                || !item
+                    .name
+                    .strip_prefix(&name)
+                    .is_some_and(|suffix| suffix.starts_with('.')))
+    });
 }
 
 fn lower_locale_message(
@@ -296,6 +309,11 @@ fn lower_locale_group(
         name: name.clone(),
         span: group.span,
         is_override,
+    });
+    module.groups.push(IrGroup {
+        name: name.clone(),
+        docs: docs(&group.docs),
+        span: group.span,
     });
     for message in &group.messages {
         lower_locale_message(message, Some(&name), is_override, module);

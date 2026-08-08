@@ -447,6 +447,19 @@ IrModule {
             ),
         },
     ],
+    groups: [
+        IrGroup {
+            name: "email_input",
+            docs: [],
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 1977,
+                end: 2095,
+            },
+        },
+    ],
     forms: [
         IrForm {
             name: "Fruit",

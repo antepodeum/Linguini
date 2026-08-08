@@ -8,7 +8,7 @@ mod shared;
 mod templates;
 mod tree;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use linguini_cldr::{
@@ -425,7 +425,7 @@ fn validate_project_inputs(
                     .name
                     .strip_prefix(selected)
                     .is_some_and(|rest| rest.starts_with('.'))
-        });
+        }) || schema.groups.iter().any(|group| group.name == *selected);
         if !is_known {
             return Err(TypeScriptCodegenError::UnknownIncludedMessage {
                 message: selected.clone(),
@@ -802,6 +802,19 @@ fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
                     .is_some_and(|rest| rest.starts_with('.'))
         })
     });
+    let retained_message_names = visible
+        .messages
+        .iter()
+        .map(|message| message.name.as_str())
+        .collect::<Vec<_>>();
+    visible.groups.retain(|group| {
+        options.included_messages.iter().any(|selected| {
+            is_path_or_descendant(&group.name, selected)
+                || is_path_or_descendant(selected, &group.name)
+        }) || retained_message_names
+            .iter()
+            .any(|message| is_path_or_descendant(message, &group.name))
+    });
     visible
 }
 
@@ -813,6 +826,14 @@ fn locale_module_for_schema(locale: &IrModule, schema: &IrModule) -> IrModule {
             .iter()
             .any(|schema_message| schema_message.name == message.name)
     });
+    let schema_groups = schema
+        .groups
+        .iter()
+        .map(|group| group.name.as_str())
+        .collect::<BTreeSet<_>>();
+    visible
+        .groups
+        .retain(|group| schema_groups.contains(group.name.as_str()));
     visible
 }
 
@@ -821,6 +842,12 @@ fn top_level_namespaces(module: &IrModule) -> Vec<String> {
         .messages
         .iter()
         .filter_map(|message| message.name.split_once('.').map(|(namespace, _)| namespace))
+        .chain(
+            module
+                .groups
+                .iter()
+                .filter_map(|group| group.name.split_once('.').map(|(namespace, _)| namespace)),
+        )
         .map(str::to_owned)
         .collect::<Vec<_>>();
     namespaces.sort();
@@ -837,6 +864,12 @@ fn namespace_module(module: &IrModule, namespace: &str) -> IrModule {
         .filter(|message| message.name.starts_with(&prefix))
         .cloned()
         .collect();
+    output.groups = module
+        .groups
+        .iter()
+        .filter(|group| group.name == namespace || group.name.starts_with(&prefix))
+        .cloned()
+        .collect();
     output
 }
 
@@ -845,6 +878,7 @@ fn root_module(module: &IrModule) -> IrModule {
     output
         .messages
         .retain(|message| !message.name.contains('.'));
+    output.groups.retain(|group| !group.name.contains('.'));
     output
 }
 
@@ -927,6 +961,7 @@ fn merge_locale_module(target: &mut IrModule, source: &IrModule) {
     merge_named_items(&mut target.type_aliases, &source.type_aliases, |item| {
         &item.name
     });
+    merge_named_items(&mut target.groups, &source.groups, |group| &group.name);
     merge_named_items(&mut target.messages, &source.messages, |message| {
         &message.name
     });
@@ -1000,4 +1035,188 @@ fn emit_locale_default(exports: &emit::ModuleExports, namespaces: &[String], out
     }
     output.push_str("} as const;\n\n");
     output.push_str("export default lgl;\n");
+}
+
+fn is_path_or_descendant(path: &str, parent: &str) -> bool {
+    path == parent
+        || path
+            .strip_prefix(parent)
+            .is_some_and(|suffix| suffix.starts_with('.'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        fallback_locale_module, locale_module_for_schema, namespace_module, root_module,
+        top_level_namespaces, validate_project_inputs, visible_schema, TypeScriptCodegenError,
+        TypeScriptLocaleModule, TypeScriptOptions, TypeScriptProjectOptions,
+    };
+    use linguini_ir::{lower_locale, lower_schema, IrModule};
+    use linguini_syntax::{parse_locale, parse_schema};
+
+    #[test]
+    fn tree_shaking_keeps_selected_group_ancestors_only() {
+        let schema = lower_schema(
+            &parse_schema("top { keep { title } drop { hidden } }\nunrelated { other }\n")
+                .expect("schema parses"),
+        );
+        let options = TypeScriptOptions {
+            included_messages: vec!["top.keep.title".to_owned()],
+            ..TypeScriptOptions::default()
+        };
+
+        let visible = visible_schema(&schema, &options);
+
+        assert_eq!(
+            visible
+                .messages
+                .iter()
+                .map(|message| message.name.as_str())
+                .collect::<Vec<_>>(),
+            ["top.keep.title"]
+        );
+        assert_eq!(
+            visible
+                .groups
+                .iter()
+                .map(|group| group.name.as_str())
+                .collect::<Vec<_>>(),
+            ["top", "top.keep"]
+        );
+    }
+
+    #[test]
+    fn ancestor_group_selection_keeps_declared_empty_descendants() {
+        let schema = lower_schema(
+            &parse_schema("top { empty {} nested { title } }\n").expect("schema parses"),
+        );
+        let options = TypeScriptOptions {
+            included_messages: vec!["top".to_owned()],
+            ..TypeScriptOptions::default()
+        };
+
+        let visible = visible_schema(&schema, &options);
+
+        assert_eq!(
+            visible
+                .groups
+                .iter()
+                .map(|group| group.name.as_str())
+                .collect::<Vec<_>>(),
+            ["top", "top.empty", "top.nested"]
+        );
+    }
+
+    #[test]
+    fn direct_empty_group_selection_is_valid_and_unknown_path_stays_rejected() {
+        let schema = lower_schema(&parse_schema("top { empty {} }\n").expect("schema parses"));
+        let locales = [TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }];
+        let options = TypeScriptProjectOptions {
+            tree_shaking: true,
+            included_messages: vec!["top.empty".to_owned()],
+            base_locale: Some("en".to_owned()),
+            ..TypeScriptProjectOptions::default()
+        };
+
+        validate_project_inputs(&schema, &locales, &options)
+            .expect("declared empty group is valid selection");
+
+        let unknown = TypeScriptProjectOptions {
+            included_messages: vec!["top.unknown".to_owned()],
+            ..options
+        };
+        assert!(matches!(
+            validate_project_inputs(&schema, &locales, &unknown),
+            Err(TypeScriptCodegenError::UnknownIncludedMessage { message })
+                if message == "top.unknown"
+        ));
+    }
+
+    #[test]
+    fn namespace_and_root_projections_keep_only_relevant_groups() {
+        let module = lower_schema(
+            &parse_schema("alpha { nested { title } }\nbeta { title }\nroot\n")
+                .expect("schema parses"),
+        );
+
+        assert_eq!(top_level_namespaces(&module), ["alpha", "beta"]);
+        let alpha = namespace_module(&module, "alpha");
+        assert_eq!(
+            alpha
+                .groups
+                .iter()
+                .map(|group| group.name.as_str())
+                .collect::<Vec<_>>(),
+            ["alpha", "alpha.nested"]
+        );
+        assert_eq!(
+            root_module(&module)
+                .groups
+                .iter()
+                .map(|group| group.name.as_str())
+                .collect::<Vec<_>>(),
+            ["alpha", "beta"]
+        );
+    }
+
+    #[test]
+    fn fallback_group_metadata_follows_locale_precedence() {
+        let base = TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: lower_locale(
+                &parse_locale(
+                    "/// Base section\nsection {\n  title = Base\n  nested {\n    child = Child\n  }\n}\n",
+                )
+                .expect("base locale parses"),
+            ),
+        };
+        let regional = TypeScriptLocaleModule {
+            locale: "en-US".to_owned(),
+            module: lower_locale(
+                &parse_locale("/// Regional section\nsection { title = Regional }\n")
+                    .expect("regional locale parses"),
+            ),
+        };
+
+        let merged = fallback_locale_module(&[base, regional], "en-US", Some("en"));
+
+        assert_eq!(merged.groups.len(), 2);
+        assert_eq!(merged.groups[0].name, "section");
+        assert_eq!(merged.groups[0].docs, ["Regional section"]);
+        assert_eq!(merged.groups[1].name, "section.nested");
+        assert_eq!(
+            merged
+                .messages
+                .iter()
+                .map(|message| message.name.as_str())
+                .collect::<Vec<_>>(),
+            ["section.title", "section.nested.child"]
+        );
+        assert!(merged
+            .origins
+            .iter()
+            .any(|origin| origin.name == "section" && origin.is_override));
+    }
+
+    #[test]
+    fn locale_projection_discards_groups_absent_from_schema() {
+        let schema = lower_schema(&parse_schema("keep { title }\n").expect("schema parses"));
+        let locale = lower_locale(
+            &parse_locale("keep { title = Keep }\ndrop { title = Drop }\n").expect("locale parses"),
+        );
+
+        let projected = locale_module_for_schema(&locale, &schema);
+
+        assert_eq!(
+            projected
+                .groups
+                .iter()
+                .map(|group| group.name.as_str())
+                .collect::<Vec<_>>(),
+            ["keep"]
+        );
+    }
 }

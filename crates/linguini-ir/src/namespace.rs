@@ -47,6 +47,9 @@ pub fn qualify_module(module: &mut IrModule, namespace: &str) {
             qualify_text(body, &namespace_parts, &declaration_roots);
         }
     }
+    for item in &mut module.groups {
+        item.name = qualified_name(namespace, &item.name);
+    }
     for item in &mut module.forms {
         item.name = qualified_name(namespace, &item.name);
         for variant in &mut item.variants {
@@ -83,6 +86,7 @@ fn declaration_roots(module: &IrModule) -> BTreeSet<String> {
         .chain(module.type_aliases.iter().map(|item| item.name.as_str()))
         .chain(module.variables.iter().map(|item| item.name.as_str()))
         .chain(module.messages.iter().map(|item| item.name.as_str()))
+        .chain(module.groups.iter().map(|item| item.name.as_str()))
         .chain(module.forms.iter().map(|item| item.name.as_str()))
         .chain(module.functions.iter().map(|item| item.name.as_str()))
         .filter_map(|name| name.split('.').next())
@@ -226,9 +230,11 @@ fn qualify_expression(
 }
 
 fn qualified_name(namespace: &str, name: &str) -> String {
-    if name == namespace || name.starts_with(&format!("{namespace}.")) {
-        name.to_owned()
-    } else {
-        format!("{namespace}.{name}")
-    }
+    // Lowering emits names relative to one source file.  Always prepend the
+    // filesystem namespace here: a local declaration may itself be named
+    // `shop` (or `shop.checkout`) and must remain distinguishable from the
+    // project namespace `shop` (or `shop.checkout`).  Qualification is only
+    // performed on freshly lowered modules, so an idempotence shortcut would
+    // conflate those two identities.
+    format!("{namespace}.{name}")
 }

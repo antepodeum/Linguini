@@ -2,7 +2,7 @@ use crate::{
     ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, validate_ir,
     IrExpressionKind, IrFormEntry, IrInlineFunctionInput, IrTextBlockMode, IrTextPart,
 };
-use linguini_syntax::{parse_locale, parse_schema, LocaleDeclaration};
+use linguini_syntax::{parse_locale, parse_schema, LocaleDeclaration, SchemaDeclaration};
 use std::fs;
 use std::path::Path;
 
@@ -494,6 +494,74 @@ fn lowering_preserves_recursive_group_paths() {
 }
 
 #[test]
+fn lowering_preserves_group_metadata_for_nested_and_empty_groups() {
+    let schema = parse_schema(
+        "/// Root docs\nroot {\n  /// Empty docs\n  empty {}\n  /// Nested docs\n  nested {\n    title\n  }\n}\n",
+    )
+    .expect("schema parses");
+    let SchemaDeclaration::Group(root) = &schema.declarations[0] else {
+        panic!("expected schema group");
+    };
+    let module = lower_schema(&schema);
+
+    assert_eq!(
+        module
+            .groups
+            .iter()
+            .map(|group| group.name.as_str())
+            .collect::<Vec<_>>(),
+        ["root", "root.empty", "root.nested"]
+    );
+    assert_eq!(module.groups[0].docs, ["Root docs"]);
+    assert_eq!(module.groups[1].docs, ["Empty docs"]);
+    assert_eq!(module.groups[2].docs, ["Nested docs"]);
+    assert_eq!(module.groups[0].span, root.span);
+    assert_eq!(module.groups[1].span, root.groups[0].span);
+    assert_eq!(module.groups[2].span, root.groups[1].span);
+    assert!(module
+        .messages
+        .iter()
+        .any(|message| message.name == "root.nested.title"));
+}
+
+#[test]
+fn lowering_preserves_locale_group_docs_and_spans() {
+    let locale = parse_locale(
+        "/// Root docs\nroot {\n  /// Nested docs\n  nested {\n    title = Title\n  }\n}\n",
+    )
+    .expect("locale parses");
+    let LocaleDeclaration::Group(root) = &locale.declarations[0] else {
+        panic!("expected locale group");
+    };
+    let module = lower_locale(&locale);
+
+    assert_eq!(
+        module
+            .groups
+            .iter()
+            .map(|group| group.name.as_str())
+            .collect::<Vec<_>>(),
+        ["root", "root.nested"]
+    );
+    assert_eq!(module.groups[0].docs, ["Root docs"]);
+    assert_eq!(module.groups[1].docs, ["Nested docs"]);
+    assert_eq!(module.groups[0].span, root.span);
+    assert_eq!(module.groups[1].span, root.groups[0].span);
+    assert_eq!(module.messages[0].name, "root.nested.title");
+}
+
+#[test]
+fn project_namespace_keeps_local_group_named_like_filesystem_namespace_distinct() {
+    let schema = parse_schema("shop { title }\n").expect("schema parses");
+    let mut module = lower_schema(&schema);
+    qualify_module(&mut module, "shop.checkout");
+
+    assert_eq!(module.groups[0].name, "shop.checkout.shop");
+    assert_eq!(module.messages[0].name, "shop.checkout.shop.title");
+    assert_eq!(module.origins[0].name, "shop.checkout.shop");
+}
+
+#[test]
 fn lowering_preserves_multiline_mode_after_normalization() {
     let locale =
         parse_locale("dedented = \"\"\"\n  Hello\n\"\"\"\nraw_value = raw\"\"\"  exact\n\"\"\"\n")
@@ -673,6 +741,64 @@ fn override_resolution_replaces_value_but_preserves_provenance() {
         .origins
         .last()
         .is_some_and(|origin| origin.is_override));
+}
+
+#[test]
+fn override_group_removes_descendants_but_preserves_group_provenance() {
+    let locale = parse_locale(
+        "shop {\n  title = First\n  nested { old = Old }\n}\n\
+         override shop {\n  title = Second\n}\n",
+    )
+    .expect("locale parses");
+    let module = lower_locale(&locale);
+
+    assert_eq!(
+        module
+            .groups
+            .iter()
+            .map(|group| group.name.as_str())
+            .collect::<Vec<_>>(),
+        ["shop"]
+    );
+    assert_eq!(
+        module
+            .messages
+            .iter()
+            .map(|message| message.name.as_str())
+            .collect::<Vec<_>>(),
+        ["shop.title"]
+    );
+    let origins = module
+        .origins
+        .iter()
+        .map(|origin| (origin.name.as_str(), origin.is_override))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        origins,
+        [
+            ("shop", false),
+            ("shop.title", false),
+            ("shop.nested", false),
+            ("shop.nested.old", false),
+            ("shop", true),
+            ("shop.title", true),
+        ]
+    );
+}
+
+#[test]
+fn validation_rejects_duplicate_and_cross_kind_group_paths() {
+    let duplicate =
+        lower_schema(&parse_schema("one { first }\none { second }\n").expect("schema parses"));
+    let locale = lower_locale(&parse_locale("").expect("locale parses"));
+    let errors = validate_ir(&duplicate, &locale).expect_err("duplicate groups must fail");
+    assert!(errors.iter().any(|error| error.code == "IR001"));
+
+    let cross_kind = lower_schema(&parse_schema("same\nsame { child }\n").expect("schema parses"));
+    let errors = validate_ir(&cross_kind, &locale).expect_err("cross-kind path must fail");
+    assert!(errors
+        .iter()
+        .any(|error| { error.code == "IR002" && error.message.contains("same") }));
 }
 
 #[test]

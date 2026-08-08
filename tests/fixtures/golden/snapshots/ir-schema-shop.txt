@@ -121,6 +121,19 @@ IrModule {
             body: None,
         },
     ],
+    groups: [
+        IrGroup {
+            name: "email_input",
+            docs: [],
+            span: Span {
+                source: SourceId(
+                    0,
+                ),
+                start: 356,
+                end: 400,
+            },
+        },
+    ],
     forms: [],
     functions: [],
     origins: [
