@@ -91,6 +91,8 @@ production path uses the fix and its relevant tests pass.
   dependency/helper emission, callable leaf exports, and deterministic source validation.
 - `cae571a` — added the schema-owned recursive `LinguiniMessages` namespace with value/callable
   leaves, group/leaf JSDoc, safe keys, effective filtering, and strict TypeScript verification.
+- `b7758fd` — added deterministic source-aware application references with exact leaf spans,
+  value/call identity, decoded paths, and transform-safe binding provenance.
 
 ## Numbered findings
 
@@ -661,7 +663,9 @@ production path uses the fix and its relevant tests pass.
 ### Bundler-native nested message API
 
 - [x] BUNDLE-A1 — Generate recursive declarations for the complete `l` namespace.
-- [ ] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports.
+- [-] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports; the analyzer now
+      exposes exact source spans and transform-safe imported-binding provenance, while the Vite
+      transform and virtual import replacement remain pending.
 - [ ] BUNDLE-A3 — Keep parameterless public access as a value.
 - [-] BUNDLE-A4 — Generate one ESM module per referenced message; a validated public compiler now
       generates an exact locale/message ESM module, but CLI/plugin production paths do not invoke
@@ -670,7 +674,9 @@ production path uses the fix and its relevant tests pass.
       closure and ESM compiler now emit exact transitive IR/helpers, but the production bundler
       path does not consume them yet.
 - [ ] BUNDLE-A6 — Invalidate only affected virtual modules.
-- [ ] BUNDLE-A7 — Reject dynamic lookup in strict mode; provide an explicit bundle escape hatch.
+- [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; the analyzer now separates exact static
+      references from conservative dynamic prefixes, while strict diagnostics and the explicit
+      bundle escape hatch remain pending.
 - [-] BUNDLE-A8 — Share the single-message compiler with a physical-module backend; the compiler
       returns complete physical `.ts` module code/maps, while file generation and the virtual
       backend bridge remain pending.
