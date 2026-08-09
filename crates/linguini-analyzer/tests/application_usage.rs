@@ -1068,6 +1068,45 @@ fn import_safety_rejects_comments_bare_dynamic_optional_and_ambiguity() {
 }
 
 #[test]
+fn tracks_import_uses_separately_from_exact_static_safety() {
+    let cases = [
+        ("l.main.title;", true, true),
+        ("l.main[key];", false, true),
+        ("l.main.title; l.main[key];", false, true),
+        ("l.main[key]; consume(l);", false, true),
+        ("l?.main[key];", false, true),
+    ];
+    for (uses, exact, tracked) in cases {
+        let source = format!("import {{ l }} from \"generated\";\n{uses}");
+        let usage = ApplicationUsage::from_source(&source);
+        let binding = usage.imports().next().expect("tracked import");
+        assert_eq!(binding.exact_uses_only, exact, "{uses}");
+        assert_eq!(binding.tracked_uses_only, tracked, "{uses}");
+    }
+
+    let uncertain = ApplicationUsage::from_source(
+        "import { l } from \"generated\";\n/* unterminated\nl.main[key];",
+    );
+    let uncertain_binding = uncertain.imports().next().expect("uncertain import");
+    assert!(!uncertain_binding.exact_uses_only);
+    assert!(!uncertain_binding.tracked_uses_only);
+
+    let duplicate = ApplicationUsage::from_source(
+        "import { l } from \"generated-a\";\nimport { l } from \"generated-b\";\nl.main.title;",
+    );
+    assert!(duplicate
+        .imports()
+        .all(|binding| !binding.exact_uses_only && !binding.tracked_uses_only));
+
+    let shadowed = ApplicationUsage::from_source(
+        "import { l } from \"generated\";\nfunction render(l) { l.main[key]; }\nl.main.title;",
+    );
+    let shadowed_binding = shadowed.imports().next().expect("shadowed import");
+    assert!(shadowed_binding.exact_uses_only);
+    assert!(shadowed_binding.tracked_uses_only);
+}
+
+#[test]
 fn import_identities_are_deterministic_across_repeated_declarations_and_shadowing() {
     let source = concat!(
         "import { l as first } from \"generated\";\n",

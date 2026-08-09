@@ -93,6 +93,11 @@ pub struct ApplicationImportBinding {
     pub local_span: Span,
     /// True only when parsing was unambiguous and every non-shadowed use is an exact static ref.
     pub exact_uses_only: bool,
+    /// True when every non-shadowed use is represented by static or dynamic metadata.
+    ///
+    /// Dynamic metadata keeps this flag true while making `exact_uses_only` false;
+    /// malformed/ambiguous syntax and unrepresented uses make both flags false.
+    pub tracked_uses_only: bool,
 }
 
 /// A deterministic, source-aware static application message reference.
@@ -638,6 +643,7 @@ impl ApplicationUsage {
                 .count()
                 > 1;
             let mut safe = self.imports[binding_index].exact_uses_only && !duplicate;
+            let mut tracked = self.imports[binding_index].tracked_uses_only && !duplicate;
             for (token_index, token) in tokens.iter().enumerate() {
                 if !matches!(&token.kind, TokenKind::Identifier(name) if name == &local)
                     || import_tokens.contains(&token_index)
@@ -645,9 +651,12 @@ impl ApplicationUsage {
                 {
                     continue;
                 }
-                if is_binding_declaration(tokens, source, token_index) {
+                if is_binding_declaration(tokens, source, token_index)
+                    || is_parameter_declaration(tokens, source, token_index)
+                {
                     if is_top_level(tokens, source, token_index) {
                         safe = false;
+                        tracked = false;
                     }
                     continue;
                 }
@@ -659,17 +668,28 @@ impl ApplicationUsage {
                         && reference.span.start == token.start
                         && reference.import_binding == Some(id)
                 });
-                let Some(reference) = reference else {
-                    safe = false;
+                if let Some(reference) = reference {
+                    if source[reference.span.start..reference.span.end].contains("?.")
+                        || analyzer_optional_invocation(source, reference.span.end)
+                    {
+                        safe = false;
+                    }
                     continue;
-                };
-                if source[reference.span.start..reference.span.end].contains("?.")
-                    || analyzer_optional_invocation(source, reference.span.end)
-                {
+                }
+                let dynamic_reference = self.dynamic_references.iter().find(|reference| {
+                    reference.span.source == id.source
+                        && reference.span.start == token.start
+                        && reference.import_binding == Some(id)
+                });
+                if dynamic_reference.is_some() {
+                    safe = false;
+                } else {
+                    tracked = false;
                     safe = false;
                 }
             }
             self.imports[binding_index].exact_uses_only = safe;
+            self.imports[binding_index].tracked_uses_only = tracked;
         }
     }
 
@@ -686,6 +706,7 @@ impl ApplicationUsage {
                 .is_some_and(|count| *count > 1)
             {
                 binding.exact_uses_only = false;
+                binding.tracked_uses_only = false;
             }
         }
         for reference in &mut self.references {
@@ -2645,6 +2666,7 @@ fn named_application_import_bindings(
                 tokens[local_index].end,
             ),
             exact_uses_only: structurally_safe,
+            tracked_uses_only: structurally_safe,
         });
     }
     bindings
