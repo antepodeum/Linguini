@@ -84,10 +84,24 @@ Doc comments attach to the next declaration and appear in codegen output and LSP
 delivery(fruit: Fruit, size: Size, count: Number)
 ```
 
+Generated parameterized messages have two equivalent call forms. The positional
+form preserves the schema parameter order. The named-object form uses the same
+parameter names, allows properties in any order, and requires exactly the declared
+properties:
+
+```ts
+l.delivery("apple", "big", 2);
+l.delivery({ count: 2, fruit: "apple", size: "big" });
+```
+
+This is a generated API overload only; it does not add a second message syntax or
+duplicate the message implementation.
+
 ### Parameterless messages
 
 A bare identifier inside a namespace block is a message with no parameters.
 Empty parentheses are not an alternate spelling: write `label`, not `label()`.
+Generated parameterless leaves are string values and cannot be called.
 
 ```lgs
 email_input {

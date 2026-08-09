@@ -34,7 +34,8 @@ source roots. Components that import `l` from the generated Svelte facade are
 rewritten to the message modules they statically read; the generated message
 barrel is not needed in that browser graph. Parameterless leaves are values
 (`l.home.title`), while parameterized leaves remain callable
-(`l.home.greeting("Artemy")`).
+with equivalent positional and named-object overloads
+(`l.home.greeting("Artemy")` or `l.home.greeting({ name: "Artemy" })`).
 
 Dynamic access is strict by default. A finite, explicit escape can be enabled
 with canonical message paths:

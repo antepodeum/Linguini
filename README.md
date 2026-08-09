@@ -99,12 +99,16 @@ l.checkout.you_ordered("Artemy", "pasta", 3, 1290, "2026-05-17");
 
 l.checkout.cart_summary(3, "pasta", 1290);
 // → "В корзине 3 пасты на сумму 1290 рублей"
+
+l.checkout.cart_summary({ total: 1290, item: "pasta", amount: 3 });
+// → the same result; named properties may be reordered
 ```
 
 The generated `l` object mirrors the nested schema paths. Parameterless messages
 are values (`l.checkout.title`); messages with parameters are callable leaves
-(`l.checkout.you_ordered(...)`). With the Svelte/Vite bundler target, static
-paths are transformed to imports of the exact per-message modules they use.
+with positional and named-object overloads. Named calls require every schema
+parameter and reject unknown properties. With the Svelte/Vite bundler target,
+static paths are transformed to imports of the exact per-message modules they use.
 
 Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer diagnostics for
 schema/locale mismatches, invalid references, missing branches in resolved enum/`Plural`

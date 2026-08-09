@@ -79,7 +79,7 @@ const sveltekitExample = `<script lang="ts">
 </script>
 
 <a href="/checkout">
-  {l.main.checkout(3, "apple", "big", 1234)}
+  {l.main.checkout({ count: 3, fruit: "apple", size: "big", total: 1234 })}
 </a>
 
 {#each locales as locale}

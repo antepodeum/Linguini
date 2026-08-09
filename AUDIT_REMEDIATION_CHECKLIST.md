@@ -144,6 +144,8 @@ production path uses the fix and its relevant tests pass.
   runtime per locale, with source-aware HMR and real-site bundle-graph verification.
 - `0f8cfc3` — moved reusable variables, forms, functions, and locale enums into exact per-symbol
   ESM modules, collapsed the unreleased bundler manifest to v1, and verified the real site graph.
+- `76059bc` — added positional-compatible named-object message overloads from one signature model,
+  shared boundary normalization, exact generated types, and real-site type/runtime coverage.
 
 ## Numbered findings
 
@@ -569,7 +571,8 @@ production path uses the fix and its relevant tests pass.
 - [-] #358 — Land and execute Linux, Windows, and macOS CI.
 - [x] #359 — Land dependency, license, and advisory checks.
 - [-] #360 — Add enforceable coverage plus parser/formatter property jobs.
-- [ ] #361 — Add a generated JS/JSDoc/`.d.ts` typecheck and runtime corpus.
+- [-] #361 — Real-site generated TypeScript/JSDoc/`.d.ts` overloads now have positive/negative
+  type checks and runtime parity tests; a broader standalone JavaScript/JSDoc corpus remains.
 - [-] #362 — Complete real Vite, native VSIX, npm CLI, and WASM LSP integration CI.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
@@ -585,7 +588,7 @@ production path uses the fix and its relevant tests pass.
 
 - [ ] DOC-R1 — State SvelteKit-first, ESM-only scope.
 - [ ] DOC-R2 — Remove CJS, multi-framework, and overstated type-safety claims.
-- [ ] DOC-R3 — Use value leaves, positional calls, and named-object overloads correctly.
+- [x] DOC-R3 — Use value leaves, positional calls, and named-object overloads correctly.
 - [ ] DOC-R4 — Explain that Vite owns tree-shaking, chunks, preload, and loading.
 - [ ] DOC-R5 — Make the npm CLI the default JS installation; retain Cargo as an option.
 
@@ -593,14 +596,14 @@ production path uses the fix and its relevant tests pass.
 
 - [ ] DOC-G1 — Replace flat web configuration with minimal nested policy.
 - [ ] DOC-G2 — Remove `targets.ts.module` and every CJS choice.
-- [ ] DOC-G3 — Explain one JavaScript runtime plus JSDoc and `.d.ts`.
+- [x] DOC-G3 — Explain one JavaScript runtime plus JSDoc and `.d.ts`.
 - [ ] DOC-G4 — Remove manual message-loading setup from the normal SvelteKit path.
 - [ ] DOC-G5 — Execute one JavaScript and one TypeScript/Svelte example.
 
 ### `docs/reference.md`
 
 - [x] DOC-F1 — Specify recursive groups, qualified paths, and collisions.
-- [ ] DOC-F2 — Specify value leaves, positional calls, and named-object overloads.
+- [x] DOC-F2 — Specify value leaves, positional calls, and named-object overloads.
 - [ ] DOC-F3 — Specify dedented/raw multiline semantics and brace escaping.
 - [ ] DOC-F4 — Specify `///` attachment and generated/editor propagation.
 - [x] DOC-F5 — Specify the implemented inline `fn` grammar and semantics.
@@ -685,7 +688,7 @@ production path uses the fix and its relevant tests pass.
 - [-] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
       modules now have truthful source maps and demand-selected helpers, but project-wide output
       has not migrated.
-- [ ] ESM-A9 — Make parameterless public leaves values in both surfaces.
+- [x] ESM-A9 — Make parameterless public leaves values in both surfaces.
 - [ ] ESM-A10 — Keep JavaScript generation first-class and near-zero-config.
 
 ### Documentation identity through codegen
@@ -693,8 +696,7 @@ production path uses the fix and its relevant tests pass.
 - [-] API-D1 — Preserve docs on every declaration kind through semantic IR.
 - [x] API-D2 — Preserve group docs in recursive namespace metadata.
 - [ ] API-D3 — Use schema docs as canonical public API prose.
-- [-] API-D4 — Attach docs to exact JSDoc exports and `.d.ts` leaves/overloads; recursive group
-      and leaf declarations are covered, while generated overloads remain pending.
+- [x] API-D4 — Attach docs to exact JSDoc exports and `.d.ts` leaves/overloads.
 - [-] API-D5 — Preserve paragraphs/line breaks and escape comment terminators; recursive namespace
       output preserves multiline docs and escapes terminators, but all declaration kinds have not
       migrated to the shared renderer.
@@ -744,12 +746,12 @@ production path uses the fix and its relevant tests pass.
 
 ### Positional and named-object generated calls
 
-- [ ] CALL-A1 — Preserve positional calls.
-- [ ] CALL-A2 — Add named-object overloads without changing Linguini syntax.
-- [ ] CALL-A3 — Normalize both call forms once at the function boundary.
-- [ ] CALL-A4 — Render JSDoc and `.d.ts` overloads from one signature model.
-- [ ] CALL-A5 — Reject missing/unknown object properties through generated types.
-- [ ] CALL-A6 — Keep parameterless messages as values only.
+- [x] CALL-A1 — Preserve positional calls.
+- [x] CALL-A2 — Add named-object overloads without changing Linguini syntax.
+- [x] CALL-A3 — Normalize both call forms once at the function boundary.
+- [x] CALL-A4 — Render JSDoc and `.d.ts` overloads from one signature model.
+- [x] CALL-A5 — Reject missing/unknown object properties through generated types.
+- [x] CALL-A6 — Keep parameterless messages as values only.
 
 ### Dedented and raw multiline messages
 
@@ -806,7 +808,7 @@ production path uses the fix and its relevant tests pass.
 - [x] P2-4 — Collision-safe identifiers and filenames.
 - [x] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
 - [ ] P2-6 — Compile-time typed `l` namespace transform.
-- [ ] P2-7 — Positional plus named-object overloads.
+- [x] P2-7 — Positional plus named-object overloads.
 - [-] P2-8 — Nested web config plus generated feature modules.
 - [ ] P2-9 — One shared browser/server locale transition plan.
 - [x] P2-10 — Safe streaming-compatible link localization.

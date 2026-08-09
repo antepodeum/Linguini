@@ -48,8 +48,8 @@ regressing positional calls, tree-shaking, locale splitting, source maps, or HMR
 
 ## Resumed successor
 
-- `CALL-B0` investigation is complete. Runtime remediation no longer blocks `CALL-B1`; checklist
-  `CALL-A1` through `CALL-A5` remains unchecked and is the active implementation sequence.
+- `CALL-B0` and `CALL-B1` are complete. Runtime remediation no longer blocks generated-call work;
+  checklist `CALL-A1` through `CALL-A6` and `P2-7` are verified and checked.
 
 ## Current state
 
@@ -63,5 +63,8 @@ regressing positional calls, tree-shaking, locale splitting, source maps, or HMR
 - `HELPER-B4` is complete in `0f8cfc3`. Forty-seven exact semantic modules cover the real site;
   27 physical leaves import them, no physical leaf contains an inline semantic declaration, and
   physical source fell from 113,413 to 95,374 bytes. The unreleased active manifest is v1 only.
-- `CALL-B1` is active. Next: preserve positional calls while adding the named-object overload from
-  one shared signature model, then verify generated JSDoc and declaration output.
+- `CALL-B1` is complete in `76059bc`. Positional and named-object calls share one generated body
+  and boundary normalizer; parameterless leaves remain values. Rust codegen, Vite, generated
+  declarations, negative TypeScript fixtures, runtime parity, and all five real-site gates pass.
+- Next: resume the remaining remediation checklist from the first dependency-ready unfinished
+  work package after the bundler-native message API sequence.

@@ -167,13 +167,20 @@ import { configureLinguini } from "./generated/linguini";
 const l = configureLinguini({ language: () => getRequestLocale() });
 
 l.main.hello("Artemy"); // → "Hello, Artemy!"
-l.main.field_required("Email"); // → "Email is required."
+l.main.field_required({ field: "Email" }); // → "Email is required."
 ```
 
 The generated object follows the schema's nested paths. A parameterless message
-is a value (`l.main.title`); a parameterized message is a function and keeps its
-typed signature (`l.main.hello("Artemy")`). In Svelte/Vite projects, static
-message paths can be transformed to the exact generated module for each message.
+is a value (`l.main.title`), not a zero-argument function. A parameterized message
+accepts either its original positional arguments or one named object. Named
+properties use schema parameter names, may be reordered, and are all required;
+generated types reject missing and unknown properties.
+
+Both call forms use the same generated ESM function and message body. Schema
+`///` documentation is emitted on both overloads, and `declaration = true`
+generates matching `.d.ts` overloads from the same signature model. In
+Svelte/Vite projects, static message paths can be transformed to the exact
+generated module for each message.
 
 Bundler mode is configured under `[targets.ts.bundler]` (and requires a Svelte
 or SvelteKit framework target). The default dynamic-access policy is strict:
