@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
 use linguini_analyzer::{
-    ApplicationBindingProvenance, ApplicationImportBindingId, ApplicationReferenceKind,
-    ApplicationUsage, DiagnosticSeverity,
+    ApplicationBindingProvenance, ApplicationDynamicReferenceKind, ApplicationImportBinding,
+    ApplicationImportBindingId, ApplicationReferenceKind, ApplicationUsage, DiagnosticSeverity,
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
@@ -306,7 +306,7 @@ fn generate_bundler_files(
     if let Some(bundler) = &target.bundler {
         let applications = scan_bundler_applications(root, output_root, bundler, &message_arities)?;
         let manifest = manifest.as_object_mut().expect("manifest is an object");
-        manifest.insert("version".to_owned(), serde_json::json!(2));
+        manifest.insert("version".to_owned(), serde_json::json!(3));
         manifest.insert("applications".to_owned(), serde_json::json!(applications));
         let mut runtime_helpers = serde_json::Map::new();
         runtime_helpers.insert(
@@ -349,6 +349,7 @@ fn scan_bundler_applications(
     config: &TypeScriptBundlerConfig,
     messages: &BTreeMap<String, usize>,
 ) -> CliResult<BTreeMap<String, serde_json::Value>> {
+    validate_dynamic_allow_entries(&config.dynamic, messages)?;
     let mut exclude = config.exclude.clone();
     exclude.push(output_root.to_owned());
     let paths = discover_application_source_files_with_fields(
@@ -382,7 +383,14 @@ fn scan_bundler_applications(
         let usage = ApplicationUsage::from_source_in(&source, SourceId(source_id));
         applications.insert(
             path_key.clone(),
-            application_entry(&path_key, &source, SourceId(source_id), &usage, messages)?,
+            application_entry(
+                &path_key,
+                &source,
+                SourceId(source_id),
+                &usage,
+                messages,
+                &config.dynamic,
+            )?,
         );
     }
     Ok(applications)
@@ -394,6 +402,7 @@ fn application_entry(
     source_id: SourceId,
     usage: &ApplicationUsage,
     messages: &BTreeMap<String, usize>,
+    dynamic: &linguini_config::TypeScriptBundlerDynamicConfig,
 ) -> CliResult<serde_json::Value> {
     let mut references = Vec::new();
     let mut unresolved = Vec::new();
@@ -403,6 +412,10 @@ fn application_entry(
         .imports()
         .map(|binding| binding.id)
         .collect::<BTreeSet<_>>();
+    let import_bindings = usage
+        .imports()
+        .map(|binding| (binding.id, binding))
+        .collect::<BTreeMap<_, _>>();
     for reference in usage.references() {
         if reference.span.start > reference.span.end
             || reference.span.end > source.len()
@@ -512,6 +525,16 @@ fn application_entry(
             }),
         ));
     }
+    let dynamic_references = application_dynamic_references(
+        path,
+        source,
+        source_id,
+        usage,
+        messages,
+        dynamic,
+        &import_bindings,
+        &poisoned_imports,
+    )?;
     for static_path in usage.static_paths() {
         if !referenced_paths.contains(static_path) {
             unresolved.push((
@@ -562,7 +585,8 @@ fn application_entry(
                 "local_start": binding.local_span.start,
                 "local_end": binding.local_span.end,
                 "analyzer_exact_uses_only": binding.exact_uses_only,
-                "transformable": binding.exact_uses_only && !poisoned_imports.contains(&binding.id),
+                "analyzer_tracked_uses_only": binding.tracked_uses_only,
+                "transformable": binding.tracked_uses_only && !poisoned_imports.contains(&binding.id),
             }))
         })
         .collect::<CliResult<Vec<_>>>()?;
@@ -573,8 +597,300 @@ fn application_entry(
         "references": references.into_iter().map(|entry| entry.3).collect::<Vec<_>>(),
         "unresolved": unresolved.into_iter().map(|entry| entry.3).collect::<Vec<_>>(),
         "analysis_dynamic_prefixes": usage.dynamic_prefixes().collect::<Vec<_>>(),
+        "dynamic_references": dynamic_references,
         "imports": imports,
     }))
+}
+
+fn validate_dynamic_allow_entries(
+    dynamic: &linguini_config::TypeScriptBundlerDynamicConfig,
+    messages: &BTreeMap<String, usize>,
+) -> CliResult<()> {
+    if dynamic.mode != linguini_config::TypeScriptBundlerDynamicMode::Bundle {
+        return Ok(());
+    }
+    let unknown = dynamic
+        .allow
+        .iter()
+        .filter(|message| !messages.contains_key(*message))
+        .cloned()
+        .collect::<Vec<_>>();
+    if unknown.is_empty() {
+        return Ok(());
+    }
+    Err(CliError::Diagnostics(format!(
+        "targets.ts.bundler.dynamic.allow contains unknown compiled message leaf{}: {}\n",
+        if unknown.len() == 1 { "" } else { "s" },
+        unknown
+            .iter()
+            .map(|message| format!("`{message}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn application_dynamic_references(
+    path: &str,
+    source: &str,
+    source_id: linguini_syntax::SourceId,
+    usage: &ApplicationUsage,
+    messages: &BTreeMap<String, usize>,
+    dynamic: &linguini_config::TypeScriptBundlerDynamicConfig,
+    import_bindings: &BTreeMap<ApplicationImportBindingId, &ApplicationImportBinding>,
+    poisoned_imports: &BTreeSet<ApplicationImportBindingId>,
+) -> CliResult<Vec<serde_json::Value>> {
+    let mut output = Vec::new();
+    let mut errors = Vec::new();
+    for reference in usage.dynamic_references() {
+        validate_dynamic_spans(path, source, source_id, reference)?;
+        let kind = dynamic_reference_kind_name(reference.kind);
+        let reference_kind = application_reference_kind_name(reference.reference_kind);
+        if dynamic.mode == linguini_config::TypeScriptBundlerDynamicMode::Error {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                format!(
+                    "dynamic message access ({kind}, {reference_kind}) requires a finite escape"
+                ),
+            ));
+            continue;
+        }
+        if reference.kind != ApplicationDynamicReferenceKind::Computed {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                format!("dynamic reference kind `{kind}` is not bundle-safe"),
+            ));
+            continue;
+        }
+        if !matches!(
+            &reference.binding.provenance,
+            ApplicationBindingProvenance::Imported { .. }
+        ) {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                format!(
+                    "dynamic reference provenance `{}` is not an imported message root",
+                    application_binding_provenance_name(&reference.binding.provenance)
+                ),
+            ));
+            continue;
+        }
+        let Some(import_binding_id) = reference.import_binding else {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                "dynamic reference has no unique removable import binding".to_owned(),
+            ));
+            continue;
+        };
+        let Some(binding) = import_bindings.get(&import_binding_id).copied() else {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                "dynamic reference has an unknown import binding".to_owned(),
+            ));
+            continue;
+        };
+        let imported_message_root = matches!(
+            (&reference.binding.provenance, binding.imported.as_str()),
+            (
+                ApplicationBindingProvenance::Imported { .. },
+                "l" | "messages"
+            )
+        );
+        if !imported_message_root
+            || reference.binding.local != binding.local
+            || reference.import_binding != Some(binding.id)
+        {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                "dynamic reference must use a unique imported `l` or `messages` binding".to_owned(),
+            ));
+            continue;
+        }
+        if !binding.tracked_uses_only {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                "dynamic reference import binding has untracked uses".to_owned(),
+            ));
+            continue;
+        }
+        if poisoned_imports.contains(&binding.id) {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                "dynamic reference import binding has poisoned unresolved uses".to_owned(),
+            ));
+            continue;
+        }
+        let allowed = immediate_dynamic_messages(&reference.canonical_prefix, dynamic, messages);
+        if allowed.is_empty() {
+            errors.push(dynamic_diagnostic(
+                path,
+                reference.span.start,
+                reference.span.end,
+                format!(
+                    "no finite allow entry is an immediate compiled child of prefix `{}`",
+                    reference.canonical_prefix
+                ),
+            ));
+            continue;
+        }
+        let provenance = match &reference.binding.provenance {
+            ApplicationBindingProvenance::Imported {
+                module_specifier,
+                imported,
+            } => serde_json::json!({
+                "kind": "imported",
+                "module_specifier": module_specifier,
+                "symbol": imported,
+            }),
+            ApplicationBindingProvenance::Factory { factory } => {
+                serde_json::json!({"kind": "factory", "factory": factory})
+            }
+            ApplicationBindingProvenance::Implicit => serde_json::json!({"kind": "implicit"}),
+        };
+        output.push(serde_json::json!({
+            "kind": kind,
+            "prefix": reference.canonical_prefix,
+            "span": span_json(reference.span),
+            "receiver_span": span_json(reference.receiver_span),
+            "key_span": reference.computed_key_span.map(span_json),
+            "reference_kind": reference_kind,
+            "local": reference.binding.local,
+            "provenance": provenance,
+            "binding_id": Some(render_import_binding_id(binding.id)),
+            "messages": allowed
+                .into_iter()
+                .map(|(message, key, arity)| serde_json::json!({
+                    "message": message,
+                    "key": key,
+                    "arity": arity,
+                }))
+                .collect::<Vec<_>>(),
+        }));
+    }
+    if errors.is_empty() {
+        Ok(output)
+    } else {
+        Err(CliError::Diagnostics(errors.join("")))
+    }
+}
+
+fn immediate_dynamic_messages<'a>(
+    prefix: &str,
+    dynamic: &linguini_config::TypeScriptBundlerDynamicConfig,
+    messages: &'a BTreeMap<String, usize>,
+) -> Vec<(&'a str, &'a str, usize)> {
+    let prefix = prefix.strip_suffix('.').unwrap_or(prefix);
+    messages
+        .iter()
+        .filter_map(|(message, arity)| {
+            if !dynamic.allow.iter().any(|allowed| allowed == message) {
+                return None;
+            }
+            let key = if prefix.is_empty() {
+                message.as_str()
+            } else {
+                message.strip_prefix(&format!("{prefix}."))?
+            };
+            if key.is_empty() || key.contains('.') {
+                return None;
+            }
+            Some((message.as_str(), key, *arity))
+        })
+        .collect()
+}
+
+fn validate_dynamic_spans(
+    path: &str,
+    source: &str,
+    source_id: linguini_syntax::SourceId,
+    reference: &linguini_analyzer::ApplicationDynamicReference,
+) -> CliResult<()> {
+    let spans = [
+        ("full", reference.span),
+        ("receiver", reference.receiver_span),
+    ];
+    for (name, span) in spans {
+        if span.source != source_id
+            || span.start >= span.end
+            || span.end > source.len()
+            || !source.is_char_boundary(span.start)
+            || !source.is_char_boundary(span.end)
+            || span.start < reference.span.start
+            || span.end > reference.span.end
+        {
+            return Err(CliError::Diagnostics(format!(
+                "bundler analyzer returned invalid dynamic {name} span in `{path}`: {}..{}\n",
+                span.start, span.end
+            )));
+        }
+    }
+    if let Some(span) = reference.computed_key_span {
+        if span.source != source_id
+            || span.start > span.end
+            || span.end > source.len()
+            || !source.is_char_boundary(span.start)
+            || !source.is_char_boundary(span.end)
+            || span.start < reference.receiver_span.end
+            || span.end > reference.span.end
+        {
+            return Err(CliError::Diagnostics(format!(
+                "bundler analyzer returned invalid dynamic key span in `{path}`: {}..{}\n",
+                span.start, span.end
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn dynamic_diagnostic(path: &str, start: usize, end: usize, reason: String) -> String {
+    format!(
+        "{path}:{start}..{end}: {reason}; configure `[targets.ts.bundler.dynamic] mode = \"bundle\" allow = [...]`\n"
+    )
+}
+
+fn dynamic_reference_kind_name(kind: ApplicationDynamicReferenceKind) -> &'static str {
+    match kind {
+        ApplicationDynamicReferenceKind::Computed => "computed",
+        ApplicationDynamicReferenceKind::Bare => "bare",
+        ApplicationDynamicReferenceKind::Factory => "factory",
+        ApplicationDynamicReferenceKind::MultipleComputed => "multiple_computed",
+        ApplicationDynamicReferenceKind::Uncertain => "uncertain",
+    }
+}
+
+fn application_reference_kind_name(kind: ApplicationReferenceKind) -> &'static str {
+    match kind {
+        ApplicationReferenceKind::Value => "value",
+        ApplicationReferenceKind::Call => "call",
+    }
+}
+
+fn application_binding_provenance_name(provenance: &ApplicationBindingProvenance) -> &'static str {
+    match provenance {
+        ApplicationBindingProvenance::Imported { .. } => "imported",
+        ApplicationBindingProvenance::Factory { .. } => "factory",
+        ApplicationBindingProvenance::Implicit => "implicit",
+    }
+}
+
+fn span_json(span: linguini_syntax::Span) -> serde_json::Value {
+    serde_json::json!({"start": span.start, "end": span.end})
 }
 
 fn render_import_binding_id(id: ApplicationImportBindingId) -> String {
@@ -1060,11 +1376,26 @@ fn contains_non_group_symbol_name(module: &IrModule, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        merge_module, merge_module_fallback, namespaced_module, project_locale_fallbacks,
-        project_relative_source_path,
+        immediate_dynamic_messages, merge_module, merge_module_fallback, namespaced_module,
+        project_locale_fallbacks, project_relative_source_path,
     };
+    use linguini_config::{TypeScriptBundlerDynamicConfig, TypeScriptBundlerDynamicMode};
     use linguini_ir::lower_locale;
     use linguini_syntax::parse_locale;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn root_dynamic_prefix_accepts_exact_top_level_leaf() {
+        let messages = BTreeMap::from([("title".to_owned(), 0), ("main.title".to_owned(), 1)]);
+        let dynamic = TypeScriptBundlerDynamicConfig {
+            mode: TypeScriptBundlerDynamicMode::Bundle,
+            allow: vec!["title".to_owned(), "main.title".to_owned()],
+        };
+        assert_eq!(
+            immediate_dynamic_messages("", &dynamic, &messages),
+            vec![("title", "title", 0)]
+        );
+    }
 
     #[cfg(unix)]
     #[test]

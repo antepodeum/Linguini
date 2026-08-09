@@ -710,6 +710,9 @@ framework = "svelte"
 [targets.ts.bundler]
 sources = ["src", "src/app"]
 exclude = []
+[targets.ts.bundler.dynamic]
+mode = "bundle"
+allow = ["main.title", "main.items"]
 "#,
     )
     .expect("config");
@@ -725,6 +728,8 @@ exclude = []
     .expect("locale");
     let app_source = concat!(
         "import { l as tr } from \"../generated/linguini\";\r\n",
+        "import { l as dynamic } from \"../generated/linguini\";\r\n",
+        "import { messages as dynamicCall } from \"../generated/linguini\";\r\n",
         "const label = \"Привет\" + tr.main.title;\r\n",
         "const count = tr.main.items(2);\r\n",
         "const property = tr.main.title.extra;\r\n",
@@ -732,7 +737,8 @@ exclude = []
         "const optionalCall = tr.main.title?.();\r\n",
         "const optionalCallWithTrivia = tr.main.title /* trivia */ ?. ();\r\n",
         "const optionalParameterizedCall = tr.main.items?.(2);\r\n",
-        "const dynamic = tr.main[key];\r\n",
+        "const dynamicLabel = dynamic.main[key];\r\n",
+        "const dynamicItems = dynamicCall.main[key](2);\r\n",
         "const unrelated = object.main.title;\r\n",
     );
     let app_path = project.path().join("src/app/page.svelte");
@@ -759,7 +765,7 @@ exclude = []
         .join("src/generated/linguini/bundler/manifest.json");
     let first_text = fs::read_to_string(&manifest_path).expect("manifest");
     let manifest: serde_json::Value = serde_json::from_str(&first_text).expect("JSON");
-    assert_eq!(manifest["version"], 2);
+    assert_eq!(manifest["version"], 3);
     assert_eq!(
         manifest["runtime_helpers"],
         serde_json::json!({
@@ -795,6 +801,73 @@ exclude = []
     assert_eq!(references[1]["message"], "main.items");
     assert_eq!(references[1]["kind"], "call");
     assert_eq!(references[1]["arity"], 1);
+    let dynamic_references = application["dynamic_references"]
+        .as_array()
+        .expect("dynamic references");
+    assert_eq!(dynamic_references.len(), 2);
+    assert_eq!(dynamic_references[0]["kind"], "computed");
+    assert_eq!(dynamic_references[0]["prefix"], "main");
+    assert_eq!(dynamic_references[0]["reference_kind"], "value");
+    assert_eq!(
+        dynamic_references[0]["messages"],
+        serde_json::json!([
+            {"message": "main.items", "key": "items", "arity": 1},
+            {"message": "main.title", "key": "title", "arity": 0},
+        ])
+    );
+    assert_eq!(dynamic_references[1]["kind"], "computed");
+    assert_eq!(dynamic_references[1]["prefix"], "main");
+    assert_eq!(dynamic_references[1]["reference_kind"], "call");
+    assert_eq!(
+        dynamic_references[1]["messages"],
+        serde_json::json!([
+            {"message": "main.items", "key": "items", "arity": 1},
+            {"message": "main.title", "key": "title", "arity": 0},
+        ])
+    );
+    for (entry, local, expression, receiver, key) in [
+        (
+            &dynamic_references[0],
+            "dynamic",
+            "dynamic.main[key]",
+            "dynamic.main",
+            "key",
+        ),
+        (
+            &dynamic_references[1],
+            "dynamicCall",
+            "dynamicCall.main[key]",
+            "dynamicCall.main",
+            "key",
+        ),
+    ] {
+        let span = &entry["span"];
+        let start = span["start"].as_u64().expect("dynamic span start") as usize;
+        let end = span["end"].as_u64().expect("dynamic span end") as usize;
+        assert_eq!(&app_source[start..end], expression);
+        let receiver_span = &entry["receiver_span"];
+        let receiver_start = receiver_span["start"]
+            .as_u64()
+            .expect("dynamic receiver span start") as usize;
+        let receiver_end = receiver_span["end"]
+            .as_u64()
+            .expect("dynamic receiver span end") as usize;
+        assert_eq!(&app_source[receiver_start..receiver_end], receiver);
+        let key_span = &entry["key_span"];
+        let key_start = key_span["start"].as_u64().expect("dynamic key span start") as usize;
+        let key_end = key_span["end"].as_u64().expect("dynamic key span end") as usize;
+        assert_eq!(&app_source[key_start..key_end], key);
+        assert_eq!(entry["local"], local);
+        assert_eq!(entry["provenance"]["kind"], "imported");
+        assert_eq!(
+            entry["provenance"]["module_specifier"],
+            "../generated/linguini"
+        );
+        assert_eq!(
+            entry["provenance"]["symbol"],
+            if local == "dynamic" { "l" } else { "messages" }
+        );
+    }
     let start = references[0]["start"].as_u64().expect("start") as usize;
     let end = references[0]["end"].as_u64().expect("end") as usize;
     assert_eq!(&app_source.as_bytes()[start..end], b"tr.main.title");
@@ -816,7 +889,33 @@ exclude = []
     let page_import = &application["imports"][0];
     assert_eq!(page_import["binding_id"], references[0]["binding_id"]);
     assert_eq!(page_import["analyzer_exact_uses_only"], false);
+    assert_eq!(page_import["analyzer_tracked_uses_only"], true);
     assert_eq!(page_import["transformable"], false);
+    let dynamic_import = application["imports"]
+        .as_array()
+        .expect("imports")
+        .iter()
+        .find(|binding| binding["local"] == "dynamic")
+        .expect("dynamic import");
+    assert_eq!(
+        dynamic_references[0]["binding_id"],
+        dynamic_import["binding_id"]
+    );
+    assert_eq!(dynamic_import["analyzer_exact_uses_only"], false);
+    assert_eq!(dynamic_import["analyzer_tracked_uses_only"], true);
+    assert_eq!(dynamic_import["transformable"], true);
+    let dynamic_call_import = application["imports"]
+        .as_array()
+        .expect("imports")
+        .iter()
+        .find(|binding| binding["local"] == "dynamicCall")
+        .expect("dynamic call import");
+    assert_eq!(
+        dynamic_references[1]["binding_id"],
+        dynamic_call_import["binding_id"]
+    );
+    assert_eq!(dynamic_call_import["analyzer_tracked_uses_only"], true);
+    assert_eq!(dynamic_call_import["transformable"], true);
     assert_eq!(
         &app_source[page_import["removal_start"].as_u64().expect("start") as usize
             ..page_import["removal_end"].as_u64().expect("end") as usize],
@@ -915,6 +1014,169 @@ exclude = []
             .path()
             .join("src/generated/linguini/svelte-effects.svelte.ts")
             .exists());
+    }
+}
+
+#[test]
+fn bundler_dynamic_error_rejects_before_output_mutation() {
+    let project = temp_project_dir("bundler-dynamic-strict").expect("project");
+    fs::create_dir_all(project.path().join("schema")).expect("schema dir");
+    fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
+    fs::create_dir_all(project.path().join("src")).expect("src dir");
+    fs::create_dir_all(project.path().join("build/generated")).expect("output dir");
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"
+[project]
+name = "bundler-dynamic-strict"
+default_locale = "en"
+locales = ["en"]
+[paths]
+schema = "schema"
+locale = "locales"
+[targets.ts]
+out = "build/generated"
+declaration = false
+gitignore = false
+framework = "svelte"
+[targets.ts.bundler]
+sources = ["src"]
+"#,
+    )
+    .expect("config");
+    fs::write(project.path().join("schema/main.lgs"), "title\n").expect("schema");
+    fs::write(
+        project.path().join("locales/main/en.lgl"),
+        "title = Title\n",
+    )
+    .expect("locale");
+    fs::write(
+        project.path().join("src/page.ts"),
+        "import { l } from \"generated\";\nconst label = l.main[key];\n",
+    )
+    .expect("application");
+    let sentinel = project.path().join("build/generated/sentinel.ts");
+    fs::write(&sentinel, "preserve me\n").expect("sentinel");
+
+    let error = build_project(project.path()).expect_err("strict dynamic access must fail");
+    let message = error.to_string();
+    assert!(message.contains("src/page.ts:"), "{message}");
+    assert!(message.contains("dynamic message access"), "{message}");
+    assert!(
+        message.contains("[targets.ts.bundler.dynamic]"),
+        "{message}"
+    );
+    assert_eq!(
+        fs::read_to_string(&sentinel).expect("sentinel").as_str(),
+        "preserve me\n"
+    );
+}
+
+fn dynamic_bundler_project(name: &str, policy: &str, source: &str) -> TempDir {
+    let project = temp_project_dir(name).expect("project");
+    fs::create_dir_all(project.path().join("schema")).expect("schema dir");
+    fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
+    fs::create_dir_all(project.path().join("src")).expect("src dir");
+    fs::write(
+        project.path().join("linguini.toml"),
+        format!(
+            r#"
+[project]
+name = "{name}"
+default_locale = "en"
+locales = ["en"]
+[paths]
+schema = "schema"
+locale = "locales"
+[targets.ts]
+out = "build/generated"
+declaration = false
+gitignore = false
+framework = "svelte"
+[targets.ts.bundler]
+sources = ["src"]
+{policy}
+"#
+        ),
+    )
+    .expect("config");
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "title\nitems(count: Number)\n",
+    )
+    .expect("schema");
+    fs::write(
+        project.path().join("locales/main/en.lgl"),
+        "title = Title\nitems = {count} items\n",
+    )
+    .expect("locale");
+    fs::write(project.path().join("src/page.ts"), source).expect("application");
+    project
+}
+
+#[test]
+fn bundler_dynamic_bundle_rejects_unknown_allow_entries() {
+    let project = dynamic_bundler_project(
+        "bundler-dynamic-unknown",
+        "[targets.ts.bundler.dynamic]\nmode = \"bundle\"\nallow = [\"main.unknown\"]",
+        "import { l } from \"generated\";\nconst label = l.main[key];\n",
+    );
+    let error = build_project(project.path()).expect_err("unknown allow must fail");
+    assert!(error.to_string().contains("unknown compiled message leaf"));
+    assert!(!project.path().join("build/generated").exists());
+}
+
+#[test]
+fn bundler_dynamic_bundle_rejects_ambiguous_and_unsafe_shapes() {
+    let cases = [
+        (
+            "factory",
+            "import { createLinguini as make } from \"runtime\";\nexport const label = make(\"en\");\n",
+            "kind `factory`",
+        ),
+        (
+            "bare",
+            "import { l } from \"generated\";\nconst label = l;\n",
+            "kind `bare`",
+        ),
+        (
+            "implicit",
+            "const label = l.main[key];\n",
+            "provenance `implicit`",
+        ),
+        (
+            "multiple",
+            "import { l } from \"generated\";\nconst label = l.main[first][second];\n",
+            "kind `multiple_computed`",
+        ),
+        (
+            "uncertain",
+            "import { l } from \"generated\";\nconst label = l.main[key].title;\n",
+            "kind `uncertain`",
+        ),
+        (
+            "duplicate",
+            "import { l as same } from \"generated-a\";\nimport { messages as same } from \"generated-b\";\nconst label = same.main[key];\n",
+            "no unique removable import binding",
+        ),
+        (
+            "untracked",
+            "import { l } from \"generated\";\nconsume(l);\nconst label = l.main[key];\n",
+            "kind `bare`",
+        ),
+    ];
+    for (name, source, reason) in cases {
+        let project = dynamic_bundler_project(
+            &format!("bundler-dynamic-{name}"),
+            "[targets.ts.bundler.dynamic]\nmode = \"bundle\"\nallow = [\"main.title\"]",
+            source,
+        );
+        let error = match build_project(project.path()) {
+            Ok(output) => panic!("{name}: unsafe dynamic shape must fail: {output}"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains(reason), "{name}: {error}");
+        assert!(!project.path().join("build/generated").exists(), "{name}");
     }
 }
 
