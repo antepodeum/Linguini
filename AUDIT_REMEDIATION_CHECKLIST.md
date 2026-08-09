@@ -93,19 +93,19 @@ production path uses the fix and its relevant tests pass.
   leaves, group/leaf JSDoc, safe keys, effective filtering, and strict TypeScript verification.
 - `b7758fd` — added deterministic source-aware application references with exact leaf spans,
   value/call identity, decoded paths, and transform-safe binding provenance.
-- `591c532` — added deterministic physical per-message modules and source maps plus a versioned
+- `591c532` — added deterministic physical per-message modules and source maps plus the v1
   bundler manifest through the transactional CLI output path.
 - `bed72e0` — split canonical locale metadata and reactive Svelte locale state from the eager
   legacy runtime so per-message wrappers can resolve locale without importing every message.
 - `18792cf` — added opt-in typed bundler source discovery and a deterministic application
   manifest with exact hashes, byte spans, binding provenance, arity, and unresolved references.
 - `1e5ae83` — added strict-module import parsing, stable binding identities, exact removal spans,
-  and binding-wide transform-safety metadata to analyzer and manifest v2.
+  and binding-wide transform-safety metadata to analyzer and the bundler manifest.
 - `1ce930b` — split Svelte browser effects from the eager message runtime, added metadata-only web
   policy, and generated distinct plain-Svelte and SvelteKit reactive locale implementations.
 - `1804d1f` — added lightweight Svelte client controls and compatibility-safe SvelteKit control
   hooks so transformed applications can avoid eager message barrels without breaking legacy APIs.
-- `aa75a3f`, `45a78c1` — added manifest-v2 Vite transforms and exact virtual message modules, then
+- `aa75a3f`, `45a78c1` — added Vite bundler transforms and exact virtual message modules, then
   hardened raw-source/resolver identity, scoped alias allocation, effects retention, and graph tests.
 - `a6d13fc` — added manifest-delta HMR with exact source-to-message, per-locale physical-module,
   and application invalidation plus add/remove browser propagation.
@@ -121,17 +121,17 @@ production path uses the fix and its relevant tests pass.
   spans, value/call identity, and conservative classification of ambiguous or mutating uses.
 - `49deef3` — separated complete tracked import usage from exact-static import safety so bounded
   dynamic transforms cannot remove imports when any source use is unrepresented.
-- `19c3616` — added manifest-v3 bounded dynamic-reference records, strict pre-write diagnostics,
+- `19c3616` — added bounded dynamic-reference records, strict pre-write diagnostics,
   exact finite allowlist validation, and tracked-binding transform eligibility.
-- `0c12d74` — added validated manifest-v3 Vite rewrites for finite dynamic lookups with frozen
+- `0c12d74` — added validated Vite rewrites for finite dynamic lookups with frozen
   null-prototype dispatches, exact virtual imports, resolver identity checks, and selective HMR.
 - `eaf8962` — made the root site profile assert the built production graph after generation,
   runtime tests, Svelte checks, and the production build.
-- `4e80ed0` — added an eager-by-default typed locale-loading policy and manifest-v4 metadata for
+- `4e80ed0` — added an eager-by-default typed locale-loading policy and manifest metadata for
   opt-in bundler-visible dynamic locale boundaries.
 - `71cb928` — added generated locale-loader registration, deterministic disposal, concurrent
   preparation, and preload-before-switch semantics for lightweight Svelte controls.
-- `8405d65` — added manifest-v4 Vite client locale boundaries with literal dynamic imports,
+- `8405d65` — added Vite client locale boundaries with literal dynamic imports,
   current-locale preloading, retry-safe caches, SSR-static modules, and HMR-safe disposal.
 - `fa7bccd` — enabled dynamic locale loading on the real site and proved 522 physical locale
   modules stay outside the initial static client graph while SSR remains synchronous.
@@ -141,7 +141,9 @@ production path uses the fix and its relevant tests pass.
 - `203faa8` — excluded transactional and physical generated output from the Vite development
   watcher while preserving manifest-driven rebuilds, eliminating real-site startup and HMR storms.
 - `d68e432` — moved formatter, date, number, currency, and plural implementations into one shared
-  runtime per locale, with manifest-v5 source-aware HMR and real-site bundle-graph verification.
+  runtime per locale, with source-aware HMR and real-site bundle-graph verification.
+- `0f8cfc3` — moved reusable variables, forms, functions, and locale enums into exact per-symbol
+  ESM modules, collapsed the unreleased bundler manifest to v1, and verified the real site graph.
 
 ## Numbered findings
 
@@ -382,7 +384,8 @@ production path uses the fix and its relevant tests pass.
 - [ ] #199 — Emit source maps back to Linguini sources.
 - [ ] #200 — Require every declared message in direct codegen input locales.
 - [ ] #201 — Replace eager locale imports with real bundler-visible splitting.
-- [-] #202 — Tree-shake transitive forms, functions, variables, and helpers.
+- [-] #202 — Tree-shake transitive forms, functions, variables, and helpers. Physical bundler
+      leaves now do this exactly; legacy namespace-wide global copying remains tracked by #204.
 - [x] #203 — Diagnose unknown `included_messages`.
 - [ ] #204 — Stop copying all global declarations into every namespace.
 - [x] #205 — Deduplicate formatter helpers/data per locale.
@@ -719,7 +722,7 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
 - [x] BUNDLE-A6 — Invalidate only affected virtual modules.
 - [x] BUNDLE-A7 — Reject dynamic lookup in strict mode and permit only explicit finite computed
-      lookup escapes through manifest-v3 metadata, generated-module resolution, frozen dispatches,
+      lookup escapes through manifest metadata, generated-module resolution, frozen dispatches,
       and real-site production-graph verification.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
@@ -728,7 +731,7 @@ production path uses the fix and its relevant tests pass.
       SSR modules, and real-site production-graph verification.
 - [x] BUNDLE-A11 — Emit formatter, date, number, currency, and plural helpers once per locale and
       import only required names from physical message modules.
-- [ ] BUNDLE-A12 — Share reusable variables, forms, and local functions across physical messages
+- [x] BUNDLE-A12 — Share reusable variables, forms, and local functions across physical messages
       without broadening their transitive bundle graph.
 
 ### Local repository verification
