@@ -1,8 +1,153 @@
 use linguini_analyzer::{
-    analyze_unused_messages, ApplicationBindingProvenance, ApplicationReferenceKind,
-    ApplicationUsage, DiagnosticCategory, DiagnosticSeverity, PublicMessage,
+    analyze_unused_messages, ApplicationBindingProvenance, ApplicationDynamicReferenceKind,
+    ApplicationReferenceKind, ApplicationUsage, DiagnosticCategory, DiagnosticSeverity,
+    PublicMessage,
 };
 use linguini_syntax::{SourceId, Span};
+
+#[test]
+fn exposes_single_computed_dynamic_spans_and_kinds() {
+    let source = "l.main[key];\nl.main[key]();";
+    let usage = ApplicationUsage::from_source_in(source, SourceId(101));
+    let references = usage.dynamic_references().collect::<Vec<_>>();
+
+    assert_eq!(references.len(), 2);
+    assert_eq!(references[0].canonical_prefix, "main");
+    assert_eq!(
+        references[0].kind,
+        ApplicationDynamicReferenceKind::Computed
+    );
+    assert_eq!(
+        references[0].reference_kind,
+        ApplicationReferenceKind::Value
+    );
+    assert_eq!(
+        references[0].span,
+        Span::in_source(SourceId(101), 0, "l.main[key]".len())
+    );
+    assert_eq!(
+        references[0].receiver_span,
+        Span::in_source(SourceId(101), 0, "l.main".len())
+    );
+    assert_eq!(
+        references[0].computed_key_span,
+        Some(Span::in_source(SourceId(101), 7, 10))
+    );
+    assert_eq!(references[1].reference_kind, ApplicationReferenceKind::Call);
+    assert_eq!(usage.dynamic_prefixes().collect::<Vec<_>>(), ["main"]);
+}
+
+#[test]
+fn classifies_bare_factory_multiple_and_uncertain_dynamic_uses() {
+    let source = concat!(
+        "import { createLinguini as make } from \"runtime\";\n",
+        "register(l);\n",
+        "export const escaped = make(\"en\");\n",
+        "l.main[first][second];\n",
+        "l.main[key].title;\n",
+        "l?.main[key];\n",
+        "<h1>{l.main[markupKey]}</h1>\n",
+    );
+    let usage = ApplicationUsage::from_source(source);
+    let references = usage.dynamic_references().collect::<Vec<_>>();
+    assert_eq!(
+        references
+            .iter()
+            .map(|reference| reference.kind)
+            .collect::<Vec<_>>(),
+        [
+            ApplicationDynamicReferenceKind::Bare,
+            ApplicationDynamicReferenceKind::Factory,
+            ApplicationDynamicReferenceKind::MultipleComputed,
+            ApplicationDynamicReferenceKind::Uncertain,
+            ApplicationDynamicReferenceKind::Uncertain,
+            ApplicationDynamicReferenceKind::Computed,
+        ]
+    );
+    assert_eq!(references[0].canonical_prefix, "");
+    assert_eq!(
+        references[1].span,
+        Span::new(
+            source.find("make(\"en\")").unwrap(),
+            source.find("make(\"en\")").unwrap() + "make(\"en\")".len()
+        )
+    );
+    assert_eq!(
+        references[2].computed_key_span.unwrap().start,
+        source.find("first").unwrap()
+    );
+}
+
+#[test]
+fn preserves_unicode_dynamic_key_spans_and_import_identity() {
+    let source = "import { l as tr } from \"runtime\";\nconst ключ = 1;\ntr.main[ключ]();";
+    let source_id = SourceId(102);
+    let usage = ApplicationUsage::from_source_in(source, source_id);
+    let reference = usage
+        .dynamic_references()
+        .next()
+        .expect("dynamic reference");
+    assert_eq!(reference.kind, ApplicationDynamicReferenceKind::Computed);
+    let key_start = source.find("ключ]").unwrap();
+    assert_eq!(
+        &source
+            [reference.computed_key_span.unwrap().start..reference.computed_key_span.unwrap().end],
+        "ключ"
+    );
+    assert_eq!(reference.span.source, source_id);
+    assert_eq!(reference.span.start, source.find("tr.main").unwrap());
+    assert_eq!(
+        reference.import_binding,
+        usage.imports().next().map(|binding| binding.id)
+    );
+    assert_eq!(reference.computed_key_span.unwrap().start, key_start);
+}
+
+#[test]
+fn excludes_shadowed_dynamic_import_uses_but_keeps_outer_identity() {
+    let source = concat!(
+        "import { l as tr } from \"runtime\";\n",
+        "function render(tr) { tr.main[key](); }\n",
+        "tr.main[outer]();\n",
+    );
+    let usage = ApplicationUsage::from_source(source);
+    let references = usage.dynamic_references().collect::<Vec<_>>();
+    assert_eq!(references.len(), 1);
+    assert_eq!(
+        references[0].import_binding,
+        usage.imports().next().map(|binding| binding.id)
+    );
+    assert_eq!(references[0].binding.local, "tr");
+}
+
+#[test]
+fn keeps_dynamic_key_trivia_and_rejects_non_read_contexts() {
+    let source = concat!(
+        "l.main[ /* keep */ key ]\n",
+        "l.main[written] = value;\n",
+        "++l.main[increment];\n",
+        "delete l.main[removed];\n",
+        "l.main[member] in values;\n",
+        "[l.main[target]] = values;\n",
+        "({ [l.main[property]]: value } = object);\n",
+        "const spread = { ...l.main[spreadKey] };\n",
+    );
+    let usage = ApplicationUsage::from_source(source);
+    let references = usage.dynamic_references().collect::<Vec<_>>();
+    assert_eq!(references.len(), 8);
+    assert_eq!(
+        references[0].kind,
+        ApplicationDynamicReferenceKind::Computed
+    );
+    assert_eq!(
+        &source[references[0].computed_key_span.unwrap().start
+            ..references[0].computed_key_span.unwrap().end],
+        " /* keep */ key "
+    );
+    assert!(references[1..]
+        .iter()
+        .all(|reference| { reference.kind == ApplicationDynamicReferenceKind::Uncertain }));
+}
 
 #[test]
 fn exposes_source_aware_static_references_and_provenance() {
@@ -960,6 +1105,9 @@ fn duplicate_local_imports_are_ambiguous_across_modules_and_symbols() {
     assert!(imports.iter().all(|binding| !binding.exact_uses_only));
     assert!(usage
         .references()
+        .all(|reference| reference.import_binding.is_none()));
+    assert!(usage
+        .dynamic_references()
         .all(|reference| reference.import_binding.is_none()));
 }
 

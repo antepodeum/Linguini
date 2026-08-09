@@ -11,6 +11,42 @@ pub enum ApplicationReferenceKind {
     Call,
 }
 
+/// Structural classification for a dynamic application message use.
+///
+/// `Computed` is reserved for one computed member after a static prefix. Uses
+/// with another computed member are `MultipleComputed`; optional chains,
+/// trailing members, and malformed syntax are `Uncertain` because a bundler
+/// cannot safely preserve their lookup semantics from this metadata alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ApplicationDynamicReferenceKind {
+    Computed,
+    Bare,
+    Factory,
+    MultipleComputed,
+    Uncertain,
+}
+
+/// Exact source metadata for one dynamic application message use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApplicationDynamicReference {
+    /// Canonical static prefix before the first computed member (`""` for root).
+    pub canonical_prefix: String,
+    /// Full source span of the root through the dynamic member chain.
+    pub span: Span,
+    /// Source span of the receiver/prefix before the first computed key.
+    pub receiver_span: Span,
+    /// Source span of the expression inside the first computed brackets.
+    pub computed_key_span: Option<Span>,
+    /// Structural dynamic-use classification.
+    pub kind: ApplicationDynamicReferenceKind,
+    /// Root/local binding metadata for this expression.
+    pub binding: ApplicationBinding,
+    /// Exact import identity when this use originates from a removable named import.
+    pub import_binding: Option<ApplicationImportBindingId>,
+    /// Whether the dynamic member is read as a value or invoked.
+    pub reference_kind: ApplicationReferenceKind,
+}
+
 /// The binding which supplied the root of an application reference.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ApplicationBinding {
@@ -98,6 +134,7 @@ pub struct ApplicationUsage {
     static_paths: BTreeSet<UsagePath>,
     dynamic_prefixes: BTreeSet<UsagePath>,
     references: Vec<ApplicationReference>,
+    dynamic_references: Vec<ApplicationDynamicReference>,
     imports: Vec<ApplicationImportBinding>,
 }
 
@@ -119,6 +156,7 @@ struct ReferenceContext<'a> {
     source_id: SourceId,
     root_index: usize,
     root: &'a str,
+    member_start: usize,
     binding: ApplicationBinding,
     emit_reference: bool,
 }
@@ -196,11 +234,28 @@ impl ApplicationUsage {
             if factories.contains_key(root) {
                 if let Some(after_call) = call_end(&tokens, source, after_symbol) {
                     let (segments, dynamic, next) = member_path(&tokens, after_call);
-                    if segments.is_empty() {
+                    if segments.is_empty() && !dynamic {
                         if declaration_binding(&tokens, source, index)
                             .map_or(true, |(_, exported)| exported)
                         {
                             self.dynamic_prefixes.insert(UsagePath::root());
+                            self.record_factory_escape(
+                                &tokens,
+                                source,
+                                source_id,
+                                index,
+                                root,
+                                after_call,
+                                ApplicationBinding {
+                                    local: root.to_owned(),
+                                    provenance: ApplicationBindingProvenance::Factory {
+                                        factory: factories
+                                            .get(root)
+                                            .cloned()
+                                            .unwrap_or_else(|| root.to_owned()),
+                                    },
+                                },
+                            );
                         }
                     } else {
                         let factory = factories
@@ -214,6 +269,7 @@ impl ApplicationUsage {
                                 source_id,
                                 root_index: index,
                                 root,
+                                member_start: after_call,
                                 binding: ApplicationBinding {
                                     local: root.to_owned(),
                                     provenance: ApplicationBindingProvenance::Factory { factory },
@@ -229,10 +285,30 @@ impl ApplicationUsage {
                     continue;
                 }
                 self.dynamic_prefixes.insert(UsagePath::root());
+                self.record_factory_escape(
+                    &tokens,
+                    source,
+                    source_id,
+                    index,
+                    root,
+                    after_symbol,
+                    ApplicationBinding {
+                        local: root.to_owned(),
+                        provenance: ApplicationBindingProvenance::Factory {
+                            factory: factories
+                                .get(root)
+                                .cloned()
+                                .unwrap_or_else(|| root.to_owned()),
+                        },
+                    },
+                );
                 index += 1;
                 continue;
             }
-            if !bracket_property && is_binding_declaration(&tokens, source, index) {
+            if !bracket_property
+                && (is_binding_declaration(&tokens, source, index)
+                    || is_parameter_declaration(&tokens, source, index))
+            {
                 index += 1;
                 continue;
             }
@@ -268,6 +344,7 @@ impl ApplicationUsage {
                     source_id,
                     root_index: index,
                     root,
+                    member_start: after_symbol,
                     binding,
                     emit_reference,
                 },
@@ -302,6 +379,24 @@ impl ApplicationUsage {
                     &right.binding,
                 ))
         });
+        self.dynamic_references.sort_by(|left, right| {
+            (
+                left.span.source,
+                left.span.start,
+                left.span.end,
+                &left.canonical_prefix,
+                left.kind,
+                left.reference_kind,
+            )
+                .cmp(&(
+                    right.span.source,
+                    right.span.start,
+                    right.span.end,
+                    &right.canonical_prefix,
+                    right.kind,
+                    right.reference_kind,
+                ))
+        });
     }
 
     fn sort_imports(&mut self) {
@@ -317,12 +412,24 @@ impl ApplicationUsage {
     ) {
         if segments.is_empty() {
             self.dynamic_prefixes.insert(UsagePath::root());
+            self.record_dynamic_reference(
+                &context,
+                UsagePath::root(),
+                scan_dynamic_members(context.tokens, context.source, context.member_start),
+                true,
+            );
             return;
         }
         let path = UsagePath::new(segments);
         let invoked = is_invocation(context.tokens, context.source, next);
         if dynamic {
-            self.dynamic_prefixes.insert(path);
+            self.dynamic_prefixes.insert(path.clone());
+            self.record_dynamic_reference(
+                &context,
+                path,
+                scan_dynamic_members(context.tokens, context.source, context.member_start),
+                false,
+            );
         } else {
             if invoked {
                 self.static_paths.insert(path.clone());
@@ -363,6 +470,139 @@ impl ApplicationUsage {
                 ));
             }
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn record_factory_escape(
+        &mut self,
+        tokens: &[Token],
+        source: &str,
+        source_id: SourceId,
+        root_index: usize,
+        root: &str,
+        after_call: usize,
+        binding: ApplicationBinding,
+    ) {
+        let Some(root_token) = reference_root_token(tokens, source, root_index) else {
+            return;
+        };
+        let end = tokens
+            .get(after_call.saturating_sub(1))
+            .map_or(root_token.end, |token| token.end);
+        let import_binding = self.import_binding_id(&binding, source_id);
+        self.dynamic_references.push(ApplicationDynamicReference {
+            canonical_prefix: String::new(),
+            span: Span::in_source(source_id, root_token.start, end),
+            receiver_span: Span::in_source(source_id, root_token.start, end),
+            computed_key_span: None,
+            kind: ApplicationDynamicReferenceKind::Factory,
+            binding: if binding.local == root {
+                binding
+            } else {
+                ApplicationBinding {
+                    local: root.to_owned(),
+                    provenance: binding.provenance,
+                }
+            },
+            import_binding,
+            reference_kind: ApplicationReferenceKind::Value,
+        });
+    }
+
+    fn record_dynamic_reference(
+        &mut self,
+        context: &ReferenceContext<'_>,
+        path: UsagePath,
+        scan: DynamicMemberScan,
+        bare: bool,
+    ) {
+        if !context.emit_reference {
+            return;
+        }
+        let Some(root_token) =
+            reference_root_token(context.tokens, context.source, context.root_index)
+        else {
+            return;
+        };
+        let chain_end = scan.chain_end.max(context.member_start);
+        let end = context
+            .tokens
+            .get(chain_end.saturating_sub(1))
+            .map_or(root_token.end, |token| token.end);
+        let Some(dynamic_open) = scan.dynamic_open else {
+            if !bare {
+                return;
+            }
+            let import_binding = self.import_binding_id(&context.binding, context.source_id);
+            self.dynamic_references.push(ApplicationDynamicReference {
+                canonical_prefix: path.display,
+                span: Span::in_source(context.source_id, root_token.start, end),
+                receiver_span: Span::in_source(context.source_id, root_token.start, end),
+                computed_key_span: None,
+                kind: ApplicationDynamicReferenceKind::Bare,
+                binding: context.binding.clone(),
+                import_binding,
+                reference_kind: ApplicationReferenceKind::Value,
+            });
+            return;
+        };
+        let dynamic_end = end;
+        let receiver_end = context
+            .tokens
+            .get(dynamic_open)
+            .map_or(root_token.end, |token| token.start);
+        let invoked = is_invocation(context.tokens, context.source, scan.chain_end)
+            || analyzer_optional_invocation(
+                context.source,
+                context
+                    .tokens
+                    .get(scan.chain_end.saturating_sub(1))
+                    .map_or(dynamic_end, |token| token.end),
+            );
+        let optional_invocation = analyzer_optional_invocation(
+            context.source,
+            context
+                .tokens
+                .get(scan.chain_end.saturating_sub(1))
+                .map_or(dynamic_end, |token| token.end),
+        );
+        let kind = if scan.computed_count > 1 {
+            ApplicationDynamicReferenceKind::MultipleComputed
+        } else if scan.malformed
+            || scan.optional
+            || scan.trailing_member
+            || optional_invocation
+            || dynamic_write_context(
+                context.tokens,
+                context.source,
+                context.root_index,
+                scan.chain_end,
+            )
+            || scan
+                .computed_key_span
+                .is_some_and(|(start, end)| start == end)
+        {
+            ApplicationDynamicReferenceKind::Uncertain
+        } else {
+            ApplicationDynamicReferenceKind::Computed
+        };
+        let import_binding = self.import_binding_id(&context.binding, context.source_id);
+        self.dynamic_references.push(ApplicationDynamicReference {
+            canonical_prefix: path.display,
+            span: Span::in_source(context.source_id, root_token.start, dynamic_end),
+            receiver_span: Span::in_source(context.source_id, root_token.start, receiver_end),
+            computed_key_span: scan
+                .computed_key_span
+                .map(|(start, end)| Span::in_source(context.source_id, start, end)),
+            kind,
+            binding: context.binding.clone(),
+            import_binding,
+            reference_kind: if invoked {
+                ApplicationReferenceKind::Call
+            } else {
+                ApplicationReferenceKind::Value
+            },
+        });
     }
 
     fn import_binding_id(
@@ -457,12 +697,22 @@ impl ApplicationUsage {
                 reference.import_binding = None;
             }
         }
+        for reference in &mut self.dynamic_references {
+            if reference.import_binding.is_some_and(|id| {
+                counts
+                    .get(&(id.source, reference.binding.local.clone()))
+                    .is_some_and(|count| *count > 1)
+            }) {
+                reference.import_binding = None;
+            }
+        }
     }
 
     pub fn merge(&mut self, other: Self) {
         self.static_paths.extend(other.static_paths);
         self.dynamic_prefixes.extend(other.dynamic_prefixes);
         self.references.extend(other.references);
+        self.dynamic_references.extend(other.dynamic_references);
         self.imports.extend(other.imports);
         self.poison_duplicate_import_locals();
         self.sort_references();
@@ -482,6 +732,11 @@ impl ApplicationUsage {
     /// Static references in deterministic source/path order.
     pub fn references(&self) -> impl Iterator<Item = &ApplicationReference> {
         self.references.iter()
+    }
+
+    /// Dynamic references in deterministic source/span order.
+    pub fn dynamic_references(&self) -> impl Iterator<Item = &ApplicationDynamicReference> {
+        self.dynamic_references.iter()
     }
 
     /// Imported `l`/`messages` bindings in deterministic source/declaration order.
@@ -1146,6 +1401,8 @@ fn token_spelling<'a>(tokens: &'a [Token], source: &'a str, index: usize) -> Opt
     let token = tokens.get(index)?;
     match token.kind {
         TokenKind::Other => Some(&source[token.start..token.end]),
+        TokenKind::Dot => Some("."),
+        TokenKind::Question => Some("?"),
         TokenKind::OpenBracket => Some("["),
         TokenKind::CloseBracket => Some("]"),
         TokenKind::Semicolon => Some(";"),
@@ -2550,6 +2807,18 @@ fn is_binding_declaration(tokens: &[Token], source: &str, index: usize) -> bool 
     })
 }
 
+fn is_parameter_declaration(tokens: &[Token], source: &str, index: usize) -> bool {
+    let Some(previous) = index.checked_sub(1) else {
+        return false;
+    };
+    if !matches!(token_spelling(tokens, source, previous), Some("(" | ","))
+        || parameter_body_scope(tokens, source, index).is_none()
+    {
+        return false;
+    }
+    !matches!(token_spelling(tokens, source, index + 1), Some("." | "["))
+}
+
 fn is_invocation(tokens: &[Token], source: &str, index: usize) -> bool {
     let Some(token) = tokens.get(index) else {
         return false;
@@ -2716,6 +2985,192 @@ fn member_path(tokens: &[Token], mut index: usize) -> (Vec<UsageSegment>, bool, 
             _ => return (segments, true, index + 1),
         }
     }
+}
+
+#[derive(Debug, Default)]
+struct DynamicMemberScan {
+    dynamic_open: Option<usize>,
+    dynamic_close: Option<usize>,
+    computed_key_span: Option<(usize, usize)>,
+    computed_count: usize,
+    chain_end: usize,
+    optional: bool,
+    trailing_member: bool,
+    malformed: bool,
+}
+
+/// Scan the complete member chain after a known application receiver.
+///
+/// `member_path` intentionally stops at the first dynamic key for conservative
+/// unused analysis. This companion scan continues through the chain so callers
+/// can expose exact source boundaries and distinguish safely bounded lookups
+/// from broader/uncertain expressions.
+fn scan_dynamic_members(tokens: &[Token], source: &str, start: usize) -> DynamicMemberScan {
+    let mut scan = DynamicMemberScan {
+        chain_end: start,
+        ..DynamicMemberScan::default()
+    };
+    let mut index = start;
+    let mut saw_dynamic = false;
+    loop {
+        let (member, optional) = if matches!(
+            tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::Dot)
+        ) {
+            (index + 1, false)
+        } else if matches!(
+            tokens.get(index..index + 2),
+            Some([
+                Token {
+                    kind: TokenKind::Question,
+                    ..
+                },
+                Token {
+                    kind: TokenKind::Dot,
+                    ..
+                },
+            ])
+        ) {
+            (index + 2, true)
+        } else if matches!(
+            tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::OpenBracket)
+        ) {
+            (index, false)
+        } else {
+            break;
+        };
+        scan.optional |= optional;
+        let Some(token) = tokens.get(member) else {
+            scan.malformed = true;
+            break;
+        };
+        if matches!(token.kind, TokenKind::OpenBracket) {
+            let Some(close) = matching_delimiter(tokens, source, member, "[", "]") else {
+                scan.malformed = true;
+                scan.chain_end = member + 1;
+                break;
+            };
+            let static_bracket = matches!(
+                tokens.get(member + 1).map(|token| &token.kind),
+                Some(TokenKind::StringLiteral(Some(_)))
+            ) && close == member + 2;
+            if static_bracket {
+                index = close + 1;
+                scan.chain_end = index;
+                continue;
+            }
+            scan.computed_count += 1;
+            if !saw_dynamic {
+                scan.dynamic_open = Some(member);
+                scan.dynamic_close = Some(close);
+                let key_start = tokens.get(member).map(|token| token.end);
+                let key_end = tokens.get(close).map(|token| token.start);
+                scan.computed_key_span = key_start.zip(key_end);
+                saw_dynamic = true;
+            } else {
+                scan.trailing_member = true;
+            }
+            index = close + 1;
+            scan.chain_end = index;
+            continue;
+        }
+        if matches!(token.kind, TokenKind::Identifier(_)) {
+            if saw_dynamic {
+                scan.trailing_member = true;
+            }
+            index = member + 1;
+            scan.chain_end = index;
+            continue;
+        }
+        if saw_dynamic {
+            scan.trailing_member = true;
+        }
+        break;
+    }
+    scan
+}
+
+fn dynamic_write_context(tokens: &[Token], source: &str, root: usize, chain_end: usize) -> bool {
+    let spelling = |index: usize| token_spelling(tokens, source, index);
+    let identifier = |index: usize, expected: &str| {
+        matches!(
+            tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::Identifier(name)) if name == expected
+        )
+    };
+    let is_assignment = |index: usize| {
+        matches!(
+            spelling(index),
+            Some(
+                "=" | "+="
+                    | "-="
+                    | "*="
+                    | "/="
+                    | "%="
+                    | "**="
+                    | "&="
+                    | "|="
+                    | "^="
+                    | "&&="
+                    | "||="
+                    | "??="
+            )
+        ) || (matches!(
+            spelling(index),
+            Some("+" | "-" | "*" | "/" | "%" | "&" | "|")
+        ) && spelling(index + 1) == Some("="))
+    };
+    if is_assignment(chain_end)
+        || identifier(chain_end, "in")
+        || identifier(chain_end, "of")
+        || (matches!(spelling(chain_end), Some("+" | "-"))
+            && spelling(chain_end + 1) == spelling(chain_end))
+    {
+        return true;
+    }
+    if matches!(spelling(chain_end), Some("]" | "}" | ")")) {
+        let mut cursor = chain_end;
+        while matches!(spelling(cursor), Some("]" | "}" | ")")) {
+            cursor += 1;
+        }
+        if is_assignment(cursor) {
+            return true;
+        }
+        if spelling(cursor) == Some(":")
+            && (cursor + 1..tokens.len()).any(|index| {
+                if spelling(index) == Some(";") {
+                    return false;
+                }
+                spelling(index) == Some("}") && is_assignment(index + 1)
+            })
+        {
+            return true;
+        }
+    }
+    if matches!(spelling(chain_end), Some(":"))
+        && (chain_end + 1..tokens.len()).any(|index| {
+            if spelling(index) == Some(";") {
+                return false;
+            }
+            spelling(index) == Some("}") && is_assignment(index + 1)
+        })
+    {
+        return true;
+    }
+    if root >= 1 && identifier(root - 1, "delete") {
+        return true;
+    }
+    if root >= 2
+        && matches!(spelling(root - 1), Some("+" | "-"))
+        && spelling(root - 2) == spelling(root - 1)
+    {
+        return true;
+    }
+    root >= 3
+        && spelling(root - 1) == Some(".")
+        && spelling(root - 2) == Some(".")
+        && spelling(root - 3) == Some(".")
 }
 
 fn decode_generated_identifier(name: &str) -> Option<String> {
