@@ -125,6 +125,8 @@ production path uses the fix and its relevant tests pass.
   exact finite allowlist validation, and tracked-binding transform eligibility.
 - `0c12d74` — added validated manifest-v3 Vite rewrites for finite dynamic lookups with frozen
   null-prototype dispatches, exact virtual imports, resolver identity checks, and selective HMR.
+- `eaf8962` — made the root site profile assert the built production graph after generation,
+  runtime tests, Svelte checks, and the production build.
 
 ## Numbered findings
 
@@ -701,9 +703,9 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A4 — Generate one ESM module per referenced message.
 - [x] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
 - [x] BUNDLE-A6 — Invalidate only affected virtual modules.
-- [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; manifest v3 now emits exact bounded
-      dynamic-reference metadata, strict builds fail before output mutation, and Vite rewrites
-      explicitly allowed computed lookups; the real-site manifest-v3 production gate remains.
+- [x] BUNDLE-A7 — Reject dynamic lookup in strict mode and permit only explicit finite computed
+      lookup escapes through manifest-v3 metadata, generated-module resolution, frozen dispatches,
+      and real-site production-graph verification.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
