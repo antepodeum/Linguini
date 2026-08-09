@@ -1,40 +1,40 @@
-# Active deployment: Generated positional and named-object calls
+# Active deployment: Deduplicated bundler-native message runtimes
 
 ## Goal
 
-Complete checklist `CALL-A1` through `CALL-A5` without regressing the finished
-bundler-native nested message API or changing Linguini source syntax.
+Remove duplicated formatter and semantic helper implementations from physical message modules
+without regressing exact message tree-shaking, locale splitting, source maps, or HMR.
 
 ## Constraints
 
 - Heavy route; the main agent owns integration, Git state, checklist, and this status file.
-- Preserve positional calls and the public nested value/function API.
-- Normalize positional and named-object inputs once at the generated function boundary.
-- Render runtime functions, declarations, and JSDoc from one signature model.
-- Keep exact per-message compilation and Vite transforms backend-neutral.
+- Preserve the public standalone single-message compiler as a self-contained backend.
+- Make generated bundler modules import shared, locale-granular ESM runtime dependencies.
+- Keep imports exact enough for Vite/Rollup tree-shaking and dynamic locale boundaries.
+- Record shared runtime files in the manifest so source-driven HMR cannot serve stale helpers.
 
 ## Ordered work packages
 
-1. `CALL-B0` — Audit the shared signature model, generated runtime/declaration surfaces, and
-   existing positional-call tests; define exact compatibility and diagnostics requirements.
-2. `CALL-B1` — Add one signature representation that can render positional and named-object
-   overloads without duplicating argument/type/default logic.
-3. `CALL-B2` — Normalize both call forms once at the generated function boundary while retaining
-   parameterless leaves as values and positional runtime behavior.
-4. `CALL-B3` — Emit matching `.d.ts` overloads and JSDoc from the shared signature model, including
-   missing/unknown-property rejection through TypeScript.
-5. `CALL-B4` — Verify single-message and project backends, Svelte/Vite transforms, generated
-   snapshots, real-site behavior, public docs, and broad regressions.
+1. `HELPER-B0` — Map duplicated formatter/plural and semantic closure emission across standalone,
+   project, physical-module, manifest, and HMR boundaries.
+2. `HELPER-B1` — Generate one shared formatter/plural runtime per effective locale and make project
+   plus physical message modules import only required names.
+3. `HELPER-B2` — Record runtime modules in the bundler manifest and invalidate them through exact
+   source-driven Vite HMR transitions.
+4. `HELPER-B3` — Verify source maps, atomic replacement, direct codegen, CLI, Vite, real-site
+   development, production chunks, and a generated-source size regression.
+5. `HELPER-B4` — Move reusable variables, forms, and local functions behind shared semantic ESM
+   boundaries rather than copying their transitive implementations into each message.
 
 ## Acceptance and verification
 
-- Every parameterized message accepts its existing positional form and a typed named object.
-- Both forms reach the same generated implementation body and produce identical output.
-- Parameterless public leaves remain values and do not gain a call overload.
-- Generated types reject missing, unknown, and incorrectly typed object properties.
-- Shared and single-message compilers emit consistent signatures and documentation.
-- Focused Rust/codegen/plugin tests pass per package; the final root full and site profiles pass;
-  `git diff --check` remains clean.
+- Standalone single-message compilation remains deterministic and self-contained.
+- No physical bundler message contains formatter, date-coercion, numeric-parser, or plural helper
+  implementations; it imports only the names its dependency closure requires.
+- Each effective locale owns one shared helper runtime consumed by both project and physical output.
+- Locale source changes invalidate changed runtime modules and their consuming message graph.
+- Focused Rust/codegen/CLI/plugin tests, the real development server, root full/site profiles, and
+  generated/built graph size assertions pass; `git diff --check` remains clean.
 
 ## Completed predecessor
 
@@ -46,9 +46,15 @@ bundler-native nested message API or changing Linguini source syntax.
   dynamic access, dynamic locale preparation, and root verification profiles (`e8be06d`).
 - Final predecessor regression gate: `pnpm test:full` passed all 11 registered tasks.
 
+## Paused successor
+
+- `CALL-B0` investigation is complete, but `CALL-B1` implementation is paused behind this
+  bundler-native runtime remediation. Checklist `CALL-A1` through `CALL-A5` remains unchecked.
+
 ## Current state
 
-- `CALL-B0` is active. Checklist `CALL-A1` through `CALL-A5` remain unchecked pending targeted
-  evidence and implementation.
-- Next action: inspect the shared codegen signature/runtime boundary and its TypeScript contract
-  tests, then commit the smallest verified compatibility baseline before adding object overloads.
+- `HELPER-B0` is complete. The physical compiler intentionally emits a self-contained semantic
+  closure, but the CLI incorrectly uses that mode for every bundler message, duplicating complete
+  formatter/date/plural helper bodies and reusable semantic dependencies.
+- `HELPER-B1` is active. Next: integrate the shared codegen runtime with CLI artifacts and then
+  extend manifest/Vite invalidation before real-site size and browser verification.

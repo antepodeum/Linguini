@@ -724,6 +724,10 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A10 — Express optional locale splitting through bundler-visible dynamic ESM
       boundaries with preload-before-switch behavior, inactive-locale client chunks, synchronous
       SSR modules, and real-site production-graph verification.
+- [ ] BUNDLE-A11 — Emit formatter, date, number, currency, and plural helpers once per locale and
+      import only required names from physical message modules.
+- [ ] BUNDLE-A12 — Share reusable variables, forms, and local functions across physical messages
+      without broadening their transitive bundle graph.
 
 ### Local repository verification
 
@@ -795,7 +799,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] P2-2 — End-to-end documentation propagation.
 - [-] P2-3 — Emit both multiline modes from semantic text IR.
 - [x] P2-4 — Collision-safe identifiers and filenames.
-- [ ] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
+- [-] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
 - [ ] P2-6 — Compile-time typed `l` namespace transform.
 - [ ] P2-7 — Positional plus named-object overloads.
 - [-] P2-8 — Nested web config plus generated feature modules.
