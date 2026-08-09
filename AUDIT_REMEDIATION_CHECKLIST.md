@@ -138,6 +138,8 @@ production path uses the fix and its relevant tests pass.
 - `e8be06d` — reconciled public configuration and SvelteKit documentation with the nested
   value/callable API, exact message imports, strict bounded dynamic access, dynamic locale
   loading, and repository-wide local verification profiles.
+- `203faa8` — excluded transactional and physical generated output from the Vite development
+  watcher while preserving manifest-driven rebuilds, eliminating real-site startup and HMR storms.
 
 ## Numbered findings
 
@@ -728,6 +730,8 @@ production path uses the fix and its relevant tests pass.
 - [x] LOCAL-A1 — Provide one root runner with ordered quick, full, and real-site profiles across
       every project/package in this repository.
 - [x] LOCAL-A2 — Generate, type-check, build, and inspect the real site production graph locally.
+- [x] LOCAL-A3 — Start the real site development server without generated-output watcher storms,
+      rebuild after locale edits, and verify English and localized routes in a browser.
 
 ### Positional and named-object generated calls
 
