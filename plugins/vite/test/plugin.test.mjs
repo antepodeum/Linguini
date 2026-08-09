@@ -162,17 +162,73 @@ async function bundlerFixture({ version = 2, source, applicationName = "page.sve
   return { root, generated, application, applicationKey, code, manifest };
 }
 
+function resolvedMessageId(message) {
+  return `\0virtual:linguini/message/${Buffer.from(message, "utf8").toString("hex")}`;
+}
+
+async function selectiveHmrFixture() {
+  const data = await bundlerFixture();
+  const files = {
+    titleSchema: path.join(data.root, "src/schema/shop/delivery.lgs"),
+    titleLocale: path.join(data.root, "src/locale/shop/ru.lgl"),
+    itemsSchema: path.join(data.root, "src/schema/shop/items.lgs"),
+    itemsLocale: path.join(data.root, "src/locale/shop/items.lgl"),
+    sharedSchema: path.join(data.root, "src/schema/shop/shared.lgs"),
+    unrelatedSchema: path.join(data.root, "src/schema/shop/unrelated.lgs")
+  };
+  await writeFile(files.itemsSchema, "items(count: Number)\n");
+  await writeFile(files.itemsLocale, "items = Items\n");
+  await writeFile(files.sharedSchema, "# shared dependency\n");
+  await writeFile(files.unrelatedSchema, "unused\n");
+  const itemsModule = path.join(data.generated, "bundler/messages/main/items/en.ts");
+  await mkdir(path.dirname(itemsModule), { recursive: true });
+  await writeFile(itemsModule, 'export function message(count) { return String(count); }\n');
+  data.manifest.sources = [
+    { id: 1, path: "src/schema/shop/delivery.lgs" },
+    { id: 2, path: "src/locale/shop/ru.lgl" },
+    { id: 3, path: "src/schema/shop/items.lgs" },
+    { id: 4, path: "src/locale/shop/items.lgl" },
+    { id: 5, path: "src/schema/shop/shared.lgs" },
+    { id: 6, path: "src/schema/shop/unrelated.lgs" }
+  ];
+  data.manifest.messages["main.title"].locales.en.source_ids = [1, 2, 5];
+  data.manifest.messages["main.items"] = {
+    arity: 1,
+    locales: {
+      en: {
+        module: "bundler/messages/main/items/en.ts",
+        source_ids: [3, 4, 5]
+      }
+    }
+  };
+  await writeFile(
+    path.join(data.generated, "bundler/manifest.json"),
+    JSON.stringify(data.manifest)
+  );
+  return {
+    ...data,
+    files,
+    titleModule: path.join(data.generated, "bundler/messages/main/title/en.ts"),
+    itemsModule,
+    titleVirtual: resolvedMessageId("main.title"),
+    itemsVirtual: resolvedMessageId("main.items"),
+    manifestPath: path.join(data.generated, "bundler/manifest.json")
+  };
+}
+
 function mockServer(modules = []) {
   const handlers = new Map();
   const added = [];
   const removed = [];
   const invalidated = [];
+  const reloaded = [];
   const events = [];
   return {
     handlers,
     added,
     removed,
     invalidated,
+    reloaded,
     events,
     server: {
       watcher: {
@@ -191,6 +247,9 @@ function mockServer(modules = []) {
         invalidateModule(module) {
           invalidated.push(module.id);
         }
+      },
+      async reloadModule(module) {
+        reloaded.push(module.id);
       },
       ws: {
         send(event) {
@@ -677,7 +736,7 @@ test("missing and v1 manifests stay legacy; unknown versions fail", async (conte
 test("application hot update rebuilds without suppressing Vite module update", async (context) => {
   const fixtureData = await bundlerFixture();
   context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
-  const harness = mockServer();
+  const harness = mockServer([{ id: fixtureData.application }]);
   let builds = 0;
   const plugin = linguini({
     root: fixtureData.root,
@@ -697,6 +756,7 @@ test("application hot update rebuilds without suppressing Vite module update", a
   });
   assert.equal(result, undefined);
   assert.equal(builds, 1);
+  assert.deepEqual(harness.invalidated, []);
 });
 
 test("watches configured application roots so newly added modules rebuild manifest", async (context) => {
@@ -735,4 +795,255 @@ test("watches configured application roots so newly added modules rebuild manife
   await harness.handlers.get("add")(newApplication);
   assert.equal(builds, 1);
   assert.ok(harness.added.includes(path.join(fixtureData.root, "src/app")));
+});
+
+test("selective HMR follows exact message source dependencies", async (context) => {
+  const data = await selectiveHmrFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  let nextManifest = structuredClone(data.manifest);
+  const unrelatedGenerated = path.join(data.generated, "index.ts");
+  const addedSource = path.join(data.root, "src/schema/shop/added.lgs");
+  const addedModule = path.join(data.generated, "bundler/messages/main/added/en.ts");
+  const addedVirtual = resolvedMessageId("main.added");
+  const harness = mockServer([
+    { id: data.titleVirtual },
+    { id: data.itemsVirtual },
+    { id: data.titleModule },
+    { id: data.itemsModule },
+    { id: addedModule },
+    { id: addedVirtual },
+    { id: data.application },
+    { id: unrelatedGenerated }
+  ]);
+  const plugin = linguini({
+    root: data.root,
+    buildOnStart: false,
+    debounceMs: 0,
+    async build() {
+      await writeFile(data.manifestPath, JSON.stringify(nextManifest));
+    }
+  });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await plugin.configureServer(harness.server);
+
+  const update = async (file) => {
+    harness.invalidated.length = 0;
+    const result = await plugin.handleHotUpdate({
+      file,
+      server: harness.server,
+      timestamp: 20
+    });
+    return {
+      invalidated: [...harness.invalidated].sort(),
+      returned: (result ?? []).map((module) => module.id).sort()
+    };
+  };
+
+  assert.deepEqual(await update(data.files.titleSchema), {
+    invalidated: [data.titleModule, data.titleVirtual].sort(),
+    returned: [data.titleModule, data.titleVirtual].sort()
+  });
+  assert.deepEqual(harness.reloaded, []);
+  assert.deepEqual((await update(data.files.itemsLocale)).invalidated, [
+    data.itemsModule,
+    data.itemsVirtual
+  ].sort());
+  assert.deepEqual((await update(data.files.sharedSchema)).invalidated, [
+    data.itemsModule,
+    data.itemsVirtual,
+    data.titleModule,
+    data.titleVirtual
+  ].sort());
+  assert.deepEqual((await update(data.files.unrelatedSchema)).invalidated, []);
+  assert.ok(!harness.invalidated.includes(unrelatedGenerated));
+  harness.reloaded.length = 0;
+  await harness.handlers.get("add")(data.files.unrelatedSchema);
+  assert.deepEqual(harness.reloaded, []);
+
+  await mkdir(path.dirname(addedModule), { recursive: true });
+  await writeFile(addedModule, 'export function message() { return "added"; }\n');
+  await writeFile(addedSource, "added\n");
+  nextManifest = structuredClone(nextManifest);
+  nextManifest.sources.push({ id: 7, path: "src/schema/shop/added.lgs" });
+  nextManifest.messages["main.added"] = {
+    arity: 0,
+    locales: {
+      en: {
+        module: "bundler/messages/main/added/en.ts",
+        source_ids: [7]
+      }
+    }
+  };
+  harness.invalidated.length = 0;
+  harness.reloaded.length = 0;
+  await harness.handlers.get("add")(addedSource);
+  assert.deepEqual([...harness.invalidated].sort(), [addedModule, addedVirtual].sort());
+  assert.deepEqual([...harness.reloaded].sort(), [addedModule, addedVirtual].sort());
+
+  await rm(addedSource);
+  nextManifest = structuredClone(nextManifest);
+  nextManifest.sources = nextManifest.sources.filter((source) => source.id !== 7);
+  delete nextManifest.messages["main.added"];
+  harness.invalidated.length = 0;
+  harness.reloaded.length = 0;
+  await harness.handlers.get("unlink")(addedSource);
+  assert.deepEqual([...harness.invalidated].sort(), [addedModule, addedVirtual].sort());
+  assert.deepEqual([...harness.reloaded].sort(), [addedModule, addedVirtual].sort());
+
+  nextManifest = structuredClone(nextManifest);
+  nextManifest.messages["main.title"].locales.en.source_ids.push(6);
+  await writeFile(data.manifestPath, JSON.stringify(nextManifest));
+  harness.invalidated.length = 0;
+  harness.reloaded.length = 0;
+  await harness.handlers.get("add")(data.manifestPath);
+  assert.deepEqual([...harness.invalidated].sort(), [
+    data.titleModule,
+    data.titleVirtual
+  ].sort());
+  assert.deepEqual([...harness.reloaded].sort(), [
+    data.titleModule,
+    data.titleVirtual
+  ].sort());
+
+  const configBroad = await update(path.join(data.root, "linguini.toml"));
+  assert.ok(configBroad.invalidated.includes(unrelatedGenerated));
+  assert.ok(configBroad.invalidated.includes(data.application));
+  assert.ok(configBroad.invalidated.includes(data.titleVirtual));
+
+  delete harness.server.reloadModule;
+  harness.events.length = 0;
+  await harness.handlers.get("add")(data.files.sharedSchema);
+  assert.equal(harness.events.at(-1).type, "full-reload");
+  assert.equal(harness.events.at(-1).path, "*");
+});
+
+test("manifest deltas target applications, renames, and broad version transitions", async (context) => {
+  const data = await selectiveHmrFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const unrelatedGenerated = path.join(data.generated, "index.ts");
+  const harness = mockServer([
+    { id: data.titleVirtual },
+    { id: data.itemsVirtual },
+    { id: resolvedMessageId("main.list") },
+    { id: data.titleModule },
+    { id: data.itemsModule },
+    { id: data.application },
+    { id: unrelatedGenerated }
+  ]);
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await plugin.configureServer(harness.server);
+
+  const reload = async (manifest) => {
+    harness.invalidated.length = 0;
+    await writeFile(data.manifestPath, JSON.stringify(manifest));
+    const result = await plugin.handleHotUpdate({
+      file: data.manifestPath,
+      server: harness.server,
+      timestamp: 30
+    });
+    return {
+      invalidated: [...harness.invalidated].sort(),
+      returned: (result ?? []).map((module) => module.id).sort()
+    };
+  };
+
+  let manifest = structuredClone(data.manifest);
+  manifest.applications[data.applicationKey].sha256 = "a".repeat(64);
+  assert.deepEqual((await reload(manifest)).invalidated, [data.application]);
+  assert.deepEqual((await reload(manifest)).invalidated, []);
+
+  manifest = structuredClone(manifest);
+  manifest.messages["main.list"] = manifest.messages["main.items"];
+  delete manifest.messages["main.items"];
+  const renamed = await reload(manifest);
+  assert.deepEqual(renamed.invalidated, [
+    data.itemsModule,
+    data.itemsVirtual,
+    resolvedMessageId("main.list")
+  ].sort());
+  assert.deepEqual(renamed.returned, renamed.invalidated);
+
+  manifest = structuredClone(manifest);
+  manifest.runtime_helpers.svelte_locale = {
+    import: "./svelte-locale-alt.svelte.js",
+    file: "svelte-locale-alt.svelte.ts"
+  };
+  await writeFile(
+    path.join(data.generated, "svelte-locale-alt.svelte.ts"),
+    'export function getCurrentLocale() { return "en"; }\n'
+  );
+  const helperBroad = await reload(manifest);
+  assert.ok(helperBroad.invalidated.includes(unrelatedGenerated));
+  assert.ok(helperBroad.invalidated.includes(data.application));
+  assert.ok(helperBroad.invalidated.includes(data.titleVirtual));
+
+  const legacy = {
+    version: 1,
+    base_locale: "en",
+    configured_locales: ["en"],
+    effective_locales: ["en"],
+    sources: [],
+    messages: {}
+  };
+  const broad = await reload(legacy);
+  assert.ok(broad.invalidated.includes(unrelatedGenerated));
+  assert.ok(broad.invalidated.includes(data.application));
+  assert.ok(broad.invalidated.includes(data.titleVirtual));
+});
+
+test("message descriptor deltas invalidate only changed locale modules", async (context) => {
+  const data = await selectiveHmrFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const frModule = path.join(data.generated, "bundler/messages/main/title/fr.ts");
+  const movedFrModule = path.join(data.generated, "bundler/messages/main/title/fr-next.ts");
+  await writeFile(frModule, 'export function message() { return "Titre"; }\n');
+  await writeFile(movedFrModule, 'export function message() { return "Titre next"; }\n');
+  data.manifest.configured_locales.push("fr");
+  data.manifest.effective_locales.push("fr");
+  data.manifest.messages["main.title"].locales.fr = {
+    module: "bundler/messages/main/title/fr.ts",
+    source_ids: [2]
+  };
+  await writeFile(data.manifestPath, JSON.stringify(data.manifest));
+  const harness = mockServer([
+    { id: data.titleVirtual },
+    { id: data.titleModule },
+    { id: frModule },
+    { id: movedFrModule }
+  ]);
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await plugin.configureServer(harness.server);
+
+  let next = structuredClone(data.manifest);
+  next.messages["main.title"].locales.fr.source_ids.push(6);
+  await writeFile(data.manifestPath, JSON.stringify(next));
+  await plugin.handleHotUpdate({
+    file: data.manifestPath,
+    server: harness.server,
+    timestamp: 40
+  });
+  assert.deepEqual([...harness.invalidated].sort(), [data.titleVirtual, frModule].sort());
+  assert.ok(!harness.invalidated.includes(data.titleModule));
+
+  harness.invalidated.length = 0;
+  next = structuredClone(next);
+  next.messages["main.title"].locales.fr.module =
+    "bundler/messages/main/title/fr-next.ts";
+  await writeFile(data.manifestPath, JSON.stringify(next));
+  await plugin.handleHotUpdate({
+    file: data.manifestPath,
+    server: harness.server,
+    timestamp: 41
+  });
+  assert.deepEqual([...harness.invalidated].sort(), [
+    data.titleVirtual,
+    frModule,
+    movedFrModule
+  ].sort());
+  assert.ok(!harness.invalidated.includes(data.titleModule));
 });

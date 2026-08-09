@@ -33,11 +33,14 @@ export function linguini(options = {}) {
   }
 
   async function reloadManifest() {
-    bundlerManifest = await readBundlerManifest(layout);
-    return bundlerManifest;
+    const previous = bundlerManifest;
+    const next = await readBundlerManifest(layout);
+    bundlerManifest = next;
+    return { previous, next };
   }
 
   async function drainBuilds() {
+    const previous = bundlerManifest;
     try {
       while (buildDirty) {
         const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
@@ -59,6 +62,7 @@ export function linguini(options = {}) {
     } finally {
       pendingBuild = undefined;
     }
+    return { previous, next: bundlerManifest };
   }
 
   function runBuild(reason) {
@@ -90,21 +94,75 @@ export function linguini(options = {}) {
     watchedFiles = nextFiles;
   }
 
-  function invalidateGeneratedModules(server, timestamp = Date.now()) {
-    const generatedRoot = layout?.generatedRoot;
-    const invalidated = new Set();
-    for (const module of server.moduleGraph.idToModuleMap.values()) {
+  function invalidateBroad(server, previous, next, timestamp = Date.now()) {
+    const generatedRoots = new Set([
+      layout?.generatedRoot,
+      previous?.generatedRoot,
+      next?.generatedRoot
+    ]);
+    const applicationFiles = new Set([
+      ...(previous?.applicationFiles ?? []),
+      ...(next?.applicationFiles ?? [])
+    ]);
+    return invalidateMatchingModules(server, timestamp, (id) => {
       if (
-        !module.id ||
-        (!isGeneratedModule(module.id, generatedRoot, options) &&
-          !bundlerManifest?.applicationsByFile.has(
-            path.resolve(stripQueryAndHash(module.id))
-          ))
+        [...generatedRoots].some(
+          (generatedRoot) =>
+            generatedRoot && isGeneratedModule(id, generatedRoot, options)
+        )
       ) {
-        continue;
+        return true;
       }
-      server.moduleGraph.invalidateModule(module, invalidated, timestamp, true);
+      const file = normalizeGraphFileId(id);
+      return file !== undefined && applicationFiles.has(file);
+    });
+  }
+
+  function invalidateDelta(server, transition, changedFile, timestamp, forceBroad = false) {
+    const { previous, next } = transition;
+    if (
+      forceBroad ||
+      !previous ||
+      !next ||
+      manifestContractFingerprint(previous) !== manifestContractFingerprint(next)
+    ) {
+      return invalidateBroad(server, previous, next, timestamp);
     }
+    const delta = manifestDelta(previous, next, changedFile);
+    const virtualIds = new Set(
+      [...delta.messages].map((message) => `\0${virtualMessageId(message)}`)
+    );
+    return invalidateMatchingModules(server, timestamp, (id) => {
+      if (virtualIds.has(id)) {
+        return true;
+      }
+      const file = normalizeGraphFileId(id);
+      return (
+        file !== undefined &&
+        (delta.physicalFiles.has(file) || delta.applicationFiles.has(file))
+      );
+    });
+  }
+
+  function invalidateMatchingModules(server, timestamp, matches) {
+    const invalidated = new Set();
+    const moduleMap = server.moduleGraph.idToModuleMap;
+    const seenModules = new Set();
+    const modules = [...(moduleMap?.values?.() ?? [])]
+      .filter((module) => module.id && matches(module.id))
+      .sort((left, right) => comparePaths(left.id, right.id))
+      .filter((module) => {
+        if (seenModules.has(module)) {
+          return false;
+        }
+        seenModules.add(module);
+        return true;
+      });
+    for (const module of modules) {
+      server.moduleGraph.invalidateModule(module, invalidated, timestamp, true);
+      invalidated.add(module);
+    }
+    return modules;
   }
 
   async function rebuildForFile(file, server, reason, timestamp) {
@@ -112,15 +170,19 @@ export function linguini(options = {}) {
     const previousLayout = layout ?? (await refreshLayout());
     const manifestPath = path.join(previousLayout.generatedRoot, MANIFEST_RELATIVE_PATH);
     if (absolute === manifestPath) {
-      await reloadManifest();
+      const transition = await reloadManifest();
       await reconcileWatches(server);
-      invalidateGeneratedModules(server, timestamp);
+      const modules = invalidateDelta(server, transition, undefined, timestamp);
       server.ws.send({
         type: "custom",
         event: "linguini:update",
         data: { file: absolute, reason: "manifest-change" }
       });
-      return "manifest";
+      return {
+        kind: "manifest",
+        modules,
+        propagate: Boolean(transition.previous || transition.next)
+      };
     }
     const wasWatched = watchedFiles.has(absolute);
     const wasApplication =
@@ -134,27 +196,44 @@ export function linguini(options = {}) {
       return undefined;
     }
 
-    if (absolute === previousLayout.configPath || reason !== "hot-update") {
+    const configChanged = absolute === previousLayout.configPath;
+    if (configChanged || reason !== "hot-update") {
       await refreshLayout();
     }
-    await runBuild(reason);
+    const transition = await runBuild(reason);
     await reconcileWatches(server);
-    invalidateGeneratedModules(server, timestamp);
+    const modules = invalidateDelta(
+      server,
+      transition,
+      absolute,
+      timestamp,
+      configChanged
+    );
     server.ws.send({
       type: "custom",
       event: "linguini:update",
       data: { file: absolute, reason }
     });
-    return wasApplication ? "application" : "source";
+    return {
+      kind: wasApplication ? "application" : "source",
+      modules,
+      propagate: Boolean(transition.previous || transition.next)
+    };
   }
 
   function registerWatcher(server, event, reason) {
-    server.watcher.on(event, (file) =>
-      rebuildForFile(file, server, reason, Date.now()).catch((error) => {
+    server.watcher.on(event, async (file) => {
+      try {
+        const rebuilt = await rebuildForFile(file, server, reason, Date.now());
+        if (rebuilt?.modules.length > 0) {
+          await propagateWatcherModules(server, rebuilt.modules);
+        }
+        return rebuilt;
+      } catch (error) {
         sendViteError(server, error, file);
         return false;
-      })
-    );
+      }
+    });
   }
 
   return {
@@ -198,7 +277,10 @@ export function linguini(options = {}) {
           "hot-update",
           ctx.timestamp
         );
-        return rebuilt === "source" ? [] : undefined;
+        if (!rebuilt || rebuilt.kind === "application") {
+          return undefined;
+        }
+        return rebuilt.propagate ? rebuilt.modules : [];
       } catch (error) {
         sendViteError(ctx.server, error, ctx.file);
         return [];
@@ -441,6 +523,30 @@ function sendViteError(server, error, file) {
   });
 }
 
+async function propagateWatcherModules(server, modules) {
+  const reloadModule =
+    (typeof server.reloadModule === "function" && server.reloadModule.bind(server)) ||
+    (typeof server.environments?.client?.reloadModule === "function" &&
+      server.environments.client.reloadModule.bind(server.environments.client));
+  if (!reloadModule) {
+    server.ws.send({ type: "full-reload", path: "*" });
+    return;
+  }
+  const seen = new Set();
+  const ordered = [...modules]
+    .filter((module) => {
+      if (seen.has(module)) {
+        return false;
+      }
+      seen.add(module);
+      return true;
+    })
+    .sort((left, right) => comparePaths(left.id ?? "", right.id ?? ""));
+  for (const module of ordered) {
+    await reloadModule(module);
+  }
+}
+
 function readString(value, fallback, field) {
   if (value === undefined) {
     return fallback;
@@ -532,6 +638,7 @@ function validateManifestV2(raw, layout, manifestPath) {
   }
   const sourceIds = new Set();
   const sourcePaths = new Set();
+  const sourceIdsByFile = new Map();
   for (const [index, source] of raw.sources.entries()) {
     if (!isRecord(source) || !isNonnegativeInteger(source.id)) {
       throw new Error(`${context}.sources.${index} must contain an integer id`);
@@ -545,6 +652,10 @@ function validateManifestV2(raw, layout, manifestPath) {
     }
     sourceIds.add(source.id);
     sourcePaths.add(sourcePath);
+    sourceIdsByFile.set(
+      resolveProjectPath(layout.projectRoot, sourcePath, `${context}.sources.${index}.path`),
+      source.id
+    );
   }
   if (!isRecord(raw.runtime_helpers)) {
     throw new Error(`${context}.runtime_helpers must be an object`);
@@ -619,11 +730,13 @@ function validateManifestV2(raw, layout, manifestPath) {
   return Object.freeze({
     version: 2,
     manifestPath,
+    generatedRoot: layout.generatedRoot,
     baseLocale,
     configuredLocales,
     effectiveLocales,
     localeHelper,
     effectsHelper,
+    sourceIdsByFile,
     messages,
     applicationsByFile,
     applicationFiles: Object.freeze([...applicationsByFile.keys()].sort(comparePaths))
@@ -771,9 +884,125 @@ function validateApplication(raw, relative, context, messages) {
     relative,
     sha256: raw.sha256,
     byteLength: raw.byte_length,
+    fingerprint: JSON.stringify({
+      sha256: raw.sha256,
+      byte_length: raw.byte_length,
+      references: raw.references,
+      imports: raw.imports
+    }),
     imports,
     references: Object.freeze(references)
   });
+}
+
+function manifestContractFingerprint(manifest) {
+  return JSON.stringify({
+    baseLocale: manifest.baseLocale,
+    configuredLocales: manifest.configuredLocales,
+    effectiveLocales: manifest.effectiveLocales,
+    localeHelper: manifest.localeHelper,
+    effectsHelper: manifest.effectsHelper
+  });
+}
+
+function messageDescriptorFingerprint(message) {
+  if (!message) {
+    return undefined;
+  }
+  return JSON.stringify({
+    arity: message.arity,
+    locales: [...message.locales].map(([locale, entry]) => [
+      locale,
+      entry.module,
+      entry.sourceIds
+    ])
+  });
+}
+
+function manifestDelta(previous, next, changedFile) {
+  const changedSourceIds = new Set();
+  if (changedFile) {
+    const normalized = path.resolve(changedFile);
+    const previousId = previous.sourceIdsByFile.get(normalized);
+    const nextId = next.sourceIdsByFile.get(normalized);
+    if (previousId !== undefined) {
+      changedSourceIds.add(previousId);
+    }
+    if (nextId !== undefined) {
+      changedSourceIds.add(nextId);
+    }
+  }
+  const messages = new Set();
+  const physicalFiles = new Set();
+  const canonicals = new Set([...previous.messages.keys(), ...next.messages.keys()]);
+  for (const canonical of [...canonicals].sort()) {
+    const previousMessage = previous.messages.get(canonical);
+    const nextMessage = next.messages.get(canonical);
+    const messageAddedOrRemoved = !previousMessage || !nextMessage;
+    const arityChanged =
+      previousMessage &&
+      nextMessage &&
+      previousMessage.arity !== nextMessage.arity;
+    const descriptorChanged =
+      messageDescriptorFingerprint(previousMessage) !==
+      messageDescriptorFingerprint(nextMessage);
+    let sourceChanged = false;
+    const locales = new Set([
+      ...(previousMessage?.locales.keys() ?? []),
+      ...(nextMessage?.locales.keys() ?? [])
+    ]);
+    for (const locale of [...locales].sort()) {
+      const previousLocale = previousMessage?.locales.get(locale);
+      const nextLocale = nextMessage?.locales.get(locale);
+      const localeDescriptorChanged =
+        !previousLocale ||
+        !nextLocale ||
+        previousLocale.module !== nextLocale.module ||
+        !sameNumberArray(previousLocale.sourceIds, nextLocale.sourceIds);
+      const localeSourceChanged = [previousLocale, nextLocale].some((entry) =>
+        entry?.sourceIds.some((sourceId) => changedSourceIds.has(sourceId))
+      );
+      sourceChanged ||= localeSourceChanged;
+      if (
+        messageAddedOrRemoved ||
+        arityChanged ||
+        localeDescriptorChanged ||
+        localeSourceChanged
+      ) {
+        if (previousLocale) {
+          physicalFiles.add(previousLocale.module);
+        }
+        if (nextLocale) {
+          physicalFiles.add(nextLocale.module);
+        }
+      }
+    }
+    if (!descriptorChanged && !sourceChanged) {
+      continue;
+    }
+    messages.add(canonical);
+  }
+  const applicationFiles = new Set();
+  const files = new Set([
+    ...previous.applicationsByFile.keys(),
+    ...next.applicationsByFile.keys()
+  ]);
+  for (const file of [...files].sort(comparePaths)) {
+    if (
+      previous.applicationsByFile.get(file)?.fingerprint !==
+      next.applicationsByFile.get(file)?.fingerprint
+    ) {
+      applicationFiles.add(file);
+    }
+  }
+  if (changedFile) {
+    applicationFiles.delete(path.resolve(changedFile));
+  }
+  return { messages, physicalFiles, applicationFiles };
+}
+
+function sameNumberArray(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function validateNestedSpans(binding, byteLength, field) {
@@ -1105,6 +1334,14 @@ function normalizeResolvedFileId(id) {
   }
   const normalized = path.normalize(file).replaceAll("\\", "/");
   return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function normalizeGraphFileId(id) {
+  if (typeof id !== "string" || id.length === 0 || id.includes("\0")) {
+    return undefined;
+  }
+  const exact = stripQueryAndHash(id);
+  return normalizeResolvedFileId(exact);
 }
 
 function resolveGeneratedPath(root, value, field) {
