@@ -15,6 +15,7 @@ gitignore = false
 
 [targets.ts.bundler]
 sources = ["src"]
+locale_loading = "dynamic"
 
 [web.routing]
 locale_prefix = "always"
