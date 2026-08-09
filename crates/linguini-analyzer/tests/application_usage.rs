@@ -1095,3 +1095,216 @@ fn multiline_import_attributes_and_trailing_comments_are_not_transformable() {
         assert!(!binding.exact_uses_only, "{source}");
     }
 }
+
+#[test]
+fn imported_svelte_runes_and_markup_keep_exact_references() {
+    let source = r#"<script lang="ts">
+  import { l } from "$lib/generated/linguini/svelte";
+  let count = $state(1);
+  const title = $derived(l.main.hero.title);
+  const nav = $derived([
+    { label: l.main.nav.why },
+    { label: l.main.nav.codegen },
+  ]);
+  function render() { return l.main.hero.copy; }
+  function save() { return l.main.hero.primary_cta(); }
+  const lines = $derived([l.main.playground.sentence(count)]);
+</script>
+<svelte:head><title>{l.main.hero.title}</title></svelte:head>
+<p>{l.main.hero.tagline}</p>"#;
+    let usage = ApplicationUsage::from_source_in(source, SourceId(72));
+    let import_binding = usage.imports().next().expect("generated l import");
+    assert!(import_binding.exact_uses_only);
+    let import_id = import_binding.id;
+    let references = usage.references().collect::<Vec<_>>();
+    assert_eq!(
+        references
+            .iter()
+            .map(|reference| (reference.canonical_path.as_str(), reference.kind))
+            .collect::<Vec<_>>(),
+        [
+            ("main.hero.title", ApplicationReferenceKind::Value),
+            ("main.nav.why", ApplicationReferenceKind::Value),
+            ("main.nav.codegen", ApplicationReferenceKind::Value),
+            ("main.hero.copy", ApplicationReferenceKind::Value),
+            ("main.hero.primary_cta", ApplicationReferenceKind::Call),
+            ("main.playground.sentence", ApplicationReferenceKind::Call),
+            ("main.hero.title", ApplicationReferenceKind::Value),
+            ("main.hero.tagline", ApplicationReferenceKind::Value),
+        ]
+    );
+    assert!(references
+        .iter()
+        .all(|reference| reference.import_binding == Some(import_id)));
+    let expected_spans = [
+        "l.main.hero.title",
+        "l.main.nav.why",
+        "l.main.nav.codegen",
+        "l.main.hero.copy",
+        "l.main.hero.primary_cta",
+        "l.main.playground.sentence",
+        "l.main.hero.title",
+        "l.main.hero.tagline",
+    ];
+    for (reference, expected) in references.iter().zip(expected_spans) {
+        assert_eq!(&source[reference.span.start..reference.span.end], expected);
+        assert_eq!(reference.span.source, SourceId(72));
+    }
+}
+
+#[test]
+fn imported_svelte_object_reads_do_not_look_like_shadow_bindings() {
+    let source = r#"<script lang="ts">
+  import { l } from "$lib/generated/linguini/svelte";
+  const options = $derived([
+    { value: 'apple' as const, label: l.main.playground.fruit_apple_label },
+    { value: 'pear' as const, label: l.main.playground.fruit_pear_label },
+  ]);
+</script>
+<select>{#each options as option}<option>{option.label}</option>{/each}</select>"#;
+    let usage = ApplicationUsage::from_source(source);
+    let import_binding = usage.imports().next().expect("generated l import");
+    assert!(import_binding.exact_uses_only);
+    let references = usage.references().collect::<Vec<_>>();
+    assert_eq!(
+        references
+            .iter()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "main.playground.fruit_apple_label",
+            "main.playground.fruit_pear_label"
+        ]
+    );
+    assert!(references
+        .iter()
+        .all(|reference| reference.import_binding == Some(import_binding.id)));
+}
+
+#[test]
+fn destructuring_property_keys_do_not_shadow_imported_aliases() {
+    let source = r#"
+import { l as messages } from "generated";
+const { messages: renamed } = value;
+messages.main.alias_keeps_import();
+"#;
+    let usage = ApplicationUsage::from_source(source);
+    let import_binding = usage.imports().next().expect("generated messages import");
+    assert!(import_binding.exact_uses_only);
+    let reference = usage.references().next().expect("imported alias reference");
+    assert_eq!(reference.canonical_path, "main.alias_keeps_import");
+    assert_eq!(reference.import_binding, Some(import_binding.id));
+}
+
+#[test]
+fn typed_variable_declarations_still_shadow_imported_aliases() {
+    for declaration in [
+        "const messages: Message = local;",
+        "let messages: Message = local;",
+    ] {
+        let source = format!(
+            "import {{ l as messages }} from \"generated\";\n{declaration}\nmessages.main.typed_binding();"
+        );
+        let usage = ApplicationUsage::from_source(&source);
+        let import_binding = usage.imports().next().expect("generated messages import");
+        assert!(!import_binding.exact_uses_only, "{declaration}");
+        assert!(usage.references().next().is_none(), "{declaration}");
+    }
+}
+
+#[test]
+fn var_bindings_shadow_imports_across_nested_blocks() {
+    let source = r#"
+import { l as messages } from "generated";
+function render() {
+  {
+    var messages = local;
+    messages.main.inside_block();
+  }
+  messages.main.after_block_var_shadow();
+}
+messages.main.outside_function();
+"#;
+    let usage = ApplicationUsage::from_source(source);
+    assert_eq!(
+        usage
+            .references()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        ["main.outside_function"]
+    );
+}
+
+#[test]
+fn repeated_svelte_markup_references_keep_each_exact_span() {
+    let source = r#"<script lang="ts">
+  import { l } from "$lib/generated/linguini/svelte";
+</script>
+<div class="planned-strip">
+  <p>{l.main.codegen.planned_title}</p>
+  <p>{l.main.codegen.planned_intro}</p>
+  <div class="planned-icons" aria-label={l.main.codegen.planned_title}>
+    {#each items as item, index (item.label)}
+      <span>{item.label}</span>
+    {/each}
+  </div>
+</div>"#;
+    let usage = ApplicationUsage::from_source(source);
+    let import_binding = usage.imports().next().expect("generated l import");
+    assert!(import_binding.exact_uses_only);
+    let references = usage.references().collect::<Vec<_>>();
+    assert_eq!(
+        references
+            .iter()
+            .map(|reference| reference.canonical_path.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "main.codegen.planned_title",
+            "main.codegen.planned_intro",
+            "main.codegen.planned_title"
+        ]
+    );
+    assert!(references
+        .iter()
+        .all(|reference| reference.import_binding == Some(import_binding.id)));
+    assert_eq!(
+        references
+            .iter()
+            .map(|reference| &source[reference.span.start..reference.span.end])
+            .collect::<Vec<_>>(),
+        [
+            "l.main.codegen.planned_title",
+            "l.main.codegen.planned_intro",
+            "l.main.codegen.planned_title"
+        ]
+    );
+}
+
+#[test]
+fn repeated_svelte_markup_references_keep_distinct_transform_spans() {
+    let source = r#"<script lang="ts">
+  import { l } from "$lib/generated/linguini/svelte";
+</script>
+<button title={l.main.hero.title}>{l.main.hero.title}</button>"#;
+    let usage = ApplicationUsage::from_source_in(source, SourceId(73));
+    let import_binding = usage.imports().next().expect("generated l import");
+    assert!(import_binding.exact_uses_only);
+    let references = usage.references().collect::<Vec<_>>();
+    assert_eq!(references.len(), 2);
+    assert!(references
+        .iter()
+        .all(|reference| reference.canonical_path == "main.hero.title"));
+    assert!(references
+        .iter()
+        .all(|reference| reference.import_binding == Some(import_binding.id)));
+    assert!(references[0].span.start < references[1].span.start);
+    assert_ne!(references[0].span, references[1].span);
+    for reference in &references {
+        assert_eq!(
+            &source[reference.span.start..reference.span.end],
+            "l.main.hero.title"
+        );
+        assert_eq!(reference.span.source, SourceId(73));
+        assert_eq!(reference.kind, ApplicationReferenceKind::Value);
+    }
+}

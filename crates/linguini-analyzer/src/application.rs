@@ -600,13 +600,18 @@ fn variable_binding_scope(
             if matches!(keyword.as_str(), "const" | "let" | "var")
     );
     if direct {
-        return Some(scope_for_index(
-            tokens,
-            source,
-            braces,
-            binding,
-            tokens.len(),
-        ));
+        let is_var = matches!(
+            tokens.get(previous).map(|token| &token.kind),
+            Some(TokenKind::Identifier(keyword)) if keyword == "var"
+        );
+        return Some(if is_var {
+            var_binding_scope(tokens, source, braces, binding)
+        } else {
+            scope_for_index(tokens, source, braces, binding, tokens.len())
+        });
+    }
+    if token_spelling(tokens, source, binding + 1) == Some(":") {
+        return None;
     }
 
     let mut cursor = previous;
@@ -629,10 +634,15 @@ fn variable_binding_scope(
     }
     let pattern_open = pattern_open?;
     let keyword = (0..pattern_open).rev().find(|&index| {
+        let declaration_start = matches!(
+            tokens.get(index + 1).map(|token| &token.kind),
+            Some(TokenKind::Identifier(_))
+        ) || token_spelling(tokens, source, index + 1)
+            .is_some_and(|spelling| matches!(spelling, "{" | "["));
         matches!(
             tokens.get(index).map(|token| &token.kind),
             Some(TokenKind::Identifier(keyword))
-                if matches!(keyword.as_str(), "const" | "let" | "var")
+                if matches!(keyword.as_str(), "const" | "let" | "var") && declaration_start
         )
     })?;
     if let Some(pattern_start) = (keyword + 1..pattern_open)
@@ -670,13 +680,20 @@ fn variable_binding_scope(
     }) {
         return None;
     }
-    Some(scope_for_index(
-        tokens,
-        source,
-        braces,
-        binding,
-        tokens.len(),
-    ))
+    if matches!(
+        tokens.get(keyword).map(|token| &token.kind),
+        Some(TokenKind::Identifier(name)) if name == "var"
+    ) {
+        Some(var_binding_scope(tokens, source, braces, binding))
+    } else {
+        Some(scope_for_index(
+            tokens,
+            source,
+            braces,
+            binding,
+            tokens.len(),
+        ))
+    }
 }
 
 fn declaration_binding_scope(
@@ -1026,6 +1043,58 @@ fn scope_for_index(
         .min_by_key(|(open, close)| close - open)
         .copied()
         .unwrap_or((0, token_count))
+}
+
+fn var_binding_scope(
+    tokens: &[Token],
+    source: &str,
+    braces: &[(usize, usize)],
+    index: usize,
+) -> (usize, usize) {
+    braces
+        .iter()
+        .filter(|(open, close)| {
+            *open < index && index < *close && is_function_body_open(tokens, source, *open)
+        })
+        .min_by_key(|(open, close)| close - open)
+        .copied()
+        .unwrap_or((0, tokens.len()))
+}
+
+fn is_function_body_open(tokens: &[Token], source: &str, open: usize) -> bool {
+    let Some(previous) = open.checked_sub(1) else {
+        return false;
+    };
+    if token_spelling(tokens, source, previous) == Some(">") {
+        let Some(before_arrow) = previous.checked_sub(1) else {
+            return false;
+        };
+        return token_spelling(tokens, source, before_arrow) == Some("=")
+            || matches!(
+                tokens.get(before_arrow).map(|token| &token.kind),
+                Some(TokenKind::Identifier(_))
+            );
+    }
+    if token_spelling(tokens, source, previous) != Some(")") {
+        return false;
+    }
+    let Some(parameter_open) = (0..previous).rev().find(|&candidate| {
+        token_spelling(tokens, source, candidate) == Some("(")
+            && matching_delimiter(tokens, source, candidate, "(", ")") == Some(previous)
+    }) else {
+        return false;
+    };
+    if matches!(
+        parameter_open
+            .checked_sub(1)
+            .and_then(|index| tokens.get(index))
+            .map(|token| &token.kind),
+        Some(TokenKind::Identifier(name)) if name == "catch"
+    ) {
+        return false;
+    }
+    function_parameter_list(tokens, source, parameter_open)
+        || method_parameter_list(tokens, source, parameter_open)
 }
 
 fn is_binding_pattern_delimiter(tokens: &[Token], source: &str, open: usize) -> bool {
@@ -1830,6 +1899,12 @@ fn find_closing_tag(source: &str, mut position: usize, name: &str) -> Option<usi
 }
 
 fn closing_tag_matches(source: &str, position: usize, name: &str) -> bool {
+    if !source
+        .get(position..)
+        .is_some_and(|rest| rest.starts_with("</"))
+    {
+        return false;
+    }
     let Some(rest) = source.get(position + 2..) else {
         return false;
     };
