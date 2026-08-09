@@ -57,10 +57,13 @@ mod tests {
         assert!(PROJECT_INDEX_ENTRY.contains("{{INDEX_RUNTIME}}"));
         assert!(PROJECT_INDEX_DECLARATIONS.contains("{{INDEX_RUNTIME_DECLARATIONS}}"));
         assert!(SHARED_RUNTIME.contains("selectBranch"));
+        assert!(SHARED_RUNTIME.contains("normalizeMessageArgs"));
+        assert!(SHARED_RUNTIME.contains("Reflect.ownKeys"));
         assert!(SHARED_RUNTIME.contains("hasOwnProperty.call(branches, key)"));
         assert!(SHARED_RUNTIME.contains("throw new Error"));
         assert!(!SHARED_RUNTIME.contains("?? \"\""));
         assert!(SHARED_DECLARATIONS.contains("selectBranch"));
+        assert!(SHARED_DECLARATIONS.contains("normalizeMessageArgs"));
         assert!(SINGLE_INDEX_RUNTIME.contains("createLinguini"));
         assert!(SINGLE_INDEX_DECLARATIONS.contains("createLinguini"));
         assert!(WEB_RUNTIME.contains("createWebI18n"));

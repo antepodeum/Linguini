@@ -104,12 +104,12 @@
   ]);
 
   const playgroundLines = $derived([
-    l.main.playground.sentence(fruit, size, count, amount, dateValue),
+    l.main.playground.sentence({ fruit, size, count, amount, date: dateValue }),
     l.main.playground.cart_summary(count, fruit),
-    l.main.playground.number_format(amount),
+    l.main.playground.number_format({ value: amount }),
     l.main.playground.currency_format(amount),
-    l.main.playground.date_format(dateValue),
-    l.main.playground.override_format(amount, dateValue),
+    l.main.playground.date_format({ date: dateValue }),
+    l.main.playground.override_format({ date: dateValue, amount }),
     l.main.playground.size_line(size)
   ]);
 

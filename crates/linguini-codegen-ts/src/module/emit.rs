@@ -12,6 +12,7 @@ use super::names::{
     escape_comment, escape_string, form_binding_name, function_name, property_key, safe_identifier,
     ts_type,
 };
+use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
 use super::TypeScriptOptions;
 
@@ -39,10 +40,24 @@ pub fn emit_imports(
 
     let uses_forms = !locale.forms.is_empty();
     let uses_dispatch = !locale.functions.is_empty() || module_uses_inline_functions(locale);
+    let uses_named_message_args = schema.messages.iter().any(|signature| {
+        !signature.parameters.is_empty()
+            && message_implementation(locale, &signature.name).is_some()
+    });
+    let mut shared_helpers = Vec::new();
     if uses_forms || uses_dispatch {
+        shared_helpers.push("selectBranch");
+    }
+    if uses_named_message_args {
+        shared_helpers.push("normalizeMessageArgs");
+    }
+    if !shared_helpers.is_empty() {
         output.push_str(&format!(
-            "import {{ selectBranch }} from \"{shared_import_path}\";\n"
+            "import {{ {} }} from \"{shared_import_path}\";\n",
+            shared_helpers.join(", ")
         ));
+    }
+    if uses_forms || uses_dispatch {
         if options.plural_source.is_none() {
             if let Some(path) = &options.plural_import {
                 output.push_str(&format!(
@@ -57,7 +72,7 @@ pub fn emit_imports(
             output.push('\n');
         }
     }
-    if !type_names.is_empty() && !uses_forms && !uses_dispatch {
+    if (!type_names.is_empty() || !shared_helpers.is_empty()) && !uses_forms && !uses_dispatch {
         output.push('\n');
     }
 }
@@ -315,17 +330,20 @@ fn emit_message_function(
     let Some(implementation) = message_implementation(locale, &signature.name) else {
         return false;
     };
-    for doc in &signature.docs {
-        output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-    }
-    let params = signature_params(signature);
+    let call_signature = MessageCallSignature::from_message(signature);
     let body = message_body(schema, signature, implementation, options);
     let name = function_name(&signature.name);
-    if signature.parameters.is_empty() {
+    if !call_signature.is_parameterized() {
+        for doc in &signature.docs {
+            output.push_str(&format!("/** {} */\n", escape_comment(doc)));
+        }
         output.push_str(&format!("export const {name} = {body};\n\n"));
     } else {
+        output.push_str(&call_signature.implementation_overloads(&name, &signature.docs));
         output.push_str(&format!(
-            "export function {name}({params}): string {{\n  return {body};\n}}\n\n"
+            "export function {name}({}): string {{\n  {}\n  return {body};\n}}\n\n",
+            call_signature.implementation_rest_params(),
+            call_signature.normalized_bindings_statement()
         ));
     }
     true
@@ -379,12 +397,14 @@ fn group_property_value(
     implementation: &IrMessage,
     options: &TypeScriptOptions,
 ) -> String {
-    if signature.parameters.is_empty() {
+    let call_signature = MessageCallSignature::from_message(signature);
+    if !call_signature.is_parameterized() {
         message_body(schema, signature, implementation, options)
     } else {
         format!(
-            "({}) => {}",
-            signature_params(signature),
+            "({}) => {{ {} return {}; }}",
+            call_signature.implementation_rest_params(),
+            call_signature.normalized_bindings_statement(),
             message_body(schema, signature, implementation, options)
         )
     }
@@ -450,21 +470,6 @@ fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatte
             arguments: Vec::<IrFormatterArgument>::new(),
         }]);
     }
-}
-
-pub(crate) fn signature_params(signature: &IrMessage) -> String {
-    signature
-        .parameters
-        .iter()
-        .map(|parameter| {
-            format!(
-                "{}: {}",
-                safe_identifier(&parameter.name),
-                ts_type(&parameter.ty)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ")
 }
 
 fn message_implementation<'a>(module: &'a IrModule, name: &str) -> Option<&'a IrMessage> {

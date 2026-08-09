@@ -1,6 +1,6 @@
 import { email_input } from "./ru/email_input";
 import type { Fruit, Size, Money, ShortDate } from "../shared";
-import { selectBranch } from "../shared";
+import { selectBranch, normalizeMessageArgs } from "../shared";
 
 import { formatNumber, formatCurrency, formatDate, pluralRu } from "./ru/_runtime";
 
@@ -31,16 +31,27 @@ function DeliveryNote(__lgl_p0: number | bigint | string, __lgl_p1: Gender, item
 }
 
 /** Displayed on the product delivery confirmation card. */
-export function delivery(fruit: Fruit, size: Size, count: number | bigint | string): string {
+export function delivery(fruit: Fruit, size: Size, count: number | bigint | string): string;
+/** Displayed on the product delivery confirmation card. */
+export function delivery(args: { fruit: Fruit; size: Size; count: number | bigint | string }): string;
+export function delivery(...__lgl_args: [fruit: Fruit, size: Size, count: number | bigint | string] | [args: { fruit: Fruit; size: Size; count: number | bigint | string }]): string {
+  const [fruit, size, count] = normalizeMessageArgs(__lgl_args, ["fruit", "size", "count"]) as [Fruit, Size, number | bigint | string];
   return String(Delivered(count, __lgl_form_4672756974[fruit].Gender)) + " " + String(SizeAdj(size, count, __lgl_form_4672756974[fruit].Gender)) + " " + String(__lgl_form_4672756974[fruit].nom(count));
 }
 
 /** Shown near cart item count. */
-export function counted(count: number | bigint | string, fruit: Fruit): string {
+export function counted(count: number | bigint | string, fruit: Fruit): string;
+/** Shown near cart item count. */
+export function counted(args: { count: number | bigint | string; fruit: Fruit }): string;
+export function counted(...__lgl_args: [count: number | bigint | string, fruit: Fruit] | [args: { count: number | bigint | string; fruit: Fruit }]): string {
+  const [count, fruit] = normalizeMessageArgs(__lgl_args, ["count", "fruit"]) as [number | bigint | string, Fruit];
   return String(cart_label) + " " + String(formatNumber(count)) + " " + String(__lgl_form_4672756974[fruit].nom(count));
 }
 
-export function price(amount: Money, date: ShortDate): string {
+export function price(amount: Money, date: ShortDate): string;
+export function price(args: { amount: Money; date: ShortDate }): string;
+export function price(...__lgl_args: [amount: Money, date: ShortDate] | [args: { amount: Money; date: ShortDate }]): string {
+  const [amount, date] = normalizeMessageArgs(__lgl_args, ["amount", "date"]) as [Money, ShortDate];
   return "Цена " + String(formatCurrency(amount, 2, 0, { code: "RUB" })) + " на " + String(formatDate(date, { style: "short" }));
 }
 

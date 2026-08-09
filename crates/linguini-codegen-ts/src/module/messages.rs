@@ -1,8 +1,9 @@
 use std::collections::BTreeSet;
 
-use linguini_ir::{IrMessage, IrModule};
+use linguini_ir::IrModule;
 
-use super::names::{emit_docs, property_key, safe_identifier, ts_type};
+use super::names::{emit_docs, property_key, safe_identifier};
+use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree, MessageTreeMessage};
 
 /// Generate the schema-owned namespace type used by the project runtime.
@@ -66,11 +67,14 @@ fn emit_object_type(tree: &MessageTree, depth: usize, output: &mut String) {
     let child_indent = "  ".repeat(depth + 1);
     output.push_str("{\n");
     for entry in &tree.messages {
-        emit_docs(&entry.signature.docs, &child_indent, output);
+        let signature = MessageCallSignature::from_message(&entry.signature);
+        if !signature.is_parameterized() {
+            emit_docs(&entry.signature.docs, &child_indent, output);
+        }
         output.push_str(&format!(
             "{child_indent}readonly {}: {};\n",
             message_property_key(&entry.property, depth),
-            message_type(&entry.signature)
+            signature.callable_type_with_docs(&entry.signature.docs, &child_indent)
         ));
     }
     for (name, child) in &tree.children {
@@ -92,27 +96,4 @@ fn message_property_key(name: &str, depth: usize) -> String {
     } else {
         property_key(name)
     }
-}
-
-fn message_type(signature: &IrMessage) -> String {
-    if signature.parameters.is_empty() {
-        "string".to_owned()
-    } else {
-        format!("({}) => string", signature_params(signature))
-    }
-}
-
-fn signature_params(signature: &IrMessage) -> String {
-    signature
-        .parameters
-        .iter()
-        .map(|parameter| {
-            format!(
-                "{}: {}",
-                safe_identifier(&parameter.name),
-                ts_type(&parameter.ty)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ")
 }

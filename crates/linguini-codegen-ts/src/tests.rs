@@ -261,7 +261,8 @@ fn project_codegen_emits_complete_recursive_schema_namespace_type() {
     assert!(messages.contains("/** Nested docs */"));
     assert!(messages.contains("/** Leaf docs */"));
     assert!(messages.contains("readonly title: string;"));
-    assert!(messages.contains("readonly count: (value: number | bigint | string) => string;"));
+    assert!(messages.contains("(value: number | bigint | string): string;"));
+    assert!(messages.contains("(args: { value: number | bigint | string }): string;"));
     assert!(!messages.contains("empty"));
 }
 
@@ -370,8 +371,12 @@ fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
           /** Value leaf
            * second * / terminator */
           readonly "leaf-value": string;
-          /** Callable leaf */
-          readonly invoke: (count: number | bigint | string) => string;
+          readonly invoke: {
+            /** Callable leaf */
+            (count: number | bigint | string): string;
+            /** Callable leaf */
+            (args: { count: number | bigint | string }): string;
+          };
         };
       };
     };
@@ -557,7 +562,7 @@ account {
     assert!(!account_module.contents.contains("label: () =>"));
     assert!(account_module
         .contents
-        .contains("personalized: (name: string) => \"Hello \" + String(name),"));
+        .contains("personalized: (...__lgl_args: [name: string] | [args: { name: string }]) => { const [name] = normalizeMessageArgs(__lgl_args, [\"name\"]) as [string]; return \"Hello \" + String(name); },"));
 
     let locale_declaration = files
         .iter()
@@ -576,7 +581,7 @@ account {
         .contains("readonly label: string;"));
     assert!(account_declaration
         .contents
-        .contains("readonly personalized: (name: string) => string;"));
+        .contains("(args: { name: string }): string;"));
 }
 
 #[test]
@@ -852,7 +857,7 @@ fn project_codegen_emits_inline_function_dispatch_with_captured_values() {
 
     assert!(module
         .contents
-        .contains("import { selectBranch } from \"../shared\";"));
+        .contains("import { selectBranch, normalizeMessageArgs } from \"../shared\";"));
     assert!(module.contents.contains(
         "selectBranch(String(__lgl_inline_selector_0), { masculine: (): string => \"dear \" + String(name), feminine: (): string => \"kind \" + String(name), _: (): string => \"friend \" + String(name) })()"
     ));
@@ -1107,8 +1112,6 @@ fn project_codegen_named_and_anonymous_functions_share_dispatch_semantics() {
         .find(|file| file.path == "locales/en.ts")
         .expect("locale module");
 
-    let signature =
-        "(name: string, tone: Tone, count: number | bigint | string): string {\n  return ";
     let named_dispatch = module
         .contents
         .split_once("function Choose(__lgl_p0: Tone, __lgl_p1: number | bigint | string, name: string): string {\n  return ")
@@ -1119,8 +1122,11 @@ fn project_codegen_named_and_anonymous_functions_share_dispatch_semantics() {
         .0;
     let anonymous_body = module
         .contents
-        .split_once(&format!("export function anonymous{signature}"))
+        .split_once("export function anonymous(...__lgl_args:")
         .expect("anonymous message body")
+        .1
+        .split_once("\n  return ")
+        .expect("anonymous normalization")
         .1
         .split_once(";\n}")
         .expect("anonymous message end")

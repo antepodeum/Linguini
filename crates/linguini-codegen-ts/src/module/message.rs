@@ -15,6 +15,7 @@ use super::emit::{self, emit_formatter_data, emit_forms, emit_local_functions, e
 use super::formatters::{formatter_requirements, plural_required};
 use super::names::escape_comment;
 use super::semantic::TypeScriptSemanticImport;
+use super::signature::MessageCallSignature;
 use super::{
     TypeScriptCodegenError, TypeScriptMessageArtifact, TypeScriptOptions,
     ValidatedTypeScriptProject,
@@ -328,22 +329,21 @@ fn emit_message_module(
             .iter()
             .find(|item| item.name == closure.message),
     ) {
-        for doc in &signature.docs {
-            let mut doc_output = String::new();
-            doc_output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-            push_chunk(
-                &mut statements,
-                doc_output,
-                symbol_span(schema, IrSymbolKind::Message, &signature.name, None),
-            );
-        }
+        let call_signature = MessageCallSignature::from_message(signature);
         let body = emit::message_body(schema, signature, implementation, options);
-        let output = if signature.parameters.is_empty() {
-            format!("export const message = (): string => {body};\n")
+        let output = if !call_signature.is_parameterized() {
+            let docs = signature
+                .docs
+                .iter()
+                .map(|doc| format!("/** {} */\n", escape_comment(doc)))
+                .collect::<String>();
+            format!("{docs}export const message = (): string => {body};\n")
         } else {
             format!(
-                "export function message({}): string {{\n  return {body};\n}}\n",
-                emit::signature_params(signature)
+                "{}export function message({}): string {{\n  {}\n  return {body};\n}}\n",
+                call_signature.implementation_overloads("message", &signature.docs),
+                call_signature.implementation_rest_params(),
+                call_signature.normalized_bindings_statement()
             )
         };
         push_chunk(
@@ -357,6 +357,10 @@ fn emit_message_module(
     let uses_select_branch = statements
         .iter()
         .any(|(code, _)| code.contains("selectBranch("));
+    let uses_named_message_args = schema
+        .messages
+        .iter()
+        .any(|signature| signature.name == closure.message && !signature.parameters.is_empty());
     let runtime_helpers =
         runtime_import_path.map(|_| formatter_requirements(schema, locale).helper_names());
     let mut module = EcmaModule {
@@ -366,6 +370,7 @@ fn emit_message_module(
             schema,
             options,
             uses_select_branch,
+            uses_named_message_args,
             uses_plural,
             runtime_helpers.as_deref().unwrap_or_default(),
         ),
@@ -404,6 +409,7 @@ fn message_imports(
     schema: &IrModule,
     options: &TypeScriptOptions,
     uses_select_branch: bool,
+    uses_named_message_args: bool,
     uses_plural: bool,
     runtime_helpers: &[&str],
 ) -> Vec<EcmaImport> {
@@ -420,10 +426,20 @@ fn message_imports(
             ),
         });
     }
+    let mut shared_helpers = Vec::new();
     if uses_select_branch {
+        shared_helpers.push("selectBranch");
+    }
+    if uses_named_message_args {
+        shared_helpers.push("normalizeMessageArgs");
+    }
+    if !shared_helpers.is_empty() {
         imports.push(EcmaImport::named(
             shared_import_path,
-            vec![EcmaNamedImport::new("selectBranch", "selectBranch")],
+            shared_helpers
+                .into_iter()
+                .map(|name| EcmaNamedImport::new(name, name))
+                .collect(),
         ));
     }
     if let Some(runtime_import_path) = runtime_import_path {
@@ -565,7 +581,14 @@ mod tests {
         assert!(result
             .code
             .contains("export function message(name: string)"));
-        assert_eq!(result.code.matches("export ").count(), 1);
+        assert!(result
+            .code
+            .contains("export function message(args: { name: string }): string;"));
+        assert_eq!(result.code.matches("export function message").count(), 3);
+        assert_eq!(result.code.matches("return String(helper)").count(), 1);
+        assert!(result
+            .code
+            .contains("normalizeMessageArgs(__lgl_args, [\"name\"])"));
         assert!(result.code.ends_with("//# sourceMappingURL=root.ts.map\n"));
         assert!(result
             .source_map
@@ -697,7 +720,9 @@ mod tests {
         )
         .unwrap();
         assert!(result.code.contains("function pluralEn("));
-        assert!(result.code.contains("import { selectBranch }"));
+        assert!(result
+            .code
+            .contains("import { selectBranch, normalizeMessageArgs }"));
         assert!(result.code.contains("pluralEn(count)"));
     }
 
@@ -743,7 +768,7 @@ mod tests {
             .contains("import { formatNumber, pluralEn } from \"../../../locales/en/_runtime\";"));
         assert!(shared
             .code
-            .contains("import { selectBranch } from \"../../../shared\";"));
+            .contains("import { selectBranch, normalizeMessageArgs } from \"../../../shared\";"));
         assert!(!shared.code.contains("function formatNumber("));
         assert!(!shared.code.contains("function pluralEn("));
 

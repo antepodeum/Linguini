@@ -21,3 +21,30 @@ export function selectBranch<T>(
   }
   throw new Error(`Linguini dispatch has no branch for key ${JSON.stringify(key)}`);
 }
+
+export function normalizeMessageArgs(
+  values: readonly unknown[],
+  keys: readonly string[],
+): unknown[] {
+  if (values.length !== 1) {
+    return [...values];
+  }
+  const candidate = values[0];
+  if (typeof candidate !== "object" || candidate === null) {
+    return [...values];
+  }
+  const record = candidate as Record<string, unknown>;
+  if (!keys.every((key) => Object.prototype.hasOwnProperty.call(record, key))) {
+    return [...values];
+  }
+  const unknown = Reflect.ownKeys(record)
+    .filter((key) => typeof key !== "string" || !keys.includes(key))
+    .map(String)
+    .sort();
+  if (unknown.length > 0) {
+    throw new TypeError(
+      `Linguini message arguments contain unknown keys: ${unknown.join(", ")}`,
+    );
+  }
+  return keys.map((key) => record[key]);
+}

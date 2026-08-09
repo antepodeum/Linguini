@@ -5,6 +5,7 @@ use super::names::{
     emit_docs, escape_comment, escape_string, function_name, property_key, safe_file_stem,
     safe_identifier, ts_type,
 };
+use super::signature::MessageCallSignature;
 use super::templates::SHARED_DECLARATIONS;
 use super::tree::{nested_message_tree, MessageTree};
 
@@ -155,11 +156,14 @@ fn emit_object_type(tree: &MessageTree, depth: usize, output: &mut String) {
     let child_indent = "  ".repeat(depth + 1);
     output.push_str("{\n");
     for entry in &tree.messages {
-        emit_docs(&entry.signature.docs, &child_indent, output);
+        let signature = MessageCallSignature::from_message(&entry.signature);
+        if !signature.is_parameterized() {
+            emit_docs(&entry.signature.docs, &child_indent, output);
+        }
         output.push_str(&format!(
             "{child_indent}readonly {}: {};\n",
             property_key(&entry.property),
-            group_property_type(&entry.signature)
+            signature.callable_type_with_docs(&entry.signature.docs, &child_indent)
         ));
     }
     for (name, child) in &tree.children {
@@ -173,26 +177,11 @@ fn emit_object_type(tree: &MessageTree, depth: usize, output: &mut String) {
 }
 
 fn emit_function_declaration(signature: &IrMessage, output: &mut String) {
-    for doc in &signature.docs {
-        output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-    }
     let name = function_name(&signature.name);
-    if signature.parameters.is_empty() {
-        output.push_str(&format!("export declare const {name}: string;\n\n"));
-    } else {
-        output.push_str(&format!(
-            "export declare function {name}({}): string;\n\n",
-            signature_params(signature)
-        ));
-    }
-}
-
-fn group_property_type(signature: &IrMessage) -> String {
-    if signature.parameters.is_empty() {
-        "string".to_owned()
-    } else {
-        format!("({}) => string", signature_params(signature))
-    }
+    output.push_str(
+        &MessageCallSignature::from_message(signature)
+            .overload_declarations(name.as_str(), &signature.docs),
+    );
 }
 
 fn emit_default_declaration(exports: &[String], output: &mut String) {
@@ -214,19 +203,4 @@ fn emit_default_declaration_with_namespaces(
     }
     output.push_str("};\n\n");
     output.push_str("export default lgl;\n");
-}
-
-fn signature_params(signature: &IrMessage) -> String {
-    signature
-        .parameters
-        .iter()
-        .map(|parameter| {
-            format!(
-                "{}: {}",
-                safe_identifier(&parameter.name),
-                ts_type(&parameter.ty)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ")
 }

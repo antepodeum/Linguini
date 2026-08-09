@@ -77,8 +77,23 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
   const en = await server.ssrLoadModule('/locales/en/main.ts');
   const ru = await server.ssrLoadModule('/locales/ru/main.ts');
 
-  assert.equal(en.main.playground.cart_summary('1', 'apple'), 'Cart has 1 apple');
+  assert.equal(
+    en.main.playground.cart_summary({ count: '1', fruit: 'apple' }),
+    'Cart has 1 apple'
+  );
   assert.equal(en.main.playground.cart_summary('2', 'pear'), 'Cart has 2 pears');
+  assert.throws(
+    () => en.main.playground.cart_summary({ count: '1', fruit: 'apple', extra: true }),
+    /unknown keys: extra/
+  );
+  assert.equal(
+    en.main.playground.date_format({ date: '2026-05-19' }),
+    en.main.playground.date_format('2026-05-19')
+  );
+  assert.equal(
+    en.main.playground.override_format({ date: '2026-05-19', amount: '1299.5' }),
+    en.main.playground.override_format('1299.5', '2026-05-19')
+  );
   assert.equal(en.main.playground.size_line('small'), 'Size form: compact');
   assert.equal(en.__testProto('__proto__'), 'safe');
   assert.equal(en.__testProto('missing'), 'fallback');

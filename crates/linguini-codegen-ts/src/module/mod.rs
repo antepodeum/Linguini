@@ -10,6 +10,7 @@ mod names;
 mod project;
 mod semantic;
 mod shared;
+mod signature;
 mod templates;
 mod tree;
 
