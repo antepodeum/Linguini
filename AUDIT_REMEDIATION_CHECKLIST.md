@@ -123,6 +123,8 @@ production path uses the fix and its relevant tests pass.
   dynamic transforms cannot remove imports when any source use is unrepresented.
 - `19c3616` — added manifest-v3 bounded dynamic-reference records, strict pre-write diagnostics,
   exact finite allowlist validation, and tracked-binding transform eligibility.
+- `0c12d74` — added validated manifest-v3 Vite rewrites for finite dynamic lookups with frozen
+  null-prototype dispatches, exact virtual imports, resolver identity checks, and selective HMR.
 
 ## Numbered findings
 
@@ -700,8 +702,8 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
 - [x] BUNDLE-A6 — Invalidate only affected virtual modules.
 - [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; manifest v3 now emits exact bounded
-      dynamic-reference metadata and strict builds fail before output mutation, while the Vite
-      bounded transform and real production integration remain under verification.
+      dynamic-reference metadata, strict builds fail before output mutation, and Vite rewrites
+      explicitly allowed computed lookups; the real-site manifest-v3 production gate remains.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
