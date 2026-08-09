@@ -208,10 +208,14 @@ cargo test --workspace
 The root runner provides repository-wide local verification:
 
 ```bash
+pnpm dev:site --host 127.0.0.1   # site with workspace-local Linguini packages
 pnpm test:quick   # Rust formatting plus focused Vite and CLI tests
 pnpm test:full    # Rust, Vite, CLI, VS Code, and real-site gates
 pnpm test:site    # generate, test, check, build, and inspect the site graph
 ```
+
+Open `http://127.0.0.1:5173/` after Vite reports that it is ready. Locale source edits rebuild
+the generated modules automatically. Use `pnpm test:site` for the complete production check.
 
 VS Code extension:
 

@@ -6,6 +6,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "dev:site": "pnpm --dir site dev",
     "test:quick": "node scripts/test-all.mjs --profile quick",
     "test:full": "node scripts/test-all.mjs --profile full",
     "test:site": "node scripts/test-all.mjs --profile site"
