@@ -750,6 +750,29 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_bundler_policy_does_not_change_application_source_discovery() {
+        let root = TempDir::new().expect("root");
+        fs::create_dir_all(root.path().join("src")).expect("source directory");
+        fs::write(root.path().join("src/app.ts"), "export const app = true;\n")
+            .expect("application source");
+
+        let files = super::discover_application_source_files_with_fields(
+            root.path(),
+            &["src".to_owned()],
+            &[],
+            "targets.ts.bundler.sources",
+            "targets.ts.bundler.exclude",
+        )
+        .expect("bundler source discovery");
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(
+            files[0].file_name().and_then(|name| name.to_str()),
+            Some("app.ts")
+        );
+    }
+
+    #[test]
     fn rejects_explicit_files_with_unsupported_extensions() {
         let root = TempDir::new().expect("root");
         fs::write(root.path().join("styles.css"), "body {}\n").expect("unsupported source");

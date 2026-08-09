@@ -57,6 +57,39 @@ pub struct TypeScriptTargetConfig {
 pub struct TypeScriptBundlerConfig {
     pub sources: Vec<String>,
     pub exclude: Vec<String>,
+    /// Controls how the bundler handles computed or otherwise dynamic message access.
+    ///
+    /// The default is [`TypeScriptBundlerDynamicMode::Error`] with no escapes. In
+    /// [`TypeScriptBundlerDynamicMode::Bundle`] mode, `allow` is a finite list of
+    /// canonical dotted message paths that may be resolved dynamically.
+    pub dynamic: TypeScriptBundlerDynamicConfig,
+}
+
+/// Policy for dynamic message access in the TypeScript bundler integration.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+pub enum TypeScriptBundlerDynamicMode {
+    /// Reject dynamic access during a strict bundler build.
+    #[default]
+    Error,
+    /// Permit only the explicitly listed finite message paths.
+    Bundle,
+}
+
+impl TypeScriptBundlerDynamicMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Error => "error",
+            Self::Bundle => "bundle",
+        }
+    }
+}
+
+/// Configuration for dynamic message access under `targets.ts.bundler.dynamic`.
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct TypeScriptBundlerDynamicConfig {
+    pub mode: TypeScriptBundlerDynamicMode,
+    /// Exact canonical dotted message paths admitted in bundle mode.
+    pub allow: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -332,11 +365,72 @@ impl LinguiniConfig {
                     "targets.ts.bundler.exclude",
                     &bundler.exclude,
                 )?;
+                validate_bundler_dynamic(&bundler.dynamic)?;
             }
         }
 
         validate_web(&self.web)
     }
+}
+
+fn validate_bundler_dynamic(dynamic: &TypeScriptBundlerDynamicConfig) -> ConfigResult<()> {
+    if dynamic.mode == TypeScriptBundlerDynamicMode::Error && !dynamic.allow.is_empty() {
+        return Err(ConfigError::InvalidString(
+            "targets.ts.bundler.dynamic.allow requires mode = \"bundle\"".to_owned(),
+        ));
+    }
+    if dynamic.mode == TypeScriptBundlerDynamicMode::Bundle && dynamic.allow.is_empty() {
+        return Err(ConfigError::InvalidArray(
+            "targets.ts.bundler.dynamic.allow".to_owned(),
+        ));
+    }
+
+    let mut seen = BTreeSet::new();
+    for path in &dynamic.allow {
+        validate_dynamic_message_path(path)?;
+        let folded = path.to_lowercase();
+        if !seen.insert(folded) {
+            return Err(ConfigError::DuplicateKey(format!(
+                "targets.ts.bundler.dynamic.allow path `{path}`"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_dynamic_message_path(path: &str) -> ConfigResult<()> {
+    if path.is_empty() || path.trim() != path {
+        return Err(ConfigError::InvalidString(format!(
+            "targets.ts.bundler.dynamic.allow = {path}"
+        )));
+    }
+    if path.contains('/')
+        || path.contains('\\')
+        || path.contains('*')
+        || path.contains('?')
+        || path.contains('[')
+        || path.contains(']')
+    {
+        return Err(ConfigError::InvalidString(format!(
+            "targets.ts.bundler.dynamic.allow = {path}"
+        )));
+    }
+    for segment in path.split('.') {
+        if segment.is_empty() || segment == "." || segment == ".." {
+            return Err(ConfigError::InvalidString(format!(
+                "targets.ts.bundler.dynamic.allow = {path}"
+            )));
+        }
+        if segment
+            .chars()
+            .any(|character| character.is_whitespace() || character.is_control())
+        {
+            return Err(ConfigError::InvalidString(format!(
+                "targets.ts.bundler.dynamic.allow = {path}"
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_analysis(analysis: &AnalysisConfig) -> ConfigResult<()> {
@@ -877,9 +971,11 @@ fn is_grandfathered(tag: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        canonicalize_locale_tag, validate_locale_tag, LinguiniConfig, PathsConfig, ProjectConfig,
-        TargetsConfig, TypeScriptTargetConfig,
+        canonicalize_locale_tag, validate_locale_tag, AnalysisConfig, LinguiniConfig, PathsConfig,
+        ProjectConfig, TargetsConfig, TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig,
+        TypeScriptBundlerDynamicMode, TypeScriptTargetConfig, WebConfig,
     };
+    use crate::ConfigError;
 
     #[test]
     fn accepts_and_canonicalizes_bcp47_tags() {
@@ -952,5 +1048,84 @@ mod tests {
 
             assert!(config.validate().is_err(), "{out}");
         }
+    }
+
+    #[test]
+    fn validates_dynamic_bundler_policy_without_schema_knowledge() {
+        let base = || LinguiniConfig {
+            project: ProjectConfig {
+                name: "shop".to_owned(),
+                default_locale: "en".to_owned(),
+                locales: vec!["en".to_owned()],
+            },
+            paths: PathsConfig {
+                schema: "schema".to_owned(),
+                locale: "locales".to_owned(),
+            },
+            targets: TargetsConfig {
+                ts: Some(TypeScriptTargetConfig {
+                    out: "generated".to_owned(),
+                    declaration: true,
+                    gitignore: true,
+                    tree_shaking: false,
+                    messages: Vec::new(),
+                    framework: Some("svelte".to_owned()),
+                    bundler: Some(TypeScriptBundlerConfig {
+                        sources: vec!["src".to_owned()],
+                        exclude: Vec::new(),
+                        dynamic: TypeScriptBundlerDynamicConfig {
+                            mode: TypeScriptBundlerDynamicMode::Bundle,
+                            allow: vec!["unresolved.namespace".to_owned()],
+                        },
+                    }),
+                }),
+            },
+            analysis: AnalysisConfig::default(),
+            web: WebConfig::default(),
+        };
+
+        assert!(base().validate().is_ok());
+
+        let mut invalid = base();
+        invalid
+            .targets
+            .ts
+            .as_mut()
+            .unwrap()
+            .bundler
+            .as_mut()
+            .unwrap()
+            .dynamic
+            .allow = vec!["main.title".to_owned(), "MAIN.TITLE".to_owned()];
+        assert!(matches!(
+            invalid.validate(),
+            Err(ConfigError::DuplicateKey(_))
+        ));
+
+        let mut strict_with_allow = base();
+        let dynamic = &mut strict_with_allow
+            .targets
+            .ts
+            .as_mut()
+            .unwrap()
+            .bundler
+            .as_mut()
+            .unwrap()
+            .dynamic;
+        dynamic.mode = TypeScriptBundlerDynamicMode::Error;
+        assert!(strict_with_allow.validate().is_err());
+
+        let mut bundle_without_allow = base();
+        let dynamic = &mut bundle_without_allow
+            .targets
+            .ts
+            .as_mut()
+            .unwrap()
+            .bundler
+            .as_mut()
+            .unwrap()
+            .dynamic;
+        dynamic.allow.clear();
+        assert!(bundle_without_allow.validate().is_err());
     }
 }

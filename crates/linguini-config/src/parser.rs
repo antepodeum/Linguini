@@ -2,9 +2,10 @@ use crate::error::{ConfigError, ConfigResult};
 use crate::model::{
     canonicalize_locale_tag, AnalysisConfig, CanonicalMode, CookiePath, LinguiniConfig, LinkMode,
     LocalePrefixMode, LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite,
-    SecurePolicy, TargetsConfig, TypeScriptBundlerConfig, TypeScriptTargetConfig,
-    UnusedMessagesConfig, WebConfig, WebCookieConfig, WebLinksConfig, WebLocalStorageConfig,
-    WebLocaleConfig, WebRoutesConfig, WebRoutingConfig, WebSwitchRouteConfig,
+    SecurePolicy, TargetsConfig, TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig,
+    TypeScriptBundlerDynamicMode, TypeScriptTargetConfig, UnusedMessagesConfig, WebConfig,
+    WebCookieConfig, WebLinksConfig, WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig,
+    WebRoutingConfig, WebSwitchRouteConfig,
 };
 use serde::Deserialize;
 
@@ -72,6 +73,14 @@ struct RawTypeScriptTargetConfig {
 struct RawTypeScriptBundlerConfig {
     sources: Option<Vec<String>>,
     exclude: Option<Vec<String>>,
+    dynamic: Option<RawTypeScriptBundlerDynamicConfig>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawTypeScriptBundlerDynamicConfig {
+    mode: Option<String>,
+    allow: Option<Vec<String>>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -244,20 +253,48 @@ fn build_typescript_target(raw: RawTypeScriptTargetConfig) -> ConfigResult<TypeS
         tree_shaking: raw.tree_shaking.unwrap_or(false),
         messages: raw.messages.unwrap_or_default(),
         framework: raw.framework,
-        bundler: raw.bundler.map(|bundler| TypeScriptBundlerConfig {
-            sources: bundler
-                .sources
-                .unwrap_or_default()
-                .into_iter()
-                .map(normalize_project_path)
-                .collect(),
-            exclude: bundler
-                .exclude
-                .unwrap_or_default()
-                .into_iter()
-                .map(normalize_project_path)
-                .collect(),
-        }),
+        bundler: raw.bundler.map(build_typescript_bundler).transpose()?,
+    })
+}
+
+fn build_typescript_bundler(
+    raw: RawTypeScriptBundlerConfig,
+) -> ConfigResult<TypeScriptBundlerConfig> {
+    Ok(TypeScriptBundlerConfig {
+        sources: raw
+            .sources
+            .unwrap_or_default()
+            .into_iter()
+            .map(normalize_project_path)
+            .collect(),
+        exclude: raw
+            .exclude
+            .unwrap_or_default()
+            .into_iter()
+            .map(normalize_project_path)
+            .collect(),
+        dynamic: build_typescript_bundler_dynamic(raw.dynamic)?,
+    })
+}
+
+fn build_typescript_bundler_dynamic(
+    raw: Option<RawTypeScriptBundlerDynamicConfig>,
+) -> ConfigResult<TypeScriptBundlerDynamicConfig> {
+    let Some(raw) = raw else {
+        return Ok(TypeScriptBundlerDynamicConfig::default());
+    };
+    let mode = match raw.mode.as_deref().unwrap_or("error") {
+        "error" => TypeScriptBundlerDynamicMode::Error,
+        "bundle" => TypeScriptBundlerDynamicMode::Bundle,
+        value => {
+            return Err(ConfigError::InvalidString(format!(
+                "targets.ts.bundler.dynamic.mode = {value}"
+            )))
+        }
+    };
+    Ok(TypeScriptBundlerDynamicConfig {
+        mode,
+        allow: raw.allow.unwrap_or_default(),
     })
 }
 
@@ -474,7 +511,8 @@ fn required<T>(value: Option<T>, field: &'static str) -> ConfigResult<T> {
 mod tests {
     use super::parse_config;
     use crate::{
-        CanonicalMode, CookiePath, LinkMode, LocalePrefixMode, LocaleSource, SameSite, SecurePolicy,
+        CanonicalMode, CookiePath, LinkMode, LocalePrefixMode, LocaleSource, SameSite,
+        SecurePolicy, TypeScriptBundlerDynamicMode,
     };
 
     #[test]
@@ -668,6 +706,8 @@ mod tests {
         let bundler = config.targets.ts.expect("target").bundler.expect("bundler");
         assert_eq!(bundler.sources, ["src", "tests/ui"]);
         assert_eq!(bundler.exclude, ["src/generated"]);
+        assert_eq!(bundler.dynamic.mode, TypeScriptBundlerDynamicMode::Error);
+        assert!(bundler.dynamic.allow.is_empty());
 
         for section in [
             "sources = []",
@@ -717,6 +757,90 @@ mod tests {
         assert!(without_framework
             .to_string()
             .contains("targets.ts.bundler requires targets.ts.framework"));
+    }
+
+    #[test]
+    fn parses_strict_and_finite_dynamic_bundler_policies() {
+        let config = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [targets.ts]
+            framework = "svelte"
+            [targets.ts.bundler]
+            sources = ["src"]
+            [targets.ts.bundler.dynamic]
+            mode = "bundle"
+            allow = ["main.hero.title", "admin.notice"]
+            "#,
+        )
+        .expect("finite dynamic policy");
+        let dynamic = config
+            .targets
+            .ts
+            .expect("target")
+            .bundler
+            .expect("bundler")
+            .dynamic;
+        assert_eq!(dynamic.mode, TypeScriptBundlerDynamicMode::Bundle);
+        assert_eq!(dynamic.allow, ["main.hero.title", "admin.notice"]);
+
+        for (section, expected) in [
+            (
+                "mode = \"bundle\"\nallow = []",
+                "targets.ts.bundler.dynamic.allow",
+            ),
+            (
+                "mode = \"error\"\nallow = [\"main.title\"]",
+                "requires mode = \"bundle\"",
+            ),
+            ("mode = \"unknown\"", "targets.ts.bundler.dynamic.mode"),
+            (
+                "mode = \"bundle\"\nallow = [\"main..title\"]",
+                "targets.ts.bundler.dynamic.allow",
+            ),
+            (
+                "mode = \"bundle\"\nallow = [\"main/title\"]",
+                "targets.ts.bundler.dynamic.allow",
+            ),
+            (
+                "mode = \"bundle\"\nallow = [\"main.*\"]",
+                "targets.ts.bundler.dynamic.allow",
+            ),
+            (
+                "mode = \"bundle\"\nallow = [\"main.title\", \"MAIN.TITLE\"]",
+                "duplicate config key",
+            ),
+            (
+                "mode = \"bundle\"\nallow = [\"main.title\"]\nunknown = true",
+                "unknown field",
+            ),
+        ] {
+            let source = format!(
+                r#"
+                [project]
+                name = "shop"
+                default_locale = "en"
+                locales = ["en"]
+                [paths]
+                schema = "schema"
+                locale = "locale"
+                [targets.ts]
+                framework = "svelte"
+                [targets.ts.bundler]
+                sources = ["src"]
+                [targets.ts.bundler.dynamic]
+                {section}
+                "#
+            );
+            let error = parse_config(&source).expect_err(section);
+            assert!(error.to_string().contains(expected), "{error}");
+        }
     }
 
     #[test]

@@ -11,9 +11,10 @@ pub use error::{ConfigError, ConfigResult};
 pub use model::{
     AnalysisConfig, CanonicalMode, CookiePath, LinguiniConfig, LinkMode, LocalePrefixMode,
     LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite, SecurePolicy,
-    TargetsConfig, TypeScriptBundlerConfig, TypeScriptTargetConfig, UnusedMessagesConfig,
-    WebConfig, WebCookieConfig, WebLinksConfig, WebLocalStorageConfig, WebLocaleConfig,
-    WebRoutesConfig, WebRoutingConfig, WebSwitchRouteConfig,
+    TargetsConfig, TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig,
+    TypeScriptBundlerDynamicMode, TypeScriptTargetConfig, UnusedMessagesConfig, WebConfig,
+    WebCookieConfig, WebLinksConfig, WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig,
+    WebRoutingConfig, WebSwitchRouteConfig,
 };
 pub use parser::parse_config;
 
