@@ -1,0 +1,13 @@
+{
+  "name": "@linguini/repository",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test:quick": "node scripts/test-all.mjs --profile quick",
+    "test:full": "node scripts/test-all.mjs --profile full",
+    "test:site": "node scripts/test-all.mjs --profile site"
+  }
+}
