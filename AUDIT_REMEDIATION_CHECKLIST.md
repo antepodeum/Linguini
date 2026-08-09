@@ -121,6 +121,8 @@ production path uses the fix and its relevant tests pass.
   spans, value/call identity, and conservative classification of ambiguous or mutating uses.
 - `49deef3` — separated complete tracked import usage from exact-static import safety so bounded
   dynamic transforms cannot remove imports when any source use is unrepresented.
+- `19c3616` — added manifest-v3 bounded dynamic-reference records, strict pre-write diagnostics,
+  exact finite allowlist validation, and tracked-binding transform eligibility.
 
 ## Numbered findings
 
@@ -697,11 +699,9 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A4 — Generate one ESM module per referenced message.
 - [x] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
 - [x] BUNDLE-A6 — Invalidate only affected virtual modules.
-- [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; the analyzer now separates exact static
-      references from conservative dynamic prefixes and manifest v2 keeps unresolved optional,
-      arity-mismatched, and non-leaf accesses separate from transformable references; the typed
-      strict/bundle policy and exact dynamic-reference metadata are committed, while pre-write
-      diagnostics and bounded transforms remain.
+- [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; manifest v3 now emits exact bounded
+      dynamic-reference metadata and strict builds fail before output mutation, while the Vite
+      bounded transform and real production integration remain under verification.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
