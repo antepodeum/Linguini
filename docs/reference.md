@@ -553,7 +553,35 @@ locale = "linguini/locale"
 out         = "src/generated/linguini"
 declaration = true
 gitignore   = true                      # emit generated .gitignore
+framework   = "sveltekit"              # enables the bundler integration
+
+[targets.ts.bundler]
+sources = ["src"]
+# locale_loading = "dynamic"           # eager is the default
 ```
+
+Generated message access is nested by canonical path. Parameterless leaves are
+values (`l.main.title`); parameterized leaves remain callable with their schema
+signature (`l.main.greeting("Artemy")`). The Svelte/Vite transform rewrites
+static `l` paths to imports of the exact per-message modules used by the source.
+
+Bundler dynamic access is strict by default. To permit a finite computed access,
+use the bounded escape below; `allow` entries are exact canonical message paths,
+not globs or namespace wildcards:
+
+```toml
+[targets.ts.bundler.dynamic]
+mode = "bundle"
+allow = ["main.title", "admin.notice"]
+```
+
+`locale_loading = "dynamic"` loads client locale modules on demand and waits
+for the selected locale chunk before switching locales. SSR keeps synchronous,
+static locale imports. Omit the field for eager loading.
+
+Web options use nested tables such as `[web.routing]`, `[web.locale]`,
+`[web.cookie]`, `[web.local_storage]`, `[web.links]`, and `[web.routes]`; the
+legacy flat web fields are not part of the current config format.
 
 ### Opt-in unused-message analysis
 

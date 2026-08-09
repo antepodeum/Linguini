@@ -46,7 +46,6 @@ locale = "linguini/locale"
 
 [targets.ts]
 out         = "src/generated/linguini"
-module      = "esm"
 declaration = true
 gitignore   = true
 ```
@@ -170,6 +169,32 @@ const l = configureLinguini({ language: () => getRequestLocale() });
 l.main.hello("Artemy"); // → "Hello, Artemy!"
 l.main.field_required("Email"); // → "Email is required."
 ```
+
+The generated object follows the schema's nested paths. A parameterless message
+is a value (`l.main.title`); a parameterized message is a function and keeps its
+typed signature (`l.main.hello("Artemy")`). In Svelte/Vite projects, static
+message paths can be transformed to the exact generated module for each message.
+
+Bundler mode is configured under `[targets.ts.bundler]` (and requires a Svelte
+or SvelteKit framework target). The default dynamic-access policy is strict:
+computed message paths fail the build. If a finite dynamic escape is required,
+list canonical message paths explicitly:
+
+```toml
+[targets.ts]
+framework = "sveltekit"
+
+[targets.ts.bundler]
+sources = ["src"]
+
+[targets.ts.bundler.dynamic]
+mode = "bundle"
+allow = ["main.title", "main.hello"]
+```
+
+`locale_loading = "dynamic"` is optional under `[targets.ts.bundler]`; the
+default is eager locale loading. With dynamic loading, client locale chunks are
+loaded before a locale switch while SSR remains synchronous and static.
 
 ## VS Code extension
 

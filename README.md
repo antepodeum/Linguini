@@ -101,6 +101,11 @@ l.checkout.cart_summary(3, "pasta", 1290);
 // → "В корзине 3 пасты на сумму 1290 рублей"
 ```
 
+The generated `l` object mirrors the nested schema paths. Parameterless messages
+are values (`l.checkout.title`); messages with parameters are callable leaves
+(`l.checkout.you_ordered(...)`). With the Svelte/Vite bundler target, static
+paths are transformed to imports of the exact per-message modules they use.
+
 Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer diagnostics for
 schema/locale mismatches, invalid references, missing branches in resolved enum/`Plural`
 dispatches, and type mismatches in locale calls whose argument types can be resolved. Generated
@@ -147,7 +152,6 @@ locale = "linguini/locale"
 
 [targets.ts]
 out         = "src/generated/linguini"
-module      = "esm"
 declaration = true
 ```
 
@@ -199,6 +203,14 @@ linguini lsp       Start the language server over stdio
 
 ```bash
 cargo test --workspace
+```
+
+The root runner provides repository-wide local verification:
+
+```bash
+pnpm test:quick   # Rust formatting plus focused Vite and CLI tests
+pnpm test:full    # Rust, Vite, CLI, VS Code, and real-site gates
+pnpm test:site    # generate, test, check, build, and inspect the site graph
 ```
 
 VS Code extension:

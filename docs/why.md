@@ -143,6 +143,11 @@ Messages compile to typed TypeScript functions and declarations, allowing a
 host TypeScript checker to validate application call arguments. There is no
 runtime message parser.
 
+For Svelte/Vite targets, the bundler transform rewrites static message paths to
+imports of the exact generated module each path uses. Because the browser graph
+uses those per-message imports instead of the eager message barrel, standard
+bundler tree-shaking can leave unrelated message modules out of the bundle.
+
 ---
 
 ## Summary

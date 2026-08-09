@@ -20,19 +20,38 @@ locale = "locales"
 
 [targets.ts]
 out = "src/lib/generated/linguini"
-module = "esm"
 declaration = true
 gitignore = true
 framework = "sveltekit"
 
 [targets.ts.bundler]
 sources = ["src"]
+# locale_loading = "dynamic" # eager is the default
 ```
 
-The bundler target enables exact message-module imports for the configured
+The bundler target enables exact per-message module imports for the configured
 source roots. Components that import `l` from the generated Svelte facade are
-rewritten to the message modules they actually read; the eager generated
-`index.ts` message barrel is not needed in the browser graph.
+rewritten to the message modules they statically read; the generated message
+barrel is not needed in that browser graph. Parameterless leaves are values
+(`l.home.title`), while parameterized leaves remain callable
+(`l.home.greeting("Artemy")`).
+
+Dynamic access is strict by default. A finite, explicit escape can be enabled
+with canonical message paths:
+
+```toml
+[targets.ts.bundler.dynamic]
+mode = "bundle"
+allow = ["home.title", "home.greeting"]
+```
+
+`allow` is an exact list of canonical message leaves; wildcards and namespace
+patterns are not accepted. `mode = "error"` is the default and rejects
+computed or otherwise dynamic message access during the bundler build.
+
+With `locale_loading = "dynamic"`, client virtual message modules import locale
+chunks on demand and preload the selected locale before a locale switch. SSR
+uses synchronous static locale imports; omit the field for eager loading.
 
 Use `framework = "svelte"` for a Svelte-only app. Omit `framework` to generate
 only the framework-agnostic TypeScript runtime.
@@ -40,36 +59,30 @@ only the framework-agnostic TypeScript runtime.
 ## Web config
 
 ```toml
-[web]
-# Locale sources are checked left-to-right. The first supported locale wins.
-strategy = ["url", "cookie", "localStorage", "header", "baseLocale"]
+[web.routing]
+locale_prefix = "always" # "always", "except-default", or "never"
+canonical = "redirect"   # or "preserve"
 
-# URL routing and localized URL generation.
-base_path = ""
-prefix_default_locale = false
-redirect = true
-origin = "https://example.com"
-exclude = ["/api/**", "/_app/**", "/favicon.ico"]
+# Sources are checked left-to-right; the first supported locale wins.
+[web.locale]
+sources = ["path", "cookie", "local-storage", "accept-language"]
 
-# The browser helper auto-localizes internal <a href="..."> links by default.
-# Use data-linguini-ignore on a single link or localize_links = false globally
-# to keep hrefs unchanged.
-localize_links = true
+[web.cookie]
+name = "LINGUINI_LOCALE"
+path = "/"
+max_age = "365d"
+same_site = "lax" # "lax", "strict", or "none"
+secure = false     # "auto" is also supported
+http_only = false
 
-# Cookie persistence.
-cookie_name = "LINGUINI_LOCALE"
-cookie_path = "/"
-cookie_max_age = 31536000
-cookie_same_site = "lax" # "lax", "strict", or "none"
-cookie_secure = false
-cookie_http_only = false
-# cookie_domain = "example.com"
+[web.local_storage]
+key = "LINGUINI_LOCALE"
 
-# Browser storage persistence.
-local_storage_key = "LINGUINI_LOCALE"
+[web.links]
+mode = "runtime" # "transform", "runtime", or "manual"
 
-# Existing-app escape hatch for strategy = ["globalVariable", ...].
-# global_variable_name = "__LINGUINI_LOCALE__"
+[web.routes]
+exclude = ["/_app/**", "/favicon.ico"]
 ```
 
 Linguini does not define a second trailing-slash policy. SvelteKit owns it per
@@ -81,18 +94,14 @@ in the root layout and override it in child routes when needed:
 export const trailingSlash = "never"; // "never", "always", or "ignore"
 ```
 
-Available strategies:
+Available locale sources:
 
-| Strategy            | Reads from                                                  |
+| Source              | Reads from                                                  |
 | ------------------- | ----------------------------------------------------------- |
-| `url`               | the first localized path segment, for example `/ru/pricing` |
+| `path`              | the first localized path segment, for example `/ru/pricing` |
 | `cookie`            | the configured locale cookie                                |
-| `localStorage`      | the configured browser storage key                          |
-| `header`            | the server `Accept-Language` header                         |
-| `navigator`         | browser `navigator.languages` / `navigator.language`        |
-| `preferredLanguage` | `header` on the server, `navigator` in the browser          |
-| `globalVariable`    | the configured global variable name                         |
-| `baseLocale`        | `project.default_locale`                                    |
+| `local-storage`     | the configured browser storage key                          |
+| `accept-language`   | the server `Accept-Language` header                         |
 
 ## SvelteKit files
 
@@ -230,7 +239,7 @@ Components usually import only `l`:
   import { l } from "$lib/generated/linguini/svelte";
 </script>
 
-<h1>{l.home.title()}</h1>
+<h1>{l.home.title}</h1>
 ```
 
 The browser helper localizes internal links after hydration and watches links
@@ -242,8 +251,8 @@ directly:
   import { l, localizeHref } from "$lib/generated/linguini/svelte";
 </script>
 
-<a href={localizeHref("/pricing")}>{l.nav.pricing()}</a>
-<a href={localizeHref("/account/settings")}>{l.nav.settings()}</a>
+<a href={localizeHref("/pricing")}>{l.nav.pricing}</a>
+<a href={localizeHref("/account/settings")}>{l.nav.settings}</a>
 ```
 
 For the `ru` locale these render as `/ru/pricing` and `/ru/account/settings`.
@@ -269,7 +278,7 @@ Use the generated helpers for locale switching or programmatic URLs:
   {/each}
 </nav>
 
-<p>{l.home.subtitle()}</p>
+<p>{l.home.subtitle}</p>
 ```
 
 Other generated client helpers:
