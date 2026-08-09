@@ -201,6 +201,7 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
   const combined = chunks.map((chunk) => chunk.code).join("\n");
   assert.match(combined, /EXACT_TITLE/);
   assert.match(combined, /EXACT_ITEMS/);
+  assert.match(combined, /__linguiniEffects/);
   assert.doesNotMatch(combined, /FORBIDDEN_SVELTE|FORBIDDEN_INDEX|virtual:linguini/);
   const titleOwner = chunks.find((chunk) => Object.keys(chunk.modules).includes(titleModule));
   const itemsOwner = chunks.find((chunk) => Object.keys(chunk.modules).includes(itemsModule));

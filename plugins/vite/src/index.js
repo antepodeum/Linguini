@@ -866,11 +866,17 @@ async function transformApplication(code, id, application, manifest, generatedRo
   const magic = new MagicString(code);
   const aliases = new Map();
   const bindingImports = new Map();
+  const allocatedAliases = new Set();
+  let nextAliasIndex = 0;
   for (const reference of references) {
     const aliasKey = `${reference.bindingId}\0${reference.message}`;
     let alias = aliases.get(aliasKey);
     if (!alias) {
-      alias = `__linguini_message_${aliases.size}`;
+      do {
+        alias = `__linguini_message_${nextAliasIndex}`;
+        nextAliasIndex += 1;
+      } while (code.includes(alias) || allocatedAliases.has(alias));
+      allocatedAliases.add(alias);
       aliases.set(aliasKey, alias);
       const imports = bindingImports.get(reference.bindingId) ?? [];
       imports.push({ message: reference.message, alias });
@@ -1028,11 +1034,11 @@ function isRawApplicationModule(id) {
     return false;
   }
   const file = stripQueryAndHash(id);
-  const extension = path.extname(file).toLowerCase();
-  if (extension === ".svelte") {
-    return id === file;
+  if (id !== file) {
+    return false;
   }
-  return JS_TS_EXTENSIONS.has(extension);
+  const extension = path.extname(file).toLowerCase();
+  return extension === ".svelte" || JS_TS_EXTENSIONS.has(extension);
 }
 
 function isBundlerApplicationSource(file, projectLayout) {
@@ -1083,7 +1089,10 @@ function normalizeResolvedFileId(id) {
   if (typeof id !== "string" || id.length === 0 || id.includes("\0")) {
     return undefined;
   }
-  let file = stripQueryAndHash(id);
+  if (id !== stripQueryAndHash(id)) {
+    return undefined;
+  }
+  let file = id;
   if (file.startsWith("file:")) {
     try {
       file = fileURLToPath(file);

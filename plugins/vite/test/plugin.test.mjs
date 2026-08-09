@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import {
   discoverLinguiniFiles,
   isLinguiniSource,
@@ -40,10 +41,11 @@ function byteSpan(source, needle) {
   return [start, start + Buffer.byteLength(needle)];
 }
 
-async function bundlerFixture({ version = 2, source } = {}) {
+async function bundlerFixture({ version = 2, source, applicationName = "page.svelte" } = {}) {
   const root = await fixture();
   const generated = path.join(root, "build/custom-linguini");
-  const application = path.join(root, "src/app/page.svelte");
+  const applicationKey = `src/app/${applicationName}`;
+  const application = path.join(root, applicationKey);
   const code =
     source ??
     '<script>\r\nimport { l as tr, helper } from "../../build/custom-linguini/svelte.ts";\r\nconst привет = tr.main.title;\r\n</script>\r\n';
@@ -108,7 +110,7 @@ async function bundlerFixture({ version = 2, source } = {}) {
             }
           },
           applications: {
-            "src/app/page.svelte": {
+            [applicationKey]: {
               source_id: 2147483648,
               sha256: createHash("sha256").update(Buffer.from(code)).digest("hex"),
               byte_length: Buffer.byteLength(code),
@@ -157,7 +159,7 @@ async function bundlerFixture({ version = 2, source } = {}) {
         };
   await mkdir(path.join(generated, "bundler"), { recursive: true });
   await writeFile(path.join(generated, "bundler/manifest.json"), JSON.stringify(manifest));
-  return { root, generated, application, code, manifest };
+  return { root, generated, application, applicationKey, code, manifest };
 }
 
 function mockServer(modules = []) {
@@ -426,6 +428,32 @@ test("v2 rejects stale bytes and skips unsafe bindings", async (context) => {
     fixtureData.application
   );
   assert.equal(unchanged, undefined);
+  const generatedEntry = path.join(fixtureData.generated, "svelte.ts");
+  for (const suffix of ["?raw", "?url", "#fragment", "?raw#fragment"]) {
+    assert.equal(
+      await plugin.transform.call(
+        { resolve: async () => ({ id: `${generatedEntry}${suffix}` }) },
+        fixtureData.code,
+        fixtureData.application
+      ),
+      undefined
+    );
+    assert.equal(
+      await plugin.transform.call(
+        { resolve: async () => ({ id: `${pathToFileURL(generatedEntry).href}${suffix}` }) },
+        fixtureData.code,
+        fixtureData.application
+      ),
+      undefined
+    );
+  }
+  assert.ok(
+    await plugin.transform.call(
+      { resolve: async () => ({ id: pathToFileURL(generatedEntry).href }) },
+      fixtureData.code,
+      fixtureData.application
+    )
+  );
   assert.equal(
     await plugin.transform.call(
       { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
@@ -434,6 +462,28 @@ test("v2 rejects stale bytes and skips unsafe bindings", async (context) => {
     ),
     undefined
   );
+  const queried = await bundlerFixture({ applicationName: "page.ts" });
+  context.after(() => rm(queried.root, { recursive: true, force: true }));
+  const queriedPlugin = linguini({ root: queried.root, buildOnStart: false });
+  await queriedPlugin.configResolved({ root: queried.root });
+  await queriedPlugin.buildStart.call({ addWatchFile() {} });
+  assert.ok(
+    await queriedPlugin.transform.call(
+      { resolve: async () => ({ id: path.join(queried.generated, "svelte.ts") }) },
+      queried.code,
+      queried.application
+    )
+  );
+  for (const suffix of ["?raw", "?url", "?worker", "#fragment", "?raw#fragment"]) {
+    assert.equal(
+      await queriedPlugin.transform.call(
+        { resolve: async () => ({ id: path.join(queried.generated, "svelte.ts") }) },
+        "transformed payload that must not be hashed",
+        `${queried.application}${suffix}`
+      ),
+      undefined
+    );
+  }
   for (const unsupported of ["page.vue", "page.astro", "page.css", "page.svelte?raw"]) {
     assert.equal(
       await plugin.transform.call(
@@ -446,16 +496,40 @@ test("v2 rejects stale bytes and skips unsafe bindings", async (context) => {
   }
 });
 
+test("allocates generated aliases around existing JavaScript bindings", async (context) => {
+  const source = [
+    'import { l as tr, helper } from "../../build/custom-linguini/svelte.ts";',
+    'const __linguini_message_0 = "user-owned";',
+    "const title = tr.main.title;",
+    ""
+  ].join("\r\n");
+  const fixtureData = await bundlerFixture({ applicationName: "collision.ts", source });
+  context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: fixtureData.root, buildOnStart: false });
+  await plugin.configResolved({ root: fixtureData.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const result = await plugin.transform.call(
+    { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+    source,
+    fixtureData.application
+  );
+  assert.match(result.code, /message as __linguini_message_1/);
+  assert.match(result.code, /const __linguini_message_0 = "user-owned"/);
+  assert.match(result.code, /const title = __linguini_message_1\(\)/);
+});
+
 test("keeps virtual imports inside each Svelte script scope and collapses sole import", async (context) => {
   const fixtureData = await bundlerFixture();
   context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
   const source = [
     '<script context="module">',
     'const emoji = "😀";',
+    'const __linguini_message_0 = "module-owned";',
     'import { l as moduleL } from "../../build/custom-linguini/svelte.ts";',
     "const moduleTitle = moduleL.main.title;",
     "</script>",
     "<script>",
+    'const __linguini_message_1 = "instance-owned";',
     'import { messages as instanceL, helper } from "../../build/custom-linguini/svelte.ts";',
     "const instanceTitle = instanceL.main.title;",
     "const implicitTitle = implicit.main.title;",
@@ -510,7 +584,7 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
   const moduleDeclaration = 'import { l as moduleL } from "../../build/custom-linguini/svelte.ts";';
   const instanceDeclaration =
     'import { messages as instanceL, helper } from "../../build/custom-linguini/svelte.ts";';
-  const application = fixtureData.manifest.applications["src/app/page.svelte"];
+  const application = fixtureData.manifest.applications[fixtureData.applicationKey];
   application.sha256 = createHash("sha256").update(Buffer.from(source)).digest("hex");
   application.byte_length = Buffer.byteLength(source);
   application.imports = [
@@ -543,10 +617,10 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
     fixtureData.application
   );
   const [moduleScript, instanceScript] = result.code.split("</script>");
-  assert.match(moduleScript, /message as __linguini_message_0/);
-  assert.doesNotMatch(moduleScript, /__linguini_message_1/);
+  assert.match(moduleScript, /message as __linguini_message_2/);
+  assert.doesNotMatch(moduleScript, /message as __linguini_message_3/);
   assert.doesNotMatch(moduleScript, /l as moduleL/);
-  assert.match(instanceScript, /message as __linguini_message_1/);
+  assert.match(instanceScript, /message as __linguini_message_3/);
   assert.match(instanceScript, /import \{ helper \}/);
   assert.match(instanceScript, /implicit\.main\.title/);
 });
