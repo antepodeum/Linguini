@@ -105,6 +105,8 @@ production path uses the fix and its relevant tests pass.
   policy, and generated distinct plain-Svelte and SvelteKit reactive locale implementations.
 - `aa75a3f`, `45a78c1` — added manifest-v2 Vite transforms and exact virtual message modules, then
   hardened raw-source/resolver identity, scoped alias allocation, effects retention, and graph tests.
+- `a6d13fc` — added manifest-delta HMR with exact source-to-message, per-locale physical-module,
+  and application invalidation plus add/remove browser propagation.
 
 ## Numbered findings
 
@@ -680,7 +682,7 @@ production path uses the fix and its relevant tests pass.
       a reactive virtual-message call.
 - [x] BUNDLE-A4 — Generate one ESM module per referenced message.
 - [x] BUNDLE-A5 — Include only each message's transitive semantic dependencies.
-- [ ] BUNDLE-A6 — Invalidate only affected virtual modules.
+- [x] BUNDLE-A6 — Invalidate only affected virtual modules.
 - [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; the analyzer now separates exact static
       references from conservative dynamic prefixes and manifest v2 keeps unresolved optional,
       arity-mismatched, and non-leaf accesses separate from transformable references; strict
