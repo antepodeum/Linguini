@@ -103,6 +103,8 @@ production path uses the fix and its relevant tests pass.
   and binding-wide transform-safety metadata to analyzer and manifest v2.
 - `1ce930b` — split Svelte browser effects from the eager message runtime, added metadata-only web
   policy, and generated distinct plain-Svelte and SvelteKit reactive locale implementations.
+- `1804d1f` — added lightweight Svelte client controls and compatibility-safe SvelteKit control
+  hooks so transformed applications can avoid eager message barrels without breaking legacy APIs.
 - `aa75a3f`, `45a78c1` — added manifest-v2 Vite transforms and exact virtual message modules, then
   hardened raw-source/resolver identity, scoped alias allocation, effects retention, and graph tests.
 - `a6d13fc` — added manifest-delta HMR with exact source-to-message, per-locale physical-module,
