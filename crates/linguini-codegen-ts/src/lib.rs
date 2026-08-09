@@ -7,11 +7,11 @@ pub use ecmascript::{
     RenderedEcmaModule,
 };
 pub use module::{
-    compile_typescript_message_module, generate_typescript_project_files,
-    CompiledTypeScriptMessageModule, TypeScriptCodegenError, TypeScriptFramework,
-    TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleSource,
-    TypeScriptMessageArtifact, TypeScriptOptions, TypeScriptProjectOptions, TypeScriptWebOptions,
-    ValidatedTypeScriptProject,
+    compile_typescript_bundler_message_module, compile_typescript_message_module,
+    generate_typescript_project_files, CompiledTypeScriptMessageModule, TypeScriptCodegenError,
+    TypeScriptFramework, TypeScriptGeneratedFile, TypeScriptLocaleModule,
+    TypeScriptLocaleRuntimeArtifact, TypeScriptLocaleSource, TypeScriptMessageArtifact,
+    TypeScriptOptions, TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
 };
 pub use plural::generate_plural_function;
 

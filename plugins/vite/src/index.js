@@ -313,7 +313,7 @@ export function linguini(options = {}) {
         return undefined;
       }
       if (!bundlerManifest) {
-        throw new Error("Linguini bundler manifest v2, v3, or v4 is required for virtual messages");
+        throw new Error("Linguini bundler manifest v2, v3, v4, or v5 is required for virtual messages");
       }
       const message = decodeMessageId(id.slice(RESOLVED_VIRTUAL_MESSAGE_PREFIX.length));
       return renderVirtualMessageModule(
@@ -724,7 +724,7 @@ async function readBundlerManifest(layout) {
   if (raw.version === 1) {
     return undefined;
   }
-  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4) {
+  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5) {
     throw new Error(`unsupported Linguini bundler manifest version ${raw.version}`);
   }
   return validateManifest(raw, layout, manifestPath);
@@ -732,18 +732,18 @@ async function readBundlerManifest(layout) {
 
 function validateManifest(raw, layout, manifestPath) {
   const context = `Linguini bundler manifest ${manifestPath}`;
-  if (raw.version === 4 && raw.locale_loading === undefined) {
+  if (raw.version >= 4 && raw.locale_loading === undefined) {
     throw new Error(
-      `unsupported Linguini bundler manifest version 4: ${context}.locale_loading must be "eager" or "dynamic"`
+      `unsupported Linguini bundler manifest version ${raw.version}: ${context}.locale_loading must be "eager" or "dynamic"`
     );
   }
   const localeLoading =
-    raw.version === 4
+    raw.version >= 4
       ? validateLocaleLoading(raw.locale_loading, `${context}.locale_loading`)
       : "eager";
-  if (raw.version !== 4 && layout.localeLoading === "dynamic") {
+  if (raw.version < 4 && layout.localeLoading === "dynamic") {
     throw new Error(
-      `${context}.locale_loading dynamic requires manifest version 4 (config requests dynamic loading)`
+      `${context}.locale_loading dynamic requires manifest version 4 or newer (config requests dynamic loading)`
     );
   }
   if (layout.localeLoading !== localeLoading) {
@@ -790,6 +790,10 @@ function validateManifest(raw, layout, manifestPath) {
       source.id
     );
   }
+  const messageRuntimes =
+    raw.version >= 5
+      ? validateMessageRuntimes(raw.message_runtimes, effectiveLocales, sourceIds, layout, context)
+      : new Map();
   if (!isRecord(raw.runtime_helpers)) {
     throw new Error(`${context}.runtime_helpers must be an object`);
   }
@@ -877,6 +881,7 @@ function validateManifest(raw, layout, manifestPath) {
     localeHelper,
     effectsHelper,
     sourceIdsByFile,
+    messageRuntimes,
     messages,
     applicationsByFile,
     applicationFiles: Object.freeze([...applicationsByFile.keys()].sort(comparePaths))
@@ -890,6 +895,55 @@ function validateRuntimeHelper(raw, field, generatedRoot, context) {
   const logicalImport = requireString(raw.import, `${context}.${field}.import`);
   const file = resolveGeneratedPath(generatedRoot, raw.file, `${context}.${field}.file`);
   return Object.freeze({ logicalImport, file });
+}
+
+function validateMessageRuntimes(raw, effectiveLocales, sourceIds, layout, context) {
+  const field = `${context}.message_runtimes`;
+  if (!isRecord(raw)) {
+    throw new Error(`${field} must be an object`);
+  }
+  const runtimeLocales = Object.keys(raw);
+  const expectedLocales = new Set(effectiveLocales);
+  if (
+    runtimeLocales.length !== expectedLocales.size ||
+    runtimeLocales.some((locale) => !expectedLocales.has(locale))
+  ) {
+    throw new Error(`${field} must contain exactly one entry for every effective locale`);
+  }
+  const runtimes = new Map();
+  const runtimeModules = new Set();
+  for (const locale of effectiveLocales) {
+    const entry = raw[locale];
+    const entryField = `${field}.${locale}`;
+    if (!isRecord(entry)) {
+      throw new Error(`${entryField} must be an object`);
+    }
+    const module = resolveGeneratedPath(
+      layout.generatedRoot,
+      entry.module,
+      `${entryField}.module`
+    );
+    if (runtimeModules.has(module)) {
+      throw new Error(`${field} must have unique module paths`);
+    }
+    runtimeModules.add(module);
+    if (!Array.isArray(entry.source_ids)) {
+      throw new Error(`${entryField}.source_ids must be an array of source ids`);
+    }
+    const ids = entry.source_ids.map((sourceId, index) => {
+      if (!isNonnegativeInteger(sourceId) || !sourceIds.has(sourceId)) {
+        throw new Error(
+          `${entryField}.source_ids.${index} must be an integer id from sources`
+        );
+      }
+      return sourceId;
+    });
+    if (new Set(ids).size !== ids.length) {
+      throw new Error(`${entryField}.source_ids must contain unique source ids`);
+    }
+    runtimes.set(locale, Object.freeze({ module, sourceIds: Object.freeze(ids) }));
+  }
+  return runtimes;
 }
 
 function validateApplication(raw, relative, context, messages, manifestVersion) {
@@ -1327,6 +1381,31 @@ function manifestDelta(previous, next, changedFile) {
       continue;
     }
     messages.add(canonical);
+  }
+  const runtimeLocales = new Set([
+    ...(previous.messageRuntimes?.keys() ?? []),
+    ...(next.messageRuntimes?.keys() ?? [])
+  ]);
+  for (const locale of [...runtimeLocales].sort(comparePaths)) {
+    const previousRuntime = previous.messageRuntimes?.get(locale);
+    const nextRuntime = next.messageRuntimes?.get(locale);
+    const descriptorChanged =
+      !previousRuntime ||
+      !nextRuntime ||
+      previousRuntime.module !== nextRuntime.module ||
+      !sameNumberArray(previousRuntime.sourceIds, nextRuntime.sourceIds);
+    const sourceChanged = [previousRuntime, nextRuntime].some((runtime) =>
+      runtime?.sourceIds.some((sourceId) => changedSourceIds.has(sourceId))
+    );
+    if (!descriptorChanged && !sourceChanged) {
+      continue;
+    }
+    if (previousRuntime) {
+      physicalFiles.add(previousRuntime.module);
+    }
+    if (nextRuntime) {
+      physicalFiles.add(nextRuntime.module);
+    }
   }
   const applicationFiles = new Set();
   const files = new Set([
@@ -1886,7 +1965,7 @@ function renderVirtualMessageModule(manifest, canonical, dynamicClient = false) 
   if (!message) {
     throw new Error(`unknown Linguini message ${canonical}`);
   }
-  if (dynamicClient && manifest.version === 4 && manifest.localeLoading === "dynamic") {
+  if (dynamicClient && manifest.version >= 4 && manifest.localeLoading === "dynamic") {
     return renderDynamicVirtualMessageModule(manifest, canonical, message);
   }
   const imports = [

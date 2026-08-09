@@ -7,7 +7,7 @@ use linguini_analyzer::{
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
-    compile_typescript_message_module, generate_typescript_project_files, EcmaSource,
+    compile_typescript_bundler_message_module, generate_typescript_project_files, EcmaSource,
     TypeScriptFramework, TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleSource,
     TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
 };
@@ -209,6 +209,9 @@ fn generate_bundler_files(
     let artifacts = project
         .message_artifacts()
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+    let runtime_artifacts = project
+        .locale_runtime_artifacts()
+        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let mut files = Vec::with_capacity(artifacts.len() * 2 + 1);
     let mut messages = BTreeMap::<String, (usize, BTreeMap<String, serde_json::Value>)>::new();
     let effective_locales = project
@@ -237,12 +240,13 @@ fn generate_bundler_files(
                     artifact.message, artifact.locale
                 ))
             })?;
-        let compiled = compile_typescript_message_module(
+        let compiled = compile_typescript_bundler_message_module(
             project,
             &artifact.locale,
             &artifact.message,
             &artifact.output_file_name,
             &artifact.shared_import_path,
+            &artifact.runtime_import_path,
             &map_sources,
         )
         .map_err(|error| {
@@ -306,12 +310,28 @@ fn generate_bundler_files(
     if let Some(bundler) = &target.bundler {
         let applications = scan_bundler_applications(root, output_root, bundler, &message_arities)?;
         let manifest = manifest.as_object_mut().expect("manifest is an object");
-        manifest.insert("version".to_owned(), serde_json::json!(4));
+        manifest.insert("version".to_owned(), serde_json::json!(5));
         manifest.insert(
             "locale_loading".to_owned(),
             serde_json::json!(bundler.locale_loading.as_str()),
         );
         manifest.insert("applications".to_owned(), serde_json::json!(applications));
+        let message_runtimes = runtime_artifacts
+            .iter()
+            .map(|artifact| {
+                (
+                    artifact.locale.clone(),
+                    serde_json::json!({
+                        "module": artifact.module_path,
+                        "source_ids": artifact.source_ids.iter().map(|id| id.0).collect::<Vec<_>>(),
+                    }),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        manifest.insert(
+            "message_runtimes".to_owned(),
+            serde_json::json!(message_runtimes),
+        );
         let mut runtime_helpers = serde_json::Map::new();
         runtime_helpers.insert(
             "svelte_locale".to_owned(),

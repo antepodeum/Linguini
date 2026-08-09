@@ -148,8 +148,10 @@ fn project_codegen_owns_multilocale_index_files() {
             ".gitignore",
             "shared.d.ts",
             "messages.d.ts",
+            "locales/en/_runtime.ts",
             "locales/en.ts",
             "locales/en.d.ts",
+            "locales/ru/_runtime.ts",
             "locales/ru.ts",
             "locales/ru.d.ts",
             "locale.ts",
@@ -618,17 +620,14 @@ plain = Raw {price @number}
     assert!(!locale_module.contents.contains("GeneratedNumberPattern"));
     assert!(!locale_module.contents.contains("Intl.DateTimeFormat"));
     assert!(!locale_module.contents.contains("replace(/[#0"));
-    assert!(locale_module.contents.contains("function formatCurrency("));
+    assert!(locale_module
+        .contents
+        .contains("import { formatNumber, formatCurrency, formatDate } from \"./en/_runtime\";"));
+    assert!(!locale_module.contents.contains("function formatCurrency("));
     assert!(locale_module
         .contents
         .contains("formatCurrency(price, 2, 0, { code: \"EUR\" })"));
-    assert!(locale_module.contents.contains("function formatDate("));
-    assert!(locale_module
-        .contents
-        .contains("const date = coerceDate(value);"));
-    assert!(locale_module
-        .contents
-        .contains("function coerceDate(value: Date | number | string): Date"));
+    assert!(!locale_module.contents.contains("function formatDate("));
     assert!(locale_module
         .contents
         .contains("formatDate(created, { style: \"short\" })"));
@@ -643,6 +642,89 @@ plain = Raw {price @number}
         .contents
         .contains("export function plain(price: Price): string"));
     assert!(locale_module.contents.contains("formatNumber(price)"));
+    let runtime = files
+        .iter()
+        .find(|file| file.path == "locales/en/_runtime.ts")
+        .expect("locale runtime");
+    assert!(runtime.contents.contains("export function formatNumber("));
+    assert!(runtime.contents.contains("export function formatCurrency("));
+    assert!(runtime.contents.contains("export function formatDate("));
+    assert!(runtime.contents.contains("const date = coerceDate(value);"));
+    assert_eq!(
+        files
+            .iter()
+            .filter(|file| file.path.ends_with("/_runtime.ts"))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn project_namespace_modules_share_the_locale_runtime() {
+    let schema = lower_schema(&parse_schema("account { total(value: Number) }\n").expect("schema"));
+    let locale =
+        lower_locale(&parse_locale("account { total = Total {value @number} }\n").expect("locale"));
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+
+    let namespace = files
+        .iter()
+        .find(|file| file.path == "locales/en/account.ts")
+        .expect("namespace module");
+    assert!(namespace
+        .contents
+        .contains("import { formatNumber } from \"./_runtime\";"));
+    assert!(!namespace.contents.contains("function formatNumber("));
+    let barrel = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale barrel");
+    assert!(!barrel.contents.contains("formatNumber"));
+    let runtime = files
+        .iter()
+        .find(|file| file.path == "locales/en/_runtime.ts")
+        .expect("locale runtime");
+    assert_eq!(
+        runtime
+            .contents
+            .matches("export function formatNumber(")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn project_literal_helper_names_do_not_require_runtime_exports() {
+    let schema = lower_schema(&parse_schema("literal\n").expect("schema"));
+    let locale =
+        lower_locale(&parse_locale("literal = formatNumber( pluralEn(\n").expect("locale"));
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("project codegen");
+    let barrel = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale barrel");
+    assert!(barrel.contents.contains("formatNumber( pluralEn("));
+    assert!(!barrel.contents.contains("from \"./en/_runtime\""));
+    let runtime = files
+        .iter()
+        .find(|file| file.path == "locales/en/_runtime.ts")
+        .expect("locale runtime");
+    assert!(runtime.contents.is_empty());
 }
 
 #[test]

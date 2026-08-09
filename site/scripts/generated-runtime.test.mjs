@@ -32,6 +32,12 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
     join(directory, 'shared.ts'),
     readFileSync(join(generatedRoot, 'shared.ts'), 'utf8')
   );
+  for (const locale of ['en', 'ru']) {
+    writeFileSync(
+      join(localeDirectory, locale, '_runtime.ts'),
+      readFileSync(join(generatedRoot, 'locales', locale, '_runtime.ts'), 'utf8')
+    );
+  }
 
   const enSourcePath = join(generatedRoot, 'locales/en/main.ts');
   const originalEnSource = readFileSync(enSourcePath, 'utf8');

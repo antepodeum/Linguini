@@ -23,10 +23,10 @@ use linguini_cldr::{
 use linguini_ir::{validate_ir, IrModule, IrReferenceError, ValidatedIr};
 
 use self::emit::{
-    emit_formatter_data, emit_forms, emit_imports, emit_local_functions, emit_locale_enum_types,
-    emit_messages, emit_schema_type_reexports, emit_variables,
+    emit_forms, emit_imports, emit_local_functions, emit_locale_enum_types, emit_messages,
+    emit_schema_type_reexports, emit_variables,
 };
-use self::formatters::formatter_requirements;
+use self::formatters::{formatter_requirements, plural_required};
 use self::names::{escape_string, portable_path_component_error, safe_file_stem, safe_identifier};
 use self::shared::emit_shared;
 use super::plural::generate_plural_function;
@@ -365,8 +365,11 @@ impl fmt::Display for TypeScriptCodegenError {
     }
 }
 
-pub use artifacts::TypeScriptMessageArtifact;
-pub use message::{compile_typescript_message_module, CompiledTypeScriptMessageModule};
+pub use artifacts::{TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact};
+pub use message::{
+    compile_typescript_bundler_message_module, compile_typescript_message_module,
+    CompiledTypeScriptMessageModule,
+};
 
 impl std::error::Error for TypeScriptCodegenError {}
 
@@ -425,6 +428,13 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         &self,
     ) -> Result<Vec<TypeScriptMessageArtifact>, TypeScriptCodegenError> {
         artifacts::message_artifacts(self)
+    }
+
+    /// Enumerates one shared generated-helper runtime for each effective locale.
+    pub fn locale_runtime_artifacts(
+        &self,
+    ) -> Result<Vec<TypeScriptLocaleRuntimeArtifact>, TypeScriptCodegenError> {
+        artifacts::locale_runtime_artifacts(self)
     }
 
     /// Locale identities whose fallback-composed modules passed project validation.
@@ -554,6 +564,13 @@ fn validate_namespace_output_paths(
             });
         }
         let folded = stem.to_ascii_lowercase();
+        if folded == "_runtime" {
+            let locale = &locales[0].locale;
+            return Err(TypeScriptCodegenError::OutputPathCollision {
+                path: format!("locales/{locale}/{stem}.ts"),
+                conflicts_with: format!("locales/{locale}/_runtime.ts (locale runtime)"),
+            });
+        }
         if let Some((conflicting_namespace, conflicting_stem)) = output_stems.get(&folded) {
             let locale = &locales[0].locale;
             return Err(TypeScriptCodegenError::OutputPathCollision {
@@ -633,6 +650,10 @@ pub fn generate_typescript_project_files(
         let locale_options = project_locale_options(&locale.locale, options)?;
         let visible_schema = visible_schema(schema, &locale_options);
         let visible_locale = locale_module_for_schema(&locale.module, &visible_schema);
+        files.push(TypeScriptGeneratedFile {
+            path: format!("locales/{}/_runtime.ts", locale.locale),
+            contents: generate_locale_runtime(&visible_schema, &visible_locale, &locale_options),
+        });
         let namespaces = top_level_namespaces(&visible_schema);
         for namespace in &namespaces {
             let namespace_file_stem = safe_file_stem(namespace);
@@ -649,6 +670,7 @@ pub fn generate_typescript_project_files(
                     &validated,
                     &locale_options,
                     "../../shared",
+                    "./_runtime",
                     Some(namespace),
                 ),
             });
@@ -866,11 +888,16 @@ fn generate_typescript_module_unchecked(
         ));
     }
     emit_imports(schema, locale, options, "../shared", &mut output);
+    emit_locale_runtime_imports(
+        schema,
+        locale,
+        options,
+        &format!("./{}/_runtime", escape_string(&options.locale)),
+        &mut output,
+    );
     if !namespaces.is_empty() {
         output.push('\n');
     }
-    emit::emit_plural_helpers(options, &mut output);
-    emit_formatter_data(schema, locale, options, &mut output);
     emit_schema_type_reexports(schema, "../shared", &mut output);
     emit_locale_enum_types(schema, locale, &mut output);
     for namespace in namespaces {
@@ -899,14 +926,14 @@ fn generate_typescript_module_with_shared_import(
     ir: &ValidatedIr<'_>,
     options: &TypeScriptOptions,
     shared_import_path: &str,
+    runtime_import_path: &str,
     namespace_alias: Option<&str>,
 ) -> String {
     let schema = ir.schema();
     let locale = ir.locale();
     let mut output = String::new();
     emit_imports(schema, locale, options, shared_import_path, &mut output);
-    emit::emit_plural_helpers(options, &mut output);
-    emit_formatter_data(schema, locale, options, &mut output);
+    emit_locale_runtime_imports(schema, locale, options, runtime_import_path, &mut output);
     emit_schema_type_reexports(schema, shared_import_path, &mut output);
     emit_locale_enum_types(schema, locale, &mut output);
     emit_variables(locale, options, &mut output);
@@ -926,6 +953,73 @@ fn generate_typescript_module_with_shared_import(
         }
     }
     output
+}
+
+fn generate_locale_runtime(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+) -> String {
+    let mut output = String::new();
+    let requirements = formatter_requirements(schema, locale);
+    if requirements.any() {
+        output.push_str(&expr::formatter_data_declaration(
+            &options.locale,
+            requirements,
+        ));
+        for name in requirements.helper_names() {
+            output = output.replacen(
+                &format!("function {name}("),
+                &format!("export function {name}("),
+                1,
+            );
+        }
+    }
+    if plural_required(schema, locale) {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(
+            options
+                .plural_source
+                .as_deref()
+                .expect("project locale options always include plural source"),
+        );
+    }
+    output
+}
+
+fn emit_locale_runtime_imports(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+    runtime_import_path: &str,
+    output: &mut String,
+) {
+    let helpers = runtime_helper_names(schema, locale, options);
+    if !helpers.is_empty() {
+        output.push_str(&format!(
+            "import {{ {} }} from \"{}\";\n",
+            helpers.join(", "),
+            escape_string(runtime_import_path)
+        ));
+    }
+}
+
+fn runtime_helper_names(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+) -> Vec<String> {
+    let mut helpers = formatter_requirements(schema, locale)
+        .helper_names()
+        .into_iter()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    if plural_required(schema, locale) {
+        helpers.push(options.plural_function.clone());
+    }
+    helpers
 }
 
 fn validate_codegen_ir<'a>(
@@ -1295,6 +1389,31 @@ mod tests {
             validate_project_inputs(&schema, &locales, &unknown),
             Err(TypeScriptCodegenError::UnknownIncludedMessage { message })
                 if message == "top.unknown"
+        ));
+    }
+
+    #[test]
+    fn locale_runtime_path_is_reserved_from_namespace_outputs() {
+        let schema = lower_schema(&parse_schema("_runtime { title }\n").expect("schema parses"));
+        let locales = [TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: lower_locale(
+                &parse_locale("_runtime { title = Title }\n").expect("locale parses"),
+            ),
+        }];
+        let error = validate_project_inputs(
+            &schema,
+            &locales,
+            &TypeScriptProjectOptions {
+                base_locale: Some("en".to_owned()),
+                ..TypeScriptProjectOptions::default()
+            },
+        )
+        .expect_err("runtime namespace collision");
+        assert!(matches!(
+            error,
+            TypeScriptCodegenError::OutputPathCollision { path, conflicts_with }
+                if path == "locales/en/_runtime.ts" && conflicts_with.contains("locale runtime")
         ));
     }
 

@@ -37,8 +37,32 @@ const generatedManifest = readJson(
   join(generatedRoot, 'bundler/manifest.json'),
   'generated bundler manifest'
 );
-assert.equal(generatedManifest.version, 4);
+assert.equal(generatedManifest.version, 5);
 assert.equal(generatedManifest.locale_loading, 'dynamic');
+
+const effectiveLocales = new Set(generatedManifest.effective_locales);
+assert.deepEqual(
+  new Set(Object.keys(generatedManifest.message_runtimes)),
+  effectiveLocales,
+  'message runtimes do not exactly cover effective locales'
+);
+const sourceIds = new Set(generatedManifest.sources.map((source) => source.id));
+const runtimeModuleIds = new Set();
+for (const [locale, runtime] of Object.entries(generatedManifest.message_runtimes)) {
+  assert.ok(Array.isArray(runtime.source_ids), `${locale} runtime source ids are missing`);
+  assert.ok(
+    runtime.source_ids.every((sourceId) => sourceIds.has(sourceId)),
+    `${locale} runtime references an unknown source id`
+  );
+  const moduleId = `src/lib/generated/linguini/${runtime.module}`;
+  assert.equal(runtimeModuleIds.has(moduleId), false, `duplicate runtime module ${moduleId}`);
+  runtimeModuleIds.add(moduleId);
+  assert.equal(
+    statSync(join(siteRoot, moduleId)).isFile(),
+    true,
+    `${locale} runtime module is missing`
+  );
+}
 
 // Static application references must stay exact. Locale loading is a separate
 // concern and must not turn an exact message access into an unresolved or
@@ -66,10 +90,24 @@ for (const [applicationId, application] of Object.entries(generatedManifest.appl
 assert.ok(referenceCount > 0, 'generated manifest has no application references');
 
 const localeModuleIds = new Set();
+let runtimeImportCount = 0;
+const helperBodyPattern =
+  /function (?:formatNumber|formatCurrency|formatDate|formatGeneratedNumber|parseGeneratedDecimal|coerceDate|plural[A-Z][A-Za-z0-9_]*)\s*\(/;
+for (const message of Object.values(generatedManifest.messages)) {
+  for (const entry of Object.values(message.locales)) {
+    const moduleId = `src/lib/generated/linguini/${entry.module}`;
+    const source = readFileSync(join(siteRoot, moduleId), 'utf8');
+    assert.doesNotMatch(source, helperBodyPattern, `${moduleId} contains an inline helper body`);
+    if (source.includes('/_runtime"')) runtimeImportCount += 1;
+  }
+}
+assert.ok(runtimeImportCount > 0, 'no physical message imports a shared locale runtime');
+
 for (const message of usedMessages) {
   assert.ok(generatedManifest.messages[message], `missing generated message ${message}`);
   for (const entry of Object.values(generatedManifest.messages[message].locales)) {
-    localeModuleIds.add(`src/lib/generated/linguini/${entry.module}`);
+    const moduleId = `src/lib/generated/linguini/${entry.module}`;
+    localeModuleIds.add(moduleId);
   }
 }
 

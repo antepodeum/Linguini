@@ -490,7 +490,7 @@ tree_shaking = false
     .expect("config");
     fs::write(
         project.path().join("schema/a.lgs"),
-        "enum Color {\n  red\n}\nfirst(color: Color)\n",
+        "enum Color {\n  red\n}\nfirst(color: Color)\nformatted(value: Number)\n",
     )
     .expect("schema a");
     fs::write(
@@ -498,8 +498,16 @@ tree_shaking = false
         format!("{long_message}\n"),
     )
     .expect("schema b");
-    fs::write(project.path().join("locales/a/en.lgl"), "first = First\n").expect("locale a en");
-    fs::write(project.path().join("locales/a/fr.lgl"), "first = Premier\n").expect("locale a fr");
+    fs::write(
+        project.path().join("locales/a/en.lgl"),
+        "first = First\nformatted = Number {value @number}\n",
+    )
+    .expect("locale a en");
+    fs::write(
+        project.path().join("locales/a/fr.lgl"),
+        "first = Premier\nformatted = Nombre {value @number}\n",
+    )
+    .expect("locale a fr");
     fs::write(
         project.path().join("locales/b/en.lgl"),
         format!("{long_message} = Second\n"),
@@ -584,6 +592,22 @@ tree_shaking = false
         .to_string_lossy();
     assert!(module_code.contains("from \"../../../shared\""));
     assert!(module_code.ends_with(&format!("//# sourceMappingURL={file_name}.map\n")));
+    let formatted_module = manifest["messages"]["a.formatted"]["locales"]["fr"]["module"]
+        .as_str()
+        .expect("formatted module");
+    let formatted_code = fs::read_to_string(out.join(formatted_module)).expect("formatted module");
+    assert!(formatted_code.contains("from \"../../../locales/fr/_runtime\""));
+    for helper in [
+        "function formatNumber(",
+        "function formatCurrency(",
+        "function formatDate(",
+        "function plural",
+    ] {
+        assert!(
+            !formatted_code.contains(helper),
+            "unexpected helper body: {helper}"
+        );
+    }
     let source_map = fs::read_to_string(out.join(format!("{module}.map"))).expect("source map");
     let source_map: serde_json::Value = serde_json::from_str(&source_map).expect("source map JSON");
     assert_eq!(source_map["file"], file_name.as_ref());
@@ -650,6 +674,18 @@ tree_shaking = false
         fs::read_to_string(out.join(format!("{module}.map"))).expect("repeated map"),
         first_map
     );
+    for locale in ["en", "fr"] {
+        let locale_dir = out.join(format!("locales/{locale}"));
+        assert!(locale_dir.join("_runtime.ts").is_file());
+        assert_eq!(
+            fs::read_dir(&locale_dir)
+                .expect("locale runtime directory")
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_name() == "_runtime.ts")
+                .count(),
+            1
+        );
+    }
 
     let stale_module = manifest["messages"][&long_canonical_message]["locales"]["fr"]["module"]
         .as_str()
@@ -723,7 +759,7 @@ allow = ["main.title", "main.items"]
     .expect("schema");
     fs::write(
         project.path().join("locales/main/en.lgl"),
-        "title = Title\nitems = {count} items\n",
+        "title = Title\nitems = {count @number} items\n",
     )
     .expect("locale");
     let app_source = concat!(
@@ -765,8 +801,32 @@ allow = ["main.title", "main.items"]
         .join("src/generated/linguini/bundler/manifest.json");
     let first_text = fs::read_to_string(&manifest_path).expect("manifest");
     let manifest: serde_json::Value = serde_json::from_str(&first_text).expect("JSON");
-    assert_eq!(manifest["version"], 4);
+    assert_eq!(manifest["version"], 5);
     assert_eq!(manifest["locale_loading"], "eager");
+    let source_ids = manifest["sources"]
+        .as_array()
+        .expect("source table")
+        .iter()
+        .map(|source| {
+            (
+                source["path"].as_str().expect("source path"),
+                source["id"].as_u64().expect("source id"),
+            )
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    assert_eq!(
+        manifest["message_runtimes"],
+        serde_json::json!({
+            "en": {
+                "module": "locales/en/_runtime.ts",
+                "source_ids": [source_ids["schema/main.lgs"], source_ids["locales/main/en.lgl"]],
+            }
+        })
+    );
+    assert!(project
+        .path()
+        .join("src/generated/linguini/locales/en/_runtime.ts")
+        .is_file());
     assert_eq!(
         manifest["runtime_helpers"],
         serde_json::json!({
@@ -1025,7 +1085,7 @@ allow = ["main.title", "main.items"]
     let dynamic_manifest: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&manifest_path).expect("dynamic manifest"))
             .expect("dynamic manifest JSON");
-    assert_eq!(dynamic_manifest["version"], 4);
+    assert_eq!(dynamic_manifest["version"], 5);
     assert_eq!(dynamic_manifest["locale_loading"], "dynamic");
 }
 

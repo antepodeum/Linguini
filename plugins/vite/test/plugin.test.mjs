@@ -38,7 +38,7 @@ async function dynamicLocaleFixture({
   version = 4,
   configLocaleLoading = "eager",
   manifestLocaleLoading = configLocaleLoading,
-  includeManifestLocaleLoading = version === 4
+  includeManifestLocaleLoading = version >= 4
 } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-locale-"));
   const generated = path.join(root, "build/custom-linguini");
@@ -115,6 +115,16 @@ async function dynamicLocaleFixture({
     },
     applications: {}
   };
+  if (version >= 5) {
+    manifest.message_runtimes = {
+      en: { module: "locales/en/_runtime.js", source_ids: [] },
+      fr: { module: "locales/fr/_runtime.js", source_ids: [] }
+    };
+    for (const locale of ["en", "fr"]) {
+      await mkdir(path.join(generated, `locales/${locale}`), { recursive: true });
+      await writeFile(path.join(generated, `locales/${locale}/_runtime.js`), "export {};\n");
+    }
+  }
   await mkdir(path.join(generated, "bundler"), { recursive: true });
   const manifestPath = path.join(generated, "bundler/manifest.json");
   await writeFile(manifestPath, JSON.stringify(manifest));
@@ -252,6 +262,26 @@ async function bundlerFixture({ version = 2, source, applicationName = "page.sve
   await mkdir(path.join(generated, "bundler"), { recursive: true });
   await writeFile(path.join(generated, "bundler/manifest.json"), JSON.stringify(manifest));
   return { root, generated, application, applicationKey, code, manifest };
+}
+
+async function v5RuntimeFixture() {
+  const data = await bundlerFixture({ version: 3 });
+  data.manifest.version = 5;
+  data.manifest.locale_loading = "eager";
+  data.manifest.sources[0].path = "src/schema/shop/delivery.lgs";
+  data.manifest.sources[1].path = "src/locale/shop/ru.lgl";
+  data.manifest.messages["main.title"].locales.en.source_ids = [1];
+  data.manifest.message_runtimes = {
+    en: { module: "locales/en/_runtime.ts", source_ids: [2] }
+  };
+  data.runtimeModule = path.join(data.generated, "locales/en/_runtime.ts");
+  await mkdir(path.dirname(data.runtimeModule), { recursive: true });
+  await writeFile(data.runtimeModule, "export {};\n");
+  await writeFile(
+    path.join(data.generated, "bundler/manifest.json"),
+    JSON.stringify(data.manifest)
+  );
+  return data;
 }
 
 async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
@@ -1290,6 +1320,66 @@ test("v3 strictly validates dynamic manifest contracts", async (context) => {
   );
 });
 
+test("v5 accepts locale runtimes and dynamic locale loading", async (context) => {
+  const data = await dynamicLocaleFixture({
+    version: 5,
+    configLocaleLoading: "dynamic",
+    manifestLocaleLoading: "dynamic"
+  });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const virtualId = await plugin.resolveId(
+    "virtual:linguini/message/6d61696e2e7469746c65"
+  );
+  const source = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    virtualId
+  );
+  assert.match(source, /registerLocaleLoader/);
+  assert.match(source, /title\/en\.js/);
+  assert.match(source, /title\/fr\.js/);
+});
+
+test("v5 validates exact locale runtime descriptors", async (context) => {
+  const data = await v5RuntimeFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const original = structuredClone(data.manifest);
+  const reject = async (mutate, pattern) => {
+    const manifest = structuredClone(original);
+    mutate(manifest);
+    await writeFile(data.generated + "/bundler/manifest.json", JSON.stringify(manifest));
+    const plugin = linguini({ root: data.root, buildOnStart: false });
+    await plugin.configResolved({ root: data.root });
+    await assert.rejects(plugin.buildStart.call({ addWatchFile() {} }), pattern);
+  };
+
+  await reject((manifest) => delete manifest.message_runtimes, /message_runtimes must be an object/);
+  await reject(
+    (manifest) => delete manifest.message_runtimes.en,
+    /must contain exactly one entry for every effective locale/
+  );
+  await reject(
+    (manifest) => {
+      manifest.message_runtimes.en.module = "../escape.ts";
+    },
+    /clean project-relative POSIX path/
+  );
+  await reject(
+    (manifest) => {
+      manifest.message_runtimes.en.source_ids = [999];
+    },
+    /source_ids.*integer id from sources/
+  );
+  await reject(
+    (manifest) => {
+      manifest.message_runtimes.en.source_ids = [2, 2];
+    },
+    /source_ids.*unique/
+  );
+});
+
 test("allocates generated aliases around existing JavaScript bindings", async (context) => {
   const source = [
     'import { l as tr, helper } from "../../build/custom-linguini/svelte.ts";',
@@ -1852,4 +1942,48 @@ test("message descriptor deltas invalidate only changed locale modules", async (
     movedFrModule
   ].sort());
   assert.ok(!harness.invalidated.includes(data.titleModule));
+});
+
+test("v5 runtime deltas invalidate source-specific and old/new runtime modules", async (context) => {
+  const data = await v5RuntimeFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const movedRuntime = path.join(data.generated, "locales/en/runtime-next.ts");
+  await writeFile(movedRuntime, "export {};\n");
+  const sourceChange = path.join(data.root, "src/locale/shop/ru.lgl");
+  let nextManifest = structuredClone(data.manifest);
+  const harness = mockServer([
+    { id: data.runtimeModule },
+    { id: movedRuntime },
+    { id: data.titleModule },
+    { id: data.titleVirtual }
+  ]);
+  const plugin = linguini({
+    root: data.root,
+    buildOnStart: false,
+    debounceMs: 0,
+    async build() {
+      await writeFile(data.generated + "/bundler/manifest.json", JSON.stringify(nextManifest));
+    }
+  });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await plugin.configureServer(harness.server);
+
+  harness.invalidated.length = 0;
+  await plugin.handleHotUpdate({ file: sourceChange, server: harness.server, timestamp: 90 });
+  assert.deepEqual(harness.invalidated, [data.runtimeModule]);
+
+  nextManifest = structuredClone(nextManifest);
+  nextManifest.message_runtimes.en = {
+    module: "locales/en/runtime-next.ts",
+    source_ids: [1]
+  };
+  await writeFile(data.generated + "/bundler/manifest.json", JSON.stringify(nextManifest));
+  harness.invalidated.length = 0;
+  await plugin.handleHotUpdate({
+    file: data.generated + "/bundler/manifest.json",
+    server: harness.server,
+    timestamp: 91
+  });
+  assert.deepEqual([...harness.invalidated].sort(), [data.runtimeModule, movedRuntime].sort());
 });

@@ -12,6 +12,7 @@ use crate::ecmascript::{
 
 use super::deps::MessageDependencyClosure;
 use super::emit::{self, emit_formatter_data, emit_forms, emit_local_functions, emit_variables};
+use super::formatters::{formatter_requirements, plural_required};
 use super::names::escape_comment;
 use super::{TypeScriptCodegenError, TypeScriptOptions, ValidatedTypeScriptProject};
 
@@ -62,6 +63,50 @@ pub fn compile_typescript_message_module(
     shared_import_path: &str,
     sources: &[EcmaSource],
 ) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
+    compile_message_module(
+        project,
+        locale,
+        canonical_message,
+        output_file_name,
+        shared_import_path,
+        None,
+        sources,
+    )
+}
+
+/// Compiles one physical bundler leaf which shares locale-specific formatter and plural helpers.
+///
+/// `runtime_import_path` is an ESM specifier from the generated message module to the effective
+/// locale runtime emitted by [`super::generate_typescript_project_files`].
+pub fn compile_typescript_bundler_message_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    locale: &str,
+    canonical_message: &str,
+    output_file_name: &str,
+    shared_import_path: &str,
+    runtime_import_path: &str,
+    sources: &[EcmaSource],
+) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
+    compile_message_module(
+        project,
+        locale,
+        canonical_message,
+        output_file_name,
+        shared_import_path,
+        Some(runtime_import_path),
+        sources,
+    )
+}
+
+fn compile_message_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    locale: &str,
+    canonical_message: &str,
+    output_file_name: &str,
+    shared_import_path: &str,
+    runtime_import_path: Option<&str>,
+    sources: &[EcmaSource],
+) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
     let requested_locale = canonicalize_locale(locale).unwrap_or_else(|_| locale.to_owned());
     let project_locale = project
         .locales
@@ -84,7 +129,7 @@ pub fn compile_typescript_message_module(
     let source_ids = closure.source_ids().to_vec();
     let source_records = ordered_sources(&source_ids, sources)?;
     let options = super::project_locale_options(&canonical_locale, &project.options)?;
-    let module = emit_message_module(&closure, &options, shared_import_path);
+    let module = emit_message_module(&closure, &options, shared_import_path, runtime_import_path);
     let rendered = module.render(output_file_name, &source_records);
 
     Ok(CompiledTypeScriptMessageModule {
@@ -129,14 +174,17 @@ fn emit_message_module(
     closure: &MessageDependencyClosure,
     options: &TypeScriptOptions,
     shared_import_path: &str,
+    runtime_import_path: Option<&str>,
 ) -> EcmaModule {
     let schema = closure.schema();
     let locale = closure.locale_module();
     let mut statements = Vec::new();
 
-    let mut formatter_data = String::new();
-    emit_formatter_data(schema, locale, options, &mut formatter_data);
-    push_chunk(&mut statements, formatter_data, None);
+    if runtime_import_path.is_none() {
+        let mut formatter_data = String::new();
+        emit_formatter_data(schema, locale, options, &mut formatter_data);
+        push_chunk(&mut statements, formatter_data, None);
+    }
 
     for item in &locale.enums {
         let mut one = IrModule::default();
@@ -231,17 +279,25 @@ fn emit_message_module(
         );
     }
 
-    let uses_plural = statements
-        .iter()
-        .any(|(code, _)| code.contains(&format!("{}(", options.plural_function)));
+    let uses_plural = plural_required(schema, locale);
     let uses_select_branch = statements
         .iter()
         .any(|(code, _)| code.contains("selectBranch("));
+    let runtime_helpers =
+        runtime_import_path.map(|_| formatter_requirements(schema, locale).helper_names());
     let mut module = EcmaModule {
-        imports: message_imports(shared_import_path, schema, uses_select_branch),
+        imports: message_imports(
+            shared_import_path,
+            runtime_import_path,
+            schema,
+            options,
+            uses_select_branch,
+            uses_plural,
+            runtime_helpers.as_deref().unwrap_or_default(),
+        ),
         statements: Vec::new(),
     };
-    if uses_plural {
+    if uses_plural && runtime_import_path.is_none() {
         let mut plural_helpers = String::new();
         emit::emit_plural_helpers(options, &mut plural_helpers);
         push_statement(&mut module, plural_helpers, None);
@@ -254,8 +310,12 @@ fn emit_message_module(
 
 fn message_imports(
     shared_import_path: &str,
+    runtime_import_path: Option<&str>,
     schema: &IrModule,
+    options: &TypeScriptOptions,
     uses_select_branch: bool,
+    uses_plural: bool,
+    runtime_helpers: &[&str],
 ) -> Vec<EcmaImport> {
     let mut imports = Vec::new();
     let type_names = emit::schema_type_names(schema);
@@ -275,6 +335,21 @@ fn message_imports(
             shared_import_path,
             vec![EcmaNamedImport::new("selectBranch", "selectBranch")],
         ));
+    }
+    if let Some(runtime_import_path) = runtime_import_path {
+        let mut helpers = runtime_helpers.to_vec();
+        if uses_plural {
+            helpers.push(&options.plural_function);
+        }
+        if !helpers.is_empty() {
+            imports.push(EcmaImport::named(
+                runtime_import_path,
+                helpers
+                    .into_iter()
+                    .map(|name| EcmaNamedImport::new(name, name))
+                    .collect(),
+            ));
+        }
     }
     imports
 }
@@ -353,7 +428,7 @@ fn value_span(value: &IrValue) -> Option<Span> {
 
 #[cfg(test)]
 mod tests {
-    use super::compile_typescript_message_module;
+    use super::{compile_typescript_bundler_message_module, compile_typescript_message_module};
     use crate::{
         EcmaSource, TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject,
     };
@@ -534,5 +609,107 @@ mod tests {
         assert!(result.code.contains("function pluralEn("));
         assert!(result.code.contains("import { selectBranch }"));
         assert!(result.code.contains("pluralEn(count)"));
+    }
+
+    #[test]
+    fn bundler_leaf_imports_exact_runtime_helpers_without_helper_bodies() {
+        let schema_text = "summary(count: Number)\n";
+        let locale_text =
+            "summary = {fn(Plural(count)) {\n  one => {count @number}\n  other => Many\n}}\n";
+        let schema = Box::leak(Box::new(lower_schema(
+            &parse_schema_in(schema_text, SourceId(27)).expect("schema"),
+        )));
+        let locale = lower_locale(&parse_locale_in(locale_text, SourceId(28)).expect("locale"));
+        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }]));
+        let project = ValidatedTypeScriptProject::try_new(
+            schema,
+            locales,
+            &TypeScriptProjectOptions {
+                base_locale: Some("en".to_owned()),
+                ..TypeScriptProjectOptions::default()
+            },
+        )
+        .unwrap();
+        let sources = [
+            EcmaSource::new(SourceId(27), "schema.lgs", schema_text),
+            EcmaSource::new(SourceId(28), "locale.lgl", locale_text),
+        ];
+
+        let shared = compile_typescript_bundler_message_module(
+            &project,
+            "en",
+            "summary",
+            "summary.ts",
+            "../../../shared",
+            "../../../locales/en/_runtime",
+            &sources,
+        )
+        .unwrap();
+        assert!(shared
+            .code
+            .contains("import { formatNumber, pluralEn } from \"../../../locales/en/_runtime\";"));
+        assert!(shared
+            .code
+            .contains("import { selectBranch } from \"../../../shared\";"));
+        assert!(!shared.code.contains("function formatNumber("));
+        assert!(!shared.code.contains("function pluralEn("));
+
+        let standalone = compile_typescript_message_module(
+            &project,
+            "en",
+            "summary",
+            "summary.ts",
+            "../../../shared",
+            &sources,
+        )
+        .unwrap();
+        assert!(standalone.code.contains("function formatNumber("));
+        assert!(standalone.code.contains("function pluralEn("));
+        assert!(!standalone.code.contains("_runtime"));
+    }
+
+    #[test]
+    fn literal_helper_names_do_not_create_bundler_runtime_imports() {
+        let schema_text = "literal\n";
+        let locale_text = "literal = formatNumber( pluralEn(\n";
+        let schema = Box::leak(Box::new(lower_schema(
+            &parse_schema_in(schema_text, SourceId(37)).expect("schema"),
+        )));
+        let locale = lower_locale(&parse_locale_in(locale_text, SourceId(38)).expect("locale"));
+        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }]));
+        let project = ValidatedTypeScriptProject::try_new(
+            schema,
+            locales,
+            &TypeScriptProjectOptions {
+                base_locale: Some("en".to_owned()),
+                ..TypeScriptProjectOptions::default()
+            },
+        )
+        .unwrap();
+        let compiled = compile_typescript_bundler_message_module(
+            &project,
+            "en",
+            "literal",
+            "literal.ts",
+            "../../../shared",
+            "../../../locales/en/_runtime",
+            &[
+                EcmaSource::new(SourceId(37), "schema.lgs", schema_text),
+                EcmaSource::new(SourceId(38), "locale.lgl", locale_text),
+            ],
+        )
+        .unwrap();
+
+        assert!(compiled.code.contains("formatNumber( pluralEn("));
+        assert!(!compiled
+            .code
+            .contains("from \"../../../locales/en/_runtime\""));
+        assert!(!compiled.code.contains("function pluralEn("));
     }
 }
