@@ -135,6 +135,9 @@ production path uses the fix and its relevant tests pass.
   current-locale preloading, retry-safe caches, SSR-static modules, and HMR-safe disposal.
 - `fa7bccd` — enabled dynamic locale loading on the real site and proved 522 physical locale
   modules stay outside the initial static client graph while SSR remains synchronous.
+- `e8be06d` — reconciled public configuration and SvelteKit documentation with the nested
+  value/callable API, exact message imports, strict bounded dynamic access, dynamic locale
+  loading, and repository-wide local verification profiles.
 
 ## Numbered findings
 
