@@ -1,33 +1,10 @@
-import type { AlternateLink, LinkLocalizationAttributes } from "./web";
-import type { Locale, Linguini, TextDirection } from "./index";
+import type { Locale, Linguini } from "./index";
+import type { LinguiniSvelteControl } from "./svelte-control.js";
+export type { LinguiniSetLocaleOptions } from "./svelte-control.js";
 
-export interface LinguiniSetLocaleOptions {
-  navigate?: boolean;
-  replaceState?: boolean;
-  invalidateAll?: boolean;
-  keepFocus?: boolean;
-  noScroll?: boolean;
-  cookie?: boolean;
-  state?: {{PAGE_STATE}};
-}
-
-export interface LinguiniRune<Locale extends string, Linguini> {
+export interface LinguiniRune<Locale extends string, Linguini> extends LinguiniSvelteControl<Locale> {
   readonly messages: Linguini;
   readonly l: Linguini;
-  readonly locale: Locale;
-  readonly lang: Locale;
-  readonly direction: TextDirection;
-  readonly textDirection: TextDirection;
-  readonly htmlAttrs: { lang: Locale; dir: TextDirection };
-  setLocale(locale: Locale | string, options?: LinguiniSetLocaleOptions): Promise<Locale>;
-  localizeHref(href: string, locale?: Locale, input?: Record<string, unknown>): string;
-  localizeUrl(url: string | URL, locale?: Locale, input?: Record<string, unknown>): URL;
-  shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
-  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
-  localizeHrefAttribute(href: string, locale?: Locale, input?: Record<string, unknown>): string;
-  delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
-  alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
-  destroy(): void;
 }
 
 export declare const linguini: LinguiniRune<Locale, Linguini>;

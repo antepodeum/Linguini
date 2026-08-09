@@ -90,12 +90,8 @@ const initializeCurrentLocale = (locale: unknown) => {
 });
 
 test("setLocale mutates before its promise settles and ignores persistence failures", async () => {
-  const source = (await readTemplate("svelte.runtime.ts"))
+  const source = (await readTemplate("svelte-control.runtime.ts"))
     .replace("{{NAVIGATION_RUNTIME}}", "const browser = true;")
-    .replace(
-      'import * as runtime from "./index";',
-      "const runtime = { createLinguiniProvider: () => ({}) };",
-    )
     .replace(
       `import {
   destroyLinguiniEffects,
@@ -146,6 +142,30 @@ const setCurrentLocale = (locale: string) => {
     delete globalThis.document;
     delete globalThis.__linguiniProbeCurrent;
   }
+});
+
+test("lightweight controls and SvelteKit hooks have no eager message imports", async () => {
+  const controls = await readTemplate("svelte-control.runtime.ts");
+  const svelte = await readTemplate("svelte.runtime.ts");
+  const sveltekit = await readTemplate("sveltekit-control.runtime.ts");
+  const legacySveltekit = await readTemplate("sveltekit.runtime.ts");
+
+  for (const source of [controls, sveltekit]) {
+    for (const forbidden of [
+      'from "./index"',
+      'import("./index")',
+      'from "./locales/',
+      'from "./messages',
+    ]) {
+      assert.ok(!source.includes(forbidden), `unexpected eager import ${forbidden}`);
+    }
+  }
+  assert.match(sveltekit, /import \* as locale from "\.\/locale"/);
+  assert.match(sveltekit, /createWebLocaleI18n/);
+  assert.match(legacySveltekit, /from "\.\/index"/);
+  assert.match(legacySveltekit, /createWebI18n/);
+  assert.match(svelte, /get locale\(\) \{\s+return controls\.locale;/);
+  assert.ok(!svelte.includes("...controls"));
 });
 
 declare global {

@@ -751,6 +751,16 @@ pub fn generate_typescript_project_files(
                     contents: project::generate_project_svelte_effects_declaration(),
                 });
             }
+            files.push(TypeScriptGeneratedFile {
+                path: "svelte-control.ts".to_owned(),
+                contents: project::generate_project_svelte_control_module(sveltekit),
+            });
+            if options.declaration {
+                files.push(TypeScriptGeneratedFile {
+                    path: "svelte-control.d.ts".to_owned(),
+                    contents: project::generate_project_svelte_control_declaration(sveltekit),
+                });
+            }
         }
         files.push(TypeScriptGeneratedFile {
             path: "svelte-locale.svelte.ts".to_owned(),
@@ -788,6 +798,16 @@ pub fn generate_typescript_project_files(
             .framework
             .is_some_and(TypeScriptFramework::needs_sveltekit_module)
     }) {
+        files.push(TypeScriptGeneratedFile {
+            path: "sveltekit-control.ts".to_owned(),
+            contents: project::generate_project_sveltekit_control_module(web),
+        });
+        if options.declaration {
+            files.push(TypeScriptGeneratedFile {
+                path: "sveltekit-control.d.ts".to_owned(),
+                contents: project::generate_project_sveltekit_control_declaration(),
+            });
+        }
         files.push(TypeScriptGeneratedFile {
             path: "sveltekit.ts".to_owned(),
             contents: project::generate_project_sveltekit_module(web),

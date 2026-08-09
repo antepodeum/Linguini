@@ -1,13 +1,7 @@
-{{NAVIGATION_RUNTIME}}
 import * as runtime from "./index";
-import {
-  destroyLinguiniEffects,
-  refreshLinguiniEffects,
-  web,
-} from "./svelte-effects.svelte.js";
-{{LOCALE_RUNTIME}}
+import { linguini as controls } from "./svelte-control.js";
 
-export const linguini = createLinguiniRune(runtime);
+export const linguini = createLinguiniRune(runtime, controls);
 export const l = linguini.l;
 export const messages = linguini.messages;
 export const setLocale = linguini.setLocale;
@@ -19,89 +13,40 @@ export const localizeHrefAttribute = linguini.localizeHrefAttribute;
 export const delocalizeUrl = linguini.delocalizeUrl;
 export const alternateLinks = linguini.alternateLinks;
 
-function createLinguiniRune(runtime: typeof import("./index")) {
+function createLinguiniRune(
+  runtime: typeof import("./index"),
+  controls: typeof import("./svelte-control.js").linguini,
+) {
   const messages = runtime.createLinguiniProvider({
-    getLocale: getCurrentLocale,
+    getLocale: () => controls.locale,
   });
-
-  async function setLocale(nextLocale: string, setOptions: Record<string, unknown> = {}) {
-    const resolved = web.matchLocale(nextLocale) ?? web.baseLocale;
-    const options: Record<string, unknown> & {
-      cookie: boolean;
-      navigate: boolean;
-      replaceState: boolean;
-      invalidateAll: boolean;
-      keepFocus: boolean;
-      noScroll: boolean;
-    } = {
-      cookie: true,
-      navigate: true,
-      replaceState: false,
-      invalidateAll: true,
-      keepFocus: true,
-      noScroll: true,
-      ...setOptions,
-    };
-    if (browser) {
-      setCurrentLocale(resolved);
-      writeLocalStorage(web, resolved);
-      if (options.cookie) {
-        writeLocaleCookie(web, resolved);
-      }
-      if (options.navigate) {
-{{NAVIGATION}}
-      }
-      refreshLinguiniEffects();
-    }
-
-    return resolved;
-  }
 
   return {
     messages,
     l: messages,
     get locale() {
-      return getCurrentLocale();
+      return controls.locale;
     },
     get lang() {
-      return getCurrentLocale();
+      return controls.lang;
     },
     get direction() {
-      return web.getTextDirection(getCurrentLocale());
+      return controls.direction;
     },
     get textDirection() {
-      return web.getTextDirection(getCurrentLocale());
+      return controls.textDirection;
     },
     get htmlAttrs() {
-      return web.htmlAttrs(getCurrentLocale());
+      return controls.htmlAttrs;
     },
-    setLocale,
-    localizeHref: (href: string, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeHref(href, locale, input),
-    localizeUrl: (url: string | URL, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeUrl(url, locale, input),
-    shouldLocalizeHref: (href: string, input?: Record<string, unknown>) => web.shouldLocalizeHref(href, input),
-    shouldLocalizeLink: (href: string, attributes = {}, input?: Record<string, unknown>) => web.shouldLocalizeLink(href, attributes, input),
-    localizeHrefAttribute: (href: string, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeHrefAttribute(href, locale, input),
-    delocalizeUrl: (url: string | URL, input?: Record<string, unknown>) => web.delocalizeUrl(url, input),
-    alternateLinks: (url: string | URL, input?: Record<string, unknown>) => web.alternateLinks(url, input),
-    destroy: destroyLinguiniEffects,
+    setLocale: controls.setLocale,
+    localizeHref: controls.localizeHref,
+    localizeUrl: controls.localizeUrl,
+    shouldLocalizeHref: controls.shouldLocalizeHref,
+    shouldLocalizeLink: controls.shouldLocalizeLink,
+    localizeHrefAttribute: controls.localizeHrefAttribute,
+    delocalizeUrl: controls.delocalizeUrl,
+    alternateLinks: controls.alternateLinks,
+    destroy: controls.destroy,
   };
-}
-
-function writeLocalStorage(web: typeof import("./svelte-effects.svelte.js").web, locale: string) {
-  try {
-    window.localStorage.setItem(web.options.localStorageKey, locale);
-  } catch {
-    // Ignore storage failures in private browsing and locked-down contexts.
-  }
-}
-
-function writeLocaleCookie(
-  web: typeof import("./svelte-effects.svelte.js").web,
-  locale: Parameters<typeof web.serializeLocaleCookie>[0],
-) {
-  try {
-    document.cookie = web.serializeLocaleCookie(locale, { httpOnly: false });
-  } catch {
-    // Ignore cookie failures in sandboxed and locked-down contexts.
-  }
 }

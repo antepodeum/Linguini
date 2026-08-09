@@ -1836,44 +1836,76 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .map(|file| file.path.as_str())
         .collect::<Vec<_>>();
     assert!(paths.contains(&"svelte.ts"));
+    assert!(paths.contains(&"svelte-control.ts"));
+    assert!(paths.contains(&"svelte-control.d.ts"));
     assert!(paths.contains(&"svelte-locale.svelte.ts"));
     assert!(paths.contains(&"svelte-locale.svelte.d.ts"));
     assert!(paths.contains(&"svelte-effects.svelte.ts"));
     assert!(paths.contains(&"svelte-effects.svelte.d.ts"));
     assert!(paths.contains(&"web.ts"));
+    assert!(paths.contains(&"sveltekit-control.ts"));
+    assert!(paths.contains(&"sveltekit-control.d.ts"));
     assert!(paths.contains(&"sveltekit.ts"));
 
     let svelte = files
         .iter()
         .find(|file| file.path == "svelte.ts")
         .expect("svelte module");
-    assert!(svelte.contents.contains("./svelte-effects.svelte.js"));
-    assert!(svelte.contents.contains("from \"$app/environment\""));
-    assert!(svelte.contents.contains("from \"$app/navigation\""));
+    let svelte_control = files
+        .iter()
+        .find(|file| file.path == "svelte-control.ts")
+        .expect("Svelte control module");
+    assert!(svelte_control
+        .contents
+        .contains("./svelte-effects.svelte.js"));
+    assert!(svelte_control
+        .contents
+        .contains("from \"$app/environment\""));
+    assert!(svelte_control.contents.contains("from \"$app/navigation\""));
     assert!(!svelte.contents.contains("createWebI18n"));
     assert!(!svelte.contents.contains("@antepod/"));
     assert!(svelte.contents.contains("export const l = linguini.l;"));
-    assert!(!svelte.contents.contains("preferredLanguage"));
-    assert!(!svelte.contents.contains("globalVariable"));
-    assert!(!svelte.contents.contains("trailingSlash"));
-    assert!(svelte.contents.contains("cookie: true"));
-    assert!(svelte.contents.contains("navigate: true"));
-    assert!(svelte.contents.contains("keepFocus: true"));
-    assert!(svelte.contents.contains("noScroll: true"));
-    assert!(svelte.contents.contains("getLocale: getCurrentLocale"));
-    assert!(svelte.contents.contains("setCurrentLocale(resolved)"));
-    assert!(svelte.contents.contains("writeLocaleCookie(web, resolved)"));
-    assert!(svelte.contents.contains("clearCurrentLocaleOverride()"));
-    assert!(svelte.contents.contains("./svelte-locale.svelte.js"));
-    assert!(svelte.contents.contains("refreshLinguiniEffects()"));
-    assert!(svelte.contents.contains("destroy: destroyLinguiniEffects"));
+    assert!(svelte.contents.contains("./svelte-control.js"));
+    assert!(svelte.contents.contains("getLocale: () => controls.locale"));
+    assert!(svelte.contents.contains("get locale()"));
+    assert!(!svelte.contents.contains("...controls"));
+    let svelte_declaration = files
+        .iter()
+        .find(|file| file.path == "svelte.d.ts")
+        .expect("Svelte declaration");
+    assert!(svelte_declaration
+        .contents
+        .contains("export type { LinguiniSetLocaleOptions }"));
+    assert!(svelte_control.contents.contains("cookie: true"));
+    assert!(svelte_control.contents.contains("navigate: true"));
+    assert!(svelte_control.contents.contains("keepFocus: true"));
+    assert!(svelte_control.contents.contains("noScroll: true"));
+    assert!(svelte_control
+        .contents
+        .contains("setCurrentLocale(resolved)"));
+    assert!(svelte_control
+        .contents
+        .contains("writeLocaleCookie(web, resolved)"));
+    assert!(svelte_control
+        .contents
+        .contains("clearCurrentLocaleOverride()"));
+    assert!(svelte_control
+        .contents
+        .contains("./svelte-locale.svelte.js"));
+    assert!(svelte_control.contents.contains("refreshLinguiniEffects()"));
+    assert!(svelte_control
+        .contents
+        .contains("destroy: destroyLinguiniEffects"));
+    for forbidden in ["./index", "./locales/", "./messages"] {
+        assert!(!svelte_control.contents.contains(forbidden));
+    }
     for forbidden in [
         "MutationObserver",
         "AUTO_LINK_MAX_PENDING_ROOTS",
         "initializeCurrentLocale",
         "hot?.dispose",
     ] {
-        assert!(!svelte.contents.contains(forbidden));
+        assert!(!svelte_control.contents.contains(forbidden));
     }
 
     let svelte_effects = files
@@ -1952,8 +1984,11 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .contents
         .contains("clearCurrentLocaleOverride"));
 
-    let goto_position = svelte.contents.find("await goto(").expect("goto call");
-    let clear_position = svelte
+    let goto_position = svelte_control
+        .contents
+        .find("await goto(")
+        .expect("goto call");
+    let clear_position = svelte_control
         .contents
         .find("clearCurrentLocaleOverride();")
         .expect("override clear");
@@ -1966,6 +2001,9 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit
         .contents
         .contains("import { createWebI18n } from \"./web\";"));
+    assert!(sveltekit
+        .contents
+        .contains("import * as runtime from \"./index\";"));
     assert!(!sveltekit.contents.contains("@antepod/"));
     assert!(sveltekit.contents.contains("export const handle"));
     assert!(sveltekit.contents.contains("export const reroute"));
@@ -1973,6 +2011,41 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit
         .contents
         .contains("cookie: event.request.headers.get(\"cookie\") ?? undefined"));
+
+    let sveltekit_control = files
+        .iter()
+        .find(|file| file.path == "sveltekit-control.ts")
+        .expect("sveltekit control module");
+    assert!(sveltekit_control
+        .contents
+        .contains("import type { Locale } from \"./locale\";"));
+    assert!(sveltekit_control
+        .contents
+        .contains("LinguiniWebLocale<Locale>"));
+    assert!(sveltekit_control.contents.contains("resolved: Locale"));
+    assert!(sveltekit_control
+        .contents
+        .contains("import { createWebLocaleI18n } from \"./web\";"));
+    assert!(sveltekit_control
+        .contents
+        .contains("import * as locale from \"./locale\";"));
+    for forbidden in ["./index", "./locales/", "./messages", "createWebI18n"] {
+        assert!(!sveltekit_control.contents.contains(forbidden));
+    }
+
+    let sveltekit_control_declaration = files
+        .iter()
+        .find(|file| file.path == "sveltekit-control.d.ts")
+        .expect("sveltekit control declaration");
+    assert!(sveltekit_control_declaration
+        .contents
+        .contains("interface LinguiniServerLocaleContext"));
+    assert!(sveltekit_control_declaration.contents.contains(
+        "export type LinguiniSvelteKitLocaleContext = LinguiniServerLocaleContext<Locale>"
+    ));
+    for forbidden in ["LinguiniRequestContext", "./index", "declare global"] {
+        assert!(!sveltekit_control_declaration.contents.contains(forbidden));
+    }
 
     let sveltekit_declaration = files
         .iter()
@@ -1985,6 +2058,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit_declaration
         .contents
         .contains("linguini: LinguiniRequestContext<Locale, Linguini>"));
+    assert!(sveltekit_declaration.contents.contains("Linguini>"));
+    assert!(sveltekit_declaration.contents.contains("./index"));
     assert!(!sveltekit_declaration.contents.contains("@antepod/"));
 }
 
@@ -2017,6 +2092,8 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
         "web.ts",
         "svelte.ts",
         "svelte.d.ts",
+        "svelte-control.ts",
+        "svelte-control.d.ts",
         "svelte-locale.svelte.ts",
         "svelte-effects.svelte.ts",
     ] {
@@ -2032,18 +2109,19 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
             .contents
     };
     let svelte = generated("svelte.ts");
+    let control = generated("svelte-control.ts");
     let locale = generated("svelte-locale.svelte.ts");
     let effects = generated("svelte-effects.svelte.ts");
-    let declaration = generated("svelte.d.ts");
+    let declaration = generated("svelte-control.d.ts");
 
-    for output in [svelte, locale, effects, declaration] {
+    for output in [svelte, control, locale, effects, declaration] {
         assert!(!output.contains("$app/"));
     }
-    assert!(svelte.contains("typeof window !== \"undefined\""));
-    assert!(svelte.contains("window.location.assign(href)"));
-    assert!(svelte.contains("window.location.replace(href)"));
-    assert!(!svelte.contains("goto("));
-    assert!(!svelte.contains("clearCurrentLocaleOverride"));
+    assert!(control.contains("typeof window !== \"undefined\""));
+    assert!(control.contains("window.location.assign(href)"));
+    assert!(control.contains("window.location.replace(href)"));
+    assert!(!control.contains("goto("));
+    assert!(!control.contains("clearCurrentLocaleOverride"));
     assert!(effects.contains("typeof document !== \"undefined\""));
     assert!(effects.contains("initializeCurrentLocale(readInitialLocale())"));
     assert!(effects.contains("readBrowserCapability(() => document.cookie)"));
@@ -2053,14 +2131,19 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
     assert!(locale.contains("export function initializeCurrentLocale"));
     assert!(locale.contains("export function setCurrentLocale"));
     assert!(declaration.contains("state?: unknown"));
-    let set_position = svelte
+    let set_position = control
         .find("setCurrentLocale(resolved)")
         .expect("synchronous locale update");
-    let navigation_position = svelte
+    let navigation_position = control
         .find("if (options.navigate)")
         .expect("navigation branch");
     assert!(set_position < navigation_position);
-    assert!(svelte.contains("writeLocaleCookie(web, resolved)"));
+    assert!(control.contains("writeLocaleCookie(web, resolved)"));
+    assert!(svelte.contains("get locale()"));
+    assert!(!svelte.contains("...controls"));
+    for forbidden in ["./index", "./locales/", "./messages"] {
+        assert!(!control.contains(forbidden));
+    }
     for forbidden in ["./index", "./locales/", "./messages", "createLinguini"] {
         assert!(!effects.contains(forbidden));
     }
@@ -2091,6 +2174,8 @@ fn project_codegen_emits_context_only_svelte_without_web_config() {
         .collect::<Vec<_>>();
     assert!(paths.contains(&"svelte.ts"));
     assert!(paths.contains(&"svelte-locale.svelte.ts"));
+    assert!(!paths.contains(&"svelte-control.ts"));
+    assert!(!paths.contains(&"svelte-control.d.ts"));
     assert!(!paths.contains(&"svelte-effects.svelte.ts"));
     assert!(!paths.contains(&"svelte-effects.svelte.d.ts"));
     assert!(!paths.contains(&"web.ts"));

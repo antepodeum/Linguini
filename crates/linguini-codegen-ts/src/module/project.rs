@@ -3,8 +3,10 @@ use std::collections::BTreeMap;
 use super::names::{escape_string, property_key, safe_identifier};
 use super::templates::{
     render_template, INDEX_RUNTIME, INDEX_RUNTIME_DECLARATIONS, LOCALE_DECLARATIONS,
-    LOCALE_RUNTIME, PROJECT_INDEX_DECLARATIONS, PROJECT_INDEX_ENTRY, SVELTEKIT_DECLARATIONS,
-    SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME, SVELTE_DECLARATIONS,
+    LOCALE_RUNTIME, PROJECT_INDEX_DECLARATIONS, PROJECT_INDEX_ENTRY,
+    SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME, SVELTEKIT_DECLARATIONS,
+    SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME,
+    SVELTE_CONTROL_DECLARATIONS, SVELTE_CONTROL_RUNTIME, SVELTE_DECLARATIONS,
     SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_LOCALE_CONTEXT_DECLARATIONS,
     SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS, SVELTE_LOCALE_RUNTIME,
     SVELTE_LOCALE_STANDALONE_DECLARATIONS, SVELTE_LOCALE_STANDALONE_RUNTIME, SVELTE_RUNTIME,
@@ -221,7 +223,11 @@ pub fn generate_project_svelte_module(
     }
 }
 
-fn render_project_svelte_web_module(sveltekit: bool) -> String {
+fn render_project_svelte_web_module(_sveltekit: bool) -> String {
+    SVELTE_RUNTIME.to_owned()
+}
+
+pub fn generate_project_svelte_control_module(sveltekit: bool) -> String {
     let (navigation_runtime, locale_runtime, navigation) = if sveltekit {
         (
             "import { browser } from \"$app/environment\";\nimport { goto } from \"$app/navigation\";",
@@ -236,7 +242,7 @@ fn render_project_svelte_web_module(sveltekit: bool) -> String {
         )
     };
     render_template(
-        SVELTE_RUNTIME,
+        SVELTE_CONTROL_RUNTIME,
         &[
             ("NAVIGATION_RUNTIME", navigation_runtime.to_owned()),
             ("LOCALE_RUNTIME", locale_runtime.to_owned()),
@@ -245,23 +251,27 @@ fn render_project_svelte_web_module(sveltekit: bool) -> String {
     )
 }
 
-pub fn generate_project_svelte_declaration(web: bool, sveltekit: bool) -> String {
+pub fn generate_project_svelte_declaration(web: bool, _sveltekit: bool) -> String {
     if web {
-        render_template(
-            SVELTE_DECLARATIONS,
-            &[(
-                "PAGE_STATE",
-                if sveltekit {
-                    "App.PageState"
-                } else {
-                    "unknown"
-                }
-                .to_owned(),
-            )],
-        )
+        SVELTE_DECLARATIONS.to_owned()
     } else {
         SVELTE_CONTEXT_DECLARATIONS.to_owned()
     }
+}
+
+pub fn generate_project_svelte_control_declaration(sveltekit: bool) -> String {
+    render_template(
+        SVELTE_CONTROL_DECLARATIONS,
+        &[(
+            "PAGE_STATE",
+            if sveltekit {
+                "App.PageState"
+            } else {
+                "unknown"
+            }
+            .to_owned(),
+        )],
+    )
 }
 
 pub fn generate_project_sveltekit_module(options: &TypeScriptWebOptions) -> String {
@@ -273,6 +283,17 @@ pub fn generate_project_sveltekit_module(options: &TypeScriptWebOptions) -> Stri
 
 pub fn generate_project_sveltekit_declaration() -> String {
     SVELTEKIT_DECLARATIONS.to_owned()
+}
+
+pub fn generate_project_sveltekit_control_module(options: &TypeScriptWebOptions) -> String {
+    render_template(
+        SVELTEKIT_CONTROL_RUNTIME,
+        &[("OPTIONS", web_options_literal(options))],
+    )
+}
+
+pub fn generate_project_sveltekit_control_declaration() -> String {
+    SVELTEKIT_CONTROL_DECLARATIONS.to_owned()
 }
 
 pub fn generate_project_web_module() -> String {

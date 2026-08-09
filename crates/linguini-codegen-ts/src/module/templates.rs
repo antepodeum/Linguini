@@ -12,6 +12,8 @@ pub const SINGLE_INDEX_RUNTIME: &str = include_str!("templates/single-index.runt
 pub const SINGLE_INDEX_DECLARATIONS: &str = include_str!("templates/single-index.runtime.d.ts");
 pub const SVELTE_RUNTIME: &str = include_str!("templates/svelte.runtime.ts");
 pub const SVELTE_DECLARATIONS: &str = include_str!("templates/svelte.runtime.d.ts");
+pub const SVELTE_CONTROL_RUNTIME: &str = include_str!("templates/svelte-control.runtime.ts");
+pub const SVELTE_CONTROL_DECLARATIONS: &str = include_str!("templates/svelte-control.runtime.d.ts");
 pub const SVELTE_CONTEXT_RUNTIME: &str = include_str!("templates/svelte.context.runtime.ts");
 pub const SVELTE_CONTEXT_DECLARATIONS: &str = include_str!("templates/svelte.context.runtime.d.ts");
 pub const SVELTE_EFFECTS_RUNTIME: &str = include_str!("templates/svelte-effects.runtime.ts");
@@ -28,6 +30,9 @@ pub const SVELTE_LOCALE_STANDALONE_DECLARATIONS: &str =
     include_str!("templates/svelte-locale.standalone.runtime.d.ts");
 pub const SVELTEKIT_RUNTIME: &str = include_str!("templates/sveltekit.runtime.ts");
 pub const SVELTEKIT_DECLARATIONS: &str = include_str!("templates/sveltekit.runtime.d.ts");
+pub const SVELTEKIT_CONTROL_RUNTIME: &str = include_str!("templates/sveltekit-control.runtime.ts");
+pub const SVELTEKIT_CONTROL_DECLARATIONS: &str =
+    include_str!("templates/sveltekit-control.runtime.d.ts");
 pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
 pub const WEB_DECLARATIONS: &str = include_str!("templates/web.runtime.d.ts");
 
@@ -64,6 +69,8 @@ mod tests {
         assert!(WEB_DECLARATIONS.contains("LinguiniWebLocale"));
         assert!(SVELTE_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_DECLARATIONS.contains("LinguiniRune"));
+        assert!(SVELTE_CONTROL_RUNTIME.contains("createLinguiniControl"));
+        assert!(SVELTE_CONTROL_DECLARATIONS.contains("LinguiniSvelteControl"));
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
         assert!(SVELTE_EFFECTS_RUNTIME.contains("startAutoLinkLocalization"));
@@ -81,6 +88,8 @@ mod tests {
         assert!(SVELTEKIT_DECLARATIONS.contains("linguiniHandle: Handle"));
         assert!(SVELTEKIT_DECLARATIONS.contains("linguiniReroute: Reroute"));
         assert!(SVELTEKIT_DECLARATIONS.contains("linguiniLoad: ServerLoad"));
+        assert!(SVELTEKIT_CONTROL_RUNTIME.contains("createWebLocaleI18n"));
+        assert!(SVELTEKIT_CONTROL_DECLARATIONS.contains("LinguiniServerLocaleContext"));
         assert!(SVELTEKIT_RUNTIME.contains("status: 307"));
         assert!(!SVELTEKIT_RUNTIME.contains("redirectStatus"));
         assert!(SVELTEKIT_RUNTIME.contains("locals.linguini = context"));
