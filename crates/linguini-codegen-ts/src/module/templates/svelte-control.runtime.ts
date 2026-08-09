@@ -19,7 +19,7 @@ export const destroy = linguini.destroy;
 
 function createLinguiniControl() {
   async function setLocale(nextLocale: string, setOptions: Record<string, unknown> = {}) {
-    const resolved = web.matchLocale(nextLocale) ?? web.baseLocale;
+    const resolved = await prepareLocale(nextLocale);
     const options: Record<string, unknown> & {
       cookie: boolean;
       navigate: boolean;

@@ -1,5 +1,9 @@
 import * as runtime from "./index";
-import { getCurrentLocale, setCurrentLocale } from "./svelte-locale.svelte.js";
+import {
+  getCurrentLocale,
+  prepareLocale,
+  setCurrentLocale,
+} from "./svelte-locale.svelte.js";
 
 export const linguini = createLinguiniRune(runtime);
 export const l = linguini.l;
@@ -12,7 +16,7 @@ function createLinguiniRune(runtime: typeof import("./index")) {
   });
 
   async function setLocale(nextLocale: string) {
-    return setCurrentLocale(nextLocale);
+    return setCurrentLocale(await prepareLocale(nextLocale));
   }
 
   return {

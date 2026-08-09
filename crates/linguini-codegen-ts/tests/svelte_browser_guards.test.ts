@@ -89,7 +89,7 @@ const initializeCurrentLocale = (locale: unknown) => {
   }
 });
 
-test("setLocale mutates before its promise settles and ignores persistence failures", async () => {
+test("setLocale prepares before mutation and ignores persistence failures", async () => {
   const source = (await readTemplate("svelte-control.runtime.ts"))
     .replace("{{NAVIGATION_RUNTIME}}", "const browser = true;")
     .replace(
@@ -110,6 +110,7 @@ const refreshLinguiniEffects = () => {};`,
     .replace(
       "{{LOCALE_RUNTIME}}",
       `const getCurrentLocale = () => globalThis.__linguiniProbeCurrent ?? "en";
+const prepareLocale = async (locale: string) => locale;
 const setCurrentLocale = (locale: string) => {
   globalThis.__linguiniProbeCurrent = locale;
   return locale;
@@ -135,8 +136,9 @@ const setCurrentLocale = (locale: string) => {
   try {
     const generated = await importTypeScript(source);
     const pending = generated.setLocale("fr", { navigate: false, cookie: true });
-    assert.equal(globalThis.__linguiniProbeCurrent, "fr");
+    assert.equal(globalThis.__linguiniProbeCurrent, undefined);
     assert.equal(await pending, "fr");
+    assert.equal(globalThis.__linguiniProbeCurrent, "fr");
   } finally {
     delete globalThis.window;
     delete globalThis.document;

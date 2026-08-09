@@ -231,13 +231,13 @@ pub fn generate_project_svelte_control_module(sveltekit: bool) -> String {
     let (navigation_runtime, locale_runtime, navigation) = if sveltekit {
         (
             "import { browser } from \"$app/environment\";\nimport { goto } from \"$app/navigation\";",
-            "import {\n  clearCurrentLocaleOverride,\n  getCurrentLocale,\n  setCurrentLocale,\n} from \"./svelte-locale.svelte.js\";",
+            "import {\n  clearCurrentLocaleOverride,\n  getCurrentLocale,\n  prepareLocale,\n  setCurrentLocale,\n} from \"./svelte-locale.svelte.js\";",
             "        const href = web.localizeHref(window.location.href, resolved);\n        await goto(href, {\n          replaceState: Boolean(options.replaceState),\n          invalidateAll: Boolean(options.invalidateAll),\n          keepFocus: options.keepFocus as boolean | undefined,\n          noScroll: options.noScroll as boolean | undefined,\n          state: options.state as App.PageState | undefined,\n        });\n        clearCurrentLocaleOverride();",
         )
     } else {
         (
             "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";",
-            "import { getCurrentLocale, setCurrentLocale } from \"./svelte-locale.svelte.js\";",
+            "import {\n  getCurrentLocale,\n  prepareLocale,\n  setCurrentLocale,\n} from \"./svelte-locale.svelte.js\";",
             "        const href = web.localizeHref(window.location.href, resolved);\n        if (options.replaceState) {\n          window.location.replace(href);\n        } else {\n          window.location.assign(href);\n        }",
         )
     };
