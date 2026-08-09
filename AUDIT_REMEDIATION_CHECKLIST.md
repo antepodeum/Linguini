@@ -140,6 +140,8 @@ production path uses the fix and its relevant tests pass.
   loading, and repository-wide local verification profiles.
 - `203faa8` — excluded transactional and physical generated output from the Vite development
   watcher while preserving manifest-driven rebuilds, eliminating real-site startup and HMR storms.
+- `d68e432` — moved formatter, date, number, currency, and plural implementations into one shared
+  runtime per locale, with manifest-v5 source-aware HMR and real-site bundle-graph verification.
 
 ## Numbered findings
 
@@ -380,10 +382,10 @@ production path uses the fix and its relevant tests pass.
 - [ ] #199 — Emit source maps back to Linguini sources.
 - [ ] #200 — Require every declared message in direct codegen input locales.
 - [ ] #201 — Replace eager locale imports with real bundler-visible splitting.
-- [ ] #202 — Tree-shake transitive forms, functions, variables, and helpers.
+- [-] #202 — Tree-shake transitive forms, functions, variables, and helpers.
 - [x] #203 — Diagnose unknown `included_messages`.
 - [ ] #204 — Stop copying all global declarations into every namespace.
-- [ ] #205 — Deduplicate formatter helpers/data per locale.
+- [x] #205 — Deduplicate formatter helpers/data per locale.
 - [x] #206 — Sanitize namespace paths and generated filenames.
 - [x] #207 — Reject case-folded locale filename collisions.
 - [ ] #208 — Use the shared CLDR fallback graph.
@@ -724,7 +726,7 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A10 — Express optional locale splitting through bundler-visible dynamic ESM
       boundaries with preload-before-switch behavior, inactive-locale client chunks, synchronous
       SSR modules, and real-site production-graph verification.
-- [ ] BUNDLE-A11 — Emit formatter, date, number, currency, and plural helpers once per locale and
+- [x] BUNDLE-A11 — Emit formatter, date, number, currency, and plural helpers once per locale and
       import only required names from physical message modules.
 - [ ] BUNDLE-A12 — Share reusable variables, forms, and local functions across physical messages
       without broadening their transitive bundle graph.
@@ -799,7 +801,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] P2-2 — End-to-end documentation propagation.
 - [-] P2-3 — Emit both multiline modes from semantic text IR.
 - [x] P2-4 — Collision-safe identifiers and filenames.
-- [-] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
+- [x] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
 - [ ] P2-6 — Compile-time typed `l` namespace transform.
 - [ ] P2-7 — Positional plus named-object overloads.
 - [-] P2-8 — Nested web config plus generated feature modules.

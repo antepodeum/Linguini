@@ -56,5 +56,10 @@ without regressing exact message tree-shaking, locale splitting, source maps, or
 - `HELPER-B0` is complete. The physical compiler intentionally emits a self-contained semantic
   closure, but the CLI incorrectly uses that mode for every bundler message, duplicating complete
   formatter/date/plural helper bodies and reusable semantic dependencies.
-- `HELPER-B1` is active. Next: integrate the shared codegen runtime with CLI artifacts and then
-  extend manifest/Vite invalidation before real-site size and browser verification.
+- `HELPER-B1` through `HELPER-B3` are complete in `d68e432`. Standalone compilation remains
+  self-contained; project and physical output share one runtime per locale; manifest v5 carries
+  exact runtime source IDs; Vite invalidates runtime descriptor/source changes.
+- The real site gate passes all five tasks. Its 585 physical modules contain zero helper bodies,
+  54 import exact runtime names, and nine runtime modules cover all nine effective locales.
+- `HELPER-B4` is active. Next: move reusable variables, forms, and local functions behind shared
+  semantic ESM boundaries, then resume the paused named-object call deployment.
