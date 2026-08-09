@@ -677,7 +677,9 @@ production path uses the fix and its relevant tests pass.
 ### Bundler-native nested message API
 
 - [x] BUNDLE-A1 — Generate recursive declarations for the complete `l` namespace.
-- [x] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports.
+- [-] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports; focused Vite
+      fixtures pass, but the real SvelteKit site currently exposes a missing exact-reference span
+      gap for imported `l` uses and therefore retains the eager fallback runtime.
 - [x] BUNDLE-A3 — Keep parameterless public access as a value while rewriting its internal use to
       a reactive virtual-message call.
 - [x] BUNDLE-A4 — Generate one ESM module per referenced message.
@@ -688,7 +690,9 @@ production path uses the fix and its relevant tests pass.
       arity-mismatched, and non-leaf accesses separate from transformable references; strict
       diagnostics and the explicit bundle escape hatch remain pending.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
-- [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
+- [-] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading; focused
+      multi-entry builds pass, while the real site production-graph gate remains blocked by the
+      BUNDLE-A2 exact-reference gap.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
 
 ### Positional and named-object generated calls
