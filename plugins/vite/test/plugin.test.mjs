@@ -62,9 +62,12 @@ async function bundlerFixture({ version = 2, source, applicationName = "page.sve
     path.join(generated, "bundler/messages/main/title/en.ts"),
     'export function message() { return "Title"; }\n'
   );
-  const declaration = byteSpan(code, 'import { l as tr, helper } from "../../build/custom-linguini/svelte.ts";');
+  const declarationText = code.includes("l as tr, helper")
+    ? 'import { l as tr, helper } from "../../build/custom-linguini/svelte.ts";'
+    : 'import { l as tr } from "../../build/custom-linguini/svelte.ts";';
+  const declaration = byteSpan(code, declarationText);
   const item = byteSpan(code, "l as tr");
-  const removal = byteSpan(code, "l as tr, ");
+  const removal = code.includes("l as tr, ") ? byteSpan(code, "l as tr, ") : declaration;
   const reference = byteSpan(code, "tr.main.title");
   const manifest =
     version === 1
@@ -116,6 +119,7 @@ async function bundlerFixture({ version = 2, source, applicationName = "page.sve
               byte_length: Buffer.byteLength(code),
               unresolved: [],
               analysis_dynamic_prefixes: [],
+              ...(version === 3 ? { dynamic_references: [] } : {}),
               references: [
                 {
                   message: "main.title",
@@ -151,6 +155,7 @@ async function bundlerFixture({ version = 2, source, applicationName = "page.sve
                   local_start: item[1] - 2,
                   local_end: item[1],
                   analyzer_exact_uses_only: true,
+                  ...(version === 3 ? { analyzer_tracked_uses_only: true } : {}),
                   transformable: true
                 }
               ]
@@ -160,6 +165,222 @@ async function bundlerFixture({ version = 2, source, applicationName = "page.sve
   await mkdir(path.join(generated, "bundler"), { recursive: true });
   await writeFile(path.join(generated, "bundler/manifest.json"), JSON.stringify(manifest));
   return { root, generated, application, applicationKey, code, manifest };
+}
+
+async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
+  const body = [
+    'import { l as tr } from "../../build/custom-linguini/svelte.ts";',
+    'import { messages as alt } from "../../build/custom-linguini/svelte.ts";',
+    'const __linguini_dispatch_0 = "user-owned";',
+    "export const fixed = tr.main.title;",
+    "export const value = tr.main[ /* keep */ ключ ];",
+    "export const called = tr.main[action](2);",
+    "export const root = tr[rootKey];",
+    "export const again = tr.main[keyAgain];",
+    "export const proto = tr.main[protoKey];",
+    "export const altValue = alt.main[altKey];",
+    ""
+  ].join("\n");
+  const code = applicationName.endsWith(".svelte")
+    ? `<script>\n${body}</script>\n`
+    : body;
+  const data = await bundlerFixture({ version: 3, source: code, applicationName });
+  const declarationText =
+    'import { l as tr } from "../../build/custom-linguini/svelte.ts";';
+  const declaration = byteSpan(code, declarationText);
+  const item = byteSpan(code, "l as tr");
+  const binding = data.manifest.applications[data.applicationKey].imports[0];
+  Object.assign(binding, {
+    declaration_start: declaration[0],
+    declaration_end: declaration[1],
+    item_start: item[0],
+    item_end: item[1],
+    removal_start: declaration[0],
+    removal_end: declaration[1],
+    module_specifier_start: declaration[0],
+    module_specifier_end: declaration[1],
+    imported_start: item[0],
+    imported_end: item[0] + 1,
+    local_start: item[1] - 2,
+    local_end: item[1],
+    analyzer_exact_uses_only: false,
+    analyzer_tracked_uses_only: true,
+    transformable: true
+  });
+  const application = data.manifest.applications[data.applicationKey];
+  const altDeclarationText =
+    'import { messages as alt } from "../../build/custom-linguini/svelte.ts";';
+  const altDeclaration = byteSpan(code, altDeclarationText);
+  const altItem = byteSpan(code, "messages as alt");
+  const altBinding = {
+    ...binding,
+    binding_id: "binding-alt",
+    imported: "messages",
+    local: "alt",
+    declaration_start: altDeclaration[0],
+    declaration_end: altDeclaration[1],
+    item_start: altItem[0],
+    item_end: altItem[1],
+    removal_start: altDeclaration[0],
+    removal_end: altDeclaration[1],
+    module_specifier_start: altDeclaration[0],
+    module_specifier_end: altDeclaration[1],
+    imported_start: altItem[0],
+    imported_end: altItem[0] + Buffer.byteLength("messages"),
+    local_start: altItem[1] - Buffer.byteLength("alt"),
+    local_end: altItem[1]
+  };
+  application.imports.push(altBinding);
+  const staticSpan = byteSpan(code, "tr.main.title");
+  application.references = [
+    {
+      message: "main.title",
+      start: staticSpan[0],
+      end: staticSpan[1],
+      kind: "value",
+      local: "tr",
+      provenance: {
+        kind: "imported",
+        module_specifier: binding.module_specifier,
+        symbol: "l"
+      },
+      arity: 0,
+      binding_id: binding.binding_id
+    }
+  ];
+  const dynamicReference = (
+    needle,
+    receiver,
+    key,
+    prefix,
+    referenceKind,
+    messages,
+    local = "tr",
+    importBinding = binding
+  ) => {
+    const span = byteSpan(code, needle);
+    const receiverLength = Buffer.byteLength(receiver);
+    const sourceBytes = Buffer.from(code, "utf8");
+    const keyStart = sourceBytes.indexOf(Buffer.from(key), span[0] + receiverLength);
+    assert.ok(keyStart >= 0 && keyStart < span[1]);
+    return {
+      kind: "computed",
+      prefix,
+      span: { start: span[0], end: span[1] },
+      receiver_span: { start: span[0], end: span[0] + receiverLength },
+      key_span: { start: keyStart, end: keyStart + Buffer.byteLength(key) },
+      reference_kind: referenceKind,
+      local,
+      provenance: {
+        kind: "imported",
+        module_specifier: importBinding.module_specifier,
+        symbol: importBinding.imported
+      },
+      binding_id: importBinding.binding_id,
+      messages
+    };
+  };
+  const mainMessages = [
+    { message: "main.__proto__", key: "__proto__", arity: 0 },
+    { message: "main.items", key: "items", arity: 1 },
+    { message: "main.title", key: "title", arity: 0 }
+  ];
+  application.dynamic_references = [
+    dynamicReference(
+      "tr.main[ /* keep */ ключ ]",
+      "tr.main",
+      " /* keep */ ключ ",
+      "main",
+      "value",
+      mainMessages
+    ),
+    dynamicReference(
+      "tr.main[action]",
+      "tr.main",
+      "action",
+      "main",
+      "call",
+      mainMessages
+    ),
+    dynamicReference(
+      "tr[rootKey]",
+      "tr",
+      "rootKey",
+      "",
+      "value",
+      [{ message: "notice", key: "notice", arity: 0 }]
+    ),
+    dynamicReference(
+      "tr.main[keyAgain]",
+      "tr.main",
+      "keyAgain",
+      "main",
+      "value",
+      mainMessages
+    ),
+    dynamicReference(
+      "tr.main[protoKey]",
+      "tr.main",
+      "protoKey",
+      "main",
+      "value",
+      mainMessages
+    ),
+    dynamicReference(
+      "alt.main[altKey]",
+      "alt.main",
+      "altKey",
+      "main",
+      "value",
+      mainMessages,
+      "alt",
+      altBinding
+    )
+  ];
+  application.analysis_dynamic_prefixes = ["", "main"];
+  application.sha256 = createHash("sha256").update(Buffer.from(code)).digest("hex");
+  application.byte_length = Buffer.byteLength(code);
+  data.manifest.messages["main.items"] = {
+    arity: 1,
+    locales: {
+      en: {
+        module: "bundler/messages/main/items/en.ts",
+        source_ids: [1, 2]
+      }
+    }
+  };
+  data.manifest.messages["main.__proto__"] = {
+    arity: 0,
+    locales: {
+      en: {
+        module: "bundler/messages/main/__proto__/en.ts",
+        source_ids: [1, 2]
+      }
+    }
+  };
+  data.manifest.messages.notice = {
+    arity: 0,
+    locales: {
+      en: {
+        module: "bundler/messages/notice/en.ts",
+        source_ids: [1, 2]
+      }
+    }
+  };
+  for (const [relative, contents] of [
+    ["bundler/messages/main/__proto__/en.ts", 'export function message() { return "Proto"; }\n'],
+    ["bundler/messages/main/items/en.ts", 'export function message(value) { return `Items:${value}`; }\n'],
+    ["bundler/messages/notice/en.ts", 'export function message() { return "Notice"; }\n']
+  ]) {
+    const file = path.join(data.generated, relative);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, contents);
+  }
+  await writeFile(
+    path.join(data.generated, "bundler/manifest.json"),
+    JSON.stringify(data.manifest)
+  );
+  return data;
 }
 
 function resolvedMessageId(message) {
@@ -284,6 +505,42 @@ test("rejects configured paths outside the project", async (context) => {
   context.after(() => rm(root, { recursive: true, force: true }));
   await writeFile(path.join(root, "linguini.toml"), '[paths]\nschema = "../outside"\n');
   await assert.rejects(readProjectLayout(root), /must stay inside/);
+});
+
+test("validates finite dynamic bundler config with CLI parity", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-config-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const writeConfig = (dynamic) =>
+    writeFile(
+      path.join(root, "linguini.toml"),
+      [
+        "[targets.ts]",
+        'out = "generated/linguini"',
+        "[targets.ts.bundler]",
+        'sources = ["src"]',
+        "[targets.ts.bundler.dynamic]",
+        dynamic,
+        ""
+      ].join("\n")
+    );
+
+  await writeConfig('mode = "bundle"\nallow = ["main.title", "main.items"]');
+  await readProjectLayout(root);
+  for (const [dynamic, pattern] of [
+    ['mode = "bundle"\nallow = []', /allow must be non-empty/],
+    ['mode = "error"\nallow = ["main.title"]', /requires mode = "bundle"/],
+    ['mode = "unknown"', /mode must be "error" or "bundle"/],
+    ['mode = "bundle"\nallow = ["main..title"]', /invalid path/],
+    ['mode = "bundle"\nallow = ["main\/title"]', /invalid path/],
+    [
+      'mode = "bundle"\nallow = ["main.title", "MAIN.TITLE"]',
+      /duplicate path/
+    ],
+    ['mode = "bundle"\nallow = ["main.title"]\nunknown = true', /is unknown/]
+  ]) {
+    await writeConfig(dynamic);
+    await assert.rejects(readProjectLayout(root), pattern);
+  }
 });
 
 test("recognizes only configured Linguini source roots", async (context) => {
@@ -555,6 +812,239 @@ test("v2 rejects stale bytes and skips unsafe bindings", async (context) => {
   }
 });
 
+test("v3 transforms static and dynamic refs with finite frozen dispatches", async (context) => {
+  const data = await dynamicBundlerFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const result = await plugin.transform.call(
+    { resolve: async () => ({ id: path.join(data.generated, "svelte.ts") }) },
+    data.code,
+    data.application
+  );
+
+  const encoded = (message) =>
+    `virtual:linguini/message/${Buffer.from(message, "utf8").toString("hex")}`;
+  for (const message of ["main.__proto__", "main.items", "main.title", "notice"]) {
+    assert.equal(result.code.split(encoded(message)).length - 1, 1);
+  }
+  assert.doesNotMatch(result.code, /from "\.\.\/\.\.\/build\/custom-linguini\/svelte\.ts"/);
+  const titleImport = result.code.match(
+    new RegExp(`message as (__linguini_message_\\d+) \\} from "${encoded("main.title")}"`)
+  );
+  const itemsImport = result.code.match(
+    new RegExp(`message as (__linguini_message_\\d+) \\} from "${encoded("main.items")}"`)
+  );
+  assert.ok(titleImport && itemsImport);
+  assert.match(result.code, new RegExp(`fixed = ${titleImport[1]}\\(\\)`));
+  const mainDispatch = result.code.match(
+    /value = (__linguini_dispatch_\d+)\[ \/\* keep \*\/ ключ \]/
+  );
+  assert.ok(mainDispatch);
+  assert.match(result.code, new RegExp(`called = ${mainDispatch[1]}\\[action\\]\\(2\\)`));
+  assert.match(result.code, new RegExp(`again = ${mainDispatch[1]}\\[keyAgain\\]`));
+  const rootDispatch = result.code.match(/root = (__linguini_dispatch_\d+)\[rootKey\]/);
+  assert.ok(rootDispatch);
+  assert.notEqual(rootDispatch[1], mainDispatch[1]);
+  const altDispatch = result.code.match(
+    /altValue = (__linguini_dispatch_\d+)\[altKey\]/
+  );
+  assert.ok(altDispatch);
+  assert.notEqual(altDispatch[1], mainDispatch[1]);
+  assert.notEqual(mainDispatch[1], "__linguini_dispatch_0");
+  assert.match(result.code, /Object\.freeze\(Object\.defineProperties\(Object\.create\(null\)/);
+  assert.match(
+    result.code,
+    new RegExp(`\\["title"\\]: \\{ enumerable: true, get: \\(\\) => ${titleImport[1]}\\(\\) \\}`)
+  );
+  assert.match(
+    result.code,
+    new RegExp(`\\["items"\\]: \\{ enumerable: true, value: ${itemsImport[1]} \\}`)
+  );
+  assert.equal(result.map.sourcesContent[0], data.code);
+
+  let runtime = result.code.replace(
+    /import \{ message as ([A-Za-z0-9_$]+) \} from "virtual:linguini\/message\/([0-9a-f]+)";\n/g,
+    (_match, alias, encodedMessage) => {
+      const message = Buffer.from(encodedMessage, "hex").toString("utf8");
+      if (message === "main.items") {
+        return `const ${alias} = (value) => \`Items:\${value}\`;\n`;
+      }
+      if (message === "main.title") {
+        return `const ${alias} = () => ++titleReads;\n`;
+      }
+      if (message === "main.__proto__") {
+        return `const ${alias} = () => "Proto";\n`;
+      }
+      return `const ${alias} = () => "Notice";\n`;
+    }
+  );
+  runtime = runtime.replaceAll("export const", "const");
+  const execute = new Function(
+    "ключ",
+    "action",
+    "rootKey",
+    "keyAgain",
+    "protoKey",
+    "altKey",
+    `let titleReads = 0;\n${runtime}\nreturn { fixed, value, called, root, again, proto, altValue, titleReads };`
+  );
+  const values = execute("missing", "items", "missing", "title", "__proto__", "items");
+  assert.equal(values.value, undefined);
+  assert.equal(values.root, undefined);
+  assert.equal(values.called, "Items:2");
+  assert.equal(values.fixed, 1);
+  assert.equal(values.again, 2);
+  assert.equal(values.proto, "Proto");
+  assert.equal(values.titleReads, 2);
+  assert.equal(values.altValue(3), "Items:3");
+});
+
+test("v3 uses only explicit dynamic references and rejects resolver mismatch", async (context) => {
+  const staticOnly = await bundlerFixture({ version: 3, applicationName: "static.ts" });
+  context.after(() => rm(staticOnly.root, { recursive: true, force: true }));
+  staticOnly.manifest.applications[staticOnly.applicationKey].analysis_dynamic_prefixes = ["main"];
+  await writeFile(
+    path.join(staticOnly.generated, "bundler/manifest.json"),
+    JSON.stringify(staticOnly.manifest)
+  );
+  const staticPlugin = linguini({ root: staticOnly.root, buildOnStart: false });
+  await staticPlugin.configResolved({ root: staticOnly.root });
+  await staticPlugin.buildStart.call({ addWatchFile() {} });
+  const staticResult = await staticPlugin.transform.call(
+    { resolve: async () => ({ id: path.join(staticOnly.generated, "svelte.ts") }) },
+    staticOnly.code,
+    staticOnly.application
+  );
+  assert.doesNotMatch(staticResult.code, /__linguini_dispatch_/);
+  assert.match(staticResult.code, /__linguini_message_0\(\)/);
+
+  const dynamic = await dynamicBundlerFixture({ applicationName: "resolver.ts" });
+  context.after(() => rm(dynamic.root, { recursive: true, force: true }));
+  const dynamicPlugin = linguini({ root: dynamic.root, buildOnStart: false });
+  await dynamicPlugin.configResolved({ root: dynamic.root });
+  await dynamicPlugin.buildStart.call({ addWatchFile() {} });
+  await assert.rejects(
+    dynamicPlugin.transform.call(
+      { resolve: async () => ({ id: path.join(dynamic.generated, "svelte.ts") }) },
+      dynamic.code.replace("user-owned", "changed"),
+      dynamic.application
+    ),
+    /manifest is stale/
+  );
+  await assert.rejects(
+    dynamicPlugin.transform.call(
+      { resolve: async () => null },
+      dynamic.code,
+      dynamic.application
+    ),
+    /must resolve to generated svelte\.ts/
+  );
+  await assert.rejects(
+    dynamicPlugin.transform.call(
+      {
+        resolve: async () => {
+          throw new Error("resolver failed");
+        }
+      },
+      dynamic.code,
+      dynamic.application
+    ),
+    /could not resolve/
+  );
+  await assert.rejects(
+    dynamicPlugin.transform.call(
+      { resolve: async () => ({ id: path.join(dynamic.generated, "index.ts") }) },
+      dynamic.code,
+      dynamic.application
+    ),
+    /must resolve to generated svelte\.ts/
+  );
+});
+
+test("v3 keeps deduped dynamic helpers inside Svelte script scope", async (context) => {
+  const data = await dynamicBundlerFixture({ applicationName: "dynamic.svelte" });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const result = await plugin.transform.call(
+    { resolve: async () => ({ id: path.join(data.generated, "svelte.ts") }) },
+    data.code,
+    data.application
+  );
+  const [beforeClose, afterClose] = result.code.split("</script>");
+  assert.match(beforeClose, /^<script>import \{ message as __linguini_message_/);
+  assert.match(beforeClose, /Object\.create\(null\)/);
+  assert.doesNotMatch(afterClose, /virtual:linguini|__linguini_dispatch_/);
+  const titleId = `virtual:linguini/message/${Buffer.from("main.title").toString("hex")}`;
+  assert.equal(beforeClose.split(titleId).length - 1, 1);
+});
+
+test("v3 strictly validates dynamic manifest contracts", async (context) => {
+  const data = await dynamicBundlerFixture({ applicationName: "malformed.ts" });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const original = structuredClone(data.manifest);
+  const manifestPath = path.join(data.generated, "bundler/manifest.json");
+  const reject = async (mutate, pattern) => {
+    const manifest = structuredClone(original);
+    mutate(manifest.applications[data.applicationKey], manifest);
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    const plugin = linguini({ root: data.root, buildOnStart: false });
+    await plugin.configResolved({ root: data.root });
+    await assert.rejects(plugin.buildStart.call({ addWatchFile() {} }), pattern);
+  };
+
+  await reject(
+    (application) => delete application.imports[0].analyzer_tracked_uses_only,
+    /analyzer_tracked_uses_only must be boolean/
+  );
+  await reject(
+    (application) => application.dynamic_references[0].messages.reverse(),
+    /messages must be sorted and unique/
+  );
+  await reject(
+    (application) => {
+      application.dynamic_references[0].key_span.start =
+        application.dynamic_references[0].receiver_span.end;
+    },
+    /invalid nested dynamic spans/
+  );
+  await reject(
+    (application) => {
+      application.dynamic_references[0].messages[0].arity = 1;
+    },
+    /invalid message, key, or arity/
+  );
+  await reject(
+    (application) => {
+      application.dynamic_references[0].messages[0].key = "nested.items";
+    },
+    /invalid message, key, or arity/
+  );
+  await reject(
+    (application) => {
+      application.dynamic_references[0].provenance.symbol = "messages";
+    },
+    /does not match a tracked transformable import binding/
+  );
+  await reject(
+    (application) => {
+      application.dynamic_references[1] = structuredClone(
+        application.dynamic_references[0]
+      );
+    },
+    /overlapping static or dynamic spans/
+  );
+  await reject(
+    (application) => {
+      application.dynamic_references[0].messages[0].message = "main.unknown";
+    },
+    /invalid message, key, or arity/
+  );
+});
+
 test("allocates generated aliases around existing JavaScript bindings", async (context) => {
   const source = [
     'import { l as tr, helper } from "../../build/custom-linguini/svelte.ts";',
@@ -709,13 +1199,13 @@ test("missing and v1 manifests stay legacy; unknown versions fail", async (conte
     undefined
   );
 
-  const unknown = await bundlerFixture({ version: 3 });
+  const unknown = await bundlerFixture({ version: 4 });
   context.after(() => rm(unknown.root, { recursive: true, force: true }));
   const unknownPlugin = linguini({ root: unknown.root, buildOnStart: false });
   await unknownPlugin.configResolved({ root: unknown.root });
   await assert.rejects(
     unknownPlugin.buildStart.call({ addWatchFile() {} }),
-    /unsupported Linguini bundler manifest version 3/
+    /unsupported Linguini bundler manifest version 4/
   );
 
   const escaping = await bundlerFixture();
@@ -992,6 +1482,77 @@ test("manifest deltas target applications, renames, and broad version transition
   assert.ok(broad.invalidated.includes(unrelatedGenerated));
   assert.ok(broad.invalidated.includes(data.application));
   assert.ok(broad.invalidated.includes(data.titleVirtual));
+});
+
+test("v3 HMR fingerprints dynamic app contracts and message descriptors", async (context) => {
+  const data = await dynamicBundlerFixture({ applicationName: "hmr.ts" });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const manifestPath = path.join(data.generated, "bundler/manifest.json");
+  const otherModule = path.join(
+    data.generated,
+    "bundler/messages/main/other/en.ts"
+  );
+  await mkdir(path.dirname(otherModule), { recursive: true });
+  await writeFile(otherModule, 'export function message() { return "Other"; }\n');
+  data.manifest.messages["main.other"] = {
+    arity: 0,
+    locales: {
+      en: {
+        module: "bundler/messages/main/other/en.ts",
+        source_ids: [1, 2]
+      }
+    }
+  };
+  await writeFile(manifestPath, JSON.stringify(data.manifest));
+  const itemsModule = path.join(
+    data.generated,
+    "bundler/messages/main/items/en.ts"
+  );
+  const itemsVirtual = resolvedMessageId("main.items");
+  const otherVirtual = resolvedMessageId("main.other");
+  const harness = mockServer([
+    { id: data.application },
+    { id: itemsModule },
+    { id: itemsVirtual },
+    { id: otherModule },
+    { id: otherVirtual }
+  ]);
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await plugin.configureServer(harness.server);
+
+  const contract = structuredClone(data.manifest);
+  for (const reference of contract.applications[data.applicationKey].dynamic_references) {
+    if (reference.prefix === "main") {
+      reference.messages = [
+        { message: "main.items", key: "items", arity: 1 },
+        { message: "main.other", key: "other", arity: 0 },
+        { message: "main.title", key: "title", arity: 0 }
+      ];
+    }
+  }
+  await writeFile(manifestPath, JSON.stringify(contract));
+  await plugin.handleHotUpdate({
+    file: manifestPath,
+    server: harness.server,
+    timestamp: 70
+  });
+  assert.deepEqual(harness.invalidated, [data.application]);
+  assert.ok(!harness.invalidated.includes(otherVirtual));
+
+  harness.invalidated.length = 0;
+  const descriptor = structuredClone(contract);
+  descriptor.sources.push({ id: 3, path: "src/schema/extra.lgs" });
+  descriptor.messages["main.items"].locales.en.source_ids.push(3);
+  await writeFile(manifestPath, JSON.stringify(descriptor));
+  await plugin.handleHotUpdate({
+    file: manifestPath,
+    server: harness.server,
+    timestamp: 71
+  });
+  assert.deepEqual([...harness.invalidated].sort(), [itemsModule, itemsVirtual].sort());
+  assert.ok(!harness.invalidated.includes(data.application));
 });
 
 test("message descriptor deltas invalidate only changed locale modules", async (context) => {

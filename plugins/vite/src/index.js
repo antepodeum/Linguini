@@ -298,7 +298,7 @@ export function linguini(options = {}) {
         return undefined;
       }
       if (!bundlerManifest) {
-        throw new Error("Linguini bundler manifest v2 is required for virtual messages");
+        throw new Error("Linguini bundler manifest v2 or v3 is required for virtual messages");
       }
       const message = decodeMessageId(id.slice(RESOLVED_VIRTUAL_MESSAGE_PREFIX.length));
       return renderVirtualMessageModule(bundlerManifest, message);
@@ -384,6 +384,7 @@ export async function readProjectLayout(root, configFile = DEFAULT_CONFIG_FILE) 
     [],
     "targets.ts.bundler.exclude"
   );
+  validateBundlerDynamic(rawBundler?.dynamic);
 
   return Object.freeze({
     projectRoot,
@@ -567,6 +568,61 @@ function readStringArray(value, fallback, field) {
   return value;
 }
 
+function validateBundlerDynamic(value) {
+  const field = "targets.ts.bundler.dynamic";
+  if (value === undefined) {
+    return;
+  }
+  if (!isRecord(value)) {
+    throw new TypeError(`Linguini config field ${field} must be a table`);
+  }
+  const unknown = Object.keys(value).filter((key) => key !== "mode" && key !== "allow");
+  if (unknown.length > 0) {
+    throw new TypeError(`Linguini config field ${field}.${unknown[0]} is unknown`);
+  }
+  const mode = value.mode ?? "error";
+  if (mode !== "error" && mode !== "bundle") {
+    throw new TypeError(`Linguini config field ${field}.mode must be "error" or "bundle"`);
+  }
+  const allow = readStringArray(value.allow, [], `${field}.allow`);
+  if (mode === "error" && allow.length > 0) {
+    throw new TypeError(`Linguini config field ${field}.allow requires mode = "bundle"`);
+  }
+  if (mode === "bundle" && allow.length === 0) {
+    throw new TypeError(`Linguini config field ${field}.allow must be non-empty in bundle mode`);
+  }
+  const seen = new Set();
+  for (const message of allow) {
+    if (!isDynamicMessagePath(message)) {
+      throw new TypeError(`Linguini config field ${field}.allow has invalid path ${message}`);
+    }
+    const folded = message.toLowerCase();
+    if (seen.has(folded)) {
+      throw new TypeError(`Linguini config field ${field}.allow has duplicate path ${message}`);
+    }
+    seen.add(folded);
+  }
+}
+
+function isDynamicMessagePath(message) {
+  if (
+    message.length === 0 ||
+    message.trim() !== message ||
+    /[\\/*?\[\]]/.test(message)
+  ) {
+    return false;
+  }
+  return message.split(".").every((segment) => {
+    if (segment.length === 0) {
+      return false;
+    }
+    return ![...segment].some((character) => {
+      const code = character.codePointAt(0);
+      return /\s/u.test(character) || code < 0x20 || (code >= 0x7f && code <= 0x9f);
+    });
+  });
+}
+
 function resolveWithin(root, value, field) {
   if (typeof value !== "string" || value.length === 0 || path.isAbsolute(value)) {
     throw new Error(`${field} must be a non-empty relative path`);
@@ -610,13 +666,13 @@ async function readBundlerManifest(layout) {
   if (raw.version === 1) {
     return undefined;
   }
-  if (raw.version !== 2) {
+  if (raw.version !== 2 && raw.version !== 3) {
     throw new Error(`unsupported Linguini bundler manifest version ${raw.version}`);
   }
-  return validateManifestV2(raw, layout, manifestPath);
+  return validateManifest(raw, layout, manifestPath);
 }
 
-function validateManifestV2(raw, layout, manifestPath) {
+function validateManifest(raw, layout, manifestPath) {
   const context = `Linguini bundler manifest ${manifestPath}`;
   const baseLocale = requireString(raw.base_locale, `${context}.base_locale`);
   const configuredLocales = requireStringArray(
@@ -720,7 +776,13 @@ function validateManifestV2(raw, layout, manifestPath) {
   const applicationSourceIds = new Set();
   for (const [relative, rawApplication] of Object.entries(raw.applications)) {
     const file = resolveProjectPath(layout.projectRoot, relative, `${context}.applications`);
-    const application = validateApplication(rawApplication, relative, context, messages);
+    const application = validateApplication(
+      rawApplication,
+      relative,
+      context,
+      messages,
+      raw.version
+    );
     if (applicationSourceIds.has(rawApplication.source_id)) {
       throw new Error(`${context}.applications has duplicate source_id ${rawApplication.source_id}`);
     }
@@ -728,7 +790,7 @@ function validateManifestV2(raw, layout, manifestPath) {
     applicationsByFile.set(file, application);
   }
   return Object.freeze({
-    version: 2,
+    version: raw.version,
     manifestPath,
     generatedRoot: layout.generatedRoot,
     baseLocale,
@@ -752,7 +814,7 @@ function validateRuntimeHelper(raw, field, generatedRoot, context) {
   return Object.freeze({ logicalImport, file });
 }
 
-function validateApplication(raw, relative, context, messages) {
+function validateApplication(raw, relative, context, messages, manifestVersion) {
   const field = `${context}.applications.${relative}`;
   if (
     !isRecord(raw) ||
@@ -806,9 +868,25 @@ function validateApplication(raw, relative, context, messages) {
       importedEnd: requireOffset(item.imported_end, `${field}.imports.imported_end`),
       localStart: requireOffset(item.local_start, `${field}.imports.local_start`),
       localEnd: requireOffset(item.local_end, `${field}.imports.local_end`),
+      analyzerTrackedUsesOnly:
+        manifestVersion === 3
+          ? requireBoolean(
+              item.analyzer_tracked_uses_only,
+              `${field}.imports.${bindingId}.analyzer_tracked_uses_only`
+            )
+          : undefined,
       transformable: item.transformable
     };
-    validateNestedSpans(binding, raw.byte_length, field);
+    if (
+      manifestVersion === 3 &&
+      binding.transformable &&
+      !binding.analyzerTrackedUsesOnly
+    ) {
+      throw new Error(
+        `${field}.imports.${bindingId}.transformable requires analyzer_tracked_uses_only`
+      );
+    }
+    validateNestedSpans(binding, raw.byte_length, field, manifestVersion === 3);
     imports.set(bindingId, binding);
   }
   const references = raw.references.map((item, index) => {
@@ -869,6 +947,15 @@ function validateApplication(raw, relative, context, messages) {
     }
     previousEnd = reference.end;
   }
+  const dynamicReferences =
+    manifestVersion === 3
+      ? validateDynamicReferences(raw.dynamic_references, field, raw.byte_length, messages, imports)
+      : Object.freeze([]);
+  validateReferenceNonoverlap(references, dynamicReferences, field);
+  if (manifestVersion === 3) {
+    validateImportRemovalNonoverlap(imports, field);
+    validateReferencesOutsideImports(references, dynamicReferences, imports, field);
+  }
   for (const [index, unresolved] of raw.unresolved.entries()) {
     if (
       !isRecord(unresolved) ||
@@ -888,15 +975,195 @@ function validateApplication(raw, relative, context, messages) {
       sha256: raw.sha256,
       byte_length: raw.byte_length,
       references: raw.references,
+      dynamic_references: manifestVersion === 3 ? raw.dynamic_references : undefined,
       imports: raw.imports
     }),
     imports,
-    references: Object.freeze(references)
+    references: Object.freeze(references),
+    dynamicReferences
   });
+}
+
+function validateDynamicReferences(raw, field, byteLength, messages, imports) {
+  if (!Array.isArray(raw)) {
+    throw new Error(`${field}.dynamic_references must be an array`);
+  }
+  const references = raw.map((item, index) => {
+    const itemField = `${field}.dynamic_references.${index}`;
+    if (!isRecord(item) || item.kind !== "computed") {
+      throw new Error(`${itemField} must be a computed dynamic reference`);
+    }
+    const prefix = requireDynamicPrefix(item.prefix, `${itemField}.prefix`);
+    const span = validateByteSpan(item.span, `${itemField}.span`, byteLength);
+    const receiverSpan = validateByteSpan(
+      item.receiver_span,
+      `${itemField}.receiver_span`,
+      byteLength
+    );
+    const keySpan = validateByteSpan(item.key_span, `${itemField}.key_span`, byteLength);
+    if (
+      receiverSpan.start !== span.start ||
+      receiverSpan.end >= keySpan.start ||
+      keySpan.end >= span.end ||
+      receiverSpan.end > span.end ||
+      keySpan.start < span.start
+    ) {
+      throw new Error(`${itemField} has invalid nested dynamic spans`);
+    }
+    if (item.reference_kind !== "value" && item.reference_kind !== "call") {
+      throw new Error(`${itemField}.reference_kind must be value or call`);
+    }
+    const bindingId = requireString(item.binding_id, `${itemField}.binding_id`);
+    const binding = imports.get(bindingId);
+    const provenance = item.provenance;
+    if (
+      !binding ||
+      !binding.transformable ||
+      !binding.analyzerTrackedUsesOnly ||
+      (binding.imported !== "l" && binding.imported !== "messages") ||
+      typeof item.local !== "string" ||
+      item.local !== binding.local ||
+      !isRecord(provenance) ||
+      provenance.kind !== "imported" ||
+      provenance.module_specifier !== binding.moduleSpecifier ||
+      provenance.symbol !== binding.imported
+    ) {
+      throw new Error(`${itemField} does not match a tracked transformable import binding`);
+    }
+    if (!Array.isArray(item.messages) || item.messages.length === 0) {
+      throw new Error(`${itemField}.messages must be a non-empty array`);
+    }
+    const dynamicMessages = [];
+    const keys = new Set();
+    let previousMessage;
+    for (const [messageIndex, rawMessage] of item.messages.entries()) {
+      const messageField = `${itemField}.messages.${messageIndex}`;
+      if (!isRecord(rawMessage)) {
+        throw new Error(`${messageField} must be an object`);
+      }
+      const message = requireString(rawMessage.message, `${messageField}.message`);
+      const key = requireString(rawMessage.key, `${messageField}.key`);
+      const declared = messages.get(message);
+      if (
+        !declared ||
+        rawMessage.arity !== declared.arity ||
+        immediateMessageKey(prefix, message) !== key
+      ) {
+        throw new Error(`${messageField} has invalid message, key, or arity`);
+      }
+      if (
+        previousMessage !== undefined &&
+        Buffer.compare(Buffer.from(previousMessage, "utf8"), Buffer.from(message, "utf8")) >= 0
+      ) {
+        throw new Error(`${itemField}.messages must be sorted and unique`);
+      }
+      if (keys.has(key)) {
+        throw new Error(`${itemField}.messages must have unique immediate keys`);
+      }
+      previousMessage = message;
+      keys.add(key);
+      dynamicMessages.push(Object.freeze({ message, key, arity: declared.arity }));
+    }
+    return Object.freeze({
+      kind: "computed",
+      prefix,
+      span,
+      receiverSpan,
+      keySpan,
+      referenceKind: item.reference_kind,
+      bindingId,
+      messages: Object.freeze(dynamicMessages)
+    });
+  });
+  return Object.freeze(references);
+}
+
+function requireDynamicPrefix(value, field) {
+  if (typeof value !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
+  if (value !== "" && !isDynamicMessagePath(value)) {
+    throw new Error(`${field} must be a canonical message prefix`);
+  }
+  return value;
+}
+
+function validateByteSpan(raw, field, byteLength) {
+  if (!isRecord(raw)) {
+    throw new Error(`${field} must be an object`);
+  }
+  const start = requireOffset(raw.start, `${field}.start`);
+  const end = requireOffset(raw.end, `${field}.end`);
+  if (start >= end || end > byteLength) {
+    throw new Error(`${field} is outside application bytes`);
+  }
+  return Object.freeze({ start, end });
+}
+
+function immediateMessageKey(prefix, message) {
+  if (prefix === "") {
+    return message.includes(".") ? undefined : message;
+  }
+  const marker = `${prefix}.`;
+  if (!message.startsWith(marker)) {
+    return undefined;
+  }
+  const key = message.slice(marker.length);
+  return key.length > 0 && !key.includes(".") ? key : undefined;
+}
+
+function validateReferenceNonoverlap(staticReferences, dynamicReferences, field) {
+  const spans = [
+    ...staticReferences.map((reference) => ({
+      start: reference.start,
+      end: reference.end
+    })),
+    ...dynamicReferences.map((reference) => reference.span)
+  ].sort((left, right) => left.start - right.start || left.end - right.end);
+  for (let index = 1; index < spans.length; index += 1) {
+    if (spans[index].start < spans[index - 1].end) {
+      throw new Error(`${field} contains overlapping static or dynamic spans`);
+    }
+  }
+}
+
+function validateImportRemovalNonoverlap(imports, field) {
+  const spans = [...imports.values()]
+    .map((binding) => ({
+      start: binding.removalStart,
+      end: binding.removalEnd
+    }))
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+  for (let index = 1; index < spans.length; index += 1) {
+    if (spans[index].start < spans[index - 1].end) {
+      throw new Error(`${field}.imports contains overlapping removal spans`);
+    }
+  }
+}
+
+function validateReferencesOutsideImports(staticReferences, dynamicReferences, imports, field) {
+  const references = [
+    ...staticReferences.map((reference) => ({
+      start: reference.start,
+      end: reference.end
+    })),
+    ...dynamicReferences.map((reference) => reference.span)
+  ];
+  for (const reference of references) {
+    for (const binding of imports.values()) {
+      if (
+        reference.start < binding.declarationEnd &&
+        reference.end > binding.declarationStart
+      ) {
+        throw new Error(`${field} has a reference span inside an import declaration`);
+      }
+    }
+  }
 }
 
 function manifestContractFingerprint(manifest) {
   return JSON.stringify({
+    version: manifest.version,
     baseLocale: manifest.baseLocale,
     configuredLocales: manifest.configuredLocales,
     effectiveLocales: manifest.effectiveLocales,
@@ -1005,7 +1272,7 @@ function sameNumberArray(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-function validateNestedSpans(binding, byteLength, field) {
+function validateNestedSpans(binding, byteLength, field, strict = false) {
   const spans = [
     [binding.declarationStart, binding.declarationEnd, "declaration"],
     [binding.itemStart, binding.itemEnd, "item"],
@@ -1033,9 +1300,41 @@ function validateNestedSpans(binding, byteLength, field) {
   ) {
     throw new Error(`${field} has import spans outside declaration`);
   }
+  if (
+    strict &&
+    (binding.importedStart < binding.itemStart ||
+      binding.importedEnd > binding.itemEnd ||
+      binding.localStart < binding.itemStart ||
+      binding.localEnd > binding.itemEnd ||
+      binding.itemStart < binding.removalStart ||
+      binding.itemEnd > binding.removalEnd)
+  ) {
+    throw new Error(`${field} has invalid nested import item spans`);
+  }
 }
 
 async function transformApplication(code, id, application, manifest, generatedRoot) {
+  if (manifest.version === 2) {
+    return transformApplicationV2.call(
+      this,
+      code,
+      id,
+      application,
+      manifest,
+      generatedRoot
+    );
+  }
+  return transformApplicationV3.call(
+    this,
+    code,
+    id,
+    application,
+    manifest,
+    generatedRoot
+  );
+}
+
+async function transformApplicationV2(code, id, application, manifest, generatedRoot) {
   const bytes = Buffer.from(code, "utf8");
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (bytes.length !== application.byteLength || digest !== application.sha256) {
@@ -1145,6 +1444,312 @@ async function transformApplication(code, id, application, manifest, generatedRo
       includeContent: true
     })
   };
+}
+
+async function transformApplicationV3(code, id, application, manifest, generatedRoot) {
+  const bytes = Buffer.from(code, "utf8");
+  const digest = createHash("sha256").update(bytes).digest("hex");
+  if (bytes.length !== application.byteLength || digest !== application.sha256) {
+    throw new Error(
+      `Linguini application manifest is stale for ${stripQueryAndHash(id)}; rebuild generated output`
+    );
+  }
+  const byteToUtf16 = createByteToUtf16Map(code, application.byteLength);
+  for (const reference of application.references) {
+    byteOffset(byteToUtf16, reference.start, application.relative);
+    byteOffset(byteToUtf16, reference.end, application.relative);
+  }
+  for (const reference of application.dynamicReferences) {
+    const start = byteOffset(byteToUtf16, reference.span.start, application.relative);
+    const end = byteOffset(byteToUtf16, reference.span.end, application.relative);
+    const receiverEnd = byteOffset(
+      byteToUtf16,
+      reference.receiverSpan.end,
+      application.relative
+    );
+    const keyStart = byteOffset(byteToUtf16, reference.keySpan.start, application.relative);
+    const keyEnd = byteOffset(byteToUtf16, reference.keySpan.end, application.relative);
+    if (code.slice(receiverEnd, keyStart) !== "[" || code.slice(keyEnd, end) !== "]") {
+      throw new Error(
+        `Linguini dynamic reference has invalid computed-key boundaries in ${application.relative}`
+      );
+    }
+    if (start >= receiverEnd || keyStart >= keyEnd) {
+      throw new Error(`Linguini dynamic reference has invalid spans in ${application.relative}`);
+    }
+  }
+  for (const binding of application.imports.values()) {
+    for (const offset of [
+      binding.declarationStart,
+      binding.declarationEnd,
+      binding.itemStart,
+      binding.itemEnd,
+      binding.removalStart,
+      binding.removalEnd,
+      binding.moduleSpecifierStart,
+      binding.moduleSpecifierEnd,
+      binding.importedStart,
+      binding.importedEnd,
+      binding.localStart,
+      binding.localEnd
+    ]) {
+      byteOffset(byteToUtf16, offset, application.relative);
+    }
+  }
+
+  const dynamicBindingIds = new Set(
+    application.dynamicReferences.map((reference) => reference.bindingId)
+  );
+  const referencedBindingIds = new Set([
+    ...application.references.flatMap((reference) =>
+      reference.bindingId === null ? [] : [reference.bindingId]
+    ),
+    ...dynamicBindingIds
+  ]);
+  const generatedEntry = normalizeResolvedFileId(path.resolve(generatedRoot, "svelte.ts"));
+  const acceptedBindings = new Map();
+  for (const bindingId of referencedBindingIds) {
+    const binding = application.imports.get(bindingId);
+    if (
+      !binding?.transformable ||
+      !binding.analyzerTrackedUsesOnly ||
+      (binding.imported !== "l" && binding.imported !== "messages")
+    ) {
+      if (dynamicBindingIds.has(bindingId)) {
+        throw new Error(
+          `Linguini dynamic binding ${bindingId} is not tracked and transformable in ${application.relative}`
+        );
+      }
+      continue;
+    }
+    let resolved;
+    try {
+      resolved = await this.resolve(binding.moduleSpecifier, stripQueryAndHash(id), {
+        skipSelf: true
+      });
+    } catch (error) {
+      if (dynamicBindingIds.has(bindingId)) {
+        throw new Error(
+          `Linguini dynamic binding ${bindingId} could not resolve ${binding.moduleSpecifier}`,
+          { cause: error }
+        );
+      }
+      continue;
+    }
+    const resolvedId = typeof resolved === "string" ? resolved : resolved?.id;
+    if (normalizeResolvedFileId(resolvedId) !== generatedEntry) {
+      if (dynamicBindingIds.has(bindingId)) {
+        throw new Error(
+          `Linguini dynamic binding ${bindingId} must resolve to generated svelte.ts`
+        );
+      }
+      continue;
+    }
+    acceptedBindings.set(bindingId, binding);
+  }
+
+  const operations = [
+    ...application.references
+      .filter(
+        (reference) =>
+          reference.bindingId !== null && acceptedBindings.has(reference.bindingId)
+      )
+      .map((reference) => ({
+        type: "static",
+        start: reference.start,
+        end: reference.end,
+        bindingId: reference.bindingId,
+        reference
+      })),
+    ...application.dynamicReferences
+      .filter((reference) => acceptedBindings.has(reference.bindingId))
+      .map((reference) => ({
+        type: "dynamic",
+        start: reference.span.start,
+        end: reference.span.end,
+        bindingId: reference.bindingId,
+        reference
+      }))
+  ].sort((left, right) => left.start - right.start || left.end - right.end);
+  if (operations.length === 0) {
+    return undefined;
+  }
+
+  const magic = new MagicString(code);
+  const scopes = new Map();
+  const bindingScopes = new Map();
+  for (const operation of operations) {
+    let scopeKey = bindingScopes.get(operation.bindingId);
+    const binding = acceptedBindings.get(operation.bindingId);
+    if (!scopeKey) {
+      const declarationStart = byteOffset(
+        byteToUtf16,
+        binding.declarationStart,
+        application.relative
+      );
+      const scopeInfo = applicationScope(code, declarationStart, application.relative);
+      scopeKey = scopeInfo.key;
+      bindingScopes.set(operation.bindingId, scopeKey);
+      if (!scopes.has(scopeKey)) {
+        scopes.set(scopeKey, {
+          insertionByte: scopeInfo.insertionByte,
+          imports: new Map(),
+          dispatches: new Map()
+        });
+      }
+    }
+  }
+
+  const allocatedAliases = new Set();
+  let nextMessageAlias = 0;
+  let nextDispatchAlias = 0;
+  const allocateAlias = (prefix, nextIndex) => {
+    let alias;
+    do {
+      alias = `${prefix}${nextIndex()}`;
+    } while (code.includes(alias) || allocatedAliases.has(alias));
+    allocatedAliases.add(alias);
+    return alias;
+  };
+  const allocateMessageAlias = () =>
+    allocateAlias("__linguini_message_", () => nextMessageAlias++);
+  const allocateDispatchAlias = () =>
+    allocateAlias("__linguini_dispatch_", () => nextDispatchAlias++);
+  const messageAlias = (scope, message) => {
+    let alias = scope.imports.get(message);
+    if (!alias) {
+      alias = allocateMessageAlias();
+      scope.imports.set(message, alias);
+    }
+    return alias;
+  };
+
+  const transformedCounts = new Map();
+  for (const operation of operations) {
+    const scope = scopes.get(bindingScopes.get(operation.bindingId));
+    const start = byteOffset(byteToUtf16, operation.start, application.relative);
+    const end = byteOffset(byteToUtf16, operation.end, application.relative);
+    if (operation.type === "static") {
+      const alias = messageAlias(scope, operation.reference.message);
+      magic.overwrite(
+        start,
+        end,
+        operation.reference.kind === "value" ? `${alias}()` : alias
+      );
+    } else {
+      const signature = JSON.stringify(
+        operation.reference.messages.map(({ message, key, arity }) => [message, key, arity])
+      );
+      const dispatchKey = JSON.stringify([
+        operation.bindingId,
+        operation.reference.prefix,
+        signature
+      ]);
+      let dispatch = scope.dispatches.get(dispatchKey);
+      if (!dispatch) {
+        dispatch = {
+          alias: allocateDispatchAlias(),
+          entries: operation.reference.messages.map(({ message, key, arity }) => ({
+            message,
+            key,
+            arity,
+            alias: messageAlias(scope, message)
+          }))
+        };
+        scope.dispatches.set(dispatchKey, dispatch);
+      }
+      const keyStart = byteOffset(
+        byteToUtf16,
+        operation.reference.keySpan.start,
+        application.relative
+      );
+      const keyEnd = byteOffset(
+        byteToUtf16,
+        operation.reference.keySpan.end,
+        application.relative
+      );
+      magic.overwrite(start, end, `${dispatch.alias}[${code.slice(keyStart, keyEnd)}]`);
+    }
+    transformedCounts.set(
+      operation.bindingId,
+      (transformedCounts.get(operation.bindingId) ?? 0) + 1
+    );
+  }
+
+  const manifestUseCounts = new Map();
+  for (const reference of [...application.references, ...application.dynamicReferences]) {
+    if (reference.bindingId !== null) {
+      manifestUseCounts.set(
+        reference.bindingId,
+        (manifestUseCounts.get(reference.bindingId) ?? 0) + 1
+      );
+    }
+  }
+  const activeBindings = [...acceptedBindings.values()].filter(
+    (binding) =>
+      (transformedCounts.get(binding.bindingId) ?? 0) > 0 &&
+      transformedCounts.get(binding.bindingId) === manifestUseCounts.get(binding.bindingId)
+  );
+  const deletions = importDeletions(code, activeBindings, byteToUtf16, application.relative);
+  for (const [start, end] of deletions) {
+    magic.remove(start, end);
+  }
+  for (const scope of scopes.values()) {
+    const insertion = byteOffset(byteToUtf16, scope.insertionByte, application.relative);
+    const imports = [...scope.imports]
+      .map(
+        ([message, alias]) =>
+          `import { message as ${alias} } from ${JSON.stringify(virtualMessageId(message))};\n`
+      )
+      .join("");
+    const dispatches = [...scope.dispatches.values()]
+      .map((dispatch) => renderDynamicDispatch(dispatch.alias, dispatch.entries))
+      .join("");
+    magic.prependLeft(insertion, `${imports}${dispatches}`);
+  }
+  return {
+    code: magic.toString(),
+    map: magic.generateMap({
+      hires: true,
+      source: stripQueryAndHash(id),
+      includeContent: true
+    })
+  };
+}
+
+function renderDynamicDispatch(alias, entries) {
+  const descriptors = entries
+    .map(({ key, arity, alias: messageAlias }) => {
+      const value =
+        arity === 0
+          ? `{ enumerable: true, get: () => ${messageAlias}() }`
+          : `{ enumerable: true, value: ${messageAlias} }`;
+      return `[${JSON.stringify(key)}]: ${value}`;
+    })
+    .join(", ");
+  return `const ${alias} = Object.freeze(Object.defineProperties(Object.create(null), { ${descriptors} }));\n`;
+}
+
+function applicationScope(code, insertion, sourceName) {
+  if (path.extname(sourceName).toLowerCase() !== ".svelte") {
+    return { key: "module", insertionByte: 0 };
+  }
+  const openPattern = /<script\b[^>]*>/gi;
+  let match;
+  while ((match = openPattern.exec(code))) {
+    const close = code.indexOf("</script>", openPattern.lastIndex);
+    if (close === -1) {
+      break;
+    }
+    if (insertion >= openPattern.lastIndex && insertion <= close) {
+      return {
+        key: `${match.index}:${close}`,
+        insertionByte: Buffer.byteLength(code.slice(0, openPattern.lastIndex), "utf8")
+      };
+    }
+    openPattern.lastIndex = close + "</script>".length;
+  }
+  throw new Error(`Linguini import binding is outside a Svelte script in ${sourceName}`);
 }
 
 function importDeletions(code, bindings, byteToUtf16, sourceName) {
@@ -1378,6 +1983,13 @@ function validatePortableRelativePath(value, field) {
 function requireString(value, field) {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${field} must be a non-empty string`);
+  }
+  return value;
+}
+
+function requireBoolean(value, field) {
+  if (typeof value !== "boolean") {
+    throw new Error(`${field} must be boolean`);
   }
   return value;
 }
