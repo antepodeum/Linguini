@@ -587,6 +587,36 @@ test("does not add a missing config to the watch set", async (context) => {
   assert.deepEqual(await discoverLinguiniFiles(root), []);
 });
 
+test("ignores generated output and transaction trees without hiding the manifest", async (context) => {
+  const root = await fixture();
+  context.after(() => rm(root, { recursive: true, force: true }));
+
+  const plugin = linguini();
+  const config = await plugin.config({ root });
+  assert.ok(Array.isArray(config.server.watch.ignored));
+  assert.equal(config.server.watch.ignored.length, 1);
+  const ignored = config.server.watch.ignored[0];
+  assert.equal(typeof ignored, "function");
+
+  const generated = path.join(root, "build/custom-linguini");
+  const manifest = path.join(generated, "bundler/manifest.json");
+  const transaction = path.join(
+    root,
+    "build/.linguini-transaction-123-456-0/new/bundler/messages/title.js"
+  );
+  const cases = [
+    [path.join(root, "src/routes/page.svelte"), false, "outside generated output"],
+    [generated, false, "generated root"],
+    [path.join(generated, "bundler"), false, "manifest ancestor"],
+    [manifest, false, "manifest"],
+    [path.join(generated, "bundler/messages/main/title/en.js"), true, "physical module"],
+    [transaction, true, "transaction staging path"]
+  ];
+  for (const [file, expected, label] of cases) {
+    assert.equal(ignored(file), expected, label);
+  }
+});
+
 test("rejects configured paths outside the project", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-"));
   context.after(() => rm(root, { recursive: true, force: true }));

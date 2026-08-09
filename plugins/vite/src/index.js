@@ -239,6 +239,21 @@ export function linguini(options = {}) {
   return {
     name: "vite-plugin-linguini",
     enforce: "pre",
+    async config(config) {
+      const root = path.resolve(options.root ?? config.root ?? process.cwd());
+      const projectLayout = await readProjectLayout(root, options.configFile);
+      const generatedRoot = projectLayout.generatedRoot;
+      const manifestPath = path.join(generatedRoot, MANIFEST_RELATIVE_PATH);
+      return {
+        server: {
+          watch: {
+            // Keep this as an array so Vite's normal config merge composes it
+            // with user and framework-provided ignored matchers.
+            ignored: [createGeneratedWatchIgnored(generatedRoot, manifestPath)]
+          }
+        }
+      };
+    },
     async configResolved(config) {
       viteConfig = config;
       projectRoot = path.resolve(options.root ?? config.root ?? process.cwd());
@@ -517,6 +532,30 @@ function isGeneratedModule(id, generatedRoot, options) {
   }
   const file = id.split("?", 1)[0];
   return path.isAbsolute(file) && isWithin(generatedRoot, path.resolve(file));
+}
+
+function createGeneratedWatchIgnored(generatedRoot, manifestPath) {
+  const bundlerRoot = path.dirname(manifestPath);
+  const transactionParent = path.dirname(generatedRoot);
+  return (file) => {
+    if (typeof file !== "string") {
+      return false;
+    }
+    const absolute = path.resolve(file);
+    if (
+      absolute === generatedRoot ||
+      absolute === bundlerRoot ||
+      absolute === manifestPath
+    ) {
+      return false;
+    }
+    if (isWithin(generatedRoot, absolute)) {
+      return true;
+    }
+    const relativeToTransactionParent = path.relative(transactionParent, absolute);
+    const [directory] = relativeToTransactionParent.split(path.sep);
+    return directory.startsWith(".linguini-transaction-");
+  };
 }
 
 function sendViteError(server, error, file) {
