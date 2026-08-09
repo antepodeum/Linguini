@@ -129,6 +129,8 @@ production path uses the fix and its relevant tests pass.
   runtime tests, Svelte checks, and the production build.
 - `4e80ed0` — added an eager-by-default typed locale-loading policy and manifest-v4 metadata for
   opt-in bundler-visible dynamic locale boundaries.
+- `71cb928` — added generated locale-loader registration, deterministic disposal, concurrent
+  preparation, and preload-before-switch semantics for lightweight Svelte controls.
 
 ## Numbered findings
 
@@ -711,8 +713,8 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [-] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries; typed config
-      and manifest-v4 policy are committed, while runtime preloading, Vite chunks, and real-site
-      graph verification remain.
+      and manifest-v4 policy plus runtime preloading are committed, while Vite chunks and
+      real-site graph verification remain.
 
 ### Local repository verification
 
