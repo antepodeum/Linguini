@@ -24,7 +24,15 @@ module = "esm"
 declaration = true
 gitignore = true
 framework = "sveltekit"
+
+[targets.ts.bundler]
+sources = ["src"]
 ```
+
+The bundler target enables exact message-module imports for the configured
+source roots. Components that import `l` from the generated Svelte facade are
+rewritten to the message modules they actually read; the eager generated
+`index.ts` message barrel is not needed in the browser graph.
 
 Use `framework = "svelte"` for a Svelte-only app. Omit `framework` to generate
 only the framework-agnostic TypeScript runtime.
@@ -96,33 +104,43 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 import linguini from "@antepod/linguini-vite";
 
-export default defineConfig({
-  plugins: [sveltekit(), linguini()],
-});
+export default defineConfig(({ command }) => ({
+  plugins: [
+    linguini({ buildOnStart: command === "serve" }),
+    sveltekit(),
+  ],
+}));
 ```
 
-Build the generated runtime:
+Build the generated runtime before a production build. Keep the Vite plugin in
+the production config so it can transform the generated message imports, but
+disable its startup code generation when the build is driven explicitly:
 
 ```sh
 linguini build
+vite build
 ```
 
 Use the generated hooks and root layout load:
 
 ```ts
 // src/hooks.server.ts
-export { handle } from "$lib/generated/linguini/sveltekit";
+export { handle } from "$lib/generated/linguini/sveltekit-control";
 ```
 
 ```ts
 // src/hooks.ts
-export { reroute } from "$lib/generated/linguini/sveltekit";
+export { reroute } from "$lib/generated/linguini/sveltekit-control";
 ```
 
 ```ts
 // src/routes/+layout.server.ts
-export { load } from "$lib/generated/linguini/sveltekit";
+export { load } from "$lib/generated/linguini/sveltekit-control";
 ```
+
+These lightweight hooks import locale and web state without the eager message
+barrel. Use the full generated `sveltekit` module instead when server code
+needs `locals.linguini` message access or the typed server context.
 
 The short `handle`, `reroute`, and `load` exports are for applications that do
 not already define those hooks. For composition, import the collision-free
@@ -240,8 +258,9 @@ Use the generated helpers for locale switching or programmatic URLs:
 
 ```svelte
 <script lang="ts">
-  import { l, setLocale } from "$lib/generated/linguini/svelte";
-  import { locales } from "$lib/generated/linguini";
+  import { l } from "$lib/generated/linguini/svelte";
+  import { setLocale } from "$lib/generated/linguini/svelte-control";
+  import { locales } from "$lib/generated/linguini/locale";
 </script>
 
 <nav>

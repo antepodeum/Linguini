@@ -1014,6 +1014,7 @@ snapshots:
 
   '@antepod/linguini-vite@file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
     dependencies:
+      magic-string: 0.30.21
       smol-toml: 1.7.1
       vite: 8.0.13(@types/node@24.12.4)(jiti@1.21.7)
 

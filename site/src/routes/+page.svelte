@@ -32,8 +32,9 @@
   import ZigIcon from '@iconify-svelte/skill-icons/zig-dark';
   import Button from '$lib/components/button.svelte';
   import CodeBlock from '$lib/components/code-block.svelte';
-  import { l, linguini, setLocale } from '$lib/generated/linguini/svelte';
-  import { locales, type Locale } from '$lib/generated/linguini';
+  import { l } from '$lib/generated/linguini/svelte';
+  import { linguini, setLocale } from '$lib/generated/linguini/svelte-control';
+  import { locales, type Locale } from '$lib/generated/linguini/locale';
   import type { Fruit, Size } from '$lib/generated/linguini/locales/en';
   import type { PageData } from './$types';
 
@@ -46,6 +47,7 @@
   let dateInput = $state('2026-05-19');
 
   const dateValue = $derived(dateInput);
+  const heroTitle = $derived(l.main.hero.title);
   const localizedRoot = $derived(linguini.localizeHref('/'));
 
   const nav = $derived([
@@ -142,7 +144,7 @@
       <span class="brand-nav-mark">
         <img src={`${base}/icons/favicon.svg`} alt="linguini logo" />
       </span>
-      <span class="truncate text-base tracking-[0.18em] sm:text-lg sm:tracking-[0.28em]">{l.main.hero.title.toUpperCase()}</span>
+      <span class="truncate text-base tracking-[0.18em] sm:text-lg sm:tracking-[0.28em]">{heroTitle.toUpperCase()}</span>
     </a>
 
     <div class="hidden items-center gap-6 text-sm text-muted-foreground md:flex">

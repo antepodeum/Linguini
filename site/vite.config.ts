@@ -4,14 +4,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(({ command }) => ({
 	plugins: [
-		...(command === 'serve'
-			? [
-					linguini({
-						command: 'cargo',
-						args: ['run', '--locked', '-p', 'linguini-cli', '--', 'build']
-					})
-				]
-			: []),
+		linguini({
+			command: 'cargo',
+			args: ['run', '--locked', '-p', 'linguini-cli', '--', 'build'],
+			buildOnStart: command === 'serve'
+		}),
 		sveltekit()
 	]
 }));

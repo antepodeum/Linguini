@@ -141,9 +141,21 @@ jobs:
       - name: Install site dependencies
         working-directory: site
         run: pnpm install --frozen-lockfile
-      - name: Generate, check, and build site
+      - name: Generate site
         working-directory: site
-        run: pnpm linguini:verify && pnpm check && pnpm build
+        run: pnpm linguini:build
+      - name: Test site
+        working-directory: site
+        run: pnpm test
+      - name: Check site
+        working-directory: site
+        run: pnpm check
+      - name: Build generated site
+        working-directory: site
+        run: pnpm build:generated
+      - name: Verify production message graph
+        working-directory: site
+        run: node scripts/production-graph.test.mjs
 
   vscode:
     name: VS Code extension

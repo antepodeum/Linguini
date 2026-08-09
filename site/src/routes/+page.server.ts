@@ -73,8 +73,9 @@ form SizeWord(Size) {
 checkout = {count} {SizeWord(size)} {fruit.nom(count)}, {total}`;
 
 const sveltekitExample = `<script lang="ts">
-  import { l, setLocale } from '$lib/generated/linguini/svelte';
-  import { locales } from '$lib/generated/linguini';
+  import { l } from '$lib/generated/linguini/svelte';
+  import { setLocale } from '$lib/generated/linguini/svelte-control';
+  import { locales } from '$lib/generated/linguini/locale';
 </script>
 
 <a href="/checkout">

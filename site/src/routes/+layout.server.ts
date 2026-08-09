@@ -1,1 +1,1 @@
-export { load } from '$lib/generated/linguini/sveltekit';
+export { load } from '$lib/generated/linguini/sveltekit-control';

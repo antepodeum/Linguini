@@ -13,6 +13,9 @@ declaration = true
 framework = "sveltekit"
 gitignore = false
 
+[targets.ts.bundler]
+sources = ["src"]
+
 [web.routing]
 locale_prefix = "always"
 canonical = "redirect"

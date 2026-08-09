@@ -18,8 +18,8 @@ test('normalizes root and nested GitHub Pages base paths', () => {
 test('updates only generated base and cookie path options', (context) => {
   const directory = mkdtempSync(join(tmpdir(), 'linguini-pages-'));
   context.after(() => rmSync(directory, { recursive: true, force: true }));
-  const client = join(directory, 'svelte.ts');
-  const server = join(directory, 'sveltekit.ts');
+  const client = join(directory, 'svelte-effects.svelte.ts');
+  const server = join(directory, 'sveltekit-control.ts');
   const source =
     'const options = { basePath: "", cookiePath: "/", label: "basePath: untouched" } as const;\n';
   writeFileSync(client, source);

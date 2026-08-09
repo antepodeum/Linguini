@@ -1,1 +1,1 @@
-export { reroute } from '$lib/generated/linguini/sveltekit';
+export { reroute } from '$lib/generated/linguini/sveltekit-control';

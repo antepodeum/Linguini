@@ -33,6 +33,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: site/pnpm-lock.yaml
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.93.1
+
       - name: Setup GitHub Pages
         id: pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
@@ -40,6 +45,10 @@ jobs:
       - name: Install site dependencies
         working-directory: site
         run: pnpm install --frozen-lockfile
+
+      - name: Generate site
+        working-directory: site
+        run: pnpm linguini:build
 
       - name: Resolve GitHub Pages routing
         shell: bash
@@ -82,7 +91,7 @@ jobs:
 
       - name: Build site
         working-directory: site
-        run: pnpm build
+        run: pnpm build:generated
 
       - name: Add GitHub Pages custom domain metadata
         working-directory: site

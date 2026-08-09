@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultGeneratedFiles = [
-  resolve(here, '../src/lib/generated/linguini/svelte.ts'),
-  resolve(here, '../src/lib/generated/linguini/sveltekit.ts')
+  resolve(here, '../src/lib/generated/linguini/svelte-effects.svelte.ts'),
+  resolve(here, '../src/lib/generated/linguini/sveltekit-control.ts')
 ];
 
 if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
