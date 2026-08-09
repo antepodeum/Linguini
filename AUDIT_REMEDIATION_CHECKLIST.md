@@ -119,6 +119,8 @@ production path uses the fix and its relevant tests pass.
   allowlist for the bounded bundle escape hatch.
 - `9e578cd` — added source-exact dynamic message references with binding provenance, computed-key
   spans, value/call identity, and conservative classification of ambiguous or mutating uses.
+- `49deef3` — separated complete tracked import usage from exact-static import safety so bounded
+  dynamic transforms cannot remove imports when any source use is unrepresented.
 
 ## Numbered findings
 
