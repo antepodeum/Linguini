@@ -33,10 +33,12 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
     readFileSync(join(generatedRoot, 'shared.ts'), 'utf8')
   );
   for (const locale of ['en', 'ru']) {
-    writeFileSync(
-      join(localeDirectory, locale, '_runtime.ts'),
-      readFileSync(join(generatedRoot, 'locales', locale, '_runtime.ts'), 'utf8')
-    );
+    for (const module of ['_runtime.ts', '_globals.ts']) {
+      writeFileSync(
+        join(localeDirectory, locale, module),
+        readFileSync(join(generatedRoot, 'locales', locale, module), 'utf8')
+      );
+    }
   }
 
   const enSourcePath = join(generatedRoot, 'locales/en/main.ts');
@@ -59,7 +61,7 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
   );
   writeFileSync(
     join(localeDirectory, 'ru/main.ts'),
-    `${ruSource}\nexport { pluralRu as __testPlural };\n`
+    `${ruSource}\nexport { pluralRu as __testPlural } from "./_runtime";\n`
   );
 
   const server = await createServer({

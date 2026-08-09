@@ -29,7 +29,10 @@ use self::emit::{
     emit_schema_type_reexports, emit_variables,
 };
 use self::formatters::{formatter_requirements, plural_required};
-use self::names::{escape_string, portable_path_component_error, safe_file_stem, safe_identifier};
+use self::names::{
+    escape_string, form_binding_name, portable_path_component_error, safe_file_stem,
+    safe_identifier,
+};
 use self::shared::emit_shared;
 use super::plural::generate_plural_function;
 
@@ -605,11 +608,16 @@ fn validate_namespace_output_paths(
             });
         }
         let folded = stem.to_ascii_lowercase();
-        if folded == "_runtime" {
+        if folded == "_runtime" || folded == "_globals" {
             let locale = &locales[0].locale;
+            let owner = if folded == "_runtime" {
+                "locale runtime"
+            } else {
+                "locale globals"
+            };
             return Err(TypeScriptCodegenError::OutputPathCollision {
                 path: format!("locales/{locale}/{stem}.ts"),
-                conflicts_with: format!("locales/{locale}/_runtime.ts (locale runtime)"),
+                conflicts_with: format!("locales/{locale}/{folded}.ts ({owner})"),
             });
         }
         if let Some((conflicting_namespace, conflicting_stem)) = output_stems.get(&folded) {
@@ -695,11 +703,23 @@ pub fn generate_typescript_project_files(
             path: format!("locales/{}/_runtime.ts", locale.locale),
             contents: generate_locale_runtime(&visible_schema, &visible_locale, &locale_options),
         });
+        let has_globals = locale_has_globals(&visible_locale);
+        if has_globals {
+            files.push(TypeScriptGeneratedFile {
+                path: format!("locales/{}/_globals.ts", locale.locale),
+                contents: generate_locale_globals(
+                    &visible_schema,
+                    &visible_locale,
+                    &locale_options,
+                ),
+            });
+        }
         let namespaces = top_level_namespaces(&visible_schema);
         for namespace in &namespaces {
             let namespace_file_stem = safe_file_stem(namespace);
             let namespace_schema = namespace_module(&visible_schema, namespace);
             let namespace_locale = namespace_module(&visible_locale, namespace);
+            let namespace_emit_locale = locale_without_globals(&namespace_locale);
             let validated = validate_codegen_ir(
                 &namespace_schema,
                 &namespace_locale,
@@ -713,6 +733,8 @@ pub fn generate_typescript_project_files(
                     "../../shared",
                     "./_runtime",
                     Some(namespace),
+                    Some(&namespace_emit_locale),
+                    has_globals.then_some("./_globals"),
                 ),
             });
             if options.declaration {
@@ -735,6 +757,7 @@ pub fn generate_typescript_project_files(
                 root_module_with_locale_items(&visible_locale),
             )
         };
+        let barrel_emit_locale = locale_without_globals(&barrel_locale);
         let validated = validate_codegen_ir(
             &barrel_schema,
             &barrel_locale,
@@ -746,6 +769,10 @@ pub fn generate_typescript_project_files(
                 &validated,
                 &locale_options,
                 &namespaces,
+                Some(&barrel_emit_locale),
+                has_globals
+                    .then(|| format!("./{}/_globals", escape_string(&locale.locale)))
+                    .as_deref(),
             ),
         });
         if options.declaration {
@@ -907,15 +934,38 @@ fn generate_typescript_module_with_namespaces(
     ir: &ValidatedIr<'_>,
     options: &TypeScriptOptions,
     namespaces: &[String],
+    locale_override: Option<&IrModule>,
+    global_import_path: Option<&str>,
 ) -> String {
-    generate_typescript_module_unchecked(ir.schema(), ir.locale(), options, namespaces)
+    generate_typescript_module_unchecked_with_locale(
+        ir.schema(),
+        ir.locale(),
+        locale_override.unwrap_or_else(|| ir.locale()),
+        options,
+        namespaces,
+        global_import_path,
+    )
 }
 
+#[cfg(test)]
 fn generate_typescript_module_unchecked(
     schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,
     namespaces: &[String],
+) -> String {
+    generate_typescript_module_unchecked_with_locale(
+        schema, locale, locale, options, namespaces, None,
+    )
+}
+
+fn generate_typescript_module_unchecked_with_locale(
+    schema: &IrModule,
+    import_locale: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+    namespaces: &[String],
+    global_import_path: Option<&str>,
 ) -> String {
     let mut output = String::new();
     for namespace in namespaces {
@@ -936,6 +986,9 @@ fn generate_typescript_module_unchecked(
         &format!("./{}/_runtime", escape_string(&options.locale)),
         &mut output,
     );
+    if let Some(global_import_path) = global_import_path {
+        emit_locale_global_imports(import_locale, global_import_path, &mut output);
+    }
     if !namespaces.is_empty() {
         output.push('\n');
     }
@@ -969,12 +1022,18 @@ fn generate_typescript_module_with_shared_import(
     shared_import_path: &str,
     runtime_import_path: &str,
     namespace_alias: Option<&str>,
+    locale_override: Option<&IrModule>,
+    global_import_path: Option<&str>,
 ) -> String {
     let schema = ir.schema();
-    let locale = ir.locale();
+    let import_locale = ir.locale();
+    let locale = locale_override.unwrap_or(import_locale);
     let mut output = String::new();
     emit_imports(schema, locale, options, shared_import_path, &mut output);
     emit_locale_runtime_imports(schema, locale, options, runtime_import_path, &mut output);
+    if let Some(global_import_path) = global_import_path {
+        emit_locale_global_imports(import_locale, global_import_path, &mut output);
+    }
     emit_schema_type_reexports(schema, shared_import_path, &mut output);
     emit_locale_enum_types(schema, locale, &mut output);
     emit_variables(locale, options, &mut output);
@@ -1028,6 +1087,117 @@ fn generate_locale_runtime(
         );
     }
     output
+}
+
+fn generate_locale_globals(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &TypeScriptOptions,
+) -> String {
+    let mut globals_schema = schema.clone();
+    globals_schema.messages.clear();
+    globals_schema.groups.clear();
+    let globals = locale_globals(locale);
+    let mut output = String::new();
+    emit_imports(
+        &globals_schema,
+        &globals,
+        options,
+        "../../shared",
+        &mut output,
+    );
+    emit_locale_runtime_imports(
+        &globals_schema,
+        &globals,
+        options,
+        "./_runtime",
+        &mut output,
+    );
+    emit_locale_enum_types(&globals_schema, &globals, &mut output);
+    emit_variables(&globals, options, &mut output);
+    emit_forms(&globals, options, &mut output);
+    emit_local_functions(&globals, options, &mut output);
+
+    let local_enum_names = globals
+        .enums
+        .iter()
+        .filter(|item| {
+            !globals_schema
+                .enums
+                .iter()
+                .any(|schema| schema.name == item.name)
+                && !globals_schema
+                    .type_aliases
+                    .iter()
+                    .any(|schema| schema.name == item.name)
+        })
+        .map(|item| safe_identifier(&item.name))
+        .collect::<Vec<_>>();
+    if !local_enum_names.is_empty() {
+        output.push_str(&format!(
+            "export type {{ {} }};\n",
+            local_enum_names.join(", ")
+        ));
+    }
+    let value_names = locale_global_value_names(&globals);
+    if !value_names.is_empty() {
+        output.push_str(&format!("export {{ {} }};\n", value_names.join(", ")));
+    }
+    output
+}
+
+fn emit_locale_global_imports(locale: &IrModule, import_path: &str, output: &mut String) {
+    let value_names = locale_global_value_names(locale);
+    if !value_names.is_empty() {
+        output.push_str(&format!(
+            "import {{ {} }} from \"{}\";\n",
+            value_names.join(", "),
+            escape_string(import_path)
+        ));
+    }
+}
+
+fn locale_global_value_names(locale: &IrModule) -> Vec<String> {
+    locale
+        .variables
+        .iter()
+        .map(|item| safe_identifier(&item.name))
+        .chain(
+            locale
+                .forms
+                .iter()
+                .map(|item| form_binding_name(&item.name)),
+        )
+        .chain(
+            locale
+                .functions
+                .iter()
+                .map(|item| safe_identifier(&item.name)),
+        )
+        .collect()
+}
+
+fn locale_has_globals(locale: &IrModule) -> bool {
+    !locale.enums.is_empty()
+        || !locale.variables.is_empty()
+        || !locale.forms.is_empty()
+        || !locale.functions.is_empty()
+}
+
+fn locale_globals(locale: &IrModule) -> IrModule {
+    let mut globals = locale.clone();
+    globals.messages.clear();
+    globals.groups.clear();
+    globals
+}
+
+fn locale_without_globals(locale: &IrModule) -> IrModule {
+    let mut messages = locale.clone();
+    messages.enums.clear();
+    messages.variables.clear();
+    messages.forms.clear();
+    messages.functions.clear();
+    messages
 }
 
 fn emit_locale_runtime_imports(
@@ -1455,6 +1625,31 @@ mod tests {
             error,
             TypeScriptCodegenError::OutputPathCollision { path, conflicts_with }
                 if path == "locales/en/_runtime.ts" && conflicts_with.contains("locale runtime")
+        ));
+    }
+
+    #[test]
+    fn locale_globals_path_is_reserved_from_namespace_outputs() {
+        let schema = lower_schema(&parse_schema("_globals { title }\n").expect("schema parses"));
+        let locales = [TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: lower_locale(
+                &parse_locale("_globals { title = Title }\n").expect("locale parses"),
+            ),
+        }];
+        let error = validate_project_inputs(
+            &schema,
+            &locales,
+            &TypeScriptProjectOptions {
+                base_locale: Some("en".to_owned()),
+                ..TypeScriptProjectOptions::default()
+            },
+        )
+        .expect_err("globals namespace collision");
+        assert!(matches!(
+            error,
+            TypeScriptCodegenError::OutputPathCollision { path, conflicts_with }
+                if path == "locales/en/_globals.ts" && conflicts_with.contains("locale globals")
         ));
     }
 

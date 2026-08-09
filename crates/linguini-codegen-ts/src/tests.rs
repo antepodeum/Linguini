@@ -667,8 +667,15 @@ plain = Raw {price @number}
 #[test]
 fn project_namespace_modules_share_the_locale_runtime() {
     let schema = lower_schema(&parse_schema("account { total(value: Number) }\n").expect("schema"));
-    let locale =
-        lower_locale(&parse_locale("account { total = Total {value @number} }\n").expect("locale"));
+    let locale = lower_locale(
+        &parse_locale(
+            "let prefix = Total\n\
+             form Amount(Plural) { one => item\n_ => items }\n\
+             fn Render(value: String) { _ => {value} }\n\
+             account { total = {prefix} {Render(Amount(value))}: {value @number} }\n",
+        )
+        .expect("locale"),
+    );
     let files = generate_project_files(
         &schema,
         &[TypeScriptLocaleModule {
@@ -686,12 +693,21 @@ fn project_namespace_modules_share_the_locale_runtime() {
     assert!(namespace
         .contents
         .contains("import { formatNumber } from \"./_runtime\";"));
+    assert!(namespace
+        .contents
+        .contains("import { prefix, Amount, Render } from \"./_globals\";"));
     assert!(!namespace.contents.contains("function formatNumber("));
+    assert!(!namespace.contents.contains("const prefix ="));
+    assert!(!namespace.contents.contains("function Amount("));
+    assert!(!namespace.contents.contains("function Render("));
+    assert!(namespace.contents.contains("Render(Amount(value))"));
     let barrel = files
         .iter()
         .find(|file| file.path == "locales/en.ts")
         .expect("locale barrel");
     assert!(!barrel.contents.contains("formatNumber"));
+    assert!(barrel.contents.contains("from \"./en/_globals\";"));
+    assert!(!barrel.contents.contains("const prefix ="));
     let runtime = files
         .iter()
         .find(|file| file.path == "locales/en/_runtime.ts")
@@ -703,6 +719,16 @@ fn project_namespace_modules_share_the_locale_runtime() {
             .count(),
         1
     );
+    let globals = files
+        .iter()
+        .find(|file| file.path == "locales/en/_globals.ts")
+        .expect("locale globals");
+    assert_eq!(globals.contents.matches("const prefix =").count(), 1);
+    assert_eq!(globals.contents.matches("function Amount(").count(), 1);
+    assert_eq!(globals.contents.matches("function Render(").count(), 1);
+    assert!(globals
+        .contents
+        .contains("export { prefix, Amount, Render };"));
 }
 
 #[test]
@@ -886,8 +912,8 @@ fn project_codegen_normalizes_inferred_plural_inline_selectors() {
     .expect("project codegen");
     let module = files
         .iter()
-        .find(|file| file.path == "locales/en.ts")
-        .expect("locale module");
+        .find(|file| file.path == "locales/en/_globals.ts")
+        .expect("locale globals module");
 
     assert!(module.contents.contains(
         "selectBranch(pluralEn(__lgl_inline_selector_0), { one: (): string => \"one\", _: (): string => \"other\" })()"
@@ -919,8 +945,8 @@ fn project_codegen_keeps_form_parameter_types_in_inline_branches() {
     .expect("project codegen");
     let module = files
         .iter()
-        .find(|file| file.path == "locales/en.ts")
-        .expect("locale module");
+        .find(|file| file.path == "locales/en/_globals.ts")
+        .expect("locale globals module");
 
     assert!(module
         .contents
@@ -1112,7 +1138,11 @@ fn project_codegen_named_and_anonymous_functions_share_dispatch_semantics() {
         .find(|file| file.path == "locales/en.ts")
         .expect("locale module");
 
-    let named_dispatch = module
+    let globals = files
+        .iter()
+        .find(|file| file.path == "locales/en/_globals.ts")
+        .expect("locale globals module");
+    let named_dispatch = globals
         .contents
         .split_once("function Choose(__lgl_p0: Tone, __lgl_p1: number | bigint | string, name: string): string {\n  return ")
         .expect("named function dispatch")
@@ -1181,8 +1211,8 @@ fn project_codegen_types_numeric_and_locale_enum_function_parameters() {
     .expect("project codegen");
     let module = files
         .iter()
-        .find(|file| file.path == "locales/en.ts")
-        .expect("locale module");
+        .find(|file| file.path == "locales/en/_globals.ts")
+        .expect("locale globals module");
 
     assert!(module
         .contents
