@@ -66,5 +66,12 @@ regressing positional calls, tree-shaking, locale splitting, source maps, or HMR
 - `CALL-B1` is complete in `76059bc`. Positional and named-object calls share one generated body
   and boundary normalizer; parameterless leaves remain values. Rust codegen, Vite, generated
   declarations, negative TypeScript fixtures, runtime parity, and all five real-site gates pass.
+- Legacy project output now emits variables, forms, functions, and locale enums once in each
+  locale's reserved `_globals.ts` module (`e0a82a3`). Root and namespace modules import bindings
+  without copying declarations. All nine site locales generate this boundary; codegen, CLI, Vite,
+  runtime, type/Svelte, production build, and graph gates pass. Checklist #202, #204, and
+  `BUNDLE-A13` are complete.
+- The strict codegen Clippy blocker introduced by the physical-message import surface was removed
+  in `bd9c67e` by grouping import inputs without changing generated output.
 - Next: resume the remaining remediation checklist from the first dependency-ready unfinished
   work package after the bundler-native message API sequence.

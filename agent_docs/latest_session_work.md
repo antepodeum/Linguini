@@ -11,7 +11,12 @@
 - Verified codegen (99 unit + 3 integration), CLI (78 unit + 24 integration), Vite (2 suites), and
   all five site gates. The site build contains 585 physical message leaves and no duplicated helper
   implementations.
+- Added one reserved `_globals.ts` module per effective locale in `e0a82a3`. Legacy root and
+  namespace modules import locale variables, forms, and functions from it instead of duplicating
+  their definitions. The real site generates nine such modules and passes all five gates.
+- Cleared the strict codegen Clippy blocker in `bd9c67e`; 100 codegen unit tests, three web safety
+  tests, and `cargo clippy -p linguini-codegen-ts --all-targets -- -D warnings` pass.
 - Updated the remediation checklist through `CALL-A1`–`CALL-A6`, `P2-7`, `ESM-A9`, `API-D4`,
-  `DOC-R3`, `DOC-G3`, and `DOC-F2`.
+  `DOC-R3`, `DOC-G3`, `DOC-F2`, #202, #204, and `BUNDLE-A13`.
 - Next work starts from the first dependency-ready unfinished remediation package after the
   bundler-native message API sequence.

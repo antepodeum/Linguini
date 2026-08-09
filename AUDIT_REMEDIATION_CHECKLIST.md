@@ -386,10 +386,9 @@ production path uses the fix and its relevant tests pass.
 - [ ] #199 — Emit source maps back to Linguini sources.
 - [ ] #200 — Require every declared message in direct codegen input locales.
 - [ ] #201 — Replace eager locale imports with real bundler-visible splitting.
-- [-] #202 — Tree-shake transitive forms, functions, variables, and helpers. Physical bundler
-      leaves now do this exactly; legacy namespace-wide global copying remains tracked by #204.
+- [x] #202 — Tree-shake transitive forms, functions, variables, and helpers.
 - [x] #203 — Diagnose unknown `included_messages`.
-- [ ] #204 — Stop copying all global declarations into every namespace.
+- [x] #204 — Stop copying all global declarations into every namespace.
 - [x] #205 — Deduplicate formatter helpers/data per locale.
 - [x] #206 — Sanitize namespace paths and generated filenames.
 - [x] #207 — Reject case-folded locale filename collisions.
@@ -735,6 +734,8 @@ production path uses the fix and its relevant tests pass.
       import only required names from physical message modules.
 - [x] BUNDLE-A12 — Share reusable variables, forms, and local functions across physical messages
       without broadening their transitive bundle graph.
+- [x] BUNDLE-A13 — Emit locale globals once per locale and import their bindings from legacy root
+      and namespace modules instead of copying declarations into every generated module.
 
 ### Local repository verification
 
