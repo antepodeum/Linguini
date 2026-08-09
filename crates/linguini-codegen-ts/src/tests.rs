@@ -2100,6 +2100,8 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
         assert!(paths.contains(&path));
     }
     assert!(!paths.contains(&"sveltekit.ts"));
+    assert!(!paths.contains(&"sveltekit-control.ts"));
+    assert!(!paths.contains(&"sveltekit-control.d.ts"));
 
     let generated = |path: &str| {
         &files
@@ -2176,6 +2178,8 @@ fn project_codegen_emits_context_only_svelte_without_web_config() {
     assert!(paths.contains(&"svelte-locale.svelte.ts"));
     assert!(!paths.contains(&"svelte-control.ts"));
     assert!(!paths.contains(&"svelte-control.d.ts"));
+    assert!(!paths.contains(&"sveltekit-control.ts"));
+    assert!(!paths.contains(&"sveltekit-control.d.ts"));
     assert!(!paths.contains(&"svelte-effects.svelte.ts"));
     assert!(!paths.contains(&"svelte-effects.svelte.d.ts"));
     assert!(!paths.contains(&"web.ts"));
