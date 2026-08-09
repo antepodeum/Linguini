@@ -109,6 +109,12 @@ production path uses the fix and its relevant tests pass.
   hardened raw-source/resolver identity, scoped alias allocation, effects retention, and graph tests.
 - `a6d13fc` — added manifest-delta HMR with exact source-to-message, per-locale physical-module,
   and application invalidation plus add/remove browser propagation.
+- `a4f9f57` — fixed exact imported-message spans across Svelte runes, nested same-name markup,
+  TypeScript `as const`, destructuring property keys, and function-scoped `var` bindings.
+- `de3cf0e` — enabled bundler-native transforms on the real SvelteKit site and added a production
+  graph gate proving the eager message provider and locale barrel are absent.
+- `df8a13d` — added an offline, dependency-free root runner for ordered Rust, plugin, package,
+  editor, and site verification profiles.
 
 ## Numbered findings
 
@@ -679,9 +685,7 @@ production path uses the fix and its relevant tests pass.
 ### Bundler-native nested message API
 
 - [x] BUNDLE-A1 — Generate recursive declarations for the complete `l` namespace.
-- [-] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports; focused Vite
-      fixtures pass, but the real SvelteKit site currently exposes a missing exact-reference span
-      gap for imported `l` uses and therefore retains the eager fallback runtime.
+- [x] BUNDLE-A2 — Transform static `l.*` leaf access into exact virtual imports.
 - [x] BUNDLE-A3 — Keep parameterless public access as a value while rewriting its internal use to
       a reactive virtual-message call.
 - [x] BUNDLE-A4 — Generate one ESM module per referenced message.
@@ -692,10 +696,14 @@ production path uses the fix and its relevant tests pass.
       arity-mismatched, and non-leaf accesses separate from transformable references; strict
       diagnostics and the explicit bundle escape hatch remain pending.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
-- [-] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading; focused
-      multi-entry builds pass, while the real site production-graph gate remains blocked by the
-      BUNDLE-A2 exact-reference gap.
+- [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
+
+### Local repository verification
+
+- [x] LOCAL-A1 — Provide one root runner with ordered quick, full, and real-site profiles across
+      every project/package in this repository.
+- [x] LOCAL-A2 — Generate, type-check, build, and inspect the real site production graph locally.
 
 ### Positional and named-object generated calls
 
