@@ -765,7 +765,8 @@ allow = ["main.title", "main.items"]
         .join("src/generated/linguini/bundler/manifest.json");
     let first_text = fs::read_to_string(&manifest_path).expect("manifest");
     let manifest: serde_json::Value = serde_json::from_str(&first_text).expect("JSON");
-    assert_eq!(manifest["version"], 3);
+    assert_eq!(manifest["version"], 4);
+    assert_eq!(manifest["locale_loading"], "eager");
     assert_eq!(
         manifest["runtime_helpers"],
         serde_json::json!({
@@ -1015,6 +1016,17 @@ allow = ["main.title", "main.items"]
             .join("src/generated/linguini/svelte-effects.svelte.ts")
             .exists());
     }
+
+    let dynamic_config = fs::read_to_string(&config_path)
+        .expect("read config")
+        .replace("exclude = []", "exclude = []\nlocale_loading = \"dynamic\"");
+    fs::write(&config_path, dynamic_config).expect("dynamic locale config");
+    build_project(project.path()).expect("dynamic locale loading build");
+    let dynamic_manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("dynamic manifest"))
+            .expect("dynamic manifest JSON");
+    assert_eq!(dynamic_manifest["version"], 4);
+    assert_eq!(dynamic_manifest["locale_loading"], "dynamic");
 }
 
 #[test]

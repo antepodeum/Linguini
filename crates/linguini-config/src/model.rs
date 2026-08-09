@@ -57,12 +57,35 @@ pub struct TypeScriptTargetConfig {
 pub struct TypeScriptBundlerConfig {
     pub sources: Vec<String>,
     pub exclude: Vec<String>,
+    /// Controls how locale modules are selected by the bundler runtime.
+    ///
+    /// The default is [`TypeScriptBundlerLocaleLoading::Eager`].
+    pub locale_loading: TypeScriptBundlerLocaleLoading,
     /// Controls how the bundler handles computed or otherwise dynamic message access.
     ///
     /// The default is [`TypeScriptBundlerDynamicMode::Error`] with no escapes. In
     /// [`TypeScriptBundlerDynamicMode::Bundle`] mode, `allow` is a finite list of
     /// canonical dotted message paths that may be resolved dynamically.
     pub dynamic: TypeScriptBundlerDynamicConfig,
+}
+
+/// Policy for loading locale modules in the TypeScript bundler integration.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+pub enum TypeScriptBundlerLocaleLoading {
+    /// Include all generated locale modules in the bundle.
+    #[default]
+    Eager,
+    /// Load locale modules on demand at runtime.
+    Dynamic,
+}
+
+impl TypeScriptBundlerLocaleLoading {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Eager => "eager",
+            Self::Dynamic => "dynamic",
+        }
+    }
 }
 
 /// Policy for dynamic message access in the TypeScript bundler integration.
@@ -973,7 +996,8 @@ mod tests {
     use super::{
         canonicalize_locale_tag, validate_locale_tag, AnalysisConfig, LinguiniConfig, PathsConfig,
         ProjectConfig, TargetsConfig, TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig,
-        TypeScriptBundlerDynamicMode, TypeScriptTargetConfig, WebConfig,
+        TypeScriptBundlerDynamicMode, TypeScriptBundlerLocaleLoading, TypeScriptTargetConfig,
+        WebConfig,
     };
     use crate::ConfigError;
 
@@ -1073,6 +1097,7 @@ mod tests {
                     bundler: Some(TypeScriptBundlerConfig {
                         sources: vec!["src".to_owned()],
                         exclude: Vec::new(),
+                        locale_loading: TypeScriptBundlerLocaleLoading::Eager,
                         dynamic: TypeScriptBundlerDynamicConfig {
                             mode: TypeScriptBundlerDynamicMode::Bundle,
                             allow: vec!["unresolved.namespace".to_owned()],

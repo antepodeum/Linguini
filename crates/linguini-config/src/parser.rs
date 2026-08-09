@@ -3,9 +3,9 @@ use crate::model::{
     canonicalize_locale_tag, AnalysisConfig, CanonicalMode, CookiePath, LinguiniConfig, LinkMode,
     LocalePrefixMode, LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite,
     SecurePolicy, TargetsConfig, TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig,
-    TypeScriptBundlerDynamicMode, TypeScriptTargetConfig, UnusedMessagesConfig, WebConfig,
-    WebCookieConfig, WebLinksConfig, WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig,
-    WebRoutingConfig, WebSwitchRouteConfig,
+    TypeScriptBundlerDynamicMode, TypeScriptBundlerLocaleLoading, TypeScriptTargetConfig,
+    UnusedMessagesConfig, WebConfig, WebCookieConfig, WebLinksConfig, WebLocalStorageConfig,
+    WebLocaleConfig, WebRoutesConfig, WebRoutingConfig, WebSwitchRouteConfig,
 };
 use serde::Deserialize;
 
@@ -73,6 +73,7 @@ struct RawTypeScriptTargetConfig {
 struct RawTypeScriptBundlerConfig {
     sources: Option<Vec<String>>,
     exclude: Option<Vec<String>>,
+    locale_loading: Option<String>,
     dynamic: Option<RawTypeScriptBundlerDynamicConfig>,
 }
 
@@ -273,6 +274,15 @@ fn build_typescript_bundler(
             .into_iter()
             .map(normalize_project_path)
             .collect(),
+        locale_loading: match raw.locale_loading.as_deref().unwrap_or("eager") {
+            "eager" => TypeScriptBundlerLocaleLoading::Eager,
+            "dynamic" => TypeScriptBundlerLocaleLoading::Dynamic,
+            value => {
+                return Err(ConfigError::InvalidString(format!(
+                    "targets.ts.bundler.locale_loading = {value}"
+                )))
+            }
+        },
         dynamic: build_typescript_bundler_dynamic(raw.dynamic)?,
     })
 }
@@ -512,7 +522,7 @@ mod tests {
     use super::parse_config;
     use crate::{
         CanonicalMode, CookiePath, LinkMode, LocalePrefixMode, LocaleSource, SameSite,
-        SecurePolicy, TypeScriptBundlerDynamicMode,
+        SecurePolicy, TypeScriptBundlerDynamicMode, TypeScriptBundlerLocaleLoading,
     };
 
     #[test]
@@ -706,6 +716,10 @@ mod tests {
         let bundler = config.targets.ts.expect("target").bundler.expect("bundler");
         assert_eq!(bundler.sources, ["src", "tests/ui"]);
         assert_eq!(bundler.exclude, ["src/generated"]);
+        assert_eq!(
+            bundler.locale_loading,
+            TypeScriptBundlerLocaleLoading::Eager
+        );
         assert_eq!(bundler.dynamic.mode, TypeScriptBundlerDynamicMode::Error);
         assert!(bundler.dynamic.allow.is_empty());
 
@@ -841,6 +855,54 @@ mod tests {
             let error = parse_config(&source).expect_err(section);
             assert!(error.to_string().contains(expected), "{error}");
         }
+    }
+
+    #[test]
+    fn parses_locale_loading_policy_and_rejects_unknown_values() {
+        let config = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [targets.ts]
+            framework = "svelte"
+            [targets.ts.bundler]
+            sources = ["src"]
+            locale_loading = "dynamic"
+            "#,
+        )
+        .expect("dynamic locale loading policy");
+        let bundler = config.targets.ts.expect("target").bundler.expect("bundler");
+        assert_eq!(
+            bundler.locale_loading,
+            TypeScriptBundlerLocaleLoading::Dynamic
+        );
+        assert_eq!(bundler.locale_loading.as_str(), "dynamic");
+
+        let invalid = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [targets.ts]
+            framework = "svelte"
+            [targets.ts.bundler]
+            sources = ["src"]
+            locale_loading = "lazy"
+            "#,
+        )
+        .expect_err("unknown locale loading policy");
+        assert!(invalid
+            .to_string()
+            .contains("targets.ts.bundler.locale_loading"));
     }
 
     #[test]
