@@ -115,6 +115,8 @@ production path uses the fix and its relevant tests pass.
   graph gate proving the eager message provider and locale barrel are absent.
 - `df8a13d` — added an offline, dependency-free root runner for ordered Rust, plugin, package,
   editor, and site verification profiles.
+- `a20d057` — added a strict-by-default dynamic bundler policy with an explicit finite exact-message
+  allowlist for the bounded bundle escape hatch.
 
 ## Numbered findings
 
@@ -693,8 +695,8 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A6 — Invalidate only affected virtual modules.
 - [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; the analyzer now separates exact static
       references from conservative dynamic prefixes and manifest v2 keeps unresolved optional,
-      arity-mismatched, and non-leaf accesses separate from transformable references; strict
-      diagnostics and the explicit bundle escape hatch remain pending.
+      arity-mismatched, and non-leaf accesses separate from transformable references; the typed
+      strict/bundle policy is committed, while pre-write diagnostics and bounded transforms remain.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
