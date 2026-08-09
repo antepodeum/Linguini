@@ -442,6 +442,33 @@ impl<'a> ValidatedTypeScriptProject<'a> {
             validate_formatter_data(schema, &locale.module, &locale.locale)?;
         }
 
+        let visible_schema = if options.tree_shaking && !options.included_messages.is_empty() {
+            visible_schema(
+                schema,
+                &TypeScriptOptions {
+                    included_messages: options.included_messages.clone(),
+                    ..TypeScriptOptions::default()
+                },
+            )
+        } else {
+            schema.clone()
+        };
+        for locale in &locales {
+            for message in &visible_schema.messages {
+                if !locale
+                    .module
+                    .messages
+                    .iter()
+                    .any(|implementation| implementation.name == message.name)
+                {
+                    return Err(TypeScriptCodegenError::MissingMessageImplementation {
+                        locale: locale.locale.clone(),
+                        message: message.name.clone(),
+                    });
+                }
+            }
+        }
+
         Ok(Self {
             schema,
             locales,

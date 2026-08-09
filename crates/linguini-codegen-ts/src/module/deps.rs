@@ -724,7 +724,8 @@ mod tests {
             message_dependency_closure(&project, "en", "missing"),
             Err(crate::TypeScriptCodegenError::UnknownMessage { message }) if message == "missing"
         ));
-        let missing = project_for("root\n", "");
+        let mut missing = project_for("root\n", "root = Root\n");
+        missing.locales[0].module.messages.clear();
         assert!(matches!(
             message_dependency_closure(&missing, "en", "root"),
             Err(crate::TypeScriptCodegenError::MissingMessageImplementation { locale, message })

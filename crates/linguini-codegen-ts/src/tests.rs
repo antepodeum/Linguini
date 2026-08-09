@@ -1708,6 +1708,93 @@ fn project_validation_rejects_unresolved_locale_messages() {
 }
 
 #[test]
+fn project_validation_rejects_missing_base_locale_messages() {
+    let schema = lower_schema(&parse_schema("known\n").expect("schema"));
+
+    let error = ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: linguini_ir::IrModule::default(),
+        }],
+        &project_options("en"),
+    )
+    .expect_err("every visible schema message needs a base-locale implementation");
+
+    assert_eq!(
+        error,
+        TypeScriptCodegenError::MissingMessageImplementation {
+            locale: "en".to_owned(),
+            message: "known".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn project_validation_accepts_sparse_regional_locale_with_base_fallback() {
+    let schema = lower_schema(&parse_schema("greeting\n").expect("schema"));
+    let base = lower_locale(&parse_locale("greeting = Hello\n").expect("base locale"));
+
+    ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[
+            TypeScriptLocaleModule {
+                locale: "en".to_owned(),
+                module: base,
+            },
+            TypeScriptLocaleModule {
+                locale: "en-US".to_owned(),
+                module: linguini_ir::IrModule::default(),
+            },
+        ],
+        &project_options("en"),
+    )
+    .expect("the regional locale inherits the base implementation");
+}
+
+#[test]
+fn project_validation_checks_only_visible_tree_shaken_messages() {
+    let schema = lower_schema(&parse_schema("keep\ndrop\n").expect("schema"));
+    let keep = lower_locale(&parse_locale("keep = Keep\n").expect("locale"));
+
+    let visible = TypeScriptProjectOptions {
+        tree_shaking: true,
+        included_messages: vec!["keep".to_owned()],
+        ..project_options("en")
+    };
+    ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: keep.clone(),
+        }],
+        &visible,
+    )
+    .expect("tree-shaken messages outside the visible schema are not required");
+
+    let missing = TypeScriptProjectOptions {
+        included_messages: vec!["drop".to_owned()],
+        ..visible
+    };
+    let error = ValidatedTypeScriptProject::try_new(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: keep,
+        }],
+        &missing,
+    )
+    .expect_err("a visible tree-shaken message still needs an implementation");
+    assert_eq!(
+        error,
+        TypeScriptCodegenError::MissingMessageImplementation {
+            locale: "en".to_owned(),
+            message: "drop".to_owned(),
+        }
+    );
+}
+
+#[test]
 fn project_validation_checks_fallback_composed_modules() {
     let schema = lower_schema(&parse_schema("greeting\n").expect("schema"));
     let base = lower_locale(
