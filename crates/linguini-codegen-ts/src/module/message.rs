@@ -14,7 +14,11 @@ use super::deps::MessageDependencyClosure;
 use super::emit::{self, emit_formatter_data, emit_forms, emit_local_functions, emit_variables};
 use super::formatters::{formatter_requirements, plural_required};
 use super::names::escape_comment;
-use super::{TypeScriptCodegenError, TypeScriptOptions, ValidatedTypeScriptProject};
+use super::semantic::TypeScriptSemanticImport;
+use super::{
+    TypeScriptCodegenError, TypeScriptMessageArtifact, TypeScriptOptions,
+    ValidatedTypeScriptProject,
+};
 
 /// One complete physical ESM module for one schema message and locale.
 ///
@@ -65,11 +69,14 @@ pub fn compile_typescript_message_module(
 ) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
     compile_message_module(
         project,
-        locale,
-        canonical_message,
-        output_file_name,
-        shared_import_path,
-        None,
+        MessageModuleRequest {
+            locale,
+            canonical_message,
+            output_file_name,
+            shared_import_path,
+            runtime_import_path: None,
+            semantic_imports: None,
+        },
         sources,
     )
 }
@@ -89,24 +96,60 @@ pub fn compile_typescript_bundler_message_module(
 ) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
     compile_message_module(
         project,
-        locale,
-        canonical_message,
-        output_file_name,
-        shared_import_path,
-        Some(runtime_import_path),
+        MessageModuleRequest {
+            locale,
+            canonical_message,
+            output_file_name,
+            shared_import_path,
+            runtime_import_path: Some(runtime_import_path),
+            semantic_imports: None,
+        },
         sources,
     )
 }
 
-fn compile_message_module(
+/// Compiles one canonical physical message artifact without recomputing or inferring its paths.
+pub fn compile_typescript_bundler_message_artifact_module(
     project: &ValidatedTypeScriptProject<'_>,
-    locale: &str,
-    canonical_message: &str,
-    output_file_name: &str,
-    shared_import_path: &str,
-    runtime_import_path: Option<&str>,
+    artifact: &TypeScriptMessageArtifact,
     sources: &[EcmaSource],
 ) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
+    compile_message_module(
+        project,
+        MessageModuleRequest {
+            locale: &artifact.locale,
+            canonical_message: &artifact.message,
+            output_file_name: &artifact.output_file_name,
+            shared_import_path: &artifact.shared_import_path,
+            runtime_import_path: Some(&artifact.runtime_import_path),
+            semantic_imports: Some(&artifact.semantic_imports),
+        },
+        sources,
+    )
+}
+
+struct MessageModuleRequest<'a> {
+    locale: &'a str,
+    canonical_message: &'a str,
+    output_file_name: &'a str,
+    shared_import_path: &'a str,
+    runtime_import_path: Option<&'a str>,
+    semantic_imports: Option<&'a [TypeScriptSemanticImport]>,
+}
+
+fn compile_message_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    request: MessageModuleRequest<'_>,
+    sources: &[EcmaSource],
+) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
+    let MessageModuleRequest {
+        locale,
+        canonical_message,
+        output_file_name,
+        shared_import_path,
+        runtime_import_path,
+        semantic_imports,
+    } = request;
     let requested_locale = canonicalize_locale(locale).unwrap_or_else(|_| locale.to_owned());
     let project_locale = project
         .locales
@@ -129,7 +172,26 @@ fn compile_message_module(
     let source_ids = closure.source_ids().to_vec();
     let source_records = ordered_sources(&source_ids, sources)?;
     let options = super::project_locale_options(&canonical_locale, &project.options)?;
-    let module = emit_message_module(&closure, &options, shared_import_path, runtime_import_path);
+    let semantic_imports = if runtime_import_path.is_some() {
+        match semantic_imports {
+            Some(imports) => imports.to_vec(),
+            None => super::semantic::message_imports_from_shared(
+                project,
+                project_locale,
+                canonical_message,
+                shared_import_path,
+            )?,
+        }
+    } else {
+        Vec::new()
+    };
+    let module = emit_message_module(
+        &closure,
+        &options,
+        shared_import_path,
+        runtime_import_path,
+        &semantic_imports,
+    );
     let rendered = module.render(output_file_name, &source_records);
 
     Ok(CompiledTypeScriptMessageModule {
@@ -175,9 +237,21 @@ fn emit_message_module(
     options: &TypeScriptOptions,
     shared_import_path: &str,
     runtime_import_path: Option<&str>,
+    semantic_imports: &[TypeScriptSemanticImport],
 ) -> EcmaModule {
     let schema = closure.schema();
-    let locale = closure.locale_module();
+    let complete_locale = closure.locale_module();
+    let mut physical_locale;
+    let locale = if runtime_import_path.is_some() {
+        physical_locale = complete_locale.clone();
+        physical_locale.enums.clear();
+        physical_locale.variables.clear();
+        physical_locale.forms.clear();
+        physical_locale.functions.clear();
+        &physical_locale
+    } else {
+        complete_locale
+    };
     let mut statements = Vec::new();
 
     if runtime_import_path.is_none() {
@@ -297,6 +371,22 @@ fn emit_message_module(
         ),
         statements: Vec::new(),
     };
+    for dependency in semantic_imports {
+        module.imports.push(EcmaImport {
+            specifier: dependency.import_path.clone(),
+            bindings: if dependency.type_only {
+                EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
+                    &dependency.binding,
+                    &dependency.binding,
+                )])
+            } else {
+                EcmaImportBindings::Named(vec![EcmaNamedImport::new(
+                    &dependency.binding,
+                    &dependency.binding,
+                )])
+            },
+        });
+    }
     if uses_plural && runtime_import_path.is_none() {
         let mut plural_helpers = String::new();
         emit::emit_plural_helpers(options, &mut plural_helpers);

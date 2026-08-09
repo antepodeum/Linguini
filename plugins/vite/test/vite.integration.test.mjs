@@ -130,6 +130,7 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
       byte_length: Buffer.byteLength(source),
       unresolved: [],
       analysis_dynamic_prefixes: [],
+      dynamic_references: [],
       references: refs,
       imports: [
         {
@@ -150,13 +151,15 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
           local_start: itemStart + itemText.length - 1,
           local_end: itemStart + itemText.length,
           analyzer_exact_uses_only: true,
+          analyzer_tracked_uses_only: true,
           transformable: true
         }
       ]
     };
   }
   const manifest = {
-    version: 2,
+    version: 1,
+    locale_loading: "eager",
     base_locale: "en",
     configured_locales: ["en"],
     effective_locales: ["en"],
@@ -179,6 +182,10 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
         }
       }
     },
+    message_runtimes: {
+      en: { module: "locales/en/_runtime.ts", source_ids: [1] }
+    },
+    message_semantics: [],
     applications
   };
   await writeFile(path.join(generated, "bundler/manifest.json"), JSON.stringify(manifest));
@@ -210,7 +217,7 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
   assert.ok(Object.keys(titleOwner.modules).some((id) => id.includes("\0virtual:linguini/message/")));
 });
 
-test("real Vite build bundles finite v3 dynamic refs without eager barrel", async (context) => {
+test("real Vite build bundles finite dynamic refs without eager barrel", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-dynamic-"));
   context.after(() => rm(root, { recursive: true, force: true }));
   const generated = path.join(root, "generated/linguini");
@@ -310,7 +317,8 @@ test("real Vite build bundles finite v3 dynamic refs without eager barrel", asyn
     };
   };
   const manifest = {
-    version: 3,
+    version: 1,
+    locale_loading: "eager",
     base_locale: "en",
     configured_locales: ["en"],
     effective_locales: ["en"],
@@ -335,6 +343,10 @@ test("real Vite build bundles finite v3 dynamic refs without eager barrel", asyn
         }
       }
     },
+    message_runtimes: {
+      en: { module: "locales/en/_runtime.ts", source_ids: [1] }
+    },
+    message_semantics: [],
     applications: {
       "entry.js": {
         source_id: 2147483648,
@@ -403,8 +415,8 @@ test("real Vite build bundles finite v3 dynamic refs without eager barrel", asyn
   assert.ok(modules.filter((id) => id.includes("\0virtual:linguini/message/")).length >= 2);
 });
 
-test("real v4 dynamic client boundaries keep inactive locales out of entry and SSR stays static", async (context) => {
-  const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-v4-dynamic-"));
+test("real dynamic client boundaries keep inactive locales out of entry and SSR stays static", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-dynamic-"));
   context.after(() => rm(root, { recursive: true, force: true }));
   const generated = path.join(root, "generated/linguini");
   await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
@@ -436,16 +448,16 @@ test("real v4 dynamic client boundaries keep inactive locales out of entry and S
   );
   await writeFile(
     path.join(generated, "bundler/messages/main/title/en.js"),
-    'export function message() { return "V4_EN"; }\n'
+    'export function message() { return "CURRENT_EN"; }\n'
   );
   await writeFile(
     path.join(generated, "bundler/messages/main/title/fr.js"),
-    'export function message() { return "V4_FR"; }\n'
+    'export function message() { return "CURRENT_FR"; }\n'
   );
   await writeFile(
     path.join(generated, "bundler/manifest.json"),
     JSON.stringify({
-      version: 4,
+      version: 1,
       locale_loading: "dynamic",
       base_locale: "en",
       configured_locales: ["en", "fr"],
@@ -457,6 +469,11 @@ test("real v4 dynamic client boundaries keep inactive locales out of entry and S
           file: "svelte-locale.js"
         }
       },
+      message_runtimes: {
+        en: { module: "locales/en/_runtime.ts", source_ids: [] },
+        fr: { module: "locales/fr/_runtime.ts", source_ids: [] }
+      },
+      message_semantics: [],
       messages: {
         "main.title": {
           arity: 0,
@@ -488,9 +505,9 @@ test("real v4 dynamic client boundaries keep inactive locales out of entry and S
   const clientChunks = clientResult.output.filter((output) => output.type === "chunk");
   const clientEntry = clientChunks.find((chunk) => chunk.isEntry);
   assert.ok(clientEntry);
-  assert.match(clientChunks.map((chunk) => chunk.code).join("\n"), /V4_EN|V4_FR/);
-  assert.ok(clientChunks.some((chunk) => chunk.code.includes("V4_FR")));
-  assert.doesNotMatch(clientEntry.code, /V4_FR/);
+  assert.match(clientChunks.map((chunk) => chunk.code).join("\n"), /CURRENT_EN|CURRENT_FR/);
+  assert.ok(clientChunks.some((chunk) => chunk.code.includes("CURRENT_FR")));
+  assert.doesNotMatch(clientEntry.code, /CURRENT_FR/);
   assert.equal(
     clientEntry.imports.some((file) => file.includes("fr-")),
     false,
@@ -511,8 +528,8 @@ test("real v4 dynamic client boundaries keep inactive locales out of entry and S
     .filter((output) => output.type === "chunk")
     .map((chunk) => chunk.code)
     .join("\n");
-  assert.match(ssrCode, /V4_EN/);
-  assert.match(ssrCode, /V4_FR/);
+  assert.match(ssrCode, /CURRENT_EN/);
+  assert.match(ssrCode, /CURRENT_FR/);
   assert.doesNotMatch(ssrCode, /registerLocaleLoader|import\(/);
   assert.match(ssrCode, /rendered/);
 });

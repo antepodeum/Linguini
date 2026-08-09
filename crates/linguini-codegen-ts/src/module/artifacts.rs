@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use linguini_cldr::canonicalize_locale;
 use linguini_syntax::SourceId;
 
+use super::semantic::TypeScriptSemanticImport;
 use super::{
     project_locale_options, runtime_helper_names, visible_schema, TypeScriptCodegenError,
     TypeScriptOptions, ValidatedTypeScriptProject,
@@ -23,6 +24,8 @@ pub struct TypeScriptMessageArtifact {
     pub shared_import_path: String,
     pub runtime_module_path: String,
     pub runtime_import_path: String,
+    /// Exact direct semantic imports used by this physical message leaf.
+    pub semantic_imports: Vec<TypeScriptSemanticImport>,
 }
 
 /// Stable physical metadata for one effective locale's shared generated-helper runtime.
@@ -104,6 +107,7 @@ pub(super) fn message_artifacts(
         .map(|locale| locale.locale.as_str())
         .collect::<BTreeSet<_>>();
     let mut artifacts = Vec::with_capacity(messages.len() * locales.len());
+    let semantic_artifacts = super::semantic::semantic_artifacts(project)?;
 
     for (message, arity) in messages {
         let message_path = hex_path(message.as_bytes());
@@ -129,10 +133,19 @@ pub(super) fn message_artifacts(
                 arity,
                 source_map_path: format!("{module_path}.map"),
                 output_file_name: format!("{locale_file_stem}.ts"),
-                module_path,
+                module_path: module_path.clone(),
                 shared_import_path,
                 runtime_module_path,
                 runtime_import_path,
+                semantic_imports: super::semantic::message_imports_with_artifacts(
+                    project,
+                    locale,
+                    message,
+                    &semantic_artifacts,
+                    |artifact| {
+                        super::semantic::relative_import(&module_path, &artifact.module_path)
+                    },
+                )?,
             });
         }
     }

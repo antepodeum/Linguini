@@ -24,6 +24,10 @@ function readJson(path, label) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 assert.equal(statSync(buildRoot).isDirectory(), true, 'site/build is missing; run pnpm build:generated first');
 
 const outputFiles = filesUnder(buildRoot);
@@ -37,7 +41,7 @@ const generatedManifest = readJson(
   join(generatedRoot, 'bundler/manifest.json'),
   'generated bundler manifest'
 );
-assert.equal(generatedManifest.version, 5);
+assert.equal(generatedManifest.version, 1);
 assert.equal(generatedManifest.locale_loading, 'dynamic');
 
 const effectiveLocales = new Set(generatedManifest.effective_locales);
@@ -63,6 +67,39 @@ for (const [locale, runtime] of Object.entries(generatedManifest.message_runtime
     `${locale} runtime module is missing`
   );
 }
+
+assert.ok(
+  Array.isArray(generatedManifest.message_semantics),
+  'message semantics are missing'
+);
+const semanticKeys = new Set();
+const semanticModuleIds = new Set();
+const semanticBindings = new Set();
+for (const semantic of generatedManifest.message_semantics) {
+  const key = `${semantic.locale}\0${semantic.kind}\0${semantic.name}`;
+  assert.equal(semanticKeys.has(key), false, `duplicate semantic descriptor ${key}`);
+  semanticKeys.add(key);
+  assert.ok(effectiveLocales.has(semantic.locale), `${key} has an unknown locale`);
+  assert.ok(
+    ['enum', 'variable', 'form', 'function'].includes(semantic.kind),
+    `${key} has an unknown kind`
+  );
+  assert.ok(
+    semantic.source_ids.every((sourceId) => sourceIds.has(sourceId)),
+    `${key} references an unknown source id`
+  );
+  const moduleId = `src/lib/generated/linguini/${semantic.module}`;
+  assert.equal(semanticModuleIds.has(moduleId), false, `duplicate semantic module ${moduleId}`);
+  semanticModuleIds.add(moduleId);
+  const modulePath = join(siteRoot, moduleId);
+  assert.equal(statSync(modulePath).isFile(), true, `${key} semantic module is missing`);
+  assert.equal(statSync(`${modulePath}.map`).isFile(), true, `${key} semantic map is missing`);
+  const source = readFileSync(modulePath, 'utf8');
+  const exportedBinding = /export (?:const|function|type) ([A-Za-z_$][\w$]*)/.exec(source)?.[1];
+  assert.ok(exportedBinding, `${key} has no single exported semantic binding`);
+  semanticBindings.add(exportedBinding);
+}
+assert.ok(semanticModuleIds.size > 0, 'no shared semantic modules were generated');
 
 // Static application references must stay exact. Locale loading is a separate
 // concern and must not turn an exact message access into an unresolved or
@@ -91,6 +128,7 @@ assert.ok(referenceCount > 0, 'generated manifest has no application references'
 
 const localeModuleIds = new Set();
 let runtimeImportCount = 0;
+let semanticImportCount = 0;
 const helperBodyPattern =
   /function (?:formatNumber|formatCurrency|formatDate|formatGeneratedNumber|parseGeneratedDecimal|coerceDate|plural[A-Z][A-Za-z0-9_]*)\s*\(/;
 for (const message of Object.values(generatedManifest.messages)) {
@@ -98,10 +136,19 @@ for (const message of Object.values(generatedManifest.messages)) {
     const moduleId = `src/lib/generated/linguini/${entry.module}`;
     const source = readFileSync(join(siteRoot, moduleId), 'utf8');
     assert.doesNotMatch(source, helperBodyPattern, `${moduleId} contains an inline helper body`);
+    for (const binding of semanticBindings) {
+      assert.doesNotMatch(
+        source,
+        new RegExp(`^(?:const|function|type) ${escapeRegExp(binding)}\\b`, 'm'),
+        `${moduleId} contains inline semantic binding ${binding}`
+      );
+    }
     if (source.includes('/_runtime"')) runtimeImportCount += 1;
+    if (source.includes('/semantic/')) semanticImportCount += 1;
   }
 }
 assert.ok(runtimeImportCount > 0, 'no physical message imports a shared locale runtime');
+assert.ok(semanticImportCount > 0, 'no physical message imports a shared semantic module');
 
 for (const message of usedMessages) {
   assert.ok(generatedManifest.messages[message], `missing generated message ${message}`);

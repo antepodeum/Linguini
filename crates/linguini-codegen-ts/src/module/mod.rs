@@ -8,6 +8,7 @@ mod message;
 mod messages;
 mod names;
 mod project;
+mod semantic;
 mod shared;
 mod templates;
 mod tree;
@@ -247,6 +248,21 @@ pub enum TypeScriptCodegenError {
         message: String,
         reason: &'static str,
     },
+    InvalidSemanticArtifactPath {
+        locale: String,
+        kind: String,
+        name: String,
+        reason: &'static str,
+    },
+    SemanticDependencyCycle {
+        locale: String,
+        cycle: Vec<String>,
+    },
+    UnknownSemanticArtifact {
+        locale: String,
+        kind: String,
+        name: String,
+    },
 }
 
 impl TypeScriptCodegenError {
@@ -361,14 +377,31 @@ impl fmt::Display for TypeScriptCodegenError {
                 formatter,
                 "cannot derive portable bundler artifact path for message `{message}` and locale `{locale}`: {reason}"
             ),
+            Self::InvalidSemanticArtifactPath { locale, kind, name, reason } => write!(
+                formatter,
+                "cannot derive portable semantic artifact path for {kind} `{name}` and locale `{locale}`: {reason}"
+            ),
+            Self::SemanticDependencyCycle { locale, cycle } => write!(
+                formatter,
+                "semantic ESM dependency cycle for locale `{locale}`: {}",
+                cycle.join(" -> ")
+            ),
+            Self::UnknownSemanticArtifact { locale, kind, name } => write!(
+                formatter,
+                "semantic artifact {kind} `{name}` for locale `{locale}` is not selected by the project"
+            ),
         }
     }
 }
 
 pub use artifacts::{TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact};
 pub use message::{
-    compile_typescript_bundler_message_module, compile_typescript_message_module,
-    CompiledTypeScriptMessageModule,
+    compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_message_module,
+    compile_typescript_message_module, CompiledTypeScriptMessageModule,
+};
+pub use semantic::{
+    compile_typescript_bundler_semantic_module, CompiledTypeScriptSemanticModule,
+    TypeScriptSemanticArtifact, TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
 };
 
 impl std::error::Error for TypeScriptCodegenError {}
@@ -435,6 +468,13 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         &self,
     ) -> Result<Vec<TypeScriptLocaleRuntimeArtifact>, TypeScriptCodegenError> {
         artifacts::locale_runtime_artifacts(self)
+    }
+
+    /// Enumerates deterministic one-binding semantic leaves required by selected messages.
+    pub fn semantic_artifacts(
+        &self,
+    ) -> Result<Vec<TypeScriptSemanticArtifact>, TypeScriptCodegenError> {
+        semantic::semantic_artifacts(self)
     }
 
     /// Locale identities whose fallback-composed modules passed project validation.

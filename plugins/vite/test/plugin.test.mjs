@@ -12,7 +12,7 @@ import {
   readProjectLayout
 } from "../src/index.js";
 
-async function fixture() {
+async function fixture({ bundler = false } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-"));
   await mkdir(path.join(root, "src/schema/shop"), { recursive: true });
   await mkdir(path.join(root, "src/locale/shop"), { recursive: true });
@@ -26,6 +26,7 @@ async function fixture() {
       "",
       "[targets.ts]",
       'out = "build/custom-linguini"',
+      ...(bundler ? ["[targets.ts.bundler]", 'sources = ["src"]'] : []),
       ""
     ].join("\n")
   );
@@ -35,10 +36,8 @@ async function fixture() {
 }
 
 async function dynamicLocaleFixture({
-  version = 4,
   configLocaleLoading = "eager",
-  manifestLocaleLoading = configLocaleLoading,
-  includeManifestLocaleLoading = version >= 4
+  manifestLocaleLoading = configLocaleLoading
 } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-locale-"));
   const generated = path.join(root, "build/custom-linguini");
@@ -86,8 +85,8 @@ async function dynamicLocaleFixture({
     'export function message() { return "FR"; }\n'
   );
   const manifest = {
-    version,
-    ...(includeManifestLocaleLoading ? { locale_loading: manifestLocaleLoading } : {}),
+    version: 1,
+    locale_loading: manifestLocaleLoading,
     base_locale: "en",
     configured_locales: ["en", "fr"],
     effective_locales: ["en", "fr"],
@@ -113,17 +112,16 @@ async function dynamicLocaleFixture({
         }
       }
     },
-    applications: {}
-  };
-  if (version >= 5) {
-    manifest.message_runtimes = {
+    message_runtimes: {
       en: { module: "locales/en/_runtime.js", source_ids: [] },
       fr: { module: "locales/fr/_runtime.js", source_ids: [] }
-    };
-    for (const locale of ["en", "fr"]) {
-      await mkdir(path.join(generated, `locales/${locale}`), { recursive: true });
-      await writeFile(path.join(generated, `locales/${locale}/_runtime.js`), "export {};\n");
-    }
+    },
+    message_semantics: [],
+    applications: {}
+  };
+  for (const locale of ["en", "fr"]) {
+    await mkdir(path.join(generated, `locales/${locale}`), { recursive: true });
+    await writeFile(path.join(generated, `locales/${locale}/_runtime.js`), "export {};\n");
   }
   await mkdir(path.join(generated, "bundler"), { recursive: true });
   const manifestPath = path.join(generated, "bundler/manifest.json");
@@ -138,8 +136,8 @@ function byteSpan(source, needle) {
   return [start, start + Buffer.byteLength(needle)];
 }
 
-async function bundlerFixture({ version = 2, source, applicationName = "page.svelte" } = {}) {
-  const root = await fixture();
+async function bundlerFixture({ source, applicationName = "page.svelte" } = {}) {
+  const root = await fixture({ bundler: true });
   const generated = path.join(root, "build/custom-linguini");
   const applicationKey = `src/app/${applicationName}`;
   const application = path.join(root, applicationKey);
@@ -166,107 +164,98 @@ async function bundlerFixture({ version = 2, source, applicationName = "page.sve
   const item = byteSpan(code, "l as tr");
   const removal = code.includes("l as tr, ") ? byteSpan(code, "l as tr, ") : declaration;
   const reference = byteSpan(code, "tr.main.title");
-  const manifest =
-    version === 1
-      ? {
-          version: 1,
-          base_locale: "en",
-          configured_locales: ["en"],
-          effective_locales: ["en"],
-          sources: [
-            { id: 1, path: "linguini/schema/main.lgs" },
-            { id: 2, path: "linguini/locale/main/en.lgl" }
-          ],
-          messages: {}
-        }
-      : {
-          version,
-          base_locale: "en",
-          configured_locales: ["en"],
-          effective_locales: ["en"],
-          sources: [
-            { id: 1, path: "linguini/schema/main.lgs" },
-            { id: 2, path: "linguini/locale/main/en.lgl" }
-          ],
-          runtime_helpers: {
-            svelte_locale: {
-              import: "./svelte-locale.svelte.js",
-              file: "svelte-locale.svelte.ts"
-            },
-            svelte_effects: {
-              import: "./svelte-effects.svelte.js",
-              file: "svelte-effects.svelte.ts"
-            }
-          },
-          messages: {
-            "main.title": {
-              arity: 0,
-              locales: {
-                en: {
-                  module: "bundler/messages/main/title/en.ts",
-                  source_ids: [1, 2]
-                }
-              }
-            }
-          },
-          applications: {
-            [applicationKey]: {
-              source_id: 2147483648,
-              sha256: createHash("sha256").update(Buffer.from(code)).digest("hex"),
-              byte_length: Buffer.byteLength(code),
-              unresolved: [],
-              analysis_dynamic_prefixes: [],
-              ...(version === 3 ? { dynamic_references: [] } : {}),
-              references: [
-                {
-                  message: "main.title",
-                  start: reference[0],
-                  end: reference[1],
-                  kind: "value",
-                  local: "tr",
-                  provenance: {
-                    kind: "imported",
-                    module_specifier: "../../build/custom-linguini/svelte.ts",
-                    symbol: "l"
-                  },
-                  arity: 0,
-                  binding_id: "binding"
-                }
-              ],
-              imports: [
-                {
-                  binding_id: "binding",
-                  module_specifier: "../../build/custom-linguini/svelte.ts",
-                  imported: "l",
-                  local: "tr",
-                  declaration_start: declaration[0],
-                  declaration_end: declaration[1],
-                  item_start: item[0],
-                  item_end: item[1],
-                  removal_start: removal[0],
-                  removal_end: removal[1],
-                  module_specifier_start: declaration[0],
-                  module_specifier_end: declaration[1],
-                  imported_start: item[0],
-                  imported_end: item[0] + 1,
-                  local_start: item[1] - 2,
-                  local_end: item[1],
-                  analyzer_exact_uses_only: true,
-                  ...(version === 3 ? { analyzer_tracked_uses_only: true } : {}),
-                  transformable: true
-                }
-              ]
-            }
+  const manifest = {
+    version: 1,
+    locale_loading: "eager",
+    base_locale: "en",
+    configured_locales: ["en"],
+    effective_locales: ["en"],
+    sources: [
+      { id: 1, path: "src/schema/shop/delivery.lgs" },
+      { id: 2, path: "src/locale/shop/ru.lgl" }
+    ],
+    runtime_helpers: {
+      svelte_locale: {
+        import: "./svelte-locale.svelte.js",
+        file: "svelte-locale.svelte.ts"
+      },
+      svelte_effects: {
+        import: "./svelte-effects.svelte.js",
+        file: "svelte-effects.svelte.ts"
+      }
+    },
+    messages: {
+      "main.title": {
+        arity: 0,
+        locales: {
+          en: {
+            module: "bundler/messages/main/title/en.ts",
+            source_ids: [1, 2]
           }
-        };
+        }
+      }
+    },
+    message_runtimes: {
+      en: { module: "locales/en/_runtime.ts", source_ids: [1, 2] }
+    },
+    message_semantics: [],
+    applications: {
+      [applicationKey]: {
+        source_id: 2147483648,
+        sha256: createHash("sha256").update(Buffer.from(code)).digest("hex"),
+        byte_length: Buffer.byteLength(code),
+        unresolved: [],
+        analysis_dynamic_prefixes: [],
+        dynamic_references: [],
+        references: [
+          {
+            message: "main.title",
+            start: reference[0],
+            end: reference[1],
+            kind: "value",
+            local: "tr",
+            provenance: {
+              kind: "imported",
+              module_specifier: "../../build/custom-linguini/svelte.ts",
+              symbol: "l"
+            },
+            arity: 0,
+            binding_id: "binding"
+          }
+        ],
+        imports: [
+          {
+            binding_id: "binding",
+            module_specifier: "../../build/custom-linguini/svelte.ts",
+            imported: "l",
+            local: "tr",
+            declaration_start: declaration[0],
+            declaration_end: declaration[1],
+            item_start: item[0],
+            item_end: item[1],
+            removal_start: removal[0],
+            removal_end: removal[1],
+            module_specifier_start: declaration[0],
+            module_specifier_end: declaration[1],
+            imported_start: item[0],
+            imported_end: item[0] + 1,
+            local_start: item[1] - 2,
+            local_end: item[1],
+            analyzer_exact_uses_only: true,
+            analyzer_tracked_uses_only: true,
+            transformable: true
+          }
+        ]
+      }
+    }
+  };
   await mkdir(path.join(generated, "bundler"), { recursive: true });
   await writeFile(path.join(generated, "bundler/manifest.json"), JSON.stringify(manifest));
   return { root, generated, application, applicationKey, code, manifest };
 }
 
-async function v5RuntimeFixture() {
-  const data = await bundlerFixture({ version: 3 });
-  data.manifest.version = 5;
+async function runtimeFixture() {
+  const data = await bundlerFixture();
   data.manifest.locale_loading = "eager";
   data.manifest.sources[0].path = "src/schema/shop/delivery.lgs";
   data.manifest.sources[1].path = "src/locale/shop/ru.lgl";
@@ -281,6 +270,57 @@ async function v5RuntimeFixture() {
     path.join(data.generated, "bundler/manifest.json"),
     JSON.stringify(data.manifest)
   );
+  return data;
+}
+
+async function semanticFixture() {
+  const data = await dynamicLocaleFixture({
+    configLocaleLoading: "dynamic",
+    manifestLocaleLoading: "dynamic"
+  });
+  data.manifest.message_semantics = [
+    {
+      locale: "en",
+      kind: "variable",
+      name: "title",
+      module: "bundler/semantic/en/variable/title.js",
+      source_ids: []
+    },
+    {
+      locale: "fr",
+      kind: "function",
+      name: "formatTitle",
+      module: "bundler/semantic/fr/function/format-title.js",
+      source_ids: []
+    }
+  ];
+  for (const descriptor of data.manifest.message_semantics) {
+    await mkdir(path.dirname(path.join(data.generated, descriptor.module)), { recursive: true });
+    await writeFile(path.join(data.generated, descriptor.module), "export {};\n");
+  }
+  await writeFile(data.manifestPath, JSON.stringify(data.manifest));
+  return data;
+}
+
+async function semanticHmrFixture() {
+  const data = await runtimeFixture();
+  data.manifestPath = path.join(data.generated, "bundler/manifest.json");
+  data.manifest.message_semantics = [
+    {
+      locale: "en",
+      kind: "variable",
+      name: "title",
+      module: "bundler/semantic/en/variable/title.ts",
+      source_ids: [1]
+    }
+  ];
+  data.semanticModule = path.join(
+    data.generated,
+    "bundler/semantic/en/variable/title.ts"
+  );
+  await mkdir(path.dirname(data.semanticModule), { recursive: true });
+  await writeFile(data.semanticModule, "export {};\n");
+  await writeFile(data.manifestPath, JSON.stringify(data.manifest));
   return data;
 }
 
@@ -301,7 +341,7 @@ async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
   const code = applicationName.endsWith(".svelte")
     ? `<script>\n${body}</script>\n`
     : body;
-  const data = await bundlerFixture({ version: 3, source: code, applicationName });
+  const data = await bundlerFixture({ source: code, applicationName });
   const declarationText =
     'import { l as tr } from "../../build/custom-linguini/svelte.ts";';
   const declaration = byteSpan(code, declarationText);
@@ -690,7 +730,7 @@ test("validates finite dynamic bundler config with CLI parity", async (context) 
   }
 });
 
-test("v4 locale-loading policy validates config parity and preserves eager/SSR boundaries", async (context) => {
+test("locale-loading policy validates config parity and preserves eager/SSR boundaries", async (context) => {
   const dynamic = await dynamicLocaleFixture({
     configLocaleLoading: "dynamic",
     manifestLocaleLoading: "dynamic"
@@ -717,13 +757,13 @@ test("v4 locale-loading policy validates config parity and preserves eager/SSR b
     virtualId
   );
   assert.doesNotMatch(dynamicSsr, /registerLocaleLoader|import\(".*title\/fr\.js"\)/);
-  const dynamicSsrV5 = dynamicPlugin.load.call({}, virtualId, { ssr: true });
-  assert.doesNotMatch(dynamicSsrV5, /registerLocaleLoader|import\(".*title\/fr\.js"\)/);
+  const dynamicSsrOptions = dynamicPlugin.load.call({}, virtualId, { ssr: true });
+  assert.doesNotMatch(dynamicSsrOptions, /registerLocaleLoader|import\(".*title\/fr\.js"\)/);
 
-  const eagerV3 = await dynamicLocaleFixture({ version: 3, configLocaleLoading: "eager" });
-  context.after(() => rm(eagerV3.root, { recursive: true, force: true }));
-  const eagerPlugin = linguini({ root: eagerV3.root, buildOnStart: false });
-  await eagerPlugin.configResolved({ root: eagerV3.root });
+  const eager = await dynamicLocaleFixture({ configLocaleLoading: "eager" });
+  context.after(() => rm(eager.root, { recursive: true, force: true }));
+  const eagerPlugin = linguini({ root: eager.root, buildOnStart: false });
+  await eagerPlugin.configResolved({ root: eager.root });
   await eagerPlugin.buildStart.call({ addWatchFile() {} });
   const eagerId = await eagerPlugin.resolveId(
     "virtual:linguini/message/6d61696e2e7469746c65"
@@ -745,15 +785,6 @@ test("v4 locale-loading policy validates config parity and preserves eager/SSR b
     /does not match config targets\.ts\.bundler\.locale_loading/
   );
 
-  const dynamicLegacy = await dynamicLocaleFixture({ version: 3, configLocaleLoading: "dynamic" });
-  context.after(() => rm(dynamicLegacy.root, { recursive: true, force: true }));
-  const dynamicLegacyPlugin = linguini({ root: dynamicLegacy.root, buildOnStart: false });
-  await dynamicLegacyPlugin.configResolved({ root: dynamicLegacy.root });
-  await assert.rejects(
-    dynamicLegacyPlugin.buildStart.call({ addWatchFile() {} }),
-    /dynamic requires manifest version 4/
-  );
-
   const malformedConfig = await dynamicLocaleFixture({ configLocaleLoading: "lazy" });
   context.after(() => rm(malformedConfig.root, { recursive: true, force: true }));
   await assert.rejects(
@@ -762,7 +793,7 @@ test("v4 locale-loading policy validates config parity and preserves eager/SSR b
   );
 });
 
-test("dynamic v4 virtual modules switch locales, retry failures, and dispose on HMR", async (context) => {
+test("dynamic virtual modules switch locales, retry failures, and dispose on HMR", async (context) => {
   const data = await dynamicLocaleFixture({
     configLocaleLoading: "dynamic",
     manifestLocaleLoading: "dynamic"
@@ -840,11 +871,11 @@ test("hot update rebuilds and invalidates only configured output", async (contex
   context.after(() => rm(root, { recursive: true, force: true }));
   const changedFile = path.join(root, "src/schema/shop/delivery.lgs");
   const generated = path.join(root, "build/custom-linguini/index.js");
-  const legacySubstring = path.join(root, "other/generated/linguini/user.js");
+  const unrelatedGeneratedSubstring = path.join(root, "other/generated/linguini/user.js");
   const builds = [];
   const harness = mockServer([
     { id: generated },
-    { id: legacySubstring },
+    { id: unrelatedGeneratedSubstring },
     { id: path.join(root, "src/app.js") }
   ]);
   const plugin = linguini({
@@ -963,7 +994,7 @@ test("unlink rebuilds and removes obsolete watches", async (context) => {
   assert.ok(harness.removed.includes(removedFile));
 });
 
-test("v2 transforms Unicode Svelte source and loads exact virtual module", async (context) => {
+test("transforms Unicode Svelte source and loads exact virtual module", async (context) => {
   const fixtureData = await bundlerFixture();
   context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
   const plugin = linguini({ root: fixtureData.root, buildOnStart: false });
@@ -999,7 +1030,7 @@ test("v2 transforms Unicode Svelte source and loads exact virtual module", async
   assert.match(virtual, /__linguini_messages\[getCurrentLocale\(\)\]/);
 });
 
-test("v2 rejects stale bytes and skips unsafe bindings", async (context) => {
+test("rejects stale bytes and skips unsafe bindings", async (context) => {
   const fixtureData = await bundlerFixture();
   context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
   const plugin = linguini({ root: fixtureData.root, buildOnStart: false });
@@ -1087,7 +1118,7 @@ test("v2 rejects stale bytes and skips unsafe bindings", async (context) => {
   }
 });
 
-test("v3 transforms static and dynamic refs with finite frozen dispatches", async (context) => {
+test("transforms static and dynamic refs with finite frozen dispatches", async (context) => {
   const data = await dynamicBundlerFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const plugin = linguini({ root: data.root, buildOnStart: false });
@@ -1176,8 +1207,8 @@ test("v3 transforms static and dynamic refs with finite frozen dispatches", asyn
   assert.equal(values.altValue(3), "Items:3");
 });
 
-test("v3 uses only explicit dynamic references and rejects resolver mismatch", async (context) => {
-  const staticOnly = await bundlerFixture({ version: 3, applicationName: "static.ts" });
+test("uses only explicit dynamic references and rejects resolver mismatch", async (context) => {
+  const staticOnly = await bundlerFixture({ applicationName: "static.ts" });
   context.after(() => rm(staticOnly.root, { recursive: true, force: true }));
   staticOnly.manifest.applications[staticOnly.applicationKey].analysis_dynamic_prefixes = ["main"];
   await writeFile(
@@ -1238,7 +1269,7 @@ test("v3 uses only explicit dynamic references and rejects resolver mismatch", a
   );
 });
 
-test("v3 keeps deduped dynamic helpers inside Svelte script scope", async (context) => {
+test("keeps deduped dynamic helpers inside Svelte script scope", async (context) => {
   const data = await dynamicBundlerFixture({ applicationName: "dynamic.svelte" });
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const plugin = linguini({ root: data.root, buildOnStart: false });
@@ -1257,7 +1288,7 @@ test("v3 keeps deduped dynamic helpers inside Svelte script scope", async (conte
   assert.equal(beforeClose.split(titleId).length - 1, 1);
 });
 
-test("v3 strictly validates dynamic manifest contracts", async (context) => {
+test("strictly validates dynamic manifest contracts", async (context) => {
   const data = await dynamicBundlerFixture({ applicationName: "malformed.ts" });
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const original = structuredClone(data.manifest);
@@ -1320,9 +1351,8 @@ test("v3 strictly validates dynamic manifest contracts", async (context) => {
   );
 });
 
-test("v5 accepts locale runtimes and dynamic locale loading", async (context) => {
+test("accepts locale runtimes and dynamic locale loading", async (context) => {
   const data = await dynamicLocaleFixture({
-    version: 5,
     configLocaleLoading: "dynamic",
     manifestLocaleLoading: "dynamic"
   });
@@ -1342,8 +1372,8 @@ test("v5 accepts locale runtimes and dynamic locale loading", async (context) =>
   assert.match(source, /title\/fr\.js/);
 });
 
-test("v5 validates exact locale runtime descriptors", async (context) => {
-  const data = await v5RuntimeFixture();
+test("validates exact locale runtime descriptors", async (context) => {
+  const data = await runtimeFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const original = structuredClone(data.manifest);
   const reject = async (mutate, pattern) => {
@@ -1378,6 +1408,117 @@ test("v5 validates exact locale runtime descriptors", async (context) => {
     },
     /source_ids.*unique/
   );
+});
+
+test("accepts semantic descriptors with dynamic locale loading", async (context) => {
+  const data = await semanticFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const source = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    "\0virtual:linguini/message/6d61696e2e7469746c65"
+  );
+  assert.match(source, /registerLocaleLoader/);
+  assert.match(source, /title\/en\.js/);
+  assert.equal(data.manifest.message_semantics.length, 2);
+});
+
+test("rejects malformed, duplicate, and escaping semantic descriptors", async (context) => {
+  const data = await semanticFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const original = structuredClone(data.manifest);
+  const reject = async (mutate, pattern) => {
+    const manifest = structuredClone(original);
+    mutate(manifest);
+    await writeFile(data.manifestPath, JSON.stringify(manifest));
+    const plugin = linguini({ root: data.root, buildOnStart: false });
+    await plugin.configResolved({ root: data.root });
+    await assert.rejects(plugin.buildStart.call({ addWatchFile() {} }), pattern);
+  };
+  await reject(
+    (manifest) => {
+      manifest.message_semantics[0].locale = "de";
+    },
+    /locale must be an effective locale/
+  );
+  await reject(
+    (manifest) => {
+      manifest.message_semantics[0].kind = "constant";
+    },
+    /kind must be enum, variable, form, or function/
+  );
+  await reject(
+    (manifest) => {
+      manifest.message_semantics[0].module = "../escape.ts";
+    },
+    /clean project-relative POSIX path/
+  );
+  await reject(
+    (manifest) => {
+      manifest.message_semantics[1].module = manifest.message_semantics[0].module;
+    },
+    /unique module paths/
+  );
+  await reject(
+    (manifest) => {
+      manifest.message_semantics.push({
+        ...manifest.message_semantics[0],
+        module: "bundler/semantic/en/variable/title-copy.js"
+      });
+    },
+    /unique locale, kind, and name descriptors/
+  );
+  await reject(
+    (manifest) => {
+      manifest.message_semantics[0].extra = true;
+    },
+    /must contain exactly locale, kind, name, module, and source_ids/
+  );
+});
+
+test("semantic deltas invalidate source-specific and old/new semantic modules", async (context) => {
+  const data = await semanticHmrFixture();
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const movedSemantic = path.join(
+    data.generated,
+    "bundler/semantic/en/variable/title-next.ts"
+  );
+  await writeFile(movedSemantic, "export {};\n");
+  const sourceChange = path.join(data.root, "src/schema/shop/delivery.lgs");
+  let nextManifest = structuredClone(data.manifest);
+  const harness = mockServer([
+    { id: data.semanticModule },
+    { id: movedSemantic }
+  ]);
+  const plugin = linguini({
+    root: data.root,
+    buildOnStart: false,
+    debounceMs: 0,
+    async build() {
+      await writeFile(data.manifestPath, JSON.stringify(nextManifest));
+    }
+  });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  await plugin.configureServer(harness.server);
+
+  harness.invalidated.length = 0;
+  await plugin.handleHotUpdate({ file: sourceChange, server: harness.server, timestamp: 90 });
+  assert.deepEqual(harness.invalidated, [data.semanticModule]);
+
+  nextManifest = structuredClone(nextManifest);
+  nextManifest.message_semantics[0].module =
+    "bundler/semantic/en/variable/title-next.ts";
+  await writeFile(data.manifestPath, JSON.stringify(nextManifest));
+  harness.invalidated.length = 0;
+  await plugin.handleHotUpdate({
+    file: data.manifestPath,
+    server: harness.server,
+    timestamp: 91
+  });
+  assert.deepEqual([...harness.invalidated].sort(), [data.semanticModule, movedSemantic].sort());
 });
 
 test("allocates generated aliases around existing JavaScript bindings", async (context) => {
@@ -1442,6 +1583,7 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
       local_start: item[1] - local.length,
       local_end: item[1],
       analyzer_exact_uses_only: true,
+      analyzer_tracked_uses_only: true,
       transformable: true
     };
   };
@@ -1509,7 +1651,7 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
   assert.match(instanceScript, /implicit\.main\.title/);
 });
 
-test("missing and v1 manifests stay legacy; unknown versions fail", async (context) => {
+test("missing manifests stay inactive and unknown versions fail", async (context) => {
   const missingRoot = await fixture();
   context.after(() => rm(missingRoot, { recursive: true, force: true }));
   const missingPlugin = linguini({ root: missingRoot, buildOnStart: false });
@@ -1524,23 +1666,18 @@ test("missing and v1 manifests stay legacy; unknown versions fail", async (conte
     undefined
   );
 
-  const legacy = await bundlerFixture({ version: 1 });
-  context.after(() => rm(legacy.root, { recursive: true, force: true }));
-  const legacyPlugin = linguini({ root: legacy.root, buildOnStart: false });
-  await legacyPlugin.configResolved({ root: legacy.root });
-  await legacyPlugin.buildStart.call({ addWatchFile() {} });
-  assert.equal(
-    await legacyPlugin.transform.call({ resolve: async () => null }, legacy.code, legacy.application),
-    undefined
-  );
-
-  const unknown = await bundlerFixture({ version: 4 });
+  const unknown = await bundlerFixture();
   context.after(() => rm(unknown.root, { recursive: true, force: true }));
+  unknown.manifest.version = 2;
+  await writeFile(
+    path.join(unknown.generated, "bundler/manifest.json"),
+    JSON.stringify(unknown.manifest)
+  );
   const unknownPlugin = linguini({ root: unknown.root, buildOnStart: false });
   await unknownPlugin.configResolved({ root: unknown.root });
   await assert.rejects(
     unknownPlugin.buildStart.call({ addWatchFile() {} }),
-    /unsupported Linguini bundler manifest version 4/
+    /unsupported Linguini bundler manifest version 2/
   );
 
   const escaping = await bundlerFixture();
@@ -1743,7 +1880,7 @@ test("selective HMR follows exact message source dependencies", async (context) 
   assert.equal(harness.events.at(-1).path, "*");
 });
 
-test("manifest deltas target applications, renames, and broad version transitions", async (context) => {
+test("manifest deltas target applications, renames, and helper transitions", async (context) => {
   const data = await selectiveHmrFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const unrelatedGenerated = path.join(data.generated, "index.ts");
@@ -1805,21 +1942,9 @@ test("manifest deltas target applications, renames, and broad version transition
   assert.ok(helperBroad.invalidated.includes(data.application));
   assert.ok(helperBroad.invalidated.includes(data.titleVirtual));
 
-  const legacy = {
-    version: 1,
-    base_locale: "en",
-    configured_locales: ["en"],
-    effective_locales: ["en"],
-    sources: [],
-    messages: {}
-  };
-  const broad = await reload(legacy);
-  assert.ok(broad.invalidated.includes(unrelatedGenerated));
-  assert.ok(broad.invalidated.includes(data.application));
-  assert.ok(broad.invalidated.includes(data.titleVirtual));
 });
 
-test("v3 HMR fingerprints dynamic app contracts and message descriptors", async (context) => {
+test("HMR fingerprints dynamic app contracts and message descriptors", async (context) => {
   const data = await dynamicBundlerFixture({ applicationName: "hmr.ts" });
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const manifestPath = path.join(data.generated, "bundler/manifest.json");
@@ -1903,6 +2028,10 @@ test("message descriptor deltas invalidate only changed locale modules", async (
     module: "bundler/messages/main/title/fr.ts",
     source_ids: [2]
   };
+  data.manifest.message_runtimes.fr = {
+    module: "locales/fr/_runtime.ts",
+    source_ids: [2]
+  };
   await writeFile(data.manifestPath, JSON.stringify(data.manifest));
   const harness = mockServer([
     { id: data.titleVirtual },
@@ -1944,8 +2073,8 @@ test("message descriptor deltas invalidate only changed locale modules", async (
   assert.ok(!harness.invalidated.includes(data.titleModule));
 });
 
-test("v5 runtime deltas invalidate source-specific and old/new runtime modules", async (context) => {
-  const data = await v5RuntimeFixture();
+test("runtime deltas invalidate source-specific and old/new runtime modules", async (context) => {
+  const data = await runtimeFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const movedRuntime = path.join(data.generated, "locales/en/runtime-next.ts");
   await writeFile(movedRuntime, "export {};\n");

@@ -313,7 +313,7 @@ export function linguini(options = {}) {
         return undefined;
       }
       if (!bundlerManifest) {
-        throw new Error("Linguini bundler manifest v2, v3, v4, or v5 is required for virtual messages");
+        throw new Error("Linguini bundler manifest v1 is required for virtual messages");
       }
       const message = decodeMessageId(id.slice(RESOLVED_VIRTUAL_MESSAGE_PREFIX.length));
       return renderVirtualMessageModule(
@@ -427,7 +427,8 @@ export async function readProjectLayout(root, configFile = DEFAULT_CONFIG_FILE) 
         resolveWithin(projectRoot, value, "targets.ts.bundler.exclude")
       )
     ]),
-    localeLoading
+    localeLoading,
+    bundlerEnabled: rawBundler !== undefined
   });
 }
 
@@ -702,6 +703,9 @@ function comparePaths(left, right) {
 }
 
 async function readBundlerManifest(layout) {
+  if (!layout.bundlerEnabled) {
+    return undefined;
+  }
   const manifestPath = path.join(layout.generatedRoot, MANIFEST_RELATIVE_PATH);
   let source;
   try {
@@ -721,10 +725,7 @@ async function readBundlerManifest(layout) {
   if (!isRecord(raw) || !Number.isInteger(raw.version)) {
     throw new Error(`Linguini bundler manifest ${manifestPath} has no integer version`);
   }
-  if (raw.version === 1) {
-    return undefined;
-  }
-  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5) {
+  if (raw.version !== 1) {
     throw new Error(`unsupported Linguini bundler manifest version ${raw.version}`);
   }
   return validateManifest(raw, layout, manifestPath);
@@ -732,20 +733,7 @@ async function readBundlerManifest(layout) {
 
 function validateManifest(raw, layout, manifestPath) {
   const context = `Linguini bundler manifest ${manifestPath}`;
-  if (raw.version >= 4 && raw.locale_loading === undefined) {
-    throw new Error(
-      `unsupported Linguini bundler manifest version ${raw.version}: ${context}.locale_loading must be "eager" or "dynamic"`
-    );
-  }
-  const localeLoading =
-    raw.version >= 4
-      ? validateLocaleLoading(raw.locale_loading, `${context}.locale_loading`)
-      : "eager";
-  if (raw.version < 4 && layout.localeLoading === "dynamic") {
-    throw new Error(
-      `${context}.locale_loading dynamic requires manifest version 4 or newer (config requests dynamic loading)`
-    );
-  }
+  const localeLoading = validateLocaleLoading(raw.locale_loading, `${context}.locale_loading`);
   if (layout.localeLoading !== localeLoading) {
     throw new Error(
       `${context}.locale_loading ${localeLoading} does not match config targets.ts.bundler.locale_loading ${layout.localeLoading}`
@@ -790,10 +778,20 @@ function validateManifest(raw, layout, manifestPath) {
       source.id
     );
   }
-  const messageRuntimes =
-    raw.version >= 5
-      ? validateMessageRuntimes(raw.message_runtimes, effectiveLocales, sourceIds, layout, context)
-      : new Map();
+  const messageRuntimes = validateMessageRuntimes(
+    raw.message_runtimes,
+    effectiveLocales,
+    sourceIds,
+    layout,
+    context
+  );
+  const messageSemantics = validateMessageSemantics(
+    raw.message_semantics,
+    effectiveLocales,
+    sourceIds,
+    layout,
+    context
+  );
   if (!isRecord(raw.runtime_helpers)) {
     throw new Error(`${context}.runtime_helpers must be an object`);
   }
@@ -861,8 +859,7 @@ function validateManifest(raw, layout, manifestPath) {
       rawApplication,
       relative,
       context,
-      messages,
-      raw.version
+      messages
     );
     if (applicationSourceIds.has(rawApplication.source_id)) {
       throw new Error(`${context}.applications has duplicate source_id ${rawApplication.source_id}`);
@@ -882,6 +879,7 @@ function validateManifest(raw, layout, manifestPath) {
     effectsHelper,
     sourceIdsByFile,
     messageRuntimes,
+    messageSemantics,
     messages,
     applicationsByFile,
     applicationFiles: Object.freeze([...applicationsByFile.keys()].sort(comparePaths))
@@ -946,7 +944,81 @@ function validateMessageRuntimes(raw, effectiveLocales, sourceIds, layout, conte
   return runtimes;
 }
 
-function validateApplication(raw, relative, context, messages, manifestVersion) {
+function validateMessageSemantics(raw, effectiveLocales, sourceIds, layout, context) {
+  const field = `${context}.message_semantics`;
+  if (!Array.isArray(raw)) {
+    throw new Error(`${field} must be an array`);
+  }
+  const semantics = new Map();
+  const semanticModules = new Set();
+  const kinds = new Set(["enum", "variable", "form", "function"]);
+  for (const [index, entry] of raw.entries()) {
+    const entryField = `${field}.${index}`;
+    if (!isRecord(entry)) {
+      throw new Error(`${entryField} must be an object`);
+    }
+    const keys = Object.keys(entry).sort();
+    if (
+      keys.length !== 5 ||
+      keys.some((key, keyIndex) =>
+        key !== ["kind", "locale", "module", "name", "source_ids"].sort()[keyIndex]
+      )
+    ) {
+      throw new Error(
+        `${entryField} must contain exactly locale, kind, name, module, and source_ids`
+      );
+    }
+    const locale = requireString(entry.locale, `${entryField}.locale`);
+    if (!effectiveLocales.includes(locale)) {
+      throw new Error(`${entryField}.locale must be an effective locale`);
+    }
+    const kind = requireString(entry.kind, `${entryField}.kind`);
+    if (!kinds.has(kind)) {
+      throw new Error(`${entryField}.kind must be enum, variable, form, or function`);
+    }
+    const name = requireString(entry.name, `${entryField}.name`);
+    const module = resolveGeneratedPath(
+      layout.generatedRoot,
+      entry.module,
+      `${entryField}.module`
+    );
+    if (semanticModules.has(module)) {
+      throw new Error(`${field} must have unique module paths`);
+    }
+    semanticModules.add(module);
+    if (!Array.isArray(entry.source_ids)) {
+      throw new Error(`${entryField}.source_ids must be an array of source ids`);
+    }
+    const sourceIdsForEntry = entry.source_ids.map((sourceId, sourceIndex) => {
+      if (!isNonnegativeInteger(sourceId) || !sourceIds.has(sourceId)) {
+        throw new Error(
+          `${entryField}.source_ids.${sourceIndex} must be an integer id from sources`
+        );
+      }
+      return sourceId;
+    });
+    if (new Set(sourceIdsForEntry).size !== sourceIdsForEntry.length) {
+      throw new Error(`${entryField}.source_ids must contain unique source ids`);
+    }
+    const key = `${locale}\u0000${kind}\u0000${name}`;
+    if (semantics.has(key)) {
+      throw new Error(`${field} must have unique locale, kind, and name descriptors`);
+    }
+    semantics.set(
+      key,
+      Object.freeze({
+        locale,
+        kind,
+        name,
+        module,
+        sourceIds: Object.freeze(sourceIdsForEntry)
+      })
+    );
+  }
+  return semantics;
+}
+
+function validateApplication(raw, relative, context, messages) {
   const field = `${context}.applications.${relative}`;
   if (
     !isRecord(raw) ||
@@ -956,6 +1028,7 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
     !/^[0-9a-f]{64}$/.test(raw.sha256) ||
     !Array.isArray(raw.references) ||
     !Array.isArray(raw.imports) ||
+    !Array.isArray(raw.dynamic_references) ||
     !Array.isArray(raw.unresolved) ||
     !Array.isArray(raw.analysis_dynamic_prefixes) ||
     !raw.analysis_dynamic_prefixes.every((value) => typeof value === "string")
@@ -1000,25 +1073,18 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
       importedEnd: requireOffset(item.imported_end, `${field}.imports.imported_end`),
       localStart: requireOffset(item.local_start, `${field}.imports.local_start`),
       localEnd: requireOffset(item.local_end, `${field}.imports.local_end`),
-      analyzerTrackedUsesOnly:
-        manifestVersion >= 3
-          ? requireBoolean(
-              item.analyzer_tracked_uses_only,
-              `${field}.imports.${bindingId}.analyzer_tracked_uses_only`
-            )
-          : undefined,
+      analyzerTrackedUsesOnly: requireBoolean(
+        item.analyzer_tracked_uses_only,
+        `${field}.imports.${bindingId}.analyzer_tracked_uses_only`
+      ),
       transformable: item.transformable
     };
-    if (
-      manifestVersion >= 3 &&
-      binding.transformable &&
-      !binding.analyzerTrackedUsesOnly
-    ) {
+    if (binding.transformable && !binding.analyzerTrackedUsesOnly) {
       throw new Error(
         `${field}.imports.${bindingId}.transformable requires analyzer_tracked_uses_only`
       );
     }
-    validateNestedSpans(binding, raw.byte_length, field, manifestVersion >= 3);
+    validateNestedSpans(binding, raw.byte_length, field, true);
     imports.set(bindingId, binding);
   }
   const references = raw.references.map((item, index) => {
@@ -1079,15 +1145,16 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
     }
     previousEnd = reference.end;
   }
-  const dynamicReferences =
-    manifestVersion >= 3
-      ? validateDynamicReferences(raw.dynamic_references, field, raw.byte_length, messages, imports)
-      : Object.freeze([]);
+  const dynamicReferences = validateDynamicReferences(
+    raw.dynamic_references,
+    field,
+    raw.byte_length,
+    messages,
+    imports
+  );
   validateReferenceNonoverlap(references, dynamicReferences, field);
-  if (manifestVersion >= 3) {
-    validateImportRemovalNonoverlap(imports, field);
-    validateReferencesOutsideImports(references, dynamicReferences, imports, field);
-  }
+  validateImportRemovalNonoverlap(imports, field);
+  validateReferencesOutsideImports(references, dynamicReferences, imports, field);
   for (const [index, unresolved] of raw.unresolved.entries()) {
     if (
       !isRecord(unresolved) ||
@@ -1107,7 +1174,7 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
       sha256: raw.sha256,
       byte_length: raw.byte_length,
       references: raw.references,
-      dynamic_references: manifestVersion >= 3 ? raw.dynamic_references : undefined,
+      dynamic_references: raw.dynamic_references,
       imports: raw.imports
     }),
     imports,
@@ -1295,7 +1362,6 @@ function validateReferencesOutsideImports(staticReferences, dynamicReferences, i
 
 function manifestContractFingerprint(manifest) {
   return JSON.stringify({
-    version: manifest.version,
     localeLoading: manifest.localeLoading,
     baseLocale: manifest.baseLocale,
     configuredLocales: manifest.configuredLocales,
@@ -1407,6 +1473,31 @@ function manifestDelta(previous, next, changedFile) {
       physicalFiles.add(nextRuntime.module);
     }
   }
+  const semanticDescriptors = new Set([
+    ...(previous.messageSemantics?.keys() ?? []),
+    ...(next.messageSemantics?.keys() ?? [])
+  ]);
+  for (const descriptorKey of [...semanticDescriptors].sort(comparePaths)) {
+    const previousDescriptor = previous.messageSemantics?.get(descriptorKey);
+    const nextDescriptor = next.messageSemantics?.get(descriptorKey);
+    const descriptorChanged =
+      !previousDescriptor ||
+      !nextDescriptor ||
+      previousDescriptor.module !== nextDescriptor.module ||
+      !sameNumberArray(previousDescriptor.sourceIds, nextDescriptor.sourceIds);
+    const sourceChanged = [previousDescriptor, nextDescriptor].some((descriptor) =>
+      descriptor?.sourceIds.some((sourceId) => changedSourceIds.has(sourceId))
+    );
+    if (!descriptorChanged && !sourceChanged) {
+      continue;
+    }
+    if (previousDescriptor) {
+      physicalFiles.add(previousDescriptor.module);
+    }
+    if (nextDescriptor) {
+      physicalFiles.add(nextDescriptor.module);
+    }
+  }
   const applicationFiles = new Set();
   const files = new Set([
     ...previous.applicationsByFile.keys(),
@@ -1472,139 +1563,6 @@ function validateNestedSpans(binding, byteLength, field, strict = false) {
 }
 
 async function transformApplication(code, id, application, manifest, generatedRoot) {
-  if (manifest.version === 2) {
-    return transformApplicationV2.call(
-      this,
-      code,
-      id,
-      application,
-      manifest,
-      generatedRoot
-    );
-  }
-  return transformApplicationV3.call(
-    this,
-    code,
-    id,
-    application,
-    manifest,
-    generatedRoot
-  );
-}
-
-async function transformApplicationV2(code, id, application, manifest, generatedRoot) {
-  const bytes = Buffer.from(code, "utf8");
-  const digest = createHash("sha256").update(bytes).digest("hex");
-  if (bytes.length !== application.byteLength || digest !== application.sha256) {
-    throw new Error(
-      `Linguini application manifest is stale for ${stripQueryAndHash(id)}; rebuild generated output`
-    );
-  }
-  const byteToUtf16 = createByteToUtf16Map(code, application.byteLength);
-  for (const reference of application.references) {
-    byteOffset(byteToUtf16, reference.start, application.relative);
-    byteOffset(byteToUtf16, reference.end, application.relative);
-  }
-  for (const binding of application.imports.values()) {
-    for (const offset of [
-      binding.declarationStart,
-      binding.declarationEnd,
-      binding.itemStart,
-      binding.itemEnd,
-      binding.removalStart,
-      binding.removalEnd,
-      binding.moduleSpecifierStart,
-      binding.moduleSpecifierEnd,
-      binding.importedStart,
-      binding.importedEnd,
-      binding.localStart,
-      binding.localEnd
-    ]) {
-      byteOffset(byteToUtf16, offset, application.relative);
-    }
-  }
-  const generatedEntry = normalizeResolvedFileId(path.resolve(generatedRoot, "svelte.ts"));
-  const acceptedBindings = new Map();
-  for (const binding of application.imports.values()) {
-    if (!binding.transformable || (binding.imported !== "l" && binding.imported !== "messages")) {
-      continue;
-    }
-    let resolved;
-    try {
-      resolved = await this.resolve(binding.moduleSpecifier, stripQueryAndHash(id), {
-        skipSelf: true
-      });
-    } catch {
-      continue;
-    }
-    const resolvedId = typeof resolved === "string" ? resolved : resolved?.id;
-    if (normalizeResolvedFileId(resolvedId) !== generatedEntry) {
-      continue;
-    }
-    acceptedBindings.set(binding.bindingId, binding);
-  }
-  const references = application.references.filter(
-    (reference) => reference.bindingId !== null && acceptedBindings.has(reference.bindingId)
-  );
-  if (references.length === 0) {
-    return undefined;
-  }
-  const magic = new MagicString(code);
-  const aliases = new Map();
-  const bindingImports = new Map();
-  const allocatedAliases = new Set();
-  let nextAliasIndex = 0;
-  for (const reference of references) {
-    const aliasKey = `${reference.bindingId}\0${reference.message}`;
-    let alias = aliases.get(aliasKey);
-    if (!alias) {
-      do {
-        alias = `__linguini_message_${nextAliasIndex}`;
-        nextAliasIndex += 1;
-      } while (code.includes(alias) || allocatedAliases.has(alias));
-      allocatedAliases.add(alias);
-      aliases.set(aliasKey, alias);
-      const imports = bindingImports.get(reference.bindingId) ?? [];
-      imports.push({ message: reference.message, alias });
-      bindingImports.set(reference.bindingId, imports);
-    }
-    const start = byteOffset(byteToUtf16, reference.start, application.relative);
-    const end = byteOffset(byteToUtf16, reference.end, application.relative);
-    magic.overwrite(start, end, reference.kind === "value" ? `${alias}()` : alias);
-  }
-  const activeBindings = [...bindingImports.keys()].map((bindingId) => acceptedBindings.get(bindingId));
-  const deletions = importDeletions(code, activeBindings, byteToUtf16, application.relative);
-  for (const [start, end] of deletions) {
-    magic.remove(start, end);
-  }
-  const importsByDeclaration = new Map();
-  for (const [bindingId, entries] of bindingImports) {
-    const binding = acceptedBindings.get(bindingId);
-    const group = importsByDeclaration.get(binding.declarationStart) ?? [];
-    group.push(...entries);
-    importsByDeclaration.set(binding.declarationStart, group);
-  }
-  for (const [insertionByte, entries] of importsByDeclaration) {
-    const insertion = byteOffset(byteToUtf16, insertionByte, application.relative);
-    const imports = entries
-      .map(
-        ({ message, alias }) =>
-          `import { message as ${alias} } from ${JSON.stringify(virtualMessageId(message))};\n`
-      )
-      .join("");
-    magic.prependLeft(insertion, imports);
-  }
-  return {
-    code: magic.toString(),
-    map: magic.generateMap({
-      hires: true,
-      source: stripQueryAndHash(id),
-      includeContent: true
-    })
-  };
-}
-
-async function transformApplicationV3(code, id, application, manifest, generatedRoot) {
   const bytes = Buffer.from(code, "utf8");
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (bytes.length !== application.byteLength || digest !== application.sha256) {
@@ -1965,7 +1923,7 @@ function renderVirtualMessageModule(manifest, canonical, dynamicClient = false) 
   if (!message) {
     throw new Error(`unknown Linguini message ${canonical}`);
   }
-  if (dynamicClient && manifest.version >= 4 && manifest.localeLoading === "dynamic") {
+  if (dynamicClient && manifest.localeLoading === "dynamic") {
     return renderDynamicVirtualMessageModule(manifest, canonical, message);
   }
   const imports = [

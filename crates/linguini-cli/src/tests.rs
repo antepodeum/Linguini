@@ -723,6 +723,172 @@ tree_shaking = false
 }
 
 #[test]
+fn bundler_semantic_artifacts_are_shared_mapped_and_manifested() {
+    let project = temp_project_dir("bundler-semantic-artifacts").expect("project");
+    fs::create_dir_all(project.path().join("schema")).expect("schema dir");
+    fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
+    fs::create_dir_all(project.path().join("src")).expect("source dir");
+    fs::write(
+        project.path().join("linguini.toml"),
+        r#"
+[project]
+name = "bundler-semantic-artifacts"
+default_locale = "en"
+locales = ["en"]
+[paths]
+schema = "schema"
+locale = "locales"
+[targets.ts]
+out = "src/generated/linguini"
+declaration = false
+gitignore = false
+tree_shaking = true
+messages = ["main.first", "main.second", "main.plain"]
+framework = "svelte"
+[targets.ts.bundler]
+sources = ["src"]
+exclude = []
+"#,
+    )
+    .expect("config");
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "first\nsecond\nplain\n",
+    )
+    .expect("schema");
+    fs::write(
+        project.path().join("locales/main/en.lgl"),
+        "let shared = Common\nfirst = {shared}\nsecond = {shared}\nplain = Plain\n",
+    )
+    .expect("locale");
+
+    build_project(project.path()).expect("build");
+    let out = project.path().join("src/generated/linguini");
+    let manifest_path = out.join("bundler/manifest.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest"))
+            .expect("manifest JSON");
+    assert_eq!(manifest["version"], 1);
+
+    let semantic = manifest["message_semantics"]
+        .as_array()
+        .expect("semantic descriptors");
+    assert_eq!(semantic.len(), 1);
+    let descriptor = &semantic[0];
+    assert_eq!(
+        descriptor
+            .as_object()
+            .expect("descriptor object")
+            .keys()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>(),
+        ["kind", "locale", "module", "name", "source_ids"]
+            .into_iter()
+            .collect()
+    );
+    assert_eq!(descriptor["locale"], "en");
+    assert_eq!(descriptor["kind"], "variable");
+    assert_eq!(descriptor["name"], "main.shared");
+    let semantic_module = descriptor["module"].as_str().expect("semantic module");
+    assert_eq!(semantic_module.matches('/').count(), 4);
+    assert!(out.join(semantic_module).is_file());
+    let semantic_map_path = out.join(format!("{semantic_module}.map"));
+    assert!(semantic_map_path.is_file());
+
+    let source_ids = manifest["sources"]
+        .as_array()
+        .expect("source table")
+        .iter()
+        .map(|source| source["id"].as_u64().expect("source id"))
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(descriptor["source_ids"]
+        .as_array()
+        .expect("semantic source ids")
+        .iter()
+        .all(|id| source_ids.contains(&id.as_u64().expect("semantic source id"))));
+
+    let actual_sources = manifest["sources"]
+        .as_array()
+        .expect("source table")
+        .iter()
+        .map(|source| {
+            project
+                .path()
+                .join(source["path"].as_str().expect("source path"))
+                .canonicalize()
+                .expect("actual source")
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    let semantic_map: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&semantic_map_path).expect("semantic map"))
+            .expect("semantic map JSON");
+    for source in semantic_map["sources"]
+        .as_array()
+        .expect("semantic map sources")
+    {
+        let source = source.as_str().expect("semantic map source");
+        assert!(!source.starts_with('/') && !source.contains('\\'));
+        let resolved = semantic_map_path
+            .parent()
+            .expect("semantic map parent")
+            .join(source)
+            .canonicalize()
+            .expect("semantic map source path");
+        assert!(actual_sources.contains(&resolved));
+    }
+
+    let semantic_code = fs::read_to_string(out.join(semantic_module)).expect("semantic code");
+    assert!(
+        semantic_code.contains("export const") && semantic_code.contains("Common"),
+        "{semantic_code}"
+    );
+    for message in ["main.first", "main.second"] {
+        let module = manifest["messages"][message]["locales"]["en"]["module"]
+            .as_str()
+            .expect("message module");
+        let code = fs::read_to_string(out.join(module)).expect("message code");
+        assert!(code.contains("from \"../../semantic/en/variable/"));
+        assert!(!code.contains("const shared ="));
+        let map_path = out.join(format!("{module}.map"));
+        let map: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&map_path).expect("message map"))
+                .expect("message map JSON");
+        assert!(map["sources"]
+            .as_array()
+            .expect("message map sources")
+            .iter()
+            .all(|source| {
+                let source = source.as_str().expect("map source");
+                !source.starts_with('/')
+                    && !source.contains('\\')
+                    && map_path
+                        .parent()
+                        .expect("map parent")
+                        .join(source)
+                        .is_file()
+            }));
+    }
+
+    let selected_config = fs::read_to_string(project.path().join("linguini.toml"))
+        .expect("config")
+        .replace(
+            "messages = [\"main.first\", \"main.second\", \"main.plain\"]",
+            "messages = [\"main.plain\"]",
+        );
+    fs::write(project.path().join("linguini.toml"), selected_config).expect("selected config");
+    build_project(project.path()).expect("selected build");
+    let selected_manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("selected manifest"))
+            .expect("selected manifest JSON");
+    assert!(selected_manifest["message_semantics"]
+        .as_array()
+        .expect("selected semantic descriptors")
+        .is_empty());
+    assert!(!out.join(semantic_module).exists());
+    assert!(!out.join(format!("{semantic_module}.map")).exists());
+}
+
+#[test]
 fn bundler_manifest_bridges_application_references_before_output_mutation() {
     let project = temp_project_dir("bundler-applications").expect("project");
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
@@ -801,7 +967,7 @@ allow = ["main.title", "main.items"]
         .join("src/generated/linguini/bundler/manifest.json");
     let first_text = fs::read_to_string(&manifest_path).expect("manifest");
     let manifest: serde_json::Value = serde_json::from_str(&first_text).expect("JSON");
-    assert_eq!(manifest["version"], 5);
+    assert_eq!(manifest["version"], 1);
     assert_eq!(manifest["locale_loading"], "eager");
     let source_ids = manifest["sources"]
         .as_array()
@@ -1085,7 +1251,7 @@ allow = ["main.title", "main.items"]
     let dynamic_manifest: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&manifest_path).expect("dynamic manifest"))
             .expect("dynamic manifest JSON");
-    assert_eq!(dynamic_manifest["version"], 5);
+    assert_eq!(dynamic_manifest["version"], 1);
     assert_eq!(dynamic_manifest["locale_loading"], "dynamic");
 }
 

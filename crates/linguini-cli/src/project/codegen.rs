@@ -7,9 +7,10 @@ use linguini_analyzer::{
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
-    compile_typescript_bundler_message_module, generate_typescript_project_files, EcmaSource,
-    TypeScriptFramework, TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleSource,
-    TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
+    compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_semantic_module,
+    generate_typescript_project_files, EcmaSource, TypeScriptFramework, TypeScriptGeneratedFile,
+    TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptProjectOptions, TypeScriptWebOptions,
+    ValidatedTypeScriptProject,
 };
 use linguini_config::{
     discover_application_source_files_with_fields, CanonicalMode, CookiePath, LinguiniConfig,
@@ -212,49 +213,59 @@ fn generate_bundler_files(
     let runtime_artifacts = project
         .locale_runtime_artifacts()
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-    let mut files = Vec::with_capacity(artifacts.len() * 2 + 1);
+    let semantic_artifacts = project
+        .semantic_artifacts()
+        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+    let mut files = Vec::with_capacity((artifacts.len() + semantic_artifacts.len()) * 2 + 1);
     let mut messages = BTreeMap::<String, (usize, BTreeMap<String, serde_json::Value>)>::new();
     let effective_locales = project
         .effective_locales()
         .into_iter()
         .collect::<BTreeSet<_>>();
 
-    for artifact in artifacts {
-        let map_directory = format!(
-            "{output_root}/{}",
-            artifact
-                .source_map_path
-                .rsplit_once('/')
-                .map_or("", |(directory, _)| directory)
-        );
-        let map_sources = sources
-            .iter()
-            .map(|source| {
-                lexical_relative_path(&map_directory, &source.path)
-                    .map(|path| EcmaSource::new(source.id, path, source.contents.clone()))
-            })
-            .collect::<Result<Vec<_>, _>>()
+    for artifact in &semantic_artifacts {
+        let map_sources = rebase_map_sources(output_root, &artifact.source_map_path, sources)
+            .map_err(|reason| {
+                CliError::Diagnostics(format!(
+                    "bundler semantic `{}` `{}` locale `{}`: cannot rebase source-map paths: {reason}\n",
+                    artifact.kind.as_str(), artifact.name, artifact.locale
+                ))
+            })?;
+        let compiled = compile_typescript_bundler_semantic_module(project, artifact, &map_sources)
+            .map_err(|error| {
+                CliError::Diagnostics(format!(
+                    "bundler semantic `{}` `{}` locale `{}`: {error}\n",
+                    artifact.kind.as_str(),
+                    artifact.name,
+                    artifact.locale
+                ))
+            })?;
+        files.push(TypeScriptGeneratedFile {
+            path: artifact.module_path.clone(),
+            contents: compiled.code,
+        });
+        files.push(TypeScriptGeneratedFile {
+            path: artifact.source_map_path.clone(),
+            contents: compiled.source_map,
+        });
+    }
+
+    for artifact in &artifacts {
+        let map_sources = rebase_map_sources(output_root, &artifact.source_map_path, sources)
             .map_err(|reason| {
                 CliError::Diagnostics(format!(
                     "bundler message `{}` locale `{}`: cannot rebase source-map paths: {reason}\n",
                     artifact.message, artifact.locale
                 ))
             })?;
-        let compiled = compile_typescript_bundler_message_module(
-            project,
-            &artifact.locale,
-            &artifact.message,
-            &artifact.output_file_name,
-            &artifact.shared_import_path,
-            &artifact.runtime_import_path,
-            &map_sources,
-        )
-        .map_err(|error| {
-            CliError::Diagnostics(format!(
-                "bundler message `{}` locale `{}`: {error}\n",
-                artifact.message, artifact.locale
-            ))
-        })?;
+        let compiled =
+            compile_typescript_bundler_message_artifact_module(project, artifact, &map_sources)
+                .map_err(|error| {
+                    CliError::Diagnostics(format!(
+                        "bundler message `{}` locale `{}`: {error}\n",
+                        artifact.message, artifact.locale
+                    ))
+                })?;
         let locale_entry = serde_json::json!({
             "module": artifact.module_path,
             "source_ids": compiled.source_ids().iter().map(|id| id.0).collect::<Vec<_>>(),
@@ -265,11 +276,11 @@ fn generate_bundler_files(
             .1
             .insert(artifact.locale.clone(), locale_entry);
         files.push(TypeScriptGeneratedFile {
-            path: artifact.module_path,
+            path: artifact.module_path.clone(),
             contents: compiled.code,
         });
         files.push(TypeScriptGeneratedFile {
-            path: artifact.source_map_path,
+            path: artifact.source_map_path.clone(),
             contents: compiled.source_map,
         });
     }
@@ -310,7 +321,7 @@ fn generate_bundler_files(
     if let Some(bundler) = &target.bundler {
         let applications = scan_bundler_applications(root, output_root, bundler, &message_arities)?;
         let manifest = manifest.as_object_mut().expect("manifest is an object");
-        manifest.insert("version".to_owned(), serde_json::json!(5));
+        manifest.insert("version".to_owned(), serde_json::json!(1));
         manifest.insert(
             "locale_loading".to_owned(),
             serde_json::json!(bundler.locale_loading.as_str()),
@@ -331,6 +342,22 @@ fn generate_bundler_files(
         manifest.insert(
             "message_runtimes".to_owned(),
             serde_json::json!(message_runtimes),
+        );
+        let message_semantics = semantic_artifacts
+            .iter()
+            .map(|artifact| {
+                serde_json::json!({
+                    "locale": artifact.locale,
+                    "kind": artifact.kind.as_str(),
+                    "name": artifact.name,
+                    "module": artifact.module_path,
+                    "source_ids": artifact.source_ids.iter().map(|id| id.0).collect::<Vec<_>>(),
+                })
+            })
+            .collect::<Vec<_>>();
+        manifest.insert(
+            "message_semantics".to_owned(),
+            serde_json::Value::Array(message_semantics),
         );
         let mut runtime_helpers = serde_json::Map::new();
         runtime_helpers.insert(
@@ -1011,6 +1038,26 @@ fn lexical_relative_path(from_directory: &str, target: &str) -> Result<String, &
         return Err("source path resolves to the map directory");
     }
     Ok(relative.join("/"))
+}
+
+fn rebase_map_sources(
+    output_root: &str,
+    source_map_path: &str,
+    sources: &[EcmaSource],
+) -> Result<Vec<EcmaSource>, &'static str> {
+    let map_directory = format!(
+        "{output_root}/{}",
+        source_map_path
+            .rsplit_once('/')
+            .map_or("", |(directory, _)| directory)
+    );
+    sources
+        .iter()
+        .map(|source| {
+            lexical_relative_path(&map_directory, &source.path)
+                .map(|path| EcmaSource::new(source.id, path, source.contents.clone()))
+        })
+        .collect()
 }
 
 fn portable_relative_components(value: &str) -> Result<Vec<&str>, &'static str> {
