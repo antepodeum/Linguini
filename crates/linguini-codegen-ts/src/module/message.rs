@@ -364,16 +364,16 @@ fn emit_message_module(
     let runtime_helpers =
         runtime_import_path.map(|_| formatter_requirements(schema, locale).helper_names());
     let mut module = EcmaModule {
-        imports: message_imports(
+        imports: message_imports(MessageImportRequest {
             shared_import_path,
             runtime_import_path,
             schema,
-            options,
+            plural_function: &options.plural_function,
             uses_select_branch,
             uses_named_message_args,
             uses_plural,
-            runtime_helpers.as_deref().unwrap_or_default(),
-        ),
+            runtime_helpers: runtime_helpers.as_deref().unwrap_or_default(),
+        }),
         statements: Vec::new(),
     };
     for dependency in semantic_imports {
@@ -403,21 +403,23 @@ fn emit_message_module(
     module
 }
 
-fn message_imports(
-    shared_import_path: &str,
-    runtime_import_path: Option<&str>,
-    schema: &IrModule,
-    options: &TypeScriptOptions,
+struct MessageImportRequest<'a> {
+    shared_import_path: &'a str,
+    runtime_import_path: Option<&'a str>,
+    schema: &'a IrModule,
+    plural_function: &'a str,
     uses_select_branch: bool,
     uses_named_message_args: bool,
     uses_plural: bool,
-    runtime_helpers: &[&str],
-) -> Vec<EcmaImport> {
+    runtime_helpers: &'a [&'a str],
+}
+
+fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
     let mut imports = Vec::new();
-    let type_names = emit::schema_type_names(schema);
+    let type_names = emit::schema_type_names(request.schema);
     if !type_names.is_empty() {
         imports.push(EcmaImport {
-            specifier: shared_import_path.to_owned(),
+            specifier: request.shared_import_path.to_owned(),
             bindings: EcmaImportBindings::TypeNamed(
                 type_names
                     .iter()
@@ -427,25 +429,25 @@ fn message_imports(
         });
     }
     let mut shared_helpers = Vec::new();
-    if uses_select_branch {
+    if request.uses_select_branch {
         shared_helpers.push("selectBranch");
     }
-    if uses_named_message_args {
+    if request.uses_named_message_args {
         shared_helpers.push("normalizeMessageArgs");
     }
     if !shared_helpers.is_empty() {
         imports.push(EcmaImport::named(
-            shared_import_path,
+            request.shared_import_path,
             shared_helpers
                 .into_iter()
                 .map(|name| EcmaNamedImport::new(name, name))
                 .collect(),
         ));
     }
-    if let Some(runtime_import_path) = runtime_import_path {
-        let mut helpers = runtime_helpers.to_vec();
-        if uses_plural {
-            helpers.push(&options.plural_function);
+    if let Some(runtime_import_path) = request.runtime_import_path {
+        let mut helpers = request.runtime_helpers.to_vec();
+        if request.uses_plural {
+            helpers.push(request.plural_function);
         }
         if !helpers.is_empty() {
             imports.push(EcmaImport::named(
