@@ -133,6 +133,8 @@ production path uses the fix and its relevant tests pass.
   preparation, and preload-before-switch semantics for lightweight Svelte controls.
 - `8405d65` — added manifest-v4 Vite client locale boundaries with literal dynamic imports,
   current-locale preloading, retry-safe caches, SSR-static modules, and HMR-safe disposal.
+- `fa7bccd` — enabled dynamic locale loading on the real site and proved 522 physical locale
+  modules stay outside the initial static client graph while SSR remains synchronous.
 
 ## Numbered findings
 
@@ -714,9 +716,9 @@ production path uses the fix and its relevant tests pass.
       and real-site production-graph verification.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
-- [-] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries; typed config
-      and manifest-v4 policy, runtime preloading, and Vite client/SSR boundaries are committed;
-      real-site graph verification remains.
+- [x] BUNDLE-A10 — Express optional locale splitting through bundler-visible dynamic ESM
+      boundaries with preload-before-switch behavior, inactive-locale client chunks, synchronous
+      SSR modules, and real-site production-graph verification.
 
 ### Local repository verification
 
