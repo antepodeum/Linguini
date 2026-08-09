@@ -129,6 +129,16 @@ export const TASKS = Object.freeze([
     tools: ["pnpm"],
     requiresNodeModules: true,
   }),
+  nodeTask({
+    id: "site:graph",
+    project: "site",
+    label: "Site production graph assertions",
+    command: "node",
+    args: ["scripts/production-graph.test.mjs"],
+    profiles: ["full", "site"],
+    tools: [],
+    requiresNodeModules: true,
+  }),
 ].map((task) => Object.freeze(task)));
 
 export const PROFILES = Object.freeze(["quick", "full", "site"]);

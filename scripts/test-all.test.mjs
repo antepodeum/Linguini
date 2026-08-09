@@ -25,6 +25,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "site:test",
       "site:check",
       "site:build",
+      "site:graph",
     ],
   );
   assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "vite", "cli", "vscode", "site"]);
@@ -32,7 +33,13 @@ test("registry is explicit and ordered across repository projects", () => {
 
 test("profiles select the expected ordered task groups", () => {
   assert.deepEqual(selectTasks({ profile: "quick" }).map((task) => task.id), ["rust:fmt", "vite:test", "cli:test"]);
-  assert.deepEqual(selectTasks({ profile: "site" }).map((task) => task.id), ["site:generate", "site:test", "site:check", "site:build"]);
+  assert.deepEqual(selectTasks({ profile: "site" }).map((task) => task.id), [
+    "site:generate",
+    "site:test",
+    "site:check",
+    "site:build",
+    "site:graph",
+  ]);
   assert.equal(selectTasks({ profile: "full" }).length, TASKS.length);
 });
 

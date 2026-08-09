@@ -12,9 +12,9 @@ network. Use the broader profiles when you need the corresponding gates:
 
 ```sh
 pnpm test:full                 # Rust, Vite, CLI, VS Code, and site
-pnpm test:site                 # generate, test, check, then build site
+pnpm test:site                 # generate, test, check, build, then inspect site graph
 node scripts/test-all.mjs --profile full --project vite --project cli
-node scripts/test-all.mjs --profile site --task site:check --task site:build
+node scripts/test-all.mjs --profile site --task site:check --task site:build --task site:graph
 ```
 
 Repeated `--project` and `--task` options are supported. The runner performs a
