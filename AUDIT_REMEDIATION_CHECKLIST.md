@@ -117,6 +117,8 @@ production path uses the fix and its relevant tests pass.
   editor, and site verification profiles.
 - `a20d057` — added a strict-by-default dynamic bundler policy with an explicit finite exact-message
   allowlist for the bounded bundle escape hatch.
+- `9e578cd` — added source-exact dynamic message references with binding provenance, computed-key
+  spans, value/call identity, and conservative classification of ambiguous or mutating uses.
 
 ## Numbered findings
 
@@ -696,7 +698,8 @@ production path uses the fix and its relevant tests pass.
 - [-] BUNDLE-A7 — Reject dynamic lookup in strict mode; the analyzer now separates exact static
       references from conservative dynamic prefixes and manifest v2 keeps unresolved optional,
       arity-mismatched, and non-leaf accesses separate from transformable references; the typed
-      strict/bundle policy is committed, while pre-write diagnostics and bounded transforms remain.
+      strict/bundle policy and exact dynamic-reference metadata are committed, while pre-write
+      diagnostics and bounded transforms remain.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [ ] BUNDLE-A10 — Express optional locale splitting through dynamic ESM boundaries.
