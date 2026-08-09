@@ -34,6 +34,93 @@ async function fixture() {
   return root;
 }
 
+async function dynamicLocaleFixture({
+  version = 4,
+  configLocaleLoading = "eager",
+  manifestLocaleLoading = configLocaleLoading,
+  includeManifestLocaleLoading = version === 4
+} = {}) {
+  const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-locale-"));
+  const generated = path.join(root, "build/custom-linguini");
+  await mkdir(path.join(root, "src"), { recursive: true });
+  await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
+  await writeFile(
+    path.join(root, "linguini.toml"),
+    [
+      "[targets.ts]",
+      'out = "build/custom-linguini"',
+      "[targets.ts.bundler]",
+      'sources = ["src"]',
+      `locale_loading = "${configLocaleLoading}"`,
+      ""
+    ].join("\n")
+  );
+  await writeFile(
+    path.join(generated, "svelte-locale.js"),
+    [
+      'let current = "en";',
+      "const loaders = new Set();",
+      "export function getCurrentLocale() { return current; }",
+      "export function setCurrentLocale(locale) { current = locale; }",
+      "export function registerLocaleLoader(loader) {",
+      "  loaders.add(loader);",
+      "  let disposed = false;",
+      "  return () => {",
+      "    if (disposed) return;",
+      "    disposed = true;",
+      "    loaders.delete(loader);",
+      "    globalThis.__linguiniDisposed = (globalThis.__linguiniDisposed ?? 0) + 1;",
+      "  };",
+      "}",
+      "export async function prepareLocale(locale) {",
+      "  await Promise.all([...loaders].map((loader) => loader(locale)));",
+      "}"
+    ].join("\n")
+  );
+  await writeFile(
+    path.join(generated, "bundler/messages/main/title/en.js"),
+    'export function message() { return "EN"; }\n'
+  );
+  await writeFile(
+    path.join(generated, "bundler/messages/main/title/fr.js"),
+    'export function message() { return "FR"; }\n'
+  );
+  const manifest = {
+    version,
+    ...(includeManifestLocaleLoading ? { locale_loading: manifestLocaleLoading } : {}),
+    base_locale: "en",
+    configured_locales: ["en", "fr"],
+    effective_locales: ["en", "fr"],
+    sources: [],
+    runtime_helpers: {
+      svelte_locale: {
+        import: "./svelte-locale.js",
+        file: "svelte-locale.js"
+      }
+    },
+    messages: {
+      "main.title": {
+        arity: 0,
+        locales: {
+          en: {
+            module: "bundler/messages/main/title/en.js",
+            source_ids: []
+          },
+          fr: {
+            module: "bundler/messages/main/title/fr.js",
+            source_ids: []
+          }
+        }
+      }
+    },
+    applications: {}
+  };
+  await mkdir(path.join(generated, "bundler"), { recursive: true });
+  const manifestPath = path.join(generated, "bundler/manifest.json");
+  await writeFile(manifestPath, JSON.stringify(manifest));
+  return { root, generated, manifestPath, manifest };
+}
+
 function byteSpan(source, needle) {
   const bytes = Buffer.from(source, "utf8");
   const start = bytes.indexOf(Buffer.from(needle, "utf8"));
@@ -541,6 +628,134 @@ test("validates finite dynamic bundler config with CLI parity", async (context) 
     await writeConfig(dynamic);
     await assert.rejects(readProjectLayout(root), pattern);
   }
+});
+
+test("v4 locale-loading policy validates config parity and preserves eager/SSR boundaries", async (context) => {
+  const dynamic = await dynamicLocaleFixture({
+    configLocaleLoading: "dynamic",
+    manifestLocaleLoading: "dynamic"
+  });
+  context.after(() => rm(dynamic.root, { recursive: true, force: true }));
+  const dynamicPlugin = linguini({ root: dynamic.root, buildOnStart: false });
+  await dynamicPlugin.configResolved({ root: dynamic.root });
+  await dynamicPlugin.buildStart.call({ addWatchFile() {} });
+  const virtualId = await dynamicPlugin.resolveId(
+    "virtual:linguini/message/6d61696e2e7469746c65"
+  );
+  const dynamicClient = dynamicPlugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    virtualId
+  );
+  assert.match(dynamicClient, /registerLocaleLoader/);
+  assert.match(dynamicClient, /import\(".*bundler\/messages\/main\/title\/en\.js"\)/);
+  assert.match(dynamicClient, /import\(".*bundler\/messages\/main\/title\/fr\.js"\)/);
+  assert.match(dynamicClient, /await __linguini_load\(__linguini_initial_locale\)/);
+  assert.doesNotMatch(dynamicClient, /import\.meta\.hot\.accept/);
+
+  const dynamicSsr = dynamicPlugin.load.call(
+    { environment: { config: { consumer: "server" } } },
+    virtualId
+  );
+  assert.doesNotMatch(dynamicSsr, /registerLocaleLoader|import\(".*title\/fr\.js"\)/);
+  const dynamicSsrV5 = dynamicPlugin.load.call({}, virtualId, { ssr: true });
+  assert.doesNotMatch(dynamicSsrV5, /registerLocaleLoader|import\(".*title\/fr\.js"\)/);
+
+  const eagerV3 = await dynamicLocaleFixture({ version: 3, configLocaleLoading: "eager" });
+  context.after(() => rm(eagerV3.root, { recursive: true, force: true }));
+  const eagerPlugin = linguini({ root: eagerV3.root, buildOnStart: false });
+  await eagerPlugin.configResolved({ root: eagerV3.root });
+  await eagerPlugin.buildStart.call({ addWatchFile() {} });
+  const eagerId = await eagerPlugin.resolveId(
+    "virtual:linguini/message/6d61696e2e7469746c65"
+  );
+  assert.doesNotMatch(
+    eagerPlugin.load.call({ environment: { config: { consumer: "client" } } }, eagerId),
+    /registerLocaleLoader|import\(/
+  );
+
+  const configMismatch = await dynamicLocaleFixture({
+    configLocaleLoading: "eager",
+    manifestLocaleLoading: "dynamic"
+  });
+  context.after(() => rm(configMismatch.root, { recursive: true, force: true }));
+  const mismatchPlugin = linguini({ root: configMismatch.root, buildOnStart: false });
+  await mismatchPlugin.configResolved({ root: configMismatch.root });
+  await assert.rejects(
+    mismatchPlugin.buildStart.call({ addWatchFile() {} }),
+    /does not match config targets\.ts\.bundler\.locale_loading/
+  );
+
+  const dynamicLegacy = await dynamicLocaleFixture({ version: 3, configLocaleLoading: "dynamic" });
+  context.after(() => rm(dynamicLegacy.root, { recursive: true, force: true }));
+  const dynamicLegacyPlugin = linguini({ root: dynamicLegacy.root, buildOnStart: false });
+  await dynamicLegacyPlugin.configResolved({ root: dynamicLegacy.root });
+  await assert.rejects(
+    dynamicLegacyPlugin.buildStart.call({ addWatchFile() {} }),
+    /dynamic requires manifest version 4/
+  );
+
+  const malformedConfig = await dynamicLocaleFixture({ configLocaleLoading: "lazy" });
+  context.after(() => rm(malformedConfig.root, { recursive: true, force: true }));
+  await assert.rejects(
+    readProjectLayout(malformedConfig.root),
+    /locale_loading.*must be "eager" or "dynamic"/
+  );
+});
+
+test("dynamic v4 virtual modules switch locales, retry failures, and dispose on HMR", async (context) => {
+  const data = await dynamicLocaleFixture({
+    configLocaleLoading: "dynamic",
+    manifestLocaleLoading: "dynamic"
+  });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const virtualId = await plugin.resolveId(
+    "virtual:linguini/message/6d61696e2e7469746c65"
+  );
+  const helperFile = path.join(data.generated, "svelte-locale.js");
+  const frFile = path.join(data.generated, "bundler/messages/main/title/fr.js");
+  let source = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    virtualId
+  );
+  const frImport = `() => import(${JSON.stringify(frFile)})`;
+  assert.ok(source.includes(frImport));
+  source = source.replace(
+    frImport,
+    '() => { if (globalThis.__linguiniFrAttempts++ === 0) throw new Error("transient locale failure"); return Promise.resolve({ message() { return "FR"; } }); }'
+  );
+  source = source.replace(
+    "if (import.meta.hot) {",
+    "if (globalThis.__linguiniHot) {"
+  );
+  source = source.replaceAll("import.meta.hot", "globalThis.__linguiniHot");
+  const moduleFile = path.join(data.root, "dynamic-message.mjs");
+  await writeFile(moduleFile, source);
+  globalThis.__linguiniFrAttempts = 0;
+  globalThis.__linguiniDisposed = 0;
+  const hotDisposers = [];
+  globalThis.__linguiniHot = {
+    dispose(callback) {
+      hotDisposers.push(callback);
+    }
+  };
+  const runtime = await import(`${pathToFileURL(moduleFile).href}?runtime-test`);
+  const helper = await import(pathToFileURL(helperFile).href);
+  assert.equal(runtime.message(), "EN");
+  helper.setCurrentLocale("fr");
+  await assert.rejects(helper.prepareLocale("fr"), /transient locale failure/);
+  assert.equal(runtime.message(), "EN");
+  await helper.prepareLocale("fr");
+  assert.equal(runtime.message(), "FR");
+  assert.equal(hotDisposers.length, 1);
+  hotDisposers[0]();
+  hotDisposers[0]();
+  assert.equal(globalThis.__linguiniDisposed, 1);
+  delete globalThis.__linguiniHot;
+  delete globalThis.__linguiniFrAttempts;
+  delete globalThis.__linguiniDisposed;
 });
 
 test("recognizes only configured Linguini source roots", async (context) => {

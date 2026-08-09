@@ -402,3 +402,117 @@ test("real Vite build bundles finite v3 dynamic refs without eager barrel", asyn
   assert.ok(modules.includes(itemsModule));
   assert.ok(modules.filter((id) => id.includes("\0virtual:linguini/message/")).length >= 2);
 });
+
+test("real v4 dynamic client boundaries keep inactive locales out of entry and SSR stays static", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-v4-dynamic-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const generated = path.join(root, "generated/linguini");
+  await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
+  await mkdir(path.join(generated, "bundler"), { recursive: true });
+  await writeFile(
+    path.join(root, "linguini.toml"),
+    [
+      "[targets.ts]",
+      'out = "generated/linguini"',
+      'framework = "svelte"',
+      "[targets.ts.bundler]",
+      'sources = ["entry.js"]',
+      'locale_loading = "dynamic"',
+      ""
+    ].join("\n")
+  );
+  const virtualMessage = "virtual:linguini/message/6d61696e2e7469746c65";
+  await writeFile(
+    path.join(root, "entry.js"),
+    `import { message } from ${JSON.stringify(virtualMessage)};\nexport const rendered = message();\n`
+  );
+  await writeFile(
+    path.join(generated, "svelte-locale.js"),
+    [
+      'export function getCurrentLocale() { return "en"; }',
+      "export function registerLocaleLoader() { return () => {}; }",
+      ""
+    ].join("\n")
+  );
+  await writeFile(
+    path.join(generated, "bundler/messages/main/title/en.js"),
+    'export function message() { return "V4_EN"; }\n'
+  );
+  await writeFile(
+    path.join(generated, "bundler/messages/main/title/fr.js"),
+    'export function message() { return "V4_FR"; }\n'
+  );
+  await writeFile(
+    path.join(generated, "bundler/manifest.json"),
+    JSON.stringify({
+      version: 4,
+      locale_loading: "dynamic",
+      base_locale: "en",
+      configured_locales: ["en", "fr"],
+      effective_locales: ["en", "fr"],
+      sources: [],
+      runtime_helpers: {
+        svelte_locale: {
+          import: "./svelte-locale.js",
+          file: "svelte-locale.js"
+        }
+      },
+      messages: {
+        "main.title": {
+          arity: 0,
+          locales: {
+            en: {
+              module: "bundler/messages/main/title/en.js",
+              source_ids: []
+            },
+            fr: {
+              module: "bundler/messages/main/title/fr.js",
+              source_ids: []
+            }
+          }
+        }
+      },
+      applications: {}
+    })
+  );
+
+  const clientResult = await build({
+    root,
+    logLevel: "silent",
+    plugins: [linguini({ root, buildOnStart: false })],
+    build: {
+      write: false,
+      rollupOptions: { input: path.join(root, "entry.js") }
+    }
+  });
+  const clientChunks = clientResult.output.filter((output) => output.type === "chunk");
+  const clientEntry = clientChunks.find((chunk) => chunk.isEntry);
+  assert.ok(clientEntry);
+  assert.match(clientChunks.map((chunk) => chunk.code).join("\n"), /V4_EN|V4_FR/);
+  assert.ok(clientChunks.some((chunk) => chunk.code.includes("V4_FR")));
+  assert.doesNotMatch(clientEntry.code, /V4_FR/);
+  assert.equal(
+    clientEntry.imports.some((file) => file.includes("fr-")),
+    false,
+    "inactive locale must not be a static entry import"
+  );
+
+  const ssrResult = await build({
+    root,
+    logLevel: "silent",
+    plugins: [linguini({ root, buildOnStart: false })],
+    build: {
+      write: false,
+      ssr: path.join(root, "entry.js"),
+      rollupOptions: { input: path.join(root, "entry.js") }
+    }
+  });
+  const ssrCode = ssrResult.output
+    .filter((output) => output.type === "chunk")
+    .map((chunk) => chunk.code)
+    .join("\n");
+  assert.match(ssrCode, /V4_EN/);
+  assert.match(ssrCode, /V4_FR/);
+  assert.doesNotMatch(ssrCode, /registerLocaleLoader|import\(/);
+  assert.match(ssrCode, /rendered/);
+});

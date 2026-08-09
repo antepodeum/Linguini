@@ -293,15 +293,19 @@ export function linguini(options = {}) {
       decodeMessageId(id.slice(VIRTUAL_MESSAGE_PREFIX.length));
       return `\0${id}`;
     },
-    load(id) {
+    load(id, options) {
       if (!id.startsWith(RESOLVED_VIRTUAL_MESSAGE_PREFIX)) {
         return undefined;
       }
       if (!bundlerManifest) {
-        throw new Error("Linguini bundler manifest v2 or v3 is required for virtual messages");
+        throw new Error("Linguini bundler manifest v2, v3, or v4 is required for virtual messages");
       }
       const message = decodeMessageId(id.slice(RESOLVED_VIRTUAL_MESSAGE_PREFIX.length));
-      return renderVirtualMessageModule(bundlerManifest, message);
+      return renderVirtualMessageModule(
+        bundlerManifest,
+        message,
+        shouldUseDynamicLocaleLoading(this, options)
+      );
     },
     async transform(code, id) {
       if (!bundlerManifest || !isRawApplicationModule(id)) {
@@ -384,6 +388,10 @@ export async function readProjectLayout(root, configFile = DEFAULT_CONFIG_FILE) 
     [],
     "targets.ts.bundler.exclude"
   );
+  const localeLoading = validateLocaleLoading(
+    rawBundler?.locale_loading,
+    "targets.ts.bundler.locale_loading"
+  );
   validateBundlerDynamic(rawBundler?.dynamic);
 
   return Object.freeze({
@@ -403,7 +411,8 @@ export async function readProjectLayout(root, configFile = DEFAULT_CONFIG_FILE) 
       ...bundlerExclude.map((value) =>
         resolveWithin(projectRoot, value, "targets.ts.bundler.exclude")
       )
-    ])
+    ]),
+    localeLoading
   });
 }
 
@@ -604,6 +613,16 @@ function validateBundlerDynamic(value) {
   }
 }
 
+function validateLocaleLoading(value, field) {
+  if (value === undefined) {
+    return "eager";
+  }
+  if (value !== "eager" && value !== "dynamic") {
+    throw new TypeError(`Linguini config field ${field} must be "eager" or "dynamic"`);
+  }
+  return value;
+}
+
 function isDynamicMessagePath(message) {
   if (
     message.length === 0 ||
@@ -666,7 +685,7 @@ async function readBundlerManifest(layout) {
   if (raw.version === 1) {
     return undefined;
   }
-  if (raw.version !== 2 && raw.version !== 3) {
+  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4) {
     throw new Error(`unsupported Linguini bundler manifest version ${raw.version}`);
   }
   return validateManifest(raw, layout, manifestPath);
@@ -674,6 +693,25 @@ async function readBundlerManifest(layout) {
 
 function validateManifest(raw, layout, manifestPath) {
   const context = `Linguini bundler manifest ${manifestPath}`;
+  if (raw.version === 4 && raw.locale_loading === undefined) {
+    throw new Error(
+      `unsupported Linguini bundler manifest version 4: ${context}.locale_loading must be "eager" or "dynamic"`
+    );
+  }
+  const localeLoading =
+    raw.version === 4
+      ? validateLocaleLoading(raw.locale_loading, `${context}.locale_loading`)
+      : "eager";
+  if (raw.version !== 4 && layout.localeLoading === "dynamic") {
+    throw new Error(
+      `${context}.locale_loading dynamic requires manifest version 4 (config requests dynamic loading)`
+    );
+  }
+  if (layout.localeLoading !== localeLoading) {
+    throw new Error(
+      `${context}.locale_loading ${localeLoading} does not match config targets.ts.bundler.locale_loading ${layout.localeLoading}`
+    );
+  }
   const baseLocale = requireString(raw.base_locale, `${context}.base_locale`);
   const configuredLocales = requireStringArray(
     raw.configured_locales,
@@ -791,6 +829,7 @@ function validateManifest(raw, layout, manifestPath) {
   }
   return Object.freeze({
     version: raw.version,
+    localeLoading,
     manifestPath,
     generatedRoot: layout.generatedRoot,
     baseLocale,
@@ -869,7 +908,7 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
       localStart: requireOffset(item.local_start, `${field}.imports.local_start`),
       localEnd: requireOffset(item.local_end, `${field}.imports.local_end`),
       analyzerTrackedUsesOnly:
-        manifestVersion === 3
+        manifestVersion >= 3
           ? requireBoolean(
               item.analyzer_tracked_uses_only,
               `${field}.imports.${bindingId}.analyzer_tracked_uses_only`
@@ -878,7 +917,7 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
       transformable: item.transformable
     };
     if (
-      manifestVersion === 3 &&
+      manifestVersion >= 3 &&
       binding.transformable &&
       !binding.analyzerTrackedUsesOnly
     ) {
@@ -886,7 +925,7 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
         `${field}.imports.${bindingId}.transformable requires analyzer_tracked_uses_only`
       );
     }
-    validateNestedSpans(binding, raw.byte_length, field, manifestVersion === 3);
+    validateNestedSpans(binding, raw.byte_length, field, manifestVersion >= 3);
     imports.set(bindingId, binding);
   }
   const references = raw.references.map((item, index) => {
@@ -948,11 +987,11 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
     previousEnd = reference.end;
   }
   const dynamicReferences =
-    manifestVersion === 3
+    manifestVersion >= 3
       ? validateDynamicReferences(raw.dynamic_references, field, raw.byte_length, messages, imports)
       : Object.freeze([]);
   validateReferenceNonoverlap(references, dynamicReferences, field);
-  if (manifestVersion === 3) {
+  if (manifestVersion >= 3) {
     validateImportRemovalNonoverlap(imports, field);
     validateReferencesOutsideImports(references, dynamicReferences, imports, field);
   }
@@ -975,7 +1014,7 @@ function validateApplication(raw, relative, context, messages, manifestVersion) 
       sha256: raw.sha256,
       byte_length: raw.byte_length,
       references: raw.references,
-      dynamic_references: manifestVersion === 3 ? raw.dynamic_references : undefined,
+      dynamic_references: manifestVersion >= 3 ? raw.dynamic_references : undefined,
       imports: raw.imports
     }),
     imports,
@@ -1164,6 +1203,7 @@ function validateReferencesOutsideImports(staticReferences, dynamicReferences, i
 function manifestContractFingerprint(manifest) {
   return JSON.stringify({
     version: manifest.version,
+    localeLoading: manifest.localeLoading,
     baseLocale: manifest.baseLocale,
     configuredLocales: manifest.configuredLocales,
     effectiveLocales: manifest.effectiveLocales,
@@ -1794,10 +1834,21 @@ function importDeletions(code, bindings, byteToUtf16, sourceName) {
   return deletions;
 }
 
-function renderVirtualMessageModule(manifest, canonical) {
+function shouldUseDynamicLocaleLoading(context, options) {
+  const consumer = context?.environment?.config?.consumer;
+  if (consumer !== undefined) {
+    return consumer !== "server";
+  }
+  return options?.ssr !== true;
+}
+
+function renderVirtualMessageModule(manifest, canonical, dynamicClient = false) {
   const message = manifest.messages.get(canonical);
   if (!message) {
     throw new Error(`unknown Linguini message ${canonical}`);
+  }
+  if (dynamicClient && manifest.version === 4 && manifest.localeLoading === "dynamic") {
+    return renderDynamicVirtualMessageModule(manifest, canonical, message);
   }
   const imports = [
     `import { getCurrentLocale } from ${JSON.stringify(toVitePath(manifest.localeHelper.file))};`
@@ -1819,6 +1870,72 @@ function renderVirtualMessageModule(manifest, canonical) {
     `const __linguini_base = __linguini_messages[${JSON.stringify(manifest.baseLocale)}];`,
     "export function message(...args) {",
     "  const selected = __linguini_messages[getCurrentLocale()] ?? __linguini_base;",
+    "  return selected(...args);",
+    "}",
+    ""
+  ].join("\n");
+}
+
+function renderDynamicVirtualMessageModule(manifest, canonical, message) {
+  const imports = [
+    `import { getCurrentLocale, registerLocaleLoader } from ${JSON.stringify(
+      toVitePath(manifest.localeHelper.file)
+    )};`
+  ];
+  if (manifest.effectsHelper) {
+    imports.push(`import ${JSON.stringify(toVitePath(manifest.effectsHelper.file))};`);
+  }
+  const loaders = [];
+  for (const [locale, localeEntry] of message.locales) {
+    loaders.push(
+      `[${JSON.stringify(locale)}]: () => import(${JSON.stringify(
+        toVitePath(localeEntry.module)
+      )})`
+    );
+  }
+  return [
+    ...imports,
+    `const __linguini_loaders = Object.freeze({ ${loaders.join(", ")} });`,
+    `const __linguini_base_locale = ${JSON.stringify(manifest.baseLocale)};`,
+    "const __linguini_functions = new Map();",
+    "const __linguini_pending = new Map();",
+    "function __linguini_load(locale) {",
+    "  if (__linguini_functions.has(locale)) return Promise.resolve(__linguini_functions.get(locale));",
+    "  const pending = __linguini_pending.get(locale);",
+    "  if (pending) return pending;",
+    "  const loader = Object.prototype.hasOwnProperty.call(__linguini_loaders, locale)",
+    "    ? __linguini_loaders[locale]",
+    "    : undefined;",
+    "  if (!loader) return Promise.resolve(undefined);",
+    "  const task = Promise.resolve()",
+    "    .then(() => loader())",
+    "    .then((module) => {",
+    "      if (typeof module?.message !== \"function\") {",
+    "        throw new Error(`Linguini locale module for ${locale} does not export message()`);",
+    "      }",
+    "      __linguini_functions.set(locale, module.message);",
+    "      return module.message;",
+    "    })",
+    "    .finally(() => {",
+    "      __linguini_pending.delete(locale);",
+    "    });",
+    "  __linguini_pending.set(locale, task);",
+    "  return task;",
+    "}",
+    "const __linguini_dispose_loader = registerLocaleLoader(__linguini_load);",
+    "const __linguini_initial_locale = getCurrentLocale();",
+    "if (!(await __linguini_load(__linguini_initial_locale))) {",
+    "  await __linguini_load(__linguini_base_locale);",
+    "}",
+    "if (import.meta.hot) {",
+    "  import.meta.hot.dispose(() => __linguini_dispose_loader());",
+    "}",
+    "export function message(...args) {",
+    "  const selectedLocale = getCurrentLocale();",
+    "  const selected = __linguini_functions.get(selectedLocale) ?? __linguini_functions.get(__linguini_base_locale);",
+    "  if (!selected) {",
+    "    throw new Error(`Linguini locale ${selectedLocale} is not prepared`);",
+    "  }",
     "  return selected(...args);",
     "}",
     ""

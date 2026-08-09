@@ -33,6 +33,7 @@ export interface LinguiniProjectLayout {
   readonly generatedRoot: string;
   readonly bundlerSourceRoots: readonly string[];
   readonly bundlerExcludeRoots: readonly string[];
+  readonly localeLoading: "eager" | "dynamic";
 }
 
 export declare function readProjectLayout(
