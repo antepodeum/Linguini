@@ -383,16 +383,19 @@ production path uses the fix and its relevant tests pass.
 - [x] #196 — Make date output independent of host local time zone.
 - [x] #197 — Reject invalid dates.
 - [x] #198 — Fail visibly on missing required CLDR data.
-- [ ] #199 — Emit source maps back to Linguini sources.
-- [ ] #200 — Require every declared message in direct codegen input locales.
-- [ ] #201 — Replace eager locale imports with real bundler-visible splitting.
+- [-] #199 — Emit source maps back to Linguini sources. Bundler-native physical message and
+      semantic modules have truthful maps; legacy project-wide string emitters remain unmapped.
+- [x] #200 — Require every declared message in direct codegen input locales.
+- [-] #201 — Replace eager locale imports with real bundler-visible splitting. The bundler-native
+      Vite path splits locales dynamically; the legacy generated index remains eager.
 - [x] #202 — Tree-shake transitive forms, functions, variables, and helpers.
 - [x] #203 — Diagnose unknown `included_messages`.
 - [x] #204 — Stop copying all global declarations into every namespace.
 - [x] #205 — Deduplicate formatter helpers/data per locale.
 - [x] #206 — Sanitize namespace paths and generated filenames.
 - [x] #207 — Reject case-folded locale filename collisions.
-- [ ] #208 — Use the shared CLDR fallback graph.
+- [-] #208 — Use the shared CLDR fallback graph. Rust codegen and CLI share the canonical CLDR
+      chain; generated locale runtime still combines truncation with precomputed overrides.
 - [x] #209 — Reject an invalid base locale.
 - [x] #210 — Reject unknown text direction.
 - [-] #211 — Remove `targets.ts.module` and all CJS documentation/templates.

@@ -73,5 +73,10 @@ regressing positional calls, tree-shaking, locale splitting, source maps, or HMR
   `BUNDLE-A13` are complete.
 - The strict codegen Clippy blocker introduced by the physical-message import surface was removed
   in `bd9c67e` by grouping import inputs without changing generated output.
+- Direct project codegen now rejects every visible schema message without an effective
+  fallback-composed locale implementation (`8b2bf7f`). Tree-shaken selection is respected and
+  sparse regional locales remain valid when their base supplies the message. Codegen (103 unit +
+  3 web safety), CLI (78 unit + 24 integration), and strict codegen Clippy pass; checklist #200 is
+  complete.
 - Next: resume the remaining remediation checklist from the first dependency-ready unfinished
   work package after the bundler-native message API sequence.
