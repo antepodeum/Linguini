@@ -83,6 +83,10 @@ or bundler-native locale chunks.
 - Bundler parameterless leaves now export raw values while standalone compilation preserves its
   callable compatibility contract. The full 11-task root profile passed; independent read-only
   verification found no defects in runtime initialization, chunk topology, SSR, or leaf shape.
+- Dynamic client facades now share one virtual locale registry (`7ce324f`). The real site emits
+  nine locale imports instead of 522 repeated message-by-locale imports; its route node fell from
+  154,807 to 72,546 bytes (28,971 to 22,917 gzip). One active locale chunk loads initially,
+  parameterless leaves stay values, and no per-facade preparation/crash branch remains.
 - `WEB-B0` through `WEB-B3` are complete in `5e81c9a` and `193c83f`. Validated config now lowers one
   explicit locale-switch plan into generated TypeScript; browser controls gate path navigation,
   cookie writes, and local-storage writes through it, while both SvelteKit adapters use the same
@@ -90,5 +94,4 @@ or bundler-native locale chunks.
 - Codegen/runtime matrices cover default, explicit, path-only, cookie-only, local-storage-only, and
   accept-language-only plans. Independent verification found and closed one fallback defect; the
   final full root profile passed all 11 tasks, including zero Svelte errors and the production graph.
-- Next: resume the remaining remediation checklist from the first dependency-ready unfinished
-  work package after the shared locale transition plan.
+- Next: complete the active `WEB-C0` through `WEB-C3` closed generated web-feature package.

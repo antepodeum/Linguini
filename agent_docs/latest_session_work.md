@@ -45,5 +45,8 @@
   template safety tests, 30 Bun runtime tests, 24 CLI integration tests, strict Clippy, zero Svelte
   errors/warnings, site production build, and production graph assertions.
 - Closed WEB-A14 and P2-9 in the remediation checklist.
-- Next work starts from the first dependency-ready unfinished remediation package after the
-  shared locale transition plan.
+- Centralized dynamic locale preparation in one virtual registry (`7ce324f`). The production route
+  now contains nine locale imports instead of 522, falls from 154,807 to 72,546 bytes, and has no
+  per-message loader/cache/unprepared-locale branch. Plugin, real-Vite, five site gates, and fresh
+  default/Russian Firefox renders pass; BUNDLE-A15 is closed.
+- Next work completes the active `WEB-C0` through `WEB-C3` closed generated web-feature package.
