@@ -94,4 +94,10 @@ or bundler-native locale chunks.
 - Codegen/runtime matrices cover default, explicit, path-only, cookie-only, local-storage-only, and
   accept-language-only plans. Independent verification found and closed one fallback defect; the
   final full root profile passed all 11 tasks, including zero Svelte errors and the production graph.
-- Next: complete the active `WEB-C0` through `WEB-C3` closed generated web-feature package.
+- `WEB-C0` is complete and the locale-source slice of `WEB-C1`/`WEB-C2` landed in `26675a5`.
+  Validated config lowers one closed `WebFeatures`; generated projects emit only selected path,
+  cookie, local-storage, and accept-language resolver modules in validated order. Empty source sets
+  resolve to the base locale, and pathless controls contain no navigation imports or URL writes.
+  Standalone runtime dispatch remains compatible. The full 11-task profile and 32 Bun tests pass.
+- Next: finish `WEB-C1` with generated link-transform/runtime-link and server cookie capability
+  modules; WEB-A13 remains partial until those generic bodies are removed.

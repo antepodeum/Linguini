@@ -49,4 +49,8 @@
   now contains nine locale imports instead of 522, falls from 154,807 to 72,546 bytes, and has no
   per-message loader/cache/unprepared-locale branch. Plugin, real-Vite, five site gates, and fresh
   default/Russian Firefox renders pass; BUNDLE-A15 is closed.
-- Next work completes the active `WEB-C0` through `WEB-C3` closed generated web-feature package.
+- Added closed `WebFeatures` lowering and selected physical locale-source generation (`26675a5`).
+  Empty/path/local-storage CLI matrices prove unselected source, read, write, and navigation code is
+  absent; 109 codegen tests, four safety tests, 32 Bun tests, and the full 11-task profile pass.
+  WEB-A12 is closed and WEB-A13 is partial.
+- Next work completes link-transform/runtime-link and server cookie capability modules for WEB-A13.

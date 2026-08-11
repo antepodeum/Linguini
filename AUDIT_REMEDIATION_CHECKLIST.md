@@ -670,8 +670,8 @@ production path uses the fix and its relevant tests pass.
 - [x] WEB-A9 — Validate/derive local-storage keys only when selected.
 - [x] WEB-A10 — Replace `localize_links` with transform/runtime/manual.
 - [x] WEB-A11 — Validate deterministic route exclusions.
-- [-] WEB-A12 — Lower configuration into a closed `WebFeatures` set.
-- [ ] WEB-A13 — Generate only selected feature modules and no generic strategy loop.
+- [x] WEB-A12 — Lower configuration into a closed `WebFeatures` set.
+- [-] WEB-A13 — Generate only selected feature modules and no generic strategy loop.
 - [x] WEB-A14 — Compile one `LocaleSwitchPlan` for browser and server transports.
 - [ ] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [ ] WEB-A16 — Generate a safe optional switch route with validated return targets.
