@@ -1,34 +1,34 @@
-# Active deployment: Shared locale transition plan
+# Active deployment: Closed generated web features
 
 ## Goal
 
-Lower the validated web `LocaleSwitchPlan` once and make generated browser and SvelteKit controls
-consume that shared contract without regressing locale initialization, preload-before-switch,
-cookie/path/local-storage behavior, SSR, or bundler-native locale chunks.
+Lower validated web policy into one closed `WebFeatures` model and generate only selected capability
+modules without regressing locale resolution, shared transition plans, plain Svelte, SvelteKit SSR,
+or bundler-native locale chunks.
 
 ## Constraints
 
 - Heavy route; the main agent owns integration, Git state, checklist, and this status file.
-- Treat the validated config model as the only source of transition capabilities.
-- Emit one deterministic transport plan instead of duplicating browser/server policy decisions.
-- Preserve dynamic-locale preparation before browser-visible locale changes.
-- Keep server-only, browser-only, and pathless configurations executable and explicit.
+- Treat validated config as the only source of generated feature selection.
+- Preserve the public standalone web runtime compatibility surface.
+- Keep plain-Svelte and SvelteKit generation distinct and executable.
+- Do not include the legacy synchronous locale index redesign tracked by #236.
 
 ## Ordered work packages
 
-1. `WEB-B0` — Add an explicit generated `LocaleSwitchPlan` model and lower validated config into it.
-2. `WEB-B1` — Make browser and SvelteKit controls execute the same generated plan for navigation,
-   cookie persistence, local-storage persistence, and unsupported transport states.
-3. `WEB-B2` — Add codegen snapshots plus browser/server runtime matrices covering path, cookie,
-   local-storage, and accept-language source combinations.
-4. `WEB-B3` — Verify focused Rust/runtime/plugin/site gates, then reconcile WEB-A14 and P2-9.
+1. `WEB-C0` — Define a closed generated `WebFeatures` model and lower validated policy into it.
+2. `WEB-C1` — Split source and browser/server capabilities into selected generated modules instead
+   of one generic source-strategy loop.
+3. `WEB-C2` — Verify path, cookie, local-storage, accept-language, and mixed feature matrices across
+   plain Svelte, SvelteKit, and public-runtime compatibility paths.
+4. `WEB-C3` — Run strict focused and full repository gates, then reconcile #215, WEB-A12/A13, P2-8.
 
 ## Acceptance and verification
 
-- Generated TypeScript contains one literal transition plan derived from validated config.
-- Browser and server controls do not independently infer allowed write transports.
-- `setLocale` writes/navigates only through enabled plan transports and retains locale preloading.
-- Browser startup and SvelteKit SSR resolve compatible initial locale state.
+- Generated output contains only selected source/capability modules and no generic strategy loop.
+- Closed features retain ordered resolution and the shared locale-switch plan exactly.
+- Browser navigation/persistence and server cookie behavior remain capability-gated.
+- Public runtime custom-source fallback remains compatible.
 - Focused codegen/runtime tests and root site/full profiles pass; `git diff --check` remains clean.
 
 ## Completed predecessor
