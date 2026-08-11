@@ -1906,13 +1906,25 @@ test("scopes dynamic Svelte facades and loader lifetime to one application", asy
   assert.match(registry, /__linguini_loader_references === 1/);
   assert.match(registry, /__linguini_loader_references === 0/);
   assert.match(registry, new RegExp(`virtual:linguini/locale/${scope}/656e`));
+  assert.match(registry, /__linguini_required_message_count = 1/);
+  assert.match(registry, /Array\.isArray\(messages\)/);
+  assert.doesNotMatch(registry, /main\.title|__linguini_required_messages/);
+
+  const scopedMessageId = `virtual:linguini/message/${scope}/${message}`;
+  const facade = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    await plugin.resolveId(scopedMessageId)
+  );
+  assert.match(facade, /getLocaleMessage\(selectedLocale, 0\)/);
+  assert.doesNotMatch(facade, /main\.title/);
 
   const localeId = `virtual:linguini/locale/${scope}/656e`;
   const locale = plugin.load.call(
     { environment: { config: { consumer: "client" } } },
     await plugin.resolveId(localeId)
   );
-  assert.match(locale, /main\.title/);
+  assert.match(locale, /Object\.freeze\(\[/);
+  assert.doesNotMatch(locale, /main\.title|\["main\.title"\]/);
   assert.match(locale, new RegExp(`linguini-scope=${scope}`));
 
   const legacy = "virtual:linguini/message/6d61696e2e7469746c65";
@@ -1921,6 +1933,81 @@ test("scopes dynamic Svelte facades and loader lifetime to one application", asy
     plugin.load.call({ environment: { config: { consumer: "server" } } }, `\0${legacy}`),
     /locale-registry|acquireLocaleLoader|import\(/
   );
+});
+
+test("scoped locale payloads keep sorted indices across sparse message entries", async (context) => {
+  const data = await dynamicBundlerFixture({ applicationName: "indexed.ts" });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  data.manifest.locale_loading = "dynamic";
+  data.manifest.configured_locales = ["en", "fr"];
+  data.manifest.effective_locales = ["en", "fr"];
+  data.manifest.message_runtimes.fr = {
+    module: "locales/fr/_runtime.ts",
+    source_ids: []
+  };
+  await writeFile(
+    path.join(data.root, "linguini.toml"),
+    [
+      "[targets.ts]",
+      'out = "build/custom-linguini"',
+      "[targets.ts.bundler]",
+      'sources = ["src"]',
+      'locale_loading = "dynamic"',
+      ""
+    ].join("\n")
+  );
+  await mkdir(path.join(data.generated, "locales/fr"), { recursive: true });
+  await writeFile(path.join(data.generated, "locales/fr/_runtime.ts"), "export {};\n");
+  for (const canonical of ["main.__proto__", "main.title", "notice"]) {
+    const message = data.manifest.messages[canonical];
+    const module = message.locales.en.module.replace(/\/en\.ts$/, "/fr.ts");
+    message.locales.fr = { module, source_ids: [] };
+    await mkdir(path.dirname(path.join(data.generated, module)), { recursive: true });
+    await writeFile(
+      path.join(data.generated, module),
+      message.arity === 0
+        ? `export function message() { return ${JSON.stringify(`FR:${canonical}`)}; }\n`
+        : 'export function message(value) { return `FR:${value}`; }\n'
+    );
+  }
+  await writeFile(path.join(data.generated, "bundler/manifest.json"), JSON.stringify(data.manifest));
+
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const scope = Buffer.from(data.applicationKey, "utf8").toString("hex");
+  const loadScoped = async (kind, encoded) =>
+    plugin.load.call(
+      { environment: { config: { consumer: "client" } } },
+      await plugin.resolveId(`virtual:linguini/${kind}/${scope}/${encoded}`)
+    );
+  const en = await loadScoped("locale", "656e");
+  const fr = await loadScoped("locale", "6672");
+  assert.match(en, /Object\.freeze\(\[/);
+  assert.match(fr, /Object\.freeze\(\[/);
+  assert.doesNotMatch(en, /main\.title|main\.items|main\.unused|Object\.freeze\(\{/);
+  assert.doesNotMatch(fr, /main\.title|main\.items|main\.unused|Object\.freeze\(\{/);
+  assert.match(en, /__linguini_locale_message_0/);
+  assert.match(en, /__linguini_locale_message_1/);
+  assert.match(en, /__linguini_locale_message_2/);
+  assert.match(en, /__linguini_locale_message_3/);
+  assert.match(fr, /Object\.freeze\(\[__linguini_locale_message_0, , __linguini_locale_message_2, __linguini_locale_message_3\]\)/);
+  assert.doesNotMatch(fr, /__linguini_locale_message_1/);
+
+  const title = await loadScoped("message", Buffer.from("main.title").toString("hex"));
+  const items = await loadScoped("message", Buffer.from("main.items").toString("hex"));
+  assert.match(title, /getLocaleMessage\(selectedLocale, 2\)/);
+  assert.match(items, /getLocaleMessage\(selectedLocale, 1\)/);
+  assert.doesNotMatch(title, /main\.title/);
+  assert.doesNotMatch(items, /main\.items/);
+
+  const registry = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    await plugin.resolveId(`virtual:linguini/locale-registry/${scope}`)
+  );
+  assert.match(registry, /__linguini_required_message_count = 4/);
+  assert.match(registry, /Array\.isArray\(messages\)/);
+  assert.doesNotMatch(registry, /main\.title|main\.items|main\.unused|__linguini_required_messages/);
 });
 
 test("missing manifests stay inactive and unknown versions fail", async (context) => {

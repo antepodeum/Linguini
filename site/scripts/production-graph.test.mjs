@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const siteRoot = join(fileURLToPath(new URL('..', import.meta.url)));
 const buildRoot = join(siteRoot, 'build');
@@ -392,6 +392,11 @@ function assertScopedDynamicImports(routeEntry, moduleIds, label) {
     const entry = clientManifest[moduleId];
     const chunkText = readFileSync(join(clientOutputRoot, entry.file), 'utf8');
     assert.match(chunkText, /\bas messages\b/, `locale chunk ${moduleId} has no messages export`);
+    assert.doesNotMatch(
+      chunkText,
+      /main\.[a-z0-9_.]+/,
+      `locale chunk ${moduleId} leaks canonical message paths`
+    );
     assert.equal(
       dynamicImportTargets.filter((target) => target === entry.file.split('/').pop()).length,
       1,
@@ -402,21 +407,25 @@ function assertScopedDynamicImports(routeEntry, moduleIds, label) {
 assertScopedDynamicImports(initialEntry, mainVirtualLocaleModuleIds, 'main route');
 assertScopedDynamicImports(chunkLabRouteEntry, chunkLabVirtualLocaleModuleIds, 'chunk-lab route');
 
-const chunkLabLocaleChunkTexts = [...chunkLabVirtualLocaleModuleIds].map((moduleId) => {
-  const entry = clientManifest[moduleId];
-  assert.deepEqual(entry.imports ?? [], [], `${moduleId} is not a self-contained locale payload`);
-  return readFileSync(join(clientOutputRoot, entry.file), 'utf8');
-});
-for (const chunkText of chunkLabLocaleChunkTexts) {
-  for (const message of chunkLabExpectedMessages) {
-    assert.match(chunkText, new RegExp(escapeRegExp(message)), `chunk-lab payload omits ${message}`);
-  }
+const chunkLabLocalePayloads = await Promise.all(
+  [...chunkLabVirtualLocaleModuleIds].map(async (moduleId) => {
+    const entry = clientManifest[moduleId];
+    assert.deepEqual(entry.imports ?? [], [], `${moduleId} is not a self-contained locale payload`);
+    return import(pathToFileURL(join(clientOutputRoot, entry.file)).href);
+  })
+);
+for (const payload of chunkLabLocalePayloads) {
+  assert.equal(Array.isArray(payload.messages), true, 'chunk-lab locale payload is not indexed');
   assert.equal(
-    countMatches(chunkText, /main\.[a-z0-9_.]+/g),
+    payload.messages.length,
     chunkLabExpectedMessages.length,
-    'chunk-lab payload contains messages outside its exact application scope'
+    'chunk-lab locale payload does not contain its exact indexed message set'
   );
-  assert.doesNotMatch(chunkText, /main\.playground\./);
+  assert.equal(
+    payload.messages.every((message) => typeof message === 'string'),
+    true,
+    'chunk-lab constant messages are not emitted as direct indexed values'
+  );
 }
 console.log(
   `[production-graph] chunk-lab refs=${chunkLabReferences.length} `

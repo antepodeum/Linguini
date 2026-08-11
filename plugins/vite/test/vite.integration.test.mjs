@@ -839,6 +839,7 @@ test("real two-app build emits self-contained application-scoped locale chunks",
     for (const chunk of owned) {
       assert.equal(chunk.imports.length, 0, `${relative} locale payload must be self-contained`);
       assert.match(chunk.code, /EN_TITLE|FR_TITLE/);
+      assert.doesNotMatch(chunk.code, /main\.title|main\.items|main\.unused/);
       if (relative === "tiny.js") {
         assert.doesNotMatch(chunk.code, /ITEMS|UNUSED/);
         assert.equal(

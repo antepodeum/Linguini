@@ -2121,24 +2121,32 @@ function renderVirtualLocaleModule(manifest, locale, application, scope) {
   }
   const imports = [];
   const entries = [];
-  let index = 0;
   const messages = application
     ? applicationMessageNames(application)
     : bundledMessageNames(manifest);
-  for (const canonical of messages) {
+  for (const [index, canonical] of messages.entries()) {
     const message = manifest.messages.get(canonical);
     const entry = message.locales.get(locale);
     if (!entry) {
+      if (scope) entries.push("");
       continue;
     }
-    const local = `__linguini_locale_message_${index}`;
+    const local = `__linguini_locale_message_${scope ? index : entries.length}`;
     imports.push(
       `import { message as ${local} } from ${JSON.stringify(
         scopedPhysicalModuleId(entry.module, scope)
       )};`
     );
-    entries.push(`[${JSON.stringify(canonical)}]: ${local}`);
-    index += 1;
+    entries.push(scope ? local : `${JSON.stringify(canonical)}: ${local}`);
+  }
+  if (scope) {
+    return [
+      ...imports,
+      `const __linguini_locale_messages = Object.freeze([${entries.join(", ")}]);`,
+      "export { __linguini_locale_messages as messages };",
+      "export default __linguini_locale_messages;",
+      ""
+    ].join("\n");
   }
   return [
     ...imports,
@@ -2198,14 +2206,17 @@ function renderVirtualLocaleRegistryModule(manifest, application, scope) {
         virtualLocaleId(locale, scope)
       )})`
   );
-  const requiredMessages = JSON.stringify(
-    application ? applicationMessageNames(application) : bundledMessageNames(manifest)
-  );
+  const scoped = Boolean(scope);
+  const requiredMessages = application
+    ? applicationMessageNames(application)
+    : bundledMessageNames(manifest);
   const lines = [
     ...imports,
     `const __linguini_loaders = Object.freeze({ ${loaders.join(", ")} });`,
     `const __linguini_base_locale = ${JSON.stringify(manifest.baseLocale)};`,
-    `const __linguini_required_messages = Object.freeze(${requiredMessages});`,
+    scoped
+      ? `const __linguini_required_message_count = ${requiredMessages.length};`
+      : `const __linguini_required_messages = Object.freeze(${JSON.stringify(requiredMessages)});`,
     "const __linguini_prepared = new Map();",
     "const __linguini_pending = new Map();",
     "let __linguini_fallback_locale;",
@@ -2221,7 +2232,9 @@ function renderVirtualLocaleRegistryModule(manifest, application, scope) {
     "    .then(() => loader())",
     "    .then((module) => module?.messages ?? module?.default)",
     "    .then((messages) => {",
-    "      if (!messages || typeof messages !== \"object\") {",
+    ...(scoped
+      ? ["      if (!Array.isArray(messages)) {"]
+      : ["      if (!messages || typeof messages !== \"object\") {"]),
     "        throw new Error(`Linguini locale module for ${locale} does not export messages`);",
     "      }",
     "      __linguini_prepared.set(locale, messages);",
@@ -2237,20 +2250,43 @@ function renderVirtualLocaleRegistryModule(manifest, application, scope) {
     "await __linguini_load(__linguini_initial_locale);",
     "__linguini_fallback_locale = __linguini_initial_locale;",
     "const __linguini_initial_messages = __linguini_prepared.get(__linguini_initial_locale);",
-    "const __linguini_initial_complete = __linguini_initial_messages && __linguini_required_messages.every((canonical) => __linguini_initial_messages[canonical] !== undefined);",
+    ...(scoped
+      ? ["const __linguini_initial_complete = __linguini_has_all_messages(__linguini_initial_messages);"]
+      : [
+          "const __linguini_initial_complete = __linguini_initial_messages && __linguini_required_messages.every((canonical) => __linguini_initial_messages[canonical] !== undefined);"
+        ]),
     "if (!__linguini_initial_complete) {",
     "  await __linguini_load(__linguini_base_locale);",
     "  if (__linguini_prepared.has(__linguini_base_locale)) {",
     "    __linguini_fallback_locale = __linguini_base_locale;",
     "  }",
     "}",
-    "export function getLocaleMessage(locale, canonical) {",
-    "  const selected = __linguini_prepared.get(locale)?.[canonical];",
-    "  if (selected !== undefined) return selected;",
-    "  const fallback = __linguini_prepared.get(__linguini_fallback_locale)?.[canonical];",
-    "  if (fallback !== undefined) return fallback;",
-    "  return __linguini_prepared.get(__linguini_base_locale)?.[canonical];",
-    "}"
+    ...(scoped
+      ? [
+          "function __linguini_has_all_messages(messages) {",
+          "  if (!Array.isArray(messages) || messages.length < __linguini_required_message_count) return false;",
+          "  for (let index = 0; index < __linguini_required_message_count; index += 1) {",
+          "    if (messages[index] === undefined) return false;",
+          "  }",
+          "  return true;",
+          "}",
+          "export function getLocaleMessage(locale, index) {",
+          "  const selected = __linguini_prepared.get(locale)?.[index];",
+          "  if (selected !== undefined) return selected;",
+          "  const fallback = __linguini_prepared.get(__linguini_fallback_locale)?.[index];",
+          "  if (fallback !== undefined) return fallback;",
+          "  return __linguini_prepared.get(__linguini_base_locale)?.[index];",
+          "}"
+        ]
+      : [
+          "export function getLocaleMessage(locale, canonical) {",
+          "  const selected = __linguini_prepared.get(locale)?.[canonical];",
+          "  if (selected !== undefined) return selected;",
+          "  const fallback = __linguini_prepared.get(__linguini_fallback_locale)?.[canonical];",
+          "  if (fallback !== undefined) return fallback;",
+          "  return __linguini_prepared.get(__linguini_base_locale)?.[canonical];",
+          "}"
+        ])
   ];
   if (scope) {
     lines.push(
@@ -2297,11 +2333,14 @@ function renderDynamicVirtualMessageModule(manifest, canonical, message, scope) 
     `import { getCurrentLocale } from ${JSON.stringify(toVitePath(manifest.localeHelper.file))};`,
     `import { getLocaleMessage } from ${JSON.stringify(virtualLocaleRegistryId(scope))};`
   ];
+  const index = scope
+    ? applicationMessageNames(applicationForScope(manifest, scope)).indexOf(canonical)
+    : undefined;
   return [
     ...imports,
     "export function message(...args) {",
     "  const selectedLocale = getCurrentLocale();",
-    `  const selected = getLocaleMessage(selectedLocale, ${JSON.stringify(canonical)});`,
+    `  const selected = getLocaleMessage(selectedLocale, ${scope ? index : JSON.stringify(canonical)});`,
     message.arity === 0 ? "  return selected;" : "  return selected(...args);",
     "}",
     ""
