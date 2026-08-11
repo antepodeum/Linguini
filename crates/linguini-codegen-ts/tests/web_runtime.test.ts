@@ -37,6 +37,76 @@ test("metadata-only web runtime localizes without a message factory", () => {
   assert.equal("createRequestContext" in web, false);
 });
 
+test("locale prefix modes preserve their exact URL policy", () => {
+  const always = createWeb({ localePrefix: "always" });
+  assert.equal(always.localizeHref("/account", "en"), "/en/account");
+  assert.equal(always.localizeHref("/account", "fr"), "/fr/account");
+  assert.equal(always.localizeHref("/fr/account", "en"), "/en/account");
+  assert.equal(always.options.localePrefix, "always");
+  assert.equal(always.options.prefixDefaultLocale, true);
+
+  const exceptDefault = createWeb({ localePrefix: "except-default" });
+  assert.equal(exceptDefault.localizeHref("/account", "en"), "/account");
+  assert.equal(exceptDefault.localizeHref("/account", "fr"), "/fr/account");
+  assert.equal(exceptDefault.localizeHref("/en/account", "en"), "/account");
+  assert.equal(exceptDefault.localizeHref("/fr/account", "en"), "/account");
+  assert.equal(exceptDefault.localizeHref("/en/account", "fr"), "/fr/account");
+  assert.equal(exceptDefault.options.localePrefix, "except-default");
+  assert.equal(exceptDefault.options.prefixDefaultLocale, false);
+
+  const never = createWeb({ localePrefix: "never" });
+  assert.equal(never.localizeHref("/account", "en"), "/account");
+  assert.equal(never.localizeHref("/account", "fr"), "/account");
+  for (const path of ["/en/account", "/fr/account", "/en-products"]) {
+    assert.equal(never.localizeHref(path, "en"), path);
+    assert.equal(never.localizeHref(path, "fr"), path);
+    assert.equal(never.localizeUrl(path, "fr").pathname, path);
+    assert.equal(never.delocalizePathname(path), path);
+  }
+  assert.equal(
+    never.delocalizeUrl("/fr/account?tab=profile#name").toString(),
+    "https://app.example/fr/account?tab=profile#name",
+  );
+  assert.equal(never.getCanonicalRedirect("/fr/account", "fr"), undefined);
+  assert.equal(never.getCanonicalRedirect("/account", "fr"), undefined);
+  assert.deepEqual(
+    never.alternateLinks("/fr/account").map((link) => link.href),
+    [
+      "https://app.example/fr/account",
+      "https://app.example/fr/account",
+      "https://app.example/fr/account",
+    ],
+  );
+  assert.equal(never.options.localePrefix, "never");
+});
+
+test("legacy prefixDefaultLocale remains compatible when localePrefix is omitted", () => {
+  const legacyAlways = createWeb({ prefixDefaultLocale: true });
+  assert.equal(legacyAlways.localizeHref("/account", "en"), "/en/account");
+  assert.equal(legacyAlways.options.localePrefix, "always");
+  const legacyExceptDefault = createWeb({ prefixDefaultLocale: false });
+  assert.equal(legacyExceptDefault.localizeHref("/account", "en"), "/account");
+  assert.equal(legacyExceptDefault.options.localePrefix, "except-default");
+  assert.equal(
+    createWeb({ localePrefix: "always", prefixDefaultLocale: false }).localizeHref(
+      "/account",
+      "en",
+    ),
+    "/en/account",
+  );
+  assert.equal(
+    createWeb({ localePrefix: "except-default", prefixDefaultLocale: true }).localizeHref(
+      "/account",
+      "en",
+    ),
+    "/account",
+  );
+  assert.equal(
+    createWeb({ localePrefix: "never", prefixDefaultLocale: true }).localizeHref("/account", "fr"),
+    "/account",
+  );
+});
+
 test("localization changes only same-origin HTTP URLs", () => {
   const web = createWeb();
   const external = "https://outside.example:443/en/%7Euser?next=%2Fhome#Part";

@@ -110,6 +110,12 @@ pub struct TypeScriptWebOptions {
     pub cookie_secure: bool,
     pub cookie_http_only: bool,
     pub local_storage_key: String,
+    /// Controls whether generated URLs carry a locale path segment.
+    pub locale_prefix: TypeScriptLocalePrefixMode,
+    /// Legacy compatibility flag for standalone runtime callers.
+    ///
+    /// Generated projects also emit this field, but `locale_prefix` is the
+    /// authoritative policy when it is available.
     pub prefix_default_locale: bool,
     pub base_path: String,
     pub redirect: bool,
@@ -117,6 +123,25 @@ pub struct TypeScriptWebOptions {
     pub exclude: Vec<String>,
     /// Link handling is a closed capability rather than an on/off flag.
     pub link_mode: TypeScriptLinkMode,
+}
+
+/// Closed locale-prefix policy lowered into generated TypeScript projects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TypeScriptLocalePrefixMode {
+    Always,
+    #[default]
+    ExceptDefault,
+    Never,
+}
+
+impl TypeScriptLocalePrefixMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Always => "always",
+            Self::ExceptDefault => "except-default",
+            Self::Never => "never",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -141,6 +166,7 @@ pub struct TypeScriptWebFeatures {
     pub has_path: bool,
     pub has_accept_language: bool,
     pub locale_switch: TypeScriptLocaleSwitchPlan,
+    pub locale_prefix: TypeScriptLocalePrefixMode,
     pub link_mode: TypeScriptLinkMode,
 }
 
@@ -155,6 +181,7 @@ impl TypeScriptWebOptions {
                 .sources
                 .contains(&TypeScriptLocaleSource::AcceptLanguage),
             locale_switch: self.locale_switch,
+            locale_prefix: self.locale_prefix,
             link_mode: self.link_mode,
         }
     }
@@ -231,6 +258,7 @@ impl Default for TypeScriptWebOptions {
             cookie_secure: false,
             cookie_http_only: false,
             local_storage_key: "LINGUINI_LOCALE".to_owned(),
+            locale_prefix: TypeScriptLocalePrefixMode::ExceptDefault,
             prefix_default_locale: false,
             base_path: String::new(),
             redirect: true,

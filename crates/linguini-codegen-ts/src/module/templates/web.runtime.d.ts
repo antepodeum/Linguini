@@ -1,5 +1,6 @@
 export type TextDirection = "ltr" | "rtl";
 export type LocaleSource = "path" | "cookie" | "local-storage" | "accept-language";
+export type LocalePrefixMode = "always" | "except-default" | "never";
 
 export interface LocaleSwitchPlan {
   writesPath: boolean;
@@ -24,6 +25,8 @@ export interface LinguiniWebOptions {
   localeSwitch?: LocaleSwitchPlan;
   cookieName?: string;
   localStorageKey?: string;
+  localePrefix?: LocalePrefixMode;
+  /** @deprecated Use localePrefix for the closed three-mode policy. */
   prefixDefaultLocale?: boolean;
   basePath?: string;
   trailingSlash?: "ignore" | "always" | "never";
@@ -81,7 +84,7 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
  * fail closed and preserve the original href instead.
  */
 export interface LinguiniWebLocale<Locale extends string = string> extends LinguiniLocaleRuntime<Locale> {
-  options: Required<Pick<LinguiniWebOptions, "sources" | "localeSwitch" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
+  options: Required<Pick<LinguiniWebOptions, "sources" | "localeSwitch" | "cookieName" | "localStorageKey" | "localePrefix" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
   matchLocale(locale: unknown): Locale | undefined;
   resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
   resolveLocaleSync(input?: Record<string, unknown>): Locale;

@@ -5,6 +5,7 @@ const INVALID_URL_MESSAGE = "Linguini: invalid URL";
 
 export type TextDirection = "ltr" | "rtl";
 export type LocaleSource = "path" | "cookie" | "local-storage" | "accept-language";
+export type LocalePrefixMode = "always" | "except-default" | "never";
 
 export interface LocaleSwitchPlan {
   writesPath: boolean;
@@ -29,6 +30,8 @@ export interface LinguiniWebOptions {
   localeSwitch?: LocaleSwitchPlan;
   cookieName?: string;
   localStorageKey?: string;
+  localePrefix?: LocalePrefixMode;
+  /** @deprecated Use localePrefix for the closed three-mode policy. */
   prefixDefaultLocale?: boolean;
   basePath?: string;
   trailingSlash?: "ignore" | "always" | "never";
@@ -86,7 +89,7 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
  * fail closed and preserve the original href instead.
  */
 export interface LinguiniWebLocale<Locale extends string = string> extends LinguiniLocaleRuntime<Locale> {
-  options: Required<Pick<LinguiniWebOptions, "sources" | "localeSwitch" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
+  options: Required<Pick<LinguiniWebOptions, "sources" | "localeSwitch" | "cookieName" | "localStorageKey" | "localePrefix" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
   matchLocale(locale: unknown): Locale | undefined;
   resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
   resolveLocaleSync(input?: Record<string, unknown>): Locale;
@@ -142,7 +145,11 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
 
   function localizeParsedUrl(copy: URL, locale: Locale) {
     const path = stripBasePath(copy.pathname, normalized.basePath);
-    const withoutLocale = stripLeadingLocale(path, runtime.locales);
+    // In `never` mode locale-looking segments are ordinary application paths.
+    // Do not strip them while normalizing a URL that should remain unprefixed.
+    const withoutLocale = normalized.localePrefix === "never"
+      ? path
+      : stripLeadingLocale(path, runtime.locales);
     copy.pathname = applyTrailingSlash(joinPath(normalized.basePath, shouldPrefixLocale(normalized, locale) ? joinPath("/", locale, withoutLocale) : withoutLocale), normalized.trailingSlash);
     return copy;
   }
@@ -201,6 +208,7 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
     const base = resolveBaseUrl(normalized, input);
     const copy = parseUrl(url, base);
     if (!isInternalHttpUrl(copy, base.origin)) return copy;
+    if (normalized.localePrefix === "never") return copy;
     copy.pathname = joinPath(normalized.basePath, stripLeadingLocale(stripBasePath(copy.pathname, normalized.basePath), runtime.locales));
     return copy;
   }
@@ -226,7 +234,7 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
   }
 
   function getCanonicalRedirect(url: string | URL, locale: Locale, input: Record<string, unknown> = {}) {
-    if (normalized.redirect === false || shouldExclude(url, input)) return undefined;
+    if (normalized.localePrefix === "never" || normalized.redirect === false || shouldExclude(url, input)) return undefined;
     const parsed = parseRuntimeUrl(url, normalized, input);
     const canonical = localizeUrl(parsed, locale, input);
     return canonical.pathname === parsed.pathname ? undefined : `${canonical.pathname}${canonical.search}${canonical.hash}`;
@@ -347,12 +355,14 @@ function readHeader(headers: unknown, name: string) {
 
 function normalizeOptions(options: LinguiniWebOptions & { baseLocale: string }) {
   const sources = options.sources ?? DEFAULT_SOURCES;
+  const localePrefix = options.localePrefix ?? (options.prefixDefaultLocale ? "always" : "except-default");
   return {
     sources,
     localeSwitch: options.localeSwitch ?? localeSwitchFromSources(sources),
     cookieName: options.cookieName ?? "LINGUINI_LOCALE",
     localStorageKey: options.localStorageKey ?? "LINGUINI_LOCALE",
-    prefixDefaultLocale: Boolean(options.prefixDefaultLocale ?? false),
+    localePrefix,
+    prefixDefaultLocale: localePrefix === "always",
     basePath: options.basePath ?? "",
     trailingSlash: options.trailingSlash ?? "ignore",
     cookiePath: options.cookiePath ?? "/",
@@ -626,7 +636,15 @@ function applyTrailingSlash(pathname: string, mode: string) {
 }
 
 function shouldPrefixLocale(options: ReturnType<typeof normalizeOptions>, locale: string) {
-  return options.prefixDefaultLocale || locale !== options.baseLocale;
+  switch (options.localePrefix) {
+    case "always":
+      return true;
+    case "never":
+      return false;
+    case "except-default":
+    default:
+      return locale !== options.baseLocale;
+  }
 }
 
 function matchesRoute(pattern: string | RegExp | ((url: URL) => boolean), url: URL) {

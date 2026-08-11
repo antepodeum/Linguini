@@ -501,6 +501,7 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
     let mut fields = vec![
         format!("sources: [{sources}] as const"),
         format!("localeSwitch: {locale_switch}"),
+        format!("localePrefix: \"{}\"", options.locale_prefix.as_str()),
         format!(
             "prefixDefaultLocale: {}",
             js_bool(options.prefix_default_locale)

@@ -1997,8 +1997,9 @@ fn project_codegen_emits_schema_namespace_objects() {
 #[test]
 fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     use crate::{
-        TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptLocaleSource,
-        TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
+        TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleModule,
+        TypeScriptLocalePrefixMode, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
+        TypeScriptProjectOptions, TypeScriptWebOptions,
     };
     use linguini_ir::IrModule;
 
@@ -2029,6 +2030,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                 cookie_secure: true,
                 cookie_http_only: true,
                 local_storage_key: "SHOP_LOCALE".to_owned(),
+                locale_prefix: TypeScriptLocalePrefixMode::Always,
                 prefix_default_locale: true,
                 base_path: "/shop".to_owned(),
                 redirect: false,
@@ -2069,9 +2071,21 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(web.contents.contains("resolveCookieLocale"));
     assert!(web.contents.contains("resolveAcceptLanguageLocale"));
     assert!(!web.contents.contains("resolveLocalStorageLocale"));
+    let web_declaration = files
+        .iter()
+        .find(|file| file.path == "web.d.ts")
+        .expect("web declaration");
+    assert!(web_declaration
+        .contents
+        .contains("LocalePrefixMode = \"always\" | \"except-default\" | \"never\""));
     assert!(paths.contains(&"sveltekit-control.ts"));
     assert!(paths.contains(&"sveltekit-control.d.ts"));
     assert!(paths.contains(&"sveltekit.ts"));
+    let sveltekit = files
+        .iter()
+        .find(|file| file.path == "sveltekit.ts")
+        .expect("sveltekit runtime");
+    assert!(sveltekit.contents.contains("localePrefix: \"always\""));
 
     let svelte = files
         .iter()
@@ -2300,6 +2314,65 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit_declaration.contents.contains("Linguini>"));
     assert!(sveltekit_declaration.contents.contains("./index"));
     assert!(!sveltekit_declaration.contents.contains("@antepod/"));
+}
+
+#[test]
+fn project_codegen_preserves_each_locale_prefix_mode_in_source_and_declarations() {
+    use crate::{
+        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocalePrefixMode,
+        TypeScriptProjectOptions, TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    for (mode, prefix_default_locale) in [
+        (TypeScriptLocalePrefixMode::Always, true),
+        (TypeScriptLocalePrefixMode::ExceptDefault, false),
+        (TypeScriptLocalePrefixMode::Never, false),
+    ] {
+        let files = generate_project_files(
+            &IrModule::default(),
+            &[TypeScriptLocaleModule {
+                locale: "en".to_owned(),
+                module: IrModule::default(),
+            }],
+            &TypeScriptProjectOptions {
+                declaration: true,
+                framework: Some(TypeScriptFramework::SvelteKit),
+                web: Some(TypeScriptWebOptions {
+                    locale_prefix: mode,
+                    prefix_default_locale,
+                    ..TypeScriptWebOptions::default()
+                }),
+                ..project_options("en")
+            },
+        )
+        .expect("project codegen");
+
+        let source = files
+            .iter()
+            .find(|file| file.path == "sveltekit.ts")
+            .expect("SvelteKit source");
+        assert!(source
+            .contents
+            .contains(&format!("localePrefix: \"{}\"", mode.as_str())));
+        assert!(source
+            .contents
+            .contains(&format!("prefixDefaultLocale: {prefix_default_locale}")));
+
+        let declaration = files
+            .iter()
+            .find(|file| file.path == "web.d.ts")
+            .expect("web declaration");
+        assert!(declaration.contents.contains(
+            "export type LocalePrefixMode = \"always\" | \"except-default\" | \"never\";"
+        ));
+        assert!(declaration
+            .contents
+            .contains("localePrefix?: LocalePrefixMode;"));
+        assert!(declaration
+            .contents
+            .contains("prefixDefaultLocale?: boolean;"));
+    }
 }
 
 #[test]
