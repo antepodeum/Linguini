@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
+
 import {
   discoverLinguiniFiles,
   isLinguiniSource,
@@ -37,7 +38,10 @@ async function fixture({ bundler = false } = {}) {
 
 async function dynamicLocaleFixture({
   configLocaleLoading = "eager",
-  manifestLocaleLoading = configLocaleLoading
+  manifestLocaleLoading = configLocaleLoading,
+  initialLocale = "en",
+  messageArity = 0,
+  valueModules = false
 } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-locale-"));
   const generated = path.join(root, "build/custom-linguini");
@@ -57,7 +61,7 @@ async function dynamicLocaleFixture({
   await writeFile(
     path.join(generated, "svelte-locale.js"),
     [
-      'let current = "en";',
+      `let current = ${JSON.stringify(initialLocale)};`,
       "const loaders = new Set();",
       "export function getCurrentLocale() { return current; }",
       "export function setCurrentLocale(locale) { current = locale; }",
@@ -78,11 +82,19 @@ async function dynamicLocaleFixture({
   );
   await writeFile(
     path.join(generated, "bundler/messages/main/title/en.js"),
-    'export function message() { return "EN"; }\n'
+    valueModules
+      ? 'export const message = "EN";\n'
+      : messageArity > 0
+        ? 'export function message(value) { return `EN:${value}`; }\n'
+        : 'export function message() { return "EN"; }\n'
   );
   await writeFile(
     path.join(generated, "bundler/messages/main/title/fr.js"),
-    'export function message() { return "FR"; }\n'
+    valueModules
+      ? 'export const message = "FR";\n'
+      : messageArity > 0
+        ? 'export function message(value) { return `FR:${value}`; }\n'
+        : 'export function message() { return "FR"; }\n'
   );
   const manifest = {
     version: 1,
@@ -99,7 +111,7 @@ async function dynamicLocaleFixture({
     },
     messages: {
       "main.title": {
-        arity: 0,
+        arity: messageArity,
         locales: {
           en: {
             module: "bundler/messages/main/title/en.js",
@@ -127,6 +139,22 @@ async function dynamicLocaleFixture({
   const manifestPath = path.join(generated, "bundler/manifest.json");
   await writeFile(manifestPath, JSON.stringify(manifest));
   return { root, generated, manifestPath, manifest };
+}
+
+async function materializeLocaleModules(plugin, data, locales = ["en", "fr"]) {
+  const replacements = new Map();
+  for (const locale of locales) {
+    const publicId = `virtual:linguini/locale/${Buffer.from(locale, "utf8").toString("hex")}`;
+    const resolvedId = await plugin.resolveId(publicId);
+    const source = plugin.load.call(
+      { environment: { config: { consumer: "client" } } },
+      resolvedId
+    );
+    const file = path.join(data.root, `locale-${locale}.mjs`);
+    await writeFile(file, source);
+    replacements.set(publicId, file);
+  }
+  return replacements;
 }
 
 function byteSpan(source, needle) {
@@ -747,8 +775,8 @@ test("locale-loading policy validates config parity and preserves eager/SSR boun
     virtualId
   );
   assert.match(dynamicClient, /registerLocaleLoader/);
-  assert.match(dynamicClient, /import\(".*bundler\/messages\/main\/title\/en\.js"\)/);
-  assert.match(dynamicClient, /import\(".*bundler\/messages\/main\/title\/fr\.js"\)/);
+  assert.match(dynamicClient, /import\("virtual:linguini\/locale\/656e"\)/);
+  assert.match(dynamicClient, /import\("virtual:linguini\/locale\/6672"\)/);
   assert.match(dynamicClient, /await __linguini_load\(__linguini_initial_locale\)/);
   assert.doesNotMatch(dynamicClient, /import\.meta\.hot\.accept/);
 
@@ -793,6 +821,71 @@ test("locale-loading policy validates config parity and preserves eager/SSR boun
   );
 });
 
+test("dynamic wrappers support value messages and retain initial locale fallback", async (context) => {
+  const data = await dynamicLocaleFixture({
+    configLocaleLoading: "dynamic",
+    manifestLocaleLoading: "dynamic",
+    initialLocale: "fr",
+    valueModules: true
+  });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const virtualId = await plugin.resolveId(
+    "virtual:linguini/message/6d61696e2e7469746c65"
+  );
+  let source = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    virtualId
+  );
+  assert.match(source, /__linguini_message_arity = 0/);
+  assert.match(source, /value === undefined/);
+  const localeModules = await materializeLocaleModules(plugin, data);
+  for (const [publicId, file] of localeModules) {
+    source = source.replaceAll(JSON.stringify(publicId), JSON.stringify(file));
+  }
+  const moduleFile = path.join(data.root, "value-message.mjs");
+  await writeFile(moduleFile, source);
+  const runtime = await import(`${pathToFileURL(moduleFile).href}?value-test`);
+  const helper = await import(pathToFileURL(path.join(data.generated, "svelte-locale.js")).href);
+  assert.equal(runtime.message(), "FR");
+  helper.setCurrentLocale("en");
+  assert.equal(runtime.message(), "FR");
+  await helper.prepareLocale("en");
+  assert.equal(runtime.message(), "EN");
+  helper.setCurrentLocale("de");
+  assert.equal(runtime.message(), "FR");
+});
+
+test("dynamic wrappers call parameterized message exports", async (context) => {
+  const data = await dynamicLocaleFixture({
+    configLocaleLoading: "dynamic",
+    manifestLocaleLoading: "dynamic",
+    messageArity: 1
+  });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const virtualId = await plugin.resolveId(
+    "virtual:linguini/message/6d61696e2e7469746c65"
+  );
+  const source = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    virtualId
+  );
+  const localeModules = await materializeLocaleModules(plugin, data);
+  const localizedSource = [...localeModules].reduce(
+    (current, [publicId, file]) => current.replaceAll(JSON.stringify(publicId), JSON.stringify(file)),
+    source
+  );
+  const moduleFile = path.join(data.root, "parameterized-message.mjs");
+  await writeFile(moduleFile, localizedSource);
+  const runtime = await import(`${pathToFileURL(moduleFile).href}?arity-test`);
+  assert.equal(runtime.message("value"), "EN:value");
+});
+
 test("dynamic virtual modules switch locales, retry failures, and dispose on HMR", async (context) => {
   const data = await dynamicLocaleFixture({
     configLocaleLoading: "dynamic",
@@ -806,16 +899,20 @@ test("dynamic virtual modules switch locales, retry failures, and dispose on HMR
     "virtual:linguini/message/6d61696e2e7469746c65"
   );
   const helperFile = path.join(data.generated, "svelte-locale.js");
-  const frFile = path.join(data.generated, "bundler/messages/main/title/fr.js");
+  const frLocaleId = "virtual:linguini/locale/6672";
   let source = plugin.load.call(
     { environment: { config: { consumer: "client" } } },
     virtualId
   );
-  const frImport = `() => import(${JSON.stringify(frFile)})`;
+  const localeModules = await materializeLocaleModules(plugin, data);
+  for (const [publicId, file] of localeModules) {
+    source = source.replaceAll(JSON.stringify(publicId), JSON.stringify(file));
+  }
+  const frImport = `() => import(${JSON.stringify(localeModules.get(frLocaleId))})`;
   assert.ok(source.includes(frImport));
   source = source.replace(
     frImport,
-    '() => { if (globalThis.__linguiniFrAttempts++ === 0) throw new Error("transient locale failure"); return Promise.resolve({ message() { return "FR"; } }); }'
+    '() => { if (globalThis.__linguiniFrAttempts++ === 0) throw new Error("transient locale failure"); return Promise.resolve({ messages: { "main.title": () => "FR" } }); }'
   );
   source = source.replace(
     "if (import.meta.hot) {",
@@ -1368,8 +1465,11 @@ test("accepts locale runtimes and dynamic locale loading", async (context) => {
     virtualId
   );
   assert.match(source, /registerLocaleLoader/);
-  assert.match(source, /title\/en\.js/);
-  assert.match(source, /title\/fr\.js/);
+  assert.match(source, /virtual:linguini\/locale\/656e/);
+  assert.match(source, /virtual:linguini\/locale\/6672/);
+  const localeId = await plugin.resolveId("virtual:linguini/locale/656e");
+  const localeSource = plugin.load.call({}, localeId);
+  assert.match(localeSource, /title\/en\.js/);
 });
 
 test("validates exact locale runtime descriptors", async (context) => {
@@ -1421,7 +1521,12 @@ test("accepts semantic descriptors with dynamic locale loading", async (context)
     "\0virtual:linguini/message/6d61696e2e7469746c65"
   );
   assert.match(source, /registerLocaleLoader/);
-  assert.match(source, /title\/en\.js/);
+  assert.match(source, /virtual:linguini\/locale\/656e/);
+  const localeSource = plugin.load.call(
+    {},
+    "\0virtual:linguini/locale/656e"
+  );
+  assert.match(localeSource, /title\/en\.js/);
   assert.equal(data.manifest.message_semantics.length, 2);
 });
 
@@ -1884,10 +1989,12 @@ test("manifest deltas target applications, renames, and helper transitions", asy
   const data = await selectiveHmrFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const unrelatedGenerated = path.join(data.generated, "index.ts");
+  const enLocaleVirtual = "\0virtual:linguini/locale/656e";
   const harness = mockServer([
     { id: data.titleVirtual },
     { id: data.itemsVirtual },
     { id: resolvedMessageId("main.list") },
+    { id: enLocaleVirtual },
     { id: data.titleModule },
     { id: data.itemsModule },
     { id: data.application },
@@ -1922,6 +2029,7 @@ test("manifest deltas target applications, renames, and helper transitions", asy
   delete manifest.messages["main.items"];
   const renamed = await reload(manifest);
   assert.deepEqual(renamed.invalidated, [
+    enLocaleVirtual,
     data.itemsModule,
     data.itemsVirtual,
     resolvedMessageId("main.list")
@@ -2033,8 +2141,10 @@ test("message descriptor deltas invalidate only changed locale modules", async (
     source_ids: [2]
   };
   await writeFile(data.manifestPath, JSON.stringify(data.manifest));
+  const frLocaleVirtual = "\0virtual:linguini/locale/6672";
   const harness = mockServer([
     { id: data.titleVirtual },
+    { id: frLocaleVirtual },
     { id: data.titleModule },
     { id: frModule },
     { id: movedFrModule }
@@ -2052,7 +2162,10 @@ test("message descriptor deltas invalidate only changed locale modules", async (
     server: harness.server,
     timestamp: 40
   });
-  assert.deepEqual([...harness.invalidated].sort(), [data.titleVirtual, frModule].sort());
+  assert.deepEqual(
+    [...harness.invalidated].sort(),
+    [data.titleVirtual, frLocaleVirtual, frModule].sort()
+  );
   assert.ok(!harness.invalidated.includes(data.titleModule));
 
   harness.invalidated.length = 0;
@@ -2067,6 +2180,7 @@ test("message descriptor deltas invalidate only changed locale modules", async (
   });
   assert.deepEqual([...harness.invalidated].sort(), [
     data.titleVirtual,
+    frLocaleVirtual,
     frModule,
     movedFrModule
   ].sort());

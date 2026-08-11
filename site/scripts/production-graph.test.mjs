@@ -129,6 +129,7 @@ assert.ok(referenceCount > 0, 'generated manifest has no application references'
 const localeModuleIds = new Set();
 let runtimeImportCount = 0;
 let semanticImportCount = 0;
+let parameterlessLeafCount = 0;
 const helperBodyPattern =
   /function (?:formatNumber|formatCurrency|formatDate|formatGeneratedNumber|parseGeneratedDecimal|coerceDate|plural[A-Z][A-Za-z0-9_]*)\s*\(/;
 for (const message of Object.values(generatedManifest.messages)) {
@@ -145,10 +146,20 @@ for (const message of Object.values(generatedManifest.messages)) {
     }
     if (source.includes('/_runtime"')) runtimeImportCount += 1;
     if (source.includes('/semantic/')) semanticImportCount += 1;
+    if (message.arity === 0) {
+      parameterlessLeafCount += 1;
+      assert.match(source, /export const message = /, `${moduleId} is not a value export`);
+      assert.doesNotMatch(
+        source,
+        /export const message = \(\): string =>/,
+        `${moduleId} wraps a parameterless value in a function`
+      );
+    }
   }
 }
 assert.ok(runtimeImportCount > 0, 'no physical message imports a shared locale runtime');
 assert.ok(semanticImportCount > 0, 'no physical message imports a shared semantic module');
+assert.ok(parameterlessLeafCount > 0, 'no parameterless physical message leaves were checked');
 
 for (const message of usedMessages) {
   assert.ok(generatedManifest.messages[message], `missing generated message ${message}`);
@@ -164,30 +175,50 @@ const clientManifest = readJson(
 );
 const clientEntries = Object.entries(clientManifest);
 const clientEntryById = new Map(clientEntries);
+const virtualLocaleModuleIds = new Set(
+  [...effectiveLocales].map(
+    (locale) => `virtual:linguini/locale/${Buffer.from(locale, 'utf8').toString('hex')}`
+  )
+);
+
+// Physical message leaves are implementation modules inside one dynamic locale
+// entry. They must not survive as hundreds of browser-visible dynamic entries.
 for (const moduleId of localeModuleIds) {
+  assert.equal(
+    clientManifest[moduleId],
+    undefined,
+    `physical locale leaf ${moduleId} escaped as its own client entry`
+  );
+}
+
+const localeChunkFiles = new Set();
+for (const moduleId of virtualLocaleModuleIds) {
   const entry = clientManifest[moduleId];
-  assert.ok(entry, `locale module ${moduleId} is absent from the Vite client manifest`);
-  assert.equal(entry.isDynamicEntry, true, `locale module ${moduleId} is not a dynamic entry`);
+  assert.ok(entry, `virtual locale entry ${moduleId} is absent from the Vite client manifest`);
+  assert.equal(entry.isDynamicEntry, true, `virtual locale entry ${moduleId} is not dynamic`);
   assert.equal(typeof entry.file, 'string');
   assert.equal(
     statSync(join(clientOutputRoot, entry.file)).isFile(),
     true,
-    `locale module ${moduleId} has no physical output chunk`
+    `virtual locale entry ${moduleId} has no physical output chunk`
   );
+  localeChunkFiles.add(entry.file);
 }
+assert.equal(
+  localeChunkFiles.size,
+  effectiveLocales.size,
+  'effective locales do not map one-to-one to emitted locale chunks'
+);
 
-// SvelteKit's route node is the initial entry that references every generated
-// locale module. Keep this assertion based on module IDs, never hash-derived
-// chunk names.
+// SvelteKit's route node must reference exactly one shared entry per locale,
+// never one dynamic entry per message and locale.
 const initialEntries = clientEntries.filter(([, entry]) =>
-  (entry.dynamicImports ?? []).some((moduleId) => localeModuleIds.has(moduleId))
+  (entry.dynamicImports ?? []).some((moduleId) => virtualLocaleModuleIds.has(moduleId))
 );
 assert.equal(initialEntries.length, 1, 'expected one initial entry for locale dynamic imports');
 const [initialEntryId, initialEntry] = initialEntries[0];
 assert.equal(initialEntry.isEntry, true);
-for (const moduleId of localeModuleIds) {
-  assert.ok(initialEntry.dynamicImports.includes(moduleId));
-}
+assert.deepEqual(new Set(initialEntry.dynamicImports), virtualLocaleModuleIds);
 
 // Follow only static imports from that initial route entry. Every locale chunk
 // must remain outside this closure; it is fetched through a dynamic loader.
@@ -217,16 +248,20 @@ while (pending.length > 0) {
     pending.push(resolveStaticImport(imported));
   }
 }
-for (const moduleId of localeModuleIds) {
+for (const moduleId of virtualLocaleModuleIds) {
   assert.equal(
     staticReachable.has(moduleId),
     false,
-    `locale module ${moduleId} is reachable through static imports`
+    `virtual locale entry ${moduleId} is reachable through static imports`
   );
 }
 
-const clientText = filesUnder(clientOutputRoot)
-  .filter((file) => file.endsWith('.js'))
+const clientJavaScriptFiles = filesUnder(clientOutputRoot).filter((file) => file.endsWith('.js'));
+assert.ok(
+  clientJavaScriptFiles.length <= effectiveLocales.size + 24,
+  `client emitted ${clientJavaScriptFiles.length} JavaScript files for ${effectiveLocales.size} locales`
+);
+const clientText = clientJavaScriptFiles
   .map((file) => readFileSync(file, 'utf8'))
   .join('\n');
 // The client must not pull the eager generated index/provider into the initial
@@ -238,11 +273,11 @@ const serverManifest = readJson(
   join(serverOutputRoot, '.vite/manifest.json'),
   'Vite SSR manifest'
 );
-for (const moduleId of localeModuleIds) {
+for (const moduleId of virtualLocaleModuleIds) {
   assert.equal(
     serverManifest[moduleId],
     undefined,
-    `SSR emitted locale module ${moduleId} as a client-style dynamic entry`
+    `SSR emitted virtual locale module ${moduleId} as a client-style dynamic entry`
   );
 }
 const serverPage = serverManifest['src/routes/+page.svelte'];

@@ -23,9 +23,7 @@ use super::{
 
 /// One complete physical ESM module for one schema message and locale.
 ///
-/// The generated module has exactly one public export, `message`. Parameterless messages are
-/// still emitted as callable functions because the bundler transform owns the public value
-/// facade and calls this internal export when resolving the active locale.
+/// The generated module has exactly one public export, `message`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompiledTypeScriptMessageModule {
     pub locale: String,
@@ -75,6 +73,7 @@ pub fn compile_typescript_message_module(
             canonical_message,
             output_file_name,
             shared_import_path,
+            emission: MessageModuleEmission::Standalone,
             runtime_import_path: None,
             semantic_imports: None,
         },
@@ -102,6 +101,7 @@ pub fn compile_typescript_bundler_message_module(
             canonical_message,
             output_file_name,
             shared_import_path,
+            emission: MessageModuleEmission::Bundler,
             runtime_import_path: Some(runtime_import_path),
             semantic_imports: None,
         },
@@ -122,6 +122,7 @@ pub fn compile_typescript_bundler_message_artifact_module(
             canonical_message: &artifact.message,
             output_file_name: &artifact.output_file_name,
             shared_import_path: &artifact.shared_import_path,
+            emission: MessageModuleEmission::Bundler,
             runtime_import_path: Some(&artifact.runtime_import_path),
             semantic_imports: Some(&artifact.semantic_imports),
         },
@@ -129,11 +130,18 @@ pub fn compile_typescript_bundler_message_artifact_module(
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MessageModuleEmission {
+    Standalone,
+    Bundler,
+}
+
 struct MessageModuleRequest<'a> {
     locale: &'a str,
     canonical_message: &'a str,
     output_file_name: &'a str,
     shared_import_path: &'a str,
+    emission: MessageModuleEmission,
     runtime_import_path: Option<&'a str>,
     semantic_imports: Option<&'a [TypeScriptSemanticImport]>,
 }
@@ -148,6 +156,7 @@ fn compile_message_module(
         canonical_message,
         output_file_name,
         shared_import_path,
+        emission,
         runtime_import_path,
         semantic_imports,
     } = request;
@@ -190,6 +199,7 @@ fn compile_message_module(
         &closure,
         &options,
         shared_import_path,
+        emission,
         runtime_import_path,
         &semantic_imports,
     );
@@ -237,6 +247,7 @@ fn emit_message_module(
     closure: &MessageDependencyClosure,
     options: &TypeScriptOptions,
     shared_import_path: &str,
+    emission: MessageModuleEmission,
     runtime_import_path: Option<&str>,
     semantic_imports: &[TypeScriptSemanticImport],
 ) -> EcmaModule {
@@ -337,7 +348,14 @@ fn emit_message_module(
                 .iter()
                 .map(|doc| format!("/** {} */\n", escape_comment(doc)))
                 .collect::<String>();
-            format!("{docs}export const message = (): string => {body};\n")
+            match emission {
+                MessageModuleEmission::Standalone => {
+                    format!("{docs}export const message = (): string => {body};\n")
+                }
+                MessageModuleEmission::Bundler => {
+                    format!("{docs}export const message = {body};\n")
+                }
+            }
         } else {
             format!(
                 "{}export function message({}): string {{\n  {}\n  return {body};\n}}\n",
@@ -619,7 +637,7 @@ mod tests {
     }
 
     #[test]
-    fn parameterless_message_is_still_callable_internally() {
+    fn parameterless_message_emission_is_explicit() {
         let schema = Box::leak(Box::new(lower_schema(
             &parse_schema_in("/// Greeting\nroot\n", SourceId(7)).expect("schema"),
         )));
@@ -648,6 +666,38 @@ mod tests {
         assert!(result.code.contains("export const message = (): string =>"));
         assert_eq!(result.code.matches("export ").count(), 1);
         assert!(!result.code.contains("plural("));
+
+        let bundler = compile_typescript_bundler_message_module(
+            &project,
+            "en",
+            "root",
+            "root.ts",
+            "./shared",
+            "./runtime",
+            &[
+                EcmaSource::new(SourceId(8), "locale.lgs", "root = Hello\n"),
+                EcmaSource::new(SourceId(7), "schema.lgs", "/// Greeting\nroot\n"),
+            ],
+        )
+        .unwrap();
+        assert!(bundler.code.contains("export const message = \"Hello\";"));
+        assert!(!bundler.code.contains("message = (): string =>"));
+        assert_eq!(bundler.code.matches("export ").count(), 1);
+        let reordered_bundler = compile_typescript_bundler_message_module(
+            &project,
+            "en",
+            "root",
+            "root.ts",
+            "./shared",
+            "./runtime",
+            &[
+                EcmaSource::new(SourceId(7), "schema.lgs", "/// Greeting\nroot\n"),
+                EcmaSource::new(SourceId(8), "locale.lgs", "root = Hello\n"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(bundler.code, reordered_bundler.code);
+        assert_eq!(bundler.source_map, reordered_bundler.source_map);
     }
 
     #[test]
