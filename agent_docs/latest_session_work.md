@@ -19,8 +19,21 @@
 - Closed #200 in `8b2bf7f`: the validated direct project boundary now requires complete effective
   locale message coverage after fallback composition while respecting tree-shaken visibility.
   Codegen now has 103 unit tests; the full CLI regression and strict codegen Clippy pass.
+- Fixed browser startup locale initialization in `6542ce2`: guarded navigator language negotiation
+  supplies the browser equivalent of server `Accept-Language` selection when headers are absent.
+- Coalesced bundler message loading in `cd630fa`: 58 site message facades now share nine virtual
+  locale entries, with zero physical message client entries and 21 total client JavaScript files
+  instead of roughly 549. SSR remains synchronous and locale-granular HMR remains exact.
+- Bundler parameterless leaves emit raw values; parameterized leaves remain functions and the public
+  standalone single-message compiler preserves callable compatibility.
+- Passed the full 11-task root profile plus focused post-refinement Vite tests. Independent
+  verification reproduced browser runtime, production graph, SSR, and generated-leaf assertions
+  without defects.
 - Updated the remediation checklist through `CALL-A1`–`CALL-A6`, `P2-7`, `ESM-A9`, `API-D4`,
   `DOC-R3`, `DOC-G3`, `DOC-F2`, #200, #202, #204, and `BUNDLE-A13`; #199, #201, and #208 now
   record their verified bundler/legacy split honestly.
+- Added `BUNDLE-A14`; refined #201 and BUNDLE-A10 with one-entry-per-locale evidence; marked
+  WEB-A14 and P2-9 partial for browser negotiation parity while retaining their unfinished shared
+  transition-plan scope.
 - Next work starts from the first dependency-ready unfinished remediation package after the
   bundler-native message API sequence.

@@ -78,5 +78,15 @@ regressing positional calls, tree-shaking, locale splitting, source maps, or HMR
   sparse regional locales remain valid when their base supplies the message. Codegen (103 unit +
   3 web safety), CLI (78 unit + 24 integration), and strict codegen Clippy pass; checklist #200 is
   complete.
+- Browser locale negotiation now uses guarded `navigator.languages` / `navigator.language` when
+  request headers are unavailable (`6542ce2`), preventing server-selected locale state from
+  becoming uninitialized during browser startup.
+- Bundler locale loading now coalesces exact message facades behind one virtual entry per effective
+  locale (`cd630fa`). The site routes 58 message facades through nine dynamic locale entries, emits
+  zero physical message client entries and 21 total client JavaScript files instead of roughly 549,
+  keeps SSR static, and invalidates locale aggregators through exact HMR deltas.
+- Bundler parameterless leaves now export raw values while standalone compilation preserves its
+  callable compatibility contract. The full 11-task root profile passed; independent read-only
+  verification found no defects in runtime initialization, chunk topology, SSR, or leaf shape.
 - Next: resume the remaining remediation checklist from the first dependency-ready unfinished
   work package after the bundler-native message API sequence.

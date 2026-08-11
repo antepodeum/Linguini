@@ -387,7 +387,8 @@ production path uses the fix and its relevant tests pass.
       semantic modules have truthful maps; legacy project-wide string emitters remain unmapped.
 - [x] #200 — Require every declared message in direct codegen input locales.
 - [-] #201 — Replace eager locale imports with real bundler-visible splitting. The bundler-native
-      Vite path splits locales dynamically; the legacy generated index remains eager.
+      Vite path exposes one virtual dynamic entry per effective locale, with no per-message client
+      entries; the legacy generated index remains eager.
 - [x] #202 — Tree-shake transitive forms, functions, variables, and helpers.
 - [x] #203 — Diagnose unknown `included_messages`.
 - [x] #204 — Stop copying all global declarations into every namespace.
@@ -426,7 +427,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #233 — Wire configured redirect status or remove the dead option.
 - [x] #234 — Give runtime link observers per-app/HMR ownership.
 - [x] #235 — Batch and bound DOM observation.
-- [ ] #236 — Replace eager locale imports.
+- [ ] #236 — Replace eager locale imports from the legacy generated web/runtime index. The
+      bundler-native Vite path is covered by #201 and BUNDLE-A14.
 
 ### `linguini-cli`
 
@@ -668,7 +670,9 @@ production path uses the fix and its relevant tests pass.
 - [x] WEB-A11 — Validate deterministic route exclusions.
 - [-] WEB-A12 — Lower configuration into a closed `WebFeatures` set.
 - [ ] WEB-A13 — Generate only selected feature modules and no generic strategy loop.
-- [ ] WEB-A14 — Compile one `LocaleSwitchPlan` for browser and server transports.
+- [-] WEB-A14 — Compile one `LocaleSwitchPlan` for browser and server transports. Guarded browser
+      `navigator.languages` / `navigator.language` negotiation now matches server header selection
+      when no stronger source exists; one generated transport plan is still missing.
 - [ ] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [ ] WEB-A16 — Generate a safe optional switch route with validated return targets.
 - [ ] WEB-A17 — Reject switch routes with no server-writable transition.
@@ -731,14 +735,17 @@ production path uses the fix and its relevant tests pass.
 - [x] BUNDLE-A8 — Share the single-message compiler with a physical-module backend.
 - [x] BUNDLE-A9 — Let Vite own route/shared chunks, preload, and network loading.
 - [x] BUNDLE-A10 — Express optional locale splitting through bundler-visible dynamic ESM
-      boundaries with preload-before-switch behavior, inactive-locale client chunks, synchronous
-      SSR modules, and real-site production-graph verification.
+      boundaries with preload-before-switch behavior, one coalesced virtual entry per effective
+      locale, no per-message client request fanout, inactive-locale client chunks, synchronous SSR
+      modules, and real-site production-graph verification.
 - [x] BUNDLE-A11 — Emit formatter, date, number, currency, and plural helpers once per locale and
       import only required names from physical message modules.
 - [x] BUNDLE-A12 — Share reusable variables, forms, and local functions across physical messages
       without broadening their transitive bundle graph.
 - [x] BUNDLE-A13 — Emit locale globals once per locale and import their bindings from legacy root
       and namespace modules instead of copying declarations into every generated module.
+- [x] BUNDLE-A14 — Coalesce exact message facades behind one dynamic virtual entry per effective
+      locale, without per-message client entries, while preserving locale-granular HMR invalidation.
 
 ### Local repository verification
 
@@ -814,7 +821,8 @@ production path uses the fix and its relevant tests pass.
 - [ ] P2-6 — Compile-time typed `l` namespace transform.
 - [x] P2-7 — Positional plus named-object overloads.
 - [-] P2-8 — Nested web config plus generated feature modules.
-- [ ] P2-9 — One shared browser/server locale transition plan.
+- [-] P2-9 — One shared browser/server locale transition plan. Browser `Accept-Language`
+      negotiation now has guarded navigator parity; the shared transition plan remains incomplete.
 - [x] P2-10 — Safe streaming-compatible link localization.
 - [-] P2-11 — Fully incremental/cancellable namespace-aware LSP.
 - [-] P2-12 — Native npm/VSIX plus universal WASM distribution.
