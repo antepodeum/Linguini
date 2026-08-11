@@ -94,6 +94,12 @@ or bundler-native locale chunks.
   Clean English, Russian, and French preview profiles rendered the correct active locale and loaded
   its matching scoped chunk; the full repository profile passed all 11 tasks. `BUNDLE-A15` was
   refined to the scoped design and `BUNDLE-A16` is complete.
+- Scoped locale payloads now use stable numeric indices instead of canonical string keys
+  (`0a57506`). The production graph imports the emitted lab chunks and proves exact value-array
+  shape while rejecting every leaked `main.*` path across both route scopes. The lab English chunk
+  fell from 182 to 120 bytes; the main route node fell from 67.83 to 65.27 kB and from 21.36 to
+  20.88 kB gzip. Sparse fallback, callable messages, eager SSR, and legacy unscoped objects remain
+  covered. The full 11-task profile passes and `BUNDLE-A17` is complete.
 - `WEB-B0` through `WEB-B3` are complete in `5e81c9a` and `193c83f`. Validated config now lowers one
   explicit locale-switch plan into generated TypeScript; browser controls gate path navigation,
   cookie writes, and local-storage writes through it, while both SvelteKit adapters use the same

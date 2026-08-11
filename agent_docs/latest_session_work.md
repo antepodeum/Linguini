@@ -61,4 +61,8 @@
   graph, clean English/Russian/French Firefox previews, and the full 11-task repository profile.
   The lab's initial resource list fell from 14 to 13 JavaScript files. Hardened Svelte module-script
   detection in `198710a`; `BUNDLE-A15` now records scoped registries and `BUNDLE-A16` is closed.
+- Replaced canonical string-key locale payload objects with stable indexed arrays (`0a57506`).
+  Scoped facades now compile numeric lookups; browser chunks contain no canonical message paths.
+  Plugin sparse/arity coverage, executable production payload assertions, and the full 11-task
+  profile pass. The lab English payload fell from 182 to 120 bytes and `BUNDLE-A17` is closed.
 - Next work completes link-transform/runtime-link and server cookie capability modules for WEB-A13.

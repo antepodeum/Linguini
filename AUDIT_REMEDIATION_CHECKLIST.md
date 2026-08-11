@@ -754,6 +754,9 @@ production path uses the fix and its relevant tests pass.
       emit only that application's exact finite message set in each lazy locale payload, release
       inactive Svelte route loaders after navigation, keep SSR eager, and prove build/preview
       behavior on a three-message production route across English, Russian, and French.
+- [x] BUNDLE-A17 — Encode scoped locale payloads as stable indexed arrays and compile numeric
+      facade lookups so canonical message paths do not survive in browser chunks, while preserving
+      sparse-locale fallback, parameterless values, parameterized calls, and legacy unscoped APIs.
 
 ### Local repository verification
 
