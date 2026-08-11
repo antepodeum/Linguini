@@ -53,4 +53,12 @@
   Empty/path/local-storage CLI matrices prove unselected source, read, write, and navigation code is
   absent; 109 codegen tests, four safety tests, 32 Bun tests, and the full 11-task profile pass.
   WEB-A12 is closed and WEB-A13 is partial.
+- Added `/chunk-lab` as a three-message production fixture (`2403195`) and replaced the global
+  dynamic locale payload graph with application-scoped facades, registries, and locale entries
+  (`711b5a0`). Each route owns one lazy payload per effective locale containing only its exact
+  finite message set; Svelte lifecycle leases release inactive loaders and SSR remains eager.
+- Verified plugin unit/integration suites, exact two-application Rollup output, the real site build
+  graph, clean English/Russian/French Firefox previews, and the full 11-task repository profile.
+  The lab's initial resource list fell from 14 to 13 JavaScript files. Hardened Svelte module-script
+  detection in `198710a`; `BUNDLE-A15` now records scoped registries and `BUNDLE-A16` is closed.
 - Next work completes link-transform/runtime-link and server cookie capability modules for WEB-A13.

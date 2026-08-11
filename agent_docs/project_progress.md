@@ -87,6 +87,13 @@ or bundler-native locale chunks.
   nine locale imports instead of 522 repeated message-by-locale imports; its route node fell from
   154,807 to 72,546 bytes (28,971 to 22,917 gzip). One active locale chunk loads initially,
   parameterless leaves stay values, and no per-facade preparation/crash branch remains.
+- Dynamic client registries and locale entries are now application-scoped (`711b5a0`). The dedicated
+  `/chunk-lab` production route references exactly three messages, owns nine lazy locale entries,
+  and every emitted locale payload contains only those three messages with no static imports.
+  Ref-counted Svelte lifecycle leases unregister inactive route loaders while SSR remains eager.
+  Clean English, Russian, and French preview profiles rendered the correct active locale and loaded
+  its matching scoped chunk; the full repository profile passed all 11 tasks. `BUNDLE-A15` was
+  refined to the scoped design and `BUNDLE-A16` is complete.
 - `WEB-B0` through `WEB-B3` are complete in `5e81c9a` and `193c83f`. Validated config now lowers one
   explicit locale-switch plan into generated TypeScript; browser controls gate path navigation,
   cookie writes, and local-storage writes through it, while both SvelteKit adapters use the same

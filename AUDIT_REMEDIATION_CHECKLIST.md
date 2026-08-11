@@ -746,10 +746,14 @@ production path uses the fix and its relevant tests pass.
       and namespace modules instead of copying declarations into every generated module.
 - [x] BUNDLE-A14 — Coalesce exact message facades behind one dynamic virtual entry per effective
       locale, without per-message client entries, while preserving locale-granular HMR invalidation.
-- [x] BUNDLE-A15 — Centralize dynamic locale preparation in one shared virtual registry: the
-      registry owns one cache, loader, and literal dynamic import per effective locale; message
-      facades contain no per-message loader maps, preparation caches, or unprepared-locale crash
-      branch.
+- [x] BUNDLE-A15 — Centralize dynamic locale preparation in one virtual registry per application
+      scope: each registry owns one cache, ref-counted loader lifecycle, and literal dynamic import
+      per effective locale; message facades contain no per-message loader maps, preparation caches,
+      or unprepared-locale crash branch.
+- [x] BUNDLE-A16 — Scope client message facades and locale entries by normalized application path,
+      emit only that application's exact finite message set in each lazy locale payload, release
+      inactive Svelte route loaders after navigation, keep SSR eager, and prove build/preview
+      behavior on a three-message production route across English, Russian, and French.
 
 ### Local repository verification
 
