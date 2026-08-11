@@ -1,6 +1,12 @@
 export type TextDirection = "ltr" | "rtl";
 export type LocaleSource = "path" | "cookie" | "local-storage" | "accept-language";
 
+export interface LocaleSwitchPlan {
+  writesPath: boolean;
+  writesCookie: boolean;
+  writesLocalStorage: boolean;
+}
+
 export interface LinguiniLocaleRuntime<Locale extends string = string> {
   locales: readonly Locale[];
   baseLocale: Locale;
@@ -15,6 +21,7 @@ export interface LinguiniRuntime<Locale extends string = string, Linguini = unkn
 
 export interface LinguiniWebOptions {
   sources?: readonly LocaleSource[];
+  localeSwitch?: LocaleSwitchPlan;
   cookieName?: string;
   localStorageKey?: string;
   prefixDefaultLocale?: boolean;
@@ -74,7 +81,7 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
  * fail closed and preserve the original href instead.
  */
 export interface LinguiniWebLocale<Locale extends string = string> extends LinguiniLocaleRuntime<Locale> {
-  options: Required<Pick<LinguiniWebOptions, "sources" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
+  options: Required<Pick<LinguiniWebOptions, "sources" | "localeSwitch" | "cookieName" | "localStorageKey" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
   matchLocale(locale: unknown): Locale | undefined;
   resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
   resolveLocaleSync(input?: Record<string, unknown>): Locale;

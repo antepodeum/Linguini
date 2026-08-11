@@ -101,6 +101,7 @@ impl TypeScriptFramework {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptWebOptions {
     pub sources: Vec<TypeScriptLocaleSource>,
+    pub locale_switch: TypeScriptLocaleSwitchPlan,
     pub cookie_name: String,
     pub cookie_path: String,
     pub cookie_domain: Option<String>,
@@ -115,6 +116,27 @@ pub struct TypeScriptWebOptions {
     pub origin: Option<String>,
     pub exclude: Vec<String>,
     pub localize_links: bool,
+}
+
+/// Generated browser transition capabilities lowered from the validated web config.
+///
+/// `sources` remains the locale-resolution order. This plan is the only generated policy
+/// surface used when a browser control changes locale and persists that choice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypeScriptLocaleSwitchPlan {
+    pub writes_path: bool,
+    pub writes_cookie: bool,
+    pub writes_local_storage: bool,
+}
+
+impl Default for TypeScriptLocaleSwitchPlan {
+    fn default() -> Self {
+        Self {
+            writes_path: true,
+            writes_cookie: true,
+            writes_local_storage: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -158,6 +180,7 @@ impl Default for TypeScriptWebOptions {
                 TypeScriptLocaleSource::Cookie,
                 TypeScriptLocaleSource::AcceptLanguage,
             ],
+            locale_switch: TypeScriptLocaleSwitchPlan::default(),
             cookie_name: "LINGUINI_LOCALE".to_owned(),
             cookie_path: "/".to_owned(),
             cookie_domain: None,

@@ -6,6 +6,12 @@ const INVALID_URL_MESSAGE = "Linguini: invalid URL";
 export type TextDirection = "ltr" | "rtl";
 export type LocaleSource = "path" | "cookie" | "local-storage" | "accept-language";
 
+export interface LocaleSwitchPlan {
+  writesPath: boolean;
+  writesCookie: boolean;
+  writesLocalStorage: boolean;
+}
+
 export interface AlternateLink {
   rel: "alternate";
   hreflang: string;
@@ -20,6 +26,7 @@ export interface LinkLocalizationAttributes {
 
 export interface LinguiniWebOptions {
   sources?: readonly LocaleSource[];
+  localeSwitch?: LocaleSwitchPlan;
   cookieName?: string;
   localStorageKey?: string;
   prefixDefaultLocale?: boolean;
@@ -339,8 +346,10 @@ function readHeader(headers: unknown, name: string) {
 }
 
 function normalizeOptions(options: LinguiniWebOptions & { baseLocale: string }) {
+  const sources = options.sources ?? DEFAULT_SOURCES;
   return {
-    sources: options.sources ?? DEFAULT_SOURCES,
+    sources,
+    localeSwitch: options.localeSwitch ?? localeSwitchFromSources(sources),
     cookieName: options.cookieName ?? "LINGUINI_LOCALE",
     localStorageKey: options.localStorageKey ?? "LINGUINI_LOCALE",
     prefixDefaultLocale: Boolean(options.prefixDefaultLocale ?? false),
@@ -357,6 +366,14 @@ function normalizeOptions(options: LinguiniWebOptions & { baseLocale: string }) 
     origin: options.origin,
     localizeLinks: options.localizeLinks ?? true,
     baseLocale: options.baseLocale,
+  };
+}
+
+function localeSwitchFromSources(sources: readonly LocaleSource[]): LocaleSwitchPlan {
+  return {
+    writesPath: sources.includes("path"),
+    writesCookie: sources.includes("cookie"),
+    writesLocalStorage: sources.includes("local-storage"),
   };
 }
 

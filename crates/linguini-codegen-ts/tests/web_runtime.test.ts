@@ -227,6 +227,11 @@ test("default locale sources match the validated web configuration", () => {
     "cookie",
     "accept-language",
   ]);
+  assert.deepEqual(web.options.localeSwitch, {
+    writesPath: true,
+    writesCookie: true,
+    writesLocalStorage: false,
+  });
   assert.equal(
     web.resolveLocaleSync({
       url: "https://app.example/account",
@@ -235,6 +240,45 @@ test("default locale sources match the validated web configuration", () => {
     }),
     "fr",
   );
+});
+
+test("locale switch fallback derives writable transports from custom sources", () => {
+  const cases: Array<{
+    sources: LinguiniWebOptions["sources"];
+    expected: { writesPath: boolean; writesCookie: boolean; writesLocalStorage: boolean };
+  }> = [
+    {
+      sources: ["path"],
+      expected: { writesPath: true, writesCookie: false, writesLocalStorage: false },
+    },
+    {
+      sources: ["cookie"],
+      expected: { writesPath: false, writesCookie: true, writesLocalStorage: false },
+    },
+    {
+      sources: ["local-storage"],
+      expected: { writesPath: false, writesCookie: false, writesLocalStorage: true },
+    },
+    {
+      sources: ["accept-language"],
+      expected: { writesPath: false, writesCookie: false, writesLocalStorage: false },
+    },
+  ];
+
+  for (const { sources, expected } of cases) {
+    const web = createWeb({ sources });
+    assert.deepEqual(web.options.localeSwitch, expected);
+  }
+
+  const explicit = createWeb({
+    sources: ["cookie"],
+    localeSwitch: { writesPath: true, writesCookie: false, writesLocalStorage: true },
+  });
+  assert.deepEqual(explicit.options.localeSwitch, {
+    writesPath: true,
+    writesCookie: false,
+    writesLocalStorage: true,
+  });
 });
 
 test("Accept-Language uses standard Headers, quality weights, and wildcards", async () => {

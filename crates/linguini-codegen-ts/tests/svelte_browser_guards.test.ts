@@ -163,7 +163,10 @@ test("setLocale prepares before mutation and ignores persistence failures", asyn
 } from "./svelte-effects.svelte.js";`,
       `const web = {
   baseLocale: "en",
-  options: { localStorageKey: "locale" },
+  options: {
+    localStorageKey: "locale",
+    localeSwitch: { writesPath: true, writesCookie: true, writesLocalStorage: true },
+  },
   matchLocale: (locale: unknown) => locale === "fr" ? "fr" : undefined,
   serializeLocaleCookie: () => "locale=fr",
 };
@@ -181,18 +184,26 @@ const setCurrentLocale = (locale: string) => {
     )
     .replace("{{NAVIGATION}}", "        throw new Error(\"unexpected navigation\");");
 
+  let storageAttempts = 0;
+  let cookieAttempts = 0;
   Object.defineProperty(globalThis, "window", {
     configurable: true,
     value: {
       localStorage: {
-        setItem() { throw new Error("storage denied"); },
+        setItem() {
+          storageAttempts += 1;
+          throw new Error("storage denied");
+        },
       },
     },
   });
   Object.defineProperty(globalThis, "document", {
     configurable: true,
     value: {
-      set cookie(_value: string) { throw new Error("cookie denied"); },
+      set cookie(_value: string) {
+        cookieAttempts += 1;
+        throw new Error("cookie denied");
+      },
     },
   });
 
@@ -202,11 +213,155 @@ const setCurrentLocale = (locale: string) => {
     assert.equal(globalThis.__linguiniProbeCurrent, undefined);
     assert.equal(await pending, "fr");
     assert.equal(globalThis.__linguiniProbeCurrent, "fr");
+    assert.equal(storageAttempts, 1);
+    assert.equal(cookieAttempts, 1);
   } finally {
     delete globalThis.window;
     delete globalThis.document;
     delete globalThis.__linguiniProbeCurrent;
   }
+});
+
+test("setLocale obeys generated locale switch transports", async () => {
+  const source = (await readTemplate("svelte-control.runtime.ts"))
+    .replace("{{NAVIGATION_RUNTIME}}", "const browser = true;")
+    .replace(
+      `import {
+  destroyLinguiniEffects,
+  refreshLinguiniEffects,
+  web,
+} from "./svelte-effects.svelte.js";`,
+      `const web = {
+  baseLocale: "en",
+  options: {
+    localStorageKey: "locale",
+    localeSwitch: { writesPath: false, writesCookie: false, writesLocalStorage: false },
+  },
+  serializeLocaleCookie: () => "locale=fr",
+  localizeHref: () => "/fr",
+  getTextDirection: () => "ltr",
+  htmlAttrs: () => ({ lang: "fr", dir: "ltr" }),
+};
+const destroyLinguiniEffects = () => {};
+const refreshLinguiniEffects = () => {};`,
+    )
+    .replace(
+      "{{LOCALE_RUNTIME}}",
+      `const getCurrentLocale = () => globalThis.__linguiniProbeCurrent ?? "en";
+const prepareLocale = async (locale: string) => locale;
+const setCurrentLocale = (locale: string) => {
+  globalThis.__linguiniProbeCurrent = locale;
+  return locale;
+};`,
+    )
+    .replace("{{NAVIGATION}}", "        throw new Error(\"unexpected navigation\");");
+
+  let storageWrites = 0;
+  let cookieWrites = 0;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { localStorage: { setItem() { storageWrites += 1; } } },
+  });
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: { set cookie(_value: string) { cookieWrites += 1; } },
+  });
+
+  try {
+    const generated = await importTypeScript(source);
+    assert.equal(await generated.setLocale("fr", { cookie: true }), "fr");
+    assert.equal(storageWrites, 0);
+    assert.equal(cookieWrites, 0);
+  } finally {
+    delete globalThis.window;
+    delete globalThis.document;
+    delete globalThis.__linguiniProbeCurrent;
+  }
+});
+
+test("SvelteKit adapters gate server cookie persistence through locale switch plan", async () => {
+  for (const template of ["sveltekit.runtime.ts", "sveltekit-control.runtime.ts"]) {
+    for (const writesCookie of [false, true]) {
+      const source = (await readTemplate(template))
+        .replace(
+          'import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";',
+          "",
+        )
+        .replace(
+          'import type { Locale } from "./locale";',
+          'type Locale = "en";',
+        )
+        .replace(
+          'import * as locale from "./locale";',
+          'const locale = { locales: ["en"], baseLocale: "en" };',
+        )
+        .replace(
+          'import * as runtime from "./index";',
+          'const runtime = { locales: ["en"], baseLocale: "en" };',
+        )
+        .replace(
+          'import { createWebI18n } from "./web";',
+          "const createWebI18n = (runtime: any, options: any) => createWeb(runtime, options);",
+        )
+        .replace(
+          'import { createWebLocaleI18n } from "./web";',
+          "const createWebLocaleI18n = (runtime: any, options: any) => createWeb(runtime, options);",
+        )
+        .replace(
+          "const options = {{OPTIONS}};",
+          `const options = {
+  localeSwitch: { writesPath: false, writesCookie: ${writesCookie}, writesLocalStorage: false },
+};`,
+        );
+      const sourceWithWeb = `${source}
+function createWeb(_runtime: unknown, options: any) {
+  const context = {
+    locale: "en",
+    baseLocale: "en",
+    locales: ["en"],
+    direction: "ltr",
+    textDirection: "ltr",
+    lang: "en",
+    htmlAttrs: { lang: "en", dir: "ltr" },
+  };
+  return {
+    options: { localeSwitch: options.localeSwitch },
+    baseLocale: "en",
+    locales: ["en"],
+    shouldExclude: () => false,
+    resolveRequest: async () => context,
+    resolveLocale: async () => "en",
+    matchLocale: () => "en",
+    getTextDirection: () => "ltr",
+    htmlAttrs: () => ({ lang: "en", dir: "ltr" }),
+    localizeHref: (href: string) => href,
+    localizeUrl: (url: string | URL) => new URL(url),
+    shouldLocalizeHref: () => false,
+    shouldLocalizeLink: () => false,
+    localizeHrefAttribute: (href: string) => href,
+    delocalizeUrl: (url: string | URL) => new URL(url),
+    alternateLinks: () => [],
+    delocalizePathname: (pathname: string) => pathname,
+    getCanonicalRedirect: () => undefined,
+    setLocaleCookie: () => { globalThis.__linguiniProbeCookieWrites += 1; },
+  };
+}
+`;
+
+      globalThis.__linguiniProbeCookieWrites = 0;
+      const generated = await importTypeScript(sourceWithWeb);
+      await generated.handle({
+        event: {
+          url: new URL("https://app.example/"),
+          request: { headers: new Headers() },
+          locals: {},
+        },
+        resolve: async () => new Response("ok"),
+      });
+      assert.equal(globalThis.__linguiniProbeCookieWrites, writesCookie ? 1 : 0);
+    }
+  }
+  delete globalThis.__linguiniProbeCookieWrites;
 });
 
 test("lightweight controls and SvelteKit hooks have no eager message imports", async () => {
@@ -235,6 +390,7 @@ test("lightweight controls and SvelteKit hooks have no eager message imports", a
 
 declare global {
   var __linguiniProbeCurrent: string | undefined;
+  var __linguiniProbeCookieWrites: number;
   var __linguiniProbeInput: Record<string, unknown> | undefined;
   var __linguiniProbeLocale: unknown;
 }

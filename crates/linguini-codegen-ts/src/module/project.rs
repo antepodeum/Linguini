@@ -12,7 +12,10 @@ use super::templates::{
     SVELTE_LOCALE_STANDALONE_DECLARATIONS, SVELTE_LOCALE_STANDALONE_RUNTIME, SVELTE_RUNTIME,
     WEB_DECLARATIONS, WEB_RUNTIME,
 };
-use super::{TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptWebOptions};
+use super::{
+    TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
+    TypeScriptWebOptions,
+};
 use linguini_cldr::{
     built_in_text_direction, canonicalize_locale, locale_resolution_candidates, maximize_locale,
 };
@@ -422,9 +425,11 @@ fn base_locale_literal(locales: &[TypeScriptLocaleModule], base_locale: Option<&
 
 fn web_options_literal(options: &TypeScriptWebOptions) -> String {
     let sources = js_locale_source_array(&options.sources);
+    let locale_switch = locale_switch_literal(options.locale_switch);
     let exclude = js_string_array(&options.exclude);
     let mut fields = vec![
         format!("sources: [{sources}] as const"),
+        format!("localeSwitch: {locale_switch}"),
         format!("cookieName: \"{}\"", escape_string(&options.cookie_name)),
         format!("cookiePath: \"{}\"", escape_string(&options.cookie_path)),
         format!("cookieMaxAge: {}", options.cookie_max_age),
@@ -459,6 +464,15 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
     }
 
     format!("{{ {} }} as const", fields.join(", "))
+}
+
+fn locale_switch_literal(plan: TypeScriptLocaleSwitchPlan) -> String {
+    format!(
+        "{{ writesPath: {}, writesCookie: {}, writesLocalStorage: {} }} as const",
+        js_bool(plan.writes_path),
+        js_bool(plan.writes_cookie),
+        js_bool(plan.writes_local_storage),
+    )
 }
 
 fn js_locale_source_array(values: &[TypeScriptLocaleSource]) -> String {

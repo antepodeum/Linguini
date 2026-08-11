@@ -1998,7 +1998,7 @@ fn project_codegen_emits_schema_namespace_objects() {
 fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     use crate::{
         TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSource,
-        TypeScriptProjectOptions, TypeScriptWebOptions,
+        TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
     };
     use linguini_ir::IrModule;
 
@@ -2016,6 +2016,11 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                     TypeScriptLocaleSource::Cookie,
                     TypeScriptLocaleSource::AcceptLanguage,
                 ],
+                locale_switch: TypeScriptLocaleSwitchPlan {
+                    writes_path: true,
+                    writes_cookie: true,
+                    writes_local_storage: false,
+                },
                 cookie_name: "SHOP_LOCALE".to_owned(),
                 cookie_path: "/shop".to_owned(),
                 cookie_domain: Some("example.com".to_owned()),
@@ -2136,6 +2141,9 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(svelte_effects
         .contents
         .contains("sources: [\"path\", \"cookie\", \"accept-language\"] as const"));
+    assert!(svelte_effects.contents.contains(
+        "localeSwitch: { writesPath: true, writesCookie: true, writesLocalStorage: false } as const"
+    ));
     assert!(svelte_effects.contents.contains("localizeLinks: false"));
     for capability in [
         "readBrowserCapability(() => window.location.href)",
@@ -2216,6 +2224,9 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit
         .contents
         .contains("cookie: event.request.headers.get(\"cookie\") ?? undefined"));
+    assert!(sveltekit
+        .contents
+        .contains("web.options.localeSwitch.writesCookie"));
 
     let sveltekit_control = files
         .iter()
@@ -2234,6 +2245,9 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(sveltekit_control
         .contents
         .contains("import * as locale from \"./locale\";"));
+    assert!(sveltekit_control
+        .contents
+        .contains("web.options.localeSwitch.writesCookie"));
     for forbidden in ["./index", "./locales/", "./messages", "createWebI18n"] {
         assert!(!sveltekit_control.contents.contains(forbidden));
     }
@@ -2342,7 +2356,7 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
         .find("setCurrentLocale(resolved)")
         .expect("synchronous locale update");
     let navigation_position = control
-        .find("if (options.navigate)")
+        .find("if (options.navigate && web.options.localeSwitch.writesPath)")
         .expect("navigation branch");
     assert!(set_position < navigation_position);
     assert!(control.contains("writeLocaleCookie(web, resolved)"));

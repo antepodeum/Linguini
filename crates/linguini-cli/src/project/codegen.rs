@@ -9,8 +9,8 @@ use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
     compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_semantic_module,
     generate_typescript_project_files, EcmaSource, TypeScriptFramework, TypeScriptGeneratedFile,
-    TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptProjectOptions, TypeScriptWebOptions,
-    ValidatedTypeScriptProject,
+    TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
+    TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
 };
 use linguini_config::{
     discover_application_source_files_with_fields, CanonicalMode, CookiePath, LinguiniConfig,
@@ -1096,6 +1096,11 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
 
     TypeScriptWebOptions {
         sources,
+        locale_switch: TypeScriptLocaleSwitchPlan {
+            writes_path: config.web.locale_switch.writes_path,
+            writes_cookie: config.web.locale_switch.writes_cookie,
+            writes_local_storage: config.web.locale_switch.writes_local_storage,
+        },
         cookie_name: cookie
             .map(|cookie| cookie.name.clone())
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),

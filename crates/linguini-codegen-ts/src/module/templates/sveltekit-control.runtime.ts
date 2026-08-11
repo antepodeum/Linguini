@@ -14,7 +14,7 @@ export const load: ServerLoad = linguiniLoad;
 
 function createHandle(runtime: typeof import("./locale"), options: Record<string, unknown> = {}) {
   const web = createWebLocaleI18n(runtime, options.web as Record<string, unknown> | undefined ?? options);
-  const persistCookie = options.persistCookie !== false;
+  const persistCookie = options.persistCookie !== false && web.options.localeSwitch.writesCookie;
 
   return async function linguiniHandle({ event, resolve }: Parameters<Handle>[0]) {
     if (web.shouldExclude(event.url)) {

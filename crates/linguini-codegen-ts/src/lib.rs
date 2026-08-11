@@ -12,9 +12,10 @@ pub use module::{
     generate_typescript_project_files, CompiledTypeScriptMessageModule,
     CompiledTypeScriptSemanticModule, TypeScriptCodegenError, TypeScriptFramework,
     TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleRuntimeArtifact,
-    TypeScriptLocaleSource, TypeScriptMessageArtifact, TypeScriptOptions, TypeScriptProjectOptions,
-    TypeScriptSemanticArtifact, TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
-    TypeScriptWebOptions, ValidatedTypeScriptProject,
+    TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptMessageArtifact,
+    TypeScriptOptions, TypeScriptProjectOptions, TypeScriptSemanticArtifact,
+    TypeScriptSemanticImport, TypeScriptSemanticSymbolKind, TypeScriptWebOptions,
+    ValidatedTypeScriptProject,
 };
 pub use plural::generate_plural_function;
 

@@ -38,11 +38,13 @@ function createLinguiniControl() {
     };
     if (browser) {
       setCurrentLocale(resolved);
-      writeLocalStorage(web, resolved);
-      if (options.cookie) {
+      if (web.options.localeSwitch.writesLocalStorage) {
+        writeLocalStorage(web, resolved);
+      }
+      if (options.cookie && web.options.localeSwitch.writesCookie) {
         writeLocaleCookie(web, resolved);
       }
-      if (options.navigate) {
+      if (options.navigate && web.options.localeSwitch.writesPath) {
 {{NAVIGATION}}
       }
       refreshLinguiniEffects();
