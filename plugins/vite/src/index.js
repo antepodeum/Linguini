@@ -18,6 +18,8 @@ const VIRTUAL_MESSAGE_PREFIX = "virtual:linguini/message/";
 const RESOLVED_VIRTUAL_MESSAGE_PREFIX = `\0${VIRTUAL_MESSAGE_PREFIX}`;
 const VIRTUAL_LOCALE_PREFIX = "virtual:linguini/locale/";
 const RESOLVED_VIRTUAL_LOCALE_PREFIX = `\0${VIRTUAL_LOCALE_PREFIX}`;
+const VIRTUAL_LOCALE_REGISTRY_ID = "virtual:linguini/locale-registry";
+const RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID = `\0${VIRTUAL_LOCALE_REGISTRY_ID}`;
 
 export function linguini(options = {}) {
   let viteConfig;
@@ -109,7 +111,8 @@ export function linguini(options = {}) {
     return invalidateMatchingModules(server, timestamp, (id) => {
       if (
         id.startsWith(RESOLVED_VIRTUAL_MESSAGE_PREFIX) ||
-        id.startsWith(RESOLVED_VIRTUAL_LOCALE_PREFIX)
+        id.startsWith(RESOLVED_VIRTUAL_LOCALE_PREFIX) ||
+        id === RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID
       ) {
         return true;
       }
@@ -142,6 +145,9 @@ export function linguini(options = {}) {
     );
     for (const locale of delta.locales) {
       virtualIds.add(`\0${virtualLocaleId(locale)}`);
+    }
+    if (delta.messages.size > 0 || delta.locales.size > 0) {
+      virtualIds.add(RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID);
     }
     return invalidateMatchingModules(server, timestamp, (id) => {
       if (virtualIds.has(id)) {
@@ -313,6 +319,9 @@ export function linguini(options = {}) {
       }
     },
     async resolveId(id) {
+      if (id === VIRTUAL_LOCALE_REGISTRY_ID) {
+        return RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID;
+      }
       if (id.startsWith(VIRTUAL_LOCALE_PREFIX)) {
         decodeLocaleId(id.slice(VIRTUAL_LOCALE_PREFIX.length));
         return `\0${id}`;
@@ -326,6 +335,7 @@ export function linguini(options = {}) {
     load(id, options) {
       if (
         !id.startsWith(RESOLVED_VIRTUAL_MESSAGE_PREFIX) &&
+        id !== RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID &&
         !id.startsWith(RESOLVED_VIRTUAL_LOCALE_PREFIX)
       ) {
         return undefined;
@@ -336,6 +346,9 @@ export function linguini(options = {}) {
       if (id.startsWith(RESOLVED_VIRTUAL_LOCALE_PREFIX)) {
         const locale = decodeLocaleId(id.slice(RESOLVED_VIRTUAL_LOCALE_PREFIX.length));
         return renderVirtualLocaleModule(bundlerManifest, locale);
+      }
+      if (id === RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID) {
+        return renderVirtualLocaleRegistryModule(bundlerManifest);
       }
       const message = decodeMessageId(id.slice(RESOLVED_VIRTUAL_MESSAGE_PREFIX.length));
       return renderVirtualMessageModule(
@@ -1989,9 +2002,7 @@ function renderVirtualMessageModule(manifest, canonical, dynamicClient = false) 
     `const __linguini_base = __linguini_messages[${JSON.stringify(manifest.baseLocale)}];`,
     "export function message(...args) {",
     "  const selected = __linguini_messages[getCurrentLocale()] ?? __linguini_base;",
-    message.arity === 0
-      ? '  return typeof selected === "function" ? selected(...args) : selected;'
-      : "  return selected(...args);",
+    message.arity === 0 ? "  return selected;" : "  return selected(...args);",
     "}",
     ""
   ].join("\n");
@@ -2041,7 +2052,7 @@ function bundledMessageNames(manifest) {
   return used.size > 0 ? [...used].sort(comparePaths) : [...manifest.messages.keys()];
 }
 
-function renderDynamicVirtualMessageModule(manifest, canonical, message) {
+function renderVirtualLocaleRegistryModule(manifest) {
   const imports = [
     `import { getCurrentLocale, registerLocaleLoader } from ${JSON.stringify(
       toVitePath(manifest.localeHelper.file)
@@ -2050,31 +2061,21 @@ function renderDynamicVirtualMessageModule(manifest, canonical, message) {
   if (manifest.effectsHelper) {
     imports.push(`import ${JSON.stringify(toVitePath(manifest.effectsHelper.file))};`);
   }
-  const loadValidation =
-    message.arity === 0
-      ? '      if (value === undefined) {'
-      : '      if (typeof value !== "function") {';
-  const loadError =
-    message.arity === 0
-      ? "        throw new Error(`Linguini locale module for ${locale} does not export message`);"
-      : "        throw new Error(`Linguini locale module for ${locale} does not export message()`);";
-  const loaders = [];
-  for (const locale of message.locales.keys()) {
-    loaders.push(
-      `[${JSON.stringify(locale)}]: () => import(${JSON.stringify(
-        virtualLocaleId(locale)
-      )})`
-    );
-  }
+  const loaders = manifest.effectiveLocales.map(
+    (locale) =>
+      `[${JSON.stringify(locale)}]: () => import(${JSON.stringify(virtualLocaleId(locale))})`
+  );
+  const requiredMessages = JSON.stringify(bundledMessageNames(manifest));
   return [
     ...imports,
     `const __linguini_loaders = Object.freeze({ ${loaders.join(", ")} });`,
     `const __linguini_base_locale = ${JSON.stringify(manifest.baseLocale)};`,
-    `const __linguini_message_arity = ${message.arity};`,
-    "const __linguini_functions = new Map();",
+    `const __linguini_required_messages = Object.freeze(${requiredMessages});`,
+    "const __linguini_prepared = new Map();",
     "const __linguini_pending = new Map();",
+    "let __linguini_fallback_locale;",
     "function __linguini_load(locale) {",
-    "  if (__linguini_functions.has(locale)) return Promise.resolve(__linguini_functions.get(locale));",
+    "  if (__linguini_prepared.has(locale)) return Promise.resolve(__linguini_prepared.get(locale));",
     "  const pending = __linguini_pending.get(locale);",
     "  if (pending) return pending;",
     "  const loader = Object.prototype.hasOwnProperty.call(__linguini_loaders, locale)",
@@ -2083,13 +2084,13 @@ function renderDynamicVirtualMessageModule(manifest, canonical, message) {
     "  if (!loader) return Promise.resolve(undefined);",
     "  const task = Promise.resolve()",
     "    .then(() => loader())",
-    `    .then((module) => module?.messages?.[${JSON.stringify(canonical)}])`,
-    "    .then((value) => {",
-    loadValidation,
-    loadError,
+    "    .then((module) => module?.messages ?? module?.default)",
+    "    .then((messages) => {",
+    "      if (!messages || typeof messages !== \"object\") {",
+    "        throw new Error(`Linguini locale module for ${locale} does not export messages`);",
     "      }",
-    "      __linguini_functions.set(locale, value);",
-    "      return value;",
+    "      __linguini_prepared.set(locale, messages);",
+    "      return messages;",
     "    })",
     "    .finally(() => {",
     "      __linguini_pending.delete(locale);",
@@ -2100,25 +2101,40 @@ function renderDynamicVirtualMessageModule(manifest, canonical, message) {
     "const __linguini_dispose_loader = registerLocaleLoader(__linguini_load);",
     "const __linguini_initial_locale = getCurrentLocale();",
     "await __linguini_load(__linguini_initial_locale);",
-    "let __linguini_fallback_locale = __linguini_initial_locale;",
-    "if (!__linguini_functions.has(__linguini_initial_locale)) {",
+    "__linguini_fallback_locale = __linguini_initial_locale;",
+    "const __linguini_initial_messages = __linguini_prepared.get(__linguini_initial_locale);",
+    "const __linguini_initial_complete = __linguini_initial_messages && __linguini_required_messages.every((canonical) => __linguini_initial_messages[canonical] !== undefined);",
+    "if (!__linguini_initial_complete) {",
     "  await __linguini_load(__linguini_base_locale);",
-    "  if (__linguini_functions.has(__linguini_base_locale)) {",
+    "  if (__linguini_prepared.has(__linguini_base_locale)) {",
     "    __linguini_fallback_locale = __linguini_base_locale;",
     "  }",
     "}",
     "if (import.meta.hot) {",
     "  import.meta.hot.dispose(() => __linguini_dispose_loader());",
     "}",
+    "export function getLocaleMessage(locale, canonical) {",
+    "  const selected = __linguini_prepared.get(locale)?.[canonical];",
+    "  if (selected !== undefined) return selected;",
+    "  const fallback = __linguini_prepared.get(__linguini_fallback_locale)?.[canonical];",
+    "  if (fallback !== undefined) return fallback;",
+    "  return __linguini_prepared.get(__linguini_base_locale)?.[canonical];",
+    "}",
+    ""
+  ].join("\n");
+}
+
+function renderDynamicVirtualMessageModule(manifest, canonical, message) {
+  const imports = [
+    `import { getCurrentLocale } from ${JSON.stringify(toVitePath(manifest.localeHelper.file))};`,
+    `import { getLocaleMessage } from ${JSON.stringify(VIRTUAL_LOCALE_REGISTRY_ID)};`
+  ];
+  return [
+    ...imports,
     "export function message(...args) {",
     "  const selectedLocale = getCurrentLocale();",
-    "  const selected = __linguini_functions.get(selectedLocale) ?? __linguini_functions.get(__linguini_fallback_locale);",
-    "  if (selected === undefined) {",
-    "    throw new Error(`Linguini locale ${selectedLocale} is not prepared`);",
-    "  }",
-    "  return __linguini_message_arity === 0 && typeof selected !== \"function\"",
-    "    ? selected",
-    "    : selected(...args);",
+    `  const selected = getLocaleMessage(selectedLocale, ${JSON.stringify(canonical)});`,
+    message.arity === 0 ? "  return selected;" : "  return selected(...args);",
     "}",
     ""
   ].join("\n");

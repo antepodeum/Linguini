@@ -533,3 +533,121 @@ test("real dynamic client boundaries keep inactive locales out of entry and SSR 
   assert.doesNotMatch(ssrCode, /registerLocaleLoader|import\(/);
   assert.match(ssrCode, /rendered/);
 });
+
+test("real dynamic client graph shares one locale registry across message facades", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-dynamic-registry-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const generated = path.join(root, "generated/linguini");
+  await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
+  await mkdir(path.join(generated, "bundler/messages/main/items"), { recursive: true });
+  await mkdir(path.join(generated, "bundler"), { recursive: true });
+  await writeFile(
+    path.join(root, "linguini.toml"),
+    [
+      "[targets.ts]",
+      'out = "generated/linguini"',
+      'framework = "svelte"',
+      "[targets.ts.bundler]",
+      'sources = ["entry.js"]',
+      'locale_loading = "dynamic"',
+      ""
+    ].join("\n")
+  );
+  const titleId = "virtual:linguini/message/6d61696e2e7469746c65";
+  const itemsId = "virtual:linguini/message/6d61696e2e6974656d73";
+  await writeFile(
+    path.join(root, "entry.js"),
+    [
+      `import { message as title } from ${JSON.stringify(titleId)};`,
+      `import { message as items } from ${JSON.stringify(itemsId)};`,
+      "export const rendered = [title(), items(2)];",
+      ""
+    ].join("\n")
+  );
+  await writeFile(
+    path.join(generated, "svelte-locale.js"),
+    [
+      'let current = "en";',
+      "const loaders = new Set();",
+      "export function getCurrentLocale() { return current; }",
+      "export function registerLocaleLoader(loader) { loaders.add(loader); return () => loaders.delete(loader); }",
+      "export async function prepareLocale(locale) { await Promise.all([...loaders].map((loader) => loader(locale))); }",
+      ""
+    ].join("\n")
+  );
+  for (const locale of ["en", "fr"]) {
+    await writeFile(
+      path.join(generated, `bundler/messages/main/title/${locale}.js`),
+      `export function message() { return ${JSON.stringify(`${locale.toUpperCase()}_TITLE`)}; }\n`
+    );
+    await writeFile(
+      path.join(generated, `bundler/messages/main/items/${locale}.js`),
+      `export function message(value) { return ${JSON.stringify(`${locale.toUpperCase()}_ITEMS:`)} + value; }\n`
+    );
+  }
+  await writeFile(
+    path.join(generated, "bundler/manifest.json"),
+    JSON.stringify({
+      version: 1,
+      locale_loading: "dynamic",
+      base_locale: "en",
+      configured_locales: ["en", "fr"],
+      effective_locales: ["en", "fr"],
+      sources: [],
+      runtime_helpers: {
+        svelte_locale: { import: "./svelte-locale.js", file: "svelte-locale.js" }
+      },
+      message_runtimes: {
+        en: { module: "locales/en/_runtime.js", source_ids: [] },
+        fr: { module: "locales/fr/_runtime.js", source_ids: [] }
+      },
+      message_semantics: [],
+      messages: {
+        "main.title": {
+          arity: 0,
+          locales: {
+            en: { module: "bundler/messages/main/title/en.js", source_ids: [] },
+            fr: { module: "bundler/messages/main/title/fr.js", source_ids: [] }
+          }
+        },
+        "main.items": {
+          arity: 1,
+          locales: {
+            en: { module: "bundler/messages/main/items/en.js", source_ids: [] },
+            fr: { module: "bundler/messages/main/items/fr.js", source_ids: [] }
+          }
+        }
+      },
+      applications: {}
+    })
+  );
+  for (const locale of ["en", "fr"]) {
+    await mkdir(path.join(generated, `locales/${locale}`), { recursive: true });
+    await writeFile(path.join(generated, `locales/${locale}/_runtime.js`), "export {};\n");
+  }
+
+  const result = await build({
+    root,
+    logLevel: "silent",
+    plugins: [linguini({ root, buildOnStart: false })],
+    build: {
+      write: false,
+      rollupOptions: { input: path.join(root, "entry.js") }
+    }
+  });
+  const chunks = result.output.filter((output) => output.type === "chunk");
+  const registryChunks = chunks.filter((chunk) =>
+    Object.keys(chunk.modules).some((id) => id.includes("\0virtual:linguini/locale-registry"))
+  );
+  assert.equal(registryChunks.length, 1);
+  const registry = registryChunks[0];
+  assert.ok(Object.keys(registry.modules).some((id) => id.includes("\0virtual:linguini/message/")));
+  assert.equal(
+    chunks.filter((chunk) =>
+      Object.keys(chunk.modules).some((id) => id.includes("\0virtual:linguini/locale/"))
+    ).length,
+    2
+  );
+  assert.match(chunks.map((chunk) => chunk.code).join("\n"), /EN_TITLE|FR_TITLE/);
+  assert.match(chunks.map((chunk) => chunk.code).join("\n"), /EN_ITEMS|FR_ITEMS/);
+});

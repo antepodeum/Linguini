@@ -28,6 +28,10 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function countMatches(source, pattern) {
+  return [...source.matchAll(pattern)].length;
+}
+
 assert.equal(statSync(buildRoot).isDirectory(), true, 'site/build is missing; run pnpm build:generated first');
 
 const outputFiles = filesUnder(buildRoot);
@@ -135,6 +139,7 @@ const helperBodyPattern =
 for (const message of Object.values(generatedManifest.messages)) {
   for (const entry of Object.values(message.locales)) {
     const moduleId = `src/lib/generated/linguini/${entry.module}`;
+    localeModuleIds.add(moduleId);
     const source = readFileSync(join(siteRoot, moduleId), 'utf8');
     assert.doesNotMatch(source, helperBodyPattern, `${moduleId} contains an inline helper body`);
     for (const binding of semanticBindings) {
@@ -264,10 +269,46 @@ assert.ok(
 const clientText = clientJavaScriptFiles
   .map((file) => readFileSync(file, 'utf8'))
   .join('\n');
+const registryJavaScriptFiles = clientJavaScriptFiles.filter((file) =>
+  readFileSync(file, 'utf8').includes('does not export messages')
+);
+assert.equal(
+  registryJavaScriptFiles.length,
+  1,
+  'client graph must contain exactly one shared locale registry module'
+);
+assert.equal(
+  countMatches(clientText, /does not export messages/g),
+  1,
+  'shared locale registry must validate locale payloads exactly once'
+);
 // The client must not pull the eager generated index/provider into the initial
 // graph. The SSR route is checked separately below.
 assert.doesNotMatch(clientText, /createLinguiniProvider|localeLoaders/);
+assert.doesNotMatch(clientText, /not prepared/);
+assert.doesNotMatch(clientText, /does not export message\b/);
+assert.doesNotMatch(clientText, /__linguini_loaders/);
 assert.match(clientText, /import\(/);
+
+const initialRouteText = readFileSync(join(clientOutputRoot, initialEntry.file), 'utf8');
+const dynamicImportTargets = [
+  ...initialRouteText.matchAll(/import\((["'`])([^"'`]+)\1\)/g)
+].map((match) => match[2].split('/').pop());
+assert.equal(
+  dynamicImportTargets.length,
+  effectiveLocales.size,
+  `initial route must contain exactly one literal dynamic import per locale (${effectiveLocales.size})`
+);
+for (const moduleId of virtualLocaleModuleIds) {
+  const chunkFile = join(clientOutputRoot, clientManifest[moduleId].file);
+  const chunkText = readFileSync(chunkFile, 'utf8');
+  assert.match(chunkText, /\bas messages\b/, `locale chunk ${moduleId} has no messages export`);
+  assert.equal(
+    dynamicImportTargets.filter((target) => target === clientManifest[moduleId].file.split('/').pop()).length,
+    1,
+    `initial route must import locale chunk ${moduleId} exactly once`
+  );
+}
 
 const serverManifest = readJson(
   join(serverOutputRoot, '.vite/manifest.json'),

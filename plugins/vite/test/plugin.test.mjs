@@ -41,7 +41,8 @@ async function dynamicLocaleFixture({
   manifestLocaleLoading = configLocaleLoading,
   initialLocale = "en",
   messageArity = 0,
-  valueModules = false
+  valueModules = false,
+  sparseInitialLocale = false
 } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-locale-"));
   const generated = path.join(root, "build/custom-linguini");
@@ -82,19 +83,15 @@ async function dynamicLocaleFixture({
   );
   await writeFile(
     path.join(generated, "bundler/messages/main/title/en.js"),
-    valueModules
-      ? 'export const message = "EN";\n'
-      : messageArity > 0
-        ? 'export function message(value) { return `EN:${value}`; }\n'
-        : 'export function message() { return "EN"; }\n'
+    messageArity > 0
+      ? 'export function message(value) { return `EN:${value}`; }\n'
+      : 'export const message = "EN";\n'
   );
   await writeFile(
     path.join(generated, "bundler/messages/main/title/fr.js"),
-    valueModules
-      ? 'export const message = "FR";\n'
-      : messageArity > 0
-        ? 'export function message(value) { return `FR:${value}`; }\n'
-        : 'export function message() { return "FR"; }\n'
+    messageArity > 0
+      ? 'export function message(value) { return `FR:${value}`; }\n'
+      : 'export const message = "FR";\n'
   );
   const manifest = {
     version: 1,
@@ -131,6 +128,9 @@ async function dynamicLocaleFixture({
     message_semantics: [],
     applications: {}
   };
+  if (sparseInitialLocale && initialLocale !== "en") {
+    delete manifest.messages["main.title"].locales[initialLocale];
+  }
   for (const locale of ["en", "fr"]) {
     await mkdir(path.join(generated, `locales/${locale}`), { recursive: true });
     await writeFile(path.join(generated, `locales/${locale}/_runtime.js`), "export {};\n");
@@ -155,6 +155,18 @@ async function materializeLocaleModules(plugin, data, locales = ["en", "fr"]) {
     replacements.set(publicId, file);
   }
   return replacements;
+}
+
+async function materializeLocaleRegistryModule(plugin, data) {
+  const publicId = "virtual:linguini/locale-registry";
+  const resolvedId = await plugin.resolveId(publicId);
+  const source = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    resolvedId
+  );
+  const file = path.join(data.root, "locale-registry.mjs");
+  await writeFile(file, source);
+  return { publicId, file, source };
 }
 
 function byteSpan(source, needle) {
@@ -774,11 +786,18 @@ test("locale-loading policy validates config parity and preserves eager/SSR boun
     { environment: { config: { consumer: "client" } } },
     virtualId
   );
-  assert.match(dynamicClient, /registerLocaleLoader/);
-  assert.match(dynamicClient, /import\("virtual:linguini\/locale\/656e"\)/);
-  assert.match(dynamicClient, /import\("virtual:linguini\/locale\/6672"\)/);
-  assert.match(dynamicClient, /await __linguini_load\(__linguini_initial_locale\)/);
-  assert.doesNotMatch(dynamicClient, /import\.meta\.hot\.accept/);
+  assert.match(dynamicClient, /getLocaleMessage/);
+  assert.doesNotMatch(dynamicClient, /registerLocaleLoader|import\("virtual:linguini\/locale\//);
+  assert.doesNotMatch(dynamicClient, /__linguini_base_locale|not prepared/);
+  const dynamicRegistry = dynamicPlugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    await dynamicPlugin.resolveId("virtual:linguini/locale-registry")
+  );
+  assert.match(dynamicRegistry, /registerLocaleLoader/);
+  assert.match(dynamicRegistry, /import\("virtual:linguini\/locale\/656e"\)/);
+  assert.match(dynamicRegistry, /import\("virtual:linguini\/locale\/6672"\)/);
+  assert.match(dynamicRegistry, /await __linguini_load\(__linguini_initial_locale\)/);
+  assert.doesNotMatch(dynamicRegistry, /import\.meta\.hot\.accept/);
 
   const dynamicSsr = dynamicPlugin.load.call(
     { environment: { config: { consumer: "server" } } },
@@ -798,7 +817,7 @@ test("locale-loading policy validates config parity and preserves eager/SSR boun
   );
   assert.doesNotMatch(
     eagerPlugin.load.call({ environment: { config: { consumer: "client" } } }, eagerId),
-    /registerLocaleLoader|import\(/
+    /getLocaleMessage|virtual:linguini\/locale-registry|import\(/
   );
 
   const configMismatch = await dynamicLocaleFixture({
@@ -839,12 +858,16 @@ test("dynamic wrappers support value messages and retain initial locale fallback
     { environment: { config: { consumer: "client" } } },
     virtualId
   );
-  assert.match(source, /__linguini_message_arity = 0/);
-  assert.match(source, /value === undefined/);
+  assert.match(source, /getLocaleMessage/);
+  assert.match(source, /return selected;/);
+  const registry = await materializeLocaleRegistryModule(plugin, data);
   const localeModules = await materializeLocaleModules(plugin, data);
+  let registrySource = registry.source;
   for (const [publicId, file] of localeModules) {
-    source = source.replaceAll(JSON.stringify(publicId), JSON.stringify(file));
+    registrySource = registrySource.replaceAll(JSON.stringify(publicId), JSON.stringify(file));
   }
+  await writeFile(registry.file, registrySource);
+  source = source.replaceAll(JSON.stringify(registry.publicId), JSON.stringify(registry.file));
   const moduleFile = path.join(data.root, "value-message.mjs");
   await writeFile(moduleFile, source);
   const runtime = await import(`${pathToFileURL(moduleFile).href}?value-test`);
@@ -856,6 +879,46 @@ test("dynamic wrappers support value messages and retain initial locale fallback
   assert.equal(runtime.message(), "EN");
   helper.setCurrentLocale("de");
   assert.equal(runtime.message(), "FR");
+});
+
+test("shared locale registry loads base for sparse initial locale maps", async (context) => {
+  const data = await dynamicLocaleFixture({
+    configLocaleLoading: "dynamic",
+    manifestLocaleLoading: "dynamic",
+    initialLocale: "fr",
+    sparseInitialLocale: true,
+    valueModules: true
+  });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const virtualId = await plugin.resolveId(
+    "virtual:linguini/message/6d61696e2e7469746c65"
+  );
+  const source = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    virtualId
+  );
+  const registry = await materializeLocaleRegistryModule(plugin, data);
+  const localeModules = await materializeLocaleModules(plugin, data);
+  const registrySource = [...localeModules].reduce(
+    (current, [publicId, file]) => current.replaceAll(JSON.stringify(publicId), JSON.stringify(file)),
+    registry.source
+  );
+  await writeFile(registry.file, registrySource);
+  const localizedSource = source.replaceAll(
+    JSON.stringify(registry.publicId),
+    JSON.stringify(registry.file)
+  );
+  const moduleFile = path.join(data.root, "sparse-message.mjs");
+  await writeFile(moduleFile, localizedSource);
+  const runtime = await import(`${pathToFileURL(moduleFile).href}?sparse-test`);
+  const helper = await import(pathToFileURL(path.join(data.generated, "svelte-locale.js")).href);
+  assert.equal(runtime.message(), "EN");
+  helper.setCurrentLocale("fr");
+  await helper.prepareLocale("fr");
+  assert.equal(runtime.message(), "EN");
 });
 
 test("dynamic wrappers call parameterized message exports", async (context) => {
@@ -875,10 +938,16 @@ test("dynamic wrappers call parameterized message exports", async (context) => {
     { environment: { config: { consumer: "client" } } },
     virtualId
   );
+  const registry = await materializeLocaleRegistryModule(plugin, data);
   const localeModules = await materializeLocaleModules(plugin, data);
-  const localizedSource = [...localeModules].reduce(
+  const registrySource = [...localeModules].reduce(
     (current, [publicId, file]) => current.replaceAll(JSON.stringify(publicId), JSON.stringify(file)),
-    source
+    registry.source
+  );
+  await writeFile(registry.file, registrySource);
+  const localizedSource = source.replaceAll(
+    JSON.stringify(registry.publicId),
+    JSON.stringify(registry.file)
   );
   const moduleFile = path.join(data.root, "parameterized-message.mjs");
   await writeFile(moduleFile, localizedSource);
@@ -904,21 +973,25 @@ test("dynamic virtual modules switch locales, retry failures, and dispose on HMR
     { environment: { config: { consumer: "client" } } },
     virtualId
   );
+  const registry = await materializeLocaleRegistryModule(plugin, data);
   const localeModules = await materializeLocaleModules(plugin, data);
+  let registrySource = registry.source;
   for (const [publicId, file] of localeModules) {
-    source = source.replaceAll(JSON.stringify(publicId), JSON.stringify(file));
+    registrySource = registrySource.replaceAll(JSON.stringify(publicId), JSON.stringify(file));
   }
   const frImport = `() => import(${JSON.stringify(localeModules.get(frLocaleId))})`;
-  assert.ok(source.includes(frImport));
-  source = source.replace(
+  assert.ok(registrySource.includes(frImport));
+  registrySource = registrySource.replace(
     frImport,
-    '() => { if (globalThis.__linguiniFrAttempts++ === 0) throw new Error("transient locale failure"); return Promise.resolve({ messages: { "main.title": () => "FR" } }); }'
+    '() => { if (globalThis.__linguiniFrAttempts++ === 0) throw new Error("transient locale failure"); return Promise.resolve({ messages: { "main.title": "FR" } }); }'
   );
-  source = source.replace(
+  registrySource = registrySource.replace(
     "if (import.meta.hot) {",
     "if (globalThis.__linguiniHot) {"
   );
-  source = source.replaceAll("import.meta.hot", "globalThis.__linguiniHot");
+  registrySource = registrySource.replaceAll("import.meta.hot", "globalThis.__linguiniHot");
+  await writeFile(registry.file, registrySource);
+  source = source.replaceAll(JSON.stringify(registry.publicId), JSON.stringify(registry.file));
   const moduleFile = path.join(data.root, "dynamic-message.mjs");
   await writeFile(moduleFile, source);
   globalThis.__linguiniFrAttempts = 0;
@@ -1464,9 +1537,14 @@ test("accepts locale runtimes and dynamic locale loading", async (context) => {
     { environment: { config: { consumer: "client" } } },
     virtualId
   );
-  assert.match(source, /registerLocaleLoader/);
-  assert.match(source, /virtual:linguini\/locale\/656e/);
-  assert.match(source, /virtual:linguini\/locale\/6672/);
+  assert.match(source, /getLocaleMessage/);
+  const registry = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    await plugin.resolveId("virtual:linguini/locale-registry")
+  );
+  assert.match(registry, /registerLocaleLoader/);
+  assert.match(registry, /virtual:linguini\/locale\/656e/);
+  assert.match(registry, /virtual:linguini\/locale\/6672/);
   const localeId = await plugin.resolveId("virtual:linguini/locale/656e");
   const localeSource = plugin.load.call({}, localeId);
   assert.match(localeSource, /title\/en\.js/);
@@ -1520,8 +1598,13 @@ test("accepts semantic descriptors with dynamic locale loading", async (context)
     { environment: { config: { consumer: "client" } } },
     "\0virtual:linguini/message/6d61696e2e7469746c65"
   );
-  assert.match(source, /registerLocaleLoader/);
-  assert.match(source, /virtual:linguini\/locale\/656e/);
+  assert.match(source, /getLocaleMessage/);
+  const registry = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    await plugin.resolveId("virtual:linguini/locale-registry")
+  );
+  assert.match(registry, /registerLocaleLoader/);
+  assert.match(registry, /virtual:linguini\/locale\/656e/);
   const localeSource = plugin.load.call(
     {},
     "\0virtual:linguini/locale/656e"
