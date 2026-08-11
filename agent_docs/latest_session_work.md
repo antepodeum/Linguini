@@ -35,5 +35,15 @@
 - Added `BUNDLE-A14`; refined #201 and BUNDLE-A10 with one-entry-per-locale evidence; marked
   WEB-A14 and P2-9 partial for browser negotiation parity while retaining their unfinished shared
   transition-plan scope.
+- Completed the shared locale transition plan in `5e81c9a`: validated config emits one generated
+  plan, browser mutation gates path/cookie/local-storage transports through it, and both SvelteKit
+  adapters gate server cookie persistence through the same plan.
+- Fixed source/declaration required-type parity in `193c83f` after the full site gate exposed five
+  optional-plan diagnostics. Runtime fallback plans now derive from custom source arrays while an
+  explicit generated plan remains authoritative.
+- Passed the final full 11-task root profile. Focused evidence includes 103 codegen tests, four web
+  template safety tests, 30 Bun runtime tests, 24 CLI integration tests, strict Clippy, zero Svelte
+  errors/warnings, site production build, and production graph assertions.
+- Closed WEB-A14 and P2-9 in the remediation checklist.
 - Next work starts from the first dependency-ready unfinished remediation package after the
-  bundler-native message API sequence.
+  shared locale transition plan.

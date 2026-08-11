@@ -146,6 +146,8 @@ production path uses the fix and its relevant tests pass.
   ESM modules, collapsed the unreleased bundler manifest to v1, and verified the real site graph.
 - `76059bc` — added positional-compatible named-object message overloads from one signature model,
   shared boundary normalization, exact generated types, and real-site type/runtime coverage.
+- `5e81c9a`, `193c83f` — lowered the validated locale-switch plan into generated TypeScript,
+  shared it across browser and both SvelteKit controls, and locked source/declaration typing parity.
 
 ## Numbered findings
 
@@ -670,9 +672,7 @@ production path uses the fix and its relevant tests pass.
 - [x] WEB-A11 — Validate deterministic route exclusions.
 - [-] WEB-A12 — Lower configuration into a closed `WebFeatures` set.
 - [ ] WEB-A13 — Generate only selected feature modules and no generic strategy loop.
-- [-] WEB-A14 — Compile one `LocaleSwitchPlan` for browser and server transports. Guarded browser
-      `navigator.languages` / `navigator.language` negotiation now matches server header selection
-      when no stronger source exists; one generated transport plan is still missing.
+- [x] WEB-A14 — Compile one `LocaleSwitchPlan` for browser and server transports.
 - [ ] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [ ] WEB-A16 — Generate a safe optional switch route with validated return targets.
 - [ ] WEB-A17 — Reject switch routes with no server-writable transition.
@@ -821,8 +821,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] P2-6 — Compile-time typed `l` namespace transform.
 - [x] P2-7 — Positional plus named-object overloads.
 - [-] P2-8 — Nested web config plus generated feature modules.
-- [-] P2-9 — One shared browser/server locale transition plan. Browser `Accept-Language`
-      negotiation now has guarded navigator parity; the shared transition plan remains incomplete.
+- [x] P2-9 — One shared browser/server locale transition plan.
 - [x] P2-10 — Safe streaming-compatible link localization.
 - [-] P2-11 — Fully incremental/cancellable namespace-aware LSP.
 - [-] P2-12 — Native npm/VSIX plus universal WASM distribution.

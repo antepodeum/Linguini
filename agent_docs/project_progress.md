@@ -83,5 +83,12 @@ cookie/path/local-storage behavior, SSR, or bundler-native locale chunks.
 - Bundler parameterless leaves now export raw values while standalone compilation preserves its
   callable compatibility contract. The full 11-task root profile passed; independent read-only
   verification found no defects in runtime initialization, chunk topology, SSR, or leaf shape.
+- `WEB-B0` through `WEB-B3` are complete in `5e81c9a` and `193c83f`. Validated config now lowers one
+  explicit locale-switch plan into generated TypeScript; browser controls gate path navigation,
+  cookie writes, and local-storage writes through it, while both SvelteKit adapters use the same
+  plan for server cookie persistence. Public runtime fallback plans derive from custom source order.
+- Codegen/runtime matrices cover default, explicit, path-only, cookie-only, local-storage-only, and
+  accept-language-only plans. Independent verification found and closed one fallback defect; the
+  final full root profile passed all 11 tasks, including zero Svelte errors and the production graph.
 - Next: resume the remaining remediation checklist from the first dependency-ready unfinished
-  work package after the bundler-native message API sequence.
+  work package after the shared locale transition plan.
