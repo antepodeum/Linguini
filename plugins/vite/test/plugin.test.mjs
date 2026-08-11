@@ -1182,7 +1182,7 @@ test("transforms Unicode Svelte source and loads exact virtual module", async (c
     fixtureData.application
   );
 
-  assert.match(result.code, /import \{ message as __linguini_message_0 \} from "virtual:linguini\/message\/6d61696e2e7469746c65"/);
+  assert.match(result.code, /import \{ message as __linguini_message_0 \} from "virtual:linguini\/message\/[0-9a-f]+\/6d61696e2e7469746c65"/);
   assert.match(result.code, /import \{ helper \}/);
   assert.doesNotMatch(result.code, /l as tr/);
   assert.match(result.code, /const привет = __linguini_message_0\(\)/);
@@ -1300,8 +1300,9 @@ test("transforms static and dynamic refs with finite frozen dispatches", async (
     data.application
   );
 
+  const scope = Buffer.from(data.applicationKey, "utf8").toString("hex");
   const encoded = (message) =>
-    `virtual:linguini/message/${Buffer.from(message, "utf8").toString("hex")}`;
+    `virtual:linguini/message/${scope}/${Buffer.from(message, "utf8").toString("hex")}`;
   for (const message of ["main.__proto__", "main.items", "main.title", "notice"]) {
     assert.equal(result.code.split(encoded(message)).length - 1, 1);
   }
@@ -1341,7 +1342,7 @@ test("transforms static and dynamic refs with finite frozen dispatches", async (
   assert.equal(result.map.sourcesContent[0], data.code);
 
   let runtime = result.code.replace(
-    /import \{ message as ([A-Za-z0-9_$]+) \} from "virtual:linguini\/message\/([0-9a-f]+)";\n/g,
+    /import \{ message as ([A-Za-z0-9_$]+) \} from "virtual:linguini\/message\/[0-9a-f]+\/([0-9a-f]+)";\n/g,
     (_match, alias, encodedMessage) => {
       const message = Buffer.from(encodedMessage, "hex").toString("utf8");
       if (message === "main.items") {
@@ -1454,7 +1455,8 @@ test("keeps deduped dynamic helpers inside Svelte script scope", async (context)
   assert.match(beforeClose, /^<script>import \{ message as __linguini_message_/);
   assert.match(beforeClose, /Object\.create\(null\)/);
   assert.doesNotMatch(afterClose, /virtual:linguini|__linguini_dispatch_/);
-  const titleId = `virtual:linguini/message/${Buffer.from("main.title").toString("hex")}`;
+  const scope = Buffer.from(data.applicationKey).toString("hex");
+  const titleId = `virtual:linguini/message/${scope}/${Buffer.from("main.title").toString("hex")}`;
   assert.equal(beforeClose.split(titleId).length - 1, 1);
 });
 
@@ -1839,6 +1841,81 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
   assert.match(instanceScript, /implicit\.main\.title/);
 });
 
+test("scopes dynamic Svelte facades and loader lifetime to one application", async (context) => {
+  const source = [
+    '<script context="module">',
+    'import { l as tr } from "../../build/custom-linguini/svelte.ts";',
+    "export const title = tr.main.title;",
+    "</script>",
+    ""
+  ].join("\n");
+  const data = await bundlerFixture({ applicationName: "module-only.svelte", source });
+  context.after(() => rm(data.root, { recursive: true, force: true }));
+  data.manifest.locale_loading = "dynamic";
+  await writeFile(
+    path.join(data.root, "linguini.toml"),
+    [
+      "[targets.ts]",
+      'out = "build/custom-linguini"',
+      "[targets.ts.bundler]",
+      'sources = ["src"]',
+      'locale_loading = "dynamic"',
+      ""
+    ].join("\n")
+  );
+  await writeFile(
+    path.join(data.generated, "svelte-locale.svelte.ts"),
+    [
+      'export function getCurrentLocale() { return "en"; }',
+      "export function registerLocaleLoader() { return () => {}; }",
+      ""
+    ].join("\n")
+  );
+  await writeFile(
+    path.join(data.generated, "bundler/manifest.json"),
+    JSON.stringify(data.manifest)
+  );
+  const plugin = linguini({ root: data.root, buildOnStart: false });
+  await plugin.configResolved({ root: data.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const result = await plugin.transform.call(
+    { resolve: async () => ({ id: path.join(data.generated, "svelte.ts") }) },
+    source,
+    data.application
+  );
+  const scope = Buffer.from(data.applicationKey.normalize("NFC"), "utf8").toString("hex");
+  const message = Buffer.from("main.title", "utf8").toString("hex");
+  assert.match(result.code, new RegExp(`virtual:linguini/message/${scope}/${message}`));
+  assert.match(result.code, /<script>\nimport \{ onDestroy as __linguini_on_destroy_/);
+  assert.match(result.code, new RegExp(`virtual:linguini/locale-registry/${scope}`));
+  assert.match(result.code, /__linguini_on_destroy_\d+\(__linguini_release_locale_loader_\d+\)/);
+
+  const registryId = `virtual:linguini/locale-registry/${scope}`;
+  const registry = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    await plugin.resolveId(registryId)
+  );
+  assert.match(registry, /export function acquireLocaleLoader\(\)/);
+  assert.match(registry, /__linguini_loader_references === 1/);
+  assert.match(registry, /__linguini_loader_references === 0/);
+  assert.match(registry, new RegExp(`virtual:linguini/locale/${scope}/656e`));
+
+  const localeId = `virtual:linguini/locale/${scope}/656e`;
+  const locale = plugin.load.call(
+    { environment: { config: { consumer: "client" } } },
+    await plugin.resolveId(localeId)
+  );
+  assert.match(locale, /main\.title/);
+  assert.match(locale, new RegExp(`linguini-scope=${scope}`));
+
+  const legacy = "virtual:linguini/message/6d61696e2e7469746c65";
+  assert.equal(await plugin.resolveId(legacy), `\0${legacy}`);
+  assert.doesNotMatch(
+    plugin.load.call({ environment: { config: { consumer: "server" } } }, `\0${legacy}`),
+    /locale-registry|acquireLocaleLoader|import\(/
+  );
+});
+
 test("missing manifests stay inactive and unknown versions fail", async (context) => {
   const missingRoot = await fixture();
   context.after(() => rm(missingRoot, { recursive: true, force: true }));
@@ -2161,12 +2238,19 @@ test("HMR fingerprints dynamic app contracts and message descriptors", async (co
   );
   const itemsVirtual = resolvedMessageId("main.items");
   const otherVirtual = resolvedMessageId("main.other");
+  const scope = Buffer.from(data.applicationKey, "utf8").toString("hex");
+  const scopedMessage = `\0virtual:linguini/message/${scope}/${Buffer.from("main.items").toString("hex")}`;
+  const scopedRegistry = `\0virtual:linguini/locale-registry/${scope}`;
+  const scopedLocale = `\0virtual:linguini/locale/${scope}/656e`;
   const harness = mockServer([
     { id: data.application },
     { id: itemsModule },
     { id: itemsVirtual },
     { id: otherModule },
-    { id: otherVirtual }
+    { id: otherVirtual },
+    { id: scopedMessage },
+    { id: scopedRegistry },
+    { id: scopedLocale }
   ]);
   const plugin = linguini({ root: data.root, buildOnStart: false });
   await plugin.configResolved({ root: data.root });
@@ -2189,7 +2273,10 @@ test("HMR fingerprints dynamic app contracts and message descriptors", async (co
     server: harness.server,
     timestamp: 70
   });
-  assert.deepEqual(harness.invalidated, [data.application]);
+  assert.deepEqual(
+    [...harness.invalidated].sort(),
+    [data.application, scopedLocale, scopedMessage, scopedRegistry].sort()
+  );
   assert.ok(!harness.invalidated.includes(otherVirtual));
 
   harness.invalidated.length = 0;
@@ -2202,7 +2289,10 @@ test("HMR fingerprints dynamic app contracts and message descriptors", async (co
     server: harness.server,
     timestamp: 71
   });
-  assert.deepEqual([...harness.invalidated].sort(), [itemsModule, itemsVirtual].sort());
+  assert.deepEqual(
+    [...harness.invalidated].sort(),
+    [itemsModule, itemsVirtual, scopedLocale, scopedMessage, scopedRegistry].sort()
+  );
   assert.ok(!harness.invalidated.includes(data.application));
 });
 

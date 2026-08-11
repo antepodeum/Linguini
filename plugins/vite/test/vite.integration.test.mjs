@@ -214,7 +214,11 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
   const itemsOwner = chunks.find((chunk) => Object.keys(chunk.modules).includes(itemsModule));
   assert.ok(titleOwner && !titleOwner.isEntry, "shared title message must own a shared chunk");
   assert.ok(itemsOwner?.isEntry, "route-only items message must stay with one entry");
-  assert.ok(Object.keys(titleOwner.modules).some((id) => id.includes("\0virtual:linguini/message/")));
+  assert.ok(
+    chunks.some((chunk) =>
+      Object.keys(chunk.modules).some((id) => id.includes("\0virtual:linguini/message/"))
+    )
+  );
 });
 
 test("real Vite build bundles finite dynamic refs without eager barrel", async (context) => {
@@ -650,4 +654,209 @@ test("real dynamic client graph shares one locale registry across message facade
   );
   assert.match(chunks.map((chunk) => chunk.code).join("\n"), /EN_TITLE|FR_TITLE/);
   assert.match(chunks.map((chunk) => chunk.code).join("\n"), /EN_ITEMS|FR_ITEMS/);
+});
+
+test("real two-app build emits self-contained application-scoped locale chunks", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-scoped-locales-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const generated = path.join(root, "generated/linguini");
+  await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
+  await mkdir(path.join(generated, "bundler/messages/main/items"), { recursive: true });
+  await mkdir(path.join(generated, "bundler/messages/main/unused"), { recursive: true });
+  await writeFile(
+    path.join(root, "linguini.toml"),
+    [
+      "[targets.ts]",
+      'out = "generated/linguini"',
+      'framework = "svelte"',
+      "[targets.ts.bundler]",
+      'sources = ["tiny.js", "large.js"]',
+      'locale_loading = "dynamic"',
+      ""
+    ].join("\n")
+  );
+  await writeFile(
+    path.join(generated, "svelte-locale.js"),
+    [
+      'export function getCurrentLocale() { return "en"; }',
+      "export function registerLocaleLoader() { return () => {}; }",
+      ""
+    ].join("\n")
+  );
+  await writeFile(path.join(generated, "svelte.ts"), "export const l = {};\n");
+  for (const locale of ["en", "fr"]) {
+    for (const message of ["title", "items", "unused"]) {
+      const marker = `${locale.toUpperCase()}_${message.toUpperCase()}`;
+      const arity = message === "items" ? "value" : "";
+      const body = arity
+        ? `export function message(value) { return ${JSON.stringify(marker + ":")} + value; }\n`
+        : `export function message() { return ${JSON.stringify(marker)}; }\n`;
+      await writeFile(
+        path.join(generated, `bundler/messages/main/${message}/${locale}.js`),
+        body
+      );
+    }
+  }
+  const sources = {
+    "tiny.js": [
+      'import { l } from "./generated/linguini/svelte.ts";',
+      "export const title = l.main.title;",
+      ""
+    ].join("\n"),
+    "large.js": [
+      'import { l } from "./generated/linguini/svelte.ts";',
+      "export const title = l.main.title;",
+      "export const items = l.main.items(2);",
+      ""
+    ].join("\n")
+  };
+  const applications = {};
+  for (const [relative, source] of Object.entries(sources)) {
+    await writeFile(path.join(root, relative), source);
+    const declaration = source.slice(0, source.indexOf("\n"));
+    const itemStart = Buffer.from(source).indexOf(Buffer.from("l"));
+    const bindingId = `${relative}:binding`;
+    const references = [];
+    for (const [needle, message, kind, arity] of [
+      ["l.main.title", "main.title", "value", 0],
+      ["l.main.items", "main.items", "call", 1]
+    ]) {
+      const start = Buffer.from(source).indexOf(Buffer.from(needle));
+      if (start < 0) continue;
+      references.push({
+        message,
+        start,
+        end: start + Buffer.byteLength(needle),
+        kind,
+        local: "l",
+        provenance: {
+          kind: "imported",
+          module_specifier: "./generated/linguini/svelte.ts",
+          symbol: "l"
+        },
+        arity,
+        binding_id: bindingId
+      });
+    }
+    applications[relative] = {
+      source_id: 2147483648 + Object.keys(applications).length,
+      sha256: createHash("sha256").update(Buffer.from(source)).digest("hex"),
+      byte_length: Buffer.byteLength(source),
+      unresolved: [],
+      analysis_dynamic_prefixes: [],
+      dynamic_references: [],
+      references,
+      imports: [
+        {
+          binding_id: bindingId,
+          module_specifier: "./generated/linguini/svelte.ts",
+          imported: "l",
+          local: "l",
+          declaration_start: 0,
+          declaration_end: Buffer.byteLength(declaration),
+          item_start: itemStart,
+          item_end: itemStart + 1,
+          removal_start: 0,
+          removal_end: Buffer.byteLength(declaration),
+          module_specifier_start: 0,
+          module_specifier_end: Buffer.byteLength(declaration),
+          imported_start: itemStart,
+          imported_end: itemStart + 1,
+          local_start: itemStart,
+          local_end: itemStart + 1,
+          analyzer_exact_uses_only: true,
+          analyzer_tracked_uses_only: true,
+          transformable: true
+        }
+      ]
+    };
+  }
+  const locales = (message) =>
+    Object.fromEntries(
+      ["en", "fr"].map((locale) => [
+        locale,
+        { module: `bundler/messages/main/${message}/${locale}.js`, source_ids: [] }
+      ])
+    );
+  await mkdir(path.join(generated, "bundler"), { recursive: true });
+  await writeFile(
+    path.join(generated, "bundler/manifest.json"),
+    JSON.stringify({
+      version: 1,
+      locale_loading: "dynamic",
+      base_locale: "en",
+      configured_locales: ["en", "fr"],
+      effective_locales: ["en", "fr"],
+      sources: [],
+      runtime_helpers: {
+        svelte_locale: { import: "./svelte-locale.js", file: "svelte-locale.js" }
+      },
+      message_runtimes: {
+        en: { module: "locales/en/_runtime.js", source_ids: [] },
+        fr: { module: "locales/fr/_runtime.js", source_ids: [] }
+      },
+      message_semantics: [],
+      messages: {
+        "main.title": { arity: 0, locales: locales("title") },
+        "main.items": { arity: 1, locales: locales("items") },
+        "main.unused": { arity: 0, locales: locales("unused") }
+      },
+      applications
+    })
+  );
+  for (const locale of ["en", "fr"]) {
+    await mkdir(path.join(generated, `locales/${locale}`), { recursive: true });
+    await writeFile(path.join(generated, `locales/${locale}/_runtime.js`), "export {};\n");
+  }
+
+  const result = await build({
+    root,
+    logLevel: "silent",
+    plugins: [linguini({ root, buildOnStart: false })],
+    build: {
+      write: false,
+      rollupOptions: {
+        input: { tiny: path.join(root, "tiny.js"), large: path.join(root, "large.js") }
+      }
+    }
+  });
+  const chunks = result.output.filter((output) => output.type === "chunk");
+  const scopes = Object.fromEntries(
+    ["tiny.js", "large.js"].map((relative) => [
+      relative,
+      Buffer.from(relative.normalize("NFC"), "utf8").toString("hex")
+    ])
+  );
+  const localeChunks = chunks.filter((chunk) =>
+    Object.keys(chunk.modules).some((id) => id.includes("\0virtual:linguini/locale/"))
+  );
+  assert.equal(localeChunks.length, 4);
+  for (const [relative, scope] of Object.entries(scopes)) {
+    const owned = localeChunks.filter((chunk) =>
+      Object.keys(chunk.modules).some((id) => id.includes(`/locale/${scope}/`))
+    );
+    assert.equal(owned.length, 2);
+    for (const chunk of owned) {
+      assert.equal(chunk.imports.length, 0, `${relative} locale payload must be self-contained`);
+      assert.match(chunk.code, /EN_TITLE|FR_TITLE/);
+      if (relative === "tiny.js") {
+        assert.doesNotMatch(chunk.code, /ITEMS|UNUSED/);
+        assert.equal(
+          Object.keys(chunk.modules).filter((id) => id.includes(`linguini-scope=${scope}`)).length,
+          1
+        );
+      } else {
+        assert.match(chunk.code, /ITEMS/);
+        assert.doesNotMatch(chunk.code, /UNUSED/);
+        assert.equal(
+          Object.keys(chunk.modules).filter((id) => id.includes(`linguini-scope=${scope}`)).length,
+          2
+        );
+      }
+    }
+    const entry = chunks.find((chunk) => chunk.isEntry && chunk.name === relative.slice(0, -3));
+    assert.ok(entry);
+    assert.ok(Object.keys(entry.modules).some((id) => id.includes(`/message/${scope}/`)));
+    assert.deepEqual(new Set(entry.dynamicImports), new Set(owned.map((chunk) => chunk.fileName)));
+  }
 });

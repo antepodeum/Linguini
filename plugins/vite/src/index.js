@@ -20,6 +20,8 @@ const VIRTUAL_LOCALE_PREFIX = "virtual:linguini/locale/";
 const RESOLVED_VIRTUAL_LOCALE_PREFIX = `\0${VIRTUAL_LOCALE_PREFIX}`;
 const VIRTUAL_LOCALE_REGISTRY_ID = "virtual:linguini/locale-registry";
 const RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID = `\0${VIRTUAL_LOCALE_REGISTRY_ID}`;
+const VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX = `${VIRTUAL_LOCALE_REGISTRY_ID}/`;
+const RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX = `\0${VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX}`;
 
 export function linguini(options = {}) {
   let viteConfig;
@@ -112,7 +114,8 @@ export function linguini(options = {}) {
       if (
         id.startsWith(RESOLVED_VIRTUAL_MESSAGE_PREFIX) ||
         id.startsWith(RESOLVED_VIRTUAL_LOCALE_PREFIX) ||
-        id === RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID
+        id === RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID ||
+        id.startsWith(RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX)
       ) {
         return true;
       }
@@ -149,8 +152,15 @@ export function linguini(options = {}) {
     if (delta.messages.size > 0 || delta.locales.size > 0) {
       virtualIds.add(RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID);
     }
+    const invalidateScopedVirtuals =
+      delta.messages.size > 0 ||
+      delta.locales.size > 0 ||
+      delta.applicationFiles.size > 0;
     return invalidateMatchingModules(server, timestamp, (id) => {
       if (virtualIds.has(id)) {
+        return true;
+      }
+      if (invalidateScopedVirtuals && isResolvedScopedVirtualId(id)) {
         return true;
       }
       const file = normalizeGraphFileId(id);
@@ -322,20 +332,25 @@ export function linguini(options = {}) {
       if (id === VIRTUAL_LOCALE_REGISTRY_ID) {
         return RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID;
       }
+      if (id.startsWith(VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX)) {
+        decodeScopeId(id.slice(VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX.length));
+        return `\0${id}`;
+      }
       if (id.startsWith(VIRTUAL_LOCALE_PREFIX)) {
-        decodeLocaleId(id.slice(VIRTUAL_LOCALE_PREFIX.length));
+        decodeScopedVirtualParts(id.slice(VIRTUAL_LOCALE_PREFIX.length), "locale");
         return `\0${id}`;
       }
       if (!id.startsWith(VIRTUAL_MESSAGE_PREFIX)) {
         return undefined;
       }
-      decodeMessageId(id.slice(VIRTUAL_MESSAGE_PREFIX.length));
+      decodeScopedVirtualParts(id.slice(VIRTUAL_MESSAGE_PREFIX.length), "message");
       return `\0${id}`;
     },
     load(id, options) {
       if (
         !id.startsWith(RESOLVED_VIRTUAL_MESSAGE_PREFIX) &&
         id !== RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID &&
+        !id.startsWith(RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX) &&
         !id.startsWith(RESOLVED_VIRTUAL_LOCALE_PREFIX)
       ) {
         return undefined;
@@ -344,20 +359,45 @@ export function linguini(options = {}) {
         throw new Error("Linguini bundler manifest v1 is required for virtual messages");
       }
       if (id.startsWith(RESOLVED_VIRTUAL_LOCALE_PREFIX)) {
-        const locale = decodeLocaleId(id.slice(RESOLVED_VIRTUAL_LOCALE_PREFIX.length));
-        return renderVirtualLocaleModule(bundlerManifest, locale);
+        const { scope, value: locale } = decodeScopedVirtualParts(
+          id.slice(RESOLVED_VIRTUAL_LOCALE_PREFIX.length),
+          "locale"
+        );
+        const application = scope ? applicationForScope(bundlerManifest, scope) : undefined;
+        return renderVirtualLocaleModule(bundlerManifest, locale, application, scope);
       }
       if (id === RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID) {
         return renderVirtualLocaleRegistryModule(bundlerManifest);
       }
-      const message = decodeMessageId(id.slice(RESOLVED_VIRTUAL_MESSAGE_PREFIX.length));
+      if (id.startsWith(RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX)) {
+        const scope = id.slice(RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX.length);
+        decodeScopeId(scope);
+        return renderVirtualLocaleRegistryModule(
+          bundlerManifest,
+          applicationForScope(bundlerManifest, scope),
+          scope
+        );
+      }
+      const { scope, value: message } = decodeScopedVirtualParts(
+        id.slice(RESOLVED_VIRTUAL_MESSAGE_PREFIX.length),
+        "message"
+      );
+      if (
+        scope &&
+        !applicationMessageNames(applicationForScope(bundlerManifest, scope)).includes(
+          message
+        )
+      ) {
+        throw new Error(`Linguini application scope ${scope} does not use message ${message}`);
+      }
       return renderVirtualMessageModule(
         bundlerManifest,
         message,
-        shouldUseDynamicLocaleLoading(this, options)
+        shouldUseDynamicLocaleLoading(this, options),
+        scope
       );
     },
-    async transform(code, id) {
+    async transform(code, id, transformOptions) {
       if (!bundlerManifest || !isRawApplicationModule(id)) {
         return undefined;
       }
@@ -372,7 +412,8 @@ export function linguini(options = {}) {
         id,
         application,
         bundlerManifest,
-        layout.generatedRoot
+        layout.generatedRoot,
+        shouldUseDynamicLocaleLoading(this, transformOptions)
       );
     }
   };
@@ -888,6 +929,7 @@ function validateManifest(raw, layout, manifestPath) {
   }
   const applicationsByFile = new Map();
   const applicationSourceIds = new Set();
+  const applicationScopes = new Set();
   for (const [relative, rawApplication] of Object.entries(raw.applications)) {
     const file = resolveProjectPath(layout.projectRoot, relative, `${context}.applications`);
     const application = validateApplication(
@@ -899,7 +941,12 @@ function validateManifest(raw, layout, manifestPath) {
     if (applicationSourceIds.has(rawApplication.source_id)) {
       throw new Error(`${context}.applications has duplicate source_id ${rawApplication.source_id}`);
     }
+    const scope = applicationScopeId(application);
+    if (applicationScopes.has(scope)) {
+      throw new Error(`${context}.applications has duplicate normalized path ${relative}`);
+    }
     applicationSourceIds.add(rawApplication.source_id);
+    applicationScopes.add(scope);
     applicationsByFile.set(file, application);
   }
   return Object.freeze({
@@ -1618,7 +1665,14 @@ function validateNestedSpans(binding, byteLength, field, strict = false) {
   }
 }
 
-async function transformApplication(code, id, application, manifest, generatedRoot) {
+async function transformApplication(
+  code,
+  id,
+  application,
+  manifest,
+  generatedRoot,
+  dynamicClient = false
+) {
   const bytes = Buffer.from(code, "utf8");
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (bytes.length !== application.byteLength || digest !== application.sha256) {
@@ -1748,6 +1802,7 @@ async function transformApplication(code, id, application, manifest, generatedRo
   }
 
   const magic = new MagicString(code);
+  const scopeId = applicationScopeId(application);
   const scopes = new Map();
   const bindingScopes = new Map();
   for (const operation of operations) {
@@ -1871,13 +1926,16 @@ async function transformApplication(code, id, application, manifest, generatedRo
     const imports = [...scope.imports]
       .map(
         ([message, alias]) =>
-          `import { message as ${alias} } from ${JSON.stringify(virtualMessageId(message))};\n`
+          `import { message as ${alias} } from ${JSON.stringify(virtualMessageId(message, scopeId))};\n`
       )
       .join("");
     const dispatches = [...scope.dispatches.values()]
       .map((dispatch) => renderDynamicDispatch(dispatch.alias, dispatch.entries))
       .join("");
     magic.prependLeft(insertion, `${imports}${dispatches}`);
+  }
+  if (dynamicClient && manifest.localeLoading === "dynamic") {
+    injectLocaleLoaderLifecycle(magic, code, application, scopeId, allocateAlias);
   }
   return {
     code: magic.toString(),
@@ -1922,6 +1980,55 @@ function applicationScope(code, insertion, sourceName) {
     openPattern.lastIndex = close + "</script>".length;
   }
   throw new Error(`Linguini import binding is outside a Svelte script in ${sourceName}`);
+}
+
+function injectLocaleLoaderLifecycle(magic, code, application, scope, allocateAlias) {
+  const registry = virtualLocaleRegistryId(scope);
+  let lifecycleAlias = 0;
+  const nextLifecycleAlias = () => lifecycleAlias++;
+  const acquire = allocateAlias("__linguini_acquire_locale_loader_", nextLifecycleAlias);
+  const release = allocateAlias("__linguini_release_locale_loader_", nextLifecycleAlias);
+  if (path.extname(application.relative).toLowerCase() !== ".svelte") {
+    magic.prepend(
+      `import { acquireLocaleLoader as ${acquire} } from ${JSON.stringify(registry)};\n` +
+        `const ${release} = ${acquire}();\n` +
+        `if (import.meta.hot) import.meta.hot.dispose(${release});\n`
+    );
+    return;
+  }
+  const onDestroy = allocateAlias("__linguini_on_destroy_", nextLifecycleAlias);
+  const lifecycle =
+    `import { onDestroy as ${onDestroy} } from "svelte";\n` +
+    `import { acquireLocaleLoader as ${acquire} } from ${JSON.stringify(registry)};\n` +
+    `const ${release} = ${acquire}();\n` +
+    `${onDestroy}(${release});\n`;
+  const instance = findSvelteInstanceScript(code);
+  if (instance) {
+    magic.prependLeft(instance.insertion, lifecycle);
+  } else {
+    magic.append(`\n<script>\n${lifecycle}</script>\n`);
+  }
+}
+
+function findSvelteInstanceScript(code) {
+  const pattern = /<script\b[^>]*>/gi;
+  let match;
+  while ((match = pattern.exec(code))) {
+    if (!isSvelteModuleScript(match[0])) {
+      return { insertion: pattern.lastIndex };
+    }
+    const close = code.indexOf("</script>", pattern.lastIndex);
+    if (close === -1) break;
+    pattern.lastIndex = close + "</script>".length;
+  }
+  return undefined;
+}
+
+function isSvelteModuleScript(openingTag) {
+  return (
+    /\bcontext\s*=\s*(["'])module\1/i.test(openingTag) ||
+    /<script\b[^>]*\bmodule(?:\s|>|=)/i.test(openingTag)
+  );
 }
 
 function importDeletions(code, bindings, byteToUtf16, sourceName) {
@@ -1974,13 +2081,13 @@ function shouldUseDynamicLocaleLoading(context, options) {
   return options?.ssr !== true;
 }
 
-function renderVirtualMessageModule(manifest, canonical, dynamicClient = false) {
+function renderVirtualMessageModule(manifest, canonical, dynamicClient = false, scope) {
   const message = manifest.messages.get(canonical);
   if (!message) {
     throw new Error(`unknown Linguini message ${canonical}`);
   }
   if (dynamicClient && manifest.localeLoading === "dynamic") {
-    return renderDynamicVirtualMessageModule(manifest, canonical, message);
+    return renderDynamicVirtualMessageModule(manifest, canonical, message, scope);
   }
   const imports = [
     `import { getCurrentLocale } from ${JSON.stringify(toVitePath(manifest.localeHelper.file))};`
@@ -2008,14 +2115,17 @@ function renderVirtualMessageModule(manifest, canonical, dynamicClient = false) 
   ].join("\n");
 }
 
-function renderVirtualLocaleModule(manifest, locale) {
+function renderVirtualLocaleModule(manifest, locale, application, scope) {
   if (!manifest.effectiveLocales.includes(locale)) {
     throw new Error(`unknown Linguini locale ${locale}`);
   }
   const imports = [];
   const entries = [];
   let index = 0;
-  for (const canonical of bundledMessageNames(manifest)) {
+  const messages = application
+    ? applicationMessageNames(application)
+    : bundledMessageNames(manifest);
+  for (const canonical of messages) {
     const message = manifest.messages.get(canonical);
     const entry = message.locales.get(locale);
     if (!entry) {
@@ -2023,7 +2133,9 @@ function renderVirtualLocaleModule(manifest, locale) {
     }
     const local = `__linguini_locale_message_${index}`;
     imports.push(
-      `import { message as ${local} } from ${JSON.stringify(toVitePath(entry.module))};`
+      `import { message as ${local} } from ${JSON.stringify(
+        scopedPhysicalModuleId(entry.module, scope)
+      )};`
     );
     entries.push(`[${JSON.stringify(canonical)}]: ${local}`);
     index += 1;
@@ -2052,7 +2164,26 @@ function bundledMessageNames(manifest) {
   return used.size > 0 ? [...used].sort(comparePaths) : [...manifest.messages.keys()];
 }
 
-function renderVirtualLocaleRegistryModule(manifest) {
+function applicationMessageNames(application) {
+  const used = new Set(application.references.map((reference) => reference.message));
+  for (const reference of application.dynamicReferences) {
+    for (const message of reference.messages) used.add(message.message);
+  }
+  return [...used].sort(comparePaths);
+}
+
+function isResolvedScopedVirtualId(id) {
+  if (id.startsWith(RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX)) return true;
+  for (const prefix of [
+    RESOLVED_VIRTUAL_MESSAGE_PREFIX,
+    RESOLVED_VIRTUAL_LOCALE_PREFIX
+  ]) {
+    if (id.startsWith(prefix) && id.slice(prefix.length).includes("/")) return true;
+  }
+  return false;
+}
+
+function renderVirtualLocaleRegistryModule(manifest, application, scope) {
   const imports = [
     `import { getCurrentLocale, registerLocaleLoader } from ${JSON.stringify(
       toVitePath(manifest.localeHelper.file)
@@ -2063,10 +2194,14 @@ function renderVirtualLocaleRegistryModule(manifest) {
   }
   const loaders = manifest.effectiveLocales.map(
     (locale) =>
-      `[${JSON.stringify(locale)}]: () => import(${JSON.stringify(virtualLocaleId(locale))})`
+      `[${JSON.stringify(locale)}]: () => import(${JSON.stringify(
+        virtualLocaleId(locale, scope)
+      )})`
   );
-  const requiredMessages = JSON.stringify(bundledMessageNames(manifest));
-  return [
+  const requiredMessages = JSON.stringify(
+    application ? applicationMessageNames(application) : bundledMessageNames(manifest)
+  );
+  const lines = [
     ...imports,
     `const __linguini_loaders = Object.freeze({ ${loaders.join(", ")} });`,
     `const __linguini_base_locale = ${JSON.stringify(manifest.baseLocale)};`,
@@ -2098,7 +2233,6 @@ function renderVirtualLocaleRegistryModule(manifest) {
     "  __linguini_pending.set(locale, task);",
     "  return task;",
     "}",
-    "const __linguini_dispose_loader = registerLocaleLoader(__linguini_load);",
     "const __linguini_initial_locale = getCurrentLocale();",
     "await __linguini_load(__linguini_initial_locale);",
     "__linguini_fallback_locale = __linguini_initial_locale;",
@@ -2110,24 +2244,58 @@ function renderVirtualLocaleRegistryModule(manifest) {
     "    __linguini_fallback_locale = __linguini_base_locale;",
     "  }",
     "}",
-    "if (import.meta.hot) {",
-    "  import.meta.hot.dispose(() => __linguini_dispose_loader());",
-    "}",
     "export function getLocaleMessage(locale, canonical) {",
     "  const selected = __linguini_prepared.get(locale)?.[canonical];",
     "  if (selected !== undefined) return selected;",
     "  const fallback = __linguini_prepared.get(__linguini_fallback_locale)?.[canonical];",
     "  if (fallback !== undefined) return fallback;",
     "  return __linguini_prepared.get(__linguini_base_locale)?.[canonical];",
-    "}",
-    ""
-  ].join("\n");
+    "}"
+  ];
+  if (scope) {
+    lines.push(
+      "let __linguini_loader_references = 0;",
+      "let __linguini_dispose_loader;",
+      "export function acquireLocaleLoader() {",
+      "  __linguini_loader_references += 1;",
+      "  if (__linguini_loader_references === 1) {",
+      "    __linguini_dispose_loader = registerLocaleLoader(__linguini_load);",
+      "  }",
+      "  let released = false;",
+      "  return () => {",
+      "    if (released) return;",
+      "    released = true;",
+      "    __linguini_loader_references -= 1;",
+      "    if (__linguini_loader_references === 0) {",
+      "      __linguini_dispose_loader?.();",
+      "      __linguini_dispose_loader = undefined;",
+      "    }",
+      "  };",
+      "}",
+      "if (import.meta.hot) {",
+      "  import.meta.hot.dispose(() => {",
+      "    __linguini_loader_references = 0;",
+      "    __linguini_dispose_loader?.();",
+      "    __linguini_dispose_loader = undefined;",
+      "  });",
+      "}"
+    );
+  } else {
+    lines.push(
+      "const __linguini_dispose_loader = registerLocaleLoader(__linguini_load);",
+      "if (import.meta.hot) {",
+      "  import.meta.hot.dispose(() => __linguini_dispose_loader());",
+      "}"
+    );
+  }
+  lines.push("");
+  return lines.join("\n");
 }
 
-function renderDynamicVirtualMessageModule(manifest, canonical, message) {
+function renderDynamicVirtualMessageModule(manifest, canonical, message, scope) {
   const imports = [
     `import { getCurrentLocale } from ${JSON.stringify(toVitePath(manifest.localeHelper.file))};`,
-    `import { getLocaleMessage } from ${JSON.stringify(VIRTUAL_LOCALE_REGISTRY_ID)};`
+    `import { getLocaleMessage } from ${JSON.stringify(virtualLocaleRegistryId(scope))};`
   ];
   return [
     ...imports,
@@ -2163,20 +2331,67 @@ function byteOffset(map, offset, sourceName) {
   return converted;
 }
 
-function virtualLocaleId(locale) {
-  return `${VIRTUAL_LOCALE_PREFIX}${Buffer.from(locale, "utf8").toString("hex")}`;
+function virtualLocaleId(locale, scope) {
+  const encoded = Buffer.from(locale, "utf8").toString("hex");
+  return `${VIRTUAL_LOCALE_PREFIX}${scope ? `${scope}/` : ""}${encoded}`;
 }
 
 function decodeLocaleId(encoded) {
   return decodeVirtualId(encoded, "locale");
 }
 
-function virtualMessageId(canonical) {
-  return `${VIRTUAL_MESSAGE_PREFIX}${Buffer.from(canonical, "utf8").toString("hex")}`;
+function virtualMessageId(canonical, scope) {
+  const encoded = Buffer.from(canonical, "utf8").toString("hex");
+  return `${VIRTUAL_MESSAGE_PREFIX}${scope ? `${scope}/` : ""}${encoded}`;
 }
 
 function decodeMessageId(encoded) {
   return decodeVirtualId(encoded, "message");
+}
+
+function applicationScopeId(application) {
+  return Buffer.from(application.relative.normalize("NFC"), "utf8").toString("hex");
+}
+
+function applicationForScope(manifest, scope) {
+  decodeScopeId(scope);
+  for (const application of manifest.applicationsByFile.values()) {
+    if (applicationScopeId(application) === scope) return application;
+  }
+  throw new Error(`unknown Linguini application scope ${scope}`);
+}
+
+function decodeScopeId(encoded) {
+  return decodeVirtualId(encoded, "application scope");
+}
+
+function decodeScopedVirtualParts(encoded, kind) {
+  const parts = encoded.split("/");
+  if (parts.length === 1) {
+    return {
+      scope: undefined,
+      value: kind === "locale" ? decodeLocaleId(parts[0]) : decodeMessageId(parts[0])
+    };
+  }
+  if (parts.length !== 2) {
+    throw new Error(`invalid Linguini virtual ${kind} id ${encoded}`);
+  }
+  decodeScopeId(parts[0]);
+  return {
+    scope: parts[0],
+    value: kind === "locale" ? decodeLocaleId(parts[1]) : decodeMessageId(parts[1])
+  };
+}
+
+function virtualLocaleRegistryId(scope) {
+  return scope
+    ? `${VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX}${scope}`
+    : VIRTUAL_LOCALE_REGISTRY_ID;
+}
+
+function scopedPhysicalModuleId(file, scope) {
+  const vitePath = toVitePath(file);
+  return scope ? `${vitePath}?linguini-scope=${scope}` : vitePath;
 }
 
 function decodeVirtualId(encoded, kind) {
