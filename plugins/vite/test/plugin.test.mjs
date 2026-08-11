@@ -1847,6 +1847,9 @@ test("scopes dynamic Svelte facades and loader lifetime to one application", asy
     'import { l as tr } from "../../build/custom-linguini/svelte.ts";',
     "export const title = tr.main.title;",
     "</script>",
+    '<script data-module="fixture">',
+    "export const marker = true;",
+    "</script>",
     ""
   ].join("\n");
   const data = await bundlerFixture({ applicationName: "module-only.svelte", source });
@@ -1886,7 +1889,11 @@ test("scopes dynamic Svelte facades and loader lifetime to one application", asy
   const scope = Buffer.from(data.applicationKey.normalize("NFC"), "utf8").toString("hex");
   const message = Buffer.from("main.title", "utf8").toString("hex");
   assert.match(result.code, new RegExp(`virtual:linguini/message/${scope}/${message}`));
-  assert.match(result.code, /<script>\nimport \{ onDestroy as __linguini_on_destroy_/);
+  assert.match(
+    result.code,
+    /<script data-module="fixture">import \{ onDestroy as __linguini_on_destroy_/
+  );
+  assert.equal(result.code.match(/<script\b/g)?.length, 2);
   assert.match(result.code, new RegExp(`virtual:linguini/locale-registry/${scope}`));
   assert.match(result.code, /__linguini_on_destroy_\d+\(__linguini_release_locale_loader_\d+\)/);
 

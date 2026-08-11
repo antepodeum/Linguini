@@ -2026,8 +2026,8 @@ function findSvelteInstanceScript(code) {
 
 function isSvelteModuleScript(openingTag) {
   return (
-    /\bcontext\s*=\s*(["'])module\1/i.test(openingTag) ||
-    /<script\b[^>]*\bmodule(?:\s|>|=)/i.test(openingTag)
+    /\scontext\s*=\s*(["'])module\1/i.test(openingTag) ||
+    /\smodule(?:\s|>|=)/i.test(openingTag)
   );
 }
 
