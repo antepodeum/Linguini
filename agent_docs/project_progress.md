@@ -1,40 +1,35 @@
-# Active deployment: Bundler-native message APIs
+# Active deployment: Shared locale transition plan
 
 ## Goal
 
-Keep physical message output exact and deduplicated, then resume the named-object call API without
-regressing positional calls, tree-shaking, locale splitting, source maps, or HMR.
+Lower the validated web `LocaleSwitchPlan` once and make generated browser and SvelteKit controls
+consume that shared contract without regressing locale initialization, preload-before-switch,
+cookie/path/local-storage behavior, SSR, or bundler-native locale chunks.
 
 ## Constraints
 
 - Heavy route; the main agent owns integration, Git state, checklist, and this status file.
-- Preserve the public standalone single-message compiler as a self-contained backend.
-- Make generated bundler modules import shared, locale-granular ESM runtime dependencies.
-- Keep imports exact enough for Vite/Rollup tree-shaking and dynamic locale boundaries.
-- Record shared runtime files in the manifest so source-driven HMR cannot serve stale helpers.
+- Treat the validated config model as the only source of transition capabilities.
+- Emit one deterministic transport plan instead of duplicating browser/server policy decisions.
+- Preserve dynamic-locale preparation before browser-visible locale changes.
+- Keep server-only, browser-only, and pathless configurations executable and explicit.
 
 ## Ordered work packages
 
-1. `HELPER-B0` — Map duplicated formatter/plural and semantic closure emission across standalone,
-   project, physical-module, manifest, and HMR boundaries.
-2. `HELPER-B1` — Generate one shared formatter/plural runtime per effective locale and make project
-   plus physical message modules import only required names.
-3. `HELPER-B2` — Record runtime modules in the bundler manifest and invalidate them through exact
-   source-driven Vite HMR transitions.
-4. `HELPER-B3` — Verify source maps, atomic replacement, direct codegen, CLI, Vite, real-site
-   development, production chunks, and a generated-source size regression.
-5. `HELPER-B4` — Move reusable variables, forms, and local functions behind shared semantic ESM
-   boundaries rather than copying their transitive implementations into each message.
+1. `WEB-B0` — Add an explicit generated `LocaleSwitchPlan` model and lower validated config into it.
+2. `WEB-B1` — Make browser and SvelteKit controls execute the same generated plan for navigation,
+   cookie persistence, local-storage persistence, and unsupported transport states.
+3. `WEB-B2` — Add codegen snapshots plus browser/server runtime matrices covering path, cookie,
+   local-storage, and accept-language source combinations.
+4. `WEB-B3` — Verify focused Rust/runtime/plugin/site gates, then reconcile WEB-A14 and P2-9.
 
 ## Acceptance and verification
 
-- Standalone single-message compilation remains deterministic and self-contained.
-- No physical bundler message contains formatter, date-coercion, numeric-parser, or plural helper
-  implementations; it imports only the names its dependency closure requires.
-- Each effective locale owns one shared helper runtime consumed by both project and physical output.
-- Locale source changes invalidate changed runtime modules and their consuming message graph.
-- Focused Rust/codegen/CLI/plugin tests, the real development server, root full/site profiles, and
-  generated/built graph size assertions pass; `git diff --check` remains clean.
+- Generated TypeScript contains one literal transition plan derived from validated config.
+- Browser and server controls do not independently infer allowed write transports.
+- `setLocale` writes/navigates only through enabled plan transports and retains locale preloading.
+- Browser startup and SvelteKit SSR resolve compatible initial locale state.
+- Focused codegen/runtime tests and root site/full profiles pass; `git diff --check` remains clean.
 
 ## Completed predecessor
 
