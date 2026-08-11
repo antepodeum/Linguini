@@ -89,6 +89,69 @@ const initializeCurrentLocale = (locale: unknown) => {
   }
 });
 
+test("effects initialization forwards navigator preferences to locale resolver", async () => {
+  const source = (await readTemplate("svelte-effects.runtime.ts"))
+    .replace(
+      "{{BROWSER_RUNTIME}}",
+      "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";",
+    )
+    .replace("{{OPTIONS}}", "{ localizeLinks: false, sources: [\"accept-language\"] }")
+    .replace(
+      'import * as locale from "./locale";',
+      'const locale = { locales: ["en", "fr"], baseLocale: "en" };',
+    )
+    .replace('import type { Locale } from "./locale";', 'type Locale = "en" | "fr";')
+    .replace(
+      'import { createWebLocaleI18n } from "./web";',
+      `const createWebLocaleI18n = (runtime: typeof locale, options: Record<string, unknown>) => ({
+        ...runtime,
+        options,
+        resolveLocaleSync(input: Record<string, unknown>) {
+          globalThis.__linguiniProbeInput = input;
+          const navigator = input.navigator as { languages?: unknown[] } | undefined;
+          return navigator?.languages?.includes("fr") ? "fr" : runtime.baseLocale;
+        },
+      });`,
+    )
+    .replace(
+      `import {
+  getCurrentLocale,
+  initializeCurrentLocale,
+} from "./svelte-locale.svelte.js";`,
+      `const getCurrentLocale = () => "en" as const;
+const initializeCurrentLocale = (locale: unknown) => {
+  globalThis.__linguiniProbeLocale = locale;
+};`,
+    );
+
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      location: { href: "https://app.example/" },
+      localStorage: undefined,
+      navigator: { languages: ["fr", "en"], language: "fr" },
+    },
+  });
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: { cookie: "" },
+  });
+
+  try {
+    await importTypeScript(source);
+    assert.deepEqual(globalThis.__linguiniProbeInput?.navigator, {
+      languages: ["fr", "en"],
+      language: "fr",
+    });
+    assert.equal(globalThis.__linguiniProbeLocale, "fr");
+  } finally {
+    delete globalThis.window;
+    delete globalThis.document;
+    delete globalThis.__linguiniProbeInput;
+    delete globalThis.__linguiniProbeLocale;
+  }
+});
+
 test("setLocale prepares before mutation and ignores persistence failures", async () => {
   const source = (await readTemplate("svelte-control.runtime.ts"))
     .replace("{{NAVIGATION_RUNTIME}}", "const browser = true;")

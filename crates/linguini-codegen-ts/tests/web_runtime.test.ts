@@ -294,6 +294,67 @@ test("Accept-Language uses standard Headers, quality weights, and wildcards", as
   );
 });
 
+test("Accept-Language uses browser navigator preferences when headers are absent", () => {
+  const web = createWeb({ sources: ["accept-language"] });
+
+  assert.equal(
+    web.resolveLocaleSync({
+      headers: new Headers({ "accept-language": "fr" }),
+      navigator: { languages: ["en"], language: "en" },
+    }),
+    "fr",
+  );
+  assert.equal(
+    web.resolveLocaleSync({
+      navigator: { languages: ["fr-CA", "en-US"], language: "en-US" },
+    }),
+    "fr",
+  );
+  assert.equal(
+    web.resolveLocaleSync({
+      navigator: { languages: ["de", "en-US"], language: "fr" },
+    }),
+    "en",
+  );
+  assert.equal(
+    web.resolveLocaleSync({ navigator: { languages: [], language: "fr" } }),
+    "fr",
+  );
+});
+
+test("browser Accept-Language keeps configured source precedence and tolerates malformed navigator", () => {
+  const cookieFirst = createWeb({ sources: ["cookie", "accept-language"] });
+  assert.equal(
+    cookieFirst.resolveLocaleSync({
+      cookie: "LINGUINI_LOCALE=fr",
+      navigator: { languages: ["en"], language: "en" },
+    }),
+    "fr",
+  );
+
+  const acceptLanguageFirst = createWeb({ sources: ["accept-language", "cookie"] });
+  assert.equal(
+    acceptLanguageFirst.resolveLocaleSync({
+      cookie: "LINGUINI_LOCALE=fr",
+      navigator: { languages: ["en"], language: "en" },
+    }),
+    "en",
+  );
+  assert.equal(acceptLanguageFirst.resolveLocaleSync({ navigator: undefined }), "en");
+  assert.equal(acceptLanguageFirst.resolveLocaleSync({ navigator: null }), "en");
+  assert.equal(
+    acceptLanguageFirst.resolveLocaleSync({
+      navigator: {
+        languages: "fr",
+        get language() {
+          throw new Error("navigator denied");
+        },
+      },
+    }),
+    "en",
+  );
+});
+
 test("malformed locale cookie encoding is ignored", () => {
   const web = createWeb({ sources: ["cookie"] });
 

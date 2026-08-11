@@ -386,11 +386,10 @@ function resolveLocaleSource<Locale extends string>(
       return undefined;
     }
   }
-  return resolveAcceptLanguage(
-    locales,
-    baseLocale,
-    readHeader(input.headers, "accept-language"),
-  );
+  const header = readHeader(input.headers, "accept-language");
+  return header !== undefined
+    ? resolveAcceptLanguage(locales, baseLocale, header)
+    : resolveNavigatorLanguage(locales, baseLocale, input.navigator);
 }
 
 type LanguagePreference = {
@@ -487,6 +486,42 @@ function resolveAcceptLanguage<Locale extends string>(
   }
 
   return best?.locale;
+}
+
+function resolveNavigatorLanguage<Locale extends string>(
+  locales: readonly Locale[],
+  baseLocale: Locale,
+  navigator: unknown,
+): Locale | undefined {
+  const preferences = readNavigatorLanguages(navigator);
+  return preferences.length === 0
+    ? undefined
+    : resolveAcceptLanguage(locales, baseLocale, preferences.join(","));
+}
+
+function readNavigatorLanguages(value: unknown): string[] {
+  if (!value || (typeof value !== "object" && typeof value !== "function")) return [];
+
+  const preferences: string[] = [];
+  try {
+    const languages = (value as { languages?: unknown }).languages;
+    if (Array.isArray(languages)) {
+      for (const language of languages) {
+        if (typeof language === "string") preferences.push(language);
+      }
+    }
+  } catch {
+    // Some browser capability proxies throw while reading navigator.languages.
+  }
+
+  try {
+    const language = (value as { language?: unknown }).language;
+    if (typeof language === "string") preferences.push(language);
+  } catch {
+    // Some browser capability proxies throw while reading navigator.language.
+  }
+
+  return preferences;
 }
 
 function languageRangeMatches(range: string, locale: string) {
