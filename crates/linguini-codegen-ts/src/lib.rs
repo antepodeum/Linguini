@@ -11,11 +11,11 @@ pub use module::{
     compile_typescript_bundler_semantic_module, compile_typescript_message_module,
     generate_typescript_project_files, CompiledTypeScriptMessageModule,
     CompiledTypeScriptSemanticModule, TypeScriptCodegenError, TypeScriptFramework,
-    TypeScriptGeneratedFile, TypeScriptLocaleModule, TypeScriptLocaleRuntimeArtifact,
-    TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptMessageArtifact,
-    TypeScriptOptions, TypeScriptProjectOptions, TypeScriptSemanticArtifact,
-    TypeScriptSemanticImport, TypeScriptSemanticSymbolKind, TypeScriptWebOptions,
-    ValidatedTypeScriptProject,
+    TypeScriptGeneratedFile, TypeScriptLinkMode, TypeScriptLocaleModule,
+    TypeScriptLocaleRuntimeArtifact, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
+    TypeScriptMessageArtifact, TypeScriptOptions, TypeScriptProjectOptions,
+    TypeScriptSemanticArtifact, TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
+    TypeScriptWebFeatures, TypeScriptWebOptions, ValidatedTypeScriptProject,
 };
 pub use plural::generate_plural_function;
 

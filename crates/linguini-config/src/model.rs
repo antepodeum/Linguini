@@ -128,6 +128,25 @@ pub struct WebConfig {
     pub locale_switch: LocaleSwitchPlan,
 }
 
+/// Closed, generated web policy lowered from a validated [`WebConfig`].
+///
+/// Code generators should consume this capability set instead of reaching into the
+/// individual configuration namespaces.  The source order is retained exactly as
+/// configured; capability fields are present only when their source was selected by
+/// validation.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WebFeatures {
+    pub locale_prefix: LocalePrefixMode,
+    pub canonical: CanonicalMode,
+    pub source_order: Vec<LocaleSource>,
+    pub cookie: Option<WebCookieConfig>,
+    pub local_storage: Option<WebLocalStorageConfig>,
+    pub links: LinkMode,
+    pub route_exclusions: Vec<String>,
+    pub switch_route: Option<WebSwitchRouteConfig>,
+    pub locale_switch: LocaleSwitchPlan,
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct WebRoutingConfig {
     pub locale_prefix: LocalePrefixMode,
@@ -298,6 +317,27 @@ impl LocaleSwitchPlan {
 
     pub fn has_server_transport(self) -> bool {
         self.writes_path || self.writes_cookie
+    }
+}
+
+impl WebConfig {
+    /// Lower the validated configuration into one closed capability set.
+    ///
+    /// Callers should perform [`LinguiniConfig::validate`] before consuming this
+    /// value.  The parser already does so, while this method remains deliberately
+    /// side-effect free for callers that construct configurations directly.
+    pub fn features(&self) -> WebFeatures {
+        WebFeatures {
+            locale_prefix: self.routing.locale_prefix,
+            canonical: self.routing.canonical,
+            source_order: self.locale.sources.clone(),
+            cookie: self.cookie.clone(),
+            local_storage: self.local_storage.clone(),
+            links: self.links.mode,
+            route_exclusions: self.routes.exclude.clone(),
+            switch_route: self.switch_route.clone(),
+            locale_switch: self.locale_switch,
+        }
     }
 }
 

@@ -1014,6 +1014,14 @@ mod tests {
                 LocaleSource::AcceptLanguage
             ]
         );
+        let features = config.web.features();
+        assert_eq!(features.source_order, config.web.locale.sources);
+        assert_eq!(features.locale_prefix, LocalePrefixMode::Always);
+        assert_eq!(features.canonical, CanonicalMode::Preserve);
+        assert_eq!(features.links, LinkMode::Manual);
+        assert!(features.cookie.is_some());
+        assert!(features.local_storage.is_some());
+        assert!(features.locale_switch.writes_path);
         let cookie = config.web.cookie.expect("cookie feature");
         assert_eq!(cookie.name, "SHOP_LOCALE");
         assert_eq!(cookie.path, CookiePath::Explicit("/shop".to_owned()));

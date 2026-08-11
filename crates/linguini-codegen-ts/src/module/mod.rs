@@ -115,7 +115,49 @@ pub struct TypeScriptWebOptions {
     pub redirect: bool,
     pub origin: Option<String>,
     pub exclude: Vec<String>,
-    pub localize_links: bool,
+    /// Link handling is a closed capability rather than an on/off flag.
+    pub link_mode: TypeScriptLinkMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TypeScriptLinkMode {
+    Transform,
+    #[default]
+    Runtime,
+    Manual,
+}
+
+/// Closed capability view used by the generated web modules.
+///
+/// `TypeScriptWebOptions` remains the public compatibility input (and carries
+/// serialization details), while this view is what source and browser emitters
+/// inspect.  In particular, source order is fixed at lowering time and no
+/// generated runtime needs to dispatch over an open-ended strategy enum.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptWebFeatures {
+    pub sources: Vec<TypeScriptLocaleSource>,
+    pub has_cookie: bool,
+    pub has_local_storage: bool,
+    pub has_path: bool,
+    pub has_accept_language: bool,
+    pub locale_switch: TypeScriptLocaleSwitchPlan,
+    pub link_mode: TypeScriptLinkMode,
+}
+
+impl TypeScriptWebOptions {
+    pub fn features(&self) -> TypeScriptWebFeatures {
+        TypeScriptWebFeatures {
+            sources: self.sources.clone(),
+            has_cookie: self.sources.contains(&TypeScriptLocaleSource::Cookie),
+            has_local_storage: self.sources.contains(&TypeScriptLocaleSource::LocalStorage),
+            has_path: self.sources.contains(&TypeScriptLocaleSource::Path),
+            has_accept_language: self
+                .sources
+                .contains(&TypeScriptLocaleSource::AcceptLanguage),
+            locale_switch: self.locale_switch,
+            link_mode: self.link_mode,
+        }
+    }
 }
 
 /// Generated browser transition capabilities lowered from the validated web config.
@@ -194,7 +236,7 @@ impl Default for TypeScriptWebOptions {
             redirect: true,
             origin: None,
             exclude: Vec::new(),
-            localize_links: true,
+            link_mode: TypeScriptLinkMode::Runtime,
         }
     }
 }
@@ -208,6 +250,14 @@ pub struct TypeScriptGeneratedFile {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeScriptCodegenError {
     EmptyLocaleSet,
+    DuplicateWebSource {
+        source: String,
+    },
+    WebLocaleSwitchPlanMismatch {
+        source: &'static str,
+        expected: bool,
+        actual: bool,
+    },
     DuplicateLocale {
         locale: String,
         conflicts_with: String,
@@ -313,6 +363,17 @@ impl fmt::Display for TypeScriptCodegenError {
             Self::EmptyLocaleSet => {
                 formatter.write_str("TypeScript project requires at least one locale")
             }
+            Self::DuplicateWebSource { source } => {
+                write!(formatter, "generated web features contain duplicate locale source `{source}`")
+            }
+            Self::WebLocaleSwitchPlanMismatch {
+                source,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "generated locale switch plan for source `{source}` is {actual}, expected {expected}"
+            ),
             Self::DuplicateLocale {
                 locale,
                 conflicts_with,
@@ -569,6 +630,9 @@ fn validate_project_inputs(
     locales: &[TypeScriptLocaleModule],
     options: &TypeScriptProjectOptions,
 ) -> Result<(), TypeScriptCodegenError> {
+    if let Some(web) = options.web.as_ref() {
+        validate_web_options(web)?;
+    }
     if locales.is_empty() {
         return Err(TypeScriptCodegenError::EmptyLocaleSet);
     }
@@ -625,6 +689,43 @@ fn validate_project_inputs(
 
     validate_namespace_output_paths(schema, locales, options)?;
 
+    Ok(())
+}
+
+fn validate_web_options(options: &TypeScriptWebOptions) -> Result<(), TypeScriptCodegenError> {
+    for (index, source) in options.sources.iter().enumerate() {
+        if options.sources[..index].contains(source) {
+            return Err(TypeScriptCodegenError::DuplicateWebSource {
+                source: source.as_str().to_owned(),
+            });
+        }
+    }
+
+    let expected = |source: TypeScriptLocaleSource| options.sources.contains(&source);
+    let checks = [
+        (
+            TypeScriptLocaleSource::Path,
+            options.locale_switch.writes_path,
+        ),
+        (
+            TypeScriptLocaleSource::Cookie,
+            options.locale_switch.writes_cookie,
+        ),
+        (
+            TypeScriptLocaleSource::LocalStorage,
+            options.locale_switch.writes_local_storage,
+        ),
+    ];
+    for (source, actual) in checks {
+        let expected = expected(source);
+        if actual != expected {
+            return Err(TypeScriptCodegenError::WebLocaleSwitchPlanMismatch {
+                source: source.as_str(),
+                expected,
+                actual,
+            });
+        }
+    }
     Ok(())
 }
 
@@ -873,13 +974,26 @@ pub fn generate_typescript_project_files(
         if let Some(web) = options.web.as_ref() {
             files.push(TypeScriptGeneratedFile {
                 path: "web.ts".to_owned(),
-                contents: project::generate_project_web_module(),
+                contents: project::generate_project_web_module_with_options(web),
             });
             if options.declaration {
                 files.push(TypeScriptGeneratedFile {
                     path: "web.d.ts".to_owned(),
                     contents: project::generate_project_web_declaration(),
                 });
+            }
+            for source in &web.sources {
+                let stem = source.as_str();
+                files.push(TypeScriptGeneratedFile {
+                    path: format!("web/{stem}.ts"),
+                    contents: project::generate_project_web_source_module(*source),
+                });
+                if options.declaration {
+                    files.push(TypeScriptGeneratedFile {
+                        path: format!("web/{stem}.d.ts"),
+                        contents: project::generate_project_web_source_declaration(*source),
+                    });
+                }
             }
             files.push(TypeScriptGeneratedFile {
                 path: "svelte-effects.svelte.ts".to_owned(),
@@ -893,7 +1007,9 @@ pub fn generate_typescript_project_files(
             }
             files.push(TypeScriptGeneratedFile {
                 path: "svelte-control.ts".to_owned(),
-                contents: project::generate_project_svelte_control_module(sveltekit),
+                contents: project::generate_project_svelte_control_module_with_options(
+                    sveltekit, web,
+                ),
             });
             if options.declaration {
                 files.push(TypeScriptGeneratedFile {

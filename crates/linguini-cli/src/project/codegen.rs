@@ -9,7 +9,7 @@ use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
     compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_semantic_module,
     generate_typescript_project_files, EcmaSource, TypeScriptFramework, TypeScriptGeneratedFile,
-    TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
+    TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
     TypeScriptProjectOptions, TypeScriptWebOptions, ValidatedTypeScriptProject,
 };
 use linguini_config::{
@@ -1079,12 +1079,11 @@ fn portable_relative_components(value: &str) -> Result<Vec<&str>, &'static str> 
 }
 
 fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
-    let cookie = config.web.cookie.as_ref();
-    let local_storage = config.web.local_storage.as_ref();
-    let sources = config
-        .web
-        .locale
-        .sources
+    let features = config.web.features();
+    let cookie = features.cookie.as_ref();
+    let local_storage = features.local_storage.as_ref();
+    let sources = features
+        .source_order
         .iter()
         .map(|source| match source {
             linguini_config::LocaleSource::Path => TypeScriptLocaleSource::Path,
@@ -1097,9 +1096,9 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
     TypeScriptWebOptions {
         sources,
         locale_switch: TypeScriptLocaleSwitchPlan {
-            writes_path: config.web.locale_switch.writes_path,
-            writes_cookie: config.web.locale_switch.writes_cookie,
-            writes_local_storage: config.web.locale_switch.writes_local_storage,
+            writes_path: features.locale_switch.writes_path,
+            writes_cookie: features.locale_switch.writes_cookie,
+            writes_local_storage: features.locale_switch.writes_local_storage,
         },
         cookie_name: cookie
             .map(|cookie| cookie.name.clone())
@@ -1124,12 +1123,16 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
         local_storage_key: local_storage
             .map(|storage| storage.key.clone())
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
-        prefix_default_locale: config.web.routing.locale_prefix == LocalePrefixMode::Always,
+        prefix_default_locale: features.locale_prefix == LocalePrefixMode::Always,
         base_path: String::new(),
-        redirect: config.web.routing.canonical == CanonicalMode::Redirect,
+        redirect: features.canonical == CanonicalMode::Redirect,
         origin: None,
-        exclude: config.web.routes.exclude.clone(),
-        localize_links: config.web.links.mode == LinkMode::Runtime,
+        exclude: features.route_exclusions,
+        link_mode: match features.links {
+            LinkMode::Transform => TypeScriptLinkMode::Transform,
+            LinkMode::Runtime => TypeScriptLinkMode::Runtime,
+            LinkMode::Manual => TypeScriptLinkMode::Manual,
+        },
     }
 }
 

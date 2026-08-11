@@ -10,7 +10,9 @@ use super::templates::{
     SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_LOCALE_CONTEXT_DECLARATIONS,
     SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS, SVELTE_LOCALE_RUNTIME,
     SVELTE_LOCALE_STANDALONE_DECLARATIONS, SVELTE_LOCALE_STANDALONE_RUNTIME, SVELTE_RUNTIME,
-    WEB_DECLARATIONS, WEB_RUNTIME,
+    WEB_ACCEPT_LANGUAGE_DECLARATIONS, WEB_ACCEPT_LANGUAGE_RUNTIME, WEB_COOKIE_DECLARATIONS,
+    WEB_COOKIE_RUNTIME, WEB_DECLARATIONS, WEB_LOCAL_STORAGE_DECLARATIONS,
+    WEB_LOCAL_STORAGE_RUNTIME, WEB_PATH_DECLARATIONS, WEB_PATH_RUNTIME, WEB_RUNTIME,
 };
 use super::{
     TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
@@ -203,13 +205,21 @@ pub fn generate_project_svelte_effects_module(
     } else {
         "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";"
     };
-    render_template(
+    let mut rendered = render_template(
         SVELTE_EFFECTS_RUNTIME,
         &[
             ("BROWSER_RUNTIME", browser_runtime.to_owned()),
             ("OPTIONS", web_options_literal(options)),
         ],
-    )
+    );
+    rendered = gate_browser_capability_reads(rendered, &options.features());
+    // Transform currently has no generated link-transform package. Keep the
+    // runtime observer as the compatibility fallback until that package lands;
+    // Manual is the only mode that deliberately disables link localization.
+    if options.features().link_mode == super::TypeScriptLinkMode::Manual {
+        rendered = strip_runtime_link_observer(rendered);
+    }
+    rendered
 }
 
 pub fn generate_project_svelte_effects_declaration() -> String {
@@ -230,7 +240,10 @@ fn render_project_svelte_web_module(_sveltekit: bool) -> String {
     SVELTE_RUNTIME.to_owned()
 }
 
-pub fn generate_project_svelte_control_module(sveltekit: bool) -> String {
+pub fn generate_project_svelte_control_module_with_options(
+    sveltekit: bool,
+    options: &TypeScriptWebOptions,
+) -> String {
     let (navigation_runtime, locale_runtime, navigation) = if sveltekit {
         (
             "import { browser } from \"$app/environment\";\nimport { goto } from \"$app/navigation\";",
@@ -244,14 +257,16 @@ pub fn generate_project_svelte_control_module(sveltekit: bool) -> String {
             "        const href = web.localizeHref(window.location.href, resolved);\n        if (options.replaceState) {\n          window.location.replace(href);\n        } else {\n          window.location.assign(href);\n        }",
         )
     };
-    render_template(
+    let mut rendered = render_template(
         SVELTE_CONTROL_RUNTIME,
         &[
             ("NAVIGATION_RUNTIME", navigation_runtime.to_owned()),
             ("LOCALE_RUNTIME", locale_runtime.to_owned()),
             ("NAVIGATION", navigation.to_owned()),
         ],
-    )
+    );
+    rendered = gate_browser_capability_writes(rendered, &options.features());
+    rendered
 }
 
 pub fn generate_project_svelte_declaration(web: bool, _sveltekit: bool) -> String {
@@ -299,8 +314,63 @@ pub fn generate_project_sveltekit_control_declaration() -> String {
     SVELTEKIT_CONTROL_DECLARATIONS.to_owned()
 }
 
-pub fn generate_project_web_module() -> String {
-    WEB_RUNTIME.to_owned()
+/// Render the project web runtime with a closed, statically selected source set.
+/// The source template intentionally keeps its compatibility resolver for the
+/// standalone runtime; generated projects import one physical module per
+/// selected source and call those functions in validated order.
+pub fn generate_project_web_module_with_options(options: &TypeScriptWebOptions) -> String {
+    let features = options.features();
+    let mut runtime = WEB_RUNTIME.to_owned();
+    let imports = web_source_imports(&features);
+    if !imports.is_empty() {
+        runtime = format!("{imports}\n{runtime}");
+    }
+
+    let start = runtime
+        .find("  function resolveLocaleSync(input: Record<string, unknown> = {}) {")
+        .expect("web runtime resolveLocaleSync template");
+    let end = runtime[start..]
+        .find("\n  function localizeUrl")
+        .map(|offset| start + offset)
+        .expect("web runtime locale resolver boundary");
+    let resolver = selected_locale_resolver(&features);
+    runtime.replace_range(start..end, &resolver);
+
+    // Source helpers are emitted by the selected modules. Keep the shared locale
+    // matching helpers in this runtime because URL localization uses them too.
+    if let Some(start) = runtime.find("\nfunction resolveLocaleSource<") {
+        let end = runtime[start..]
+            .find("\nfunction matchLocaleValue")
+            .map(|offset| start + offset)
+            .expect("web runtime source helper boundary");
+        runtime.replace_range(start..end, "\n");
+    }
+    if let Some(start) = runtime.find("\nfunction firstPathSegment(") {
+        let end = runtime[start..]
+            .find("\nfunction stripLeadingLocale")
+            .map(|offset| start + offset)
+            .expect("web runtime path helper boundary");
+        runtime.replace_range(start..end, "\n");
+    }
+    runtime
+}
+
+pub fn generate_project_web_source_module(source: TypeScriptLocaleSource) -> String {
+    match source {
+        TypeScriptLocaleSource::Path => WEB_PATH_RUNTIME.to_owned(),
+        TypeScriptLocaleSource::Cookie => WEB_COOKIE_RUNTIME.to_owned(),
+        TypeScriptLocaleSource::LocalStorage => WEB_LOCAL_STORAGE_RUNTIME.to_owned(),
+        TypeScriptLocaleSource::AcceptLanguage => WEB_ACCEPT_LANGUAGE_RUNTIME.to_owned(),
+    }
+}
+
+pub fn generate_project_web_source_declaration(source: TypeScriptLocaleSource) -> String {
+    match source {
+        TypeScriptLocaleSource::Path => WEB_PATH_DECLARATIONS.to_owned(),
+        TypeScriptLocaleSource::Cookie => WEB_COOKIE_DECLARATIONS.to_owned(),
+        TypeScriptLocaleSource::LocalStorage => WEB_LOCAL_STORAGE_DECLARATIONS.to_owned(),
+        TypeScriptLocaleSource::AcceptLanguage => WEB_ACCEPT_LANGUAGE_DECLARATIONS.to_owned(),
+    }
 }
 
 pub fn generate_project_web_declaration() -> String {
@@ -424,25 +494,13 @@ fn base_locale_literal(locales: &[TypeScriptLocaleModule], base_locale: Option<&
 }
 
 fn web_options_literal(options: &TypeScriptWebOptions) -> String {
+    let features = options.features();
     let sources = js_locale_source_array(&options.sources);
     let locale_switch = locale_switch_literal(options.locale_switch);
     let exclude = js_string_array(&options.exclude);
     let mut fields = vec![
         format!("sources: [{sources}] as const"),
         format!("localeSwitch: {locale_switch}"),
-        format!("cookieName: \"{}\"", escape_string(&options.cookie_name)),
-        format!("cookiePath: \"{}\"", escape_string(&options.cookie_path)),
-        format!("cookieMaxAge: {}", options.cookie_max_age),
-        format!(
-            "cookieSameSite: \"{}\"",
-            escape_string(&options.cookie_same_site)
-        ),
-        format!("cookieSecure: {}", js_bool(options.cookie_secure)),
-        format!("cookieHttpOnly: {}", js_bool(options.cookie_http_only)),
-        format!(
-            "localStorageKey: \"{}\"",
-            escape_string(&options.local_storage_key)
-        ),
         format!(
             "prefixDefaultLocale: {}",
             js_bool(options.prefix_default_locale)
@@ -450,13 +508,35 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
         format!("basePath: \"{}\"", escape_string(&options.base_path)),
         format!("redirect: {}", js_bool(options.redirect)),
         format!("exclude: [{exclude}] as const"),
-        format!("localizeLinks: {}", js_bool(options.localize_links)),
+        format!(
+            "localizeLinks: {}",
+            js_bool(features.link_mode != super::TypeScriptLinkMode::Manual)
+        ),
     ];
 
-    if let Some(cookie_domain) = &options.cookie_domain {
+    if features.has_cookie {
+        fields.extend([
+            format!("cookieName: \"{}\"", escape_string(&options.cookie_name)),
+            format!("cookiePath: \"{}\"", escape_string(&options.cookie_path)),
+            format!("cookieMaxAge: {}", options.cookie_max_age),
+            format!(
+                "cookieSameSite: \"{}\"",
+                escape_string(&options.cookie_same_site)
+            ),
+            format!("cookieSecure: {}", js_bool(options.cookie_secure)),
+            format!("cookieHttpOnly: {}", js_bool(options.cookie_http_only)),
+        ]);
+        if let Some(cookie_domain) = &options.cookie_domain {
+            fields.push(format!(
+                "cookieDomain: \"{}\"",
+                escape_string(cookie_domain)
+            ));
+        }
+    }
+    if features.has_local_storage {
         fields.push(format!(
-            "cookieDomain: \"{}\"",
-            escape_string(cookie_domain)
+            "localStorageKey: \"{}\"",
+            escape_string(&options.local_storage_key)
         ));
     }
     if let Some(origin) = &options.origin {
@@ -501,4 +581,148 @@ fn js_bool(value: bool) -> &'static str {
 
 fn locale_direction(locale: &str) -> &'static str {
     built_in_text_direction(locale).unwrap_or("ltr")
+}
+
+fn selected_locale_resolver(features: &super::TypeScriptWebFeatures) -> String {
+    let mut body =
+        String::from("  function resolveLocaleSync(input: Record<string, unknown> = {}) {\n");
+    for (index, source) in features.sources.iter().enumerate() {
+        let binding = format!("resolved_{index}");
+        let statement = match source {
+            TypeScriptLocaleSource::Path => {
+                format!(
+                    "    const {binding} = resolvePathLocale(input, normalized, runtime.locales);\n"
+                )
+            }
+            TypeScriptLocaleSource::Cookie => {
+                format!(
+                    "    const {binding} = resolveCookieLocale(input, normalized, matchLocale);\n"
+                )
+            }
+            TypeScriptLocaleSource::LocalStorage => {
+                format!(
+                    "    const {binding} = resolveLocalStorageLocale(input, normalized, matchLocale);\n"
+                )
+            }
+            TypeScriptLocaleSource::AcceptLanguage => {
+                format!(
+                    "    const {binding} = resolveAcceptLanguageLocale(input, runtime.locales, runtime.baseLocale, matchLocale);\n"
+                )
+            }
+        };
+        body.push_str(&statement);
+        body.push_str(&format!("    if ({binding}) return {binding};\n"));
+    }
+    body.push_str("    return runtime.baseLocale;\n  }\n");
+    body
+}
+
+fn web_source_imports(features: &super::TypeScriptWebFeatures) -> String {
+    features
+        .sources
+        .iter()
+        .map(|source| {
+            let (name, path) = match source {
+                TypeScriptLocaleSource::Path => ("resolvePathLocale", "path"),
+                TypeScriptLocaleSource::Cookie => ("resolveCookieLocale", "cookie"),
+                TypeScriptLocaleSource::LocalStorage => {
+                    ("resolveLocalStorageLocale", "local-storage")
+                }
+                TypeScriptLocaleSource::AcceptLanguage => {
+                    ("resolveAcceptLanguageLocale", "accept-language")
+                }
+            };
+            format!("import {{ {name} }} from \"./web/{path}.js\";")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn gate_browser_capability_writes(
+    mut rendered: String,
+    features: &super::TypeScriptWebFeatures,
+) -> String {
+    if !features.has_path {
+        // Navigation is a path capability, not merely a persistence write.
+        // Remove the whole branch so pathless policies do not ship dead URL
+        // reads or framework navigation imports.
+        let branch_start =
+            rendered.find("      if (options.navigate && web.options.localeSwitch.writesPath) {");
+        let branch_end = rendered.find("\n      }\n      refreshLinguiniEffects();");
+        if let (Some(start), Some(end)) = (branch_start, branch_end) {
+            rendered.replace_range(start..end + "\n      }\n".len(), "");
+        }
+        rendered = rendered.replace("import { goto } from \"$app/navigation\";\n", "");
+        rendered = rendered.replace("  clearCurrentLocaleOverride,\n", "");
+    }
+    if !features.has_local_storage {
+        rendered = rendered.replace(
+            "      if (web.options.localeSwitch.writesLocalStorage) {\n        writeLocalStorage(web, resolved);\n      }\n",
+            "",
+        );
+        if let Some(start) = rendered.find("\nfunction writeLocalStorage(") {
+            let end = rendered[start..]
+                .find("\nfunction writeLocaleCookie(")
+                .unwrap_or(0);
+            if end > 0 {
+                rendered.replace_range(start..start + end, "\n");
+            }
+        }
+    }
+    if !features.has_cookie {
+        rendered = rendered.replace(
+            "      if (options.cookie && web.options.localeSwitch.writesCookie) {\n        writeLocaleCookie(web, resolved);\n      }\n",
+            "",
+        );
+        if let Some(start) = rendered.find("\nfunction writeLocaleCookie(") {
+            rendered.truncate(start);
+        }
+    }
+    rendered
+}
+
+fn gate_browser_capability_reads(
+    mut rendered: String,
+    features: &super::TypeScriptWebFeatures,
+) -> String {
+    let mut reads = Vec::new();
+    if features.has_path {
+        reads.push("    url: readBrowserCapability(() => window.location.href),");
+    }
+    if features.has_cookie {
+        reads.push("    cookie: readBrowserCapability(() => document.cookie),");
+    }
+    if features.has_local_storage {
+        reads.push("    localStorage: readBrowserCapability(() => window.localStorage),");
+    }
+    if features.has_accept_language {
+        reads.push("    navigator: readBrowserCapability(() => window.navigator),");
+    }
+    let replacement = format!(
+        "  return web.resolveLocaleSync({{\n{}\n  }});",
+        reads.join("\n")
+    );
+    if let Some(start) = rendered.find("  return web.resolveLocaleSync({\n") {
+        if let Some(end_offset) = rendered[start..].find("  });") {
+            let end = start + end_offset + "  });".len();
+            rendered.replace_range(start..end, &replacement);
+        }
+    }
+    rendered
+}
+
+fn strip_runtime_link_observer(mut rendered: String) -> String {
+    rendered = rendered.replace(
+        "const autoLinks = browser && web.options.localizeLinks !== false\n  ? startAutoLinkLocalization(getCurrentLocale)\n  : undefined;",
+        "const autoLinks: { refresh(): void; destroy(): void } | undefined = undefined;",
+    );
+    rendered = rendered.replace(
+        "const AUTO_LINK_MAX_PENDING_ROOTS = 128;\nconst AUTO_LINK_NODE_BUDGET = 256;\n\n",
+        "",
+    );
+    if let Some(start) = rendered.find("\nfunction startAutoLinkLocalization(") {
+        rendered.truncate(start);
+        rendered.push('\n');
+    }
+    rendered
 }

@@ -13,8 +13,9 @@ pub use model::{
     LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite, SecurePolicy,
     TargetsConfig, TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig,
     TypeScriptBundlerDynamicMode, TypeScriptBundlerLocaleLoading, TypeScriptTargetConfig,
-    UnusedMessagesConfig, WebConfig, WebCookieConfig, WebLinksConfig, WebLocalStorageConfig,
-    WebLocaleConfig, WebRoutesConfig, WebRoutingConfig, WebSwitchRouteConfig,
+    UnusedMessagesConfig, WebConfig, WebCookieConfig, WebFeatures, WebLinksConfig,
+    WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig, WebRoutingConfig,
+    WebSwitchRouteConfig,
 };
 pub use parser::parse_config;
 

@@ -1997,7 +1997,7 @@ fn project_codegen_emits_schema_namespace_objects() {
 #[test]
 fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     use crate::{
-        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSource,
+        TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptLocaleSource,
         TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
     };
     use linguini_ir::IrModule;
@@ -2034,7 +2034,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                 redirect: false,
                 origin: Some("https://example.com".to_owned()),
                 exclude: vec!["/api/**".to_owned()],
-                localize_links: false,
+                link_mode: TypeScriptLinkMode::Manual,
             }),
             ..project_options("en")
         },
@@ -2053,6 +2053,22 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(paths.contains(&"svelte-effects.svelte.ts"));
     assert!(paths.contains(&"svelte-effects.svelte.d.ts"));
     assert!(paths.contains(&"web.ts"));
+    assert!(paths.contains(&"web/path.ts"));
+    assert!(paths.contains(&"web/cookie.ts"));
+    assert!(paths.contains(&"web/accept-language.ts"));
+    assert!(!paths.contains(&"web/local-storage.ts"));
+    let web = files
+        .iter()
+        .find(|file| file.path == "web.ts")
+        .expect("web runtime");
+    assert!(!web
+        .contents
+        .contains("for (const source of normalized.sources)"));
+    assert!(!web.contents.contains("const resolved = resolve"));
+    assert!(web.contents.contains("resolvePathLocale"));
+    assert!(web.contents.contains("resolveCookieLocale"));
+    assert!(web.contents.contains("resolveAcceptLanguageLocale"));
+    assert!(!web.contents.contains("resolveLocalStorageLocale"));
     assert!(paths.contains(&"sveltekit-control.ts"));
     assert!(paths.contains(&"sveltekit-control.d.ts"));
     assert!(paths.contains(&"sveltekit.ts"));
@@ -2129,7 +2145,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(svelte_effects
         .contents
         .contains("initializeCurrentLocale(readInitialLocale())"));
-    assert!(svelte_effects
+    assert!(!svelte_effects
         .contents
         .contains("startAutoLinkLocalization(getCurrentLocale)"));
     assert!(svelte_effects
@@ -2148,7 +2164,6 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     for capability in [
         "readBrowserCapability(() => window.location.href)",
         "readBrowserCapability(() => document.cookie)",
-        "readBrowserCapability(() => window.localStorage)",
         "readBrowserCapability(() => window.navigator)",
     ] {
         assert!(svelte_effects.contents.contains(capability));
@@ -2156,6 +2171,11 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     for forbidden in ["./index", "./locales/", "./messages", "createLinguini"] {
         assert!(!svelte_effects.contents.contains(forbidden));
     }
+    assert!(!svelte_effects.contents.contains("MutationObserver"));
+    assert!(svelte_effects
+        .contents
+        .contains("const autoLinks: { refresh(): void; destroy(): void } | undefined = undefined"));
+    assert!(!svelte_effects.contents.contains("window.localStorage"));
     let svelte_effects_declaration = files
         .iter()
         .find(|file| file.path == "svelte-effects.svelte.d.ts")
@@ -2283,6 +2303,253 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
 }
 
 #[test]
+fn project_codegen_emits_only_selected_web_source_and_browser_capabilities() {
+    use crate::{
+        TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptLocaleSource,
+        TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let web_options = TypeScriptWebOptions {
+        sources: vec![TypeScriptLocaleSource::LocalStorage],
+        locale_switch: TypeScriptLocaleSwitchPlan {
+            writes_path: false,
+            writes_cookie: false,
+            writes_local_storage: true,
+        },
+        link_mode: TypeScriptLinkMode::Transform,
+        ..TypeScriptWebOptions::default()
+    };
+    let features = web_options.features();
+    assert!(features.has_local_storage);
+    assert!(!features.has_path);
+    assert!(!features.has_cookie);
+    assert!(!features.has_accept_language);
+    assert_eq!(features.link_mode, TypeScriptLinkMode::Transform);
+    let files = generate_project_files(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &TypeScriptProjectOptions {
+            framework: Some(TypeScriptFramework::Svelte),
+            web: Some(web_options),
+            ..project_options("en")
+        },
+    )
+    .expect("project codegen");
+
+    let paths = files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&"web/local-storage.ts"));
+    assert!(!paths.contains(&"web/path.ts"));
+    assert!(!paths.contains(&"web/cookie.ts"));
+    assert!(!paths.contains(&"web/accept-language.ts"));
+
+    let web = files
+        .iter()
+        .find(|file| file.path == "web.ts")
+        .expect("web runtime");
+    assert!(web.contents.contains("resolveLocalStorageLocale"));
+    assert!(!web.contents.contains("resolvePathLocale"));
+    assert!(!web.contents.contains("resolveCookieLocale"));
+    assert!(!web.contents.contains("resolveAcceptLanguageLocale"));
+    assert!(!web.contents.contains("const resolved = resolve"));
+
+    let effects = files
+        .iter()
+        .find(|file| file.path == "svelte-effects.svelte.ts")
+        .expect("effects runtime");
+    assert!(effects
+        .contents
+        .contains("readBrowserCapability(() => window.localStorage)"));
+    assert!(!effects
+        .contents
+        .contains("url: readBrowserCapability(() => window.location.href)"));
+    assert!(!effects
+        .contents
+        .contains("cookie: readBrowserCapability(() => document.cookie)"));
+    assert!(!effects
+        .contents
+        .contains("navigator: readBrowserCapability(() => window.navigator)"));
+    // Transform has no generated link-transform package yet, so it retains
+    // the runtime observer as its compatibility fallback. Manual is the
+    // explicit mode that disables runtime link localization.
+    assert!(effects.contents.contains("localizeLinks: true"));
+    assert!(effects.contents.contains("MutationObserver"));
+
+    let control = files
+        .iter()
+        .find(|file| file.path == "svelte-control.ts")
+        .expect("control runtime");
+    assert!(!control
+        .contents
+        .contains("web.options.localeSwitch.writesPath"));
+    assert!(!control.contents.contains("window.location.href"));
+}
+
+#[test]
+fn project_codegen_allows_closed_web_features_without_sources() {
+    use crate::{
+        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSwitchPlan,
+        TypeScriptProjectOptions, TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let files = generate_project_files(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &TypeScriptProjectOptions {
+            framework: Some(TypeScriptFramework::Svelte),
+            web: Some(TypeScriptWebOptions {
+                sources: Vec::new(),
+                locale_switch: TypeScriptLocaleSwitchPlan {
+                    writes_path: false,
+                    writes_cookie: false,
+                    writes_local_storage: false,
+                },
+                ..TypeScriptWebOptions::default()
+            }),
+            ..project_options("en")
+        },
+    )
+    .expect("empty source policy is valid");
+
+    let paths = files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&"web.ts"));
+    assert!(paths.contains(&"svelte-effects.svelte.ts"));
+    assert!(!paths.iter().any(|path| path.starts_with("web/")));
+
+    let web = files
+        .iter()
+        .find(|file| file.path == "web.ts")
+        .expect("web runtime");
+    assert!(web.contents.contains("return runtime.baseLocale;"));
+    assert!(!web.contents.contains("resolveLocaleSource("));
+    assert!(!web
+        .contents
+        .contains("for (const source of normalized.sources)"));
+
+    let effects = files
+        .iter()
+        .find(|file| file.path == "svelte-effects.svelte.ts")
+        .expect("effects runtime");
+    assert!(effects
+        .contents
+        .contains("web.resolveLocaleSync({\n\n  });"));
+    assert!(!effects
+        .contents
+        .contains("readBrowserCapability(() => window."));
+    assert!(!effects
+        .contents
+        .contains("readBrowserCapability(() => document."));
+
+    let control = files
+        .iter()
+        .find(|file| file.path == "svelte-control.ts")
+        .expect("control runtime");
+    assert!(!control
+        .contents
+        .contains("web.options.localeSwitch.writesPath"));
+    assert!(!control.contents.contains("window.location.href"));
+}
+
+#[test]
+fn project_codegen_manual_link_mode_disables_runtime_observer() {
+    use crate::{
+        TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptProjectOptions,
+        TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let files = generate_project_files(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &TypeScriptProjectOptions {
+            framework: Some(TypeScriptFramework::Svelte),
+            web: Some(TypeScriptWebOptions {
+                link_mode: TypeScriptLinkMode::Manual,
+                ..TypeScriptWebOptions::default()
+            }),
+            ..project_options("en")
+        },
+    )
+    .expect("manual link policy");
+
+    let effects = files
+        .iter()
+        .find(|file| file.path == "svelte-effects.svelte.ts")
+        .expect("effects runtime");
+    assert!(effects.contents.contains("localizeLinks: false"));
+    assert!(!effects.contents.contains("MutationObserver"));
+    assert!(effects
+        .contents
+        .contains("const autoLinks: { refresh(): void; destroy(): void } | undefined = undefined"));
+}
+
+#[test]
+fn project_codegen_pathless_sveltekit_controls_drop_navigation_dependencies() {
+    use crate::{
+        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSource,
+        TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    for sources in [Vec::new(), vec![TypeScriptLocaleSource::LocalStorage]] {
+        let writes_local_storage = sources.contains(&TypeScriptLocaleSource::LocalStorage);
+        let files = generate_project_files(
+            &IrModule::default(),
+            &[TypeScriptLocaleModule {
+                locale: "en".to_owned(),
+                module: IrModule::default(),
+            }],
+            &TypeScriptProjectOptions {
+                framework: Some(TypeScriptFramework::SvelteKit),
+                web: Some(TypeScriptWebOptions {
+                    sources,
+                    locale_switch: TypeScriptLocaleSwitchPlan {
+                        writes_path: false,
+                        writes_cookie: false,
+                        writes_local_storage,
+                    },
+                    ..TypeScriptWebOptions::default()
+                }),
+                ..project_options("en")
+            },
+        )
+        .expect("pathless SvelteKit policy");
+
+        let control = files
+            .iter()
+            .find(|file| file.path == "svelte-control.ts")
+            .expect("SvelteKit control runtime");
+        for forbidden in [
+            "await goto(",
+            "$app/navigation",
+            "clearCurrentLocaleOverride",
+            "window.location",
+        ] {
+            assert!(
+                !control.contents.contains(forbidden),
+                "pathless control retained {forbidden}"
+            );
+        }
+    }
+}
+
+#[test]
 fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
     use crate::{
         TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
@@ -2346,7 +2613,6 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
     assert!(effects.contains("typeof document !== \"undefined\""));
     assert!(effects.contains("initializeCurrentLocale(readInitialLocale())"));
     assert!(effects.contains("readBrowserCapability(() => document.cookie)"));
-    assert!(effects.contains("readBrowserCapability(() => window.localStorage)"));
     assert!(effects.contains("readBrowserCapability(() => window.navigator)"));
     assert!(locale.contains("let activeLocale = $state<Locale>(baseLocale)"));
     assert!(locale.contains("export function initializeCurrentLocale"));
@@ -2472,4 +2738,140 @@ fn project_codegen_uses_cldr_text_direction_metadata() {
         .expect("locale module");
     assert!(locale.contents.contains(r#"en: "ltr""#));
     assert!(locale.contents.contains(r#"ar: "rtl""#));
+}
+
+#[test]
+fn project_codegen_preserves_closed_web_source_order_and_file_order() {
+    use crate::{
+        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSource,
+        TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let options = TypeScriptProjectOptions {
+        declaration: true,
+        framework: Some(TypeScriptFramework::Svelte),
+        web: Some(TypeScriptWebOptions {
+            sources: vec![
+                TypeScriptLocaleSource::AcceptLanguage,
+                TypeScriptLocaleSource::Path,
+                TypeScriptLocaleSource::LocalStorage,
+                TypeScriptLocaleSource::Cookie,
+            ],
+            locale_switch: TypeScriptLocaleSwitchPlan {
+                writes_path: true,
+                writes_cookie: true,
+                writes_local_storage: true,
+            },
+            ..TypeScriptWebOptions::default()
+        }),
+        ..project_options("en")
+    };
+    let files = generate_project_files(
+        &IrModule::default(),
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: IrModule::default(),
+        }],
+        &options,
+    )
+    .expect("project codegen");
+
+    let paths = files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect::<Vec<_>>();
+    let web_start = paths.iter().position(|path| *path == "web.ts").unwrap();
+    assert_eq!(
+        &paths[web_start..web_start + 10],
+        [
+            "web.ts",
+            "web.d.ts",
+            "web/accept-language.ts",
+            "web/accept-language.d.ts",
+            "web/path.ts",
+            "web/path.d.ts",
+            "web/local-storage.ts",
+            "web/local-storage.d.ts",
+            "web/cookie.ts",
+            "web/cookie.d.ts",
+        ]
+    );
+
+    let web = files
+        .iter()
+        .find(|file| file.path == "web.ts")
+        .expect("web runtime");
+    let ordered = [
+        "import { resolveAcceptLanguageLocale } from \"./web/accept-language.js\";",
+        "import { resolvePathLocale } from \"./web/path.js\";",
+        "import { resolveLocalStorageLocale } from \"./web/local-storage.js\";",
+        "import { resolveCookieLocale } from \"./web/cookie.js\";",
+        "const resolved_0 = resolveAcceptLanguageLocale",
+        "const resolved_1 = resolvePathLocale",
+        "const resolved_2 = resolveLocalStorageLocale",
+        "const resolved_3 = resolveCookieLocale",
+    ];
+    let mut previous = 0;
+    for needle in ordered {
+        let position = web.contents[previous..]
+            .find(needle)
+            .map(|offset| previous + offset)
+            .unwrap_or_else(|| panic!("missing ordered generated web fragment: {needle}"));
+        assert!(
+            position >= previous,
+            "generated web fragment order changed: {needle}"
+        );
+        previous = position + needle.len();
+    }
+    assert!(!web.contents.contains("resolveLocaleSource("));
+    assert!(!web
+        .contents
+        .contains("for (const source of normalized.sources)"));
+}
+
+#[test]
+fn project_validation_rejects_invalid_closed_web_features() {
+    use crate::{
+        TypeScriptCodegenError, TypeScriptFramework, TypeScriptLocaleModule,
+        TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions,
+        TypeScriptWebOptions,
+    };
+    use linguini_ir::IrModule;
+
+    let locales = [TypeScriptLocaleModule {
+        locale: "en".to_owned(),
+        module: IrModule::default(),
+    }];
+    let mut options = TypeScriptProjectOptions {
+        framework: Some(TypeScriptFramework::Svelte),
+        ..project_options("en")
+    };
+
+    options.web = Some(TypeScriptWebOptions {
+        sources: vec![TypeScriptLocaleSource::Path, TypeScriptLocaleSource::Path],
+        ..TypeScriptWebOptions::default()
+    });
+    assert!(matches!(
+        generate_project_files(&IrModule::default(), &locales, &options),
+        Err(TypeScriptCodegenError::DuplicateWebSource { .. })
+    ));
+
+    options.web = Some(TypeScriptWebOptions {
+        sources: vec![TypeScriptLocaleSource::Path],
+        locale_switch: TypeScriptLocaleSwitchPlan {
+            writes_path: false,
+            writes_cookie: false,
+            writes_local_storage: false,
+        },
+        ..TypeScriptWebOptions::default()
+    });
+    assert!(matches!(
+        generate_project_files(&IrModule::default(), &locales, &options),
+        Err(TypeScriptCodegenError::WebLocaleSwitchPlanMismatch {
+            source: "path",
+            expected: true,
+            actual: false,
+        })
+    ));
 }
