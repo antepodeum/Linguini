@@ -19,7 +19,5 @@ pub use plural::{
     RelationOperator,
 };
 
-pub const CRATE_PURPOSE: &str = "compiled CLDR plural and formatting data";
-
 #[cfg(test)]
 mod tests;

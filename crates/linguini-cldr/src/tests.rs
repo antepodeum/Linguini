@@ -1,7 +1,6 @@
-use super::{parse_plural_rule, CRATE_PURPOSE};
+use super::parse_plural_rule;
 
 #[test]
-fn crate_exports_core_cldr_entry_points() {
-    assert_eq!(CRATE_PURPOSE, "compiled CLDR plural and formatting data");
+fn crate_exports_plural_parser() {
     assert!(parse_plural_rule("i = 1 and v = 0").is_ok());
 }
