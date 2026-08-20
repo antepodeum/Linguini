@@ -178,7 +178,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #19 — Preserve unknown formatter names instead of silently erasing identity.
 - [x] #20 — Centralize primitive types in one registry.
 - [x] #21 — Make sample generation use the canonical primitive registry.
-- [-] #22 — Add cross-layer contract tests for core types and formatter identity.
+- [x] #22 — Add cross-layer contract tests for core types and formatter identity.
 
 ### `linguini-config`
 
