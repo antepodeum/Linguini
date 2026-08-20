@@ -730,6 +730,7 @@ dependencies = [
  "linguini-analyzer",
  "linguini-cldr",
  "linguini-config",
+ "linguini-core",
  "linguini-format",
  "linguini-ir",
  "linguini-schema",

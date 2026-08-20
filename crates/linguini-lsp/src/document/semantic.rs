@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use linguini_core::TypeKind;
 use linguini_format::SourceKind;
 use linguini_syntax::{
     lex_schema_with_recovery, Expression, ExpressionKind, FormEntry, FunctionBranch,
@@ -813,7 +814,7 @@ fn renamed_key(key: &SemanticKey, new_name: &str) -> SemanticKey {
 }
 
 fn is_builtin_type(value: &str) -> bool {
-    matches!(value, "String" | "Number" | "Decimal" | "Date" | "Boolean")
+    TypeKind::from_name(value).is_some()
 }
 
 fn push(output: &mut Vec<SemanticOccurrence>, key: SemanticKey, span: Span, declaration: bool) {
@@ -822,4 +823,18 @@ fn push(output: &mut Vec<SemanticOccurrence>, key: SemanticKey, span: Span, decl
         span,
         declaration,
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_builtin_type;
+    use linguini_core::TypeKind;
+
+    #[test]
+    fn builtin_type_filter_tracks_the_shared_primitive_registry() {
+        for kind in TypeKind::all() {
+            assert!(is_builtin_type(kind.as_str()));
+        }
+        assert!(!is_builtin_type("UserType"));
+    }
 }

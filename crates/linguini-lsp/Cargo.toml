@@ -11,6 +11,7 @@ rust-version.workspace = true
 linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.4" }
 linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.4" }
 linguini-config = { path = "../linguini-config", version = "0.1.0-alpha.4" }
+linguini-core = { path = "../linguini-core", version = "0.1.0-alpha.4" }
 linguini-format = { path = "../linguini-format", version = "0.1.0-alpha.4" }
 linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.4" }
 linguini-schema = { path = "../linguini-schema", version = "0.1.0-alpha.4" }
