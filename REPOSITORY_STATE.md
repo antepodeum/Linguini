@@ -31,12 +31,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove duplicated parsing or normalization logic.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run focused tests or `cargo test -p linguini-config`.
-- [ ] 4. `crates/linguini-syntax`
-  - [ ] Review lexer and parser boundaries before semantic crates depend on them.
-  - [ ] Check AST shape, spans, and diagnostics for stable downstream use.
-  - [ ] Remove parser special cases that can be expressed through grammar helpers.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run lexer, parser, and golden syntax tests.
+- [x] 4. `crates/linguini-syntax`
+  - [x] Review lexer and parser boundaries before semantic crates depend on them.
+  - [x] Check AST shape, spans, and diagnostics for stable downstream use.
+  - [x] Remove parser special cases that can be expressed through grammar helpers.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run lexer, parser, and golden syntax tests.
 - [ ] 5. `crates/linguini-ir`
   - [ ] Review lowering from syntax into IR for clear ownership and invariants.
   - [ ] Check reference resolution surfaces used by codegen and LSP.
