@@ -97,12 +97,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove CLI-only duplication that now belongs in library crates.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run CLI tests and representative end-to-end commands.
-- [ ] 15. `plugins/vite`
-  - [ ] Review plugin contract against the CLI and generated output layout.
-  - [ ] Check watch, rebuild, error reporting, and package entrypoints.
-  - [ ] Remove duplicated config or path handling that should come from CLI output.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run plugin tests.
+- [x] 15. `plugins/vite`
+  - [x] Review plugin contract against the CLI and generated output layout.
+  - [x] Check watch, rebuild, error reporting, and package entrypoints.
+  - [x] Remove duplicated config or path handling that should come from CLI output.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run plugin tests.
 - [ ] 16. `editors/vscode`
   - [ ] Review extension activation, language configuration, and grammar files.
   - [ ] Check LSP launch/configuration against the finalized CLI and LSP behavior.
