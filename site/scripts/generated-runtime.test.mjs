@@ -150,7 +150,7 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
   assert.throws(() => ru.__testPlural('1'.repeat(8193)), RangeError);
 });
 
-test('loads non-base legacy locales once before synchronous access', async (context) => {
+test('loads non-base locales once before synchronous access', async (context) => {
   const server = await createServer({
     root: generatedRoot,
     configFile: false,
