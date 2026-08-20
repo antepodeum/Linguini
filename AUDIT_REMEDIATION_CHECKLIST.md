@@ -618,7 +618,7 @@ production path uses the fix and its relevant tests pass.
 - [x] DOC-F5 — Specify the implemented inline `fn` grammar and semantics.
 - [x] DOC-F6 — Remove CJS output and configuration completely; `.cjs` remains only as one
       application source extension understood by unused-message analysis.
-- [-] DOC-F7 — Match formatter, plural, lint, typing, and exhaustiveness claims to tests.
+- [x] DOC-F7 — Match formatter, plural, lint, typing, and exhaustiveness claims to tests.
 
 ### `docs/web-sveltekit.md`
 
@@ -694,7 +694,8 @@ production path uses the fix and its relevant tests pass.
 
 - [x] ESM-A1 — Remove `targets.ts.module` from the model and all public surfaces. A value-level
       error probe preserves its migration diagnostic without accepting it into the raw model.
-- [ ] ESM-A2 — Treat SvelteKit as the primary supported adapter for now. Its not the only one in the future.
+- [x] ESM-A2 — Treat SvelteKit as the primary supported adapter for now; it is not the only one
+      planned for the future.
 - [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
       now uses the structured emitter, while legacy project/runtime generation still uses direct
       TypeScript string assembly.
@@ -712,7 +713,7 @@ production path uses the fix and its relevant tests pass.
 
 - [-] API-D1 — Preserve docs on every declaration kind through semantic IR.
 - [x] API-D2 — Preserve group docs in recursive namespace metadata.
-- [ ] API-D3 — Use schema docs as canonical public API prose.
+- [x] API-D3 — Use schema docs as canonical public API prose.
 - [x] API-D4 — Attach docs to exact JSDoc exports and `.d.ts` leaves/overloads.
 - [-] API-D5 — Preserve paragraphs/line breaks and escape comment terminators; recursive namespace
       output preserves multiline docs and escapes terminators, but all declaration kinds have not
@@ -824,7 +825,7 @@ production path uses the fix and its relevant tests pass.
 
 ### P1
 
-- [-] P1-1 — Complete SvelteKit/ESM-only configuration and documentation cleanup.
+- [x] P1-1 — Complete SvelteKit/ESM-only configuration and documentation cleanup.
 - [-] P1-2 — Freeze the tested v0.1 language specification.
 - [x] P1-3 — Carry recursive namespaces through generated output.
 - [-] P1-4 — Complete multiline conformance across all backends.
