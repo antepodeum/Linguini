@@ -644,9 +644,9 @@ production path uses the fix and its relevant tests pass.
 ### `docs/why.md`
 
 - [x] DOC-Y1 — Remove claims for incomplete typing, lints, exhaustiveness, and usage.
-- [ ] DOC-Y2 — Label intended advantages as goals until conformance proves them.
-- [ ] DOC-Y3 — Explain the exact per-message bundler-native graph.
-- [ ] DOC-Y4 — Require reproducible evidence for payload-reduction claims.
+- [x] DOC-Y2 — Label intended advantages as goals until conformance proves them.
+- [x] DOC-Y3 — Explain the exact per-message bundler-native graph.
+- [x] DOC-Y4 — Require reproducible evidence for payload-reduction claims.
 
 ### Site, templates, generated examples, and enforcement
 

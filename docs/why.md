@@ -4,7 +4,11 @@ Most i18n tools were designed for English first. They handle simple plurals and
 variable interpolation well. They fall apart when a language requires words to
 agree with each other in gender, case, and number simultaneously.
 
-Linguini was designed for that problem from the start.
+Linguini was designed for that problem from the start. This page explains that
+direction; comparisons are architectural summaries, not a cross-tool
+conformance benchmark. Where Linguini's own behavior is not covered by an
+executable repository test, treat the stated advantage as a goal rather than a
+production guarantee.
 
 ---
 
@@ -148,9 +152,38 @@ imports of the exact generated module each path uses. Because the browser graph
 uses those per-message imports instead of the eager message barrel, standard
 bundler tree-shaking can leave unrelated message modules out of the bundle.
 
+### Exact browser module graph
+
+Linguini supplies module boundaries; Vite and Rollup decide final chunk names,
+merging, preload, and transport. For each configured application source scope,
+the plugin records the canonical static message leaves used by that scope and
+rewrites them to physical per-message ESM modules. Computed access is rejected
+unless its exact allowed leaves are configured.
+
+With dynamic locale loading, each application scope exposes one virtual locale
+entry per effective locale. The route has one literal dynamic-import edge to
+each entry, and that locale payload indexes only the messages referenced by the
+scope. Locale formatter code is shared instead of copied into every message.
+This is the graph checked by the production-site manifest test; it is not a
+promise that every bundler version will choose identical output files.
+
+### Evidence and payload claims
+
+No fixed percentage or universal “smaller bundle” claim is part of the public
+contract. A payload comparison must identify the repository commit, package and
+bundler versions, configuration, locale/message corpus, route, build mode, and
+whether raw, minified, gzip, or Brotli bytes are measured. It must preserve the
+build manifests and measurement command so another run can reproduce the
+result. `pnpm test:site` checks the production graph and exact route message set;
+size claims require an additional controlled before/after artifact comparison.
+
 ---
 
 ## Summary
+
+The Linguini column describes the implemented, scoped behavior documented in
+this repository. The other columns are a conceptual comparison, not results
+from the repository's conformance suite.
 
 |                             | JSON + runtime | ICU     | Fluent  | Paraglide | Linguini |
 | --------------------------- | -------------- | ------- | ------- | --------- | -------- |
