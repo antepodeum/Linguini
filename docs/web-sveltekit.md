@@ -184,6 +184,62 @@ sources = ["path"]
 # sources = ["local-storage"]
 ```
 
+## Migration from flat web options
+
+Flat `[web]` keys are rejected. Migrate each configured field explicitly:
+
+| Removed flat config | Current config |
+| --- | --- |
+| `strategy = ["url", "cookie", "localStorage", "header"]` | `[web.locale] sources = ["path", "cookie", "local-storage", "accept-language"]` |
+| `cookie_name` | `[web.cookie] name` |
+| `cookie_path` | `[web.cookie] path`; prefer `"auto"` for the SvelteKit base |
+| `cookie_domain` | `[web.cookie] domain` |
+| `cookie_max_age = 86400` | `[web.cookie] max_age = "1d"` |
+| `cookie_same_site` | `[web.cookie] same_site` |
+| `cookie_secure` | `[web.cookie] secure`; `"auto"` derives it from the request protocol |
+| `cookie_http_only` | `[web.cookie] http_only` |
+| `local_storage_key` | `[web.local_storage] key` |
+| `global_variable_name` | removed; choose a validated locale source |
+| `prefix_default_locale = true` | `[web.routing] locale_prefix = "always"` |
+| `prefix_default_locale = false` | `[web.routing] locale_prefix = "except-default"` |
+| `redirect = true` / `false` | `[web.routing] canonical = "redirect"` / `"preserve"` |
+| `exclude` | `[web.routes] exclude` |
+| `localize_links = true` | `[web.links] mode = "runtime"` (or `"transform"` for build-time anchors) |
+| `localize_links = false` | `[web.links] mode = "manual"` |
+| `base_path` | removed; SvelteKit supplies `$app/paths.base` |
+| `origin` | removed; request/browser context supplies it |
+| `trailing_slash` | removed; the matched SvelteKit route owns it |
+| `targets.ts.module` | removed; generated output is always ESM |
+
+The former `url`, `localStorage`, and `header` strategy spellings are now
+`path`, `local-storage`, and `accept-language`. `baseLocale` is an implicit final
+fallback and is not listed. The unused `preferredLanguage`, `navigator`,
+`globalVariable`, `custom-*`, and `global_variable_name` paths have no direct
+replacement; choose one of the four validated sources instead.
+
+`base_path`, `origin`, and `trailing_slash` also have no Linguini config
+replacement. SvelteKit supplies base and origin at runtime and owns the matched
+route's trailing-slash policy, as described above. `targets.ts.module` is
+removed because generated output is always ESM.
+
+Framework-agnostic callers of `createWebI18n` use the same nested shape:
+
+| Removed runtime option | Current runtime option |
+| --- | --- |
+| `sources` | `locale.sources` |
+| `localeSwitch` | `locale.switch` (normally generated from config) |
+| `localePrefix` / `prefixDefaultLocale` | `routing.localePrefix` |
+| `redirect` | `routing.canonical` with `"redirect"` or `"preserve"` |
+| `cookieName`, `cookiePath`, `cookieDomain` | `cookie.name`, `cookie.path`, `cookie.domain` |
+| `cookieMaxAge`, `cookieSameSite` | `cookie.maxAge`, `cookie.sameSite` |
+| `cookieSecure`, `cookieHttpOnly` | `cookie.secure`, `cookie.httpOnly` |
+| `localStorageKey` | `localStorage.key` |
+| `globalVariableName` | removed; choose a validated locale source |
+| `localizeLinks` | `links.mode` |
+| `exclude` | `routes.exclude` |
+| `basePath`, `origin` | third `environment` argument: `base`, `origin` |
+| `trailingSlash` | removed; preserve the input path and let the router canonicalize it |
+
 ## SvelteKit files
 
 Add the Vite plugin so generated files update during development:

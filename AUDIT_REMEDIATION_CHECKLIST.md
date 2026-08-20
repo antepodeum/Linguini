@@ -650,10 +650,11 @@ production path uses the fix and its relevant tests pass.
 
 ### Site, templates, generated examples, and enforcement
 
-- [ ] DOC-S1 — Migrate site config, hooks, examples, and snippets to the nested API.
-- [ ] DOC-S2 — Remove CJS from templates, help, schemas, comments, and screenshots.
-- [ ] DOC-S3 — Update editor examples for groups, docs, multiline, values, and overloads.
-- [ ] DOC-S4 — Publish the complete flat-to-nested migration map.
+- [x] DOC-S1 — Migrate site config, hooks, examples, and snippets to the nested API.
+- [x] DOC-S2 — Remove generated-output CJS choices from templates, help, schemas, comments, and
+      screenshots. The VS Code extension's internal Node bundle format is not a codegen target.
+- [x] DOC-S3 — Update editor examples for groups, docs, multiline, values, and overloads.
+- [x] DOC-S4 — Publish the complete flat-to-nested migration map.
 - [ ] DOC-C1 — Register every normative code block as a fixture.
 - [ ] DOC-C2 — Build docs against packaged CLI/codegen artifacts.
 - [ ] DOC-C3 — Snapshot config schema, CLI help, declarations, and examples in CI.
