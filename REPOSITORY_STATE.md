@@ -13,12 +13,12 @@ This file tracks the current repository surface and the remaining desloppifying 
 
 ## Desloppifying Progress
 
-- [ ] 1. `crates/linguini-core`
-  - [ ] Audit public types for minimal, stable ownership and naming.
-  - [ ] Remove unused exports, helpers, and compatibility leftovers.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Confirm docs explain the shared contracts expected by dependent crates.
-  - [ ] Run focused tests or `cargo test -p linguini-core`.
+- [x] 1. `crates/linguini-core`
+  - [x] Audit public types for minimal, stable ownership and naming.
+  - [x] Remove unused exports, helpers, and compatibility leftovers.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Confirm docs explain the shared contracts expected by dependent crates.
+  - [x] Run focused tests or `cargo test -p linguini-core`.
 - [ ] 2. `crates/linguini-test-support`
   - [ ] Keep fixtures and helpers generic enough for all downstream crates.
   - [ ] Remove helpers that only wrap one call site without adding clarity.
