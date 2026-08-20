@@ -3,6 +3,8 @@ export type LinguiniProviderOptions = {
   resolveLanguage?: () => LinguiniLanguageInput;
 };
 
+export declare function prepareLinguini(language: LinguiniLanguageInput): Promise<Linguini>;
+
 export declare function createLinguini(language: LinguiniLanguageInput): Linguini;
 
 export declare function createLinguiniProvider(options?: LinguiniProviderOptions): Linguini;

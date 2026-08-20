@@ -112,10 +112,13 @@ fn project_codegen_owns_multilocale_index_files() {
     assert!(index
         .contents
         .contains("import locale_en from \"./locales/en\";"));
-    assert!(index
+    assert!(!index
         .contents
         .contains("import locale_ru from \"./locales/ru\";"));
-    assert!(index.contents.contains("ru: locale_ru"));
+    assert!(index
+        .contents
+        .contains("ru: () => import(\"./locales/ru\").then((module) => module.default)"));
+    assert!(index.contents.contains("prepareLinguini"));
     assert!(index.contents.contains("from \"./locale\""));
     assert!(index
         .contents

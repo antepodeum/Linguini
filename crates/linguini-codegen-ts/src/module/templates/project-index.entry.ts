@@ -13,13 +13,13 @@ export type * from "./shared";
 import type { LinguiniMessages } from "./messages";
 export type { LinguiniMessages } from "./messages";
 
-export const localeModules = {
+export const localeModules: Partial<Record<Locale, LinguiniMessages>> = {
 {{LOCALE_MODULES}}} as const;
 
 export const localeLoaders = {
 {{LOCALE_LOADERS}}} as const;
 
-type LinguiniLanguage = keyof typeof localeModules;
+type LinguiniLanguage = Locale;
 export type Linguini = LinguiniMessages;
 
 type LinguiniLanguageInput = LinguiniLanguage;

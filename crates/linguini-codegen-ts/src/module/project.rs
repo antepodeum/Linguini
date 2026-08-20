@@ -28,14 +28,18 @@ use linguini_cldr::{
 
 pub fn generate_project_index(
     locales: &[TypeScriptLocaleModule],
-    _base_locale: Option<&str>,
+    base_locale: Option<&str>,
 ) -> String {
+    let base_locale = base_locale.expect("validated TypeScript projects have a base locale");
     render_template(
         PROJECT_INDEX_ENTRY,
         &[
-            ("IMPORTS", project_locale_imports(locales)),
-            ("LOCALE_MODULES", project_locale_modules(locales)),
-            ("LOCALE_LOADERS", project_locale_loaders(locales)),
+            ("IMPORTS", project_locale_import(base_locale)),
+            ("LOCALE_MODULES", project_locale_modules(base_locale)),
+            (
+                "LOCALE_LOADERS",
+                project_locale_loaders(locales, base_locale),
+            ),
             ("INDEX_RUNTIME", template_body(INDEX_RUNTIME)),
         ],
     )
@@ -157,26 +161,15 @@ fn is_language_script_tag(locale: &str) -> bool {
 }
 
 pub fn generate_project_index_declaration(
-    locales: &[TypeScriptLocaleModule],
+    _locales: &[TypeScriptLocaleModule],
     _base_locale: Option<&str>,
 ) -> String {
     render_template(
         PROJECT_INDEX_DECLARATIONS,
-        &[
-            ("IMPORTS", project_locale_imports(locales)),
-            (
-                "LOCALE_MODULES",
-                project_locale_module_declarations(locales),
-            ),
-            (
-                "LOCALE_LOADERS",
-                project_locale_loader_declarations(locales),
-            ),
-            (
-                "INDEX_RUNTIME_DECLARATIONS",
-                template_body(INDEX_RUNTIME_DECLARATIONS),
-            ),
-        ],
+        &[(
+            "INDEX_RUNTIME_DECLARATIONS",
+            template_body(INDEX_RUNTIME_DECLARATIONS),
+        )],
     )
 }
 
@@ -555,18 +548,12 @@ fn template_body(template: &str) -> String {
     template.strip_suffix('\n').unwrap_or(template).to_owned()
 }
 
-fn project_locale_imports(locales: &[TypeScriptLocaleModule]) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            format!(
-                "import {} from \"./locales/{}\";",
-                locale_identifier(&locale.locale),
-                escape_string(&locale.locale)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+fn project_locale_import(locale: &str) -> String {
+    format!(
+        "import {} from \"./locales/{}\";",
+        locale_identifier(locale),
+        escape_string(locale)
+    )
 }
 
 fn project_locale_directions(locales: &[TypeScriptLocaleModule]) -> String {
@@ -595,54 +582,31 @@ fn project_locale_direction_declarations(locales: &[TypeScriptLocaleModule]) -> 
         .collect::<String>()
 }
 
-fn project_locale_modules(locales: &[TypeScriptLocaleModule]) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            format!(
-                "  {}: {},\n",
-                property_key(&locale.locale),
-                locale_identifier(&locale.locale)
-            )
-        })
-        .collect::<String>()
+fn project_locale_modules(locale: &str) -> String {
+    format!(
+        "  {}: {},\n",
+        property_key(locale),
+        locale_identifier(locale)
+    )
 }
 
-fn project_locale_module_declarations(locales: &[TypeScriptLocaleModule]) -> String {
+fn project_locale_loaders(locales: &[TypeScriptLocaleModule], base_locale: &str) -> String {
     locales
         .iter()
         .map(|locale| {
-            format!(
-                "  readonly {}: typeof {};\n",
-                property_key(&locale.locale),
-                locale_identifier(&locale.locale)
-            )
-        })
-        .collect::<String>()
-}
-
-fn project_locale_loaders(locales: &[TypeScriptLocaleModule]) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            format!(
-                "  {}: () => Promise.resolve({}),\n",
-                property_key(&locale.locale),
-                locale_identifier(&locale.locale)
-            )
-        })
-        .collect::<String>()
-}
-
-fn project_locale_loader_declarations(locales: &[TypeScriptLocaleModule]) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            format!(
-                "  readonly {}: () => Promise<typeof {}>;\n",
-                property_key(&locale.locale),
-                locale_identifier(&locale.locale)
-            )
+            if locale.locale == base_locale {
+                format!(
+                    "  {}: () => Promise.resolve({}),\n",
+                    property_key(&locale.locale),
+                    locale_identifier(&locale.locale)
+                )
+            } else {
+                format!(
+                    "  {}: () => import(\"./locales/{}\").then((module) => module.default),\n",
+                    property_key(&locale.locale),
+                    escape_string(&locale.locale)
+                )
+            }
         })
         .collect::<String>()
 }

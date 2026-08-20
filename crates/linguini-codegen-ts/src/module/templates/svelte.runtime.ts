@@ -1,5 +1,14 @@
 import * as runtime from "./index";
 import { linguini as controls } from "./svelte-control.js";
+import { registerLocaleLoader } from "./svelte-locale.svelte.js";
+
+const unregisterRuntimeLoader = registerLocaleLoader(async (locale) => {
+  await runtime.prepareLinguini(locale);
+});
+const hot = (import.meta as ImportMeta & {
+  hot?: { dispose(callback: () => void): void };
+}).hot;
+hot?.dispose(unregisterRuntimeLoader);
 
 export const linguini = createLinguiniRune(runtime, controls);
 export const l = linguini.l;

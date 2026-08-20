@@ -149,3 +149,30 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
   assert.throws(() => ru.__testPlural('x'), RangeError);
   assert.throws(() => ru.__testPlural('1'.repeat(8193)), RangeError);
 });
+
+test('loads non-base legacy locales once before synchronous access', async (context) => {
+  const server = await createServer({
+    root: generatedRoot,
+    configFile: false,
+    logLevel: 'silent',
+    appType: 'custom',
+    server: { middlewareMode: true }
+  });
+  context.after(() => server.close());
+
+  const runtime = await server.ssrLoadModule('/index.ts');
+  assert.equal(runtime.createLinguini('en'), runtime.localeModules.en);
+  assert.equal(runtime.localeModules.ru, undefined);
+  assert.throws(
+    () => runtime.createLinguini('ru'),
+    /locale "ru" is not prepared; call prepareLinguini\(locale\) first/
+  );
+
+  const [first, second] = await Promise.all([
+    runtime.prepareLinguini('ru'),
+    runtime.prepareLinguini('ru')
+  ]);
+  assert.equal(first, second);
+  assert.equal(runtime.createLinguini('ru'), first);
+  assert.equal(runtime.localeModules.ru, first);
+});

@@ -63,6 +63,7 @@ export interface LinguiniLocaleRuntime<Locale extends string = string> {
 
 export interface LinguiniRuntime<Locale extends string = string, Linguini = unknown> extends LinguiniLocaleRuntime<Locale> {
   createLinguini(locale: Locale): Linguini;
+  prepareLinguini?(locale: Locale): Promise<Linguini>;
 }
 
 /**
@@ -333,7 +334,9 @@ export function createWebI18n<Locale extends string, Linguini>(runtime: Linguini
     createLinguini: runtime.createLinguini,
     resolveRequest: async (request, input = {}) => {
       const requestInput = inputFromRequest(request, input);
-      return createRequestContext(web.resolveLocaleSync(requestInput), requestInput);
+      const locale = web.resolveLocaleSync(requestInput);
+      await runtime.prepareLinguini?.(locale);
+      return createRequestContext(locale, requestInput);
     },
     createRequestContext,
   };

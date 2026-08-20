@@ -18,6 +18,7 @@ export interface LinguiniLocaleRuntime<Locale extends string = string> {
 
 export interface LinguiniRuntime<Locale extends string = string, Linguini = unknown> extends LinguiniLocaleRuntime<Locale> {
   createLinguini(locale: Locale): Linguini;
+  prepareLinguini?(locale: Locale): Promise<Linguini>;
 }
 
 export interface LinguiniWebOptions {

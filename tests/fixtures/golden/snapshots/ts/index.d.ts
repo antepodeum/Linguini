@@ -1,4 +1,3 @@
-import locale_ru from "./locales/ru";
 import type { Locale } from "./locale";
 export {
   locales,
@@ -13,15 +12,11 @@ export type * from "./shared";
 import type { LinguiniMessages } from "./messages";
 export type { LinguiniMessages } from "./messages";
 
-export declare const localeModules: {
-  readonly ru: typeof locale_ru;
-};
+export declare const localeModules: Partial<Record<Locale, LinguiniMessages>>;
 
-export declare const localeLoaders: {
-  readonly ru: () => Promise<typeof locale_ru>;
-};
+export declare const localeLoaders: Record<Locale, () => Promise<LinguiniMessages>>;
 
-type LinguiniLanguage = keyof typeof localeModules;
+type LinguiniLanguage = Locale;
 export type Linguini = LinguiniMessages;
 
 type LinguiniLanguageInput = LinguiniLanguage;
@@ -30,6 +25,8 @@ export type LinguiniProviderOptions = {
   getLocale?: () => LinguiniLanguageInput;
   resolveLanguage?: () => LinguiniLanguageInput;
 };
+
+export declare function prepareLinguini(language: LinguiniLanguageInput): Promise<Linguini>;
 
 export declare function createLinguini(language: LinguiniLanguageInput): Linguini;
 
