@@ -37,12 +37,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove parser special cases that can be expressed through grammar helpers.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run lexer, parser, and golden syntax tests.
-- [ ] 5. `crates/linguini-ir`
-  - [ ] Review lowering from syntax into IR for clear ownership and invariants.
-  - [ ] Check reference resolution surfaces used by codegen and LSP.
-  - [ ] Remove duplicated AST walking that belongs in syntax or analyzer layers.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run focused tests or `cargo test -p linguini-ir`.
+- [x] 5. `crates/linguini-ir`
+  - [x] Review lowering from syntax into IR for clear ownership and invariants.
+  - [x] Check reference resolution surfaces used by codegen and LSP.
+  - [x] Remove duplicated AST walking that belongs in syntax or analyzer layers.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run focused tests or `cargo test -p linguini-ir`.
 - [ ] 6. `crates/linguini-analyzer`
   - [ ] Review schema and locale diagnostics for precise spans and messages.
   - [ ] Check coverage logic for missing, extra, and mismatched implementations.
