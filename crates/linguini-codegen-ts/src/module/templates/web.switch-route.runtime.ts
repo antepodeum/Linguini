@@ -17,8 +17,8 @@ export function handleLocaleSwitchRoute<Locale extends string>(
     origin: event.url.origin,
     headers: event.request.headers,
   };
-  const returnTarget = (safeReturnTarget(event) ?? web.options.basePath) || "/";
-  const location = web.options.localeSwitch.writesPath
+  const returnTarget = (safeReturnTarget(event) ?? web.options.environment.base) || "/";
+  const location = web.options.locale.switch.writesPath
     ? web.localizeHref(returnTarget, locale, input)
     : returnTarget;
   const response = new Response(null, {
@@ -33,7 +33,7 @@ function matchSwitchLocale<Locale extends string>(
   web: LinguiniWebLocale<Locale>,
   pathname: string,
 ) {
-  const effectiveRoutePath = `${web.options.basePath}${routePath}` || routePath;
+  const effectiveRoutePath = `${web.options.environment.base}${routePath}` || routePath;
   const marker = "{locale}";
   const markerIndex = effectiveRoutePath.indexOf(marker);
   const prefix = effectiveRoutePath.slice(0, markerIndex);

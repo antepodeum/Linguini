@@ -103,23 +103,18 @@ pub struct TypeScriptWebOptions {
     pub sources: Vec<TypeScriptLocaleSource>,
     pub locale_switch: TypeScriptLocaleSwitchPlan,
     pub cookie_name: String,
-    pub cookie_path: String,
+    /// Explicit cookie path, or `None` to derive it from the framework base path.
+    pub cookie_path: Option<String>,
     pub cookie_domain: Option<String>,
     pub cookie_max_age: u64,
     pub cookie_same_site: String,
-    pub cookie_secure: bool,
+    /// Explicit secure policy, or `None` to derive it from the request/browser protocol.
+    pub cookie_secure: Option<bool>,
     pub cookie_http_only: bool,
     pub local_storage_key: String,
     /// Controls whether generated URLs carry a locale path segment.
     pub locale_prefix: TypeScriptLocalePrefixMode,
-    /// Legacy compatibility flag for standalone runtime callers.
-    ///
-    /// Generated projects also emit this field, but `locale_prefix` is the
-    /// authoritative policy when it is available.
-    pub prefix_default_locale: bool,
-    pub base_path: String,
-    pub redirect: bool,
-    pub origin: Option<String>,
+    pub canonical_redirect: bool,
     pub exclude: Vec<String>,
     /// Link handling is a closed capability rather than an on/off flag.
     pub link_mode: TypeScriptLinkMode,
@@ -160,12 +155,22 @@ pub enum TypeScriptLinkMode {
     Manual,
 }
 
+impl TypeScriptLinkMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Transform => "transform",
+            Self::Runtime => "runtime",
+            Self::Manual => "manual",
+        }
+    }
+}
+
 /// Closed capability view used by the generated web modules.
 ///
-/// `TypeScriptWebOptions` remains the public compatibility input (and carries
-/// serialization details), while this view is what source and browser emitters
-/// inspect.  In particular, source order is fixed at lowering time and no
-/// generated runtime needs to dispatch over an open-ended strategy enum.
+/// `TypeScriptWebOptions` carries the lowered structured policy and serialization
+/// details, while this view is what source and browser emitters inspect. Source
+/// order is fixed at lowering time; generated runtimes never dispatch over an
+/// open-ended strategy enum.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptWebFeatures {
     pub sources: Vec<TypeScriptLocaleSource>,
@@ -261,18 +266,15 @@ impl Default for TypeScriptWebOptions {
             ],
             locale_switch: TypeScriptLocaleSwitchPlan::default(),
             cookie_name: "LINGUINI_LOCALE".to_owned(),
-            cookie_path: "/".to_owned(),
+            cookie_path: None,
             cookie_domain: None,
             cookie_max_age: 60 * 60 * 24 * 365,
             cookie_same_site: "lax".to_owned(),
-            cookie_secure: false,
+            cookie_secure: None,
             cookie_http_only: false,
             local_storage_key: "LINGUINI_LOCALE".to_owned(),
             locale_prefix: TypeScriptLocalePrefixMode::ExceptDefault,
-            prefix_default_locale: false,
-            base_path: String::new(),
-            redirect: true,
-            origin: None,
+            canonical_redirect: true,
             exclude: Vec::new(),
             link_mode: TypeScriptLinkMode::Runtime,
             switch_route: None,

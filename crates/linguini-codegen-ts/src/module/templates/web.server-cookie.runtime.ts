@@ -4,6 +4,7 @@ export function persistLocaleCookie<Locale extends string>(
   web: LinguiniWebLocale<Locale>,
   target: unknown,
   locale: Locale,
+  input: Record<string, unknown> = {},
 ) {
-  web.setLocaleCookie(target, locale);
+  web.setLocaleCookie(target, locale, input);
 }

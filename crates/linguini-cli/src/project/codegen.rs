@@ -1104,12 +1104,10 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
         cookie_name: cookie
             .map(|cookie| cookie.name.clone())
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
-        cookie_path: cookie
-            .map(|cookie| match &cookie.path {
-                CookiePath::Auto => "/".to_owned(),
-                CookiePath::Explicit(path) => path.clone(),
-            })
-            .unwrap_or_else(|| "/".to_owned()),
+        cookie_path: cookie.and_then(|cookie| match &cookie.path {
+            CookiePath::Auto => None,
+            CookiePath::Explicit(path) => Some(path.clone()),
+        }),
         cookie_domain: cookie.and_then(|cookie| cookie.domain.clone()),
         cookie_max_age: cookie
             .map(|cookie| cookie.max_age_seconds)
@@ -1117,9 +1115,11 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
         cookie_same_site: cookie
             .map(|cookie| cookie.same_site.as_str().to_owned())
             .unwrap_or_else(|| "lax".to_owned()),
-        cookie_secure: cookie
-            .map(|cookie| cookie.secure == SecurePolicy::Always)
-            .unwrap_or(false),
+        cookie_secure: cookie.and_then(|cookie| match cookie.secure {
+            SecurePolicy::Auto => None,
+            SecurePolicy::Always => Some(true),
+            SecurePolicy::Never => Some(false),
+        }),
         cookie_http_only: cookie.map(|cookie| cookie.http_only).unwrap_or(false),
         local_storage_key: local_storage
             .map(|storage| storage.key.clone())
@@ -1129,10 +1129,7 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
             LocalePrefixMode::ExceptDefault => TypeScriptLocalePrefixMode::ExceptDefault,
             LocalePrefixMode::Never => TypeScriptLocalePrefixMode::Never,
         },
-        prefix_default_locale: features.locale_prefix == LocalePrefixMode::Always,
-        base_path: String::new(),
-        redirect: features.canonical == CanonicalMode::Redirect,
-        origin: None,
+        canonical_redirect: features.canonical == CanonicalMode::Redirect,
         exclude: features.route_exclusions,
         link_mode: match features.links {
             LinkMode::Transform => TypeScriptLinkMode::Transform,

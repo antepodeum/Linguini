@@ -17,10 +17,7 @@ const runtime: LinguiniRuntime<Locale, { locale: Locale }> = {
 };
 
 function createWeb(options: LinguiniWebOptions = {}) {
-  return createWebI18n(runtime, {
-    origin: "https://app.example",
-    ...options,
-  });
+  return createWebI18n(runtime, options, { origin: "https://app.example" });
 }
 
 test("metadata-only web runtime localizes without a message factory", () => {
@@ -29,6 +26,7 @@ test("metadata-only web runtime localizes without a message factory", () => {
       locales: ["en", "fr"] as const,
       baseLocale: "en" as const,
     },
+    {},
     { origin: "https://app.example" },
   );
 
@@ -38,23 +36,21 @@ test("metadata-only web runtime localizes without a message factory", () => {
 });
 
 test("locale prefix modes preserve their exact URL policy", () => {
-  const always = createWeb({ localePrefix: "always" });
+  const always = createWeb({ routing: { localePrefix: "always" } });
   assert.equal(always.localizeHref("/account", "en"), "/en/account");
   assert.equal(always.localizeHref("/account", "fr"), "/fr/account");
   assert.equal(always.localizeHref("/fr/account", "en"), "/en/account");
-  assert.equal(always.options.localePrefix, "always");
-  assert.equal(always.options.prefixDefaultLocale, true);
+  assert.equal(always.options.routing.localePrefix, "always");
 
-  const exceptDefault = createWeb({ localePrefix: "except-default" });
+  const exceptDefault = createWeb({ routing: { localePrefix: "except-default" } });
   assert.equal(exceptDefault.localizeHref("/account", "en"), "/account");
   assert.equal(exceptDefault.localizeHref("/account", "fr"), "/fr/account");
   assert.equal(exceptDefault.localizeHref("/en/account", "en"), "/account");
   assert.equal(exceptDefault.localizeHref("/fr/account", "en"), "/account");
   assert.equal(exceptDefault.localizeHref("/en/account", "fr"), "/fr/account");
-  assert.equal(exceptDefault.options.localePrefix, "except-default");
-  assert.equal(exceptDefault.options.prefixDefaultLocale, false);
+  assert.equal(exceptDefault.options.routing.localePrefix, "except-default");
 
-  const never = createWeb({ localePrefix: "never" });
+  const never = createWeb({ routing: { localePrefix: "never" } });
   assert.equal(never.localizeHref("/account", "en"), "/account");
   assert.equal(never.localizeHref("/account", "fr"), "/account");
   for (const path of ["/en/account", "/fr/account", "/en-products"]) {
@@ -77,34 +73,16 @@ test("locale prefix modes preserve their exact URL policy", () => {
       "https://app.example/fr/account",
     ],
   );
-  assert.equal(never.options.localePrefix, "never");
+  assert.equal(never.options.routing.localePrefix, "never");
 });
 
-test("legacy prefixDefaultLocale remains compatible when localePrefix is omitted", () => {
-  const legacyAlways = createWeb({ prefixDefaultLocale: true });
-  assert.equal(legacyAlways.localizeHref("/account", "en"), "/en/account");
-  assert.equal(legacyAlways.options.localePrefix, "always");
-  const legacyExceptDefault = createWeb({ prefixDefaultLocale: false });
-  assert.equal(legacyExceptDefault.localizeHref("/account", "en"), "/account");
-  assert.equal(legacyExceptDefault.options.localePrefix, "except-default");
-  assert.equal(
-    createWeb({ localePrefix: "always", prefixDefaultLocale: false }).localizeHref(
-      "/account",
-      "en",
-    ),
-    "/en/account",
-  );
-  assert.equal(
-    createWeb({ localePrefix: "except-default", prefixDefaultLocale: true }).localizeHref(
-      "/account",
-      "en",
-    ),
-    "/account",
-  );
-  assert.equal(
-    createWeb({ localePrefix: "never", prefixDefaultLocale: true }).localizeHref("/account", "fr"),
-    "/account",
-  );
+test("normalized runtime exposes only structured web policy", () => {
+  const web = createWeb();
+  assert.equal(web.options.routing.localePrefix, "except-default");
+  assert.equal("prefixDefaultLocale" in web.options, false);
+  assert.equal("basePath" in web.options, false);
+  assert.equal("trailingSlash" in web.options, false);
+  assert.equal("origin" in web.options, false);
 });
 
 test("localization changes only same-origin HTTP URLs", () => {
@@ -148,7 +126,7 @@ test("anchor skip attributes use the same link-localization policy", () => {
 });
 
 test("web locale matching delegates fallback instead of truncating tags", () => {
-  const web = createWeb({ sources: ["cookie"] });
+  const web = createWeb({ locale: { sources: ["cookie"] } });
 
   assert.equal(web.matchLocale("fr"), "fr");
   assert.equal(web.matchLocale("fr-CA"), undefined);
@@ -174,9 +152,9 @@ test("locale path segments require an exact case-insensitive match", () => {
       createLinguini: (locale) => ({ locale }),
     },
     {
-      origin: "https://app.example",
-      sources: ["path"],
+      locale: { sources: ["path"] },
     },
+    { origin: "https://app.example" },
   );
   assert.equal(
     urlStrategy.resolveLocaleSync({ url: "https://app.example/en-products" }),
@@ -189,7 +167,7 @@ test("locale path segments require an exact case-insensitive match", () => {
 });
 
 test("recursive exclusion globs stop at path-segment boundaries", () => {
-  const web = createWeb({ exclude: ["/api/**"] });
+  const web = createWeb({ routes: { exclude: ["/api/**"] } });
 
   assert.equal(web.shouldExclude("/api"), true);
   assert.equal(web.shouldExclude("/api/"), true);
@@ -201,7 +179,7 @@ test("recursive exclusion globs stop at path-segment boundaries", () => {
 test("global and sticky exclusion regular expressions are deterministic", () => {
   for (const matcher of [/^\/private/g, /^\/private/y]) {
     matcher.lastIndex = 4;
-    const web = createWeb({ exclude: [matcher] });
+    const web = createWeb({ routes: { exclude: [matcher] } });
 
     assert.equal(web.shouldExclude("/private/account"), true);
     assert.equal(matcher.lastIndex, 0);
@@ -292,12 +270,12 @@ test("locale cookies use the SvelteKit cookies interface when available", () => 
 test("default locale sources match the validated web configuration", () => {
   const web = createWeb();
 
-  assert.deepEqual(web.options.sources, [
+  assert.deepEqual(web.options.locale.sources, [
     "path",
     "cookie",
     "accept-language",
   ]);
-  assert.deepEqual(web.options.localeSwitch, {
+  assert.deepEqual(web.options.locale.switch, {
     writesPath: true,
     writesCookie: true,
     writesLocalStorage: false,
@@ -314,7 +292,7 @@ test("default locale sources match the validated web configuration", () => {
 
 test("locale switch fallback derives writable transports from custom sources", () => {
   const cases: Array<{
-    sources: LinguiniWebOptions["sources"];
+    sources: NonNullable<LinguiniWebOptions["locale"]>["sources"];
     expected: { writesPath: boolean; writesCookie: boolean; writesLocalStorage: boolean };
   }> = [
     {
@@ -336,15 +314,17 @@ test("locale switch fallback derives writable transports from custom sources", (
   ];
 
   for (const { sources, expected } of cases) {
-    const web = createWeb({ sources });
-    assert.deepEqual(web.options.localeSwitch, expected);
+    const web = createWeb({ locale: { sources } });
+    assert.deepEqual(web.options.locale.switch, expected);
   }
 
   const explicit = createWeb({
-    sources: ["cookie"],
-    localeSwitch: { writesPath: true, writesCookie: false, writesLocalStorage: true },
+    locale: {
+      sources: ["cookie"],
+      switch: { writesPath: true, writesCookie: false, writesLocalStorage: true },
+    },
   });
-  assert.deepEqual(explicit.options.localeSwitch, {
+  assert.deepEqual(explicit.options.locale.switch, {
     writesPath: true,
     writesCookie: false,
     writesLocalStorage: true,
@@ -352,7 +332,7 @@ test("locale switch fallback derives writable transports from custom sources", (
 });
 
 test("Accept-Language uses standard Headers, quality weights, and wildcards", async () => {
-  const web = createWeb({ sources: ["accept-language"] });
+  const web = createWeb({ locale: { sources: ["accept-language"] } });
 
   const requestContext = await web.resolveRequest(
     new Request("https://app.example/account", {
@@ -409,7 +389,7 @@ test("Accept-Language uses standard Headers, quality weights, and wildcards", as
 });
 
 test("Accept-Language uses browser navigator preferences when headers are absent", () => {
-  const web = createWeb({ sources: ["accept-language"] });
+  const web = createWeb({ locale: { sources: ["accept-language"] } });
 
   assert.equal(
     web.resolveLocaleSync({
@@ -437,7 +417,7 @@ test("Accept-Language uses browser navigator preferences when headers are absent
 });
 
 test("browser Accept-Language keeps configured source precedence and tolerates malformed navigator", () => {
-  const cookieFirst = createWeb({ sources: ["cookie", "accept-language"] });
+  const cookieFirst = createWeb({ locale: { sources: ["cookie", "accept-language"] } });
   assert.equal(
     cookieFirst.resolveLocaleSync({
       cookie: "LINGUINI_LOCALE=fr",
@@ -446,7 +426,7 @@ test("browser Accept-Language keeps configured source precedence and tolerates m
     "fr",
   );
 
-  const acceptLanguageFirst = createWeb({ sources: ["accept-language", "cookie"] });
+  const acceptLanguageFirst = createWeb({ locale: { sources: ["accept-language", "cookie"] } });
   assert.equal(
     acceptLanguageFirst.resolveLocaleSync({
       cookie: "LINGUINI_LOCALE=fr",
@@ -470,7 +450,7 @@ test("browser Accept-Language keeps configured source precedence and tolerates m
 });
 
 test("malformed locale cookie encoding is ignored", () => {
-  const web = createWeb({ sources: ["cookie"] });
+  const web = createWeb({ locale: { sources: ["cookie"] } });
 
   assert.doesNotThrow(() =>
     web.resolveLocaleSync({ cookie: "LINGUINI_LOCALE=%E0%A4%A" }),
@@ -487,8 +467,8 @@ test("malformed locale cookie encoding is ignored", () => {
 
 test("local-storage source uses only the configured storage capability", () => {
   const web = createWeb({
-    sources: ["local-storage"],
-    localStorageKey: "SHOP_LOCALE",
+    locale: { sources: ["local-storage"] },
+    localStorage: { key: "SHOP_LOCALE" },
   });
   let requestedKey: string | undefined;
 

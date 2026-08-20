@@ -21,25 +21,31 @@ export interface LinguiniRuntime<Locale extends string = string, Linguini = unkn
 }
 
 export interface LinguiniWebOptions {
-  sources?: readonly LocaleSource[];
-  localeSwitch?: LocaleSwitchPlan;
-  cookieName?: string;
-  localStorageKey?: string;
-  localePrefix?: LocalePrefixMode;
-  /** @deprecated Use localePrefix for the closed three-mode policy. */
-  prefixDefaultLocale?: boolean;
-  basePath?: string;
-  trailingSlash?: "ignore" | "always" | "never";
-  cookiePath?: string;
-  cookieDomain?: string;
-  cookieMaxAge?: number;
-  cookieSameSite?: "lax" | "strict" | "none";
-  cookieSecure?: boolean;
-  cookieHttpOnly?: boolean;
-  exclude?: readonly (string | RegExp | ((url: URL) => boolean))[];
-  redirect?: boolean;
-  origin?: string;
-  localizeLinks?: boolean;
+  routing?: {
+    localePrefix?: LocalePrefixMode;
+    canonical?: "redirect" | "preserve";
+  };
+  locale?: {
+    sources?: readonly LocaleSource[];
+    switch?: LocaleSwitchPlan;
+  };
+  cookie?: {
+    name?: string;
+    path?: string | "auto";
+    domain?: string;
+    maxAge?: number;
+    sameSite?: "lax" | "strict" | "none";
+    secure?: boolean | "auto";
+    httpOnly?: boolean;
+  };
+  localStorage?: { key?: string };
+  links?: { mode?: "transform" | "runtime" | "manual" };
+  routes?: { exclude?: readonly (string | RegExp | ((url: URL) => boolean))[] };
+}
+
+export interface LinguiniWebEnvironment {
+  base?: string;
+  origin?: string | URL;
 }
 
 export interface AlternateLink {
@@ -84,7 +90,16 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
  * fail closed and preserve the original href instead.
  */
 export interface LinguiniWebLocale<Locale extends string = string> extends LinguiniLocaleRuntime<Locale> {
-  options: Required<Pick<LinguiniWebOptions, "sources" | "localeSwitch" | "cookieName" | "localStorageKey" | "localePrefix" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
+  options: {
+    routing: { localePrefix: LocalePrefixMode; canonical: "redirect" | "preserve" };
+    locale: { sources: readonly LocaleSource[]; switch: LocaleSwitchPlan };
+    cookie: { name: string; path: string; domain?: string; maxAge: number; sameSite: "lax" | "strict" | "none"; secure: boolean | "auto"; httpOnly: boolean };
+    localStorage: { key: string };
+    links: { mode: "transform" | "runtime" | "manual" };
+    routes: { exclude: readonly (string | RegExp | ((url: URL) => boolean))[] };
+    environment: { base: string; origin?: string | URL };
+    baseLocale: string;
+  };
   matchLocale(locale: unknown): Locale | undefined;
   resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
   resolveLocaleSync(input?: Record<string, unknown>): Locale;
@@ -110,6 +125,6 @@ export interface LinguiniWeb<Locale extends string = string, Linguini = unknown>
   createRequestContext(locale: Locale, input?: Record<string, unknown>): LinguiniRequestContext<Locale, Linguini>;
 }
 
-export declare function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options?: LinguiniWebOptions): LinguiniWebLocale<Locale>;
+export declare function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options?: LinguiniWebOptions, environment?: LinguiniWebEnvironment): LinguiniWebLocale<Locale>;
 
-export declare function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options?: LinguiniWebOptions): LinguiniWeb<Locale, Linguini>;
+export declare function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options?: LinguiniWebOptions, environment?: LinguiniWebEnvironment): LinguiniWeb<Locale, Linguini>;

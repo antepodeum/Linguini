@@ -1,4 +1,5 @@
 import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";
+import { base } from "$app/paths";
 import type { Locale } from "./locale";
 import * as locale from "./locale";
 import { createWebLocaleI18n } from "./web";
@@ -15,7 +16,7 @@ export const reroute: Reroute = linguiniReroute;
 export const load: ServerLoad = linguiniLoad;
 
 function createHandle(runtime: typeof import("./locale"), options: Record<string, unknown> = {}) {
-  const web = createWebLocaleI18n(runtime, options.web as Record<string, unknown> | undefined ?? options);
+  const web = createWebLocaleI18n(runtime, options.web as Record<string, unknown> | undefined ?? options, { base });
 {{PERSIST_COOKIE_DECLARATION}}
 
   return async function linguiniHandle({ event, resolve }: Parameters<Handle>[0]) {
@@ -61,7 +62,7 @@ function createHandle(runtime: typeof import("./locale"), options: Record<string
 }
 
 function createReroute(runtime: typeof import("./locale"), options: Record<string, unknown> = {}) {
-  const web = createWebLocaleI18n(runtime, options.web as Record<string, unknown> | undefined ?? options);
+  const web = createWebLocaleI18n(runtime, options.web as Record<string, unknown> | undefined ?? options, { base });
   return function linguiniReroute({ url }: { url: URL }) {
     if (web.shouldExclude(url)) return undefined;
     const delocalized = web.delocalizePathname(url.pathname);

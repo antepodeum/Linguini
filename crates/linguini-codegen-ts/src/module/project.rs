@@ -205,7 +205,7 @@ pub fn generate_project_svelte_effects_module(
     sveltekit: bool,
 ) -> String {
     let browser_runtime = if sveltekit {
-        "import { browser } from \"$app/environment\";"
+        "import { browser } from \"$app/environment\";\nimport { base } from \"$app/paths\";"
     } else {
         "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";"
     };
@@ -214,6 +214,10 @@ pub fn generate_project_svelte_effects_module(
         &[
             ("BROWSER_RUNTIME", browser_runtime.to_owned()),
             ("OPTIONS", web_options_literal(options)),
+            (
+                "ENVIRONMENT",
+                if sveltekit { "{ base }" } else { "{}" }.to_owned(),
+            ),
             (
                 "LINK_RUNTIME_IMPORT",
                 if options.features().link_mode == super::TypeScriptLinkMode::Runtime {
@@ -336,7 +340,7 @@ fn sveltekit_replacements(options: &TypeScriptWebOptions) -> Vec<(&'static str, 
         (
             "PERSIST_COOKIE_DECLARATION",
             if has_cookie {
-                "  const persistCookie = options.persistCookie !== false && web.options.localeSwitch.writesCookie;"
+                "  const persistCookie = options.persistCookie !== false && web.options.locale.switch.writesCookie;"
                     .to_owned()
             } else {
                 String::new()
@@ -353,7 +357,7 @@ fn sveltekit_replacements(options: &TypeScriptWebOptions) -> Vec<(&'static str, 
         (
             "PERSIST_REDIRECT_COOKIE",
             if has_cookie {
-                "      if (persistCookie) persistLocaleCookie(web, response, context.locale);"
+                "      if (persistCookie) persistLocaleCookie(web, response, context.locale, { origin: event.url.origin });"
                     .to_owned()
             } else {
                 String::new()
@@ -362,7 +366,7 @@ fn sveltekit_replacements(options: &TypeScriptWebOptions) -> Vec<(&'static str, 
         (
             "PERSIST_RESPONSE_COOKIE",
             if has_cookie {
-                "    if (persistCookie) persistLocaleCookie(web, response, context.locale);"
+                "    if (persistCookie) persistLocaleCookie(web, response, context.locale, { origin: event.url.origin });"
                     .to_owned()
             } else {
                 String::new()
@@ -529,7 +533,7 @@ pub fn generate_project_web_switch_route_module(options: &TypeScriptWebOptions) 
             (
                 "PERSIST_SWITCH_COOKIE",
                 if options.features().has_cookie {
-                    "  if (web.options.localeSwitch.writesCookie) {\n    persistLocaleCookie(web, response, locale);\n  }"
+                    "  if (web.options.locale.switch.writesCookie) {\n    persistLocaleCookie(web, response, locale, { origin: event.url.origin });\n  }"
                         .to_owned()
                 } else {
                     String::new()
@@ -669,49 +673,45 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
     let locale_switch = locale_switch_literal(options.locale_switch);
     let exclude = js_string_array(&options.exclude);
     let mut fields = vec![
-        format!("sources: [{sources}] as const"),
-        format!("localeSwitch: {locale_switch}"),
-        format!("localePrefix: \"{}\"", options.locale_prefix.as_str()),
         format!(
-            "prefixDefaultLocale: {}",
-            js_bool(options.prefix_default_locale)
+            "routing: {{ localePrefix: \"{}\", canonical: \"{}\" }}",
+            options.locale_prefix.as_str(),
+            if options.canonical_redirect {
+                "redirect"
+            } else {
+                "preserve"
+            }
         ),
-        format!("basePath: \"{}\"", escape_string(&options.base_path)),
-        format!("redirect: {}", js_bool(options.redirect)),
-        format!("exclude: [{exclude}] as const"),
-        format!(
-            "localizeLinks: {}",
-            js_bool(features.link_mode != super::TypeScriptLinkMode::Manual)
-        ),
+        format!("locale: {{ sources: [{sources}] as const, switch: {locale_switch} }}"),
+        format!("links: {{ mode: \"{}\" }}", features.link_mode.as_str()),
+        format!("routes: {{ exclude: [{exclude}] as const }}"),
     ];
 
     if features.has_cookie {
-        fields.extend([
-            format!("cookieName: \"{}\"", escape_string(&options.cookie_name)),
-            format!("cookiePath: \"{}\"", escape_string(&options.cookie_path)),
-            format!("cookieMaxAge: {}", options.cookie_max_age),
-            format!(
-                "cookieSameSite: \"{}\"",
-                escape_string(&options.cookie_same_site)
+        let mut cookie = vec![
+            format!("name: \"{}\"", escape_string(&options.cookie_name)),
+            options.cookie_path.as_ref().map_or_else(
+                || "path: \"auto\"".to_owned(),
+                |path| format!("path: \"{}\"", escape_string(path)),
             ),
-            format!("cookieSecure: {}", js_bool(options.cookie_secure)),
-            format!("cookieHttpOnly: {}", js_bool(options.cookie_http_only)),
-        ]);
+            format!("maxAge: {}", options.cookie_max_age),
+            format!("sameSite: \"{}\"", escape_string(&options.cookie_same_site)),
+            options.cookie_secure.map_or_else(
+                || "secure: \"auto\"".to_owned(),
+                |secure| format!("secure: {}", js_bool(secure)),
+            ),
+            format!("httpOnly: {}", js_bool(options.cookie_http_only)),
+        ];
         if let Some(cookie_domain) = &options.cookie_domain {
-            fields.push(format!(
-                "cookieDomain: \"{}\"",
-                escape_string(cookie_domain)
-            ));
+            cookie.push(format!("domain: \"{}\"", escape_string(cookie_domain)));
         }
+        fields.push(format!("cookie: {{ {} }}", cookie.join(", ")));
     }
     if features.has_local_storage {
         fields.push(format!(
-            "localStorageKey: \"{}\"",
+            "localStorage: {{ key: \"{}\" }}",
             escape_string(&options.local_storage_key)
         ));
-    }
-    if let Some(origin) = &options.origin {
-        fields.push(format!("origin: \"{}\"", escape_string(origin)));
     }
 
     format!("{{ {} }} as const", fields.join(", "))
@@ -818,7 +818,7 @@ fn gate_browser_capability_writes(
         // Remove the whole branch so pathless policies do not ship dead URL
         // reads or framework navigation imports.
         let branch_start =
-            rendered.find("      if (options.navigate && web.options.localeSwitch.writesPath) {");
+            rendered.find("      if (options.navigate && web.options.locale.switch.writesPath) {");
         let branch_end = rendered.find("\n      }\n      refreshLinguiniEffects();");
         if let (Some(start), Some(end)) = (branch_start, branch_end) {
             rendered.replace_range(start..end + "\n      }\n".len(), "");
@@ -828,7 +828,7 @@ fn gate_browser_capability_writes(
     }
     if !features.has_local_storage {
         rendered = rendered.replace(
-            "      if (web.options.localeSwitch.writesLocalStorage) {\n        writeLocalStorage(web, resolved);\n      }\n",
+            "      if (web.options.locale.switch.writesLocalStorage) {\n        writeLocalStorage(web, resolved);\n      }\n",
             "",
         );
         if let Some(start) = rendered.find("\nfunction writeLocalStorage(") {
@@ -842,7 +842,7 @@ fn gate_browser_capability_writes(
     }
     if !features.has_cookie {
         rendered = rendered.replace(
-            "      if (options.cookie && web.options.localeSwitch.writesCookie) {\n        writeLocaleCookie(web, resolved);\n      }\n",
+            "      if (options.cookie && web.options.locale.switch.writesCookie) {\n        writeLocaleCookie(web, resolved);\n      }\n",
             "",
         );
         if let Some(start) = rendered.find("\nfunction writeLocaleCookie(") {

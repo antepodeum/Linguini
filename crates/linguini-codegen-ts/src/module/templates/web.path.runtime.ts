@@ -1,6 +1,6 @@
 export function resolvePathLocale<Locale extends string>(
   input: Record<string, unknown>,
-  options: { basePath: string },
+  options: { environment: { base: string } },
   locales: readonly Locale[],
 ): Locale | undefined {
   const value = input.url as URL | string | undefined;
@@ -12,8 +12,8 @@ export function resolvePathLocale<Locale extends string>(
     return undefined;
   }
   const pathname = parsed.pathname.startsWith("/") ? parsed.pathname : `/${parsed.pathname}`;
-  const base = options.basePath && options.basePath !== "/"
-    ? `/${options.basePath.replace(/^\/+|\/+$/g, "")}`
+  const base = options.environment.base && options.environment.base !== "/"
+    ? `/${options.environment.base.replace(/^\/+|\/+$/g, "")}`
     : "";
   const stripped = base && pathname === base
     ? "/"

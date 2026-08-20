@@ -2023,18 +2023,15 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                     writes_local_storage: false,
                 },
                 cookie_name: "SHOP_LOCALE".to_owned(),
-                cookie_path: "/shop".to_owned(),
+                cookie_path: Some("/shop".to_owned()),
                 cookie_domain: Some("example.com".to_owned()),
                 cookie_max_age: 86400,
                 cookie_same_site: "strict".to_owned(),
-                cookie_secure: true,
+                cookie_secure: Some(true),
                 cookie_http_only: true,
                 local_storage_key: "SHOP_LOCALE".to_owned(),
                 locale_prefix: TypeScriptLocalePrefixMode::Always,
-                prefix_default_locale: true,
-                base_path: "/shop".to_owned(),
-                redirect: false,
-                origin: Some("https://example.com".to_owned()),
+                canonical_redirect: false,
                 exclude: vec!["/api/**".to_owned()],
                 link_mode: TypeScriptLinkMode::Manual,
                 switch_route: Some(TypeScriptWebSwitchRoute {
@@ -2186,16 +2183,16 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(svelte_effects
         .contents
         .contains("hot?.dispose(destroyLinguiniEffects)"));
-    assert!(svelte_effects
-        .contents
-        .contains("cookieName: \"SHOP_LOCALE\""));
+    assert!(svelte_effects.contents.contains("name: \"SHOP_LOCALE\""));
     assert!(svelte_effects
         .contents
         .contains("sources: [\"path\", \"cookie\", \"accept-language\"] as const"));
     assert!(svelte_effects.contents.contains(
-        "localeSwitch: { writesPath: true, writesCookie: true, writesLocalStorage: false } as const"
+        "switch: { writesPath: true, writesCookie: true, writesLocalStorage: false } as const"
     ));
-    assert!(svelte_effects.contents.contains("localizeLinks: false"));
+    assert!(svelte_effects
+        .contents
+        .contains("links: { mode: \"manual\" }"));
     for capability in [
         "readBrowserCapability(() => window.location.href)",
         "readBrowserCapability(() => document.cookie)",
@@ -2281,7 +2278,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .contains("cookie: event.request.headers.get(\"cookie\") ?? undefined"));
     assert!(sveltekit
         .contents
-        .contains("web.options.localeSwitch.writesCookie"));
+        .contains("web.options.locale.switch.writesCookie"));
 
     let sveltekit_control = files
         .iter()
@@ -2302,7 +2299,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .contains("import * as locale from \"./locale\";"));
     assert!(sveltekit_control
         .contents
-        .contains("web.options.localeSwitch.writesCookie"));
+        .contains("web.options.locale.switch.writesCookie"));
     for forbidden in ["./index", "./locales/", "./messages", "createWebI18n"] {
         assert!(!sveltekit_control.contents.contains(forbidden));
     }
@@ -2345,10 +2342,10 @@ fn project_codegen_preserves_each_locale_prefix_mode_in_source_and_declarations(
     };
     use linguini_ir::IrModule;
 
-    for (mode, prefix_default_locale) in [
-        (TypeScriptLocalePrefixMode::Always, true),
-        (TypeScriptLocalePrefixMode::ExceptDefault, false),
-        (TypeScriptLocalePrefixMode::Never, false),
+    for mode in [
+        TypeScriptLocalePrefixMode::Always,
+        TypeScriptLocalePrefixMode::ExceptDefault,
+        TypeScriptLocalePrefixMode::Never,
     ] {
         let files = generate_project_files(
             &IrModule::default(),
@@ -2361,7 +2358,6 @@ fn project_codegen_preserves_each_locale_prefix_mode_in_source_and_declarations(
                 framework: Some(TypeScriptFramework::SvelteKit),
                 web: Some(TypeScriptWebOptions {
                     locale_prefix: mode,
-                    prefix_default_locale,
                     ..TypeScriptWebOptions::default()
                 }),
                 ..project_options("en")
@@ -2376,9 +2372,9 @@ fn project_codegen_preserves_each_locale_prefix_mode_in_source_and_declarations(
         assert!(source
             .contents
             .contains(&format!("localePrefix: \"{}\"", mode.as_str())));
-        assert!(source
-            .contents
-            .contains(&format!("prefixDefaultLocale: {prefix_default_locale}")));
+        for removed in ["prefixDefaultLocale", "basePath", "trailingSlash"] {
+            assert!(!source.contents.contains(removed));
+        }
 
         let declaration = files
             .iter()
@@ -2390,9 +2386,7 @@ fn project_codegen_preserves_each_locale_prefix_mode_in_source_and_declarations(
         assert!(declaration
             .contents
             .contains("localePrefix?: LocalePrefixMode;"));
-        assert!(declaration
-            .contents
-            .contains("prefixDefaultLocale?: boolean;"));
+        assert!(!declaration.contents.contains("prefixDefaultLocale"));
     }
 }
 
@@ -2469,7 +2463,7 @@ fn project_codegen_emits_only_selected_web_source_and_browser_capabilities() {
     assert!(!effects
         .contents
         .contains("navigator: readBrowserCapability(() => window.navigator)"));
-    assert!(effects.contents.contains("localizeLinks: true"));
+    assert!(effects.contents.contains("links: { mode: \"transform\" }"));
     assert!(!effects.contents.contains("MutationObserver"));
     assert!(!effects.contents.contains("startRuntimeLinkLocalization"));
     let link_transform = files
@@ -2484,7 +2478,7 @@ fn project_codegen_emits_only_selected_web_source_and_browser_capabilities() {
         .expect("control runtime");
     assert!(!control
         .contents
-        .contains("web.options.localeSwitch.writesPath"));
+        .contains("web.options.locale.switch.writesPath"));
     assert!(!control.contents.contains("window.location.href"));
 }
 
@@ -2560,7 +2554,7 @@ fn project_codegen_allows_closed_web_features_without_sources() {
         .expect("control runtime");
     assert!(!control
         .contents
-        .contains("web.options.localeSwitch.writesPath"));
+        .contains("web.options.locale.switch.writesPath"));
     assert!(!control.contents.contains("window.location.href"));
 }
 
@@ -2593,7 +2587,7 @@ fn project_codegen_manual_link_mode_disables_runtime_observer() {
         .iter()
         .find(|file| file.path == "svelte-effects.svelte.ts")
         .expect("effects runtime");
-    assert!(effects.contents.contains("localizeLinks: false"));
+    assert!(effects.contents.contains("links: { mode: \"manual\" }"));
     assert!(!effects.contents.contains("MutationObserver"));
     assert!(effects.contents.contains(
         "const linkEffects: { refresh(): void; destroy(): void } | undefined = undefined"
@@ -2726,7 +2720,7 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
         .find("setCurrentLocale(resolved)")
         .expect("synchronous locale update");
     let navigation_position = control
-        .find("if (options.navigate && web.options.localeSwitch.writesPath)")
+        .find("if (options.navigate && web.options.locale.switch.writesPath)")
         .expect("navigation branch");
     assert!(set_position < navigation_position);
     assert!(control.contains("writeLocaleCookie(web, resolved)"));

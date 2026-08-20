@@ -29,7 +29,8 @@ test("effects initialization tolerates denied browser capability getters", async
       "{{BROWSER_RUNTIME}}",
       "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";",
     )
-    .replace("{{OPTIONS}}", "{ localizeLinks: false }")
+    .replace("{{OPTIONS}}", "{ links: { mode: \"manual\" } }")
+    .replace("{{ENVIRONMENT}}", "{}")
     .replace("{{LINK_RUNTIME_IMPORT}}", "")
     .replace(
       "{{LINK_RUNTIME_START}}",
@@ -100,7 +101,8 @@ test("effects initialization forwards navigator preferences to locale resolver",
       "{{BROWSER_RUNTIME}}",
       "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";",
     )
-    .replace("{{OPTIONS}}", "{ localizeLinks: false, sources: [\"accept-language\"] }")
+    .replace("{{OPTIONS}}", "{ links: { mode: \"manual\" }, locale: { sources: [\"accept-language\"] } }")
+    .replace("{{ENVIRONMENT}}", "{}")
     .replace("{{LINK_RUNTIME_IMPORT}}", "")
     .replace(
       "{{LINK_RUNTIME_START}}",
@@ -174,8 +176,8 @@ test("setLocale prepares before mutation and ignores persistence failures", asyn
       `const web = {
   baseLocale: "en",
   options: {
-    localStorageKey: "locale",
-    localeSwitch: { writesPath: true, writesCookie: true, writesLocalStorage: true },
+    localStorage: { key: "locale" },
+    locale: { switch: { writesPath: true, writesCookie: true, writesLocalStorage: true } },
   },
   matchLocale: (locale: unknown) => locale === "fr" ? "fr" : undefined,
   serializeLocaleCookie: () => "locale=fr",
@@ -244,8 +246,8 @@ test("setLocale obeys generated locale switch transports", async () => {
       `const web = {
   baseLocale: "en",
   options: {
-    localStorageKey: "locale",
-    localeSwitch: { writesPath: false, writesCookie: false, writesLocalStorage: false },
+    localStorage: { key: "locale" },
+    locale: { switch: { writesPath: false, writesCookie: false, writesLocalStorage: false } },
   },
   serializeLocaleCookie: () => "locale=fr",
   localizeHref: () => "/fr",
@@ -297,6 +299,7 @@ test("SvelteKit adapters gate server cookie persistence through locale switch pl
           'import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";',
           "",
         )
+        .replace('import { base } from "$app/paths";', 'const base = "";')
         .replace(
           'import type { Locale } from "./locale";',
           'type Locale = "en";',
@@ -320,7 +323,7 @@ test("SvelteKit adapters gate server cookie persistence through locale switch pl
         .replace(
           "const options = {{OPTIONS}};",
           `const options = {
-  localeSwitch: { writesPath: false, writesCookie: ${writesCookie}, writesLocalStorage: false },
+  locale: { switch: { writesPath: false, writesCookie: ${writesCookie}, writesLocalStorage: false } },
 };`,
         )
         .replace(
@@ -329,7 +332,7 @@ test("SvelteKit adapters gate server cookie persistence through locale switch pl
         )
         .replace(
           "{{PERSIST_COOKIE_DECLARATION}}",
-          "  const persistCookie = options.persistCookie !== false && web.options.localeSwitch.writesCookie;",
+          "  const persistCookie = options.persistCookie !== false && web.options.locale.switch.writesCookie;",
         )
         .replace(
           "{{COOKIE_INPUT}}",
@@ -357,7 +360,7 @@ function createWeb(_runtime: unknown, options: any) {
     htmlAttrs: { lang: "en", dir: "ltr" },
   };
   return {
-    options: { localeSwitch: options.localeSwitch },
+    options: { locale: { switch: options.locale.switch } },
     baseLocale: "en",
     locales: ["en"],
     shouldExclude: () => false,
@@ -408,13 +411,13 @@ test("switch route rejects unsafe returns and follows shared path/cookie plan", 
     .replace("{{SWITCH_ROUTE_STATUS}}", "303")
     .replace(
       "{{PERSIST_SWITCH_COOKIE}}",
-      "  if (web.options.localeSwitch.writesCookie) persistLocaleCookie(web, response, locale);",
+      "  if (web.options.locale.switch.writesCookie) persistLocaleCookie(web, response, locale);",
     );
   const generated = await importTypeScript(source);
   const web = {
     options: {
-      basePath: "/app",
-      localeSwitch: { writesPath: true, writesCookie: true },
+      environment: { base: "/app" },
+      locale: { switch: { writesPath: true, writesCookie: true } },
     },
     matchLocale: (value: unknown) => ["en", "de"].includes(String(value)) ? String(value) : undefined,
     localizeHref: (href: string, locale: string) => `/${locale}${href}`,

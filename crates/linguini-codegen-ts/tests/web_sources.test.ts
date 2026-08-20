@@ -19,12 +19,12 @@ test("selected route matcher shares exact and recursive exclusion semantics", ()
 });
 
 test("selected source modules preserve validated source semantics", () => {
-  expect(resolvePathLocale({ url: "https://example.test/de/shop" }, { basePath: "" }, locales)).toBe("de");
-  expect(resolvePathLocale({ url: "https://example.test/shop" }, { basePath: "" }, locales)).toBeUndefined();
-  expect(resolveCookieLocale({ cookie: "LINGUINI_LOCALE=fr" }, { cookieName: "LINGUINI_LOCALE" }, match)).toBe("fr");
-  expect(resolveCookieLocale({ cookie: "LINGUINI_LOCALE=%ZZ" }, { cookieName: "LINGUINI_LOCALE" }, match)).toBeUndefined();
+  expect(resolvePathLocale({ url: "https://example.test/de/shop" }, { environment: { base: "" } }, locales)).toBe("de");
+  expect(resolvePathLocale({ url: "https://example.test/shop" }, { environment: { base: "" } }, locales)).toBeUndefined();
+  expect(resolveCookieLocale({ cookie: "LINGUINI_LOCALE=fr" }, { cookie: { name: "LINGUINI_LOCALE" } }, match)).toBe("fr");
+  expect(resolveCookieLocale({ cookie: "LINGUINI_LOCALE=%ZZ" }, { cookie: { name: "LINGUINI_LOCALE" } }, match)).toBeUndefined();
   const storage = { getItem: (key: string) => key === "locale" ? "de" : null } as Storage;
-  expect(resolveLocalStorageLocale({ localStorage: storage }, { localStorageKey: "locale" }, match)).toBe("de");
+  expect(resolveLocalStorageLocale({ localStorage: storage }, { localStorage: { key: "locale" } }, match)).toBe("de");
   expect(resolveAcceptLanguageLocale(
     { headers: new Headers({ "accept-language": "fr-CA, de;q=0.8" }) },
     locales,
@@ -33,7 +33,7 @@ test("selected source modules preserve validated source semantics", () => {
   )).toBe("fr");
 });
 
-test("physical source modules preserve legacy resolver edge behavior", () => {
+test("physical source modules preserve structured runtime resolver edge behavior", () => {
   const pathCases = [
     { input: { url: "https://example.test/shop/de/orders" }, basePath: "/shop", expected: "de" },
     { input: { url: "https://example.test/shopkeeper/de" }, basePath: "/shop", expected: undefined },
@@ -41,13 +41,14 @@ test("physical source modules preserve legacy resolver edge behavior", () => {
     { input: { url: new URL("https://example.test/FR") }, basePath: "", expected: "fr" },
   ];
   for (const { input, basePath, expected } of pathCases) {
-    const legacyPath = createWebLocaleI18n({ locales, baseLocale: "en" }, {
-      sources: ["path"],
-      basePath,
-    });
-    const physical = resolvePathLocale(input, { basePath }, locales);
+    const runtimePath = createWebLocaleI18n(
+      { locales, baseLocale: "en" },
+      { locale: { sources: ["path"] } },
+      { base: basePath },
+    );
+    const physical = resolvePathLocale(input, { environment: { base: basePath } }, locales);
     expect(physical).toBe(expected);
-    expect(legacyPath.resolveLocaleSync(input)).toBe(physical ?? "en");
+    expect(runtimePath.resolveLocaleSync(input)).toBe(physical ?? "en");
   }
 
   const cookieCases = [
@@ -57,12 +58,12 @@ test("physical source modules preserve legacy resolver edge behavior", () => {
     [undefined, undefined],
   ];
   for (const [cookie, expected] of cookieCases) {
-    const legacyCookie = createWebLocaleI18n({ locales, baseLocale: "en" }, {
-      sources: ["cookie"],
+    const runtimeCookie = createWebLocaleI18n({ locales, baseLocale: "en" }, {
+      locale: { sources: ["cookie"] },
     });
-    const physical = resolveCookieLocale({ cookie }, { cookieName: "LINGUINI_LOCALE" }, match);
+    const physical = resolveCookieLocale({ cookie }, { cookie: { name: "LINGUINI_LOCALE" } }, match);
     expect(physical).toBe(expected);
-    expect(legacyCookie.resolveLocaleSync({ cookie })).toBe(physical ?? "en");
+    expect(runtimeCookie.resolveLocaleSync({ cookie })).toBe(physical ?? "en");
   }
 
   const storageCases = [
@@ -71,13 +72,13 @@ test("physical source modules preserve legacy resolver edge behavior", () => {
     { getItem: () => { throw new Error("storage denied"); }, expected: undefined },
   ];
   for (const { expected, ...localStorage } of storageCases) {
-    const physical = resolveLocalStorageLocale({ localStorage }, { localStorageKey: "locale" }, match);
-    const legacyStorage = createWebLocaleI18n({ locales, baseLocale: "en" }, {
-      sources: ["local-storage"],
-      localStorageKey: "locale",
+    const physical = resolveLocalStorageLocale({ localStorage }, { localStorage: { key: "locale" } }, match);
+    const runtimeStorage = createWebLocaleI18n({ locales, baseLocale: "en" }, {
+      locale: { sources: ["local-storage"] },
+      localStorage: { key: "locale" },
     });
     expect(physical).toBe(expected);
-    expect(legacyStorage.resolveLocaleSync({ localStorage })).toBe(physical ?? "en");
+    expect(runtimeStorage.resolveLocaleSync({ localStorage })).toBe(physical ?? "en");
   }
 
   const acceptCases = [
@@ -87,12 +88,12 @@ test("physical source modules preserve legacy resolver edge behavior", () => {
     { input: { navigator: { languages: ["fr-CA", "en-US"], language: "en-US" } }, expected: "fr" },
     { input: { navigator: { languages: "fr", language: "en" } }, expected: "en" },
   ];
-  const legacyAccept = createWebLocaleI18n({ locales, baseLocale: "en" }, {
-    sources: ["accept-language"],
+  const runtimeAccept = createWebLocaleI18n({ locales, baseLocale: "en" }, {
+    locale: { sources: ["accept-language"] },
   });
   for (const { input, expected } of acceptCases) {
     const physical = resolveAcceptLanguageLocale(input, locales, "en", match);
     expect(physical).toBe(expected);
-    expect(legacyAccept.resolveLocaleSync(input)).toBe(physical ?? "en");
+    expect(runtimeAccept.resolveLocaleSync(input)).toBe(physical ?? "en");
   }
 });

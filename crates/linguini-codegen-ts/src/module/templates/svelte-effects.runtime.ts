@@ -7,7 +7,7 @@ import {
 } from "./svelte-locale.svelte.js";
 {{LINK_RUNTIME_IMPORT}}
 
-export const web = createWebLocaleI18n(locale, {{OPTIONS}});
+export const web = createWebLocaleI18n(locale, {{OPTIONS}}, {{ENVIRONMENT}});
 
 initializeCurrentLocale(readInitialLocale());
 

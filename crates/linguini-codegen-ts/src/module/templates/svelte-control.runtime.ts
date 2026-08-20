@@ -38,13 +38,13 @@ function createLinguiniControl() {
     };
     if (browser) {
       setCurrentLocale(resolved);
-      if (web.options.localeSwitch.writesLocalStorage) {
+      if (web.options.locale.switch.writesLocalStorage) {
         writeLocalStorage(web, resolved);
       }
-      if (options.cookie && web.options.localeSwitch.writesCookie) {
+      if (options.cookie && web.options.locale.switch.writesCookie) {
         writeLocaleCookie(web, resolved);
       }
-      if (options.navigate && web.options.localeSwitch.writesPath) {
+      if (options.navigate && web.options.locale.switch.writesPath) {
 {{NAVIGATION}}
       }
       refreshLinguiniEffects();
@@ -83,7 +83,7 @@ function createLinguiniControl() {
 
 function writeLocalStorage(web: typeof import("./svelte-effects.svelte.js").web, locale: string) {
   try {
-    window.localStorage.setItem(web.options.localStorageKey, locale);
+    window.localStorage.setItem(web.options.localStorage.key, locale);
   } catch {
     // Ignore storage failures in private browsing and locked-down contexts.
   }

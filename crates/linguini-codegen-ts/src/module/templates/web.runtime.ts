@@ -26,25 +26,31 @@ export interface LinkLocalizationAttributes {
 }
 
 export interface LinguiniWebOptions {
-  sources?: readonly LocaleSource[];
-  localeSwitch?: LocaleSwitchPlan;
-  cookieName?: string;
-  localStorageKey?: string;
-  localePrefix?: LocalePrefixMode;
-  /** @deprecated Use localePrefix for the closed three-mode policy. */
-  prefixDefaultLocale?: boolean;
-  basePath?: string;
-  trailingSlash?: "ignore" | "always" | "never";
-  cookiePath?: string;
-  cookieDomain?: string;
-  cookieMaxAge?: number;
-  cookieSameSite?: "lax" | "strict" | "none";
-  cookieSecure?: boolean;
-  cookieHttpOnly?: boolean;
-  exclude?: readonly (string | RegExp | ((url: URL) => boolean))[];
-  redirect?: boolean;
-  origin?: string;
-  localizeLinks?: boolean;
+  routing?: {
+    localePrefix?: LocalePrefixMode;
+    canonical?: "redirect" | "preserve";
+  };
+  locale?: {
+    sources?: readonly LocaleSource[];
+    switch?: LocaleSwitchPlan;
+  };
+  cookie?: {
+    name?: string;
+    path?: string | "auto";
+    domain?: string;
+    maxAge?: number;
+    sameSite?: "lax" | "strict" | "none";
+    secure?: boolean | "auto";
+    httpOnly?: boolean;
+  };
+  localStorage?: { key?: string };
+  links?: { mode?: "transform" | "runtime" | "manual" };
+  routes?: { exclude?: readonly (string | RegExp | ((url: URL) => boolean))[] };
+}
+
+export interface LinguiniWebEnvironment {
+  base?: string;
+  origin?: string | URL;
 }
 
 export interface LinguiniLocaleRuntime<Locale extends string = string> {
@@ -89,7 +95,7 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
  * fail closed and preserve the original href instead.
  */
 export interface LinguiniWebLocale<Locale extends string = string> extends LinguiniLocaleRuntime<Locale> {
-  options: Required<Pick<LinguiniWebOptions, "sources" | "localeSwitch" | "cookieName" | "localStorageKey" | "localePrefix" | "prefixDefaultLocale" | "basePath" | "trailingSlash" | "cookiePath" | "cookieMaxAge" | "cookieSameSite" | "cookieSecure" | "cookieHttpOnly" | "exclude" | "redirect" | "localizeLinks">> & LinguiniWebOptions;
+  options: ReturnType<typeof normalizeOptions>;
   matchLocale(locale: unknown): Locale | undefined;
   resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
   resolveLocaleSync(input?: Record<string, unknown>): Locale;
@@ -115,13 +121,13 @@ export interface LinguiniWeb<Locale extends string = string, Linguini = unknown>
   createRequestContext(locale: Locale, input?: Record<string, unknown>): LinguiniRequestContext<Locale, Linguini>;
 }
 
-export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options: LinguiniWebOptions = {}): LinguiniWebLocale<Locale> {
-  const normalized = normalizeOptions({ baseLocale: runtime.baseLocale, ...options });
+export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options: LinguiniWebOptions = {}, environment: LinguiniWebEnvironment = {}): LinguiniWebLocale<Locale> {
+  const normalized = normalizeOptions(runtime.baseLocale, options, environment);
   const matchLocale = (locale: unknown) => runtime.normalizeLocale?.(locale) ?? matchLocaleValue(runtime.locales, locale);
   const getTextDirection = (locale: Locale) => runtime.getTextDirection?.(locale) ?? runtime.localeDirections?.[locale] ?? "ltr";
 
   function resolveLocaleSync(input: Record<string, unknown> = {}) {
-    for (const source of normalized.sources) {
+    for (const source of normalized.locale.sources) {
       const resolved = resolveLocaleSource(
         source,
         input,
@@ -144,13 +150,13 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
   }
 
   function localizeParsedUrl(copy: URL, locale: Locale) {
-    const path = stripBasePath(copy.pathname, normalized.basePath);
+    const path = stripBasePath(copy.pathname, normalized.environment.base);
     // In `never` mode locale-looking segments are ordinary application paths.
     // Do not strip them while normalizing a URL that should remain unprefixed.
-    const withoutLocale = normalized.localePrefix === "never"
+    const withoutLocale = normalized.routing.localePrefix === "never"
       ? path
       : stripLeadingLocale(path, runtime.locales);
-    copy.pathname = applyTrailingSlash(joinPath(normalized.basePath, shouldPrefixLocale(normalized, locale) ? joinPath("/", locale, withoutLocale) : withoutLocale), normalized.trailingSlash);
+    copy.pathname = joinPath(normalized.environment.base, shouldPrefixLocale(normalized, locale) ? joinPath("/", locale, withoutLocale) : withoutLocale);
     return copy;
   }
 
@@ -172,7 +178,7 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
   }
 
   function shouldLocalizeHref(href: string, input: Record<string, unknown> = {}) {
-    if (normalized.localizeLinks === false) return false;
+    if (normalized.links.mode === "manual") return false;
     const value = String(href ?? "").trim();
     if (!value || value.startsWith("#") || value.startsWith("//")) return false;
     const scheme = value.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
@@ -208,8 +214,8 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
     const base = resolveBaseUrl(normalized, input);
     const copy = parseUrl(url, base);
     if (!isInternalHttpUrl(copy, base.origin)) return copy;
-    if (normalized.localePrefix === "never") return copy;
-    copy.pathname = joinPath(normalized.basePath, stripLeadingLocale(stripBasePath(copy.pathname, normalized.basePath), runtime.locales));
+    if (normalized.routing.localePrefix === "never") return copy;
+    copy.pathname = joinPath(normalized.environment.base, stripLeadingLocale(stripBasePath(copy.pathname, normalized.environment.base), runtime.locales));
     return copy;
   }
 
@@ -234,7 +240,7 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
   }
 
   function getCanonicalRedirect(url: string | URL, locale: Locale, input: Record<string, unknown> = {}) {
-    if (normalized.localePrefix === "never" || normalized.redirect === false || shouldExclude(url, input)) return undefined;
+    if (normalized.routing.localePrefix === "never" || normalized.routing.canonical === "preserve" || shouldExclude(url, input)) return undefined;
     const parsed = parseRuntimeUrl(url, normalized, input);
     const canonical = localizeUrl(parsed, locale, input);
     return canonical.pathname === parsed.pathname ? undefined : `${canonical.pathname}${canonical.search}${canonical.hash}`;
@@ -242,17 +248,17 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
 
   function shouldExclude(url: string | URL, input: Record<string, unknown> = {}) {
     const parsed = parseRuntimeUrl(url, normalized, input);
-    return normalized.exclude.some((matcher) => matchesRoute(matcher, parsed));
+    return normalized.routes.exclude.some((matcher) => matchesRoute(matcher, parsed));
   }
 
   function serializeLocaleCookie(locale: Locale, input: Record<string, unknown> = {}) {
-    const parts = [`${normalized.cookieName}=${encodeURIComponent(locale)}`];
-    parts.push(`Max-Age=${input.maxAge ?? normalized.cookieMaxAge}`);
-    parts.push(`Path=${normalized.cookiePath}`);
-    if (normalized.cookieDomain) parts.push(`Domain=${normalized.cookieDomain}`);
-    parts.push(`SameSite=${normalized.cookieSameSite}`);
-    if (input.secure ?? normalized.cookieSecure) parts.push("Secure");
-    if (input.httpOnly ?? normalized.cookieHttpOnly) parts.push("HttpOnly");
+    const parts = [`${normalized.cookie.name}=${encodeURIComponent(locale)}`];
+    parts.push(`Max-Age=${input.maxAge ?? normalized.cookie.maxAge}`);
+    parts.push(`Path=${normalized.cookie.path}`);
+    if (normalized.cookie.domain) parts.push(`Domain=${normalized.cookie.domain}`);
+    parts.push(`SameSite=${normalized.cookie.sameSite}`);
+    if (resolveCookieSecure(normalized.cookie.secure, input)) parts.push("Secure");
+    if (input.httpOnly ?? normalized.cookie.httpOnly) parts.push("HttpOnly");
     return parts.join("; ");
   }
 
@@ -260,13 +266,13 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
     const cookie = serializeLocaleCookie(locale, input);
     const sink = target as { headers?: Pick<Headers, "append">; cookies?: { set(name: string, value: string, options?: Record<string, unknown>): void } };
     if (sink.cookies?.set) {
-      sink.cookies.set(normalized.cookieName, locale, {
-        path: normalized.cookiePath,
-        domain: normalized.cookieDomain,
-        maxAge: input.maxAge ?? normalized.cookieMaxAge,
-        sameSite: normalized.cookieSameSite,
-        secure: input.secure ?? normalized.cookieSecure,
-        httpOnly: input.httpOnly ?? normalized.cookieHttpOnly,
+      sink.cookies.set(normalized.cookie.name, locale, {
+        path: normalized.cookie.path,
+        domain: normalized.cookie.domain,
+        maxAge: input.maxAge ?? normalized.cookie.maxAge,
+        sameSite: normalized.cookie.sameSite,
+        secure: resolveCookieSecure(normalized.cookie.secure, input),
+        httpOnly: input.httpOnly ?? normalized.cookie.httpOnly,
       });
     } else {
       sink.headers?.append?.("set-cookie", cookie);
@@ -296,8 +302,8 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
   };
 }
 
-export function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options: LinguiniWebOptions = {}): LinguiniWeb<Locale, Linguini> {
-  const web = createWebLocaleI18n(runtime, options);
+export function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options: LinguiniWebOptions = {}, environment: LinguiniWebEnvironment = {}): LinguiniWeb<Locale, Linguini> {
+  const web = createWebLocaleI18n(runtime, options, environment);
 
   function createRequestContext(locale: Locale, contextInput: Record<string, unknown> = {}): LinguiniRequestContext<Locale, Linguini> {
     const resolved = web.matchLocale(locale) ?? runtime.baseLocale;
@@ -353,29 +359,37 @@ function readHeader(headers: unknown, name: string) {
   }
 }
 
-function normalizeOptions(options: LinguiniWebOptions & { baseLocale: string }) {
-  const sources = options.sources ?? DEFAULT_SOURCES;
-  const localePrefix = options.localePrefix ?? (options.prefixDefaultLocale ? "always" : "except-default");
+function normalizeOptions(baseLocale: string, options: LinguiniWebOptions, environment: LinguiniWebEnvironment) {
+  const sources = options.locale?.sources ?? DEFAULT_SOURCES;
+  const base = normalizeBasePath(environment.base ?? "");
+  const origin = environment.origin;
+  const cookiePath = options.cookie?.path === "auto" || options.cookie?.path === undefined
+    ? base || "/"
+    : options.cookie.path;
+  const secure = options.cookie?.secure ?? "auto";
   return {
-    sources,
-    localeSwitch: options.localeSwitch ?? localeSwitchFromSources(sources),
-    cookieName: options.cookieName ?? "LINGUINI_LOCALE",
-    localStorageKey: options.localStorageKey ?? "LINGUINI_LOCALE",
-    localePrefix,
-    prefixDefaultLocale: localePrefix === "always",
-    basePath: options.basePath ?? "",
-    trailingSlash: options.trailingSlash ?? "ignore",
-    cookiePath: options.cookiePath ?? "/",
-    cookieDomain: options.cookieDomain,
-    cookieMaxAge: options.cookieMaxAge ?? DEFAULT_COOKIE_MAX_AGE,
-    cookieSameSite: options.cookieSameSite ?? "lax",
-    cookieSecure: Boolean(options.cookieSecure ?? false),
-    cookieHttpOnly: Boolean(options.cookieHttpOnly ?? false),
-    exclude: options.exclude ?? [],
-    redirect: options.redirect ?? true,
-    origin: options.origin,
-    localizeLinks: options.localizeLinks ?? true,
-    baseLocale: options.baseLocale,
+    routing: {
+      localePrefix: options.routing?.localePrefix ?? "except-default" as LocalePrefixMode,
+      canonical: options.routing?.canonical ?? "redirect" as "redirect" | "preserve",
+    },
+    locale: {
+      sources,
+      switch: options.locale?.switch ?? localeSwitchFromSources(sources),
+    },
+    cookie: {
+      name: options.cookie?.name ?? "LINGUINI_LOCALE",
+      path: cookiePath,
+      domain: options.cookie?.domain,
+      maxAge: options.cookie?.maxAge ?? DEFAULT_COOKIE_MAX_AGE,
+      sameSite: options.cookie?.sameSite ?? "lax" as "lax" | "strict" | "none",
+      secure,
+      httpOnly: Boolean(options.cookie?.httpOnly ?? false),
+    },
+    localStorage: { key: options.localStorage?.key ?? "LINGUINI_LOCALE" },
+    links: { mode: options.links?.mode ?? "runtime" as "transform" | "runtime" | "manual" },
+    routes: { exclude: options.routes?.exclude ?? [] },
+    environment: { base, origin },
+    baseLocale,
   };
 }
 
@@ -398,16 +412,16 @@ function resolveLocaleSource<Locale extends string>(
   if (source === "path") {
     return matchExactLocale(
       locales,
-      firstPathSegment(input.url as URL | string | undefined, options.basePath),
+      firstPathSegment(input.url as URL | string | undefined, options.environment.base),
     );
   }
   if (source === "cookie") {
-    return matchLocale(readCookie(input.cookie as string | undefined, options.cookieName));
+    return matchLocale(readCookie(input.cookie as string | undefined, options.cookie.name));
   }
   if (source === "local-storage") {
     try {
       return matchLocale(
-        (input.localStorage as Storage | undefined)?.getItem(options.localStorageKey) ?? undefined,
+        (input.localStorage as Storage | undefined)?.getItem(options.localStorage.key) ?? undefined,
       );
     } catch {
       return undefined;
@@ -628,15 +642,8 @@ function ensureSlash(pathname: string) {
   return value.startsWith("/") ? value : `/${value}`;
 }
 
-function applyTrailingSlash(pathname: string, mode: string) {
-  if (pathname === "/") return pathname;
-  if (mode === "always") return pathname.endsWith("/") ? pathname : `${pathname}/`;
-  if (mode === "never") return pathname.replace(/\/+$/, "");
-  return pathname;
-}
-
 function shouldPrefixLocale(options: ReturnType<typeof normalizeOptions>, locale: string) {
-  switch (options.localePrefix) {
+  switch (options.routing.localePrefix) {
     case "always":
       return true;
     case "never":
@@ -666,9 +673,28 @@ function matchesRoute(pattern: string | RegExp | ((url: URL) => boolean), url: U
 }
 
 function resolveBaseUrl(options: ReturnType<typeof normalizeOptions>, input: Record<string, unknown> = {}) {
-  const origin = parseUrl(input.origin ?? options.origin ?? browserLocationHref() ?? FALLBACK_URL, FALLBACK_URL);
+  const origin = parseUrl(input.origin ?? options.environment.origin ?? browserLocationHref() ?? FALLBACK_URL, FALLBACK_URL);
   const current = input.currentUrl ?? input.url;
   return current === undefined ? origin : parseUrl(current, origin);
+}
+
+function normalizeBasePath(value: string) {
+  if (!value || value === "/") return "";
+  return ensureSlash(value).replace(/\/+$/, "");
+}
+
+function resolveEnvironmentProtocol(origin: string | URL | undefined) {
+  try {
+    return parseUrl(origin ?? browserLocationHref() ?? FALLBACK_URL, FALLBACK_URL).protocol;
+  } catch {
+    return "http:";
+  }
+}
+
+function resolveCookieSecure(policy: boolean | "auto", input: Record<string, unknown>) {
+  if (typeof input.secure === "boolean") return input.secure;
+  if (policy !== "auto") return policy;
+  return resolveEnvironmentProtocol(input.origin as string | URL | undefined) === "https:";
 }
 
 function parseRuntimeUrl(url: string | URL, options: ReturnType<typeof normalizeOptions>, input: Record<string, unknown> = {}) {

@@ -22,10 +22,20 @@ fn generated_runtime_does_not_rewrite_html_with_anchor_regexes() {
 }
 
 #[test]
-fn web_runtime_options_require_locale_switch_plan() {
-    let required = "Required<Pick<LinguiniWebOptions, \"sources\" | \"localeSwitch\"";
-    assert!(WEB_RUNTIME.contains(required));
-    assert!(WEB_DECLARATIONS.contains(required));
+fn web_runtime_options_are_structured_and_drop_flat_compatibility_fields() {
+    for required in ["routing?: {", "locale?: {", "cookie?: {", "routes?: {"] {
+        assert!(WEB_RUNTIME.contains(required));
+        assert!(WEB_DECLARATIONS.contains(required));
+    }
+    for removed in [
+        "prefixDefaultLocale",
+        "basePath?:",
+        "trailingSlash",
+        "localizeLinks",
+    ] {
+        assert!(!WEB_RUNTIME.contains(removed));
+        assert!(!WEB_DECLARATIONS.contains(removed));
+    }
 }
 
 #[test]
