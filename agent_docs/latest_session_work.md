@@ -65,4 +65,21 @@
   Scoped facades now compile numeric lookups; browser chunks contain no canonical message paths.
   Plugin sparse/arity coverage, executable production payload assertions, and the full 11-task
   profile pass. The lab English payload fell from 182 to 120 bytes and `BUNDLE-A17` is closed.
-- Next work completes link-transform/runtime-link and server cookie capability modules for WEB-A13.
+- Added selected physical link-transform, runtime-link, and server-cookie capability modules in
+  `719c580`; generated transform/manual modes no longer ship the runtime observer, and SvelteKit
+  cookie persistence imports only the selected server capability.
+- Added Vite compile-time localization for safe static Svelte anchors in `13f9c13`; dynamic,
+  ignored, download, external, script, style, and comment cases remain untouched.
+- Added the safe optional SvelteKit switch route in `372d4ea`, with locale validation,
+  same-origin return validation, Referer/base fallback, selected cookie persistence, and shared
+  path localization.
+- Added the selected shared route matcher and SvelteKit local-storage-only SSR diagnostic in
+  `d373c75`; exclusions now consistently gate resolution, redirects, links, and switching.
+- Documented the closed feature policy and reconciled the web remediation checklist in `687e943`.
+  Closed #215, #220, WEB-A13, WEB-A15 through WEB-A19, P2-8, and DOC-W1 through DOC-W8.
+- Final `pnpm test:full` passed all 11 gates: Rust format/test/Clippy, Vite, CLI, VS Code, site
+  generation/runtime/Svelte checks/build, and the production graph. Svelte reported zero errors
+  and warnings; the final staged documentation diff passed `git diff --check`.
+- Next independent remediation entry point: WEB-A20 and DOC-W9; they require legacy public-runtime
+  removal and SvelteKit-derived base/trailing integration, so they were not folded into the closed
+  generated-feature deployment.

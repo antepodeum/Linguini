@@ -1,4 +1,4 @@
-# Active deployment: Closed generated web features
+# Completed deployment: Closed generated web features
 
 ## Goal
 
@@ -16,12 +16,12 @@ or bundler-native locale chunks.
 
 ## Ordered work packages
 
-1. `WEB-C0` — Define a closed generated `WebFeatures` model and lower validated policy into it.
-2. `WEB-C1` — Split source and browser/server capabilities into selected generated modules instead
+1. [x] `WEB-C0` — Define a closed generated `WebFeatures` model and lower validated policy into it.
+2. [x] `WEB-C1` — Split source and browser/server capabilities into selected generated modules instead
    of one generic source-strategy loop.
-3. `WEB-C2` — Verify path, cookie, local-storage, accept-language, and mixed feature matrices across
+3. [x] `WEB-C2` — Verify path, cookie, local-storage, accept-language, and mixed feature matrices across
    plain Svelte, SvelteKit, and public-runtime compatibility paths.
-4. `WEB-C3` — Run strict focused and full repository gates, then reconcile #215, WEB-A12/A13, P2-8.
+4. [x] `WEB-C3` — Run strict focused and full repository gates, then reconcile #215, WEB-A12/A13, P2-8.
 
 ## Acceptance and verification
 
@@ -112,5 +112,14 @@ or bundler-native locale chunks.
   cookie, local-storage, and accept-language resolver modules in validated order. Empty source sets
   resolve to the base locale, and pathless controls contain no navigation imports or URL writes.
   Standalone runtime dispatch remains compatible. The full 11-task profile and 32 Bun tests pass.
-- Next: finish `WEB-C1` with generated link-transform/runtime-link and server cookie capability
-  modules; WEB-A13 remains partial until those generic bodies are removed.
+- `WEB-C1` through `WEB-C3` are complete in `719c580`, `13f9c13`, `372d4ea`, `d373c75`, and
+  `687e943`. Generated projects select physical link-transform, runtime-link, server-cookie,
+  route-matcher, and switch-route modules; safe static anchors transform at compile time.
+- The optional SvelteKit switch route validates locale and same-origin returns, reuses the shared
+  transition plan and route matcher, and rejects configurations without a server transport.
+  Local-storage-only SvelteKit SSR policy now fails with a focused diagnostic.
+- Checklist #215, #220, WEB-A13, WEB-A15 through WEB-A19, P2-8, and DOC-W1 through DOC-W8 are
+  closed. WEB-A20 and DOC-W9 remain separate legacy/runtime integration work outside this plan.
+- Final verification: `pnpm test:full` passed all 11 gates, including 110 codegen tests, four web
+  safety tests, 79 CLI unit tests, 24 CLI integration tests, strict Clippy, zero Svelte diagnostics,
+  the production build, and graph assertions.
