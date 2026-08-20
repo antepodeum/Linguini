@@ -25,12 +25,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Confirm failure output stays readable for snapshot and CLI tests.
   - [x] Run focused tests or a downstream crate that uses the helpers.
-- [ ] 3. `crates/linguini-config`
-  - [ ] Review config model defaults, validation, and error messages.
-  - [ ] Check path discovery for predictable relative and absolute behavior.
-  - [ ] Remove duplicated parsing or normalization logic.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run focused tests or `cargo test -p linguini-config`.
+- [x] 3. `crates/linguini-config`
+  - [x] Review config model defaults, validation, and error messages.
+  - [x] Check path discovery for predictable relative and absolute behavior.
+  - [x] Remove duplicated parsing or normalization logic.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run focused tests or `cargo test -p linguini-config`.
 - [ ] 4. `crates/linguini-syntax`
   - [ ] Review lexer and parser boundaries before semantic crates depend on them.
   - [ ] Check AST shape, spans, and diagnostics for stable downstream use.
