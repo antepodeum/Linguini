@@ -1,11 +1,13 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub(crate) struct FormattingCoverage {
+    pub(crate) numbering_systems: usize,
     pub(crate) text_direction_locales: usize,
     pub(crate) number_locales: usize,
     pub(crate) currency_locales: usize,
@@ -83,18 +85,21 @@ pub(crate) fn generate_formatting_tables(
     numbers_main: &Path,
     dates_main: &Path,
     currency_data: &Path,
+    numbering_systems_path: &Path,
     locales: &[String],
 ) -> Result<(TokenStream, FormattingCoverage), String> {
     let mut number_arms = Vec::new();
     let mut currency_arms = Vec::new();
     let mut date_arms = Vec::new();
     let mut date_exclusions = Vec::new();
+    let numbering_systems = extract_numbering_systems(numbering_systems_path)?;
 
     for locale in locales {
         let numbers_path = numbers_main.join(locale).join("numbers.json");
         let numbers_value = read_json(&numbers_path)?;
-        let numbers = extract_numbers(&numbers_value, locale)
+        let numbers = extract_numbers(&numbers_value, locale, &numbering_systems)
             .map_err(|error| format!("{}: {error}", numbers_path.display()))?;
+        let digits = numbers.digits.clone();
         number_arms.push(number_arm(locale, numbers));
         let currency = extract_currency(&numbers_value, locale)
             .map_err(|error| format!("{}: {error}", numbers_path.display()))?;
@@ -105,7 +110,7 @@ pub(crate) fn generate_formatting_tables(
         match extract_dates(&dates_value, locale)
             .map_err(|error| format!("{}: {error}", dates_path.display()))?
         {
-            Some(dates) => date_arms.push(date_arm(locale, dates)),
+            Some(dates) => date_arms.push(date_arm(locale, dates, &digits)),
             None => date_exclusions.push(locale.clone()),
         }
     }
@@ -115,6 +120,7 @@ pub(crate) fn generate_formatting_tables(
     let currency_fraction_arms = currency_fractions.iter().map(currency_fraction_arm);
 
     let coverage = FormattingCoverage {
+        numbering_systems: numbering_systems.len(),
         text_direction_locales: 0,
         number_locales: number_arms.len(),
         currency_locales: currency_arms.len(),
@@ -173,6 +179,8 @@ fn currency_fraction_arm((currency, rule): &(String, CurrencyFractionRule)) -> T
 }
 
 fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
+    let numbering_system = numbers.numbering_system;
+    let digits = numbers.digits;
     let decimal_symbol = numbers.decimal_symbol;
     let group_symbol = numbers.group_symbol;
     let decimal_pattern = number_pattern_tokens(&numbers.decimal_pattern);
@@ -180,6 +188,8 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
     quote! {
         #locale => Some(NumberFormatData {
             locale: #locale,
+            numbering_system: #numbering_system,
+            digits: #digits,
             decimal_symbol: #decimal_symbol,
             group_symbol: #group_symbol,
             decimal_pattern: #decimal_pattern,
@@ -206,7 +216,7 @@ fn currency_arm(locale: &str, currency: CurrencyData) -> TokenStream {
     }
 }
 
-fn date_arm(locale: &str, dates: DateData) -> TokenStream {
+fn date_arm(locale: &str, dates: DateData, digits: &str) -> TokenStream {
     let date_formats = widths_tokens(&dates.date_formats);
     let time_formats = widths_tokens(&dates.time_formats);
     let date_time_formats = widths_tokens(&dates.date_time_formats);
@@ -215,6 +225,7 @@ fn date_arm(locale: &str, dates: DateData) -> TokenStream {
     quote! {
         #locale => Some(DateFormatData {
             locale: #locale,
+            digits: #digits,
             date_formats: #date_formats,
             time_formats: #time_formats,
             date_time_formats: #date_time_formats,
@@ -225,6 +236,8 @@ fn date_arm(locale: &str, dates: DateData) -> TokenStream {
 }
 
 struct NumberData {
+    numbering_system: String,
+    digits: String,
     decimal_symbol: String,
     group_symbol: String,
     decimal_pattern: NumberPattern,
@@ -270,18 +283,69 @@ fn read_json(path: &Path) -> Result<Value, String> {
     serde_json::from_str(&source).map_err(|error| format!("{}: {error}", path.display()))
 }
 
-fn extract_numbers(value: &Value, locale: &str) -> Result<NumberData, String> {
+fn extract_numbering_systems(path: &Path) -> Result<BTreeMap<String, String>, String> {
+    let value = read_json(path)?;
+    let systems = required_field(
+        required_field(&value, "supplemental", "root")?,
+        "numberingSystems",
+        "supplemental",
+    )?
+    .as_object()
+    .ok_or_else(|| "supplemental.numberingSystems is not an object".to_owned())?;
+    let mut numeric = BTreeMap::new();
+    for (name, value) in systems {
+        if value.get("_type").and_then(Value::as_str) != Some("numeric") {
+            continue;
+        }
+        let digits = string_field(value, "_digits", &format!("numbering system {name}"))?;
+        if digits.chars().count() != 10 {
+            return Err(format!(
+                "numbering system `{name}` has {} digits, expected 10",
+                digits.chars().count()
+            ));
+        }
+        numeric.insert(name.clone(), digits);
+    }
+    if !numeric.contains_key("latn") {
+        return Err("numeric numbering systems omit required `latn`".to_owned());
+    }
+    Ok(numeric)
+}
+
+fn extract_numbers(
+    value: &Value,
+    locale: &str,
+    numbering_systems: &BTreeMap<String, String>,
+) -> Result<NumberData, String> {
     let main = required_field(value, "main", "root")?;
     let locale_value = required_field(main, locale, "main")?;
     let numbers = required_field(locale_value, "numbers", locale)?;
-    let symbols = required_field(numbers, "symbols-numberSystem-latn", "numbers")?;
-    let decimal_formats = required_field(numbers, "decimalFormats-numberSystem-latn", "numbers")?;
-    let percent_formats = required_field(numbers, "percentFormats-numberSystem-latn", "numbers")?;
+    let numbering_system = string_field(numbers, "defaultNumberingSystem", "numbers")?;
+    let digits = numbering_systems.get(&numbering_system).ok_or_else(|| {
+        format!("default numbering system `{numbering_system}` is not a numeric system")
+    })?;
+    let symbols = required_field(
+        numbers,
+        &format!("symbols-numberSystem-{numbering_system}"),
+        "numbers",
+    )?;
+    let decimal_formats = required_field(
+        numbers,
+        &format!("decimalFormats-numberSystem-{numbering_system}"),
+        "numbers",
+    )?;
+    let percent_formats = required_field(
+        numbers,
+        &format!("percentFormats-numberSystem-{numbering_system}"),
+        "numbers",
+    )?;
     let decimal_pattern = string_field(decimal_formats, "standard", "decimal formats")?;
     let percent_pattern = string_field(percent_formats, "standard", "percent formats")?;
     Ok(NumberData {
-        decimal_symbol: string_field(symbols, "decimal", "latn symbols")?,
-        group_symbol: string_field(symbols, "group", "latn symbols")?,
+        numbering_system,
+        digits: digits.clone(),
+        decimal_symbol: string_field(symbols, "decimal", "number symbols")?,
+        group_symbol: string_field(symbols, "group", "number symbols")?,
         decimal_pattern: parse_number_pattern(&decimal_pattern)?,
         percent_pattern: parse_number_pattern(&percent_pattern)?,
     })
@@ -291,7 +355,12 @@ fn extract_currency(value: &Value, locale: &str) -> Result<CurrencyData, String>
     let main = required_field(value, "main", "root")?;
     let locale_value = required_field(main, locale, "main")?;
     let numbers = required_field(locale_value, "numbers", locale)?;
-    let currency_formats = required_field(numbers, "currencyFormats-numberSystem-latn", "numbers")?;
+    let numbering_system = string_field(numbers, "defaultNumberingSystem", "numbers")?;
+    let currency_formats = required_field(
+        numbers,
+        &format!("currencyFormats-numberSystem-{numbering_system}"),
+        "numbers",
+    )?;
     let standard = string_field(currency_formats, "standard", "currency formats")?;
     let accounting_pattern = currency_formats
         .get("accounting")

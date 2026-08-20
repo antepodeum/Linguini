@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "d5a6acab50bf98cd05ba2087b92cba64b9832e6fdf9e530d1dd7ab9648a7a1ca"
+        "aac586640fc07211af62f9776e6a7aece371cb03e69a9026394c0e039a74c4c6"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -135,6 +135,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     assert_eq!(manifest["coverage"]["extension_type_aliases"], 49);
     assert_eq!(manifest["coverage"]["locale_candidates"], 8_460);
     assert_eq!(manifest["coverage"]["number_locales"], 766);
+    assert_eq!(manifest["coverage"]["numbering_systems"], 78);
     assert_eq!(manifest["coverage"]["currency_fraction_rules"], 75);
     assert_eq!(manifest["coverage"]["date_locales"], 765);
 }
@@ -158,6 +159,8 @@ fn compiled_formatting_data_is_typed_not_json() {
     let dates = compiled_date_formatting("en").expect("dates");
 
     assert_eq!(numbers.decimal_symbol, ".");
+    assert_eq!(numbers.numbering_system, "latn");
+    assert_eq!(numbers.digits, "0123456789");
     assert_eq!(numbers.decimal_pattern.positive.primary_group_size, Some(3));
     assert_eq!(numbers.decimal_pattern.positive.max_fraction_digits, 3);
     let accounting = currency.accounting_pattern.expect("accounting pattern");
@@ -169,6 +172,21 @@ fn compiled_formatting_data_is_typed_not_json() {
     assert_eq!(dates.time_formats.short, "h:mm\u{202f}a");
     assert_eq!(dates.months.wide[0], "January");
     assert_eq!(dates.weekdays.abbreviated[0], "Sun");
+
+    let persian = compiled_number_formatting("fa").expect("Persian numbers");
+    assert_eq!(persian.numbering_system, "arabext");
+    assert_eq!(persian.digits, "۰۱۲۳۴۵۶۷۸۹");
+    assert_eq!(persian.decimal_symbol, "٫");
+    assert_eq!(
+        compiled_date_formatting("fa")
+            .expect("Persian dates")
+            .digits,
+        persian.digits
+    );
+
+    let bengali = compiled_number_formatting("bn").expect("Bengali numbers");
+    assert_eq!(bengali.numbering_system, "beng");
+    assert_eq!(bengali.digits, "০১২৩৪৫৬৭৮৯");
 }
 
 #[test]

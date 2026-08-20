@@ -45,6 +45,8 @@ pub struct PluralCategoryRule {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NumberFormatData {
     pub locale: &'static str,
+    pub numbering_system: &'static str,
+    pub digits: &'static str,
     pub decimal_symbol: &'static str,
     pub group_symbol: &'static str,
     pub decimal_pattern: NumberPattern,
@@ -74,6 +76,7 @@ pub struct CurrencyFractionData {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DateFormatData {
     pub locale: &'static str,
+    pub digits: &'static str,
     pub date_formats: FormatWidths,
     pub time_formats: FormatWidths,
     pub date_time_formats: FormatWidths,

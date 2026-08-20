@@ -49,7 +49,7 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "license": "Unicode-3.0"
         },
         "inputs": {
-            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+latn-numbers+latn-currency+gregorian+layout-v3",
+            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+gregorian+layout-v4",
             "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
             "tree_sha256": source.source_tree_sha256(),
             "file_count": source.input_file_count(),
@@ -75,6 +75,7 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "extension_type_aliases": generated.locale.extension_type_aliases,
             "locale_candidates": generated.locale.locale_candidates,
             "number_locales": generated.formatting.number_locales,
+            "numbering_systems": generated.formatting.numbering_systems,
             "currency_locales": generated.formatting.currency_locales,
             "currency_fraction_rules": generated.formatting.currency_fraction_rules,
             "date_locales": generated.formatting.date_locales,
@@ -131,9 +132,9 @@ mod tests {
     const CHECKED_MANIFEST: &[u8] =
         include_bytes!("../../linguini-cldr/src/data/generated/manifest.json");
     const GOLDEN_ARTIFACT_SHA256: &str =
-        "d5a6acab50bf98cd05ba2087b92cba64b9832e6fdf9e530d1dd7ab9648a7a1ca";
+        "aac586640fc07211af62f9776e6a7aece371cb03e69a9026394c0e039a74c4c6";
     const GOLDEN_MANIFEST_SHA256: &str =
-        "36362a2a8668531b3ae02ca15ef18a9264376ea67b79b9950e3ede0fabdf7f69";
+        "9735dc30a6be13f731b9936c46030e8f8a06df0cbe3d739de4874f742669207c";
 
     #[test]
     fn checked_artifact_matches_full_pinned_manifest_and_golden_hash() {
@@ -159,9 +160,9 @@ mod tests {
         );
         assert_eq!(
             manifest["inputs"]["tree_sha256"],
-            "56a882b24a6f978d514c6940afd18f96d9b9078b7d967b3f6b4d76b5516387b5"
+            "e07cdc7cb50f577ab2df6f313568fd107cc666433f532c4a3aa4cf4aa56d9df9"
         );
-        assert_eq!(manifest["inputs"]["file_count"], 2_323);
+        assert_eq!(manifest["inputs"]["file_count"], 2_324);
         assert_eq!(manifest["coverage"]["source_locales"], 766);
         assert_eq!(manifest["coverage"]["language_aliases"], 500);
         assert_eq!(manifest["coverage"]["script_aliases"], 1);
@@ -176,6 +177,7 @@ mod tests {
         assert_eq!(manifest["coverage"]["plural_locales"], 224);
         assert_eq!(manifest["coverage"]["plural_categories"], 499);
         assert_eq!(manifest["coverage"]["number_locales"], 766);
+        assert_eq!(manifest["coverage"]["numbering_systems"], 78);
         assert_eq!(manifest["coverage"]["currency_locales"], 766);
         assert_eq!(manifest["coverage"]["currency_fraction_rules"], 75);
         assert_eq!(manifest["coverage"]["date_locales"], 765);

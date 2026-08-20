@@ -37,6 +37,7 @@ pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedT
         source.numbers_main(),
         source.dates_main(),
         source.currency_data(),
+        source.numbering_systems(),
         source.locales(),
     )?;
     formatting.text_direction_locales = text_direction_locales;
