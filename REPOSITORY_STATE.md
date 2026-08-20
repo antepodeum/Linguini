@@ -85,12 +85,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove repeated string assembly when a shared emitter helper is clearer.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run codegen tests and snapshot review/update commands as needed.
-- [ ] 13. `crates/linguini-lsp`
-  - [ ] Review document model, hover, tokens, code actions, and server state.
-  - [ ] Check diagnostics, previews, and formatting use the finalized crate APIs.
-  - [ ] Remove duplicated parse/analyze flows that can share document helpers.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run focused tests or `cargo test -p linguini-lsp`.
+- [x] 13. `crates/linguini-lsp`
+  - [x] Review document model, hover, tokens, code actions, and server state.
+  - [x] Check diagnostics, previews, and formatting use the finalized crate APIs.
+  - [x] Remove duplicated parse/analyze flows that can share document helpers.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run focused tests or `cargo test -p linguini-lsp`.
 - [ ] 14. `crates/linguini-cli`
   - [ ] Review command boundaries after all library APIs are stable.
   - [ ] Check project IO, source discovery, fixes, check, and codegen workflows.
