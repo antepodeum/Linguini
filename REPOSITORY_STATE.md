@@ -55,12 +55,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Confirm package publish status and intended public surface are explicit.
   - [x] Run focused tests or dependent analyzer checks.
-- [ ] 8. `crates/linguini-locale`
-  - [ ] Review locale helper API against analyzer and syntax contracts.
-  - [ ] Remove helpers that duplicate public analyzer or syntax behavior.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Confirm package publish status and intended public surface are explicit.
-  - [ ] Run focused tests or dependent analyzer checks.
+- [x] 8. `crates/linguini-locale`
+  - [x] Review locale helper API against analyzer and syntax contracts.
+  - [x] Remove helpers that duplicate public analyzer or syntax behavior.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Confirm package publish status and intended public surface are explicit.
+  - [x] Run focused tests or dependent analyzer checks.
 - [ ] 9. `crates/linguini-cldr-macros`
   - [ ] Review generated-data inputs, source paths, and error handling.
   - [ ] Check macro output for deterministic ordering and small public surface.
