@@ -402,7 +402,8 @@ production path uses the fix and its relevant tests pass.
       chain; generated locale runtime still combines truncation with precomputed overrides.
 - [x] #209 — Reject an invalid base locale.
 - [x] #210 — Reject unknown text direction.
-- [-] #211 — Remove `targets.ts.module` and all CJS documentation/templates.
+- [x] #211 — Remove `targets.ts.module` and all CJS documentation/templates. The parser retains
+      only a value-level migration probe so the removed key still receives a targeted diagnostic.
 - [x] #212 — Make all parameterless messages public values.
 - [x] #213 — Reject empty locale sets.
 - [x] #214 — Treat missing dispatch branches as validated-IR failures.
@@ -691,7 +692,8 @@ production path uses the fix and its relevant tests pass.
 
 ### One SvelteKit/ESM ECMAScript backend
 
-- [-] ESM-A1 — Remove `targets.ts.module` from the model and all public surfaces.
+- [x] ESM-A1 — Remove `targets.ts.module` from the model and all public surfaces. A value-level
+      error probe preserves its migration diagnostic without accepting it into the raw model.
 - [ ] ESM-A2 — Treat SvelteKit as the primary supported adapter for now. Its not the only one in the future.
 - [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
       now uses the structured emitter, while legacy project/runtime generation still uses direct

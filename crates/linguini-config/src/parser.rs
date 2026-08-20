@@ -59,7 +59,6 @@ struct RawUnusedMessagesConfig {
 #[serde(deny_unknown_fields)]
 struct RawTypeScriptTargetConfig {
     out: Option<String>,
-    module: Option<toml::Value>,
     declaration: Option<bool>,
     gitignore: Option<bool>,
     tree_shaking: Option<bool>,
@@ -156,6 +155,12 @@ struct RawWebSwitchRouteConfig {
 
 pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
     let raw: RawConfig = toml::from_str(source).map_err(|error| {
+        if removed_typescript_module_field(source) {
+            return ConfigError::RemovedField {
+                field: "targets.ts.module",
+                replacement: "generated web modules are always ESM",
+            };
+        }
         let span = error.span().map(|span| (span.start, span.end));
         ConfigError::Toml {
             message: error.to_string(),
@@ -177,6 +182,18 @@ pub fn parse_config(source: &str) -> ConfigResult<LinguiniConfig> {
     };
     config.validate()?;
     Ok(config)
+}
+
+fn removed_typescript_module_field(source: &str) -> bool {
+    toml::from_str::<toml::Value>(source)
+        .ok()
+        .is_some_and(|value| {
+            value
+                .get("targets")
+                .and_then(|targets| targets.get("ts"))
+                .and_then(|ts| ts.get("module"))
+                .is_some()
+        })
 }
 
 fn build_project(raw: RawProjectConfig) -> ConfigResult<ProjectConfig> {
@@ -238,12 +255,6 @@ fn build_analysis(raw: RawAnalysisConfig) -> AnalysisConfig {
 }
 
 fn build_typescript_target(raw: RawTypeScriptTargetConfig) -> ConfigResult<TypeScriptTargetConfig> {
-    if raw.module.is_some() {
-        return Err(ConfigError::RemovedField {
-            field: "targets.ts.module",
-            replacement: "generated web modules are always ESM",
-        });
-    }
     Ok(TypeScriptTargetConfig {
         out: normalize_project_path(
             raw.out
@@ -587,6 +598,22 @@ mod tests {
         assert!(module
             .to_string()
             .contains("`targets.ts.module` was removed"));
+
+        let unrelated = parse_config(
+            r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            module = "esm"
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            "#,
+        )
+        .expect_err("unknown project field");
+        assert!(unrelated.to_string().contains("unknown field `module`"));
+        assert!(!unrelated.to_string().contains("targets.ts.module"));
     }
 
     #[test]
