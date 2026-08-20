@@ -109,9 +109,9 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove duplicated sample workspace files unless they document real flows.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run extension tests or packaging smoke checks.
-- [ ] 17. `site`
-  - [ ] Review docs and examples against the finalized CLI, codegen, and plugin APIs.
-  - [ ] Check locale routing, generated site messages, and prerender behavior.
-  - [ ] Remove stale preview copy, outdated snippets, and duplicated examples.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run site build and preview smoke checks.
+- [x] 17. `site`
+  - [x] Review docs and examples against the finalized CLI, codegen, and plugin APIs.
+  - [x] Check locale routing, generated site messages, and prerender behavior.
+  - [x] Remove stale preview copy, outdated snippets, and duplicated examples.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run site build and preview smoke checks.
