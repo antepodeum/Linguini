@@ -19,12 +19,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Confirm docs explain the shared contracts expected by dependent crates.
   - [x] Run focused tests or `cargo test -p linguini-core`.
-- [ ] 2. `crates/linguini-test-support`
-  - [ ] Keep fixtures and helpers generic enough for all downstream crates.
-  - [ ] Remove helpers that only wrap one call site without adding clarity.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Confirm failure output stays readable for snapshot and CLI tests.
-  - [ ] Run focused tests or a downstream crate that uses the helpers.
+- [x] 2. `crates/linguini-test-support`
+  - [x] Keep fixtures and helpers generic enough for all downstream crates.
+  - [x] Remove helpers that only wrap one call site without adding clarity.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Confirm failure output stays readable for snapshot and CLI tests.
+  - [x] Run focused tests or a downstream crate that uses the helpers.
 - [ ] 3. `crates/linguini-config`
   - [ ] Review config model defaults, validation, and error messages.
   - [ ] Check path discovery for predictable relative and absolute behavior.

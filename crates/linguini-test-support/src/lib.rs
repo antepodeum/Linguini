@@ -1,3 +1,5 @@
+#![deny(missing_docs)]
+
 //! Shared, fallible test filesystem helpers.
 
 use std::env;
@@ -92,7 +94,7 @@ fn validate_project_name(name: &str) -> io::Result<()> {
 }
 
 fn validate_fixture_relative_path(path: &Path) -> io::Result<()> {
-    if path.is_absolute() {
+    if path.as_os_str().is_empty() || path.is_absolute() {
         return Err(invalid_fixture_path(path));
     }
 
@@ -107,7 +109,9 @@ fn validate_fixture_relative_path(path: &Path) -> io::Result<()> {
 }
 
 fn portable_fixture_component(component: &OsStr) -> bool {
-    !component.to_string_lossy().contains('\\')
+    component
+        .to_str()
+        .is_some_and(|value| !value.contains('\\'))
 }
 
 fn invalid_fixture_path(path: &Path) -> io::Error {
@@ -222,6 +226,7 @@ mod tests {
     #[test]
     fn fixture_path_rejects_escape_attempts() {
         for path in [
+            Path::new(""),
             Path::new("../golden"),
             Path::new("golden/../../outside"),
             Path::new("./golden"),
@@ -231,6 +236,16 @@ mod tests {
             let error = fixture_path(path).expect_err("unsafe path must fail");
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{path:?}");
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fixture_path_rejects_non_utf8_components() {
+        use std::os::unix::ffi::OsStrExt;
+
+        let path = Path::new(std::ffi::OsStr::from_bytes(b"golden/\xff"));
+        let error = fixture_path(path).expect_err("non-UTF-8 fixture path must fail");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     }
 
     #[test]
