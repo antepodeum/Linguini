@@ -13,6 +13,10 @@ No more JSON archaeology, string-key roulette, and runtime localization surprise
 
 > Linguini is in a very early stage of development. APIs, generated output, and package boundaries can change quickly while the core model is still being hardened. [Check repository state](./REPOSITORY_STATE.md)
 
+The current web release is SvelteKit-first and ESM-only. It also emits a
+framework-agnostic TypeScript runtime and a Svelte adapter; other framework
+adapters and CommonJS output are outside the current release scope.
+
 **[Why Linguini](./docs/why.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)** · **[Web/SvelteKit](./docs/web-sveltekit.md)**
 
 ---
@@ -108,7 +112,9 @@ The generated `l` object mirrors the nested schema paths. Parameterless messages
 are values (`l.checkout.title`); messages with parameters are callable leaves
 with positional and named-object overloads. Named calls require every schema
 parameter and reject unknown properties. With the Svelte/Vite bundler target,
-static paths are transformed to imports of the exact per-message modules they use.
+static paths are transformed to imports of the exact per-message modules they
+use. Vite owns tree-shaking, chunk creation, preload, and loading of those ESM
+edges; Linguini supplies the exact static and dynamic module graph.
 
 Typed arguments. Plural forms, grammatical gender, and case agreement. Analyzer diagnostics for
 schema/locale mismatches, invalid references, missing branches in resolved enum/`Plural`
@@ -180,12 +186,23 @@ locale directory. See the [namespace contract](./docs/reference.md#namespaces-an
 
 ## CLI
 
-Linguini CLI must be installed. The VS Code extension and generated tooling use
-the `linguini` command by default and do not include a bundled binary.
+For JavaScript projects, install the native CLI launcher as a development
+dependency. It selects the matching platform package without downloading code
+at first run:
+
+```bash
+npm install --save-dev @linguini/cli@0.1.0-alpha.4
+npx linguini check
+```
+
+Rust users may instead install the same CLI through Cargo:
 
 ```bash
 cargo install linguini-cli --version 0.1.0-alpha.4
 ```
+
+The VS Code extension and generated tooling use the `linguini` command by
+default and do not include a bundled binary.
 
 Preview builds use vendored CLDR JSON data from the repository. If that data is
 missing from a source archive, building the CLDR support crate may need network

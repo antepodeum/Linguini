@@ -594,18 +594,18 @@ production path uses the fix and its relevant tests pass.
 
 ### `README.md`
 
-- [ ] DOC-R1 — State SvelteKit-first, ESM-only scope.
+- [x] DOC-R1 — State SvelteKit-first, ESM-only scope.
 - [ ] DOC-R2 — Remove CJS, multi-framework, and overstated type-safety claims.
 - [x] DOC-R3 — Use value leaves, positional calls, and named-object overloads correctly.
-- [ ] DOC-R4 — Explain that Vite owns tree-shaking, chunks, preload, and loading.
-- [ ] DOC-R5 — Make the npm CLI the default JS installation; retain Cargo as an option.
+- [x] DOC-R4 — Explain that Vite owns tree-shaking, chunks, preload, and loading.
+- [x] DOC-R5 — Make the npm CLI the default JS installation; retain Cargo as an option.
 
 ### `docs/getting-started.md`
 
-- [ ] DOC-G1 — Replace flat web configuration with minimal nested policy.
-- [ ] DOC-G2 — Remove `targets.ts.module` and every CJS choice.
+- [x] DOC-G1 — Replace flat web configuration with minimal nested policy.
+- [x] DOC-G2 — Remove `targets.ts.module` and every CJS choice.
 - [x] DOC-G3 — Explain one JavaScript runtime plus JSDoc and `.d.ts`.
-- [ ] DOC-G4 — Remove manual message-loading setup from the normal SvelteKit path.
+- [x] DOC-G4 — Remove manual message-loading setup from the normal SvelteKit path.
 - [ ] DOC-G5 — Execute one JavaScript and one TypeScript/Svelte example.
 
 ### `docs/reference.md`
