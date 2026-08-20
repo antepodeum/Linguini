@@ -9,8 +9,6 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-pub const CRATE_PURPOSE: &str = "locale AST and scope loading";
-
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LocaleScope {
     pub enums: BTreeMap<String, LocaleSymbol>,
@@ -195,7 +193,7 @@ impl LocaleScopeLoader {
                 self.register_message(source_index, source_path, is_override, declaration)
             }
             LocaleDeclaration::Group(declaration) => {
-                self.register_group(source_index, source_path, is_override, declaration);
+                self.register_group(source_index, source_path, is_override, None, declaration);
             }
             LocaleDeclaration::Override(declaration) => {
                 self.merge_declaration(source_index, source_path, true, declaration)
@@ -225,13 +223,22 @@ impl LocaleScopeLoader {
         source_index: usize,
         source_path: &Path,
         is_override: bool,
+        parent: Option<&str>,
         declaration: &MessageImplementationGroup,
     ) {
+        let group_name = match parent {
+            Some(parent) => format!("{parent}.{}", declaration.name.value),
+            None => declaration.name.value.clone(),
+        };
+        let name = Name {
+            value: group_name.clone(),
+            span: declaration.name.span,
+        };
         if !self.register(
             source_index,
             source_path,
             is_override,
-            &declaration.name,
+            &name,
             &declaration.docs,
             ScopeKind::Group,
         ) {
@@ -240,7 +247,7 @@ impl LocaleScopeLoader {
 
         for message in &declaration.messages {
             let name = Name {
-                value: format!("{}.{}", declaration.name.value, message.name.value),
+                value: format!("{group_name}.{}", message.name.value),
                 span: message.name.span,
             };
             self.register(
@@ -250,6 +257,16 @@ impl LocaleScopeLoader {
                 &name,
                 &message.docs,
                 ScopeKind::Message,
+            );
+        }
+
+        for child in &declaration.groups {
+            self.register_group(
+                source_index,
+                source_path,
+                is_override,
+                Some(&group_name),
+                child,
             );
         }
     }
@@ -848,6 +865,20 @@ mod tests {
         assert!(scope.groups.contains_key("email"));
         assert!(!scope.messages.contains_key("email"));
         assert!(scope.messages.contains_key("email.label"));
+    }
+
+    #[test]
+    fn registers_nested_groups_with_canonical_message_paths() {
+        let sources = vec![source(
+            "locale/ru.lgl",
+            "account {\n  profile {\n    title = Profile\n  }\n}\n",
+        )];
+        let (scope, diagnostics) = load_locale_scope(&sources);
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(scope.groups.contains_key("account"));
+        assert!(scope.groups.contains_key("account.profile"));
+        assert!(scope.messages.contains_key("account.profile.title"));
     }
 
     fn source(path: &str, source: &str) -> LocaleScopeSource {
