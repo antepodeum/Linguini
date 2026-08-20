@@ -49,12 +49,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Consolidate repeated validation flows across analyzer modules.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run analyzer tests and implementation coverage tests.
-- [ ] 7. `crates/linguini-schema`
-  - [ ] Review schema helper API against analyzer and syntax contracts.
-  - [ ] Remove helpers that duplicate public analyzer or syntax behavior.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Confirm package publish status and intended public surface are explicit.
-  - [ ] Run focused tests or dependent analyzer checks.
+- [x] 7. `crates/linguini-schema`
+  - [x] Review schema helper API against analyzer and syntax contracts.
+  - [x] Remove helpers that duplicate public analyzer or syntax behavior.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Confirm package publish status and intended public surface are explicit.
+  - [x] Run focused tests or dependent analyzer checks.
 - [ ] 8. `crates/linguini-locale`
   - [ ] Review locale helper API against analyzer and syntax contracts.
   - [ ] Remove helpers that duplicate public analyzer or syntax behavior.
