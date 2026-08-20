@@ -73,12 +73,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove stale generated-data adapters or redundant lookup layers.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run focused tests or `cargo test -p linguini-cldr`.
-- [ ] 11. `crates/linguini-format`
-  - [ ] Review formatting IR and engine after syntax shape is settled.
-  - [ ] Check idempotence, comments, whitespace, and malformed-input behavior.
-  - [ ] Remove formatting branches that duplicate parser recovery decisions.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run formatter tests and any snapshot checks.
+- [x] 11. `crates/linguini-format`
+  - [x] Review formatting IR and engine after syntax shape is settled.
+  - [x] Check idempotence, comments, whitespace, and malformed-input behavior.
+  - [x] Remove formatting branches that duplicate parser recovery decisions.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run formatter tests and any snapshot checks.
 - [ ] 12. `crates/linguini-codegen-ts`
   - [ ] Review module tree, naming, declaration, and template boundaries.
   - [ ] Check generated TypeScript, Svelte, and SvelteKit runtime contracts.
