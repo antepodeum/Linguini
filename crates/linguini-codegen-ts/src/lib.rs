@@ -20,7 +20,5 @@ pub use module::{
 };
 pub use plural::generate_plural_function;
 
-pub const CRATE_PURPOSE: &str = "TypeScript code generation";
-
 #[cfg(test)]
 mod tests;
