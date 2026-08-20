@@ -10,8 +10,6 @@ use semantics::FormatSemantics;
 use std::fmt;
 use std::path::Path;
 
-pub const CRATE_PURPOSE: &str = "Linguini source formatting";
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum SourceKind {
     Schema,

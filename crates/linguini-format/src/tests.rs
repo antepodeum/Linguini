@@ -1,17 +1,12 @@
 use super::{
     engine, format_path_source, format_source, semantics::FormatSemantics, FormatError,
-    FormatOptions, SourceKind, CRATE_PURPOSE,
+    FormatOptions, SourceKind,
 };
 use linguini_syntax::{
     lex_schema_with_recovery, lex_with_recovery, parse_locale, Expression, LocaleDeclaration,
     SourceId, Span, TextPart, TextPattern, Token, TokenKind,
 };
 use std::path::Path;
-
-#[test]
-fn crate_has_unit_test_structure() {
-    assert_eq!(CRATE_PURPOSE, "Linguini source formatting");
-}
 
 #[test]
 fn formats_schema_idempotently_and_preserves_doc_comments() {
