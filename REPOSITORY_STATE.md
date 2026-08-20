@@ -79,12 +79,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove formatting branches that duplicate parser recovery decisions.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run formatter tests and any snapshot checks.
-- [ ] 12. `crates/linguini-codegen-ts`
-  - [ ] Review module tree, naming, declaration, and template boundaries.
-  - [ ] Check generated TypeScript, Svelte, and SvelteKit runtime contracts.
-  - [ ] Remove repeated string assembly when a shared emitter helper is clearer.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run codegen tests and snapshot review/update commands as needed.
+- [x] 12. `crates/linguini-codegen-ts`
+  - [x] Review module tree, naming, declaration, and template boundaries.
+  - [x] Check generated TypeScript, Svelte, and SvelteKit runtime contracts.
+  - [x] Remove repeated string assembly when a shared emitter helper is clearer.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run codegen tests and snapshot review/update commands as needed.
 - [ ] 13. `crates/linguini-lsp`
   - [ ] Review document model, hover, tokens, code actions, and server state.
   - [ ] Check diagnostics, previews, and formatting use the finalized crate APIs.
