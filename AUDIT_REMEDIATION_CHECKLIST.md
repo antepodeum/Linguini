@@ -595,7 +595,7 @@ production path uses the fix and its relevant tests pass.
 ### `README.md`
 
 - [x] DOC-R1 — State SvelteKit-first, ESM-only scope.
-- [ ] DOC-R2 — Remove CJS, multi-framework, and overstated type-safety claims.
+- [x] DOC-R2 — Remove CJS, multi-framework, and overstated type-safety claims.
 - [x] DOC-R3 — Use value leaves, positional calls, and named-object overloads correctly.
 - [x] DOC-R4 — Explain that Vite owns tree-shaking, chunks, preload, and loading.
 - [x] DOC-R5 — Make the npm CLI the default JS installation; retain Cargo as an option.
@@ -612,10 +612,11 @@ production path uses the fix and its relevant tests pass.
 
 - [x] DOC-F1 — Specify recursive groups, qualified paths, and collisions.
 - [x] DOC-F2 — Specify value leaves, positional calls, and named-object overloads.
-- [ ] DOC-F3 — Specify dedented/raw multiline semantics and brace escaping.
-- [ ] DOC-F4 — Specify `///` attachment and generated/editor propagation.
+- [x] DOC-F3 — Specify dedented/raw multiline semantics and brace escaping.
+- [x] DOC-F4 — Specify `///` attachment and generated/editor propagation.
 - [x] DOC-F5 — Specify the implemented inline `fn` grammar and semantics.
-- [ ] DOC-F6 — Remove CJS completely.
+- [x] DOC-F6 — Remove CJS output and configuration completely; `.cjs` remains only as one
+      application source extension understood by unused-message analysis.
 - [-] DOC-F7 — Match formatter, plural, lint, typing, and exhaustiveness claims to tests.
 
 ### `docs/web-sveltekit.md`

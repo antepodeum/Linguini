@@ -77,7 +77,13 @@ delivery(fruit: Fruit, size: Size, count: Number)
 greeting(name: String)
 ```
 
-Doc comments attach to the next declaration and appear in codegen output and LSP hover.
+One or more consecutive `///` comments attach to the declaration immediately
+below them. A blank line or ordinary `//` comment detaches the documentation and
+is rejected instead of silently moving prose to another symbol. Schema docs are
+canonical API prose: they appear in LSP hover for both schema symbols and their
+locale implementations, and codegen emits them as escaped JSDoc on generated
+groups, values, and both callable overloads. Generated `.d.ts` output preserves
+the same documentation.
 
 ```lgs
 /// Shown on the delivery confirmation card.
@@ -251,6 +257,33 @@ Reference a parameter by name inside `{ }`:
 greeting = Hello, {name}!
 price    = Total: {amount} {currency}
 ```
+
+### Text blocks and literal braces
+
+Inline message text ends at the line break. Use `"""` for a multiline block
+whose layout should follow source indentation:
+
+```lgl
+receipt = """
+  Order {order_id}
+    {item_count} items
+  Thank you.
+"""
+```
+
+Dedented blocks remove an opening whitespace-only line, a closing
+whitespace-only line, and the exact common horizontal-whitespace prefix of every
+non-empty content line. They normalize `CRLF` and bare `CR` line endings to
+`LF`; whitespace remaining after the common prefix, including trailing spaces,
+is message data.
+
+Use `raw"""` when every whitespace and line-ending byte between the delimiters
+is data. Raw blocks do not remove structural edge lines, dedent, or normalize
+line endings. Both block modes still parse `{expression}` placeholders.
+
+In inline, dedented, and raw message text, write `{{` for a literal `{` and `}}`
+for a literal `}`. A single `{` begins a placeholder. Quoted string fragments
+inside inline-function branch text can also carry a literal closing brace.
 
 ### Local variables
 
