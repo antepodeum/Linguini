@@ -408,12 +408,12 @@ production path uses the fix and its relevant tests pass.
 
 ### Generated web/SvelteKit runtime
 
-- [-] #215 — Remove unsupported strategy dispatch and generate selected source modules.
+- [x] #215 — Remove unsupported strategy dispatch and generate selected source modules.
 - [x] #216 — Make default source behavior match validated configuration.
 - [x] #217 — Accept only the supported SvelteKit header interface.
 - [x] #218 — Parse `Accept-Language` weights and wildcards correctly.
 - [x] #219 — Handle malformed cookie percent encoding safely.
-- [-] #220 — Carry validated cookie constraints into the generated runtime.
+- [x] #220 — Carry validated cookie constraints into the generated runtime.
 - [x] #221 — Append rather than overwrite existing `Set-Cookie` headers.
 - [x] #222 — Prevent public URL localization from rewriting external URLs.
 - [x] #223 — Match only exact locale path segments.
@@ -618,14 +618,14 @@ production path uses the fix and its relevant tests pass.
 
 ### `docs/web-sveltekit.md`
 
-- [ ] DOC-W1 — Document `locale_prefix` values and default.
-- [ ] DOC-W2 — Document exact ordered locale sources and implicit default fallback.
-- [ ] DOC-W3 — Document cookie/local-storage defaults, validation, and enablement.
-- [ ] DOC-W4 — Document link modes and `localizeHref`.
-- [ ] DOC-W5 — Document route-exclusion matching.
-- [ ] DOC-W6 — Document switch route as transport over `LocaleSwitchPlan`.
-- [ ] DOC-W7 — Add path, cookie, hybrid, and pathless examples.
-- [ ] DOC-W8 — State the no-JavaScript local-storage-only limitation.
+- [x] DOC-W1 — Document `locale_prefix` values and default.
+- [x] DOC-W2 — Document exact ordered locale sources and implicit default fallback.
+- [x] DOC-W3 — Document cookie/local-storage defaults, validation, and enablement.
+- [x] DOC-W4 — Document link modes and `localizeHref`.
+- [x] DOC-W5 — Document route-exclusion matching.
+- [x] DOC-W6 — Document switch route as transport over `LocaleSwitchPlan`.
+- [x] DOC-W7 — Add path, cookie, hybrid, and pathless examples.
+- [x] DOC-W8 — State the no-JavaScript local-storage-only limitation.
 - [ ] DOC-W9 — Explain SvelteKit-derived origin/base/trailing-slash values.
 
 ### `docs/examples/sveltekit-locale-provider.md`
@@ -671,13 +671,13 @@ production path uses the fix and its relevant tests pass.
 - [x] WEB-A10 — Replace `localize_links` with transform/runtime/manual.
 - [x] WEB-A11 — Validate deterministic route exclusions.
 - [x] WEB-A12 — Lower configuration into a closed `WebFeatures` set.
-- [-] WEB-A13 — Generate only selected feature modules and no generic strategy loop.
+- [x] WEB-A13 — Generate only selected feature modules and no generic strategy loop.
 - [x] WEB-A14 — Compile one `LocaleSwitchPlan` for browser and server transports.
-- [ ] WEB-A15 — Use `localizeHref` for all path-based transitions.
-- [ ] WEB-A16 — Generate a safe optional switch route with validated return targets.
-- [ ] WEB-A17 — Reject switch routes with no server-writable transition.
-- [ ] WEB-A18 — Share one route matcher across resolution, redirects, links, and switching.
-- [ ] WEB-A19 — Diagnose local-storage-only SSR expectations.
+- [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
+- [x] WEB-A16 — Generate a safe optional switch route with validated return targets.
+- [x] WEB-A17 — Reject switch routes with no server-writable transition.
+- [x] WEB-A18 — Share one route matcher across resolution, redirects, links, and switching.
+- [x] WEB-A19 — Diagnose local-storage-only SSR expectations.
 - [ ] WEB-A20 — Remove every legacy flat field from runtime, templates, and docs.
 
 ### One SvelteKit/ESM ECMAScript backend
@@ -831,7 +831,7 @@ production path uses the fix and its relevant tests pass.
 - [x] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
 - [ ] P2-6 — Compile-time typed `l` namespace transform.
 - [x] P2-7 — Positional plus named-object overloads.
-- [-] P2-8 — Nested web config plus generated feature modules.
+- [x] P2-8 — Nested web config plus generated feature modules.
 - [x] P2-9 — One shared browser/server locale transition plan.
 - [x] P2-10 — Safe streaming-compatible link localization.
 - [-] P2-11 — Fully incremental/cancellable namespace-aware LSP.

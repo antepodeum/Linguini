@@ -61,7 +61,7 @@ only the framework-agnostic TypeScript runtime.
 
 ```toml
 [web.routing]
-locale_prefix = "always" # "always", "except-default", or "never"
+locale_prefix = "except-default" # default; also "always" or "never"
 canonical = "redirect"   # or "preserve"
 
 # Sources are checked left-to-right; the first supported locale wins.
@@ -80,10 +80,16 @@ http_only = false
 key = "LINGUINI_LOCALE"
 
 [web.links]
-mode = "runtime" # "transform", "runtime", or "manual"
+mode = "transform" # "transform" (default), "runtime", or "manual"
 
 [web.routes]
 exclude = ["/_app/**", "/favicon.ico"]
+
+# Optional no-JavaScript locale switch transport.
+[web.switch_route]
+path = "/_linguini/locale/{locale}"
+return_query = "return"
+status = 303
 ```
 
 Linguini does not define a second trailing-slash policy. SvelteKit owns it per
@@ -103,6 +109,64 @@ Available locale sources:
 | `cookie`            | the configured locale cookie                                |
 | `local-storage`     | the configured browser storage key                          |
 | `accept-language`   | the server `Accept-Language` header                         |
+
+Sources are resolved exactly in configured order. Without an explicit list,
+the default is `path`, `cookie`, then `accept-language`; with
+`locale_prefix = "never"`, it is `cookie`, then `accept-language`. If no source
+selects a supported locale, the project default locale wins. `always` prefixes
+every locale, `except-default` omits only the default locale, and `never` omits
+all locale path segments and therefore cannot be combined with the `path`
+source.
+
+The cookie capability exists only when `cookie` is selected. Its defaults are
+the project-derived `LINGUINI_<PROJECT>_LOCALE` name, automatic SvelteKit base
+path, no domain, `365d`, `SameSite=Lax`, secure `auto`, and `HttpOnly=false`.
+Cookie names, paths, domains, and positive durations are validated;
+`SameSite=None` requires `secure = true`, and browser switching requires
+`http_only = false`. The local-storage capability likewise exists only when
+selected and defaults to the project-derived `linguini:<project>:locale` key;
+its key must be non-empty and contain no control characters.
+
+SvelteKit SSR cannot read browser local storage. A
+`sources = ["local-storage"]` SvelteKit configuration is rejected with a
+diagnostic; add `cookie` or `path` so the server can resolve the locale, or use
+the client-only `svelte` framework. A switch route likewise requires `path` or
+`cookie`, because an HTTP response cannot write local storage.
+
+Generated output contains only selected capabilities: source resolvers, one
+link implementation, an exclusion matcher when exclusions exist, server cookie
+persistence when cookies are selected, and the switch route only when its table
+is present.
+
+Route exclusions are exact path matches unless a pattern ends in `/**`; that
+form matches the named path and its slash-delimited descendants, but not a
+longer sibling prefix. Patterns must start with one `/`, cannot contain a query
+or fragment, and are shared by locale resolution, canonical redirects, link
+localization, and the switch route.
+
+Common policies are concise:
+
+```toml
+# Path-only: locale is in every URL and switching navigates.
+[web.routing]
+locale_prefix = "always"
+[web.locale]
+sources = ["path"]
+
+# Cookie-only/pathless: switching persists without changing the URL.
+# [web.routing]
+# locale_prefix = "never"
+# [web.locale]
+# sources = ["cookie", "accept-language"]
+
+# Hybrid: URL wins, cookie remembers, header negotiates first visit.
+# [web.locale]
+# sources = ["path", "cookie", "accept-language"]
+
+# Client-only Svelte storage (not valid as the sole SvelteKit SSR source).
+# [web.locale]
+# sources = ["local-storage"]
+```
 
 ## SvelteKit files
 
@@ -243,9 +307,11 @@ Components usually import only `l`:
 <h1>{l.home.title}</h1>
 ```
 
-The browser helper localizes internal links after hydration and watches links
-created later. For localized SSR output, render the generated helper result
-directly:
+With `mode = "transform"`, the Vite plugin rewrites safe static Svelte anchor
+attributes to the generated `localizeHref` helper. `mode = "runtime"` instead
+ships the bounded browser observer for anchors created after hydration.
+`mode = "manual"` emits neither mechanism. For dynamic or programmatic URLs,
+render the helper result directly:
 
 ```svelte
 <script lang="ts">
@@ -262,7 +328,22 @@ placeholders in each response chunk; it does not parse or buffer arbitrary HTML.
 External links, `mailto:`/`tel:` links, hash-only links, `download` links,
 `rel="external"` links, excluded routes, and links marked with
 `data-linguini-ignore` or `data-linguini-no-localize` are left unchanged by the
-browser observer.
+selected link implementation.
+
+When `[web.switch_route]` is enabled, ordinary static links can switch locale
+without JavaScript:
+
+```svelte
+<a href="/_linguini/locale/en?return=/account">English</a>
+<a href="/_linguini/locale/ru?return=/account">Русский</a>
+```
+
+The generated handler validates the locale and same-origin return target, falls
+back to a same-origin `Referer` and then the SvelteKit base path, uses
+`localizeHref` only when the shared transition plan writes the path, writes the
+configured cookie only when selected, and returns the configured redirect
+status. Absolute, protocol-relative, backslash, and encoded external return
+targets are rejected.
 
 Use the generated helpers for locale switching or programmatic URLs:
 

@@ -594,8 +594,12 @@ for the selected locale chunk before switching locales. SSR keeps synchronous,
 static locale imports. Omit the field for eager loading.
 
 Web options use nested tables such as `[web.routing]`, `[web.locale]`,
-`[web.cookie]`, `[web.local_storage]`, `[web.links]`, and `[web.routes]`; the
-legacy flat web fields are not part of the current config format.
+`[web.cookie]`, `[web.local_storage]`, `[web.links]`, `[web.routes]`, and the
+optional `[web.switch_route]`; the legacy flat web fields are not part of the
+current config format. Generated projects emit only the selected source, link,
+route-matcher, server-cookie, and switch-route capability modules. See
+[`web-sveltekit.md`](web-sveltekit.md) for defaults, validation, transport, and
+no-JavaScript behavior.
 
 ### Opt-in unused-message analysis
 
