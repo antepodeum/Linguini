@@ -85,10 +85,6 @@ jobs:
             printf 'GitHub Pages base URL=%s\n' "$CONFIGURE_PAGES_BASE_URL"
           fi
 
-      - name: Configure site for GitHub Pages
-        working-directory: site
-        run: pnpm pages:configure
-
       - name: Build site
         working-directory: site
         run: pnpm build:generated

@@ -12,10 +12,9 @@
     "test:production": "pnpm linguini:build && pnpm build:generated && node scripts/production-graph.test.mjs",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
-    "test": "node --test scripts/configure-github-pages.test.mjs scripts/generated-runtime.test.mjs",
+    "test": "node --test scripts/generated-runtime.test.mjs",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "pages:configure": "node ./scripts/configure-github-pages.mjs"
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
   },
   "dependencies": {
     "@antepod/linguini-vite": "file:../plugins/vite",
