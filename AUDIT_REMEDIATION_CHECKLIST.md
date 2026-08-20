@@ -337,7 +337,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #154 — Remove category-order dependence for empty rules.
 - [x] #155 — Return structured plural parse errors with offsets.
 - [x] #156 — Implement canonical aliases, parent locales, and likely subtags.
-- [ ] #157 — Support CLDR numbering systems beyond `latn`.
+- [x] #157 — Support CLDR numbering systems beyond `latn`.
 - [ ] #158 — Expand date/calendar/context/time-zone/skeleton support.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [ ] #160 — Share one plural grammar implementation across all targets.
@@ -359,7 +359,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #173 — Use tracked packaged inputs for cache invalidation.
 - [x] #174 — Move heavy data generation out of the compiler process.
 - [x] #175 — Fail on malformed or missing locale payloads.
-- [ ] #176 — Generate non-Latin numbering and broader calendar data.
+- [-] #176 — Generate non-Latin numbering and broader calendar data. Locale-default numeric
+      systems are compiled and emitted; broader calendar data remains open.
 - [x] #177 — Parse text-direction JSON structurally.
 - [ ] #178 — Implement complete CLDR number-pattern semantics.
 - [x] #179 — Validate model limits before narrowing integer casts.
