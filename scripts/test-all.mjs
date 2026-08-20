@@ -29,6 +29,16 @@ const nodeTask = (task) => ({ ...task, tools: ["node", ...task.tools] });
  * glob.
  */
 export const TASKS = Object.freeze([
+  nodeTask({
+    id: "repo:versions",
+    project: "rust",
+    label: "Release version synchronization",
+    command: "node",
+    args: ["packages/scripts/check-versions.mjs"],
+    profiles: ["quick", "full", "site"],
+    tools: [],
+    requiresNodeModules: false,
+  }),
   Object.freeze({
     id: "rust:fmt",
     project: "rust",

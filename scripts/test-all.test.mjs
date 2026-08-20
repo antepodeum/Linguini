@@ -15,6 +15,7 @@ test("registry is explicit and ordered across repository projects", () => {
   assert.deepEqual(
     TASKS.map((task) => task.id),
     [
+      "repo:versions",
       "rust:fmt",
       "rust:test",
       "rust:clippy",
@@ -32,8 +33,9 @@ test("registry is explicit and ordered across repository projects", () => {
 });
 
 test("profiles select the expected ordered task groups", () => {
-  assert.deepEqual(selectTasks({ profile: "quick" }).map((task) => task.id), ["rust:fmt", "vite:test", "cli:test"]);
+  assert.deepEqual(selectTasks({ profile: "quick" }).map((task) => task.id), ["repo:versions", "rust:fmt", "vite:test", "cli:test"]);
   assert.deepEqual(selectTasks({ profile: "site" }).map((task) => task.id), [
+    "repo:versions",
     "site:generate",
     "site:test",
     "site:check",
@@ -100,9 +102,9 @@ test("task execution continues after a failure and aggregates exit status", () =
     },
     now: () => (tick += 12),
   });
-  assert.deepEqual(calls, ["rust:fmt", "vite:test", "cli:test"]);
+  assert.deepEqual(calls, ["repo:versions", "rust:fmt", "vite:test", "cli:test"]);
   assert.deepEqual(summary.failed.map((result) => result.task.id), ["vite:test"]);
-  assert.deepEqual(summary.results.map((result) => result.durationMs), [12, 12, 12]);
+  assert.deepEqual(summary.results.map((result) => result.durationMs), [12, 12, 12, 12]);
 });
 
 test("main returns nonzero for failures without calling real suites", () => {

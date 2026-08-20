@@ -47,6 +47,30 @@ for (const [name, version] of nativeDependencies) {
   }
 }
 
+const documentedInstallCommands = [
+  ["README.md", `@linguini/cli@${expected}`, `linguini-cli --version ${expected}`],
+  ["docs/getting-started.md", `@linguini/cli@${expected}`, `linguini-cli --version ${expected}`]
+];
+for (const [relative, ...required] of documentedInstallCommands) {
+  const source = await readFile(path.join(root, relative), "utf8");
+  for (const value of required) {
+    if (!source.includes(value)) {
+      throw new Error(`${relative}: missing release-synchronized text ${JSON.stringify(value)}`);
+    }
+  }
+}
+
+const extensionLockPath = "editors/vscode/package-lock.json";
+const extensionLock = JSON.parse(await readFile(path.join(root, extensionLockPath), "utf8"));
+if (extensionLock.version !== expected || extensionLock.packages?.[""]?.version !== expected) {
+  throw new Error(`${extensionLockPath}: root package versions must both equal ${expected}`);
+}
+
+const readme = await readFile(path.join(root, "README.md"), "utf8");
+if (!readme.includes("status-preview") || !readme.includes("very early stage of development")) {
+  throw new Error("README.md: public release status must remain explicitly preview/early-stage");
+}
+
 if (
   process.env.GITHUB_REF_TYPE === "tag" &&
   process.env.GITHUB_REF_NAME !== `v${expected}`
