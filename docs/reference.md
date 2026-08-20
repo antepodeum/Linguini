@@ -76,9 +76,10 @@ surface. Current guarantees are:
 - `@number` formats finite `number`, `bigint`, or decimal/exponent strings. It
   preserves decimal precision up to 8,192 expanded digits and applies the
   locale's CLDR decimal affixes, minimum/maximum fraction digits, primary and
-  secondary grouping, decimal separator, and group separator. Output digits are
-  currently ASCII `latn`; percent, compact, scientific, significant-digit, and
-  caller-selected numbering-system styles are not exposed.
+  secondary grouping, decimal separator, group separator, and the locale's
+  default numeric numbering-system digits from pinned CLDR data. Percent,
+  compact, scientific, significant-digit, and caller-selected numbering-system
+  styles are not exposed.
 - `@currency` requires a three-letter code. It applies CLDR standard or
   accounting affixes, currency fraction digits, rounding increments, spacing,
   and locale separators. The host `Intl.NumberFormat` supplies only the display
