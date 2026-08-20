@@ -483,7 +483,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #276 — Resolve namespace ambiguity for hover and definitions.
 - [-] #277 — Complete context/type-aware completion beyond indexed names.
 - [x] #278 — Integrate schema semantic diagnostics.
-- [-] #279 — Preserve independent semantic diagnostics under recoverable syntax errors.
+- [x] #279 — Preserve independent semantic diagnostics under recoverable syntax errors.
 - [x] #280 — Move filesystem discovery out of async request hot paths.
 - [x] #281 — Cache parsed/indexed project state.
 - [x] #282 — Bound discovery and prevent symlink cycles.
