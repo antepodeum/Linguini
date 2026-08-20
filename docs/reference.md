@@ -68,6 +68,39 @@ The formatter list is canonical:
 | `@currency` | `Number`, `Decimal` alias |
 | `@date`     | `Date`                    |
 
+#### Formatter scope and fallback
+
+The generated formatter is intentionally smaller than the full ICU/ECMA-402
+surface. Current guarantees are:
+
+- `@number` formats finite `number`, `bigint`, or decimal/exponent strings. It
+  preserves decimal precision up to 8,192 expanded digits and applies the
+  locale's CLDR decimal affixes, minimum/maximum fraction digits, primary and
+  secondary grouping, decimal separator, and group separator. Output digits are
+  currently ASCII `latn`; percent, compact, scientific, significant-digit, and
+  caller-selected numbering-system styles are not exposed.
+- `@currency` requires a three-letter code. It applies CLDR standard or
+  accounting affixes, currency fraction digits, rounding increments, spacing,
+  and locale separators. The host `Intl.NumberFormat` supplies only the display
+  symbol. Currency display-name/plural forms and cash-rounding selection are not
+  exposed.
+- `@date` accepts a valid `Date`, epoch-millisecond number, ISO `YYYY-MM-DD`, or
+  ISO date-time string. Date-only and zone-less date-time input is interpreted
+  in UTC, and output is host-time-zone independent. The supported option is
+  `style = "full" | "long" | "medium" | "short"`. Rendering uses the pinned
+  Gregorian date patterns plus wide/abbreviated month and weekday names for
+  `y`, `M`/`L`, `d`, and `E`. Time fields, time zones, eras, flexible day
+  periods, calendars, contexts beyond the compiled symbols, and skeletons are
+  not implemented.
+
+Locale lookup first canonicalizes the BCP 47 tag, then walks the pinned CLDR
+component fallback chain. Generation fails when a used formatter has no
+compiled number, currency, or date data before reaching the allowed locale
+fallback; it does not silently substitute host-locale formatting. Malformed or
+over-limit decimal strings and invalid dates fail with `RangeError` instead of
+rendering an environment-dependent result. JavaScript `NaN` and infinities are
+left as their ordinary string spellings.
+
 ### Messages
 
 A message is a named entry the app can call. Parameters are typed.
@@ -305,6 +338,12 @@ Any `Number` passed to a typed `Plural` parameter converts automatically using
 CLDR plural rules for the active locale. In a value-based inline selector, use
 `Plural(value)` to request that conversion explicitly; a value already typed as
 `Plural` can be selected directly. Intrinsic names are case-sensitive.
+
+Categories are locale rules, not universal meanings. For Russian cardinal
+plurals, integer examples include `1` and `21` in `one`; `2`, `3`, `4`, and `22`
+in `few`; and `0`, `5`–`20`, and `25` in `many`. A decimal such as `1.5` is
+`other`. The `other` arm (or `_`) is still required as the fallback even when an
+example deals only with integers.
 
 ---
 

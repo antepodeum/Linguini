@@ -341,7 +341,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] #158 — Expand date/calendar/context/time-zone/skeleton support.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [ ] #160 — Share one plural grammar implementation across all targets.
-- [ ] #161 — Correct documented plural-category examples.
+- [x] #161 — Correct documented plural-category examples.
 - [ ] #162 — Add ICU/CLDR differential conformance tests.
 
 ### `linguini-cldr-macros`
@@ -568,7 +568,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
 - [x] #351 — Define project and path namespace behavior unambiguously.
 - [ ] #352 — Execute examples through compile, typecheck, and runtime golden tests.
-- [ ] #353 — Document actual CLDR formatter limits and fallback behavior.
+- [x] #353 — Document actual CLDR formatter limits and fallback behavior.
 - [ ] #354 — Resolve the unfinished contracts tracked by `REPOSITORY_STATE`.
 - [-] #355 — Synchronize version, copy, and release status across every surface.
 

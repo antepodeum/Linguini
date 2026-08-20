@@ -43,7 +43,8 @@ across gender × plural. In ICU:
 }
 ```
 
-24 rows for one adjective. Add a case and it doubles. The format scales
+The shown two sizes × four plural categories × four gender branches produce 32
+rows. Add a case and it doubles. The format scales
 with the size of the combinatorial product, not with the complexity of the
 actual language logic.
 
