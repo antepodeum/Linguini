@@ -70,7 +70,7 @@ sources = ["path", "cookie", "local-storage", "accept-language"]
 
 [web.cookie]
 name = "LINGUINI_LOCALE"
-path = "/"
+path = "auto"
 max_age = "365d"
 same_site = "lax" # "lax", "strict", or "none"
 secure = false     # "auto" is also supported
@@ -92,14 +92,30 @@ return_query = "return"
 status = 303
 ```
 
-Linguini does not define a second trailing-slash policy. SvelteKit owns it per
-route through the `trailingSlash` page option. Set an application-wide default
-in the root layout and override it in child routes when needed:
+Linguini derives URL environment facts from SvelteKit instead of duplicating
+them in `linguini.toml` or generated runtime policy:
+
+- Application base comes from SvelteKit's `$app/paths` `base` export. It follows
+  `kit.paths.base` in both server and browser modules. `cookie.path = "auto"`
+  uses that base, falling back to `/` for a root deployment.
+- Request origin comes from `event.url.origin` on the server. Browser helpers
+  use `window.location`; callers of the framework-agnostic runtime can supply
+  the same request environment explicitly.
+- Trailing-slash behavior belongs to the matched SvelteKit route. Linguini
+  preserves the slash shape of the input URL; SvelteKit applies that route's
+  `trailingSlash` option, including canonical redirects and prerendered output.
+
+Set an application-wide trailing-slash default in the root layout and override
+it in child routes when needed:
 
 ```ts
 // src/routes/+layout.ts
 export const trailingSlash = "never"; // "never", "always", or "ignore"
 ```
+
+Changing `BASE_PATH`/`kit.paths.base` therefore requires no post-generation
+rewrite of Linguini files. Route-specific trailing-slash overrides also require
+no Linguini configuration.
 
 Available locale sources:
 

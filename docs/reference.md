@@ -601,6 +601,12 @@ route-matcher, server-cookie, and switch-route capability modules. See
 [`web-sveltekit.md`](web-sveltekit.md) for defaults, validation, transport, and
 no-JavaScript behavior.
 
+The public web runtime mirrors this structure through `routing`, `locale`,
+`cookie`, `localStorage`, `links`, and `routes` objects. Removed flat runtime
+properties are not accepted as compatibility aliases. SvelteKit adapters pass
+the application base from `$app/paths`; request/browser context supplies the
+origin, and SvelteKit remains the sole trailing-slash authority.
+
 ### Opt-in unused-message analysis
 
 Application usage is a project-level input, so unused-message analysis is off

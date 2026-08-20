@@ -626,7 +626,9 @@ production path uses the fix and its relevant tests pass.
 - [x] DOC-W6 — Document switch route as transport over `LocaleSwitchPlan`.
 - [x] DOC-W7 — Add path, cookie, hybrid, and pathless examples.
 - [x] DOC-W8 — State the no-JavaScript local-storage-only limitation.
-- [ ] DOC-W9 — Explain SvelteKit-derived origin/base/trailing-slash values.
+- [x] DOC-W9 — Explain SvelteKit-derived origin/base/trailing-slash values. The web guide now
+      identifies `$app/paths.base`, `event.url.origin`/`window.location`, cookie-path auto
+      derivation, and matched-route `trailingSlash` ownership.
 
 ### `docs/examples/sveltekit-locale-provider.md`
 
@@ -678,7 +680,10 @@ production path uses the fix and its relevant tests pass.
 - [x] WEB-A17 — Reject switch routes with no server-writable transition.
 - [x] WEB-A18 — Share one route matcher across resolution, redirects, links, and switching.
 - [x] WEB-A19 — Diagnose local-storage-only SSR expectations.
-- [ ] WEB-A20 — Remove every legacy flat field from runtime, templates, and docs.
+- [x] WEB-A20 — Remove every legacy flat field from runtime, templates, and docs. Public runtime
+      policy is nested, generated SvelteKit adapters inject `$app/paths.base`, request/browser
+      context owns origin, SvelteKit owns trailing slashes, and the Pages build no longer mutates
+      generated source after codegen.
 
 ### One SvelteKit/ESM ECMAScript backend
 
