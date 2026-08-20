@@ -10,6 +10,26 @@ import {
   runTasks,
   selectTasks,
 } from "./test-all.mjs";
+import { extractLinguiniFences } from "./docs-syntax.mjs";
+
+test("documentation syntax fences distinguish standalone examples and registered fragments", () => {
+  const fences = extractLinguiniFences(
+    "```lgs\nmessage\n```\n```lgl fragment=expression\nfruit.form(count)\n```\n",
+    "docs/example.md",
+  );
+
+  assert.deepEqual(
+    fences.map(({ language, line, fragment }) => ({ language, line, fragment })),
+    [
+      { language: "lgs", line: 1, fragment: undefined },
+      { language: "lgl", line: 4, fragment: "expression" },
+    ],
+  );
+  assert.throws(
+    () => extractLinguiniFences("```lgs ignore\nmessage\n```\n", "docs/bad.md"),
+    /unsupported Linguini fence metadata/,
+  );
+});
 
 test("registry is explicit and ordered across repository projects", () => {
   assert.deepEqual(
@@ -19,6 +39,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "rust:fmt",
       "rust:test",
       "rust:clippy",
+      "docs:syntax",
       "vite:test",
       "cli:test",
       "vscode:test",

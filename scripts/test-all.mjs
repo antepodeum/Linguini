@@ -70,6 +70,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: false,
   }),
   nodeTask({
+    id: "docs:syntax",
+    project: "rust",
+    label: "Documentation Linguini syntax conformance",
+    command: "node",
+    args: ["scripts/docs-syntax.mjs"],
+    profiles: ["full"],
+    tools: ["cargo"],
+    requiresNodeModules: false,
+  }),
+  nodeTask({
     id: "vite:test",
     project: "vite",
     label: "Vite plugin tests",

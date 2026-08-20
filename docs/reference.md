@@ -246,7 +246,7 @@ limit is 64.
 Sibling messages and child groups share one member namespace. Reusing a member
 name for two messages, two groups, or one message and one group is invalid:
 
-```lgs
+```lgs fragment=invalid-duplicate-group-member
 account {
   profile
   profile { title }
@@ -396,14 +396,14 @@ resolves to an enum, locale-expression analysis treats property access as that
 enum type. The current analyzer does not yet validate the property's text value
 against the enum variants.
 
-```lgl
+```lgl fragment=property-declarations
 Gender = neuter   // property access is inferred as Gender
 emoji  = 🍎       // plain string property
 ```
 
 **Accessing fields and forms in templates:**
 
-```lgl
+```lgl fragment=expressions
 fruit.Gender      // inferred enum-valued property access
 fruit.nom(count)  // form call — count auto-converts to Plural
 ```
