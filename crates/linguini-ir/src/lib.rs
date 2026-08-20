@@ -18,7 +18,5 @@ pub use reference::{
     IrRelatedError, ValidatedIr, BUILTIN_PLURAL,
 };
 
-pub const CRATE_PURPOSE: &str = "target-independent IR";
-
 #[cfg(test)]
 mod tests;
