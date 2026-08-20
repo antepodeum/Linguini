@@ -1101,6 +1101,30 @@ mod tests {
     }
 
     #[test]
+    fn rejects_local_storage_only_sveltekit_ssr_policy() {
+        let source = r#"
+            [project]
+            name = "shop"
+            default_locale = "en"
+            locales = ["en"]
+            [paths]
+            schema = "schema"
+            locale = "locale"
+            [targets.ts]
+            framework = "sveltekit"
+            [web.routing]
+            locale_prefix = "never"
+            [web.locale]
+            sources = ["local-storage"]
+        "#;
+        let error = parse_config(source).expect_err("SSR cannot read local storage");
+        assert!(error.to_string().contains("SvelteKit SSR"));
+
+        let client_only = source.replace("sveltekit", "svelte");
+        assert!(parse_config(&client_only).is_ok());
+    }
+
+    #[test]
     fn rejects_path_source_in_pathless_mode_and_duplicate_sources() {
         for sources in [
             r#"["path"]"#,

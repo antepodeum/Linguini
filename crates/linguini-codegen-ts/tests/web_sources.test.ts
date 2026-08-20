@@ -4,9 +4,19 @@ import { resolveCookieLocale } from "../src/module/templates/web.cookie.runtime.
 import { resolveLocalStorageLocale } from "../src/module/templates/web.local-storage.runtime.ts";
 import { resolveAcceptLanguageLocale } from "../src/module/templates/web.accept-language.runtime.ts";
 import { createWebLocaleI18n } from "../src/module/templates/web.runtime.ts";
+import { matchesRoute } from "../src/module/templates/web.routes.runtime.ts";
 
 const locales = ["en", "de", "fr"] as const;
 const match = (value: unknown) => locales.find((locale) => locale.toLowerCase() === String(value).toLowerCase());
+
+test("selected route matcher shares exact and recursive exclusion semantics", () => {
+  expect(matchesRoute("/api/**", new URL("https://example.test/api/orders"))).toBe(true);
+  expect(matchesRoute("/api/**", new URL("https://example.test/apiculture"))).toBe(false);
+  expect(matchesRoute("/health", new URL("https://example.test/health"))).toBe(true);
+  const global = /^\/admin/g;
+  expect(matchesRoute(global, new URL("https://example.test/admin"))).toBe(true);
+  expect(matchesRoute(global, new URL("https://example.test/admin"))).toBe(true);
+});
 
 test("selected source modules preserve validated source semantics", () => {
   expect(resolvePathLocale({ url: "https://example.test/de/shop" }, { basePath: "" }, locales)).toBe("de");

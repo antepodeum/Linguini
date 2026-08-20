@@ -19,10 +19,10 @@ function createHandle(runtime: typeof import("./locale"), options: Record<string
 {{PERSIST_COOKIE_DECLARATION}}
 
   return async function linguiniHandle({ event, resolve }: Parameters<Handle>[0]) {
-{{SWITCH_ROUTE_BRANCH}}
     if (web.shouldExclude(event.url)) {
       return resolve(event);
     }
+{{SWITCH_ROUTE_BRANCH}}
 
     const contextInput = {
       url: event.url,

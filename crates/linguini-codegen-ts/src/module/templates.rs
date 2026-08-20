@@ -53,6 +53,8 @@ pub const WEB_LINK_TRANSFORM_DECLARATIONS: &str =
 pub const WEB_RUNTIME_LINKS_RUNTIME: &str = include_str!("templates/web.runtime-links.runtime.ts");
 pub const WEB_RUNTIME_LINKS_DECLARATIONS: &str =
     include_str!("templates/web.runtime-links.runtime.d.ts");
+pub const WEB_ROUTES_RUNTIME: &str = include_str!("templates/web.routes.runtime.ts");
+pub const WEB_ROUTES_DECLARATIONS: &str = include_str!("templates/web.routes.runtime.d.ts");
 pub const WEB_SERVER_COOKIE_RUNTIME: &str = include_str!("templates/web.server-cookie.runtime.ts");
 pub const WEB_SERVER_COOKIE_DECLARATIONS: &str =
     include_str!("templates/web.server-cookie.runtime.d.ts");

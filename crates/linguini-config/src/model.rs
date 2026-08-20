@@ -432,7 +432,20 @@ impl LinguiniConfig {
             }
         }
 
-        validate_web(&self.web)
+        validate_web(&self.web)?;
+        if self
+            .targets
+            .ts
+            .as_ref()
+            .is_some_and(|target| target.framework.as_deref() == Some("sveltekit"))
+            && self.web.locale.sources == [LocaleSource::LocalStorage]
+        {
+            return Err(ConfigError::InvalidString(
+                "local-storage-only locale resolution cannot determine the locale during SvelteKit SSR; add `cookie` or `path`, or use the client-only `svelte` framework"
+                    .to_owned(),
+            ));
+        }
+        Ok(())
     }
 }
 

@@ -1034,6 +1034,18 @@ pub fn generate_typescript_project_files(
                     });
                 }
             }
+            if !web.exclude.is_empty() {
+                files.push(TypeScriptGeneratedFile {
+                    path: "web/routes.ts".to_owned(),
+                    contents: project::generate_project_web_routes_module(),
+                });
+                if options.declaration {
+                    files.push(TypeScriptGeneratedFile {
+                        path: "web/routes.d.ts".to_owned(),
+                        contents: project::generate_project_web_routes_declaration(),
+                    });
+                }
+            }
             if let Some(contents) = project::generate_project_web_link_module(web.link_mode) {
                 let stem = match web.link_mode {
                     TypeScriptLinkMode::Transform => "link-transform",

@@ -13,9 +13,10 @@ use super::templates::{
     WEB_ACCEPT_LANGUAGE_DECLARATIONS, WEB_ACCEPT_LANGUAGE_RUNTIME, WEB_COOKIE_DECLARATIONS,
     WEB_COOKIE_RUNTIME, WEB_DECLARATIONS, WEB_LINK_TRANSFORM_DECLARATIONS,
     WEB_LINK_TRANSFORM_RUNTIME, WEB_LOCAL_STORAGE_DECLARATIONS, WEB_LOCAL_STORAGE_RUNTIME,
-    WEB_PATH_DECLARATIONS, WEB_PATH_RUNTIME, WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS,
-    WEB_RUNTIME_LINKS_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
-    WEB_SWITCH_ROUTE_DECLARATIONS, WEB_SWITCH_ROUTE_RUNTIME,
+    WEB_PATH_DECLARATIONS, WEB_PATH_RUNTIME, WEB_ROUTES_DECLARATIONS, WEB_ROUTES_RUNTIME,
+    WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS, WEB_RUNTIME_LINKS_RUNTIME,
+    WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME, WEB_SWITCH_ROUTE_DECLARATIONS,
+    WEB_SWITCH_ROUTE_RUNTIME,
 };
 use super::{
     TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
@@ -402,6 +403,9 @@ pub fn generate_project_web_module_with_options(options: &TypeScriptWebOptions) 
     if !imports.is_empty() {
         runtime = format!("{imports}\n{runtime}");
     }
+    if !options.exclude.is_empty() {
+        runtime = format!("import {{ matchesRoute }} from \"./web/routes.js\";\n{runtime}");
+    }
 
     let start = runtime
         .find("  function resolveLocaleSync(input: Record<string, unknown> = {}) {")
@@ -429,6 +433,27 @@ pub fn generate_project_web_module_with_options(options: &TypeScriptWebOptions) 
             .expect("web runtime path helper boundary");
         runtime.replace_range(start..end, "\n");
     }
+    if options.exclude.is_empty() {
+        let start = runtime
+            .find("  function shouldExclude(url: string | URL, input: Record<string, unknown> = {}) {")
+            .expect("web runtime route matcher entry");
+        let end = runtime[start..]
+            .find("\n  function serializeLocaleCookie")
+            .map(|offset| start + offset)
+            .expect("web runtime route matcher boundary");
+        runtime.replace_range(
+            start..end,
+            "  function shouldExclude(_url: string | URL, _input: Record<string, unknown> = {}) {\n    return false;\n  }\n",
+        );
+    }
+    let start = runtime
+        .find("\nfunction matchesRoute(")
+        .expect("web runtime shared route matcher");
+    let end = runtime[start..]
+        .find("\nfunction resolveBaseUrl")
+        .map(|offset| start + offset)
+        .expect("web runtime route matcher helper boundary");
+    runtime.replace_range(start..end, "\n");
     runtime
 }
 
@@ -472,6 +497,14 @@ pub fn generate_project_web_server_cookie_module() -> String {
 
 pub fn generate_project_web_server_cookie_declaration() -> String {
     WEB_SERVER_COOKIE_DECLARATIONS.to_owned()
+}
+
+pub fn generate_project_web_routes_module() -> String {
+    WEB_ROUTES_RUNTIME.to_owned()
+}
+
+pub fn generate_project_web_routes_declaration() -> String {
+    WEB_ROUTES_DECLARATIONS.to_owned()
 }
 
 pub fn generate_project_web_switch_route_module(options: &TypeScriptWebOptions) -> Option<String> {

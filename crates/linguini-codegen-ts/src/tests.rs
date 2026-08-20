@@ -2063,6 +2063,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(paths.contains(&"web/path.ts"));
     assert!(paths.contains(&"web/cookie.ts"));
     assert!(paths.contains(&"web/accept-language.ts"));
+    assert!(paths.contains(&"web/routes.ts"));
     assert!(paths.contains(&"web/server-cookie.ts"));
     assert!(paths.contains(&"web/switch-route.ts"));
     assert!(!paths.contains(&"web/local-storage.ts"));
@@ -2078,6 +2079,10 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(web.contents.contains("resolveCookieLocale"));
     assert!(web.contents.contains("resolveAcceptLanguageLocale"));
     assert!(!web.contents.contains("resolveLocalStorageLocale"));
+    assert!(web
+        .contents
+        .contains("import { matchesRoute } from \"./web/routes.js\""));
+    assert!(!web.contents.contains("function matchesRoute("));
     let web_declaration = files
         .iter()
         .find(|file| file.path == "web.d.ts")
@@ -2520,6 +2525,7 @@ fn project_codegen_allows_closed_web_features_without_sources() {
     assert!(paths.contains(&"web.ts"));
     assert!(paths.contains(&"svelte-effects.svelte.ts"));
     assert!(paths.contains(&"web/runtime-links.ts"));
+    assert!(!paths.contains(&"web/routes.ts"));
     assert!(!paths.contains(&"web/link-transform.ts"));
     assert!(!paths.contains(&"web/server-cookie.ts"));
 
@@ -2532,6 +2538,7 @@ fn project_codegen_allows_closed_web_features_without_sources() {
     assert!(!web
         .contents
         .contains("for (const source of normalized.sources)"));
+    assert!(!web.contents.contains("matchesRoute("));
 
     let effects = files
         .iter()

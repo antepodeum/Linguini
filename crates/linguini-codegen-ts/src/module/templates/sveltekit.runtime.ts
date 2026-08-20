@@ -18,10 +18,10 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
 {{PERSIST_COOKIE_DECLARATION}}
 
   return async function linguiniHandle({ event, resolve }: Parameters<Handle>[0]) {
-{{SWITCH_ROUTE_BRANCH}}
     if (web.shouldExclude(event.url)) {
       return resolve(event);
     }
+{{SWITCH_ROUTE_BRANCH}}
 
     const context = await web.resolveRequest(event.request, {
       url: event.url,
