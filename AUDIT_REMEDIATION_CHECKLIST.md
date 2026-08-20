@@ -570,7 +570,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #351 — Define project and path namespace behavior unambiguously.
 - [ ] #352 — Execute examples through compile, typecheck, and runtime golden tests.
 - [x] #353 — Document actual CLDR formatter limits and fallback behavior.
-- [ ] #354 — Resolve the unfinished contracts tracked by `REPOSITORY_STATE`.
+- [x] #354 — Resolve the unfinished contracts tracked by `REPOSITORY_STATE`.
 - [-] #355 — Synchronize version, copy, and release status across every surface.
 
 ### CI, release, and supply chain
