@@ -103,12 +103,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove duplicated config or path handling that should come from CLI output.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run plugin tests.
-- [ ] 16. `editors/vscode`
-  - [ ] Review extension activation, language configuration, and grammar files.
-  - [ ] Check LSP launch/configuration against the finalized CLI and LSP behavior.
-  - [ ] Remove duplicated sample workspace files unless they document real flows.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run extension tests or packaging smoke checks.
+- [x] 16. `editors/vscode`
+  - [x] Review extension activation, language configuration, and grammar files.
+  - [x] Check LSP launch/configuration against the finalized CLI and LSP behavior.
+  - [x] Remove duplicated sample workspace files unless they document real flows.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run extension tests or packaging smoke checks.
 - [ ] 17. `site`
   - [ ] Review docs and examples against the finalized CLI, codegen, and plugin APIs.
   - [ ] Check locale routing, generated site messages, and prerender behavior.
