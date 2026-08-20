@@ -864,7 +864,7 @@ production path uses the fix and its relevant tests pass.
 ## Final verification
 
 - [ ] Run the complete Rust workspace test suite on Linux, Windows, and macOS.
-- [ ] Run strict Clippy for all targets and features.
+- [x] Run strict Clippy for all targets and features.
 - [ ] Run Rust 1.76 MSRV checks and stable checks.
 - [ ] Run offline/package/source-archive verification.
 - [ ] Run dependency, license, advisory, and public-API compatibility checks.
