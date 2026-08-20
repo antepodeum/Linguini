@@ -30,6 +30,11 @@ test("effects initialization tolerates denied browser capability getters", async
       "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";",
     )
     .replace("{{OPTIONS}}", "{ localizeLinks: false }")
+    .replace("{{LINK_RUNTIME_IMPORT}}", "")
+    .replace(
+      "{{LINK_RUNTIME_START}}",
+      "const linkEffects: { refresh(): void; destroy(): void } | undefined = undefined;",
+    )
     .replace(
       'import * as locale from "./locale";',
       'const locale = { locales: ["en"], baseLocale: "en" };',
@@ -96,6 +101,11 @@ test("effects initialization forwards navigator preferences to locale resolver",
       "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";",
     )
     .replace("{{OPTIONS}}", "{ localizeLinks: false, sources: [\"accept-language\"] }")
+    .replace("{{LINK_RUNTIME_IMPORT}}", "")
+    .replace(
+      "{{LINK_RUNTIME_START}}",
+      "const linkEffects: { refresh(): void; destroy(): void } | undefined = undefined;",
+    )
     .replace(
       'import * as locale from "./locale";',
       'const locale = { locales: ["en", "fr"], baseLocale: "en" };',
@@ -312,6 +322,26 @@ test("SvelteKit adapters gate server cookie persistence through locale switch pl
           `const options = {
   localeSwitch: { writesPath: false, writesCookie: ${writesCookie}, writesLocalStorage: false },
 };`,
+        )
+        .replace(
+          "{{SERVER_COOKIE_IMPORT}}",
+          "const persistLocaleCookie = (web: any, target: unknown, locale: string) => web.setLocaleCookie(target, locale);",
+        )
+        .replace(
+          "{{PERSIST_COOKIE_DECLARATION}}",
+          "  const persistCookie = options.persistCookie !== false && web.options.localeSwitch.writesCookie;",
+        )
+        .replace(
+          "{{COOKIE_INPUT}}",
+          '      cookie: event.request.headers.get("cookie") ?? undefined,',
+        )
+        .replace(
+          "{{PERSIST_REDIRECT_COOKIE}}",
+          "      if (persistCookie) persistLocaleCookie(web, response, context.locale);",
+        )
+        .replace(
+          "{{PERSIST_RESPONSE_COOKIE}}",
+          "    if (persistCookie) persistLocaleCookie(web, response, context.locale);",
         );
       const sourceWithWeb = `${source}
 function createWeb(_runtime: unknown, options: any) {

@@ -1,6 +1,7 @@
 import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";
 import { createWebI18n } from "./web";
 import * as runtime from "./index";
+{{SERVER_COOKIE_IMPORT}}
 
 const options = {{OPTIONS}};
 
@@ -13,7 +14,7 @@ export const load: ServerLoad = linguiniLoad;
 
 function createHandle(runtime: typeof import("./index"), options: Record<string, unknown> = {}) {
   const web = createWebI18n(runtime, options.web as Record<string, unknown> | undefined ?? options);
-  const persistCookie = options.persistCookie !== false && web.options.localeSwitch.writesCookie;
+{{PERSIST_COOKIE_DECLARATION}}
 
   return async function linguiniHandle({ event, resolve }: Parameters<Handle>[0]) {
     if (web.shouldExclude(event.url)) {
@@ -25,7 +26,7 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
       currentUrl: event.url,
       origin: event.url.origin,
       headers: event.request.headers,
-      cookie: event.request.headers.get("cookie") ?? undefined,
+{{COOKIE_INPUT}}
     });
 
     const locals = event.locals as Record<string, unknown>;
@@ -37,7 +38,7 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
         status: 307,
         headers: { location: redirectLocation },
       });
-      if (persistCookie) web.setLocaleCookie(response, context.locale);
+{{PERSIST_REDIRECT_COOKIE}}
       return response;
     }
 
@@ -49,7 +50,7 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
           .replaceAll("%linguini.locale%", context.locale),
     });
 
-    if (persistCookie) web.setLocaleCookie(response, context.locale);
+{{PERSIST_RESPONSE_COOKIE}}
     return response;
   };
 }

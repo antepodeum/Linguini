@@ -1023,6 +1023,36 @@ pub fn generate_typescript_project_files(
                     });
                 }
             }
+            if let Some(contents) = project::generate_project_web_link_module(web.link_mode) {
+                let stem = match web.link_mode {
+                    TypeScriptLinkMode::Transform => "link-transform",
+                    TypeScriptLinkMode::Runtime => "runtime-links",
+                    TypeScriptLinkMode::Manual => unreachable!("manual mode has no link module"),
+                };
+                files.push(TypeScriptGeneratedFile {
+                    path: format!("web/{stem}.ts"),
+                    contents,
+                });
+                if options.declaration {
+                    files.push(TypeScriptGeneratedFile {
+                        path: format!("web/{stem}.d.ts"),
+                        contents: project::generate_project_web_link_declaration(web.link_mode)
+                            .expect("selected link module has declarations"),
+                    });
+                }
+            }
+            if sveltekit && web.features().has_cookie {
+                files.push(TypeScriptGeneratedFile {
+                    path: "web/server-cookie.ts".to_owned(),
+                    contents: project::generate_project_web_server_cookie_module(),
+                });
+                if options.declaration {
+                    files.push(TypeScriptGeneratedFile {
+                        path: "web/server-cookie.d.ts".to_owned(),
+                        contents: project::generate_project_web_server_cookie_declaration(),
+                    });
+                }
+            }
             files.push(TypeScriptGeneratedFile {
                 path: "svelte-effects.svelte.ts".to_owned(),
                 contents: project::generate_project_svelte_effects_module(web, sveltekit),

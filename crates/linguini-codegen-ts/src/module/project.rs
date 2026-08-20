@@ -11,8 +11,10 @@ use super::templates::{
     SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS, SVELTE_LOCALE_RUNTIME,
     SVELTE_LOCALE_STANDALONE_DECLARATIONS, SVELTE_LOCALE_STANDALONE_RUNTIME, SVELTE_RUNTIME,
     WEB_ACCEPT_LANGUAGE_DECLARATIONS, WEB_ACCEPT_LANGUAGE_RUNTIME, WEB_COOKIE_DECLARATIONS,
-    WEB_COOKIE_RUNTIME, WEB_DECLARATIONS, WEB_LOCAL_STORAGE_DECLARATIONS,
-    WEB_LOCAL_STORAGE_RUNTIME, WEB_PATH_DECLARATIONS, WEB_PATH_RUNTIME, WEB_RUNTIME,
+    WEB_COOKIE_RUNTIME, WEB_DECLARATIONS, WEB_LINK_TRANSFORM_DECLARATIONS,
+    WEB_LINK_TRANSFORM_RUNTIME, WEB_LOCAL_STORAGE_DECLARATIONS, WEB_LOCAL_STORAGE_RUNTIME,
+    WEB_PATH_DECLARATIONS, WEB_PATH_RUNTIME, WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS,
+    WEB_RUNTIME_LINKS_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
 };
 use super::{
     TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
@@ -210,15 +212,28 @@ pub fn generate_project_svelte_effects_module(
         &[
             ("BROWSER_RUNTIME", browser_runtime.to_owned()),
             ("OPTIONS", web_options_literal(options)),
+            (
+                "LINK_RUNTIME_IMPORT",
+                if options.features().link_mode == super::TypeScriptLinkMode::Runtime {
+                    "import { startRuntimeLinkLocalization } from \"./web/runtime-links.js\";"
+                        .to_owned()
+                } else {
+                    String::new()
+                },
+            ),
+            (
+                "LINK_RUNTIME_START",
+                if options.features().link_mode == super::TypeScriptLinkMode::Runtime {
+                    "const linkEffects = browser\n  ? startRuntimeLinkLocalization(web, getCurrentLocale)\n  : undefined;"
+                        .to_owned()
+                } else {
+                    "const linkEffects: { refresh(): void; destroy(): void } | undefined = undefined;"
+                        .to_owned()
+                },
+            ),
         ],
     );
     rendered = gate_browser_capability_reads(rendered, &options.features());
-    // Transform currently has no generated link-transform package. Keep the
-    // runtime observer as the compatibility fallback until that package lands;
-    // Manual is the only mode that deliberately disables link localization.
-    if options.features().link_mode == super::TypeScriptLinkMode::Manual {
-        rendered = strip_runtime_link_observer(rendered);
-    }
     rendered
 }
 
@@ -293,10 +308,7 @@ pub fn generate_project_svelte_control_declaration(sveltekit: bool) -> String {
 }
 
 pub fn generate_project_sveltekit_module(options: &TypeScriptWebOptions) -> String {
-    render_template(
-        SVELTEKIT_RUNTIME,
-        &[("OPTIONS", web_options_literal(options))],
-    )
+    render_template(SVELTEKIT_RUNTIME, &sveltekit_replacements(options))
 }
 
 pub fn generate_project_sveltekit_declaration() -> String {
@@ -304,10 +316,57 @@ pub fn generate_project_sveltekit_declaration() -> String {
 }
 
 pub fn generate_project_sveltekit_control_module(options: &TypeScriptWebOptions) -> String {
-    render_template(
-        SVELTEKIT_CONTROL_RUNTIME,
-        &[("OPTIONS", web_options_literal(options))],
-    )
+    render_template(SVELTEKIT_CONTROL_RUNTIME, &sveltekit_replacements(options))
+}
+
+fn sveltekit_replacements(options: &TypeScriptWebOptions) -> Vec<(&'static str, String)> {
+    let has_cookie = options.features().has_cookie;
+    vec![
+        ("OPTIONS", web_options_literal(options)),
+        (
+            "SERVER_COOKIE_IMPORT",
+            if has_cookie {
+                "import { persistLocaleCookie } from \"./web/server-cookie.js\";".to_owned()
+            } else {
+                String::new()
+            },
+        ),
+        (
+            "PERSIST_COOKIE_DECLARATION",
+            if has_cookie {
+                "  const persistCookie = options.persistCookie !== false && web.options.localeSwitch.writesCookie;"
+                    .to_owned()
+            } else {
+                String::new()
+            },
+        ),
+        (
+            "COOKIE_INPUT",
+            if has_cookie {
+                "      cookie: event.request.headers.get(\"cookie\") ?? undefined,".to_owned()
+            } else {
+                String::new()
+            },
+        ),
+        (
+            "PERSIST_REDIRECT_COOKIE",
+            if has_cookie {
+                "      if (persistCookie) persistLocaleCookie(web, response, context.locale);"
+                    .to_owned()
+            } else {
+                String::new()
+            },
+        ),
+        (
+            "PERSIST_RESPONSE_COOKIE",
+            if has_cookie {
+                "    if (persistCookie) persistLocaleCookie(web, response, context.locale);"
+                    .to_owned()
+            } else {
+                String::new()
+            },
+        ),
+    ]
 }
 
 pub fn generate_project_sveltekit_control_declaration() -> String {
@@ -371,6 +430,30 @@ pub fn generate_project_web_source_declaration(source: TypeScriptLocaleSource) -
         TypeScriptLocaleSource::LocalStorage => WEB_LOCAL_STORAGE_DECLARATIONS.to_owned(),
         TypeScriptLocaleSource::AcceptLanguage => WEB_ACCEPT_LANGUAGE_DECLARATIONS.to_owned(),
     }
+}
+
+pub fn generate_project_web_link_module(mode: super::TypeScriptLinkMode) -> Option<String> {
+    match mode {
+        super::TypeScriptLinkMode::Transform => Some(WEB_LINK_TRANSFORM_RUNTIME.to_owned()),
+        super::TypeScriptLinkMode::Runtime => Some(WEB_RUNTIME_LINKS_RUNTIME.to_owned()),
+        super::TypeScriptLinkMode::Manual => None,
+    }
+}
+
+pub fn generate_project_web_link_declaration(mode: super::TypeScriptLinkMode) -> Option<String> {
+    match mode {
+        super::TypeScriptLinkMode::Transform => Some(WEB_LINK_TRANSFORM_DECLARATIONS.to_owned()),
+        super::TypeScriptLinkMode::Runtime => Some(WEB_RUNTIME_LINKS_DECLARATIONS.to_owned()),
+        super::TypeScriptLinkMode::Manual => None,
+    }
+}
+
+pub fn generate_project_web_server_cookie_module() -> String {
+    WEB_SERVER_COOKIE_RUNTIME.to_owned()
+}
+
+pub fn generate_project_web_server_cookie_declaration() -> String {
+    WEB_SERVER_COOKIE_DECLARATIONS.to_owned()
 }
 
 pub fn generate_project_web_declaration() -> String {
@@ -708,22 +791,6 @@ fn gate_browser_capability_reads(
             let end = start + end_offset + "  });".len();
             rendered.replace_range(start..end, &replacement);
         }
-    }
-    rendered
-}
-
-fn strip_runtime_link_observer(mut rendered: String) -> String {
-    rendered = rendered.replace(
-        "const autoLinks = browser && web.options.localizeLinks !== false\n  ? startAutoLinkLocalization(getCurrentLocale)\n  : undefined;",
-        "const autoLinks: { refresh(): void; destroy(): void } | undefined = undefined;",
-    );
-    rendered = rendered.replace(
-        "const AUTO_LINK_MAX_PENDING_ROOTS = 128;\nconst AUTO_LINK_NODE_BUDGET = 256;\n\n",
-        "",
-    );
-    if let Some(start) = rendered.find("\nfunction startAutoLinkLocalization(") {
-        rendered.truncate(start);
-        rendered.push('\n');
     }
     rendered
 }

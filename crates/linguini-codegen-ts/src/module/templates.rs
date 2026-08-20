@@ -46,6 +46,16 @@ pub const WEB_ACCEPT_LANGUAGE_RUNTIME: &str =
     include_str!("templates/web.accept-language.runtime.ts");
 pub const WEB_ACCEPT_LANGUAGE_DECLARATIONS: &str =
     include_str!("templates/web.accept-language.runtime.d.ts");
+pub const WEB_LINK_TRANSFORM_RUNTIME: &str =
+    include_str!("templates/web.link-transform.runtime.ts");
+pub const WEB_LINK_TRANSFORM_DECLARATIONS: &str =
+    include_str!("templates/web.link-transform.runtime.d.ts");
+pub const WEB_RUNTIME_LINKS_RUNTIME: &str = include_str!("templates/web.runtime-links.runtime.ts");
+pub const WEB_RUNTIME_LINKS_DECLARATIONS: &str =
+    include_str!("templates/web.runtime-links.runtime.d.ts");
+pub const WEB_SERVER_COOKIE_RUNTIME: &str = include_str!("templates/web.server-cookie.runtime.ts");
+pub const WEB_SERVER_COOKIE_DECLARATIONS: &str =
+    include_str!("templates/web.server-cookie.runtime.d.ts");
 
 pub fn render_template(template: &str, replacements: &[(&str, String)]) -> String {
     let mut output = template.to_owned();
@@ -91,7 +101,11 @@ mod tests {
         assert!(SVELTE_CONTROL_DECLARATIONS.contains("LinguiniSvelteControl"));
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
-        assert!(SVELTE_EFFECTS_RUNTIME.contains("startAutoLinkLocalization"));
+        assert!(SVELTE_EFFECTS_RUNTIME.contains("{{LINK_RUNTIME_START}}"));
+        assert!(WEB_RUNTIME_LINKS_RUNTIME.contains("startRuntimeLinkLocalization"));
+        assert!(WEB_RUNTIME_LINKS_RUNTIME.contains("MutationObserver"));
+        assert!(WEB_LINK_TRANSFORM_RUNTIME.contains("localizeTransformedHref"));
+        assert!(WEB_SERVER_COOKIE_RUNTIME.contains("persistLocaleCookie"));
         assert!(SVELTE_EFFECTS_DECLARATIONS.contains("destroyLinguiniEffects"));
         assert!(SVELTE_LOCALE_RUNTIME.contains("getCurrentLocale"));
         assert!(SVELTE_LOCALE_CONTEXT_RUNTIME.contains("getCurrentLocale"));
@@ -103,6 +117,7 @@ mod tests {
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniReroute"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniLoad"));
+        assert!(SVELTEKIT_RUNTIME.contains("{{SERVER_COOKIE_IMPORT}}"));
         assert!(SVELTEKIT_DECLARATIONS.contains("linguiniHandle: Handle"));
         assert!(SVELTEKIT_DECLARATIONS.contains("linguiniReroute: Reroute"));
         assert!(SVELTEKIT_DECLARATIONS.contains("linguiniLoad: ServerLoad"));

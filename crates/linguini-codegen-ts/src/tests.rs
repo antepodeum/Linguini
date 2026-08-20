@@ -2186,9 +2186,9 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         assert!(!svelte_effects.contents.contains(forbidden));
     }
     assert!(!svelte_effects.contents.contains("MutationObserver"));
-    assert!(svelte_effects
-        .contents
-        .contains("const autoLinks: { refresh(): void; destroy(): void } | undefined = undefined"));
+    assert!(svelte_effects.contents.contains(
+        "const linkEffects: { refresh(): void; destroy(): void } | undefined = undefined"
+    ));
     assert!(!svelte_effects.contents.contains("window.localStorage"));
     let svelte_effects_declaration = files
         .iter()
@@ -2448,11 +2448,14 @@ fn project_codegen_emits_only_selected_web_source_and_browser_capabilities() {
     assert!(!effects
         .contents
         .contains("navigator: readBrowserCapability(() => window.navigator)"));
-    // Transform has no generated link-transform package yet, so it retains
-    // the runtime observer as its compatibility fallback. Manual is the
-    // explicit mode that disables runtime link localization.
     assert!(effects.contents.contains("localizeLinks: true"));
-    assert!(effects.contents.contains("MutationObserver"));
+    assert!(!effects.contents.contains("MutationObserver"));
+    assert!(!effects.contents.contains("startRuntimeLinkLocalization"));
+    let link_transform = files
+        .iter()
+        .find(|file| file.path == "web/link-transform.ts")
+        .expect("selected link-transform capability");
+    assert!(link_transform.contents.contains("localizeTransformedHref"));
 
     let control = files
         .iter()
@@ -2500,7 +2503,9 @@ fn project_codegen_allows_closed_web_features_without_sources() {
         .collect::<Vec<_>>();
     assert!(paths.contains(&"web.ts"));
     assert!(paths.contains(&"svelte-effects.svelte.ts"));
-    assert!(!paths.iter().any(|path| path.starts_with("web/")));
+    assert!(paths.contains(&"web/runtime-links.ts"));
+    assert!(!paths.contains(&"web/link-transform.ts"));
+    assert!(!paths.contains(&"web/server-cookie.ts"));
 
     let web = files
         .iter()
@@ -2567,9 +2572,12 @@ fn project_codegen_manual_link_mode_disables_runtime_observer() {
         .expect("effects runtime");
     assert!(effects.contents.contains("localizeLinks: false"));
     assert!(!effects.contents.contains("MutationObserver"));
-    assert!(effects
-        .contents
-        .contains("const autoLinks: { refresh(): void; destroy(): void } | undefined = undefined"));
+    assert!(effects.contents.contains(
+        "const linkEffects: { refresh(): void; destroy(): void } | undefined = undefined"
+    ));
+    assert!(!files
+        .iter()
+        .any(|file| file.path == "web/runtime-links.ts" || file.path == "web/link-transform.ts"));
 }
 
 #[test]
