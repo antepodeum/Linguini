@@ -40,6 +40,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "rust:test",
       "rust:clippy",
       "docs:syntax",
+      "docs:config",
       "vite:test",
       "cli:test",
       "vscode:test",

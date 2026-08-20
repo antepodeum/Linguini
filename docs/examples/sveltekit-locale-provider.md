@@ -9,6 +9,10 @@ name = "app"
 default_locale = "en"
 locales = ["en", "ru"]
 
+[paths]
+schema = "linguini/schema"
+locale = "linguini/locale"
+
 [targets.ts]
 out = "src/lib/generated/linguini"
 declaration = true

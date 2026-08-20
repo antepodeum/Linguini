@@ -79,6 +79,16 @@ export const TASKS = Object.freeze([
     tools: ["cargo"],
     requiresNodeModules: false,
   }),
+  Object.freeze({
+    id: "docs:config",
+    project: "rust",
+    label: "Documentation configuration conformance",
+    command: "cargo",
+    args: ["test", "--offline", "--locked", "-p", "linguini-config", "--test", "documentation"],
+    profiles: ["full"],
+    tools: ["cargo"],
+    requiresNodeModules: false,
+  }),
   nodeTask({
     id: "vite:test",
     project: "vite",

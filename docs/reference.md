@@ -656,7 +656,7 @@ Bundler dynamic access is strict by default. To permit a finite computed access,
 use the bounded escape below; `allow` entries are exact canonical message paths,
 not globs or namespace wildcards:
 
-```toml
+```toml fragment=dynamic-policy
 [targets.ts.bundler.dynamic]
 mode = "bundle"
 allow = ["main.title", "admin.notice"]
@@ -692,7 +692,7 @@ origin, and SvelteKit remains the sole trailing-slash authority.
 Application usage is a project-level input, so unused-message analysis is off
 until its source boundary is configured explicitly:
 
-```toml
+```toml fragment=unused-message-policy
 [analysis.unused_messages]
 sources = ["src", "tests/ui"]
 exclude = ["src/generated", "src/vendor"]

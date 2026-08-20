@@ -40,7 +40,7 @@ with equivalent positional and named-object overloads
 Dynamic access is strict by default. A finite, explicit escape can be enabled
 with canonical message paths:
 
-```toml
+```toml fragment=dynamic-policy
 [targets.ts.bundler.dynamic]
 mode = "bundle"
 allow = ["home.title", "home.greeting"]
@@ -59,7 +59,7 @@ only the framework-agnostic TypeScript runtime.
 
 ## Web config
 
-```toml
+```toml fragment=web-policy
 [web.routing]
 locale_prefix = "except-default" # default; also "always" or "never"
 canonical = "redirect"   # or "preserve"
@@ -162,7 +162,7 @@ localization, and the switch route.
 
 Common policies are concise:
 
-```toml
+```toml fragment=policy-alternatives
 # Path-only: locale is in every URL and switching navigates.
 [web.routing]
 locale_prefix = "always"

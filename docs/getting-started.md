@@ -218,7 +218,7 @@ or SvelteKit framework target). The default dynamic-access policy is strict:
 computed message paths fail the build. If a finite dynamic escape is required,
 list canonical message paths explicitly:
 
-```toml
+```toml fragment=bundler-policy
 [targets.ts]
 framework = "sveltekit"
 
