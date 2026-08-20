@@ -123,6 +123,14 @@ pub struct TypeScriptWebOptions {
     pub exclude: Vec<String>,
     /// Link handling is a closed capability rather than an on/off flag.
     pub link_mode: TypeScriptLinkMode,
+    pub switch_route: Option<TypeScriptWebSwitchRoute>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptWebSwitchRoute {
+    pub path: String,
+    pub return_query: String,
+    pub status: u16,
 }
 
 /// Closed locale-prefix policy lowered into generated TypeScript projects.
@@ -168,6 +176,7 @@ pub struct TypeScriptWebFeatures {
     pub locale_switch: TypeScriptLocaleSwitchPlan,
     pub locale_prefix: TypeScriptLocalePrefixMode,
     pub link_mode: TypeScriptLinkMode,
+    pub switch_route: Option<TypeScriptWebSwitchRoute>,
 }
 
 impl TypeScriptWebOptions {
@@ -183,6 +192,7 @@ impl TypeScriptWebOptions {
             locale_switch: self.locale_switch,
             locale_prefix: self.locale_prefix,
             link_mode: self.link_mode,
+            switch_route: self.switch_route.clone(),
         }
     }
 }
@@ -265,6 +275,7 @@ impl Default for TypeScriptWebOptions {
             origin: None,
             exclude: Vec::new(),
             link_mode: TypeScriptLinkMode::Runtime,
+            switch_route: None,
         }
     }
 }
@@ -1051,6 +1062,20 @@ pub fn generate_typescript_project_files(
                         path: "web/server-cookie.d.ts".to_owned(),
                         contents: project::generate_project_web_server_cookie_declaration(),
                     });
+                }
+            }
+            if sveltekit {
+                if let Some(contents) = project::generate_project_web_switch_route_module(web) {
+                    files.push(TypeScriptGeneratedFile {
+                        path: "web/switch-route.ts".to_owned(),
+                        contents,
+                    });
+                    if options.declaration {
+                        files.push(TypeScriptGeneratedFile {
+                            path: "web/switch-route.d.ts".to_owned(),
+                            contents: project::generate_project_web_switch_route_declaration(),
+                        });
+                    }
                 }
             }
             files.push(TypeScriptGeneratedFile {

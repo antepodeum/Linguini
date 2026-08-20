@@ -2,6 +2,7 @@ import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";
 import { createWebI18n } from "./web";
 import * as runtime from "./index";
 {{SERVER_COOKIE_IMPORT}}
+{{SWITCH_ROUTE_IMPORT}}
 
 const options = {{OPTIONS}};
 
@@ -17,6 +18,7 @@ function createHandle(runtime: typeof import("./index"), options: Record<string,
 {{PERSIST_COOKIE_DECLARATION}}
 
   return async function linguiniHandle({ event, resolve }: Parameters<Handle>[0]) {
+{{SWITCH_ROUTE_BRANCH}}
     if (web.shouldExclude(event.url)) {
       return resolve(event);
     }

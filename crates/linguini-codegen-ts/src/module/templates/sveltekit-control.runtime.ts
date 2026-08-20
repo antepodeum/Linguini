@@ -3,6 +3,7 @@ import type { Locale } from "./locale";
 import * as locale from "./locale";
 import { createWebLocaleI18n } from "./web";
 {{SERVER_COOKIE_IMPORT}}
+{{SWITCH_ROUTE_IMPORT}}
 
 const options = {{OPTIONS}};
 
@@ -18,6 +19,7 @@ function createHandle(runtime: typeof import("./locale"), options: Record<string
 {{PERSIST_COOKIE_DECLARATION}}
 
   return async function linguiniHandle({ event, resolve }: Parameters<Handle>[0]) {
+{{SWITCH_ROUTE_BRANCH}}
     if (web.shouldExclude(event.url)) {
       return resolve(event);
     }

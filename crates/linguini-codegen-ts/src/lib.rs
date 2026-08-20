@@ -16,7 +16,7 @@ pub use module::{
     TypeScriptLocaleSwitchPlan, TypeScriptMessageArtifact, TypeScriptOptions,
     TypeScriptProjectOptions, TypeScriptSemanticArtifact, TypeScriptSemanticImport,
     TypeScriptSemanticSymbolKind, TypeScriptWebFeatures, TypeScriptWebOptions,
-    ValidatedTypeScriptProject,
+    TypeScriptWebSwitchRoute, ValidatedTypeScriptProject,
 };
 pub use plural::generate_plural_function;
 

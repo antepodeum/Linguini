@@ -342,7 +342,9 @@ test("SvelteKit adapters gate server cookie persistence through locale switch pl
         .replace(
           "{{PERSIST_RESPONSE_COOKIE}}",
           "    if (persistCookie) persistLocaleCookie(web, response, context.locale);",
-        );
+        )
+        .replace("{{SWITCH_ROUTE_IMPORT}}", "")
+        .replace("{{SWITCH_ROUTE_BRANCH}}", "");
       const sourceWithWeb = `${source}
 function createWeb(_runtime: unknown, options: any) {
   const context = {
@@ -391,6 +393,58 @@ function createWeb(_runtime: unknown, options: any) {
       assert.equal(globalThis.__linguiniProbeCookieWrites, writesCookie ? 1 : 0);
     }
   }
+  delete globalThis.__linguiniProbeCookieWrites;
+});
+
+test("switch route rejects unsafe returns and follows shared path/cookie plan", async () => {
+  const source = (await readTemplate("web.switch-route.runtime.ts"))
+    .replace('import type { LinguiniWebLocale } from "../web";', "")
+    .replace(
+      "{{SERVER_COOKIE_IMPORT}}",
+      "const persistLocaleCookie = (_web: any, _target: unknown, _locale: string) => { globalThis.__linguiniProbeCookieWrites += 1; };",
+    )
+    .replace("{{SWITCH_ROUTE_PATH}}", "/_linguini/locale/{locale}")
+    .replace("{{SWITCH_ROUTE_RETURN_QUERY}}", "return")
+    .replace("{{SWITCH_ROUTE_STATUS}}", "303")
+    .replace(
+      "{{PERSIST_SWITCH_COOKIE}}",
+      "  if (web.options.localeSwitch.writesCookie) persistLocaleCookie(web, response, locale);",
+    );
+  const generated = await importTypeScript(source);
+  const web = {
+    options: {
+      basePath: "/app",
+      localeSwitch: { writesPath: true, writesCookie: true },
+    },
+    matchLocale: (value: unknown) => ["en", "de"].includes(String(value)) ? String(value) : undefined,
+    localizeHref: (href: string, locale: string) => `/${locale}${href}`,
+  };
+  const event = (url: string, referer?: string) => ({
+    url: new URL(url),
+    request: new Request(url, { headers: referer ? { referer } : {} }),
+  });
+
+  globalThis.__linguiniProbeCookieWrites = 0;
+  const valid = generated.handleLocaleSwitchRoute(
+    web,
+    event("https://app.example/app/_linguini/locale/de?return=%2Faccount%3Ftab%3Dprofile"),
+  );
+  assert.equal(valid.status, 303);
+  assert.equal(valid.headers.get("location"), "/de/account?tab=profile");
+  assert.equal(globalThis.__linguiniProbeCookieWrites, 1);
+
+  const unsafe = generated.handleLocaleSwitchRoute(
+    web,
+    event(
+      "https://app.example/app/_linguini/locale/de?return=%252F%252Fevil.example%252Fsteal",
+      "https://outside.example/account",
+    ),
+  );
+  assert.equal(unsafe.headers.get("location"), "/de/app");
+  assert.equal(
+    generated.handleLocaleSwitchRoute(web, event("https://app.example/app/_linguini/locale/xx")),
+    undefined,
+  );
   delete globalThis.__linguiniProbeCookieWrites;
 });
 

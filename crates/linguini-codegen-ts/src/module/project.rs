@@ -15,6 +15,7 @@ use super::templates::{
     WEB_LINK_TRANSFORM_RUNTIME, WEB_LOCAL_STORAGE_DECLARATIONS, WEB_LOCAL_STORAGE_RUNTIME,
     WEB_PATH_DECLARATIONS, WEB_PATH_RUNTIME, WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS,
     WEB_RUNTIME_LINKS_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
+    WEB_SWITCH_ROUTE_DECLARATIONS, WEB_SWITCH_ROUTE_RUNTIME,
 };
 use super::{
     TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
@@ -366,6 +367,23 @@ fn sveltekit_replacements(options: &TypeScriptWebOptions) -> Vec<(&'static str, 
                 String::new()
             },
         ),
+        (
+            "SWITCH_ROUTE_IMPORT",
+            if options.switch_route.is_some() {
+                "import { handleLocaleSwitchRoute } from \"./web/switch-route.js\";".to_owned()
+            } else {
+                String::new()
+            },
+        ),
+        (
+            "SWITCH_ROUTE_BRANCH",
+            if options.switch_route.is_some() {
+                "    const switchResponse = handleLocaleSwitchRoute(web, event);\n    if (switchResponse) return switchResponse;"
+                    .to_owned()
+            } else {
+                String::new()
+            },
+        ),
     ]
 }
 
@@ -454,6 +472,42 @@ pub fn generate_project_web_server_cookie_module() -> String {
 
 pub fn generate_project_web_server_cookie_declaration() -> String {
     WEB_SERVER_COOKIE_DECLARATIONS.to_owned()
+}
+
+pub fn generate_project_web_switch_route_module(options: &TypeScriptWebOptions) -> Option<String> {
+    let route = options.switch_route.as_ref()?;
+    Some(render_template(
+        WEB_SWITCH_ROUTE_RUNTIME,
+        &[
+            (
+                "SERVER_COOKIE_IMPORT",
+                if options.features().has_cookie {
+                    "import { persistLocaleCookie } from \"./server-cookie.js\";".to_owned()
+                } else {
+                    String::new()
+                },
+            ),
+            ("SWITCH_ROUTE_PATH", escape_string(&route.path)),
+            (
+                "SWITCH_ROUTE_RETURN_QUERY",
+                escape_string(&route.return_query),
+            ),
+            ("SWITCH_ROUTE_STATUS", route.status.to_string()),
+            (
+                "PERSIST_SWITCH_COOKIE",
+                if options.features().has_cookie {
+                    "  if (web.options.localeSwitch.writesCookie) {\n    persistLocaleCookie(web, response, locale);\n  }"
+                        .to_owned()
+                } else {
+                    String::new()
+                },
+            ),
+        ],
+    ))
+}
+
+pub fn generate_project_web_switch_route_declaration() -> String {
+    WEB_SWITCH_ROUTE_DECLARATIONS.to_owned()
 }
 
 pub fn generate_project_web_declaration() -> String {

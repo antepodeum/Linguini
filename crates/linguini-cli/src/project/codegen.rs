@@ -11,7 +11,7 @@ use linguini_codegen_ts::{
     generate_typescript_project_files, EcmaSource, TypeScriptFramework, TypeScriptGeneratedFile,
     TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptLocalePrefixMode, TypeScriptLocaleSource,
     TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
-    ValidatedTypeScriptProject,
+    TypeScriptWebSwitchRoute, ValidatedTypeScriptProject,
 };
 use linguini_config::{
     discover_application_source_files_with_fields, CanonicalMode, CookiePath, LinguiniConfig,
@@ -1139,6 +1139,11 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
             LinkMode::Runtime => TypeScriptLinkMode::Runtime,
             LinkMode::Manual => TypeScriptLinkMode::Manual,
         },
+        switch_route: features.switch_route.map(|route| TypeScriptWebSwitchRoute {
+            path: route.path,
+            return_query: route.return_query,
+            status: route.status,
+        }),
     }
 }
 
@@ -1461,13 +1466,46 @@ fn contains_non_group_symbol_name(module: &IrModule, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        immediate_dynamic_messages, merge_module, merge_module_fallback, namespaced_module,
-        project_locale_fallbacks, project_relative_source_path,
+        immediate_dynamic_messages, legacy_web_codegen_options, merge_module,
+        merge_module_fallback, namespaced_module, project_locale_fallbacks,
+        project_relative_source_path,
     };
-    use linguini_config::{TypeScriptBundlerDynamicConfig, TypeScriptBundlerDynamicMode};
+    use linguini_config::{
+        parse_config, TypeScriptBundlerDynamicConfig, TypeScriptBundlerDynamicMode,
+    };
     use linguini_ir::lower_locale;
     use linguini_syntax::parse_locale;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn closed_web_lowering_preserves_switch_route_transport() {
+        let config = parse_config(
+            r#"
+                [project]
+                name = "shop"
+                default_locale = "en"
+                locales = ["en", "de"]
+                [paths]
+                schema = "schema"
+                locale = "locale"
+                [web.locale]
+                sources = ["path", "cookie"]
+                [web.switch_route]
+                path = "/_linguini/locale/{locale}"
+                return_query = "next"
+                status = 307
+            "#,
+        )
+        .expect("valid switch route config");
+
+        let lowered = legacy_web_codegen_options(&config);
+        let route = lowered.switch_route.expect("lowered switch route");
+        assert_eq!(route.path, "/_linguini/locale/{locale}");
+        assert_eq!(route.return_query, "next");
+        assert_eq!(route.status, 307);
+        assert!(lowered.locale_switch.writes_path);
+        assert!(lowered.locale_switch.writes_cookie);
+    }
 
     #[test]
     fn root_dynamic_prefix_accepts_exact_top_level_leaf() {

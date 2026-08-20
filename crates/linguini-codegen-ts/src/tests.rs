@@ -1999,7 +1999,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     use crate::{
         TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleModule,
         TypeScriptLocalePrefixMode, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
-        TypeScriptProjectOptions, TypeScriptWebOptions,
+        TypeScriptProjectOptions, TypeScriptWebOptions, TypeScriptWebSwitchRoute,
     };
     use linguini_ir::IrModule;
 
@@ -2037,6 +2037,11 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
                 origin: Some("https://example.com".to_owned()),
                 exclude: vec!["/api/**".to_owned()],
                 link_mode: TypeScriptLinkMode::Manual,
+                switch_route: Some(TypeScriptWebSwitchRoute {
+                    path: "/_linguini/locale/{locale}".to_owned(),
+                    return_query: "return".to_owned(),
+                    status: 303,
+                }),
             }),
             ..project_options("en")
         },
@@ -2058,6 +2063,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(paths.contains(&"web/path.ts"));
     assert!(paths.contains(&"web/cookie.ts"));
     assert!(paths.contains(&"web/accept-language.ts"));
+    assert!(paths.contains(&"web/server-cookie.ts"));
+    assert!(paths.contains(&"web/switch-route.ts"));
     assert!(!paths.contains(&"web/local-storage.ts"));
     let web = files
         .iter()
@@ -2086,6 +2093,15 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .find(|file| file.path == "sveltekit.ts")
         .expect("sveltekit runtime");
     assert!(sveltekit.contents.contains("localePrefix: \"always\""));
+    assert!(sveltekit.contents.contains("handleLocaleSwitchRoute"));
+    let switch_route = files
+        .iter()
+        .find(|file| file.path == "web/switch-route.ts")
+        .expect("switch route capability");
+    assert!(switch_route.contents.contains("/_linguini/locale/{locale}"));
+    assert!(switch_route.contents.contains("const redirectStatus = 303"));
+    assert!(switch_route.contents.contains("persistLocaleCookie"));
+    assert!(switch_route.contents.contains("web.localizeHref"));
 
     let svelte = files
         .iter()

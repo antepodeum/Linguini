@@ -56,6 +56,9 @@ pub const WEB_RUNTIME_LINKS_DECLARATIONS: &str =
 pub const WEB_SERVER_COOKIE_RUNTIME: &str = include_str!("templates/web.server-cookie.runtime.ts");
 pub const WEB_SERVER_COOKIE_DECLARATIONS: &str =
     include_str!("templates/web.server-cookie.runtime.d.ts");
+pub const WEB_SWITCH_ROUTE_RUNTIME: &str = include_str!("templates/web.switch-route.runtime.ts");
+pub const WEB_SWITCH_ROUTE_DECLARATIONS: &str =
+    include_str!("templates/web.switch-route.runtime.d.ts");
 
 pub fn render_template(template: &str, replacements: &[(&str, String)]) -> String {
     let mut output = template.to_owned();
