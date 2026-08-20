@@ -1,7 +1,7 @@
 use crate::DiagnosticFormat;
 use linguini_analyzer::{
-    render_diagnostics_with_color, Diagnostic, DiagnosticCategory, DiagnosticSeverity, QuickFix,
-    QuickFixAction, Replacement,
+    render_diagnostics_with_sources_and_color, Diagnostic, DiagnosticCategory, DiagnosticSeverity,
+    DiagnosticSource, QuickFix, QuickFixAction, Replacement,
 };
 use linguini_syntax::{ParseError, SourceId, Span};
 use serde_json::{json, Map, Value};
@@ -109,10 +109,20 @@ impl ProjectDiagnostics {
             if diagnostics.is_empty() {
                 continue;
             }
+            let sources = self
+                .sources
+                .iter()
+                .map(|(source_id, document)| DiagnosticSource {
+                    source_id: *source_id,
+                    path: &document.path,
+                    source: &document.source,
+                })
+                .collect::<Vec<_>>();
             output.push_str(
-                &render_diagnostics_with_color(
+                &render_diagnostics_with_sources_and_color(
                     &batch.fallback.path,
                     &batch.fallback.source,
+                    &sources,
                     &diagnostics,
                     false,
                 )
@@ -566,8 +576,40 @@ fn sarif_level(severity: DiagnosticSeverity) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{artifact_uri, source_range};
-    use linguini_syntax::Span;
+    use super::{artifact_uri, source_range, ProjectDiagnostics};
+    use linguini_analyzer::Diagnostic;
+    use linguini_syntax::{SourceId, Span};
+    use std::path::Path;
+
+    #[test]
+    fn human_renderer_uses_paths_for_cross_file_related_spans() {
+        let root = Path::new("/project");
+        let first_path = root.join("schema/first.lgs");
+        let second_path = root.join("schema/second.lgs");
+        let mut diagnostics = ProjectDiagnostics::default();
+        diagnostics.register_source(SourceId(1), root, &first_path, "hello\n");
+        diagnostics.register_source(SourceId(3), root, &second_path, "hello\n");
+        diagnostics.push(
+            root,
+            &second_path,
+            "hello\n",
+            &[Diagnostic::error(
+                "duplicate schema declaration `hello`",
+                Span::in_source(SourceId(3), 0, 5),
+            )
+            .with_related(
+                Span::in_source(SourceId(1), 0, 5),
+                "first declaration is here",
+            )],
+        );
+
+        let rendered = diagnostics.render_human(true);
+
+        assert!(rendered.contains("schema/second.lgs"));
+        assert!(rendered.contains("schema/first.lgs"));
+        assert!(rendered.contains("first declaration is here"));
+        assert!(!rendered.contains("related source #"));
+    }
 
     #[test]
     fn ranges_use_one_based_unicode_positions_and_byte_offsets() {

@@ -1,5 +1,6 @@
-use ariadne::{CharSet, Color, Config, Fmt, IndexType, Label, Report, ReportKind, Source};
-use linguini_syntax::Span;
+use ariadne::{sources, CharSet, Color, Config, Fmt, IndexType, Label, Report, ReportKind};
+use linguini_syntax::{SourceId, Span};
+use std::collections::BTreeMap;
 use std::fmt;
 use std::io;
 
@@ -66,6 +67,13 @@ pub struct Diagnostic {
 #[derive(Debug)]
 pub struct RenderError {
     source: io::Error,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DiagnosticSource<'a> {
+    pub source_id: SourceId,
+    pub path: &'a str,
+    pub source: &'a str,
 }
 
 impl fmt::Display for RenderError {
@@ -244,8 +252,24 @@ pub fn render_diagnostics_with_color(
     diagnostics: &[Diagnostic],
     color: bool,
 ) -> Result<String, RenderError> {
-    let source_length = source.len();
-    let source = Source::from(source);
+    render_diagnostics_with_sources_and_color(path, source, &[], diagnostics, color)
+}
+
+pub fn render_diagnostics_with_sources_and_color(
+    fallback_path: &str,
+    fallback_source: &str,
+    diagnostic_sources: &[DiagnosticSource<'_>],
+    diagnostics: &[Diagnostic],
+    color: bool,
+) -> Result<String, RenderError> {
+    let mut source_cache = BTreeMap::from([(fallback_path.to_owned(), fallback_source.to_owned())]);
+    for diagnostic_source in diagnostic_sources {
+        source_cache.insert(
+            diagnostic_source.path.to_owned(),
+            diagnostic_source.source.to_owned(),
+        );
+    }
+    let mut source_cache = sources(source_cache);
     let config = Config::default()
         .with_color(color)
         .with_char_set(CharSet::Unicode)
@@ -254,34 +278,49 @@ pub fn render_diagnostics_with_color(
 
     for diagnostic in diagnostics {
         let Some(primary_span) = diagnostic.source_span else {
-            render_summary_diagnostic(path, &mut output, diagnostic, color);
+            render_summary_diagnostic(fallback_path, &mut output, diagnostic, color);
             continue;
         };
+        let (primary_path, primary_source) =
+            diagnostic_source_for_span(primary_span, diagnostic_sources)
+                .unwrap_or((fallback_path, fallback_source));
 
         let mut builder = Report::build(
             report_kind(diagnostic.severity),
-            (path.to_string(), span_range(primary_span, source_length)),
+            (
+                primary_path.to_owned(),
+                span_range(primary_span, primary_source.len()),
+            ),
         )
         .with_config(config)
         .with_message(&diagnostic.message)
         .with_label(
-            Label::new((path.to_string(), span_range(primary_span, source_length)))
-                .with_color(label_color(diagnostic.severity))
-                .with_message(&diagnostic.message),
+            Label::new((
+                primary_path.to_owned(),
+                span_range(primary_span, primary_source.len()),
+            ))
+            .with_color(label_color(diagnostic.severity))
+            .with_message(&diagnostic.message),
         );
 
         for related in &diagnostic.related {
-            if related.span.source != primary_span.source {
+            let related_source = diagnostic_source_for_span(related.span, diagnostic_sources);
+            if related_source.is_none() && related.span.source != primary_span.source {
                 builder = builder.with_note(format!(
                     "{} (related source #{})",
                     related.message, related.span.source.0
                 ));
                 continue;
             }
+            let (related_path, related_source) =
+                related_source.unwrap_or((primary_path, primary_source));
             builder = builder.with_label(
-                Label::new((path.to_string(), span_range(related.span, source_length)))
-                    .with_color(Color::Cyan)
-                    .with_message(&related.message),
+                Label::new((
+                    related_path.to_owned(),
+                    span_range(related.span, related_source.len()),
+                ))
+                .with_color(Color::Cyan)
+                .with_message(&related.message),
             );
         }
 
@@ -295,7 +334,7 @@ pub fn render_diagnostics_with_color(
 
         builder
             .finish()
-            .write((path.to_string(), &source), &mut output)
+            .write(&mut source_cache, &mut output)
             .map_err(|source| RenderError { source })?;
     }
 
@@ -303,6 +342,16 @@ pub fn render_diagnostics_with_color(
         source: io::Error::new(io::ErrorKind::InvalidData, source),
     })?;
     Ok(trim_trailing_layout_padding(&rendered))
+}
+
+fn diagnostic_source_for_span<'a>(
+    span: Span,
+    diagnostic_sources: &'a [DiagnosticSource<'a>],
+) -> Option<(&'a str, &'a str)> {
+    diagnostic_sources
+        .iter()
+        .find(|source| source.source_id == span.source)
+        .map(|source| (source.path, source.source))
 }
 
 fn trim_trailing_layout_padding(rendered: &str) -> String {

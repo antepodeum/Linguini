@@ -2,12 +2,12 @@ use super::{
     analyze_branch_coverage, analyze_expressions, analyze_function_patterns,
     analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
     analyze_message_coverage, analyze_project_expressions, detect_reference_cycles,
-    render_diagnostics, require_other_branch, BranchCoverage, Diagnostic, DiagnosticCategory,
-    DiagnosticSeverity, ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature,
-    LocaleCoverageOptions, MessageToAnalyze, NamedSpan, PublicMessage, QuickFix, QuickFixAction,
-    ReferenceNode, Variable,
+    render_diagnostics, render_diagnostics_with_sources_and_color, require_other_branch,
+    BranchCoverage, Diagnostic, DiagnosticCategory, DiagnosticSeverity, DiagnosticSource,
+    ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature, LocaleCoverageOptions,
+    MessageToAnalyze, NamedSpan, PublicMessage, QuickFix, QuickFixAction, ReferenceNode, Variable,
 };
-use linguini_syntax::{parse_locale, parse_schema, Span};
+use linguini_syntax::{parse_locale, parse_schema, SourceId, Span};
 
 #[test]
 fn renders_primary_span_related_span_note_and_quick_fix() {
@@ -23,6 +23,43 @@ fn renders_primary_span_related_span_note_and_quick_fix() {
         rendered,
         include_str!("../../../tests/fixtures/golden/snapshots/diagnostic-schema-syntax.txt")
     );
+}
+
+#[test]
+fn renders_related_spans_from_their_own_sources() {
+    let primary_source = "delivery = Delivered\n";
+    let related_source = "delivery = Duplicate\n";
+    let diagnostic = Diagnostic::error(
+        "duplicate message `delivery`",
+        Span::in_source(SourceId(2), 0, 8),
+    )
+    .with_related(Span::in_source(SourceId(1), 0, 8), "first declared here");
+    let sources = [
+        DiagnosticSource {
+            source_id: SourceId(1),
+            path: "locales/shop/en.lgl",
+            source: primary_source,
+        },
+        DiagnosticSource {
+            source_id: SourceId(2),
+            path: "locales/shop/en-extra.lgl",
+            source: related_source,
+        },
+    ];
+
+    let rendered = render_diagnostics_with_sources_and_color(
+        "fallback.lgl",
+        "",
+        &sources,
+        &[diagnostic],
+        false,
+    )
+    .expect("render diagnostics");
+
+    assert!(rendered.contains("locales/shop/en-extra.lgl"));
+    assert!(rendered.contains("locales/shop/en.lgl"));
+    assert!(rendered.contains("first declared here"));
+    assert!(!rendered.contains("related source #"));
 }
 
 #[test]

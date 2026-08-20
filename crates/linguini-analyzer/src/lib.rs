@@ -15,8 +15,9 @@ pub use branch_coverage::{
     analyze_branch_coverage, require_other_branch, BranchCoverage, NamedSpan,
 };
 pub use diagnostic::{
-    render_diagnostics, render_diagnostics_with_color, Diagnostic, DiagnosticCategory,
-    DiagnosticSeverity, QuickFix, QuickFixAction, RelatedSpan, RenderError, Replacement,
+    render_diagnostics, render_diagnostics_with_color, render_diagnostics_with_sources_and_color,
+    Diagnostic, DiagnosticCategory, DiagnosticSeverity, DiagnosticSource, QuickFix, QuickFixAction,
+    RelatedSpan, RenderError, Replacement,
 };
 pub use expression::{
     analyze_expressions, analyze_function_patterns, analyze_project_expressions,
