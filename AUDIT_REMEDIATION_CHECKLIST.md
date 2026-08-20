@@ -170,11 +170,11 @@ production path uses the fix and its relevant tests pass.
 - [ ] #14 — Execute normative documentation as conformance fixtures.
 - [-] #15 — Add property, platform, generated-code, and real integration coverage.
 - [-] #16 — Synchronize and automatically verify all component versions.
-- [ ] #17 — Rewrite public guarantees so documentation states only shipped behavior.
+- [x] #17 — Rewrite public guarantees so documentation states only shipped behavior.
 
 ### `linguini-core`
 
-- [-] #18 — Remove placeholder `CRATE_PURPOSE` values from the public API.
+- [x] #18 — Remove placeholder `CRATE_PURPOSE` values from the public API.
 - [x] #19 — Preserve unknown formatter names instead of silently erasing identity.
 - [x] #20 — Centralize primitive types in one registry.
 - [x] #21 — Make sample generation use the canonical primitive registry.
