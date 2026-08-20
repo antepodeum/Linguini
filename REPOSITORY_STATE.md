@@ -67,12 +67,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove formatting or plural parsing duplication hidden in generation code.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run focused tests or `cargo test -p linguini-cldr-macros`.
-- [ ] 10. `crates/linguini-cldr`
-  - [ ] Review compiled plural and formatting APIs after macro cleanup.
-  - [ ] Check runtime evaluation behavior against generated data assumptions.
-  - [ ] Remove stale generated-data adapters or redundant lookup layers.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run focused tests or `cargo test -p linguini-cldr`.
+- [x] 10. `crates/linguini-cldr`
+  - [x] Review compiled plural and formatting APIs after macro cleanup.
+  - [x] Check runtime evaluation behavior against generated data assumptions.
+  - [x] Remove stale generated-data adapters or redundant lookup layers.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run focused tests or `cargo test -p linguini-cldr`.
 - [ ] 11. `crates/linguini-format`
   - [ ] Review formatting IR and engine after syntax shape is settled.
   - [ ] Check idempotence, comments, whitespace, and malformed-input behavior.
