@@ -302,7 +302,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #125 — Memoize graph traversal.
 - [x] #126 — Cover all locale-level project reference kinds.
 - [x] #127 — Emit stable diagnostic codes, categories, and source IDs.
-- [-] #128 — Render cross-file related spans correctly in every CLI path.
+- [x] #128 — Render cross-file related spans correctly in every CLI path.
 - [x] #129 — Validate span bounds before rendering.
 - [x] #130 — Give quick fixes explicit edit/command semantics.
 - [x] #131 — Represent source-less diagnostics without fake spans.
