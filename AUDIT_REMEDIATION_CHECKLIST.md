@@ -866,7 +866,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] Run the complete Rust workspace test suite on Linux, Windows, and macOS.
 - [x] Run strict Clippy for all targets and features.
 - [x] Run Rust 1.76 MSRV checks and stable checks.
-- [ ] Run offline/package/source-archive verification.
+- [x] Run offline/package/source-archive verification.
 - [ ] Run dependency, license, advisory, and public-API compatibility checks.
 - [ ] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests.
 - [ ] Parse, analyze, generate, typecheck, and execute every normative documentation fixture.
