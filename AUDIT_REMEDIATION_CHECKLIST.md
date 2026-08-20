@@ -198,7 +198,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #36 — Reject locale files outside the configured locale root.
 - [x] #37 — Preserve I/O error kind, path, and operation context.
 - [x] #38 — Define reproducible normalized path ordering.
-- [-] #39 — Generate only executable nested web-policy combinations.
+- [x] #39 — Generate only executable nested web-policy combinations.
 
 ### `linguini-syntax`
 
@@ -565,7 +565,7 @@ production path uses the fix and its relevant tests pass.
 
 - [-] #347 — Build/check the site without Cargo, network, `git`, or a Rust toolchain; generated
   output is no longer tracked, so clean verification currently needs the Rust generator.
-- [-] #348 — Remove unshipped syntax/CJS claims and align the reference with conformance.
+- [x] #348 — Remove unshipped syntax/CJS claims and align the reference with conformance.
 - [x] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
 - [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
 - [x] #351 — Define project and path namespace behavior unambiguously.
