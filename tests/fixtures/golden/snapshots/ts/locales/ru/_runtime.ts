@@ -3,7 +3,7 @@ type GeneratedCurrencyFormatterOptions = { code?: string; accounting?: "true" | 
 type GeneratedDateFormatterOptions = { style?: "full" | "long" | "medium" | "short" };
 
 export function formatNumber(value: GeneratedNumeric): string {
-  return formatGeneratedNumber(value, "", "", undefined, undefined, 1, 0, 3, 3, undefined, ",", " ");
+  return formatGeneratedNumber(value, "", "", undefined, undefined, 1, 0, 3, 3, undefined, ",", " ", "0123456789");
 }
 
 export function formatCurrency(
@@ -14,9 +14,9 @@ export function formatCurrency(
 ): string {
   const symbol = currencySymbol(options.code ?? "USD");
   if (options.accounting === "true") {
-    return formatGeneratedNumber(value, "", " " + symbol + "", undefined, undefined, 1, 2, 2, 3, undefined, ",", " ", fractionDigits, fractionDigits, roundingIncrement);
+    return formatGeneratedNumber(value, "", " " + symbol + "", undefined, undefined, 1, 2, 2, 3, undefined, ",", " ", "0123456789", fractionDigits, fractionDigits, roundingIncrement);
   }
-  return formatGeneratedNumber(value, "", " " + symbol + "", undefined, undefined, 1, 2, 2, 3, undefined, ",", " ", fractionDigits, fractionDigits, roundingIncrement);
+  return formatGeneratedNumber(value, "", " " + symbol + "", undefined, undefined, 1, 2, 2, 3, undefined, ",", " ", "0123456789", fractionDigits, fractionDigits, roundingIncrement);
 }
 
 function currencySymbol(currency: string): string {
@@ -32,13 +32,13 @@ export function formatDate(
   const date = coerceDate(value);
   switch (options.style ?? "medium") {
     case "full":
-      return ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"][date.getUTCDay()] + ", " + String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".";
+      return localizeGeneratedDigits(["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"][date.getUTCDay()] + ", " + String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".", "0123456789");
     case "long":
-      return String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".";
+      return localizeGeneratedDigits(String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".", "0123456789");
     case "short":
-      return padNumber(date.getUTCDate(), 2) + "." + padNumber(date.getUTCMonth() + 1, 2) + "." + String(date.getUTCFullYear());
+      return localizeGeneratedDigits(padNumber(date.getUTCDate(), 2) + "." + padNumber(date.getUTCMonth() + 1, 2) + "." + String(date.getUTCFullYear()), "0123456789");
     default:
-      return String(date.getUTCDate()) + " " + ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".";
+      return localizeGeneratedDigits(String(date.getUTCDate()) + " " + ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".", "0123456789");
   }
 }
 
@@ -58,6 +58,7 @@ function formatGeneratedNumber(
   secondaryGroupSize: number | undefined,
   decimalSymbol: string,
   groupSymbol: string,
+  digits: string,
   minFractionDigitsOverride?: number,
   maxFractionDigitsOverride?: number,
   roundingIncrement = 0,
@@ -74,7 +75,8 @@ function formatGeneratedNumber(
   );
 
   integer = groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol);
-  const formatted = fraction ? `${integer}${decimalSymbol}${fraction}` : integer;
+  const ascii = fraction ? `${integer}${decimalSymbol}${fraction}` : integer;
+  const formatted = localizeGeneratedDigits(ascii, digits);
   if (decimal.negative) {
     return `${negativePrefix ?? `-${prefix}`}${formatted}${negativeSuffix ?? suffix}`;
   }
@@ -244,6 +246,13 @@ function createUTCDate(year: number, month: number, day: number): Date {
 
 function throwInvalidDate(): never {
   throw new RangeError("Linguini: invalid date value");
+}
+
+function localizeGeneratedDigits(value: string, digits: string): string {
+  if (digits === "0123456789") return value;
+  const symbols = Array.from(digits);
+  if (symbols.length !== 10) throw new RangeError("Linguini: invalid numbering system");
+  return value.replace(/\d/g, (digit) => symbols[digit.charCodeAt(0) - 48]);
 }
 
 

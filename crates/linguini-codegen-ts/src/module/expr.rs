@@ -556,6 +556,9 @@ pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequireme
     if requirements.date {
         output.push_str(date_formatter_helpers());
     }
+    if requirements.any() {
+        output.push_str(digit_formatter_helper());
+    }
     output
 }
 
@@ -618,21 +621,25 @@ function formatDate(
   const date = coerceDate(value);
   switch (options.style ?? \"medium\") {{
     case \"full\":
-      return {};
+      return localizeGeneratedDigits({}, {});
     case \"long\":
-      return {};
+      return localizeGeneratedDigits({}, {});
     case \"short\":
-      return {};
+      return localizeGeneratedDigits({}, {});
     default:
-      return {};
+      return localizeGeneratedDigits({}, {});
   }}
 }}
 
 ",
         date_pattern_expression(dates.date_formats.full, dates),
+        string_literal(dates.digits),
         date_pattern_expression(dates.date_formats.long, dates),
+        string_literal(dates.digits),
         date_pattern_expression(dates.date_formats.short, dates),
-        date_pattern_expression(dates.date_formats.medium, dates)
+        string_literal(dates.digits),
+        date_pattern_expression(dates.date_formats.medium, dates),
+        string_literal(dates.digits)
     )
 }
 
@@ -653,6 +660,7 @@ function formatGeneratedNumber(
   secondaryGroupSize: number | undefined,
   decimalSymbol: string,
   groupSymbol: string,
+  digits: string,
   minFractionDigitsOverride?: number,
   maxFractionDigitsOverride?: number,
   roundingIncrement = 0,
@@ -669,7 +677,8 @@ function formatGeneratedNumber(
   );
 
   integer = groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol);
-  const formatted = fraction ? `${integer}${decimalSymbol}${fraction}` : integer;
+  const ascii = fraction ? `${integer}${decimalSymbol}${fraction}` : integer;
+  const formatted = localizeGeneratedDigits(ascii, digits);
   if (decimal.negative) {
     return `${negativePrefix ?? `-${prefix}`}${formatted}${negativeSuffix ?? suffix}`;
   }
@@ -794,6 +803,17 @@ function throwInvalidNumber(): never {
 "#
 }
 
+fn digit_formatter_helper() -> &'static str {
+    r#"function localizeGeneratedDigits(value: string, digits: string): string {
+  if (digits === "0123456789") return value;
+  const symbols = Array.from(digits);
+  if (symbols.length !== 10) throw new RangeError("Linguini: invalid numbering system");
+  return value.replace(/\d/g, (digit) => symbols[digit.charCodeAt(0) - 48]);
+}
+
+"#
+}
+
 fn date_formatter_helpers() -> &'static str {
     r#"function padNumber(value: number, length: number): string {
   return String(value).padStart(length, "0");
@@ -855,7 +875,7 @@ fn number_pattern_args(
 ) -> String {
     let negative = pattern.negative.as_ref();
     format!(
-        "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
+        "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
         affix_expression(pattern.positive.prefix, currency_symbol),
         affix_expression(pattern.positive.suffix, currency_symbol),
         negative.map_or_else(
@@ -872,7 +892,8 @@ fn number_pattern_args(
         option_u8_literal(pattern.positive.primary_group_size),
         option_u8_literal(pattern.positive.secondary_group_size),
         string_literal(numbers.decimal_symbol),
-        string_literal(numbers.group_symbol)
+        string_literal(numbers.group_symbol),
+        string_literal(numbers.digits)
     )
 }
 

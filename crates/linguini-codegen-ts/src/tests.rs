@@ -852,6 +852,40 @@ fn project_codegen_applies_primitive_schema_formatters() {
 }
 
 #[test]
+fn project_codegen_emits_locale_default_numbering_digits() {
+    let schema = lower_schema(
+        &parse_schema("summary(count: Number, amount: Decimal, created: Date)\n").expect("schema"),
+    );
+    let locale =
+        lower_locale(&parse_locale("summary = {count} / {amount} / {created}\n").expect("locale"));
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "fa".to_owned(),
+            module: locale,
+        }],
+        &project_options("fa"),
+    )
+    .expect("Persian project codegen");
+    let runtime = files
+        .iter()
+        .find(|file| file.path == "locales/fa/_runtime.ts")
+        .expect("Persian locale runtime");
+
+    assert!(runtime.contents.contains("\"۰۱۲۳۴۵۶۷۸۹\""));
+    assert!(runtime.contents.contains("\"٫\", \"٬\", \"۰۱۲۳۴۵۶۷۸۹\""));
+    assert!(runtime.contents.contains("return localizeGeneratedDigits("));
+    assert_eq!(
+        runtime
+            .contents
+            .matches("function localizeGeneratedDigits(")
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn project_codegen_emits_inline_function_dispatch_with_captured_values() {
     let schema = lower_schema(
         &parse_schema(
