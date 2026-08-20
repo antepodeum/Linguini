@@ -16,6 +16,7 @@ where
     I: ValueInput<'tokens, Token = TokenKind, Span = Span>,
 {
     declaration()
+        .recover_with(skip_then_retry_until(any().ignored(), end()))
         .repeated()
         .collect::<Vec<_>>()
         .then_ignore(end())

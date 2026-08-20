@@ -106,9 +106,6 @@ pub fn parse_locale_with_recovery_in(source: &str, source_id: SourceId) -> Parse
             span: error.span,
         })
         .collect();
-    if !errors.is_empty() {
-        return ParseOutput { ast: None, errors };
-    }
     let syntax_tokens = strip_trivia(&lexed.tokens);
     let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, parse_errors) = locale_parser::locale_parser()
@@ -182,9 +179,6 @@ pub fn parse_schema_with_recovery_in(source: &str, source_id: SourceId) -> Parse
             span: error.span,
         })
         .collect();
-    if !errors.is_empty() {
-        return ParseOutput { ast: None, errors };
-    }
     let syntax_tokens = strip_trivia(&lexed.tokens);
     let eof = Span::in_source(source_id, source.len(), source.len());
     let (ast, parse_errors) = schema_parser()
@@ -281,6 +275,7 @@ where
     let declaration = declaration_parser();
 
     declaration
+        .recover_with(skip_then_retry_until(any().ignored(), end()))
         .repeated()
         .collect::<Vec<_>>()
         .then_ignore(end())

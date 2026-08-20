@@ -15,8 +15,9 @@ fn diagnostics_report_schema_parse_errors() {
 
     let diagnostics = diagnostics(&document);
 
-    assert_eq!(diagnostics.len(), 1);
-    assert!(diagnostics[0].message.contains("schema syntax error"));
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message.contains("schema syntax error")));
 }
 
 #[test]
@@ -491,6 +492,27 @@ fn schema_semantic_diagnostics_are_reported() {
 
     let diagnostics = diagnostics(&schema);
 
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.message.contains("duplicate") && diagnostic.message.contains("variant")
+    }));
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message.contains("unknown schema type")));
+}
+
+#[test]
+fn recoverable_syntax_errors_do_not_suppress_independent_semantic_diagnostics() {
+    let schema = LinguiniDocument::new(
+        "file:///schema/shop.lgs",
+        "linguini-schema",
+        "enum Fruit { apple, apple }\n#\ndelivery(count: Missing)\n",
+    );
+
+    let diagnostics = diagnostics(&schema);
+
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message.contains("schema syntax error")));
     assert!(diagnostics.iter().any(|diagnostic| {
         diagnostic.message.contains("duplicate") && diagnostic.message.contains("variant")
     }));
