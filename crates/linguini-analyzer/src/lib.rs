@@ -31,7 +31,5 @@ pub use locale::{
 pub use message_coverage::{analyze_message_coverage, PublicMessage};
 pub use reference::{detect_reference_cycles, ReferenceNode};
 
-pub const CRATE_PURPOSE: &str = "semantic analysis";
-
 #[cfg(test)]
 mod tests;

@@ -3,7 +3,8 @@ use crate::{
     QuickFix, Replacement,
 };
 use linguini_syntax::{
-    DocComment, LocaleDeclaration, LocaleFile, SchemaDeclaration, SchemaFile, Span,
+    DocComment, LocaleDeclaration, LocaleFile, MessageGroup, MessageImplementationGroup,
+    SchemaDeclaration, SchemaFile, Span,
 };
 
 mod branches;
@@ -259,25 +260,29 @@ fn collect_schema_messages(
             .with_docs(&message.docs),
         ),
         SchemaDeclaration::Group(group_declaration) => {
-            let group_name = qualified_name(group, &group_declaration.name.value);
-            for message in &group_declaration.messages {
-                messages.push(
-                    RequiredLocaleMessage::new(
-                        qualified_name(Some(&group_name), &message.name.value),
-                        message.name.span,
-                    )
-                    .with_docs(&message.docs),
-                );
-            }
-            for child in &group_declaration.groups {
-                collect_schema_messages(
-                    &SchemaDeclaration::Group(child.clone()),
-                    Some(&group_name),
-                    messages,
-                );
-            }
+            collect_schema_group_messages(group_declaration, group, messages);
         }
         SchemaDeclaration::Enum(_) | SchemaDeclaration::TypeAlias(_) => {}
+    }
+}
+
+fn collect_schema_group_messages(
+    group: &MessageGroup,
+    parent: Option<&str>,
+    messages: &mut Vec<RequiredLocaleMessage>,
+) {
+    let group_name = qualified_name(parent, &group.name.value);
+    for message in &group.messages {
+        messages.push(
+            RequiredLocaleMessage::new(
+                qualified_name(Some(&group_name), &message.name.value),
+                message.name.span,
+            )
+            .with_docs(&message.docs),
+        );
+    }
+    for child in &group.groups {
+        collect_schema_group_messages(child, Some(&group_name), messages);
     }
 }
 
@@ -295,29 +300,33 @@ fn collect_locale_messages(
             .with_docs(&message.docs),
         ),
         LocaleDeclaration::Group(group_declaration) => {
-            let group_name = qualified_name(group, &group_declaration.name.value);
-            for message in &group_declaration.messages {
-                messages.push(
-                    ImplementedLocaleMessage::new(
-                        qualified_name(Some(&group_name), &message.name.value),
-                        message.name.span,
-                    )
-                    .with_docs(&message.docs),
-                );
-            }
-            for child in &group_declaration.groups {
-                collect_locale_messages(
-                    &LocaleDeclaration::Group(child.clone()),
-                    Some(&group_name),
-                    messages,
-                );
-            }
+            collect_locale_group_messages(group_declaration, group, messages);
         }
         LocaleDeclaration::Override(inner) => collect_locale_messages(inner, group, messages),
         LocaleDeclaration::Enum(_)
         | LocaleDeclaration::Variable(_)
         | LocaleDeclaration::Form(_)
         | LocaleDeclaration::Function(_) => {}
+    }
+}
+
+fn collect_locale_group_messages(
+    group: &MessageImplementationGroup,
+    parent: Option<&str>,
+    messages: &mut Vec<ImplementedLocaleMessage>,
+) {
+    let group_name = qualified_name(parent, &group.name.value);
+    for message in &group.messages {
+        messages.push(
+            ImplementedLocaleMessage::new(
+                qualified_name(Some(&group_name), &message.name.value),
+                message.name.span,
+            )
+            .with_docs(&message.docs),
+        );
+    }
+    for child in &group.groups {
+        collect_locale_group_messages(child, Some(&group_name), messages);
     }
 }
 
