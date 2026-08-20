@@ -15,9 +15,12 @@ fn diagnostics_report_schema_parse_errors() {
 
     let diagnostics = diagnostics(&document);
 
-    assert!(diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.message.contains("schema syntax error")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("schema syntax error")),
+        "{diagnostics:#?}"
+    );
 }
 
 #[test]
@@ -510,9 +513,12 @@ fn recoverable_syntax_errors_do_not_suppress_independent_semantic_diagnostics() 
 
     let diagnostics = diagnostics(&schema);
 
-    assert!(diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.message.contains("schema syntax error")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("schema syntax error")),
+        "{diagnostics:#?}"
+    );
     assert!(diagnostics.iter().any(|diagnostic| {
         diagnostic.message.contains("duplicate") && diagnostic.message.contains("variant")
     }));

@@ -112,7 +112,10 @@ pub fn parse_locale_with_recovery_in(source: &str, source_id: SourceId) -> Parse
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
         .into_output_errors();
 
-    errors.extend(parse_errors.into_iter().map(parse_error_from_rich));
+    extend_unique_errors(
+        &mut errors,
+        parse_errors.into_iter().map(parse_error_from_rich),
+    );
     ParseOutput { ast, errors }
 }
 
@@ -185,8 +188,22 @@ pub fn parse_schema_with_recovery_in(source: &str, source_id: SourceId) -> Parse
         .parse(IterInput::new(syntax_tokens.into_iter(), eof))
         .into_output_errors();
 
-    errors.extend(parse_errors.into_iter().map(parse_error_from_rich));
+    extend_unique_errors(
+        &mut errors,
+        parse_errors.into_iter().map(parse_error_from_rich),
+    );
     ParseOutput { ast, errors }
+}
+
+fn extend_unique_errors(
+    errors: &mut Vec<ParseError>,
+    additional: impl IntoIterator<Item = ParseError>,
+) {
+    for error in additional {
+        if !errors.iter().any(|existing| existing.span == error.span) {
+            errors.push(error);
+        }
+    }
 }
 
 fn parse_error_from_rich(error: Rich<'_, TokenKind, Span>) -> ParseError {

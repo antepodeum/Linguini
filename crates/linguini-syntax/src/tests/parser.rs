@@ -772,7 +772,7 @@ fn rejects_detached_docs_and_recovers_independent_declarations_after_lex_errors(
     assert!(parse_schema("/// docs\n\nmessage\n").is_err());
 
     let output = parse_locale_with_recovery("first = ok\n#\nsecond = fine\n");
-    assert!(!output.errors.is_empty());
+    assert_eq!(output.errors.len(), 1);
     let locale = output.ast.expect("surviving declarations recover");
     assert_eq!(locale.declarations.len(), 2);
 }
@@ -782,7 +782,7 @@ fn schema_recovery_keeps_independent_declarations_after_lex_errors() {
     let output =
         parse_schema_with_recovery("enum Fruit { apple, apple }\n#\ndelivery(count: Missing)\n");
 
-    assert!(!output.errors.is_empty());
+    assert_eq!(output.errors.len(), 1);
     let schema = output.ast.expect("surviving declarations recover");
     assert_eq!(schema.declarations.len(), 2);
 }

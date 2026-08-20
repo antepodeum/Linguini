@@ -265,20 +265,28 @@ pub fn diagnostics_with_workspace(
     match document.kind {
         SourceKind::Schema => {
             let parsed = parsed_schema(document).expect("schema document has schema parse cache");
-            let mut diagnostics = parse_diagnostics("schema", parsed.errors.clone());
+            let mut diagnostics = parse_diagnostics("schema", "syntax", parsed.errors.clone());
             if let Some(schema) = parsed.ast.as_ref() {
-                diagnostics.extend(parse_diagnostics("schema", validate_schema_ast(schema)));
+                diagnostics.extend(parse_diagnostics(
+                    "schema",
+                    "validation",
+                    validate_schema_ast(schema),
+                ));
                 diagnostics.extend(schema_builder_diagnostics(document, workspace));
             }
             deduplicate_diagnostics(diagnostics)
         }
         SourceKind::Locale => {
             let parsed = parsed_locale(document).expect("locale document has locale parse cache");
-            let mut diagnostics = parse_diagnostics("locale", parsed.errors.clone());
+            let mut diagnostics = parse_diagnostics("locale", "syntax", parsed.errors.clone());
             let Some(locale) = parsed.ast.as_ref() else {
                 return diagnostics;
             };
-            diagnostics.extend(parse_diagnostics("locale", validate_locale_ast(locale)));
+            diagnostics.extend(parse_diagnostics(
+                "locale",
+                "validation",
+                validate_locale_ast(locale),
+            ));
             let schemas = matching_schema_documents(document, workspace);
 
             if schemas.is_empty() {
@@ -308,19 +316,12 @@ pub fn diagnostics_with_workspace(
 
 fn parse_diagnostics(
     source_kind: &str,
+    category: &str,
     errors: Vec<linguini_syntax::ParseError>,
 ) -> Vec<Diagnostic> {
     errors
         .into_iter()
         .map(|error| {
-            let category = if error.message.starts_with("found ")
-                || error.message.contains("unterminated")
-                || error.message.contains("failed to lex")
-            {
-                "syntax"
-            } else {
-                "validation"
-            };
             Diagnostic::error(
                 format!("{source_kind} {category} error: {}", error.message),
                 error.span,
