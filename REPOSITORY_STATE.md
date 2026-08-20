@@ -61,12 +61,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Confirm package publish status and intended public surface are explicit.
   - [x] Run focused tests or dependent analyzer checks.
-- [ ] 9. `crates/linguini-cldr-macros`
-  - [ ] Review generated-data inputs, source paths, and error handling.
-  - [ ] Check macro output for deterministic ordering and small public surface.
-  - [ ] Remove formatting or plural parsing duplication hidden in generation code.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run focused tests or `cargo test -p linguini-cldr-macros`.
+- [x] 9. `crates/linguini-cldr-macros`
+  - [x] Review generated-data inputs, source paths, and error handling.
+  - [x] Check macro output for deterministic ordering and small public surface.
+  - [x] Remove formatting or plural parsing duplication hidden in generation code.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run focused tests or `cargo test -p linguini-cldr-macros`.
 - [ ] 10. `crates/linguini-cldr`
   - [ ] Review compiled plural and formatting APIs after macro cleanup.
   - [ ] Check runtime evaluation behavior against generated data assumptions.
