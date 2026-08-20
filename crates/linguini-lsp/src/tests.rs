@@ -2,13 +2,8 @@ use super::{
     completion_items, definition_at_with_workspace, diagnostics, diagnostics_with_workspace,
     document_symbols, format_document, hover_at, hover_at_with_workspace, prepare_rename_at,
     references_at, references_at_with_workspace, rename_workspace_edits, semantic_tokens,
-    LinguiniDocument, CRATE_PURPOSE,
+    LinguiniDocument,
 };
-
-#[test]
-fn crate_has_unit_test_structure() {
-    assert_eq!(CRATE_PURPOSE, "language server");
-}
 
 #[test]
 fn diagnostics_report_schema_parse_errors() {

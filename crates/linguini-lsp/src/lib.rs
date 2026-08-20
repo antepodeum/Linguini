@@ -11,7 +11,5 @@ pub use document::{
 };
 pub use server::{run_stdio, run_stdio_blocking, try_run_stdio_blocking};
 
-pub const CRATE_PURPOSE: &str = "language server";
-
 #[cfg(test)]
 mod tests;
