@@ -1,8 +1,6 @@
-import type { LinguiniWebLocale, LinkLocalizationAttributes } from "../web";
+import type { LinkLocalizationAttributes } from "../web";
 
-export declare function localizeTransformedHref<Locale extends string>(
-  web: LinguiniWebLocale<Locale>,
-  getLocale: () => Locale,
+export declare function localizeTransformedHref(
   href: string,
   attributes?: LinkLocalizationAttributes,
   input?: Record<string, unknown>,

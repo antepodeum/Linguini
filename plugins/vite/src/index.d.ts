@@ -34,6 +34,7 @@ export interface LinguiniProjectLayout {
   readonly bundlerSourceRoots: readonly string[];
   readonly bundlerExcludeRoots: readonly string[];
   readonly localeLoading: "eager" | "dynamic";
+  readonly linkMode: "transform" | "runtime" | "manual";
 }
 
 export declare function readProjectLayout(

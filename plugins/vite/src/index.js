@@ -404,7 +404,9 @@ export function linguini(options = {}) {
       const file = path.resolve(stripQueryAndHash(id));
       const application = bundlerManifest.applicationsByFile.get(file);
       if (!application) {
-        return undefined;
+        return layout.linkMode === "transform"
+          ? transformStaticSvelteLinks(code, id, layout.generatedRoot)
+          : undefined;
       }
       return transformApplication.call(
         this,
@@ -413,7 +415,8 @@ export function linguini(options = {}) {
         application,
         bundlerManifest,
         layout.generatedRoot,
-        shouldUseDynamicLocaleLoading(this, transformOptions)
+        shouldUseDynamicLocaleLoading(this, transformOptions),
+        layout.linkMode
       );
     }
   };
@@ -483,6 +486,11 @@ export async function readProjectLayout(root, configFile = DEFAULT_CONFIG_FILE) 
     rawBundler?.locale_loading,
     "targets.ts.bundler.locale_loading"
   );
+  const linkMode = validateLinkMode(
+    document?.web?.links?.mode,
+    document?.web === undefined ? "manual" : "transform",
+    "web.links.mode"
+  );
   validateBundlerDynamic(rawBundler?.dynamic);
 
   return Object.freeze({
@@ -504,6 +512,7 @@ export async function readProjectLayout(root, configFile = DEFAULT_CONFIG_FILE) 
       )
     ]),
     localeLoading,
+    linkMode,
     bundlerEnabled: rawBundler !== undefined
   });
 }
@@ -737,6 +746,16 @@ function validateLocaleLoading(value, field) {
     throw new TypeError(`Linguini config field ${field} must be "eager" or "dynamic"`);
   }
   return value;
+}
+
+function validateLinkMode(value, fallback, field) {
+  const mode = value ?? fallback;
+  if (mode !== "transform" && mode !== "runtime" && mode !== "manual") {
+    throw new TypeError(
+      `Linguini config field ${field} must be "transform", "runtime", or "manual"`
+    );
+  }
+  return mode;
 }
 
 function isDynamicMessagePath(message) {
@@ -1671,7 +1690,8 @@ async function transformApplication(
   application,
   manifest,
   generatedRoot,
-  dynamicClient = false
+  dynamicClient = false,
+  linkMode = "manual"
 ) {
   const bytes = Buffer.from(code, "utf8");
   const digest = createHash("sha256").update(bytes).digest("hex");
@@ -1797,7 +1817,10 @@ async function transformApplication(
         reference
       }))
   ].sort((left, right) => left.start - right.start || left.end - right.end);
-  if (operations.length === 0) {
+  const linkOperations = linkMode === "transform"
+    ? findStaticSvelteLinkOperations(code, application.relative)
+    : [];
+  if (operations.length === 0 && linkOperations.length === 0) {
     return undefined;
   }
 
@@ -1934,6 +1957,9 @@ async function transformApplication(
       .join("");
     magic.prependLeft(insertion, `${imports}${dispatches}`);
   }
+  if (linkOperations.length > 0) {
+    applyStaticSvelteLinkOperations(magic, code, application.relative, generatedRoot, linkOperations);
+  }
   if (dynamicClient && manifest.localeLoading === "dynamic") {
     injectLocaleLoaderLifecycle(magic, code, application, scopeId, allocateAlias);
   }
@@ -1945,6 +1971,117 @@ async function transformApplication(
       includeContent: true
     })
   };
+}
+
+function transformStaticSvelteLinks(code, id, generatedRoot) {
+  const sourceName = stripQueryAndHash(id);
+  const operations = findStaticSvelteLinkOperations(code, sourceName);
+  if (operations.length === 0) return undefined;
+  const magic = new MagicString(code);
+  applyStaticSvelteLinkOperations(magic, code, sourceName, generatedRoot, operations);
+  return {
+    code: magic.toString(),
+    map: magic.generateMap({
+      hires: true,
+      source: sourceName,
+      includeContent: true
+    })
+  };
+}
+
+function applyStaticSvelteLinkOperations(magic, code, sourceName, generatedRoot, operations) {
+  let aliasIndex = 0;
+  let alias;
+  do {
+    alias = `__linguini_localize_href_${aliasIndex++}`;
+  } while (code.includes(alias));
+  for (const operation of operations) {
+    magic.overwrite(
+      operation.start,
+      operation.end,
+      `href={${alias}(${JSON.stringify(operation.href)})}`
+    );
+  }
+  const helper = toVitePath(path.resolve(generatedRoot, "web/link-transform.js"));
+  const importLine = `import { localizeTransformedHref as ${alias} } from ${JSON.stringify(helper)};\n`;
+  const instance = findSvelteInstanceScript(code);
+  if (instance) {
+    magic.prependLeft(instance.insertion, importLine);
+  } else {
+    magic.append(`\n<script>\n${importLine}</script>\n`);
+  }
+}
+
+function findStaticSvelteLinkOperations(code, sourceName) {
+  if (path.extname(sourceName).toLowerCase() !== ".svelte") return [];
+  const operations = [];
+  let cursor = 0;
+  while (cursor < code.length) {
+    const start = code.indexOf("<", cursor);
+    if (start === -1) break;
+    if (code.startsWith("<!--", start)) {
+      const end = code.indexOf("-->", start + 4);
+      cursor = end === -1 ? code.length : end + 3;
+      continue;
+    }
+    const nameMatch = /^<\s*([A-Za-z][\w:-]*)\b/.exec(code.slice(start));
+    if (!nameMatch) {
+      cursor = start + 1;
+      continue;
+    }
+    const tagName = nameMatch[1].toLowerCase();
+    const end = findSvelteOpeningTagEnd(code, start + nameMatch[0].length);
+    if (end === -1) break;
+    if (tagName === "script" || tagName === "style") {
+      const close = code.toLowerCase().indexOf(`</${tagName}`, end + 1);
+      cursor = close === -1 ? code.length : close + tagName.length + 3;
+      continue;
+    }
+    if (tagName === "a") {
+      const opening = code.slice(start, end + 1);
+      const href = /\bhref\s*=\s*(["'])(.*?)\1/is.exec(opening);
+      if (href && !/[{}]/.test(href[2]) && !shouldSkipStaticAnchor(opening)) {
+        const attributeOffset = href.index;
+        operations.push({
+          start: start + attributeOffset,
+          end: start + attributeOffset + href[0].length,
+          href: href[2]
+        });
+      }
+    }
+    cursor = end + 1;
+  }
+  return operations;
+}
+
+function findSvelteOpeningTagEnd(code, start) {
+  let quote;
+  let braces = 0;
+  for (let cursor = start; cursor < code.length; cursor += 1) {
+    const character = code[cursor];
+    if (quote) {
+      if (character === "\\") cursor += 1;
+      else if (character === quote) quote = undefined;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === "{") {
+      braces += 1;
+    } else if (character === "}" && braces > 0) {
+      braces -= 1;
+    } else if (character === ">" && braces === 0) {
+      return cursor;
+    }
+  }
+  return -1;
+}
+
+function shouldSkipStaticAnchor(opening) {
+  if (/\sdownload(?:\s|=|\/?>)/i.test(opening)) return true;
+  if (/\sdata-linguini-(?:ignore|no-localize)(?:\s|=|\/?>)/i.test(opening)) return true;
+  const rel = /\srel\s*=\s*(["'])(.*?)\1/is.exec(opening)?.[2] ?? "";
+  return rel.split(/\s+/).some((token) => token.toLowerCase() === "external");
 }
 
 function renderDynamicDispatch(alias, entries) {

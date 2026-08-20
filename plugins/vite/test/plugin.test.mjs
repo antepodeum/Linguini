@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -1198,6 +1198,43 @@ test("transforms Unicode Svelte source and loads exact virtual module", async (c
   assert.match(virtual, /bundler\/messages\/main\/title\/en\.ts/);
   assert.doesNotMatch(virtual, /(?:^|\/)index(?:\.|["'])|\/svelte\.ts["']/m);
   assert.match(virtual, /__linguini_messages\[getCurrentLocale\(\)\]/);
+});
+
+test("transform link mode rewrites safe static Svelte anchors only", async (context) => {
+  const source = [
+    '<script>import { l as tr } from "../../build/custom-linguini/svelte.ts"; const title = tr.main.title;</script>',
+    '<a href="/account">Account</a>',
+    '<a href="/download" download>Download</a>',
+    '<a href="/ignored" data-linguini-ignore>Ignored</a>',
+    '<a href={dynamic}>Dynamic</a>',
+    '<!-- <a href="/comment">Comment</a> -->',
+    ""
+  ].join("\n");
+  const fixtureData = await bundlerFixture({ source });
+  context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
+  await appendFile(
+    path.join(fixtureData.root, "linguini.toml"),
+    '\n[web.links]\nmode = "transform"\n'
+  );
+  const plugin = linguini({ root: fixtureData.root, buildOnStart: false });
+  await plugin.configResolved({ root: fixtureData.root });
+  await plugin.buildStart.call({ addWatchFile() {} });
+  const result = await plugin.transform.call(
+    {
+      async resolve() {
+        return { id: path.join(fixtureData.generated, "svelte.ts") };
+      }
+    },
+    source,
+    fixtureData.application
+  );
+
+  assert.match(result.code, /import \{ localizeTransformedHref as __linguini_localize_href_0 \}/);
+  assert.match(result.code, /href=\{__linguini_localize_href_0\("\/account"\)\}/);
+  assert.match(result.code, /href="\/download" download/);
+  assert.match(result.code, /href="\/ignored" data-linguini-ignore/);
+  assert.match(result.code, /href=\{dynamic\}/);
+  assert.match(result.code, /<!-- <a href="\/comment">/);
 });
 
 test("rejects stale bytes and skips unsafe bindings", async (context) => {
