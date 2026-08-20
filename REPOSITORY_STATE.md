@@ -91,12 +91,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove duplicated parse/analyze flows that can share document helpers.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run focused tests or `cargo test -p linguini-lsp`.
-- [ ] 14. `crates/linguini-cli`
-  - [ ] Review command boundaries after all library APIs are stable.
-  - [ ] Check project IO, source discovery, fixes, check, and codegen workflows.
-  - [ ] Remove CLI-only duplication that now belongs in library crates.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run CLI tests and representative end-to-end commands.
+- [x] 14. `crates/linguini-cli`
+  - [x] Review command boundaries after all library APIs are stable.
+  - [x] Check project IO, source discovery, fixes, check, and codegen workflows.
+  - [x] Remove CLI-only duplication that now belongs in library crates.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run CLI tests and representative end-to-end commands.
 - [ ] 15. `plugins/vite`
   - [ ] Review plugin contract against the CLI and generated output layout.
   - [ ] Check watch, rebuild, error reporting, and package entrypoints.
