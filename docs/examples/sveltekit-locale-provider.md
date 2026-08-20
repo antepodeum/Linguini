@@ -1,148 +1,100 @@
-# SvelteKit Locale Provider Example
+# SvelteKit locale provider example
 
-Generated `index.ts` exposes direct locale facades:
+The generated SvelteKit adapter is the locale provider. Configure a pathless
+site with cookie persistence and the optional no-JavaScript switch transport:
 
-```ts
-import {
-  createLinguini,
-  createLinguiniProvider,
-  lgl,
-} from "$lib/generated/linguini";
+```toml
+[project]
+name = "app"
+default_locale = "en"
+locales = ["en", "ru"]
 
-lgl.delivery("apple", "small", 1);
-createLinguini("ru").delivery("apple", "small", 1);
-createLinguiniProvider({ resolveLanguage: () => "ru" }).delivery(
-  "apple",
-  "small",
-  1,
-);
+[targets.ts]
+out = "src/lib/generated/linguini"
+declaration = true
+framework = "sveltekit"
+
+[targets.ts.bundler]
+sources = ["src"]
+
+[web.routing]
+locale_prefix = "never"
+
+[web.locale]
+sources = ["cookie", "accept-language"]
+
+[web.cookie]
+path = "auto"
+
+[web.links]
+mode = "transform"
+
+[web.switch_route]
+path = "/_linguini/locale/{locale}"
+return_query = "return"
+status = 303
 ```
 
-SSR hooks can resolve language from a cookie first, then known request headers:
+`locale_prefix = "never"` cannot read a locale from the path. The cookie gives
+both the server and browser a persistent source, while `accept-language`
+negotiates the first request. The generated browser switch and switch route use
+the same compiled transition plan: write the cookie, leave the path unprefixed,
+and navigate to the resulting URL.
 
-```ts
-// src/app.d.ts
-declare global {
-  namespace App {
-    interface Locals {
-      language: "en" | "ru";
-    }
-  }
-}
-
-export {};
-```
+Export the generated request hooks and root data loader:
 
 ```ts
 // src/hooks.server.ts
-import type { Handle } from "@sveltejs/kit";
-
-const supportedLanguages = ["en", "ru"] as const;
-type Language = (typeof supportedLanguages)[number];
-
-function isLanguage(value: string | undefined): value is Language {
-  return supportedLanguages.includes(value as Language);
-}
-
-function languageFromAcceptLanguage(
-  header: string | null,
-): Language | undefined {
-  return header
-    ?.split(",")
-    .map((part) => part.trim().split(";")[0])
-    .find(isLanguage);
-}
-
-export const handle: Handle = async ({ event, resolve }) => {
-  const cookieLanguage = event.cookies.get("locale");
-  const headerLanguage =
-    event.request.headers.get("x-linguini-locale") ??
-    event.request.headers.get("x-locale") ??
-    languageFromAcceptLanguage(event.request.headers.get("accept-language"));
-
-  event.locals.language = isLanguage(cookieLanguage)
-    ? cookieLanguage
-    : (headerLanguage ?? "en");
-  return resolve(event);
-};
+export { handle } from "$lib/generated/linguini/sveltekit-control";
 ```
 
-Route data carries the resolved language:
+```ts
+// src/hooks.ts
+export { reroute } from "$lib/generated/linguini/sveltekit-control";
+```
 
 ```ts
 // src/routes/+layout.server.ts
-import type { LayoutServerLoad } from "./$types";
-
-export const load: LayoutServerLoad = ({ locals }) => {
-  return { language: locals.language };
-};
+export { load } from "$lib/generated/linguini/sveltekit-control";
 ```
 
-Server modules can use the same resolved value directly:
-
-```ts
-// src/routes/api/preview/+server.ts
-import { json } from "@sveltejs/kit";
-import { createLinguini } from "$lib/generated/linguini";
-import type { RequestHandler } from "./$types";
-
-export const GET: RequestHandler = ({ locals }) => {
-  const lgl = createLinguini(locals.language);
-  return json({ title: lgl.delivery("apple", "small", 1) });
-};
-```
-
-For SSR, keep locale state in Svelte context, not a server module singleton:
-
-```ts
-// src/lib/i18n.ts
-import { getContext, setContext } from "svelte";
-import type { Linguini } from "$lib/generated/linguini";
-
-const key = Symbol("linguini");
-
-export function setLgl(lgl: Linguini) {
-  setContext(key, lgl);
-}
-
-export function getLgl(): Linguini {
-  return getContext<Linguini>(key);
-}
-```
+The generated Svelte facade consumes that request data and owns the reactive
+locale context. Components import message access and controls, not individual
+locale or message modules:
 
 ```svelte
-<!-- src/routes/+layout.svelte -->
+<!-- src/routes/account/+page.svelte -->
 <script lang="ts">
-  import { createLinguini, type Linguini } from "$lib/generated/linguini";
-  import { setLgl } from "$lib/i18n";
+  import {
+    l,
+    localizeHref,
+    setLocale,
+  } from "$lib/generated/linguini/svelte";
 
-  let { data, children } = $props();
-  let active = $derived(createLinguini(data.language));
-  const lgl = new Proxy({} as Linguini, {
-    get(_target, property) {
-      return active[property as keyof Linguini];
-    },
-  });
-
-  setLgl(lgl);
+  let name = "Artemy";
 </script>
 
-{@render children()}
+<svelte:head>
+  <title>{l.account.title}</title>
+</svelte:head>
+
+<h1>{l.account.greeting({ name })}</h1>
+<a href={localizeHref("/account/settings")}>{l.account.settings}</a>
+
+<button type="button" onclick={() => setLocale("en")}>English</button>
+<button type="button" onclick={() => setLocale("ru")}>Русский</button>
+
+<noscript>
+  <a href="/_linguini/locale/en?return=/account">English</a>
+  <a href="/_linguini/locale/ru?return=/account">Русский</a>
+</noscript>
 ```
 
-Components keep the short call shape:
+Here `title` and `settings` are parameterless schema messages, so they are
+values. `greeting(name: String)` is callable through its named-object overload.
+`localizeHref` is still the single programmatic-link helper; under this pathless
+policy it preserves `/account/settings` while applying base/origin rules.
 
-```svelte
-<script lang="ts">
-  import { getLgl } from "$lib/i18n";
-
-  const lgl = getLgl();
-
-  let fruit = "apple" as const;
-  let size = "small" as const;
-</script>
-
-<p>{lgl.delivery(fruit, size, 1)}</p>
-```
-
-For client-only apps or SPA mode, importing generated `lgl` directly is fine. For SSR, prefer per-request context above.
+`setLocale` prepares a non-base locale before publishing it. The SvelteKit
+request path does the same during SSR. No application-level provider singleton,
+manual locale barrel, or eager import of every locale is needed.

@@ -635,11 +635,11 @@ production path uses the fix and its relevant tests pass.
 
 ### `docs/examples/sveltekit-locale-provider.md`
 
-- [ ] DOC-E1 — Use the final value/function API.
-- [ ] DOC-E2 — Reuse `localizeHref`.
-- [ ] DOC-E3 — Show browser and static switching over one transition plan.
-- [ ] DOC-E4 — Show `locale_prefix = "never"` with a valid persistence source.
-- [ ] DOC-E5 — Avoid eager/manual imports of every locale or message.
+- [x] DOC-E1 — Use the final value/function API.
+- [x] DOC-E2 — Reuse `localizeHref`.
+- [x] DOC-E3 — Show browser and static switching over one transition plan.
+- [x] DOC-E4 — Show `locale_prefix = "never"` with a valid persistence source.
+- [x] DOC-E5 — Avoid eager/manual imports of every locale or message.
 
 ### `docs/why.md`
 
