@@ -203,6 +203,13 @@ allow = ["main.title", "main.hello"]
 default is eager locale loading. With dynamic loading, client locale chunks are
 loaded before a locale switch while SSR remains synchronous and static.
 
+The generated runtime index keeps only the base locale available immediately.
+Before direct synchronous access to another locale, await
+`prepareLinguini(locale)`; concurrent preparation for the same locale shares one
+load. Svelte controls and SvelteKit request handling prepare the locale
+automatically. Every non-base index edge is a real dynamic `import()`, so it does
+not pull all locale modules into the initial graph.
+
 ## VS Code extension
 
 Install the extension from the marketplace for inline diagnostics, completions,

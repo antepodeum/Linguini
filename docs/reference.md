@@ -593,6 +593,13 @@ allow = ["main.title", "admin.notice"]
 for the selected locale chunk before switching locales. SSR keeps synchronous,
 static locale imports. Omit the field for eager loading.
 
+The generated runtime index imports only the base locale statically. Direct
+synchronous use of `createLinguini()` for another locale requires an earlier
+`await prepareLinguini(locale)`; otherwise it fails with a preparation error.
+Svelte and SvelteKit integrations perform this preparation for their normal
+switch and request flows. Pending loads are deduplicated, and non-base locale
+loaders use bundler-visible dynamic `import()` edges.
+
 Web options use nested tables such as `[web.routing]`, `[web.locale]`,
 `[web.cookie]`, `[web.local_storage]`, `[web.links]`, `[web.routes]`, and the
 optional `[web.switch_route]`; the legacy flat web fields are not part of the

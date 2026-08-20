@@ -388,9 +388,10 @@ production path uses the fix and its relevant tests pass.
 - [-] #199 — Emit source maps back to Linguini sources. Bundler-native physical message and
       semantic modules have truthful maps; legacy project-wide string emitters remain unmapped.
 - [x] #200 — Require every declared message in direct codegen input locales.
-- [-] #201 — Replace eager locale imports with real bundler-visible splitting. The bundler-native
+- [x] #201 — Replace eager locale imports with real bundler-visible splitting. The bundler-native
       Vite path exposes one virtual dynamic entry per effective locale, with no per-message client
-      entries; the legacy generated index remains eager.
+      entries; the generated runtime index statically imports only the base locale and uses real
+      dynamic imports for every non-base locale.
 - [x] #202 — Tree-shake transitive forms, functions, variables, and helpers.
 - [x] #203 — Diagnose unknown `included_messages`.
 - [x] #204 — Stop copying all global declarations into every namespace.
@@ -429,8 +430,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #233 — Wire configured redirect status or remove the dead option.
 - [x] #234 — Give runtime link observers per-app/HMR ownership.
 - [x] #235 — Batch and bound DOM observation.
-- [ ] #236 — Replace eager locale imports from the legacy generated web/runtime index. The
-      bundler-native Vite path is covered by #201 and BUNDLE-A14.
+- [x] #236 — Replace eager locale imports from the generated web/runtime index. It imports only
+      the base locale eagerly, deduplicates asynchronous non-base preparation, and gives direct
+      synchronous callers an explicit preparation contract.
 
 ### `linguini-cli`
 
