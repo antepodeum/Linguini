@@ -43,12 +43,12 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove duplicated AST walking that belongs in syntax or analyzer layers.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run focused tests or `cargo test -p linguini-ir`.
-- [ ] 6. `crates/linguini-analyzer`
-  - [ ] Review schema and locale diagnostics for precise spans and messages.
-  - [ ] Check coverage logic for missing, extra, and mismatched implementations.
-  - [ ] Consolidate repeated validation flows across analyzer modules.
-  - [ ] Remove placeholder tests that do not assert real behavior.
-  - [ ] Run analyzer tests and implementation coverage tests.
+- [x] 6. `crates/linguini-analyzer`
+  - [x] Review schema and locale diagnostics for precise spans and messages.
+  - [x] Check coverage logic for missing, extra, and mismatched implementations.
+  - [x] Consolidate repeated validation flows across analyzer modules.
+  - [x] Remove placeholder tests that do not assert real behavior.
+  - [x] Run analyzer tests and implementation coverage tests.
 - [ ] 7. `crates/linguini-schema`
   - [ ] Review schema helper API against analyzer and syntax contracts.
   - [ ] Remove helpers that duplicate public analyzer or syntax behavior.
