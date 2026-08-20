@@ -169,7 +169,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
 - [ ] #14 — Execute normative documentation as conformance fixtures.
 - [-] #15 — Add property, platform, generated-code, and real integration coverage.
-- [-] #16 — Synchronize and automatically verify all component versions.
+- [x] #16 — Synchronize and automatically verify all component versions.
 - [x] #17 — Rewrite public guarantees so documentation states only shipped behavior.
 
 ### `linguini-core`
@@ -571,7 +571,7 @@ production path uses the fix and its relevant tests pass.
 - [ ] #352 — Execute examples through compile, typecheck, and runtime golden tests.
 - [x] #353 — Document actual CLDR formatter limits and fallback behavior.
 - [x] #354 — Resolve the unfinished contracts tracked by `REPOSITORY_STATE`.
-- [-] #355 — Synchronize version, copy, and release status across every surface.
+- [x] #355 — Synchronize version, copy, and release status across every surface.
 
 ### CI, release, and supply chain
 
