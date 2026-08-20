@@ -167,7 +167,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [-] #12 — Hide invalid mutable public model states behind validated constructors.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
-- [ ] #14 — Execute normative documentation as conformance fixtures.
+- [-] #14 — Execute normative documentation as conformance fixtures. All standalone Linguini
+  syntax fences are enforced; configuration and generated TypeScript/Svelte runtime fixtures remain.
 - [-] #15 — Add property, platform, generated-code, and real integration coverage.
 - [x] #16 — Synchronize and automatically verify all component versions.
 - [x] #17 — Rewrite public guarantees so documentation states only shipped behavior.
@@ -590,7 +591,8 @@ production path uses the fix and its relevant tests pass.
 - [-] #366 — Standardize and reproducibly verify JavaScript package-manager boundaries.
 - [x] #367 — Land automatic release-version synchronization checks.
 - [x] #368 — Add public API/semantic-version compatibility checks.
-- [ ] #369 — Make documentation and examples an executable conformance suite.
+- [-] #369 — Make documentation and examples an executable conformance suite. The root full
+  profile enforces standalone `.lgs`/`.lgl` fences and explicitly registers fragments.
 
 ## Required documentation migration
 
@@ -657,7 +659,8 @@ production path uses the fix and its relevant tests pass.
       screenshots. The VS Code extension's internal Node bundle format is not a codegen target.
 - [x] DOC-S3 — Update editor examples for groups, docs, multiline, values, and overloads.
 - [x] DOC-S4 — Publish the complete flat-to-nested migration map.
-- [ ] DOC-C1 — Register every normative code block as a fixture.
+- [-] DOC-C1 — Register every normative code block as a fixture. Linguini syntax blocks are
+  registered; TOML, shell, TypeScript, HTML, and Svelte blocks remain.
 - [ ] DOC-C2 — Build docs against packaged CLI/codegen artifacts.
 - [ ] DOC-C3 — Snapshot config schema, CLI help, declarations, and examples in CI.
 - [ ] DOC-C4 — Require docs, migration notes, and fixtures for every public contract change.
@@ -856,7 +859,8 @@ production path uses the fix and its relevant tests pass.
 
 - [-] P3-1 — Rust 1.76/stable and Linux/Windows/macOS/offline/package CI.
 - [-] P3-2 — Parser, formatter, plural, and path property/fuzz coverage.
-- [ ] P3-3 — Full documentation-to-runtime conformance corpus.
+- [-] P3-3 — Full documentation-to-runtime conformance corpus. Linguini syntax fences execute;
+  packaged configuration, typecheck, and runtime stages remain.
 - [ ] P3-4 — ICU/CLDR differential tests.
 - [-] P3-5 — Vite/native VSIX/npm CLI/WASM integration matrix.
 - [-] P3-6 — Dependency policy, pinned actions, reproducible JS packaging, synced versions.
