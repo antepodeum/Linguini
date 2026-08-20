@@ -6,8 +6,6 @@ use linguini_syntax::{
 };
 use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
-pub const CRATE_PURPOSE: &str = "schema AST and symbol table";
-
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SchemaSymbols {
     pub enums: BTreeMap<String, EnumSymbol>,
