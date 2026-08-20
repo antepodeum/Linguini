@@ -6,8 +6,8 @@ const workspace = path.resolve(__dirname, '..');
 const sampleWorkspace = path.join(workspace, 'sample-workspace');
 const openTargets = [
   sampleWorkspace,
-  path.join(sampleWorkspace, 'example.lgs'),
-  path.join(sampleWorkspace, 'en.lgl')
+  path.join(sampleWorkspace, 'linguini', 'schema', 'shop.lgs'),
+  path.join(sampleWorkspace, 'linguini', 'locale', 'shop', 'en.lgl')
 ].filter((candidate) => fs.existsSync(candidate));
 
 const args = [
