@@ -4,6 +4,7 @@ use super::{
     references_at, references_at_with_workspace, rename_workspace_edits, semantic_tokens,
     LinguiniDocument,
 };
+use linguini_syntax::SourceId;
 
 #[test]
 fn diagnostics_report_schema_parse_errors() {
@@ -70,6 +71,49 @@ fn locale_hover_inherits_schema_docs_from_workspace() {
     assert!(hover.contains("Delivery label"));
     assert!(hover.contains("delivery(count: Number)"));
     assert!(hover.contains("delivery -> Доставка"));
+}
+
+#[test]
+fn documentation_hover_and_navigation_preserve_schema_source_identity_golden() {
+    let schema = LinguiniDocument::new(
+        "file:///schema/shop.lgs",
+        "linguini-schema",
+        "/// Canonical docs\n///\n/// Second paragraph\ndelivery(count: Number)\n",
+    )
+    .with_source_identity("shop", None)
+    .with_source_id(SourceId(41));
+    let unrelated = LinguiniDocument::new(
+        "file:///schema/account.lgs",
+        "linguini-schema",
+        "/// Wrong docs\ndelivery(count: String)\n",
+    )
+    .with_source_identity("account", None)
+    .with_source_id(SourceId(43));
+    let locale = LinguiniDocument::new(
+        "file:///locale/shop/ru.lgl",
+        "linguini-locale",
+        "delivery = Доставка\n",
+    )
+    .with_source_identity("shop", Some("ru".to_owned()))
+    .with_source_id(SourceId(42));
+    let offset = locale.text.find("delivery").expect("offset");
+
+    let hover = hover_at_with_workspace(&locale, offset, [unrelated.clone(), schema.clone()])
+        .expect("hover");
+    let (uri, span) = definition_at_with_workspace(&locale, offset, [unrelated, schema.clone()])
+        .expect("definition");
+    let snapshot = format!(
+        "{hover}\n\n--- navigation ---\nuri: {uri}\nsource: {}\nspan: {}..{}\ntext: {}\n",
+        span.source.0,
+        span.start,
+        span.end,
+        &schema.text[span.start..span.end]
+    );
+
+    assert_eq!(
+        snapshot,
+        include_str!("../../../tests/fixtures/golden/snapshots/lsp-documentation-identity.txt")
+    );
 }
 
 #[test]

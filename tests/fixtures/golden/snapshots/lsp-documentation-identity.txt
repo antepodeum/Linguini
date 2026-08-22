@@ -1,0 +1,18 @@
+message `delivery`
+
+Canonical docs
+
+Second paragraph
+
+Sample
+
+```text
+delivery(count: Number)
+delivery -> Доставка
+```
+
+--- navigation ---
+uri: file:///schema/shop.lgs
+source: 41
+span: 44..52
+text: delivery
