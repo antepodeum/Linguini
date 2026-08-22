@@ -746,7 +746,9 @@ production path uses the fix and its relevant tests pass.
 - [x] API-D5 — Preserve paragraphs/line breaks and escape comment terminators. One shared renderer
   now emits every runtime and declaration kind, combines consecutive source comments into a single
   JSDoc block, retains empty paragraph lines, and neutralizes embedded `*/` terminators.
-- [ ] API-D6 — Generate backend tags separately from source prose.
+- [x] API-D6 — Generate backend tags separately from source prose. Positional and named-object
+  overloads derive typed `@param` and `@returns` tags from the shared signature/`TypeModel`, append
+  them independently of canonical prose, and escape hostile source property names.
 - [ ] API-D7 — Preserve source identity for hover/navigation and add golden tests.
 
 ### CLI/LSP/VSIX distribution
