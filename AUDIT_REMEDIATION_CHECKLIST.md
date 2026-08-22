@@ -170,9 +170,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [-] #12 — Hide invalid mutable public model states behind validated constructors.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
-- [-] #14 — Execute normative documentation as conformance fixtures. All 91 code blocks are
-  registered and standalone Linguini syntax plus TOML config fences are enforced; generated
-  TypeScript/Svelte runtime fixtures remain.
+- [x] #14 — Execute normative documentation as conformance fixtures. All 91 code blocks are
+  registered; Linguini syntax and TOML config fences are enforced; extracted JavaScript,
+  TypeScript, HTML, and Svelte examples build, typecheck, and execute where runtime-capable.
 - [-] #15 — Add property, platform, generated-code, and real integration coverage.
 - [x] #16 — Synchronize and automatically verify all component versions.
 - [x] #17 — Rewrite public guarantees so documentation states only shipped behavior.
@@ -581,10 +581,10 @@ production path uses the fix and its relevant tests pass.
 - [x] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
 - [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
 - [x] #351 — Define project and path namespace behavior unambiguously.
-- [-] #352 — Execute examples through compile, typecheck, and runtime golden tests. The actual
-  Getting Started config, schema, locales, JavaScript, and TypeScript direct-use example pass;
-  the complete locale-provider example also generates and passes strict Svelte checking. Remaining
-  normative web-guide TypeScript/Svelte snippets are registered but not yet executable fixtures.
+- [x] #352 — Execute examples through compile, typecheck, and runtime golden tests. The actual
+  Getting Started and locale-provider projects pass, and every web-guide TypeScript, HTML, and
+  Svelte variant is extracted into a generated SvelteKit project and passes strict checks. The
+  harness rejects newly added normative web-guide blocks without executable fixture ownership.
 - [x] #353 — Document actual CLDR formatter limits and fallback behavior.
 - [x] #354 — Resolve the unfinished contracts tracked by `REPOSITORY_STATE`.
 - [x] #355 — Synchronize version, copy, and release status across every surface.
@@ -611,11 +611,11 @@ production path uses the fix and its relevant tests pass.
   explicit dependency-build allowlist, and root/CI policy rejects mixed lockfiles or npm installs.
 - [x] #367 — Land automatic release-version synchronization checks.
 - [x] #368 — Add public API/semantic-version compatibility checks.
-- [-] #369 — Make documentation and examples an executable conformance suite. The root full
+- [x] #369 — Make documentation and examples an executable conformance suite. The root full
   profile registers all 91 code blocks, enforces Linguini syntax plus TOML config fences, and
   builds, typechecks, and executes the Getting Started JavaScript/TypeScript example from both the
-  workspace and Cargo package file sets. The complete SvelteKit provider also typechecks; remaining
-  web-guide fixture coverage remains.
+  workspace and Cargo package file sets. The complete SvelteKit provider and every alternative
+  web-guide hook/component/client/server variant compile and pass strict Svelte checking.
 
 ## Required documentation migration
 
@@ -917,10 +917,10 @@ production path uses the fix and its relevant tests pass.
 - [x] P3-2 — Parser, formatter, plural, and path property/fuzz coverage. Seeded generated cases
   cover Unicode/recovery/nesting/size parser invariants, formatter no-panic/idempotence/semantic
   preservation, plural modulo arithmetic, and portable locale ancestor chains.
-- [-] P3-3 — Full documentation-to-runtime conformance corpus. All 91 blocks are registered;
+- [x] P3-3 — Full documentation-to-runtime conformance corpus. All 91 blocks are registered;
   Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
-  execute from workspace and packaged source graphs; the SvelteKit provider typechecks, while
-  remaining web-guide stages remain.
+  execute from workspace and packaged source graphs; the complete SvelteKit provider and all
+  normative web-guide source variants build and typecheck against real generated output.
 - [x] P3-4 — ICU/CLDR differential tests cover 152 representative cardinal cases across eight
   structurally distinct plural-rule families.
 - [-] P3-5 — Vite/native VSIX/npm CLI/WASM integration matrix.
@@ -936,6 +936,6 @@ production path uses the fix and its relevant tests pass.
 - [x] Run offline/package/source-archive verification.
 - [ ] Run dependency, license, advisory, and public-API compatibility checks.
 - [ ] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests.
-- [ ] Parse, analyze, generate, typecheck, and execute every normative documentation fixture.
+- [x] Parse, analyze, generate, typecheck, and execute every normative documentation fixture.
 - [ ] Re-read all 369 findings and every architecture criterion against final production paths.
 - [ ] Mark this checklist complete only when no `[-]` or `[ ]` items remain.
