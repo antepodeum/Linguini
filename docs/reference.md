@@ -1,5 +1,8 @@
 # Language Reference
 
+This reference describes the frozen [Linguini language specification v0.1](./language-v0.1.md).
+Any source-breaking change requires a new language version and migration entry.
+
 The committed JSON Schema for `linguini.toml` is exported as
 `linguini_config::CONFIG_SCHEMA_JSON`. CI snapshots this schema, generated declarations, CLI help,
 and executable examples so public contract drift requires an explicit reviewed update.

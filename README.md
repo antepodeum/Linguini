@@ -17,7 +17,7 @@ The current web release is SvelteKit-first and ESM-only. It also emits a
 framework-agnostic TypeScript runtime and a Svelte adapter; other framework
 adapters and CommonJS output are outside the current release scope.
 
-**[Why Linguini](./docs/why.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)** · **[Web/SvelteKit](./docs/web-sveltekit.md)**
+**[Why Linguini](./docs/why.md)** · **[v0.1 Specification](./docs/language-v0.1.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)** · **[Web/SvelteKit](./docs/web-sveltekit.md)**
 
 ---
 
@@ -204,9 +204,8 @@ cargo install linguini-cli --version 0.1.0-alpha.4
 The VS Code extension and generated tooling use the `linguini` command by
 default and do not include a bundled binary.
 
-Preview builds use vendored CLDR JSON data from the repository. If that data is
-missing from a source archive, building the CLDR support crate may need network
-access to fetch the pinned CLDR source.
+Builds consume checked-in, hash-verified CLDR artifacts only. Compilation never
+fetches CLDR data or invokes `git`; an incomplete source archive fails explicitly.
 
 ```
 linguini init      Create a project skeleton

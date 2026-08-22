@@ -4,6 +4,8 @@
 > LSP, and TypeScript codegen all work. The codebase is being actively cleaned up
 > and the syntax is stabilizing. Expect rough edges, and feel free to open issues.
 
+Projects created by this release use the frozen [v0.1 language contract](./language-v0.1.md).
+
 ---
 
 ## Install the CLI

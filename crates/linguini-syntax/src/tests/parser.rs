@@ -52,6 +52,32 @@ fn parses_syntax_coverage_fixtures() {
 }
 
 #[test]
+fn frozen_v0_1_spec_tracks_the_executable_language_contract() {
+    let spec = include_str!("../../../../docs/language-v0.1.md");
+    let schema = include_str!("../../../../tests/fixtures/golden/syntax/all.lgs");
+    let locale = include_str!("../../../../tests/fixtures/golden/syntax/all.lgl");
+
+    for contract in [
+        "Status: frozen preview language contract. Version: `0.1`.",
+        "inline `fn(inputs) { branches }`",
+        "`String`, `Number`, `Decimal`, `Date`, and `Boolean`",
+        "The v0.1 JavaScript boundary is ESM-only.",
+        "`param_order`",
+        "`unreachable_arm`",
+        "`collapsible_arms`",
+        "`fn_without_strings`",
+        "`incomplete_impl`",
+        "`redundant_wildcard`",
+        "`unused_message`",
+    ] {
+        assert!(spec.contains(contract), "missing v0.1 contract: {contract}");
+    }
+    assert!(!spec.contains("configurable CJS"));
+    parse_schema(schema).expect("v0.1 schema conformance fixture");
+    parse_locale(locale).expect("v0.1 locale conformance fixture");
+}
+
+#[test]
 fn parsing_with_tokens_lexes_once_and_retains_trivia() {
     reset_lexer_invocation_count();
     let schema =
