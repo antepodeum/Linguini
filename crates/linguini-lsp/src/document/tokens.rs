@@ -47,6 +47,20 @@ fn is_keyword(value: &str) -> bool {
 }
 
 pub(super) fn is_placeholder_context(source: &str, offset: usize) -> bool {
-    let before = &source[..offset.min(source.len())];
-    before.rfind('{') > before.rfind('}')
+    let before = prefix_at_boundary(source, offset);
+    let Some(open) = before
+        .rfind('{')
+        .filter(|open| Some(*open) > before.rfind('}'))
+    else {
+        return false;
+    };
+    !before[open + 1..].contains(['\r', '\n'])
+}
+
+pub(super) fn prefix_at_boundary(source: &str, offset: usize) -> &str {
+    let mut boundary = offset.min(source.len());
+    while !source.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    &source[..boundary]
 }

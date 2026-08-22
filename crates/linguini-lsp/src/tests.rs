@@ -1,8 +1,8 @@
 use super::{
-    completion_items, definition_at_with_workspace, diagnostics, diagnostics_with_workspace,
-    document_symbols, format_document, hover_at, hover_at_with_workspace, prepare_rename_at,
-    references_at, references_at_with_workspace, rename_workspace_edits, semantic_tokens,
-    LinguiniDocument,
+    completion_candidates_with_workspace, completion_items, definition_at_with_workspace,
+    diagnostics, diagnostics_with_workspace, document_symbols, format_document, hover_at,
+    hover_at_with_workspace, prepare_rename_at, references_at, references_at_with_workspace,
+    rename_workspace_edits, semantic_tokens, CompletionKind, LinguiniDocument,
 };
 use linguini_syntax::SourceId;
 
@@ -231,6 +231,85 @@ fn completion_includes_keywords_and_document_symbols() {
     assert!(items.contains(&"let".to_owned()));
     assert!(items.contains(&"cart_label".to_owned()));
     assert!(items.contains(&"Fruit".to_owned()));
+}
+
+#[test]
+fn completion_filters_schema_type_positions_and_preserves_kinds() {
+    let source = "enum Mood { happy, sad }\ntype Label = String\nwelcome(value: String)\n";
+    let document = LinguiniDocument::new("file:///app.lgs", "linguini-schema", source);
+    let offset = source.rfind("String").expect("parameter type");
+
+    let items = completion_candidates_with_workspace(&document, offset, []);
+
+    assert!(items
+        .iter()
+        .any(|item| item.label == "Mood" && item.kind == CompletionKind::Enum));
+    assert!(items
+        .iter()
+        .any(|item| item.label == "Label" && item.kind == CompletionKind::Type));
+    assert!(items
+        .iter()
+        .any(|item| item.label == "Decimal" && item.kind == CompletionKind::Type));
+    assert!(!items.iter().any(|item| item.label == "enum"));
+    assert!(!items.iter().any(|item| item.label == "happy"));
+}
+
+#[test]
+fn completion_uses_matching_schema_parameters_inside_placeholders() {
+    let schema = LinguiniDocument::new(
+        "file:///schema/shop.lgs",
+        "linguini-schema",
+        "welcome(name: String)\n",
+    )
+    .with_source_identity("shop", None);
+    let source = "welcome = Hello, {name}!\n";
+    let locale = LinguiniDocument::new("file:///locale/shop/en.lgl", "linguini-locale", source)
+        .with_source_identity("shop", Some("en".to_owned()));
+    let offset = source.find("name").expect("placeholder") + 2;
+
+    let items = completion_candidates_with_workspace(&locale, offset, [schema]);
+
+    assert!(items.iter().any(|item| {
+        item.label == "name"
+            && item.kind == CompletionKind::Variable
+            && item.detail.as_deref() == Some("parameter: String")
+    }));
+    assert!(!items.iter().any(|item| item.label == "impl"));
+}
+
+#[test]
+fn completion_uses_enclosing_dispatch_parameter_variants() {
+    let source = "enum Gender { male, female }\nfn Select(Plural, Gender) {\n  one {\n    male => selected\n    _ => selected\n  }\n  _ => selected\n}\n";
+    let document = LinguiniDocument::new("file:///shop.lgl", "linguini-locale", source);
+    let offset = source.find("male =>").expect("branch key");
+
+    let items = completion_candidates_with_workspace(&document, offset, []);
+
+    for expected in ["one", "few", "male", "female", "_"] {
+        assert!(
+            items.iter().any(|item| item.label == expected),
+            "{expected}"
+        );
+    }
+    assert!(items
+        .iter()
+        .filter(|item| item.label != "_")
+        .all(|item| item.kind == CompletionKind::EnumMember));
+    assert!(!items.iter().any(|item| item.label == "let"));
+}
+
+#[test]
+fn completion_clamps_offsets_to_unicode_boundaries() {
+    let document = LinguiniDocument::new(
+        "file:///shop.lgl",
+        "linguini-locale",
+        "welcome = Привет, {name}!\n",
+    );
+    let interior_utf8_offset = document.text.find('П').expect("Cyrillic text") + 1;
+
+    let items = completion_items(&document, interior_utf8_offset);
+
+    assert!(!items.is_empty());
 }
 
 #[test]

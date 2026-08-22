@@ -3,7 +3,7 @@
 use crate::document::prime_semantic_cache;
 use crate::{
     code_action::{analyzer_quick_fix_actions, to_lsp_diagnostic_with_workspace},
-    completion_items_with_workspace, definition_at_with_workspace, diagnostics_with_workspace,
+    completion_candidates_with_workspace, definition_at_with_workspace, diagnostics_with_workspace,
     document_symbols, format_document_with_options, hover_at_with_workspace, prepare_rename_at,
     references_at_with_workspace, rename_workspace_edits, semantic_tokens, LinguiniDocument,
     SemanticLegend,
@@ -579,15 +579,25 @@ impl LanguageServer for Backend {
             params.text_document_position.position.line,
             params.text_document_position.position.character,
         );
-        let items = completion_items_with_workspace(
+        let items = completion_candidates_with_workspace(
             &document,
             offset,
             self.workspace_documents_for(&document),
         )
         .into_iter()
-        .map(|label| CompletionItem {
-            label,
-            kind: Some(CompletionItemKind::KEYWORD),
+        .map(|candidate| CompletionItem {
+            label: candidate.label,
+            kind: Some(match candidate.kind {
+                crate::CompletionKind::Keyword => CompletionItemKind::KEYWORD,
+                crate::CompletionKind::Type => CompletionItemKind::TYPE_PARAMETER,
+                crate::CompletionKind::Enum => CompletionItemKind::ENUM,
+                crate::CompletionKind::EnumMember => CompletionItemKind::ENUM_MEMBER,
+                crate::CompletionKind::Function => CompletionItemKind::FUNCTION,
+                crate::CompletionKind::Variable => CompletionItemKind::VARIABLE,
+                crate::CompletionKind::Message => CompletionItemKind::VALUE,
+                crate::CompletionKind::Property => CompletionItemKind::PROPERTY,
+            }),
+            detail: candidate.detail,
             ..Default::default()
         })
         .collect();

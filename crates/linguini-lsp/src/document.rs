@@ -11,8 +11,8 @@ use linguini_format::{format_source, FormatOptions, SourceKind};
 use linguini_schema::build_schema_symbols_from_files;
 use linguini_syntax::{
     parse_locale_with_recovery_in, parse_schema_with_recovery_in, validate_locale_ast,
-    validate_schema_ast, LocaleDeclaration, LocaleFile, ParseOutput, SchemaDeclaration, SchemaFile,
-    SourceId, Span, Token,
+    validate_schema_ast, FunctionDeclaration, LocaleDeclaration, LocaleFile, ParseOutput,
+    SchemaDeclaration, SchemaFile, SourceId, Span, Token,
 };
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, OnceLock};
@@ -23,7 +23,9 @@ use self::semantic::{
     SemanticKey,
 };
 use self::symbols::symbols;
-use self::tokens::{base_keywords, is_placeholder_context, semantic_token_type, tokens};
+use self::tokens::{
+    base_keywords, is_placeholder_context, prefix_at_boundary, semantic_token_type, tokens,
+};
 
 const MAX_DOCUMENT_BYTES: usize = 4 * 1024 * 1024;
 const MAX_NESTING_DEPTH: usize = 256;
@@ -57,6 +59,25 @@ pub struct Symbol {
     pub span: Span,
     pub docs: Vec<String>,
     pub preview: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum CompletionKind {
+    Keyword,
+    Type,
+    Enum,
+    EnumMember,
+    Function,
+    Variable,
+    Message,
+    Property,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CompletionCandidate {
+    pub label: String,
+    pub kind: CompletionKind,
+    pub detail: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -331,7 +352,10 @@ fn parse_diagnostics(
 }
 
 pub fn completion_items(document: &LinguiniDocument, offset: usize) -> Vec<String> {
-    completion_items_with_workspace(document, offset, [])
+    completion_candidates_with_workspace(document, offset, [])
+        .into_iter()
+        .map(|candidate| candidate.label)
+        .collect()
 }
 
 pub fn completion_items_with_workspace(
@@ -339,50 +363,251 @@ pub fn completion_items_with_workspace(
     offset: usize,
     workspace: impl IntoIterator<Item = LinguiniDocument>,
 ) -> Vec<String> {
+    completion_candidates_with_workspace(document, offset, workspace)
+        .into_iter()
+        .map(|candidate| candidate.label)
+        .collect()
+}
+
+pub fn completion_candidates_with_workspace(
+    document: &LinguiniDocument,
+    offset: usize,
+    workspace: impl IntoIterator<Item = LinguiniDocument>,
+) -> Vec<CompletionCandidate> {
     if !document.is_within_safety_limits() {
         return Vec::new();
     }
-    let mut items = base_keywords(document.kind);
-    items.extend(symbols(document).into_iter().map(|symbol| symbol.name));
-    items.extend(
-        occurrences(document)
-            .into_iter()
-            .map(|occurrence| match occurrence.key {
-                SemanticKey::Message(name)
-                | SemanticKey::Type(name)
-                | SemanticKey::Variable(name)
-                | SemanticKey::Function(name) => name,
-                SemanticKey::EnumVariant { variant, .. } => variant,
-                SemanticKey::FormAttribute { path, .. } => path,
-                SemanticKey::Parameter { name, .. } => name,
-            }),
-    );
+    let workspace = workspace.into_iter().collect::<Vec<_>>();
+    let schemas = matching_schema_documents(document, workspace.clone());
+    let mut items = BTreeMap::<String, CompletionCandidate>::new();
+    let mut insert = |candidate: CompletionCandidate| {
+        items
+            .entry(candidate.label.clone())
+            .and_modify(|existing| {
+                if (existing.kind == CompletionKind::Keyword
+                    && candidate.kind != CompletionKind::Keyword)
+                    || (candidate
+                        .detail
+                        .as_deref()
+                        .is_some_and(|detail| detail.starts_with("parameter: "))
+                        && !existing
+                            .detail
+                            .as_deref()
+                            .is_some_and(|detail| detail.starts_with("parameter: ")))
+                {
+                    *existing = candidate.clone();
+                }
+            })
+            .or_insert(candidate);
+    };
+
+    if schema_type_context(document, offset) {
+        for primitive in ["String", "Boolean", "Number", "Decimal", "Date"] {
+            insert(completion(
+                primitive,
+                CompletionKind::Type,
+                "primitive type",
+            ));
+        }
+        for schema in std::iter::once(document).chain(schemas.iter()) {
+            for symbol in symbols(schema)
+                .into_iter()
+                .filter(|symbol| matches!(symbol.detail.as_str(), "enum" | "type"))
+            {
+                insert(completion_from_symbol(symbol));
+            }
+        }
+        return items.into_values().collect();
+    }
 
     if is_placeholder_context(&document.text, offset) {
-        let schemas = matching_schema_documents(document, workspace);
-        items.extend(schemas.iter().flat_map(symbols).map(|symbol| symbol.name));
+        for occurrence in occurrences(document) {
+            let candidate = completion_from_semantic_key(occurrence.key);
+            if !matches!(
+                candidate.kind,
+                CompletionKind::Type | CompletionKind::EnumMember
+            ) {
+                insert(candidate);
+            }
+        }
         if let Some(path) = locale_message_path_containing(document, offset) {
-            for schema in schemas {
-                let Some(schema) = parsed_schema(&schema).and_then(|parsed| parsed.ast.as_ref())
+            for schema in &schemas {
+                let Some(schema) = parsed_schema(schema).and_then(|parsed| parsed.ast.as_ref())
                 else {
                     continue;
                 };
                 let Some(message) = schema_message_by_path(schema, &path) else {
                     continue;
                 };
-                items.extend(
-                    message
-                        .parameters
-                        .iter()
-                        .map(|parameter| parameter.name.value.clone()),
+                for parameter in &message.parameters {
+                    insert(CompletionCandidate {
+                        label: parameter.name.value.clone(),
+                        kind: CompletionKind::Variable,
+                        detail: Some(format!("parameter: {}", parameter.ty.value)),
+                    });
+                }
+            }
+        }
+        return items.into_values().collect();
+    }
+
+    if locale_dispatch_key_context(document, offset) {
+        for (label, detail) in locale_dispatch_variants(document, offset) {
+            insert(completion(&label, CompletionKind::EnumMember, &detail));
+        }
+        insert(completion("_", CompletionKind::Keyword, "wildcard branch"));
+        return items.into_values().collect();
+    }
+
+    for keyword in base_keywords(document.kind) {
+        insert(completion(
+            &keyword,
+            CompletionKind::Keyword,
+            "declaration keyword",
+        ));
+    }
+    for symbol in symbols(document) {
+        insert(completion_from_symbol(symbol));
+    }
+    for occurrence in occurrences(document) {
+        insert(completion_from_semantic_key(occurrence.key));
+    }
+
+    items.into_values().collect()
+}
+
+fn completion(label: &str, kind: CompletionKind, detail: &str) -> CompletionCandidate {
+    CompletionCandidate {
+        label: label.to_owned(),
+        kind,
+        detail: Some(detail.to_owned()),
+    }
+}
+
+fn completion_from_symbol(symbol: Symbol) -> CompletionCandidate {
+    let kind = match symbol.detail.as_str() {
+        "enum" => CompletionKind::Enum,
+        "type" => CompletionKind::Type,
+        "function" | "impl" => CompletionKind::Function,
+        "variable" => CompletionKind::Variable,
+        "message" | "message group" => CompletionKind::Message,
+        _ => CompletionKind::Property,
+    };
+    CompletionCandidate {
+        label: symbol.name,
+        kind,
+        detail: Some(symbol.detail),
+    }
+}
+
+fn completion_from_semantic_key(key: SemanticKey) -> CompletionCandidate {
+    match key {
+        SemanticKey::Message(label) => completion(&label, CompletionKind::Message, "message"),
+        SemanticKey::Type(label) => completion(&label, CompletionKind::Type, "type"),
+        SemanticKey::Variable(label) => completion(&label, CompletionKind::Variable, "variable"),
+        SemanticKey::Function(label) => completion(&label, CompletionKind::Function, "function"),
+        SemanticKey::EnumVariant { variant, .. } => {
+            completion(&variant, CompletionKind::EnumMember, "enum member")
+        }
+        SemanticKey::FormAttribute { path, .. } => {
+            completion(&path, CompletionKind::Property, "form attribute")
+        }
+        SemanticKey::Parameter { name, .. } => {
+            completion(&name, CompletionKind::Variable, "parameter")
+        }
+    }
+}
+
+fn schema_type_context(document: &LinguiniDocument, offset: usize) -> bool {
+    if document.kind != SourceKind::Schema {
+        return false;
+    }
+    let before = prefix_at_boundary(&document.text, offset);
+    let line = before.rsplit_once('\n').map_or(before, |(_, line)| line);
+    let delimiter = line.rfind(['(', ',']).unwrap_or(0);
+    line[delimiter..].rfind(':').is_some_and(|colon| {
+        let after = &line[delimiter + colon + 1..];
+        !after.contains([')', ','])
+    }) || line
+        .trim_start()
+        .strip_prefix("type ")
+        .is_some_and(|rest| rest.contains('='))
+}
+
+fn locale_dispatch_key_context(document: &LinguiniDocument, offset: usize) -> bool {
+    if document.kind != SourceKind::Locale || is_placeholder_context(&document.text, offset) {
+        return false;
+    }
+    let before = prefix_at_boundary(&document.text, offset);
+    let line = before.rsplit_once('\n').map_or(before, |(_, line)| line);
+    !line.contains("=>") && locale_function_containing(document, offset).is_some()
+}
+
+fn locale_dispatch_variants(document: &LinguiniDocument, offset: usize) -> Vec<(String, String)> {
+    let Some(function) = locale_function_containing(document, offset) else {
+        return Vec::new();
+    };
+    let enum_variants = parsed_locale(document)
+        .and_then(|parsed| parsed.ast.as_ref())
+        .map(|locale| {
+            locale
+                .declarations
+                .iter()
+                .filter_map(|declaration| match declaration {
+                    LocaleDeclaration::Enum(item) => Some((
+                        item.name.value.as_str(),
+                        item.variants
+                            .iter()
+                            .map(|item| item.value.as_str())
+                            .collect::<Vec<_>>(),
+                    )),
+                    _ => None,
+                })
+                .collect::<BTreeMap<_, _>>()
+        })
+        .unwrap_or_default();
+    let mut variants = BTreeMap::new();
+    for parameter in &function.parameters {
+        if parameter.ty.value == "Plural" {
+            for category in ["zero", "one", "two", "few", "many", "other"] {
+                variants.insert(category.to_owned(), "Plural category".to_owned());
+            }
+        } else if let Some(values) = enum_variants.get(parameter.ty.value.as_str()) {
+            for value in values {
+                variants.insert(
+                    (*value).to_owned(),
+                    format!("{} member", parameter.ty.value),
                 );
             }
         }
     }
+    variants.into_iter().collect()
+}
 
-    items.sort();
-    items.dedup();
-    items
+fn locale_function_containing(
+    document: &LinguiniDocument,
+    offset: usize,
+) -> Option<&FunctionDeclaration> {
+    let locale = parsed_locale(document)?.ast.as_ref()?;
+    locale
+        .declarations
+        .iter()
+        .find_map(|declaration| match declaration {
+            LocaleDeclaration::Function(function)
+                if function.span.start <= offset && offset <= function.span.end =>
+            {
+                Some(function)
+            }
+            LocaleDeclaration::Override(inner) => match inner.as_ref() {
+                LocaleDeclaration::Function(function)
+                    if function.span.start <= offset && offset <= function.span.end =>
+                {
+                    Some(function)
+                }
+                _ => None,
+            },
+            _ => None,
+        })
 }
 
 pub fn hover_at(document: &LinguiniDocument, offset: usize) -> Option<String> {
