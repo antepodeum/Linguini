@@ -13,7 +13,7 @@ use crate::ecmascript::{
 use super::deps::MessageDependencyClosure;
 use super::emit::{self, emit_formatter_data, emit_forms, emit_local_functions, emit_variables};
 use super::formatters::{formatter_requirements, plural_required};
-use super::names::escape_comment;
+use super::names::emit_docs;
 use super::semantic::TypeScriptSemanticImport;
 use super::signature::MessageCallSignature;
 use super::{
@@ -343,11 +343,8 @@ fn emit_message_module(
         let call_signature = MessageCallSignature::from_message(signature);
         let body = emit::message_body(schema, signature, implementation, options);
         let output = if !call_signature.is_parameterized() {
-            let docs = signature
-                .docs
-                .iter()
-                .map(|doc| format!("/** {} */\n", escape_comment(doc)))
-                .collect::<String>();
+            let mut docs = String::new();
+            emit_docs(&signature.docs, "", &mut docs);
             match emission {
                 MessageModuleEmission::Standalone => {
                     format!("{docs}export const message = (): string => {body};\n")

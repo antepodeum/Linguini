@@ -2,8 +2,7 @@ use linguini_ir::{IrMessage, IrModule};
 
 use super::emit::{schema_type_aliases, schema_type_names};
 use super::names::{
-    emit_docs, escape_comment, escape_string, function_name, property_key, safe_file_stem,
-    safe_identifier, ts_type,
+    emit_docs, escape_string, function_name, property_key, safe_file_stem, safe_identifier, ts_type,
 };
 use super::signature::MessageCallSignature;
 use super::templates::SHARED_DECLARATIONS;
@@ -97,9 +96,7 @@ fn emit_type_reexports(schema: &IrModule, shared_import_path: &str, output: &mut
 
 fn emit_type_declarations(schema: &IrModule, output: &mut String) {
     for item in &schema.enums {
-        for doc in &item.docs {
-            output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-        }
+        emit_docs(&item.docs, "", output);
         let variants = item
             .variants
             .iter()
@@ -113,9 +110,7 @@ fn emit_type_declarations(schema: &IrModule, output: &mut String) {
     }
 
     for item in &schema.type_aliases {
-        for doc in &item.docs {
-            output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-        }
+        emit_docs(&item.docs, "", output);
         output.push_str(&format!(
             "export type {} = {};\n\n",
             safe_identifier(&item.name),

@@ -125,7 +125,8 @@ is rejected instead of silently moving prose to another symbol. Schema docs are
 canonical API prose: they appear in LSP hover for both schema symbols and their
 locale implementations, and codegen emits them as escaped JSDoc on generated
 groups, values, and both callable overloads. Generated `.d.ts` output preserves
-the same documentation.
+the same documentation. Consecutive comment lines remain one documentation block;
+empty `///` lines preserve paragraph breaks, and embedded `*/` text is escaped safely.
 
 ```lgs
 /// Shown on the delivery confirmation card.

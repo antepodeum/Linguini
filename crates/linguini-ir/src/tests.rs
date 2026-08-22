@@ -33,6 +33,48 @@ fn locale_ir_snapshot_is_stable() {
 }
 
 #[test]
+fn lowering_preserves_docs_for_every_declaration_kind() {
+    let schema = lower_schema(
+        &parse_schema(
+            "/// Enum docs\nenum Choice { one, other }\n\
+             /// Alias docs\ntype Amount = Number\n\
+             /// Message first paragraph\n///\n/// Message second paragraph\nmessage(value: Amount)\n\
+             /// Group docs\ngroup {\n  /// Nested docs\n  nested\n}\n",
+        )
+        .expect("schema"),
+    );
+    assert_eq!(schema.enums[0].docs, ["Enum docs"]);
+    assert_eq!(schema.type_aliases[0].docs, ["Alias docs"]);
+    assert_eq!(
+        schema.messages[0].docs,
+        ["Message first paragraph", "", "Message second paragraph"]
+    );
+    assert_eq!(schema.messages[1].docs, ["Nested docs"]);
+    assert_eq!(schema.groups[0].docs, ["Group docs"]);
+
+    let locale = lower_locale(
+        &parse_locale(
+            "/// Enum implementation docs\nenum Choice { one, other }\n\
+             /// Variable docs\nlet label = Label\n\
+             /// Implementation docs\nimpl Choice { one { label = One } other { label = Other } }\n\
+             /// Form docs\nform Select(Choice) { one => One other => Other }\n\
+             /// Function docs\nfn Pick(Choice) { one => One other => Other }\n\
+             /// Message implementation docs\nmessage = Message\n\
+             /// Locale group docs\ngroup {\n  /// Nested implementation docs\n  nested = Nested\n}\n",
+        )
+        .expect("locale"),
+    );
+    assert_eq!(locale.enums[0].docs, ["Enum implementation docs"]);
+    assert_eq!(locale.variables[0].docs, ["Variable docs"]);
+    assert_eq!(locale.forms[0].docs, ["Implementation docs"]);
+    assert_eq!(locale.functions[0].docs, ["Form docs"]);
+    assert_eq!(locale.functions[1].docs, ["Function docs"]);
+    assert_eq!(locale.messages[0].docs, ["Message implementation docs"]);
+    assert_eq!(locale.messages[1].docs, ["Nested implementation docs"]);
+    assert_eq!(locale.groups[0].docs, ["Locale group docs"]);
+}
+
+#[test]
 fn ir_reference_validation_accepts_golden_delivery_fixture() {
     let schema = parse_schema(include_str!(
         "../../../tests/fixtures/golden/schema/shop.lgs"

@@ -9,7 +9,7 @@ use super::expr::{
 };
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
-    escape_comment, escape_string, form_binding_name, function_name, property_key, safe_identifier,
+    emit_docs, escape_string, form_binding_name, function_name, property_key, safe_identifier,
     ts_type,
 };
 use super::signature::MessageCallSignature;
@@ -168,9 +168,7 @@ pub fn emit_formatter_data(
 
 pub fn emit_enums(module: &IrModule, output: &mut String) {
     for item in &module.enums {
-        for doc in &item.docs {
-            output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-        }
+        emit_docs(&item.docs, "", output);
         let variants = item
             .variants
             .iter()
@@ -194,6 +192,7 @@ pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut
         if supplied_by_schema {
             continue;
         }
+        emit_docs(&item.docs, "", output);
         let variants = item
             .variants
             .iter()
@@ -209,9 +208,7 @@ pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut
 
 pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
     for item in &module.type_aliases {
-        for doc in &item.docs {
-            output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-        }
+        emit_docs(&item.docs, "", output);
         output.push_str(&format!(
             "export type {} = {};\n\n",
             safe_identifier(&item.name),
@@ -222,6 +219,7 @@ pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
 
 pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     for form in &module.forms {
+        emit_docs(&form.docs, "", output);
         output.push_str(&format!("const {} = {{\n", form_binding_name(&form.name)));
         for variant in &form.variants {
             output.push_str(&format!(
@@ -236,9 +234,7 @@ pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut S
 
 pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     for variable in &module.variables {
-        for doc in &variable.docs {
-            output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-        }
+        emit_docs(&variable.docs, "", output);
         output.push_str(&format!(
             "const {} = {};\n\n",
             safe_identifier(&variable.name),
@@ -249,6 +245,7 @@ pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &m
 
 pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
     for function in &module.functions {
+        emit_docs(&function.docs, "", output);
         let parameter_names = function_parameters(function);
         let params = parameter_names
             .iter()
@@ -334,9 +331,7 @@ fn emit_message_function(
     let body = message_body(schema, signature, implementation, options);
     let name = function_name(&signature.name);
     if !call_signature.is_parameterized() {
-        for doc in &signature.docs {
-            output.push_str(&format!("/** {} */\n", escape_comment(doc)));
-        }
+        emit_docs(&signature.docs, "", output);
         output.push_str(&format!("export const {name} = {body};\n\n"));
     } else {
         output.push_str(&call_signature.implementation_overloads(&name, &signature.docs));
@@ -357,6 +352,7 @@ fn emit_message_object(
     options: &TypeScriptOptions,
     output: &mut String,
 ) {
+    emit_docs(&tree.docs, "", output);
     output.push_str(&format!("export const {} = ", safe_identifier(name)));
     emit_object_literal(schema, tree, locale, options, 0, output);
     output.push_str(" as const;\n\n");
@@ -375,6 +371,7 @@ fn emit_object_literal(
     output.push_str("{\n");
     for entry in &tree.messages {
         if let Some(implementation) = message_implementation(locale, &entry.signature.name) {
+            emit_docs(&entry.signature.docs, &child_indent, output);
             output.push_str(&format!(
                 "{child_indent}{}: {},\n",
                 property_key(&entry.property),
@@ -383,6 +380,7 @@ fn emit_object_literal(
         }
     }
     for (name, child) in &tree.children {
+        emit_docs(&child.docs, &child_indent, output);
         output.push_str(&format!("{child_indent}{}: ", property_key(name)));
         emit_object_literal(schema, child, locale, options, depth + 1, output);
         output.push_str(",\n");

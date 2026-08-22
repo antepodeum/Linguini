@@ -136,22 +136,34 @@ pub fn escape_comment(value: &str) -> String {
 /// explicit JSDoc lines. Escaping only the comment terminator preserves the original prose and
 /// prevents generated output from being prematurely closed by hostile text.
 pub fn emit_docs(docs: &[String], indent: &str, output: &mut String) {
-    for doc in docs {
-        output.push_str(indent);
-        output.push_str("/**");
-        let mut lines = doc.lines();
-        if let Some(first) = lines.next() {
-            output.push(' ');
-            output.push_str(&escape_comment(first));
-            for line in lines {
-                output.push('\n');
-                output.push_str(indent);
-                output.push_str(" * ");
-                output.push_str(&escape_comment(line));
-            }
-        }
-        output.push_str(" */\n");
+    if docs.is_empty() {
+        return;
     }
+    let lines = docs
+        .iter()
+        .flat_map(|doc| doc.split('\n'))
+        .collect::<Vec<_>>();
+    if let [line] = lines.as_slice() {
+        output.push_str(indent);
+        output.push_str("/** ");
+        output.push_str(&escape_comment(line));
+        output.push_str(" */\n");
+        return;
+    }
+
+    output.push_str(indent);
+    output.push_str("/**\n");
+    for line in lines {
+        output.push_str(indent);
+        output.push_str(" *");
+        if !line.is_empty() {
+            output.push(' ');
+            output.push_str(&escape_comment(line));
+        }
+        output.push('\n');
+    }
+    output.push_str(indent);
+    output.push_str(" */\n");
 }
 
 pub fn ts_type(name: &str) -> String {
@@ -256,10 +268,28 @@ fn is_reserved_word(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        escape_string, form_binding_name, function_name, path_expression,
+        emit_docs, escape_string, form_binding_name, function_name, path_expression,
         portable_path_component_error, property_access, property_key, safe_file_stem,
         safe_identifier, string_literal,
     };
+
+    #[test]
+    fn documentation_renderer_preserves_lines_paragraphs_and_safety() {
+        let mut output = String::new();
+        emit_docs(
+            &[
+                "First paragraph".to_owned(),
+                String::new(),
+                "Second */ paragraph\ncontinued".to_owned(),
+            ],
+            "  ",
+            &mut output,
+        );
+        assert_eq!(
+            output,
+            "  /**\n   * First paragraph\n   *\n   * Second * / paragraph\n   * continued\n   */\n"
+        );
+    }
 
     #[test]
     fn identifiers_are_valid_ascii_injective_and_avoid_reserved_words() {

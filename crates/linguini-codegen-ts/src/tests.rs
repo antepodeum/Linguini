@@ -362,8 +362,10 @@ fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
     assert_eq!(
         messages,
         r#"export type LinguiniMessages = {
-  /** Top group
-   * line * / terminator */
+  /**
+   * Top group
+   * line * / terminator
+   */
   readonly top: {
     /** Reserved class */
     readonly "class": {
@@ -371,8 +373,10 @@ fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
       readonly "foo-bar": {
         /** Deep namespace */
         readonly deep: {
-          /** Value leaf
-           * second * / terminator */
+          /**
+           * Value leaf
+           * second * / terminator
+           */
           readonly "leaf-value": string;
           readonly invoke: {
             /** Callable leaf */
