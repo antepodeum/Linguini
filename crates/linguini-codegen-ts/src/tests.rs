@@ -379,9 +379,19 @@ fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
            */
           readonly "leaf-value": string;
           readonly invoke: {
-            /** Callable leaf */
+            /**
+             * Callable leaf
+             *
+             * @param {number | bigint | string} count
+             * @returns {string}
+             */
             (count: number | bigint | string): string;
-            /** Callable leaf */
+            /**
+             * Callable leaf
+             *
+             * @param {{ count: number | bigint | string }} args
+             * @returns {string}
+             */
             (args: { count: number | bigint | string }): string;
           };
         };

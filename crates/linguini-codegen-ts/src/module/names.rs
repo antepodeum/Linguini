@@ -132,21 +132,46 @@ pub fn escape_comment(value: &str) -> String {
 
 /// Render source documentation as safe JSDoc immediately before a generated declaration.
 ///
-/// Each source doc entry remains a separate block, while embedded line breaks are kept as
-/// explicit JSDoc lines. Escaping only the comment terminator preserves the original prose and
-/// prevents generated output from being prematurely closed by hostile text.
+/// Consecutive source entries remain one block with explicit lines and blank paragraphs. Backend
+/// tags are supplied separately. Escaping comment terminators prevents generated output from being
+/// prematurely closed by hostile prose or source identifiers.
 pub fn emit_docs(docs: &[String], indent: &str, output: &mut String) {
-    if docs.is_empty() {
+    emit_docs_with_tags(docs, &[], indent, output);
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum JsDocTag {
+    Param { name: String, ty: String },
+    Returns { ty: String },
+}
+
+pub(crate) fn emit_docs_with_tags(
+    docs: &[String],
+    tags: &[JsDocTag],
+    indent: &str,
+    output: &mut String,
+) {
+    if docs.is_empty() && tags.is_empty() {
         return;
     }
-    let lines = docs
+    let mut lines = docs
         .iter()
         .flat_map(|doc| doc.split('\n'))
+        .map(escape_comment)
         .collect::<Vec<_>>();
+    if !docs.is_empty() && !tags.is_empty() {
+        lines.push(String::new());
+    }
+    lines.extend(tags.iter().map(|tag| {
+        escape_comment(&match tag {
+            JsDocTag::Param { name, ty } => format!("@param {{{ty}}} {name}"),
+            JsDocTag::Returns { ty } => format!("@returns {{{ty}}}"),
+        })
+    }));
     if let [line] = lines.as_slice() {
         output.push_str(indent);
         output.push_str("/** ");
-        output.push_str(&escape_comment(line));
+        output.push_str(line);
         output.push_str(" */\n");
         return;
     }
@@ -158,7 +183,7 @@ pub fn emit_docs(docs: &[String], indent: &str, output: &mut String) {
         output.push_str(" *");
         if !line.is_empty() {
             output.push(' ');
-            output.push_str(&escape_comment(line));
+            output.push_str(&line);
         }
         output.push('\n');
     }

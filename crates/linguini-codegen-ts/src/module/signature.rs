@@ -7,8 +7,8 @@
 
 use linguini_ir::IrMessage;
 
-use super::names::{property_key, safe_identifier, string_literal};
-use super::type_model::{render_typescript_type, TypeModel};
+use super::names::{emit_docs_with_tags, property_key, safe_identifier, string_literal, JsDocTag};
+use super::type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 
 const IMPLEMENTATION_ARGS: &str = "__lgl_args";
 
@@ -142,6 +142,31 @@ impl MessageCallSignature {
         )
     }
 
+    fn positional_doc_tags(&self) -> Vec<JsDocTag> {
+        self.parameters
+            .iter()
+            .map(|parameter| JsDocTag::Param {
+                name: parameter.binding.clone(),
+                ty: render_jsdoc_type(&parameter.ty),
+            })
+            .chain(std::iter::once(JsDocTag::Returns {
+                ty: "string".to_owned(),
+            }))
+            .collect()
+    }
+
+    fn named_doc_tags(&self) -> Vec<JsDocTag> {
+        vec![
+            JsDocTag::Param {
+                name: "args".to_owned(),
+                ty: self.named_object_type(),
+            },
+            JsDocTag::Returns {
+                ty: "string".to_owned(),
+            },
+        ]
+    }
+
     /// Render both public overload declarations for a top-level message.
     pub(crate) fn overload_declarations(&self, name: &str, docs: &[String]) -> String {
         if !self.is_parameterized() {
@@ -152,12 +177,12 @@ impl MessageCallSignature {
         }
 
         let mut output = String::new();
-        super::names::emit_docs(docs, "", &mut output);
+        emit_docs_with_tags(docs, &self.positional_doc_tags(), "", &mut output);
         output.push_str(&format!(
             "export declare function {name}({}): string;\n",
             self.positional_params()
         ));
-        super::names::emit_docs(docs, "", &mut output);
+        emit_docs_with_tags(docs, &self.named_doc_tags(), "", &mut output);
         output.push_str(&format!(
             "export declare function {name}(args: {}): string;\n\n",
             self.named_object_type()
@@ -172,12 +197,12 @@ impl MessageCallSignature {
         }
 
         let mut output = String::new();
-        super::names::emit_docs(docs, "", &mut output);
+        emit_docs_with_tags(docs, &self.positional_doc_tags(), "", &mut output);
         output.push_str(&format!(
             "export function {name}({}): string;\n",
             self.positional_params()
         ));
-        super::names::emit_docs(docs, "", &mut output);
+        emit_docs_with_tags(docs, &self.named_doc_tags(), "", &mut output);
         output.push_str(&format!(
             "export function {name}(args: {}): string;\n",
             self.named_object_type()
@@ -191,12 +216,22 @@ impl MessageCallSignature {
             return self.callable_type();
         }
         let mut output = String::from("{\n");
-        super::names::emit_docs(docs, &format!("{indent}  "), &mut output);
+        emit_docs_with_tags(
+            docs,
+            &self.positional_doc_tags(),
+            &format!("{indent}  "),
+            &mut output,
+        );
         output.push_str(&format!(
             "{indent}  ({}): string;\n",
             self.positional_params()
         ));
-        super::names::emit_docs(docs, &format!("{indent}  "), &mut output);
+        emit_docs_with_tags(
+            docs,
+            &self.named_doc_tags(),
+            &format!("{indent}  "),
+            &mut output,
+        );
         output.push_str(&format!(
             "{indent}  (args: {}): string;\n{indent}}}",
             self.named_object_type()
@@ -306,7 +341,10 @@ mod tests {
     fn overload_docs_are_preserved_on_both_signatures() {
         let signature = MessageCallSignature::from_message(&message(&[("count", "Number")]));
         let declarations = signature.overload_declarations("message", &["A message".to_owned()]);
-        assert_eq!(declarations.matches("/** A message */").count(), 2);
+        assert_eq!(declarations.matches(" * A message").count(), 2);
+        assert!(declarations.contains(" * @param {number | bigint | string} count"));
+        assert!(declarations.contains(" * @param {{ count: number | bigint | string }} args"));
+        assert_eq!(declarations.matches(" * @returns {string}").count(), 2);
         assert!(declarations
             .contains("export declare function message(count: number | bigint | string): string;"));
         assert!(declarations.contains(
@@ -314,11 +352,22 @@ mod tests {
         ));
         let implementation =
             signature.implementation_overloads("message", &["A message".to_owned()]);
-        assert_eq!(implementation.matches("/** A message */").count(), 2);
+        assert_eq!(implementation.matches(" * A message").count(), 2);
+        assert_eq!(implementation.matches(" * @returns {string}").count(), 2);
         assert!(implementation
             .contains("export function message(count: number | bigint | string): string;"));
         assert!(implementation.contains(
             "export function message(args: { count: number | bigint | string }): string;"
         ));
+    }
+
+    #[test]
+    fn generated_doc_tags_escape_hostile_source_parameter_names() {
+        let signature = MessageCallSignature::from_message(&message(&[("*/", "String")]));
+        let declarations = signature.overload_declarations("message", &["Safe prose".to_owned()]);
+
+        assert!(declarations.contains("@param {string} __lgl_name_2A2F"));
+        assert!(declarations.contains("@param {{ \"* /\": string }} args"));
+        assert_eq!(declarations.matches("* /\": string }} args").count(), 1);
     }
 }

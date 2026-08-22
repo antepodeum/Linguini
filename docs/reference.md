@@ -126,7 +126,9 @@ canonical API prose: they appear in LSP hover for both schema symbols and their
 locale implementations, and codegen emits them as escaped JSDoc on generated
 groups, values, and both callable overloads. Generated `.d.ts` output preserves
 the same documentation. Consecutive comment lines remain one documentation block;
-empty `///` lines preserve paragraph breaks, and embedded `*/` text is escaped safely.
+empty `///` lines preserve paragraph breaks, and embedded `*/` text is escaped safely. Codegen adds
+typed `@param` and `@returns` tags from the schema signature without treating generated tags as
+source prose.
 
 ```lgs
 /// Shown on the delivery confirmation card.

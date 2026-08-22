@@ -12,7 +12,8 @@ editor boundaries to update this file, public documentation, and executable test
 - Codegen integrations that inspect public parameter types can use `TypeModel` plus its TypeScript
   and JSDoc renderers instead of recreating source-type mappings.
 - Generated documentation now preserves consecutive lines and blank paragraphs in one safe JSDoc
-  block across runtime and declaration output.
+  block across runtime and declaration output. Typed backend tags are generated separately from
+  canonical source prose.
 - Generated output is ESM-only. Remove `targets.ts.module` and CommonJS output assumptions.
 - SvelteKit web policy uses nested `[web.*]` tables. Replace legacy flat routing, source, cookie,
   local-storage, link, exclusion, and switch-route fields with the mappings in
