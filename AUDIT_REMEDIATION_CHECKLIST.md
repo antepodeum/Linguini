@@ -722,7 +722,9 @@ production path uses the fix and its relevant tests pass.
 - [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
       now uses the structured emitter, while legacy project/runtime generation still uses direct
       TypeScript string assembly.
-- [ ] ESM-A4 — Introduce one shared language-neutral `TypeModel`.
+- [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
+  once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
+  and JSDoc renderers consume that model, and signature generation no longer maps source types.
 - [ ] ESM-A5 — Render JavaScript plus JSDoc from the shared models.
 - [ ] ESM-A6 — Render `.d.ts` from the same `TypeModel`.
 - [ ] ESM-A7 — Avoid a parallel TypeScript runtime implementation.
@@ -859,7 +861,9 @@ production path uses the fix and its relevant tests pass.
 
 ### P2
 
-- [ ] P2-1 — Shared ECMAScript backend and `TypeModel`.
+- [-] P2-1 — Shared ECMAScript backend and `TypeModel`. The backend-neutral public type model now
+  drives message signatures and exposes TypeScript/JSDoc renderers; legacy project/runtime string
+  assembly still needs migration to the structured ECMAScript emitter.
 - [ ] P2-2 — End-to-end documentation propagation.
 - [-] P2-3 — Emit both multiline modes from semantic text IR.
 - [x] P2-4 — Collision-safe identifiers and filenames.
