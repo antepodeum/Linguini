@@ -589,9 +589,10 @@ production path uses the fix and its relevant tests pass.
 - [-] #358 — Land and execute Linux, Windows, and macOS CI.
 - [x] #359 — Land dependency, license, and advisory checks.
 - [-] #360 — Add enforceable coverage plus parser/formatter property jobs.
-- [-] #361 — Real-site generated TypeScript/JSDoc/`.d.ts` overloads have positive/negative type
-  checks and runtime parity tests, and one standalone JavaScript/TypeScript example executes; a
-  broader standalone JavaScript/JSDoc corpus remains.
+- [x] #361 — Real-site generated TypeScript/JSDoc/`.d.ts` overloads have positive/negative type
+  checks and runtime parity tests. The standalone full-profile corpus now typechecks and executes
+  documented JavaScript/TypeScript calls and separately verifies JSDoc wrappers, positional/named
+  success, missing parameters/properties, excess properties, and invalid JSDoc argument types.
 - [-] #362 — Complete real Vite, native VSIX, npm CLI, and WASM LSP integration CI.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
