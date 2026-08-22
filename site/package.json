@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0-alpha.4",
   "type": "module",
+  "packageManager": "pnpm@11.1.0",
   "scripts": {
     "dev": "vite dev",
     "linguini:build": "node scripts/restore-linguini-output.mjs",

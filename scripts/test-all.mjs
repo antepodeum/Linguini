@@ -9,8 +9,8 @@ export const REPOSITORY_ROOT = resolve(SCRIPT_ROOT, "..");
 export const PROJECTS = Object.freeze([
   Object.freeze({ id: "rust", path: ".", manager: "cargo", aliases: ["cargo"] }),
   Object.freeze({ id: "vite", path: "plugins/vite", manager: "pnpm", aliases: ["plugins/vite"] }),
-  Object.freeze({ id: "cli", path: "packages/cli", manager: "npm", aliases: ["packages/cli"] }),
-  Object.freeze({ id: "vscode", path: "editors/vscode", manager: "npm", aliases: ["editors/vscode"] }),
+  Object.freeze({ id: "cli", path: "packages/cli", manager: "pnpm", aliases: ["packages/cli"] }),
+  Object.freeze({ id: "vscode", path: "editors/vscode", manager: "pnpm", aliases: ["editors/vscode"] }),
   Object.freeze({ id: "site", path: "site", manager: "pnpm", aliases: [] }),
 ]);
 
@@ -46,6 +46,16 @@ export const TASKS = Object.freeze([
     command: "node",
     args: ["scripts/check-public-contract.mjs"],
     profiles: ["quick", "full"],
+    tools: [],
+    requiresNodeModules: false,
+  }),
+  nodeTask({
+    id: "repo:js-boundaries",
+    project: "rust",
+    label: "JavaScript package-manager boundaries",
+    command: "node",
+    args: ["scripts/check-js-boundaries.mjs"],
+    profiles: ["quick", "full", "site"],
     tools: [],
     requiresNodeModules: false,
   }),
@@ -143,20 +153,20 @@ export const TASKS = Object.freeze([
     id: "cli:test",
     project: "cli",
     label: "CLI package tests",
-    command: "npm",
+    command: "pnpm",
     args: ["test"],
     profiles: ["quick", "full"],
-    tools: ["npm"],
+    tools: ["pnpm"],
     requiresNodeModules: false,
   }),
   nodeTask({
     id: "vscode:test",
     project: "vscode",
     label: "VS Code extension tests",
-    command: "npm",
+    command: "pnpm",
     args: ["test"],
     profiles: ["full"],
-    tools: ["npm"],
+    tools: ["pnpm"],
     requiresNodeModules: true,
   }),
   nodeTask({
@@ -296,12 +306,10 @@ const REMEDIATION = Object.freeze({
   rustfmt: "Run `rustup component add rustfmt`, then rerun the selected profile.",
   "clippy-driver": "Run `rustup component add clippy`, then rerun the selected profile.",
   pnpm: "Enable pnpm (for example, `corepack enable pnpm`), then rerun the selected profile.",
-  npm: "Install Node.js with npm, then rerun the selected profile.",
 });
 
 function installHint(project) {
   if (project.manager === "pnpm") return `cd ${project.path} && pnpm install --offline`;
-  if (project.manager === "npm") return `cd ${project.path} && npm ci --offline`;
   return "Install the workspace dependencies with the repository's documented tool.";
 }
 

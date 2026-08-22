@@ -3,6 +3,7 @@
   "version": "0.1.0-alpha.4",
   "description": "Vite plugin for Linguini source watching and TypeScript codegen",
   "type": "module",
+  "packageManager": "pnpm@11.1.0",
   "main": "./src/index.js",
   "exports": {
     ".": {

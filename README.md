@@ -241,9 +241,9 @@ VS Code extension:
 
 ```bash
 cd editors/vscode
-npm install
-npm run compile
-npm run open:dev
+pnpm install --frozen-lockfile
+pnpm run compile
+pnpm run open:dev
 ```
 
 ---

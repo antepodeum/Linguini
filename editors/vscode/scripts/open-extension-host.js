@@ -42,5 +42,5 @@ console.error(
   `Failed to start VS Code/VSCodium with the test extension: ${lastError?.message ?? 'unknown error'}`
 );
 console.error('Install the codium/code CLI in PATH, run from VSCodium with F5, or set VSCODE_BIN.');
-console.error('Example for Flatpak: VSCODE_BIN="flatpak run com.vscodium.codium" npm run dev:host');
+console.error('Example for Flatpak: VSCODE_BIN="flatpak run com.vscodium.codium" pnpm dev:host');
 process.exit(1);

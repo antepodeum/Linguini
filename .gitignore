@@ -1,5 +1,6 @@
 /target/
 /node_modules/
+**/node_modules/
 /release/
 /packages/cli-*/bin/
 editors/vscode/dist/

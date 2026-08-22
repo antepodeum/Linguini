@@ -4,6 +4,7 @@
   "description": "VS Code language support for Linguini schema and locale files.",
   "icon": "assets/icon.png",
   "version": "0.1.0-alpha.4",
+  "packageManager": "pnpm@11.1.0",
   "publisher": "antepod",
   "license": "Apache-2.0",
   "repository": {
@@ -26,16 +27,16 @@
   "main": "./dist/extension.js",
   "scripts": {
     "compile": "tsc -p ./",
-    "test": "npm run compile && node --test out/grammar.test.js out/restart.test.js out/server-resolution.test.js",
+    "test": "pnpm run compile && node --test out/grammar.test.js out/restart.test.js out/server-resolution.test.js",
     "bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=dist/extension.js --sourcemap --sources-content=false",
-    "test:integration": "npm run bundle && node ./scripts/run-integration-tests.js",
+    "test:integration": "pnpm run bundle && node ./scripts/run-integration-tests.js",
     "package:vsix": "node ./scripts/package-vsix.js",
     "watch": "tsc -watch -p ./",
-    "open:dev": "npm run compile && code --extensionDevelopmentPath=. ./sample-workspace",
-    "audit:prod": "npm audit --omit=dev",
-    "vscode:prepublish": "npm run compile && npm test",
-    "check": "npm run compile && npm audit --audit-level=moderate",
-    "dev:host": "npm run compile && node ./scripts/open-extension-host.js"
+    "open:dev": "pnpm run compile && code --extensionDevelopmentPath=. ./sample-workspace",
+    "audit:prod": "pnpm audit --prod",
+    "vscode:prepublish": "pnpm run compile && pnpm test",
+    "check": "pnpm run compile && pnpm audit --audit-level=moderate",
+    "dev:host": "pnpm run compile && node ./scripts/open-extension-host.js"
   },
   "contributes": {
     "languages": [

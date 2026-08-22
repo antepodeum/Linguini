@@ -22,7 +22,7 @@ const sourceBinary = path.resolve(configuredBinary || defaultBinary);
 
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(serverDir, { recursive: true });
-run('npm', ['run', 'compile']);
+run('pnpm', ['run', 'compile']);
 bundleExtension();
 vendorServer();
 packageVsix();

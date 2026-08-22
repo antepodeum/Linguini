@@ -60,12 +60,6 @@ for (const [relative, ...required] of documentedInstallCommands) {
   }
 }
 
-const extensionLockPath = "editors/vscode/package-lock.json";
-const extensionLock = JSON.parse(await readFile(path.join(root, extensionLockPath), "utf8"));
-if (extensionLock.version !== expected || extensionLock.packages?.[""]?.version !== expected) {
-  throw new Error(`${extensionLockPath}: root package versions must both equal ${expected}`);
-}
-
 const readme = await readFile(path.join(root, "README.md"), "utf8");
 if (!readme.includes("status-preview") || !readme.includes("very early stage of development")) {
   throw new Error("README.md: public release status must remain explicitly preview/early-stage");

@@ -2,6 +2,7 @@
   "name": "@linguini/repository",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.1.0",
   "engines": {
     "node": ">=20"
   },

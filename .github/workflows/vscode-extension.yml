@@ -60,13 +60,18 @@ jobs:
         with:
           toolchain: 1.93.1
           targets: ${{ matrix.rust_target }}
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.1.0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: editors/vscode/package-lock.json
+          cache: pnpm
+          cache-dependency-path: editors/vscode/pnpm-lock.yaml
       - name: Verify release versions
         run: node packages/scripts/check-versions.mjs
+      - name: Verify JavaScript package-manager boundaries
+        run: node scripts/check-js-boundaries.mjs
       - name: Build native CLI and LSP
         run: cargo build --locked --release -p linguini-cli --target ${{ matrix.rust_target }}
       - name: Stage checksummed native npm package
@@ -77,23 +82,23 @@ jobs:
       - name: Pack launcher npm package
         if: matrix.platform == 'linux-x64'
         working-directory: packages/cli
-        run: npm test && npm pack --pack-destination ../../release
+        run: pnpm test && npm pack --pack-destination ../../release
       - name: Install extension dependencies
         working-directory: editors/vscode
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Test extension
         working-directory: editors/vscode
-        run: npm test
+        run: pnpm test
       - name: Package platform VSIX
         working-directory: editors/vscode
         env:
           VSCE_TARGET: ${{ matrix.platform }}
           LINGUINI_SERVER_BINARY: ../../${{ matrix.binary }}
-        run: npm run package:vsix
+        run: pnpm run package:vsix
       - name: Smoke test real Extension Host
         if: matrix.platform == 'linux-x64'
         working-directory: editors/vscode
-        run: xvfb-run -a npm run test:integration
+        run: xvfb-run -a pnpm run test:integration
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: linguini-${{ matrix.platform }}
@@ -115,12 +120,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.1.0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: editors/vscode/package-lock.json
-      - run: npm ci
+          cache: pnpm
+          cache-dependency-path: editors/vscode/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
         working-directory: editors/vscode
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -143,7 +151,7 @@ jobs:
             exit 1
           fi
           for vsix in "${files[@]}"; do
-            npx --no-install ovsx publish "$vsix"
+            pnpm exec ovsx publish "$vsix"
           done
 
   publish-npm:
