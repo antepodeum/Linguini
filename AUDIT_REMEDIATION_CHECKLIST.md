@@ -606,7 +606,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Land the pinned `rust-toolchain.toml`.
-- [-] #366 — Standardize and reproducibly verify JavaScript package-manager boundaries.
+- [x] #366 — Standardize and reproducibly verify JavaScript package-manager boundaries. Every
+  dependency-bearing project pins pnpm 11.1.0 and lockfile v9; VS Code migrated from npm with an
+  explicit dependency-build allowlist, and root/CI policy rejects mixed lockfiles or npm installs.
 - [x] #367 — Land automatic release-version synchronization checks.
 - [x] #368 — Add public API/semantic-version compatibility checks.
 - [-] #369 — Make documentation and examples an executable conformance suite. The root full
@@ -922,7 +924,9 @@ production path uses the fix and its relevant tests pass.
 - [x] P3-4 — ICU/CLDR differential tests cover 152 representative cardinal cases across eight
   structurally distinct plural-rule families.
 - [-] P3-5 — Vite/native VSIX/npm CLI/WASM integration matrix.
-- [-] P3-6 — Dependency policy, pinned actions, reproducible JS packaging, synced versions.
+- [x] P3-6 — Dependency policy, pinned actions, reproducible JS packaging, synced versions.
+  Cargo policy/advisory jobs, immutable action SHAs, enforced pnpm boundaries and reviewed build
+  scripts, exact native optional versions, and repository-wide version checks are all active.
 
 ## Final verification
 
