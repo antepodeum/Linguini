@@ -9,6 +9,9 @@ use crate::{
 use std::fs;
 use std::path::Path;
 
+use proptest::prelude::*;
+use proptest::test_runner::RngSeed;
+
 #[test]
 fn parses_schema_fixture() {
     let source = include_str!("../../../../tests/fixtures/golden/schema/shop.lgs");
@@ -847,6 +850,54 @@ fn parser_is_panic_free_for_unicode_recovery_corpus() {
             let _ = parse_schema_with_recovery(source);
         });
         assert!(result.is_ok(), "parser panicked for {source:?}");
+    }
+}
+
+fn arbitrary_unicode() -> impl Strategy<Value = String> {
+    prop::collection::vec(any::<char>(), 0..512)
+        .prop_map(|characters| characters.into_iter().collect())
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 128,
+        max_shrink_iters: 2_048,
+        failure_persistence: None,
+        rng_seed: RngSeed::Fixed(0x4c49_4e47_5549_4e49),
+        .. ProptestConfig::default()
+    })]
+
+    #[test]
+    fn recovery_parsers_never_panic_for_arbitrary_unicode(source in arbitrary_unicode()) {
+        let locale = std::panic::catch_unwind(|| parse_locale_with_recovery(&source));
+        let schema = std::panic::catch_unwind(|| parse_schema_with_recovery(&source));
+        prop_assert!(locale.is_ok());
+        prop_assert!(schema.is_ok());
+    }
+
+    #[test]
+    fn nested_schema_groups_parse_to_requested_depth(depth in 0usize..32) {
+        let mut source = String::new();
+        for index in 0..depth {
+            source.push_str(&format!("group_{index} {{\n"));
+        }
+        source.push_str("message(value: String)\n");
+        for _ in 0..depth {
+            source.push_str("}\n");
+        }
+
+        let parsed = parse_schema(&source);
+        prop_assert!(parsed.is_ok(), "failed at depth {depth}: {parsed:?}");
+    }
+
+    #[test]
+    fn large_valid_locale_inputs_parse_completely(message_count in 1usize..512) {
+        let source = (0..message_count)
+            .map(|index| format!("message_{index} = value {index}\n"))
+            .collect::<String>();
+        let parsed = parse_locale(&source);
+        prop_assert!(parsed.is_ok());
+        prop_assert_eq!(parsed.unwrap().declarations.len(), message_count);
     }
 }
 

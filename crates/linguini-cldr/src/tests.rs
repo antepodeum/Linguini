@@ -1,10 +1,38 @@
-use super::{built_in_plural_rules, parse_plural_rule};
+use super::{built_in_plural_rules, evaluate_plural_rule, parse_plural_rule};
 use std::io::Write;
 use std::process::{Command, Stdio};
+
+use proptest::prelude::*;
+use proptest::test_runner::RngSeed;
 
 #[test]
 fn crate_exports_plural_parser() {
     assert!(parse_plural_rule("i = 1 and v = 0").is_ok());
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 256,
+        failure_persistence: None,
+        rng_seed: RngSeed::Fixed(0x504c_5552_414c_5255),
+        .. ProptestConfig::default()
+    })]
+
+    #[test]
+    fn generated_modulo_rules_match_integer_arithmetic(
+        sample in any::<u64>(),
+        modulo in 1u64..10_000,
+    ) {
+        let remainder = sample % modulo;
+        let rule = parse_plural_rule(&format!("i % {modulo} = {remainder}"))?;
+        prop_assert!(evaluate_plural_rule(&rule, &sample.to_string())?);
+
+        let other = (remainder + 1) % modulo;
+        if other != remainder {
+            let mismatch = parse_plural_rule(&format!("i % {modulo} = {other}"))?;
+            prop_assert!(!evaluate_plural_rule(&mismatch, &sample.to_string())?);
+        }
+    }
 }
 
 #[test]

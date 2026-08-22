@@ -10,3 +10,6 @@ rust-version.workspace = true
 [dependencies]
 chumsky = "0.13.0"
 linguini-core = { path = "../linguini-core", version = "0.1.0-alpha.4" }
+
+[dev-dependencies]
+proptest = "=1.8.0"

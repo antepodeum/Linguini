@@ -45,6 +45,59 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --locked --workspace
+
+  coverage:
+    name: Rust coverage threshold
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.93.1
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: cargo-llvm-cov
+      - name: Enforce workspace line coverage
+        run: >-
+          cargo llvm-cov --locked --workspace --all-targets
+          --fail-under-lines 80
+
+  properties:
+    name: Parser and formatter properties
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.93.1
+      - name: Run deterministic property suites
+        run: >-
+          cargo test --locked
+          -p linguini-syntax -p linguini-format -p linguini-cldr -p linguini-config
+
+  mutation:
+    name: Changed-code mutation testing
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.93.1
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: cargo-mutants@27.1.0
+      - name: Capture pull-request diff
+        run: git diff "origin/${{ github.base_ref }}"...HEAD > git.diff
+      - name: Reject surviving changed-code mutants
+        run: >-
+          cargo mutants --no-shuffle --in-diff git.diff
+          --timeout 300
   msrv:
     name: Rust 1.76 MSRV
     runs-on: ubuntu-24.04

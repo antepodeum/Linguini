@@ -10,3 +10,6 @@ rust-version.workspace = true
 [dependencies]
 linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.4" }
 unicode-width = "0.2.2"
+
+[dev-dependencies]
+proptest = "=1.8.0"

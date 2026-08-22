@@ -8,6 +8,9 @@ use linguini_syntax::{
 };
 use std::path::Path;
 
+use proptest::prelude::*;
+use proptest::test_runner::RngSeed;
+
 #[test]
 fn formats_schema_idempotently_and_preserves_doc_comments() {
     let source = "/// Delivery label\ndelivery(count:Number)\nemail_input{\n/// Label\nlabel\n}\n";
@@ -480,6 +483,52 @@ fn property_malformed_inputs_return_errors_without_partial_output() {
         assert!(errors
             .iter()
             .all(|error| error.span.start <= error.span.end && error.span.end <= source.len()));
+    }
+}
+
+fn formatter_text() -> impl Strategy<Value = String> {
+    prop::collection::vec(
+        any::<char>().prop_filter("raw text scalar", |value| {
+            !value.is_control() && !matches!(value, '"' | '{' | '}')
+        }),
+        0..256,
+    )
+    .prop_map(|characters| characters.into_iter().collect())
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 128,
+        max_shrink_iters: 2_048,
+        failure_persistence: None,
+        rng_seed: RngSeed::Fixed(0x464f_524d_4154_5445),
+        .. ProptestConfig::default()
+    })]
+
+    #[test]
+    fn arbitrary_unicode_raw_text_is_semantic_and_idempotent(text in formatter_text()) {
+        let source = format!("message = raw\"\"\"{text}\"\"\"\n");
+        let before = message_semantics(&source);
+        let once = format_source(SourceKind::Locale, &source, &FormatOptions::default())?;
+        let twice = format_source(SourceKind::Locale, &once, &FormatOptions::default())?;
+
+        prop_assert_eq!(message_semantics(&once), before);
+        prop_assert_eq!(twice, once);
+    }
+
+    #[test]
+    fn arbitrary_input_formatting_never_panics(source in prop::collection::vec(any::<char>(), 0..512)
+        .prop_map(|characters| characters.into_iter().collect::<String>())) {
+        for kind in [SourceKind::Schema, SourceKind::Locale] {
+            let result = std::panic::catch_unwind(|| {
+                format_source(kind, &source, &FormatOptions::default())
+            });
+            prop_assert!(result.is_ok());
+            if let Ok(Ok(once)) = result {
+                let twice = format_source(kind, &once, &FormatOptions::default());
+                prop_assert_eq!(twice.as_ref(), Ok(&once));
+            }
+        }
     }
 }
 

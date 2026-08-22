@@ -532,6 +532,8 @@ mod tests {
         locale_scope_chain, namespace_from_path,
     };
     use crate::ConfigError;
+    use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
     use std::fs;
     use std::path::Path;
     use tempfile::TempDir;
@@ -581,6 +583,35 @@ mod tests {
                 Path::new("linguini/locale/shop/delivery/ru.lgl").to_path_buf(),
             ]
         );
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 128,
+            failure_persistence: None,
+            rng_seed: RngSeed::Fixed(0x5041_5448_4348_4149),
+            .. ProptestConfig::default()
+        })]
+
+        #[test]
+        fn locale_scope_chain_contains_every_portable_ancestor(
+            components in prop::collection::vec("[a-zA-Z0-9_-]{1,12}", 0..16),
+            locale in "[a-z]{2}(-[A-Z]{2})?",
+        ) {
+            let root = Path::new("locales");
+            let mut file = root.to_path_buf();
+            for component in &components {
+                file.push(component);
+            }
+            file.push(format!("{locale}.lgl"));
+
+            let chain = locale_scope_chain(root, &file)?;
+            let root_locale = root.join(format!("{locale}.lgl"));
+            prop_assert_eq!(chain.len(), components.len() + 1);
+            prop_assert_eq!(chain.first(), Some(&root_locale));
+            prop_assert_eq!(chain.last(), Some(&file));
+            prop_assert!(chain.windows(2).all(|pair| pair[1].starts_with(pair[0].parent().unwrap_or(root))));
+        }
     }
 
     #[test]
