@@ -856,7 +856,9 @@ production path uses the fix and its relevant tests pass.
 - [-] P2-3 — Emit both multiline modes from semantic text IR.
 - [x] P2-4 — Collision-safe identifiers and filenames.
 - [x] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
-- [ ] P2-6 — Compile-time typed `l` namespace transform.
+- [x] P2-6 — Compile-time typed `l` namespace transform. Recursive generated declarations type the
+  source facade before Vite replaces exact static leaves and bounded dynamic paths; 45 plugin tests
+  plus real-site positive/negative Svelte/TypeScript checks pass.
 - [x] P2-7 — Positional plus named-object overloads.
 - [x] P2-8 — Nested web config plus generated feature modules.
 - [x] P2-9 — One shared browser/server locale transition plan.
