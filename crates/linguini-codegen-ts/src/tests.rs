@@ -58,6 +58,59 @@ fn generated_module_snapshot_is_stable() {
     }
 }
 
+#[test]
+fn project_codegen_emits_dedented_and_raw_semantic_text_exactly() {
+    let schema = lower_schema(
+        &parse_schema("receipt(order_id: String, item_count: Number)\nwire\n").expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(concat!(
+            "receipt = \"\"\"\r\n",
+            "\tOrder {order_id}\r\n",
+            "\t  {item_count} items  \r\n",
+            "\tThank you.\r\n",
+            "\"\"\"\n",
+            "wire = raw\"\"\"  leading\r\n",
+            "\tindentation is data\r\n",
+            "trailing spaces stay  \"\"\"\n",
+        ))
+        .expect("locale"),
+    );
+    assert_eq!(
+        locale.messages[0].body.as_ref().expect("receipt").mode,
+        linguini_ir::IrTextBlockMode::Dedented
+    );
+    assert_eq!(
+        locale.messages[1].body.as_ref().expect("wire").mode,
+        linguini_ir::IrTextBlockMode::Raw
+    );
+
+    let files = generate_project_files(
+        &schema,
+        &[TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("codegen");
+    let generated = files
+        .iter()
+        .find(|file| file.path == "locales/en.ts")
+        .expect("locale module");
+
+    assert!(generated.contents.contains(
+        "return \"Order \" + String(order_id) + \"\\n  \" + String(formatNumber(item_count)) + \" items  \\nThank you.\";"
+    ));
+    assert!(
+        generated.contents.contains(
+            "export const wire = \"  leading\" + \"\\r\\n\" + \"\\tindentation is data\" + \"\\r\\n\" + \"trailing spaces stay  \";"
+        ),
+        "{}",
+        generated.contents
+    );
+}
+
 fn assert_snapshot(path: &str, snapshot: &str) {
     if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
         let path = repo_root().join(path);
