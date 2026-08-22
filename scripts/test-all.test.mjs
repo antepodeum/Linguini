@@ -106,6 +106,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "docs:config",
       "docs:codeblocks",
       "docs:examples",
+      "docs:packaged",
       "vite:test",
       "cli:test",
       "vscode:test",

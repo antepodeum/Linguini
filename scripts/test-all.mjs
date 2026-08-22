@@ -120,6 +120,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: true,
   }),
   nodeTask({
+    id: "docs:packaged",
+    project: "site",
+    label: "Documentation packaged-artifact conformance",
+    command: "node",
+    args: ["../scripts/docs-packaged.mjs"],
+    profiles: ["full"],
+    tools: ["cargo"],
+    requiresNodeModules: true,
+  }),
+  nodeTask({
     id: "vite:test",
     project: "vite",
     label: "Vite plugin tests",

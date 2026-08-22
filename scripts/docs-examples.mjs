@@ -81,7 +81,11 @@ function run(command, args, options) {
   }
 }
 
-export async function main({ root = REPOSITORY_ROOT } = {}) {
+export async function main({
+  root = REPOSITORY_ROOT,
+  cliManifestPath = resolve(root, "Cargo.toml"),
+  cargoTargetDir,
+} = {}) {
   const blocks = documentedCodeblocks(root);
   const sourcePath = "docs/getting-started.md";
   const config = findUniqueBlock(blocks, {
@@ -127,6 +131,12 @@ export async function main({ root = REPOSITORY_ROOT } = {}) {
     writeFileSync(join(localeRoot, "en.lgl"), english.source);
     writeFileSync(join(localeRoot, "ru.lgl"), russian.source);
 
+    const cargoOptions = {
+      cwd: projectRoot,
+      ...(cargoTargetDir
+        ? { env: { ...process.env, CARGO_TARGET_DIR: cargoTargetDir } }
+        : {}),
+    };
     run(
       "cargo",
       [
@@ -135,13 +145,13 @@ export async function main({ root = REPOSITORY_ROOT } = {}) {
         "--locked",
         "--quiet",
         "--manifest-path",
-        resolve(root, "Cargo.toml"),
+        cliManifestPath,
         "-p",
         "linguini-cli",
         "--",
         "build",
       ],
-      { cwd: projectRoot },
+      cargoOptions,
     );
 
     const example = executableDirectUseExample(directUse.source);
@@ -192,13 +202,13 @@ export async function main({ root = REPOSITORY_ROOT } = {}) {
         "--locked",
         "--quiet",
         "--manifest-path",
-        resolve(root, "Cargo.toml"),
+        cliManifestPath,
         "-p",
         "linguini-cli",
         "--",
         "build",
       ],
-      { cwd: svelteKitRoot },
+      { ...cargoOptions, cwd: svelteKitRoot },
     );
     run(resolve(root, "site/node_modules/.bin/svelte-kit"), ["sync"], { cwd: svelteKitRoot });
     run(
