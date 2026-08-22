@@ -6,6 +6,9 @@ editor boundaries to update this file, public documentation, and executable test
 
 ## 0.1.0-alpha.4 remediation baseline
 
+- Configuration tooling can consume the committed JSON Schema through
+  `linguini_config::CONFIG_SCHEMA_JSON`; keep editor integrations pinned to the matching Linguini
+  release.
 - Generated output is ESM-only. Remove `targets.ts.module` and CommonJS output assumptions.
 - SvelteKit web policy uses nested `[web.*]` tables. Replace legacy flat routing, source, cookie,
   local-storage, link, exclusion, and switch-route fields with the mappings in

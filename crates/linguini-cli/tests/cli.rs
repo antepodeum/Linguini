@@ -11,17 +11,13 @@ fn linguini() -> Command {
 
 #[test]
 fn help_is_generated_by_cli_argument_parser() {
+    let snapshot = include_str!("../../../tests/fixtures/golden/snapshots/cli-help.txt");
+
     linguini()
         .arg("--help")
         .assert()
         .success()
-        .stdout(contains("Experimental localization toolkit CLI"))
-        .stdout(contains("Usage: linguini <COMMAND>"))
-        .stdout(contains("init"))
-        .stdout(contains("check"))
-        .stdout(contains("fix"))
-        .stdout(contains("build"))
-        .stdout(contains("generate"))
+        .stdout(snapshot)
         .stderr("");
 }
 

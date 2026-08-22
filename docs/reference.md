@@ -1,5 +1,9 @@
 # Language Reference
 
+The committed JSON Schema for `linguini.toml` is exported as
+`linguini_config::CONFIG_SCHEMA_JSON`. CI snapshots this schema, generated declarations, CLI help,
+and executable examples so public contract drift requires an explicit reviewed update.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

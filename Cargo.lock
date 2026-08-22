@@ -690,6 +690,7 @@ name = "linguini-config"
 version = "0.1.0-alpha.4"
 dependencies = [
  "serde",
+ "serde_json",
  "tempfile",
  "toml",
 ]

@@ -20,6 +20,7 @@ pub use model::{
 pub use parser::parse_config;
 
 pub const DEFAULT_CONFIG_FILE: &str = "linguini.toml";
+pub const CONFIG_SCHEMA_JSON: &str = include_str!("../schema/linguini.schema.json");
 
 #[cfg(test)]
 mod tests;

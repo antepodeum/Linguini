@@ -1,0 +1,17 @@
+Experimental localization toolkit CLI
+
+Usage: linguini <COMMAND>
+
+Commands:
+  init      Create a Linguini project skeleton
+  check     Parse configured schema and locale files and report diagnostics
+  fix       Apply analyzer quick fixes such as missing locale files and message stubs
+  build     Build the localization project and write configured codegen outputs
+  generate  Generate rendered sample data for configured locales and enum variants
+  format    Format `.lgs` and `.lgl` files
+  lsp       Start the Linguini language server over stdio
+  help      Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
