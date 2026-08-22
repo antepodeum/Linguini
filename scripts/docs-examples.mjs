@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -39,6 +39,36 @@ export function executableDirectUseExample(source) {
     throw new Error("documented direct-use example no longer has executable calls");
   }
   return transformed;
+}
+
+function writeDocumentedSvelteKitExample(blocks, root, projectRoot) {
+  const sourcePath = "docs/examples/sveltekit-locale-provider.md";
+  const fixtures = [
+    ["linguini.toml", "toml", ["[web.switch_route]", 'name = "app"']],
+    ["linguini/schema/account.lgs", "lgs", ["// linguini/schema/account.lgs", "greeting(name: String)"]],
+    ["linguini/locale/account/en.lgl", "lgl", ["// linguini/locale/account/en.lgl", "title = Account"]],
+    ["linguini/locale/account/ru.lgl", "lgl", ["// linguini/locale/account/ru.lgl", "title = Аккаунт"]],
+    ["src/hooks.server.ts", "ts", ["// src/hooks.server.ts", "export { handle }"]],
+    ["src/hooks.ts", "ts", ["// src/hooks.ts", "export { reroute }"]],
+    ["src/routes/+layout.server.ts", "ts", ["// src/routes/+layout.server.ts", "export { load }"]],
+    ["src/routes/account/+page.svelte", "svelte", ["<!-- src/routes/account/+page.svelte -->", "l.account.greeting"]],
+  ];
+  for (const [relativePath, language, includes] of fixtures) {
+    const block = findUniqueBlock(blocks, { sourcePath, language, includes });
+    const destination = join(projectRoot, relativePath);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, block.source);
+  }
+  writeFileSync(join(projectRoot, "package.json"), '{"private":true,"type":"module"}\n');
+  writeFileSync(
+    join(projectRoot, "svelte.config.js"),
+    'import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";\n\nexport default { preprocess: vitePreprocess() };\n',
+  );
+  writeFileSync(
+    join(projectRoot, "tsconfig.json"),
+    '{"extends":"./.svelte-kit/tsconfig.json","compilerOptions":{"allowJs":true,"checkJs":true,"strict":true}}\n',
+  );
+  symlinkSync(resolve(root, "site/node_modules"), join(projectRoot, "node_modules"), "dir");
 }
 
 function run(command, args, options) {
@@ -150,12 +180,38 @@ export async function main({ root = REPOSITORY_ROOT } = {}) {
       assert.equal(generated.positional, "Hello, Artemy!");
       assert.equal(generated.named, "Email is required.");
     }
+
+    const svelteKitRoot = join(projectRoot, "sveltekit");
+    mkdirSync(svelteKitRoot, { recursive: true });
+    writeDocumentedSvelteKitExample(blocks, root, svelteKitRoot);
+    run(
+      "cargo",
+      [
+        "run",
+        "--offline",
+        "--locked",
+        "--quiet",
+        "--manifest-path",
+        resolve(root, "Cargo.toml"),
+        "-p",
+        "linguini-cli",
+        "--",
+        "build",
+      ],
+      { cwd: svelteKitRoot },
+    );
+    run(resolve(root, "site/node_modules/.bin/svelte-kit"), ["sync"], { cwd: svelteKitRoot });
+    run(
+      resolve(root, "site/node_modules/.bin/svelte-check"),
+      ["--workspace", svelteKitRoot, "--tsconfig", "./tsconfig.json", "--threshold", "warning"],
+      { cwd: svelteKitRoot },
+    );
   } finally {
     if (server) await server.close();
     rmSync(projectRoot, { recursive: true, force: true });
   }
 
-  console.log("Built, typechecked, and executed Getting Started JavaScript/TypeScript examples.");
+  console.log("Built and typechecked documented SvelteKit; built, typechecked, and executed JavaScript/TypeScript.");
   return 0;
 }
 

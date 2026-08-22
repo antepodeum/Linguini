@@ -39,6 +39,32 @@ return_query = "return"
 status = 303
 ```
 
+The component below uses this schema and its two locale implementations:
+
+```lgs
+// linguini/schema/account.lgs
+
+title
+greeting(name: String)
+settings
+```
+
+```lgl
+// linguini/locale/account/en.lgl
+
+title = Account
+greeting = Hello, {name}!
+settings = Settings
+```
+
+```lgl
+// linguini/locale/account/ru.lgl
+
+title = Аккаунт
+greeting = Привет, {name}!
+settings = Настройки
+```
+
 `locale_prefix = "never"` cannot read a locale from the path. The cookie gives
 both the server and browser a persistent source, while `accept-language`
 negotiates the first request. The generated browser switch and switch route use
