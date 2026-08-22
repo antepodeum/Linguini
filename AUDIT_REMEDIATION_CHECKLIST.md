@@ -492,7 +492,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #274 — Validate rename targets, grammar, scope, and collisions.
 - [x] #275 — Navigate to resolved declarations.
 - [x] #276 — Resolve namespace ambiguity for hover and definitions.
-- [-] #277 — Complete context/type-aware completion beyond indexed names.
+- [x] #277 — Complete context/type-aware completion beyond indexed names. Schema type positions,
+  locale placeholders, and typed dispatch keys now return filtered candidates with accurate LSP
+  kinds/details; matching schema parameters and enclosing plural/enum variants are resolved.
 - [x] #278 — Integrate schema semantic diagnostics.
 - [x] #279 — Preserve independent semantic diagnostics under recoverable syntax errors.
 - [x] #280 — Move filesystem discovery out of async request hot paths.
@@ -906,7 +908,9 @@ production path uses the fix and its relevant tests pass.
 - [x] P2-8 — Nested web config plus generated feature modules.
 - [x] P2-9 — One shared browser/server locale transition plan.
 - [x] P2-10 — Safe streaming-compatible link localization.
-- [-] P2-11 — Fully incremental/cancellable namespace-aware LSP.
+- [x] P2-11 — Fully incremental/cancellable namespace-aware LSP. Cached versioned document state,
+  bounded discovery, cancellation/debouncing, dependent diagnostics, workspace symbol resolution,
+  and context/type-aware completion are active through the production server.
 - [-] P2-12 — Native npm/VSIX plus universal WASM distribution.
 - [x] P2-13 — Real TOML parsing and migration diagnostics.
 - [x] P2-14 — Atomic writes and conflict-aware fixes.
