@@ -143,10 +143,10 @@ export const TASKS = Object.freeze([
     id: "vite:test",
     project: "vite",
     label: "Vite plugin tests",
-    command: "pnpm",
-    args: ["test"],
+    command: "node",
+    args: ["--test"],
     profiles: ["quick", "full"],
-    tools: ["pnpm"],
+    tools: [],
     requiresNodeModules: true,
   }),
   nodeTask({

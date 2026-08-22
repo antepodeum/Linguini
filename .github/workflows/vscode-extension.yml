@@ -82,7 +82,7 @@ jobs:
       - name: Pack launcher npm package
         if: matrix.platform == 'linux-x64'
         working-directory: packages/cli
-        run: pnpm test && npm pack --pack-destination ../../release
+        run: node --test && npm pack --pack-destination ../../release
       - name: Install extension dependencies
         working-directory: editors/vscode
         run: pnpm install --frozen-lockfile
