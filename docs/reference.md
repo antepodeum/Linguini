@@ -4,6 +4,10 @@ The committed JSON Schema for `linguini.toml` is exported as
 `linguini_config::CONFIG_SCHEMA_JSON`. CI snapshots this schema, generated declarations, CLI help,
 and executable examples so public contract drift requires an explicit reviewed update.
 
+Codegen lowers every public parameter type into the backend-neutral
+`linguini_codegen_ts::TypeModel`. TypeScript and JSDoc spellings are rendered from that same model
+through `render_typescript_type` and `render_jsdoc_type`.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

@@ -7,7 +7,8 @@
 
 use linguini_ir::IrMessage;
 
-use super::names::{property_key, safe_identifier, string_literal, ts_type};
+use super::names::{property_key, safe_identifier, string_literal};
+use super::type_model::{render_typescript_type, TypeModel};
 
 const IMPLEMENTATION_ARGS: &str = "__lgl_args";
 
@@ -16,7 +17,7 @@ const IMPLEMENTATION_ARGS: &str = "__lgl_args";
 pub(crate) struct MessageCallParameter {
     source_name: String,
     binding: String,
-    ty: String,
+    ty: TypeModel,
 }
 
 impl MessageCallParameter {
@@ -26,11 +27,15 @@ impl MessageCallParameter {
     }
 
     fn tuple_label(&self) -> String {
-        format!("{}: {}", self.binding, self.ty)
+        format!("{}: {}", self.binding, render_typescript_type(&self.ty))
     }
 
     fn named_property(&self) -> String {
-        format!("{}: {}", self.property_key(), self.ty)
+        format!(
+            "{}: {}",
+            self.property_key(),
+            render_typescript_type(&self.ty)
+        )
     }
 }
 
@@ -49,7 +54,7 @@ impl MessageCallSignature {
                 .map(|parameter| MessageCallParameter {
                     source_name: parameter.name.clone(),
                     binding: safe_identifier(&parameter.name),
-                    ty: ts_type(&parameter.ty),
+                    ty: TypeModel::from_source_name(&parameter.ty),
                 })
                 .collect(),
         }
@@ -116,7 +121,7 @@ impl MessageCallSignature {
             "[{}]",
             self.parameters
                 .iter()
-                .map(|parameter| parameter.ty.as_str())
+                .map(|parameter| render_typescript_type(&parameter.ty))
                 .collect::<Vec<_>>()
                 .join(", ")
         );

@@ -9,6 +9,8 @@ editor boundaries to update this file, public documentation, and executable test
 - Configuration tooling can consume the committed JSON Schema through
   `linguini_config::CONFIG_SCHEMA_JSON`; keep editor integrations pinned to the matching Linguini
   release.
+- Codegen integrations that inspect public parameter types can use `TypeModel` plus its TypeScript
+  and JSDoc renderers instead of recreating source-type mappings.
 - Generated output is ESM-only. Remove `targets.ts.module` and CommonJS output assumptions.
 - SvelteKit web policy uses nested `[web.*]` tables. Replace legacy flat routing, source, cookie,
   local-storage, link, exclusion, and switch-route fields with the mappings in

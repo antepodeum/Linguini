@@ -13,6 +13,9 @@ mod shared;
 mod signature;
 mod templates;
 mod tree;
+mod type_model;
+
+pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
