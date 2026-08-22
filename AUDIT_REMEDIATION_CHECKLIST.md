@@ -164,8 +164,9 @@ production path uses the fix and its relevant tests pass.
 - [-] #7 — Use one namespace model for every declaration kind and every pipeline.
 - [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
-- [-] #10 — Keep builds hermetic; the untracked site output is regenerated through Cargo until
-  a source-checkout-native packaged generator path replaces it.
+- [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in CLDR artifacts, while the
+  site restores a deterministic checksummed 1,356-file output bundle using Node.js only; CI
+  independently regenerates the bundle and rejects stale bytes.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [-] #12 — Hide invalid mutable public model states behind validated constructors.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
@@ -573,8 +574,9 @@ production path uses the fix and its relevant tests pass.
 
 ### Site and documentation
 
-- [-] #347 — Build/check the site without Cargo, network, `git`, or a Rust toolchain; generated
-  output is no longer tracked, so clean verification currently needs the Rust generator.
+- [x] #347 — Build/check the site without Cargo, network, `git`, or a Rust toolchain. Normal
+  generation restores the bounded, traversal-safe packaged output; runtime tests, strict Svelte
+  checking, and the production build pass, and Rust is reserved for the explicit refresh command.
 - [x] #348 — Remove unshipped syntax/CJS claims and align the reference with conformance.
 - [x] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
 - [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
