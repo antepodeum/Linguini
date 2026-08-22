@@ -100,6 +100,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: false,
   }),
   nodeTask({
+    id: "docs:examples",
+    project: "site",
+    label: "Documentation example compile/type/runtime conformance",
+    command: "node",
+    args: ["../scripts/docs-examples.mjs"],
+    profiles: ["full"],
+    tools: ["cargo"],
+    requiresNodeModules: true,
+  }),
+  nodeTask({
     id: "vite:test",
     project: "vite",
     label: "Vite plugin tests",

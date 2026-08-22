@@ -12,6 +12,27 @@ import {
 } from "./test-all.mjs";
 import { extractLinguiniFences } from "./docs-syntax.mjs";
 import { extractCodeblocks } from "./docs-codeblocks.mjs";
+import { executableDirectUseExample, findUniqueBlock } from "./docs-examples.mjs";
+
+test("documentation runtime fixture selection and transformation stay exact", () => {
+  const blocks = [
+    { sourcePath: "docs/example.md", language: "ts", source: "const unrelated = true;\n" },
+    {
+      sourcePath: "docs/example.md",
+      language: "ts",
+      source: 'const l = configureLinguini({ language: () => getRequestLocale() });\nl.main.hello("Artemy"); // output\nl.main.field_required({ field: "Email" }); // output\n',
+    },
+  ];
+  const selected = findUniqueBlock(blocks, {
+    sourcePath: "docs/example.md",
+    language: "ts",
+    includes: ["configureLinguini", "l.main.hello"],
+  });
+  const executable = executableDirectUseExample(selected.source);
+  assert.match(executable, /language: \(\) => "en"/);
+  assert.match(executable, /export const positional/);
+  assert.match(executable, /export const named/);
+});
 
 test("documentation code-block registry covers typed, plain, and fragmented fences", () => {
   const blocks = extractCodeblocks(
@@ -67,6 +88,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "docs:syntax",
       "docs:config",
       "docs:codeblocks",
+      "docs:examples",
       "vite:test",
       "cli:test",
       "vscode:test",
