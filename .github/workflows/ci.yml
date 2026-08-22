@@ -45,6 +45,12 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --locked --workspace
+      - name: Verify packaged site output is current
+        working-directory: site
+        run: |
+          cargo run --locked -p linguini-cli -- build
+          node scripts/package-linguini-output.mjs
+          git diff --exit-code -- generated
 
   coverage:
     name: Rust coverage threshold
@@ -205,9 +211,6 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: site/pnpm-lock.yaml
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
-        with:
-          toolchain: 1.93.1
       - name: Install site dependencies
         working-directory: site
         run: pnpm install --frozen-lockfile

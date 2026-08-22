@@ -5,14 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "linguini:build": "cargo run --locked -p linguini-cli -- build",
+    "linguini:build": "node scripts/restore-linguini-output.mjs",
+    "linguini:refresh": "cargo run --locked -p linguini-cli -- build && pnpm linguini:package",
+    "linguini:package": "node scripts/package-linguini-output.mjs",
     "linguini:verify": "pnpm linguini:build && pnpm test",
     "build:generated": "vite build",
     "build": "pnpm linguini:build && pnpm build:generated",
     "test:production": "pnpm linguini:build && pnpm build:generated && node scripts/production-graph.test.mjs",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
-    "test": "node --test scripts/generated-runtime.test.mjs",
+    "test": "node --test scripts/generated-runtime.test.mjs scripts/packaged-output.test.mjs",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
   },

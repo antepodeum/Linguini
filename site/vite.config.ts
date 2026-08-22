@@ -5,8 +5,8 @@ import { defineConfig } from 'vite';
 export default defineConfig(({ command }) => ({
 	plugins: [
 		linguini({
-			command: 'cargo',
-			args: ['run', '--locked', '-p', 'linguini-cli', '--', 'build'],
+			command: 'node',
+			args: ['scripts/restore-linguini-output.mjs'],
 			buildOnStart: command === 'serve'
 		}),
 		sveltekit()

@@ -166,7 +166,7 @@ export const TASKS = Object.freeze([
     command: "pnpm",
     args: ["run", "linguini:build"],
     profiles: ["full", "site"],
-    tools: ["pnpm", "cargo"],
+    tools: ["pnpm"],
     requiresNodeModules: true,
   }),
   nodeTask({
