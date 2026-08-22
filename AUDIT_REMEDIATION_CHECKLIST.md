@@ -601,8 +601,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #368 — Add public API/semantic-version compatibility checks.
 - [-] #369 — Make documentation and examples an executable conformance suite. The root full
   profile registers all 91 code blocks, enforces Linguini syntax plus TOML config fences, and
-  builds, typechecks, and executes the Getting Started JavaScript/TypeScript example; packaged and
-  remaining web-guide fixture coverage remains. The complete SvelteKit provider also typechecks.
+  builds, typechecks, and executes the Getting Started JavaScript/TypeScript example from both the
+  workspace and Cargo package file sets. The complete SvelteKit provider also typechecks; remaining
+  web-guide fixture coverage remains.
 
 ## Required documentation migration
 
@@ -672,7 +673,9 @@ production path uses the fix and its relevant tests pass.
 - [x] DOC-S4 — Publish the complete flat-to-nested migration map.
 - [x] DOC-C1 — Register every normative code block as a fixture. The full profile rejects unknown
   languages, unsupported metadata, empty fences, and unclosed fences across all 91 blocks.
-- [ ] DOC-C2 — Build docs against packaged CLI/codegen artifacts.
+- [x] DOC-C2 — Build docs against packaged CLI/codegen artifacts. The full profile stages an
+  isolated workspace from Cargo's package file sets, then builds both documented applications with
+  that CLI/codegen graph before running the same TypeScript, JavaScript, and SvelteKit checks.
 - [x] DOC-C3 — Snapshot config schema, CLI help, declarations, and examples in CI. The committed
   JSON Schema and exact CLI help snapshot have focused Rust gates; generated TypeScript
   declarations retain golden snapshot coverage, and the full profile builds, typechecks, and runs
@@ -879,7 +882,8 @@ production path uses the fix and its relevant tests pass.
 - [-] P3-2 — Parser, formatter, plural, and path property/fuzz coverage.
 - [-] P3-3 — Full documentation-to-runtime conformance corpus. All 91 blocks are registered;
   Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
-  execute; the SvelteKit provider typechecks, while packaged and remaining web-guide stages remain.
+  execute from workspace and packaged source graphs; the SvelteKit provider typechecks, while
+  remaining web-guide stages remain.
 - [x] P3-4 — ICU/CLDR differential tests cover 152 representative cardinal cases across eight
   structurally distinct plural-rule families.
 - [-] P3-5 — Vite/native VSIX/npm CLI/WASM integration matrix.
