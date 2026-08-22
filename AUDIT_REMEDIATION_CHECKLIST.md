@@ -344,7 +344,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [ ] #160 — Share one plural grammar implementation across all targets.
 - [x] #161 — Correct documented plural-category examples.
-- [ ] #162 — Add ICU/CLDR differential conformance tests.
+- [x] #162 — Compare pinned CLDR cardinal evaluation with host ICU `Intl.PluralRules` across 152
+  English, French, Russian, Arabic, Polish, Czech, Slovenian, and Welsh integer/decimal cases.
 
 ### `linguini-cldr-macros`
 
@@ -870,7 +871,8 @@ production path uses the fix and its relevant tests pass.
 - [-] P3-3 — Full documentation-to-runtime conformance corpus. All 91 blocks are registered;
   Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
   execute; the SvelteKit provider typechecks, while packaged and remaining web-guide stages remain.
-- [ ] P3-4 — ICU/CLDR differential tests.
+- [x] P3-4 — ICU/CLDR differential tests cover 152 representative cardinal cases across eight
+  structurally distinct plural-rule families.
 - [-] P3-5 — Vite/native VSIX/npm CLI/WASM integration matrix.
 - [-] P3-6 — Dependency policy, pinned actions, reproducible JS packaging, synced versions.
 
