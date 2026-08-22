@@ -830,7 +830,10 @@ production path uses the fix and its relevant tests pass.
 - [x] TEXT-A7 — Preserve every raw-block byte and protect it from formatting.
 - [x] TEXT-A8 — Keep interpolation active and brace escaping separate.
 - [x] TEXT-A9 — Preserve source mappings across normalization.
-- [-] TEXT-A10 — Complete all specified syntax/format/codegen golden cases.
+- [x] TEXT-A10 — Complete all specified syntax/format/codegen golden cases. Parser and formatter
+  matrices cover empty, one-line, quote-rich, interpolated, CRLF, Unicode, indentation, internal
+  blank, and trailing-space cases; codegen now asserts exact dedented and byte-preserving raw
+  expressions from parsed semantic IR.
 
 ### Arbitrarily nested message groups
 
@@ -860,7 +863,9 @@ production path uses the fix and its relevant tests pass.
 - [x] P1-1 — Complete SvelteKit/ESM-only configuration and documentation cleanup.
 - [-] P1-2 — Freeze the tested v0.1 language specification.
 - [x] P1-3 — Carry recursive namespaces through generated output.
-- [-] P1-4 — Complete multiline conformance across all backends.
+- [x] P1-4 — Complete multiline conformance across all backends. Syntax normalization, typed IR
+  mode identity, semantics-preserving/idempotent formatting, and exact TypeScript codegen are all
+  covered for dedented and raw blocks.
 - [x] P1-5 — Preserve call/declaration kinds, sources, and spans.
 - [-] P1-6 — Finish the single project symbol/type/exhaustiveness database.
 - [-] P1-7 — Make CLI and LSP consume that same database.
@@ -875,7 +880,9 @@ production path uses the fix and its relevant tests pass.
 - [x] P2-2 — End-to-end documentation propagation. Parser attachment survives schema/locale
   semantic lowering for every declaration kind and reaches exact runtime exports, recursive
   namespace properties, overloads, and `.d.ts` declarations through one safe JSDoc renderer.
-- [-] P2-3 — Emit both multiline modes from semantic text IR.
+- [x] P2-3 — Emit both multiline modes from semantic text IR. End-to-end codegen coverage starts
+  from parsed CRLF input, verifies retained `Dedented`/`Raw` identities, and asserts normalized
+  dedented text plus byte-exact raw whitespace in generated runtime expressions.
 - [x] P2-4 — Collision-safe identifiers and filenames.
 - [x] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
 - [x] P2-6 — Compile-time typed `l` namespace transform. Recursive generated declarations type the
