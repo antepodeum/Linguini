@@ -167,7 +167,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [-] #12 — Hide invalid mutable public model states behind validated constructors.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
-- [-] #14 — Execute normative documentation as conformance fixtures. All 88 code blocks are
+- [-] #14 — Execute normative documentation as conformance fixtures. All 91 code blocks are
   registered and standalone Linguini syntax plus TOML config fences are enforced; generated
   TypeScript/Svelte runtime fixtures remain.
 - [-] #15 — Add property, platform, generated-code, and real integration coverage.
@@ -573,7 +573,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #351 — Define project and path namespace behavior unambiguously.
 - [-] #352 — Execute examples through compile, typecheck, and runtime golden tests. The actual
   Getting Started config, schema, locales, JavaScript, and TypeScript direct-use example pass;
-  remaining normative TypeScript/Svelte examples are registered but not yet executable fixtures.
+  the complete locale-provider example also generates and passes strict Svelte checking. Remaining
+  normative web-guide TypeScript/Svelte snippets are registered but not yet executable fixtures.
 - [x] #353 — Document actual CLDR formatter limits and fallback behavior.
 - [x] #354 — Resolve the unfinished contracts tracked by `REPOSITORY_STATE`.
 - [x] #355 — Synchronize version, copy, and release status across every surface.
@@ -596,9 +597,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #367 — Land automatic release-version synchronization checks.
 - [x] #368 — Add public API/semantic-version compatibility checks.
 - [-] #369 — Make documentation and examples an executable conformance suite. The root full
-  profile registers all 88 code blocks, enforces Linguini syntax plus TOML config fences, and
+  profile registers all 91 code blocks, enforces Linguini syntax plus TOML config fences, and
   builds, typechecks, and executes the Getting Started JavaScript/TypeScript example; packaged and
-  Svelte fixture coverage remains.
+  remaining web-guide fixture coverage remains. The complete SvelteKit provider also typechecks.
 
 ## Required documentation migration
 
@@ -667,7 +668,7 @@ production path uses the fix and its relevant tests pass.
 - [x] DOC-S3 — Update editor examples for groups, docs, multiline, values, and overloads.
 - [x] DOC-S4 — Publish the complete flat-to-nested migration map.
 - [x] DOC-C1 — Register every normative code block as a fixture. The full profile rejects unknown
-  languages, unsupported metadata, empty fences, and unclosed fences across all 88 blocks.
+  languages, unsupported metadata, empty fences, and unclosed fences across all 91 blocks.
 - [ ] DOC-C2 — Build docs against packaged CLI/codegen artifacts.
 - [ ] DOC-C3 — Snapshot config schema, CLI help, declarations, and examples in CI.
 - [ ] DOC-C4 — Require docs, migration notes, and fixtures for every public contract change.
@@ -866,9 +867,9 @@ production path uses the fix and its relevant tests pass.
 
 - [-] P3-1 — Rust 1.76/stable and Linux/Windows/macOS/offline/package CI.
 - [-] P3-2 — Parser, formatter, plural, and path property/fuzz coverage.
-- [-] P3-3 — Full documentation-to-runtime conformance corpus. All 88 blocks are registered;
+- [-] P3-3 — Full documentation-to-runtime conformance corpus. All 91 blocks are registered;
   Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
-  execute, while packaged and Svelte stages remain.
+  execute; the SvelteKit provider typechecks, while packaged and remaining web-guide stages remain.
 - [ ] P3-4 — ICU/CLDR differential tests.
 - [-] P3-5 — Vite/native VSIX/npm CLI/WASM integration matrix.
 - [-] P3-6 — Dependency policy, pinned actions, reproducible JS packaging, synced versions.
