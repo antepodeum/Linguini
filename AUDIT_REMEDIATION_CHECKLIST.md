@@ -223,7 +223,10 @@ production path uses the fix and its relevant tests pass.
 - [x] #56 — Quarantine recovered/error nodes so invalid bytes cannot stitch declarations.
 - [x] #57 — Make documentation attachment deterministic.
 - [x] #58 — Validate deep property-path shapes.
-- [-] #59 — Complete Unicode, recovery, nesting, and size fuzz/property coverage.
+- [x] #59 — Complete Unicode, recovery, nesting, and size fuzz/property coverage. Seeded
+  proptest suites generate arbitrary Unicode recovery inputs, recursively nested valid groups,
+  and large valid locale files; the parser properties enforce no-panic and complete-parse
+  invariants.
 
 ### `linguini-schema`
 
@@ -588,7 +591,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #357 — Compile from packaged, offline, read-only CLDR data.
 - [-] #358 — Land and execute Linux, Windows, and macOS CI.
 - [x] #359 — Land dependency, license, and advisory checks.
-- [-] #360 — Add enforceable coverage plus parser/formatter property jobs.
+- [x] #360 — Add enforceable coverage plus parser/formatter property jobs. CI rejects workspace
+  line coverage below 80%, runs seeded parser/formatter/plural/path property suites separately,
+  and rejects surviving mutants in pull-request diffs.
 - [x] #361 — Real-site generated TypeScript/JSDoc/`.d.ts` overloads have positive/negative type
   checks and runtime parity tests. The standalone full-profile corpus now typechecks and executes
   documented JavaScript/TypeScript calls and separately verifies JSDoc wrappers, positional/named
@@ -901,7 +906,9 @@ production path uses the fix and its relevant tests pass.
 ### P3
 
 - [-] P3-1 — Rust 1.76/stable and Linux/Windows/macOS/offline/package CI.
-- [-] P3-2 — Parser, formatter, plural, and path property/fuzz coverage.
+- [x] P3-2 — Parser, formatter, plural, and path property/fuzz coverage. Seeded generated cases
+  cover Unicode/recovery/nesting/size parser invariants, formatter no-panic/idempotence/semantic
+  preservation, plural modulo arithmetic, and portable locale ancestor chains.
 - [-] P3-3 — Full documentation-to-runtime conformance corpus. All 91 blocks are registered;
   Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
   execute from workspace and packaged source graphs; the SvelteKit provider typechecks, while
