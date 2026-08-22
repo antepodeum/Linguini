@@ -737,13 +737,15 @@ production path uses the fix and its relevant tests pass.
 
 ### Documentation identity through codegen
 
-- [-] API-D1 — Preserve docs on every declaration kind through semantic IR.
+- [x] API-D1 — Preserve docs on every declaration kind through semantic IR. Exhaustive schema and
+  locale lowering coverage verifies enums, aliases, variables, implementations, `form`, `fn`,
+  messages, nested messages, and groups, including empty paragraph lines.
 - [x] API-D2 — Preserve group docs in recursive namespace metadata.
 - [x] API-D3 — Use schema docs as canonical public API prose.
 - [x] API-D4 — Attach docs to exact JSDoc exports and `.d.ts` leaves/overloads.
-- [-] API-D5 — Preserve paragraphs/line breaks and escape comment terminators; recursive namespace
-      output preserves multiline docs and escapes terminators, but all declaration kinds have not
-      migrated to the shared renderer.
+- [x] API-D5 — Preserve paragraphs/line breaks and escape comment terminators. One shared renderer
+  now emits every runtime and declaration kind, combines consecutive source comments into a single
+  JSDoc block, retains empty paragraph lines, and neutralizes embedded `*/` terminators.
 - [ ] API-D6 — Generate backend tags separately from source prose.
 - [ ] API-D7 — Preserve source identity for hover/navigation and add golden tests.
 
@@ -866,7 +868,9 @@ production path uses the fix and its relevant tests pass.
   drives message signatures, declarations, and runtime annotations and exposes TypeScript/JSDoc
   renderers; legacy project/runtime string assembly still needs migration to the structured
   ECMAScript emitter.
-- [ ] P2-2 — End-to-end documentation propagation.
+- [x] P2-2 — End-to-end documentation propagation. Parser attachment survives schema/locale
+  semantic lowering for every declaration kind and reaches exact runtime exports, recursive
+  namespace properties, overloads, and `.d.ts` declarations through one safe JSDoc renderer.
 - [-] P2-3 — Emit both multiline modes from semantic text IR.
 - [x] P2-4 — Collision-safe identifiers and filenames.
 - [x] P2-5 — Bundler-visible lazy locale boundaries and deduplicated formatter data.
