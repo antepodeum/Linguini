@@ -342,7 +342,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #157 — Support CLDR numbering systems beyond `latn`.
 - [ ] #158 — Expand date/calendar/context/time-zone/skeleton support.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
-- [ ] #160 — Share one plural grammar implementation across all targets.
+- [x] #160 — Share one plural grammar implementation across all targets. `linguini-cldr` owns the
+  sole rule parser; the offline generator imports it and TypeScript codegen lowers its typed AST.
 - [x] #161 — Correct documented plural-category examples.
 - [x] #162 — Compare pinned CLDR cardinal evaluation with host ICU `Intl.PluralRules` across 152
   English, French, Russian, Arabic, Polish, Czech, Slovenian, and Welsh integer/decimal cases.
@@ -367,7 +368,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #177 — Parse text-direction JSON structurally.
 - [ ] #178 — Implement complete CLDR number-pattern semantics.
 - [x] #179 — Validate model limits before narrowing integer casts.
-- [ ] #180 — Share the runtime plural grammar.
+- [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
+  both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.
 - [x] #181 — Parse the CLDR manifest as real TOML.
 - [x] #182 — Verify the vendored archive/tree cryptographically.
 - [x] #183 — Validate the packaged full-corpus manifest and golden hash.
