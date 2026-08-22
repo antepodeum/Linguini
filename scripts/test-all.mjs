@@ -90,6 +90,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: false,
   }),
   nodeTask({
+    id: "docs:codeblocks",
+    project: "rust",
+    label: "Documentation code-block registry",
+    command: "node",
+    args: ["scripts/docs-codeblocks.mjs"],
+    profiles: ["full"],
+    tools: [],
+    requiresNodeModules: false,
+  }),
+  nodeTask({
     id: "vite:test",
     project: "vite",
     label: "Vite plugin tests",

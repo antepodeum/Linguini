@@ -11,6 +11,31 @@ import {
   selectTasks,
 } from "./test-all.mjs";
 import { extractLinguiniFences } from "./docs-syntax.mjs";
+import { extractCodeblocks } from "./docs-codeblocks.mjs";
+
+test("documentation code-block registry covers typed, plain, and fragmented fences", () => {
+  const blocks = extractCodeblocks(
+    "```ts\nconst value: string = \"ok\";\n```\n```\nplain output\n```\n```toml fragment=policy\n[key]\n```\n",
+    "docs/example.md",
+  );
+
+  assert.deepEqual(
+    blocks.map(({ language, line, fragment }) => ({ language, line, fragment })),
+    [
+      { language: "ts", line: 1, fragment: undefined },
+      { language: "text", line: 4, fragment: undefined },
+      { language: "toml", line: 7, fragment: "policy" },
+    ],
+  );
+  assert.throws(
+    () => extractCodeblocks("```typescript\nconst value = 1;\n```\n", "docs/bad.md"),
+    /unsupported documentation fence language/,
+  );
+  assert.throws(
+    () => extractCodeblocks("```ts executable\nconst value = 1;\n```\n", "docs/bad.md"),
+    /unsupported documentation fence metadata/,
+  );
+});
 
 test("documentation syntax fences distinguish standalone examples and registered fragments", () => {
   const fences = extractLinguiniFences(
@@ -41,6 +66,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "rust:clippy",
       "docs:syntax",
       "docs:config",
+      "docs:codeblocks",
       "vite:test",
       "cli:test",
       "vscode:test",
