@@ -1,5 +1,5 @@
 import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";
-import type { LinguiniRequestContext } from "./web";
+import type { LinguiniLocaleRequestContext, LinguiniRequestContext } from "./web";
 import type { Locale, Linguini, TextDirection } from "./index";
 
 export declare const linguiniHandle: Handle;
@@ -21,7 +21,7 @@ export interface SerializedLinguiniContext<Locale extends string = string> {
 declare global {
   namespace App {
     interface Locals {
-      linguini: LinguiniRequestContext<Locale, Linguini>;
+      linguini: LinguiniLocaleRequestContext<Locale> | LinguiniRequestContext<Locale, Linguini>;
     }
     interface PageData {
       linguini?: SerializedLinguiniContext<Locale>;

@@ -71,15 +71,13 @@ export interface LinguiniRuntime<Locale extends string = string, Linguini = unkn
  * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
  * fail closed and preserve the original href instead.
  */
-export interface LinguiniRequestContext<Locale extends string = string, Linguini = unknown> {
+export interface LinguiniLocaleRequestContext<Locale extends string = string> {
   locale: Locale;
   baseLocale: Locale;
   locales: readonly Locale[];
   direction: TextDirection;
   textDirection: TextDirection;
   lang: Locale;
-  messages: Linguini;
-  l: Linguini;
   htmlAttrs: { lang: Locale; dir: TextDirection };
   localizeHref(href: string, locale?: Locale, input?: Record<string, unknown>): string;
   localizeUrl(url: string | URL, locale?: Locale, input?: Record<string, unknown>): URL;
@@ -88,6 +86,12 @@ export interface LinguiniRequestContext<Locale extends string = string, Linguini
   localizeHrefAttribute(href: string, locale?: Locale, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
+}
+
+export interface LinguiniRequestContext<Locale extends string = string, Linguini = unknown>
+  extends LinguiniLocaleRequestContext<Locale> {
+  messages: Linguini;
+  l: Linguini;
 }
 
 /**

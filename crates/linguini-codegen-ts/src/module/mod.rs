@@ -1170,7 +1170,11 @@ pub fn generate_typescript_project_files(
         });
         if options.declaration {
             files.push(TypeScriptGeneratedFile {
-                path: "sveltekit.d.ts".to_owned(),
+                // Keep the ambient App augmentation at a basename that has no
+                // sibling implementation. TypeScript treats `sveltekit.d.ts`
+                // as the declaration output for `sveltekit.ts` and does not
+                // include it as an independent project root.
+                path: "linguini-app.d.ts".to_owned(),
                 contents: project::generate_project_sveltekit_declaration(),
             });
         }

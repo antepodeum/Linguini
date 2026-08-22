@@ -2414,7 +2414,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .expect("sveltekit control declaration");
     assert!(sveltekit_control_declaration
         .contents
-        .contains("interface LinguiniServerLocaleContext"));
+        .contains("type LinguiniServerLocaleContext"));
     assert!(sveltekit_control_declaration.contents.contains(
         "export type LinguiniSvelteKitLocaleContext = LinguiniServerLocaleContext<Locale>"
     ));
@@ -2424,15 +2424,15 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
 
     let sveltekit_declaration = files
         .iter()
-        .find(|file| file.path == "sveltekit.d.ts")
+        .find(|file| file.path == "linguini-app.d.ts")
         .expect("sveltekit declaration");
     assert!(sveltekit_declaration
         .contents
         .contains("interface SerializedLinguiniContext"));
     assert!(sveltekit_declaration.contents.contains("interface Locals"));
-    assert!(sveltekit_declaration
-        .contents
-        .contains("linguini: LinguiniRequestContext<Locale, Linguini>"));
+    assert!(sveltekit_declaration.contents.contains(
+        "LinguiniLocaleRequestContext<Locale> | LinguiniRequestContext<Locale, Linguini>"
+    ));
     assert!(sveltekit_declaration.contents.contains("Linguini>"));
     assert!(sveltekit_declaration.contents.contains("./index"));
     assert!(!sveltekit_declaration.contents.contains("@antepod/"));

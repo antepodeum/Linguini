@@ -100,6 +100,125 @@ function writeDocumentedSvelteKitExample(blocks, root, projectRoot) {
   symlinkSync(resolve(root, "site/node_modules"), join(projectRoot, "node_modules"), "dir");
 }
 
+function writeWebGuideExample(blocks, root, projectRoot) {
+  const sourcePath = "docs/web-sveltekit.md";
+  const expected = blocks.filter(
+    (block) => block.sourcePath === sourcePath && ["html", "svelte", "ts"].includes(block.language),
+  );
+  const consumed = new Set();
+  const select = (language, includes) => {
+    const block = findUniqueBlock(blocks, { sourcePath, language, includes });
+    consumed.add(`${block.sourcePath}:${block.line}`);
+    return block;
+  };
+  const writeBlock = (relativePath, language, includes) => {
+    const block = select(language, includes);
+    const destination = join(projectRoot, relativePath);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, block.source);
+  };
+
+  const baseConfig = findUniqueBlock(blocks, {
+    sourcePath,
+    language: "toml",
+    includes: ['name = "app"', '[targets.ts]', 'framework = "sveltekit"'],
+  });
+  const webConfig = findUniqueBlock(blocks, {
+    sourcePath,
+    language: "toml",
+    includes: ["[web.routing]", "[web.locale]", "[web.switch_route]"],
+  });
+  writeFileSync(join(projectRoot, "linguini.toml"), `${baseConfig.source}\n${webConfig.source}`);
+  const schemas = {
+    home: "title\nsubtitle\ngreeting(name: String)\n",
+    nav: "pricing\nsettings\n",
+  };
+  const messages = {
+    en: {
+      home: "title = Home\nsubtitle = Welcome\ngreeting = Hello, {name}!\n",
+      nav: "pricing = Pricing\nsettings = Settings\n",
+    },
+    ru: {
+      home: "title = Главная\nsubtitle = Добро пожаловать\ngreeting = Привет, {name}!\n",
+      nav: "pricing = Цены\nsettings = Настройки\n",
+    },
+    ar: {
+      home: "title = الرئيسية\nsubtitle = أهلا وسهلا\ngreeting = مرحبا، {name}!\n",
+      nav: "pricing = الأسعار\nsettings = الإعدادات\n",
+    },
+  };
+  for (const [namespace, source] of Object.entries(schemas)) {
+    const destination = join(projectRoot, "schema", `${namespace}.lgs`);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, source);
+  }
+  for (const [locale, namespaces] of Object.entries(messages)) {
+    for (const [namespace, source] of Object.entries(namespaces)) {
+      const destination = join(projectRoot, "locales", namespace, `${locale}.lgl`);
+      mkdirSync(dirname(destination), { recursive: true });
+      writeFileSync(destination, source);
+    }
+  }
+
+  writeFileSync(
+    join(projectRoot, "package.json"),
+    '{"private":true,"type":"module","dependencies":{"@antepod/linguini-vite":"file:placeholder"}}\n',
+  );
+  writeFileSync(
+    join(projectRoot, "svelte.config.js"),
+    'import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";\n\nexport default { preprocess: vitePreprocess() };\n',
+  );
+  writeFileSync(
+    join(projectRoot, "tsconfig.json"),
+    '{"extends":"./.svelte-kit/tsconfig.json","compilerOptions":{"allowJs":true,"checkJs":true,"strict":true}}\n',
+  );
+  symlinkSync(resolve(root, "site/node_modules"), join(projectRoot, "node_modules"), "dir");
+
+  writeBlock("src/routes/+layout.ts", "ts", ["trailingSlash", '"never"']);
+  writeBlock("vite.config.ts", "ts", ["defineConfig", "buildOnStart", "sveltekit()"]);
+  writeBlock("src/hooks.server.ts", "ts", ["sveltekit-control", "export { handle }"]);
+  writeBlock("src/hooks.ts", "ts", ["sveltekit-control", "export { reroute }"]);
+  writeBlock("src/routes/+layout.server.ts", "ts", ["sveltekit-control", "export { load }"]);
+  writeBlock("src/app.html", "html", ["%linguini.lang%", "%sveltekit.body%"]);
+  writeBlock("src/app.d.ts", "ts", ["interface Error", "export {}"]);
+  writeBlock("src/routes/examples/basic/+page.svelte", "svelte", ["l.home.title"]);
+  writeBlock("src/routes/examples/links/+page.svelte", "svelte", ["l.nav.pricing", "localizeHref"]);
+  writeBlock("src/routes/examples/no-script/+page.svelte", "svelte", ["/_linguini/locale/en"]);
+  writeBlock("src/routes/examples/switch/+page.svelte", "svelte", ["setLocale", "l.home.subtitle"]);
+  writeBlock("src/lib/documented-client-helpers.ts", "ts", ["alternateLinks", "shouldLocalizeLink"]);
+  writeBlock("src/routes/server-example/+page.server.ts", "ts", ["linguini.l.home.title"]);
+
+  mkdirSync(join(projectRoot, "src/lib/server"), { recursive: true });
+  writeFileSync(
+    join(projectRoot, "src/lib/server/app-handle.ts"),
+    'import type { Handle } from "@sveltejs/kit";\nexport const appHandle: Handle = ({ event, resolve }) => resolve(event);\n',
+  );
+  writeFileSync(
+    join(projectRoot, "src/lib/app-reroute.ts"),
+    'import type { Reroute } from "@sveltejs/kit";\nexport const appReroute: Reroute = () => undefined;\n',
+  );
+  writeFileSync(
+    join(projectRoot, "src/lib/server/app-load.ts"),
+    'import type { LayoutServerLoad } from "../../routes/$types";\nexport const appLoad: LayoutServerLoad = () => ({ app: true });\n',
+  );
+
+  return {
+    assertComplete() {
+      const missing = expected.filter((block) => !consumed.has(`${block.sourcePath}:${block.line}`));
+      if (missing.length > 0 || consumed.size !== expected.length) {
+        throw new Error(
+          `${sourcePath}: executable fixture coverage mismatch; missing ${missing.map((block) => block.line).join(", ") || "none"}`,
+        );
+      }
+    },
+    writeCompositionVariants() {
+      writeBlock("src/hooks.server.ts", "ts", ["sequence", "linguiniHandle", "appHandle"]);
+      writeBlock("src/hooks.ts", "ts", ["Reroute", "linguiniReroute", "appReroute"]);
+      writeBlock("src/routes/+layout.server.ts", "ts", ["LayoutServerLoad", "linguiniLoad", "appLoad"]);
+    },
+  };
+}
+
 function run(command, args, options) {
   const result = spawnSync(command, args, { encoding: "utf8", ...options });
   if (result.error) throw result.error;
@@ -253,12 +372,44 @@ export async function main({
       ["--workspace", svelteKitRoot, "--tsconfig", "./tsconfig.json", "--threshold", "warning"],
       { cwd: svelteKitRoot },
     );
+
+    const webGuideRoot = join(projectRoot, "web-guide");
+    mkdirSync(webGuideRoot, { recursive: true });
+    const webGuide = writeWebGuideExample(blocks, root, webGuideRoot);
+    run(
+      "cargo",
+      [
+        "run",
+        "--offline",
+        "--locked",
+        "--quiet",
+        "--manifest-path",
+        cliManifestPath,
+        "-p",
+        "linguini-cli",
+        "--",
+        "build",
+      ],
+      { ...cargoOptions, cwd: webGuideRoot },
+    );
+    const checkWebGuide = () => {
+      run(resolve(root, "site/node_modules/.bin/svelte-kit"), ["sync"], { cwd: webGuideRoot });
+      run(
+        resolve(root, "site/node_modules/.bin/svelte-check"),
+        ["--workspace", webGuideRoot, "--tsconfig", "./tsconfig.json", "--threshold", "warning"],
+        { cwd: webGuideRoot },
+      );
+    };
+    checkWebGuide();
+    webGuide.writeCompositionVariants();
+    checkWebGuide();
+    webGuide.assertComplete();
   } finally {
     if (server) await server.close();
     rmSync(projectRoot, { recursive: true, force: true });
   }
 
-  console.log("Built and typechecked documented SvelteKit; built, typechecked, and executed JavaScript/TypeScript.");
+  console.log("Built and typechecked every documented SvelteKit variant; built, typechecked, and executed JavaScript/TypeScript.");
   return 0;
 }
 

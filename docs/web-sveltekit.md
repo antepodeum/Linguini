@@ -342,9 +342,11 @@ Use the generated HTML placeholders:
 </html>
 ```
 
-The generated `sveltekit.d.ts` augments `App.Locals` and `App.PageData`, so
+The generated `linguini-app.d.ts` augments `App.Locals` and `App.PageData`, so
 server loads can use the request-scoped locale context without handwritten app
-ambient declarations. Linguini owns only `locals.linguini`; it does not reserve
+ambient declarations. The locale-only control hook and full hook are represented
+truthfully as a union; narrow on `"l" in linguini` before reading messages.
+Linguini owns only `locals.linguini`; it does not reserve
 generic application fields such as `locals.locale`, `locals.direction`, or
 `locals.l`.
 
@@ -455,12 +457,17 @@ import {
 `handle` stores a request-scoped context in `event.locals`:
 
 ```ts
-export function load({ locals }) {
+import type { PageServerLoad } from "./$types";
+
+export const load: PageServerLoad = ({ locals }) => {
   const { linguini } = locals;
+  if (!("l" in linguini)) {
+    throw new Error("Use linguiniHandle from the generated sveltekit module");
+  }
   return {
     title: linguini.l.home.title,
     locale: linguini.locale,
     canonical: linguini.localizeHref("/pricing"),
   };
-}
+};
 ```

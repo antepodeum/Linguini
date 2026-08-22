@@ -35,8 +35,7 @@ function createHandle(runtime: typeof import("./locale"), options: Record<string
     const resolvedLocale = await web.resolveLocale(contextInput);
     const context = createRequestContext(web, resolvedLocale, contextInput);
 
-    const locals = event.locals as Record<string, unknown>;
-    locals.linguini = context;
+    event.locals.linguini = context;
 
     const redirectLocation = web.getCanonicalRedirect(event.url, context.locale);
     if (redirectLocation) {
