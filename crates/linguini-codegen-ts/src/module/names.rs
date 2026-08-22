@@ -155,13 +155,7 @@ pub fn emit_docs(docs: &[String], indent: &str, output: &mut String) {
 }
 
 pub fn ts_type(name: &str) -> String {
-    match name {
-        "String" => "string".to_owned(),
-        "Date" => "Date | number | string".to_owned(),
-        "Number" | "Decimal" => "number | bigint | string".to_owned(),
-        "Boolean" => "boolean".to_owned(),
-        other => safe_identifier(other),
-    }
+    super::type_model::render_typescript_type(&super::type_model::TypeModel::from_source_name(name))
 }
 
 fn is_safe_identifier(name: &str) -> bool {
