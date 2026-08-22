@@ -12,7 +12,11 @@ import {
 } from "./test-all.mjs";
 import { extractLinguiniFences } from "./docs-syntax.mjs";
 import { extractCodeblocks } from "./docs-codeblocks.mjs";
-import { executableDirectUseExample, findUniqueBlock } from "./docs-examples.mjs";
+import {
+  executableDirectUseExample,
+  findUniqueBlock,
+  standaloneJavaScriptTypeContract,
+} from "./docs-examples.mjs";
 import { contractEvidence, validateContractEvidence } from "./check-public-contract.mjs";
 
 test("public contract policy requires docs, migrations, and tests together", () => {
@@ -48,6 +52,15 @@ test("documentation runtime fixture selection and transformation stay exact", ()
   assert.match(executable, /language: \(\) => "en"/);
   assert.match(executable, /export const positional/);
   assert.match(executable, /export const named/);
+});
+
+test("standalone JavaScript contract covers JSDoc and negative overloads", () => {
+  const contract = standaloneJavaScriptTypeContract();
+  assert.match(contract, /@param \{string\} name/);
+  assert.match(contract, /l\.main\.hello\(\{ name \}\)/);
+  assert.equal(contract.match(/@ts-expect-error/g)?.length, 4);
+  assert.match(contract, /checkout_total\(\{ amount: 3 \}\)/);
+  assert.match(contract, /extra: true/);
 });
 
 test("documentation code-block registry covers typed, plain, and fragmented fences", () => {

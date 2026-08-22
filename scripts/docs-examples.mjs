@@ -41,6 +41,35 @@ export function executableDirectUseExample(source) {
   return transformed;
 }
 
+export function standaloneJavaScriptTypeContract() {
+  return `import { configureLinguini } from "./generated/linguini/index.js";
+
+const l = configureLinguini({ language: () => "en" });
+
+/**
+ * @param {string} name
+ * @returns {string}
+ */
+export function documentedGreeting(name) {
+  return l.main.hello({ name });
+}
+
+/** @type {string} */
+export const positional = l.main.hello("Artemy");
+/** @type {string} */
+export const named = l.main.field_required({ field: "Email" });
+
+// @ts-expect-error required positional parameter is missing
+l.main.hello();
+// @ts-expect-error named call requires every declared property
+l.main.checkout_total({ amount: 3 });
+// @ts-expect-error named call rejects unknown object-literal properties
+l.main.field_required({ field: "Email", extra: true });
+// @ts-expect-error JSDoc parameter contract rejects numbers
+documentedGreeting(42);
+`;
+}
+
 function writeDocumentedSvelteKitExample(blocks, root, projectRoot) {
   const sourcePath = "docs/examples/sveltekit-locale-provider.md";
   const fixtures = [
@@ -158,6 +187,10 @@ export async function main({
     writeFileSync(join(sourceRoot, "documented-example.ts"), example);
     writeFileSync(join(sourceRoot, "documented-example.js"), example);
     writeFileSync(
+      join(sourceRoot, "documented-jsdoc-contract.js"),
+      standaloneJavaScriptTypeContract(),
+    );
+    writeFileSync(
       join(projectRoot, "tsconfig.json"),
       `${JSON.stringify({
         compilerOptions: {
@@ -169,7 +202,11 @@ export async function main({
           strict: true,
           target: "ES2022",
         },
-        include: ["src/documented-example.ts", "src/documented-example.js"],
+        include: [
+          "src/documented-example.ts",
+          "src/documented-example.js",
+          "src/documented-jsdoc-contract.js",
+        ],
       }, null, 2)}\n`,
     );
 
