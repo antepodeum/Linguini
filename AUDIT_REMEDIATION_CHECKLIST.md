@@ -749,7 +749,9 @@ production path uses the fix and its relevant tests pass.
 - [x] API-D6 — Generate backend tags separately from source prose. Positional and named-object
   overloads derive typed `@param` and `@returns` tags from the shared signature/`TypeModel`, append
   them independently of canonical prose, and escape hostile source property names.
-- [ ] API-D7 — Preserve source identity for hover/navigation and add golden tests.
+- [x] API-D7 — Preserve source identity for hover/navigation and add golden tests. A cross-file
+  golden resolves canonical schema prose by namespace while rejecting same-named unrelated docs,
+  then navigates to the exact schema URI, `SourceId`, byte span, and declaration text.
 
 ### CLI/LSP/VSIX distribution
 
