@@ -571,7 +571,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #349 — Reframe incomplete type, exhaustiveness, and unused-message guarantees.
 - [x] #350 — Replace the unsupported site `preferredLanguage` strategy.
 - [x] #351 — Define project and path namespace behavior unambiguously.
-- [ ] #352 — Execute examples through compile, typecheck, and runtime golden tests.
+- [-] #352 — Execute examples through compile, typecheck, and runtime golden tests. The actual
+  Getting Started config, schema, locales, JavaScript, and TypeScript direct-use example pass;
+  remaining normative TypeScript/Svelte examples are registered but not yet executable fixtures.
 - [x] #353 — Document actual CLDR formatter limits and fallback behavior.
 - [x] #354 — Resolve the unfinished contracts tracked by `REPOSITORY_STATE`.
 - [x] #355 — Synchronize version, copy, and release status across every surface.
@@ -583,8 +585,9 @@ production path uses the fix and its relevant tests pass.
 - [-] #358 — Land and execute Linux, Windows, and macOS CI.
 - [x] #359 — Land dependency, license, and advisory checks.
 - [-] #360 — Add enforceable coverage plus parser/formatter property jobs.
-- [-] #361 — Real-site generated TypeScript/JSDoc/`.d.ts` overloads now have positive/negative
-  type checks and runtime parity tests; a broader standalone JavaScript/JSDoc corpus remains.
+- [-] #361 — Real-site generated TypeScript/JSDoc/`.d.ts` overloads have positive/negative type
+  checks and runtime parity tests, and one standalone JavaScript/TypeScript example executes; a
+  broader standalone JavaScript/JSDoc corpus remains.
 - [-] #362 — Complete real Vite, native VSIX, npm CLI, and WASM LSP integration CI.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
@@ -593,8 +596,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #367 — Land automatic release-version synchronization checks.
 - [x] #368 — Add public API/semantic-version compatibility checks.
 - [-] #369 — Make documentation and examples an executable conformance suite. The root full
-  profile registers all 88 code blocks and enforces Linguini syntax plus TOML config fences;
-  packaged typecheck and runtime execution remain.
+  profile registers all 88 code blocks, enforces Linguini syntax plus TOML config fences, and
+  builds, typechecks, and executes the Getting Started JavaScript/TypeScript example; packaged and
+  Svelte fixture coverage remains.
 
 ## Required documentation migration
 
@@ -612,7 +616,8 @@ production path uses the fix and its relevant tests pass.
 - [x] DOC-G2 — Remove `targets.ts.module` and every CJS choice.
 - [x] DOC-G3 — Explain one JavaScript runtime plus JSDoc and `.d.ts`.
 - [x] DOC-G4 — Remove manual message-loading setup from the normal SvelteKit path.
-- [ ] DOC-G5 — Execute one JavaScript and one TypeScript/Svelte example.
+- [x] DOC-G5 — Build the documented project, typecheck its JavaScript and TypeScript direct-use
+  variants, execute both generated ESM paths, and assert exact English runtime output.
 
 ### `docs/reference.md`
 
@@ -862,8 +867,8 @@ production path uses the fix and its relevant tests pass.
 - [-] P3-1 — Rust 1.76/stable and Linux/Windows/macOS/offline/package CI.
 - [-] P3-2 — Parser, formatter, plural, and path property/fuzz coverage.
 - [-] P3-3 — Full documentation-to-runtime conformance corpus. All 88 blocks are registered;
-  Linguini syntax and canonical configuration fences execute, while packaged typecheck and runtime
-  stages remain.
+  Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
+  execute, while packaged and Svelte stages remain.
 - [ ] P3-4 — ICU/CLDR differential tests.
 - [-] P3-5 — Vite/native VSIX/npm CLI/WASM integration matrix.
 - [-] P3-6 — Dependency policy, pinned actions, reproducible JS packaging, synced versions.
