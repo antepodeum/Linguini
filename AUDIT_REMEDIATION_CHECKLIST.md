@@ -673,7 +673,10 @@ production path uses the fix and its relevant tests pass.
 - [x] DOC-C1 — Register every normative code block as a fixture. The full profile rejects unknown
   languages, unsupported metadata, empty fences, and unclosed fences across all 91 blocks.
 - [ ] DOC-C2 — Build docs against packaged CLI/codegen artifacts.
-- [ ] DOC-C3 — Snapshot config schema, CLI help, declarations, and examples in CI.
+- [x] DOC-C3 — Snapshot config schema, CLI help, declarations, and examples in CI. The committed
+  JSON Schema and exact CLI help snapshot have focused Rust gates; generated TypeScript
+  declarations retain golden snapshot coverage, and the full profile builds, typechecks, and runs
+  documented JavaScript, TypeScript, and SvelteKit examples.
 - [x] DOC-C4 — Require docs, migration notes, and fixtures for every public contract change. The
   quick/full runner and CI diff gate classify public CLI/config/syntax/codegen/Vite/LSP/editor
   boundaries and reject changes missing any companion evidence class.
