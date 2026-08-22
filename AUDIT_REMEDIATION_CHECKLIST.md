@@ -153,7 +153,9 @@ production path uses the fix and its relevant tests pass.
 
 ### Cross-cutting architecture and product claims
 
-- [-] #1 — Align specification with shipped syntax, linting, typing, and ESM-only scope.
+- [x] #1 — Align specification with shipped syntax, linting, typing, and ESM-only scope. The
+  frozen v0.1 contract retains implemented inline functions, names all seven emitted lints,
+  defines the validated typing/exhaustiveness boundary, and excludes CommonJS/module switching.
 - [x] #2 — Enforce validated IR as the only production codegen boundary.
 - [-] #3 — Consolidate duplicated semantic walks into one project semantic database.
 - [x] #4 — Implement argument, selector, and reference type checks retained by the spec.
@@ -867,7 +869,9 @@ production path uses the fix and its relevant tests pass.
 ### P1
 
 - [x] P1-1 — Complete SvelteKit/ESM-only configuration and documentation cleanup.
-- [-] P1-2 — Freeze the tested v0.1 language specification.
+- [x] P1-2 — Freeze the tested v0.1 language specification. The versioned normative document is
+  linked from the public guides, guarded against contract drift, and backed by the positive and
+  negative syntax corpora plus documentation conformance gates.
 - [x] P1-3 — Carry recursive namespaces through generated output.
 - [x] P1-4 — Complete multiline conformance across all backends. Syntax normalization, typed IR
   mode identity, semantics-preserving/idempotent formatting, and exact TypeScript codegen are all
