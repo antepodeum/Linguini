@@ -13,6 +13,22 @@ import {
 import { extractLinguiniFences } from "./docs-syntax.mjs";
 import { extractCodeblocks } from "./docs-codeblocks.mjs";
 import { executableDirectUseExample, findUniqueBlock } from "./docs-examples.mjs";
+import { contractEvidence, validateContractEvidence } from "./check-public-contract.mjs";
+
+test("public contract policy requires docs, migrations, and tests together", () => {
+  const complete = [
+    "crates/linguini-config/src/model.rs",
+    "docs/reference.md",
+    "docs/migrations.md",
+    "crates/linguini-config/src/tests.rs",
+  ];
+  assert.equal(validateContractEvidence(complete).contracts.length, 1);
+  assert.throws(
+    () => validateContractEvidence(["plugins/vite/src/index.js", "docs/web-sveltekit.md"]),
+    /docs\/migrations\.md, tests or fixtures/,
+  );
+  assert.deepEqual(contractEvidence(["crates/linguini-ir/src/lower.rs"]).contracts, []);
+});
 
 test("documentation runtime fixture selection and transformation stay exact", () => {
   const blocks = [
@@ -82,6 +98,7 @@ test("registry is explicit and ordered across repository projects", () => {
     TASKS.map((task) => task.id),
     [
       "repo:versions",
+      "repo:contracts",
       "rust:fmt",
       "rust:test",
       "rust:clippy",
@@ -103,7 +120,13 @@ test("registry is explicit and ordered across repository projects", () => {
 });
 
 test("profiles select the expected ordered task groups", () => {
-  assert.deepEqual(selectTasks({ profile: "quick" }).map((task) => task.id), ["repo:versions", "rust:fmt", "vite:test", "cli:test"]);
+  assert.deepEqual(selectTasks({ profile: "quick" }).map((task) => task.id), [
+    "repo:versions",
+    "repo:contracts",
+    "rust:fmt",
+    "vite:test",
+    "cli:test",
+  ]);
   assert.deepEqual(selectTasks({ profile: "site" }).map((task) => task.id), [
     "repo:versions",
     "site:generate",
@@ -172,9 +195,9 @@ test("task execution continues after a failure and aggregates exit status", () =
     },
     now: () => (tick += 12),
   });
-  assert.deepEqual(calls, ["repo:versions", "rust:fmt", "vite:test", "cli:test"]);
+  assert.deepEqual(calls, ["repo:versions", "repo:contracts", "rust:fmt", "vite:test", "cli:test"]);
   assert.deepEqual(summary.failed.map((result) => result.task.id), ["vite:test"]);
-  assert.deepEqual(summary.results.map((result) => result.durationMs), [12, 12, 12, 12]);
+  assert.deepEqual(summary.results.map((result) => result.durationMs), [12, 12, 12, 12, 12]);
 });
 
 test("main returns nonzero for failures without calling real suites", () => {

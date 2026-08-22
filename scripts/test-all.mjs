@@ -39,6 +39,16 @@ export const TASKS = Object.freeze([
     tools: [],
     requiresNodeModules: false,
   }),
+  nodeTask({
+    id: "repo:contracts",
+    project: "rust",
+    label: "Public contract companion evidence",
+    command: "node",
+    args: ["scripts/check-public-contract.mjs"],
+    profiles: ["quick", "full"],
+    tools: [],
+    requiresNodeModules: false,
+  }),
   Object.freeze({
     id: "rust:fmt",
     project: "rust",
