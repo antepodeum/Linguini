@@ -92,6 +92,11 @@ return_query = "return"
 status = 303
 ```
 
+Supported locale matching is compiled from the pinned CLDR canonicalization and parent graph.
+Aliases, likely-script parents, and configured locale spellings resolve through one generated
+lookup; tags outside that pinned graph are unsupported and continue to the next source or the
+implicit base-locale fallback.
+
 Linguini derives URL environment facts from SvelteKit instead of duplicating
 them in `linguini.toml` or generated runtime policy:
 

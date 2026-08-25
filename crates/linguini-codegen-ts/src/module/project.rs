@@ -55,10 +55,7 @@ pub fn generate_project_locale(
             ("LOCALES", locale_literals(locales).join(", ")),
             ("BASE_LOCALE", base_locale_literal(locales, base_locale)),
             ("LOCALE_DIRECTIONS", project_locale_directions(locales)),
-            (
-                "LOCALE_RESOLUTION_OVERRIDES",
-                project_locale_resolution_overrides(locales),
-            ),
+            ("LOCALE_RESOLUTION", project_locale_resolution(locales)),
         ],
     )
 }
@@ -80,7 +77,7 @@ pub fn generate_project_locale_declaration(
     )
 }
 
-fn project_locale_resolution_overrides(locales: &[TypeScriptLocaleModule]) -> String {
+fn project_locale_resolution(locales: &[TypeScriptLocaleModule]) -> String {
     let mut candidates = locale_resolution_candidates()
         .iter()
         .map(|locale| (*locale).to_owned())
@@ -106,58 +103,29 @@ fn project_locale_resolution_overrides(locales: &[TypeScriptLocaleModule]) -> St
     candidates.sort();
     candidates.dedup();
 
-    let mut overrides = BTreeMap::new();
+    let mut resolution = locales
+        .iter()
+        .map(|locale| (locale.locale.to_ascii_lowercase(), locale.locale.clone()))
+        .collect::<BTreeMap<_, _>>();
     for candidate in candidates {
-        let resolved = super::locale_fallback_chain(locales, &candidate, None)
+        if let Some(resolved) = super::locale_fallback_chain(locales, &candidate, None)
             .into_iter()
-            .next();
-        let runtime_fallback = runtime_locale_match(locales, &candidate);
-        if resolved != runtime_fallback {
-            overrides.insert(candidate.to_ascii_lowercase(), resolved);
+            .next()
+        {
+            resolution.insert(candidate.to_ascii_lowercase(), resolved);
         }
     }
 
-    overrides
+    resolution
         .into_iter()
         .map(|(candidate, resolved)| {
-            let value = resolved.map_or_else(
-                || "null".to_owned(),
-                |locale| format!("\"{}\"", escape_string(&locale)),
-            );
-            format!("  \"{}\": {value},\n", escape_string(&candidate))
+            format!(
+                "  \"{}\": \"{}\",\n",
+                escape_string(&candidate),
+                escape_string(&resolved)
+            )
         })
         .collect()
-}
-
-fn runtime_locale_match(locales: &[TypeScriptLocaleModule], locale: &str) -> Option<String> {
-    let mut tag = locale;
-    loop {
-        if let Some(locale) = locales
-            .iter()
-            .find(|locale| locale.locale.eq_ignore_ascii_case(tag))
-        {
-            return Some(locale.locale.clone());
-        }
-        if is_language_script_tag(tag) {
-            return None;
-        }
-        let dash = tag.rfind('-')?;
-        if dash == 0 {
-            return None;
-        }
-        tag = &tag[..dash];
-    }
-}
-
-fn is_language_script_tag(locale: &str) -> bool {
-    let Some((language, script)) = locale.split_once('-') else {
-        return false;
-    };
-    !language.contains('-')
-        && (2..=8).contains(&language.len())
-        && language.bytes().all(|byte| byte.is_ascii_alphabetic())
-        && script.len() == 4
-        && script.bytes().all(|byte| byte.is_ascii_alphabetic())
 }
 
 pub fn generate_project_index_declaration(

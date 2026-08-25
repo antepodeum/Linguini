@@ -1993,7 +1993,7 @@ fn project_fallback_chain_uses_likely_scripts_and_aliases() {
 }
 
 #[test]
-fn project_runtime_embeds_cldr_resolution_overrides() {
+fn project_runtime_embeds_complete_cldr_resolution() {
     use linguini_ir::IrModule;
 
     let locales = ["en", "en-001", "zh-Hant"]
@@ -2018,7 +2018,27 @@ fn project_runtime_embeds_cldr_resolution_overrides() {
 
     assert!(locale.contents.contains(r#""en-au": "en-001""#));
     assert!(locale.contents.contains(r#""zh-tw": "zh-Hant""#));
-    assert!(locale.contents.contains("isLanguageScriptTag(tag)"));
+    assert!(locale.contents.contains(r#""en": "en""#));
+    assert!(!locale.contents.contains("localeFallbackTags"));
+    assert!(!locale.contents.contains("isLanguageScriptTag"));
+    assert!(!locale.contents.contains("localeResolutionOverrides"));
+    assert!(locale
+        .contents
+        .contains("return localeResolution[locale.toLowerCase()];"));
+
+    for candidate in linguini_cldr::locale_resolution_candidates() {
+        let Some(resolved) = crate::module::locale_fallback_chain(&locales, candidate, None)
+            .into_iter()
+            .next()
+        else {
+            continue;
+        };
+        let entry = format!(r#""{}": "{}""#, candidate.to_ascii_lowercase(), resolved);
+        assert!(
+            locale.contents.contains(&entry),
+            "missing generated CLDR resolution entry {entry}"
+        );
+    }
 }
 
 #[test]

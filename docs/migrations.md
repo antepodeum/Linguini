@@ -6,6 +6,9 @@ editor boundaries to update this file, public documentation, and executable test
 
 ## 0.1.0-alpha.4 remediation baseline
 
+- Regenerate TypeScript output after upgrading. Generated `normalizeLocale` now uses the complete
+  project-specific lookup lowered from Linguini's pinned CLDR graph instead of combining a
+  JavaScript truncation heuristic with exceptional overrides.
 - Rust integrations using `linguini-syntax` must replace direct `SchemaFile::declarations`,
   `SchemaFile::span`, `LocaleFile::declarations`, and `LocaleFile::span` field access with the
   `declarations()` and `span()` accessors. Parsed file roots are immutable outside the crate;
