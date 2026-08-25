@@ -152,6 +152,9 @@ production path uses the fix and its relevant tests pass.
   accessors, with compile-fail coverage and a documented Rust API migration.
 - `8b82f7c` — lowered the complete project-relevant pinned CLDR locale-resolution graph into
   generated output and removed the parallel JavaScript truncation heuristic.
+- `013c3cd` — sealed `IrModule` declaration vectors behind slice accessors, a duplicate-rejecting
+  builder, and atomic validated composition, making cross-file symbol collisions fail at the
+  merge boundary instead of the late reference checker.
 
 ## Numbered findings
 
@@ -172,7 +175,9 @@ production path uses the fix and its relevant tests pass.
   site restores a deterministic checksummed 1,356-file output bundle using Node.js only; CI
   independently regenerates the bundle and rejects stale bytes.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
-- [-] #12 — Hide invalid mutable public model states behind validated constructors.
+- [-] #12 — Hide invalid mutable public model states behind validated constructors. `IrModule`
+      declarations are now sealed and only constructible through the validated builder and
+      atomic composition boundary; raw config/schema model structs remain open work.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
 - [x] #14 — Execute normative documentation as conformance fixtures. All 91 code blocks are
   registered; Linguini syntax and TOML config fences are enforced; extracted JavaScript,
@@ -278,7 +283,12 @@ production path uses the fix and its relevant tests pass.
 - [x] #90 — Normalize documentation consistently.
 - [x] #91 — Define plural through the shared builtin registry.
 - [x] #92 — Attach sources and related graph edges to IR diagnostics.
-- [-] #93 — Replace mutable public vectors with validated collections.
+- [x] #93 — Replace mutable public vectors with validated collections. `IrModule` fields are
+      sealed; `IrModuleBuilder::build` rejects repeated `(kind, name)` pairs, and
+      `IrModule::try_append` moves declarations atomically so a conflicted merge leaves the
+      target untouched. CLI schema/locale merges now fail visibly at the composition boundary,
+      including the cross-file namespace-collision case previously caught only by the late
+      reference checker (`013c3cd`).
 - [x] #94 — Diagnose duplicates before set/map insertion.
 - [-] #95 — Finish splitting schema, locale, and validated project IR types.
 - [x] #96 — Make the validated capability mandatory in every public production emitter.

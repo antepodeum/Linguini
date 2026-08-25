@@ -1,5 +1,20 @@
 # Latest session work
 
+- Sealed every `IrModule` declaration vector in `013c3cd`. External code now reads declarations
+  through per-kind slice accessors, constructs modules through `IrModuleBuilder` (whose `build`
+  rejects any repeated `(kind, name)` pair), and composes through atomic `try_append` that leaves
+  the target untouched on conflict. Provenance remains append-only.
+- CLI schema/locale merges now fail visibly at the composition boundary instead of concatenating
+  duplicates and deferring detection to the late reference checker. The namespace-collision
+  integration test now asserts the earlier `duplicate message symbol` diagnostic.
+- Added IR unit coverage for collision rejection, builder construction failure, kind-aware symbol
+  queries, and provenance-aware slicing. Workspace gates: 686 tests pass, strict Clippy clean,
+  `cargo fmt --check` clean.
+- Closed #93 in the audit checklist and recorded the remaining scope of #12 (raw config/schema
+  model structs) honestly.
+
+# Previous sessions
+
 - Removed all unreleased bundler manifest revisions and retained the complete active contract as
   manifest v1 only.
 - Moved reusable formatter/runtime and semantic declarations out of physical message leaves;
