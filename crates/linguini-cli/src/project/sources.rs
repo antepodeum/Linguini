@@ -196,16 +196,16 @@ mod tests {
 
         let first_schema_ids = first_schema
             .iter()
-            .map(|source| source.ast.span.source)
+            .map(|source| source.ast.span().source)
             .collect::<Vec<_>>();
         let second_schema_ids = second_schema
             .iter()
-            .map(|source| source.ast.span.source)
+            .map(|source| source.ast.span().source)
             .collect::<Vec<_>>();
         let all_ids = first_schema_ids
             .iter()
             .copied()
-            .chain(locales.iter().map(|source| source.ast.span.source))
+            .chain(locales.iter().map(|source| source.ast.span().source))
             .collect::<Vec<_>>();
 
         assert_eq!(first_schema_ids, second_schema_ids);

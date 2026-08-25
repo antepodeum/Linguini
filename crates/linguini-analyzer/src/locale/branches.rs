@@ -14,10 +14,10 @@ pub(super) fn analyze_locale_branch_coverage(
 ) -> Vec<Diagnostic> {
     let mut enum_variants = schema.map(schema_enum_variants).unwrap_or_default();
     let mut diagnostics = Vec::new();
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         collect_locale_enum_variants(declaration, &mut enum_variants, &mut diagnostics);
     }
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         collect_branch_coverage_diagnostics(declaration, &enum_variants, &mut diagnostics);
     }
     diagnostics
@@ -25,7 +25,7 @@ pub(super) fn analyze_locale_branch_coverage(
 
 fn schema_enum_variants(schema: &SchemaFile) -> BTreeMap<String, Vec<NamedSpan>> {
     schema
-        .declarations
+        .declarations()
         .iter()
         .filter_map(|declaration| match declaration {
             SchemaDeclaration::Enum(item) => Some((

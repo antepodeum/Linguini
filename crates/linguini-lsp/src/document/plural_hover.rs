@@ -17,7 +17,7 @@ pub(super) fn plural_branch_hover(document: &LinguiniDocument, offset: usize) ->
     let rules = linguini_cldr::compiled_plural_rules(&locale)?;
     let file = parsed_locale(document)?.ast.as_ref()?;
 
-    for declaration in &file.declarations {
+    for declaration in file.declarations() {
         if let Some(hover) = declaration_plural_branch_hover(declaration, offset, &locale, &rules) {
             return Some(hover);
         }

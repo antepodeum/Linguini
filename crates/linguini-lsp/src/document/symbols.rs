@@ -12,7 +12,7 @@ pub(super) fn symbols(document: &LinguiniDocument) -> Vec<Symbol> {
             .and_then(|parsed| parsed.ast.as_ref())
             .map(|file| {
                 let samples = schema_sample_values(file);
-                file.declarations
+                file.declarations()
                     .iter()
                     .flat_map(|declaration| schema_declaration_symbols(declaration, &samples))
                     .collect()
@@ -21,7 +21,7 @@ pub(super) fn symbols(document: &LinguiniDocument) -> Vec<Symbol> {
         SourceKind::Locale => parsed_locale(document)
             .and_then(|parsed| parsed.ast.as_ref())
             .map(|file| {
-                file.declarations
+                file.declarations()
                     .iter()
                     .flat_map(locale_declaration_symbols)
                     .collect()
@@ -165,7 +165,7 @@ fn sample_value_for_type(ty: &str, samples: &BTreeMap<String, String>) -> String
 }
 
 fn schema_sample_values(file: &SchemaFile) -> BTreeMap<String, String> {
-    file.declarations
+    file.declarations()
         .iter()
         .filter_map(|declaration| match declaration {
             SchemaDeclaration::Enum(item) => item

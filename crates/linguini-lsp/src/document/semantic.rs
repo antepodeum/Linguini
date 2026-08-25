@@ -203,7 +203,7 @@ fn schema_occurrences(document: &LinguiniDocument) -> Vec<SemanticOccurrence> {
         return Vec::new();
     };
     let mut output = Vec::new();
-    for declaration in &schema.declarations {
+    for declaration in schema.declarations() {
         match declaration {
             SchemaDeclaration::Enum(item) => {
                 push(
@@ -311,12 +311,12 @@ fn locale_occurrences(document: &LinguiniDocument) -> Vec<SemanticOccurrence> {
         return Vec::new();
     };
     let mut names = LocaleNames::default();
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         collect_locale_names(declaration, &mut names);
     }
 
     let mut output = Vec::new();
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         collect_locale_declaration(declaration, &names, &mut output);
     }
     output

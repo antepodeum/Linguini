@@ -1115,7 +1115,7 @@ fn non_dispatchable_primitive_is_rejected() {
 
 fn message_value(locale: &linguini_syntax::LocaleFile, name: &str) -> linguini_syntax::TextPattern {
     locale
-        .declarations
+        .declarations()
         .iter()
         .find_map(|declaration| match declaration {
             linguini_syntax::LocaleDeclaration::Message(message) if message.name.value == name => {

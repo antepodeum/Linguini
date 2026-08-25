@@ -14,15 +14,57 @@ pub struct DocComment {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Parsed schema syntax tree.
+///
+/// File roots are parser-owned immutable views. Consumers can inspect declarations but cannot
+/// replace or mutate them without reparsing validated source.
+///
+/// ```compile_fail
+/// let mut file = linguini_syntax::parse_schema("message\n").unwrap();
+/// file.declarations.clear();
+/// ```
 pub struct SchemaFile {
-    pub declarations: Vec<SchemaDeclaration>,
-    pub span: Span,
+    pub(crate) declarations: Vec<SchemaDeclaration>,
+    pub(crate) span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Parsed locale syntax tree.
+///
+/// File roots are parser-owned immutable views. Consumers can inspect declarations but cannot
+/// replace or mutate them without reparsing validated source.
+///
+/// ```compile_fail
+/// let mut file = linguini_syntax::parse_locale("message = Value\n").unwrap();
+/// file.declarations.clear();
+/// ```
 pub struct LocaleFile {
-    pub declarations: Vec<LocaleDeclaration>,
-    pub span: Span,
+    pub(crate) declarations: Vec<LocaleDeclaration>,
+    pub(crate) span: Span,
+}
+
+impl SchemaFile {
+    /// Returns parsed declarations in source order.
+    pub fn declarations(&self) -> &[SchemaDeclaration] {
+        &self.declarations
+    }
+
+    /// Returns span covering complete parsed file.
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl LocaleFile {
+    /// Returns parsed declarations in source order.
+    pub fn declarations(&self) -> &[LocaleDeclaration] {
+        &self.declarations
+    }
+
+    /// Returns span covering complete parsed file.
+    pub fn span(&self) -> Span {
+        self.span
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

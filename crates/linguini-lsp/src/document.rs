@@ -551,7 +551,7 @@ fn locale_dispatch_variants(document: &LinguiniDocument, offset: usize) -> Vec<(
         .and_then(|parsed| parsed.ast.as_ref())
         .map(|locale| {
             locale
-                .declarations
+                .declarations()
                 .iter()
                 .filter_map(|declaration| match declaration {
                     LocaleDeclaration::Enum(item) => Some((
@@ -590,7 +590,7 @@ fn locale_function_containing(
 ) -> Option<&FunctionDeclaration> {
     let locale = parsed_locale(document)?.ast.as_ref()?;
     locale
-        .declarations
+        .declarations()
         .iter()
         .find_map(|declaration| match declaration {
             LocaleDeclaration::Function(function)
@@ -854,14 +854,14 @@ fn schema_message_by_path<'a>(
 ) -> Option<&'a linguini_syntax::MessageSignature> {
     let parts = path.split('.').collect::<Vec<_>>();
     if parts.len() == 1 {
-        return schema.declarations.iter().find_map(|declaration| {
+        return schema.declarations().iter().find_map(|declaration| {
             let SchemaDeclaration::Message(message) = declaration else {
                 return None;
             };
             (message.name.value == parts[0]).then_some(message)
         });
     }
-    schema.declarations.iter().find_map(|declaration| {
+    schema.declarations().iter().find_map(|declaration| {
         let SchemaDeclaration::Group(group) = declaration else {
             return None;
         };
@@ -1013,7 +1013,7 @@ fn semantic_tokens_for_span(
 
 fn locale_message_name_at(document: &LinguiniDocument, offset: usize) -> Option<String> {
     let locale = parsed_locale(document)?.ast.as_ref()?;
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         if let Some(name) = locale_declaration_message_name_at(declaration, None, offset) {
             return Some(name);
         }
@@ -1023,7 +1023,7 @@ fn locale_message_name_at(document: &LinguiniDocument, offset: usize) -> Option<
 
 fn locale_message_path_containing(document: &LinguiniDocument, offset: usize) -> Option<String> {
     let locale = parsed_locale(document)?.ast.as_ref()?;
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         if let Some(path) = locale_declaration_message_containing(declaration, None, offset) {
             return Some(path);
         }

@@ -541,7 +541,7 @@ fn lowering_preserves_group_metadata_for_nested_and_empty_groups() {
         "/// Root docs\nroot {\n  /// Empty docs\n  empty {}\n  /// Nested docs\n  nested {\n    title\n  }\n}\n",
     )
     .expect("schema parses");
-    let SchemaDeclaration::Group(root) = &schema.declarations[0] else {
+    let SchemaDeclaration::Group(root) = &schema.declarations()[0] else {
         panic!("expected schema group");
     };
     let module = lower_schema(&schema);
@@ -572,7 +572,7 @@ fn lowering_preserves_locale_group_docs_and_spans() {
         "/// Root docs\nroot {\n  /// Nested docs\n  nested {\n    title = Title\n  }\n}\n",
     )
     .expect("locale parses");
-    let LocaleDeclaration::Group(root) = &locale.declarations[0] else {
+    let LocaleDeclaration::Group(root) = &locale.declarations()[0] else {
         panic!("expected locale group");
     };
     let module = lower_locale(&locale);
@@ -765,7 +765,7 @@ fn override_resolution_replaces_value_but_preserves_provenance() {
     let locale =
         parse_locale("message = first\noverride message = second\n").expect("locale parses");
     assert!(matches!(
-        locale.declarations[1],
+        locale.declarations()[1],
         LocaleDeclaration::Override(_)
     ));
     let module = lower_locale(&locale);

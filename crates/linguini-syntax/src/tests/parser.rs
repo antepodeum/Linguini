@@ -52,6 +52,18 @@ fn parses_syntax_coverage_fixtures() {
 }
 
 #[test]
+fn parsed_file_roots_expose_immutable_declaration_and_span_views() {
+    let source_id = SourceId(17);
+    let schema = crate::parse_schema_in("message\n", source_id).expect("schema parses");
+    let locale = parse_locale_in("message = Value\n", source_id).expect("locale parses");
+
+    assert_eq!(schema.declarations().len(), 1);
+    assert_eq!(locale.declarations().len(), 1);
+    assert_eq!(schema.span().source, source_id);
+    assert_eq!(locale.span().source, source_id);
+}
+
+#[test]
 fn frozen_v0_1_spec_tracks_the_executable_language_contract() {
     let spec = include_str!("../../../../docs/language-v0.1.md");
     let schema = include_str!("../../../../tests/fixtures/golden/syntax/all.lgs");

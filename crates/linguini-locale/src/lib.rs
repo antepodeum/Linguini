@@ -133,7 +133,7 @@ impl LocaleScopeLoader {
     }
 
     fn merge_file(&mut self, source_index: usize, source_path: &Path, file: &LocaleFile) {
-        for declaration in &file.declarations {
+        for declaration in file.declarations() {
             self.merge_declaration(source_index, source_path, false, declaration);
         }
     }

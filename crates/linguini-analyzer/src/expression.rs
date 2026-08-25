@@ -244,11 +244,11 @@ fn analyze_expressions_with_enums(
 
 pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> Vec<Diagnostic> {
     let mut schema_messages = BTreeMap::new();
-    for declaration in &schema.declarations {
+    for declaration in schema.declarations() {
         collect_schema_messages(declaration, None, &mut schema_messages);
     }
     let type_aliases = schema
-        .declarations
+        .declarations()
         .iter()
         .filter_map(|declaration| match declaration {
             SchemaDeclaration::TypeAlias(item) => {
@@ -260,7 +260,7 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
         })
         .collect::<BTreeMap<_, _>>();
     let schema_enum_names = schema
-        .declarations
+        .declarations()
         .iter()
         .filter_map(|declaration| match declaration {
             SchemaDeclaration::Enum(item) => Some(item.name.value.as_str()),
@@ -270,7 +270,7 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
         })
         .collect::<BTreeSet<_>>();
     let mut enum_variants = schema
-        .declarations
+        .declarations()
         .iter()
         .filter_map(|declaration| match declaration {
             SchemaDeclaration::Enum(item) => Some((
@@ -291,7 +291,7 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
             enum_variants.insert((*alias).to_owned(), variants);
         }
     }
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         collect_expression_enum_variants(declaration, &mut enum_variants);
     }
     let enum_names = schema_enum_names
@@ -305,7 +305,7 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
                 })
                 .map(|name| (*name).to_owned()),
         )
-        .chain(locale.declarations.iter().filter_map(|declaration| {
+        .chain(locale.declarations().iter().filter_map(|declaration| {
             let LocaleDeclaration::Enum(item) = declaration else {
                 return None;
             };
@@ -317,7 +317,7 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
     let mut forms = Vec::new();
     let mut variables = Vec::new();
     let mut messages = Vec::new();
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         collect_locale_expression_inputs(
             declaration,
             None,
@@ -688,7 +688,7 @@ fn qualified_name(namespace: Option<&str>, name: &str) -> String {
 
 pub fn analyze_function_patterns(file: &LocaleFile) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
-    for declaration in &file.declarations {
+    for declaration in file.declarations() {
         collect_function_pattern_diagnostics(declaration, &mut diagnostics);
     }
     diagnostics

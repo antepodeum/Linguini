@@ -137,14 +137,14 @@ fn ecma_sources(
         .iter()
         .map(|source| {
             Ok(EcmaSource::new(
-                source.ast.span.source,
+                source.ast.span().source,
                 project_relative_source_path(root, &source.file.path)?,
                 source.source.clone(),
             ))
         })
         .chain(locale_files.iter().map(|source| {
             Ok(EcmaSource::new(
-                source.ast.span.source,
+                source.ast.span().source,
                 project_relative_source_path(root, &source.file.path)?,
                 source.source.clone(),
             ))
@@ -1269,7 +1269,7 @@ fn ensure_schema_project_valid(root: &Path, schema_files: &[ParsedSchemaSource])
             .filter(|diagnostic| {
                 diagnostic
                     .source_span
-                    .is_some_and(|span| span.source == source.ast.span.source)
+                    .is_some_and(|span| span.source == source.ast.span().source)
             })
             .cloned()
             .collect::<Vec<_>>();

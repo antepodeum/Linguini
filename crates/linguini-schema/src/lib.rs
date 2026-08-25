@@ -100,7 +100,7 @@ struct SchemaSymbolBuilder {
 
 impl SchemaSymbolBuilder {
     fn register_declarations(&mut self, schema: &SchemaFile) {
-        for declaration in &schema.declarations {
+        for declaration in schema.declarations() {
             match declaration {
                 SchemaDeclaration::Enum(declaration) => {
                     self.validate_pascal_name(&declaration.name, "enum");

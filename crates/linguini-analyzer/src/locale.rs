@@ -94,7 +94,7 @@ pub fn analyze_locale_coverage_with_options(
     let mut diagnostics = analyze_locale_message_coverage_with_options(
         &schema_public_messages(schema),
         &locale_public_messages(locale),
-        locale.span,
+        locale.span(),
         options,
     );
     diagnostics.extend(analyze_locale_branch_coverage(Some(schema), locale));
@@ -155,7 +155,7 @@ pub fn analyze_locale_message_coverage_with_options(
 
 pub fn schema_public_messages(schema: &SchemaFile) -> Vec<RequiredLocaleMessage> {
     let mut messages = Vec::new();
-    for declaration in &schema.declarations {
+    for declaration in schema.declarations() {
         collect_schema_messages(declaration, None, &mut messages);
     }
     messages
@@ -163,7 +163,7 @@ pub fn schema_public_messages(schema: &SchemaFile) -> Vec<RequiredLocaleMessage>
 
 pub fn locale_public_messages(locale: &LocaleFile) -> Vec<ImplementedLocaleMessage> {
     let mut messages = Vec::new();
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         collect_locale_messages(declaration, None, &mut messages);
     }
     messages

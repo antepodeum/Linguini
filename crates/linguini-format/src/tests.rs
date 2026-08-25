@@ -636,7 +636,7 @@ fn source_kind_reports_missing_extensions_explicitly() {
 fn message_semantics(source: &str) -> Vec<(String, String, Vec<String>)> {
     let locale = parse_locale(source).expect("valid locale");
     let mut output = Vec::new();
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         match declaration {
             LocaleDeclaration::Message(message) => push_message_semantics(message, &mut output),
             LocaleDeclaration::Group(group) => group_semantics(group, &mut output),

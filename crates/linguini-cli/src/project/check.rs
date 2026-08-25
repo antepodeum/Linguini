@@ -113,7 +113,7 @@ pub(crate) fn check_project_with_options(
             .filter(|diagnostic| {
                 diagnostic
                     .source_span
-                    .is_some_and(|span| span.source == schema_file.ast.span.source)
+                    .is_some_and(|span| span.source == schema_file.ast.span().source)
             })
             .cloned()
             .collect::<Vec<_>>();

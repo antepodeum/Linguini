@@ -14,7 +14,7 @@ use linguini_syntax::{
 
 pub fn lower_schema(schema: &SchemaFile) -> IrModule {
     let mut module = IrModule::default();
-    for declaration in &schema.declarations {
+    for declaration in schema.declarations() {
         lower_schema_declaration(declaration, None, &mut module);
     }
     module
@@ -122,7 +122,7 @@ fn lower_schema_group(group: &MessageGroup, namespace: Option<&str>, module: &mu
 
 pub fn lower_locale(locale: &LocaleFile) -> IrModule {
     let mut module = IrModule::default();
-    for declaration in &locale.declarations {
+    for declaration in locale.declarations() {
         lower_locale_declaration(declaration, None, false, &mut module);
     }
     module

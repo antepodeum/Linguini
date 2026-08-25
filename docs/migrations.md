@@ -6,6 +6,10 @@ editor boundaries to update this file, public documentation, and executable test
 
 ## 0.1.0-alpha.4 remediation baseline
 
+- Rust integrations using `linguini-syntax` must replace direct `SchemaFile::declarations`,
+  `SchemaFile::span`, `LocaleFile::declarations`, and `LocaleFile::span` field access with the
+  `declarations()` and `span()` accessors. Parsed file roots are immutable outside the crate;
+  transform source and reparse it instead of mutating an AST in place.
 - Configuration tooling can consume the committed JSON Schema through
   `linguini_config::CONFIG_SCHEMA_JSON`; keep editor integrations pinned to the matching Linguini
   release.

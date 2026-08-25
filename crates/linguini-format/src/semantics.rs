@@ -29,7 +29,7 @@ impl FormatSemantics {
 
     pub(crate) fn locale(file: &LocaleFile, source: &str) -> Result<Self, FormatError> {
         let mut semantics = Self::default();
-        for declaration in &file.declarations {
+        for declaration in file.declarations() {
             semantics.declaration(declaration, source)?;
         }
         semantics
