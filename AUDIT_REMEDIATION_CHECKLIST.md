@@ -150,6 +150,8 @@ production path uses the fix and its relevant tests pass.
   shared it across browser and both SvelteKit controls, and locked source/declaration typing parity.
 - `53950ef` — sealed parsed schema and locale file roots behind immutable declaration/span
   accessors, with compile-fail coverage and a documented Rust API migration.
+- `8b82f7c` — lowered the complete project-relevant pinned CLDR locale-resolution graph into
+  generated output and removed the parallel JavaScript truncation heuristic.
 
 ## Numbered findings
 
@@ -414,8 +416,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #205 — Deduplicate formatter helpers/data per locale.
 - [x] #206 — Sanitize namespace paths and generated filenames.
 - [x] #207 — Reject case-folded locale filename collisions.
-- [-] #208 — Use the shared CLDR fallback graph. Rust codegen and CLI share the canonical CLDR
-      chain; generated locale runtime still combines truncation with precomputed overrides.
+- [x] #208 — Use the shared CLDR fallback graph. Rust codegen, CLI fallback composition, and
+      generated locale normalization consume the canonical pinned graph; generated runtime uses
+      one project-specific lookup with no independent truncation or script heuristic.
 - [x] #209 — Reject an invalid base locale.
 - [x] #210 — Reject unknown text direction.
 - [x] #211 — Remove `targets.ts.module` and all CJS documentation/templates. The parser retains
