@@ -77,11 +77,11 @@ fn project_codegen_emits_dedented_and_raw_semantic_text_exactly() {
         .expect("locale"),
     );
     assert_eq!(
-        locale.messages[0].body.as_ref().expect("receipt").mode,
+        locale.messages()[0].body.as_ref().expect("receipt").mode,
         linguini_ir::IrTextBlockMode::Dedented
     );
     assert_eq!(
-        locale.messages[1].body.as_ref().expect("wire").mode,
+        locale.messages()[1].body.as_ref().expect("wire").mode,
         linguini_ir::IrTextBlockMode::Raw
     );
 
@@ -325,7 +325,7 @@ fn project_codegen_emits_complete_recursive_schema_namespace_type() {
 #[test]
 fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
     use linguini_ir::{
-        IrGroup, IrMessage, IrModule, IrParameter, IrText, IrTextBlockMode, IrTextPart,
+        IrGroup, IrMessage, IrModuleBuilder, IrParameter, IrText, IrTextBlockMode, IrTextPart,
     };
     use linguini_syntax::Span;
 
@@ -333,57 +333,53 @@ fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
         "top.class.foo-bar.deep.leaf-value",
         "top.class.foo-bar.deep.invoke",
     ];
-    let schema = IrModule {
-        messages: vec![
-            IrMessage {
-                name: names[0].to_owned(),
-                docs: vec!["Value leaf\nsecond */ terminator".to_owned()],
-                parameters: Vec::new(),
-                body: None,
-            },
-            IrMessage {
-                name: names[1].to_owned(),
-                docs: vec!["Callable leaf".to_owned()],
-                parameters: vec![IrParameter {
-                    name: "count".to_owned(),
-                    ty: "Number".to_owned(),
-                }],
-                body: None,
-            },
-        ],
-        groups: vec![
-            IrGroup {
-                name: "top".to_owned(),
-                docs: vec!["Top group\nline */ terminator".to_owned()],
-                span: Span::new(0, 1),
-            },
-            IrGroup {
-                name: "top.class".to_owned(),
-                docs: vec!["Reserved class".to_owned()],
-                span: Span::new(0, 1),
-            },
-            IrGroup {
-                name: "top.class.foo-bar".to_owned(),
-                docs: vec!["Unsafe namespace".to_owned()],
-                span: Span::new(0, 1),
-            },
-            IrGroup {
-                name: "top.class.foo-bar.deep".to_owned(),
-                docs: vec!["Deep namespace".to_owned()],
-                span: Span::new(0, 1),
-            },
-            IrGroup {
-                name: "top.class.foo-bar.deep.empty".to_owned(),
-                docs: vec!["Empty namespace".to_owned()],
-                span: Span::new(0, 1),
-            },
-        ],
-        ..IrModule::default()
-    };
-    let locale = IrModule {
-        messages: names
-            .iter()
-            .map(|name| IrMessage {
+    let schema = IrModuleBuilder::new()
+        .push_message(IrMessage {
+            name: names[0].to_owned(),
+            docs: vec!["Value leaf\nsecond */ terminator".to_owned()],
+            parameters: Vec::new(),
+            body: None,
+        })
+        .push_message(IrMessage {
+            name: names[1].to_owned(),
+            docs: vec!["Callable leaf".to_owned()],
+            parameters: vec![IrParameter {
+                name: "count".to_owned(),
+                ty: "Number".to_owned(),
+            }],
+            body: None,
+        })
+        .push_group(IrGroup {
+            name: "top".to_owned(),
+            docs: vec!["Top group\nline */ terminator".to_owned()],
+            span: Span::new(0, 1),
+        })
+        .push_group(IrGroup {
+            name: "top.class".to_owned(),
+            docs: vec!["Reserved class".to_owned()],
+            span: Span::new(0, 1),
+        })
+        .push_group(IrGroup {
+            name: "top.class.foo-bar".to_owned(),
+            docs: vec!["Unsafe namespace".to_owned()],
+            span: Span::new(0, 1),
+        })
+        .push_group(IrGroup {
+            name: "top.class.foo-bar.deep".to_owned(),
+            docs: vec!["Deep namespace".to_owned()],
+            span: Span::new(0, 1),
+        })
+        .push_group(IrGroup {
+            name: "top.class.foo-bar.deep.empty".to_owned(),
+            docs: vec!["Empty namespace".to_owned()],
+            span: Span::new(0, 1),
+        })
+        .build()
+        .expect("fixture schema is unique by construction");
+    let locale = names
+        .iter()
+        .fold(IrModuleBuilder::new(), |builder, name| {
+            builder.push_message(IrMessage {
                 name: (*name).to_owned(),
                 docs: Vec::new(),
                 parameters: Vec::new(),
@@ -393,9 +389,9 @@ fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
                     span: Span::new(0, 2),
                 }),
             })
-            .collect(),
-        ..IrModule::default()
-    };
+        })
+        .build()
+        .expect("fixture locale is unique by construction");
     let files = generate_project_files(
         &schema,
         &[TypeScriptLocaleModule {
@@ -1509,18 +1505,18 @@ fn project_validation_rejects_unsafe_locale_filenames() {
 
 #[test]
 fn project_validation_rejects_namespace_filenames_beyond_portable_limits() {
-    use linguini_ir::{IrMessage, IrModule};
+    use linguini_ir::{IrMessage, IrModule, IrModuleBuilder};
 
     let namespace = "x".repeat(241);
-    let schema = IrModule {
-        messages: vec![IrMessage {
+    let schema = IrModuleBuilder::new()
+        .push_message(IrMessage {
             name: format!("{namespace}.title"),
             docs: Vec::new(),
             parameters: Vec::new(),
             body: None,
-        }],
-        ..IrModule::default()
-    };
+        })
+        .build()
+        .expect("fixture schema is unique by construction");
     let error = ValidatedTypeScriptProject::try_new(
         &schema,
         &[TypeScriptLocaleModule {
@@ -1542,7 +1538,7 @@ fn project_validation_rejects_namespace_filenames_beyond_portable_limits() {
 
 #[test]
 fn project_codegen_encodes_unsafe_namespace_filenames_and_imports() {
-    use linguini_ir::{IrMessage, IrModule, IrText, IrTextBlockMode, IrTextPart};
+    use linguini_ir::{IrMessage, IrModuleBuilder, IrText, IrTextBlockMode, IrTextPart};
     use linguini_syntax::Span;
 
     let names = [
@@ -1551,22 +1547,22 @@ fn project_codegen_encodes_unsafe_namespace_filenames_and_imports() {
         "日本語.title",
         "__lgl_path_434F4E.literal",
     ];
-    let schema = IrModule {
-        messages: names
-            .iter()
-            .map(|name| IrMessage {
+    let schema = names
+        .iter()
+        .fold(IrModuleBuilder::new(), |builder, name| {
+            builder.push_message(IrMessage {
                 name: (*name).to_owned(),
                 docs: Vec::new(),
                 parameters: Vec::new(),
                 body: None,
             })
-            .collect(),
-        ..IrModule::default()
-    };
-    let locale = IrModule {
-        messages: names
-            .iter()
-            .map(|name| IrMessage {
+        })
+        .build()
+        .expect("fixture schema is unique by construction");
+    let locale = names
+        .iter()
+        .fold(IrModuleBuilder::new(), |builder, name| {
+            builder.push_message(IrMessage {
                 name: (*name).to_owned(),
                 docs: Vec::new(),
                 parameters: Vec::new(),
@@ -1576,9 +1572,9 @@ fn project_codegen_encodes_unsafe_namespace_filenames_and_imports() {
                     span: Span::new(0, 2),
                 }),
             })
-            .collect(),
-        ..IrModule::default()
-    };
+        })
+        .build()
+        .expect("fixture locale is unique by construction");
 
     let files = generate_project_files(
         &schema,
@@ -1625,25 +1621,26 @@ fn project_codegen_encodes_unsafe_namespace_filenames_and_imports() {
 
 #[test]
 fn project_validation_rejects_case_insensitive_namespace_file_collisions() {
-    use linguini_ir::{IrMessage, IrModule, IrText, IrTextBlockMode, IrTextPart};
+    use linguini_ir::{IrMessage, IrModuleBuilder, IrText, IrTextBlockMode, IrTextPart};
     use linguini_syntax::Span;
 
-    let schema = IrModule {
-        messages: ["Shop.title", "shop.subtitle"]
-            .into_iter()
-            .map(|name| IrMessage {
+    let fixture_messages = ["Shop.title", "shop.subtitle"];
+    let schema = fixture_messages
+        .into_iter()
+        .fold(IrModuleBuilder::new(), |builder, name| {
+            builder.push_message(IrMessage {
                 name: name.to_owned(),
                 docs: Vec::new(),
                 parameters: Vec::new(),
                 body: None,
             })
-            .collect(),
-        ..IrModule::default()
-    };
-    let locale = IrModule {
-        messages: ["Shop.title", "shop.subtitle"]
-            .into_iter()
-            .map(|name| IrMessage {
+        })
+        .build()
+        .expect("fixture schema is unique by construction");
+    let locale = fixture_messages
+        .into_iter()
+        .fold(IrModuleBuilder::new(), |builder, name| {
+            builder.push_message(IrMessage {
                 name: name.to_owned(),
                 docs: Vec::new(),
                 parameters: Vec::new(),
@@ -1653,9 +1650,9 @@ fn project_validation_rejects_case_insensitive_namespace_file_collisions() {
                     span: Span::new(0, 2),
                 }),
             })
-            .collect(),
-        ..IrModule::default()
-    };
+        })
+        .build()
+        .expect("fixture locale is unique by construction");
 
     let error = generate_project_files(
         &schema,
@@ -2043,7 +2040,7 @@ fn project_runtime_embeds_complete_cldr_resolution() {
 
 #[test]
 fn project_codegen_emits_schema_namespace_objects() {
-    use linguini_ir::{IrMessage, IrModule, IrText, IrTextBlockMode, IrTextPart};
+    use linguini_ir::{IrMessage, IrModuleBuilder, IrText, IrTextBlockMode, IrTextPart};
     use linguini_syntax::Span;
 
     fn schema_message(name: &str) -> IrMessage {
@@ -2068,20 +2065,16 @@ fn project_codegen_emits_schema_namespace_objects() {
         }
     }
 
-    let schema = IrModule {
-        messages: vec![
-            schema_message("checkout.order_ready"),
-            schema_message("checkout.cart_summary"),
-        ],
-        ..IrModule::default()
-    };
-    let locale = IrModule {
-        messages: vec![
-            locale_message("checkout.order_ready", "Ready"),
-            locale_message("checkout.cart_summary", "Cart"),
-        ],
-        ..IrModule::default()
-    };
+    let schema = IrModuleBuilder::new()
+        .push_message(schema_message("checkout.order_ready"))
+        .push_message(schema_message("checkout.cart_summary"))
+        .build()
+        .expect("fixture schema is unique by construction");
+    let locale = IrModuleBuilder::new()
+        .push_message(locale_message("checkout.order_ready", "Ready"))
+        .push_message(locale_message("checkout.cart_summary", "Cart"))
+        .build()
+        .expect("fixture locale is unique by construction");
 
     let files = generate_project_files(
         &schema,

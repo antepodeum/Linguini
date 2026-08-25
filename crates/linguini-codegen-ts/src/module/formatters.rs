@@ -49,21 +49,21 @@ impl FormatterRequirements {
 
 pub fn module_uses_inline_functions(module: &IrModule) -> bool {
     module
-        .variables
+        .variables()
         .iter()
         .any(|item| text_uses_inline(&item.value))
         || module
-            .messages
+            .messages()
             .iter()
             .filter_map(|item| item.body.as_ref())
             .any(text_uses_inline)
-        || module.forms.iter().any(|form| {
+        || module.forms().iter().any(|form| {
             form.variants
                 .iter()
                 .any(|variant| variant.entries.iter().any(form_entry_uses_inline))
         })
         || module
-            .functions
+            .functions()
             .iter()
             .any(|function| function.branches.iter().any(function_branch_uses_inline))
 }
@@ -79,12 +79,12 @@ pub fn formatter_requirements(schema: &IrModule, locale: &IrModule) -> Formatter
 /// Whether emitting this schema/locale pair requires locale plural normalization.
 pub fn plural_required(schema: &IrModule, locale: &IrModule) -> bool {
     locale
-        .variables
+        .variables()
         .iter()
         .any(|variable| text_requires_plural(&variable.value, &BTreeMap::new()))
-        || locale.messages.iter().any(|message| {
+        || locale.messages().iter().any(|message| {
             let context = schema
-                .messages
+                .messages()
                 .iter()
                 .find(|signature| signature.name == message.name)
                 .map(|signature| {
@@ -100,12 +100,12 @@ pub fn plural_required(schema: &IrModule, locale: &IrModule) -> bool {
                 .as_ref()
                 .is_some_and(|body| text_requires_plural(body, &context))
         })
-        || locale.forms.iter().any(|form| {
+        || locale.forms().iter().any(|form| {
             form.variants
                 .iter()
                 .any(|variant| variant.entries.iter().any(form_entry_requires_plural))
         })
-        || locale.functions.iter().any(|function| {
+        || locale.functions().iter().any(|function| {
             function
                 .parameters
                 .iter()
@@ -244,23 +244,23 @@ fn expression_type(
 }
 
 fn collect_module_formatters(module: &IrModule, requirements: &mut FormatterRequirements) {
-    for alias in &module.type_aliases {
+    for alias in module.type_aliases() {
         collect_formatters(&alias.formatters, requirements);
     }
-    for variable in &module.variables {
+    for variable in module.variables() {
         collect_text_formatters(&variable.value, requirements);
     }
-    for message in &module.messages {
+    for message in module.messages() {
         collect_message_formatters(message, requirements);
     }
-    for form in &module.forms {
+    for form in module.forms() {
         for variant in &form.variants {
             for entry in &variant.entries {
                 collect_form_entry_formatters(entry, requirements);
             }
         }
     }
-    for function in &module.functions {
+    for function in module.functions() {
         for branch in &function.branches {
             collect_function_branch_formatters(branch, requirements);
         }
@@ -269,7 +269,7 @@ fn collect_module_formatters(module: &IrModule, requirements: &mut FormatterRequ
 
 fn collect_automatic_formatters(schema: &IrModule, requirements: &mut FormatterRequirements) {
     for parameter in schema
-        .messages
+        .messages()
         .iter()
         .flat_map(|message| &message.parameters)
     {
@@ -280,7 +280,7 @@ fn collect_automatic_formatters(schema: &IrModule, requirements: &mut FormatterR
                 break;
             }
             if let Some(alias) = schema
-                .type_aliases
+                .type_aliases()
                 .iter()
                 .find(|alias| alias.name == current)
             {

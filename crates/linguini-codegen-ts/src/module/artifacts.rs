@@ -56,7 +56,7 @@ pub(super) fn locale_runtime_artifacts(
         project.schema.clone()
     };
     let selected_messages = schema
-        .messages
+        .messages()
         .iter()
         .map(|message| message.name.as_str())
         .collect::<BTreeSet<_>>();
@@ -97,7 +97,7 @@ pub(super) fn message_artifacts(
         project.schema.clone()
     };
     let messages = schema
-        .messages
+        .messages()
         .iter()
         .map(|message| (message.name.as_str(), message.parameters.len()))
         .collect::<BTreeSet<_>>();
@@ -199,7 +199,7 @@ mod tests {
     use super::super::{
         TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject,
     };
-    use linguini_ir::{lower_locale, lower_schema};
+    use linguini_ir::{lower_locale, lower_schema, IrModule, IrModuleBuilder};
     use linguini_syntax::{parse_locale, parse_locale_in, parse_schema, parse_schema_in, SourceId};
 
     fn project<'a>(
@@ -225,26 +225,32 @@ mod tests {
 
     #[test]
     fn artifact_paths_are_case_fold_injective_and_tree_shaking_aware() {
-        let mut schema =
-            lower_schema(&parse_schema("reserved\nupper\nlower\nunicode\n").expect("schema"));
-        let mut locale = lower_locale(
+        let rename_fixture_name = |name: &str| match name {
+            "reserved" => Some("CON"),
+            "upper" => Some("Foo"),
+            "lower" => Some("foo"),
+            "unicode" => Some("\u{e9}"),
+            _ => None,
+        };
+        let rename = |module: &IrModule| {
+            let apply = |name: &mut String| {
+                if let Some(renamed) = rename_fixture_name(name) {
+                    *name = renamed.to_owned();
+                }
+            };
+            IrModuleBuilder::seeded(module)
+                .update_messages(|message| apply(&mut message.name))
+                .update_origins(|origin| apply(&mut origin.name))
+                .build()
+                .expect("renamed fixture preserves unique declaration names")
+        };
+        let schema = rename(&lower_schema(
+            &parse_schema("reserved\nupper\nlower\nunicode\n").expect("schema"),
+        ));
+        let locale = rename(&lower_locale(
             &parse_locale("reserved = Reserved\nupper = Upper\nlower = Lower\nunicode = Unicode\n")
                 .expect("locale"),
-        );
-        for (module, names) in [
-            (&mut schema, ["CON", "Foo", "foo", "é"]),
-            (&mut locale, ["CON", "Foo", "foo", "é"]),
-        ] {
-            for ((message, origin), name) in module
-                .messages
-                .iter_mut()
-                .zip(module.origins.iter_mut())
-                .zip(names)
-            {
-                message.name = name.to_owned();
-                origin.name = name.to_owned();
-            }
-        }
+        ));
         let all_project = project(&schema, locale, Vec::new());
 
         let artifacts = all_project.message_artifacts().expect("artifacts");

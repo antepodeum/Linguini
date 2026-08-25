@@ -30,7 +30,7 @@ pub fn generate_messages_module(schema: &IrModule) -> String {
 
 fn message_type_names(schema: &IrModule) -> Vec<String> {
     let referenced = schema
-        .messages
+        .messages()
         .iter()
         .flat_map(|message| {
             message
@@ -40,10 +40,10 @@ fn message_type_names(schema: &IrModule) -> Vec<String> {
         })
         .collect::<BTreeSet<_>>();
     schema
-        .enums
+        .enums()
         .iter()
         .map(|item| item.name.as_str())
-        .chain(schema.type_aliases.iter().map(|item| item.name.as_str()))
+        .chain(schema.type_aliases().iter().map(|item| item.name.as_str()))
         .filter(|name| referenced.contains(name))
         .map(safe_identifier)
         .collect()
@@ -51,7 +51,7 @@ fn message_type_names(schema: &IrModule) -> Vec<String> {
 
 fn schema_message_tree(schema: &IrModule) -> MessageTree {
     let mut tree = nested_message_tree(schema);
-    for message in &schema.messages {
+    for message in schema.messages() {
         if !message.name.contains('.') {
             tree.messages.push(MessageTreeMessage {
                 property: message.name.clone(),

@@ -19,7 +19,7 @@ use linguini_config::{
 };
 use linguini_ir::{
     ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, IrModule,
-    IrSymbolKind,
+    IrModuleBuilder, IrSymbolKind,
 };
 use linguini_syntax::SourceId;
 use sha2::{Digest, Sha256};
@@ -74,7 +74,7 @@ fn generate_typescript_target(
         .map(|schema| schema.file.namespace.clone())
         .collect();
     ensure_schema_project_valid(root, &schema_files)?;
-    let schema = merge_schema_ir(&schema_files);
+    let schema = merge_schema_ir(&schema_files)?;
     let locale_files = load_locale_sources(root, config)?;
     let locale_index = locale_index(&locale_files)?;
 
@@ -1171,7 +1171,7 @@ fn build_locale_ir(
             merge_module(
                 &mut locale_ir,
                 namespaced_module(lower_locale(&locale_file.ast), namespace),
-            );
+            )?;
         }
 
         for fallback_locale in project_locale_fallbacks(
@@ -1184,7 +1184,7 @@ fn build_locale_ir(
                 merge_module_fallback(
                     &mut locale_ir,
                     namespaced_module(lower_locale(&default_locale_file.ast), namespace),
-                );
+                )?;
             }
         }
     }
@@ -1347,15 +1347,15 @@ fn relative_codegen_path(path: &str) -> CliResult<PathBuf> {
     Ok(path.to_path_buf())
 }
 
-fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> IrModule {
+fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> CliResult<IrModule> {
     let mut schema = IrModule::default();
     for file in schema_files {
         merge_module(
             &mut schema,
             namespaced_module(lower_schema(&file.ast), &file.file.namespace),
-        );
+        )?;
     }
-    schema
+    Ok(schema)
 }
 
 pub(super) fn namespaced_module(mut module: IrModule, namespace: &str) -> IrModule {
@@ -1363,101 +1363,90 @@ pub(super) fn namespaced_module(mut module: IrModule, namespace: &str) -> IrModu
     module
 }
 
-pub(super) fn merge_module(target: &mut IrModule, source: IrModule) {
-    target.enums.extend(source.enums);
-    target.type_aliases.extend(source.type_aliases);
-    target.variables.extend(source.variables);
-    target.messages.extend(source.messages);
-    target.groups.extend(source.groups);
-    target.forms.extend(source.forms);
-    target.functions.extend(source.functions);
-    target.origins.extend(source.origins);
+pub(super) fn merge_module(target: &mut IrModule, source: IrModule) -> CliResult<()> {
+    target.try_append(source).map_err(|conflict| {
+        CliError::Diagnostics(format!("duplicate project symbol: {conflict}\n"))
+    })
 }
 
-pub(super) fn merge_module_fallback(target: &mut IrModule, source: IrModule) {
+pub(super) fn merge_module_fallback(target: &mut IrModule, source: IrModule) -> CliResult<()> {
+    // Fallback composition inserts only symbols the target lacks outright,
+    // including ancestor names that a non-group declaration already owns.
+    // Symbols queued earlier from this same source participate in both guards
+    // through `inserted`, mirroring sequential insertion into `target`.
+    let mut addition = IrModuleBuilder::new();
     let mut inserted = BTreeSet::new();
-    for item in source.enums {
-        if can_insert_fallback_symbol(target, &item.name) {
-            inserted.insert((IrSymbolKind::Enum, item.name.clone()));
-            target.enums.push(item);
+
+    macro_rules! insert_missing {
+        ($field:ident, $kind:expr, $push:ident) => {
+            for item in source.$field() {
+                let pending_ancestor_conflict = item
+                    .name
+                    .rsplit_once('.')
+                    .map(|(prefix, _)| prefix)
+                    .map(|ancestor| {
+                        walk_ancestors(ancestor).any(|candidate| {
+                            inserted.iter().any(|(kind, name)| {
+                                *kind != IrSymbolKind::Group && name == candidate
+                            })
+                        })
+                    })
+                    .unwrap_or(false);
+                if can_insert_fallback_symbol(target, &item.name)
+                    && !pending_ancestor_conflict
+                    && !inserted.contains(&($kind, item.name.clone()))
+                {
+                    inserted.insert(($kind, item.name.clone()));
+                    addition = addition.$push(item.clone());
+                }
+            }
+        };
+    }
+
+    insert_missing!(enums, IrSymbolKind::Enum, push_enum);
+    insert_missing!(type_aliases, IrSymbolKind::TypeAlias, push_type_alias);
+    insert_missing!(messages, IrSymbolKind::Message, push_message);
+    insert_missing!(groups, IrSymbolKind::Group, push_group);
+    insert_missing!(variables, IrSymbolKind::Variable, push_variable);
+    insert_missing!(forms, IrSymbolKind::Form, push_form);
+    insert_missing!(functions, IrSymbolKind::Function, push_function);
+
+    for origin in source.origins() {
+        if inserted.contains(&(origin.kind, origin.name.clone())) {
+            addition = addition.push_origin(origin.clone());
         }
     }
-    for item in source.type_aliases {
-        if can_insert_fallback_symbol(target, &item.name) {
-            inserted.insert((IrSymbolKind::TypeAlias, item.name.clone()));
-            target.type_aliases.push(item);
-        }
-    }
-    for item in source.messages {
-        if can_insert_fallback_symbol(target, &item.name) {
-            inserted.insert((IrSymbolKind::Message, item.name.clone()));
-            target.messages.push(item);
-        }
-    }
-    for item in source.groups {
-        if can_insert_fallback_symbol(target, &item.name) {
-            inserted.insert((IrSymbolKind::Group, item.name.clone()));
-            target.groups.push(item);
-        }
-    }
-    for item in source.variables {
-        if can_insert_fallback_symbol(target, &item.name) {
-            inserted.insert((IrSymbolKind::Variable, item.name.clone()));
-            target.variables.push(item);
-        }
-    }
-    for item in source.forms {
-        if can_insert_fallback_symbol(target, &item.name) {
-            inserted.insert((IrSymbolKind::Form, item.name.clone()));
-            target.forms.push(item);
-        }
-    }
-    for item in source.functions {
-        if can_insert_fallback_symbol(target, &item.name) {
-            inserted.insert((IrSymbolKind::Function, item.name.clone()));
-            target.functions.push(item);
-        }
-    }
-    for origin in source.origins {
-        let keep = inserted.contains(&(origin.kind, origin.name.clone()));
-        if keep {
-            target.origins.push(origin);
-        }
-    }
+
+    let composed = addition.build().map_err(|conflict| {
+        CliError::Diagnostics(format!("invalid fallback composition: {conflict}\n"))
+    })?;
+    target.try_append(composed).map_err(|conflict| {
+        CliError::Diagnostics(format!("invalid fallback composition: {conflict}\n"))
+    })?;
+    Ok(())
 }
 
-fn contains_symbol_name(module: &IrModule, name: &str) -> bool {
-    module.enums.iter().any(|item| item.name == name)
-        || module.type_aliases.iter().any(|item| item.name == name)
-        || module.variables.iter().any(|item| item.name == name)
-        || module.messages.iter().any(|item| item.name == name)
-        || module.groups.iter().any(|item| item.name == name)
-        || module.forms.iter().any(|item| item.name == name)
-        || module.functions.iter().any(|item| item.name == name)
+fn walk_ancestors(name: &str) -> impl Iterator<Item = &str> {
+    let mut next = Some(name);
+    std::iter::from_fn(move || {
+        let current = next?;
+        next = current.rsplit_once('.').map(|(prefix, _)| prefix);
+        Some(current)
+    })
 }
 
 fn can_insert_fallback_symbol(module: &IrModule, name: &str) -> bool {
-    if contains_symbol_name(module, name) {
+    let owned_exact = IrSymbolKind::non_group_kinds()
+        .into_iter()
+        .chain([IrSymbolKind::Group])
+        .any(|kind| module.contains_symbol(kind, name));
+    if owned_exact {
         return false;
     }
 
-    let mut prefix = name;
-    while let Some((ancestor, _)) = prefix.rsplit_once('.') {
-        if contains_non_group_symbol_name(module, ancestor) {
-            return false;
-        }
-        prefix = ancestor;
-    }
-    true
-}
-
-fn contains_non_group_symbol_name(module: &IrModule, name: &str) -> bool {
-    module.enums.iter().any(|item| item.name == name)
-        || module.type_aliases.iter().any(|item| item.name == name)
-        || module.variables.iter().any(|item| item.name == name)
-        || module.messages.iter().any(|item| item.name == name)
-        || module.forms.iter().any(|item| item.name == name)
-        || module.functions.iter().any(|item| item.name == name)
+    !walk_ancestors(name)
+        .skip(1)
+        .any(|ancestor| module.contains_non_group_symbol(ancestor))
 }
 
 #[cfg(test)]
@@ -1537,33 +1526,57 @@ mod tests {
             "shop",
         );
         let source = namespaced_module(
-            lower_locale(&parse_locale("section { second = Second }\n").expect("second locale")),
+            lower_locale(&parse_locale("other { second = Second }\n").expect("second locale")),
             "shop",
         );
 
-        merge_module(&mut target, source);
+        merge_module(&mut target, source).expect("disjoint fixture merge");
 
         assert_eq!(
             target
-                .origins
+                .origins()
                 .iter()
                 .map(|origin| origin.name.as_str())
                 .collect::<Vec<_>>(),
             [
                 "shop.section",
                 "shop.section.first",
-                "shop.section",
-                "shop.section.second",
+                "shop.other",
+                "shop.other.second",
             ]
         );
         assert_eq!(
             target
-                .groups
+                .groups()
                 .iter()
                 .map(|group| group.name.as_str())
                 .collect::<Vec<_>>(),
-            ["shop.section", "shop.section"]
+            ["shop.section", "shop.other"]
         );
+    }
+
+    #[test]
+    fn module_merge_rejects_duplicate_symbols_instead_of_duplicating_them() {
+        let target = namespaced_module(
+            lower_locale(&parse_locale("section { first = First }\n").expect("first locale")),
+            "shop",
+        );
+        let conflicting = namespaced_module(
+            lower_locale(&parse_locale("section { second = Second }\n").expect("second locale")),
+            "shop",
+        );
+
+        let mut merged = target;
+        let error = merge_module(&mut merged, conflicting)
+            .expect_err("duplicate group symbols must fail visibly");
+        assert!(error.to_string().contains("duplicate group symbol"));
+        assert!(error.to_string().contains("shop.section"));
+        // The rejected source contributes nothing to the target.
+        assert_eq!(merged.groups().len(), 1);
+        assert!(merged
+            .messages()
+            .iter()
+            .all(|message| message.name != "shop.section.second"));
     }
 
     #[test]
@@ -1580,11 +1593,11 @@ mod tests {
             "shop",
         );
 
-        merge_module_fallback(&mut target, fallback);
+        merge_module_fallback(&mut target, fallback).expect("fallback fixture merge");
 
         assert_eq!(
             target
-                .origins
+                .origins()
                 .iter()
                 .map(|origin| origin.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1592,7 +1605,7 @@ mod tests {
         );
         assert_eq!(
             target
-                .messages
+                .messages()
                 .iter()
                 .map(|message| message.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1600,7 +1613,7 @@ mod tests {
         );
         assert_eq!(
             target
-                .groups
+                .groups()
                 .iter()
                 .map(|group| group.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1622,11 +1635,11 @@ mod tests {
             "shop",
         );
 
-        merge_module_fallback(&mut target, fallback);
+        merge_module_fallback(&mut target, fallback).expect("fallback fixture merge");
 
         assert_eq!(
             target
-                .groups
+                .groups()
                 .iter()
                 .map(|group| group.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1634,7 +1647,7 @@ mod tests {
         );
         assert_eq!(
             target
-                .messages
+                .messages()
                 .iter()
                 .map(|message| message.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1642,7 +1655,7 @@ mod tests {
         );
         assert_eq!(
             target
-                .origins
+                .origins()
                 .iter()
                 .map(|origin| origin.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1666,14 +1679,14 @@ mod tests {
             "shop",
         );
 
-        merge_module_fallback(&mut target, fallback);
+        merge_module_fallback(&mut target, fallback).expect("fallback fixture merge");
 
-        assert_eq!(target.groups.len(), 1);
-        assert_eq!(target.messages.len(), 1);
-        assert_eq!(target.messages[0].name, "shop.section.title");
+        assert_eq!(target.groups().len(), 1);
+        assert_eq!(target.messages().len(), 1);
+        assert_eq!(target.messages()[0].name, "shop.section.title");
         assert_eq!(
             target
-                .origins
+                .origins()
                 .iter()
                 .map(|origin| origin.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1692,12 +1705,12 @@ mod tests {
             "shop",
         );
 
-        merge_module_fallback(&mut target, fallback);
+        merge_module_fallback(&mut target, fallback).expect("fallback fixture merge");
 
-        assert!(target.groups.is_empty());
+        assert!(target.groups().is_empty());
         assert_eq!(
             target
-                .messages
+                .messages()
                 .iter()
                 .map(|message| message.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1705,7 +1718,7 @@ mod tests {
         );
         assert_eq!(
             target
-                .origins
+                .origins()
                 .iter()
                 .map(|origin| origin.name.as_str())
                 .collect::<Vec<_>>(),

@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use linguini_ir::{
     is_plural_intrinsic, IrExpression, IrExpressionKind, IrFormEntry, IrFunctionBranch,
-    IrFunctionBranchValue, IrFunctionParameter, IrInlineFunctionInput, IrModule, IrSymbolKind,
-    IrText, IrTextPart, IrValue,
+    IrFunctionBranchValue, IrFunctionParameter, IrInlineFunctionInput, IrModule, IrModuleBuilder,
+    IrSymbolKind, IrText, IrTextPart, IrValue,
 };
 use linguini_syntax::{SourceId, Span};
 
@@ -103,7 +103,7 @@ pub(super) fn semantic_artifacts(
             project.schema.clone()
         };
     let message_names = selected_messages
-        .messages
+        .messages()
         .iter()
         .map(|message| message.name.as_str())
         .collect::<BTreeSet<_>>();
@@ -111,28 +111,28 @@ pub(super) fn semantic_artifacts(
     for locale in &project.locales {
         for message in &message_names {
             let closure = project.message_dependency_closure(&locale.locale, message)?;
-            for item in &closure.locale_module().enums {
+            for item in closure.locale_module().enums() {
                 required.insert((
                     locale.locale.clone(),
                     TypeScriptSemanticSymbolKind::LocaleEnum,
                     item.name.clone(),
                 ));
             }
-            for item in &closure.locale_module().variables {
+            for item in closure.locale_module().variables() {
                 required.insert((
                     locale.locale.clone(),
                     TypeScriptSemanticSymbolKind::LocaleVariable,
                     item.name.clone(),
                 ));
             }
-            for item in &closure.locale_module().forms {
+            for item in closure.locale_module().forms() {
                 required.insert((
                     locale.locale.clone(),
                     TypeScriptSemanticSymbolKind::LocaleForm,
                     item.name.clone(),
                 ));
             }
-            for item in &closure.locale_module().functions {
+            for item in closure.locale_module().functions() {
                 required.insert((
                     locale.locale.clone(),
                     TypeScriptSemanticSymbolKind::LocaleFunction,
@@ -368,14 +368,14 @@ pub(super) fn message_imports_with_artifacts(
         .module;
     let signature = project
         .schema
-        .messages
+        .messages()
         .iter()
         .find(|item| item.name == message)
         .ok_or_else(|| TypeScriptCodegenError::UnknownMessage {
             message: message.to_owned(),
         })?;
     let implementation = locale_module
-        .messages
+        .messages()
         .iter()
         .find(|item| item.name == message)
         .ok_or_else(|| TypeScriptCodegenError::MissingMessageImplementation {
@@ -550,59 +550,25 @@ fn one_symbol_module(
     kind: TypeScriptSemanticSymbolKind,
     name: &str,
 ) -> IrModule {
-    let mut one = IrModule::default();
-    match kind {
-        TypeScriptSemanticSymbolKind::LocaleEnum => one.enums.extend(
-            locale
-                .enums
-                .iter()
-                .filter(|item| item.name == name)
-                .cloned(),
-        ),
-        TypeScriptSemanticSymbolKind::LocaleVariable => one.variables.extend(
-            locale
-                .variables
-                .iter()
-                .filter(|item| item.name == name)
-                .cloned(),
-        ),
-        TypeScriptSemanticSymbolKind::LocaleForm => one.forms.extend(
-            locale
-                .forms
-                .iter()
-                .filter(|item| item.name == name)
-                .cloned(),
-        ),
-        TypeScriptSemanticSymbolKind::LocaleFunction => one.functions.extend(
-            locale
-                .functions
-                .iter()
-                .filter(|item| item.name == name)
-                .cloned(),
-        ),
-    }
-    one.origins.extend(
-        locale
-            .origins
-            .iter()
-            .filter(|origin| origin.kind == kind.ir_kind() && origin.name == name)
-            .cloned(),
-    );
-    one
+    let selected = kind.ir_kind();
+    IrModuleBuilder::seeded(locale)
+        .retain_symbols(|item_kind, item_name| item_kind == selected && item_name == name)
+        .build()
+        .expect("single-symbol projection preserves unique declaration names")
 }
 
 fn module_has_symbol(module: &IrModule, kind: TypeScriptSemanticSymbolKind) -> bool {
     match kind {
-        TypeScriptSemanticSymbolKind::LocaleEnum => !module.enums.is_empty(),
-        TypeScriptSemanticSymbolKind::LocaleVariable => !module.variables.is_empty(),
-        TypeScriptSemanticSymbolKind::LocaleForm => !module.forms.is_empty(),
-        TypeScriptSemanticSymbolKind::LocaleFunction => !module.functions.is_empty(),
+        TypeScriptSemanticSymbolKind::LocaleEnum => !module.enums().is_empty(),
+        TypeScriptSemanticSymbolKind::LocaleVariable => !module.variables().is_empty(),
+        TypeScriptSemanticSymbolKind::LocaleForm => !module.forms().is_empty(),
+        TypeScriptSemanticSymbolKind::LocaleFunction => !module.functions().is_empty(),
     }
 }
 
 fn symbol_span(locale: &IrModule, kind: TypeScriptSemanticSymbolKind, name: &str) -> Option<Span> {
     locale
-        .origins
+        .origins()
         .iter()
         .rev()
         .find(|origin| origin.kind == kind.ir_kind() && origin.name == name)
@@ -621,19 +587,19 @@ fn symbol_source_ids(
     match kind {
         TypeScriptSemanticSymbolKind::LocaleEnum => {}
         TypeScriptSemanticSymbolKind::LocaleVariable => {
-            if let Some(item) = locale.variables.iter().find(|item| item.name == name) {
+            if let Some(item) = locale.variables().iter().find(|item| item.name == name) {
                 collect_text_source_ids(&item.value, &mut sources);
             }
         }
         TypeScriptSemanticSymbolKind::LocaleForm => {
-            if let Some(item) = locale.forms.iter().find(|item| item.name == name) {
+            if let Some(item) = locale.forms().iter().find(|item| item.name == name) {
                 for variant in &item.variants {
                     collect_form_source_ids(&variant.entries, &mut sources);
                 }
             }
         }
         TypeScriptSemanticSymbolKind::LocaleFunction => {
-            if let Some(item) = locale.functions.iter().find(|item| item.name == name) {
+            if let Some(item) = locale.functions().iter().find(|item| item.name == name) {
                 for branch in &item.branches {
                     collect_function_source_ids(branch, &mut sources);
                 }
@@ -733,12 +699,12 @@ fn ordered_sources(
 
 fn schema_types_for_symbol(schema: &IrModule, locale: &IrModule) -> Vec<String> {
     let mut names = BTreeSet::new();
-    for function in &locale.functions {
+    for function in locale.functions() {
         for parameter in &function.parameters {
             collect_schema_type(schema, &parameter.ty, &mut names);
         }
     }
-    for form in &locale.forms {
+    for form in locale.forms() {
         for variant in &form.variants {
             collect_form_types(schema, &variant.entries, &mut names);
         }
@@ -750,11 +716,11 @@ fn schema_types_for_symbol(schema: &IrModule, locale: &IrModule) -> Vec<String> 
 }
 
 fn collect_schema_type(schema: &IrModule, ty: &str, names: &mut BTreeSet<String>) {
-    if let Some(alias) = schema.type_aliases.iter().find(|item| item.name == ty) {
+    if let Some(alias) = schema.type_aliases().iter().find(|item| item.name == ty) {
         if names.insert(alias.name.clone()) {
             collect_schema_type(schema, &alias.target, names);
         }
-    } else if schema.enums.iter().any(|item| item.name == ty) {
+    } else if schema.enums().iter().any(|item| item.name == ty) {
         names.insert(ty.to_owned());
     }
 }
@@ -784,19 +750,19 @@ fn direct_dependencies(
     match kind {
         TypeScriptSemanticSymbolKind::LocaleEnum => {}
         TypeScriptSemanticSymbolKind::LocaleVariable => {
-            if let Some(item) = locale.variables.iter().find(|item| item.name == name) {
+            if let Some(item) = locale.variables().iter().find(|item| item.name == name) {
                 collector.text(&item.value, &BTreeMap::new());
             }
         }
         TypeScriptSemanticSymbolKind::LocaleForm => {
-            if let Some(item) = locale.forms.iter().find(|item| item.name == name) {
+            if let Some(item) = locale.forms().iter().find(|item| item.name == name) {
                 for variant in &item.variants {
                     collector.form_entries(&variant.entries, &BTreeMap::new());
                 }
             }
         }
         TypeScriptSemanticSymbolKind::LocaleFunction => {
-            if let Some(item) = locale.functions.iter().find(|item| item.name == name) {
+            if let Some(item) = locale.functions().iter().find(|item| item.name == name) {
                 for parameter in &item.parameters {
                     collector.record_type(&parameter.ty);
                 }
@@ -838,7 +804,7 @@ impl<'a> ReferenceCollector<'a> {
     }
     fn record_type(&mut self, ty: &str) {
         let resolved = self.resolve_type(ty);
-        if self.locale.enums.iter().any(|item| item.name == resolved) {
+        if self.locale.enums().iter().any(|item| item.name == resolved) {
             self.dependencies
                 .insert((TypeScriptSemanticSymbolKind::LocaleEnum, resolved));
         }
@@ -874,12 +840,12 @@ impl<'a> ReferenceCollector<'a> {
             return;
         }
         let full = expr.path.join(".");
-        if self.locale.functions.iter().any(|item| item.name == full) {
+        if self.locale.functions().iter().any(|item| item.name == full) {
             self.dependencies
                 .insert((TypeScriptSemanticSymbolKind::LocaleFunction, full));
             return;
         }
-        if self.locale.forms.iter().any(|item| item.name == full) {
+        if self.locale.forms().iter().any(|item| item.name == full) {
             self.dependencies
                 .insert((TypeScriptSemanticSymbolKind::LocaleForm, full));
             return;
@@ -887,7 +853,7 @@ impl<'a> ReferenceCollector<'a> {
         if let Some(ty) = context.get(&expr.path[0]) {
             if expr.path.len() > 1 || expr.kind == IrExpressionKind::Call {
                 let resolved = self.resolve_type(ty);
-                if self.locale.forms.iter().any(|item| item.name == resolved) {
+                if self.locale.forms().iter().any(|item| item.name == resolved) {
                     self.dependencies
                         .insert((TypeScriptSemanticSymbolKind::LocaleForm, resolved));
                 }
@@ -897,7 +863,7 @@ impl<'a> ReferenceCollector<'a> {
             && expr.path.len() == 1
             && self
                 .locale
-                .variables
+                .variables()
                 .iter()
                 .any(|item| item.name == expr.path[0])
         {
@@ -913,7 +879,7 @@ impl<'a> ReferenceCollector<'a> {
         while seen.insert(current.clone()) {
             if let Some(alias) = self
                 .schema
-                .type_aliases
+                .type_aliases()
                 .iter()
                 .find(|item| item.name == current)
             {
@@ -1268,18 +1234,26 @@ mod tests {
 
     #[test]
     fn semantic_source_ids_include_nested_values_from_other_sources() {
-        let mut locale = lower_locale(
+        let locale = lower_locale(
             &parse_locale_in("impl Fruit { apple { label = Apple } }\n", SourceId(20))
                 .expect("locale"),
         );
-        let IrFormEntry::Attribute { value, .. } = &mut locale.forms[0].variants[0].entries[0]
-        else {
-            panic!("attribute")
-        };
-        let IrValue::Text(text) = value else {
-            panic!("text")
-        };
-        text.span.source = SourceId(21);
+        let locale = IrModuleBuilder::seeded(&locale)
+            .update_forms(|form| {
+                for variant in &mut form.variants {
+                    for entry in &mut variant.entries {
+                        if let IrFormEntry::Attribute {
+                            value: IrValue::Text(text),
+                            ..
+                        } = entry
+                        {
+                            text.span.source = SourceId(21);
+                        }
+                    }
+                }
+            })
+            .build()
+            .expect("cross-source fixture preserves unique declaration names");
 
         assert_eq!(
             symbol_source_ids(&locale, TypeScriptSemanticSymbolKind::LocaleForm, "Fruit"),

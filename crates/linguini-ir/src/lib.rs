@@ -9,8 +9,8 @@ pub use model::{
     IrBranch, IrEnum, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFormVariant,
     IrFormatter, IrFormatterArgument, IrFormatterKind, IrFunction, IrFunctionBranch,
     IrFunctionBranchValue, IrFunctionKind, IrFunctionParameter, IrGroup, IrInlineFunctionInput,
-    IrMessage, IrModule, IrOrigin, IrParameter, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart,
-    IrTypeAlias, IrValue, IrVariable, LocaleIr, SchemaIr,
+    IrMessage, IrModule, IrModuleBuilder, IrOrigin, IrParameter, IrSymbolConflict, IrSymbolKind,
+    IrText, IrTextBlockMode, IrTextPart, IrTypeAlias, IrValue, IrVariable, LocaleIr, SchemaIr,
 };
 pub use namespace::qualify_module;
 pub use reference::{

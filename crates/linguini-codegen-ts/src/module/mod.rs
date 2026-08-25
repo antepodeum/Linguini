@@ -25,7 +25,11 @@ use linguini_cldr::{
     compiled_date_formatting, compiled_number_formatting,
     locale_fallback_chain as cldr_locale_fallback_chain,
 };
-use linguini_ir::{validate_ir, IrModule, IrReferenceError, ValidatedIr};
+use linguini_ir::{
+    validate_ir, IrEnum, IrForm, IrFunction, IrGroup, IrMessage, IrModule, IrModuleBuilder,
+    IrOrigin, IrReferenceError, IrSymbolConflict, IrSymbolKind, IrTypeAlias, IrVariable,
+    ValidatedIr,
+};
 
 use self::emit::{
     emit_forms, emit_imports, emit_local_functions, emit_locale_enum_types, emit_messages,
@@ -582,10 +586,10 @@ impl<'a> ValidatedTypeScriptProject<'a> {
             schema.clone()
         };
         for locale in &locales {
-            for message in &visible_schema.messages {
+            for message in visible_schema.messages() {
                 if !locale
                     .module
-                    .messages
+                    .messages()
                     .iter()
                     .any(|implementation| implementation.name == message.name)
                 {
@@ -713,13 +717,13 @@ fn validate_project_inputs(
     }
 
     for selected in &options.included_messages {
-        let is_known = schema.messages.iter().any(|message| {
+        let is_known = schema.messages().iter().any(|message| {
             message.name == *selected
                 || message
                     .name
                     .strip_prefix(selected)
                     .is_some_and(|rest| rest.starts_with('.'))
-        }) || schema.groups.iter().any(|group| group.name == *selected);
+        }) || schema.groups().iter().any(|group| group.name == *selected);
         if !is_known {
             return Err(TypeScriptCodegenError::UnknownIncludedMessage {
                 message: selected.clone(),
@@ -1364,9 +1368,10 @@ fn generate_locale_globals(
     locale: &IrModule,
     options: &TypeScriptOptions,
 ) -> String {
-    let mut globals_schema = schema.clone();
-    globals_schema.messages.clear();
-    globals_schema.groups.clear();
+    let globals_schema = IrModuleBuilder::seeded(schema)
+        .retain_symbols(|kind, _| !matches!(kind, IrSymbolKind::Message | IrSymbolKind::Group))
+        .build()
+        .expect("globals schema projection preserves unique declaration names");
     let globals = locale_globals(locale);
     let mut output = String::new();
     emit_imports(
@@ -1389,15 +1394,15 @@ fn generate_locale_globals(
     emit_local_functions(&globals, options, &mut output);
 
     let local_enum_names = globals
-        .enums
+        .enums()
         .iter()
         .filter(|item| {
             !globals_schema
-                .enums
+                .enums()
                 .iter()
                 .any(|schema| schema.name == item.name)
                 && !globals_schema
-                    .type_aliases
+                    .type_aliases()
                     .iter()
                     .any(|schema| schema.name == item.name)
         })
@@ -1429,18 +1434,18 @@ fn emit_locale_global_imports(locale: &IrModule, import_path: &str, output: &mut
 
 fn locale_global_value_names(locale: &IrModule) -> Vec<String> {
     locale
-        .variables
+        .variables()
         .iter()
         .map(|item| safe_identifier(&item.name))
         .chain(
             locale
-                .forms
+                .forms()
                 .iter()
                 .map(|item| form_binding_name(&item.name)),
         )
         .chain(
             locale
-                .functions
+                .functions()
                 .iter()
                 .map(|item| safe_identifier(&item.name)),
         )
@@ -1448,26 +1453,28 @@ fn locale_global_value_names(locale: &IrModule) -> Vec<String> {
 }
 
 fn locale_has_globals(locale: &IrModule) -> bool {
-    !locale.enums.is_empty()
-        || !locale.variables.is_empty()
-        || !locale.forms.is_empty()
-        || !locale.functions.is_empty()
+    !locale.enums().is_empty()
+        || !locale.variables().is_empty()
+        || !locale.forms().is_empty()
+        || !locale.functions().is_empty()
 }
 
 fn locale_globals(locale: &IrModule) -> IrModule {
-    let mut globals = locale.clone();
-    globals.messages.clear();
-    globals.groups.clear();
-    globals
+    IrModuleBuilder::seeded(locale)
+        .clear_messages()
+        .clear_groups()
+        .build()
+        .expect("global-symbol projection preserves unique declaration names")
 }
 
 fn locale_without_globals(locale: &IrModule) -> IrModule {
-    let mut messages = locale.clone();
-    messages.enums.clear();
-    messages.variables.clear();
-    messages.forms.clear();
-    messages.functions.clear();
-    messages
+    IrModuleBuilder::seeded(locale)
+        .clear_enums()
+        .clear_variables()
+        .clear_forms()
+        .clear_functions()
+        .build()
+        .expect("message projection preserves unique declaration names")
 }
 
 fn emit_locale_runtime_imports(
@@ -1536,54 +1543,55 @@ fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
         return schema.clone();
     }
 
-    let mut visible = schema.clone();
-    visible.messages.retain(|message| {
+    let is_selected = |name: &str| {
         options.included_messages.iter().any(|selected| {
-            selected == &message.name
-                || message
-                    .name
-                    .strip_prefix(selected)
+            selected == name
+                || name
+                    .strip_prefix(selected.as_str())
                     .is_some_and(|rest| rest.starts_with('.'))
         })
-    });
-    let retained_message_names = visible
-        .messages
+    };
+    let retained_message_names = schema
+        .messages()
         .iter()
         .map(|message| message.name.as_str())
+        .filter(|name| is_selected(name))
         .collect::<Vec<_>>();
-    visible.groups.retain(|group| {
-        options.included_messages.iter().any(|selected| {
-            is_path_or_descendant(&group.name, selected)
-                || is_path_or_descendant(selected, &group.name)
-        }) || retained_message_names
-            .iter()
-            .any(|message| is_path_or_descendant(message, &group.name))
-    });
-    visible
+    IrModuleBuilder::seeded(schema)
+        .retain_messages(|message| is_selected(&message.name))
+        .retain_groups(|group| {
+            options.included_messages.iter().any(|selected| {
+                is_path_or_descendant(&group.name, selected)
+                    || is_path_or_descendant(selected, &group.name)
+            }) || retained_message_names
+                .iter()
+                .any(|message| is_path_or_descendant(message, &group.name))
+        })
+        .build()
+        .expect("tree-shaken schema projection preserves unique declaration names")
 }
 
 fn locale_module_for_schema(locale: &IrModule, schema: &IrModule) -> IrModule {
-    let mut visible = locale.clone();
-    visible.messages.retain(|message| {
-        schema
-            .messages
-            .iter()
-            .any(|schema_message| schema_message.name == message.name)
-    });
     let schema_groups = schema
-        .groups
+        .groups()
         .iter()
         .map(|group| group.name.as_str())
         .collect::<BTreeSet<_>>();
-    visible
-        .groups
-        .retain(|group| schema_groups.contains(group.name.as_str()));
-    visible
+    IrModuleBuilder::seeded(locale)
+        .retain_messages(|message| {
+            schema
+                .messages()
+                .iter()
+                .any(|schema_message| schema_message.name == message.name)
+        })
+        .retain_groups(|group| schema_groups.contains(group.name.as_str()))
+        .build()
+        .expect("schema-projected locale preserves unique declaration names")
 }
 
 fn top_level_namespaces(module: &IrModule) -> Vec<String> {
     let mut namespaces = module
-        .messages
+        .messages()
         .iter()
         .filter_map(|message| message.name.split_once('.').map(|(namespace, _)| namespace))
         .map(str::to_owned)
@@ -1595,29 +1603,19 @@ fn top_level_namespaces(module: &IrModule) -> Vec<String> {
 
 fn namespace_module(module: &IrModule, namespace: &str) -> IrModule {
     let prefix = format!("{namespace}.");
-    let mut output = module.clone();
-    output.messages = module
-        .messages
-        .iter()
-        .filter(|message| message.name.starts_with(&prefix))
-        .cloned()
-        .collect();
-    output.groups = module
-        .groups
-        .iter()
-        .filter(|group| group.name == namespace || group.name.starts_with(&prefix))
-        .cloned()
-        .collect();
-    output
+    IrModuleBuilder::seeded(module)
+        .retain_messages(|message| message.name.starts_with(&prefix))
+        .retain_groups(|group| group.name == namespace || group.name.starts_with(&prefix))
+        .build()
+        .expect("namespace projection preserves unique declaration names")
 }
 
 fn root_module(module: &IrModule) -> IrModule {
-    let mut output = module.clone();
-    output
-        .messages
-        .retain(|message| !message.name.contains('.'));
-    output.groups.retain(|group| !group.name.contains('.'));
-    output
+    IrModuleBuilder::seeded(module)
+        .retain_messages(|message| !message.name.contains('.'))
+        .retain_groups(|group| !group.name.contains('.'))
+        .build()
+        .expect("root projection preserves unique declaration names")
 }
 
 fn root_module_with_locale_items(module: &IrModule) -> IrModule {
@@ -1645,13 +1643,100 @@ fn fallback_locale_module(
     let mut chain = locale_fallback_chain(locales, locale, base_locale);
     chain.reverse();
 
-    let mut merged = IrModule::default();
+    let mut merged = FallbackDeclarations::default();
     for fallback_locale in chain {
         if let Some(source) = locales.iter().find(|entry| entry.locale == fallback_locale) {
-            merge_locale_module(&mut merged, &source.module);
+            merged.absorb(&source.module);
         }
     }
     merged
+        .into_module()
+        .expect("fallback chain composition preserves unique declaration names")
+}
+
+/// Accumulates locale-fallback precedence: the first chain entry supplying a
+/// name wins its vector position, and later duplicates replace that entry in
+/// place instead of appending.
+#[derive(Default)]
+struct FallbackDeclarations {
+    enums: Vec<IrEnum>,
+    type_aliases: Vec<IrTypeAlias>,
+    groups: Vec<IrGroup>,
+    messages: Vec<IrMessage>,
+    variables: Vec<IrVariable>,
+    forms: Vec<IrForm>,
+    functions: Vec<IrFunction>,
+    origins: Vec<IrOrigin>,
+}
+
+impl FallbackDeclarations {
+    fn absorb(&mut self, source: &IrModule) {
+        macro_rules! upsert_kind {
+            ($field:ident, $accessor:ident) => {
+                for item in source.$accessor() {
+                    match self
+                        .$field
+                        .iter_mut()
+                        .find(|existing| existing.name == item.name)
+                    {
+                        Some(existing) => *existing = item.clone(),
+                        None => self.$field.push(item.clone()),
+                    }
+                }
+            };
+        }
+
+        upsert_kind!(enums, enums);
+        upsert_kind!(type_aliases, type_aliases);
+        upsert_kind!(groups, groups);
+        upsert_kind!(messages, messages);
+        upsert_kind!(variables, variables);
+        upsert_kind!(forms, forms);
+        upsert_kind!(functions, functions);
+
+        for source_origin in source.origins() {
+            let mut origin = source_origin.clone();
+            if self
+                .origins
+                .iter()
+                .any(|existing| existing.kind == origin.kind && existing.name == origin.name)
+            {
+                // Locale fallback precedence is an explicit semantic replacement. Retain both
+                // provenance records while making that replacement visible to IR validation.
+                origin.is_override = true;
+            }
+            self.origins.push(origin);
+        }
+    }
+
+    fn into_module(self) -> Result<IrModule, IrSymbolConflict> {
+        let mut builder = IrModuleBuilder::new();
+        for item in self.enums {
+            builder = builder.push_enum(item);
+        }
+        for item in self.type_aliases {
+            builder = builder.push_type_alias(item);
+        }
+        for item in self.groups {
+            builder = builder.push_group(item);
+        }
+        for item in self.messages {
+            builder = builder.push_message(item);
+        }
+        for item in self.variables {
+            builder = builder.push_variable(item);
+        }
+        for item in self.forms {
+            builder = builder.push_form(item);
+        }
+        for item in self.functions {
+            builder = builder.push_function(item);
+        }
+        for origin in self.origins {
+            builder = builder.push_origin(origin);
+        }
+        builder.build()
+    }
 }
 
 pub(crate) fn locale_fallback_chain(
@@ -1692,48 +1777,6 @@ pub(crate) fn locale_fallback_chain(
         }
     }
     chain
-}
-
-fn merge_locale_module(target: &mut IrModule, source: &IrModule) {
-    merge_named_items(&mut target.enums, &source.enums, |item| &item.name);
-    merge_named_items(&mut target.type_aliases, &source.type_aliases, |item| {
-        &item.name
-    });
-    merge_named_items(&mut target.groups, &source.groups, |group| &group.name);
-    merge_named_items(&mut target.messages, &source.messages, |message| {
-        &message.name
-    });
-    merge_named_items(&mut target.variables, &source.variables, |variable| {
-        &variable.name
-    });
-    merge_named_items(&mut target.forms, &source.forms, |form| &form.name);
-    merge_named_items(&mut target.functions, &source.functions, |function| {
-        &function.name
-    });
-    for source_origin in &source.origins {
-        let mut origin = source_origin.clone();
-        if target
-            .origins
-            .iter()
-            .any(|existing| existing.kind == origin.kind && existing.name == origin.name)
-        {
-            // Locale fallback precedence is an explicit semantic replacement. Retain both
-            // provenance records while making that replacement visible to IR validation.
-            origin.is_override = true;
-        }
-        target.origins.push(origin);
-    }
-}
-
-fn merge_named_items<T: Clone>(target: &mut Vec<T>, source: &[T], key: impl Fn(&T) -> &str) {
-    for item in source {
-        let name = key(item);
-        if let Some(existing) = target.iter_mut().find(|existing| key(existing) == name) {
-            *existing = item.clone();
-        } else {
-            target.push(item.clone());
-        }
-    }
 }
 
 fn plural_function_name(locale: &str) -> String {
@@ -1807,7 +1850,7 @@ mod tests {
 
         assert_eq!(
             visible
-                .messages
+                .messages()
                 .iter()
                 .map(|message| message.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1815,7 +1858,7 @@ mod tests {
         );
         assert_eq!(
             visible
-                .groups
+                .groups()
                 .iter()
                 .map(|group| group.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1837,7 +1880,7 @@ mod tests {
 
         assert_eq!(
             visible
-                .groups
+                .groups()
                 .iter()
                 .map(|group| group.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1934,7 +1977,7 @@ mod tests {
         let alpha = namespace_module(&module, "alpha");
         assert_eq!(
             alpha
-                .groups
+                .groups()
                 .iter()
                 .map(|group| group.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1942,7 +1985,7 @@ mod tests {
         );
         assert_eq!(
             root_module(&module)
-                .groups
+                .groups()
                 .iter()
                 .map(|group| group.name.as_str())
                 .collect::<Vec<_>>(),
@@ -1971,20 +2014,20 @@ mod tests {
 
         let merged = fallback_locale_module(&[base, regional], "en-US", Some("en"));
 
-        assert_eq!(merged.groups.len(), 2);
-        assert_eq!(merged.groups[0].name, "section");
-        assert_eq!(merged.groups[0].docs, ["Regional section"]);
-        assert_eq!(merged.groups[1].name, "section.nested");
+        assert_eq!(merged.groups().len(), 2);
+        assert_eq!(merged.groups()[0].name, "section");
+        assert_eq!(merged.groups()[0].docs, ["Regional section"]);
+        assert_eq!(merged.groups()[1].name, "section.nested");
         assert_eq!(
             merged
-                .messages
+                .messages()
                 .iter()
                 .map(|message| message.name.as_str())
                 .collect::<Vec<_>>(),
             ["section.title", "section.nested.child"]
         );
         assert!(merged
-            .origins
+            .origins()
             .iter()
             .any(|origin| origin.name == "section" && origin.is_override));
     }
@@ -2000,7 +2043,7 @@ mod tests {
 
         assert_eq!(
             projected
-                .groups
+                .groups()
                 .iter()
                 .map(|group| group.name.as_str())
                 .collect::<Vec<_>>(),

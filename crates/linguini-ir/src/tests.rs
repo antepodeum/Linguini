@@ -996,3 +996,180 @@ fn repo_root() -> &'static Path {
         .and_then(Path::parent)
         .expect("repo root")
 }
+
+#[test]
+fn try_append_rejects_duplicate_symbols_across_kinds() {
+    use crate::{IrMessage, IrModuleBuilder, IrSymbolConflict, IrSymbolKind};
+
+    let module_with = |name: &str| {
+        IrModuleBuilder::new()
+            .push_message(IrMessage {
+                name: name.to_owned(),
+                docs: Vec::new(),
+                parameters: Vec::new(),
+                body: None,
+            })
+            .build()
+            .expect("single message module")
+    };
+
+    let mut target = module_with("shop.title");
+    target
+        .try_append(module_with("shop.subtitle"))
+        .expect("distinct names compose");
+    assert_eq!(target.messages().len(), 2);
+
+    let conflict = target
+        .try_append(module_with("shop.title"))
+        .expect_err("duplicate names are rejected");
+    assert_eq!(
+        conflict,
+        IrSymbolConflict {
+            kind: IrSymbolKind::Message,
+            name: "shop.title".to_owned(),
+        }
+    );
+    // The conflicting source must not leak into the target.
+    assert_eq!(target.messages().len(), 2);
+}
+
+#[test]
+fn builder_rejects_duplicate_names_at_construction() {
+    use crate::{IrEnum, IrGroup, IrMessage, IrModuleBuilder};
+    use linguini_syntax::Span;
+
+    // One name may exist in different declaration kinds, but never twice
+    // within one kind.
+    let error = IrModuleBuilder::new()
+        .push_enum(IrEnum {
+            name: "Fruit".to_owned(),
+            docs: Vec::new(),
+            variants: vec!["apple".to_owned()],
+        })
+        .push_message(IrMessage {
+            name: "Fruit".to_owned(),
+            docs: Vec::new(),
+            parameters: Vec::new(),
+            body: None,
+        })
+        .build()
+        .expect("distinct kinds may share one name");
+    let _ = &error;
+
+    let error = IrModuleBuilder::new()
+        .push_group(IrGroup {
+            name: "shop".to_owned(),
+            docs: Vec::new(),
+            span: Span::new(0, 0),
+        })
+        .push_group(IrGroup {
+            name: "shop".to_owned(),
+            docs: Vec::new(),
+            span: Span::new(1, 2),
+        })
+        .build()
+        .expect_err("duplicate names inside one kind cannot escape construction");
+    assert_eq!(error.name, "shop");
+}
+
+#[test]
+fn symbol_queries_cover_every_declaration_kind() {
+    use crate::{
+        IrEnum, IrForm, IrGroup, IrMessage, IrModuleBuilder, IrOrigin, IrSymbolKind, IrText,
+    };
+    use linguini_syntax::Span;
+
+    let module = IrModuleBuilder::new()
+        .push_enum(IrEnum {
+            name: "Fruit".to_owned(),
+            docs: Vec::new(),
+            variants: Vec::new(),
+        })
+        .push_message(IrMessage {
+            name: "title".to_owned(),
+            docs: Vec::new(),
+            parameters: Vec::new(),
+            body: Some(IrText {
+                parts: Vec::new(),
+                mode: IrTextBlockMode::Inline,
+                span: Span::new(0, 0),
+            }),
+        })
+        .push_group(IrGroup {
+            name: "shop".to_owned(),
+            docs: Vec::new(),
+            span: Span::new(0, 0),
+        })
+        .push_form(IrForm {
+            name: "label".to_owned(),
+            docs: Vec::new(),
+            variants: Vec::new(),
+        })
+        .push_function(crate::IrFunction {
+            kind: crate::IrFunctionKind::Form,
+            name: "gender".to_owned(),
+            docs: Vec::new(),
+            parameters: Vec::new(),
+            branches: Vec::new(),
+        })
+        .push_origin(IrOrigin {
+            kind: IrSymbolKind::Message,
+            name: "title".to_owned(),
+            span: Span::new(0, 0),
+            is_override: false,
+        })
+        .build()
+        .expect("unique fixture");
+
+    assert!(module.contains_symbol(IrSymbolKind::Enum, "Fruit"));
+    assert!(module.contains_symbol(IrSymbolKind::Message, "title"));
+    assert!(module.contains_symbol(IrSymbolKind::Group, "shop"));
+    assert!(module.contains_symbol(IrSymbolKind::Form, "label"));
+    assert!(module.contains_symbol(IrSymbolKind::Function, "gender"));
+    assert!(!module.contains_non_group_symbol("shop"));
+    assert!(module.contains_non_group_symbol("title"));
+    assert_eq!(module.origins().len(), 1);
+}
+
+#[test]
+fn retain_symbols_filters_declarations_and_provenance() {
+    use crate::{IrMessage, IrModuleBuilder, IrOrigin, IrSymbolKind};
+    use linguini_syntax::Span;
+
+    let module = IrModuleBuilder::new()
+        .push_message(IrMessage {
+            name: "keep".to_owned(),
+            docs: Vec::new(),
+            parameters: Vec::new(),
+            body: None,
+        })
+        .push_message(IrMessage {
+            name: "drop.me".to_owned(),
+            docs: Vec::new(),
+            parameters: Vec::new(),
+            body: None,
+        })
+        .push_origin(IrOrigin {
+            kind: IrSymbolKind::Message,
+            name: "keep".to_owned(),
+            span: Span::new(0, 0),
+            is_override: false,
+        })
+        .push_origin(IrOrigin {
+            kind: IrSymbolKind::Message,
+            name: "drop.me".to_owned(),
+            span: Span::new(0, 0),
+            is_override: false,
+        })
+        .build()
+        .expect("fixture");
+
+    let sliced = IrModuleBuilder::seeded(&module)
+        .retain_symbols(|kind, name| kind != IrSymbolKind::Message || !name.contains('.'))
+        .build()
+        .expect("slicing a unique module preserves uniqueness");
+
+    assert_eq!(sliced.messages().len(), 1);
+    assert_eq!(sliced.messages()[0].name, "keep");
+    assert_eq!(sliced.origins().len(), 1);
+}

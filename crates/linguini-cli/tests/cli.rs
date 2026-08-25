@@ -224,7 +224,7 @@ fn build_rejects_filesystem_and_group_namespace_collision() {
         .arg("build")
         .assert()
         .failure()
-        .stderr(contains("duplicate schema path `shop.checkout.title`"));
+        .stderr(contains("duplicate message symbol `shop.checkout.title`"));
 }
 
 #[test]

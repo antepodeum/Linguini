@@ -38,9 +38,9 @@ pub fn emit_imports(
         ));
     }
 
-    let uses_forms = !locale.forms.is_empty();
-    let uses_dispatch = !locale.functions.is_empty() || module_uses_inline_functions(locale);
-    let uses_named_message_args = schema.messages.iter().any(|signature| {
+    let uses_forms = !locale.forms().is_empty();
+    let uses_dispatch = !locale.functions().is_empty() || module_uses_inline_functions(locale);
+    let uses_named_message_args = schema.messages().iter().any(|signature| {
         !signature.parameters.is_empty()
             && message_implementation(locale, &signature.name).is_some()
     });
@@ -99,12 +99,12 @@ pub fn emit_schema_type_reexports(
 
 pub fn schema_type_names(schema: &IrModule) -> Vec<String> {
     schema
-        .enums
+        .enums()
         .iter()
         .map(|item| safe_identifier(&item.name))
         .chain(
             schema
-                .type_aliases
+                .type_aliases()
                 .iter()
                 .map(|item| safe_identifier(&item.name)),
         )
@@ -113,10 +113,10 @@ pub fn schema_type_names(schema: &IrModule) -> Vec<String> {
 
 pub fn schema_type_aliases(schema: &IrModule) -> Vec<(String, String)> {
     let names = schema
-        .enums
+        .enums()
         .iter()
         .map(|item| item.name.as_str())
-        .chain(schema.type_aliases.iter().map(|item| item.name.as_str()))
+        .chain(schema.type_aliases().iter().map(|item| item.name.as_str()))
         .collect::<Vec<_>>();
     let mut public_name_counts = BTreeMap::new();
     for name in &names {
@@ -167,7 +167,7 @@ pub fn emit_formatter_data(
 }
 
 pub fn emit_enums(module: &IrModule, output: &mut String) {
-    for item in &module.enums {
+    for item in module.enums() {
         emit_docs(&item.docs, "", output);
         let variants = item
             .variants
@@ -183,10 +183,10 @@ pub fn emit_enums(module: &IrModule, output: &mut String) {
 }
 
 pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut String) {
-    for item in &locale.enums {
-        let supplied_by_schema = schema.enums.iter().any(|schema| schema.name == item.name)
+    for item in locale.enums() {
+        let supplied_by_schema = schema.enums().iter().any(|schema| schema.name == item.name)
             || schema
-                .type_aliases
+                .type_aliases()
                 .iter()
                 .any(|schema| schema.name == item.name);
         if supplied_by_schema {
@@ -207,7 +207,7 @@ pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut
 }
 
 pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
-    for item in &module.type_aliases {
+    for item in module.type_aliases() {
         emit_docs(&item.docs, "", output);
         output.push_str(&format!(
             "export type {} = {};\n\n",
@@ -218,7 +218,7 @@ pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
 }
 
 pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    for form in &module.forms {
+    for form in module.forms() {
         emit_docs(&form.docs, "", output);
         output.push_str(&format!("const {} = {{\n", form_binding_name(&form.name)));
         for variant in &form.variants {
@@ -233,7 +233,7 @@ pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut S
 }
 
 pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    for variable in &module.variables {
+    for variable in module.variables() {
         emit_docs(&variable.docs, "", output);
         output.push_str(&format!(
             "const {} = {};\n\n",
@@ -244,7 +244,7 @@ pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &m
 }
 
 pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    for function in &module.functions {
+    for function in module.functions() {
         emit_docs(&function.docs, "", output);
         let parameter_names = function_parameters(function);
         let params = parameter_names
@@ -300,7 +300,7 @@ pub fn emit_messages(
         groups: Vec::new(),
     };
 
-    for signature in &schema.messages {
+    for signature in schema.messages() {
         if signature.name.contains('.') {
             continue;
         }
@@ -451,7 +451,7 @@ fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatte
         }
 
         if let Some(alias) = schema
-            .type_aliases
+            .type_aliases()
             .iter()
             .find(|alias| alias.name == current)
         {
@@ -471,7 +471,10 @@ fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatte
 }
 
 fn message_implementation<'a>(module: &'a IrModule, name: &str) -> Option<&'a IrMessage> {
-    module.messages.iter().find(|message| message.name == name)
+    module
+        .messages()
+        .iter()
+        .find(|message| message.name == name)
 }
 
 fn function_parameters(function: &IrFunction) -> Vec<String> {

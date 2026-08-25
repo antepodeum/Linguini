@@ -3,7 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use linguini_cldr::canonicalize_locale;
-use linguini_ir::{IrForm, IrFormEntry, IrFunction, IrModule, IrSymbolKind, IrValue};
+use linguini_ir::{
+    IrForm, IrFormEntry, IrFunction, IrModule, IrModuleBuilder, IrSymbolKind, IrValue,
+};
 use linguini_syntax::{SourceId, Span};
 
 use crate::ecmascript::{
@@ -253,13 +255,15 @@ fn emit_message_module(
 ) -> EcmaModule {
     let schema = closure.schema();
     let complete_locale = closure.locale_module();
-    let mut physical_locale;
+    let physical_locale;
     let locale = if runtime_import_path.is_some() {
-        physical_locale = complete_locale.clone();
-        physical_locale.enums.clear();
-        physical_locale.variables.clear();
-        physical_locale.forms.clear();
-        physical_locale.functions.clear();
+        physical_locale = IrModuleBuilder::seeded(complete_locale)
+            .clear_enums()
+            .clear_variables()
+            .clear_forms()
+            .clear_functions()
+            .build()
+            .expect("physical message projection preserves unique declaration names");
         &physical_locale
     } else {
         complete_locale
@@ -272,9 +276,11 @@ fn emit_message_module(
         push_chunk(&mut statements, formatter_data, None);
     }
 
-    for item in &locale.enums {
-        let mut one = IrModule::default();
-        one.enums.push(item.clone());
+    for item in locale.enums() {
+        let one = IrModuleBuilder::new()
+            .push_enum(item.clone())
+            .build()
+            .expect("single-symbol module is unique by construction");
         let mut output = String::new();
         emit::emit_locale_enum_types(schema, &one, &mut output);
         push_chunk(
@@ -284,9 +290,11 @@ fn emit_message_module(
         );
     }
 
-    for item in &locale.variables {
-        let mut one = IrModule::default();
-        one.variables.push(item.clone());
+    for item in locale.variables() {
+        let one = IrModuleBuilder::new()
+            .push_variable(item.clone())
+            .build()
+            .expect("single-symbol module is unique by construction");
         let mut output = String::new();
         emit_variables(&one, options, &mut output);
         push_chunk(
@@ -301,9 +309,11 @@ fn emit_message_module(
         );
     }
 
-    for item in &locale.forms {
-        let mut one = IrModule::default();
-        one.forms.push(item.clone());
+    for item in locale.forms() {
+        let one = IrModuleBuilder::new()
+            .push_form(item.clone())
+            .build()
+            .expect("single-symbol module is unique by construction");
         let mut output = String::new();
         emit_forms(&one, options, &mut output);
         push_chunk(
@@ -313,9 +323,11 @@ fn emit_message_module(
         );
     }
 
-    for item in &locale.functions {
-        let mut one = IrModule::default();
-        one.functions.push(item.clone());
+    for item in locale.functions() {
+        let one = IrModuleBuilder::new()
+            .push_function(item.clone())
+            .build()
+            .expect("single-symbol module is unique by construction");
         let mut output = String::new();
         emit_local_functions(&one, options, &mut output);
         push_chunk(
@@ -332,11 +344,11 @@ fn emit_message_module(
 
     if let (Some(signature), Some(implementation)) = (
         schema
-            .messages
+            .messages()
             .iter()
             .find(|item| item.name == closure.message),
         locale
-            .messages
+            .messages()
             .iter()
             .find(|item| item.name == closure.message),
     ) {
@@ -373,7 +385,7 @@ fn emit_message_module(
         .iter()
         .any(|(code, _)| code.contains("selectBranch("));
     let uses_named_message_args = schema
-        .messages
+        .messages()
         .iter()
         .any(|signature| signature.name == closure.message && !signature.parameters.is_empty());
     let runtime_helpers =
@@ -500,7 +512,7 @@ fn symbol_span(
     fallback: Option<Span>,
 ) -> Option<Span> {
     module
-        .origins
+        .origins()
         .iter()
         .rev()
         .find(|origin| origin.kind == kind && origin.name == name)

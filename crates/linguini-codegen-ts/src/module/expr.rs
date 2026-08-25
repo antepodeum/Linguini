@@ -1108,7 +1108,7 @@ mod tests {
             )
             .expect("locale"),
         );
-        let entries = &locale.forms[0].variants[0].entries;
+        let entries = &locale.forms()[0].variants[0].entries;
 
         let emitted = form_object(entries, &TypeScriptOptions::default());
 

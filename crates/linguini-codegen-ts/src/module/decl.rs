@@ -95,7 +95,7 @@ fn emit_type_reexports(schema: &IrModule, shared_import_path: &str, output: &mut
 }
 
 fn emit_type_declarations(schema: &IrModule, output: &mut String) {
-    for item in &schema.enums {
+    for item in schema.enums() {
         emit_docs(&item.docs, "", output);
         let variants = item
             .variants
@@ -109,7 +109,7 @@ fn emit_type_declarations(schema: &IrModule, output: &mut String) {
         ));
     }
 
-    for item in &schema.type_aliases {
+    for item in schema.type_aliases() {
         emit_docs(&item.docs, "", output);
         output.push_str(&format!(
             "export type {} = {};\n\n",
@@ -123,7 +123,7 @@ fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<Stri
     let nested = nested_message_tree(schema);
     let mut exports = Vec::new();
 
-    for signature in &schema.messages {
+    for signature in schema.messages() {
         if signature.name.contains('.') {
             continue;
         }

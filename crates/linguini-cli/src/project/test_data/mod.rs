@@ -112,7 +112,7 @@ pub(crate) fn generate_project_data(root: &Path) -> CliResult<String> {
 fn generate_project_data_with_style(root: &Path, style: OutputStyle) -> CliResult<String> {
     let config = read_project_config(root)?;
     let schema_sources = load_schema_sources(root, &config)?;
-    let schema = load_merged_schema(&schema_sources);
+    let schema = load_merged_schema(&schema_sources)?;
     let locales = load_locale_sources(root, &config)?;
     let locale_index = locale_index(&locales)?;
     let mut locale_modules = BTreeMap::new();
@@ -127,14 +127,14 @@ fn generate_project_data_with_style(root: &Path, style: OutputStyle) -> CliResul
                 merge_module(
                     &mut module,
                     namespaced_module(lower_locale(&locale_file.ast), namespace),
-                );
+                )?;
             }
             if locale != &config.project.default_locale {
                 if let Some(default_file) = locale_index.get(&default_key) {
                     merge_module_fallback(
                         &mut module,
                         namespaced_module(lower_locale(&default_file.ast), namespace),
-                    );
+                    )?;
                 }
             }
         }
@@ -145,15 +145,15 @@ fn generate_project_data_with_style(root: &Path, style: OutputStyle) -> CliResul
         .map_err(|error| CliError::Diagnostics(format!("generate: {error}\n")))
 }
 
-fn load_merged_schema(schema_sources: &[ParsedSchemaSource]) -> IrModule {
+fn load_merged_schema(schema_sources: &[ParsedSchemaSource]) -> CliResult<IrModule> {
     let mut schema = IrModule::default();
     for source in schema_sources {
         merge_module(
             &mut schema,
             namespaced_module(lower_schema(&source.ast), &source.file.namespace),
-        );
+        )?;
     }
-    schema
+    Ok(schema)
 }
 
 fn render_generated_data(
@@ -175,7 +175,7 @@ fn render_generated_data(
             color("locale", Style::Blue, style),
             color(locale, Style::BoldWhite, style)
         ));
-        for message in &schema.messages {
+        for message in schema.messages() {
             render_message_cases(schema, module, locale, message, style, &mut output)?;
         }
     }
@@ -274,7 +274,7 @@ fn message_cases(
 fn sample_values(schema: &IrModule, ty: &str) -> Result<Vec<SampleValue>, SampleError> {
     let resolved = resolve_type(schema, ty)?;
     if let Some(enumeration) = schema
-        .enums
+        .enums()
         .iter()
         .find(|item| item.name == ty || item.name == resolved)
     {
@@ -321,7 +321,7 @@ fn resolve_type(schema: &IrModule, ty: &str) -> Result<String, SampleError> {
         chain.push(current.to_owned());
 
         let Some(alias) = schema
-            .type_aliases
+            .type_aliases()
             .iter()
             .find(|alias| alias.name == current)
         else {
@@ -458,7 +458,7 @@ mod tests {
     #[test]
     fn alias_cycles_are_reported_without_recursion() {
         let schema = schema("type A = B\ntype B = A\nmessage(value: A)\n");
-        let message = schema.messages.first().expect("message");
+        let message = schema.messages().first().expect("message");
 
         let error = message_cases(&schema, message).expect_err("cycle must fail");
 
@@ -491,7 +491,7 @@ mod tests {
         let schema = schema(
             "enum A { a1 a2 a3 }\nenum B { b1 b2 b3 }\nenum C { c1 c2 c3 }\nmessage(a: A, b: B, c: C)\n",
         );
-        let cases = message_cases(&schema, schema.messages.first().expect("message"))
+        let cases = message_cases(&schema, schema.messages().first().expect("message"))
             .expect("sample cases");
 
         assert_eq!(cases.len(), 7);
@@ -506,7 +506,7 @@ mod tests {
     fn canonical_types_include_precise_and_large_samples() {
         let schema =
             schema("message(number: Number, decimal: Decimal, date: Date, flag: Boolean)\n");
-        let cases = message_cases(&schema, schema.messages.first().expect("message"))
+        let cases = message_cases(&schema, schema.messages().first().expect("message"))
             .expect("sample cases");
 
         assert!(cases.iter().any(|case| {
@@ -524,7 +524,7 @@ mod tests {
     fn namespace_qualification_matches_codegen_messages() {
         let qualified = namespaced_module(schema("delivery\n"), "shop.checkout");
 
-        assert_eq!(qualified.messages[0].name, "shop.checkout.delivery");
+        assert_eq!(qualified.messages()[0].name, "shop.checkout.delivery");
     }
 
     #[test]

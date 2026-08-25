@@ -140,7 +140,7 @@ impl<'a> Renderer<'a> {
     ) -> Result<String, RenderError> {
         let message = self
             .module
-            .messages
+            .messages()
             .iter()
             .find(|message| message.name == name)
             .ok_or_else(|| RenderError::MissingSymbol {
@@ -254,7 +254,7 @@ impl<'a> Renderer<'a> {
                 }
                 let variable = self
                     .module
-                    .variables
+                    .variables()
                     .iter()
                     .find(|variable| variable.name == *root)
                     .ok_or_else(|| RenderError::MissingSymbol {
@@ -519,7 +519,7 @@ impl<'a> Renderer<'a> {
     ) -> Result<String, RenderError> {
         let function = self
             .module
-            .functions
+            .functions()
             .iter()
             .find(|function| function.name == name)
             .ok_or_else(|| RenderError::MissingSymbol {
@@ -606,7 +606,7 @@ impl<'a> Renderer<'a> {
                 name: root.to_owned(),
             })?;
         self.module
-            .forms
+            .forms()
             .iter()
             .find(|form| form.name == *ty)
             .ok_or_else(|| RenderError::MissingForm {
@@ -617,7 +617,7 @@ impl<'a> Renderer<'a> {
 
     fn context(&self, message_name: &str) -> Result<BTreeMap<String, String>, RenderError> {
         self.schema
-            .messages
+            .messages()
             .iter()
             .find(|message| message.name == message_name)
             .map(|message| {
@@ -672,7 +672,7 @@ impl<'a> Renderer<'a> {
 
             if let Some(alias) = self
                 .schema
-                .type_aliases
+                .type_aliases()
                 .iter()
                 .find(|alias| alias.name == current)
             {

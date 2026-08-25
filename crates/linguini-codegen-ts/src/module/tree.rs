@@ -22,11 +22,11 @@ pub struct MessageTreeMessage {
 
 pub fn nested_message_tree(module: &IrModule) -> MessageTree {
     let mut root = MessageTree::default();
-    for group in &module.groups {
+    for group in module.groups() {
         let parts = group.name.split('.').collect::<Vec<_>>();
         insert_group(&mut root, &parts, &group.docs);
     }
-    for message in &module.messages {
+    for message in module.messages() {
         let parts = message.name.split('.').collect::<Vec<_>>();
         if parts.len() > 1 {
             insert_message(&mut root, &parts, message.clone());

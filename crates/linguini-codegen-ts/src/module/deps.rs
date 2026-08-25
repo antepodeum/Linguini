@@ -8,8 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use linguini_ir::{
     IrBranch, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFunction, IrFunctionBranch,
-    IrFunctionBranchValue, IrInlineFunctionInput, IrModule, IrSymbolKind, IrText, IrTextPart,
-    IrValue,
+    IrFunctionBranchValue, IrInlineFunctionInput, IrModule, IrModuleBuilder, IrSymbolKind, IrText,
+    IrTextPart, IrValue,
 };
 use linguini_syntax::SourceId;
 
@@ -75,7 +75,7 @@ pub(crate) fn message_dependency_closure(
         })?;
     let schema_message = project
         .schema
-        .messages
+        .messages()
         .iter()
         .find(|candidate| candidate.name == message)
         .ok_or_else(|| TypeScriptCodegenError::UnknownMessage {
@@ -83,7 +83,7 @@ pub(crate) fn message_dependency_closure(
         })?;
     let implementation = locale_entry
         .module
-        .messages
+        .messages()
         .iter()
         .find(|candidate| candidate.name == message)
         .ok_or_else(|| TypeScriptCodegenError::MissingMessageImplementation {
@@ -125,32 +125,32 @@ impl<'a> ClosureWalker<'a> {
             schema,
             locale,
             aliases: schema
-                .type_aliases
+                .type_aliases()
                 .iter()
                 .map(|item| (item.name.as_str(), item))
                 .collect(),
             schema_enums: schema
-                .enums
+                .enums()
                 .iter()
                 .map(|item| (item.name.as_str(), item))
                 .collect(),
             locale_enums: locale
-                .enums
+                .enums()
                 .iter()
                 .map(|item| (item.name.as_str(), item))
                 .collect(),
             variables: locale
-                .variables
+                .variables()
                 .iter()
                 .map(|item| (item.name.as_str(), item))
                 .collect(),
             forms: locale
-                .forms
+                .forms()
                 .iter()
                 .map(|item| (item.name.as_str(), item))
                 .collect(),
             functions: locale
-                .functions
+                .functions()
                 .iter()
                 .map(|item| (item.name.as_str(), item))
                 .collect(),
@@ -181,7 +181,7 @@ impl<'a> ClosureWalker<'a> {
         parts.pop();
         for end in 1..=parts.len() {
             let group = parts[..end].join(".");
-            if self.schema.groups.iter().any(|item| item.name == group) {
+            if self.schema.groups().iter().any(|item| item.name == group) {
                 self.selected
                     .insert(MessageDependencySymbol::SchemaGroup(group));
             }
@@ -440,51 +440,38 @@ fn inferred_type(expression: &IrExpression, context: &BTreeMap<String, String>) 
 }
 
 fn slice_schema(module: &IrModule, selected: &BTreeSet<MessageDependencySymbol>) -> IrModule {
-    let mut output = module.clone();
-    output
-        .enums
-        .retain(|item| selected.contains(&MessageDependencySymbol::SchemaEnum(item.name.clone())));
-    output.type_aliases.retain(|item| {
-        selected.contains(&MessageDependencySymbol::SchemaTypeAlias(item.name.clone()))
-    });
-    output.messages.retain(|item| {
-        selected.contains(&MessageDependencySymbol::SchemaMessage(item.name.clone()))
-    });
-    output
-        .groups
-        .retain(|item| selected.contains(&MessageDependencySymbol::SchemaGroup(item.name.clone())));
-    output.variables.clear();
-    output.forms.clear();
-    output.functions.clear();
-    output
-        .origins
-        .retain(|origin| selected_schema_origin(origin, selected));
-    output
+    let keep = |kind: IrSymbolKind, name: &str| {
+        let symbol = match kind {
+            IrSymbolKind::Enum => MessageDependencySymbol::SchemaEnum(name.to_owned()),
+            IrSymbolKind::TypeAlias => MessageDependencySymbol::SchemaTypeAlias(name.to_owned()),
+            IrSymbolKind::Message => MessageDependencySymbol::SchemaMessage(name.to_owned()),
+            IrSymbolKind::Group => MessageDependencySymbol::SchemaGroup(name.to_owned()),
+            IrSymbolKind::Variable | IrSymbolKind::Form | IrSymbolKind::Function => return false,
+        };
+        selected.contains(&symbol)
+    };
+    IrModuleBuilder::seeded(module)
+        .retain_symbols(keep)
+        .build()
+        .expect("schema slicing preserves unique declaration names")
 }
 
 fn slice_locale(module: &IrModule, selected: &BTreeSet<MessageDependencySymbol>) -> IrModule {
-    let mut output = module.clone();
-    output
-        .enums
-        .retain(|item| selected.contains(&MessageDependencySymbol::LocaleEnum(item.name.clone())));
-    output.variables.retain(|item| {
-        selected.contains(&MessageDependencySymbol::LocaleVariable(item.name.clone()))
-    });
-    output
-        .forms
-        .retain(|item| selected.contains(&MessageDependencySymbol::LocaleForm(item.name.clone())));
-    output.functions.retain(|item| {
-        selected.contains(&MessageDependencySymbol::LocaleFunction(item.name.clone()))
-    });
-    output.messages.retain(|item| {
-        selected.contains(&MessageDependencySymbol::LocaleMessage(item.name.clone()))
-    });
-    output.groups.clear();
-    output.type_aliases.clear();
-    output
-        .origins
-        .retain(|origin| selected_locale_origin(origin, selected));
-    output
+    let keep = |kind: IrSymbolKind, name: &str| {
+        let symbol = match kind {
+            IrSymbolKind::Enum => MessageDependencySymbol::LocaleEnum(name.to_owned()),
+            IrSymbolKind::Message => MessageDependencySymbol::LocaleMessage(name.to_owned()),
+            IrSymbolKind::Variable => MessageDependencySymbol::LocaleVariable(name.to_owned()),
+            IrSymbolKind::Form => MessageDependencySymbol::LocaleForm(name.to_owned()),
+            IrSymbolKind::Function => MessageDependencySymbol::LocaleFunction(name.to_owned()),
+            IrSymbolKind::TypeAlias | IrSymbolKind::Group => return false,
+        };
+        selected.contains(&symbol)
+    };
+    IrModuleBuilder::seeded(module)
+        .retain_symbols(keep)
+        .build()
+        .expect("locale slicing preserves unique declaration names")
 }
 
 fn selected_schema_origin(
@@ -524,7 +511,7 @@ fn metadata_for(
     let mut source_ids = BTreeSet::new();
     collect_origin_source_ids(schema, selected, selected_schema_origin, &mut source_ids);
     collect_origin_source_ids(locale, selected, selected_locale_origin, &mut source_ids);
-    for message in &schema.messages {
+    for message in schema.messages() {
         if selected.contains(&MessageDependencySymbol::SchemaMessage(
             message.name.clone(),
         )) {
@@ -533,7 +520,7 @@ fn metadata_for(
             }
         }
     }
-    for message in &locale.messages {
+    for message in locale.messages() {
         if selected.contains(&MessageDependencySymbol::LocaleMessage(
             message.name.clone(),
         )) {
@@ -542,14 +529,14 @@ fn metadata_for(
             }
         }
     }
-    for variable in &locale.variables {
+    for variable in locale.variables() {
         if selected.contains(&MessageDependencySymbol::LocaleVariable(
             variable.name.clone(),
         )) {
             collect_text_sources(&variable.value, &mut source_ids);
         }
     }
-    for function in &locale.functions {
+    for function in locale.functions() {
         if selected.contains(&MessageDependencySymbol::LocaleFunction(
             function.name.clone(),
         )) {
@@ -558,7 +545,7 @@ fn metadata_for(
             }
         }
     }
-    for form in &locale.forms {
+    for form in locale.forms() {
         if selected.contains(&MessageDependencySymbol::LocaleForm(form.name.clone())) {
             for variant in &form.variants {
                 for entry in &variant.entries {
@@ -579,10 +566,10 @@ fn collect_origin_source_ids(
     output: &mut BTreeSet<SourceId>,
 ) {
     let mut latest = BTreeMap::<(&str, IrSymbolKind), usize>::new();
-    for (index, origin) in module.origins.iter().enumerate() {
+    for (index, origin) in module.origins().iter().enumerate() {
         latest.insert((origin.name.as_str(), origin.kind), index);
     }
-    for (index, origin) in module.origins.iter().enumerate() {
+    for (index, origin) in module.origins().iter().enumerate() {
         if latest.get(&(origin.name.as_str(), origin.kind)) == Some(&index)
             && selector(origin, selected)
         {
@@ -656,7 +643,7 @@ fn _collect_form_sources(entry: &IrFormEntry, output: &mut BTreeSet<SourceId>) {
 mod tests {
     use super::{message_dependency_closure, MessageDependencySymbol};
     use crate::{TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject};
-    use linguini_ir::{lower_locale, lower_schema};
+    use linguini_ir::{lower_locale, lower_schema, IrModuleBuilder};
     use linguini_syntax::{parse_locale, parse_locale_in, parse_schema, parse_schema_in, SourceId};
 
     fn project_for(schema_text: &str, locale_text: &str) -> ValidatedTypeScriptProject<'static> {
@@ -689,7 +676,7 @@ mod tests {
         assert_eq!(
             closure
                 .schema()
-                .messages
+                .messages()
                 .iter()
                 .map(|item| item.name.as_str())
                 .collect::<Vec<_>>(),
@@ -698,7 +685,7 @@ mod tests {
         assert_eq!(
             closure
                 .locale_module()
-                .variables
+                .variables()
                 .iter()
                 .map(|item| item.name.as_str())
                 .collect::<Vec<_>>(),
@@ -706,10 +693,10 @@ mod tests {
         );
         assert!(!closure
             .locale_module()
-            .messages
+            .messages()
             .iter()
             .any(|item| item.name == "drop"));
-        assert_eq!(closure.schema().type_aliases[0].name, "Text");
+        assert_eq!(closure.schema().type_aliases()[0].name, "Text");
         assert_eq!(closure.source_ids(), &[SourceId(7), SourceId(8)]);
     }
 
@@ -725,7 +712,10 @@ mod tests {
             Err(crate::TypeScriptCodegenError::UnknownMessage { message }) if message == "missing"
         ));
         let mut missing = project_for("root\n", "root = Root\n");
-        missing.locales[0].module.messages.clear();
+        missing.locales[0].module = IrModuleBuilder::seeded(&missing.locales[0].module)
+            .clear_messages()
+            .build()
+            .expect("message-free locale preserves unique declaration names");
         assert!(matches!(
             message_dependency_closure(&missing, "en", "root"),
             Err(crate::TypeScriptCodegenError::MissingMessageImplementation { locale, message })
@@ -740,13 +730,13 @@ mod tests {
             "fn Render(value: String) { _ => {value} }\nimpl Fruit {\n  apple {\n    one => apple\n    other => apples\n    label = Apple\n  }\n}\nsummary = {fn(fruit, copy: Render(fruit.label)) { apple => {copy} _ => fallback }}\ndrop = Drop\n",
         );
         let closure = message_dependency_closure(&project, "en", "summary").expect("closure");
-        assert_eq!(closure.schema().messages.len(), 1);
-        assert_eq!(closure.schema().type_aliases.len(), 1);
-        assert_eq!(closure.schema().enums.len(), 1);
-        assert_eq!(closure.locale_module().forms.len(), 1);
-        assert_eq!(closure.locale_module().functions.len(), 1);
-        assert_eq!(closure.locale_module().forms[0].name, "Fruit");
-        assert_eq!(closure.locale_module().functions[0].name, "Render");
+        assert_eq!(closure.schema().messages().len(), 1);
+        assert_eq!(closure.schema().type_aliases().len(), 1);
+        assert_eq!(closure.schema().enums().len(), 1);
+        assert_eq!(closure.locale_module().forms().len(), 1);
+        assert_eq!(closure.locale_module().functions().len(), 1);
+        assert_eq!(closure.locale_module().forms()[0].name, "Fruit");
+        assert_eq!(closure.locale_module().functions()[0].name, "Render");
     }
 
     #[test]
@@ -757,7 +747,7 @@ mod tests {
         let mut walker = super::ClosureWalker::new(&schema, &locale);
         walker.visit_variable("a");
         let closure = walker.finish("en".into(), "root".into()).expect("closure");
-        assert_eq!(closure.locale_module().variables.len(), 2);
+        assert_eq!(closure.locale_module().variables().len(), 2);
     }
 
     #[test]
@@ -774,8 +764,8 @@ mod tests {
             .selected
             .insert(MessageDependencySymbol::SchemaEnum("Shared".into()));
         let closure = walker.finish("en".into(), "root".into()).expect("closure");
-        assert_eq!(closure.schema().enums.len(), 1);
-        assert!(closure.locale_module().enums.is_empty());
+        assert_eq!(closure.schema().enums().len(), 1);
+        assert!(closure.locale_module().enums().is_empty());
         assert_eq!(closure.source_ids(), &[SourceId(7)]);
     }
 }
