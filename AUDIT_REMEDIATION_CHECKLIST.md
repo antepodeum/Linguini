@@ -148,6 +148,8 @@ production path uses the fix and its relevant tests pass.
   shared boundary normalization, exact generated types, and real-site type/runtime coverage.
 - `5e81c9a`, `193c83f` — lowered the validated locale-switch plan into generated TypeScript,
   shared it across browser and both SvelteKit controls, and locked source/declaration typing parity.
+- `53950ef` — sealed parsed schema and locale file roots behind immutable declaration/span
+  accessors, with compile-fail coverage and a documented Rust API migration.
 
 ## Numbered findings
 
@@ -220,7 +222,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #50 — Provide an unambiguous literal-brace escape.
 - [x] #51 — Share locale-tag validation with configuration.
 - [x] #52 — Return parser diagnostics instead of panicking on recovery invariants.
-- [-] #53 — Further restrict public AST mutation behind invariant-preserving builders.
+- [x] #53 — Restrict public AST mutation behind parser-owned immutable file roots. External
+  consumers can inspect declarations and spans through accessors but cannot replace or mutate a
+  parsed root into a grammar-invalid state.
 - [x] #54 — Attach source IDs to spans.
 - [x] #55 — Preserve complete override metadata and span.
 - [x] #56 — Quarantine recovered/error nodes so invalid bytes cannot stitch declarations.
