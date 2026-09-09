@@ -1,6 +1,7 @@
 use crate::{CliError, CliResult, FixArgs};
-use linguini_analyzer::{locale_public_messages, schema_public_messages};
+use linguini_analyzer::locale_public_messages;
 use linguini_config::LinguiniConfig;
+use linguini_schema::SchemaDatabase;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -88,7 +89,7 @@ fn available_project_fixes(root: &Path, config: &LinguiniConfig) -> CliResult<Ve
     let mut fixes = Vec::new();
 
     for schema_file in &schema_files {
-        let schema_messages = schema_public_messages(&schema_file.ast);
+        let schema_messages = SchemaDatabase::build(&schema_file.ast).public_messages();
         let schema_message_names = schema_messages
             .iter()
             .map(|message| message.name.clone())

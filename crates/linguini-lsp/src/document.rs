@@ -4,15 +4,14 @@ mod symbols;
 mod tokens;
 
 use linguini_analyzer::{
-    analyze_locale_file, schema_public_messages, Diagnostic, DiagnosticSeverity,
-    LocaleCoverageOptions,
+    analyze_locale_file, Diagnostic, DiagnosticSeverity, LocaleCoverageOptions,
 };
 use linguini_format::{format_source, FormatOptions, SourceKind};
 use linguini_schema::SchemaDatabase;
 use linguini_syntax::{
     parse_locale_with_recovery_in, parse_schema_with_recovery_in, validate_locale_ast,
     validate_schema_ast, FunctionDeclaration, LocaleDeclaration, LocaleFile, ParseOutput,
-    SchemaDeclaration, SchemaFile, SourceId, Span, Token,
+    SchemaFile, SourceId, Span, Token,
 };
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, OnceLock};
@@ -431,19 +430,13 @@ pub fn completion_candidates_with_workspace(
             }
         }
         if let Some(path) = locale_message_path_containing(document, offset) {
-            for schema in &schemas {
-                let Some(schema) = parsed_schema(schema).and_then(|parsed| parsed.ast.as_ref())
-                else {
-                    continue;
-                };
-                let Some(message) = schema_message_by_path(schema, &path) else {
-                    continue;
-                };
-                for parameter in &message.parameters {
+            let database = schema_database(&schemas);
+            if let Some(message) = database.symbols().messages().get(&path) {
+                for parameter in message.parameters() {
                     insert(CompletionCandidate {
-                        label: parameter.name.value.clone(),
+                        label: parameter.name().to_owned(),
                         kind: CompletionKind::Variable,
-                        detail: Some(format!("parameter: {}", parameter.ty.value)),
+                        detail: Some(format!("parameter: {}", parameter.ty())),
                     });
                 }
             }
@@ -634,22 +627,25 @@ pub fn hover_at_with_workspace(
     let message_name = (document.kind == SourceKind::Locale)
         .then(|| locale_message_name_at(document, offset))
         .flatten();
+    let database = message_name
+        .as_ref()
+        .map(|_| schema_database(&matching_schema_documents(document, workspace.clone())));
 
     if document.kind == SourceKind::Locale && symbol.docs.is_empty() {
         if let Some(name) = &message_name {
-            if let Some(docs) = schema_docs_for_message(
-                matching_schema_documents(document, workspace.clone()),
-                name,
-            ) {
+            if let Some(docs) = database
+                .as_ref()
+                .and_then(|database| schema_docs_for_message(database, name))
+            {
                 symbol.docs = docs;
             }
         }
     }
     if let Some(name) = &message_name {
-        if let Some(signature) = schema_signature_for_message(
-            matching_schema_documents(document, workspace.clone()),
-            name,
-        ) {
+        if let Some(signature) = database
+            .as_ref()
+            .and_then(|database| schema_signature_for_message(database, name))
+        {
             symbol.preview = Some(match symbol.preview {
                 Some(locale_preview) => format!("{signature}\n{locale_preview}"),
                 None => signature,
@@ -805,88 +801,28 @@ pub(super) fn contains(span: Span, offset: usize) -> bool {
     span.start <= offset && offset < span.end
 }
 
-fn schema_docs_for_message(
-    workspace: impl IntoIterator<Item = LinguiniDocument>,
-    name: &str,
-) -> Option<Vec<String>> {
-    for candidate in workspace {
-        if candidate.kind != SourceKind::Schema {
-            continue;
-        }
-        let Some(schema) = parsed_schema(&candidate).and_then(|parsed| parsed.ast.as_ref()) else {
-            continue;
-        };
-        let Some(message) = schema_public_messages(schema)
-            .into_iter()
-            .find(|message| message.name == name)
-        else {
-            continue;
-        };
-        if !message.docs.is_empty() {
-            return Some(message.docs);
-        }
-    }
-    None
+fn schema_docs_for_message(database: &SchemaDatabase, name: &str) -> Option<Vec<String>> {
+    let docs = database.symbols().messages().get(name)?.docs();
+    (!docs.is_empty()).then(|| docs.to_vec())
 }
 
-fn schema_signature_for_message(
-    workspace: impl IntoIterator<Item = LinguiniDocument>,
-    name: &str,
-) -> Option<String> {
-    for candidate in workspace {
-        let schema = parsed_schema(&candidate)?.ast.as_ref()?;
-        if let Some(message) = schema_message_by_path(schema, name) {
-            let parameters = message
-                .parameters
-                .iter()
-                .map(|parameter| format!("{}: {}", parameter.name.value, parameter.ty.value))
-                .collect::<Vec<_>>()
-                .join(", ");
-            return Some(format!("{name}({parameters})"));
-        }
-    }
-    None
-}
-
-fn schema_message_by_path<'a>(
-    schema: &'a linguini_syntax::SchemaFile,
-    path: &str,
-) -> Option<&'a linguini_syntax::MessageSignature> {
-    let parts = path.split('.').collect::<Vec<_>>();
-    if parts.len() == 1 {
-        return schema.declarations().iter().find_map(|declaration| {
-            let SchemaDeclaration::Message(message) = declaration else {
-                return None;
-            };
-            (message.name.value == parts[0]).then_some(message)
-        });
-    }
-    schema.declarations().iter().find_map(|declaration| {
-        let SchemaDeclaration::Group(group) = declaration else {
-            return None;
-        };
-        (group.name.value == parts[0])
-            .then(|| schema_group_message_by_path(group, &parts[1..]))
-            .flatten()
-    })
-}
-
-fn schema_group_message_by_path<'a>(
-    group: &'a linguini_syntax::MessageGroup,
-    parts: &[&str],
-) -> Option<&'a linguini_syntax::MessageSignature> {
-    let (head, tail) = parts.split_first()?;
-    if tail.is_empty() {
-        return group
-            .messages
-            .iter()
-            .find(|message| message.name.value == *head);
-    }
-    group
-        .groups
+fn schema_signature_for_message(database: &SchemaDatabase, name: &str) -> Option<String> {
+    let message = database.symbols().messages().get(name)?;
+    let parameters = message
+        .parameters()
         .iter()
-        .find(|child| child.name.value == *head)
-        .and_then(|child| schema_group_message_by_path(child, tail))
+        .map(|parameter| format!("{}: {}", parameter.name(), parameter.ty()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some(format!("{name}({parameters})"))
+}
+
+fn schema_database(documents: &[LinguiniDocument]) -> SchemaDatabase {
+    let schemas = documents
+        .iter()
+        .filter_map(|document| parsed_schema(document)?.ast.clone())
+        .collect::<Vec<_>>();
+    SchemaDatabase::build_from_files(&schemas)
 }
 
 fn matching_schema_documents(
