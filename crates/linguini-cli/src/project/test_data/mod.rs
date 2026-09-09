@@ -117,19 +117,22 @@ fn generate_project_data_with_style(root: &Path, style: OutputStyle) -> CliResul
     let locale_index = locale_index(&locales)?;
     let mut locale_modules = BTreeMap::new();
 
-    for locale in &config.project.locales {
+    for locale in config.project().locales() {
         let mut module = IrModule::default();
         for source in &schema_sources {
             let namespace = &source.file.namespace;
             let locale_key = (namespace.clone(), locale.clone());
-            let default_key = (namespace.clone(), config.project.default_locale.clone());
+            let default_key = (
+                namespace.clone(),
+                config.project().default_locale().to_owned(),
+            );
             if let Some(locale_file) = locale_index.get(&locale_key) {
                 merge_module(
                     &mut module,
                     namespaced_module(lower_locale(&locale_file.ast), namespace),
                 )?;
             }
-            if locale != &config.project.default_locale {
+            if locale != config.project().default_locale() {
                 if let Some(default_file) = locale_index.get(&default_key) {
                     merge_module_fallback(
                         &mut module,

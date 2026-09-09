@@ -94,7 +94,7 @@ fn available_project_fixes(root: &Path, config: &LinguiniConfig) -> CliResult<Ve
             .map(|message| message.name.clone())
             .collect::<Vec<_>>();
 
-        for locale in &config.project.locales {
+        for locale in config.project().locales() {
             let key = (schema_file.file.namespace.clone(), locale.clone());
             match locale_index.get(&key) {
                 Some(locale_file) => {

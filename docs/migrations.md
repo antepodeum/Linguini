@@ -21,6 +21,9 @@ editor boundaries to update this file, public documentation, and executable test
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.
+- Rust integrations using `linguini-config` must replace direct model-field access with read-only
+  accessors such as `project()`, `paths()`, `typescript()`, and `features()`. `parse_config` is now
+  the only public constructor for a complete validated configuration.
 - Generated documentation now preserves consecutive lines and blank paragraphs in one safe JSDoc
   block across runtime and declaration output. Typed backend tags are generated separately from
   canonical source prose.

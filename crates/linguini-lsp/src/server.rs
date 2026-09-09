@@ -1244,8 +1244,8 @@ fn load_project_context(root: &Path) -> std::result::Result<ProjectContext, Stri
         .map_err(|error| format!("invalid {}: {error}", config_path.display()))?;
     Ok(ProjectContext {
         root: normalize_existing_path(root),
-        schema_root: normalize_existing_path(root.join(&config.paths.schema)),
-        locale_root: normalize_existing_path(root.join(&config.paths.locale)),
+        schema_root: normalize_existing_path(root.join(config.paths().schema())),
+        locale_root: normalize_existing_path(root.join(config.paths().locale())),
     })
 }
 

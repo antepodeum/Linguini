@@ -2,71 +2,83 @@ use crate::error::{ConfigError, ConfigResult};
 use std::collections::BTreeSet;
 use std::path::{Component, Path};
 
+/// Validated project configuration returned by [`crate::parse_config`].
+///
+/// Fields and nested collections are read-only outside this crate. This prevents callers from
+/// bypassing parsing, normalization, cross-field validation, or closed web-feature lowering.
+///
+/// ```compile_fail
+/// use linguini_config::LinguiniConfig;
+///
+/// fn bypass_validation(config: &mut LinguiniConfig) {
+///     config.project.name.clear();
+/// }
+/// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LinguiniConfig {
-    pub project: ProjectConfig,
-    pub paths: PathsConfig,
-    pub targets: TargetsConfig,
-    pub analysis: AnalysisConfig,
-    pub web: WebConfig,
+    pub(crate) project: ProjectConfig,
+    pub(crate) paths: PathsConfig,
+    pub(crate) targets: TargetsConfig,
+    pub(crate) analysis: AnalysisConfig,
+    pub(crate) web: WebConfig,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ProjectConfig {
-    pub name: String,
-    pub default_locale: String,
-    pub locales: Vec<String>,
+    pub(crate) name: String,
+    pub(crate) default_locale: String,
+    pub(crate) locales: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct PathsConfig {
-    pub schema: String,
-    pub locale: String,
+    pub(crate) schema: String,
+    pub(crate) locale: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct AnalysisConfig {
-    pub unused_messages: Option<UnusedMessagesConfig>,
+    pub(crate) unused_messages: Option<UnusedMessagesConfig>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct UnusedMessagesConfig {
-    pub sources: Vec<String>,
-    pub exclude: Vec<String>,
+    pub(crate) sources: Vec<String>,
+    pub(crate) exclude: Vec<String>,
     /// Canonical message paths or namespace/group prefixes whose use is resolved dynamically.
-    pub ignore: Vec<String>,
+    pub(crate) ignore: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct TargetsConfig {
-    pub ts: Option<TypeScriptTargetConfig>,
+    pub(crate) ts: Option<TypeScriptTargetConfig>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TypeScriptTargetConfig {
-    pub out: String,
-    pub declaration: bool,
-    pub gitignore: bool,
-    pub tree_shaking: bool,
-    pub messages: Vec<String>,
-    pub framework: Option<String>,
-    pub bundler: Option<TypeScriptBundlerConfig>,
+    pub(crate) out: String,
+    pub(crate) declaration: bool,
+    pub(crate) gitignore: bool,
+    pub(crate) tree_shaking: bool,
+    pub(crate) messages: Vec<String>,
+    pub(crate) framework: Option<String>,
+    pub(crate) bundler: Option<TypeScriptBundlerConfig>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TypeScriptBundlerConfig {
-    pub sources: Vec<String>,
-    pub exclude: Vec<String>,
+    pub(crate) sources: Vec<String>,
+    pub(crate) exclude: Vec<String>,
     /// Controls how locale modules are selected by the bundler runtime.
     ///
     /// The default is [`TypeScriptBundlerLocaleLoading::Eager`].
-    pub locale_loading: TypeScriptBundlerLocaleLoading,
+    pub(crate) locale_loading: TypeScriptBundlerLocaleLoading,
     /// Controls how the bundler handles computed or otherwise dynamic message access.
     ///
     /// The default is [`TypeScriptBundlerDynamicMode::Error`] with no escapes. In
     /// [`TypeScriptBundlerDynamicMode::Bundle`] mode, `allow` is a finite list of
     /// canonical dotted message paths that may be resolved dynamically.
-    pub dynamic: TypeScriptBundlerDynamicConfig,
+    pub(crate) dynamic: TypeScriptBundlerDynamicConfig,
 }
 
 /// Policy for loading locale modules in the TypeScript bundler integration.
@@ -110,22 +122,22 @@ impl TypeScriptBundlerDynamicMode {
 /// Configuration for dynamic message access under `targets.ts.bundler.dynamic`.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct TypeScriptBundlerDynamicConfig {
-    pub mode: TypeScriptBundlerDynamicMode,
+    pub(crate) mode: TypeScriptBundlerDynamicMode,
     /// Exact canonical dotted message paths admitted in bundle mode.
-    pub allow: Vec<String>,
+    pub(crate) allow: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WebConfig {
-    pub configured: bool,
-    pub routing: WebRoutingConfig,
-    pub locale: WebLocaleConfig,
-    pub cookie: Option<WebCookieConfig>,
-    pub local_storage: Option<WebLocalStorageConfig>,
-    pub links: WebLinksConfig,
-    pub routes: WebRoutesConfig,
-    pub switch_route: Option<WebSwitchRouteConfig>,
-    pub locale_switch: LocaleSwitchPlan,
+    pub(crate) configured: bool,
+    pub(crate) routing: WebRoutingConfig,
+    pub(crate) locale: WebLocaleConfig,
+    pub(crate) cookie: Option<WebCookieConfig>,
+    pub(crate) local_storage: Option<WebLocalStorageConfig>,
+    pub(crate) links: WebLinksConfig,
+    pub(crate) routes: WebRoutesConfig,
+    pub(crate) switch_route: Option<WebSwitchRouteConfig>,
+    pub(crate) locale_switch: LocaleSwitchPlan,
 }
 
 /// Closed, generated web policy lowered from a validated [`WebConfig`].
@@ -136,21 +148,21 @@ pub struct WebConfig {
 /// validation.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WebFeatures {
-    pub locale_prefix: LocalePrefixMode,
-    pub canonical: CanonicalMode,
-    pub source_order: Vec<LocaleSource>,
-    pub cookie: Option<WebCookieConfig>,
-    pub local_storage: Option<WebLocalStorageConfig>,
-    pub links: LinkMode,
-    pub route_exclusions: Vec<String>,
-    pub switch_route: Option<WebSwitchRouteConfig>,
-    pub locale_switch: LocaleSwitchPlan,
+    pub(crate) locale_prefix: LocalePrefixMode,
+    pub(crate) canonical: CanonicalMode,
+    pub(crate) source_order: Vec<LocaleSource>,
+    pub(crate) cookie: Option<WebCookieConfig>,
+    pub(crate) local_storage: Option<WebLocalStorageConfig>,
+    pub(crate) links: LinkMode,
+    pub(crate) route_exclusions: Vec<String>,
+    pub(crate) switch_route: Option<WebSwitchRouteConfig>,
+    pub(crate) locale_switch: LocaleSwitchPlan,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct WebRoutingConfig {
-    pub locale_prefix: LocalePrefixMode,
-    pub canonical: CanonicalMode,
+    pub(crate) locale_prefix: LocalePrefixMode,
+    pub(crate) canonical: CanonicalMode,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -187,7 +199,7 @@ impl CanonicalMode {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WebLocaleConfig {
-    pub sources: Vec<LocaleSource>,
+    pub(crate) sources: Vec<LocaleSource>,
 }
 
 #[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
@@ -221,13 +233,13 @@ impl LocaleSource {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WebCookieConfig {
-    pub name: String,
-    pub path: CookiePath,
-    pub domain: Option<String>,
-    pub max_age_seconds: u64,
-    pub same_site: SameSite,
-    pub secure: SecurePolicy,
-    pub http_only: bool,
+    pub(crate) name: String,
+    pub(crate) path: CookiePath,
+    pub(crate) domain: Option<String>,
+    pub(crate) max_age_seconds: u64,
+    pub(crate) same_site: SameSite,
+    pub(crate) secure: SecurePolicy,
+    pub(crate) http_only: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -262,12 +274,12 @@ pub enum SecurePolicy {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WebLocalStorageConfig {
-    pub key: String,
+    pub(crate) key: String,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct WebLinksConfig {
-    pub mode: LinkMode,
+    pub(crate) mode: LinkMode,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -289,21 +301,311 @@ impl LinkMode {
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct WebRoutesConfig {
-    pub exclude: Vec<String>,
+    pub(crate) exclude: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WebSwitchRouteConfig {
-    pub path: String,
-    pub return_query: String,
-    pub status: u16,
+    pub(crate) path: String,
+    pub(crate) return_query: String,
+    pub(crate) status: u16,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct LocaleSwitchPlan {
-    pub writes_path: bool,
-    pub writes_cookie: bool,
-    pub writes_local_storage: bool,
+    pub(crate) writes_path: bool,
+    pub(crate) writes_cookie: bool,
+    pub(crate) writes_local_storage: bool,
+}
+
+impl LinguiniConfig {
+    pub fn project(&self) -> &ProjectConfig {
+        &self.project
+    }
+
+    pub fn paths(&self) -> &PathsConfig {
+        &self.paths
+    }
+
+    pub fn targets(&self) -> &TargetsConfig {
+        &self.targets
+    }
+
+    pub fn analysis(&self) -> &AnalysisConfig {
+        &self.analysis
+    }
+
+    pub fn web(&self) -> &WebConfig {
+        &self.web
+    }
+}
+
+impl ProjectConfig {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn default_locale(&self) -> &str {
+        &self.default_locale
+    }
+
+    pub fn locales(&self) -> &[String] {
+        &self.locales
+    }
+}
+
+impl PathsConfig {
+    pub fn schema(&self) -> &str {
+        &self.schema
+    }
+
+    pub fn locale(&self) -> &str {
+        &self.locale
+    }
+}
+
+impl AnalysisConfig {
+    pub fn unused_messages(&self) -> Option<&UnusedMessagesConfig> {
+        self.unused_messages.as_ref()
+    }
+}
+
+impl UnusedMessagesConfig {
+    pub fn sources(&self) -> &[String] {
+        &self.sources
+    }
+
+    pub fn exclude(&self) -> &[String] {
+        &self.exclude
+    }
+
+    pub fn ignore(&self) -> &[String] {
+        &self.ignore
+    }
+}
+
+impl TargetsConfig {
+    pub fn typescript(&self) -> Option<&TypeScriptTargetConfig> {
+        self.ts.as_ref()
+    }
+}
+
+impl TypeScriptTargetConfig {
+    pub fn out(&self) -> &str {
+        &self.out
+    }
+
+    pub fn declaration(&self) -> bool {
+        self.declaration
+    }
+
+    pub fn gitignore(&self) -> bool {
+        self.gitignore
+    }
+
+    pub fn tree_shaking(&self) -> bool {
+        self.tree_shaking
+    }
+
+    pub fn messages(&self) -> &[String] {
+        &self.messages
+    }
+
+    pub fn framework(&self) -> Option<&str> {
+        self.framework.as_deref()
+    }
+
+    pub fn bundler(&self) -> Option<&TypeScriptBundlerConfig> {
+        self.bundler.as_ref()
+    }
+}
+
+impl TypeScriptBundlerConfig {
+    pub fn sources(&self) -> &[String] {
+        &self.sources
+    }
+
+    pub fn exclude(&self) -> &[String] {
+        &self.exclude
+    }
+
+    pub fn locale_loading(&self) -> TypeScriptBundlerLocaleLoading {
+        self.locale_loading
+    }
+
+    pub fn dynamic(&self) -> &TypeScriptBundlerDynamicConfig {
+        &self.dynamic
+    }
+}
+
+impl TypeScriptBundlerDynamicConfig {
+    pub fn try_new(mode: TypeScriptBundlerDynamicMode, allow: Vec<String>) -> ConfigResult<Self> {
+        let config = Self { mode, allow };
+        validate_bundler_dynamic(&config)?;
+        Ok(config)
+    }
+
+    pub fn mode(&self) -> TypeScriptBundlerDynamicMode {
+        self.mode
+    }
+
+    pub fn allow(&self) -> &[String] {
+        &self.allow
+    }
+}
+
+impl WebConfig {
+    pub fn configured(&self) -> bool {
+        self.configured
+    }
+
+    pub fn routing(&self) -> WebRoutingConfig {
+        self.routing
+    }
+
+    pub fn locale(&self) -> &WebLocaleConfig {
+        &self.locale
+    }
+
+    pub fn cookie(&self) -> Option<&WebCookieConfig> {
+        self.cookie.as_ref()
+    }
+
+    pub fn local_storage(&self) -> Option<&WebLocalStorageConfig> {
+        self.local_storage.as_ref()
+    }
+
+    pub fn links(&self) -> WebLinksConfig {
+        self.links
+    }
+
+    pub fn routes(&self) -> &WebRoutesConfig {
+        &self.routes
+    }
+
+    pub fn switch_route(&self) -> Option<&WebSwitchRouteConfig> {
+        self.switch_route.as_ref()
+    }
+
+    pub fn locale_switch(&self) -> LocaleSwitchPlan {
+        self.locale_switch
+    }
+}
+
+impl WebFeatures {
+    pub fn locale_prefix(&self) -> LocalePrefixMode {
+        self.locale_prefix
+    }
+
+    pub fn canonical(&self) -> CanonicalMode {
+        self.canonical
+    }
+
+    pub fn source_order(&self) -> &[LocaleSource] {
+        &self.source_order
+    }
+
+    pub fn cookie(&self) -> Option<&WebCookieConfig> {
+        self.cookie.as_ref()
+    }
+
+    pub fn local_storage(&self) -> Option<&WebLocalStorageConfig> {
+        self.local_storage.as_ref()
+    }
+
+    pub fn links(&self) -> LinkMode {
+        self.links
+    }
+
+    pub fn route_exclusions(&self) -> &[String] {
+        &self.route_exclusions
+    }
+
+    pub fn switch_route(&self) -> Option<&WebSwitchRouteConfig> {
+        self.switch_route.as_ref()
+    }
+
+    pub fn locale_switch(&self) -> LocaleSwitchPlan {
+        self.locale_switch
+    }
+}
+
+impl WebRoutingConfig {
+    pub fn locale_prefix(self) -> LocalePrefixMode {
+        self.locale_prefix
+    }
+
+    pub fn canonical(self) -> CanonicalMode {
+        self.canonical
+    }
+}
+
+impl WebLocaleConfig {
+    pub fn sources(&self) -> &[LocaleSource] {
+        &self.sources
+    }
+}
+
+impl WebCookieConfig {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn path(&self) -> &CookiePath {
+        &self.path
+    }
+
+    pub fn domain(&self) -> Option<&str> {
+        self.domain.as_deref()
+    }
+
+    pub fn max_age_seconds(&self) -> u64 {
+        self.max_age_seconds
+    }
+
+    pub fn same_site(&self) -> SameSite {
+        self.same_site
+    }
+
+    pub fn secure(&self) -> SecurePolicy {
+        self.secure
+    }
+
+    pub fn http_only(&self) -> bool {
+        self.http_only
+    }
+}
+
+impl WebLocalStorageConfig {
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+}
+
+impl WebLinksConfig {
+    pub fn mode(self) -> LinkMode {
+        self.mode
+    }
+}
+
+impl WebRoutesConfig {
+    pub fn exclude(&self) -> &[String] {
+        &self.exclude
+    }
+}
+
+impl WebSwitchRouteConfig {
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    pub fn return_query(&self) -> &str {
+        &self.return_query
+    }
+
+    pub fn status(&self) -> u16 {
+        self.status
+    }
 }
 
 impl LocaleSwitchPlan {
@@ -317,6 +619,18 @@ impl LocaleSwitchPlan {
 
     pub fn has_server_transport(self) -> bool {
         self.writes_path || self.writes_cookie
+    }
+
+    pub fn writes_path(self) -> bool {
+        self.writes_path
+    }
+
+    pub fn writes_cookie(self) -> bool {
+        self.writes_cookie
+    }
+
+    pub fn writes_local_storage(self) -> bool {
+        self.writes_local_storage
     }
 }
 

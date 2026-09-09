@@ -16,7 +16,7 @@ pub(crate) fn load_schema_sources(
     config: &LinguiniConfig,
 ) -> CliResult<Vec<ParsedSchemaSource>> {
     let mut parsed = Vec::new();
-    for (index, file) in discover_schema_files(root.join(&config.paths.schema))?
+    for (index, file) in discover_schema_files(root.join(config.paths().schema()))?
         .into_iter()
         .enumerate()
     {
@@ -42,7 +42,7 @@ pub(crate) fn load_locale_sources(
     config: &LinguiniConfig,
 ) -> CliResult<Vec<ParsedLocaleSource>> {
     let mut parsed = Vec::new();
-    for (index, file) in discover_locale_files(root.join(&config.paths.locale))?
+    for (index, file) in discover_locale_files(root.join(config.paths().locale()))?
         .into_iter()
         .enumerate()
     {
@@ -126,7 +126,7 @@ pub(crate) fn expected_locale_path(
     namespace: &str,
     locale: &str,
 ) -> PathBuf {
-    let mut path = root.join(&config.paths.locale);
+    let mut path = root.join(config.paths().locale());
     for part in namespace.split('.').filter(|part| !part.is_empty()) {
         path.push(part);
     }
@@ -139,7 +139,7 @@ pub(crate) fn coverage_options(
     locale: &str,
 ) -> LocaleCoverageOptions {
     LocaleCoverageOptions {
-        missing_message_severity: if locale == config.project.default_locale {
+        missing_message_severity: if locale == config.project().default_locale() {
             DiagnosticSeverity::Error
         } else {
             DiagnosticSeverity::Warning

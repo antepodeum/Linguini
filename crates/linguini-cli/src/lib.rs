@@ -156,11 +156,11 @@ fn format_project(root: &std::path::Path, args: &FormatArgs) -> CliResult<String
             source,
         })?;
         let config = linguini_config::parse_config(&config_source)?;
-        linguini_config::discover_schema_files(root.join(&config.paths.schema))?
+        linguini_config::discover_schema_files(root.join(config.paths().schema()))?
             .iter()
             .map(|file| file.path.clone())
             .chain(
-                linguini_config::discover_locale_files(root.join(&config.paths.locale))?
+                linguini_config::discover_locale_files(root.join(config.paths().locale()))?
                     .iter()
                     .map(|file| file.path.clone()),
             )

@@ -56,7 +56,7 @@ pub(crate) fn build_project_with_options(
 }
 
 fn generate_project(root: &Path, config: &LinguiniConfig) -> CliResult<String> {
-    let Some(target) = &config.targets.ts else {
+    let Some(target) = config.targets().typescript() else {
         return Ok("codegen targets: none\n".to_owned());
     };
 
@@ -81,26 +81,26 @@ fn generate_typescript_target(
     reject_locale_files_without_schema_namespace(root, &schema_namespaces, &locale_files)?;
 
     let mut locales = Vec::new();
-    for locale in &config.project.locales {
+    for locale in config.project().locales() {
         let locale_ir = build_locale_ir(root, config, &schema_files, &locale_index, locale)?;
         ensure_locale_ir_resolves(&schema, &locale_ir, locale)?;
         locales.push(TypeScriptLocaleModule {
-            locale: locale.clone(),
+            locale: locale.to_owned(),
             module: locale_ir,
         });
     }
 
     let options = TypeScriptProjectOptions {
-        declaration: target.declaration,
-        gitignore: target.gitignore,
-        tree_shaking: target.tree_shaking,
-        included_messages: target.messages.clone(),
-        base_locale: Some(config.project.default_locale.clone()),
+        declaration: target.declaration(),
+        gitignore: target.gitignore(),
+        tree_shaking: target.tree_shaking(),
+        included_messages: target.messages().to_vec(),
+        base_locale: Some(config.project().default_locale().to_owned()),
         web: config
-            .web
-            .configured
+            .web()
+            .configured()
             .then(|| legacy_web_codegen_options(config)),
-        framework: TypeScriptFramework::from_config(target.framework.as_deref()),
+        framework: TypeScriptFramework::from_config(target.framework()),
     };
     let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
@@ -112,17 +112,17 @@ fn generate_typescript_target(
         &project,
         &sources,
         target,
-        &config.project.locales,
-        &config.project.default_locale,
-        config.web.configured,
+        config.project().locales(),
+        config.project().default_locale(),
+        config.web().configured(),
     )?);
 
     let output = SafeOutputRoot::new(
         root,
-        Path::new(&target.out),
+        Path::new(target.out()),
         &[
-            Path::new(&config.paths.schema),
-            Path::new(&config.paths.locale),
+            Path::new(config.paths().schema()),
+            Path::new(config.paths().locale()),
         ],
     )?;
     write_codegen_tree(root, &output, &files)
@@ -207,7 +207,7 @@ fn generate_bundler_files(
     base_locale: &str,
     web_enabled: bool,
 ) -> CliResult<Vec<TypeScriptGeneratedFile>> {
-    let output_root = &target.out;
+    let output_root = target.out();
     let artifacts = project
         .message_artifacts()
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
@@ -319,13 +319,13 @@ fn generate_bundler_files(
         "sources": source_table,
         "messages": messages,
     });
-    if let Some(bundler) = &target.bundler {
+    if let Some(bundler) = target.bundler() {
         let applications = scan_bundler_applications(root, output_root, bundler, &message_arities)?;
         let manifest = manifest.as_object_mut().expect("manifest is an object");
         manifest.insert("version".to_owned(), serde_json::json!(1));
         manifest.insert(
             "locale_loading".to_owned(),
-            serde_json::json!(bundler.locale_loading.as_str()),
+            serde_json::json!(bundler.locale_loading().as_str()),
         );
         manifest.insert("applications".to_owned(), serde_json::json!(applications));
         let message_runtimes = runtime_artifacts
@@ -401,12 +401,12 @@ fn scan_bundler_applications(
     config: &TypeScriptBundlerConfig,
     messages: &BTreeMap<String, usize>,
 ) -> CliResult<BTreeMap<String, serde_json::Value>> {
-    validate_dynamic_allow_entries(&config.dynamic, messages)?;
-    let mut exclude = config.exclude.clone();
+    validate_dynamic_allow_entries(config.dynamic(), messages)?;
+    let mut exclude = config.exclude().to_vec();
     exclude.push(output_root.to_owned());
     let paths = discover_application_source_files_with_fields(
         root,
-        &config.sources,
+        config.sources(),
         &exclude,
         "targets.ts.bundler.sources",
         "targets.ts.bundler.exclude",
@@ -441,7 +441,7 @@ fn scan_bundler_applications(
                 SourceId(source_id),
                 &usage,
                 messages,
-                &config.dynamic,
+                config.dynamic(),
             )?,
         );
     }
@@ -658,11 +658,11 @@ fn validate_dynamic_allow_entries(
     dynamic: &linguini_config::TypeScriptBundlerDynamicConfig,
     messages: &BTreeMap<String, usize>,
 ) -> CliResult<()> {
-    if dynamic.mode != linguini_config::TypeScriptBundlerDynamicMode::Bundle {
+    if dynamic.mode() != linguini_config::TypeScriptBundlerDynamicMode::Bundle {
         return Ok(());
     }
     let unknown = dynamic
-        .allow
+        .allow()
         .iter()
         .filter(|message| !messages.contains_key(*message))
         .cloned()
@@ -698,7 +698,7 @@ fn application_dynamic_references(
         validate_dynamic_spans(path, source, source_id, reference)?;
         let kind = dynamic_reference_kind_name(reference.kind);
         let reference_kind = application_reference_kind_name(reference.reference_kind);
-        if dynamic.mode == linguini_config::TypeScriptBundlerDynamicMode::Error {
+        if dynamic.mode() == linguini_config::TypeScriptBundlerDynamicMode::Error {
             errors.push(dynamic_diagnostic(
                 path,
                 reference.span.start,
@@ -851,7 +851,7 @@ fn immediate_dynamic_messages<'a>(
     messages
         .iter()
         .filter_map(|(message, arity)| {
-            if !dynamic.allow.iter().any(|allowed| allowed == message) {
+            if !dynamic.allow().iter().any(|allowed| allowed == message) {
                 return None;
             }
             let key = if prefix.is_empty() {
@@ -1080,11 +1080,11 @@ fn portable_relative_components(value: &str) -> Result<Vec<&str>, &'static str> 
 }
 
 fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
-    let features = config.web.features();
-    let cookie = features.cookie.as_ref();
-    let local_storage = features.local_storage.as_ref();
+    let features = config.web().features();
+    let cookie = features.cookie();
+    let local_storage = features.local_storage();
     let sources = features
-        .source_order
+        .source_order()
         .iter()
         .map(|source| match source {
             linguini_config::LocaleSource::Path => TypeScriptLocaleSource::Path,
@@ -1097,50 +1097,52 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
     TypeScriptWebOptions {
         sources,
         locale_switch: TypeScriptLocaleSwitchPlan {
-            writes_path: features.locale_switch.writes_path,
-            writes_cookie: features.locale_switch.writes_cookie,
-            writes_local_storage: features.locale_switch.writes_local_storage,
+            writes_path: features.locale_switch().writes_path(),
+            writes_cookie: features.locale_switch().writes_cookie(),
+            writes_local_storage: features.locale_switch().writes_local_storage(),
         },
         cookie_name: cookie
-            .map(|cookie| cookie.name.clone())
+            .map(|cookie| cookie.name().to_owned())
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
-        cookie_path: cookie.and_then(|cookie| match &cookie.path {
+        cookie_path: cookie.and_then(|cookie| match cookie.path() {
             CookiePath::Auto => None,
             CookiePath::Explicit(path) => Some(path.clone()),
         }),
-        cookie_domain: cookie.and_then(|cookie| cookie.domain.clone()),
+        cookie_domain: cookie.and_then(|cookie| cookie.domain().map(str::to_owned)),
         cookie_max_age: cookie
-            .map(|cookie| cookie.max_age_seconds)
+            .map(|cookie| cookie.max_age_seconds())
             .unwrap_or(365 * 24 * 60 * 60),
         cookie_same_site: cookie
-            .map(|cookie| cookie.same_site.as_str().to_owned())
+            .map(|cookie| cookie.same_site().as_str().to_owned())
             .unwrap_or_else(|| "lax".to_owned()),
-        cookie_secure: cookie.and_then(|cookie| match cookie.secure {
+        cookie_secure: cookie.and_then(|cookie| match cookie.secure() {
             SecurePolicy::Auto => None,
             SecurePolicy::Always => Some(true),
             SecurePolicy::Never => Some(false),
         }),
-        cookie_http_only: cookie.map(|cookie| cookie.http_only).unwrap_or(false),
+        cookie_http_only: cookie.map(|cookie| cookie.http_only()).unwrap_or(false),
         local_storage_key: local_storage
-            .map(|storage| storage.key.clone())
+            .map(|storage| storage.key().to_owned())
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
-        locale_prefix: match features.locale_prefix {
+        locale_prefix: match features.locale_prefix() {
             LocalePrefixMode::Always => TypeScriptLocalePrefixMode::Always,
             LocalePrefixMode::ExceptDefault => TypeScriptLocalePrefixMode::ExceptDefault,
             LocalePrefixMode::Never => TypeScriptLocalePrefixMode::Never,
         },
-        canonical_redirect: features.canonical == CanonicalMode::Redirect,
-        exclude: features.route_exclusions,
-        link_mode: match features.links {
+        canonical_redirect: features.canonical() == CanonicalMode::Redirect,
+        exclude: features.route_exclusions().to_vec(),
+        link_mode: match features.links() {
             LinkMode::Transform => TypeScriptLinkMode::Transform,
             LinkMode::Runtime => TypeScriptLinkMode::Runtime,
             LinkMode::Manual => TypeScriptLinkMode::Manual,
         },
-        switch_route: features.switch_route.map(|route| TypeScriptWebSwitchRoute {
-            path: route.path,
-            return_query: route.return_query,
-            status: route.status,
-        }),
+        switch_route: features
+            .switch_route()
+            .map(|route| TypeScriptWebSwitchRoute {
+                path: route.path().to_owned(),
+                return_query: route.return_query().to_owned(),
+                status: route.status(),
+            }),
     }
 }
 
@@ -1158,7 +1160,7 @@ fn build_locale_ir(
         let locale_key = (namespace.clone(), locale.to_owned());
         let locale_file = locale_index.get(&locale_key);
 
-        if locale == config.project.default_locale.as_str() && locale_file.is_none() {
+        if locale == config.project().default_locale() && locale_file.is_none() {
             let path = expected_locale_path(root, config, namespace, locale);
             return Err(CliError::Diagnostics(format!(
                 "required locale file is missing for schema namespace `{namespace}`: `{locale}`\nexpected path: {}\n",
@@ -1175,9 +1177,9 @@ fn build_locale_ir(
         }
 
         for fallback_locale in project_locale_fallbacks(
-            &config.project.locales,
+            config.project().locales(),
             locale,
-            &config.project.default_locale,
+            config.project().default_locale(),
         ) {
             let fallback_key = (namespace.clone(), fallback_locale.to_owned());
             if let Some(default_locale_file) = locale_index.get(&fallback_key) {
@@ -1496,10 +1498,11 @@ mod tests {
     #[test]
     fn root_dynamic_prefix_accepts_exact_top_level_leaf() {
         let messages = BTreeMap::from([("title".to_owned(), 0), ("main.title".to_owned(), 1)]);
-        let dynamic = TypeScriptBundlerDynamicConfig {
-            mode: TypeScriptBundlerDynamicMode::Bundle,
-            allow: vec!["title".to_owned(), "main.title".to_owned()],
-        };
+        let dynamic = TypeScriptBundlerDynamicConfig::try_new(
+            TypeScriptBundlerDynamicMode::Bundle,
+            vec!["title".to_owned(), "main.title".to_owned()],
+        )
+        .expect("valid dynamic policy");
         assert_eq!(
             immediate_dynamic_messages("", &dynamic, &messages),
             vec![("title", "title", 0)]

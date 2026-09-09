@@ -175,9 +175,11 @@ production path uses the fix and its relevant tests pass.
   site restores a deterministic checksummed 1,356-file output bundle using Node.js only; CI
   independently regenerates the bundle and rejects stale bytes.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
-- [-] #12 — Hide invalid mutable public model states behind validated constructors. `IrModule`
-      declarations are now sealed and only constructible through the validated builder and
-      atomic composition boundary; raw config/schema model structs remain open work.
+- [x] #12 — Hide invalid mutable public model states behind validated constructors. `IrModule`
+      declarations use the duplicate-rejecting builder and atomic composition boundary;
+      `SchemaSymbols` and every nested symbol expose read-only views over builder-owned data; and
+      parsed configuration plus its nested policy models expose immutable accessors instead of
+      public fields. Compile-fail contracts reject external mutation.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
 - [x] #14 — Execute normative documentation as conformance fixtures. All 91 code blocks are
   registered; Linguini syntax and TOML config fences are enforced; extracted JavaScript,

@@ -30,8 +30,8 @@ pub(crate) fn check_project_with_options(
     format: DiagnosticFormat,
 ) -> CliResult<String> {
     let config = read_project_config(root)?;
-    let schema_files = discover_schema_files(root.join(&config.paths.schema))?;
-    let locale_files = discover_locale_files(root.join(&config.paths.locale))?;
+    let schema_files = discover_schema_files(root.join(config.paths().schema()))?;
+    let locale_files = discover_locale_files(root.join(config.paths().locale()))?;
     let mut parsed_schema_files = Vec::new();
     let mut parsed_locale_files = Vec::new();
     let mut invalid_locale_keys = BTreeSet::new();
@@ -175,17 +175,17 @@ fn collect_unused_message_diagnostics(
     schema_files: &[ParsedSchemaSource],
     output: &mut ProjectDiagnostics,
 ) -> CliResult<()> {
-    let Some(options) = &config.analysis.unused_messages else {
+    let Some(options) = config.analysis().unused_messages() else {
         return Ok(());
     };
 
-    let mut excluded = options.exclude.clone();
-    if let Some(target) = &config.targets.ts {
-        if !excluded.contains(&target.out) {
-            excluded.push(target.out.clone());
+    let mut excluded = options.exclude().to_vec();
+    if let Some(target) = config.targets().typescript() {
+        if !excluded.iter().any(|path| path == target.out()) {
+            excluded.push(target.out().to_owned());
         }
     }
-    let application_files = discover_application_source_files(root, &options.sources, &excluded)?;
+    let application_files = discover_application_source_files(root, options.sources(), &excluded)?;
     let mut usage = ApplicationUsage::default();
     for path in application_files {
         usage.extend_source(&read_file(&path)?);
@@ -203,7 +203,7 @@ fn collect_unused_message_diagnostics(
                 PublicMessage::new(name, message.span)
             })
             .collect::<Vec<_>>();
-        let diagnostics = analyze_unused_messages(&messages, &usage, &options.ignore);
+        let diagnostics = analyze_unused_messages(&messages, &usage, options.ignore());
         output.push(
             root,
             &schema_file.file.path,
@@ -229,7 +229,7 @@ fn collect_project_coverage_diagnostics(
         let mut missing_default_locale = Vec::new();
         let mut missing_secondary_locales = Vec::new();
 
-        for locale in &config.project.locales {
+        for locale in config.project().locales() {
             match locale_index.get(&(schema_file.file.namespace.clone(), locale.clone())) {
                 Some(locale_file) => {
                     let diagnostics = analyze_locale_coverage_with_options(
@@ -246,7 +246,7 @@ fn collect_project_coverage_diagnostics(
                 }
                 None if invalid_locale_keys
                     .contains(&(schema_file.file.namespace.clone(), locale.clone())) => {}
-                None if locale == &config.project.default_locale => {
+                None if locale == config.project().default_locale() => {
                     missing_default_locale.push(locale.clone());
                 }
                 None => missing_secondary_locales.push(locale.clone()),
