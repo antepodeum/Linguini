@@ -1,7 +1,7 @@
 use crate::{CliError, CliResult};
 use linguini_analyzer::{Diagnostic, DiagnosticSeverity, LocaleCoverageOptions};
 use linguini_config::{discover_locale_files, discover_schema_files, LinguiniConfig};
-use linguini_schema::build_schema_symbols_from_files;
+use linguini_schema::SchemaDatabase;
 use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -116,7 +116,7 @@ pub(crate) fn schema_project_diagnostics(schema_files: &[ParsedSchemaSource]) ->
 
     namespaces
         .into_values()
-        .flat_map(|schemas| build_schema_symbols_from_files(&schemas).1)
+        .flat_map(|schemas| SchemaDatabase::build_from_files(&schemas).into_diagnostics())
         .collect()
 }
 

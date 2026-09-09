@@ -26,6 +26,16 @@ pub struct SchemaSymbols {
     groups: BTreeMap<String, GroupSymbol>,
 }
 
+/// Immutable result of one cross-file schema semantic pass.
+///
+/// Keeping symbols and diagnostics together prevents consumers from rebuilding partial indexes or
+/// accidentally pairing a symbol table with diagnostics from a different source set.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SchemaDatabase {
+    symbols: SchemaSymbols,
+    diagnostics: Vec<Diagnostic>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumSymbol {
     name: String,
@@ -99,6 +109,41 @@ impl SchemaSymbols {
 
     pub fn groups(&self) -> &BTreeMap<String, GroupSymbol> {
         &self.groups
+    }
+}
+
+impl SchemaDatabase {
+    pub fn build(schema: &SchemaFile) -> Self {
+        Self::build_from_files(std::slice::from_ref(schema))
+    }
+
+    pub fn build_from_files(schemas: &[SchemaFile]) -> Self {
+        let mut builder = SchemaSymbolBuilder::default();
+        for schema in schemas {
+            builder.register_declarations(schema);
+        }
+        builder.resolve_type_references();
+        builder.detect_alias_cycles();
+        Self {
+            symbols: builder.symbols,
+            diagnostics: builder.diagnostics,
+        }
+    }
+
+    pub fn symbols(&self) -> &SchemaSymbols {
+        &self.symbols
+    }
+
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        &self.diagnostics
+    }
+
+    pub fn into_parts(self) -> (SchemaSymbols, Vec<Diagnostic>) {
+        (self.symbols, self.diagnostics)
+    }
+
+    pub fn into_diagnostics(self) -> Vec<Diagnostic> {
+        self.diagnostics
     }
 }
 
@@ -237,7 +282,7 @@ impl GroupSymbol {
 }
 
 pub fn build_schema_symbols(schema: &SchemaFile) -> (SchemaSymbols, Vec<Diagnostic>) {
-    build_schema_symbols_from_files(std::slice::from_ref(schema))
+    SchemaDatabase::build(schema).into_parts()
 }
 
 /// Builds one canonical symbol table for all schema sources.
@@ -246,13 +291,7 @@ pub fn build_schema_symbols(schema: &SchemaFile) -> (SchemaSymbols, Vec<Diagnost
 /// project must use this function before lowering or code generation rather than concatenating
 /// independently lowered vectors.
 pub fn build_schema_symbols_from_files(schemas: &[SchemaFile]) -> (SchemaSymbols, Vec<Diagnostic>) {
-    let mut builder = SchemaSymbolBuilder::default();
-    for schema in schemas {
-        builder.register_declarations(schema);
-    }
-    builder.resolve_type_references();
-    builder.detect_alias_cycles();
-    (builder.symbols, builder.diagnostics)
+    SchemaDatabase::build_from_files(schemas).into_parts()
 }
 
 #[derive(Default)]
@@ -626,7 +665,7 @@ fn is_pascal_name(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_schema_symbols, build_schema_symbols_from_files};
+    use super::{build_schema_symbols, build_schema_symbols_from_files, SchemaDatabase};
     use linguini_syntax::{parse_schema, parse_schema_in, parse_schema_with_recovery, SourceId};
 
     #[test]
@@ -644,6 +683,23 @@ mod tests {
         assert_eq!(
             symbols.messages["delivery"].docs,
             vec!["Displayed on the product delivery confirmation card."]
+        );
+    }
+
+    #[test]
+    fn database_keeps_cross_file_symbols_and_diagnostics_in_one_snapshot() {
+        let first = parse_schema_in("hello\n", SourceId(1)).expect("first schema");
+        let duplicate = parse_schema_in("hello\n", SourceId(2)).expect("duplicate schema");
+        let database = SchemaDatabase::build_from_files(&[first, duplicate]);
+
+        assert_eq!(database.symbols().messages().len(), 1);
+        assert_eq!(database.diagnostics().len(), 1);
+        assert_eq!(
+            database.diagnostics()[0]
+                .source_span
+                .expect("duplicate source")
+                .source,
+            SourceId(2)
         );
     }
 

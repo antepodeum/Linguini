@@ -254,7 +254,10 @@ production path uses the fix and its relevant tests pass.
 - [x] #65 — Enforce schema naming constraints.
 - [x] #66 — Attach unknown-type diagnostics to exact type spans.
 - [x] #67 — Preserve related-file source identity.
-- [-] #68 — Make the schema builder a view over the shared semantic database.
+- [-] #68 — Make the schema builder a view over the shared semantic database. Cross-file
+      `SchemaDatabase` now owns one immutable symbol/diagnostic snapshot and both CLI and LSP
+      consume that boundary; locale expression, coverage, and navigation indexes still need to
+      join the same project database.
 - [x] #69 — Require a cross-file schema merge pass before every codegen entry.
 - [x] #70 — Cover cycles, duplicate variants/parameters, and cross-file declarations.
 

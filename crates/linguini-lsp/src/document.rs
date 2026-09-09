@@ -8,7 +8,7 @@ use linguini_analyzer::{
     DiagnosticSeverity, LocaleCoverageOptions,
 };
 use linguini_format::{format_source, FormatOptions, SourceKind};
-use linguini_schema::build_schema_symbols_from_files;
+use linguini_schema::SchemaDatabase;
 use linguini_syntax::{
     parse_locale_with_recovery_in, parse_schema_with_recovery_in, validate_locale_ast,
     validate_schema_ast, FunctionDeclaration, LocaleDeclaration, LocaleFile, ParseOutput,
@@ -930,14 +930,16 @@ fn schema_builder_diagnostics(
         .iter()
         .filter_map(|candidate| parsed_schema(candidate)?.ast.clone())
         .collect::<Vec<_>>();
-    let (_, diagnostics) = build_schema_symbols_from_files(&schemas);
-    diagnostics
-        .into_iter()
+    let database = SchemaDatabase::build_from_files(&schemas);
+    database
+        .diagnostics()
+        .iter()
         .filter(|diagnostic| {
             diagnostic
                 .source_span
                 .is_some_and(|span| span.source == document.source_id)
         })
+        .cloned()
         .collect()
 }
 
