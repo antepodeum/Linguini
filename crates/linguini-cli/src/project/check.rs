@@ -1,11 +1,12 @@
 use crate::{CliError, CliResult, DiagnosticFormat};
 use linguini_analyzer::{
-    analyze_locale_coverage_with_options, analyze_unused_messages, schema_public_messages,
-    ApplicationUsage, Diagnostic, DiagnosticCategory, DiagnosticSeverity, PublicMessage, QuickFix,
+    analyze_unused_messages, ApplicationUsage, Diagnostic, DiagnosticCategory, DiagnosticSeverity,
+    PublicMessage, QuickFix,
 };
 use linguini_config::{
     discover_application_source_files, discover_locale_files, discover_schema_files, LinguiniConfig,
 };
+use linguini_schema::SchemaDatabase;
 use linguini_syntax::{parse_locale_with_recovery_in, parse_schema_with_recovery_in, Span};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -192,7 +193,8 @@ fn collect_unused_message_diagnostics(
     }
 
     for schema_file in schema_files {
-        let messages = schema_public_messages(&schema_file.ast)
+        let messages = SchemaDatabase::build(&schema_file.ast)
+            .public_messages()
             .into_iter()
             .map(|message| {
                 let name = if schema_file.file.namespace.is_empty() {
@@ -226,14 +228,14 @@ fn collect_project_coverage_diagnostics(
     let locale_index = locale_index(locale_files)?;
 
     for schema_file in schema_files {
+        let database = SchemaDatabase::build(&schema_file.ast);
         let mut missing_default_locale = Vec::new();
         let mut missing_secondary_locales = Vec::new();
 
         for locale in config.project().locales() {
             match locale_index.get(&(schema_file.file.namespace.clone(), locale.clone())) {
                 Some(locale_file) => {
-                    let diagnostics = analyze_locale_coverage_with_options(
-                        &schema_file.ast,
+                    let diagnostics = database.analyze_locale_with_options(
                         &locale_file.ast,
                         coverage_options(config, &schema_file.file.namespace, locale),
                     );

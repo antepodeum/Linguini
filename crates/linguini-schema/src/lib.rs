@@ -1,4 +1,7 @@
-use linguini_analyzer::Diagnostic;
+use linguini_analyzer::{
+    analyze_locale_project_coverage, analyze_locale_project_coverage_with_options, Diagnostic,
+    LocaleCoverageOptions, RequiredLocaleMessage,
+};
 use linguini_core::{FormatterKind, TypeKind};
 use linguini_syntax::{
     Annotation, DocComment, MessageGroup, MessageSignature, Name, Parameter, SchemaDeclaration,
@@ -32,6 +35,7 @@ pub struct SchemaSymbols {
 /// accidentally pairing a symbol table with diagnostics from a different source set.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SchemaDatabase {
+    sources: Vec<SchemaFile>,
     symbols: SchemaSymbols,
     diagnostics: Vec<Diagnostic>,
 }
@@ -125,9 +129,14 @@ impl SchemaDatabase {
         builder.resolve_type_references();
         builder.detect_alias_cycles();
         Self {
+            sources: schemas.to_vec(),
             symbols: builder.symbols,
             diagnostics: builder.diagnostics,
         }
+    }
+
+    pub fn sources(&self) -> &[SchemaFile] {
+        &self.sources
     }
 
     pub fn symbols(&self) -> &SchemaSymbols {
@@ -136,6 +145,22 @@ impl SchemaDatabase {
 
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
+    }
+
+    pub fn public_messages(&self) -> Vec<RequiredLocaleMessage> {
+        linguini_analyzer::schema_public_messages_from_files(&self.sources)
+    }
+
+    pub fn analyze_locale(&self, locale: &linguini_syntax::LocaleFile) -> Vec<Diagnostic> {
+        analyze_locale_project_coverage(&self.sources, locale)
+    }
+
+    pub fn analyze_locale_with_options(
+        &self,
+        locale: &linguini_syntax::LocaleFile,
+        options: LocaleCoverageOptions,
+    ) -> Vec<Diagnostic> {
+        analyze_locale_project_coverage_with_options(&self.sources, locale, options)
     }
 
     pub fn into_parts(self) -> (SchemaSymbols, Vec<Diagnostic>) {
@@ -666,7 +691,9 @@ fn is_pascal_name(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{build_schema_symbols, build_schema_symbols_from_files, SchemaDatabase};
-    use linguini_syntax::{parse_schema, parse_schema_in, parse_schema_with_recovery, SourceId};
+    use linguini_syntax::{
+        parse_locale, parse_schema, parse_schema_in, parse_schema_with_recovery, SourceId,
+    };
 
     #[test]
     fn registers_schema_fixture_symbols() {
@@ -701,6 +728,21 @@ mod tests {
                 .source,
             SourceId(2)
         );
+    }
+
+    #[test]
+    fn database_analyzes_locales_against_its_owned_source_set() {
+        let types = parse_schema("enum Gender { masculine, feminine }\n").expect("types schema");
+        let messages =
+            parse_schema("type Voice = Gender\ngreeting(voice: Voice)\n").expect("messages schema");
+        let locale =
+            parse_locale("greeting = {fn(voice) {\n  masculine => Dear\n  feminine => Kind\n}}\n")
+                .expect("locale");
+        let database = SchemaDatabase::build_from_files(&[types, messages]);
+
+        assert_eq!(database.sources().len(), 2);
+        assert_eq!(database.public_messages().len(), 1);
+        assert!(database.analyze_locale(&locale).is_empty());
     }
 
     #[test]

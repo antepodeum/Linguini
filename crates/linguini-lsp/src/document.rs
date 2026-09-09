@@ -4,8 +4,8 @@ mod symbols;
 mod tokens;
 
 use linguini_analyzer::{
-    analyze_locale_file, analyze_locale_project_coverage_with_options, schema_public_messages,
-    Diagnostic, DiagnosticSeverity, LocaleCoverageOptions,
+    analyze_locale_file, schema_public_messages, Diagnostic, DiagnosticSeverity,
+    LocaleCoverageOptions,
 };
 use linguini_format::{format_source, FormatOptions, SourceKind};
 use linguini_schema::SchemaDatabase;
@@ -319,15 +319,16 @@ pub fn diagnostics_with_workspace(
             if schema_asts.is_empty() {
                 diagnostics.extend(analyze_locale_file(locale));
             } else {
-                diagnostics.extend(analyze_locale_project_coverage_with_options(
-                    &schema_asts,
-                    locale,
-                    LocaleCoverageOptions {
-                        missing_message_severity: DiagnosticSeverity::Warning,
-                        subject: "locale".to_owned(),
-                        quick_fix_id: Some("linguini.addMissingLocaleMessages".to_owned()),
-                    },
-                ));
+                diagnostics.extend(
+                    SchemaDatabase::build_from_files(&schema_asts).analyze_locale_with_options(
+                        locale,
+                        LocaleCoverageOptions {
+                            missing_message_severity: DiagnosticSeverity::Warning,
+                            subject: "locale".to_owned(),
+                            quick_fix_id: Some("linguini.addMissingLocaleMessages".to_owned()),
+                        },
+                    ),
+                );
             }
             diagnostics
         }

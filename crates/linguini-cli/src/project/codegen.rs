@@ -1233,11 +1233,11 @@ fn ensure_locale_has_required_messages(
     locale_file: &ParsedLocaleSource,
     locale: &str,
 ) -> CliResult<()> {
-    let diagnostics = linguini_analyzer::analyze_locale_coverage_with_options(
-        &schema_file.ast,
-        &locale_file.ast,
-        coverage_options(config, &schema_file.file.namespace, locale),
-    );
+    let diagnostics = linguini_schema::SchemaDatabase::build(&schema_file.ast)
+        .analyze_locale_with_options(
+            &locale_file.ast,
+            coverage_options(config, &schema_file.file.namespace, locale),
+        );
     let blocking = diagnostics
         .iter()
         .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
