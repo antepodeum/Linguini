@@ -6,70 +6,234 @@ use linguini_syntax::{
 };
 use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
+/// Validated schema symbol table produced by [`build_schema_symbols`] or
+/// [`build_schema_symbols_from_files`].
+///
+/// Declaration maps are read-only outside this crate, so callers cannot inject symbols that
+/// bypass duplicate, naming, type-reference, or alias-cycle validation.
+///
+/// ```compile_fail
+/// use linguini_schema::SchemaSymbols;
+///
+/// let mut symbols = SchemaSymbols::default();
+/// symbols.messages.clear();
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SchemaSymbols {
-    pub enums: BTreeMap<String, EnumSymbol>,
-    pub type_aliases: BTreeMap<String, TypeAliasSymbol>,
-    pub messages: BTreeMap<String, MessageSymbol>,
-    pub groups: BTreeMap<String, GroupSymbol>,
+    enums: BTreeMap<String, EnumSymbol>,
+    type_aliases: BTreeMap<String, TypeAliasSymbol>,
+    messages: BTreeMap<String, MessageSymbol>,
+    groups: BTreeMap<String, GroupSymbol>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumSymbol {
-    pub name: String,
-    pub variants: BTreeMap<String, VariantSymbol>,
-    pub docs: Vec<String>,
-    pub span: Span,
+    name: String,
+    variants: BTreeMap<String, VariantSymbol>,
+    docs: Vec<String>,
+    span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VariantSymbol {
-    pub name: String,
-    pub span: Span,
+    name: String,
+    span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeAliasSymbol {
-    pub name: String,
-    pub target: String,
-    pub target_span: Span,
-    pub docs: Vec<String>,
-    pub formatters: Vec<FormatterSymbol>,
-    pub span: Span,
+    name: String,
+    target: String,
+    target_span: Span,
+    docs: Vec<String>,
+    formatters: Vec<FormatterSymbol>,
+    span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormatterSymbol {
-    pub kind: FormatterKind,
-    pub arguments: BTreeMap<String, String>,
-    pub span: Span,
+    kind: FormatterKind,
+    arguments: BTreeMap<String, String>,
+    span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MessageSymbol {
-    pub name: String,
-    pub group: Option<String>,
-    pub parameters: Vec<ParameterSymbol>,
-    pub docs: Vec<String>,
-    pub span: Span,
+    name: String,
+    group: Option<String>,
+    parameters: Vec<ParameterSymbol>,
+    docs: Vec<String>,
+    span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParameterSymbol {
-    pub name: String,
-    pub name_span: Span,
-    pub ty: String,
-    pub type_span: Span,
-    pub span: Span,
+    name: String,
+    name_span: Span,
+    ty: String,
+    type_span: Span,
+    span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroupSymbol {
-    pub name: String,
-    pub messages: Vec<String>,
-    pub groups: Vec<String>,
-    pub docs: Vec<String>,
-    pub span: Span,
+    name: String,
+    messages: Vec<String>,
+    groups: Vec<String>,
+    docs: Vec<String>,
+    span: Span,
+}
+
+impl SchemaSymbols {
+    pub fn enums(&self) -> &BTreeMap<String, EnumSymbol> {
+        &self.enums
+    }
+
+    pub fn type_aliases(&self) -> &BTreeMap<String, TypeAliasSymbol> {
+        &self.type_aliases
+    }
+
+    pub fn messages(&self) -> &BTreeMap<String, MessageSymbol> {
+        &self.messages
+    }
+
+    pub fn groups(&self) -> &BTreeMap<String, GroupSymbol> {
+        &self.groups
+    }
+}
+
+impl EnumSymbol {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn variants(&self) -> &BTreeMap<String, VariantSymbol> {
+        &self.variants
+    }
+
+    pub fn docs(&self) -> &[String] {
+        &self.docs
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl VariantSymbol {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl TypeAliasSymbol {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn target(&self) -> &str {
+        &self.target
+    }
+
+    pub fn target_span(&self) -> Span {
+        self.target_span
+    }
+
+    pub fn docs(&self) -> &[String] {
+        &self.docs
+    }
+
+    pub fn formatters(&self) -> &[FormatterSymbol] {
+        &self.formatters
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl FormatterSymbol {
+    pub fn kind(&self) -> &FormatterKind {
+        &self.kind
+    }
+
+    pub fn arguments(&self) -> &BTreeMap<String, String> {
+        &self.arguments
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl MessageSymbol {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn group(&self) -> Option<&str> {
+        self.group.as_deref()
+    }
+
+    pub fn parameters(&self) -> &[ParameterSymbol] {
+        &self.parameters
+    }
+
+    pub fn docs(&self) -> &[String] {
+        &self.docs
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl ParameterSymbol {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn name_span(&self) -> Span {
+        self.name_span
+    }
+
+    pub fn ty(&self) -> &str {
+        &self.ty
+    }
+
+    pub fn type_span(&self) -> Span {
+        self.type_span
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl GroupSymbol {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn messages(&self) -> &[String] {
+        &self.messages
+    }
+
+    pub fn groups(&self) -> &[String] {
+        &self.groups
+    }
+
+    pub fn docs(&self) -> &[String] {
+        &self.docs
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
 }
 
 pub fn build_schema_symbols(schema: &SchemaFile) -> (SchemaSymbols, Vec<Diagnostic>) {
