@@ -155,6 +155,9 @@ production path uses the fix and its relevant tests pass.
 - `013c3cd` — sealed `IrModule` declaration vectors behind slice accessors, a duplicate-rejecting
   builder, and atomic validated composition, making cross-file symbol collisions fail at the
   merge boundary instead of the late reference checker.
+- `5fa36cd`, `bf5aee6` — made locale coverage/type/exhaustiveness analysis consume one complete
+  schema source set, fixed duplicate LSP diagnostics for split schema documents, and moved CLI/LSP
+  locale analysis behind the same owned `SchemaDatabase` snapshot as schema symbols/diagnostics.
 
 ## Numbered findings
 
@@ -164,7 +167,9 @@ production path uses the fix and its relevant tests pass.
   frozen v0.1 contract retains implemented inline functions, names all seven emitted lints,
   defines the validated typing/exhaustiveness boundary, and excludes CommonJS/module switching.
 - [x] #2 — Enforce validated IR as the only production codegen boundary.
-- [-] #3 — Consolidate duplicated semantic walks into one project semantic database.
+- [-] #3 — Consolidate duplicated semantic walks into one project semantic database. Schema
+      symbols, diagnostics, and locale coverage/type/exhaustiveness analysis now share one owned
+      source snapshot; locale-scope and LSP navigation indexes remain separate.
 - [x] #4 — Implement argument, selector, and reference type checks retained by the spec.
 - [x] #5 — Implement retained exhaustiveness and unreachable-pattern checks.
 - [x] #6 — Carry stable source identity through syntax, diagnostics, and semantic IR.
@@ -255,9 +260,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #66 — Attach unknown-type diagnostics to exact type spans.
 - [x] #67 — Preserve related-file source identity.
 - [-] #68 — Make the schema builder a view over the shared semantic database. Cross-file
-      `SchemaDatabase` now owns one immutable symbol/diagnostic snapshot and both CLI and LSP
-      consume that boundary; locale expression, coverage, and navigation indexes still need to
-      join the same project database.
+      `SchemaDatabase` now owns the schema sources, immutable symbols, schema diagnostics, public
+      messages, and locale coverage/type/exhaustiveness entry points; CLI and LSP consume that
+      boundary. Locale-scope and navigation indexes still need to join the same database.
 - [x] #69 — Require a cross-file schema merge pass before every codegen entry.
 - [x] #70 — Cover cycles, duplicate variants/parameters, and cross-file declarations.
 
@@ -905,8 +910,10 @@ production path uses the fix and its relevant tests pass.
   mode identity, semantics-preserving/idempotent formatting, and exact TypeScript codegen are all
   covered for dedented and raw blocks.
 - [x] P1-5 — Preserve call/declaration kinds, sources, and spans.
-- [-] P1-6 — Finish the single project symbol/type/exhaustiveness database.
-- [-] P1-7 — Make CLI and LSP consume that same database.
+- [-] P1-6 — Finish the single project symbol/type/exhaustiveness database. Schema and locale
+      exhaustiveness/type checks share `SchemaDatabase`; locale-scope/navigation indexes remain.
+- [-] P1-7 — Make CLI and LSP consume that same database. Both consume it for diagnostics and
+      coverage; remaining LSP navigation and CLI fix indexing still use direct syntax walks.
 - [x] P1-8 — Implement one CLDR locale fallback service.
 
 ### P2
