@@ -755,11 +755,7 @@ impl LocaleId {
 
 fn canonical_script(value: &str) -> String {
     let lowercase = value.to_ascii_lowercase();
-    format!(
-        "{}{}",
-        &lowercase[..1].to_ascii_uppercase(),
-        &lowercase[1..]
-    )
+    format!("{}{}", lowercase[..1].to_ascii_uppercase(), &lowercase[1..])
 }
 
 fn valid_alpha(value: &str, min: usize, max: usize) -> bool {
