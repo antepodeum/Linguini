@@ -21,13 +21,15 @@ pub use diagnostic::{
 };
 pub use expression::{
     analyze_expressions, analyze_function_patterns, analyze_project_expressions,
-    ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature, MessageToAnalyze, Variable,
+    analyze_project_expressions_from_files, ExpressionAnalysis, FormProperty, FormSignature,
+    FunctionSignature, MessageToAnalyze, Variable,
 };
 pub use locale::{
     analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
     analyze_locale_message_coverage, analyze_locale_message_coverage_with_options,
-    locale_public_messages, schema_public_messages, ImplementedLocaleMessage,
-    LocaleCoverageOptions, RequiredLocaleMessage,
+    analyze_locale_project_coverage, analyze_locale_project_coverage_with_options,
+    locale_public_messages, schema_public_messages, schema_public_messages_from_files,
+    ImplementedLocaleMessage, LocaleCoverageOptions, RequiredLocaleMessage,
 };
 pub use message_coverage::{analyze_message_coverage, PublicMessage};
 pub use reference::{detect_reference_cycles, ReferenceNode};

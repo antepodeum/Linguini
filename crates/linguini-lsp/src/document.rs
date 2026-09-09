@@ -4,8 +4,8 @@ mod symbols;
 mod tokens;
 
 use linguini_analyzer::{
-    analyze_locale_coverage_with_options, analyze_locale_file, schema_public_messages, Diagnostic,
-    DiagnosticSeverity, LocaleCoverageOptions,
+    analyze_locale_file, analyze_locale_project_coverage_with_options, schema_public_messages,
+    Diagnostic, DiagnosticSeverity, LocaleCoverageOptions,
 };
 use linguini_format::{format_source, FormatOptions, SourceKind};
 use linguini_schema::SchemaDatabase;
@@ -309,26 +309,25 @@ pub fn diagnostics_with_workspace(
                 validate_locale_ast(locale),
             ));
             let schemas = matching_schema_documents(document, workspace);
+            let schema_asts = schemas
+                .iter()
+                .filter_map(|schema_document| {
+                    parsed_schema(schema_document).and_then(|parsed| parsed.ast.clone())
+                })
+                .collect::<Vec<_>>();
 
-            if schemas.is_empty() {
+            if schema_asts.is_empty() {
                 diagnostics.extend(analyze_locale_file(locale));
             } else {
-                for schema_document in schemas {
-                    let Some(schema) =
-                        parsed_schema(&schema_document).and_then(|parsed| parsed.ast.as_ref())
-                    else {
-                        continue;
-                    };
-                    diagnostics.extend(analyze_locale_coverage_with_options(
-                        schema,
-                        locale,
-                        LocaleCoverageOptions {
-                            missing_message_severity: DiagnosticSeverity::Warning,
-                            subject: "locale".to_owned(),
-                            quick_fix_id: Some("linguini.addMissingLocaleMessages".to_owned()),
-                        },
-                    ));
-                }
+                diagnostics.extend(analyze_locale_project_coverage_with_options(
+                    &schema_asts,
+                    locale,
+                    LocaleCoverageOptions {
+                        missing_message_severity: DiagnosticSeverity::Warning,
+                        subject: "locale".to_owned(),
+                        quick_fix_id: Some("linguini.addMissingLocaleMessages".to_owned()),
+                    },
+                ));
             }
             diagnostics
         }

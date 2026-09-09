@@ -243,13 +243,22 @@ fn analyze_expressions_with_enums(
 }
 
 pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> Vec<Diagnostic> {
+    analyze_project_expressions_from_files(std::slice::from_ref(schema), locale)
+}
+
+pub fn analyze_project_expressions_from_files(
+    schemas: &[SchemaFile],
+    locale: &LocaleFile,
+) -> Vec<Diagnostic> {
     let mut schema_messages = BTreeMap::new();
-    for declaration in schema.declarations() {
-        collect_schema_messages(declaration, None, &mut schema_messages);
+    for schema in schemas {
+        for declaration in schema.declarations() {
+            collect_schema_messages(declaration, None, &mut schema_messages);
+        }
     }
-    let type_aliases = schema
-        .declarations()
+    let type_aliases = schemas
         .iter()
+        .flat_map(|schema| schema.declarations())
         .filter_map(|declaration| match declaration {
             SchemaDeclaration::TypeAlias(item) => {
                 Some((item.name.value.as_str(), item.target.value.as_str()))
@@ -259,9 +268,9 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
             | SchemaDeclaration::Group(_) => None,
         })
         .collect::<BTreeMap<_, _>>();
-    let schema_enum_names = schema
-        .declarations()
+    let schema_enum_names = schemas
         .iter()
+        .flat_map(|schema| schema.declarations())
         .filter_map(|declaration| match declaration {
             SchemaDeclaration::Enum(item) => Some(item.name.value.as_str()),
             SchemaDeclaration::TypeAlias(_)
@@ -269,9 +278,9 @@ pub fn analyze_project_expressions(schema: &SchemaFile, locale: &LocaleFile) -> 
             | SchemaDeclaration::Group(_) => None,
         })
         .collect::<BTreeSet<_>>();
-    let mut enum_variants = schema
-        .declarations()
+    let mut enum_variants = schemas
         .iter()
+        .flat_map(|schema| schema.declarations())
         .filter_map(|declaration| match declaration {
             SchemaDeclaration::Enum(item) => Some((
                 item.name.value.clone(),

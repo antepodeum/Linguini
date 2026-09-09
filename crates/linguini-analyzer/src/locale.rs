@@ -1,6 +1,6 @@
 use crate::{
-    analyze_function_patterns, analyze_project_expressions, Diagnostic, DiagnosticSeverity,
-    QuickFix, Replacement,
+    analyze_function_patterns, analyze_project_expressions_from_files, Diagnostic,
+    DiagnosticSeverity, QuickFix, Replacement,
 };
 use linguini_syntax::{
     DocComment, LocaleDeclaration, LocaleFile, MessageGroup, MessageImplementationGroup,
@@ -10,7 +10,7 @@ use linguini_syntax::{
 mod branches;
 mod messages;
 
-use self::branches::analyze_locale_branch_coverage;
+use self::branches::{analyze_locale_branch_coverage, analyze_locale_branch_coverage_from_files};
 use self::messages::{
     format_name_list, locale_message_map, missing_message_stub_text, pluralize, schema_message_map,
 };
@@ -91,15 +91,30 @@ pub fn analyze_locale_coverage_with_options(
     locale: &LocaleFile,
     options: LocaleCoverageOptions,
 ) -> Vec<Diagnostic> {
+    analyze_locale_project_coverage_with_options(std::slice::from_ref(schema), locale, options)
+}
+
+pub fn analyze_locale_project_coverage(
+    schemas: &[SchemaFile],
+    locale: &LocaleFile,
+) -> Vec<Diagnostic> {
+    analyze_locale_project_coverage_with_options(schemas, locale, LocaleCoverageOptions::default())
+}
+
+pub fn analyze_locale_project_coverage_with_options(
+    schemas: &[SchemaFile],
+    locale: &LocaleFile,
+    options: LocaleCoverageOptions,
+) -> Vec<Diagnostic> {
     let mut diagnostics = analyze_locale_message_coverage_with_options(
-        &schema_public_messages(schema),
+        &schema_public_messages_from_files(schemas),
         &locale_public_messages(locale),
         locale.span(),
         options,
     );
-    diagnostics.extend(analyze_locale_branch_coverage(Some(schema), locale));
+    diagnostics.extend(analyze_locale_branch_coverage_from_files(schemas, locale));
     diagnostics.extend(analyze_function_patterns(locale));
-    diagnostics.extend(analyze_project_expressions(schema, locale));
+    diagnostics.extend(analyze_project_expressions_from_files(schemas, locale));
     diagnostics
 }
 
@@ -154,9 +169,15 @@ pub fn analyze_locale_message_coverage_with_options(
 }
 
 pub fn schema_public_messages(schema: &SchemaFile) -> Vec<RequiredLocaleMessage> {
+    schema_public_messages_from_files(std::slice::from_ref(schema))
+}
+
+pub fn schema_public_messages_from_files(schemas: &[SchemaFile]) -> Vec<RequiredLocaleMessage> {
     let mut messages = Vec::new();
-    for declaration in schema.declarations() {
-        collect_schema_messages(declaration, None, &mut messages);
+    for schema in schemas {
+        for declaration in schema.declarations() {
+            collect_schema_messages(declaration, None, &mut messages);
+        }
     }
     messages
 }

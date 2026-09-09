@@ -1,11 +1,12 @@
 use super::{
     analyze_branch_coverage, analyze_expressions, analyze_function_patterns,
     analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
-    analyze_message_coverage, analyze_project_expressions, detect_reference_cycles,
-    render_diagnostics, render_diagnostics_with_sources_and_color, require_other_branch,
-    BranchCoverage, Diagnostic, DiagnosticCategory, DiagnosticSeverity, DiagnosticSource,
-    ExpressionAnalysis, FormProperty, FormSignature, FunctionSignature, LocaleCoverageOptions,
-    MessageToAnalyze, NamedSpan, PublicMessage, QuickFix, QuickFixAction, ReferenceNode, Variable,
+    analyze_locale_project_coverage, analyze_message_coverage, analyze_project_expressions,
+    analyze_project_expressions_from_files, detect_reference_cycles, render_diagnostics,
+    render_diagnostics_with_sources_and_color, require_other_branch, BranchCoverage, Diagnostic,
+    DiagnosticCategory, DiagnosticSeverity, DiagnosticSource, ExpressionAnalysis, FormProperty,
+    FormSignature, FunctionSignature, LocaleCoverageOptions, MessageToAnalyze, NamedSpan,
+    PublicMessage, QuickFix, QuickFixAction, ReferenceNode, Variable,
 };
 use linguini_syntax::{parse_locale, parse_schema, SourceId, Span};
 
@@ -232,6 +233,40 @@ greeting(voice: Voice, count: Number)\n",
             .iter()
             .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
         "{diagnostics:#?}"
+    );
+}
+
+#[test]
+fn project_expression_analysis_resolves_types_across_schema_files() {
+    let types = parse_schema("enum Gender { masculine, feminine }\n").expect("types schema");
+    let messages =
+        parse_schema("type Voice = Gender\ngreeting(voice: Voice)\n").expect("messages schema");
+    let locale =
+        parse_locale("greeting = {fn(voice) {\n  masculine => Dear\n  feminine => Kind\n}}\n")
+            .expect("locale");
+
+    let diagnostics = analyze_project_expressions_from_files(&[types, messages], &locale);
+
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{diagnostics:#?}"
+    );
+}
+
+#[test]
+fn project_locale_coverage_combines_schema_files_before_comparison() {
+    let first = parse_schema("first\n").expect("first schema");
+    let second = parse_schema("second\n").expect("second schema");
+    let locale = parse_locale("first = First\n").expect("locale");
+
+    let diagnostics = analyze_locale_project_coverage(&[first, second], &locale);
+
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+    assert_eq!(
+        diagnostics[0].message,
+        "locale is missing 1 schema message: `second`"
     );
 }
 

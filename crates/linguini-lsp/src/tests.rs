@@ -609,6 +609,46 @@ fn locale_diagnostics_use_only_matching_schema_namespace() {
 }
 
 #[test]
+fn locale_diagnostics_combine_matching_schema_documents_once() {
+    let types = LinguiniDocument::new(
+        "file:///schema/shop-types.lgs",
+        "linguini-schema",
+        "enum Gender { masculine, feminine }\n",
+    )
+    .with_source_identity("shop", None);
+    let messages = LinguiniDocument::new(
+        "file:///schema/shop-messages.lgs",
+        "linguini-schema",
+        "type Voice = Gender\ngreeting(voice: Voice)\nfarewell\n",
+    )
+    .with_source_identity("shop", None);
+    let locale = LinguiniDocument::new(
+        "file:///locales/shop/en.lgl",
+        "linguini-locale",
+        "greeting = {fn(voice) {\n  masculine => Dear\n  feminine => Kind\n}}\n",
+    )
+    .with_source_identity("shop", Some("en".to_owned()));
+
+    let diagnostics = diagnostics_with_workspace(&locale, [types, messages]);
+
+    assert_eq!(
+        diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.message.contains("missing 1 schema message"))
+            .count(),
+        1,
+        "{diagnostics:#?}"
+    );
+    assert!(diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message.contains("`farewell`")));
+    assert!(diagnostics.iter().all(|diagnostic| {
+        !diagnostic.message.contains("unknown public message")
+            && !diagnostic.message.contains("unknown variable `voice`")
+    }));
+}
+
+#[test]
 fn schema_semantic_diagnostics_are_reported() {
     let schema = LinguiniDocument::new(
         "file:///schema/shop.lgs",
