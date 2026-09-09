@@ -969,7 +969,10 @@ production path uses the fix and its relevant tests pass.
 - [x] Run strict Clippy for all targets and features.
 - [x] Run Rust 1.76 MSRV checks and stable checks.
 - [x] Run offline/package/source-archive verification.
-- [ ] Run dependency, license, advisory, and public-API compatibility checks.
+- [x] Run dependency, license, advisory, and public-API compatibility checks. Local verification
+  passed with cargo-deny 0.20.2, cargo-audit 0.22.2, and cargo-semver-checks 0.50.0 against
+  `origin/dev`; the workspace crates remain prerelease `0.1.0-alpha.4`, so semver-checks correctly
+  treated the unchanged prerelease versions as major-compatible and skipped stable-release lints.
 - [ ] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests.
 - [x] Parse, analyze, generate, typecheck, and execute every normative documentation fixture.
 - [ ] Re-read all 369 findings and every architecture criterion against final production paths.
