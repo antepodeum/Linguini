@@ -43,6 +43,94 @@ pub(super) struct ResolvedOccurrence {
     pub occurrence: SemanticOccurrence,
 }
 
+/// Immutable semantic index for one workspace navigation operation.
+///
+/// Reference, definition, and rename resolution all consume this same snapshot. Rename conflict
+/// checks therefore cannot rewalk a document after the target set has already been selected.
+#[derive(Debug, Clone)]
+struct NavigationDatabase {
+    documents: BTreeMap<String, LinguiniDocument>,
+    occurrences: BTreeMap<String, Vec<SemanticOccurrence>>,
+}
+
+impl NavigationDatabase {
+    fn build(
+        documents: impl IntoIterator<Item = LinguiniDocument>,
+        source: &LinguiniDocument,
+    ) -> Self {
+        let mut documents = documents
+            .into_iter()
+            .map(|document| (document.uri.clone(), document))
+            .collect::<BTreeMap<_, _>>();
+        documents
+            .entry(source.uri.clone())
+            .or_insert_with(|| source.clone());
+        let occurrences = documents
+            .iter()
+            .map(|(uri, document)| (uri.clone(), occurrences(document)))
+            .collect();
+        Self {
+            documents,
+            occurrences,
+        }
+    }
+
+    fn occurrences(&self, uri: &str) -> &[SemanticOccurrence] {
+        self.occurrences.get(uri).map(Vec::as_slice).unwrap_or(&[])
+    }
+
+    fn occurrence_at(
+        &self,
+        document: &LinguiniDocument,
+        offset: usize,
+    ) -> Option<SemanticOccurrence> {
+        self.occurrences(&document.uri)
+            .iter()
+            .find(|occurrence| contains(occurrence.span, offset))
+            .cloned()
+    }
+
+    fn resolve(&self, source: &LinguiniDocument, offset: usize) -> Option<Vec<ResolvedOccurrence>> {
+        let source_occurrence = self.occurrence_at(source, offset)?;
+        let document_local = match &source_occurrence.key {
+            SemanticKey::FormAttribute { .. }
+            | SemanticKey::Variable(_)
+            | SemanticKey::Function(_) => true,
+            SemanticKey::Parameter { owner, .. } => {
+                owner.starts_with("fn:") || owner.starts_with("inline:")
+            }
+            SemanticKey::Message(_) | SemanticKey::Type(_) | SemanticKey::EnumVariant { .. } => {
+                false
+            }
+        };
+        let schema_anchor = if document_local || source.namespace.is_some() {
+            None
+        } else {
+            unique_schema_anchor(self, source, &source_occurrence)?
+        };
+
+        let mut resolved = Vec::new();
+        for document in self.documents.values() {
+            if document_local && document.uri != source.uri {
+                continue;
+            }
+            if !document_local && !same_namespace(source, document, schema_anchor.as_deref()) {
+                continue;
+            }
+            for occurrence in self.occurrences(&document.uri) {
+                if occurrence.key == source_occurrence.key {
+                    resolved.push(ResolvedOccurrence {
+                        document: document.clone(),
+                        occurrence: occurrence.clone(),
+                    });
+                }
+            }
+        }
+
+        (!resolved.is_empty()).then_some(resolved)
+    }
+}
+
 pub(super) fn occurrence_at(
     document: &LinguiniDocument,
     offset: usize,
@@ -57,46 +145,7 @@ pub(super) fn resolved_occurrences(
     source: &LinguiniDocument,
     offset: usize,
 ) -> Option<Vec<ResolvedOccurrence>> {
-    let source_occurrence = occurrence_at(source, offset)?;
-    let mut documents = documents.into_iter().collect::<Vec<_>>();
-    if !documents.iter().any(|document| document.uri == source.uri) {
-        documents.push(source.clone());
-    }
-
-    let document_local = match &source_occurrence.key {
-        SemanticKey::FormAttribute { .. } | SemanticKey::Variable(_) | SemanticKey::Function(_) => {
-            true
-        }
-        SemanticKey::Parameter { owner, .. } => {
-            owner.starts_with("fn:") || owner.starts_with("inline:")
-        }
-        SemanticKey::Message(_) | SemanticKey::Type(_) | SemanticKey::EnumVariant { .. } => false,
-    };
-    let schema_anchor = if document_local || source.namespace.is_some() {
-        None
-    } else {
-        unique_schema_anchor(&documents, source, &source_occurrence)?
-    };
-
-    let mut resolved = Vec::new();
-    for document in documents {
-        if document_local && document.uri != source.uri {
-            continue;
-        }
-        if !document_local && !same_namespace(source, &document, schema_anchor.as_deref()) {
-            continue;
-        }
-        for occurrence in occurrences(&document) {
-            if occurrence.key == source_occurrence.key {
-                resolved.push(ResolvedOccurrence {
-                    document: document.clone(),
-                    occurrence,
-                });
-            }
-        }
-    }
-
-    (!resolved.is_empty()).then_some(resolved)
+    NavigationDatabase::build(documents, source).resolve(source, offset)
 }
 
 pub(super) fn definition_occurrence(
@@ -104,8 +153,9 @@ pub(super) fn definition_occurrence(
     source: &LinguiniDocument,
     offset: usize,
 ) -> Option<ResolvedOccurrence> {
-    let source_occurrence = occurrence_at(source, offset)?;
-    let resolved = resolved_occurrences(documents, source, offset)?;
+    let database = NavigationDatabase::build(documents, source);
+    let source_occurrence = database.occurrence_at(source, offset)?;
+    let resolved = database.resolve(source, offset)?;
     let declarations = resolved
         .into_iter()
         .filter(|candidate| candidate.occurrence.declaration)
@@ -145,8 +195,9 @@ pub(super) fn rename_occurrences(
     if !valid_identifier(new_name) {
         return None;
     }
-    let resolved = resolved_occurrences(documents, source, offset)?;
-    let source_occurrence = occurrence_at(source, offset)?;
+    let database = NavigationDatabase::build(documents, source);
+    let resolved = database.resolve(source, offset)?;
+    let source_occurrence = database.occurrence_at(source, offset)?;
     let renamed = renamed_key(&source_occurrence.key, new_name);
     if renamed == source_occurrence.key {
         return Some(Vec::new());
@@ -154,10 +205,10 @@ pub(super) fn rename_occurrences(
 
     let affected_documents = resolved
         .iter()
-        .map(|candidate| (candidate.document.uri.clone(), candidate.document.clone()))
-        .collect::<std::collections::BTreeMap<_, _>>();
-    for candidate in affected_documents.into_values() {
-        if occurrences(&candidate).into_iter().any(|occurrence| {
+        .map(|candidate| candidate.document.uri.as_str())
+        .collect::<BTreeSet<_>>();
+    for uri in affected_documents {
+        if database.occurrences(uri).iter().any(|occurrence| {
             occurrence.declaration
                 && occurrence.key != source_occurrence.key
                 && declaration_keys_conflict(&renamed, &occurrence.key)
@@ -738,16 +789,18 @@ fn declaration_slot(key: &SemanticKey) -> Option<(String, String)> {
 }
 
 fn unique_schema_anchor(
-    documents: &[LinguiniDocument],
+    database: &NavigationDatabase,
     source: &LinguiniDocument,
     source_occurrence: &SemanticOccurrence,
 ) -> Option<Option<String>> {
-    let schema_uris = documents
-        .iter()
+    let schema_uris = database
+        .documents
+        .values()
         .filter(|document| document.kind == SourceKind::Schema)
         .filter(|document| {
-            occurrences(document)
-                .into_iter()
+            database
+                .occurrences(&document.uri)
+                .iter()
                 .any(|occurrence| occurrence.declaration && occurrence.key == source_occurrence.key)
         })
         .map(|document| document.uri.clone())
