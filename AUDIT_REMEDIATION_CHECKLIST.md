@@ -159,6 +159,8 @@ production path uses the fix and its relevant tests pass.
   complete schema source set, fixed duplicate LSP diagnostics for split schema documents, and moved CLI/LSP
   locale analysis, message completion/hover, and CLI fix discovery behind the same owned
   `SchemaDatabase` snapshot as schema symbols/diagnostics.
+- `5b41b55`, `adfecb2` — made LSP navigation resolve and collision-check one immutable workspace
+  occurrence snapshot and removed the unused parallel `linguini-locale` scope database.
 
 ## Numbered findings
 
@@ -170,7 +172,8 @@ production path uses the fix and its relevant tests pass.
 - [x] #2 — Enforce validated IR as the only production codegen boundary.
 - [-] #3 — Consolidate duplicated semantic walks into one project semantic database. Schema
       symbols, diagnostics, and locale coverage/type/exhaustiveness analysis now share one owned
-      source snapshot; locale-scope and LSP navigation indexes remain separate.
+      source snapshot; the unused locale-scope database is gone and LSP navigation uses one
+      immutable per-operation index, but its occurrence collector remains LSP-owned.
 - [x] #4 — Implement argument, selector, and reference type checks retained by the spec.
 - [x] #5 — Implement retained exhaustiveness and unreachable-pattern checks.
 - [x] #6 — Carry stable source identity through syntax, diagnostics, and semantic IR.
@@ -263,7 +266,8 @@ production path uses the fix and its relevant tests pass.
 - [-] #68 — Make the schema builder a view over the shared semantic database. Cross-file
       `SchemaDatabase` now owns the schema sources, immutable symbols, schema diagnostics, public
       messages, and locale coverage/type/exhaustiveness entry points; CLI and LSP consume that
-      boundary. Locale-scope and reference/rename indexes still need to join the same database.
+      boundary. The unused locale-scope database is removed; the LSP occurrence collector still
+      needs to move behind this shared boundary.
 - [x] #69 — Require a cross-file schema merge pass before every codegen entry.
 - [x] #70 — Cover cycles, duplicate variants/parameters, and cross-file declarations.
 
@@ -911,11 +915,12 @@ production path uses the fix and its relevant tests pass.
   mode identity, semantics-preserving/idempotent formatting, and exact TypeScript codegen are all
   covered for dedented and raw blocks.
 - [x] P1-5 — Preserve call/declaration kinds, sources, and spans.
-- [-] P1-6 — Finish the single project symbol/type/exhaustiveness database. Schema and locale
-      exhaustiveness/type checks share `SchemaDatabase`; locale-scope/navigation indexes remain.
+- [x] P1-6 — Finish the single project symbol/type/exhaustiveness database. Schema and locale
+      exhaustiveness/type checks share `SchemaDatabase`; the unused parallel locale-scope database
+      has been removed.
 - [-] P1-7 — Make CLI and LSP consume that same database. Both consume it for diagnostics and
-      coverage, message completion/hover, and fix discovery; remaining LSP reference/rename
-      indexing still uses direct syntax walks.
+      coverage, message completion/hover, and fix discovery. Reference/definition/rename operations
+      share one immutable navigation snapshot, but its occurrence collector remains LSP-owned.
 - [x] P1-8 — Implement one CLDR locale fallback service.
 
 ### P2

@@ -55,12 +55,11 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Confirm package publish status and intended public surface are explicit.
   - [x] Run focused tests or dependent analyzer checks.
-- [x] 8. `crates/linguini-locale`
-  - [x] Review locale helper API against analyzer and syntax contracts.
-  - [x] Remove helpers that duplicate public analyzer or syntax behavior.
-  - [x] Remove placeholder tests that do not assert real behavior.
-  - [x] Confirm package publish status and intended public surface are explicit.
-  - [x] Run focused tests or dependent analyzer checks.
+- [x] 8. Retire the unused `crates/linguini-locale` scope database.
+  - [x] Confirm no production crate consumes its parallel loader or indexes.
+  - [x] Keep locale diagnostics and coverage in `SchemaDatabase` and validated IR.
+  - [x] Remove the unpublished crate and stale workspace, lockfile, and CI exclusions.
+  - [x] Run the complete Rust workspace test and strict Clippy gates.
 - [x] 9. `crates/linguini-cldr-macros`
   - [x] Review generated-data inputs, source paths, and error handling.
   - [x] Check macro output for deterministic ordering and small public surface.
