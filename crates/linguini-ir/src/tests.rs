@@ -1173,3 +1173,41 @@ fn retain_symbols_filters_declarations_and_provenance() {
     assert_eq!(sliced.messages()[0].name, "keep");
     assert_eq!(sliced.origins().len(), 1);
 }
+
+#[test]
+fn typed_ir_rejects_cross_domain_declaration_kinds() {
+    use crate::{IrModuleBuilder, IrTypeAlias, IrVariable, LocaleIr, SchemaIr};
+
+    let schema_with_variable = IrModuleBuilder::new()
+        .push_variable(IrVariable {
+            name: "value".to_owned(),
+            docs: Vec::new(),
+            value: crate::IrText {
+                parts: Vec::new(),
+                mode: IrTextBlockMode::Inline,
+                span: linguini_syntax::Span::new(0, 0),
+            },
+        })
+        .build()
+        .expect("unique module");
+    assert!(SchemaIr::try_from_module(schema_with_variable).is_err());
+
+    let locale_with_alias = IrModuleBuilder::new()
+        .push_type_alias(IrTypeAlias {
+            name: "Alias".to_owned(),
+            target: "String".to_owned(),
+            docs: Vec::new(),
+            formatters: Vec::new(),
+        })
+        .build()
+        .expect("unique module");
+    assert!(LocaleIr::try_from_module(locale_with_alias).is_err());
+
+    assert!(
+        SchemaIr::try_from_module(lower_schema(&parse_schema("hello\n").expect("schema"))).is_ok()
+    );
+    assert!(LocaleIr::try_from_module(lower_locale(
+        &parse_locale("hello = Hello\n").expect("locale")
+    ))
+    .is_ok());
+}

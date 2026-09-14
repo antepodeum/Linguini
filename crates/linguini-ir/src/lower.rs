@@ -21,7 +21,8 @@ pub fn lower_schema(schema: &SchemaFile) -> IrModule {
 }
 
 pub fn lower_schema_typed(schema: &SchemaFile) -> SchemaIr {
-    SchemaIr(lower_schema(schema))
+    SchemaIr::try_from_module(lower_schema(schema))
+        .expect("schema lowering emits only schema declaration kinds")
 }
 
 fn lower_schema_declaration(
@@ -129,7 +130,8 @@ pub fn lower_locale(locale: &LocaleFile) -> IrModule {
 }
 
 pub fn lower_locale_typed(locale: &LocaleFile) -> LocaleIr {
-    LocaleIr(lower_locale(locale))
+    LocaleIr::try_from_module(lower_locale(locale))
+        .expect("locale lowering emits only locale declaration kinds")
 }
 
 fn lower_locale_declaration(

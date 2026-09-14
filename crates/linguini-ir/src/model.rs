@@ -307,12 +307,33 @@ impl IrModuleBuilder {
 pub struct SchemaIr(pub(crate) IrModule);
 
 impl SchemaIr {
+    pub fn try_from_module(module: IrModule) -> Result<Self, IrModuleKindError> {
+        if !module.variables.is_empty() {
+            return Err(IrModuleKindError::new("schema", IrSymbolKind::Variable));
+        }
+        if !module.forms.is_empty() {
+            return Err(IrModuleKindError::new("schema", IrSymbolKind::Form));
+        }
+        if !module.functions.is_empty() {
+            return Err(IrModuleKindError::new("schema", IrSymbolKind::Function));
+        }
+        Ok(Self(module))
+    }
+
     pub fn as_module(&self) -> &IrModule {
         &self.0
     }
 
     pub fn into_module(self) -> IrModule {
         self.0
+    }
+}
+
+impl std::ops::Deref for SchemaIr {
+    type Target = IrModule;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_module()
     }
 }
 
@@ -320,6 +341,13 @@ impl SchemaIr {
 pub struct LocaleIr(pub(crate) IrModule);
 
 impl LocaleIr {
+    pub fn try_from_module(module: IrModule) -> Result<Self, IrModuleKindError> {
+        if !module.type_aliases.is_empty() {
+            return Err(IrModuleKindError::new("locale", IrSymbolKind::TypeAlias));
+        }
+        Ok(Self(module))
+    }
+
     pub fn as_module(&self) -> &IrModule {
         &self.0
     }
@@ -328,6 +356,41 @@ impl LocaleIr {
         self.0
     }
 }
+
+impl std::ops::Deref for LocaleIr {
+    type Target = IrModule;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_module()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrModuleKindError {
+    module_kind: &'static str,
+    declaration_kind: IrSymbolKind,
+}
+
+impl IrModuleKindError {
+    fn new(module_kind: &'static str, declaration_kind: IrSymbolKind) -> Self {
+        Self {
+            module_kind,
+            declaration_kind,
+        }
+    }
+}
+
+impl std::fmt::Display for IrModuleKindError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{} IR cannot contain {:?} declarations",
+            self.module_kind, self.declaration_kind
+        )
+    }
+}
+
+impl std::error::Error for IrModuleKindError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IrSymbolKind {
