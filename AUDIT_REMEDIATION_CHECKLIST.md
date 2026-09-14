@@ -73,6 +73,9 @@ production path uses the fix and its relevant tests pass.
   delegated trailing-slash canonicalization to SvelteKit page options.
 - `b5b2a69` — added a SHA-pinned workspace public-API compatibility job against
   each pull request base or pre-push revision.
+- `b5f27af`, `18f9618` — modeled significant digits, rounding increments, scientific
+  exponents, percent/per-mille scaling, and all padding positions from CLDR number patterns,
+  then lowered those semantics into the exact generated TypeScript decimal runtime.
 - `f378a5f` — formatter parsing now reuses the validated parser's lossless token stream,
   with a regression test proving one lexer invocation per source.
 - `1dd4223` — removed unsupported inline `fn` syntax from the normative reference and
@@ -411,7 +414,10 @@ production path uses the fix and its relevant tests pass.
 - [-] #176 — Generate non-Latin numbering and broader calendar data. Locale-default numeric
       systems are compiled and emitted; broader calendar data remains open.
 - [x] #177 — Parse text-direction JSON structurally.
-- [ ] #178 — Implement complete CLDR number-pattern semantics.
+- [x] #178 — Implement complete CLDR number-pattern semantics. Quoted positive/negative
+      affixes, primary/secondary grouping, fixed and significant digits, rounding increments,
+      scientific exponent signs/widths, percent/per-mille scaling, and all four padding
+      positions are typed in checked-in CLDR data and consumed by generated runtime code.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.
