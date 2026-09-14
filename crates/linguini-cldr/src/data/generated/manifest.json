@@ -1,8 +1,8 @@
 {
   "artifact": {
-    "bytes": 2718437,
+    "bytes": 3338811,
     "path": "cldr_tables.rs",
-    "sha256": "aac586640fc07211af62f9776e6a7aece371cb03e69a9026394c0e039a74c4c6"
+    "sha256": "7b9fd361f3a776dd2b6b2448f3ebde743da080dfecd0adcf5f69dc43ad245c03"
   },
   "coverage": {
     "currency_fraction_rules": 75,

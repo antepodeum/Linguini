@@ -113,6 +113,30 @@ pub struct NumberPatternPart {
     pub max_fraction_digits: u8,
     pub primary_group_size: Option<u8>,
     pub secondary_group_size: Option<u8>,
+    pub min_significant_digits: Option<u8>,
+    pub max_significant_digits: Option<u8>,
+    /// ASCII rounding increment digits at `max_fraction_digits` scale.
+    pub rounding_increment: Option<&'static str>,
+    pub exponent_digits: Option<u8>,
+    pub exponent_sign_always: bool,
+    /// Decimal magnitude applied before formatting: 1, 100, or 1000.
+    pub scale: u16,
+    pub padding: Option<NumberPadding>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NumberPadding {
+    pub character: char,
+    pub width: u16,
+    pub position: NumberPaddingPosition,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumberPaddingPosition {
+    BeforePrefix,
+    AfterPrefix,
+    BeforeSuffix,
+    AfterSuffix,
 }
 
 #[cfg(test)]

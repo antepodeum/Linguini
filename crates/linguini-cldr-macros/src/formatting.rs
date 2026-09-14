@@ -671,6 +671,37 @@ fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
     let max_fraction_digits = part.max_fraction_digits;
     let primary_group_size = option_u8_tokens(part.primary_group_size);
     let secondary_group_size = option_u8_tokens(part.secondary_group_size);
+    let min_significant_digits = option_u8_tokens(part.min_significant_digits);
+    let max_significant_digits = option_u8_tokens(part.max_significant_digits);
+    let rounding_increment = part
+        .rounding_increment
+        .as_ref()
+        .map_or_else(|| quote! { None }, |increment| quote! { Some(#increment) });
+    let exponent_digits = option_u8_tokens(part.exponent_digits);
+    let exponent_sign_always = part.exponent_sign_always;
+    let scale = part.scale;
+    let padding = part.padding.as_ref().map_or_else(
+        || quote! { None },
+        |padding| {
+            let character = padding.character;
+            let width = padding.width;
+            let position = match padding.position {
+                NumberPaddingPosition::BeforePrefix => {
+                    quote! { NumberPaddingPosition::BeforePrefix }
+                }
+                NumberPaddingPosition::AfterPrefix => {
+                    quote! { NumberPaddingPosition::AfterPrefix }
+                }
+                NumberPaddingPosition::BeforeSuffix => {
+                    quote! { NumberPaddingPosition::BeforeSuffix }
+                }
+                NumberPaddingPosition::AfterSuffix => {
+                    quote! { NumberPaddingPosition::AfterSuffix }
+                }
+            };
+            quote! { Some(NumberPadding { character: #character, width: #width, position: #position }) }
+        },
+    );
     quote! {
         NumberPatternPart {
             prefix: #prefix,
@@ -680,6 +711,13 @@ fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
             max_fraction_digits: #max_fraction_digits,
             primary_group_size: #primary_group_size,
             secondary_group_size: #secondary_group_size,
+            min_significant_digits: #min_significant_digits,
+            max_significant_digits: #max_significant_digits,
+            rounding_increment: #rounding_increment,
+            exponent_digits: #exponent_digits,
+            exponent_sign_always: #exponent_sign_always,
+            scale: #scale,
+            padding: #padding,
         }
     }
 }
@@ -701,6 +739,32 @@ struct NumberPatternPart {
     max_fraction_digits: u8,
     primary_group_size: Option<u8>,
     secondary_group_size: Option<u8>,
+    min_significant_digits: Option<u8>,
+    max_significant_digits: Option<u8>,
+    rounding_increment: Option<String>,
+    exponent_digits: Option<u8>,
+    exponent_sign_always: bool,
+    scale: u16,
+    padding: Option<NumberPadding>,
+}
+
+struct NumberPadding {
+    character: char,
+    width: u16,
+    position: NumberPaddingPosition,
+}
+
+struct PaddingMarker {
+    index: usize,
+    character: char,
+    width: u16,
+}
+
+enum NumberPaddingPosition {
+    BeforePrefix,
+    AfterPrefix,
+    BeforeSuffix,
+    AfterSuffix,
 }
 
 fn parse_number_pattern(pattern: &str) -> Result<NumberPattern, String> {
@@ -717,51 +781,55 @@ fn parse_number_pattern(pattern: &str) -> Result<NumberPattern, String> {
 }
 
 fn parse_number_pattern_part(pattern: &str) -> Result<NumberPatternPart, String> {
-    let number_start = find_unquoted_digit(pattern)
+    let original = pattern;
+    let (pattern, padding_marker) = extract_padding(pattern)?;
+    let number_start = find_unquoted_digit(&pattern)
         .ok_or_else(|| format!("number pattern has no digit placeholder: `{pattern}`"))?;
-    let number_end = number_skeleton_end(pattern, number_start);
-    if pattern[..number_start].contains('*') || pattern[number_end..].contains('*') {
-        return Err(format!(
-            "number pattern uses unsupported padding syntax: `{pattern}`"
-        ));
-    }
+    let number_end = number_skeleton_end(&pattern, number_start);
     let prefix = unquote_affix(&pattern[..number_start])?;
     let suffix = unquote_affix(&pattern[number_end..])?;
     let number = &pattern[number_start..number_end];
-    if number.contains(['@', 'E', '*'])
-        || number
-            .chars()
-            .any(|character| matches!(character, '1'..='9'))
-    {
+    let padding = padding_marker
+        .map(|marker| classify_padding(marker, number_start, number_end, original))
+        .transpose()?;
+    let (mantissa, exponent) = number
+        .split_once('E')
+        .map_or((number, None), |(mantissa, exponent)| {
+            (mantissa, Some(exponent))
+        });
+    if mantissa.contains('E') || exponent.is_some_and(|value| value.contains('E')) {
         return Err(format!(
-            "number pattern uses unsupported significant/scientific/padding/rounding syntax: `{pattern}`"
+            "number pattern has multiple exponents: `{original}`"
         ));
     }
-    if number.matches('.').count() > 1 {
-        return Err(format!("number pattern has multiple decimals: `{pattern}`"));
+    let (exponent_digits, exponent_sign_always) = parse_exponent(exponent, original)?;
+    if mantissa.matches('.').count() > 1 {
+        return Err(format!(
+            "number pattern has multiple decimals: `{original}`"
+        ));
     }
-    let (integer, fraction) = number.split_once('.').unwrap_or((number, ""));
+    let (integer, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
     if integer.is_empty()
         || !integer
             .chars()
-            .any(|character| matches!(character, '#' | '0'))
+            .any(|character| matches!(character, '#' | '0'..='9' | '@'))
     {
         return Err(format!(
-            "number pattern has no integer placeholders: `{pattern}`"
+            "number pattern has no integer placeholders: `{original}`"
         ));
     }
     if integer
         .chars()
         .chain(fraction.chars())
-        .any(|character| !matches!(character, '#' | '0' | ','))
+        .any(|character| !matches!(character, '#' | '0'..='9' | '@' | ','))
     {
         return Err(format!(
-            "number pattern has invalid skeleton syntax: `{pattern}`"
+            "number pattern has invalid skeleton syntax: `{original}`"
         ));
     }
     if fraction.contains(',') {
         return Err(format!(
-            "number pattern groups fractional digits: `{pattern}`"
+            "number pattern groups fractional digits: `{original}`"
         ));
     }
 
@@ -770,10 +838,50 @@ fn parse_number_pattern_part(pattern: &str) -> Result<NumberPatternPart, String>
         .map(|group| {
             group
                 .chars()
-                .filter(|character| matches!(character, '#' | '0'))
+                .filter(|character| matches!(character, '#' | '0'..='9' | '@'))
                 .count()
         })
         .collect::<Vec<_>>();
+
+    let significant = mantissa.contains('@');
+    if significant && mantissa.chars().any(|character| character.is_ascii_digit()) {
+        return Err(format!(
+            "number pattern mixes significant and fixed digits: `{original}`"
+        ));
+    }
+    let min_significant_digits = significant
+        .then(|| {
+            checked_u8(
+                mantissa.matches('@').count(),
+                "minimum significant digits",
+                original,
+            )
+        })
+        .transpose()?;
+    let max_significant_digits = significant
+        .then(|| {
+            checked_u8(
+                mantissa.matches(['@', '#']).count(),
+                "maximum significant digits",
+                original,
+            )
+        })
+        .transpose()?;
+    let rounding_increment = parse_rounding_increment(integer, fraction, significant);
+    let affixes = format!("{prefix}{suffix}");
+    let scale = match (
+        affixes.matches('%').count(),
+        affixes.matches('\u{2030}').count(),
+    ) {
+        (0, 0) => 1,
+        (1, 0) => 100,
+        (0, 1) => 1000,
+        _ => {
+            return Err(format!(
+                "number pattern has invalid percent/per-mille scaling: `{original}`"
+            ))
+        }
+    };
 
     Ok(NumberPatternPart {
         prefix,
@@ -784,7 +892,7 @@ fn parse_number_pattern_part(pattern: &str) -> Result<NumberPatternPart, String>
                 .filter(|character| *character == '0')
                 .count(),
             "minimum integer digits",
-            pattern,
+            original,
         )?,
         min_fraction_digits: checked_u8(
             fraction
@@ -792,22 +900,163 @@ fn parse_number_pattern_part(pattern: &str) -> Result<NumberPatternPart, String>
                 .filter(|character| *character == '0')
                 .count(),
             "minimum fraction digits",
-            pattern,
+            original,
         )?,
         max_fraction_digits: checked_u8(
             fraction
                 .chars()
-                .filter(|character| matches!(character, '#' | '0'))
+                .filter(|character| matches!(character, '#' | '0'..='9'))
                 .count(),
             "maximum fraction digits",
-            pattern,
+            original,
         )?,
         primary_group_size: (group_sizes.len() > 1)
-            .then(|| checked_u8(group_sizes[0], "primary group size", pattern))
+            .then(|| checked_u8(group_sizes[0], "primary group size", original))
             .transpose()?,
         secondary_group_size: (group_sizes.len() > 2)
-            .then(|| checked_u8(group_sizes[1], "secondary group size", pattern))
+            .then(|| checked_u8(group_sizes[1], "secondary group size", original))
             .transpose()?,
+        min_significant_digits,
+        max_significant_digits,
+        rounding_increment,
+        exponent_digits,
+        exponent_sign_always,
+        scale,
+        padding,
+    })
+}
+
+fn parse_exponent(exponent: Option<&str>, pattern: &str) -> Result<(Option<u8>, bool), String> {
+    let Some(exponent) = exponent else {
+        return Ok((None, false));
+    };
+    let (sign_always, digits) = exponent
+        .strip_prefix('+')
+        .map_or((false, exponent), |digits| (true, digits));
+    if digits.is_empty() || !digits.chars().all(|character| character == '0') {
+        return Err(format!(
+            "number pattern has invalid exponent syntax: `{pattern}`"
+        ));
+    }
+    Ok((
+        Some(checked_u8(
+            digits.len(),
+            "minimum exponent digits",
+            pattern,
+        )?),
+        sign_always,
+    ))
+}
+
+fn parse_rounding_increment(integer: &str, fraction: &str, significant: bool) -> Option<String> {
+    if significant
+        || !integer
+            .chars()
+            .chain(fraction.chars())
+            .any(|character| matches!(character, '1'..='9'))
+    {
+        return None;
+    }
+    let digits = integer
+        .chars()
+        .chain(fraction.chars())
+        .filter(char::is_ascii_digit)
+        .collect::<String>();
+    Some(digits.trim_start_matches('0').to_owned())
+}
+
+fn extract_padding(pattern: &str) -> Result<(String, Option<PaddingMarker>), String> {
+    let mut output = String::with_capacity(pattern.len());
+    let mut marker = None;
+    let mut quoted = false;
+    let mut chars = pattern.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '\'' {
+            output.push(character);
+            if chars.peek() == Some(&'\'') {
+                output.push(chars.next().expect("peeked apostrophe"));
+            } else {
+                quoted = !quoted;
+            }
+        } else if character == '*' && !quoted {
+            if marker.is_some() {
+                return Err(format!(
+                    "number pattern has multiple padding escapes: `{pattern}`"
+                ));
+            }
+            let pad = chars.next().ok_or_else(|| {
+                format!("number pattern has missing padding character: `{pattern}`")
+            })?;
+            marker = Some(PaddingMarker {
+                index: output.len(),
+                character: pad,
+                width: visible_pattern_width(pattern)?,
+            });
+        } else {
+            output.push(character);
+        }
+    }
+    if quoted {
+        return Err(format!("unterminated quote in number pattern `{pattern}`"));
+    }
+    Ok((output, marker))
+}
+
+fn visible_pattern_width(pattern: &str) -> Result<u16, String> {
+    let mut width = 0usize;
+    let mut quoted = false;
+    let mut chars = pattern.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '\'' {
+            if chars.peek() == Some(&'\'') {
+                chars.next();
+                width += 1;
+            } else {
+                quoted = !quoted;
+            }
+        } else if character == '*' && !quoted {
+            chars.next().ok_or_else(|| {
+                format!("number pattern has missing padding character: `{pattern}`")
+            })?;
+        } else {
+            width += 1;
+        }
+    }
+    if quoted {
+        return Err(format!("unterminated quote in number pattern `{pattern}`"));
+    }
+    u16::try_from(width)
+        .map_err(|_| format!("format width exceeds u16 in number pattern `{pattern}`"))
+}
+
+fn classify_padding(
+    marker: PaddingMarker,
+    number_start: usize,
+    number_end: usize,
+    pattern: &str,
+) -> Result<NumberPadding, String> {
+    let PaddingMarker {
+        index,
+        character,
+        width,
+    } = marker;
+    let position = if index == 0 {
+        NumberPaddingPosition::BeforePrefix
+    } else if index <= number_start {
+        NumberPaddingPosition::AfterPrefix
+    } else if index == number_end {
+        NumberPaddingPosition::BeforeSuffix
+    } else if index > number_end {
+        NumberPaddingPosition::AfterSuffix
+    } else {
+        return Err(format!(
+            "number pattern pads inside its numeric skeleton: `{pattern}`"
+        ));
+    };
+    Ok(NumberPadding {
+        character,
+        width,
+        position,
     })
 }
 
@@ -911,6 +1160,7 @@ fn extract_text_direction<'a>(value: &'a Value, locale: &str) -> Result<&'a str,
 mod tests {
     use super::{
         extract_dates, extract_text_direction, parse_number_pattern, require_exact_exclusions,
+        NumberPaddingPosition,
     };
     use serde_json::json;
 
@@ -930,10 +1180,51 @@ mod tests {
     }
 
     #[test]
-    fn number_pattern_parser_rejects_unrepresentable_or_oversized_models() {
-        assert!(parse_number_pattern("#E0").is_err());
-        assert!(parse_number_pattern("@@@").is_err());
-        assert!(parse_number_pattern("*x#,##0").is_err());
+    fn number_pattern_parser_models_significant_scientific_padding_and_rounding() {
+        let significant = parse_number_pattern("@@##E+00")
+            .expect("significant scientific")
+            .positive;
+        assert_eq!(significant.min_significant_digits, Some(2));
+        assert_eq!(significant.max_significant_digits, Some(4));
+        assert_eq!(significant.exponent_digits, Some(2));
+        assert!(significant.exponent_sign_always);
+
+        let rounded = parse_number_pattern("#,##0.05").expect("rounding").positive;
+        assert_eq!(rounded.rounding_increment.as_deref(), Some("5"));
+        assert_eq!(rounded.max_fraction_digits, 2);
+
+        let padded = parse_number_pattern("USD *x#,##0")
+            .expect("padding")
+            .positive;
+        let padding = padded.padding.expect("padding model");
+        assert!(matches!(
+            padding.position,
+            NumberPaddingPosition::AfterPrefix
+        ));
+        assert_eq!(padding.character, 'x');
+        assert_eq!(padding.width, 9);
+
+        assert_eq!(
+            parse_number_pattern("#,##0%")
+                .expect("percent")
+                .positive
+                .scale,
+            100
+        );
+        assert_eq!(
+            parse_number_pattern("#,##0\u{2030}")
+                .expect("per mille")
+                .positive
+                .scale,
+            1000
+        );
+    }
+
+    #[test]
+    fn number_pattern_parser_rejects_invalid_or_oversized_models() {
+        assert!(parse_number_pattern("#E").is_err());
+        assert!(parse_number_pattern("@@0").is_err());
+        assert!(parse_number_pattern("*x*y#,##0").is_err());
         assert!(parse_number_pattern(&format!("0.{}", "0".repeat(256))).is_err());
         assert!(parse_number_pattern("'unterminated#,##0").is_err());
     }
