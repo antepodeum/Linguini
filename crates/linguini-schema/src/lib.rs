@@ -1,3 +1,7 @@
+mod navigation;
+
+pub use navigation::{locale_occurrences, schema_occurrences, SemanticKey, SemanticOccurrence};
+
 use linguini_analyzer::{
     analyze_locale_project_coverage, analyze_locale_project_coverage_with_options, Diagnostic,
     LocaleCoverageOptions, RequiredLocaleMessage,
