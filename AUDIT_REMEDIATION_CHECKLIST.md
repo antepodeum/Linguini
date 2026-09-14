@@ -180,7 +180,10 @@ production path uses the fix and its relevant tests pass.
 - [x] #4 — Implement argument, selector, and reference type checks retained by the spec.
 - [x] #5 — Implement retained exhaustiveness and unreachable-pattern checks.
 - [x] #6 — Carry stable source identity through syntax, diagnostics, and semantic IR.
-- [-] #7 — Use one namespace model for every declaration kind and every pipeline.
+- [x] #7 — Use one namespace model for every declaration kind and every pipeline. Filesystem
+      namespaces qualify enums, aliases, variables, messages, groups, forms, functions, types,
+      references, and provenance through one IR pass; schema and locale tooling resolve the same
+      canonical paths while LSP workspace operations enforce document namespace identity.
 - [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
 - [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in CLDR artifacts, while the
@@ -196,7 +199,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #14 — Execute normative documentation as conformance fixtures. All 91 code blocks are
   registered; Linguini syntax and TOML config fences are enforced; extracted JavaScript,
   TypeScript, HTML, and Svelte examples build, typecheck, and execute where runtime-capable.
-- [-] #15 — Add property, platform, generated-code, and real integration coverage.
+- [x] #15 — Add property, platform, generated-code, and real integration coverage. Seeded parser,
+      formatter, plural, and path properties; Linux/macOS/Windows jobs; generated runtime/type
+      corpora; Vite 5–8, SvelteKit production, and native VSIX integration gates are all defined.
 - [x] #16 — Synchronize and automatically verify all component versions.
 - [x] #17 — Rewrite public guarantees so documentation states only shipped behavior.
 
