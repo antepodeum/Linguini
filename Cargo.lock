@@ -758,15 +758,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "linguini-locale"
-version = "0.1.0-alpha.4"
-dependencies = [
- "linguini-analyzer",
- "linguini-syntax",
- "linguini-test-support",
-]
-
-[[package]]
 name = "linguini-lsp"
 version = "0.1.0-alpha.4"
 dependencies = [

@@ -156,7 +156,7 @@ jobs:
         uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2
         with:
           baseline-rev: ${{ github.event.pull_request.base.sha || github.event.before }}
-          exclude: linguini-cldr-macros, linguini-locale, linguini-test-support
+          exclude: linguini-cldr-macros, linguini-test-support
 
   package:
     name: Package crates
@@ -170,7 +170,6 @@ jobs:
         run: >-
           cargo package --locked --workspace --no-verify
           --exclude linguini-cldr-macros
-          --exclude linguini-locale
           --exclude linguini-test-support
 
   vite:

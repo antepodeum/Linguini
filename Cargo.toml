@@ -10,7 +10,6 @@ members = [
   "crates/linguini-core",
   "crates/linguini-format",
   "crates/linguini-ir",
-  "crates/linguini-locale",
   "crates/linguini-lsp",
   "crates/linguini-schema",
   "crates/linguini-syntax",
