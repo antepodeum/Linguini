@@ -161,6 +161,9 @@ production path uses the fix and its relevant tests pass.
   `SchemaDatabase` snapshot as schema symbols/diagnostics.
 - `5b41b55`, `adfecb2` — made LSP navigation resolve and collision-check one immutable workspace
   occurrence snapshot and removed the unused parallel `linguini-locale` scope database.
+- `86456c6` — moved schema/locale declaration and reference indexing into `linguini-schema`, so
+  LSP reference, definition, rename, completion, hover, and semantic tokens consume the shared
+  semantic walk instead of maintaining an independent AST traversal.
 
 ## Numbered findings
 
@@ -170,10 +173,10 @@ production path uses the fix and its relevant tests pass.
   frozen v0.1 contract retains implemented inline functions, names all seven emitted lints,
   defines the validated typing/exhaustiveness boundary, and excludes CommonJS/module switching.
 - [x] #2 — Enforce validated IR as the only production codegen boundary.
-- [-] #3 — Consolidate duplicated semantic walks into one project semantic database. Schema
+- [x] #3 — Consolidate duplicated semantic walks into one project semantic database. Schema
       symbols, diagnostics, and locale coverage/type/exhaustiveness analysis now share one owned
-      source snapshot; the unused locale-scope database is gone and LSP navigation uses one
-      immutable per-operation index, but its occurrence collector remains LSP-owned.
+      source snapshot; the unused locale-scope database is gone, schema/locale navigation semantics
+      live in `linguini-schema`, and LSP resolution uses one immutable per-operation index.
 - [x] #4 — Implement argument, selector, and reference type checks retained by the spec.
 - [x] #5 — Implement retained exhaustiveness and unreachable-pattern checks.
 - [x] #6 — Carry stable source identity through syntax, diagnostics, and semantic IR.
@@ -263,11 +266,11 @@ production path uses the fix and its relevant tests pass.
 - [x] #65 — Enforce schema naming constraints.
 - [x] #66 — Attach unknown-type diagnostics to exact type spans.
 - [x] #67 — Preserve related-file source identity.
-- [-] #68 — Make the schema builder a view over the shared semantic database. Cross-file
+- [x] #68 — Make the schema builder a view over the shared semantic database. Cross-file
       `SchemaDatabase` now owns the schema sources, immutable symbols, schema diagnostics, public
       messages, and locale coverage/type/exhaustiveness entry points; CLI and LSP consume that
-      boundary. The unused locale-scope database is removed; the LSP occurrence collector still
-      needs to move behind this shared boundary.
+      boundary. The unused locale-scope database is removed and schema/locale navigation indexing
+      is owned by the same semantic crate.
 - [x] #69 — Require a cross-file schema merge pass before every codegen entry.
 - [x] #70 — Cover cycles, duplicate variants/parameters, and cross-file declarations.
 
@@ -918,9 +921,9 @@ production path uses the fix and its relevant tests pass.
 - [x] P1-6 — Finish the single project symbol/type/exhaustiveness database. Schema and locale
       exhaustiveness/type checks share `SchemaDatabase`; the unused parallel locale-scope database
       has been removed.
-- [-] P1-7 — Make CLI and LSP consume that same database. Both consume it for diagnostics and
+- [x] P1-7 — Make CLI and LSP consume that same database. Both consume it for diagnostics and
       coverage, message completion/hover, and fix discovery. Reference/definition/rename operations
-      share one immutable navigation snapshot, but its occurrence collector remains LSP-owned.
+      share one immutable navigation snapshot built from the schema-owned semantic occurrence walk.
 - [x] P1-8 — Implement one CLDR locale fallback service.
 
 ### P2
