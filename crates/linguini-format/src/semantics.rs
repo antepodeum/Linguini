@@ -1,8 +1,8 @@
 use crate::FormatError;
 use linguini_syntax::{
-    Expression, ExpressionKind, FormEntry, FunctionBranch, FunctionBranchValue,
-    InlineFunctionInput, LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, SourceId, Span,
-    TextBlockMode, TextPart, TextPattern, Token, TokenKind,
+    EnumDeclaration, Expression, ExpressionKind, FormEntry, FunctionBranch, FunctionBranchValue,
+    InlineFunctionInput, LocaleDeclaration, LocaleFile, LocaleValue, MapBranch, SchemaDeclaration,
+    SchemaFile, SourceId, Span, TextBlockMode, TextPart, TextPattern, Token, TokenKind,
 };
 use std::collections::BTreeSet;
 
@@ -20,11 +20,17 @@ struct PatternSpan {
 pub(crate) struct FormatSemantics {
     patterns: Vec<PatternSpan>,
     placeholder_starts: BTreeSet<(SourceId, usize)>,
+    keyword_headers: Vec<Span>,
 }
 
 impl FormatSemantics {
-    pub(crate) fn schema() -> Self {
-        Self::default()
+    pub(crate) fn schema(file: &SchemaFile, source: &str) -> Result<Self, FormatError> {
+        let mut semantics = Self::default();
+        for declaration in file.declarations() {
+            semantics.schema_declaration(declaration, source)?;
+        }
+        semantics.finish();
+        Ok(semantics)
     }
 
     pub(crate) fn locale(file: &LocaleFile, source: &str) -> Result<Self, FormatError> {
@@ -32,10 +38,15 @@ impl FormatSemantics {
         for declaration in file.declarations() {
             semantics.declaration(declaration, source)?;
         }
-        semantics
-            .patterns
-            .sort_by_key(|pattern| (pattern.span.source, pattern.span.start, pattern.span.end));
+        semantics.finish();
         Ok(semantics)
+    }
+
+    fn finish(&mut self) {
+        self.patterns
+            .sort_by_key(|pattern| (pattern.span.source, pattern.span.start, pattern.span.end));
+        self.keyword_headers
+            .sort_by_key(|span| (span.source, span.start, span.end));
     }
 
     pub(crate) fn validate_tokens(
@@ -96,6 +107,12 @@ impl FormatSemantics {
         self.placeholder_starts.contains(&(span.source, span.start))
     }
 
+    pub(crate) fn is_declaration_keyword(&self, span: Span) -> bool {
+        self.keyword_headers
+            .iter()
+            .any(|header| contains(*header, span))
+    }
+
     pub(crate) fn is_verbatim_text(&self, token: &Token) -> bool {
         matches!(token.kind, TokenKind::RawText(_)) && self.pattern_mode(token.span).is_some()
     }
@@ -109,23 +126,99 @@ impl FormatSemantics {
             .is_some_and(|pattern| pattern.span.start == token.span.start)
     }
 
+    fn schema_declaration(
+        &mut self,
+        declaration: &SchemaDeclaration,
+        source: &str,
+    ) -> Result<(), FormatError> {
+        match declaration {
+            SchemaDeclaration::Enum(declaration) => self.enum_declaration(declaration, source)?,
+            SchemaDeclaration::TypeAlias(declaration) => {
+                self.keyword_header(declaration.span, declaration.name.span, source)?;
+            }
+            SchemaDeclaration::Message(declaration) => {
+                validate_span(source, declaration.span)?;
+            }
+            SchemaDeclaration::Group(group) => {
+                validate_span(source, group.span)?;
+                for message in &group.messages {
+                    validate_span(source, message.span)?;
+                }
+                for nested in &group.groups {
+                    self.schema_group(nested, source)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn schema_group(
+        &mut self,
+        group: &linguini_syntax::MessageGroup,
+        source: &str,
+    ) -> Result<(), FormatError> {
+        validate_span(source, group.span)?;
+        for message in &group.messages {
+            validate_span(source, message.span)?;
+        }
+        for nested in &group.groups {
+            self.schema_group(nested, source)?;
+        }
+        Ok(())
+    }
+
+    fn enum_declaration(
+        &mut self,
+        declaration: &EnumDeclaration,
+        source: &str,
+    ) -> Result<(), FormatError> {
+        self.keyword_header(declaration.span, declaration.name.span, source)
+    }
+
+    fn keyword_header(
+        &mut self,
+        declaration: Span,
+        name: Span,
+        source: &str,
+    ) -> Result<(), FormatError> {
+        validate_span(source, declaration)?;
+        validate_span(source, name)?;
+        if !contains(declaration, name) || declaration.start >= name.start {
+            return Err(FormatError::InvalidSyntaxSpan(name));
+        }
+        self.keyword_headers.push(Span::in_source(
+            declaration.source,
+            declaration.start,
+            name.start,
+        ));
+        Ok(())
+    }
+
     fn declaration(
         &mut self,
         declaration: &LocaleDeclaration,
         source: &str,
     ) -> Result<(), FormatError> {
         match declaration {
-            LocaleDeclaration::Enum(_) => {}
-            LocaleDeclaration::Variable(variable) => self.pattern(&variable.value, source)?,
+            LocaleDeclaration::Enum(declaration) => self.enum_declaration(declaration, source)?,
+            LocaleDeclaration::Variable(variable) => {
+                self.keyword_header(variable.span, variable.name.span, source)?;
+                self.pattern(&variable.value, source)?;
+            }
             LocaleDeclaration::Form(form) => {
+                self.keyword_header(form.span, form.name.span, source)?;
                 for variant in &form.variants {
                     self.entries(&variant.entries, source)?;
                 }
             }
             LocaleDeclaration::Function(function) => {
+                self.keyword_header(function.span, function.name.span, source)?;
                 self.function_branches(&function.branches, source)?;
             }
-            LocaleDeclaration::Message(message) => self.pattern(&message.value, source)?,
+            LocaleDeclaration::Message(message) => {
+                validate_span(source, message.span)?;
+                self.pattern(&message.value, source)?;
+            }
             LocaleDeclaration::Group(group) => self.group(group, source)?,
             LocaleDeclaration::Override(inner) => self.declaration(inner, source)?,
         }
@@ -137,7 +230,9 @@ impl FormatSemantics {
         group: &linguini_syntax::MessageImplementationGroup,
         source: &str,
     ) -> Result<(), FormatError> {
+        validate_span(source, group.span)?;
         for message in &group.messages {
+            validate_span(source, message.span)?;
             self.pattern(&message.value, source)?;
         }
         for nested in &group.groups {
@@ -149,7 +244,15 @@ impl FormatSemantics {
     fn entries(&mut self, entries: &[FormEntry], source: &str) -> Result<(), FormatError> {
         for entry in entries {
             match entry {
-                FormEntry::Attribute(attribute) => self.value(&attribute.value, source)?,
+                FormEntry::Attribute(attribute) => {
+                    validate_span(source, attribute.span)?;
+                    if !attribute.parameters.is_empty()
+                        && attribute.span.start < attribute.name.span.start
+                    {
+                        self.keyword_header(attribute.span, attribute.name.span, source)?;
+                    }
+                    self.value(&attribute.value, source)?;
+                }
                 FormEntry::Branch(branch) => self.map_branch(branch, source)?,
             }
         }

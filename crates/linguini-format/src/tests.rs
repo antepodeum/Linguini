@@ -3,8 +3,9 @@ use super::{
     FormatOptions, SourceKind,
 };
 use linguini_syntax::{
-    lex_schema_with_recovery, lex_with_recovery, parse_locale, Expression, LocaleDeclaration,
-    SourceId, Span, TextPart, TextPattern, Token, TokenKind,
+    lex_schema_with_recovery, lex_with_recovery, parse_locale, parse_schema,
+    parse_schema_with_tokens, Expression, LocaleDeclaration, SourceId, Span, TextPart, TextPattern,
+    Token, TokenKind,
 };
 use std::path::Path;
 
@@ -168,6 +169,23 @@ fn collapses_structural_newlines_in_form_headers_and_arguments() {
         formatted,
         "form Delivered(Plural, Gender) {\n  one {\n    male   => Доставлен\n    female => Доставлена\n    neuter => Доставлено\n    _      => Доставлено\n  }\n  _ => Доставлены\n}\n"
     );
+}
+
+#[test]
+fn declaration_keywords_are_classified_by_the_syntax_tree() {
+    let source = "type\nMoney = Decimal\nmessage\n";
+    let parsed = parse_schema_with_tokens(source).expect("schema");
+    let semantics =
+        FormatSemantics::schema(&parsed.ast, source).expect("syntax-backed formatter roles");
+    let significant = parsed
+        .tokens
+        .iter()
+        .filter(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Newline))
+        .collect::<Vec<_>>();
+
+    assert!(semantics.is_declaration_keyword(significant[0].span));
+    assert!(!semantics.is_declaration_keyword(significant[1].span));
+    assert!(!semantics.is_declaration_keyword(significant[4].span));
 }
 
 #[test]
@@ -535,7 +553,8 @@ proptest! {
 #[test]
 fn invalid_token_spans_are_reported_instead_of_dropping_text() {
     let options = FormatOptions::default();
-    let semantics = FormatSemantics::schema();
+    let schema = parse_schema("").expect("empty schema");
+    let semantics = FormatSemantics::schema(&schema, "").expect("schema semantics");
     for span in [
         Span::new(1, 2),
         Span::new(0, usize::MAX),

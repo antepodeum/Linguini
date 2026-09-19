@@ -22,19 +22,19 @@ fn lower_tokens(
     semantics: &FormatSemantics,
 ) -> Result<FormatIr, FormatError> {
     let mut ir = FormatIr::default();
-    let mut previous: Option<&TokenKind> = None;
+    let mut previous: Option<&Token> = None;
     let mut pending_space = false;
     let mut paren_depth = 0usize;
     let mut brace_stack = Vec::new();
 
     for (index, token) in tokens.iter().enumerate() {
-        let next = next_significant_kind(tokens, index + 1);
+        let next = next_significant_token(tokens, index + 1);
         match &token.kind {
             TokenKind::Whitespace => {
                 pending_space = true;
             }
             TokenKind::Newline => {
-                if should_collapse_newline(previous, next, paren_depth) {
+                if should_collapse_newline(previous, next, paren_depth, semantics) {
                     pending_space = true;
                 } else {
                     ir.push(FormatItem::HardLine);
@@ -126,31 +126,33 @@ fn lower_tokens(
         }
 
         if !matches!(token.kind, TokenKind::Whitespace | TokenKind::Newline) {
-            previous = Some(&token.kind);
+            previous = Some(token);
         }
     }
 
     Ok(ir)
 }
 
-fn next_significant_kind(tokens: &[Token], start: usize) -> Option<&TokenKind> {
+fn next_significant_token(tokens: &[Token], start: usize) -> Option<&Token> {
     tokens
         .iter()
         .skip(start)
         .find(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Newline))
-        .map(|token| &token.kind)
 }
 
 fn should_collapse_newline(
-    previous: Option<&TokenKind>,
-    next: Option<&TokenKind>,
+    previous: Option<&Token>,
+    next: Option<&Token>,
     paren_depth: usize,
+    semantics: &FormatSemantics,
 ) -> bool {
     let (Some(previous), Some(next)) = (previous, next) else {
         return false;
     };
+    let previous_kind = &previous.kind;
+    let next_kind = &next.kind;
 
-    if is_hard_layout_boundary(previous) || is_hard_layout_boundary(next) {
+    if is_hard_layout_boundary(previous_kind) || is_hard_layout_boundary(next_kind) {
         return false;
     }
 
@@ -158,23 +160,23 @@ fn should_collapse_newline(
         return true;
     }
 
-    is_declaration_keyword(previous) && is_name_like(next)
-        || is_name_like(previous)
+    semantics.is_declaration_keyword(previous.span) && is_name_like(next_kind)
+        || is_name_like(previous_kind)
             && matches!(
-                next,
+                next_kind,
                 TokenKind::LParen | TokenKind::LBrace | TokenKind::Equals
             )
-        || is_annotation_target(previous) && matches!(next, TokenKind::At)
-        || matches!(previous, TokenKind::RParen)
-            && matches!(next, TokenKind::LBrace | TokenKind::At)
+        || is_annotation_target(previous_kind) && matches!(next_kind, TokenKind::At)
+        || matches!(previous_kind, TokenKind::RParen)
+            && matches!(next_kind, TokenKind::LBrace | TokenKind::At)
         || matches!(
-            previous,
+            previous_kind,
             TokenKind::Equals
                 | TokenKind::Colon
                 | TokenKind::Comma
                 | TokenKind::Dot
                 | TokenKind::At
-        ) && is_name_like(next)
+        ) && is_name_like(next_kind)
 }
 
 fn is_hard_layout_boundary(kind: &TokenKind) -> bool {
@@ -185,17 +187,6 @@ fn is_hard_layout_boundary(kind: &TokenKind) -> bool {
             | TokenKind::RawText(_)
             | TokenKind::TripleQuote
             | TokenKind::RawTripleQuote
-    )
-}
-
-fn is_declaration_keyword(kind: &TokenKind) -> bool {
-    matches!(
-        kind,
-        TokenKind::Ident(keyword)
-            if matches!(
-                keyword.as_str(),
-                "enum" | "type" | "impl" | "fn" | "form" | "override" | "let"
-            )
     )
 }
 
@@ -215,7 +206,7 @@ fn lower_token_text(
     token: &Token,
     semantics: &FormatSemantics,
     ir: &mut FormatIr,
-    previous: Option<&TokenKind>,
+    previous: Option<&Token>,
     pending_space: bool,
     placeholder_brace: bool,
 ) -> Result<(), FormatError> {
@@ -230,7 +221,7 @@ fn lower_token_text(
     }
 
     if should_space_before(
-        previous,
+        previous.map(|token| &token.kind),
         &token.kind,
         text.as_ref(),
         pending_space,

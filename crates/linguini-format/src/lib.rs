@@ -123,7 +123,8 @@ pub fn format_source(
     let (tokens, semantics) = match kind {
         SourceKind::Schema => {
             let parsed = parse_schema_with_tokens(source).map_err(FormatError::Parse)?;
-            (parsed.tokens, FormatSemantics::schema())
+            let semantics = FormatSemantics::schema(&parsed.ast, source)?;
+            (parsed.tokens, semantics)
         }
         SourceKind::Locale => {
             let parsed = parse_locale_with_tokens(source).map_err(FormatError::Parse)?;
