@@ -220,7 +220,14 @@ impl FormatSemantics {
                 self.pattern(&message.value, source)?;
             }
             LocaleDeclaration::Group(group) => self.group(group, source)?,
-            LocaleDeclaration::Override(inner) => self.declaration(inner, source)?,
+            LocaleDeclaration::Override(inner) => {
+                self.keyword_header(
+                    locale_declaration_span(inner),
+                    locale_declaration_name_span(inner),
+                    source,
+                )?;
+                self.declaration(inner, source)?;
+            }
         }
         Ok(())
     }
@@ -358,4 +365,28 @@ fn validate_span(source: &str, span: Span) -> Result<(), FormatError> {
 
 fn contains(outer: Span, inner: Span) -> bool {
     outer.source == inner.source && outer.start <= inner.start && inner.end <= outer.end
+}
+
+fn locale_declaration_span(declaration: &LocaleDeclaration) -> Span {
+    match declaration {
+        LocaleDeclaration::Enum(declaration) => declaration.span,
+        LocaleDeclaration::Variable(declaration) => declaration.span,
+        LocaleDeclaration::Form(declaration) => declaration.span,
+        LocaleDeclaration::Function(declaration) => declaration.span,
+        LocaleDeclaration::Message(declaration) => declaration.span,
+        LocaleDeclaration::Group(declaration) => declaration.span,
+        LocaleDeclaration::Override(inner) => locale_declaration_span(inner),
+    }
+}
+
+fn locale_declaration_name_span(declaration: &LocaleDeclaration) -> Span {
+    match declaration {
+        LocaleDeclaration::Enum(declaration) => declaration.name.span,
+        LocaleDeclaration::Variable(declaration) => declaration.name.span,
+        LocaleDeclaration::Form(declaration) => declaration.name.span,
+        LocaleDeclaration::Function(declaration) => declaration.name.span,
+        LocaleDeclaration::Message(declaration) => declaration.name.span,
+        LocaleDeclaration::Group(declaration) => declaration.name.span,
+        LocaleDeclaration::Override(inner) => locale_declaration_name_span(inner),
+    }
 }

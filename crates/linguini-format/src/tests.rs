@@ -189,6 +189,16 @@ fn declaration_keywords_are_classified_by_the_syntax_tree() {
 }
 
 #[test]
+fn override_continuations_use_the_wrapped_syntax_node() {
+    let source = "override\nmessage = Changed\n";
+
+    let formatted =
+        format_source(SourceKind::Locale, source, &FormatOptions::default()).expect("format");
+
+    assert_eq!(formatted, "override message = Changed\n");
+}
+
+#[test]
 fn collapses_structural_newlines_in_schema_headers_and_arguments() {
     let source = "type \nUserId \n= \nString\n\ndelivery\n(\n  count\n  :\n  Number\n)\n";
     let formatted =
