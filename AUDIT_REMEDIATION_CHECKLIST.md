@@ -367,7 +367,11 @@ production path uses the fix and its relevant tests pass.
 
 - [x] #134 — Reject unknown file extensions.
 - [x] #135 — Apply and test `sort_enum_variants`.
-- [-] #136 — Complete migration from heuristic tokens to the canonical syntax model.
+- [x] #136 — Complete migration from heuristic tokens to the canonical syntax model. Formatting
+      first requires a validated parser-owned AST; that tree classifies declaration and override
+      headers, placeholder braces, and dedented/raw text modes, while the paired lossless token
+      stream is retained only for concrete spelling and trivia. Literal keyword matching no longer
+      controls structural continuation layout (`2399d15`, `928f432`, `d48f536`).
 - [x] #137 — Remove private-use sentinel corruption.
 - [x] #138 — Measure grapheme/display width correctly.
 - [x] #139 — Preserve source newline style.
