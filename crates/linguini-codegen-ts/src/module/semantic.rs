@@ -13,10 +13,14 @@ use crate::ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaNamedImport, EcmaSource, EcmaStatement,
 };
 
-use super::emit::{self, emit_forms, emit_local_functions, emit_variables};
+use super::emit::{
+    self, emit_forms_for_target, emit_local_functions_for_target, emit_variables_for_target,
+};
 use super::formatters::{formatter_requirements, plural_required};
 use super::names::{form_binding_name, safe_identifier};
-use super::{project_locale_options, TypeScriptCodegenError, ValidatedTypeScriptProject};
+use super::{
+    project_locale_options, EcmaScriptTarget, TypeScriptCodegenError, ValidatedTypeScriptProject,
+};
 
 const MAX_PORTABLE_PATH_BYTES: usize = 240;
 const MAX_ENCODED_NAME_BYTES: usize = 96;
@@ -86,6 +90,9 @@ pub struct CompiledTypeScriptSemanticModule {
     pub code: String,
     pub source_map: String,
 }
+
+/// A source-mapped JavaScript ESM semantic leaf emitted from the shared symbol model.
+pub type CompiledJavaScriptSemanticModule = CompiledTypeScriptSemanticModule;
 
 pub(super) fn semantic_artifacts(
     project: &ValidatedTypeScriptProject<'_>,
@@ -209,6 +216,24 @@ pub fn compile_typescript_bundler_semantic_module(
     artifact: &TypeScriptSemanticArtifact,
     sources: &[EcmaSource],
 ) -> Result<CompiledTypeScriptSemanticModule, TypeScriptCodegenError> {
+    compile_bundler_semantic_module(project, artifact, sources, EcmaScriptTarget::TypeScript)
+}
+
+/// Compiles one semantic artifact into a source-mapped JavaScript ESM bundler leaf.
+pub fn compile_javascript_bundler_semantic_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    artifact: &TypeScriptSemanticArtifact,
+    sources: &[EcmaSource],
+) -> Result<CompiledJavaScriptSemanticModule, TypeScriptCodegenError> {
+    compile_bundler_semantic_module(project, artifact, sources, EcmaScriptTarget::JavaScript)
+}
+
+fn compile_bundler_semantic_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    artifact: &TypeScriptSemanticArtifact,
+    sources: &[EcmaSource],
+    target: EcmaScriptTarget,
+) -> Result<CompiledTypeScriptSemanticModule, TypeScriptCodegenError> {
     let locale = &project
         .locales
         .iter()
@@ -229,8 +254,9 @@ pub fn compile_typescript_bundler_semantic_module(
     let mut imports = artifact
         .imports
         .iter()
+        .filter(|dependency| target.is_typescript() || !dependency.type_only)
         .map(|dependency| EcmaImport {
-            specifier: dependency.import_path.clone(),
+            specifier: import_path_for_target(&dependency.import_path, target),
             bindings: if dependency.type_only {
                 EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
                     &dependency.binding,
@@ -246,7 +272,7 @@ pub fn compile_typescript_bundler_semantic_module(
         .collect::<Vec<_>>();
 
     let type_names = schema_types_for_symbol(project.schema, &one);
-    if !type_names.is_empty() {
+    if target.is_typescript() && !type_names.is_empty() {
         imports.push(EcmaImport {
             specifier: artifact.shared_import_path.clone(),
             bindings: EcmaImportBindings::TypeNamed(
@@ -261,40 +287,61 @@ pub fn compile_typescript_bundler_semantic_module(
     let mut output = String::new();
     let (declaration, exported_declaration) = match artifact.kind {
         TypeScriptSemanticSymbolKind::LocaleEnum => {
-            emit::emit_locale_enum_types(project.schema, &one, &mut output);
-            (
-                format!("type {} =", artifact.binding),
-                format!("export type {} =", artifact.binding),
-            )
+            if target.is_typescript() {
+                emit::emit_locale_enum_types(project.schema, &one, &mut output);
+                (
+                    format!("type {} =", artifact.binding),
+                    format!("export type {} =", artifact.binding),
+                )
+            } else {
+                output.push_str("export {};\n");
+                (String::new(), String::new())
+            }
         }
         TypeScriptSemanticSymbolKind::LocaleVariable => {
-            emit_variables(&one, &options, &mut output);
+            emit_variables_for_target(&one, &options, target, &mut output);
             (
                 format!("const {} =", artifact.binding),
                 format!("export const {} =", artifact.binding),
             )
         }
         TypeScriptSemanticSymbolKind::LocaleForm => {
-            emit_forms(&one, &options, &mut output);
+            emit_forms_for_target(&one, &options, target, &mut output);
             (
                 format!("const {} =", artifact.binding),
                 format!("export const {} =", artifact.binding),
             )
         }
         TypeScriptSemanticSymbolKind::LocaleFunction => {
-            emit_local_functions(&one, &options, &mut output);
+            emit_local_functions_for_target(&one, &options, target, &mut output);
             (
                 format!("function {}(", artifact.binding),
                 format!("export function {}(", artifact.binding),
             )
         }
     };
-    output = output.replacen(&declaration, &exported_declaration, 1);
+    if !declaration.is_empty() {
+        output = output.replacen(&declaration, &exported_declaration, 1);
+    }
+
+    if !target.is_typescript() && !type_names.is_empty() {
+        let typedefs = type_names
+            .iter()
+            .map(|name| {
+                format!(
+                    "/** @typedef {{import(\"{}\").{name}}} {name} */",
+                    import_path_for_target(&artifact.shared_import_path, target)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        output = format!("{typedefs}\n{output}");
+    }
 
     let uses_select_branch = output.contains("selectBranch(");
     if uses_select_branch {
         imports.push(EcmaImport::named(
-            &artifact.shared_import_path,
+            import_path_for_target(&artifact.shared_import_path, target),
             vec![EcmaNamedImport::new("selectBranch", "selectBranch")],
         ));
     }
@@ -304,7 +351,7 @@ pub fn compile_typescript_bundler_semantic_module(
     }
     if !helpers.is_empty() {
         imports.push(EcmaImport::named(
-            &artifact.runtime_import_path,
+            import_path_for_target(&artifact.runtime_import_path, target),
             helpers
                 .into_iter()
                 .map(|name| EcmaNamedImport::new(name, name))
@@ -323,12 +370,28 @@ pub fn compile_typescript_bundler_semantic_module(
         statements: vec![statement],
     };
     let source_records = ordered_sources(&artifact.source_ids, sources)?;
-    let rendered = module.render(&artifact.output_file_name, &source_records);
+    let output_file_name = if target.is_typescript() {
+        artifact.output_file_name.clone()
+    } else {
+        artifact.output_file_name.strip_suffix(".ts").map_or_else(
+            || artifact.output_file_name.clone(),
+            |stem| format!("{stem}.js"),
+        )
+    };
+    let rendered = module.render(&output_file_name, &source_records);
     Ok(CompiledTypeScriptSemanticModule {
         artifact: artifact.clone(),
         code: rendered.code,
         source_map: rendered.source_map,
     })
+}
+
+fn import_path_for_target(path: &str, target: EcmaScriptTarget) -> String {
+    if target.is_typescript() || path.ends_with(".js") {
+        path.to_owned()
+    } else {
+        format!("{path}.js")
+    }
 }
 
 pub(super) fn message_imports_from_shared(
@@ -338,16 +401,25 @@ pub(super) fn message_imports_from_shared(
     shared_import_path: &str,
 ) -> Result<Vec<TypeScriptSemanticImport>, TypeScriptCodegenError> {
     let artifacts = semantic_artifacts(project)?;
+    let javascript =
+        shared_import_path.ends_with("/shared.js") || shared_import_path == "shared.js";
     let root = shared_import_path
         .strip_suffix("/shared")
+        .or_else(|| shared_import_path.strip_suffix("/shared.js"))
         .or_else(|| (shared_import_path == "shared").then_some("."))
+        .or_else(|| (shared_import_path == "shared.js").then_some("."))
         .unwrap_or(shared_import_path);
     message_imports_with_artifacts(project, locale, message, &artifacts, |artifact| {
-        format!(
+        let path = format!(
             "{}/{}",
             root.trim_end_matches('/'),
             artifact.module_path.trim_end_matches(".ts")
-        )
+        );
+        if javascript {
+            format!("{path}.js")
+        } else {
+            path
+        }
     })
 }
 
@@ -952,6 +1024,7 @@ fn inferred_expression_type(
 mod tests {
     use super::*;
     use crate::{
+        compile_javascript_bundler_semantic_module,
         compile_typescript_bundler_message_artifact_module,
         compile_typescript_bundler_message_module, EcmaSource, TypeScriptLocaleModule,
         TypeScriptProjectOptions,
@@ -1054,6 +1127,40 @@ mod tests {
         assert!(relocated
             .code
             .contains("from \"../../bundler/semantic/en/variable/"));
+    }
+
+    #[test]
+    fn javascript_semantic_leaf_reuses_target_aware_symbol_emission() {
+        let schema = "root(value: Number)\n";
+        let locale = "fn Render(value: Number) { _ => {value @number} }\nroot = {Render(value)}\n";
+        let project = project(schema, locale);
+        let artifact = project
+            .semantic_artifacts()
+            .expect("artifacts")
+            .into_iter()
+            .find(|artifact| artifact.name == "Render")
+            .expect("Render artifact");
+
+        let compiled = compile_javascript_bundler_semantic_module(
+            &project,
+            &artifact,
+            &sources(schema, locale),
+        )
+        .expect("JavaScript semantic module");
+
+        assert!(compiled.code.contains("export function Render(value)"));
+        assert!(compiled.code.contains("formatNumber(value)"));
+        assert!(compiled
+            .code
+            .contains("from \"../../../../locales/en/_runtime.js\""));
+        assert!(!compiled.code.contains(": number"));
+        assert!(!compiled.code.contains(": string"));
+        assert!(!compiled.code.contains("import type"));
+        assert!(!compiled.code.contains(" as const"));
+        assert!(compiled.code.ends_with(&format!(
+            "//# sourceMappingURL={}\n",
+            artifact.output_file_name.replace(".ts", ".js.map")
+        )));
     }
 
     #[test]

@@ -15,9 +15,18 @@ use super::names::{
     escape_string, form_binding_name, path_expression, property_access, property_key,
     safe_identifier, string_literal, ts_type,
 };
-use super::TypeScriptOptions;
+use super::{EcmaScriptTarget, TypeScriptOptions};
 
+#[cfg(test)]
 pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> String {
+    form_object_for_target(entries, options, EcmaScriptTarget::TypeScript)
+}
+
+pub(super) fn form_object_for_target(
+    entries: &[IrFormEntry],
+    options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
+) -> String {
     let fields = entries
         .iter()
         .filter_map(|entry| match entry {
@@ -28,7 +37,7 @@ pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> Stri
             } => Some(format!(
                 "{}: {}",
                 property_key(name),
-                value_expression_with_parameters(value, parameters, options)
+                value_expression_with_parameters(value, parameters, options, target)
             )),
             IrFormEntry::Branch(_) => None,
         })
@@ -53,6 +62,7 @@ pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> Stri
                 ty: "Plural".to_owned(),
             }],
             options,
+            target,
         );
         if fields.is_empty() {
             dispatcher
@@ -66,11 +76,12 @@ fn value_expression_with_parameters(
     value: &IrValue,
     parameters: &[IrFunctionParameter],
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
     match value {
-        IrValue::Text(text) => text_expression(text, options),
-        IrValue::Map(branches) => map_expression(branches, parameters, options),
-        IrValue::Object(entries) => form_object(entries, options),
+        IrValue::Text(text) => text_expression_for_target(text, options, target),
+        IrValue::Map(branches) => map_expression(branches, parameters, options, target),
+        IrValue::Object(entries) => form_object_for_target(entries, options, target),
     }
 }
 
@@ -78,6 +89,7 @@ pub fn map_expression(
     branches: &[IrBranch],
     parameters: &[IrFunctionParameter],
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
     let context = parameters
         .iter()
@@ -88,7 +100,7 @@ pub fn map_expression(
                 .map(|name| (name.clone(), parameter.ty.clone()))
         })
         .collect::<BTreeMap<_, _>>();
-    let items = branch_items(branches, &context, options);
+    let items = branch_items(branches, &context, options, target);
     let dispatch = parameters
         .first()
         .expect("validated form maps have one dispatch parameter");
@@ -102,23 +114,39 @@ pub fn map_expression(
     } else {
         format!("String({parameter})")
     };
-    let parameter_type = if dispatch.ty == "Plural" {
-        "number | bigint | string".to_owned()
+    let parameter = if target.is_typescript() {
+        let parameter_type = if dispatch.ty == "Plural" {
+            "number | bigint | string".to_owned()
+        } else {
+            ts_type(&dispatch.ty)
+        };
+        format!("{parameter}: {parameter_type}")
     } else {
-        ts_type(&dispatch.ty)
+        parameter
     };
-    format!("({parameter}: {parameter_type}) => selectBranch({selector}, {{ {items} }})")
+    format!("({parameter}) => selectBranch({selector}, {{ {items} }})")
 }
 
-pub fn text_expression(text: &IrText, options: &TypeScriptOptions) -> String {
-    text_expression_with_context(text, &BTreeMap::new(), &BTreeMap::new(), options)
+pub(super) fn text_expression_for_target(
+    text: &IrText,
+    options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
+) -> String {
+    text_expression_with_context_for_target(
+        text,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        options,
+        target,
+    )
 }
 
-pub fn text_expression_with_context(
+pub(super) fn text_expression_with_context_for_target(
     text: &IrText,
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
     let parts = text
         .parts
@@ -126,7 +154,7 @@ pub fn text_expression_with_context(
         .map(|part| match part {
             IrTextPart::Text(raw) => string_literal(raw),
             IrTextPart::Placeholder(expression) => {
-                expression_string(expression, context, default_formatters, options)
+                expression_string(expression, context, default_formatters, options, target)
             }
         })
         .collect::<Vec<_>>();
@@ -142,12 +170,18 @@ fn branch_items(
     branches: &[IrBranch],
     context: &BTreeMap<String, String>,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
     branches
         .iter()
         .flat_map(|branch| {
-            let value =
-                text_expression_with_context(&branch.value, context, &BTreeMap::new(), options);
+            let value = text_expression_with_context_for_target(
+                &branch.value,
+                context,
+                &BTreeMap::new(),
+                options,
+                target,
+            );
             if branch.keys.is_empty() {
                 return vec![format!("{}: {value}", property_key("_"))];
             }
@@ -166,8 +200,10 @@ fn expression_string(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
-    let value = expression_value(expression, context, default_formatters, options);
+    let value =
+        expression_value_for_target(expression, context, default_formatters, options, target);
     let formatters = if expression.formatters.is_empty() {
         expression
             .path
@@ -181,14 +217,38 @@ fn expression_string(
     format!("String({formatted})")
 }
 
+#[cfg(test)]
 fn expression_value(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
 ) -> String {
+    expression_value_for_target(
+        expression,
+        context,
+        default_formatters,
+        options,
+        EcmaScriptTarget::TypeScript,
+    )
+}
+
+fn expression_value_for_target(
+    expression: &IrExpression,
+    context: &BTreeMap<String, String>,
+    default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
+    options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
+) -> String {
     if let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
-        return inline_function_expression(inputs, branches, context, default_formatters, options);
+        return inline_function_expression(
+            inputs,
+            branches,
+            context,
+            default_formatters,
+            options,
+            target,
+        );
     }
     if expression.path.is_empty() {
         return "\"\"".to_owned();
@@ -204,7 +264,13 @@ fn expression_value(
                         .arguments
                         .iter()
                         .map(|argument| {
-                            expression_value(argument, context, default_formatters, options)
+                            expression_value_for_target(
+                                argument,
+                                context,
+                                default_formatters,
+                                options,
+                                target,
+                            )
                         })
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -222,7 +288,13 @@ fn expression_value(
                         .arguments
                         .iter()
                         .map(|argument| {
-                            expression_value(argument, context, default_formatters, options)
+                            expression_value_for_target(
+                                argument,
+                                context,
+                                default_formatters,
+                                options,
+                                target,
+                            )
                         })
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -241,7 +313,13 @@ fn expression_value(
                         .arguments
                         .iter()
                         .map(|argument| {
-                            expression_value(argument, context, default_formatters, options)
+                            expression_value_for_target(
+                                argument,
+                                context,
+                                default_formatters,
+                                options,
+                                target,
+                            )
                         })
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -256,7 +334,13 @@ fn expression_value(
                 .arguments
                 .iter()
                 .map(|argument| {
-                    expression_value(argument, context, default_formatters, options)
+                    expression_value_for_target(
+                        argument,
+                        context,
+                        default_formatters,
+                        options,
+                        target,
+                    )
                 })
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -296,12 +380,13 @@ fn expression_value(
     }
 }
 
-pub(super) fn function_dispatch_expression(
+pub(super) fn function_dispatch_expression_for_target(
     parameters: &[IrFunctionParameter],
     branches: &[IrFunctionBranch],
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
     let selectors = parameters
         .iter()
@@ -319,6 +404,7 @@ pub(super) fn function_dispatch_expression(
         context,
         default_formatters,
         options,
+        target,
     )
 }
 
@@ -334,6 +420,7 @@ fn inline_function_expression(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
     let mut parameters = Vec::with_capacity(inputs.len());
     let mut arguments = Vec::with_capacity(inputs.len());
@@ -346,11 +433,12 @@ fn inline_function_expression(
             IrInlineFunctionInput::Selector { value, .. } => {
                 let parameter = format!("__lgl_inline_selector_{index}");
                 parameters.push(parameter.clone());
-                arguments.push(expression_value(
+                arguments.push(expression_value_for_target(
                     value,
                     context,
                     default_formatters,
                     options,
+                    target,
                 ));
                 // Explicit `Plural(value)` has already produced its category.
                 // A directly referenced `Plural` value still accepts either a
@@ -365,11 +453,12 @@ fn inline_function_expression(
             }
             IrInlineFunctionInput::Binding { name, value, .. } => {
                 parameters.push(safe_identifier(name));
-                arguments.push(expression_value(
+                arguments.push(expression_value_for_target(
                     value,
                     context,
                     default_formatters,
                     options,
+                    target,
                 ));
                 branch_context.insert(
                     name.clone(),
@@ -394,6 +483,7 @@ fn inline_function_expression(
         &branch_context,
         &branch_formatters,
         options,
+        target,
     );
     format!(
         "(({}) => {body})({})",
@@ -435,6 +525,7 @@ fn dispatch_expression_level(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
     let selector = selectors.get(depth).map_or_else(
         || "undefined".to_owned(),
@@ -450,9 +541,13 @@ fn dispatch_expression_level(
         .iter()
         .map(|branch| {
             let value = match &branch.value {
-                IrFunctionBranchValue::Text(text) => {
-                    text_expression_with_context(text, context, default_formatters, options)
-                }
+                IrFunctionBranchValue::Text(text) => text_expression_with_context_for_target(
+                    text,
+                    context,
+                    default_formatters,
+                    options,
+                    target,
+                ),
                 IrFunctionBranchValue::Dispatch(children) => dispatch_expression_level(
                     selectors,
                     children,
@@ -460,9 +555,15 @@ fn dispatch_expression_level(
                     context,
                     default_formatters,
                     options,
+                    target,
                 ),
             };
-            format!("{}: (): string => {value}", property_key(&branch.key))
+            let return_type = if target.is_typescript() {
+                ": string"
+            } else {
+                ""
+            };
+            format!("{}: (){return_type} => {value}", property_key(&branch.key))
         })
         .collect::<Vec<_>>()
         .join(", ");

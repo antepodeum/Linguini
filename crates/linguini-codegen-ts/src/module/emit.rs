@@ -4,17 +4,18 @@ use linguini_core::TypeKind;
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFunction, IrMessage, IrModule};
 
 use super::expr::{
-    form_object, formatter_data_declaration, function_dispatch_expression, text_expression,
-    text_expression_with_context,
+    form_object_for_target, formatter_data_declaration, function_dispatch_expression_for_target,
+    text_expression_for_target, text_expression_with_context_for_target,
 };
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
-    emit_docs, escape_string, form_binding_name, function_name, property_key, safe_identifier,
-    ts_type,
+    emit_docs, emit_docs_with_tags, escape_string, form_binding_name, function_name, property_key,
+    safe_identifier, ts_type, JsDocTag,
 };
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
-use super::TypeScriptOptions;
+use super::type_model::{render_jsdoc_type, TypeModel};
+use super::{EcmaScriptTarget, TypeScriptOptions};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleExports {
@@ -218,6 +219,15 @@ pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
 }
 
 pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
+    emit_forms_for_target(module, options, EcmaScriptTarget::TypeScript, output);
+}
+
+pub(super) fn emit_forms_for_target(
+    module: &IrModule,
+    options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
+    output: &mut String,
+) {
     for form in module.forms() {
         emit_docs(&form.docs, "", output);
         output.push_str(&format!("const {} = {{\n", form_binding_name(&form.name)));
@@ -225,43 +235,93 @@ pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut S
             output.push_str(&format!(
                 "  {}: {},\n",
                 property_key(&variant.name),
-                form_object(&variant.entries, options)
+                form_object_for_target(&variant.entries, options, target)
             ));
         }
-        output.push_str("} as const;\n\n");
+        if target.is_typescript() {
+            output.push_str("} as const;\n\n");
+        } else {
+            output.push_str("};\n\n");
+        }
     }
 }
 
 pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
+    emit_variables_for_target(module, options, EcmaScriptTarget::TypeScript, output);
+}
+
+pub(super) fn emit_variables_for_target(
+    module: &IrModule,
+    options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
+    output: &mut String,
+) {
     for variable in module.variables() {
         emit_docs(&variable.docs, "", output);
         output.push_str(&format!(
             "const {} = {};\n\n",
             safe_identifier(&variable.name),
-            text_expression(&variable.value, options)
+            text_expression_for_target(&variable.value, options, target)
         ));
     }
 }
 
 pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
+    emit_local_functions_for_target(module, options, EcmaScriptTarget::TypeScript, output);
+}
+
+pub(super) fn emit_local_functions_for_target(
+    module: &IrModule,
+    options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
+    output: &mut String,
+) {
     for function in module.functions() {
-        emit_docs(&function.docs, "", output);
         let parameter_names = function_parameters(function);
-        let params = parameter_names
-            .iter()
-            .zip(&function.parameters)
-            .map(|(name, parameter)| {
-                let ty = if parameter.ty == "Plural" {
-                    "number | bigint | string".to_owned()
-                } else {
-                    ts_type(&parameter.ty)
-                };
-                format!("{name}: {ty}")
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
+        if target.is_typescript() {
+            emit_docs(&function.docs, "", output);
+        } else {
+            let tags = parameter_names
+                .iter()
+                .zip(&function.parameters)
+                .map(|(name, parameter)| JsDocTag::Param {
+                    name: name.clone(),
+                    ty: if parameter.ty == "Plural" {
+                        "number | bigint | string".to_owned()
+                    } else {
+                        render_jsdoc_type(&TypeModel::from_source_name(&parameter.ty))
+                    },
+                })
+                .chain(std::iter::once(JsDocTag::Returns {
+                    ty: "string".to_owned(),
+                }))
+                .collect::<Vec<_>>();
+            emit_docs_with_tags(&function.docs, &tags, "", output);
+        }
+        let params = if target.is_typescript() {
+            parameter_names
+                .iter()
+                .zip(&function.parameters)
+                .map(|(name, parameter)| {
+                    let ty = if parameter.ty == "Plural" {
+                        "number | bigint | string".to_owned()
+                    } else {
+                        ts_type(&parameter.ty)
+                    };
+                    format!("{name}: {ty}")
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        } else {
+            parameter_names.join(", ")
+        };
+        let return_type = if target.is_typescript() {
+            ": string"
+        } else {
+            ""
+        };
         output.push_str(&format!(
-            "function {}({params}): string {{\n",
+            "function {}({params}){return_type} {{\n",
             safe_identifier(&function.name)
         ));
         let context = function
@@ -276,12 +336,13 @@ pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, outp
             .collect::<BTreeMap<_, _>>();
         output.push_str(&format!(
             "  return {};\n",
-            function_dispatch_expression(
+            function_dispatch_expression_for_target(
                 &function.parameters,
                 &function.branches,
                 &context,
                 &BTreeMap::new(),
                 options,
+                target,
             )
         ));
         output.push_str("}\n\n");
@@ -414,6 +475,22 @@ pub(crate) fn message_body(
     implementation: &IrMessage,
     options: &TypeScriptOptions,
 ) -> String {
+    message_body_for_target(
+        schema,
+        signature,
+        implementation,
+        options,
+        EcmaScriptTarget::TypeScript,
+    )
+}
+
+pub(crate) fn message_body_for_target(
+    schema: &IrModule,
+    signature: &IrMessage,
+    implementation: &IrMessage,
+    options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
+) -> String {
     let context = signature
         .parameters
         .iter()
@@ -423,7 +500,15 @@ pub(crate) fn message_body(
     implementation
         .body
         .as_ref()
-        .map(|body| text_expression_with_context(body, &context, &default_formatters, options))
+        .map(|body| {
+            text_expression_with_context_for_target(
+                body,
+                &context,
+                &default_formatters,
+                options,
+                target,
+            )
+        })
         .unwrap_or_else(|| "\"\"".to_owned())
 }
 

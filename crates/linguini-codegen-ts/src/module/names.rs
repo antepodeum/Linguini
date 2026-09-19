@@ -141,6 +141,7 @@ pub fn emit_docs(docs: &[String], indent: &str, output: &mut String) {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum JsDocTag {
+    Overload,
     Param { name: String, ty: String },
     Returns { ty: String },
 }
@@ -164,6 +165,7 @@ pub(crate) fn emit_docs_with_tags(
     }
     lines.extend(tags.iter().map(|tag| {
         escape_comment(&match tag {
+            JsDocTag::Overload => "@overload".to_owned(),
             JsDocTag::Param { name, ty } => format!("@param {{{ty}}} {name}"),
             JsDocTag::Returns { ty } => format!("@returns {{{ty}}}"),
         })

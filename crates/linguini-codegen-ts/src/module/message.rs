@@ -13,13 +13,16 @@ use crate::ecmascript::{
 };
 
 use super::deps::MessageDependencyClosure;
-use super::emit::{self, emit_formatter_data, emit_forms, emit_local_functions, emit_variables};
+use super::emit::{
+    self, emit_formatter_data, emit_forms_for_target, emit_local_functions_for_target,
+    emit_variables_for_target,
+};
 use super::formatters::{formatter_requirements, plural_required};
 use super::names::emit_docs;
 use super::semantic::TypeScriptSemanticImport;
 use super::signature::MessageCallSignature;
 use super::{
-    TypeScriptCodegenError, TypeScriptMessageArtifact, TypeScriptOptions,
+    EcmaScriptTarget, TypeScriptCodegenError, TypeScriptMessageArtifact, TypeScriptOptions,
     ValidatedTypeScriptProject,
 };
 
@@ -57,6 +60,9 @@ impl CompiledTypeScriptMessageModule {
     }
 }
 
+/// A source-mapped JavaScript ESM message leaf emitted from the shared ECMAScript model.
+pub type CompiledJavaScriptMessageModule = CompiledTypeScriptMessageModule;
+
 /// Compiles one validated project message into a deterministic source-mapped TypeScript ESM
 /// module. The closure is computed from the validated project, so callers cannot accidentally
 /// emit unvalidated IR or pull unrelated project leaves into the output.
@@ -78,6 +84,7 @@ pub fn compile_typescript_message_module(
             emission: MessageModuleEmission::Standalone,
             runtime_import_path: None,
             semantic_imports: None,
+            target: EcmaScriptTarget::TypeScript,
         },
         sources,
     )
@@ -106,6 +113,7 @@ pub fn compile_typescript_bundler_message_module(
             emission: MessageModuleEmission::Bundler,
             runtime_import_path: Some(runtime_import_path),
             semantic_imports: None,
+            target: EcmaScriptTarget::TypeScript,
         },
         sources,
     )
@@ -127,6 +135,62 @@ pub fn compile_typescript_bundler_message_artifact_module(
             emission: MessageModuleEmission::Bundler,
             runtime_import_path: Some(&artifact.runtime_import_path),
             semantic_imports: Some(&artifact.semantic_imports),
+            target: EcmaScriptTarget::TypeScript,
+        },
+        sources,
+    )
+}
+
+/// Compiles one validated project message into a source-mapped JavaScript ESM bundler leaf.
+///
+/// Runtime and semantic value dependencies remain imports. Type-only imports and TypeScript
+/// syntax are omitted, while public call contracts are retained as checked-JavaScript JSDoc.
+pub fn compile_javascript_bundler_message_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    locale: &str,
+    canonical_message: &str,
+    output_file_name: &str,
+    shared_import_path: &str,
+    runtime_import_path: &str,
+    sources: &[EcmaSource],
+) -> Result<CompiledJavaScriptMessageModule, TypeScriptCodegenError> {
+    compile_message_module(
+        project,
+        MessageModuleRequest {
+            locale,
+            canonical_message,
+            output_file_name,
+            shared_import_path,
+            emission: MessageModuleEmission::Bundler,
+            runtime_import_path: Some(runtime_import_path),
+            semantic_imports: None,
+            target: EcmaScriptTarget::JavaScript,
+        },
+        sources,
+    )
+}
+
+/// Compiles one canonical physical JavaScript message artifact without recomputing its paths.
+pub fn compile_javascript_bundler_message_artifact_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    artifact: &TypeScriptMessageArtifact,
+    sources: &[EcmaSource],
+) -> Result<CompiledJavaScriptMessageModule, TypeScriptCodegenError> {
+    let output_file_name = artifact.output_file_name.strip_suffix(".ts").map_or_else(
+        || artifact.output_file_name.clone(),
+        |stem| format!("{stem}.js"),
+    );
+    compile_message_module(
+        project,
+        MessageModuleRequest {
+            locale: &artifact.locale,
+            canonical_message: &artifact.message,
+            output_file_name: &output_file_name,
+            shared_import_path: &artifact.shared_import_path,
+            emission: MessageModuleEmission::Bundler,
+            runtime_import_path: Some(&artifact.runtime_import_path),
+            semantic_imports: Some(&artifact.semantic_imports),
+            target: EcmaScriptTarget::JavaScript,
         },
         sources,
     )
@@ -146,6 +210,7 @@ struct MessageModuleRequest<'a> {
     emission: MessageModuleEmission,
     runtime_import_path: Option<&'a str>,
     semantic_imports: Option<&'a [TypeScriptSemanticImport]>,
+    target: EcmaScriptTarget,
 }
 
 fn compile_message_module(
@@ -161,6 +226,7 @@ fn compile_message_module(
         emission,
         runtime_import_path,
         semantic_imports,
+        target,
     } = request;
     let requested_locale = canonicalize_locale(locale).unwrap_or_else(|_| locale.to_owned());
     let project_locale = project
@@ -204,6 +270,7 @@ fn compile_message_module(
         emission,
         runtime_import_path,
         &semantic_imports,
+        target,
     );
     let rendered = module.render(output_file_name, &source_records);
 
@@ -252,6 +319,7 @@ fn emit_message_module(
     emission: MessageModuleEmission,
     runtime_import_path: Option<&str>,
     semantic_imports: &[TypeScriptSemanticImport],
+    target: EcmaScriptTarget,
 ) -> EcmaModule {
     let schema = closure.schema();
     let complete_locale = closure.locale_module();
@@ -276,7 +344,7 @@ fn emit_message_module(
         push_chunk(&mut statements, formatter_data, None);
     }
 
-    for item in locale.enums() {
+    for item in locale.enums().iter().filter(|_| target.is_typescript()) {
         let one = IrModuleBuilder::new()
             .push_enum(item.clone())
             .build()
@@ -296,7 +364,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_variables(&one, options, &mut output);
+        emit_variables_for_target(&one, options, target, &mut output);
         push_chunk(
             &mut statements,
             output,
@@ -315,7 +383,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_forms(&one, options, &mut output);
+        emit_forms_for_target(&one, options, target, &mut output);
         push_chunk(
             &mut statements,
             output,
@@ -329,7 +397,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_local_functions(&one, options, &mut output);
+        emit_local_functions_for_target(&one, options, target, &mut output);
         push_chunk(
             &mut statements,
             output,
@@ -353,7 +421,8 @@ fn emit_message_module(
             .find(|item| item.name == closure.message),
     ) {
         let call_signature = MessageCallSignature::from_message(signature);
-        let body = emit::message_body(schema, signature, implementation, options);
+        let body =
+            emit::message_body_for_target(schema, signature, implementation, options, target);
         let output = if !call_signature.is_parameterized() {
             let mut docs = String::new();
             emit_docs(&signature.docs, "", &mut docs);
@@ -366,12 +435,21 @@ fn emit_message_module(
                 }
             }
         } else {
-            format!(
-                "{}export function message({}): string {{\n  {}\n  return {body};\n}}\n",
-                call_signature.implementation_overloads("message", &signature.docs),
-                call_signature.implementation_rest_params(),
-                call_signature.normalized_bindings_statement()
-            )
+            if target.is_typescript() {
+                format!(
+                    "{}export function message({}): string {{\n  {}\n  return {body};\n}}\n",
+                    call_signature.implementation_overloads("message", &signature.docs),
+                    call_signature.implementation_rest_params(),
+                    call_signature.normalized_bindings_statement()
+                )
+            } else {
+                format!(
+                    "{}export function message({}) {{\n  {}\n  return {body};\n}}\n",
+                    call_signature.javascript_implementation_docs(&signature.docs),
+                    call_signature.implementation_rest_params_for_target(target),
+                    call_signature.normalized_bindings_statement_for_target(target)
+                )
+            }
         };
         push_chunk(
             &mut statements,
@@ -400,12 +478,16 @@ fn emit_message_module(
             uses_named_message_args,
             uses_plural,
             runtime_helpers: runtime_helpers.as_deref().unwrap_or_default(),
+            target,
         }),
         statements: Vec::new(),
     };
     for dependency in semantic_imports {
+        if dependency.type_only && !target.is_typescript() {
+            continue;
+        }
         module.imports.push(EcmaImport {
-            specifier: dependency.import_path.clone(),
+            specifier: import_path_for_target(&dependency.import_path, target),
             bindings: if dependency.type_only {
                 EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
                     &dependency.binding,
@@ -418,6 +500,22 @@ fn emit_message_module(
                 )])
             },
         });
+    }
+    if !target.is_typescript() {
+        let typedefs = emit::schema_type_names(schema)
+            .into_iter()
+            .map(|name| {
+                format!(
+                    "/** @typedef {{import({}).{name}}} {name} */",
+                    super::names::string_literal(&import_path_for_target(
+                        shared_import_path,
+                        target,
+                    ))
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        push_statement(&mut module, typedefs, None);
     }
     if uses_plural && runtime_import_path.is_none() {
         let mut plural_helpers = String::new();
@@ -439,14 +537,15 @@ struct MessageImportRequest<'a> {
     uses_named_message_args: bool,
     uses_plural: bool,
     runtime_helpers: &'a [&'a str],
+    target: EcmaScriptTarget,
 }
 
 fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
     let mut imports = Vec::new();
     let type_names = emit::schema_type_names(request.schema);
-    if !type_names.is_empty() {
+    if request.target.is_typescript() && !type_names.is_empty() {
         imports.push(EcmaImport {
-            specifier: request.shared_import_path.to_owned(),
+            specifier: import_path_for_target(request.shared_import_path, request.target),
             bindings: EcmaImportBindings::TypeNamed(
                 type_names
                     .iter()
@@ -464,7 +563,7 @@ fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
     }
     if !shared_helpers.is_empty() {
         imports.push(EcmaImport::named(
-            request.shared_import_path,
+            import_path_for_target(request.shared_import_path, request.target),
             shared_helpers
                 .into_iter()
                 .map(|name| EcmaNamedImport::new(name, name))
@@ -478,7 +577,7 @@ fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
         }
         if !helpers.is_empty() {
             imports.push(EcmaImport::named(
-                runtime_import_path,
+                import_path_for_target(runtime_import_path, request.target),
                 helpers
                     .into_iter()
                     .map(|name| EcmaNamedImport::new(name, name))
@@ -487,6 +586,14 @@ fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
         }
     }
     imports
+}
+
+fn import_path_for_target(path: &str, target: EcmaScriptTarget) -> String {
+    if target.is_typescript() || path.ends_with(".js") {
+        path.to_owned()
+    } else {
+        format!("{path}.js")
+    }
 }
 
 fn push_chunk(chunks: &mut Vec<(String, Option<Span>)>, code: String, span: Option<Span>) {
@@ -563,7 +670,10 @@ fn value_span(value: &IrValue) -> Option<Span> {
 
 #[cfg(test)]
 mod tests {
-    use super::{compile_typescript_bundler_message_module, compile_typescript_message_module};
+    use super::{
+        compile_javascript_bundler_message_module, compile_typescript_bundler_message_module,
+        compile_typescript_message_module,
+    };
     use crate::{
         EcmaSource, TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject,
     };
@@ -845,6 +955,102 @@ mod tests {
         assert!(standalone.code.contains("function formatNumber("));
         assert!(standalone.code.contains("function pluralEn("));
         assert!(!standalone.code.contains("_runtime"));
+    }
+
+    #[test]
+    fn javascript_bundler_leaf_uses_jsdoc_and_contains_no_typescript_syntax() {
+        let schema_text = "enum Tone { formal, casual }\ngreeting(tone: Tone, count: Number)\n";
+        let locale_text = "form Greeting(Tone, Plural) {\n\
+              formal { one => Formal one\nother => Formal many }\n\
+              casual { one => Casual one\nother => Casual many }\n\
+            }\n\
+            greeting = {Greeting(tone, count)}\n";
+        let schema = Box::leak(Box::new(lower_schema(
+            &parse_schema_in(schema_text, SourceId(47)).expect("schema"),
+        )));
+        let locale = lower_locale(&parse_locale_in(locale_text, SourceId(48)).expect("locale"));
+        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }]));
+        let project = ValidatedTypeScriptProject::try_new(
+            schema,
+            locales,
+            &TypeScriptProjectOptions {
+                base_locale: Some("en".to_owned()),
+                ..TypeScriptProjectOptions::default()
+            },
+        )
+        .unwrap();
+        let sources = [
+            EcmaSource::new(SourceId(47), "schema.lgs", schema_text),
+            EcmaSource::new(SourceId(48), "locale.lgl", locale_text),
+        ];
+        let compiled = compile_javascript_bundler_message_module(
+            &project,
+            "en",
+            "greeting",
+            "messages/greeting.js",
+            "../../shared.js",
+            "../../locales/en/_runtime.js",
+            &sources,
+        )
+        .unwrap();
+
+        assert!(compiled.code.contains(" * @overload"));
+        assert!(compiled.code.contains(" * @param {Tone} tone"));
+        assert!(compiled
+            .code
+            .contains(" * @param {number | bigint | string} count"));
+        assert!(compiled
+            .code
+            .contains(" * @param {{ tone: Tone; count: number | bigint | string }} args"));
+        assert!(compiled
+            .code
+            .contains("export function message(...__lgl_args)"));
+        assert!(compiled
+            .code
+            .contains("/** @typedef {import(\"../../shared.js\").Tone} Tone */"));
+        assert!(compiled.code.contains("Greeting(tone, count)"));
+        assert!(compiled.code.contains("import { Greeting }"));
+        assert!(compiled
+            .code
+            .contains("/bundler/semantic/en/function/x4772656574696e67.js\";"));
+        assert!(!compiled.code.contains("import type"));
+        assert!(!compiled.code.contains(" as const"));
+        assert!(!compiled.code.contains("): string"));
+        assert!(!compiled.code.contains(" as ["));
+        assert!(!compiled.code.contains("type Tone"));
+        assert!(compiled
+            .code
+            .ends_with("//# sourceMappingURL=greeting.js.map\n"));
+        assert!(compiled
+            .source_map
+            .contains("\"file\":\"messages/greeting.js\""));
+
+        let artifact = project
+            .message_artifacts()
+            .expect("message artifacts")
+            .into_iter()
+            .find(|artifact| artifact.message == "greeting")
+            .expect("greeting artifact");
+        let artifact_compiled = super::compile_javascript_bundler_message_artifact_module(
+            &project, &artifact, &sources,
+        )
+        .expect("artifact compile");
+        assert!(artifact_compiled
+            .code
+            .contains("from \"../../../shared.js\""));
+        assert!(artifact_compiled
+            .code
+            .contains("from \"../../semantic/en/function/x4772656574696e67.js\""));
+        assert!(artifact_compiled.code.contains("/_runtime.js\";"));
+        let javascript_map = artifact
+            .output_file_name
+            .strip_suffix(".ts")
+            .map(|stem| format!("//# sourceMappingURL={stem}.js.map"))
+            .expect("TypeScript artifact name");
+        assert!(artifact_compiled.code.contains(&javascript_map));
     }
 
     #[test]

@@ -9,6 +9,7 @@ use linguini_ir::IrMessage;
 
 use super::names::{emit_docs_with_tags, property_key, safe_identifier, string_literal, JsDocTag};
 use super::type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
+use super::EcmaScriptTarget;
 
 const IMPLEMENTATION_ARGS: &str = "__lgl_args";
 
@@ -90,6 +91,13 @@ impl MessageCallSignature {
     /// property keys.  This gives the implementation one type-safe input shape while keeping
     /// expression references valid for reserved and punctuation-bearing source names.
     pub(crate) fn implementation_rest_params(&self) -> String {
+        self.implementation_rest_params_for_target(EcmaScriptTarget::TypeScript)
+    }
+
+    pub(crate) fn implementation_rest_params_for_target(&self, target: EcmaScriptTarget) -> String {
+        if !target.is_typescript() {
+            return format!("...{IMPLEMENTATION_ARGS}");
+        }
         let positional = format!("[{}]", self.positional_params());
         let named = format!("[args: {}]", self.named_object_type());
         format!("...{IMPLEMENTATION_ARGS}: {positional} | {named}")
@@ -105,6 +113,13 @@ impl MessageCallSignature {
 
     /// Emit the one normalization/destructure statement used by implementations.
     pub(crate) fn normalized_bindings_statement(&self) -> String {
+        self.normalized_bindings_statement_for_target(EcmaScriptTarget::TypeScript)
+    }
+
+    pub(crate) fn normalized_bindings_statement_for_target(
+        &self,
+        target: EcmaScriptTarget,
+    ) -> String {
         let bindings = self
             .parameters
             .iter()
@@ -125,9 +140,13 @@ impl MessageCallSignature {
                 .collect::<Vec<_>>()
                 .join(", ")
         );
-        format!(
-            "const [{bindings}] = normalizeMessageArgs({IMPLEMENTATION_ARGS}, [{keys}]) as {tuple_type};"
-        )
+        if target.is_typescript() {
+            format!(
+                "const [{bindings}] = normalizeMessageArgs({IMPLEMENTATION_ARGS}, [{keys}]) as {tuple_type};"
+            )
+        } else {
+            format!("const [{bindings}] = normalizeMessageArgs({IMPLEMENTATION_ARGS}, [{keys}]);")
+        }
     }
 
     /// The public callable value type used by locale and nested message objects.
@@ -207,6 +226,35 @@ impl MessageCallSignature {
             "export function {name}(args: {}): string;\n",
             self.named_object_type()
         ));
+        output
+    }
+
+    /// Render checked-JavaScript overloads plus the implementation contract.
+    pub(crate) fn javascript_implementation_docs(&self, docs: &[String]) -> String {
+        if !self.is_parameterized() {
+            let mut output = String::new();
+            super::names::emit_docs(docs, "", &mut output);
+            return output;
+        }
+
+        let mut positional = vec![JsDocTag::Overload];
+        positional.extend(self.positional_doc_tags());
+        let mut named = vec![JsDocTag::Overload];
+        named.extend(self.named_doc_tags());
+        let implementation = vec![
+            JsDocTag::Param {
+                name: IMPLEMENTATION_ARGS.to_owned(),
+                ty: "...*".to_owned(),
+            },
+            JsDocTag::Returns {
+                ty: "string".to_owned(),
+            },
+        ];
+
+        let mut output = String::new();
+        emit_docs_with_tags(docs, &positional, "", &mut output);
+        emit_docs_with_tags(docs, &named, "", &mut output);
+        emit_docs_with_tags(&[], &implementation, "", &mut output);
         output
     }
 

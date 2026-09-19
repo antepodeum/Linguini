@@ -15,6 +15,18 @@ mod templates;
 mod tree;
 mod type_model;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EcmaScriptTarget {
+    TypeScript,
+    JavaScript,
+}
+
+impl EcmaScriptTarget {
+    pub(crate) fn is_typescript(self) -> bool {
+        matches!(self, Self::TypeScript)
+    }
+}
+
 pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -532,12 +544,15 @@ impl fmt::Display for TypeScriptCodegenError {
 
 pub use artifacts::{TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact};
 pub use message::{
+    compile_javascript_bundler_message_artifact_module, compile_javascript_bundler_message_module,
     compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_message_module,
-    compile_typescript_message_module, CompiledTypeScriptMessageModule,
+    compile_typescript_message_module, CompiledJavaScriptMessageModule,
+    CompiledTypeScriptMessageModule,
 };
 pub use semantic::{
-    compile_typescript_bundler_semantic_module, CompiledTypeScriptSemanticModule,
-    TypeScriptSemanticArtifact, TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
+    compile_javascript_bundler_semantic_module, compile_typescript_bundler_semantic_module,
+    CompiledJavaScriptSemanticModule, CompiledTypeScriptSemanticModule, TypeScriptSemanticArtifact,
+    TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
 };
 
 impl std::error::Error for TypeScriptCodegenError {}
