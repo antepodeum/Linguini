@@ -316,7 +316,11 @@ production path uses the fix and its relevant tests pass.
       including the cross-file namespace-collision case previously caught only by the late
       reference checker (`013c3cd`).
 - [x] #94 — Diagnose duplicates before set/map insertion.
-- [-] #95 — Finish splitting schema, locale, and validated project IR types.
+- [x] #95 — Finish splitting schema, locale, and validated project IR types. `SchemaIr` and
+      `LocaleIr` reject cross-domain declarations, `ValidatedProjectIr` preserves those domain
+      types after semantic validation, CLI composition returns typed modules, and the public
+      TypeScript project-codegen boundary accepts only the typed schema/locale pair (`750ff11`,
+      `99d3c8b`).
 - [x] #96 — Make the validated capability mandatory in every public production emitter.
 - [x] #97 — Cover nested references, cycles, forms, duplicates, and invalid IR.
 
