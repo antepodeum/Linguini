@@ -793,7 +793,10 @@ production path uses the fix and its relevant tests pass.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
-- [ ] ESM-A5 — Render JavaScript plus JSDoc from the shared models.
+- [-] ESM-A5 — Render JavaScript plus JSDoc from the shared models. Exact bundler message and
+      semantic leaves now select JavaScript from the same expression, form, function, signature,
+      import, and source-map emitters as TypeScript; overloads and local parameters retain checked
+      JSDoc types. Project/runtime modules still need the same target routing.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
 - [ ] ESM-A7 — Avoid a parallel TypeScript runtime implementation.
@@ -801,7 +804,9 @@ production path uses the fix and its relevant tests pass.
       modules now have truthful source maps and demand-selected helpers, but project-wide output
       has not migrated.
 - [x] ESM-A9 — Make parameterless public leaves values in both surfaces.
-- [ ] ESM-A10 — Keep JavaScript generation first-class and near-zero-config.
+- [-] ESM-A10 — Keep JavaScript generation first-class and near-zero-config. Public JavaScript
+      bundler-leaf compilers now emit native `.js` import and source-map paths without a
+      TypeScript transpilation pass; project-wide JavaScript output remains outstanding.
 
 ### Documentation identity through codegen
 
@@ -919,7 +924,10 @@ production path uses the fix and its relevant tests pass.
 
 - [x] P0-1 — Hermetic read-only CLDR compilation.
 - [x] P0-2 — Safe manifest-owned output root.
-- [-] P0-3 — Correct form IR plus JS/JSDoc/`.d.ts` runtime corpus.
+- [-] P0-3 — Correct form IR plus JS/JSDoc/`.d.ts` runtime corpus. Exact JavaScript message and
+      semantic-form/function leaves now share the TypeScript dependency closure and structured
+      emitter, preserve overload JSDoc, and reject TypeScript-only syntax in regression coverage;
+      the project-wide JavaScript/runtime corpus remains outstanding.
 - [x] P0-4 — Validated project capability as the only emitter entry.
 - [x] P0-5 — Blocking CLI error severity.
 - [x] P0-6 — Atomic cross-kind locale indexes.
@@ -949,8 +957,8 @@ production path uses the fix and its relevant tests pass.
 
 - [-] P2-1 — Shared ECMAScript backend and `TypeModel`. The backend-neutral public type model now
   drives message signatures, declarations, and runtime annotations and exposes TypeScript/JSDoc
-  renderers; legacy project/runtime string assembly still needs migration to the structured
-  ECMAScript emitter.
+  renderers. Exact message and semantic leaves select TypeScript or JavaScript through the same
+  structured emitter; legacy project/runtime string assembly still needs migration.
 - [x] P2-2 — End-to-end documentation propagation. Parser attachment survives schema/locale
   semantic lowering for every declaration kind and reaches exact runtime exports, recursive
   namespace properties, overloads, and `.d.ts` declarations through one safe JSDoc renderer.
