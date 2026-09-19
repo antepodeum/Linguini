@@ -567,7 +567,7 @@ mod tests {
     use crate::{
         EcmaSource, TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject,
     };
-    use linguini_ir::{lower_locale, lower_schema};
+    use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
     const SCHEMA: &str = "/// Greeting\nroot(name: String)\ndrop\n";

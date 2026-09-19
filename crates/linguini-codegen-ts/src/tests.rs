@@ -2,13 +2,13 @@ use crate::{
     TypeScriptCodegenError, TypeScriptGeneratedFile, TypeScriptLocaleModule,
     TypeScriptProjectOptions, ValidatedTypeScriptProject,
 };
-use linguini_ir::{lower_locale, lower_schema};
+use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
 use linguini_syntax::{parse_locale, parse_schema};
 use std::fs;
 use std::path::Path;
 
 fn generate_project_files(
-    schema: &linguini_ir::IrModule,
+    schema: &linguini_ir::SchemaIr,
     locales: &[TypeScriptLocaleModule],
     options: &TypeScriptProjectOptions,
 ) -> Result<Vec<TypeScriptGeneratedFile>, TypeScriptCodegenError> {
@@ -134,18 +134,17 @@ fn repo_root() -> &'static Path {
 #[test]
 fn project_codegen_owns_multilocale_index_files() {
     use crate::{TypeScriptLocaleModule, TypeScriptProjectOptions};
-    use linguini_ir::IrModule;
 
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[
             TypeScriptLocaleModule {
                 locale: "en".to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             },
             TypeScriptLocaleModule {
                 locale: "ru".to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             },
         ],
         &TypeScriptProjectOptions {
@@ -227,13 +226,11 @@ fn project_codegen_owns_multilocale_index_files() {
 
 #[test]
 fn project_codegen_can_omit_generated_gitignore() {
-    use linguini_ir::IrModule;
-
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &TypeScriptProjectOptions {
             gitignore: false,
@@ -392,6 +389,10 @@ fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
         })
         .build()
         .expect("fixture locale is unique by construction");
+    let schema = linguini_ir::SchemaIr::try_from_module(schema)
+        .expect("fixture contains only schema declarations");
+    let locale = linguini_ir::LocaleIr::try_from_module(locale)
+        .expect("fixture contains only locale declarations");
     let files = generate_project_files(
         &schema,
         &[TypeScriptLocaleModule {
@@ -455,18 +456,16 @@ fn project_codegen_escapes_recursive_namespace_docs_and_keys() {
 
 #[test]
 fn project_runtime_index_snapshot_is_stable() {
-    use linguini_ir::IrModule;
-
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[
             TypeScriptLocaleModule {
                 locale: "en".to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             },
             TypeScriptLocaleModule {
                 locale: "ru".to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             },
         ],
         &TypeScriptProjectOptions {
@@ -1421,31 +1420,26 @@ label = {fruit(count)}
 
 #[test]
 fn project_validation_rejects_an_empty_locale_set() {
-    let error = ValidatedTypeScriptProject::try_new(
-        &linguini_ir::IrModule::default(),
-        &[],
-        &project_options("en"),
-    )
-    .expect_err("an empty locale set must be rejected");
+    let error =
+        ValidatedTypeScriptProject::try_new(&Default::default(), &[], &project_options("en"))
+            .expect_err("an empty locale set must be rejected");
 
     assert_eq!(error, TypeScriptCodegenError::EmptyLocaleSet);
 }
 
 #[test]
 fn project_validation_rejects_duplicate_and_case_folded_locales() {
-    use linguini_ir::IrModule;
-
     for conflicting_locale in ["en", "EN"] {
         let error = ValidatedTypeScriptProject::try_new(
-            &IrModule::default(),
+            &Default::default(),
             &[
                 TypeScriptLocaleModule {
                     locale: "en".to_owned(),
-                    module: IrModule::default(),
+                    module: Default::default(),
                 },
                 TypeScriptLocaleModule {
                     locale: conflicting_locale.to_owned(),
-                    module: IrModule::default(),
+                    module: Default::default(),
                 },
             ],
             &project_options("en"),
@@ -1464,8 +1458,6 @@ fn project_validation_rejects_duplicate_and_case_folded_locales() {
 
 #[test]
 fn project_validation_rejects_unsafe_locale_filenames() {
-    use linguini_ir::IrModule;
-
     for locale in [
         "",
         ".",
@@ -1481,10 +1473,10 @@ fn project_validation_rejects_unsafe_locale_filenames() {
         "日本語",
     ] {
         let error = ValidatedTypeScriptProject::try_new(
-            &IrModule::default(),
+            &Default::default(),
             &[TypeScriptLocaleModule {
                 locale: locale.to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             }],
             &project_options(locale),
         )
@@ -1505,7 +1497,7 @@ fn project_validation_rejects_unsafe_locale_filenames() {
 
 #[test]
 fn project_validation_rejects_namespace_filenames_beyond_portable_limits() {
-    use linguini_ir::{IrMessage, IrModule, IrModuleBuilder};
+    use linguini_ir::{IrMessage, IrModuleBuilder};
 
     let namespace = "x".repeat(241);
     let schema = IrModuleBuilder::new()
@@ -1517,11 +1509,13 @@ fn project_validation_rejects_namespace_filenames_beyond_portable_limits() {
         })
         .build()
         .expect("fixture schema is unique by construction");
+    let schema = linguini_ir::SchemaIr::try_from_module(schema)
+        .expect("fixture contains only schema declarations");
     let error = ValidatedTypeScriptProject::try_new(
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &project_options("en"),
     )
@@ -1575,6 +1569,10 @@ fn project_codegen_encodes_unsafe_namespace_filenames_and_imports() {
         })
         .build()
         .expect("fixture locale is unique by construction");
+    let schema = linguini_ir::SchemaIr::try_from_module(schema)
+        .expect("fixture contains only schema declarations");
+    let locale = linguini_ir::LocaleIr::try_from_module(locale)
+        .expect("fixture contains only locale declarations");
 
     let files = generate_project_files(
         &schema,
@@ -1653,6 +1651,10 @@ fn project_validation_rejects_case_insensitive_namespace_file_collisions() {
         })
         .build()
         .expect("fixture locale is unique by construction");
+    let schema = linguini_ir::SchemaIr::try_from_module(schema)
+        .expect("fixture contains only schema declarations");
+    let locale = linguini_ir::LocaleIr::try_from_module(locale)
+        .expect("fixture contains only locale declarations");
 
     let error = generate_project_files(
         &schema,
@@ -1675,13 +1677,11 @@ fn project_validation_rejects_case_insensitive_namespace_file_collisions() {
 
 #[test]
 fn project_validation_requires_an_explicit_base_locale() {
-    use linguini_ir::IrModule;
-
     let error = ValidatedTypeScriptProject::try_new(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &TypeScriptProjectOptions::default(),
     )
@@ -1692,13 +1692,11 @@ fn project_validation_requires_an_explicit_base_locale() {
 
 #[test]
 fn project_validation_rejects_an_unknown_base_locale() {
-    use linguini_ir::IrModule;
-
     let error = ValidatedTypeScriptProject::try_new(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &project_options("fr"),
     )
@@ -1714,8 +1712,6 @@ fn project_validation_rejects_an_unknown_base_locale() {
 
 #[test]
 fn project_validation_rejects_unknown_included_messages() {
-    use linguini_ir::IrModule;
-
     let schema = lower_schema(&parse_schema("known\naccount { title }\n").expect("schema"));
     let options = TypeScriptProjectOptions {
         tree_shaking: true,
@@ -1726,7 +1722,7 @@ fn project_validation_rejects_unknown_included_messages() {
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &options,
     )
@@ -1742,13 +1738,11 @@ fn project_validation_rejects_unknown_included_messages() {
 
 #[test]
 fn project_validation_rejects_locales_without_cldr_text_direction() {
-    use linguini_ir::IrModule;
-
     let error = ValidatedTypeScriptProject::try_new(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "zz-ZZ".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &project_options("zz-ZZ"),
     )
@@ -1816,7 +1810,7 @@ fn project_validation_rejects_missing_base_locale_messages() {
         &schema,
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: linguini_ir::IrModule::default(),
+            module: Default::default(),
         }],
         &project_options("en"),
     )
@@ -1845,7 +1839,7 @@ fn project_validation_accepts_sparse_regional_locale_with_base_fallback() {
             },
             TypeScriptLocaleModule {
                 locale: "en-US".to_owned(),
-                module: linguini_ir::IrModule::default(),
+                module: Default::default(),
             },
         ],
         &project_options("en"),
@@ -1952,12 +1946,11 @@ fn Wrap(value: Number) {
 #[test]
 fn project_fallback_chain_uses_cldr_parent_locales() {
     use crate::module::locale_fallback_chain;
-    use linguini_ir::IrModule;
 
     let locales = ["en", "en-001", "en-AU"]
         .map(|locale| TypeScriptLocaleModule {
             locale: locale.to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         })
         .to_vec();
 
@@ -1970,12 +1963,11 @@ fn project_fallback_chain_uses_cldr_parent_locales() {
 #[test]
 fn project_fallback_chain_uses_likely_scripts_and_aliases() {
     use crate::module::locale_fallback_chain;
-    use linguini_ir::IrModule;
 
     let locales = ["en", "zh-Hant", "zh-TW", "he-IL", "iw-IL", "he"]
         .map(|locale| TypeScriptLocaleModule {
             locale: locale.to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         })
         .to_vec();
 
@@ -1991,16 +1983,14 @@ fn project_fallback_chain_uses_likely_scripts_and_aliases() {
 
 #[test]
 fn project_runtime_embeds_complete_cldr_resolution() {
-    use linguini_ir::IrModule;
-
     let locales = ["en", "en-001", "zh-Hant"]
         .map(|locale| TypeScriptLocaleModule {
             locale: locale.to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         })
         .to_vec();
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &locales,
         &TypeScriptProjectOptions {
             base_locale: Some("en".to_owned()),
@@ -2075,6 +2065,10 @@ fn project_codegen_emits_schema_namespace_objects() {
         .push_message(locale_message("checkout.cart_summary", "Cart"))
         .build()
         .expect("fixture locale is unique by construction");
+    let schema = linguini_ir::SchemaIr::try_from_module(schema)
+        .expect("fixture contains only schema declarations");
+    let locale = linguini_ir::LocaleIr::try_from_module(locale)
+        .expect("fixture contains only locale declarations");
 
     let files = generate_project_files(
         &schema,
@@ -2118,13 +2112,12 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         TypeScriptLocalePrefixMode, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
         TypeScriptProjectOptions, TypeScriptWebOptions, TypeScriptWebSwitchRoute,
     };
-    use linguini_ir::IrModule;
 
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::SvelteKit),
@@ -2457,7 +2450,6 @@ fn project_codegen_preserves_each_locale_prefix_mode_in_source_and_declarations(
         TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocalePrefixMode,
         TypeScriptProjectOptions, TypeScriptWebOptions,
     };
-    use linguini_ir::IrModule;
 
     for mode in [
         TypeScriptLocalePrefixMode::Always,
@@ -2465,10 +2457,10 @@ fn project_codegen_preserves_each_locale_prefix_mode_in_source_and_declarations(
         TypeScriptLocalePrefixMode::Never,
     ] {
         let files = generate_project_files(
-            &IrModule::default(),
+            &Default::default(),
             &[TypeScriptLocaleModule {
                 locale: "en".to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             }],
             &TypeScriptProjectOptions {
                 declaration: true,
@@ -2513,7 +2505,6 @@ fn project_codegen_emits_only_selected_web_source_and_browser_capabilities() {
         TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptLocaleSource,
         TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
     };
-    use linguini_ir::IrModule;
 
     let web_options = TypeScriptWebOptions {
         sources: vec![TypeScriptLocaleSource::LocalStorage],
@@ -2532,10 +2523,10 @@ fn project_codegen_emits_only_selected_web_source_and_browser_capabilities() {
     assert!(!features.has_accept_language);
     assert_eq!(features.link_mode, TypeScriptLinkMode::Transform);
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::Svelte),
@@ -2605,13 +2596,12 @@ fn project_codegen_allows_closed_web_features_without_sources() {
         TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSwitchPlan,
         TypeScriptProjectOptions, TypeScriptWebOptions,
     };
-    use linguini_ir::IrModule;
 
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::Svelte),
@@ -2681,13 +2671,12 @@ fn project_codegen_manual_link_mode_disables_runtime_observer() {
         TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptProjectOptions,
         TypeScriptWebOptions,
     };
-    use linguini_ir::IrModule;
 
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::Svelte),
@@ -2720,15 +2709,14 @@ fn project_codegen_pathless_sveltekit_controls_drop_navigation_dependencies() {
         TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSource,
         TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
     };
-    use linguini_ir::IrModule;
 
     for sources in [Vec::new(), vec![TypeScriptLocaleSource::LocalStorage]] {
         let writes_local_storage = sources.contains(&TypeScriptLocaleSource::LocalStorage);
         let files = generate_project_files(
-            &IrModule::default(),
+            &Default::default(),
             &[TypeScriptLocaleModule {
                 locale: "en".to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             }],
             &TypeScriptProjectOptions {
                 framework: Some(TypeScriptFramework::SvelteKit),
@@ -2769,13 +2757,12 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
     use crate::{
         TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
     };
-    use linguini_ir::IrModule;
 
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::Svelte),
@@ -2854,13 +2841,12 @@ fn project_codegen_emits_plain_svelte_web_runtime_without_sveltekit_imports() {
 #[test]
 fn project_codegen_emits_context_only_svelte_without_web_config() {
     use crate::{TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions};
-    use linguini_ir::IrModule;
 
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &TypeScriptProjectOptions {
             framework: Some(TypeScriptFramework::SvelteKit),
@@ -2926,18 +2912,17 @@ fn project_codegen_emits_context_only_svelte_without_web_config() {
 #[test]
 fn project_codegen_uses_cldr_text_direction_metadata() {
     use crate::{TypeScriptLocaleModule, TypeScriptProjectOptions};
-    use linguini_ir::IrModule;
 
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[
             TypeScriptLocaleModule {
                 locale: "en".to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             },
             TypeScriptLocaleModule {
                 locale: "ar".to_owned(),
-                module: IrModule::default(),
+                module: Default::default(),
             },
         ],
         &TypeScriptProjectOptions {
@@ -2961,7 +2946,6 @@ fn project_codegen_preserves_closed_web_source_order_and_file_order() {
         TypeScriptFramework, TypeScriptLocaleModule, TypeScriptLocaleSource,
         TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
     };
-    use linguini_ir::IrModule;
 
     let options = TypeScriptProjectOptions {
         declaration: true,
@@ -2983,10 +2967,10 @@ fn project_codegen_preserves_closed_web_source_order_and_file_order() {
         ..project_options("en")
     };
     let files = generate_project_files(
-        &IrModule::default(),
+        &Default::default(),
         &[TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }],
         &options,
     )
@@ -3052,11 +3036,10 @@ fn project_validation_rejects_invalid_closed_web_features() {
         TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions,
         TypeScriptWebOptions,
     };
-    use linguini_ir::IrModule;
 
     let locales = [TypeScriptLocaleModule {
         locale: "en".to_owned(),
-        module: IrModule::default(),
+        module: Default::default(),
     }];
     let mut options = TypeScriptProjectOptions {
         framework: Some(TypeScriptFramework::Svelte),
@@ -3068,7 +3051,7 @@ fn project_validation_rejects_invalid_closed_web_features() {
         ..TypeScriptWebOptions::default()
     });
     assert!(matches!(
-        generate_project_files(&IrModule::default(), &locales, &options),
+        generate_project_files(&Default::default(), &locales, &options),
         Err(TypeScriptCodegenError::DuplicateWebSource { .. })
     ));
 
@@ -3082,7 +3065,7 @@ fn project_validation_rejects_invalid_closed_web_features() {
         ..TypeScriptWebOptions::default()
     });
     assert!(matches!(
-        generate_project_files(&IrModule::default(), &locales, &options),
+        generate_project_files(&Default::default(), &locales, &options),
         Err(TypeScriptCodegenError::WebLocaleSwitchPlanMismatch {
             source: "path",
             expected: true,

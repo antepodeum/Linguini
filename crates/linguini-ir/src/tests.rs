@@ -1211,3 +1211,14 @@ fn typed_ir_rejects_cross_domain_declaration_kinds() {
     ))
     .is_ok());
 }
+
+#[test]
+fn typed_validation_preserves_project_domain_types() {
+    let schema = crate::lower_schema_typed(&parse_schema("hello\n").expect("schema"));
+    let locale = crate::lower_locale_typed(&parse_locale("hello = Hello\n").expect("locale"));
+
+    let project = crate::validate_typed_ir(&schema, &locale).expect("typed project validates");
+
+    assert!(std::ptr::eq(project.schema(), &schema));
+    assert!(std::ptr::eq(project.locale(), &locale));
+}

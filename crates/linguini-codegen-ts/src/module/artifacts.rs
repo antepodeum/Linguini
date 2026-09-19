@@ -53,7 +53,7 @@ pub(super) fn locale_runtime_artifacts(
             },
         )
     } else {
-        project.schema.clone()
+        project.schema.as_module().clone()
     };
     let selected_messages = schema
         .messages()
@@ -94,7 +94,7 @@ pub(super) fn message_artifacts(
             },
         )
     } else {
-        project.schema.clone()
+        project.schema.as_module().clone()
     };
     let messages = schema
         .messages()
@@ -199,12 +199,15 @@ mod tests {
     use super::super::{
         TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject,
     };
-    use linguini_ir::{lower_locale, lower_schema, IrModule, IrModuleBuilder};
+    use linguini_ir::{
+        lower_locale_typed as lower_locale, lower_schema_typed as lower_schema, IrModule,
+        IrModuleBuilder, LocaleIr, SchemaIr,
+    };
     use linguini_syntax::{parse_locale, parse_locale_in, parse_schema, parse_schema_in, SourceId};
 
     fn project<'a>(
-        schema: &'a linguini_ir::IrModule,
-        locale: linguini_ir::IrModule,
+        schema: &'a SchemaIr,
+        locale: LocaleIr,
         included_messages: Vec<String>,
     ) -> ValidatedTypeScriptProject<'a> {
         ValidatedTypeScriptProject::try_new(
@@ -244,13 +247,15 @@ mod tests {
                 .build()
                 .expect("renamed fixture preserves unique declaration names")
         };
-        let schema = rename(&lower_schema(
+        let schema = SchemaIr::try_from_module(rename(&lower_schema(
             &parse_schema("reserved\nupper\nlower\nunicode\n").expect("schema"),
-        ));
-        let locale = rename(&lower_locale(
+        )))
+        .expect("renamed schema remains a schema module");
+        let locale = LocaleIr::try_from_module(rename(&lower_locale(
             &parse_locale("reserved = Reserved\nupper = Upper\nlower = Lower\nunicode = Unicode\n")
                 .expect("locale"),
-        ));
+        )))
+        .expect("renamed locale remains a locale module");
         let all_project = project(&schema, locale, Vec::new());
 
         let artifacts = all_project.message_artifacts().expect("artifacts");

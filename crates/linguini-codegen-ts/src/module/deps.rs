@@ -643,7 +643,9 @@ fn _collect_form_sources(entry: &IrFormEntry, output: &mut BTreeSet<SourceId>) {
 mod tests {
     use super::{message_dependency_closure, MessageDependencySymbol};
     use crate::{TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject};
-    use linguini_ir::{lower_locale, lower_schema, IrModuleBuilder};
+    use linguini_ir::{
+        lower_locale_typed as lower_locale, lower_schema_typed as lower_schema, IrModuleBuilder,
+    };
     use linguini_syntax::{parse_locale, parse_locale_in, parse_schema, parse_schema_in, SourceId};
 
     fn project_for(schema_text: &str, locale_text: &str) -> ValidatedTypeScriptProject<'static> {
@@ -712,10 +714,13 @@ mod tests {
             Err(crate::TypeScriptCodegenError::UnknownMessage { message }) if message == "missing"
         ));
         let mut missing = project_for("root\n", "root = Root\n");
-        missing.locales[0].module = IrModuleBuilder::seeded(&missing.locales[0].module)
-            .clear_messages()
-            .build()
-            .expect("message-free locale preserves unique declaration names");
+        missing.locales[0].module = linguini_ir::LocaleIr::try_from_module(
+            IrModuleBuilder::seeded(&missing.locales[0].module)
+                .clear_messages()
+                .build()
+                .expect("message-free locale preserves unique declaration names"),
+        )
+        .expect("projection remains locale IR");
         assert!(matches!(
             message_dependency_closure(&missing, "en", "root"),
             Err(crate::TypeScriptCodegenError::MissingMessageImplementation { locale, message })

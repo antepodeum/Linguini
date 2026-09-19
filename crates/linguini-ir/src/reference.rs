@@ -1,6 +1,7 @@
 use crate::model::{
     IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFunction, IrFunctionBranch,
-    IrFunctionBranchValue, IrInlineFunctionInput, IrModule, IrText, IrTextPart, IrValue,
+    IrFunctionBranchValue, IrInlineFunctionInput, IrModule, IrText, IrTextPart, IrValue, LocaleIr,
+    SchemaIr,
 };
 use linguini_core::{is_plural_intrinsic, FormatterKind, TypeKind, PLURAL_TYPE_NAME};
 use linguini_syntax::Span;
@@ -63,6 +64,23 @@ impl<'a> ValidatedIr<'a> {
     }
 }
 
+/// Capability proving that a domain-typed schema and locale form a valid project IR pair.
+#[derive(Debug)]
+pub struct ValidatedProjectIr<'a> {
+    schema: &'a SchemaIr,
+    locale: &'a LocaleIr,
+}
+
+impl<'a> ValidatedProjectIr<'a> {
+    pub fn schema(&self) -> &'a SchemaIr {
+        self.schema
+    }
+
+    pub fn locale(&self) -> &'a LocaleIr {
+        self.locale
+    }
+}
+
 pub fn validate_ir<'a>(
     schema: &'a IrModule,
     locale: &'a IrModule,
@@ -84,10 +102,11 @@ pub fn validate_ir<'a>(
 }
 
 pub fn validate_typed_ir<'a>(
-    schema: &'a crate::SchemaIr,
-    locale: &'a crate::LocaleIr,
-) -> Result<ValidatedIr<'a>, Vec<IrReferenceError>> {
+    schema: &'a SchemaIr,
+    locale: &'a LocaleIr,
+) -> Result<ValidatedProjectIr<'a>, Vec<IrReferenceError>> {
     validate_ir(schema.as_module(), locale.as_module())
+        .map(|_| ValidatedProjectIr { schema, locale })
 }
 
 pub fn ensure_no_unresolved_references(

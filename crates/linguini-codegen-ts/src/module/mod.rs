@@ -26,9 +26,9 @@ use linguini_cldr::{
     locale_fallback_chain as cldr_locale_fallback_chain,
 };
 use linguini_ir::{
-    validate_ir, IrEnum, IrForm, IrFunction, IrGroup, IrMessage, IrModule, IrModuleBuilder,
-    IrOrigin, IrReferenceError, IrSymbolConflict, IrSymbolKind, IrTypeAlias, IrVariable,
-    ValidatedIr,
+    validate_ir, validate_typed_ir, IrEnum, IrForm, IrFunction, IrGroup, IrMessage, IrModule,
+    IrModuleBuilder, IrOrigin, IrReferenceError, IrSymbolConflict, IrSymbolKind, IrTypeAlias,
+    IrVariable, LocaleIr, SchemaIr, ValidatedIr,
 };
 
 use self::emit::{
@@ -67,7 +67,7 @@ impl Default for TypeScriptOptions {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptLocaleModule {
     pub locale: String,
-    pub module: IrModule,
+    pub module: LocaleIr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -548,25 +548,25 @@ impl std::error::Error for TypeScriptCodegenError {}
 /// fields prevent production callers from bypassing the IR validation boundary.
 #[derive(Debug)]
 pub struct ValidatedTypeScriptProject<'a> {
-    schema: &'a IrModule,
+    schema: &'a SchemaIr,
     locales: Vec<TypeScriptLocaleModule>,
     options: TypeScriptProjectOptions,
 }
 
 impl<'a> ValidatedTypeScriptProject<'a> {
     pub fn try_new(
-        schema: &'a IrModule,
+        schema: &'a SchemaIr,
         locales: &[TypeScriptLocaleModule],
         options: &TypeScriptProjectOptions,
     ) -> Result<Self, TypeScriptCodegenError> {
         validate_project_inputs(schema, locales, options)?;
 
-        let empty_locale = IrModule::default();
-        validate_codegen_ir(schema, &empty_locale, "schema")?;
+        let empty_locale = LocaleIr::default();
+        validate_typed_codegen_ir(schema, &empty_locale, "schema")?;
 
         let locales = fallback_locale_modules(locales, options.base_locale.as_deref());
         for locale in &locales {
-            validate_codegen_ir(
+            validate_typed_codegen_ir(
                 schema,
                 &locale.module,
                 format!("locale `{}`", locale.locale),
@@ -583,7 +583,7 @@ impl<'a> ValidatedTypeScriptProject<'a> {
                 },
             )
         } else {
-            schema.clone()
+            schema.as_module().clone()
         };
         for locale in &locales {
             for message in visible_schema.messages() {
@@ -861,7 +861,7 @@ pub fn generate_typescript_project_files(
             },
         )
     } else {
-        schema.clone()
+        schema.as_module().clone()
     };
     let mut files = vec![TypeScriptGeneratedFile {
         path: "shared.ts".to_owned(),
@@ -1518,6 +1518,16 @@ fn validate_codegen_ir<'a>(
     validate_ir(schema, locale).map_err(|errors| TypeScriptCodegenError::invalid_ir(scope, errors))
 }
 
+fn validate_typed_codegen_ir(
+    schema: &SchemaIr,
+    locale: &LocaleIr,
+    scope: impl Into<String>,
+) -> Result<(), TypeScriptCodegenError> {
+    validate_typed_ir(schema, locale)
+        .map(|_| ())
+        .map_err(|errors| TypeScriptCodegenError::invalid_ir(scope, errors))
+}
+
 fn project_locale_options(
     locale: &str,
     project_options: &TypeScriptProjectOptions,
@@ -1639,7 +1649,7 @@ fn fallback_locale_module(
     locales: &[TypeScriptLocaleModule],
     locale: &str,
     base_locale: Option<&str>,
-) -> IrModule {
+) -> LocaleIr {
     let mut chain = locale_fallback_chain(locales, locale, base_locale);
     chain.reverse();
 
@@ -1649,9 +1659,12 @@ fn fallback_locale_module(
             merged.absorb(&source.module);
         }
     }
-    merged
-        .into_module()
-        .expect("fallback chain composition preserves unique declaration names")
+    LocaleIr::try_from_module(
+        merged
+            .into_module()
+            .expect("fallback chain composition preserves unique declaration names"),
+    )
+    .expect("fallback composition emits only locale declaration kinds")
 }
 
 /// Accumulates locale-fallback precedence: the first chain entry supplying a
@@ -1832,7 +1845,7 @@ mod tests {
         top_level_namespaces, validate_project_inputs, visible_schema, TypeScriptCodegenError,
         TypeScriptLocaleModule, TypeScriptOptions, TypeScriptProjectOptions,
     };
-    use linguini_ir::{lower_locale, lower_schema, IrModule};
+    use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale, parse_schema};
 
     #[test]
@@ -1893,7 +1906,7 @@ mod tests {
         let schema = lower_schema(&parse_schema("top { empty {} }\n").expect("schema parses"));
         let locales = [TypeScriptLocaleModule {
             locale: "en".to_owned(),
-            module: IrModule::default(),
+            module: Default::default(),
         }];
         let options = TypeScriptProjectOptions {
             tree_shaking: true,

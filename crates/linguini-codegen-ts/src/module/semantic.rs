@@ -100,7 +100,7 @@ pub(super) fn semantic_artifacts(
                 },
             )
         } else {
-            project.schema.clone()
+            project.schema.as_module().clone()
         };
     let message_names = selected_messages
         .messages()
@@ -956,7 +956,7 @@ mod tests {
         compile_typescript_bundler_message_module, EcmaSource, TypeScriptLocaleModule,
         TypeScriptProjectOptions,
     };
-    use linguini_ir::{lower_locale, lower_schema};
+    use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale_in, parse_schema_in};
 
     fn project(schema: &str, locale: &str) -> ValidatedTypeScriptProject<'static> {

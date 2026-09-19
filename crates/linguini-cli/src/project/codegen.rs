@@ -19,7 +19,7 @@ use linguini_config::{
 };
 use linguini_ir::{
     ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, IrModule,
-    IrModuleBuilder, IrSymbolKind,
+    IrModuleBuilder, IrSymbolKind, LocaleIr, SchemaIr,
 };
 use linguini_syntax::SourceId;
 use sha2::{Digest, Sha256};
@@ -1152,7 +1152,7 @@ fn build_locale_ir(
     schema_files: &[ParsedSchemaSource],
     locale_index: &BTreeMap<(String, String), &ParsedLocaleSource>,
     locale: &str,
-) -> CliResult<IrModule> {
+) -> CliResult<LocaleIr> {
     let mut locale_ir = IrModule::default();
 
     for schema_file in schema_files {
@@ -1191,7 +1191,8 @@ fn build_locale_ir(
         }
     }
 
-    Ok(locale_ir)
+    LocaleIr::try_from_module(locale_ir)
+        .map_err(|error| CliError::Diagnostics(format!("invalid locale IR: {error}\n")))
 }
 
 fn project_locale_fallbacks<'a>(
@@ -1349,7 +1350,7 @@ fn relative_codegen_path(path: &str) -> CliResult<PathBuf> {
     Ok(path.to_path_buf())
 }
 
-fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> CliResult<IrModule> {
+fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> CliResult<SchemaIr> {
     let mut schema = IrModule::default();
     for file in schema_files {
         merge_module(
@@ -1357,7 +1358,8 @@ fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> CliResult<IrModule> {
             namespaced_module(lower_schema(&file.ast), &file.file.namespace),
         )?;
     }
-    Ok(schema)
+    SchemaIr::try_from_module(schema)
+        .map_err(|error| CliError::Diagnostics(format!("invalid schema IR: {error}\n")))
 }
 
 pub(super) fn namespaced_module(mut module: IrModule, namespace: &str) -> IrModule {

@@ -16,7 +16,7 @@ pub use model::{
 pub use namespace::qualify_module;
 pub use reference::{
     ensure_no_unresolved_references, validate_ir, validate_typed_ir, IrReferenceError,
-    IrRelatedError, ValidatedIr, BUILTIN_PLURAL,
+    IrRelatedError, ValidatedIr, ValidatedProjectIr, BUILTIN_PLURAL,
 };
 
 #[cfg(test)]
