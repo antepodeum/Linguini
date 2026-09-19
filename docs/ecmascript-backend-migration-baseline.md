@@ -1,0 +1,80 @@
+# ECMAScript backend migration baseline
+
+This inventory freezes the production ownership boundary before the remaining direct TypeScript
+assembly is replaced. Path families include every option-gated instance of that family. The
+migration must preserve these paths and contracts unless a separately reviewed public change says
+otherwise.
+
+## Generated artifact ownership
+
+| Stage | Implementation artifacts | Declaration companions |
+| --- | --- | --- |
+| Schema | `shared.ts`, `messages.ts` | `shared.d.ts`, `messages.d.ts` |
+| Locale runtime | `locales/<locale>/_runtime.ts` | none |
+| Locale semantics | optional `locales/<locale>/_globals.ts` | types are re-exported through locale declarations |
+| Locale messages | `locales/<locale>/<namespace>.ts`, `locales/<locale>.ts` | matching namespace and locale `.d.ts` files |
+| Project runtime | `locale.ts`, `index.ts` | `locale.d.ts`, `index.d.ts` |
+| Web leaves | optional `web.ts`, `web/{path,cookie,local-storage,accept-language,routes,link-transform,runtime-links,server-cookie,switch-route}.ts` | matching `.d.ts` files |
+| Svelte | optional `svelte-locale.svelte.ts`, `svelte-effects.svelte.ts`, `svelte-control.ts`, `svelte.ts` | matching `.d.ts` files |
+| SvelteKit | optional `sveltekit-control.ts`, `sveltekit.ts` | `sveltekit-control.d.ts`, ambient `linguini-app.d.ts` |
+| Bundler leaves | `bundler/messages/<encoded-message>/<encoded-locale>.ts`, `bundler/semantic/<locale>/<kind>/<encoded-name>.ts`, and one shared `locales/<locale>/_runtime.ts` | JavaScript/JSDoc compilation changes leaf extensions to `.js`; no separate declaration companion yet |
+| Metadata | optional `.gitignore`, `bundler/manifest.json`, `.linguini-generated-manifest` | none |
+
+## Import-edge baseline
+
+- `shared` and `messages` are schema roots. `messages` has one type-only edge to `shared`.
+- A locale runtime is self-contained. Locale globals import exact schema types/helpers from
+  `shared` and demand-selected formatter/plural helpers from their locale runtime.
+- Namespace modules import exact schema types/helpers from `shared`, exact runtime helpers from
+  `_runtime`, and exact global semantic bindings from `_globals`. Locale barrels additionally
+  import their namespace modules and export one default locale object.
+- `index` imports the base locale eagerly, owns finite loaders for the remaining locale barrels,
+  imports locale metadata from `locale`, and re-exports schema/message types.
+- Web source leaves are self-contained except for link/server/switch leaves, which import the
+  public web facade and, where required, Svelte locale/effect state. The web facade owns the
+  selected source/route edges only.
+- Svelte modules import project `locale`/`index` state plus only enabled web controls. SvelteKit
+  modules additionally import the selected `$app/*` and `@sveltejs/kit` capabilities.
+- A physical bundler message imports only its direct semantic leaves, exact shared types/helpers,
+  and exact locale-runtime helpers. A semantic leaf imports only its direct semantic dependencies,
+  exact shared types/helpers, and exact locale-runtime helpers. JavaScript leaves use `.js`
+  specifiers and omit type-only edges.
+
+## Paths, maps, and manifests
+
+- Project paths are validated for case-folded uniqueness and portable components before output.
+  Bundler message and semantic paths use deterministic encoded components and a 240-byte bound.
+- Every physical message and semantic leaf owns an adjacent `<module>.map`. Its trailer names the
+  map basename, its `sources`/`sourcesContent` come from ordered source records, and mappings point
+  at semantic source spans. Project/runtime modules currently have no maps; adding them is part of
+  the common-backend migration, not an existing contract to imitate.
+- `bundler/manifest.json` version 1 owns `base_locale`, `configured_locales`,
+  `effective_locales`, `sources`, and `messages`; bundler mode also owns `locale_loading`,
+  `applications`, `message_runtimes`, `message_semantics`, and `runtime_helpers`.
+- `.linguini-generated-manifest` is the atomic output ownership list. Migration stages may not
+  bypass its collision, stale-file cleanup, or rollback rules.
+
+## Public Rust boundary
+
+- `ValidatedTypeScriptProject::try_new` is the production validation gate.
+- `generate_typescript_project_files` owns project artifact enumeration.
+- `message_artifacts`, `semantic_artifacts`, and `locale_runtime_artifacts` own deterministic
+  bundler metadata.
+- The TypeScript and JavaScript message/semantic compile functions own exact leaf rendering.
+- `EcmaModule`, its import/statement/source records, `TypeModel`, and the TypeScript/JSDoc type
+  renderers are the common backend surface to extend; target-specific assembly must not create a
+  second production runtime.
+
+## Frozen evidence
+
+- Byte snapshots: `tests/fixtures/golden/snapshots/ts`, `ts-runtime`, and `js`.
+- Message/semantic JavaScript, JSDoc, dependency, and source-map fixtures:
+  `crates/linguini-codegen-ts/src/module/message.rs` and `semantic.rs` tests.
+- Runtime behavior: Rust project-codegen tests plus `crates/linguini-codegen-ts/tests/*.test.ts`.
+- Manifest, atomic output, and cleanup behavior: `crates/linguini-cli/src/tests.rs` and
+  `crates/linguini-cli/src/project/output.rs` tests.
+- Consumer integration: Vite plugin tests, real-site builds, npm launcher tests, and VSIX tests.
+
+Each migration stage updates this baseline only when it intentionally changes ownership. Otherwise
+the relevant snapshot, typecheck, executable runtime, source-map, manifest, and consumer checks
+must remain green before the displaced assembly code is deleted.

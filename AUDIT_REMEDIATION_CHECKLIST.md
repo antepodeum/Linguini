@@ -788,8 +788,8 @@ production path uses the fix and its relevant tests pass.
 - [x] ESM-A2 — Treat SvelteKit as the primary supported adapter for now; it is not the only one
       planned for the future.
 - [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
-      now uses the structured emitter, while the active project/runtime path still uses direct
-      TypeScript string assembly and must be migrated, not retained as a compatibility path.
+      and locale message/global module framing now use it. Schema, runtime, project, and web/Svelte
+      statement bodies still use direct TypeScript assembly and must move onto the same backend.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
@@ -815,10 +815,11 @@ order. During each stage, keep the old path only as a temporary parity oracle in
 that slice immediately after the structured output passes its gates. Do not leave runtime feature
 flags, fallback dispatch, duplicated templates, or two production emitters behind.
 
-- [ ] ESM-M1 — Freeze the migration baseline. Inventory every generated implementation,
+- [x] ESM-M1 — Freeze the migration baseline. Inventory every generated implementation,
       declaration, import edge, output path, manifest entry, source-map edge, and public Rust API;
       record byte snapshots plus semantic/runtime fixtures for TypeScript, JavaScript/JSDoc, and
-      `.d.ts` before changing ownership.
+      `.d.ts` before changing ownership. The canonical inventory and evidence map is recorded in
+      `docs/ecmascript-backend-migration-baseline.md`.
 - [ ] ESM-M2 — Finish the common module model. Give one backend model explicit target language,
       imports/re-exports, type-only declarations, value statements, documentation, source spans,
       output paths, declaration companions, and deterministic rendering. Make invalid mixed-target
@@ -852,7 +853,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       real-site production graph checks, native npm CLI tests, and native VSIX tests.
 - [ ] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
       templates, adapters, compatibility branches, tests that only exercise the removed path, and
-      misleading `legacy` terminology. Repository-wide absence checks must prove there is one
+      misleading compatibility-path terminology. Repository-wide absence checks must prove one
       production ECMAScript runtime implementation and one target renderer family.
 - [ ] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
@@ -1010,7 +1011,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 - [-] P2-1 — Shared ECMAScript backend and `TypeModel`. The backend-neutral public type model now
   drives message signatures, declarations, and runtime annotations and exposes TypeScript/JSDoc
   renderers. Exact message and semantic leaves select TypeScript or JavaScript through the same
-  structured emitter; legacy project/runtime string assembly still needs migration.
+  structured emitter; schema, runtime, project, and web/Svelte statement bodies still need the
+  same ownership transfer.
 - [x] P2-2 — End-to-end documentation propagation. Parser attachment survives schema/locale
   semantic lowering for every declaration kind and reaches exact runtime exports, recursive
   namespace properties, overloads, and `.d.ts` declarations through one safe JSDoc renderer.
