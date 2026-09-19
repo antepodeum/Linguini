@@ -98,12 +98,19 @@ surface. Current guarantees are:
   exposed.
 - `@date` accepts a valid `Date`, epoch-millisecond number, ISO `YYYY-MM-DD`, or
   ISO date-time string. Date-only and zone-less date-time input is interpreted
-  in UTC, and output is host-time-zone independent. The supported option is
-  `style = "full" | "long" | "medium" | "short"`. Rendering uses the pinned
-  Gregorian date patterns plus wide/abbreviated month and weekday names for
-  `y`, `M`/`L`, `d`, and `E`. Time fields, time zones, eras, flexible day
-  periods, calendars, contexts beyond the compiled symbols, and skeletons are
-  not implemented.
+  in UTC, and output is host-time-zone independent. `style` selects a CLDR date
+  width and `time_style` selects a CLDR time width; each accepts `"full"`,
+  `"long"`, `"medium"`, or `"short"`. Supplying only `time_style` emits only
+  the time, while supplying both combines them with the matching CLDR
+  date-time pattern. Rendering uses pinned Gregorian patterns plus
+  wide/abbreviated month and weekday names. Time fields are evaluated in UTC;
+  zone-bearing widths render the deterministic `UTC` marker. Localized day
+  periods, selectable time zones, non-Gregorian calendars, stand-alone symbol
+  contexts, and skeleton selection are not implemented.
+
+```lgl
+created_at = {created @date(style = "long", time_style = "short")}
+```
 
 Locale lookup first canonicalizes the BCP 47 tag, then walks the pinned CLDR
 component fallback chain. Generation fails when a used formatter has no

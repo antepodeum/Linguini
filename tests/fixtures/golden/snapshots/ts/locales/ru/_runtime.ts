@@ -1,6 +1,7 @@
 type GeneratedNumeric = number | bigint | string;
 type GeneratedCurrencyFormatterOptions = { code?: string; accounting?: "true" | "false" };
-type GeneratedDateFormatterOptions = { style?: "full" | "long" | "medium" | "short" };
+type GeneratedDateFormatterStyle = "full" | "long" | "medium" | "short";
+type GeneratedDateFormatterOptions = { style?: GeneratedDateFormatterStyle; time_style?: GeneratedDateFormatterStyle };
 
 export function formatNumber(value: GeneratedNumeric): string {
   return formatGeneratedNumber(value, "", "", undefined, undefined, 1, 0, 3, 3, undefined, ",", " ", "0123456789", 1, undefined, undefined, undefined, undefined, false, undefined, undefined, undefined);
@@ -30,16 +31,36 @@ export function formatDate(
   options: GeneratedDateFormatterOptions = {},
 ): string {
   const date = coerceDate(value);
-  switch (options.style ?? "medium") {
-    case "full":
-      return localizeGeneratedDigits(["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"][date.getUTCDay()] + ", " + String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".", "0123456789");
-    case "long":
-      return localizeGeneratedDigits(String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".", "0123456789");
-    case "short":
-      return localizeGeneratedDigits(padNumber(date.getUTCDate(), 2) + "." + padNumber(date.getUTCMonth() + 1, 2) + "." + String(date.getUTCFullYear()), "0123456789");
-    default:
-      return localizeGeneratedDigits(String(date.getUTCDate()) + " " + ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".", "0123456789");
+  let datePart: string | undefined;
+  if (options.style !== undefined || options.time_style === undefined) {
+    switch (options.style ?? "medium") {
+      case "full": datePart = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"][date.getUTCDay()] + ", " + String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + "."; break;
+      case "long": datePart = String(date.getUTCDate()) + " " + ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + "."; break;
+      case "short": datePart = padNumber(date.getUTCDate(), 2) + "." + padNumber(date.getUTCMonth() + 1, 2) + "." + String(date.getUTCFullYear()); break;
+      default: datePart = String(date.getUTCDate()) + " " + ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."][date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " " + "г" + ".";
+    }
   }
+  if (options.time_style === undefined) {
+    return localizeGeneratedDigits(datePart ?? "", "0123456789");
+  }
+  let timePart: string;
+  switch (options.time_style) {
+    case "full": timePart = padNumber(date.getUTCHours(), 2) + ":" + padNumber(date.getUTCMinutes(), 2) + ":" + padNumber(date.getUTCSeconds(), 2) + " " + "UTC"; break;
+    case "long": timePart = padNumber(date.getUTCHours(), 2) + ":" + padNumber(date.getUTCMinutes(), 2) + ":" + padNumber(date.getUTCSeconds(), 2) + " " + "UTC"; break;
+    case "short": timePart = padNumber(date.getUTCHours(), 2) + ":" + padNumber(date.getUTCMinutes(), 2); break;
+    default: timePart = padNumber(date.getUTCHours(), 2) + ":" + padNumber(date.getUTCMinutes(), 2) + ":" + padNumber(date.getUTCSeconds(), 2);
+  }
+  if (datePart === undefined) {
+    return localizeGeneratedDigits(timePart, "0123456789");
+  }
+  let combined: string;
+  switch (options.style ?? "medium") {
+    case "full": combined = datePart + ", " + timePart; break;
+    case "long": combined = datePart + ", " + timePart; break;
+    case "short": combined = datePart + ", " + timePart; break;
+    default: combined = datePart + ", " + timePart;
+  }
+  return localizeGeneratedDigits(combined, "0123456789");
 }
 
 type GeneratedDecimal = { negative: boolean; integer: string; fraction: string };

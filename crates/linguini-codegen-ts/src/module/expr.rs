@@ -619,7 +619,8 @@ pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequireme
     }
     if requirements.date {
         output.push_str(
-            "type GeneratedDateFormatterOptions = { style?: \"full\" | \"long\" | \"medium\" | \"short\" };\n",
+            "type GeneratedDateFormatterStyle = \"full\" | \"long\" | \"medium\" | \"short\";\n\
+             type GeneratedDateFormatterOptions = { style?: GeneratedDateFormatterStyle; time_style?: GeneratedDateFormatterStyle };\n",
         );
     }
     output.push('\n');
@@ -713,6 +714,18 @@ function currencySymbol(currency: string): string {{
 }
 
 fn generated_date_function(dates: &linguini_cldr::DateFormatData) -> String {
+    let date_full = date_pattern_expression(dates.date_formats.full, dates);
+    let date_long = date_pattern_expression(dates.date_formats.long, dates);
+    let date_medium = date_pattern_expression(dates.date_formats.medium, dates);
+    let date_short = date_pattern_expression(dates.date_formats.short, dates);
+    let time_full = date_pattern_expression(dates.time_formats.full, dates);
+    let time_long = date_pattern_expression(dates.time_formats.long, dates);
+    let time_medium = date_pattern_expression(dates.time_formats.medium, dates);
+    let time_short = date_pattern_expression(dates.time_formats.short, dates);
+    let combined_full = date_time_pattern_expression(dates.date_time_formats.full);
+    let combined_long = date_time_pattern_expression(dates.date_time_formats.long);
+    let combined_medium = date_time_pattern_expression(dates.date_time_formats.medium);
+    let combined_short = date_time_pattern_expression(dates.date_time_formats.short);
     format!(
         "\
 function formatDate(
@@ -720,26 +733,41 @@ function formatDate(
   options: GeneratedDateFormatterOptions = {{}},
 ): string {{
   const date = coerceDate(value);
-  switch (options.style ?? \"medium\") {{
-    case \"full\":
-      return localizeGeneratedDigits({}, {});
-    case \"long\":
-      return localizeGeneratedDigits({}, {});
-    case \"short\":
-      return localizeGeneratedDigits({}, {});
-    default:
-      return localizeGeneratedDigits({}, {});
+  let datePart: string | undefined;
+  if (options.style !== undefined || options.time_style === undefined) {{
+    switch (options.style ?? \"medium\") {{
+      case \"full\": datePart = {date_full}; break;
+      case \"long\": datePart = {date_long}; break;
+      case \"short\": datePart = {date_short}; break;
+      default: datePart = {date_medium};
+    }}
   }}
+  if (options.time_style === undefined) {{
+    return localizeGeneratedDigits(datePart ?? \"\", {});
+  }}
+  let timePart: string;
+  switch (options.time_style) {{
+    case \"full\": timePart = {time_full}; break;
+    case \"long\": timePart = {time_long}; break;
+    case \"short\": timePart = {time_short}; break;
+    default: timePart = {time_medium};
+  }}
+  if (datePart === undefined) {{
+    return localizeGeneratedDigits(timePart, {});
+  }}
+  let combined: string;
+  switch (options.style ?? \"medium\") {{
+    case \"full\": combined = {combined_full}; break;
+    case \"long\": combined = {combined_long}; break;
+    case \"short\": combined = {combined_short}; break;
+    default: combined = {combined_medium};
+  }}
+  return localizeGeneratedDigits(combined, {});
 }}
 
 ",
-        date_pattern_expression(dates.date_formats.full, dates),
         string_literal(dates.digits),
-        date_pattern_expression(dates.date_formats.long, dates),
         string_literal(dates.digits),
-        date_pattern_expression(dates.date_formats.short, dates),
-        string_literal(dates.digits),
-        date_pattern_expression(dates.date_formats.medium, dates),
         string_literal(dates.digits)
     )
 }
@@ -1202,7 +1230,7 @@ fn date_pattern_expression(pattern: &str, dates: &linguini_cldr::DateFormatData)
             }
             continue;
         }
-        if matches!(character, 'y' | 'M' | 'L' | 'd' | 'E') {
+        if is_date_pattern_field(character) {
             let mut width = 1;
             while chars.peek() == Some(&character) {
                 chars.next();
@@ -1213,7 +1241,7 @@ fn date_pattern_expression(pattern: &str, dates: &linguini_cldr::DateFormatData)
         }
         let mut literal = character.to_string();
         while let Some(next) = chars.peek().copied() {
-            if next == '\'' || matches!(next, 'y' | 'M' | 'L' | 'd' | 'E') {
+            if next == '\'' || is_date_pattern_field(next) {
                 break;
             }
             chars.next();
@@ -1222,6 +1250,34 @@ fn date_pattern_expression(pattern: &str, dates: &linguini_cldr::DateFormatData)
         parts.push(string_literal(&literal));
     }
     parts.join(" + ")
+}
+
+fn is_date_pattern_field(character: char) -> bool {
+    matches!(
+        character,
+        'G' | 'y'
+            | 'M'
+            | 'L'
+            | 'd'
+            | 'E'
+            | 'H'
+            | 'h'
+            | 'K'
+            | 'k'
+            | 'm'
+            | 's'
+            | 'S'
+            | 'a'
+            | 'b'
+            | 'B'
+            | 'z'
+            | 'Z'
+            | 'O'
+            | 'v'
+            | 'V'
+            | 'X'
+            | 'x'
+    )
 }
 
 fn date_field_expression(
@@ -1242,7 +1298,55 @@ fn date_field_expression(
         'd' => "String(date.getUTCDate())".to_owned(),
         'E' if width >= 4 => indexed_string_literal(&dates.weekdays.wide, "date.getUTCDay()"),
         'E' => indexed_string_literal(&dates.weekdays.abbreviated, "date.getUTCDay()"),
+        'H' if width == 2 => "padNumber(date.getUTCHours(), 2)".to_owned(),
+        'H' => "String(date.getUTCHours())".to_owned(),
+        'h' if width == 2 => "padNumber(date.getUTCHours() % 12 || 12, 2)".to_owned(),
+        'h' => "String(date.getUTCHours() % 12 || 12)".to_owned(),
+        'K' if width == 2 => "padNumber(date.getUTCHours() % 12, 2)".to_owned(),
+        'K' => "String(date.getUTCHours() % 12)".to_owned(),
+        'k' if width == 2 => "padNumber(date.getUTCHours() || 24, 2)".to_owned(),
+        'k' => "String(date.getUTCHours() || 24)".to_owned(),
+        'm' if width == 2 => "padNumber(date.getUTCMinutes(), 2)".to_owned(),
+        'm' => "String(date.getUTCMinutes())".to_owned(),
+        's' if width == 2 => "padNumber(date.getUTCSeconds(), 2)".to_owned(),
+        's' => "String(date.getUTCSeconds())".to_owned(),
+        'S' => format!(
+            "padNumber(date.getUTCMilliseconds(), 3).padEnd({width}, \"0\").slice(0, {width})"
+        ),
+        'a' | 'b' | 'B' => "date.getUTCHours() < 12 ? \"AM\" : \"PM\"".to_owned(),
+        'z' | 'Z' | 'O' | 'v' | 'V' | 'X' | 'x' => "\"UTC\"".to_owned(),
+        'G' => "date.getUTCFullYear() > 0 ? \"AD\" : \"BC\"".to_owned(),
         _ => "\"\"".to_owned(),
+    }
+}
+
+fn date_time_pattern_expression(pattern: &str) -> String {
+    let mut parts = Vec::new();
+    let mut remaining = pattern;
+    while !remaining.is_empty() {
+        let date = remaining.find("{1}");
+        let time = remaining.find("{0}");
+        let next = match (date, time) {
+            (Some(date), Some(time)) if date <= time => Some((date, "datePart", 3)),
+            (Some(_), Some(time)) => Some((time, "timePart", 3)),
+            (Some(date), None) => Some((date, "datePart", 3)),
+            (None, Some(time)) => Some((time, "timePart", 3)),
+            (None, None) => None,
+        };
+        let Some((index, expression, width)) = next else {
+            parts.push(string_literal(remaining));
+            break;
+        };
+        if index > 0 {
+            parts.push(string_literal(&remaining[..index]));
+        }
+        parts.push(expression.to_owned());
+        remaining = &remaining[index + width..];
+    }
+    if parts.is_empty() {
+        "datePart + timePart".to_owned()
+    } else {
+        parts.join(" + ")
     }
 }
 
@@ -1475,6 +1579,29 @@ mod tests {
                 "generated date pattern used host-local getter {local_getter}"
             );
         }
+    }
+
+    #[test]
+    fn generated_date_runtime_composes_cldr_date_and_time_widths() {
+        let dates = linguini_cldr::compiled_date_formatting("en").expect("English date data");
+        let emitted = formatter_data_declaration(
+            "en",
+            FormatterRequirements {
+                date: true,
+                ..FormatterRequirements::default()
+            },
+        );
+
+        assert!(emitted.contains("time_style?: GeneratedDateFormatterStyle"));
+        assert!(emitted.contains(&date_pattern_expression(dates.time_formats.short, &dates)));
+        assert!(emitted.contains("date.getUTCHours() % 12 || 12"));
+        assert!(emitted.contains("date.getUTCMinutes()"));
+        assert!(emitted.contains("date.getUTCSeconds()"));
+        assert!(emitted.contains("if (datePart === undefined)"));
+        assert!(emitted.contains("combined = datePart + \", \" + timePart"));
+        assert!(!emitted.contains("date.getHours()"));
+        assert!(!emitted.contains("date.getMinutes()"));
+        assert!(!emitted.contains("date.getSeconds()"));
     }
 
     #[test]

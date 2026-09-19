@@ -680,6 +680,26 @@ fn validated_ir_rejects_formatter_type_mismatch() {
 }
 
 #[test]
+fn validated_ir_accepts_date_time_styles_and_rejects_unknown_widths() {
+    let schema = lower_schema(&parse_schema("message(value: Date)\n").expect("schema parses"));
+    let valid = lower_locale(
+        &parse_locale("message = {value @date(style = \"long\", time_style = \"short\")}\n")
+            .expect("locale parses"),
+    );
+    validate_ir(&schema, &valid).expect("date and time styles are valid");
+
+    let invalid = lower_locale(
+        &parse_locale("message = {value @date(time_style = \"narrow\")}\n").expect("locale parses"),
+    );
+    let errors = validate_ir(&schema, &invalid).expect_err("unknown time width is invalid");
+    assert!(errors.iter().any(|error| {
+        error.code == "IR031"
+            && error.message
+                == "date formatter option `time_style` must be full, long, medium, or short"
+    }));
+}
+
+#[test]
 fn validated_ir_rejects_non_exhaustive_plural_dispatch() {
     let schema = lower_schema(&parse_schema("").expect("schema parses"));
     let locale = lower_locale(

@@ -28,6 +28,8 @@ editor boundaries to update this file, public documentation, and executable test
   block across runtime and declaration output. Typed backend tags are generated separately from
   canonical source prose.
 - Generated output is ESM-only. Remove `targets.ts.module` and CommonJS output assumptions.
+- `@date` now accepts the additive `time_style` option. Existing date-only output is unchanged;
+  regenerate output to use CLDR time widths or combined date-time patterns.
 - SvelteKit web policy uses nested `[web.*]` tables. Replace legacy flat routing, source, cookie,
   local-storage, link, exclusion, and switch-route fields with the mappings in
   [Web and SvelteKit](./web-sveltekit.md).

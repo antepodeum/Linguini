@@ -32,8 +32,9 @@ A schema file is a sequence of these declarations:
 
 Primitive types are exactly `String`, `Number`, `Decimal`, `Date`, and `Boolean`. `Plural` is a
 selector type produced from numeric values, not a host-language primitive. Formatter annotations
-are `@number`, `@currency(code = "AAA")`, and `@date(style = "full|long|medium|short")` with the
-type restrictions documented in the reference.
+are `@number`, `@currency(code = "AAA")`, and `@date(...)`. Date formatting accepts
+`style = "full|long|medium|short"` and/or `time_style = "full|long|medium|short"`, with the type
+restrictions documented in the reference.
 
 Sibling message and group names share one namespace. Duplicate declarations, duplicate enum
 variants, duplicate parameters, alias cycles, unknown types, and message/group collisions are

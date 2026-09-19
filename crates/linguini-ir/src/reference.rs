@@ -1736,7 +1736,7 @@ fn validate_formatters(
         let (allowed, expected_type): (&[&str], Option<&str>) = match &formatter.kind {
             FormatterKind::Number => (&[], Some("numeric")),
             FormatterKind::Currency => (&["code", "accounting"], Some("numeric")),
-            FormatterKind::Date => (&["style"], Some("Date")),
+            FormatterKind::Date => (&["style", "time_style"], Some("Date")),
             FormatterKind::Unknown(name) => {
                 errors.push(IrReferenceError::new(
                     "IR028",
@@ -1799,6 +1799,18 @@ fn validate_formatters(
                     errors.push(IrReferenceError::new(
                         "IR031",
                         "date formatter option `style` must be full, long, medium, or short",
+                        span,
+                    ));
+                }
+                ("date", "time_style")
+                    if !matches!(
+                        argument.value.as_str(),
+                        "full" | "long" | "medium" | "short"
+                    ) =>
+                {
+                    errors.push(IrReferenceError::new(
+                        "IR031",
+                        "date formatter option `time_style` must be full, long, medium, or short",
                         span,
                     ));
                 }
