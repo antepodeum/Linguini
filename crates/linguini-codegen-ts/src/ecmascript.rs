@@ -92,24 +92,20 @@ pub struct RenderedEcmaModule {
 }
 
 impl EcmaModule {
+    /// Renders one ESM module without attaching a source-map trailer.
+    ///
+    /// Project generators use this during the structured-backend migration; source-mapped
+    /// physical leaves call [`Self::render`] with their ordered source records.
+    pub fn render_code(&self) -> String {
+        let mut code = String::new();
+        render_module_body(self, &mut code, |_| {});
+        code
+    }
+
     pub fn render(&self, file_name: &str, sources: &[EcmaSource]) -> RenderedEcmaModule {
         let mut code = String::new();
-        for item in &self.imports {
-            render_import(item, &mut code);
-        }
-        if !self.imports.is_empty() && !self.statements.is_empty() {
-            code.push('\n');
-        }
-
         let mut mappings = Vec::new();
-        for statement in &self.statements {
-            let generated_line = code.bytes().filter(|byte| *byte == b'\n').count();
-            if let Some(span) = statement.source_span {
-                mappings.push((generated_line, span));
-            }
-            code.push_str(statement.code.trim_end_matches('\n'));
-            code.push('\n');
-        }
+        render_module_body(self, &mut code, |mapping| mappings.push(mapping));
 
         let map_name = format!("{file_name}.map");
         code.push_str("//# sourceMappingURL=");
@@ -120,6 +116,28 @@ impl EcmaModule {
             code,
             source_map: render_source_map(file_name, sources, &mappings),
         }
+    }
+}
+
+fn render_module_body(
+    module: &EcmaModule,
+    output: &mut String,
+    mut record_mapping: impl FnMut((usize, Span)),
+) {
+    for item in &module.imports {
+        render_import(item, output);
+    }
+    if !module.imports.is_empty() && !module.statements.is_empty() {
+        output.push('\n');
+    }
+
+    for statement in &module.statements {
+        let generated_line = output.bytes().filter(|byte| *byte == b'\n').count();
+        if let Some(span) = statement.source_span {
+            record_mapping((generated_line, span));
+        }
+        output.push_str(statement.code.trim_end_matches('\n'));
+        output.push('\n');
     }
 }
 
@@ -340,5 +358,24 @@ mod tests {
             .source_map
             .contains("/// Café\\nhello(name: String)\\n"));
         assert!(!rendered.source_map.contains("\"mappings\":\";;\""));
+    }
+
+    #[test]
+    fn renders_the_same_module_body_without_a_source_map_trailer() {
+        let module = EcmaModule {
+            imports: vec![EcmaImport::named(
+                "./runtime.js",
+                vec![EcmaNamedImport::new("format", "format")],
+            )],
+            statements: vec![EcmaStatement::generated(
+                "export const message = format(\"hello\");\n",
+            )],
+        };
+
+        assert_eq!(
+            module.render_code(),
+            "import { format } from \"./runtime.js\";\n\nexport const message = format(\"hello\");\n"
+        );
+        assert!(!module.render_code().contains("sourceMappingURL"));
     }
 }

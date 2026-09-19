@@ -1,7 +1,7 @@
 import type { Fruit, Size, Money, ShortDate } from "../../shared";
 import { selectBranch } from "../../shared";
-
 import { formatCurrency, formatDate, pluralRu } from "./_runtime";
+
 type Gender = "male" | "female" | "neuter" | "other";
 
 const cart_label = "В корзине";

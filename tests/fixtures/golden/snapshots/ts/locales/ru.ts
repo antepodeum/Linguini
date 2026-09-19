@@ -1,7 +1,6 @@
 import { email_input } from "./ru/email_input";
 import type { Fruit, Size, Money, ShortDate } from "../shared";
 import { normalizeMessageArgs } from "../shared";
-
 import { formatNumber, formatCurrency, formatDate } from "./ru/_runtime";
 import { cart_label, __lgl_form_4672756974, Delivered, SizeAdj, DeliveryNote } from "./ru/_globals";
 

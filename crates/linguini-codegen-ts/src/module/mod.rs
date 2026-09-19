@@ -43,9 +43,11 @@ use linguini_ir::{
     IrVariable, LocaleIr, SchemaIr, ValidatedIr,
 };
 
+use crate::ecmascript::{EcmaImport, EcmaModule, EcmaNamedImport, EcmaStatement};
+
 use self::emit::{
-    emit_forms, emit_imports, emit_local_functions, emit_locale_enum_types, emit_messages,
-    emit_schema_type_reexports, emit_variables,
+    emit_forms, emit_local_functions, emit_locale_enum_types, emit_messages,
+    emit_schema_type_reexports, emit_variables, module_imports,
 };
 use self::formatters::{formatter_requirements, plural_required};
 use self::names::{
@@ -1256,31 +1258,30 @@ fn generate_typescript_module_unchecked_with_locale(
     namespaces: &[String],
     global_import_path: Option<&str>,
 ) -> String {
-    let mut output = String::new();
+    let mut imports = Vec::new();
     for namespace in namespaces {
         let identifier = safe_identifier(namespace);
         let file_stem = safe_file_stem(namespace);
-        output.push_str(&format!(
-            "import {{ {} }} from \"./{}/{}\";\n",
-            identifier,
-            escape_string(&options.locale),
-            escape_string(&file_stem)
+        imports.push(EcmaImport::named(
+            format!("./{}/{}", options.locale, file_stem),
+            vec![EcmaNamedImport::new(&identifier, &identifier)],
         ));
     }
-    emit_imports(schema, locale, options, "../shared", &mut output);
-    emit_locale_runtime_imports(
+    imports.extend(module_imports(schema, locale, options, "../shared"));
+    if let Some(runtime_import) = locale_runtime_import(
         schema,
         locale,
         options,
-        &format!("./{}/_runtime", escape_string(&options.locale)),
-        &mut output,
-    );
+        &format!("./{}/_runtime", options.locale),
+    ) {
+        imports.push(runtime_import);
+    }
     if let Some(global_import_path) = global_import_path {
-        emit_locale_global_imports(import_locale, global_import_path, &mut output);
+        if let Some(global_import) = locale_global_import(import_locale, global_import_path) {
+            imports.push(global_import);
+        }
     }
-    if !namespaces.is_empty() {
-        output.push('\n');
-    }
+    let mut output = String::new();
     emit_schema_type_reexports(schema, "../shared", &mut output);
     emit_locale_enum_types(schema, locale, &mut output);
     for namespace in namespaces {
@@ -1291,7 +1292,7 @@ fn generate_typescript_module_unchecked_with_locale(
     emit_local_functions(locale, options, &mut output);
     let exports = emit_messages(schema, locale, options, &mut output);
     emit_locale_default(&exports, namespaces, &mut output);
-    output
+    render_project_module(imports, output)
 }
 
 #[cfg(test)]
@@ -1317,12 +1318,18 @@ fn generate_typescript_module_with_shared_import(
     let schema = ir.schema();
     let import_locale = ir.locale();
     let locale = locale_override.unwrap_or(import_locale);
-    let mut output = String::new();
-    emit_imports(schema, locale, options, shared_import_path, &mut output);
-    emit_locale_runtime_imports(schema, locale, options, runtime_import_path, &mut output);
-    if let Some(global_import_path) = global_import_path {
-        emit_locale_global_imports(import_locale, global_import_path, &mut output);
+    let mut imports = module_imports(schema, locale, options, shared_import_path);
+    if let Some(runtime_import) =
+        locale_runtime_import(schema, locale, options, runtime_import_path)
+    {
+        imports.push(runtime_import);
     }
+    if let Some(global_import_path) = global_import_path {
+        if let Some(global_import) = locale_global_import(import_locale, global_import_path) {
+            imports.push(global_import);
+        }
+    }
+    let mut output = String::new();
     emit_schema_type_reexports(schema, shared_import_path, &mut output);
     emit_locale_enum_types(schema, locale, &mut output);
     emit_variables(locale, options, &mut output);
@@ -1341,7 +1348,7 @@ fn generate_typescript_module_with_shared_import(
             output.push_str(&format!("\nexport const {identifier} = lgl;\n"));
         }
     }
-    output
+    render_project_module(imports, output)
 }
 
 fn generate_locale_runtime(
@@ -1388,21 +1395,13 @@ fn generate_locale_globals(
         .build()
         .expect("globals schema projection preserves unique declaration names");
     let globals = locale_globals(locale);
+    let mut imports = module_imports(&globals_schema, &globals, options, "../../shared");
+    if let Some(runtime_import) =
+        locale_runtime_import(&globals_schema, &globals, options, "./_runtime")
+    {
+        imports.push(runtime_import);
+    }
     let mut output = String::new();
-    emit_imports(
-        &globals_schema,
-        &globals,
-        options,
-        "../../shared",
-        &mut output,
-    );
-    emit_locale_runtime_imports(
-        &globals_schema,
-        &globals,
-        options,
-        "./_runtime",
-        &mut output,
-    );
     emit_locale_enum_types(&globals_schema, &globals, &mut output);
     emit_variables(&globals, options, &mut output);
     emit_forms(&globals, options, &mut output);
@@ -1433,18 +1432,20 @@ fn generate_locale_globals(
     if !value_names.is_empty() {
         output.push_str(&format!("export {{ {} }};\n", value_names.join(", ")));
     }
-    output
+    render_project_module(imports, output)
 }
 
-fn emit_locale_global_imports(locale: &IrModule, import_path: &str, output: &mut String) {
+fn locale_global_import(locale: &IrModule, import_path: &str) -> Option<EcmaImport> {
     let value_names = locale_global_value_names(locale);
-    if !value_names.is_empty() {
-        output.push_str(&format!(
-            "import {{ {} }} from \"{}\";\n",
-            value_names.join(", "),
-            escape_string(import_path)
-        ));
-    }
+    (!value_names.is_empty()).then(|| {
+        EcmaImport::named(
+            import_path,
+            value_names
+                .into_iter()
+                .map(|name| EcmaNamedImport::new(&name, &name))
+                .collect(),
+        )
+    })
 }
 
 fn locale_global_value_names(locale: &IrModule) -> Vec<String> {
@@ -1492,21 +1493,35 @@ fn locale_without_globals(locale: &IrModule) -> IrModule {
         .expect("message projection preserves unique declaration names")
 }
 
-fn emit_locale_runtime_imports(
+fn locale_runtime_import(
     schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,
     runtime_import_path: &str,
-    output: &mut String,
-) {
+) -> Option<EcmaImport> {
     let helpers = runtime_helper_names(schema, locale, options);
-    if !helpers.is_empty() {
-        output.push_str(&format!(
-            "import {{ {} }} from \"{}\";\n",
-            helpers.join(", "),
-            escape_string(runtime_import_path)
-        ));
+    (!helpers.is_empty()).then(|| {
+        EcmaImport::named(
+            runtime_import_path,
+            helpers
+                .into_iter()
+                .map(|name| EcmaNamedImport::new(&name, &name))
+                .collect(),
+        )
+    })
+}
+
+fn render_project_module(imports: Vec<EcmaImport>, body: String) -> String {
+    let statements = if body.trim().is_empty() {
+        Vec::new()
+    } else {
+        vec![EcmaStatement::generated(body)]
+    };
+    EcmaModule {
+        imports,
+        statements,
     }
+    .render_code()
 }
 
 fn runtime_helper_names(

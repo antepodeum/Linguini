@@ -3,6 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use linguini_core::TypeKind;
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFunction, IrMessage, IrModule};
 
+use crate::ecmascript::{EcmaImport, EcmaImportBindings, EcmaNamedImport};
+
 use super::expr::{
     form_object_for_target, formatter_data_declaration, function_dispatch_expression_for_target,
     text_expression_for_target, text_expression_with_context_for_target,
@@ -23,20 +25,24 @@ pub struct ModuleExports {
     pub groups: Vec<String>,
 }
 
-pub fn emit_imports(
+pub fn module_imports(
     schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,
     shared_import_path: &str,
-    output: &mut String,
-) {
+) -> Vec<EcmaImport> {
+    let mut imports = Vec::new();
     let type_names = schema_type_names(schema);
     if !type_names.is_empty() {
-        output.push_str(&format!(
-            "import type {{ {} }} from \"{}\";\n",
-            type_names.join(", "),
-            shared_import_path
-        ));
+        imports.push(EcmaImport {
+            specifier: shared_import_path.to_owned(),
+            bindings: EcmaImportBindings::TypeNamed(
+                type_names
+                    .into_iter()
+                    .map(|name| EcmaNamedImport::new(&name, &name))
+                    .collect(),
+            ),
+        });
     }
 
     let uses_forms = !locale.forms().is_empty();
@@ -53,29 +59,26 @@ pub fn emit_imports(
         shared_helpers.push("normalizeMessageArgs");
     }
     if !shared_helpers.is_empty() {
-        output.push_str(&format!(
-            "import {{ {} }} from \"{shared_import_path}\";\n",
-            shared_helpers.join(", ")
+        imports.push(EcmaImport::named(
+            shared_import_path,
+            shared_helpers
+                .into_iter()
+                .map(|name| EcmaNamedImport::new(name, name))
+                .collect(),
         ));
     }
-    if uses_forms || uses_dispatch {
-        if options.plural_source.is_none() {
-            if let Some(path) = &options.plural_import {
-                output.push_str(&format!(
-                    "import {{ {} }} from \"{}\";\n\n",
-                    options.plural_function,
-                    escape_string(path)
-                ));
-            } else {
-                output.push('\n');
-            }
-        } else {
-            output.push('\n');
+    if (uses_forms || uses_dispatch) && options.plural_source.is_none() {
+        if let Some(path) = &options.plural_import {
+            imports.push(EcmaImport::named(
+                path,
+                vec![EcmaNamedImport::new(
+                    &options.plural_function,
+                    &options.plural_function,
+                )],
+            ));
         }
     }
-    if (!type_names.is_empty() || !shared_helpers.is_empty()) && !uses_forms && !uses_dispatch {
-        output.push('\n');
-    }
+    imports
 }
 
 pub fn emit_schema_type_reexports(
