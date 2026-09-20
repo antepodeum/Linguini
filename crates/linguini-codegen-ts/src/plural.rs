@@ -1,10 +1,28 @@
 use linguini_cldr::{Operand, PluralRule, PluralRules, RelationOperator};
 
+use crate::ecmascript::EcmaScriptTarget;
+
 pub fn generate_plural_function(function_name: &str, rules: &PluralRules) -> String {
+    generate_plural_function_for_target(function_name, rules, EcmaScriptTarget::TypeScript, true)
+}
+
+pub(crate) fn generate_plural_function_for_target(
+    function_name: &str,
+    rules: &PluralRules,
+    target: EcmaScriptTarget,
+    exported: bool,
+) -> String {
     let mut output = String::new();
-    output.push_str(&format!(
-        "export function {function_name}(value: number | bigint | string): string {{\n"
-    ));
+    match target {
+        EcmaScriptTarget::TypeScript => output.push_str(&format!(
+            "{}function {function_name}(value: number | bigint | string): string {{\n",
+            if exported { "export " } else { "" }
+        )),
+        EcmaScriptTarget::JavaScript => output.push_str(&format!(
+            "/**\n * @param {{number | bigint | string}} value\n * @returns {{string}}\n */\n{}function {function_name}(value) {{\n",
+            if exported { "export " } else { "" }
+        )),
+    }
     output.push_str(
         "  if (value === \"zero\" || value === \"one\" || value === \"two\" || value === \"few\" || value === \"many\" || value === \"other\") return value;\n",
     );
@@ -24,7 +42,10 @@ pub fn generate_plural_function(function_name: &str, rules: &PluralRules) -> Str
 
     output.push_str("  return \"other\";\n");
     output.push_str("}\n\n");
-    output.push_str(PLURAL_OPERANDS_HELPER);
+    output.push_str(match target {
+        EcmaScriptTarget::TypeScript => PLURAL_OPERANDS_TYPESCRIPT_HELPER,
+        EcmaScriptTarget::JavaScript => PLURAL_OPERANDS_JAVASCRIPT_HELPER,
+    });
     output
 }
 
@@ -96,11 +117,15 @@ fn operand_expression(operand: Operand) -> String {
     .to_owned()
 }
 
-const PLURAL_OPERANDS_HELPER: &str = include_str!("templates/plural-operands.runtime.ts");
+const PLURAL_OPERANDS_TYPESCRIPT_HELPER: &str =
+    include_str!("templates/plural-operands.runtime.ts");
+const PLURAL_OPERANDS_JAVASCRIPT_HELPER: &str =
+    include_str!("templates/plural-operands.runtime.js");
 
 #[cfg(test)]
 mod tests {
-    use super::generate_plural_function;
+    use super::{generate_plural_function, generate_plural_function_for_target};
+    use crate::ecmascript::EcmaScriptTarget;
     use linguini_cldr::built_in_plural_rules;
     use std::io::Write;
     use std::path::Path;
@@ -119,6 +144,27 @@ mod tests {
         assert_eq!(
             output,
             std::fs::read_to_string(snapshot).expect("read plural snapshot")
+        );
+    }
+
+    #[test]
+    fn generated_javascript_plural_function_snapshot_is_stable() {
+        let rules = built_in_plural_rules("ru").expect("rules");
+        let output = generate_plural_function_for_target(
+            "pluralRu",
+            &rules,
+            EcmaScriptTarget::JavaScript,
+            true,
+        );
+        let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/golden/snapshots/codegen-js-plural-ru.js");
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            std::fs::write(&snapshot, &output).expect("write JavaScript plural snapshot");
+        }
+
+        assert_eq!(
+            output,
+            std::fs::read_to_string(snapshot).expect("read JavaScript plural snapshot")
         );
     }
 
@@ -177,7 +223,12 @@ mod tests {
             );
         }
 
-        let generated = erase_types_for_node(generate_plural_function("pluralFr", &rules));
+        let generated = generate_plural_function_for_target(
+            "pluralFr",
+            &rules,
+            EcmaScriptTarget::JavaScript,
+            true,
+        );
         let malformed = malformed
             .iter()
             .map(|sample| format!("{sample:?}"))
@@ -252,38 +303,5 @@ for (const value of [NaN, Infinity, -Infinity]) {{
             "generated plural runtime failed:\n{}",
             String::from_utf8_lossy(&output.stderr)
         );
-    }
-
-    fn erase_types_for_node(mut source: String) -> String {
-        let replacements = [
-            (
-                "export function pluralFr(value: number | bigint | string): string",
-                "export function pluralFr(value)",
-            ),
-            (
-                "type PluralOperand = { integer: bigint; hasFraction: boolean };\n",
-                "",
-            ),
-            (
-                "function pluralOperands(value: number | bigint | string)",
-                "function pluralOperands(value)",
-            ),
-            ("let integer: string;", "let integer;"),
-            ("let fraction: string;", "let fraction;"),
-            (
-                "const operand = (digits: string, hasFraction = false): PluralOperand =>",
-                "const operand = (digits, hasFraction = false) =>",
-            ),
-            (
-                "function pluralOperandMatches(\n  value: PluralOperand,\n  modulo: bigint | undefined,\n  allowFraction: boolean,\n  ranges: readonly (readonly [bigint, bigint])[],\n): boolean",
-                "function pluralOperandMatches(\n  value,\n  modulo,\n  allowFraction,\n  ranges,\n)",
-            ),
-            ("function throwInvalidPluralNumber(): never", "function throwInvalidPluralNumber()"),
-        ];
-        for (typed, plain) in replacements {
-            assert!(source.contains(typed), "generated TypeScript shape changed");
-            source = source.replace(typed, plain);
-        }
-        source
     }
 }

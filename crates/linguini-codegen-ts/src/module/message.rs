@@ -519,7 +519,7 @@ fn emit_message_module(
     }
     if uses_plural && runtime_import_path.is_none() {
         let mut plural_helpers = String::new();
-        emit::emit_plural_helpers(options, &mut plural_helpers);
+        emit::emit_plural_helpers(options, target, &mut plural_helpers);
         push_statement(&mut module, plural_helpers, None);
     }
     for (code, span) in statements {

@@ -45,14 +45,14 @@ use self::names::{
     safe_identifier,
 };
 use self::shared::generate_shared_module;
-use super::plural::generate_plural_function;
+use super::plural::generate_plural_function_for_target;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptOptions {
     pub locale: String,
     pub plural_function: String,
     pub plural_import: Option<String>,
-    pub plural_source: Option<String>,
+    pub plural_rules: Option<linguini_cldr::PluralRules>,
     pub included_messages: Vec<String>,
 }
 
@@ -62,7 +62,7 @@ impl Default for TypeScriptOptions {
             locale: "ru".to_owned(),
             plural_function: "plural".to_owned(),
             plural_import: Some("./plurals".to_owned()),
-            plural_source: None,
+            plural_rules: None,
             included_messages: Vec::new(),
         }
     }
@@ -1453,14 +1453,20 @@ fn generate_locale_runtime(
         ));
     }
     if plural_required(schema, locale) {
-        let source = options
-            .plural_source
-            .as_deref()
-            .expect("project locale options always include plural source");
+        let rules = options
+            .plural_rules
+            .as_ref()
+            .expect("project locale options always include plural rules");
+        let source = generate_plural_function_for_target(
+            &options.plural_function,
+            rules,
+            EcmaScriptTarget::TypeScript,
+            true,
+        );
         module.push_statement(EcmaStatement::generated(if requirements.any() {
             format!("\n\n{source}")
         } else {
-            source.to_owned()
+            source
         }));
     }
     module.render_code()
@@ -1665,7 +1671,7 @@ fn project_locale_options(
         locale: locale.to_owned(),
         plural_function: plural_function.clone(),
         plural_import: None,
-        plural_source: Some(generate_plural_function(&plural_function, &plural_rules)),
+        plural_rules: Some(plural_rules),
         included_messages: if project_options.tree_shaking {
             project_options.included_messages.clone()
         } else {

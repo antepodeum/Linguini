@@ -21,6 +21,10 @@ editor boundaries to update this file, public documentation, and executable test
 - Codegen integrations can use `generate_javascript_schema_files` for the schema-owned checked
   JavaScript/JSDoc runtime and its declaration companions. The returned `EcmaGeneratedFile` is the
   common record also exposed as the existing `TypeScriptGeneratedFile` alias.
+- Rust codegen integrations constructing `TypeScriptOptions` must replace `plural_source` with
+  `plural_rules`. Pass canonical `linguini_cldr::PluralRules` for an embedded implementation, or
+  leave it unset and provide `plural_import`; codegen now renders target-safe local and exported
+  functions itself instead of rewriting caller-provided TypeScript text.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

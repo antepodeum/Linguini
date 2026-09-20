@@ -4,6 +4,7 @@ use linguini_core::TypeKind;
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFunction, IrMessage, IrModule};
 
 use crate::ecmascript::{EcmaImport, EcmaImportBindings, EcmaNamedImport};
+use crate::plural::generate_plural_function_for_target;
 
 use super::expr::{
     form_object_for_target, formatter_data_declaration, function_dispatch_expression_for_target,
@@ -67,7 +68,7 @@ pub fn module_imports(
                 .collect(),
         ));
     }
-    if (uses_forms || uses_dispatch) && options.plural_source.is_none() {
+    if (uses_forms || uses_dispatch) && options.plural_rules.is_none() {
         if let Some(path) = &options.plural_import {
             imports.push(EcmaImport::named(
                 path,
@@ -146,13 +147,14 @@ pub fn schema_type_aliases(schema: &IrModule) -> Vec<(String, String)> {
         .collect()
 }
 
-pub fn emit_plural_helpers(options: &TypeScriptOptions, output: &mut String) {
-    if let Some(source) = &options.plural_source {
-        let source = source.replacen(
-            &format!("export function {}", options.plural_function),
-            &format!("function {}", options.plural_function),
-            1,
-        );
+pub fn emit_plural_helpers(
+    options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
+    output: &mut String,
+) {
+    if let Some(rules) = &options.plural_rules {
+        let source =
+            generate_plural_function_for_target(&options.plural_function, rules, target, false);
         output.push_str(source.trim_end());
         output.push_str("\n\n");
     }

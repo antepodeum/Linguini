@@ -16,6 +16,11 @@ Rust codegen integrations can call `generate_javascript_schema_files` to obtain 
 declaration companions. `EcmaGeneratedFile` is the language-neutral generated-file record;
 `TypeScriptGeneratedFile` remains its TypeScript-facing alias.
 
+Custom Rust codegen callers configure an embedded plural implementation through
+`TypeScriptOptions::plural_rules`. The backend renders those canonical rules directly for the
+selected ECMAScript target and export scope; callers use `plural_import` only when the plural
+function is supplied by another module.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.
