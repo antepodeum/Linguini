@@ -611,32 +611,51 @@ fn formatter_options(formatter: &IrFormatter) -> String {
 }
 
 pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequirements) -> String {
-    formatter_data_declaration_with_exports(locale, requirements, false)
+    formatter_data_declaration_for_target(locale, requirements, EcmaScriptTarget::TypeScript, false)
 }
 
 pub fn exported_formatter_data_declaration(
     locale: &str,
     requirements: FormatterRequirements,
 ) -> String {
-    formatter_data_declaration_with_exports(locale, requirements, true)
+    formatter_data_declaration_for_target(locale, requirements, EcmaScriptTarget::TypeScript, true)
 }
 
-fn formatter_data_declaration_with_exports(
+pub(super) fn formatter_data_declaration_for_target(
     locale: &str,
     requirements: FormatterRequirements,
+    target: EcmaScriptTarget,
     export_helpers: bool,
 ) -> String {
-    let mut output = "type GeneratedNumeric = number | bigint | string;\n".to_owned();
+    let mut output = match target {
+        EcmaScriptTarget::TypeScript => {
+            "type GeneratedNumeric = number | bigint | string;\n".to_owned()
+        }
+        EcmaScriptTarget::JavaScript => {
+            "/** @typedef {number | bigint | string} GeneratedNumeric */\n".to_owned()
+        }
+    };
     if requirements.currency {
-        output.push_str(
-            "type GeneratedCurrencyFormatterOptions = { code?: string; accounting?: \"true\" | \"false\" };\n",
-        );
+        output.push_str(match target {
+            EcmaScriptTarget::TypeScript => {
+                "type GeneratedCurrencyFormatterOptions = { code?: string; accounting?: \"true\" | \"false\" };\n"
+            }
+            EcmaScriptTarget::JavaScript => {
+                "/** @typedef {{ code?: string, accounting?: \"true\" | \"false\" }} GeneratedCurrencyFormatterOptions */\n"
+            }
+        });
     }
     if requirements.date {
-        output.push_str(
-            "type GeneratedDateFormatterStyle = \"full\" | \"long\" | \"medium\" | \"short\";\n\
-             type GeneratedDateFormatterOptions = { style?: GeneratedDateFormatterStyle; time_style?: GeneratedDateFormatterStyle };\n",
-        );
+        output.push_str(match target {
+            EcmaScriptTarget::TypeScript => {
+                "type GeneratedDateFormatterStyle = \"full\" | \"long\" | \"medium\" | \"short\";\n\
+                 type GeneratedDateFormatterOptions = { style?: GeneratedDateFormatterStyle; time_style?: GeneratedDateFormatterStyle };\n"
+            }
+            EcmaScriptTarget::JavaScript => {
+                "/** @typedef {\"full\" | \"long\" | \"medium\" | \"short\"} GeneratedDateFormatterStyle */\n\
+                 /** @typedef {{ style?: GeneratedDateFormatterStyle, time_style?: GeneratedDateFormatterStyle }} GeneratedDateFormatterOptions */\n"
+            }
+        });
     }
     output.push('\n');
 
@@ -649,6 +668,7 @@ fn formatter_data_declaration_with_exports(
             numbers
                 .as_ref()
                 .expect("number formatter requires number data"),
+            target,
             export_helpers,
         ));
     }
@@ -661,38 +681,49 @@ fn formatter_data_declaration_with_exports(
                 .as_ref()
                 .expect("currency formatter requires number data"),
             &currency,
+            target,
             export_helpers,
         ));
     }
     if requirements.date {
         let dates = compiled_date_formatting(locale)
             .expect("validated locale must have required CLDR date formatting data");
-        output.push_str(&generated_date_function(&dates, export_helpers));
+        output.push_str(&generated_date_function(&dates, target, export_helpers));
     }
     if requirements.needs_number_data() {
-        output.push_str(number_formatter_helpers());
+        output.push_str(number_formatter_helpers(target));
     }
     if requirements.date {
-        output.push_str(date_formatter_helpers());
+        output.push_str(date_formatter_helpers(target));
     }
     if requirements.any() {
-        output.push_str(digit_formatter_helper());
+        output.push_str(digit_formatter_helper(target));
     }
     output
 }
 
-fn generated_number_function(numbers: &linguini_cldr::NumberFormatData, exported: bool) -> String {
+fn generated_number_function(
+    numbers: &linguini_cldr::NumberFormatData,
+    target: EcmaScriptTarget,
+    exported: bool,
+) -> String {
     let export = if exported { "export " } else { "" };
-    format!(
-        "{export}function formatNumber(value: GeneratedNumeric): string {{\n  return formatGeneratedNumber(value, {});\n}}\n\n",
-        number_pattern_args(&numbers.decimal_pattern, None, numbers)
-    )
+    let arguments = number_pattern_args(&numbers.decimal_pattern, None, numbers);
+    match target {
+        EcmaScriptTarget::TypeScript => format!(
+            "{export}function formatNumber(value: GeneratedNumeric): string {{\n  return formatGeneratedNumber(value, {arguments});\n}}\n\n"
+        ),
+        EcmaScriptTarget::JavaScript => format!(
+            "/**\n * @param {{GeneratedNumeric}} value\n * @returns {{string}}\n */\n{export}function formatNumber(value) {{\n  return formatGeneratedNumber(value, {arguments});\n}}\n\n"
+        ),
+    }
 }
 
 fn generated_currency_function(
     locale: &str,
     numbers: &linguini_cldr::NumberFormatData,
     currency: &linguini_cldr::CurrencyFormatData,
+    target: EcmaScriptTarget,
     exported: bool,
 ) -> String {
     let export = if exported { "export " } else { "" };
@@ -705,8 +736,9 @@ fn generated_currency_function(
         Some("symbol"),
         numbers,
     );
-    format!(
-        "\
+    let body = match target {
+        EcmaScriptTarget::TypeScript => format!(
+            "\
 {export}function formatCurrency(
   value: GeneratedNumeric,
   fractionDigits: number,
@@ -727,13 +759,56 @@ function currencySymbol(currency: string): string {{
 }}
 
 ",
-        accounting,
-        standard,
-        string_literal(locale)
-    )
+            accounting,
+            standard,
+            string_literal(locale)
+        ),
+        EcmaScriptTarget::JavaScript => format!(
+            "\
+/**
+ * @param {{GeneratedNumeric}} value
+ * @param {{number}} fractionDigits
+ * @param {{number}} roundingIncrement
+ * @param {{GeneratedCurrencyFormatterOptions}} [options]
+ * @returns {{string}}
+ */
+{export}function formatCurrency(
+  value,
+  fractionDigits,
+  roundingIncrement,
+  options = {{}},
+) {{
+  const symbol = currencySymbol(options.code ?? \"USD\");
+  if (options.accounting === \"true\") {{
+    return formatGeneratedNumber(value, {}, fractionDigits, fractionDigits, roundingIncrement);
+  }}
+  return formatGeneratedNumber(value, {}, fractionDigits, fractionDigits, roundingIncrement);
+}}
+
+/**
+ * @param {{string}} currency
+ * @returns {{string}}
+ */
+function currencySymbol(currency) {{
+  return new Intl.NumberFormat({}, {{ style: \"currency\", currency }})
+    .formatToParts(0)
+    .find((part) => part.type === \"currency\")?.value ?? currency;
+}}
+
+",
+            accounting,
+            standard,
+            string_literal(locale)
+        ),
+    };
+    body
 }
 
-fn generated_date_function(dates: &linguini_cldr::DateFormatData, exported: bool) -> String {
+fn generated_date_function(
+    dates: &linguini_cldr::DateFormatData,
+    target: EcmaScriptTarget,
+    exported: bool,
+) -> String {
     let export = if exported { "export " } else { "" };
     let date_full = date_pattern_expression(dates.date_formats.full, dates);
     let date_long = date_pattern_expression(dates.date_formats.long, dates);
@@ -747,14 +822,31 @@ fn generated_date_function(dates: &linguini_cldr::DateFormatData, exported: bool
     let combined_long = date_time_pattern_expression(dates.date_time_formats.long);
     let combined_medium = date_time_pattern_expression(dates.date_time_formats.medium);
     let combined_short = date_time_pattern_expression(dates.date_time_formats.short);
+    let function_head = match target {
+        EcmaScriptTarget::TypeScript => format!(
+            "{export}function formatDate(\n  value: Date | number | string,\n  options: GeneratedDateFormatterOptions = {{}},\n): string {{"
+        ),
+        EcmaScriptTarget::JavaScript => format!(
+            "/**\n * @param {{Date | number | string}} value\n * @param {{GeneratedDateFormatterOptions}} [options]\n * @returns {{string}}\n */\n{export}function formatDate(\n  value,\n  options = {{}},\n) {{"
+        ),
+    };
+    let date_part_declaration = match target {
+        EcmaScriptTarget::TypeScript => "  let datePart: string | undefined;",
+        EcmaScriptTarget::JavaScript => "  /** @type {string | undefined} */\n  let datePart;",
+    };
+    let time_part_declaration = match target {
+        EcmaScriptTarget::TypeScript => "  let timePart: string;",
+        EcmaScriptTarget::JavaScript => "  /** @type {string} */\n  let timePart;",
+    };
+    let combined_declaration = match target {
+        EcmaScriptTarget::TypeScript => "  let combined: string;",
+        EcmaScriptTarget::JavaScript => "  /** @type {string} */\n  let combined;",
+    };
     format!(
         "\
-{export}function formatDate(
-  value: Date | number | string,
-  options: GeneratedDateFormatterOptions = {{}},
-): string {{
+{function_head}
   const date = coerceDate(value);
-  let datePart: string | undefined;
+{date_part_declaration}
   if (options.style !== undefined || options.time_style === undefined) {{
     switch (options.style ?? \"medium\") {{
       case \"full\": datePart = {date_full}; break;
@@ -766,7 +858,7 @@ fn generated_date_function(dates: &linguini_cldr::DateFormatData, exported: bool
   if (options.time_style === undefined) {{
     return localizeGeneratedDigits(datePart ?? \"\", {});
   }}
-  let timePart: string;
+{time_part_declaration}
   switch (options.time_style) {{
     case \"full\": timePart = {time_full}; break;
     case \"long\": timePart = {time_long}; break;
@@ -776,7 +868,7 @@ fn generated_date_function(dates: &linguini_cldr::DateFormatData, exported: bool
   if (datePart === undefined) {{
     return localizeGeneratedDigits(timePart, {});
   }}
-  let combined: string;
+{combined_declaration}
   switch (options.style ?? \"medium\") {{
     case \"full\": combined = {combined_full}; break;
     case \"long\": combined = {combined_long}; break;
@@ -793,8 +885,10 @@ fn generated_date_function(dates: &linguini_cldr::DateFormatData, exported: bool
     )
 }
 
-fn number_formatter_helpers() -> &'static str {
-    r#"type GeneratedDecimal = { negative: boolean; integer: string; fraction: string };
+fn number_formatter_helpers(target: EcmaScriptTarget) -> &'static str {
+    match target {
+        EcmaScriptTarget::TypeScript => {
+            r#"type GeneratedDecimal = { negative: boolean; integer: string; fraction: string };
 const MAX_GENERATED_DECIMAL_DIGITS = 8192;
 
 function formatGeneratedNumber(
@@ -1096,10 +1190,15 @@ function throwInvalidNumber(): never {
 }
 
 "#
+        }
+        EcmaScriptTarget::JavaScript => include_str!("../templates/format-number.runtime.js"),
+    }
 }
 
-fn digit_formatter_helper() -> &'static str {
-    r#"function localizeGeneratedDigits(value: string, digits: string): string {
+fn digit_formatter_helper(target: EcmaScriptTarget) -> &'static str {
+    match target {
+        EcmaScriptTarget::TypeScript => {
+            r#"function localizeGeneratedDigits(value: string, digits: string): string {
   if (digits === "0123456789") return value;
   const symbols = Array.from(digits);
   if (symbols.length !== 10) throw new RangeError("Linguini: invalid numbering system");
@@ -1107,10 +1206,15 @@ fn digit_formatter_helper() -> &'static str {
 }
 
 "#
+        }
+        EcmaScriptTarget::JavaScript => include_str!("../templates/format-digits.runtime.js"),
+    }
 }
 
-fn date_formatter_helpers() -> &'static str {
-    r#"function padNumber(value: number, length: number): string {
+fn date_formatter_helpers(target: EcmaScriptTarget) -> &'static str {
+    match target {
+        EcmaScriptTarget::TypeScript => {
+            r#"function padNumber(value: number, length: number): string {
   return String(value).padStart(length, "0");
 }
 
@@ -1161,6 +1265,9 @@ function throwInvalidDate(): never {
 }
 
 "#
+        }
+        EcmaScriptTarget::JavaScript => include_str!("../templates/format-date.runtime.js"),
+    }
 }
 
 fn number_pattern_args(
@@ -1386,7 +1493,8 @@ fn indexed_string_literal(values: &[&str], index: &str) -> String {
 mod tests {
     use super::{
         date_pattern_expression, expression_value, form_object, formatter_data_declaration,
-        number_pattern_args, FormatterRequirements, TypeScriptOptions,
+        formatter_data_declaration_for_target, number_pattern_args, EcmaScriptTarget,
+        FormatterRequirements, TypeScriptOptions,
     };
     use linguini_cldr::{
         NumberFormatData, NumberPadding, NumberPaddingPosition, NumberPattern, NumberPatternPart,
@@ -1394,6 +1502,7 @@ mod tests {
     use linguini_ir::{lower_locale, IrExpression, IrExpressionKind};
     use linguini_syntax::{parse_locale, Span};
     use std::collections::BTreeMap;
+    use std::path::Path;
 
     fn expression(kind: IrExpressionKind, path: &[&str]) -> IrExpression {
         IrExpression {
@@ -1571,6 +1680,32 @@ mod tests {
         ] {
             assert!(runtime.contains(semantic));
         }
+    }
+
+    #[test]
+    fn generated_javascript_formatter_runtime_snapshot_is_stable() {
+        let output = formatter_data_declaration_for_target(
+            "ru",
+            FormatterRequirements {
+                number: true,
+                currency: true,
+                date: true,
+            },
+            EcmaScriptTarget::JavaScript,
+            true,
+        );
+        let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/golden/snapshots/codegen-js-formatters-ru.js");
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            std::fs::write(&snapshot, &output).expect("write JavaScript formatter snapshot");
+        }
+
+        assert!(!output.contains("value: GeneratedNumeric"));
+        assert!(!output.contains("type GeneratedNumeric ="));
+        assert_eq!(
+            output,
+            std::fs::read_to_string(snapshot).expect("read JavaScript formatter snapshot")
+        );
     }
 
     #[test]
