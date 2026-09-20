@@ -11,6 +11,11 @@ Codegen lowers every public parameter type into the backend-neutral
 `linguini_codegen_ts::TypeModel`. TypeScript and JSDoc spellings are rendered from that same model
 through `render_typescript_type` and `render_jsdoc_type`.
 
+Rust codegen integrations can call `generate_javascript_schema_files` to obtain the schema-owned
+`shared.js` checked-JavaScript runtime and `messages.js` type boundary together with their `.d.ts`
+declaration companions. `EcmaGeneratedFile` is the language-neutral generated-file record;
+`TypeScriptGeneratedFile` remains its TypeScript-facing alias.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

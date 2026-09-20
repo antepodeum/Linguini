@@ -284,6 +284,54 @@ fn project_codegen_always_emits_schema_owned_messages_type_module() {
 }
 
 #[test]
+fn javascript_schema_codegen_owns_jsdoc_and_declaration_companions() {
+    let schema = lower_schema(
+        &parse_schema(
+            "/// Tone docs\nenum Tone { warm, cool }\ntype Amount = Number\nhello(tone: Tone)\n",
+        )
+        .expect("schema"),
+    );
+
+    let files = crate::generate_javascript_schema_files(&schema);
+    assert_eq!(
+        files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>(),
+        ["shared.js", "messages.js", "shared.d.ts", "messages.d.ts"]
+    );
+    for file in &files {
+        assert_snapshot(
+            &format!("tests/fixtures/golden/snapshots/js-schema/{}", file.path),
+            &file.contents,
+        );
+    }
+
+    let shared = files
+        .iter()
+        .find(|file| file.path == "shared.js")
+        .expect("shared JavaScript");
+    assert!(shared.contents.contains("Tone docs"));
+    assert!(shared
+        .contents
+        .contains("@typedef {\"warm\" | \"cool\"} Tone"));
+    assert!(shared
+        .contents
+        .contains("@typedef {number | bigint | string} Amount"));
+    assert!(shared.contents.contains("@template T"));
+    assert!(!shared.contents.contains("export type"));
+    assert!(!shared.contents.contains(" as Record"));
+
+    let messages = files
+        .iter()
+        .find(|file| file.path == "messages.d.ts")
+        .expect("message declarations");
+    assert!(messages.contents.contains("import type { Tone }"));
+    assert!(messages.contents.contains("export type LinguiniMessages"));
+    assert!(messages.contents.contains("(tone: Tone): string"));
+}
+
+#[test]
 fn project_codegen_emits_complete_recursive_schema_namespace_type() {
     let schema = lower_schema(
         &parse_schema(

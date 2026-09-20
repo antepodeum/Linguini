@@ -70,6 +70,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: false,
   }),
   Object.freeze({
+    id: "codegen:schema-js",
+    project: "site",
+    label: "Schema JavaScript/JSDoc type conformance",
+    command: "pnpm",
+    args: ["exec", "tsc", "--project", "../tests/fixtures/golden/snapshots/js-schema/tsconfig.json"],
+    profiles: ["quick", "full"],
+    tools: ["pnpm"],
+    requiresNodeModules: true,
+  }),
+  Object.freeze({
     id: "rust:test",
     project: "rust",
     label: "Cargo workspace tests",

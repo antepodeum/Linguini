@@ -18,6 +18,9 @@ editor boundaries to update this file, public documentation, and executable test
   release.
 - Codegen integrations that inspect public parameter types can use `TypeModel` plus its TypeScript
   and JSDoc renderers instead of recreating source-type mappings.
+- Codegen integrations can use `generate_javascript_schema_files` for the schema-owned checked
+  JavaScript/JSDoc runtime and its declaration companions. The returned `EcmaGeneratedFile` is the
+  common record also exposed as the existing `TypeScriptGeneratedFile` alias.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

@@ -144,6 +144,7 @@ pub(crate) enum JsDocTag {
     Overload,
     Param { name: String, ty: String },
     Returns { ty: String },
+    Typedef { name: String, ty: String },
 }
 
 pub(crate) fn emit_docs_with_tags(
@@ -168,6 +169,7 @@ pub(crate) fn emit_docs_with_tags(
             JsDocTag::Overload => "@overload".to_owned(),
             JsDocTag::Param { name, ty } => format!("@param {{{ty}}} {name}"),
             JsDocTag::Returns { ty } => format!("@returns {{{ty}}}"),
+            JsDocTag::Typedef { name, ty } => format!("@typedef {{{ty}}} {name}"),
         })
     }));
     if let [line] = lines.as_slice() {

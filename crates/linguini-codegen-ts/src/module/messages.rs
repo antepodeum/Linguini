@@ -16,12 +16,17 @@ use super::tree::{nested_message_tree, MessageTree, MessageTreeMessage};
 /// values and may contain a different inferred shape (for example, because a locale source
 /// omits an implementation that is supplied by fallback composition), while `LinguiniMessages`
 /// describes the complete schema contract exposed to application code.
-pub fn generate_messages_module(schema: &IrModule, output: EcmaModuleOutput) -> String {
+pub fn generate_messages_module(
+    schema: &IrModule,
+    output: EcmaModuleOutput,
+    shared_import_path: &str,
+) -> String {
+    let target = output.target();
     let mut module = EcmaModule::new(output);
     let type_names = message_type_names(schema);
     if !type_names.is_empty() {
         module.push_import(EcmaImport {
-            specifier: "./shared".to_owned(),
+            specifier: shared_import_path.to_owned(),
             bindings: EcmaImportBindings::TypeNamed(
                 type_names
                     .into_iter()
@@ -36,6 +41,9 @@ pub fn generate_messages_module(schema: &IrModule, output: EcmaModuleOutput) -> 
     emit_object_type(&schema_message_tree(schema), 0, &mut output);
     output.push_str(";\n");
     module.push_statement(EcmaStatement::type_declaration(output, None));
+    if !target.is_typescript() {
+        module.push_statement(EcmaStatement::generated("export {};"));
+    }
     module.render_code()
 }
 

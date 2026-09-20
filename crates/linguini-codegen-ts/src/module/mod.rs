@@ -294,10 +294,12 @@ impl Default for TypeScriptWebOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptGeneratedFile {
+pub struct EcmaGeneratedFile {
     pub path: String,
     pub contents: String,
 }
+
+pub type TypeScriptGeneratedFile = EcmaGeneratedFile;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeScriptCodegenError {
@@ -895,6 +897,7 @@ pub fn generate_typescript_project_files(
                 "messages.ts",
                 options.declaration.then(|| "messages.d.ts".to_owned()),
             ),
+            "./shared",
         ),
     });
 
@@ -919,6 +922,7 @@ pub fn generate_typescript_project_files(
             contents: messages::generate_messages_module(
                 &messages_schema,
                 EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "messages.d.ts", None),
+                "./shared",
             ),
         });
     }
@@ -1215,6 +1219,55 @@ pub fn generate_typescript_project_files(
 
     validate_generated_output_collisions(&files)?;
     Ok(files)
+}
+
+/// Generates the schema-owned JavaScript/JSDoc root and its TypeScript declaration companions.
+///
+/// Locale and project runtime artifacts join this surface in their ordered migration stages.
+pub fn generate_javascript_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedFile> {
+    let module = schema.as_module();
+    vec![
+        EcmaGeneratedFile {
+            path: "shared.js".to_owned(),
+            contents: generate_shared_module(
+                module,
+                EcmaModuleOutput::new(
+                    EcmaScriptTarget::JavaScript,
+                    "shared.js",
+                    Some("shared.d.ts".to_owned()),
+                ),
+                false,
+            ),
+        },
+        EcmaGeneratedFile {
+            path: "messages.js".to_owned(),
+            contents: messages::generate_messages_module(
+                module,
+                EcmaModuleOutput::new(
+                    EcmaScriptTarget::JavaScript,
+                    "messages.js",
+                    Some("messages.d.ts".to_owned()),
+                ),
+                "./shared.js",
+            ),
+        },
+        EcmaGeneratedFile {
+            path: "shared.d.ts".to_owned(),
+            contents: generate_shared_module(
+                module,
+                EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "shared.d.ts", None),
+                true,
+            ),
+        },
+        EcmaGeneratedFile {
+            path: "messages.d.ts".to_owned(),
+            contents: messages::generate_messages_module(
+                module,
+                EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "messages.d.ts", None),
+                "./shared.js",
+            ),
+        },
+    ]
 }
 
 fn validate_generated_output_collisions(
