@@ -820,10 +820,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       record byte snapshots plus semantic/runtime fixtures for TypeScript, JavaScript/JSDoc, and
       `.d.ts` before changing ownership. The canonical inventory and evidence map is recorded in
       `docs/ecmascript-backend-migration-baseline.md`.
-- [ ] ESM-M2 — Finish the common module model. Give one backend model explicit target language,
+- [x] ESM-M2 — Finish the common module model. Give one backend model explicit target language,
       imports/re-exports, type-only declarations, value statements, documentation, source spans,
       output paths, declaration companions, and deterministic rendering. Make invalid mixed-target
-      states unrepresentable.
+      states unrepresentable. `EcmaModule` now owns validated target/path metadata and accepts
+      imports, re-exports, documentation, type declarations, and values through target-safe
+      insertion methods; its renderer owns deterministic module framing and source-map naming.
 - [ ] ESM-M3 — Migrate schema-owned modules first: `shared`, recursive message types, enums,
       aliases, namespace declarations, JSDoc, and declaration output. Require exact TypeScript API
       parity plus checked-JavaScript and `.d.ts` positive/negative type tests before deleting their
