@@ -1434,7 +1434,7 @@ fn date_field_expression(
         'S' => format!(
             "padNumber(date.getUTCMilliseconds(), 3).padEnd({width}, \"0\").slice(0, {width})"
         ),
-        'a' | 'b' | 'B' => "date.getUTCHours() < 12 ? \"AM\" : \"PM\"".to_owned(),
+        'a' | 'b' | 'B' => "(date.getUTCHours() < 12 ? \"AM\" : \"PM\")".to_owned(),
         'z' | 'Z' | 'O' | 'v' | 'V' | 'X' | 'x' => "\"UTC\"".to_owned(),
         'G' => "date.getUTCFullYear() > 0 ? \"AD\" : \"BC\"".to_owned(),
         _ => "\"\"".to_owned(),
@@ -1495,7 +1495,9 @@ mod tests {
     use linguini_ir::{lower_locale, IrExpression, IrExpressionKind};
     use linguini_syntax::{parse_locale, Span};
     use std::collections::BTreeMap;
+    use std::io::Write;
     use std::path::Path;
+    use std::process::{Command, Stdio};
 
     fn expression(kind: IrExpressionKind, path: &[&str]) -> IrExpression {
         IrExpression {
@@ -1699,6 +1701,75 @@ mod tests {
             output,
             std::fs::read_to_string(snapshot).expect("read JavaScript formatter snapshot")
         );
+    }
+
+    #[test]
+    fn generated_javascript_formatters_execute_pinned_locale_corpus() {
+        let cases = [
+            (
+                "en",
+                "[\"1,234,567.89\",\"ZZZ1,234,567.89\",\"1/2/24, 1:04\u{202f}PM\"]",
+            ),
+            (
+                "ru",
+                "[\"1\u{a0}234\u{a0}567,89\",\"1\u{a0}234\u{a0}567,89\u{a0}ZZZ\",\"02.01.2024, 13:04\"]",
+            ),
+            (
+                "ar",
+                "[\"1,234,567.89\",\"\u{200f}1,234,567.89\u{a0}ZZZ\",\"2\u{200f}/1\u{200f}/2024\u{60c} 1:04 PM\"]",
+            ),
+            (
+                "hi",
+                "[\"12,34,567.89\",\"ZZZ12,34,567.89\",\"2/1/24, 1:04 PM\"]",
+            ),
+        ];
+        for (locale, expected) in cases {
+            let generated = formatter_data_declaration_for_target(
+                locale,
+                FormatterRequirements {
+                    number: true,
+                    currency: true,
+                    date: true,
+                },
+                EcmaScriptTarget::JavaScript,
+                true,
+            );
+            let script = format!(
+                r#"{generated}
+console.log(JSON.stringify([
+  formatNumber("1234567.89"),
+  formatCurrency("1234567.89", 2, 0, {{ code: "ZZZ" }}),
+  formatDate("2024-01-02T13:04:05Z", {{ style: "short", time_style: "short" }}),
+]));
+"#
+            );
+            let mut child = Command::new("node")
+                .args(["--input-type=module", "-"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("Node.js is required to execute generated formatter runtimes");
+            child
+                .stdin
+                .take()
+                .expect("Node stdin")
+                .write_all(script.as_bytes())
+                .expect("write generated formatter runtime to Node");
+            let output = child.wait_with_output().expect("wait for Node");
+            assert!(
+                output.status.success(),
+                "generated {locale} formatter runtime failed:\n{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(
+                String::from_utf8(output.stdout)
+                    .expect("formatter output is UTF-8")
+                    .trim(),
+                expected,
+                "generated {locale} formatter output drifted"
+            );
+        }
     }
 
     #[test]

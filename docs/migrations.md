@@ -40,6 +40,9 @@ editor boundaries to update this file, public documentation, and executable test
 - Generated output is ESM-only. Remove `targets.ts.module` and CommonJS output assumptions.
 - `@date` now accepts the additive `time_style` option. Existing date-only output is unchanged;
   regenerate output to use CLDR time widths or combined date-time patterns.
+- Regenerate locale runtimes that use 12-hour CLDR time patterns. Day-period expressions are now
+  parenthesized before concatenation, so the generated value retains its hour and minute text
+  instead of collapsing to only `AM` or `PM`.
 - SvelteKit web policy uses nested `[web.*]` tables. Replace legacy flat routing, source, cookie,
   local-storage, link, exclusion, and switch-route fields with the mappings in
   [Web and SvelteKit](./web-sveltekit.md).
