@@ -44,7 +44,7 @@ use self::names::{
     escape_string, form_binding_name, portable_path_component_error, safe_file_stem,
     safe_identifier,
 };
-use self::shared::emit_shared;
+use self::shared::generate_shared_module;
 use super::plural::generate_plural_function;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -872,7 +872,15 @@ pub fn generate_typescript_project_files(
     };
     let mut files = vec![TypeScriptGeneratedFile {
         path: "shared.ts".to_owned(),
-        contents: generate_shared_module(schema),
+        contents: generate_shared_module(
+            schema,
+            EcmaModuleOutput::new(
+                EcmaScriptTarget::TypeScript,
+                "shared.ts",
+                options.declaration.then(|| "shared.d.ts".to_owned()),
+            ),
+            false,
+        ),
     }];
 
     // Keep the public namespace contract in its own schema-owned module. This is emitted even
@@ -880,7 +888,14 @@ pub fn generate_typescript_project_files(
     // always resolve the same recursive `LinguiniMessages` type.
     files.push(TypeScriptGeneratedFile {
         path: "messages.ts".to_owned(),
-        contents: messages::generate_messages_module(&messages_schema),
+        contents: messages::generate_messages_module(
+            &messages_schema,
+            EcmaModuleOutput::new(
+                EcmaScriptTarget::TypeScript,
+                "messages.ts",
+                options.declaration.then(|| "messages.d.ts".to_owned()),
+            ),
+        ),
     });
 
     if options.gitignore {
@@ -893,11 +908,18 @@ pub fn generate_typescript_project_files(
     if options.declaration {
         files.push(TypeScriptGeneratedFile {
             path: "shared.d.ts".to_owned(),
-            contents: decl::generate_shared_declaration(schema),
+            contents: generate_shared_module(
+                schema,
+                EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "shared.d.ts", None),
+                true,
+            ),
         });
         files.push(TypeScriptGeneratedFile {
             path: "messages.d.ts".to_owned(),
-            contents: messages::generate_messages_module(&messages_schema),
+            contents: messages::generate_messages_module(
+                &messages_schema,
+                EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "messages.d.ts", None),
+            ),
         });
     }
 
@@ -1865,12 +1887,6 @@ fn pascal_identifier(value: &str) -> String {
             output
         })
         .collect::<String>()
-}
-
-fn generate_shared_module(schema: &IrModule) -> String {
-    let mut output = String::new();
-    emit_shared(schema, &mut output);
-    output
 }
 
 fn emit_locale_default(exports: &emit::ModuleExports, namespaces: &[String], output: &mut String) {

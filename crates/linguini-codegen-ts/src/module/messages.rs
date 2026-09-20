@@ -2,6 +2,10 @@ use std::collections::BTreeSet;
 
 use linguini_ir::IrModule;
 
+use crate::ecmascript::{
+    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaStatement,
+};
+
 use super::names::{emit_docs, property_key, safe_identifier};
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree, MessageTreeMessage};
@@ -12,20 +16,27 @@ use super::tree::{nested_message_tree, MessageTree, MessageTreeMessage};
 /// values and may contain a different inferred shape (for example, because a locale source
 /// omits an implementation that is supplied by fallback composition), while `LinguiniMessages`
 /// describes the complete schema contract exposed to application code.
-pub fn generate_messages_module(schema: &IrModule) -> String {
-    let mut output = String::new();
+pub fn generate_messages_module(schema: &IrModule, output: EcmaModuleOutput) -> String {
+    let mut module = EcmaModule::new(output);
     let type_names = message_type_names(schema);
     if !type_names.is_empty() {
-        output.push_str(&format!(
-            "import type {{ {} }} from \"./shared\";\n\n",
-            type_names.join(", ")
-        ));
+        module.push_import(EcmaImport {
+            specifier: "./shared".to_owned(),
+            bindings: EcmaImportBindings::TypeNamed(
+                type_names
+                    .into_iter()
+                    .map(|name| EcmaNamedImport::new(&name, &name))
+                    .collect(),
+            ),
+        });
     }
 
+    let mut output = String::new();
     output.push_str("export type LinguiniMessages = ");
     emit_object_type(&schema_message_tree(schema), 0, &mut output);
     output.push_str(";\n");
-    output
+    module.push_statement(EcmaStatement::type_declaration(output, None));
+    module.render_code()
 }
 
 fn message_type_names(schema: &IrModule) -> Vec<String> {

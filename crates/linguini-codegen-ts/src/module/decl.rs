@@ -2,18 +2,10 @@ use linguini_ir::{IrMessage, IrModule};
 
 use super::emit::{schema_type_aliases, schema_type_names};
 use super::names::{
-    emit_docs, escape_string, function_name, property_key, safe_file_stem, safe_identifier, ts_type,
+    emit_docs, escape_string, function_name, property_key, safe_file_stem, safe_identifier,
 };
 use super::signature::MessageCallSignature;
-use super::templates::SHARED_DECLARATIONS;
 use super::tree::{nested_message_tree, MessageTree};
-
-pub fn generate_shared_declaration(schema: &IrModule) -> String {
-    let mut output = String::new();
-    emit_type_declarations(schema, &mut output);
-    output.push_str(SHARED_DECLARATIONS);
-    output
-}
 
 pub fn generate_locale_declaration_with_namespaces(
     schema: &IrModule,
@@ -90,31 +82,6 @@ fn emit_type_reexports(schema: &IrModule, shared_import_path: &str, output: &mut
     for (public_name, generated_name) in schema_type_aliases(schema) {
         output.push_str(&format!(
             "export type {public_name} = {generated_name};\n\n"
-        ));
-    }
-}
-
-fn emit_type_declarations(schema: &IrModule, output: &mut String) {
-    for item in schema.enums() {
-        emit_docs(&item.docs, "", output);
-        let variants = item
-            .variants
-            .iter()
-            .map(|variant| format!("\"{}\"", escape_string(variant)))
-            .collect::<Vec<_>>()
-            .join(" | ");
-        output.push_str(&format!(
-            "export type {} = {variants};\n\n",
-            safe_identifier(&item.name)
-        ));
-    }
-
-    for item in schema.type_aliases() {
-        emit_docs(&item.docs, "", output);
-        output.push_str(&format!(
-            "export type {} = {};\n\n",
-            safe_identifier(&item.name),
-            ts_type(&item.target)
         ));
     }
 }
