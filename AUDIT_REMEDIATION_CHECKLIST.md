@@ -826,10 +826,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       states unrepresentable. `EcmaModule` now owns validated target/path metadata and accepts
       imports, re-exports, documentation, type declarations, and values through target-safe
       insertion methods; its renderer owns deterministic module framing and source-map naming.
-- [ ] ESM-M3 — Migrate schema-owned modules first: `shared`, recursive message types, enums,
+- [x] ESM-M3 — Migrate schema-owned modules first: `shared`, recursive message types, enums,
       aliases, namespace declarations, JSDoc, and declaration output. Require exact TypeScript API
       parity plus checked-JavaScript and `.d.ts` positive/negative type tests before deleting their
-      direct assembly functions.
+      direct assembly functions. Schema roots and locale namespace declarations now use the common
+      artifact model; checked `shared.js`/`messages.js`, companion declarations, byte snapshots,
+      and positive plus `@ts-expect-error` negative type cases run in the quick/full test registry.
 - [ ] ESM-M4 — Migrate locale shared runtime helpers: argument normalization, branch selection,
       plural evaluation, number/currency/date formatting, and formatter data. Require byte- or
       behavior-parity corpora across pinned locales, helper demand selection, strict typechecking,
