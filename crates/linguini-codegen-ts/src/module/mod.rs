@@ -1441,33 +1441,29 @@ fn generate_locale_runtime(
     locale: &IrModule,
     options: &TypeScriptOptions,
 ) -> String {
-    let mut output = String::new();
+    let mut module = EcmaModule::new(EcmaModuleOutput::new(
+        EcmaScriptTarget::TypeScript,
+        format!("locales/{}/_runtime.ts", options.locale),
+        None,
+    ));
     let requirements = formatter_requirements(schema, locale);
     if requirements.any() {
-        output.push_str(&expr::formatter_data_declaration(
-            &options.locale,
-            requirements,
+        module.push_statement(EcmaStatement::generated(
+            expr::exported_formatter_data_declaration(&options.locale, requirements),
         ));
-        for name in requirements.helper_names() {
-            output = output.replacen(
-                &format!("function {name}("),
-                &format!("export function {name}("),
-                1,
-            );
-        }
     }
     if plural_required(schema, locale) {
-        if !output.is_empty() {
-            output.push('\n');
-        }
-        output.push_str(
-            options
-                .plural_source
-                .as_deref()
-                .expect("project locale options always include plural source"),
-        );
+        let source = options
+            .plural_source
+            .as_deref()
+            .expect("project locale options always include plural source");
+        module.push_statement(EcmaStatement::generated(if requirements.any() {
+            format!("\n\n{source}")
+        } else {
+            source.to_owned()
+        }));
     }
-    output
+    module.render_code()
 }
 
 fn generate_locale_globals(

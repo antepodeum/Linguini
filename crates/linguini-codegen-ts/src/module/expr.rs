@@ -611,6 +611,21 @@ fn formatter_options(formatter: &IrFormatter) -> String {
 }
 
 pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequirements) -> String {
+    formatter_data_declaration_with_exports(locale, requirements, false)
+}
+
+pub fn exported_formatter_data_declaration(
+    locale: &str,
+    requirements: FormatterRequirements,
+) -> String {
+    formatter_data_declaration_with_exports(locale, requirements, true)
+}
+
+fn formatter_data_declaration_with_exports(
+    locale: &str,
+    requirements: FormatterRequirements,
+    export_helpers: bool,
+) -> String {
     let mut output = "type GeneratedNumeric = number | bigint | string;\n".to_owned();
     if requirements.currency {
         output.push_str(
@@ -634,6 +649,7 @@ pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequireme
             numbers
                 .as_ref()
                 .expect("number formatter requires number data"),
+            export_helpers,
         ));
     }
     if requirements.currency {
@@ -645,12 +661,13 @@ pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequireme
                 .as_ref()
                 .expect("currency formatter requires number data"),
             &currency,
+            export_helpers,
         ));
     }
     if requirements.date {
         let dates = compiled_date_formatting(locale)
             .expect("validated locale must have required CLDR date formatting data");
-        output.push_str(&generated_date_function(&dates));
+        output.push_str(&generated_date_function(&dates, export_helpers));
     }
     if requirements.needs_number_data() {
         output.push_str(number_formatter_helpers());
@@ -664,9 +681,10 @@ pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequireme
     output
 }
 
-fn generated_number_function(numbers: &linguini_cldr::NumberFormatData) -> String {
+fn generated_number_function(numbers: &linguini_cldr::NumberFormatData, exported: bool) -> String {
+    let export = if exported { "export " } else { "" };
     format!(
-        "function formatNumber(value: GeneratedNumeric): string {{\n  return formatGeneratedNumber(value, {});\n}}\n\n",
+        "{export}function formatNumber(value: GeneratedNumeric): string {{\n  return formatGeneratedNumber(value, {});\n}}\n\n",
         number_pattern_args(&numbers.decimal_pattern, None, numbers)
     )
 }
@@ -675,7 +693,9 @@ fn generated_currency_function(
     locale: &str,
     numbers: &linguini_cldr::NumberFormatData,
     currency: &linguini_cldr::CurrencyFormatData,
+    exported: bool,
 ) -> String {
+    let export = if exported { "export " } else { "" };
     let standard = number_pattern_args(&currency.standard_pattern, Some("symbol"), numbers);
     let accounting = number_pattern_args(
         currency
@@ -687,7 +707,7 @@ fn generated_currency_function(
     );
     format!(
         "\
-function formatCurrency(
+{export}function formatCurrency(
   value: GeneratedNumeric,
   fractionDigits: number,
   roundingIncrement: number,
@@ -713,7 +733,8 @@ function currencySymbol(currency: string): string {{
     )
 }
 
-fn generated_date_function(dates: &linguini_cldr::DateFormatData) -> String {
+fn generated_date_function(dates: &linguini_cldr::DateFormatData, exported: bool) -> String {
+    let export = if exported { "export " } else { "" };
     let date_full = date_pattern_expression(dates.date_formats.full, dates);
     let date_long = date_pattern_expression(dates.date_formats.long, dates);
     let date_medium = date_pattern_expression(dates.date_formats.medium, dates);
@@ -728,7 +749,7 @@ fn generated_date_function(dates: &linguini_cldr::DateFormatData) -> String {
     let combined_short = date_time_pattern_expression(dates.date_time_formats.short);
     format!(
         "\
-function formatDate(
+{export}function formatDate(
   value: Date | number | string,
   options: GeneratedDateFormatterOptions = {{}},
 ): string {{
