@@ -99,15 +99,15 @@ production path uses the fix and its relevant tests pass.
 - `591c532` — added deterministic physical per-message modules and source maps plus the v1
   bundler manifest through the transactional CLI output path.
 - `bed72e0` — split canonical locale metadata and reactive Svelte locale state from the eager
-  legacy runtime so per-message wrappers can resolve locale without importing every message.
+  project runtime so per-message wrappers can resolve locale without importing every message.
 - `18792cf` — added opt-in typed bundler source discovery and a deterministic application
   manifest with exact hashes, byte spans, binding provenance, arity, and unresolved references.
 - `1e5ae83` — added strict-module import parsing, stable binding identities, exact removal spans,
   and binding-wide transform-safety metadata to analyzer and the bundler manifest.
 - `1ce930b` — split Svelte browser effects from the eager message runtime, added metadata-only web
   policy, and generated distinct plain-Svelte and SvelteKit reactive locale implementations.
-- `1804d1f` — added lightweight Svelte client controls and compatibility-safe SvelteKit control
-  hooks so transformed applications can avoid eager message barrels without breaking legacy APIs.
+- `1804d1f` — added lightweight Svelte client controls and stable SvelteKit control hooks so
+  transformed applications can avoid eager message barrels without breaking public APIs.
 - `aa75a3f`, `45a78c1` — added Vite bundler transforms and exact virtual message modules, then
   hardened raw-source/resolver identity, scoped alias allocation, effects retention, and graph tests.
 - `a6d13fc` — added manifest-delta HMR with exact source-to-message, per-locale physical-module,
@@ -167,6 +167,10 @@ production path uses the fix and its relevant tests pass.
 - `86456c6` — moved schema/locale declaration and reference indexing into `linguini-schema`, so
   LSP reference, definition, rename, completion, hover, and semantic tokens consume the shared
   semantic walk instead of maintaining an independent AST traversal.
+- `2d78c9f`, `45030b1`, `d77d2f6`, `af9e05d` — moved plural and formatter helpers plus locale
+  runtime artifacts onto target-aware TypeScript/checked-JavaScript emission, removed source-text
+  rewriting and the direct runtime generator, added strict/source-map/helper-demand gates and a
+  pinned-locale behavior corpus, and fixed 12-hour day-period concatenation.
 
 ## Numbered findings
 
@@ -451,7 +455,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #197 — Reject invalid dates.
 - [x] #198 — Fail visibly on missing required CLDR data.
 - [-] #199 — Emit source maps back to Linguini sources. Bundler-native physical message and
-      semantic modules have truthful maps; legacy project-wide string emitters remain unmapped.
+      semantic modules have truthful maps; direct project-wide string emitters remain unmapped.
 - [x] #200 — Require every declared message in direct codegen input locales.
 - [x] #201 — Replace eager locale imports with real bundler-visible splitting. The bundler-native
       Vite path exposes one virtual dynamic entry per effective locale, with no per-message client
@@ -776,7 +780,7 @@ production path uses the fix and its relevant tests pass.
 - [x] WEB-A17 — Reject switch routes with no server-writable transition.
 - [x] WEB-A18 — Share one route matcher across resolution, redirects, links, and switching.
 - [x] WEB-A19 — Diagnose local-storage-only SSR expectations.
-- [x] WEB-A20 — Remove every legacy flat field from runtime, templates, and docs. Public runtime
+- [x] WEB-A20 — Remove every obsolete flat field from runtime, templates, and docs. Public runtime
       policy is nested, generated SvelteKit adapters inject `$app/paths.base`, request/browser
       context owns origin, SvelteKit owns trailing slashes, and the Pages build no longer mutates
       generated source after codegen.
@@ -788,25 +792,27 @@ production path uses the fix and its relevant tests pass.
 - [x] ESM-A2 — Treat SvelteKit as the primary supported adapter for now; it is not the only one
       planned for the future.
 - [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
-      and locale message/global module framing now use it. Schema, runtime, project, and web/Svelte
-      statement bodies still use direct TypeScript assembly and must move onto the same backend.
+      plus schema and locale shared-runtime modules now use it. Remaining project, web/Svelte, and
+      several semantic/global statement bodies still use direct TypeScript assembly.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
 - [-] ESM-A5 — Render JavaScript plus JSDoc from the shared models. Exact bundler message and
       semantic leaves now select JavaScript from the same expression, form, function, signature,
-      import, and source-map emitters as TypeScript; overloads and local parameters retain checked
-      JSDoc types. Project/runtime modules still need the same target routing.
+      import, runtime-helper, and source-map emitters as TypeScript; overloads, local parameters,
+      plural rules, and formatter inputs retain checked JSDoc types. Project modules still need
+      the same target routing.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
-- [ ] ESM-A7 — Avoid a parallel TypeScript runtime implementation.
+- [-] ESM-A7 — Avoid a parallel TypeScript runtime implementation. Locale shared helpers now have
+      one target-aware production builder; project/web runtime modules remain TypeScript-only.
 - [-] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
-      modules now have truthful source maps and demand-selected helpers, but project-wide output
-      has not migrated.
+      modules and locale runtime artifacts now have target-owned source maps, ordered source
+      identity, and demand-selected helpers, but project-wide output has not migrated.
 - [x] ESM-A9 — Make parameterless public leaves values in both surfaces.
 - [-] ESM-A10 — Keep JavaScript generation first-class and near-zero-config. Public JavaScript
-      bundler-leaf compilers now emit native `.js` import and source-map paths without a
-      TypeScript transpilation pass; project-wide JavaScript output remains outstanding.
+      bundler-leaf and locale-runtime compilers now emit native `.js` import and source-map paths
+      without a TypeScript transpilation pass; project-wide JavaScript output remains outstanding.
 
 #### Ordered removal of direct TypeScript assembly
 
@@ -832,10 +838,13 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       direct assembly functions. Schema roots and locale namespace declarations now use the common
       artifact model; checked `shared.js`/`messages.js`, companion declarations, byte snapshots,
       and positive plus `@ts-expect-error` negative type cases run in the quick/full test registry.
-- [ ] ESM-M4 — Migrate locale shared runtime helpers: argument normalization, branch selection,
-      plural evaluation, number/currency/date formatting, and formatter data. Require byte- or
-      behavior-parity corpora across pinned locales, helper demand selection, strict typechecking,
-      and source-map verification before deleting the direct runtime generator.
+- [x] ESM-M4 — Migrate locale shared runtime helpers: argument normalization, branch selection,
+      plural evaluation, number/currency/date formatting, and formatter data. Schema-owned shared
+      helpers and locale-owned plural/formatter helpers now render checked JavaScript or exact
+      TypeScript from common models without type erasure or export rewriting. The pinned `en`,
+      `ru`, `ar`, and `hi` behavior corpus, demand selection, strict JSDoc checking, target-owned
+      paths, ordered source identity, source-map snapshots, and unchanged TypeScript runtime
+      snapshots pass; the direct locale runtime generator is deleted.
 - [ ] ESM-M5 — Migrate semantic/global leaves: locale enums, variables, forms, functions, their
       direct dependency graph, runtime-helper imports, JSDoc, and source maps. Require closure,
       cycle, collision, tree-shaking, and executable JS/TS form-function corpus parity before
@@ -916,7 +925,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       import only required names from physical message modules.
 - [x] BUNDLE-A12 — Share reusable variables, forms, and local functions across physical messages
       without broadening their transitive bundle graph.
-- [x] BUNDLE-A13 — Emit locale globals once per locale and import their bindings from legacy root
+- [x] BUNDLE-A13 — Emit locale globals once per locale and import their bindings from root
       and namespace modules instead of copying declarations into every generated module.
 - [x] BUNDLE-A14 — Coalesce exact message facades behind one dynamic virtual entry per effective
       locale, without per-message client entries, while preserving locale-granular HMR invalidation.
@@ -930,7 +939,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       behavior on a three-message production route across English, Russian, and French.
 - [x] BUNDLE-A17 — Encode scoped locale payloads as stable indexed arrays and compile numeric
       facade lookups so canonical message paths do not survive in browser chunks, while preserving
-      sparse-locale fallback, parameterless values, parameterized calls, and legacy unscoped APIs.
+      sparse-locale fallback, parameterless values, parameterized calls, and existing unscoped APIs.
 
 ### Local repository verification
 
