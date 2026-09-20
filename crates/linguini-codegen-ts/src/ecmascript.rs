@@ -1,6 +1,18 @@
 use linguini_syntax::{SourceId, Span};
 use std::collections::BTreeMap;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EcmaScriptTarget {
+    TypeScript,
+    JavaScript,
+}
+
+impl EcmaScriptTarget {
+    pub fn is_typescript(self) -> bool {
+        matches!(self, Self::TypeScript)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EcmaSource {
     pub id: SourceId,
@@ -58,40 +70,213 @@ impl EcmaImport {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EcmaReExportBindings {
+    All,
+    TypeAll,
+    Named(Vec<EcmaNamedImport>),
+    TypeNamed(Vec<EcmaNamedImport>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EcmaReExport {
+    pub specifier: String,
+    pub bindings: EcmaReExportBindings,
+}
+
+impl EcmaReExport {
+    pub fn all(specifier: impl Into<String>) -> Self {
+        Self {
+            specifier: specifier.into(),
+            bindings: EcmaReExportBindings::All,
+        }
+    }
+
+    pub fn type_all(specifier: impl Into<String>) -> Self {
+        Self {
+            specifier: specifier.into(),
+            bindings: EcmaReExportBindings::TypeAll,
+        }
+    }
+
+    pub fn named(specifier: impl Into<String>, bindings: Vec<EcmaNamedImport>) -> Self {
+        Self {
+            specifier: specifier.into(),
+            bindings: EcmaReExportBindings::Named(bindings),
+        }
+    }
+
+    pub fn type_named(specifier: impl Into<String>, bindings: Vec<EcmaNamedImport>) -> Self {
+        Self {
+            specifier: specifier.into(),
+            bindings: EcmaReExportBindings::TypeNamed(bindings),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EcmaStatementKind {
+    Documentation,
+    TypeDeclaration,
+    Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EcmaStatement {
     pub code: String,
     pub source_span: Option<Span>,
+    pub kind: EcmaStatementKind,
 }
 
 impl EcmaStatement {
     pub fn generated(code: impl Into<String>) -> Self {
+        Self::value(code, None)
+    }
+
+    pub fn documentation(code: impl Into<String>, source_span: Option<Span>) -> Self {
         Self {
             code: code.into(),
-            source_span: None,
+            source_span,
+            kind: EcmaStatementKind::Documentation,
+        }
+    }
+
+    pub fn type_declaration(code: impl Into<String>, source_span: Option<Span>) -> Self {
+        Self {
+            code: code.into(),
+            source_span,
+            kind: EcmaStatementKind::TypeDeclaration,
+        }
+    }
+
+    pub fn value(code: impl Into<String>, source_span: Option<Span>) -> Self {
+        Self {
+            code: code.into(),
+            source_span,
+            kind: EcmaStatementKind::Value,
         }
     }
 
     pub fn mapped(code: impl Into<String>, source_span: Span) -> Self {
-        Self {
-            code: code.into(),
-            source_span: Some(source_span),
-        }
+        Self::value(code, Some(source_span))
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EcmaModuleOutput {
+    target: EcmaScriptTarget,
+    path: String,
+    declaration_path: Option<String>,
+}
+
+impl EcmaModuleOutput {
+    pub fn new(
+        target: EcmaScriptTarget,
+        path: impl Into<String>,
+        declaration_path: Option<String>,
+    ) -> Self {
+        let path = path.into();
+        match target {
+            EcmaScriptTarget::TypeScript => assert!(
+                path.ends_with(".ts"),
+                "TypeScript ECMAScript output must end in .ts"
+            ),
+            EcmaScriptTarget::JavaScript => assert!(
+                path.ends_with(".js"),
+                "JavaScript ECMAScript output must end in .js"
+            ),
+        }
+        assert!(
+            declaration_path
+                .as_deref()
+                .map_or(true, |path| path.ends_with(".d.ts")),
+            "ECMAScript declaration companion must end in .d.ts"
+        );
+        Self {
+            target,
+            path,
+            declaration_path,
+        }
+    }
+
+    pub fn source_map_path(&self) -> String {
+        format!("{}.map", self.path)
+    }
+
+    pub fn target(&self) -> EcmaScriptTarget {
+        self.target
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    pub fn declaration_path(&self) -> Option<&str> {
+        self.declaration_path.as_deref()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EcmaModule {
-    pub imports: Vec<EcmaImport>,
-    pub statements: Vec<EcmaStatement>,
+    output: EcmaModuleOutput,
+    imports: Vec<EcmaImport>,
+    re_exports: Vec<EcmaReExport>,
+    statements: Vec<EcmaStatement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderedEcmaModule {
+    pub output: EcmaModuleOutput,
     pub code: String,
     pub source_map: String,
 }
 
 impl EcmaModule {
+    pub fn new(output: EcmaModuleOutput) -> Self {
+        Self {
+            output,
+            imports: Vec::new(),
+            re_exports: Vec::new(),
+            statements: Vec::new(),
+        }
+    }
+
+    pub fn output(&self) -> &EcmaModuleOutput {
+        &self.output
+    }
+
+    pub fn push_import(&mut self, item: EcmaImport) {
+        if self.output.target.is_typescript()
+            || !matches!(item.bindings, EcmaImportBindings::TypeNamed(_))
+        {
+            self.imports.push(item);
+        }
+    }
+
+    pub fn extend_imports(&mut self, items: impl IntoIterator<Item = EcmaImport>) {
+        for item in items {
+            self.push_import(item);
+        }
+    }
+
+    pub fn push_re_export(&mut self, item: EcmaReExport) {
+        if self.output.target.is_typescript()
+            || !matches!(
+                item.bindings,
+                EcmaReExportBindings::TypeAll | EcmaReExportBindings::TypeNamed(_)
+            )
+        {
+            self.re_exports.push(item);
+        }
+    }
+
+    pub fn push_statement(&mut self, statement: EcmaStatement) {
+        if self.output.target.is_typescript()
+            || statement.kind != EcmaStatementKind::TypeDeclaration
+        {
+            self.statements.push(statement);
+        }
+    }
+
     /// Renders one ESM module without attaching a source-map trailer.
     ///
     /// Project generators use this during the structured-backend migration; source-mapped
@@ -102,19 +287,20 @@ impl EcmaModule {
         code
     }
 
-    pub fn render(&self, file_name: &str, sources: &[EcmaSource]) -> RenderedEcmaModule {
+    pub fn render(&self, sources: &[EcmaSource]) -> RenderedEcmaModule {
         let mut code = String::new();
         let mut mappings = Vec::new();
         render_module_body(self, &mut code, |mapping| mappings.push(mapping));
 
-        let map_name = format!("{file_name}.map");
+        let map_name = self.output.source_map_path();
         code.push_str("//# sourceMappingURL=");
         code.push_str(map_name.rsplit('/').next().unwrap_or(&map_name));
         code.push('\n');
 
         RenderedEcmaModule {
+            output: self.output.clone(),
             code,
-            source_map: render_source_map(file_name, sources, &mappings),
+            source_map: render_source_map(self.output.path(), sources, &mappings),
         }
     }
 }
@@ -124,14 +310,26 @@ fn render_module_body(
     output: &mut String,
     mut record_mapping: impl FnMut((usize, Span)),
 ) {
+    let mut rendered_module_edge = false;
     for item in &module.imports {
-        render_import(item, output);
+        rendered_module_edge |= render_import(item, module.output.target, output);
     }
-    if !module.imports.is_empty() && !module.statements.is_empty() {
+    for item in &module.re_exports {
+        rendered_module_edge |= render_re_export(item, module.output.target, output);
+    }
+    let renders_statement = module.statements.iter().any(|statement| {
+        module.output.target.is_typescript() || statement.kind != EcmaStatementKind::TypeDeclaration
+    });
+    if rendered_module_edge && renders_statement {
         output.push('\n');
     }
 
     for statement in &module.statements {
+        if !module.output.target.is_typescript()
+            && statement.kind == EcmaStatementKind::TypeDeclaration
+        {
+            continue;
+        }
         let generated_line = output.bytes().filter(|byte| *byte == b'\n').count();
         if let Some(span) = statement.source_span {
             record_mapping((generated_line, span));
@@ -141,13 +339,16 @@ fn render_module_body(
     }
 }
 
-fn render_import(item: &EcmaImport, output: &mut String) {
+fn render_import(item: &EcmaImport, target: EcmaScriptTarget, output: &mut String) -> bool {
+    if !target.is_typescript() && matches!(item.bindings, EcmaImportBindings::TypeNamed(_)) {
+        return false;
+    }
     output.push_str("import ");
     match &item.bindings {
         EcmaImportBindings::SideEffect => {
             output.push_str(&json_string(&item.specifier));
             output.push_str(";\n");
-            return;
+            return true;
         }
         EcmaImportBindings::Default(local) => output.push_str(local),
         EcmaImportBindings::Namespace(local) => {
@@ -186,6 +387,44 @@ fn render_import(item: &EcmaImport, output: &mut String) {
     output.push_str(" from ");
     output.push_str(&json_string(&item.specifier));
     output.push_str(";\n");
+    true
+}
+
+fn render_re_export(item: &EcmaReExport, target: EcmaScriptTarget, output: &mut String) -> bool {
+    if !target.is_typescript()
+        && matches!(
+            item.bindings,
+            EcmaReExportBindings::TypeAll | EcmaReExportBindings::TypeNamed(_)
+        )
+    {
+        return false;
+    }
+    output.push_str("export ");
+    match &item.bindings {
+        EcmaReExportBindings::All => output.push('*'),
+        EcmaReExportBindings::TypeAll => output.push_str("type *"),
+        EcmaReExportBindings::Named(bindings) | EcmaReExportBindings::TypeNamed(bindings) => {
+            if matches!(item.bindings, EcmaReExportBindings::TypeNamed(_)) {
+                output.push_str("type ");
+            }
+            output.push_str("{ ");
+            for (index, binding) in bindings.iter().enumerate() {
+                if index > 0 {
+                    output.push_str(", ");
+                }
+                output.push_str(&binding.imported);
+                if binding.local != binding.imported {
+                    output.push_str(" as ");
+                    output.push_str(&binding.local);
+                }
+            }
+            output.push_str(" }");
+        }
+    }
+    output.push_str(" from ");
+    output.push_str(&json_string(&item.specifier));
+    output.push_str(";\n");
+    true
 }
 
 fn render_source_map(
@@ -322,7 +561,10 @@ fn json_string(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{EcmaImport, EcmaModule, EcmaNamedImport, EcmaSource, EcmaStatement};
+    use super::{
+        EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport,
+        EcmaReExport, EcmaScriptTarget, EcmaSource, EcmaStatement,
+    };
     use linguini_syntax::{SourceId, Span};
 
     #[test]
@@ -332,18 +574,21 @@ mod tests {
             "schema/main.lgs",
             "/// Café\nhello(name: String)\n",
         );
-        let module = EcmaModule {
-            imports: vec![EcmaImport::named(
-                "./runtime.js",
-                vec![EcmaNamedImport::new("select", "select")],
-            )],
-            statements: vec![EcmaStatement::mapped(
-                "export function hello(name) { return select(name); }",
-                Span::in_source(SourceId(7), 10, 29),
-            )],
-        };
+        let mut module = EcmaModule::new(EcmaModuleOutput::new(
+            EcmaScriptTarget::JavaScript,
+            "messages/hello.js",
+            None,
+        ));
+        module.push_import(EcmaImport::named(
+            "./runtime.js",
+            vec![EcmaNamedImport::new("select", "select")],
+        ));
+        module.push_statement(EcmaStatement::mapped(
+            "export function hello(name) { return select(name); }",
+            Span::in_source(SourceId(7), 10, 29),
+        ));
 
-        let rendered = module.render("messages/hello.js", &[source]);
+        let rendered = module.render(&[source]);
 
         assert!(rendered
             .code
@@ -362,20 +607,51 @@ mod tests {
 
     #[test]
     fn renders_the_same_module_body_without_a_source_map_trailer() {
-        let module = EcmaModule {
-            imports: vec![EcmaImport::named(
-                "./runtime.js",
-                vec![EcmaNamedImport::new("format", "format")],
-            )],
-            statements: vec![EcmaStatement::generated(
-                "export const message = format(\"hello\");\n",
-            )],
-        };
+        let mut module = EcmaModule::new(EcmaModuleOutput::new(
+            EcmaScriptTarget::JavaScript,
+            "messages/hello.js",
+            None,
+        ));
+        module.push_import(EcmaImport::named(
+            "./runtime.js",
+            vec![EcmaNamedImport::new("format", "format")],
+        ));
+        module.push_statement(EcmaStatement::generated(
+            "export const message = format(\"hello\");\n",
+        ));
 
         assert_eq!(
             module.render_code(),
             "import { format } from \"./runtime.js\";\n\nexport const message = format(\"hello\");\n"
         );
         assert!(!module.render_code().contains("sourceMappingURL"));
+    }
+
+    #[test]
+    fn target_owns_paths_and_excludes_types_from_javascript() {
+        let mut module = EcmaModule::new(EcmaModuleOutput::new(
+            EcmaScriptTarget::JavaScript,
+            "messages/hello.js",
+            Some("messages/hello.d.ts".to_owned()),
+        ));
+        module.push_import(EcmaImport {
+            specifier: "./shared.js".to_owned(),
+            bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new("Name", "Name")]),
+        });
+        module.push_re_export(EcmaReExport::type_all("./shared.js"));
+        module.push_statement(EcmaStatement::documentation("/** Public message. */", None));
+        module.push_statement(EcmaStatement::type_declaration(
+            "export type Hidden = string;",
+            None,
+        ));
+        module.push_statement(EcmaStatement::generated(
+            "export const message = \"hello\";",
+        ));
+
+        assert_eq!(module.output().source_map_path(), "messages/hello.js.map");
+        assert_eq!(
+            module.render_code(),
+            "/** Public message. */\nexport const message = \"hello\";\n"
+        );
     }
 }

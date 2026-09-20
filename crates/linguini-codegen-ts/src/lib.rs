@@ -3,7 +3,8 @@ mod module;
 mod plural;
 
 pub use ecmascript::{
-    EcmaImport, EcmaImportBindings, EcmaModule, EcmaNamedImport, EcmaSource, EcmaStatement,
+    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaReExport,
+    EcmaReExportBindings, EcmaScriptTarget, EcmaSource, EcmaStatement, EcmaStatementKind,
     RenderedEcmaModule,
 };
 pub use module::{

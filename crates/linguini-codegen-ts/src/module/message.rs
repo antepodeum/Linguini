@@ -9,7 +9,8 @@ use linguini_ir::{
 use linguini_syntax::{SourceId, Span};
 
 use crate::ecmascript::{
-    EcmaImport, EcmaImportBindings, EcmaModule, EcmaNamedImport, EcmaSource, EcmaStatement,
+    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaSource,
+    EcmaStatement,
 };
 
 use super::deps::MessageDependencyClosure;
@@ -270,9 +271,9 @@ fn compile_message_module(
         emission,
         runtime_import_path,
         &semantic_imports,
-        target,
+        EcmaModuleOutput::new(target, output_file_name, None),
     );
-    let rendered = module.render(output_file_name, &source_records);
+    let rendered = module.render(&source_records);
 
     Ok(CompiledTypeScriptMessageModule {
         locale: canonical_locale,
@@ -319,8 +320,9 @@ fn emit_message_module(
     emission: MessageModuleEmission,
     runtime_import_path: Option<&str>,
     semantic_imports: &[TypeScriptSemanticImport],
-    target: EcmaScriptTarget,
+    output: EcmaModuleOutput,
 ) -> EcmaModule {
+    let target = output.target();
     let schema = closure.schema();
     let complete_locale = closure.locale_module();
     let physical_locale;
@@ -468,25 +470,23 @@ fn emit_message_module(
         .any(|signature| signature.name == closure.message && !signature.parameters.is_empty());
     let runtime_helpers =
         runtime_import_path.map(|_| formatter_requirements(schema, locale).helper_names());
-    let mut module = EcmaModule {
-        imports: message_imports(MessageImportRequest {
-            shared_import_path,
-            runtime_import_path,
-            schema,
-            plural_function: &options.plural_function,
-            uses_select_branch,
-            uses_named_message_args,
-            uses_plural,
-            runtime_helpers: runtime_helpers.as_deref().unwrap_or_default(),
-            target,
-        }),
-        statements: Vec::new(),
-    };
+    let mut module = EcmaModule::new(output);
+    module.extend_imports(message_imports(MessageImportRequest {
+        shared_import_path,
+        runtime_import_path,
+        schema,
+        plural_function: &options.plural_function,
+        uses_select_branch,
+        uses_named_message_args,
+        uses_plural,
+        runtime_helpers: runtime_helpers.as_deref().unwrap_or_default(),
+        target,
+    }));
     for dependency in semantic_imports {
         if dependency.type_only && !target.is_typescript() {
             continue;
         }
-        module.imports.push(EcmaImport {
+        module.push_import(EcmaImport {
             specifier: import_path_for_target(&dependency.import_path, target),
             bindings: if dependency.type_only {
                 EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
@@ -606,7 +606,7 @@ fn push_statement(module: &mut EcmaModule, code: String, span: Option<Span>) {
     if code.trim().is_empty() {
         return;
     }
-    module.statements.push(match span {
+    module.push_statement(match span {
         Some(span) => EcmaStatement::mapped(code, span),
         None => EcmaStatement::generated(code),
     });

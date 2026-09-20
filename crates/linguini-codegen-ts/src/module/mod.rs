@@ -15,17 +15,7 @@ mod templates;
 mod tree;
 mod type_model;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum EcmaScriptTarget {
-    TypeScript,
-    JavaScript,
-}
-
-impl EcmaScriptTarget {
-    pub(crate) fn is_typescript(self) -> bool {
-        matches!(self, Self::TypeScript)
-    }
-}
+pub(crate) use crate::ecmascript::EcmaScriptTarget;
 
 pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 
@@ -43,7 +33,7 @@ use linguini_ir::{
     IrVariable, LocaleIr, SchemaIr, ValidatedIr,
 };
 
-use crate::ecmascript::{EcmaImport, EcmaModule, EcmaNamedImport, EcmaStatement};
+use crate::ecmascript::{EcmaImport, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaStatement};
 
 use self::emit::{
     emit_forms, emit_local_functions, emit_locale_enum_types, emit_messages,
@@ -1292,7 +1282,12 @@ fn generate_typescript_module_unchecked_with_locale(
     emit_local_functions(locale, options, &mut output);
     let exports = emit_messages(schema, locale, options, &mut output);
     emit_locale_default(&exports, namespaces, &mut output);
-    render_project_module(imports, output)
+    render_project_module(
+        format!("locales/{}.ts", options.locale),
+        Some(format!("locales/{}.d.ts", options.locale)),
+        imports,
+        output,
+    )
 }
 
 #[cfg(test)]
@@ -1348,7 +1343,21 @@ fn generate_typescript_module_with_shared_import(
             output.push_str(&format!("\nexport const {identifier} = lgl;\n"));
         }
     }
-    render_project_module(imports, output)
+    let namespace = namespace_alias.expect("namespace modules always have a namespace alias");
+    render_project_module(
+        format!(
+            "locales/{}/{}.ts",
+            options.locale,
+            safe_file_stem(namespace)
+        ),
+        Some(format!(
+            "locales/{}/{}.d.ts",
+            options.locale,
+            safe_file_stem(namespace)
+        )),
+        imports,
+        output,
+    )
 }
 
 fn generate_locale_runtime(
@@ -1432,7 +1441,12 @@ fn generate_locale_globals(
     if !value_names.is_empty() {
         output.push_str(&format!("export {{ {} }};\n", value_names.join(", ")));
     }
-    render_project_module(imports, output)
+    render_project_module(
+        format!("locales/{}/_globals.ts", options.locale),
+        None,
+        imports,
+        output,
+    )
 }
 
 fn locale_global_import(locale: &IrModule, import_path: &str) -> Option<EcmaImport> {
@@ -1511,17 +1525,27 @@ fn locale_runtime_import(
     })
 }
 
-fn render_project_module(imports: Vec<EcmaImport>, body: String) -> String {
+fn render_project_module(
+    output_path: String,
+    declaration_path: Option<String>,
+    imports: Vec<EcmaImport>,
+    body: String,
+) -> String {
     let statements = if body.trim().is_empty() {
         Vec::new()
     } else {
         vec![EcmaStatement::generated(body)]
     };
-    EcmaModule {
-        imports,
-        statements,
+    let mut module = EcmaModule::new(EcmaModuleOutput::new(
+        EcmaScriptTarget::TypeScript,
+        output_path,
+        declaration_path,
+    ));
+    module.extend_imports(imports);
+    for statement in statements {
+        module.push_statement(statement);
     }
-    .render_code()
+    module.render_code()
 }
 
 fn runtime_helper_names(

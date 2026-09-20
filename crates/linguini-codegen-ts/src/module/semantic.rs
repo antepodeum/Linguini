@@ -10,7 +10,8 @@ use linguini_ir::{
 use linguini_syntax::{SourceId, Span};
 
 use crate::ecmascript::{
-    EcmaImport, EcmaImportBindings, EcmaModule, EcmaNamedImport, EcmaSource, EcmaStatement,
+    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaSource,
+    EcmaStatement,
 };
 
 use super::emit::{
@@ -365,11 +366,6 @@ fn compile_bundler_semantic_module(
         Some(span) => EcmaStatement::mapped(output, span),
         None => EcmaStatement::generated(output),
     };
-    let module = EcmaModule {
-        imports,
-        statements: vec![statement],
-    };
-    let source_records = ordered_sources(&artifact.source_ids, sources)?;
     let output_file_name = if target.is_typescript() {
         artifact.output_file_name.clone()
     } else {
@@ -378,7 +374,11 @@ fn compile_bundler_semantic_module(
             |stem| format!("{stem}.js"),
         )
     };
-    let rendered = module.render(&output_file_name, &source_records);
+    let mut module = EcmaModule::new(EcmaModuleOutput::new(target, &output_file_name, None));
+    module.extend_imports(imports);
+    module.push_statement(statement);
+    let source_records = ordered_sources(&artifact.source_ids, sources)?;
+    let rendered = module.render(&source_records);
     Ok(CompiledTypeScriptSemanticModule {
         artifact: artifact.clone(),
         code: rendered.code,
