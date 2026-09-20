@@ -189,6 +189,16 @@ pub fn emit_enums(module: &IrModule, output: &mut String) {
 }
 
 pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut String) {
+    emit_locale_enum_types_with_exports(schema, locale, false, output);
+}
+
+pub(super) fn emit_locale_enum_types_with_exports(
+    schema: &IrModule,
+    locale: &IrModule,
+    exported: bool,
+    output: &mut String,
+) {
+    let export = if exported { "export " } else { "" };
     for item in locale.enums() {
         let supplied_by_schema = schema.enums().iter().any(|schema| schema.name == item.name)
             || schema
@@ -206,7 +216,7 @@ pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut
             .collect::<Vec<_>>()
             .join(" | ");
         output.push_str(&format!(
-            "type {} = {variants};\n\n",
+            "{export}type {} = {variants};\n\n",
             safe_identifier(&item.name)
         ));
     }
@@ -224,18 +234,23 @@ pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
 }
 
 pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    emit_forms_for_target(module, options, EcmaScriptTarget::TypeScript, output);
+    emit_forms_for_target(module, options, EcmaScriptTarget::TypeScript, false, output);
 }
 
 pub(super) fn emit_forms_for_target(
     module: &IrModule,
     options: &TypeScriptOptions,
     target: EcmaScriptTarget,
+    exported: bool,
     output: &mut String,
 ) {
+    let export = if exported { "export " } else { "" };
     for form in module.forms() {
         emit_docs(&form.docs, "", output);
-        output.push_str(&format!("const {} = {{\n", form_binding_name(&form.name)));
+        output.push_str(&format!(
+            "{export}const {} = {{\n",
+            form_binding_name(&form.name)
+        ));
         for variant in &form.variants {
             output.push_str(&format!(
                 "  {}: {},\n",
@@ -252,19 +267,21 @@ pub(super) fn emit_forms_for_target(
 }
 
 pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    emit_variables_for_target(module, options, EcmaScriptTarget::TypeScript, output);
+    emit_variables_for_target(module, options, EcmaScriptTarget::TypeScript, false, output);
 }
 
 pub(super) fn emit_variables_for_target(
     module: &IrModule,
     options: &TypeScriptOptions,
     target: EcmaScriptTarget,
+    exported: bool,
     output: &mut String,
 ) {
+    let export = if exported { "export " } else { "" };
     for variable in module.variables() {
         emit_docs(&variable.docs, "", output);
         output.push_str(&format!(
-            "const {} = {};\n\n",
+            "{export}const {} = {};\n\n",
             safe_identifier(&variable.name),
             text_expression_for_target(&variable.value, options, target)
         ));
@@ -272,15 +289,17 @@ pub(super) fn emit_variables_for_target(
 }
 
 pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    emit_local_functions_for_target(module, options, EcmaScriptTarget::TypeScript, output);
+    emit_local_functions_for_target(module, options, EcmaScriptTarget::TypeScript, false, output);
 }
 
 pub(super) fn emit_local_functions_for_target(
     module: &IrModule,
     options: &TypeScriptOptions,
     target: EcmaScriptTarget,
+    exported: bool,
     output: &mut String,
 ) {
+    let export = if exported { "export " } else { "" };
     for function in module.functions() {
         let parameter_names = function_parameters(function);
         if target.is_typescript() {
@@ -326,7 +345,7 @@ pub(super) fn emit_local_functions_for_target(
             ""
         };
         output.push_str(&format!(
-            "function {}({params}){return_type} {{\n",
+            "{export}function {}({params}){return_type} {{\n",
             safe_identifier(&function.name)
         ));
         let context = function

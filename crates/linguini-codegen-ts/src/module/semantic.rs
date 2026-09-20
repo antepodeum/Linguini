@@ -286,43 +286,23 @@ fn compile_bundler_semantic_module(
     }
 
     let mut output = String::new();
-    let (declaration, exported_declaration) = match artifact.kind {
+    match artifact.kind {
         TypeScriptSemanticSymbolKind::LocaleEnum => {
             if target.is_typescript() {
-                emit::emit_locale_enum_types(project.schema, &one, &mut output);
-                (
-                    format!("type {} =", artifact.binding),
-                    format!("export type {} =", artifact.binding),
-                )
+                emit::emit_locale_enum_types_with_exports(project.schema, &one, true, &mut output);
             } else {
                 output.push_str("export {};\n");
-                (String::new(), String::new())
             }
         }
         TypeScriptSemanticSymbolKind::LocaleVariable => {
-            emit_variables_for_target(&one, &options, target, &mut output);
-            (
-                format!("const {} =", artifact.binding),
-                format!("export const {} =", artifact.binding),
-            )
+            emit_variables_for_target(&one, &options, target, true, &mut output);
         }
         TypeScriptSemanticSymbolKind::LocaleForm => {
-            emit_forms_for_target(&one, &options, target, &mut output);
-            (
-                format!("const {} =", artifact.binding),
-                format!("export const {} =", artifact.binding),
-            )
+            emit_forms_for_target(&one, &options, target, true, &mut output);
         }
         TypeScriptSemanticSymbolKind::LocaleFunction => {
-            emit_local_functions_for_target(&one, &options, target, &mut output);
-            (
-                format!("function {}(", artifact.binding),
-                format!("export function {}(", artifact.binding),
-            )
+            emit_local_functions_for_target(&one, &options, target, true, &mut output);
         }
-    };
-    if !declaration.is_empty() {
-        output = output.replacen(&declaration, &exported_declaration, 1);
     }
 
     if !target.is_typescript() && !type_names.is_empty() {

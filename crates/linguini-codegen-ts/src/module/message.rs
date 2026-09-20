@@ -366,7 +366,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_variables_for_target(&one, options, target, &mut output);
+        emit_variables_for_target(&one, options, target, false, &mut output);
         push_chunk(
             &mut statements,
             output,
@@ -385,7 +385,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_forms_for_target(&one, options, target, &mut output);
+        emit_forms_for_target(&one, options, target, false, &mut output);
         push_chunk(
             &mut statements,
             output,
@@ -399,7 +399,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_local_functions_for_target(&one, options, target, &mut output);
+        emit_local_functions_for_target(&one, options, target, false, &mut output);
         push_chunk(
             &mut statements,
             output,
