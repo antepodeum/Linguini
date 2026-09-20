@@ -80,6 +80,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: true,
   }),
   Object.freeze({
+    id: "codegen:runtime-js",
+    project: "site",
+    label: "Locale runtime JavaScript/JSDoc conformance",
+    command: "pnpm",
+    args: ["exec", "tsc", "--project", "../tests/fixtures/golden/snapshots/js-runtime/tsconfig.json"],
+    profiles: ["quick", "full"],
+    tools: ["pnpm"],
+    requiresNodeModules: true,
+  }),
+  Object.freeze({
     id: "rust:test",
     project: "rust",
     label: "Cargo workspace tests",

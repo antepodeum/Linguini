@@ -284,7 +284,7 @@ fn compile_message_module(
     })
 }
 
-fn ordered_sources(
+pub(super) fn ordered_sources(
     source_ids: &[SourceId],
     sources: &[EcmaSource],
 ) -> Result<Vec<EcmaSource>, TypeScriptCodegenError> {

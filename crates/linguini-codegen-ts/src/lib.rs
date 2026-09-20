@@ -9,11 +9,13 @@ pub use ecmascript::{
 };
 pub use module::{
     compile_javascript_bundler_message_artifact_module, compile_javascript_bundler_message_module,
-    compile_javascript_bundler_semantic_module, compile_typescript_bundler_message_artifact_module,
-    compile_typescript_bundler_message_module, compile_typescript_bundler_semantic_module,
+    compile_javascript_bundler_semantic_module, compile_javascript_locale_runtime_artifact_module,
+    compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_message_module,
+    compile_typescript_bundler_semantic_module, compile_typescript_locale_runtime_artifact_module,
     compile_typescript_message_module, generate_javascript_schema_files,
     generate_typescript_project_files, render_jsdoc_type, render_typescript_type,
-    CompiledJavaScriptMessageModule, CompiledJavaScriptSemanticModule,
+    CompiledJavaScriptLocaleRuntimeModule, CompiledJavaScriptMessageModule,
+    CompiledJavaScriptSemanticModule, CompiledTypeScriptLocaleRuntimeModule,
     CompiledTypeScriptMessageModule, CompiledTypeScriptSemanticModule, EcmaGeneratedFile,
     TypeModel, TypeScriptCodegenError, TypeScriptFramework, TypeScriptGeneratedFile,
     TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptLocalePrefixMode,

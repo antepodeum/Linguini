@@ -614,13 +614,6 @@ pub fn formatter_data_declaration(locale: &str, requirements: FormatterRequireme
     formatter_data_declaration_for_target(locale, requirements, EcmaScriptTarget::TypeScript, false)
 }
 
-pub fn exported_formatter_data_declaration(
-    locale: &str,
-    requirements: FormatterRequirements,
-) -> String {
-    formatter_data_declaration_for_target(locale, requirements, EcmaScriptTarget::TypeScript, true)
-}
-
 pub(super) fn formatter_data_declaration_for_target(
     locale: &str,
     requirements: FormatterRequirements,

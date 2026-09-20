@@ -21,6 +21,11 @@ Custom Rust codegen callers configure an embedded plural implementation through
 selected ECMAScript target and export scope; callers use `plural_import` only when the plural
 function is supplied by another module.
 
+Bundler integrations enumerate `locale_runtime_artifacts` from a validated project, then compile
+each artifact with `compile_typescript_locale_runtime_artifact_module` or
+`compile_javascript_locale_runtime_artifact_module`. Both targets share helper-demand analysis,
+canonical CLDR inputs, artifact source identities, and source-map ownership.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

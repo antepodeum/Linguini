@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "module": "ESNext",
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022"
+  },
+  "files": ["_runtime.js"]
+}

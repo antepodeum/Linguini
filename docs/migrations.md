@@ -25,6 +25,9 @@ editor boundaries to update this file, public documentation, and executable test
   `plural_rules`. Pass canonical `linguini_cldr::PluralRules` for an embedded implementation, or
   leave it unset and provide `plural_import`; codegen now renders target-safe local and exported
   functions itself instead of rewriting caller-provided TypeScript text.
+- Bundler integrations can compile each validated locale runtime artifact directly through the
+  TypeScript or checked-JavaScript artifact compiler. These APIs preserve exact helper demand,
+  ordered source identity, and target-owned source-map paths.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

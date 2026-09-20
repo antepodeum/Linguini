@@ -1,0 +1,1 @@
+{"version":3,"file":"locales/en-us/_runtime.js","sources":["schema.lgs","locale.lgl"],"sourcesContent":["summary(count: Number)\n","summary = {fn(Plural(count)) {\n  one => {count @number}\n  other => Many\n}}\n"],"names":[],"mappings":""}

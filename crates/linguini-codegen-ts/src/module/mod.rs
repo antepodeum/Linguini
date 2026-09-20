@@ -8,6 +8,7 @@ mod message;
 mod messages;
 mod names;
 mod project;
+mod runtime;
 mod semantic;
 mod shared;
 mod signature;
@@ -45,7 +46,6 @@ use self::names::{
     safe_identifier,
 };
 use self::shared::generate_shared_module;
-use super::plural::generate_plural_function_for_target;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptOptions {
@@ -543,6 +543,11 @@ pub use message::{
     compile_typescript_message_module, CompiledJavaScriptMessageModule,
     CompiledTypeScriptMessageModule,
 };
+pub use runtime::{
+    compile_javascript_locale_runtime_artifact_module,
+    compile_typescript_locale_runtime_artifact_module, CompiledJavaScriptLocaleRuntimeModule,
+    CompiledTypeScriptLocaleRuntimeModule,
+};
 pub use semantic::{
     compile_javascript_bundler_semantic_module, compile_typescript_bundler_semantic_module,
     CompiledJavaScriptSemanticModule, CompiledTypeScriptSemanticModule, TypeScriptSemanticArtifact,
@@ -933,7 +938,17 @@ pub fn generate_typescript_project_files(
         let visible_locale = locale_module_for_schema(&locale.module, &visible_schema);
         files.push(TypeScriptGeneratedFile {
             path: format!("locales/{}/_runtime.ts", locale.locale),
-            contents: generate_locale_runtime(&visible_schema, &visible_locale, &locale_options),
+            contents: runtime::locale_runtime_module(
+                &visible_schema,
+                &visible_locale,
+                &locale_options,
+                EcmaModuleOutput::new(
+                    EcmaScriptTarget::TypeScript,
+                    format!("locales/{}/_runtime.ts", locale.locale),
+                    None,
+                ),
+            )
+            .render_code(),
         });
         let has_globals = locale_has_globals(&visible_locale);
         if has_globals {
@@ -1434,42 +1449,6 @@ fn generate_typescript_module_with_shared_import(
         imports,
         output,
     )
-}
-
-fn generate_locale_runtime(
-    schema: &IrModule,
-    locale: &IrModule,
-    options: &TypeScriptOptions,
-) -> String {
-    let mut module = EcmaModule::new(EcmaModuleOutput::new(
-        EcmaScriptTarget::TypeScript,
-        format!("locales/{}/_runtime.ts", options.locale),
-        None,
-    ));
-    let requirements = formatter_requirements(schema, locale);
-    if requirements.any() {
-        module.push_statement(EcmaStatement::generated(
-            expr::exported_formatter_data_declaration(&options.locale, requirements),
-        ));
-    }
-    if plural_required(schema, locale) {
-        let rules = options
-            .plural_rules
-            .as_ref()
-            .expect("project locale options always include plural rules");
-        let source = generate_plural_function_for_target(
-            &options.plural_function,
-            rules,
-            EcmaScriptTarget::TypeScript,
-            true,
-        );
-        module.push_statement(EcmaStatement::generated(if requirements.any() {
-            format!("\n\n{source}")
-        } else {
-            source
-        }));
-    }
-    module.render_code()
 }
 
 fn generate_locale_globals(
