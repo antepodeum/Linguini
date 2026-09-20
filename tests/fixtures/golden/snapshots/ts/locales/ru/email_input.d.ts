@@ -1,5 +1,4 @@
 import type { Fruit, Size, Money, ShortDate } from "../../shared";
-
 export type { Fruit, Size, Money, ShortDate } from "../../shared";
 
 export declare const email_input: {

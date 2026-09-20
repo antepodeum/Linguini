@@ -1,9 +1,12 @@
 use linguini_ir::{IrMessage, IrModule};
 
-use super::emit::{schema_type_aliases, schema_type_names};
-use super::names::{
-    emit_docs, escape_string, function_name, property_key, safe_file_stem, safe_identifier,
+use crate::ecmascript::{
+    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaReExport,
+    EcmaScriptTarget, EcmaStatement,
 };
+
+use super::emit::{schema_type_aliases, schema_type_names};
+use super::names::{emit_docs, function_name, property_key, safe_file_stem, safe_identifier};
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
 
@@ -12,21 +15,20 @@ pub fn generate_locale_declaration_with_namespaces(
     locale: &str,
     namespaces: &[String],
 ) -> String {
+    let mut imports = Vec::new();
     let mut output = String::new();
     for namespace in namespaces {
         let file_stem = safe_file_stem(namespace);
-        output.push_str(&format!(
-            "import {{ {} }} from \"./{}/{}\";\n",
-            safe_identifier(namespace),
-            escape_string(locale),
-            escape_string(&file_stem)
+        let identifier = safe_identifier(namespace);
+        imports.push(EcmaImport::named(
+            format!("./{locale}/{file_stem}"),
+            vec![EcmaNamedImport::new(&identifier, &identifier)],
         ));
     }
-    if !namespaces.is_empty() {
-        output.push('\n');
+    if let Some(type_import) = type_import(schema, "../shared") {
+        imports.push(type_import);
     }
-    emit_type_imports(schema, "../shared", &mut output);
-    emit_type_reexports(schema, "../shared", &mut output);
+    emit_type_alias_declarations(schema, &mut output);
     for namespace in namespaces {
         let identifier = safe_identifier(namespace);
         output.push_str(&format!(
@@ -35,17 +37,25 @@ pub fn generate_locale_declaration_with_namespaces(
     }
     let exports = emit_message_declarations(schema, &mut output);
     emit_default_declaration_with_namespaces(&exports, namespaces, &mut output);
-    output
+    render_declaration_module(
+        format!("locales/{locale}.d.ts"),
+        imports,
+        type_re_exports(schema, "../shared"),
+        output,
+    )
 }
 
 pub fn generate_locale_declaration_with_shared_import(
     schema: &IrModule,
+    output_path: &str,
     shared_import_path: &str,
     namespace_alias: Option<&str>,
 ) -> String {
+    let imports = type_import(schema, shared_import_path)
+        .into_iter()
+        .collect::<Vec<_>>();
     let mut output = String::new();
-    emit_type_imports(schema, shared_import_path, &mut output);
-    emit_type_reexports(schema, shared_import_path, &mut output);
+    emit_type_alias_declarations(schema, &mut output);
     let exports = emit_message_declarations(schema, &mut output);
     emit_default_declaration(&exports, &mut output);
     if let Some(namespace_alias) = namespace_alias {
@@ -56,34 +66,68 @@ pub fn generate_locale_declaration_with_shared_import(
             ));
         }
     }
-    output
+    render_declaration_module(
+        output_path.to_owned(),
+        imports,
+        type_re_exports(schema, shared_import_path),
+        output,
+    )
 }
 
-fn emit_type_imports(schema: &IrModule, shared_import_path: &str, output: &mut String) {
+fn type_import(schema: &IrModule, shared_import_path: &str) -> Option<EcmaImport> {
     let type_names = schema_type_names(schema);
-    if !type_names.is_empty() {
-        output.push_str(&format!(
-            "import type {{ {} }} from \"{}\";\n\n",
-            type_names.join(", "),
-            shared_import_path
-        ));
-    }
+    (!type_names.is_empty()).then(|| EcmaImport {
+        specifier: shared_import_path.to_owned(),
+        bindings: EcmaImportBindings::TypeNamed(
+            type_names
+                .into_iter()
+                .map(|name| EcmaNamedImport::new(&name, &name))
+                .collect(),
+        ),
+    })
 }
 
-fn emit_type_reexports(schema: &IrModule, shared_import_path: &str, output: &mut String) {
+fn type_re_exports(schema: &IrModule, shared_import_path: &str) -> Vec<EcmaReExport> {
     let type_names = schema_type_names(schema);
-    if !type_names.is_empty() {
-        output.push_str(&format!(
-            "export type {{ {} }} from \"{}\";\n\n",
-            type_names.join(", "),
-            shared_import_path
-        ));
-    }
+    (!type_names.is_empty())
+        .then(|| {
+            EcmaReExport::type_named(
+                shared_import_path,
+                type_names
+                    .into_iter()
+                    .map(|name| EcmaNamedImport::new(&name, &name))
+                    .collect(),
+            )
+        })
+        .into_iter()
+        .collect()
+}
+
+fn emit_type_alias_declarations(schema: &IrModule, output: &mut String) {
     for (public_name, generated_name) in schema_type_aliases(schema) {
         output.push_str(&format!(
             "export type {public_name} = {generated_name};\n\n"
         ));
     }
+}
+
+fn render_declaration_module(
+    output_path: String,
+    imports: Vec<EcmaImport>,
+    re_exports: Vec<EcmaReExport>,
+    body: String,
+) -> String {
+    let mut module = EcmaModule::new(EcmaModuleOutput::new(
+        EcmaScriptTarget::TypeScript,
+        output_path,
+        None,
+    ));
+    module.extend_imports(imports);
+    for item in re_exports {
+        module.push_re_export(item);
+    }
+    module.push_statement(EcmaStatement::type_declaration(body, None));
+    module.render_code()
 }
 
 fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<String> {

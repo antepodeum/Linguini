@@ -974,6 +974,7 @@ pub fn generate_typescript_project_files(
                     path: format!("locales/{}/{namespace_file_stem}.d.ts", locale.locale),
                     contents: decl::generate_locale_declaration_with_shared_import(
                         &namespace_schema,
+                        &format!("locales/{}/{namespace_file_stem}.d.ts", locale.locale),
                         "../../shared",
                         Some(namespace),
                     ),

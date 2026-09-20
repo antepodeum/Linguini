@@ -1,7 +1,5 @@
 import { email_input } from "./ru/email_input";
-
 import type { Fruit, Size, Money, ShortDate } from "../shared";
-
 export type { Fruit, Size, Money, ShortDate } from "../shared";
 
 export declare const email_input: typeof email_input;
