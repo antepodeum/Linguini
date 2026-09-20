@@ -222,6 +222,34 @@ pub(super) fn emit_locale_enum_types_with_exports(
     }
 }
 
+pub(super) fn emit_locale_enum_jsdoc_types(
+    schema: &IrModule,
+    locale: &IrModule,
+    output: &mut String,
+) {
+    for item in locale.enums() {
+        let supplied_by_schema = schema.enums().iter().any(|schema| schema.name == item.name)
+            || schema
+                .type_aliases()
+                .iter()
+                .any(|schema| schema.name == item.name);
+        if supplied_by_schema {
+            continue;
+        }
+        emit_docs(&item.docs, "", output);
+        let variants = item
+            .variants
+            .iter()
+            .map(|variant| format!("\"{}\"", escape_string(variant)))
+            .collect::<Vec<_>>()
+            .join(" | ");
+        output.push_str(&format!(
+            "/** @typedef {{{variants}}} {} */\n",
+            safe_identifier(&item.name)
+        ));
+    }
+}
+
 pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
     for item in module.type_aliases() {
         emit_docs(&item.docs, "", output);

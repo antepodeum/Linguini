@@ -291,6 +291,7 @@ fn compile_bundler_semantic_module(
             if target.is_typescript() {
                 emit::emit_locale_enum_types_with_exports(project.schema, &one, true, &mut output);
             } else {
+                emit::emit_locale_enum_jsdoc_types(project.schema, &one, &mut output);
                 output.push_str("export {};\n");
             }
         }
@@ -305,8 +306,24 @@ fn compile_bundler_semantic_module(
         }
     }
 
-    if !target.is_typescript() && !type_names.is_empty() {
-        let typedefs = type_names
+    if !target.is_typescript() {
+        let locale_enum_names = artifact
+            .imports
+            .iter()
+            .filter(|dependency| {
+                dependency.type_only && dependency.kind == TypeScriptSemanticSymbolKind::LocaleEnum
+            })
+            .map(|dependency| dependency.name.as_str())
+            .collect::<BTreeSet<_>>();
+        let locale_enums = IrModuleBuilder::seeded(locale)
+            .retain_symbols(|kind, name| {
+                kind == IrSymbolKind::Enum && locale_enum_names.contains(name)
+            })
+            .build()
+            .expect("locale enum dependency projection preserves unique names");
+        let mut typedefs = String::new();
+        emit::emit_locale_enum_jsdoc_types(project.schema, &locale_enums, &mut typedefs);
+        let schema_typedefs = type_names
             .iter()
             .map(|name| {
                 format!(
@@ -316,7 +333,13 @@ fn compile_bundler_semantic_module(
             })
             .collect::<Vec<_>>()
             .join("\n");
-        output = format!("{typedefs}\n{output}");
+        if !schema_typedefs.is_empty() {
+            typedefs.push_str(&schema_typedefs);
+            typedefs.push('\n');
+        }
+        if !typedefs.is_empty() {
+            output = format!("{typedefs}{output}");
+        }
     }
 
     let uses_select_branch = output.contains("selectBranch(");
@@ -1228,6 +1251,26 @@ mod tests {
         .expect("enum module");
         assert!(enum_module.code.contains("export type Gender"));
         assert_eq!(enum_module.code.matches("export ").count(), 1);
+
+        let javascript_enum = compile_javascript_bundler_semantic_module(
+            &project,
+            locale_enum,
+            &sources(schema, locale),
+        )
+        .expect("JavaScript enum module");
+        assert!(javascript_enum
+            .code
+            .contains("/** @typedef {\"male\" | \"other\"} Gender */"));
+        let javascript_function = compile_javascript_bundler_semantic_module(
+            &project,
+            function,
+            &sources(schema, locale),
+        )
+        .expect("JavaScript function module");
+        assert!(javascript_function
+            .code
+            .contains("/** @typedef {\"male\" | \"other\"} Gender */"));
+        assert!(!javascript_function.code.contains("import type"));
     }
 
     #[test]
