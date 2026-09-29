@@ -6,10 +6,10 @@ use super::templates::{
     SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_LOCALE_CONTEXT_DECLARATIONS,
     SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS, SVELTE_LOCALE_RUNTIME,
     SVELTE_LOCALE_STANDALONE_DECLARATIONS, SVELTE_LOCALE_STANDALONE_RUNTIME, SVELTE_RUNTIME,
-    WEB_DECLARATIONS, WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS, WEB_RUNTIME_LINKS_RUNTIME,
-    WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME, WEB_SWITCH_ROUTE_DECLARATIONS,
-    WEB_SWITCH_ROUTE_RUNTIME,
+    WEB_DECLARATIONS, WEB_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
+    WEB_SWITCH_ROUTE_DECLARATIONS, WEB_SWITCH_ROUTE_RUNTIME,
 };
+use super::web_runtime_links;
 use super::{web_accept_language, web_cookie, web_link_transform, web_local_storage, web_path};
 use super::{TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptWebOptions};
 
@@ -325,7 +325,9 @@ pub fn generate_project_web_link_module(mode: super::TypeScriptLinkMode) -> Opti
         super::TypeScriptLinkMode::Transform => {
             Some(web_link_transform::generate_typescript_web_link_transform_module())
         }
-        super::TypeScriptLinkMode::Runtime => Some(WEB_RUNTIME_LINKS_RUNTIME.to_owned()),
+        super::TypeScriptLinkMode::Runtime => {
+            Some(web_runtime_links::generate_typescript_web_runtime_links_module())
+        }
         super::TypeScriptLinkMode::Manual => None,
     }
 }
@@ -335,7 +337,9 @@ pub fn generate_project_web_link_declaration(mode: super::TypeScriptLinkMode) ->
         super::TypeScriptLinkMode::Transform => {
             Some(web_link_transform::generate_web_link_transform_declaration())
         }
-        super::TypeScriptLinkMode::Runtime => Some(WEB_RUNTIME_LINKS_DECLARATIONS.to_owned()),
+        super::TypeScriptLinkMode::Runtime => {
+            Some(web_runtime_links::generate_web_runtime_links_declaration())
+        }
         super::TypeScriptLinkMode::Manual => None,
     }
 }

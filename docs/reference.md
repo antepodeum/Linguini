@@ -69,6 +69,10 @@ For transformed links, `compile_typescript_web_link_transform_module` and
 `compile_javascript_web_link_transform_module` render the same `localizeTransformedHref` behavior
 with target-owned imports and source maps. The generated project keeps its existing
 `web/link-transform.ts` and declaration paths.
+For browser runtime links, `compile_typescript_web_runtime_links_module` and
+`compile_javascript_web_runtime_links_module` render the owned observer and bounded traversal from
+the same runtime fragments. Both return target-owned source maps; generated project paths remain
+`web/runtime-links.ts` and `web/runtime-links.d.ts`.
 
 Linguini has two file types:
 

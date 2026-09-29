@@ -1,18 +1,19 @@
-import type { LinguiniWebLocale } from "../web";
-
 const MAX_PENDING_ROOTS = 128;
 const NODE_BUDGET = 256;
 
-export function startRuntimeLinkLocalization<LocaleName extends string>(
-  web: LinguiniWebLocale<LocaleName>,
-  getLocale: () => LocaleName,
-) {
+/**
+ * @template {string} LocaleName
+ * @param {import("../web.js").LinguiniWebLocale<LocaleName>} web
+ * @param {() => LocaleName} getLocale
+ * @returns {{refresh(): void, destroy(): void} | undefined}
+ */
+export function startRuntimeLinkLocalization(web, getLocale) {
   if (typeof document === "undefined") return undefined;
-  const pendingRoots: Node[] = [];
-  const queuedRoots = new Set<Node>();
-  let activeTraversal: LinkTraversal | undefined;
-  let animationFrame: number | undefined;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  /** @type {Node[]} */ const pendingRoots = [];
+  /** @type {Set<Node>} */ const queuedRoots = new Set();
+  /** @type {LinkTraversal | undefined} */ let activeTraversal;
+  /** @type {number | undefined} */ let animationFrame;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */ let timer;
   let destroyed = false;
 
   const schedule = () => {
@@ -30,7 +31,8 @@ export function startRuntimeLinkLocalization<LocaleName extends string>(
     }
   };
 
-  const enqueueRoot = (root: Node) => {
+  /** @param {Node} root */
+  const enqueueRoot = (root) => {
     if (destroyed || !isLinkTraversalRoot(root) || queuedRoots.has(root)) return;
     if (pendingRoots.length >= MAX_PENDING_ROOTS) {
       enqueueDocument();
@@ -104,8 +106,9 @@ export function startRuntimeLinkLocalization<LocaleName extends string>(
       attributeFilter: ["href", "download", "rel", "data-linguini-ignore", "data-linguini-no-localize"],
     });
   }
-  const onClick = (event: Event) => {
-    const anchor = (event.target as Element | null)?.closest?.("a[href]");
+  /** @param {Event} event */
+  const onClick = (event) => {
+    const anchor = (/** @type {Element | null} */ (event.target))?.closest?.("a[href]");
     if (anchor) localizeAnchorElement(web, getLocale(), anchor);
   };
   document.addEventListener("click", onClick, true);
@@ -132,39 +135,46 @@ export function startRuntimeLinkLocalization<LocaleName extends string>(
   };
 }
 
-interface LinkTraversal {
-  root: Element | undefined;
-  rootPending: boolean;
-  walker: TreeWalker;
-}
+/** @typedef {{root: Element | undefined, rootPending: boolean, walker: TreeWalker}} LinkTraversal */
 
-function isLinkTraversalRoot(node: Node) {
+/** @param {Node} node */
+function isLinkTraversalRoot(node) {
   return node.nodeType === 1 || node.nodeType === 9 || node.nodeType === 11;
 }
 
-function createLinkTraversal(root: Node): LinkTraversal | undefined {
-  const ownerDocument = root.nodeType === 9 ? root as Document : root.ownerDocument;
+/**
+ * @param {Node} root
+ * @returns {LinkTraversal | undefined}
+ */
+function createLinkTraversal(root) {
+  const ownerDocument = root.nodeType === 9 ? /** @type {Document} */ (root) : root.ownerDocument;
   if (!ownerDocument) return undefined;
   return {
-    root: root.nodeType === 1 ? root as Element : undefined,
+    root: root.nodeType === 1 ? /** @type {Element} */ (root) : undefined,
     rootPending: root.nodeType === 1,
     walker: ownerDocument.createTreeWalker(root, 0x1),
   };
 }
 
-function nextTraversalElement(traversal: LinkTraversal): Element | undefined {
+/**
+ * @param {LinkTraversal} traversal
+ * @returns {Element | undefined}
+ */
+function nextTraversalElement(traversal) {
   if (traversal.rootPending) {
     traversal.rootPending = false;
     return traversal.root;
   }
-  return (traversal.walker.nextNode() as Element | null) ?? undefined;
+  return (/** @type {Element | null} */ (traversal.walker.nextNode())) ?? undefined;
 }
 
-function localizeAnchorElement<LocaleName extends string>(
-  web: LinguiniWebLocale<LocaleName>,
-  locale: LocaleName,
-  anchor: Element,
-) {
+/**
+ * @template {string} LocaleName
+ * @param {import("../web.js").LinguiniWebLocale<LocaleName>} web
+ * @param {LocaleName} locale
+ * @param {Element} anchor
+ */
+function localizeAnchorElement(web, locale, anchor) {
   const href = anchor.getAttribute("href");
   if (!href) return;
   const input = { currentUrl: window.location.href, origin: window.location.origin };
@@ -177,3 +187,4 @@ function localizeAnchorElement<LocaleName extends string>(
   const localized = web.localizeHref(href, locale, input);
   if (localized !== href) anchor.setAttribute("href", localized);
 }
+//# sourceMappingURL=runtime-links.js.map

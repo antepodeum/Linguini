@@ -39,6 +39,9 @@ pub use module::{
     TypeScriptSemanticImport, TypeScriptSemanticSymbolKind, TypeScriptWebFeatures,
     TypeScriptWebOptions, TypeScriptWebSwitchRoute, ValidatedTypeScriptProject,
 };
+pub use module::{
+    compile_javascript_web_runtime_links_module, compile_typescript_web_runtime_links_module,
+};
 pub use plural::generate_plural_function;
 
 #[cfg(test)]

@@ -29,9 +29,6 @@ pub const SVELTEKIT_CONTROL_DECLARATIONS: &str =
     include_str!("templates/sveltekit-control.runtime.d.ts");
 pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
 pub const WEB_DECLARATIONS: &str = include_str!("templates/web.runtime.d.ts");
-pub const WEB_RUNTIME_LINKS_RUNTIME: &str = include_str!("templates/web.runtime-links.runtime.ts");
-pub const WEB_RUNTIME_LINKS_DECLARATIONS: &str =
-    include_str!("templates/web.runtime-links.runtime.d.ts");
 pub const WEB_SERVER_COOKIE_RUNTIME: &str = include_str!("templates/web.server-cookie.runtime.ts");
 pub const WEB_SERVER_COOKIE_DECLARATIONS: &str =
     include_str!("templates/web.server-cookie.runtime.d.ts");
@@ -74,8 +71,6 @@ mod tests {
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
         assert!(SVELTE_EFFECTS_RUNTIME.contains("{{LINK_RUNTIME_START}}"));
-        assert!(WEB_RUNTIME_LINKS_RUNTIME.contains("startRuntimeLinkLocalization"));
-        assert!(WEB_RUNTIME_LINKS_RUNTIME.contains("MutationObserver"));
         assert!(WEB_SERVER_COOKIE_RUNTIME.contains("persistLocaleCookie"));
         assert!(SVELTE_EFFECTS_DECLARATIONS.contains("destroyLinguiniEffects"));
         assert!(SVELTE_LOCALE_RUNTIME.contains("getCurrentLocale"));

@@ -1,5 +1,10 @@
 # Migration notes
 
+Rust integrations can compile selected browser link localization through
+`compile_typescript_web_runtime_links_module` or `compile_javascript_web_runtime_links_module`.
+The JavaScript output retains checked lifecycle and DOM types through JSDoc; TypeScript bytes and
+declaration companions retain their existing contract.
+
 This file records required application changes when a public Linguini contract changes. The CI
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.

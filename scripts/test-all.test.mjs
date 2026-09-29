@@ -134,6 +134,8 @@ test("registry is explicit and ordered across repository projects", () => {
       "codegen:web-path-runtime",
       "codegen:web-routes-js",
       "codegen:web-routes-runtime",
+      "codegen:web-runtime-links-js",
+      "codegen:web-runtime-links-runtime",
       "rust:test",
       "rust:clippy",
       "docs:syntax",
@@ -180,6 +182,8 @@ test("profiles select the expected ordered task groups", () => {
     "codegen:web-path-runtime",
     "codegen:web-routes-js",
     "codegen:web-routes-runtime",
+    "codegen:web-runtime-links-js",
+    "codegen:web-runtime-links-runtime",
     "vite:test",
     "cli:test",
   ]);
@@ -277,13 +281,15 @@ test("task execution continues after a failure and aggregates exit status", () =
     "codegen:web-path-runtime",
     "codegen:web-routes-js",
     "codegen:web-routes-runtime",
+    "codegen:web-runtime-links-js",
+    "codegen:web-runtime-links-runtime",
     "vite:test",
     "cli:test",
   ]);
   assert.deepEqual(summary.failed.map((result) => result.task.id), ["vite:test"]);
   assert.deepEqual(
     summary.results.map((result) => result.durationMs),
-    [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
+    [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
   );
 });
 

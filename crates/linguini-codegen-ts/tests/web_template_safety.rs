@@ -1,8 +1,6 @@
 const SVELTE_RUNTIME: &str = include_str!("../src/module/templates/svelte.runtime.ts");
 const SVELTE_EFFECTS_RUNTIME: &str =
     include_str!("../src/module/templates/svelte-effects.runtime.ts");
-const WEB_RUNTIME_LINKS: &str =
-    include_str!("../src/module/templates/web.runtime-links.runtime.ts");
 const SVELTEKIT_RUNTIME: &str = include_str!("../src/module/templates/sveltekit.runtime.ts");
 const WEB_RUNTIME: &str = include_str!("../src/module/templates/web.runtime.ts");
 const WEB_DECLARATIONS: &str = include_str!("../src/module/templates/web.runtime.d.ts");
@@ -40,12 +38,14 @@ fn web_runtime_options_are_structured_and_drop_flat_compatibility_fields() {
 
 #[test]
 fn browser_link_observer_is_owned_batched_and_bounded() {
+    let runtime = linguini_codegen_ts::compile_typescript_web_runtime_links_module();
+    let web_runtime_links = runtime.code;
     assert!(SVELTE_EFFECTS_RUNTIME.contains("hot?.dispose(destroyLinguiniEffects)"));
-    assert!(WEB_RUNTIME_LINKS.contains("MAX_PENDING_ROOTS"));
-    assert!(WEB_RUNTIME_LINKS.contains("NODE_BUDGET"));
-    assert!(WEB_RUNTIME_LINKS.contains("shouldLocalizeLink"));
-    assert!(!WEB_RUNTIME_LINKS.contains("activeAutoLinkCleanup"));
-    assert!(!WEB_RUNTIME_LINKS.contains("querySelectorAll"));
+    assert!(web_runtime_links.contains("MAX_PENDING_ROOTS"));
+    assert!(web_runtime_links.contains("NODE_BUDGET"));
+    assert!(web_runtime_links.contains("shouldLocalizeLink"));
+    assert!(!web_runtime_links.contains("activeAutoLinkCleanup"));
+    assert!(!web_runtime_links.contains("querySelectorAll"));
     assert!(!SVELTE_EFFECTS_RUNTIME.contains("MutationObserver"));
     assert!(!SVELTE_RUNTIME.contains("MutationObserver"));
     assert!(!SVELTE_RUNTIME.contains("AUTO_LINK_MAX_PENDING_ROOTS"));

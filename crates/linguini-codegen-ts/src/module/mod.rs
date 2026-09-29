@@ -12,6 +12,7 @@ mod messages;
 mod names;
 mod project;
 mod runtime;
+mod runtime_code;
 mod semantic;
 mod shared;
 mod signature;
@@ -24,6 +25,7 @@ mod web_link_transform;
 mod web_local_storage;
 mod web_path;
 mod web_routes;
+mod web_runtime_links;
 
 pub(crate) use crate::ecmascript::EcmaScriptTarget;
 
@@ -594,6 +596,9 @@ pub use web_local_storage::{
 };
 pub use web_path::{compile_javascript_web_path_module, compile_typescript_web_path_module};
 pub use web_routes::{compile_javascript_web_routes_module, compile_typescript_web_routes_module};
+pub use web_runtime_links::{
+    compile_javascript_web_runtime_links_module, compile_typescript_web_runtime_links_module,
+};
 
 impl std::error::Error for TypeScriptCodegenError {}
 

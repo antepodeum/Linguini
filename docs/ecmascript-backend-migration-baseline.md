@@ -92,6 +92,10 @@ otherwise.
 
 ## Frozen evidence
 
+- Browser runtime-link TypeScript/JavaScript byte snapshots, checked DOM/lifecycle JSDoc,
+  generated-only maps, frame/timer budgets, mutation overflow, and cleanup parity:
+  `tests/fixtures/golden/snapshots/js-web-runtime-links`.
+
 - Byte snapshots: `tests/fixtures/golden/snapshots/ts`, `ts-runtime`, and `js`.
 - Message/semantic JavaScript, JSDoc, dependency, and source-map fixtures:
   `crates/linguini-codegen-ts/src/module/message.rs` and `semantic.rs` tests.
