@@ -16,6 +16,7 @@ mod runtime_code;
 mod semantic;
 mod shared;
 mod signature;
+mod svelte_effects;
 mod svelte_locale;
 mod templates;
 mod tree;
@@ -24,12 +25,16 @@ mod web_accept_language;
 mod web_cookie;
 mod web_link_transform;
 mod web_local_storage;
+mod web_options;
 mod web_path;
 mod web_routes;
 mod web_runtime_links;
 
 pub(crate) use crate::ecmascript::EcmaScriptTarget;
 
+pub use svelte_effects::{
+    compile_javascript_svelte_effects_module, compile_typescript_svelte_effects_module,
+};
 pub use svelte_locale::{
     compile_javascript_svelte_locale_module, compile_typescript_svelte_locale_module,
     SvelteLocaleMode,

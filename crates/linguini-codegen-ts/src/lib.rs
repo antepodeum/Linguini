@@ -40,7 +40,8 @@ pub use module::{
     TypeScriptWebOptions, TypeScriptWebSwitchRoute, ValidatedTypeScriptProject,
 };
 pub use module::{
-    compile_javascript_svelte_locale_module, compile_javascript_web_runtime_links_module,
+    compile_javascript_svelte_effects_module, compile_javascript_svelte_locale_module,
+    compile_javascript_web_runtime_links_module, compile_typescript_svelte_effects_module,
     compile_typescript_svelte_locale_module, compile_typescript_web_runtime_links_module,
     SvelteLocaleMode,
 };

@@ -92,6 +92,10 @@ otherwise.
 
 ## Frozen evidence
 
+- Svelte browser-effect TS/JS snapshots and checked types across standalone/SvelteKit and all
+  closed source capabilities, with SSR, denied-getter, runtime-link, and HMR cleanup parity:
+  `tests/fixtures/golden/snapshots/js-svelte-effects`.
+
 - Svelte locale TypeScript/JavaScript byte snapshots, strict positive/negative JSDoc,
   target-owned maps, real Svelte client/server rune compilation, loader snapshots/disposal,
   failure handling, and request-data parity:

@@ -80,6 +80,11 @@ Rust codegen callers can compile Svelte locale state with
 `.svelte.js` runes, checked JSDoc, and an adjacent source map. Both targets use one locale-loader
 registry and state implementation.
 
+`compile_typescript_svelte_effects_module` and `compile_javascript_svelte_effects_module` accept
+the closed `TypeScriptWebOptions` policy and a SvelteKit flag. They emit selected, guarded browser
+reads, framework-owned base/browser imports, runtime-link lifecycle ownership, and HMR disposal
+from one implementation.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

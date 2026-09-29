@@ -72,6 +72,10 @@ editor boundaries to update this file, public documentation, and executable test
   `SvelteLocaleMode::{Context, Standalone, SvelteKit}`. TypeScript bytes and declarations remain
   unchanged. JavaScript retains `.svelte.js` runes for framework compilation, checked JSDoc,
   and an adjacent source map; it is not a plain-JavaScript replacement for Svelte compilation.
+- Svelte browser-effect codegen callers can use `compile_typescript_svelte_effects_module` or
+  `compile_javascript_svelte_effects_module`. The shared emitter groups imports before browser
+  initialization; runtime bodies and declaration bytes are unchanged. Unselected capabilities
+  are omitted structurally, rather than removed from rendered TypeScript text.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

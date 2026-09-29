@@ -10,8 +10,6 @@ pub const SVELTE_CONTROL_RUNTIME: &str = include_str!("templates/svelte-control.
 pub const SVELTE_CONTROL_DECLARATIONS: &str = include_str!("templates/svelte-control.runtime.d.ts");
 pub const SVELTE_CONTEXT_RUNTIME: &str = include_str!("templates/svelte.context.runtime.ts");
 pub const SVELTE_CONTEXT_DECLARATIONS: &str = include_str!("templates/svelte.context.runtime.d.ts");
-pub const SVELTE_EFFECTS_RUNTIME: &str = include_str!("templates/svelte-effects.runtime.ts");
-pub const SVELTE_EFFECTS_DECLARATIONS: &str = include_str!("templates/svelte-effects.runtime.d.ts");
 pub const SVELTEKIT_RUNTIME: &str = include_str!("templates/sveltekit.runtime.ts");
 pub const SVELTEKIT_DECLARATIONS: &str = include_str!("templates/sveltekit.runtime.d.ts");
 pub const SVELTEKIT_CONTROL_RUNTIME: &str = include_str!("templates/sveltekit-control.runtime.ts");
@@ -60,9 +58,7 @@ mod tests {
         assert!(SVELTE_CONTROL_DECLARATIONS.contains("LinguiniSvelteControl"));
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
-        assert!(SVELTE_EFFECTS_RUNTIME.contains("{{LINK_RUNTIME_START}}"));
         assert!(WEB_SERVER_COOKIE_RUNTIME.contains("persistLocaleCookie"));
-        assert!(SVELTE_EFFECTS_DECLARATIONS.contains("destroyLinguiniEffects"));
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniReroute"));

@@ -2,14 +2,13 @@ use super::names::escape_string;
 use super::templates::{
     render_template, SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME,
     SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME,
-    SVELTE_CONTROL_DECLARATIONS, SVELTE_CONTROL_RUNTIME, SVELTE_DECLARATIONS,
-    SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_RUNTIME, WEB_DECLARATIONS,
-    WEB_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
+    SVELTE_CONTROL_DECLARATIONS, SVELTE_CONTROL_RUNTIME, SVELTE_DECLARATIONS, SVELTE_RUNTIME,
+    WEB_DECLARATIONS, WEB_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
     WEB_SWITCH_ROUTE_DECLARATIONS, WEB_SWITCH_ROUTE_RUNTIME,
 };
 use super::web_runtime_links;
 use super::{web_accept_language, web_cookie, web_link_transform, web_local_storage, web_path};
-use super::{TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptWebOptions};
+use super::{TypeScriptLocaleSource, TypeScriptWebOptions};
 
 pub fn generate_project_svelte_locale_module(web: bool, sveltekit: bool) -> String {
     super::svelte_locale::generate_typescript_svelte_locale_module(
@@ -27,47 +26,11 @@ pub fn generate_project_svelte_effects_module(
     options: &TypeScriptWebOptions,
     sveltekit: bool,
 ) -> String {
-    let browser_runtime = if sveltekit {
-        "import { browser } from \"$app/environment\";\nimport { base } from \"$app/paths\";"
-    } else {
-        "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";"
-    };
-    let mut rendered = render_template(
-        SVELTE_EFFECTS_RUNTIME,
-        &[
-            ("BROWSER_RUNTIME", browser_runtime.to_owned()),
-            ("OPTIONS", web_options_literal(options)),
-            (
-                "ENVIRONMENT",
-                if sveltekit { "{ base }" } else { "{}" }.to_owned(),
-            ),
-            (
-                "LINK_RUNTIME_IMPORT",
-                if options.features().link_mode == super::TypeScriptLinkMode::Runtime {
-                    "import { startRuntimeLinkLocalization } from \"./web/runtime-links.js\";"
-                        .to_owned()
-                } else {
-                    String::new()
-                },
-            ),
-            (
-                "LINK_RUNTIME_START",
-                if options.features().link_mode == super::TypeScriptLinkMode::Runtime {
-                    "const linkEffects = browser\n  ? startRuntimeLinkLocalization(web, getCurrentLocale)\n  : undefined;"
-                        .to_owned()
-                } else {
-                    "const linkEffects: { refresh(): void; destroy(): void } | undefined = undefined;"
-                        .to_owned()
-                },
-            ),
-        ],
-    );
-    rendered = gate_browser_capability_reads(rendered, &options.features());
-    rendered
+    super::svelte_effects::generate_typescript_svelte_effects_module(options, sveltekit)
 }
 
 pub fn generate_project_svelte_effects_declaration() -> String {
-    SVELTE_EFFECTS_DECLARATIONS.to_owned()
+    super::svelte_effects::generate_svelte_effects_declaration()
 }
 
 pub fn generate_project_svelte_module(
@@ -383,86 +346,10 @@ pub fn generate_project_web_declaration() -> String {
 }
 
 fn web_options_literal(options: &TypeScriptWebOptions) -> String {
-    let features = options.features();
-    let sources = js_locale_source_array(&options.sources);
-    let locale_switch = locale_switch_literal(options.locale_switch);
-    let exclude = js_string_array(&options.exclude);
-    let mut fields = vec![
-        format!(
-            "routing: {{ localePrefix: \"{}\", canonical: \"{}\" }}",
-            options.locale_prefix.as_str(),
-            if options.canonical_redirect {
-                "redirect"
-            } else {
-                "preserve"
-            }
-        ),
-        format!("locale: {{ sources: [{sources}] as const, switch: {locale_switch} }}"),
-        format!("links: {{ mode: \"{}\" }}", features.link_mode.as_str()),
-        format!("routes: {{ exclude: [{exclude}] as const }}"),
-    ];
-
-    if features.has_cookie {
-        let mut cookie = vec![
-            format!("name: \"{}\"", escape_string(&options.cookie_name)),
-            options.cookie_path.as_ref().map_or_else(
-                || "path: \"auto\"".to_owned(),
-                |path| format!("path: \"{}\"", escape_string(path)),
-            ),
-            format!("maxAge: {}", options.cookie_max_age),
-            format!("sameSite: \"{}\"", escape_string(&options.cookie_same_site)),
-            options.cookie_secure.map_or_else(
-                || "secure: \"auto\"".to_owned(),
-                |secure| format!("secure: {}", js_bool(secure)),
-            ),
-            format!("httpOnly: {}", js_bool(options.cookie_http_only)),
-        ];
-        if let Some(cookie_domain) = &options.cookie_domain {
-            cookie.push(format!("domain: \"{}\"", escape_string(cookie_domain)));
-        }
-        fields.push(format!("cookie: {{ {} }}", cookie.join(", ")));
-    }
-    if features.has_local_storage {
-        fields.push(format!(
-            "localStorage: {{ key: \"{}\" }}",
-            escape_string(&options.local_storage_key)
-        ));
-    }
-
-    format!("{{ {} }} as const", fields.join(", "))
-}
-
-fn locale_switch_literal(plan: TypeScriptLocaleSwitchPlan) -> String {
-    format!(
-        "{{ writesPath: {}, writesCookie: {}, writesLocalStorage: {} }} as const",
-        js_bool(plan.writes_path),
-        js_bool(plan.writes_cookie),
-        js_bool(plan.writes_local_storage),
+    super::web_options::web_options_literal(
+        options,
+        crate::ecmascript::EcmaScriptTarget::TypeScript,
     )
-}
-
-fn js_locale_source_array(values: &[TypeScriptLocaleSource]) -> String {
-    values
-        .iter()
-        .map(|source| format!("\"{}\"", source.as_str()))
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-fn js_string_array(values: &[String]) -> String {
-    values
-        .iter()
-        .map(|item| format!("\"{}\"", escape_string(item)))
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-fn js_bool(value: bool) -> &'static str {
-    if value {
-        "true"
-    } else {
-        "false"
-    }
 }
 
 fn selected_locale_resolver(features: &super::TypeScriptWebFeatures) -> String {
@@ -558,36 +445,6 @@ fn gate_browser_capability_writes(
         );
         if let Some(start) = rendered.find("\nfunction writeLocaleCookie(") {
             rendered.truncate(start);
-        }
-    }
-    rendered
-}
-
-fn gate_browser_capability_reads(
-    mut rendered: String,
-    features: &super::TypeScriptWebFeatures,
-) -> String {
-    let mut reads = Vec::new();
-    if features.has_path {
-        reads.push("    url: readBrowserCapability(() => window.location.href),");
-    }
-    if features.has_cookie {
-        reads.push("    cookie: readBrowserCapability(() => document.cookie),");
-    }
-    if features.has_local_storage {
-        reads.push("    localStorage: readBrowserCapability(() => window.localStorage),");
-    }
-    if features.has_accept_language {
-        reads.push("    navigator: readBrowserCapability(() => window.navigator),");
-    }
-    let replacement = format!(
-        "  return web.resolveLocaleSync({{\n{}\n  }});",
-        reads.join("\n")
-    );
-    if let Some(start) = rendered.find("  return web.resolveLocaleSync({\n") {
-        if let Some(end_offset) = rendered[start..].find("  });") {
-            let end = start + end_offset + "  });".len();
-            rendered.replace_range(start..end, &replacement);
         }
     }
     rendered
