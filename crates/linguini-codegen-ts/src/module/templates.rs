@@ -1,9 +1,3 @@
-pub const INDEX_RUNTIME: &str = include_str!("templates/index.runtime.ts");
-pub const INDEX_RUNTIME_DECLARATIONS: &str = include_str!("templates/index.runtime.d.ts");
-pub const LOCALE_RUNTIME: &str = include_str!("templates/locale.runtime.ts");
-pub const LOCALE_DECLARATIONS: &str = include_str!("templates/locale.runtime.d.ts");
-pub const PROJECT_INDEX_ENTRY: &str = include_str!("templates/project-index.entry.ts");
-pub const PROJECT_INDEX_DECLARATIONS: &str = include_str!("templates/project-index.entry.d.ts");
 pub const SHARED_RUNTIME: &str = include_str!("templates/shared.runtime.ts");
 pub const SHARED_DECLARATIONS: &str = include_str!("templates/shared.runtime.d.ts");
 #[cfg(test)]
@@ -76,12 +70,6 @@ mod tests {
 
     #[test]
     fn generated_runtime_templates_are_non_empty() {
-        assert!(INDEX_RUNTIME.contains("createLinguini"));
-        assert!(INDEX_RUNTIME_DECLARATIONS.contains("createLinguini"));
-        assert!(LOCALE_RUNTIME.contains("normalizeLocale"));
-        assert!(LOCALE_DECLARATIONS.contains("normalizeLocale"));
-        assert!(PROJECT_INDEX_ENTRY.contains("{{INDEX_RUNTIME}}"));
-        assert!(PROJECT_INDEX_DECLARATIONS.contains("{{INDEX_RUNTIME_DECLARATIONS}}"));
         assert!(SHARED_RUNTIME.contains("selectBranch"));
         assert!(SHARED_RUNTIME.contains("normalizeMessageArgs"));
         assert!(SHARED_RUNTIME.contains("Reflect.ownKeys"));

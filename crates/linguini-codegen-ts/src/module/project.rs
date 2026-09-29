@@ -1,11 +1,7 @@
-use std::collections::BTreeMap;
-
-use super::names::{escape_string, property_key, safe_identifier};
+use super::names::escape_string;
 use super::templates::{
-    render_template, INDEX_RUNTIME, INDEX_RUNTIME_DECLARATIONS, LOCALE_DECLARATIONS,
-    LOCALE_RUNTIME, PROJECT_INDEX_DECLARATIONS, PROJECT_INDEX_ENTRY,
-    SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME, SVELTEKIT_DECLARATIONS,
-    SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME,
+    render_template, SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME,
+    SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME,
     SVELTE_CONTROL_DECLARATIONS, SVELTE_CONTROL_RUNTIME, SVELTE_DECLARATIONS,
     SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_LOCALE_CONTEXT_DECLARATIONS,
     SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS, SVELTE_LOCALE_RUNTIME,
@@ -18,128 +14,7 @@ use super::templates::{
     WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME, WEB_SWITCH_ROUTE_DECLARATIONS,
     WEB_SWITCH_ROUTE_RUNTIME,
 };
-use super::{
-    TypeScriptLocaleModule, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
-    TypeScriptWebOptions,
-};
-use linguini_cldr::{
-    built_in_text_direction, canonicalize_locale, locale_resolution_candidates, maximize_locale,
-};
-
-pub fn generate_project_index(
-    locales: &[TypeScriptLocaleModule],
-    base_locale: Option<&str>,
-) -> String {
-    let base_locale = base_locale.expect("validated TypeScript projects have a base locale");
-    render_template(
-        PROJECT_INDEX_ENTRY,
-        &[
-            ("IMPORTS", project_locale_import(base_locale)),
-            ("LOCALE_MODULES", project_locale_modules(base_locale)),
-            (
-                "LOCALE_LOADERS",
-                project_locale_loaders(locales, base_locale),
-            ),
-            ("INDEX_RUNTIME", template_body(INDEX_RUNTIME)),
-        ],
-    )
-}
-
-pub fn generate_project_locale(
-    locales: &[TypeScriptLocaleModule],
-    base_locale: Option<&str>,
-) -> String {
-    render_template(
-        LOCALE_RUNTIME,
-        &[
-            ("LOCALES", locale_literals(locales).join(", ")),
-            ("BASE_LOCALE", base_locale_literal(locales, base_locale)),
-            ("LOCALE_DIRECTIONS", project_locale_directions(locales)),
-            ("LOCALE_RESOLUTION", project_locale_resolution(locales)),
-        ],
-    )
-}
-
-pub fn generate_project_locale_declaration(
-    locales: &[TypeScriptLocaleModule],
-    base_locale: Option<&str>,
-) -> String {
-    render_template(
-        LOCALE_DECLARATIONS,
-        &[
-            ("LOCALES", locale_literals(locales).join(", ")),
-            ("BASE_LOCALE", base_locale_literal(locales, base_locale)),
-            (
-                "LOCALE_DIRECTIONS",
-                project_locale_direction_declarations(locales),
-            ),
-        ],
-    )
-}
-
-fn project_locale_resolution(locales: &[TypeScriptLocaleModule]) -> String {
-    let mut candidates = locale_resolution_candidates()
-        .iter()
-        .map(|locale| (*locale).to_owned())
-        .collect::<Vec<_>>();
-    for locale in locales {
-        let Ok(canonical) = canonicalize_locale(&locale.locale) else {
-            continue;
-        };
-        let Some(language) = canonical.split('-').next() else {
-            continue;
-        };
-        let Ok(maximized) = maximize_locale(language) else {
-            continue;
-        };
-        if let Some(script) = maximized
-            .split('-')
-            .nth(1)
-            .filter(|subtag| subtag.len() == 4)
-        {
-            candidates.push(format!("{language}-{script}"));
-        }
-    }
-    candidates.sort();
-    candidates.dedup();
-
-    let mut resolution = locales
-        .iter()
-        .map(|locale| (locale.locale.to_ascii_lowercase(), locale.locale.clone()))
-        .collect::<BTreeMap<_, _>>();
-    for candidate in candidates {
-        if let Some(resolved) = super::locale_fallback_chain(locales, &candidate, None)
-            .into_iter()
-            .next()
-        {
-            resolution.insert(candidate.to_ascii_lowercase(), resolved);
-        }
-    }
-
-    resolution
-        .into_iter()
-        .map(|(candidate, resolved)| {
-            format!(
-                "  \"{}\": \"{}\",\n",
-                escape_string(&candidate),
-                escape_string(&resolved)
-            )
-        })
-        .collect()
-}
-
-pub fn generate_project_index_declaration(
-    _locales: &[TypeScriptLocaleModule],
-    _base_locale: Option<&str>,
-) -> String {
-    render_template(
-        PROJECT_INDEX_DECLARATIONS,
-        &[(
-            "INDEX_RUNTIME_DECLARATIONS",
-            template_body(INDEX_RUNTIME_DECLARATIONS),
-        )],
-    )
-}
+use super::{TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptWebOptions};
 
 pub fn generate_project_svelte_locale_module(web: bool, sveltekit: bool) -> String {
     if web && sveltekit {
@@ -512,93 +387,6 @@ pub fn generate_project_web_declaration() -> String {
     WEB_DECLARATIONS.to_owned()
 }
 
-fn template_body(template: &str) -> String {
-    template.strip_suffix('\n').unwrap_or(template).to_owned()
-}
-
-fn project_locale_import(locale: &str) -> String {
-    format!(
-        "import {} from \"./locales/{}\";",
-        locale_identifier(locale),
-        escape_string(locale)
-    )
-}
-
-fn project_locale_directions(locales: &[TypeScriptLocaleModule]) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            format!(
-                "  {}: \"{}\",\n",
-                property_key(&locale.locale),
-                locale_direction(&locale.locale)
-            )
-        })
-        .collect::<String>()
-}
-
-fn project_locale_direction_declarations(locales: &[TypeScriptLocaleModule]) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            format!(
-                "  readonly {}: \"{}\";\n",
-                property_key(&locale.locale),
-                locale_direction(&locale.locale)
-            )
-        })
-        .collect::<String>()
-}
-
-fn project_locale_modules(locale: &str) -> String {
-    format!(
-        "  {}: {},\n",
-        property_key(locale),
-        locale_identifier(locale)
-    )
-}
-
-fn project_locale_loaders(locales: &[TypeScriptLocaleModule], base_locale: &str) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            if locale.locale == base_locale {
-                format!(
-                    "  {}: () => Promise.resolve({}),\n",
-                    property_key(&locale.locale),
-                    locale_identifier(&locale.locale)
-                )
-            } else {
-                format!(
-                    "  {}: () => import(\"./locales/{}\").then((module) => module.default),\n",
-                    property_key(&locale.locale),
-                    escape_string(&locale.locale)
-                )
-            }
-        })
-        .collect::<String>()
-}
-
-fn locale_identifier(locale: &str) -> String {
-    format!("locale_{}", safe_identifier(locale))
-}
-
-fn locale_literals(locales: &[TypeScriptLocaleModule]) -> Vec<String> {
-    locales
-        .iter()
-        .map(|locale| format!("\"{}\"", escape_string(&locale.locale)))
-        .collect()
-}
-
-fn base_locale_literal(locales: &[TypeScriptLocaleModule], base_locale: Option<&str>) -> String {
-    let locale = base_locale.expect("validated TypeScript projects have an explicit base locale");
-    debug_assert!(
-        locales.iter().any(|entry| entry.locale == locale),
-        "validated TypeScript projects contain the configured base locale"
-    );
-    format!("\"{}\"", escape_string(locale))
-}
-
 fn web_options_literal(options: &TypeScriptWebOptions) -> String {
     let features = options.features();
     let sources = js_locale_source_array(&options.sources);
@@ -680,10 +468,6 @@ fn js_bool(value: bool) -> &'static str {
     } else {
         "false"
     }
-}
-
-fn locale_direction(locale: &str) -> &'static str {
-    built_in_text_direction(locale).unwrap_or("ltr")
 }
 
 fn selected_locale_resolver(features: &super::TypeScriptWebFeatures) -> String {

@@ -2,6 +2,7 @@ mod artifacts;
 mod decl;
 mod deps;
 mod emit;
+mod entry;
 mod expr;
 mod formatters;
 mod globals;
@@ -543,7 +544,12 @@ impl fmt::Display for TypeScriptCodegenError {
 
 pub use artifacts::{
     TypeScriptLocaleArtifact, TypeScriptLocaleArtifactKind, TypeScriptLocaleGlobalsArtifact,
-    TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact,
+    TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact, TypeScriptProjectArtifact,
+    TypeScriptProjectArtifactKind,
+};
+pub use entry::{
+    compile_javascript_project_artifact_module, compile_typescript_project_artifact_module,
+    CompiledJavaScriptProjectModule, CompiledTypeScriptProjectModule,
 };
 pub use globals::{
     compile_javascript_locale_globals_artifact_module,
@@ -676,6 +682,11 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         &self,
     ) -> Result<Vec<TypeScriptLocaleGlobalsArtifact>, TypeScriptCodegenError> {
         artifacts::locale_globals_artifacts(self)
+    }
+
+    /// Enumerates the project locale metadata module followed by its public index.
+    pub fn project_artifacts(&self) -> Vec<TypeScriptProjectArtifact> {
+        artifacts::project_artifacts()
     }
 
     /// Enumerates deterministic one-binding semantic leaves required by selected messages.
@@ -1074,12 +1085,12 @@ pub fn generate_typescript_project_files(
 
     files.push(TypeScriptGeneratedFile {
         path: "locale.ts".to_owned(),
-        contents: project::generate_project_locale(locales, options.base_locale.as_deref()),
+        contents: entry::generate_project_locale(locales, options.base_locale.as_deref()),
     });
     if options.declaration {
         files.push(TypeScriptGeneratedFile {
             path: "locale.d.ts".to_owned(),
-            contents: project::generate_project_locale_declaration(
+            contents: entry::generate_project_locale_declaration(
                 locales,
                 options.base_locale.as_deref(),
             ),
@@ -1088,15 +1099,12 @@ pub fn generate_typescript_project_files(
 
     files.push(TypeScriptGeneratedFile {
         path: "index.ts".to_owned(),
-        contents: project::generate_project_index(locales, options.base_locale.as_deref()),
+        contents: entry::generate_project_index(locales, options.base_locale.as_deref()),
     });
     if options.declaration {
         files.push(TypeScriptGeneratedFile {
             path: "index.d.ts".to_owned(),
-            contents: project::generate_project_index_declaration(
-                locales,
-                options.base_locale.as_deref(),
-            ),
+            contents: entry::generate_project_index_declaration(),
         });
     }
 

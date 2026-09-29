@@ -70,6 +70,35 @@ pub struct TypeScriptLocaleArtifact {
     pub source_ids: Vec<SourceId>,
 }
 
+/// Project entry module class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeScriptProjectArtifactKind {
+    Locale,
+    Index,
+}
+
+/// Stable physical metadata for one project entry module.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptProjectArtifact {
+    pub kind: TypeScriptProjectArtifactKind,
+    pub module_path: String,
+    pub source_map_path: String,
+}
+
+pub(super) fn project_artifacts() -> Vec<TypeScriptProjectArtifact> {
+    [
+        (TypeScriptProjectArtifactKind::Locale, "locale.ts"),
+        (TypeScriptProjectArtifactKind::Index, "index.ts"),
+    ]
+    .into_iter()
+    .map(|(kind, module_path)| TypeScriptProjectArtifact {
+        kind,
+        module_path: module_path.to_owned(),
+        source_map_path: format!("{module_path}.map"),
+    })
+    .collect()
+}
+
 pub(super) fn locale_artifacts(
     project: &ValidatedTypeScriptProject<'_>,
 ) -> Result<Vec<TypeScriptLocaleArtifact>, TypeScriptCodegenError> {
