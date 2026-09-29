@@ -32,6 +32,13 @@ each artifact with `compile_typescript_locale_globals_artifact_module` or
 runtime-helper imports, checked JSDoc, and source maps come from the same target-aware models used
 by physical semantic leaves. Locales without global symbols do not produce an artifact.
 
+Locale implementation integrations enumerate `locale_artifacts`. Each effective locale produces
+its selected namespace artifacts followed by one barrel artifact; metadata retains deterministic
+paths and ordered fallback-composed source identities. Compile with
+`compile_typescript_locale_artifact_module` or `compile_javascript_locale_artifact_module` to keep
+message values/callables, positional and named calls, recursive namespace exports, runtime/global
+imports, defaults, and source maps identical across targets.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

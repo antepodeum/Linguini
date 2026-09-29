@@ -793,28 +793,30 @@ production path uses the fix and its relevant tests pass.
       planned for the future.
 - [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
       plus schema, locale shared-runtime, semantic, and aggregate locale-global modules now use it.
-      Remaining project and web/Svelte modules still use direct TypeScript assembly.
+      Locale namespace and barrel modules now use it too. Remaining project `locale`/`index` and
+      web/Svelte modules still use direct TypeScript assembly.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
 - [-] ESM-A5 — Render JavaScript plus JSDoc from the shared models. Exact bundler message and
       semantic leaves now select JavaScript from the same expression, form, function, signature,
-      import, runtime-helper, and source-map emitters as TypeScript; overloads, local parameters,
-      plural rules, and formatter inputs retain checked JSDoc types. Project modules still need
-      the same target routing.
+      import, runtime-helper, and source-map emitters as TypeScript; locale namespaces and barrels
+      now share them as well. Overloads, local parameters, plural rules, formatter inputs, recursive
+      namespace values, and defaults retain checked JSDoc types. Project roots and web modules still
+      need the same target routing.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
 - [-] ESM-A7 — Avoid a parallel TypeScript runtime implementation. Locale shared helpers now have
       one target-aware production builder; project/web runtime modules remain TypeScript-only.
 - [-] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
-      modules plus semantic, locale-runtime, and locale-global artifacts now have target-owned
-      source maps, ordered source identity, and demand-selected helpers, but project-wide output
-      has not migrated.
+      modules plus semantic, locale-runtime, locale-global, namespace, and locale-barrel artifacts
+      now have target-owned source maps, ordered source identity, and demand-selected helpers, but
+      project-wide output has not migrated.
 - [x] ESM-A9 — Make parameterless public leaves values in both surfaces.
 - [-] ESM-A10 — Keep JavaScript generation first-class and near-zero-config. Public JavaScript
-      bundler-leaf, locale-runtime, and locale-global compilers now emit native `.js` import and
-      source-map paths without a TypeScript transpilation pass; project-wide JavaScript output
-      remains outstanding.
+      bundler-leaf, locale-runtime, locale-global, namespace, and locale-barrel compilers now emit
+      native `.js` import and source-map paths without a TypeScript transpilation pass; project-wide
+      JavaScript output remains outstanding.
 
 #### Ordered removal of direct TypeScript assembly
 
@@ -853,10 +855,13 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       global assembler is deleted. Closure, cycle, collision, tree-shaking, exact helper edges,
       strict checked-JavaScript, source-map snapshots, and executable JS/TS form-function parity
       are registered quick/full gates.
-- [ ] ESM-M6 — Migrate physical message leaves, locale namespace modules, locale barrels, fallback
-      composition, and default exports onto the same module model. Require value/callable parity,
-      positional/named overload parity, recursive namespace parity, fallback parity, exact import
-      boundaries, and deterministic output before removing the superseded project emitters.
+- [x] ESM-M6 — Migrate physical message leaves, locale namespace modules, locale barrels, fallback
+      composition, and default exports onto the same module model. Public locale artifacts now
+      enumerate deterministic namespace/barrel paths and ordered fallback provenance; TypeScript
+      and checked-JavaScript compilers share imports, values/callables, positional/named overloads,
+      recursive namespaces, defaults, and source maps. Exact TypeScript byte parity, strict JSDoc,
+      fallback execution, and JS/TS runtime parity run in quick/full gates; superseded locale
+      assemblers are deleted.
 - [ ] ESM-M7 — Migrate project `locale` and `index` modules, eager/dynamic locale loaders, and
       public configure/prepare APIs. Require sparse-locale, concurrent-load, retry, disposal, HMR,
       SSR, and complete CLDR locale-resolution parity before deleting their string templates.
