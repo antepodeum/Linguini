@@ -14,7 +14,7 @@ otherwise.
 | Locale semantics | optional aggregate `locales/<locale>/_globals.ts`; bundler mode also owns one encoded leaf per required enum, variable, form, or function | types are re-exported through locale declarations |
 | Locale messages | `locales/<locale>/<namespace>.ts`, `locales/<locale>.ts` | matching namespace and locale `.d.ts` files |
 | Project runtime | `locale.ts`, `index.ts` | `locale.d.ts`, `index.d.ts` |
-| Web leaves | optional `web.ts`, `web/{path,cookie,local-storage,accept-language,routes,link-transform,runtime-links,server-cookie,switch-route}.ts`; `web/path`, `web/cookie`, `web/local-storage`, and `web/routes` now have checked-JavaScript compilers | matching `.d.ts` files |
+| Web leaves | optional `web.ts`, `web/{path,cookie,local-storage,accept-language,routes,link-transform,runtime-links,server-cookie,switch-route}.ts`; `web/path`, `web/cookie`, `web/local-storage`, `web/accept-language`, and `web/routes` now have checked-JavaScript compilers | matching `.d.ts` files |
 | Svelte | optional `svelte-locale.svelte.ts`, `svelte-effects.svelte.ts`, `svelte-control.ts`, `svelte.ts` | matching `.d.ts` files |
 | SvelteKit | optional `sveltekit-control.ts`, `sveltekit.ts` | `sveltekit-control.d.ts`, ambient `linguini-app.d.ts` |
 | Bundler leaves | `bundler/messages/<encoded-message>/<encoded-locale>.ts`, `bundler/semantic/<locale>/<kind>/<encoded-name>.ts`, and one shared `locales/<locale>/_runtime.ts` | JavaScript/JSDoc compilation changes leaf extensions to `.js`; no separate declaration companion yet |
@@ -50,8 +50,8 @@ otherwise.
   come from ordered source records and mappings point at semantic source spans; generated-only
   `locale`/`index` entry maps have no source records. The existing project-file generator still
   emits those entries without maps; output ownership moves in ESM-M9. The generated-only
-  `web/path`, `web/cookie`, `web/local-storage`, and `web/routes` artifact compilers also return
-  target-owned maps.
+  `web/path`, `web/cookie`, `web/local-storage`, `web/accept-language`, and `web/routes` artifact
+  compilers also return target-owned maps.
 - `bundler/manifest.json` version 1 owns `base_locale`, `configured_locales`,
   `effective_locales`, `sources`, and `messages`; bundler mode also owns `locale_loading`,
   `applications`, `message_runtimes`, `message_semantics`, and `runtime_helpers`.
@@ -80,6 +80,9 @@ otherwise.
   selected cookie-locale resolver from one target-aware body.
 - `compile_typescript_web_local_storage_module` and `compile_javascript_web_local_storage_module`
   render the selected local-storage resolver from one target-aware body.
+- `compile_typescript_web_accept_language_module` and
+  `compile_javascript_web_accept_language_module` render the selected Accept-Language resolver
+  from one target-aware body.
 - `EcmaModule`, its import/statement/source records, `TypeModel`, and the TypeScript/JSDoc type
   renderers are the common backend surface to extend; target-specific assembly must not create a
   second production runtime.
@@ -105,6 +108,9 @@ otherwise.
   boundary, decoding, and malformed-value parity: `tests/fixtures/golden/snapshots/js-web-cookie`.
 - Web local-storage TypeScript/JavaScript byte snapshots, strict JSDoc, target-owned maps, and
   stored, absent, and denied-value parity: `tests/fixtures/golden/snapshots/js-web-local-storage`.
+- Web Accept-Language TypeScript/JavaScript byte snapshots, strict JSDoc, target-owned maps, and
+  quality, specificity, wildcard, navigator, and hostile-getter parity:
+  `tests/fixtures/golden/snapshots/js-web-accept-language`.
 - Runtime behavior: Rust project-codegen tests plus `crates/linguini-codegen-ts/tests/*.test.ts`.
 - Manifest, atomic output, and cleanup behavior: `crates/linguini-cli/src/tests.rs` and
   `crates/linguini-cli/src/project/output.rs` tests.

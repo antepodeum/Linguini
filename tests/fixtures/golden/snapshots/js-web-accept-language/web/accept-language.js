@@ -1,16 +1,14 @@
-type LanguagePreference = {
-  range: string;
-  quality: number;
-  index: number;
-  specificity: number;
-};
+/** @typedef {{range: string, quality: number, index: number, specificity: number}} LanguagePreference */
 
-export function resolveAcceptLanguageLocale<Locale extends string>(
-  input: Record<string, unknown>,
-  locales: readonly Locale[],
-  baseLocale: Locale,
-  matchLocale: (value: unknown) => Locale | undefined,
-): Locale | undefined {
+/**
+ * @template {string} Locale
+ * @param {Record<string, unknown>} input
+ * @param {readonly Locale[]} locales
+ * @param {Locale} baseLocale
+ * @param {(value: unknown) => Locale | undefined} matchLocale
+ * @returns {Locale | undefined}
+ */
+export function resolveAcceptLanguageLocale(input, locales, baseLocale, matchLocale) {
   const header = readHeader(input.headers, "accept-language");
   const value = header !== undefined
     ? resolveAcceptLanguage(locales, baseLocale, header)
@@ -18,9 +16,14 @@ export function resolveAcceptLanguageLocale<Locale extends string>(
   return matchLocale(value);
 }
 
-function readHeader(headers: unknown, name: string) {
+/**
+ * @param {unknown} headers
+ * @param {string} name
+ * @returns {string | undefined}
+ */
+function readHeader(headers, name) {
   if (!headers) return undefined;
-  const getter = (headers as { get?: (header: string) => string | null | undefined }).get;
+  const getter = (/** @type {{get?: (header: string) => string | null | undefined}} */ (headers)).get;
   if (typeof getter !== "function") return undefined;
   try {
     return getter.call(headers, name) ?? undefined;
@@ -29,7 +32,11 @@ function readHeader(headers: unknown, name: string) {
   }
 }
 
-function parseAcceptLanguage(header: string | null | undefined): LanguagePreference[] {
+/**
+ * @param {string | null | undefined} header
+ * @returns {LanguagePreference[]}
+ */
+function parseAcceptLanguage(header) {
   if (!header) return [];
   return String(header).split(",").flatMap((part, index) => {
     const [rawRange, ...parameters] = part.split(";");
@@ -48,11 +55,16 @@ function parseAcceptLanguage(header: string | null | undefined): LanguagePrefere
   });
 }
 
-function resolveAcceptLanguage<Locale extends string>(
-  locales: readonly Locale[], baseLocale: Locale, header: string | null | undefined,
-): Locale | undefined {
+/**
+ * @template {string} Locale
+ * @param {readonly Locale[]} locales
+ * @param {Locale} baseLocale
+ * @param {string | null | undefined} header
+ * @returns {Locale | undefined}
+ */
+function resolveAcceptLanguage(locales, baseLocale, header) {
   const preferences = parseAcceptLanguage(header);
-  let best: { locale: Locale; quality: number; preferenceIndex: number; base: boolean; localeIndex: number } | undefined;
+  /** @type {{locale: Locale, quality: number, preferenceIndex: number, base: boolean, localeIndex: number} | undefined} */ let best;
   for (const [localeIndex, locale] of locales.entries()) {
     const preference = preferences
       .filter((candidate) => languageRangeMatches(candidate.range, locale))
@@ -67,23 +79,36 @@ function resolveAcceptLanguage<Locale extends string>(
   return best?.locale;
 }
 
-function resolveNavigatorLanguage<Locale extends string>(locales: readonly Locale[], baseLocale: Locale, value: unknown) {
+/**
+ * @template {string} Locale
+ * @param {readonly Locale[]} locales
+ * @param {Locale} baseLocale
+ * @param {unknown} value
+ * @returns {Locale | undefined}
+ */
+function resolveNavigatorLanguage(locales, baseLocale, value) {
   if (!value || (typeof value !== "object" && typeof value !== "function")) return undefined;
-  const preferences: string[] = [];
+  /** @type {string[]} */ const preferences = [];
   try {
-    const languages = (value as { languages?: unknown }).languages;
+    const languages = (/** @type {{languages?: unknown}} */ (value)).languages;
     if (Array.isArray(languages)) for (const language of languages) if (typeof language === "string") preferences.push(language);
   } catch {}
   try {
-    const language = (value as { language?: unknown }).language;
+    const language = (/** @type {{language?: unknown}} */ (value)).language;
     if (typeof language === "string") preferences.push(language);
   } catch {}
   return preferences.length === 0 ? undefined : resolveAcceptLanguage(locales, baseLocale, preferences.join(","));
 }
 
-function languageRangeMatches(range: string, locale: string) {
+/**
+ * @param {string} range
+ * @param {string} locale
+ * @returns {boolean}
+ */
+function languageRangeMatches(range, locale) {
   if (range === "*") return true;
   const normalizedRange = range.toLowerCase();
   const normalizedLocale = locale.toLowerCase();
   return normalizedRange === normalizedLocale || normalizedLocale.startsWith(`${normalizedRange}-`) || normalizedRange.startsWith(`${normalizedLocale}-`);
 }
+//# sourceMappingURL=accept-language.js.map

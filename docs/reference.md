@@ -61,6 +61,10 @@ For selected local-storage locale resolution, `compile_typescript_web_local_stor
 `compile_javascript_web_local_storage_module` render the same `resolveLocalStorageLocale` behavior
 with target-owned source maps. The generated project keeps its existing `web/local-storage.ts` and
 declaration paths.
+For selected Accept-Language resolution, `compile_typescript_web_accept_language_module` and
+`compile_javascript_web_accept_language_module` render the same `resolveAcceptLanguageLocale`
+behavior with target-owned source maps. The generated project keeps its existing
+`web/accept-language.ts` and declaration paths.
 
 Linguini has two file types:
 

@@ -18,6 +18,7 @@ mod signature;
 mod templates;
 mod tree;
 mod type_model;
+mod web_accept_language;
 mod web_cookie;
 mod web_local_storage;
 mod web_path;
@@ -579,6 +580,9 @@ pub use semantic::{
     compile_javascript_bundler_semantic_module, compile_typescript_bundler_semantic_module,
     CompiledJavaScriptSemanticModule, CompiledTypeScriptSemanticModule, TypeScriptSemanticArtifact,
     TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
+};
+pub use web_accept_language::{
+    compile_javascript_web_accept_language_module, compile_typescript_web_accept_language_module,
 };
 pub use web_cookie::{compile_javascript_web_cookie_module, compile_typescript_web_cookie_module};
 pub use web_local_storage::{
