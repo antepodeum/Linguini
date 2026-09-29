@@ -29,8 +29,6 @@ pub const SVELTEKIT_CONTROL_DECLARATIONS: &str =
     include_str!("templates/sveltekit-control.runtime.d.ts");
 pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
 pub const WEB_DECLARATIONS: &str = include_str!("templates/web.runtime.d.ts");
-pub const WEB_PATH_RUNTIME: &str = include_str!("templates/web.path.runtime.ts");
-pub const WEB_PATH_DECLARATIONS: &str = include_str!("templates/web.path.runtime.d.ts");
 pub const WEB_COOKIE_RUNTIME: &str = include_str!("templates/web.cookie.runtime.ts");
 pub const WEB_COOKIE_DECLARATIONS: &str = include_str!("templates/web.cookie.runtime.d.ts");
 pub const WEB_LOCAL_STORAGE_RUNTIME: &str = include_str!("templates/web.local-storage.runtime.ts");
@@ -82,7 +80,6 @@ mod tests {
         assert!(WEB_RUNTIME.contains("createWebLocaleI18n"));
         assert!(WEB_DECLARATIONS.contains("LinguiniRequestContext"));
         assert!(WEB_DECLARATIONS.contains("LinguiniWebLocale"));
-        assert!(WEB_PATH_RUNTIME.contains("resolvePathLocale"));
         assert!(WEB_COOKIE_RUNTIME.contains("resolveCookieLocale"));
         assert!(WEB_LOCAL_STORAGE_RUNTIME.contains("resolveLocalStorageLocale"));
         assert!(WEB_ACCEPT_LANGUAGE_RUNTIME.contains("resolveAcceptLanguageLocale"));

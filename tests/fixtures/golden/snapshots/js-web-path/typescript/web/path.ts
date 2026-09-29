@@ -25,3 +25,4 @@ export function resolvePathLocale<Locale extends string>(
     ? locales.find((locale) => locale.toLowerCase() === segment.toLowerCase())
     : undefined;
 }
+//# sourceMappingURL=path.ts.map

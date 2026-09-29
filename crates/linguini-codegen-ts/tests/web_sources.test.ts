@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { resolvePathLocale } from "../src/module/templates/web.path.runtime.ts";
+import { resolvePathLocale } from "../../../tests/fixtures/golden/snapshots/js-web-path/typescript/web/path.ts";
 import { resolveCookieLocale } from "../src/module/templates/web.cookie.runtime.ts";
 import { resolveLocalStorageLocale } from "../src/module/templates/web.local-storage.runtime.ts";
 import { resolveAcceptLanguageLocale } from "../src/module/templates/web.accept-language.runtime.ts";

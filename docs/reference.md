@@ -50,6 +50,9 @@ existing map-free output paths until project output ownership migrates.
 For selected web route exclusions, `compile_typescript_web_routes_module` and
 `compile_javascript_web_routes_module` render the same `matchesRoute` behavior with target-owned
 source maps. The generated project keeps its existing `web/routes.ts` and declaration paths.
+For selected path locale resolution, `compile_typescript_web_path_module` and
+`compile_javascript_web_path_module` render the same `resolvePathLocale` behavior with target-owned
+source maps. The generated project keeps its existing `web/path.ts` and declaration paths.
 
 Linguini has two file types:
 
