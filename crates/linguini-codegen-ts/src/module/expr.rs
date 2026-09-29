@@ -15,7 +15,7 @@ use super::names::{
     escape_string, form_binding_name, path_expression, property_access, property_key,
     safe_identifier, string_literal, ts_type,
 };
-use super::{EcmaScriptTarget, TypeScriptOptions};
+use super::{render_jsdoc_type, EcmaScriptTarget, TypeModel, TypeScriptOptions};
 
 #[cfg(test)]
 pub fn form_object(entries: &[IrFormEntry], options: &TypeScriptOptions) -> String {
@@ -114,17 +114,20 @@ pub fn map_expression(
     } else {
         format!("String({parameter})")
     };
-    let parameter = if target.is_typescript() {
-        let parameter_type = if dispatch.ty == "Plural" {
-            "number | bigint | string".to_owned()
-        } else {
-            ts_type(&dispatch.ty)
-        };
-        format!("{parameter}: {parameter_type}")
+    let parameter_type = if dispatch.ty == "Plural" {
+        "number | bigint | string".to_owned()
+    } else if target.is_typescript() {
+        ts_type(&dispatch.ty)
     } else {
-        parameter
+        render_jsdoc_type(&TypeModel::from_source_name(&dispatch.ty))
     };
-    format!("({parameter}) => selectBranch({selector}, {{ {items} }})")
+    if target.is_typescript() {
+        format!("({parameter}: {parameter_type}) => selectBranch({selector}, {{ {items} }})")
+    } else {
+        format!(
+            "/** @type {{({parameter}: {parameter_type}) => string}} */ (({parameter}) => selectBranch({selector}, {{ {items} }}))"
+        )
+    }
 }
 
 pub(super) fn text_expression_for_target(
@@ -558,12 +561,12 @@ fn dispatch_expression_level(
                     target,
                 ),
             };
-            let return_type = if target.is_typescript() {
-                ": string"
+            let callback = if target.is_typescript() {
+                format!("(): string => {value}")
             } else {
-                ""
+                format!("/** @type {{() => string}} */ (() => {value})")
             };
-            format!("{}: (){return_type} => {value}", property_key(&branch.key))
+            format!("{}: {callback}", property_key(&branch.key))
         })
         .collect::<Vec<_>>()
         .join(", ");

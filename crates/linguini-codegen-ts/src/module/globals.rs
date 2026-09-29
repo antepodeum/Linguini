@@ -173,10 +173,15 @@ pub(super) fn locale_globals_module(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
     use crate::ecmascript::EcmaSource;
+    use crate::{
+        compile_javascript_locale_runtime_artifact_module, generate_javascript_schema_files,
+    };
 
     use super::{
         compile_javascript_locale_globals_artifact_module,
@@ -246,9 +251,9 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
         let javascript =
             compile_javascript_locale_globals_artifact_module(&project, artifact, &sources)
                 .expect("JavaScript globals");
-        let project_globals = generate_typescript_project_files(&project)
-            .expect("project files")
-            .into_iter()
+        let project_files = generate_typescript_project_files(&project).expect("project files");
+        let project_globals = project_files
+            .iter()
             .find(|file| file.path == artifact.module_path)
             .expect("project globals");
         assert_eq!(
@@ -269,6 +274,9 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
             .contains("@param {number | bigint | string} __lgl_p1"));
         assert!(javascript
             .code()
+            .contains("/** @type {(value: number | bigint | string) => string} */ ((value) =>"));
+        assert!(javascript
+            .code()
             .contains("export { prefix, __lgl_form_4672756974, Render };"));
         for forbidden in ["type Gender =", ": string", " as const", "import type"] {
             assert!(!javascript.code().contains(forbidden), "{forbidden}");
@@ -284,6 +292,75 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
         assert!(javascript
             .source_map()
             .contains("\"sources\":[\"locale.lgl\"]"));
+
+        let runtime_artifact = project
+            .locale_runtime_artifacts()
+            .expect("runtime artifacts")
+            .into_iter()
+            .next()
+            .expect("English runtime artifact");
+        let runtime = compile_javascript_locale_runtime_artifact_module(
+            &project,
+            &runtime_artifact,
+            &sources,
+        )
+        .expect("JavaScript runtime");
+        let shared = generate_javascript_schema_files(&schema)
+            .into_iter()
+            .find(|file| file.path == "shared.js")
+            .expect("JavaScript shared module");
+        let snapshot_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/golden/snapshots/js-globals");
+        let locale_snapshot_root = snapshot_root.join("locales/en-us");
+        let typescript_snapshot_root = snapshot_root.join("typescript");
+        let typescript_locale_snapshot_root = typescript_snapshot_root.join("locales/en-us");
+        let project_shared = project_files
+            .iter()
+            .find(|file| file.path == "shared.ts")
+            .expect("project shared module");
+        let project_runtime = project_files
+            .iter()
+            .find(|file| file.path == "locales/en-us/_runtime.ts")
+            .expect("project runtime module");
+        let snapshots = [
+            (snapshot_root.join("shared.js"), shared.contents.as_str()),
+            (
+                locale_snapshot_root.join("_runtime.js"),
+                runtime.code.as_str(),
+            ),
+            (locale_snapshot_root.join("_globals.js"), javascript.code()),
+            (
+                locale_snapshot_root.join("_globals.js.map"),
+                javascript.source_map(),
+            ),
+            (
+                typescript_snapshot_root.join("shared.ts"),
+                project_shared.contents.as_str(),
+            ),
+            (
+                typescript_locale_snapshot_root.join("_runtime.ts"),
+                project_runtime.contents.as_str(),
+            ),
+            (
+                typescript_locale_snapshot_root.join("_globals.ts"),
+                project_globals.contents.as_str(),
+            ),
+        ];
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            std::fs::create_dir_all(&locale_snapshot_root)
+                .expect("create globals snapshot directory");
+            std::fs::create_dir_all(&typescript_locale_snapshot_root)
+                .expect("create TypeScript globals snapshot directory");
+            for (path, contents) in &snapshots {
+                std::fs::write(path, contents).expect("write globals snapshot");
+            }
+        }
+        for (path, contents) in snapshots {
+            assert_eq!(
+                contents,
+                std::fs::read_to_string(path).expect("read globals snapshot")
+            );
+        }
     }
 
     #[test]

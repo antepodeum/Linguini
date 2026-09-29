@@ -114,6 +114,10 @@ test("registry is explicit and ordered across repository projects", () => {
       "repo:contracts",
       "repo:js-boundaries",
       "rust:fmt",
+      "codegen:schema-js",
+      "codegen:runtime-js",
+      "codegen:globals-js",
+      "codegen:globals-runtime",
       "rust:test",
       "rust:clippy",
       "docs:syntax",
@@ -140,6 +144,10 @@ test("profiles select the expected ordered task groups", () => {
     "repo:contracts",
     "repo:js-boundaries",
     "rust:fmt",
+    "codegen:schema-js",
+    "codegen:runtime-js",
+    "codegen:globals-js",
+    "codegen:globals-runtime",
     "vite:test",
     "cli:test",
   ]);
@@ -217,11 +225,18 @@ test("task execution continues after a failure and aggregates exit status", () =
     "repo:contracts",
     "repo:js-boundaries",
     "rust:fmt",
+    "codegen:schema-js",
+    "codegen:runtime-js",
+    "codegen:globals-js",
+    "codegen:globals-runtime",
     "vite:test",
     "cli:test",
   ]);
   assert.deepEqual(summary.failed.map((result) => result.task.id), ["vite:test"]);
-  assert.deepEqual(summary.results.map((result) => result.durationMs), [12, 12, 12, 12, 12, 12]);
+  assert.deepEqual(
+    summary.results.map((result) => result.durationMs),
+    [12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
+  );
 });
 
 test("main returns nonzero for failures without calling real suites", () => {
