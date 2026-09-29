@@ -792,8 +792,8 @@ production path uses the fix and its relevant tests pass.
 - [x] ESM-A2 — Treat SvelteKit as the primary supported adapter for now; it is not the only one
       planned for the future.
 - [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
-      plus schema and locale shared-runtime modules now use it. Remaining project, web/Svelte, and
-      several semantic/global statement bodies still use direct TypeScript assembly.
+      plus schema, locale shared-runtime, semantic, and aggregate locale-global modules now use it.
+      Remaining project and web/Svelte modules still use direct TypeScript assembly.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
@@ -807,12 +807,14 @@ production path uses the fix and its relevant tests pass.
 - [-] ESM-A7 — Avoid a parallel TypeScript runtime implementation. Locale shared helpers now have
       one target-aware production builder; project/web runtime modules remain TypeScript-only.
 - [-] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
-      modules and locale runtime artifacts now have target-owned source maps, ordered source
-      identity, and demand-selected helpers, but project-wide output has not migrated.
+      modules plus semantic, locale-runtime, and locale-global artifacts now have target-owned
+      source maps, ordered source identity, and demand-selected helpers, but project-wide output
+      has not migrated.
 - [x] ESM-A9 — Make parameterless public leaves values in both surfaces.
 - [-] ESM-A10 — Keep JavaScript generation first-class and near-zero-config. Public JavaScript
-      bundler-leaf and locale-runtime compilers now emit native `.js` import and source-map paths
-      without a TypeScript transpilation pass; project-wide JavaScript output remains outstanding.
+      bundler-leaf, locale-runtime, and locale-global compilers now emit native `.js` import and
+      source-map paths without a TypeScript transpilation pass; project-wide JavaScript output
+      remains outstanding.
 
 #### Ordered removal of direct TypeScript assembly
 
@@ -845,10 +847,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       `ru`, `ar`, and `hi` behavior corpus, demand selection, strict JSDoc checking, target-owned
       paths, ordered source identity, source-map snapshots, and unchanged TypeScript runtime
       snapshots pass; the direct locale runtime generator is deleted.
-- [ ] ESM-M5 — Migrate semantic/global leaves: locale enums, variables, forms, functions, their
-      direct dependency graph, runtime-helper imports, JSDoc, and source maps. Require closure,
-      cycle, collision, tree-shaking, and executable JS/TS form-function corpus parity before
-      deleting the old semantic/global emitters.
+- [x] ESM-M5 — Migrate semantic/global leaves: locale enums, variables, forms, functions, their
+      direct dependency graph, runtime-helper imports, JSDoc, and source maps. Per-symbol semantic
+      artifacts and aggregate locale-global artifacts now share target-aware emitters; the old
+      global assembler is deleted. Closure, cycle, collision, tree-shaking, exact helper edges,
+      strict checked-JavaScript, source-map snapshots, and executable JS/TS form-function parity
+      are registered quick/full gates.
 - [ ] ESM-M6 — Migrate physical message leaves, locale namespace modules, locale barrels, fallback
       composition, and default exports onto the same module model. Require value/callable parity,
       positional/named overload parity, recursive namespace parity, fallback parity, exact import

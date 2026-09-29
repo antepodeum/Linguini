@@ -11,7 +11,7 @@ otherwise.
 | --- | --- | --- |
 | Schema | `shared.ts`, `messages.ts` | `shared.d.ts`, `messages.d.ts` |
 | Locale runtime | `locales/<locale>/_runtime.ts` | none |
-| Locale semantics | optional `locales/<locale>/_globals.ts` | types are re-exported through locale declarations |
+| Locale semantics | optional aggregate `locales/<locale>/_globals.ts`; bundler mode also owns one encoded leaf per required enum, variable, form, or function | types are re-exported through locale declarations |
 | Locale messages | `locales/<locale>/<namespace>.ts`, `locales/<locale>.ts` | matching namespace and locale `.d.ts` files |
 | Project runtime | `locale.ts`, `index.ts` | `locale.d.ts`, `index.d.ts` |
 | Web leaves | optional `web.ts`, `web/{path,cookie,local-storage,accept-language,routes,link-transform,runtime-links,server-cookie,switch-route}.ts` | matching `.d.ts` files |
@@ -44,9 +44,10 @@ otherwise.
 
 - Project paths are validated for case-folded uniqueness and portable components before output.
   Bundler message and semantic paths use deterministic encoded components and a 240-byte bound.
-- Every physical message and semantic leaf owns an adjacent `<module>.map`. Its trailer names the
-  map basename, its `sources`/`sourcesContent` come from ordered source records, and mappings point
-  at semantic source spans. Project/runtime modules currently have no maps; adding them is part of
+- Every physical message and semantic leaf owns an adjacent `<module>.map`. Public locale-runtime
+  and locale-global artifact compilers also return target-owned maps. Trailers name the map
+  basename, `sources`/`sourcesContent` come from ordered source records, and mappings point at
+  semantic source spans. Remaining project modules currently have no maps; adding them is part of
   the common-backend migration, not an existing contract to imitate.
 - `bundler/manifest.json` version 1 owns `base_locale`, `configured_locales`,
   `effective_locales`, `sources`, and `messages`; bundler mode also owns `locale_loading`,
@@ -58,9 +59,11 @@ otherwise.
 
 - `ValidatedTypeScriptProject::try_new` is the production validation gate.
 - `generate_typescript_project_files` owns project artifact enumeration.
-- `message_artifacts`, `semantic_artifacts`, and `locale_runtime_artifacts` own deterministic
-  bundler metadata.
+- `message_artifacts`, `semantic_artifacts`, `locale_runtime_artifacts`, and
+  `locale_globals_artifacts` own deterministic physical metadata.
 - The TypeScript and JavaScript message/semantic compile functions own exact leaf rendering.
+- The TypeScript and JavaScript locale-runtime and locale-global artifact compilers own shared
+  target-aware runtime and aggregate-global rendering.
 - `EcmaModule`, its import/statement/source records, `TypeModel`, and the TypeScript/JSDoc type
   renderers are the common backend surface to extend; target-specific assembly must not create a
   second production runtime.
@@ -70,6 +73,8 @@ otherwise.
 - Byte snapshots: `tests/fixtures/golden/snapshots/ts`, `ts-runtime`, and `js`.
 - Message/semantic JavaScript, JSDoc, dependency, and source-map fixtures:
   `crates/linguini-codegen-ts/src/module/message.rs` and `semantic.rs` tests.
+- Locale-global TypeScript/JavaScript byte snapshots, strict JSDoc checks, source maps, and
+  executable form/function parity: `tests/fixtures/golden/snapshots/js-globals`.
 - Runtime behavior: Rust project-codegen tests plus `crates/linguini-codegen-ts/tests/*.test.ts`.
 - Manifest, atomic output, and cleanup behavior: `crates/linguini-cli/src/tests.rs` and
   `crates/linguini-cli/src/project/output.rs` tests.

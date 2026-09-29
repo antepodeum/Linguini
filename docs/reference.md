@@ -26,6 +26,12 @@ each artifact with `compile_typescript_locale_runtime_artifact_module` or
 `compile_javascript_locale_runtime_artifact_module`. Both targets share helper-demand analysis,
 canonical CLDR inputs, artifact source identities, and source-map ownership.
 
+Integrations that need aggregate locale symbols enumerate `locale_globals_artifacts`, then compile
+each artifact with `compile_typescript_locale_globals_artifact_module` or
+`compile_javascript_locale_globals_artifact_module`. Local enums, variables, forms, functions,
+runtime-helper imports, checked JSDoc, and source maps come from the same target-aware models used
+by physical semantic leaves. Locales without global symbols do not produce an artifact.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.
