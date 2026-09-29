@@ -57,6 +57,10 @@ For selected cookie locale resolution, `compile_typescript_web_cookie_module` an
 `compile_javascript_web_cookie_module` render the same `resolveCookieLocale` behavior with
 target-owned source maps. The generated project keeps its existing `web/cookie.ts` and declaration
 paths.
+For selected local-storage locale resolution, `compile_typescript_web_local_storage_module` and
+`compile_javascript_web_local_storage_module` render the same `resolveLocalStorageLocale` behavior
+with target-owned source maps. The generated project keeps its existing `web/local-storage.ts` and
+declaration paths.
 
 Linguini has two file types:
 

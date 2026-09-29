@@ -45,6 +45,10 @@ editor boundaries to update this file, public documentation, and executable test
   `compile_typescript_web_cookie_module` or `compile_javascript_web_cookie_module`. Existing
   generated TypeScript cookie bytes and declarations are unchanged; the JavaScript artifact uses
   checked JSDoc and an adjacent source map.
+- Rust codegen integrations that need the generated local-storage resolver can call
+  `compile_typescript_web_local_storage_module` or `compile_javascript_web_local_storage_module`.
+  Existing generated TypeScript local-storage bytes and declarations are unchanged; the JavaScript
+  artifact uses checked JSDoc and an adjacent source map.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

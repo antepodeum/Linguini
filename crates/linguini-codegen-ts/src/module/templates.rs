@@ -29,9 +29,6 @@ pub const SVELTEKIT_CONTROL_DECLARATIONS: &str =
     include_str!("templates/sveltekit-control.runtime.d.ts");
 pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
 pub const WEB_DECLARATIONS: &str = include_str!("templates/web.runtime.d.ts");
-pub const WEB_LOCAL_STORAGE_RUNTIME: &str = include_str!("templates/web.local-storage.runtime.ts");
-pub const WEB_LOCAL_STORAGE_DECLARATIONS: &str =
-    include_str!("templates/web.local-storage.runtime.d.ts");
 pub const WEB_ACCEPT_LANGUAGE_RUNTIME: &str =
     include_str!("templates/web.accept-language.runtime.ts");
 pub const WEB_ACCEPT_LANGUAGE_DECLARATIONS: &str =
@@ -78,7 +75,6 @@ mod tests {
         assert!(WEB_RUNTIME.contains("createWebLocaleI18n"));
         assert!(WEB_DECLARATIONS.contains("LinguiniRequestContext"));
         assert!(WEB_DECLARATIONS.contains("LinguiniWebLocale"));
-        assert!(WEB_LOCAL_STORAGE_RUNTIME.contains("resolveLocalStorageLocale"));
         assert!(WEB_ACCEPT_LANGUAGE_RUNTIME.contains("resolveAcceptLanguageLocale"));
         assert!(SVELTE_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_DECLARATIONS.contains("LinguiniRune"));

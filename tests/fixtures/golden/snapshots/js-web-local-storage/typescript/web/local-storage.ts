@@ -11,3 +11,4 @@ export function resolveLocalStorageLocale<Locale extends string>(
     return undefined;
   }
 }
+//# sourceMappingURL=local-storage.ts.map
