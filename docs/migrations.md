@@ -54,6 +54,11 @@ editor boundaries to update this file, public documentation, and executable test
   `compile_javascript_web_accept_language_module`. Existing generated TypeScript bytes and
   declarations are unchanged; the JavaScript artifact uses checked JSDoc and an adjacent source
   map.
+- Rust codegen integrations that need the selected transformed-link helper can call
+  `compile_typescript_web_link_transform_module` or
+  `compile_javascript_web_link_transform_module`. Existing generated TypeScript bytes and
+  declarations are unchanged; the JavaScript artifact uses checked JSDoc, `.js` imports, and an
+  adjacent source map.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

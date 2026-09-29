@@ -11,3 +11,4 @@ export function localizeTransformedHref(
     ? web.localizeHref(href, getCurrentLocale(), input)
     : href;
 }
+//# sourceMappingURL=link-transform.ts.map

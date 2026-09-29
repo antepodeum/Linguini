@@ -65,6 +65,10 @@ For selected Accept-Language resolution, `compile_typescript_web_accept_language
 `compile_javascript_web_accept_language_module` render the same `resolveAcceptLanguageLocale`
 behavior with target-owned source maps. The generated project keeps its existing
 `web/accept-language.ts` and declaration paths.
+For transformed links, `compile_typescript_web_link_transform_module` and
+`compile_javascript_web_link_transform_module` render the same `localizeTransformedHref` behavior
+with target-owned imports and source maps. The generated project keeps its existing
+`web/link-transform.ts` and declaration paths.
 
 Linguini has two file types:
 

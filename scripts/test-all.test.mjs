@@ -126,6 +126,8 @@ test("registry is explicit and ordered across repository projects", () => {
       "codegen:web-accept-language-runtime",
       "codegen:web-cookie-js",
       "codegen:web-cookie-runtime",
+      "codegen:web-link-transform-js",
+      "codegen:web-link-transform-runtime",
       "codegen:web-local-storage-js",
       "codegen:web-local-storage-runtime",
       "codegen:web-path-js",
@@ -170,6 +172,8 @@ test("profiles select the expected ordered task groups", () => {
     "codegen:web-accept-language-runtime",
     "codegen:web-cookie-js",
     "codegen:web-cookie-runtime",
+    "codegen:web-link-transform-js",
+    "codegen:web-link-transform-runtime",
     "codegen:web-local-storage-js",
     "codegen:web-local-storage-runtime",
     "codegen:web-path-js",
@@ -265,6 +269,8 @@ test("task execution continues after a failure and aggregates exit status", () =
     "codegen:web-accept-language-runtime",
     "codegen:web-cookie-js",
     "codegen:web-cookie-runtime",
+    "codegen:web-link-transform-js",
+    "codegen:web-link-transform-runtime",
     "codegen:web-local-storage-js",
     "codegen:web-local-storage-runtime",
     "codegen:web-path-js",
@@ -277,7 +283,7 @@ test("task execution continues after a failure and aggregates exit status", () =
   assert.deepEqual(summary.failed.map((result) => result.task.id), ["vite:test"]);
   assert.deepEqual(
     summary.results.map((result) => result.durationMs),
-    [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
+    [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
   );
 });
 

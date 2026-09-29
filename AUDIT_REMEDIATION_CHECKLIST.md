@@ -876,9 +876,9 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       leaves, link/runtime modules, locale state, effects, controls, root facade, then SvelteKit
       server adapters. Require browser/server capability gating, route/link safety, request
       isolation, streaming, Svelte checking, and production-build parity after each cutover. The
-      closed route-exclusion, path-locale, cookie-locale, local-storage, and Accept-Language leaves
-      now use the common backend; exact TypeScript bytes, checked JavaScript, source maps, and
-      executable parity run in quick/full gates.
+      closed route-exclusion, path-locale, cookie-locale, local-storage, Accept-Language, and
+      transformed-link leaves now use the common backend; exact TypeScript bytes, checked
+      JavaScript, source maps, and executable parity run in quick/full gates.
 - [ ] ESM-M9 — Switch CLI output ownership, bundler manifests, Vite virtual-module resolution,
       HMR invalidation, npm examples, and VSIX consumers to structured artifacts. Require atomic
       write/cleanup parity, unchanged portable paths, truthful source maps, Vite 5–8 integration,
