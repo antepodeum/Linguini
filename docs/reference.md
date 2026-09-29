@@ -74,6 +74,12 @@ For browser runtime links, `compile_typescript_web_runtime_links_module` and
 the same runtime fragments. Both return target-owned source maps; generated project paths remain
 `web/runtime-links.ts` and `web/runtime-links.d.ts`.
 
+Rust codegen callers can compile Svelte locale state with
+`compile_typescript_svelte_locale_module` or `compile_javascript_svelte_locale_module`, selecting
+`SvelteLocaleMode::{Context, Standalone, SvelteKit}`. JavaScript output retains framework-owned
+`.svelte.js` runes, checked JSDoc, and an adjacent source map. Both targets use one locale-loader
+registry and state implementation.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

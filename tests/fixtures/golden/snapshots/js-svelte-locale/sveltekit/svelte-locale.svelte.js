@@ -1,11 +1,12 @@
 import { page } from "$app/state";
-import { baseLocale, normalizeLocale, type Locale } from "./locale";
+import { baseLocale, normalizeLocale } from "./locale.js";
 
-export type LinguiniLocaleLoader = (locale: Locale) => void | Promise<void>;
+/** @typedef {import("./locale.js").Locale} Locale */
+/** @typedef {(locale: Locale) => void | Promise<void>} LinguiniLocaleLoader */
 
-const localeLoaders = new Set<LinguiniLocaleLoader>();
+/** @type {Set<LinguiniLocaleLoader>} */ const localeLoaders = new Set();
 
-let clientLocale = $state<Locale>(baseLocale);
+/** @type {Locale} */ let clientLocale = $state(baseLocale);
 let hasClientOverride = $state(false);
 
 /**
@@ -14,7 +15,8 @@ let hasClientOverride = $state(false);
  * The disposer is idempotent, which lets HMR consumers safely replace a loader
  * without retaining callbacks from a previous module instance.
  */
-export function registerLocaleLoader(loader: LinguiniLocaleLoader): () => void {
+/** @param {LinguiniLocaleLoader} loader @returns {() => void} */
+export function registerLocaleLoader(loader) {
   localeLoaders.add(loader);
   let disposed = false;
   return () => {
@@ -31,14 +33,16 @@ export function registerLocaleLoader(loader: LinguiniLocaleLoader): () => void {
  * may register or dispose another loader while its promise is pending, but
  * that mutation must not alter the current preparation operation.
  */
-export async function prepareLocale(locale: unknown): Promise<Locale> {
+/** @param {unknown} locale @returns {Promise<Locale>} */
+export async function prepareLocale(locale) {
   const resolved = normalizeLocale(locale) ?? baseLocale;
   const loaders = [...localeLoaders];
   await Promise.all(loaders.map((loader) => loader(resolved)));
   return resolved;
 }
 
-export function getCurrentLocale(): Locale {
+/** @returns {Locale} */
+export function getCurrentLocale() {
   const dataLocale = page.data?.linguini?.locale;
   const resolvedClientLocale = normalizeLocale(clientLocale) ?? baseLocale;
   return hasClientOverride
@@ -46,18 +50,22 @@ export function getCurrentLocale(): Locale {
     : normalizeLocale(dataLocale) ?? resolvedClientLocale;
 }
 
-export function initializeCurrentLocale(locale: unknown): Locale {
+/** @param {unknown} locale @returns {Locale} */
+export function initializeCurrentLocale(locale) {
   clientLocale = normalizeLocale(locale) ?? baseLocale;
   hasClientOverride = false;
   return clientLocale;
 }
 
-export function setCurrentLocale(locale: unknown): Locale {
+/** @param {unknown} locale @returns {Locale} */
+export function setCurrentLocale(locale) {
   clientLocale = normalizeLocale(locale) ?? baseLocale;
   hasClientOverride = true;
   return clientLocale;
 }
 
-export function clearCurrentLocaleOverride(): void {
+/** @returns {void} */
+export function clearCurrentLocaleOverride() {
   hasClientOverride = false;
 }
+//# sourceMappingURL=svelte-locale.svelte.js.map

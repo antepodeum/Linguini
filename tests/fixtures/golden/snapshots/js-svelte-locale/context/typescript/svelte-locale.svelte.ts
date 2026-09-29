@@ -27,12 +27,8 @@ export function getCurrentLocale(): Locale {
   return activeLocale;
 }
 
-export function initializeCurrentLocale(locale: unknown): Locale {
-  activeLocale = normalizeLocale(locale) ?? baseLocale;
-  return activeLocale;
-}
-
 export function setCurrentLocale(locale: unknown): Locale {
   activeLocale = normalizeLocale(locale) ?? baseLocale;
   return activeLocale;
 }
+//# sourceMappingURL=svelte-locale.svelte.ts.map

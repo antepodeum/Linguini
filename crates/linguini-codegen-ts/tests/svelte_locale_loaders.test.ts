@@ -9,6 +9,11 @@ const transpiler = new Bun.Transpiler({ loader: "ts", target: "browser" });
 let moduleNonce = 0;
 
 async function readTemplate(name: string) {
+  const mode = name.includes("context") ? "context" : name.includes("standalone") ? "standalone" : "sveltekit";
+  if (name.startsWith("svelte-locale.")) {
+    const extension = name.endsWith(".d.ts") ? "d.ts" : "ts";
+    return readFile(new URL(`../../../tests/fixtures/golden/snapshots/js-svelte-locale/${mode}/typescript/svelte-locale.svelte.${extension}`, import.meta.url), "utf8");
+  }
   return readFile(new URL(`../src/module/templates/${name}`, import.meta.url), "utf8");
 }
 

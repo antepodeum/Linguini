@@ -3,10 +3,8 @@ use super::templates::{
     render_template, SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME,
     SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME,
     SVELTE_CONTROL_DECLARATIONS, SVELTE_CONTROL_RUNTIME, SVELTE_DECLARATIONS,
-    SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_LOCALE_CONTEXT_DECLARATIONS,
-    SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS, SVELTE_LOCALE_RUNTIME,
-    SVELTE_LOCALE_STANDALONE_DECLARATIONS, SVELTE_LOCALE_STANDALONE_RUNTIME, SVELTE_RUNTIME,
-    WEB_DECLARATIONS, WEB_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
+    SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_RUNTIME, WEB_DECLARATIONS,
+    WEB_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
     WEB_SWITCH_ROUTE_DECLARATIONS, WEB_SWITCH_ROUTE_RUNTIME,
 };
 use super::web_runtime_links;
@@ -14,23 +12,15 @@ use super::{web_accept_language, web_cookie, web_link_transform, web_local_stora
 use super::{TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptWebOptions};
 
 pub fn generate_project_svelte_locale_module(web: bool, sveltekit: bool) -> String {
-    if web && sveltekit {
-        SVELTE_LOCALE_RUNTIME.to_owned()
-    } else if web {
-        SVELTE_LOCALE_STANDALONE_RUNTIME.to_owned()
-    } else {
-        SVELTE_LOCALE_CONTEXT_RUNTIME.to_owned()
-    }
+    super::svelte_locale::generate_typescript_svelte_locale_module(
+        super::svelte_locale::SvelteLocaleMode::from_framework(web, sveltekit),
+    )
 }
 
 pub fn generate_project_svelte_locale_declaration(web: bool, sveltekit: bool) -> String {
-    if web && sveltekit {
-        SVELTE_LOCALE_DECLARATIONS.to_owned()
-    } else if web {
-        SVELTE_LOCALE_STANDALONE_DECLARATIONS.to_owned()
-    } else {
-        SVELTE_LOCALE_CONTEXT_DECLARATIONS.to_owned()
-    }
+    super::svelte_locale::generate_svelte_locale_declaration(
+        super::svelte_locale::SvelteLocaleMode::from_framework(web, sveltekit),
+    )
 }
 
 pub fn generate_project_svelte_effects_module(

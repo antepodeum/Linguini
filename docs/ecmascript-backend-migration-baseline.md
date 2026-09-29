@@ -92,6 +92,11 @@ otherwise.
 
 ## Frozen evidence
 
+- Svelte locale TypeScript/JavaScript byte snapshots, strict positive/negative JSDoc,
+  target-owned maps, real Svelte client/server rune compilation, loader snapshots/disposal,
+  failure handling, and request-data parity:
+  `tests/fixtures/golden/snapshots/js-svelte-locale`.
+
 - Browser runtime-link TypeScript/JavaScript byte snapshots, checked DOM/lifecycle JSDoc,
   generated-only maps, frame/timer budgets, mutation overflow, and cleanup parity:
   `tests/fixtures/golden/snapshots/js-web-runtime-links`.

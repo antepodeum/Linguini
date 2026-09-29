@@ -16,6 +16,7 @@ mod runtime_code;
 mod semantic;
 mod shared;
 mod signature;
+mod svelte_locale;
 mod templates;
 mod tree;
 mod type_model;
@@ -29,6 +30,10 @@ mod web_runtime_links;
 
 pub(crate) use crate::ecmascript::EcmaScriptTarget;
 
+pub use svelte_locale::{
+    compile_javascript_svelte_locale_module, compile_typescript_svelte_locale_module,
+    SvelteLocaleMode,
+};
 pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 
 use std::collections::{BTreeMap, BTreeSet};

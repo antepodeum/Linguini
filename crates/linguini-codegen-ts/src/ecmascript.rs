@@ -37,6 +37,10 @@ pub enum EcmaImportBindings {
     Namespace(String),
     Named(Vec<EcmaNamedImport>),
     TypeNamed(Vec<EcmaNamedImport>),
+    NamedWithTypes {
+        values: Vec<EcmaNamedImport>,
+        types: Vec<EcmaNamedImport>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +69,17 @@ impl EcmaImport {
         Self {
             specifier: specifier.into(),
             bindings: EcmaImportBindings::Named(bindings),
+        }
+    }
+
+    pub fn named_with_types(
+        specifier: impl Into<String>,
+        values: Vec<EcmaNamedImport>,
+        types: Vec<EcmaNamedImport>,
+    ) -> Self {
+        Self {
+            specifier: specifier.into(),
+            bindings: EcmaImportBindings::NamedWithTypes { values, types },
         }
     }
 }
@@ -244,7 +259,15 @@ impl EcmaModule {
         &self.output
     }
 
-    pub fn push_import(&mut self, item: EcmaImport) {
+    pub fn push_import(&mut self, mut item: EcmaImport) {
+        if !self.output.target.is_typescript() {
+            if let EcmaImportBindings::NamedWithTypes { values, .. } = item.bindings {
+                if values.is_empty() {
+                    return;
+                }
+                item.bindings = EcmaImportBindings::Named(values);
+            }
+        }
         if self.output.target.is_typescript()
             || !matches!(item.bindings, EcmaImportBindings::TypeNamed(_))
         {
@@ -374,6 +397,28 @@ fn render_import(item: &EcmaImport, target: EcmaScriptTarget, output: &mut Strin
             for (index, binding) in bindings.iter().enumerate() {
                 if index > 0 {
                     output.push_str(", ");
+                }
+                output.push_str(&binding.imported);
+                if binding.local != binding.imported {
+                    output.push_str(" as ");
+                    output.push_str(&binding.local);
+                }
+            }
+            output.push_str(" }");
+        }
+        EcmaImportBindings::NamedWithTypes { values, types } => {
+            output.push_str("{ ");
+            for (index, (binding, type_only)) in values
+                .iter()
+                .map(|binding| (binding, false))
+                .chain(types.iter().map(|binding| (binding, true)))
+                .enumerate()
+            {
+                if index > 0 {
+                    output.push_str(", ");
+                }
+                if type_only {
+                    output.push_str("type ");
                 }
                 output.push_str(&binding.imported);
                 if binding.local != binding.imported {
@@ -566,6 +611,38 @@ mod tests {
         EcmaReExport, EcmaScriptTarget, EcmaSource, EcmaStatement,
     };
     use linguini_syntax::{SourceId, Span};
+
+    #[test]
+    fn mixed_imports_keep_values_and_drop_type_only_dependencies_in_javascript() {
+        for target in [EcmaScriptTarget::TypeScript, EcmaScriptTarget::JavaScript] {
+            let path = if target.is_typescript() {
+                "entry.ts"
+            } else {
+                "entry.js"
+            };
+            let mut module = EcmaModule::new(EcmaModuleOutput::new(target, path, None));
+            module.push_import(EcmaImport::named_with_types(
+                "./locale.js",
+                vec![EcmaNamedImport::new("normalize", "normalizeLocale")],
+                vec![EcmaNamedImport::new("Locale", "LocaleName")],
+            ));
+            module.push_import(EcmaImport::named_with_types(
+                "./types.js",
+                vec![],
+                vec![EcmaNamedImport::new("OnlyType", "OnlyType")],
+            ));
+            let code = module.render_code();
+            if target.is_typescript() {
+                assert!(code.contains("import { normalize as normalizeLocale, type Locale as LocaleName } from \"./locale.js\";"));
+                assert!(code.contains("import { type OnlyType } from \"./types.js\";"));
+            } else {
+                assert_eq!(
+                    code,
+                    "import { normalize as normalizeLocale } from \"./locale.js\";\n"
+                );
+            }
+        }
+    }
 
     #[test]
     fn renders_structured_esm_and_source_identity() {
