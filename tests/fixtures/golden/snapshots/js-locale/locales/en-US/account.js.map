@@ -1,0 +1,1 @@
+{"version":3,"file":"locales/en-US/account.js","sources":["schema.lgs","en.lgl","en-US.lgl"],"sourcesContent":["root(name: String)\naccount {\n  label\n  personalized(name: String)\n}\n","root = Hello {name}\naccount {\n  label = Account\n  personalized = Welcome {name}\n}\n","root = Howdy {name}\n"],"names":[],"mappings":";;ACAA"}

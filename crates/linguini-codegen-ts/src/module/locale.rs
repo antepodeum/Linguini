@@ -264,10 +264,13 @@ fn emit_locale_default(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
     use crate::ecmascript::EcmaSource;
+    use crate::generate_javascript_schema_files;
 
     use super::{
         compile_javascript_locale_artifact_module, compile_typescript_locale_artifact_module,
@@ -386,5 +389,80 @@ mod tests {
             .code
             .contains("import { account } from \"./en-US/account.js\";"));
         assert!(barrel_javascript.code.contains("export default lgl;"));
+
+        let namespace_typescript =
+            compile_typescript_locale_artifact_module(&project, namespace, &sources)
+                .expect("TypeScript namespace");
+        let barrel_typescript =
+            compile_typescript_locale_artifact_module(&project, barrel, &sources)
+                .expect("TypeScript barrel");
+        let shared_javascript = generate_javascript_schema_files(&schema)
+            .into_iter()
+            .find(|file| file.path == "shared.js")
+            .expect("JavaScript shared module");
+        let shared_typescript = project_files
+            .iter()
+            .find(|file| file.path == "shared.ts")
+            .expect("TypeScript shared module");
+        let snapshot_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/golden/snapshots/js-locale");
+        let javascript_locale_root = snapshot_root.join("locales/en-US");
+        let typescript_root = snapshot_root.join("typescript");
+        let typescript_locale_root = typescript_root.join("locales/en-US");
+        let snapshots = [
+            (
+                snapshot_root.join("shared.js"),
+                shared_javascript.contents.as_str(),
+            ),
+            (
+                javascript_locale_root.join("account.js"),
+                namespace_javascript.code.as_str(),
+            ),
+            (
+                javascript_locale_root.join("account.js.map"),
+                namespace_javascript.source_map.as_str(),
+            ),
+            (
+                snapshot_root.join("locales/en-US.js"),
+                barrel_javascript.code.as_str(),
+            ),
+            (
+                snapshot_root.join("locales/en-US.js.map"),
+                barrel_javascript.source_map.as_str(),
+            ),
+            (
+                typescript_root.join("shared.ts"),
+                shared_typescript.contents.as_str(),
+            ),
+            (
+                typescript_locale_root.join("account.ts"),
+                namespace_typescript
+                    .code
+                    .strip_suffix("//# sourceMappingURL=account.ts.map\n")
+                    .expect("namespace TypeScript source-map trailer"),
+            ),
+            (
+                typescript_root.join("locales/en-US.ts"),
+                barrel_typescript
+                    .code
+                    .strip_suffix("//# sourceMappingURL=en-US.ts.map\n")
+                    .expect("barrel TypeScript source-map trailer"),
+            ),
+        ];
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            std::fs::create_dir_all(&javascript_locale_root)
+                .expect("create JavaScript locale snapshot directory");
+            std::fs::create_dir_all(&typescript_locale_root)
+                .expect("create TypeScript locale snapshot directory");
+            for (path, contents) in &snapshots {
+                std::fs::write(path, contents).expect("write locale snapshot");
+            }
+        }
+        for (path, contents) in snapshots {
+            assert_eq!(
+                contents,
+                std::fs::read_to_string(path).expect("read locale snapshot")
+            );
+        }
     }
 }
