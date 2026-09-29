@@ -2,9 +2,9 @@ use super::names::escape_string;
 use super::templates::{
     render_template, SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME,
     SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME,
-    SVELTE_CONTROL_DECLARATIONS, SVELTE_CONTROL_RUNTIME, SVELTE_DECLARATIONS, SVELTE_RUNTIME,
-    WEB_DECLARATIONS, WEB_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
-    WEB_SWITCH_ROUTE_DECLARATIONS, WEB_SWITCH_ROUTE_RUNTIME,
+    SVELTE_DECLARATIONS, SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
+    WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME, WEB_SWITCH_ROUTE_DECLARATIONS,
+    WEB_SWITCH_ROUTE_RUNTIME,
 };
 use super::web_runtime_links;
 use super::{web_accept_language, web_cookie, web_link_transform, web_local_storage, web_path};
@@ -51,29 +51,7 @@ pub fn generate_project_svelte_control_module_with_options(
     sveltekit: bool,
     options: &TypeScriptWebOptions,
 ) -> String {
-    let (navigation_runtime, locale_runtime, navigation) = if sveltekit {
-        (
-            "import { browser } from \"$app/environment\";\nimport { goto } from \"$app/navigation\";",
-            "import {\n  clearCurrentLocaleOverride,\n  getCurrentLocale,\n  prepareLocale,\n  setCurrentLocale,\n} from \"./svelte-locale.svelte.js\";",
-            "        const href = web.localizeHref(window.location.href, resolved);\n        await goto(href, {\n          replaceState: Boolean(options.replaceState),\n          invalidateAll: Boolean(options.invalidateAll),\n          keepFocus: options.keepFocus as boolean | undefined,\n          noScroll: options.noScroll as boolean | undefined,\n          state: options.state as App.PageState | undefined,\n        });\n        clearCurrentLocaleOverride();",
-        )
-    } else {
-        (
-            "const browser = typeof window !== \"undefined\" && typeof document !== \"undefined\";",
-            "import {\n  getCurrentLocale,\n  prepareLocale,\n  setCurrentLocale,\n} from \"./svelte-locale.svelte.js\";",
-            "        const href = web.localizeHref(window.location.href, resolved);\n        if (options.replaceState) {\n          window.location.replace(href);\n        } else {\n          window.location.assign(href);\n        }",
-        )
-    };
-    let mut rendered = render_template(
-        SVELTE_CONTROL_RUNTIME,
-        &[
-            ("NAVIGATION_RUNTIME", navigation_runtime.to_owned()),
-            ("LOCALE_RUNTIME", locale_runtime.to_owned()),
-            ("NAVIGATION", navigation.to_owned()),
-        ],
-    );
-    rendered = gate_browser_capability_writes(rendered, &options.features());
-    rendered
+    super::svelte_control::generate_typescript_svelte_control_module(options, sveltekit)
 }
 
 pub fn generate_project_svelte_declaration(web: bool, _sveltekit: bool) -> String {
@@ -85,18 +63,7 @@ pub fn generate_project_svelte_declaration(web: bool, _sveltekit: bool) -> Strin
 }
 
 pub fn generate_project_svelte_control_declaration(sveltekit: bool) -> String {
-    render_template(
-        SVELTE_CONTROL_DECLARATIONS,
-        &[(
-            "PAGE_STATE",
-            if sveltekit {
-                "App.PageState"
-            } else {
-                "unknown"
-            }
-            .to_owned(),
-        )],
-    )
+    super::svelte_control_types::generate_svelte_control_declaration(sveltekit)
 }
 
 pub fn generate_project_sveltekit_module(options: &TypeScriptWebOptions) -> String {
@@ -405,47 +372,4 @@ fn web_source_imports(features: &super::TypeScriptWebFeatures) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
-}
-
-fn gate_browser_capability_writes(
-    mut rendered: String,
-    features: &super::TypeScriptWebFeatures,
-) -> String {
-    if !features.has_path {
-        // Navigation is a path capability, not merely a persistence write.
-        // Remove the whole branch so pathless policies do not ship dead URL
-        // reads or framework navigation imports.
-        let branch_start =
-            rendered.find("      if (options.navigate && web.options.locale.switch.writesPath) {");
-        let branch_end = rendered.find("\n      }\n      refreshLinguiniEffects();");
-        if let (Some(start), Some(end)) = (branch_start, branch_end) {
-            rendered.replace_range(start..end + "\n      }\n".len(), "");
-        }
-        rendered = rendered.replace("import { goto } from \"$app/navigation\";\n", "");
-        rendered = rendered.replace("  clearCurrentLocaleOverride,\n", "");
-    }
-    if !features.has_local_storage {
-        rendered = rendered.replace(
-            "      if (web.options.locale.switch.writesLocalStorage) {\n        writeLocalStorage(web, resolved);\n      }\n",
-            "",
-        );
-        if let Some(start) = rendered.find("\nfunction writeLocalStorage(") {
-            let end = rendered[start..]
-                .find("\nfunction writeLocaleCookie(")
-                .unwrap_or(0);
-            if end > 0 {
-                rendered.replace_range(start..start + end, "\n");
-            }
-        }
-    }
-    if !features.has_cookie {
-        rendered = rendered.replace(
-            "      if (options.cookie && web.options.locale.switch.writesCookie) {\n        writeLocaleCookie(web, resolved);\n      }\n",
-            "",
-        );
-        if let Some(start) = rendered.find("\nfunction writeLocaleCookie(") {
-            rendered.truncate(start);
-        }
-    }
-    rendered
 }

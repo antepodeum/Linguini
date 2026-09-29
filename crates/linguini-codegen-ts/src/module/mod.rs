@@ -16,6 +16,8 @@ mod runtime_code;
 mod semantic;
 mod shared;
 mod signature;
+mod svelte_control;
+mod svelte_control_types;
 mod svelte_effects;
 mod svelte_locale;
 mod templates;
@@ -32,6 +34,9 @@ mod web_runtime_links;
 
 pub(crate) use crate::ecmascript::EcmaScriptTarget;
 
+pub use svelte_control::{
+    compile_javascript_svelte_control_module, compile_typescript_svelte_control_module,
+};
 pub use svelte_effects::{
     compile_javascript_svelte_effects_module, compile_typescript_svelte_effects_module,
 };

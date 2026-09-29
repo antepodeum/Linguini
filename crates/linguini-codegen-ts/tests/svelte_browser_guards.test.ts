@@ -23,6 +23,9 @@ async function readTemplate(name: string) {
   if (name === "svelte-effects.runtime.ts") {
     return readFile(new URL("../../../tests/fixtures/golden/snapshots/js-svelte-effects/legacy/svelte-effects.runtime.ts", import.meta.url), "utf8");
   }
+  if (name === "svelte-control.runtime.ts") {
+    return readFile(new URL("../../../tests/fixtures/golden/snapshots/js-svelte-control/legacy/svelte-control.runtime.ts", import.meta.url), "utf8");
+  }
   return readFile(new URL(`../src/module/templates/${name}`, import.meta.url), "utf8");
 }
 

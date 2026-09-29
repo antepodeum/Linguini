@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022",
+    "skipLibCheck": true
+  },
+  "include": ["consumer.js", "*/svelte-control.js", "*/typescript/svelte-control.ts", "*/typescript/svelte-control.d.ts", "framework.d.ts"]
+}

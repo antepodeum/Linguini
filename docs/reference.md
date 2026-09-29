@@ -85,6 +85,11 @@ the closed `TypeScriptWebOptions` policy and a SvelteKit flag. They emit selecte
 reads, framework-owned base/browser imports, runtime-link lifecycle ownership, and HMR disposal
 from one implementation.
 
+`compile_typescript_svelte_control_module` and `compile_javascript_svelte_control_module` compile
+lightweight controls from the same closed policy and SvelteKit flag. Navigation, cookie writes,
+and storage writes are included only for selected capabilities. Controls prepare messages before
+mutating locale state, tolerate denied persistence, and do not import the eager message runtime.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

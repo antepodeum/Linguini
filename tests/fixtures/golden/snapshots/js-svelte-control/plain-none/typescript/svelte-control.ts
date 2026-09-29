@@ -1,0 +1,71 @@
+import { destroyLinguiniEffects, refreshLinguiniEffects, web } from "./svelte-effects.svelte.js";
+import { getCurrentLocale, prepareLocale, setCurrentLocale } from "./svelte-locale.svelte.js";
+
+const browser = typeof window !== "undefined" && typeof document !== "undefined";
+
+export const linguini = createLinguiniControl();
+export const setLocale = linguini.setLocale;
+export const localizeHref = linguini.localizeHref;
+export const localizeUrl = linguini.localizeUrl;
+export const shouldLocalizeHref = linguini.shouldLocalizeHref;
+export const shouldLocalizeLink = linguini.shouldLocalizeLink;
+export const localizeHrefAttribute = linguini.localizeHrefAttribute;
+export const delocalizeUrl = linguini.delocalizeUrl;
+export const alternateLinks = linguini.alternateLinks;
+export const destroy = linguini.destroy;
+
+function createLinguiniControl() {
+  async function setLocale(nextLocale: string, setOptions: Record<string, unknown> = {}) {
+    const resolved = await prepareLocale(nextLocale);
+    const options: Record<string, unknown> & {
+      cookie: boolean;
+      navigate: boolean;
+      replaceState: boolean;
+      invalidateAll: boolean;
+      keepFocus: boolean;
+      noScroll: boolean;
+    } = {
+      cookie: true,
+      navigate: true,
+      replaceState: false,
+      invalidateAll: true,
+      keepFocus: true,
+      noScroll: true,
+      ...setOptions,
+    };
+    if (browser) {
+      setCurrentLocale(resolved);
+      refreshLinguiniEffects();
+    }
+
+    return resolved;
+  }
+
+  return {
+    get locale() {
+      return getCurrentLocale();
+    },
+    get lang() {
+      return getCurrentLocale();
+    },
+    get direction() {
+      return web.getTextDirection(getCurrentLocale());
+    },
+    get textDirection() {
+      return web.getTextDirection(getCurrentLocale());
+    },
+    get htmlAttrs() {
+      return web.htmlAttrs(getCurrentLocale());
+    },
+    setLocale,
+    localizeHref: (href: string, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeHref(href, locale, input),
+    localizeUrl: (url: string | URL, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeUrl(url, locale, input),
+    shouldLocalizeHref: (href: string, input?: Record<string, unknown>) => web.shouldLocalizeHref(href, input),
+    shouldLocalizeLink: (href: string, attributes = {}, input?: Record<string, unknown>) => web.shouldLocalizeLink(href, attributes, input),
+    localizeHrefAttribute: (href: string, locale = getCurrentLocale(), input?: Record<string, unknown>) => web.localizeHrefAttribute(href, locale, input),
+    delocalizeUrl: (url: string | URL, input?: Record<string, unknown>) => web.delocalizeUrl(url, input),
+    alternateLinks: (url: string | URL, input?: Record<string, unknown>) => web.alternateLinks(url, input),
+    destroy: destroyLinguiniEffects,
+  };
+}
+//# sourceMappingURL=svelte-control.ts.map

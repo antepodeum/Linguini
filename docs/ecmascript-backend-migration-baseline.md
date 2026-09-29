@@ -92,6 +92,11 @@ otherwise.
 
 ## Frozen evidence
 
+- Svelte lightweight-control TS/JS/declaration snapshots and strict types across both frameworks
+  and closed capabilities, plus frozen-runtime parity for preparation ordering, denied persistence,
+  disabled transports/options, navigation failures, live getters, and forwarded link APIs:
+  `tests/fixtures/golden/snapshots/js-svelte-control`.
+
 - Svelte browser-effect TS/JS snapshots and checked types across standalone/SvelteKit and all
   closed source capabilities, with SSR, denied-getter, runtime-link, and HMR cleanup parity:
   `tests/fixtures/golden/snapshots/js-svelte-effects`.

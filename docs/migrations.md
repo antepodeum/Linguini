@@ -76,6 +76,10 @@ editor boundaries to update this file, public documentation, and executable test
   `compile_javascript_svelte_effects_module`. The shared emitter groups imports before browser
   initialization; runtime bodies and declaration bytes are unchanged. Unselected capabilities
   are omitted structurally, rather than removed from rendered TypeScript text.
+- Lightweight Svelte controls can be compiled with `compile_typescript_svelte_control_module` or
+  `compile_javascript_svelte_control_module`. Imports are grouped before standalone browser
+  initialization; declaration bytes and transport behavior are unchanged. Pathless policies no
+  longer use a post-render removal pass for navigation imports and URL reads.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

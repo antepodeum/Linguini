@@ -6,8 +6,6 @@ pub const SINGLE_INDEX_RUNTIME: &str = include_str!("templates/single-index.runt
 pub const SINGLE_INDEX_DECLARATIONS: &str = include_str!("templates/single-index.runtime.d.ts");
 pub const SVELTE_RUNTIME: &str = include_str!("templates/svelte.runtime.ts");
 pub const SVELTE_DECLARATIONS: &str = include_str!("templates/svelte.runtime.d.ts");
-pub const SVELTE_CONTROL_RUNTIME: &str = include_str!("templates/svelte-control.runtime.ts");
-pub const SVELTE_CONTROL_DECLARATIONS: &str = include_str!("templates/svelte-control.runtime.d.ts");
 pub const SVELTE_CONTEXT_RUNTIME: &str = include_str!("templates/svelte.context.runtime.ts");
 pub const SVELTE_CONTEXT_DECLARATIONS: &str = include_str!("templates/svelte.context.runtime.d.ts");
 pub const SVELTEKIT_RUNTIME: &str = include_str!("templates/sveltekit.runtime.ts");
@@ -54,8 +52,6 @@ mod tests {
         assert!(WEB_DECLARATIONS.contains("LinguiniWebLocale"));
         assert!(SVELTE_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_DECLARATIONS.contains("LinguiniRune"));
-        assert!(SVELTE_CONTROL_RUNTIME.contains("createLinguiniControl"));
-        assert!(SVELTE_CONTROL_DECLARATIONS.contains("LinguiniSvelteControl"));
         assert!(SVELTE_CONTEXT_RUNTIME.contains("createLinguiniRune"));
         assert!(SVELTE_CONTEXT_DECLARATIONS.contains("LinguiniRune"));
         assert!(WEB_SERVER_COOKIE_RUNTIME.contains("persistLocaleCookie"));
