@@ -9,6 +9,7 @@ pub(super) struct RuntimeCode {
 
 enum RuntimeFragment {
     Shared(&'static str),
+    Generated(String),
     Typed {
         typescript: &'static str,
         javascript: &'static str,
@@ -16,6 +17,9 @@ enum RuntimeFragment {
 }
 
 impl RuntimeCode {
+    pub(super) fn generated(&mut self, code: impl Into<String>) {
+        self.fragments.push(RuntimeFragment::Generated(code.into()));
+    }
     pub(super) fn shared(&mut self, code: &'static str) {
         self.fragments.push(RuntimeFragment::Shared(code));
     }
@@ -32,6 +36,7 @@ impl RuntimeCode {
             .iter()
             .map(|fragment| match fragment {
                 RuntimeFragment::Shared(code) => *code,
+                RuntimeFragment::Generated(code) => code.as_str(),
                 RuntimeFragment::Typed {
                     typescript,
                     javascript,

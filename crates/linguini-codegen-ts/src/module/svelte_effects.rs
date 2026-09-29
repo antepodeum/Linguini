@@ -137,8 +137,8 @@ fn effects_module(
         "/** @returns {void} */\nexport function destroyLinguiniEffects() {\n",
     );
     body.shared("  linkEffects?.destroy();\n}\n\n");
-    body.typed("const hot = (import.meta as ImportMeta & {\n  hot?: { dispose(callback: () => void): void };\n}).hot;\n", "const hot = (/** @type {ImportMeta & { hot?: { dispose(callback: () => void): void } }} */ (import.meta)).hot;\n");
-    body.shared("hot?.dispose(destroyLinguiniEffects);\n\nfunction readInitialLocale() {\n  if (!browser) return web.baseLocale;\n  return web.resolveLocaleSync({\n");
+    super::hmr::register_disposer(&mut body, "destroyLinguiniEffects");
+    body.shared("\nfunction readInitialLocale() {\n  if (!browser) return web.baseLocale;\n  return web.resolveLocaleSync({\n");
     if features.has_path {
         body.shared("    url: readBrowserCapability(() => window.location.href),\n");
     }

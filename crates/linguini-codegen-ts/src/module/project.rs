@@ -1,8 +1,7 @@
 use super::names::escape_string;
 use super::templates::{
     render_template, SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME,
-    SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, SVELTE_CONTEXT_DECLARATIONS, SVELTE_CONTEXT_RUNTIME,
-    SVELTE_DECLARATIONS, SVELTE_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
+    SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
     WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME, WEB_SWITCH_ROUTE_DECLARATIONS,
     WEB_SWITCH_ROUTE_RUNTIME,
 };
@@ -35,16 +34,9 @@ pub fn generate_project_svelte_effects_declaration() -> String {
 
 pub fn generate_project_svelte_module(
     options: Option<&TypeScriptWebOptions>,
-    sveltekit: bool,
+    _sveltekit: bool,
 ) -> String {
-    match options {
-        Some(_) => render_project_svelte_web_module(sveltekit),
-        None => SVELTE_CONTEXT_RUNTIME.to_owned(),
-    }
-}
-
-fn render_project_svelte_web_module(_sveltekit: bool) -> String {
-    SVELTE_RUNTIME.to_owned()
+    super::svelte_facade::generate_typescript_svelte_module(options.is_some())
 }
 
 pub fn generate_project_svelte_control_module_with_options(
@@ -55,11 +47,7 @@ pub fn generate_project_svelte_control_module_with_options(
 }
 
 pub fn generate_project_svelte_declaration(web: bool, _sveltekit: bool) -> String {
-    if web {
-        SVELTE_DECLARATIONS.to_owned()
-    } else {
-        SVELTE_CONTEXT_DECLARATIONS.to_owned()
-    }
+    super::svelte_facade_types::generate_svelte_declaration(web)
 }
 
 pub fn generate_project_svelte_control_declaration(sveltekit: bool) -> String {

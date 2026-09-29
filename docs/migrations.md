@@ -80,6 +80,10 @@ editor boundaries to update this file, public documentation, and executable test
   `compile_javascript_svelte_control_module`. Imports are grouped before standalone browser
   initialization; declaration bytes and transport behavior are unchanged. Pathless policies no
   longer use a post-render removal pass for navigation imports and URL reads.
+- Svelte message-facade callers can use `compile_typescript_svelte_module` or
+  `compile_javascript_svelte_module`. Pass `false` for context-only state or `true` for web
+  controls. Runtime bodies and declarations remain unchanged; context imports are normalized
+  to the shared emitter's layout, and JavaScript uses explicit `.js` module edges.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

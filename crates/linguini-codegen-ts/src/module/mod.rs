@@ -6,6 +6,7 @@ mod entry;
 mod expr;
 mod formatters;
 mod globals;
+mod hmr;
 mod locale;
 mod message;
 mod messages;
@@ -19,6 +20,8 @@ mod signature;
 mod svelte_control;
 mod svelte_control_types;
 mod svelte_effects;
+mod svelte_facade;
+mod svelte_facade_types;
 mod svelte_locale;
 mod templates;
 mod tree;
@@ -40,6 +43,7 @@ pub use svelte_control::{
 pub use svelte_effects::{
     compile_javascript_svelte_effects_module, compile_typescript_svelte_effects_module,
 };
+pub use svelte_facade::{compile_javascript_svelte_module, compile_typescript_svelte_module};
 pub use svelte_locale::{
     compile_javascript_svelte_locale_module, compile_typescript_svelte_locale_module,
     SvelteLocaleMode,

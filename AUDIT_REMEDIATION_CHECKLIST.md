@@ -877,7 +877,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       server adapters. Require browser/server capability gating, route/link safety, request
       isolation, streaming, Svelte checking, and production-build parity after each cutover. The
       closed route-exclusion, path-locale, cookie-locale, local-storage, Accept-Language, and
-      transformed-link, runtime-link, Svelte locale-state, browser-effect, and lightweight-control
+      transformed-link, runtime-link, Svelte locale-state, browser-effect, lightweight-control, and message-facade
       modules now use the common backend;
       real Svelte client/server rune compilation covers locale state. Exact TypeScript bytes, checked
       JavaScript, source maps, and executable parity run in quick/full gates.

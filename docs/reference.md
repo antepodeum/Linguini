@@ -90,6 +90,10 @@ lightweight controls from the same closed policy and SvelteKit flag. Navigation,
 and storage writes are included only for selected capabilities. Controls prepare messages before
 mutating locale state, tolerate denied persistence, and do not import the eager message runtime.
 
+`compile_typescript_svelte_module` and `compile_javascript_svelte_module` select context-only or
+web-enabled Svelte facades with a boolean flag. Both targets share message providers, live locale
+getters, forwarded controls, and deterministic HMR loader disposal.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

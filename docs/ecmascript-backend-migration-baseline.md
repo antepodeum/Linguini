@@ -92,6 +92,10 @@ otherwise.
 
 ## Frozen evidence
 
+- Svelte facade TS/JS/declaration snapshots and strict types, real generated message-provider
+  integration, live getters, preparation failures, forwarded controls, and HMR loader disposal:
+  `tests/fixtures/golden/snapshots/js-svelte-facade`.
+
 - Svelte lightweight-control TS/JS/declaration snapshots and strict types across both frameworks
   and closed capabilities, plus frozen-runtime parity for preparation ordering, denied persistence,
   disabled transports/options, navigation failures, live getters, and forwarded link APIs:

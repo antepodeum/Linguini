@@ -9,6 +9,9 @@ const transpiler = new Bun.Transpiler({ loader: "ts", target: "browser" });
 let moduleNonce = 0;
 
 async function readTemplate(name: string) {
+  if (name === "svelte.context.runtime.ts") {
+    return readFile(new URL("../../../tests/fixtures/golden/snapshots/js-svelte-facade/context/legacy/svelte.runtime.ts", import.meta.url), "utf8");
+  }
   const mode = name.includes("context") ? "context" : name.includes("standalone") ? "standalone" : "sveltekit";
   if (name.startsWith("svelte-locale.")) {
     const extension = name.endsWith(".d.ts") ? "d.ts" : "ts";

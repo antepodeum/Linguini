@@ -9,7 +9,7 @@ export async function withRuntimeHost<T>(source: string, target: "javascript" | 
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, hostKey);
   Reflect.set(globalThis, hostKey, host);
   // Bun folds import.meta.hot away; inject the explicit HMR host before stripping test-only TS.
-  source = source.replaceAll("import.meta", "host.meta");
+  source = source.replaceAll("import.meta", "(host.meta ?? {})");
   let javascript = target === "typescript" ? transpiler.transformSync(source) : source;
   javascript = javascript
     .replace(/import\s+\*\s+as\s+(\w+)\s+from\s+(["'])([^"']+)\2\s*;/g, (_match, name, _quote, path) => `const ${name} = host.modules[${JSON.stringify(path)}];`)

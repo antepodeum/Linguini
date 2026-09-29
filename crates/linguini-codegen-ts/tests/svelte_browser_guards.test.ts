@@ -20,6 +20,9 @@ async function importTypeScript(source: string) {
 }
 
 async function readTemplate(name: string) {
+  if (name === "svelte.runtime.ts") {
+    return readFile(new URL("../../../tests/fixtures/golden/snapshots/js-svelte-facade/web/typescript/svelte.ts", import.meta.url), "utf8");
+  }
   if (name === "svelte-effects.runtime.ts") {
     return readFile(new URL("../../../tests/fixtures/golden/snapshots/js-svelte-effects/legacy/svelte-effects.runtime.ts", import.meta.url), "utf8");
   }
