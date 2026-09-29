@@ -282,9 +282,8 @@ mod tests {
 
     #[test]
     fn locale_artifacts_share_target_aware_namespace_and_barrel_emission() {
-        let schema_text =
-            "root(name: String)\naccount {\n  label\n  personalized(name: String)\n}\n";
-        let base_text = "root = Hello {name}\naccount {\n  label = Account\n  personalized = Welcome {name}\n}\n";
+        let schema_text = "root(name: String)\naccount {\n  label\n  personalized(name: String)\n  nested {\n    status\n  }\n}\n";
+        let base_text = "root = Hello {name}\naccount {\n  label = Account\n  personalized = Welcome {name}\n  nested {\n    status = Ready\n  }\n}\n";
         let regional_text = "root = Howdy {name}\n";
         let schema =
             lower_schema(&parse_schema_in(schema_text, SourceId(101)).expect("schema parses"));
@@ -310,6 +309,10 @@ mod tests {
             .expect("validated project");
         let artifacts = project.locale_artifacts().expect("locale artifacts");
         assert_eq!(artifacts.len(), 4);
+        assert_eq!(
+            artifacts,
+            project.locale_artifacts().expect("repeat artifacts")
+        );
         let namespace = artifacts
             .iter()
             .find(|artifact| {

@@ -15,8 +15,10 @@ assertEqual(root({ name: "Ada" }), "Howdy Ada");
 assertEqual(account.label, "Account");
 assertEqual(account.personalized("Ada"), "Welcome Ada");
 assertEqual(account.personalized({ name: "Ada" }), "Welcome Ada");
+assertEqual(account.nested.status, "Ready");
 assertEqual(locale.root("Ada"), root("Ada"));
 assertEqual(locale.account.personalized("Ada"), account.personalized("Ada"));
+assertEqual(locale.account.nested.status, account.nested.status);
 
 if (false) {
   // @ts-expect-error positional parameters retain their schema type

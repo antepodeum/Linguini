@@ -16,5 +16,8 @@ describe("locale module target parity", () => {
     expect(javaScriptLocale.account.personalized({ name: "Ada" })).toBe(
       typeScriptLocale.account.personalized({ name: "Ada" }),
     );
+    expect(javaScriptLocale.account.nested.status).toBe(
+      typeScriptLocale.account.nested.status,
+    );
   });
 });
