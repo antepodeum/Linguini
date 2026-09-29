@@ -19,7 +19,7 @@ use super::emit::{
     emit_variables_for_target,
 };
 use super::formatters::{formatter_requirements, plural_required};
-use super::names::emit_docs;
+use super::names::{emit_docs, import_path_for_target};
 use super::semantic::TypeScriptSemanticImport;
 use super::signature::MessageCallSignature;
 use super::{
@@ -586,14 +586,6 @@ fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
         }
     }
     imports
-}
-
-fn import_path_for_target(path: &str, target: EcmaScriptTarget) -> String {
-    if target.is_typescript() || path.ends_with(".js") {
-        path.to_owned()
-    } else {
-        format!("{path}.js")
-    }
 }
 
 fn push_chunk(chunks: &mut Vec<(String, Option<Span>)>, code: String, span: Option<Span>) {

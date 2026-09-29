@@ -4,6 +4,7 @@ mod deps;
 mod emit;
 mod expr;
 mod formatters;
+mod globals;
 mod message;
 mod messages;
 mod names;
@@ -30,8 +31,8 @@ use linguini_cldr::{
 };
 use linguini_ir::{
     validate_ir, validate_typed_ir, IrEnum, IrForm, IrFunction, IrGroup, IrMessage, IrModule,
-    IrModuleBuilder, IrOrigin, IrReferenceError, IrSymbolConflict, IrSymbolKind, IrTypeAlias,
-    IrVariable, LocaleIr, SchemaIr, ValidatedIr,
+    IrModuleBuilder, IrOrigin, IrReferenceError, IrSymbolConflict, IrTypeAlias, IrVariable,
+    LocaleIr, SchemaIr, ValidatedIr,
 };
 
 use crate::ecmascript::{EcmaImport, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaStatement};
@@ -536,7 +537,13 @@ impl fmt::Display for TypeScriptCodegenError {
     }
 }
 
+pub use artifacts::TypeScriptLocaleGlobalsArtifact;
 pub use artifacts::{TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact};
+pub use globals::{
+    compile_javascript_locale_globals_artifact_module,
+    compile_typescript_locale_globals_artifact_module, CompiledJavaScriptLocaleGlobalsModule,
+    CompiledTypeScriptLocaleGlobalsModule,
+};
 pub use message::{
     compile_javascript_bundler_message_artifact_module, compile_javascript_bundler_message_module,
     compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_message_module,
@@ -645,6 +652,13 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         &self,
     ) -> Result<Vec<TypeScriptLocaleRuntimeArtifact>, TypeScriptCodegenError> {
         artifacts::locale_runtime_artifacts(self)
+    }
+
+    /// Enumerates one aggregate locale-global artifact for each locale that owns global symbols.
+    pub fn locale_globals_artifacts(
+        &self,
+    ) -> Result<Vec<TypeScriptLocaleGlobalsArtifact>, TypeScriptCodegenError> {
+        artifacts::locale_globals_artifacts(self)
     }
 
     /// Enumerates deterministic one-binding semantic leaves required by selected messages.
@@ -954,11 +968,17 @@ pub fn generate_typescript_project_files(
         if has_globals {
             files.push(TypeScriptGeneratedFile {
                 path: format!("locales/{}/_globals.ts", locale.locale),
-                contents: generate_locale_globals(
+                contents: globals::locale_globals_module(
                     &visible_schema,
                     &visible_locale,
                     &locale_options,
-                ),
+                    EcmaModuleOutput::new(
+                        EcmaScriptTarget::TypeScript,
+                        format!("locales/{}/_globals.ts", locale.locale),
+                        None,
+                    ),
+                )
+                .render_code(),
             });
         }
         let namespaces = top_level_namespaces(&visible_schema);
@@ -1451,61 +1471,6 @@ fn generate_typescript_module_with_shared_import(
     )
 }
 
-fn generate_locale_globals(
-    schema: &IrModule,
-    locale: &IrModule,
-    options: &TypeScriptOptions,
-) -> String {
-    let globals_schema = IrModuleBuilder::seeded(schema)
-        .retain_symbols(|kind, _| !matches!(kind, IrSymbolKind::Message | IrSymbolKind::Group))
-        .build()
-        .expect("globals schema projection preserves unique declaration names");
-    let globals = locale_globals(locale);
-    let mut imports = module_imports(&globals_schema, &globals, options, "../../shared");
-    if let Some(runtime_import) =
-        locale_runtime_import(&globals_schema, &globals, options, "./_runtime")
-    {
-        imports.push(runtime_import);
-    }
-    let mut output = String::new();
-    emit_locale_enum_types(&globals_schema, &globals, &mut output);
-    emit_variables(&globals, options, &mut output);
-    emit_forms(&globals, options, &mut output);
-    emit_local_functions(&globals, options, &mut output);
-
-    let local_enum_names = globals
-        .enums()
-        .iter()
-        .filter(|item| {
-            !globals_schema
-                .enums()
-                .iter()
-                .any(|schema| schema.name == item.name)
-                && !globals_schema
-                    .type_aliases()
-                    .iter()
-                    .any(|schema| schema.name == item.name)
-        })
-        .map(|item| safe_identifier(&item.name))
-        .collect::<Vec<_>>();
-    if !local_enum_names.is_empty() {
-        output.push_str(&format!(
-            "export type {{ {} }};\n",
-            local_enum_names.join(", ")
-        ));
-    }
-    let value_names = locale_global_value_names(&globals);
-    if !value_names.is_empty() {
-        output.push_str(&format!("export {{ {} }};\n", value_names.join(", ")));
-    }
-    render_project_module(
-        format!("locales/{}/_globals.ts", options.locale),
-        None,
-        imports,
-        output,
-    )
-}
-
 fn locale_global_import(locale: &IrModule, import_path: &str) -> Option<EcmaImport> {
     let value_names = locale_global_value_names(locale);
     (!value_names.is_empty()).then(|| {
@@ -1519,7 +1484,7 @@ fn locale_global_import(locale: &IrModule, import_path: &str) -> Option<EcmaImpo
     })
 }
 
-fn locale_global_value_names(locale: &IrModule) -> Vec<String> {
+pub(super) fn locale_global_value_names(locale: &IrModule) -> Vec<String> {
     locale
         .variables()
         .iter()
@@ -1539,14 +1504,14 @@ fn locale_global_value_names(locale: &IrModule) -> Vec<String> {
         .collect()
 }
 
-fn locale_has_globals(locale: &IrModule) -> bool {
+pub(super) fn locale_has_globals(locale: &IrModule) -> bool {
     !locale.enums().is_empty()
         || !locale.variables().is_empty()
         || !locale.forms().is_empty()
         || !locale.functions().is_empty()
 }
 
-fn locale_globals(locale: &IrModule) -> IrModule {
+pub(super) fn locale_globals(locale: &IrModule) -> IrModule {
     IrModuleBuilder::seeded(locale)
         .clear_messages()
         .clear_groups()
@@ -1564,7 +1529,7 @@ fn locale_without_globals(locale: &IrModule) -> IrModule {
         .expect("message projection preserves unique declaration names")
 }
 
-fn locale_runtime_import(
+pub(super) fn locale_runtime_import(
     schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,

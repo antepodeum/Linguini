@@ -18,7 +18,7 @@ use super::emit::{
     self, emit_forms_for_target, emit_local_functions_for_target, emit_variables_for_target,
 };
 use super::formatters::{formatter_requirements, plural_required};
-use super::names::{form_binding_name, safe_identifier};
+use super::names::{form_binding_name, import_path_for_target, safe_identifier};
 use super::{
     project_locale_options, EcmaScriptTarget, TypeScriptCodegenError, ValidatedTypeScriptProject,
 };
@@ -387,14 +387,6 @@ fn compile_bundler_semantic_module(
         code: rendered.code,
         source_map: rendered.source_map,
     })
-}
-
-fn import_path_for_target(path: &str, target: EcmaScriptTarget) -> String {
-    if target.is_typescript() || path.ends_with(".js") {
-        path.to_owned()
-    } else {
-        format!("{path}.js")
-    }
 }
 
 pub(super) fn message_imports_from_shared(

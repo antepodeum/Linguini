@@ -5,8 +5,9 @@ use linguini_syntax::SourceId;
 
 use super::semantic::TypeScriptSemanticImport;
 use super::{
-    project_locale_options, runtime_helper_names, visible_schema, TypeScriptCodegenError,
-    TypeScriptOptions, ValidatedTypeScriptProject,
+    locale_globals, locale_has_globals, locale_module_for_schema, project_locale_options,
+    runtime_helper_names, visible_schema, TypeScriptCodegenError, TypeScriptOptions,
+    ValidatedTypeScriptProject,
 };
 
 const MAX_PORTABLE_PATH_BYTES: usize = 240;
@@ -39,6 +40,54 @@ pub struct TypeScriptLocaleRuntimeArtifact {
     pub module_path: String,
     /// Sorted source identities whose semantics determine required runtime exports.
     pub source_ids: Vec<SourceId>,
+}
+
+/// Stable physical metadata for one locale's aggregate global-symbol module.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptLocaleGlobalsArtifact {
+    pub locale: String,
+    pub canonical_locale: String,
+    pub module_path: String,
+    pub source_ids: Vec<SourceId>,
+}
+
+pub(super) fn locale_globals_artifacts(
+    project: &ValidatedTypeScriptProject<'_>,
+) -> Result<Vec<TypeScriptLocaleGlobalsArtifact>, TypeScriptCodegenError> {
+    let schema = if project.options.tree_shaking && !project.options.included_messages.is_empty() {
+        visible_schema(
+            project.schema,
+            &TypeScriptOptions {
+                included_messages: project.options.included_messages.clone(),
+                ..TypeScriptOptions::default()
+            },
+        )
+    } else {
+        project.schema.as_module().clone()
+    };
+    let mut artifacts = Vec::new();
+    for locale in &project.locales {
+        let visible_locale = locale_module_for_schema(&locale.module, &schema);
+        if !locale_has_globals(&visible_locale) {
+            continue;
+        }
+        let globals = locale_globals(&visible_locale);
+        let source_ids = globals
+            .origins()
+            .iter()
+            .map(|origin| origin.span.source)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        artifacts.push(TypeScriptLocaleGlobalsArtifact {
+            locale: locale.locale.clone(),
+            canonical_locale: canonicalize_locale(&locale.locale)
+                .unwrap_or_else(|_| locale.locale.clone()),
+            module_path: format!("locales/{}/_globals.ts", locale.locale),
+            source_ids,
+        });
+    }
+    Ok(artifacts)
 }
 
 pub(super) fn locale_runtime_artifacts(

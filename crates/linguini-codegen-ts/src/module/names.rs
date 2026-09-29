@@ -1,3 +1,5 @@
+use crate::ecmascript::EcmaScriptTarget;
+
 pub fn function_name(name: &str) -> String {
     safe_identifier(name)
 }
@@ -16,6 +18,14 @@ pub fn safe_file_stem(name: &str) -> String {
     }
 
     encoded_name("__lgl_path_", name)
+}
+
+pub(super) fn import_path_for_target(path: &str, target: EcmaScriptTarget) -> String {
+    if target.is_typescript() || path.ends_with(".js") {
+        path.to_owned()
+    } else {
+        format!("{path}.js")
+    }
 }
 
 pub fn portable_path_component_error(name: &str) -> Option<&'static str> {
