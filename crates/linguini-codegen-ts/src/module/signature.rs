@@ -161,6 +161,28 @@ impl MessageCallSignature {
         )
     }
 
+    pub(crate) fn javascript_callable_type(&self) -> String {
+        if !self.is_parameterized() {
+            return "string".to_owned();
+        }
+        let positional = self
+            .parameters
+            .iter()
+            .map(|parameter| {
+                format!(
+                    "{}: {}",
+                    parameter.binding,
+                    render_jsdoc_type(&parameter.ty)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            "(({positional}) => string) & ((args: {}) => string)",
+            self.named_object_type()
+        )
+    }
+
     fn positional_doc_tags(&self) -> Vec<JsDocTag> {
         self.parameters
             .iter()
@@ -341,6 +363,10 @@ mod tests {
         assert_eq!(
             signature.callable_type(),
             "{ (count: number | bigint | string): string; (args: { count: number | bigint | string }): string; }"
+        );
+        assert_eq!(
+            signature.javascript_callable_type(),
+            "((count: number | bigint | string) => string) & ((args: { count: number | bigint | string }) => string)"
         );
     }
 

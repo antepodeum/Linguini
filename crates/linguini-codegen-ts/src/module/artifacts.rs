@@ -5,9 +5,10 @@ use linguini_syntax::SourceId;
 
 use super::semantic::TypeScriptSemanticImport;
 use super::{
-    locale_globals, locale_has_globals, locale_module_for_schema, project_locale_options,
-    runtime_helper_names, visible_schema, TypeScriptCodegenError, TypeScriptOptions,
-    ValidatedTypeScriptProject,
+    locale_globals, locale_has_globals, locale_module_for_schema, locale_without_globals,
+    namespace_module, project_locale_options, root_module, root_module_with_locale_items,
+    runtime_helper_names, top_level_namespaces, visible_schema, TypeScriptCodegenError,
+    TypeScriptOptions, ValidatedTypeScriptProject,
 };
 
 const MAX_PORTABLE_PATH_BYTES: usize = 240;
@@ -49,6 +50,100 @@ pub struct TypeScriptLocaleGlobalsArtifact {
     pub canonical_locale: String,
     pub module_path: String,
     pub source_ids: Vec<SourceId>,
+}
+
+/// Locale implementation module class.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeScriptLocaleArtifactKind {
+    Namespace { namespace: String },
+    Barrel,
+}
+
+/// Stable physical metadata for one locale namespace or barrel module.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeScriptLocaleArtifact {
+    pub locale: String,
+    pub canonical_locale: String,
+    pub kind: TypeScriptLocaleArtifactKind,
+    pub module_path: String,
+    pub source_map_path: String,
+    pub source_ids: Vec<SourceId>,
+}
+
+pub(super) fn locale_artifacts(
+    project: &ValidatedTypeScriptProject<'_>,
+) -> Result<Vec<TypeScriptLocaleArtifact>, TypeScriptCodegenError> {
+    let schema = if project.options.tree_shaking && !project.options.included_messages.is_empty() {
+        visible_schema(
+            project.schema,
+            &TypeScriptOptions {
+                included_messages: project.options.included_messages.clone(),
+                ..TypeScriptOptions::default()
+            },
+        )
+    } else {
+        project.schema.as_module().clone()
+    };
+    let mut artifacts = Vec::new();
+    for locale in &project.locales {
+        let visible_locale = locale_module_for_schema(&locale.module, &schema);
+        let namespaces = top_level_namespaces(&schema);
+        for namespace in &namespaces {
+            let module_path = format!(
+                "locales/{}/{}.ts",
+                locale.locale,
+                super::safe_file_stem(namespace)
+            );
+            let namespace_schema = namespace_module(&schema, namespace);
+            let namespace_locale =
+                locale_without_globals(&namespace_module(&visible_locale, namespace));
+            artifacts.push(TypeScriptLocaleArtifact {
+                locale: locale.locale.clone(),
+                canonical_locale: canonicalize_locale(&locale.locale)
+                    .unwrap_or_else(|_| locale.locale.clone()),
+                kind: TypeScriptLocaleArtifactKind::Namespace {
+                    namespace: namespace.clone(),
+                },
+                source_map_path: format!("{module_path}.map"),
+                module_path,
+                source_ids: module_source_ids(&namespace_schema, &namespace_locale),
+            });
+        }
+        let (barrel_schema, barrel_locale) = if namespaces.is_empty() {
+            (schema.clone(), visible_locale.clone())
+        } else {
+            (
+                root_module(&schema),
+                root_module_with_locale_items(&visible_locale),
+            )
+        };
+        let barrel_locale = locale_without_globals(&barrel_locale);
+        let module_path = format!("locales/{}.ts", locale.locale);
+        artifacts.push(TypeScriptLocaleArtifact {
+            locale: locale.locale.clone(),
+            canonical_locale: canonicalize_locale(&locale.locale)
+                .unwrap_or_else(|_| locale.locale.clone()),
+            kind: TypeScriptLocaleArtifactKind::Barrel,
+            source_map_path: format!("{module_path}.map"),
+            module_path,
+            source_ids: module_source_ids(&barrel_schema, &barrel_locale),
+        });
+    }
+    Ok(artifacts)
+}
+
+fn module_source_ids(
+    schema: &linguini_ir::IrModule,
+    locale: &linguini_ir::IrModule,
+) -> Vec<SourceId> {
+    schema
+        .origins()
+        .iter()
+        .chain(locale.origins())
+        .map(|origin| origin.span.source)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 pub(super) fn locale_globals_artifacts(

@@ -102,6 +102,27 @@ pub fn emit_schema_type_reexports(
     }
 }
 
+pub(super) fn emit_schema_types_for_target(
+    schema: &IrModule,
+    shared_import_path: &str,
+    target: EcmaScriptTarget,
+    output: &mut String,
+) {
+    if target.is_typescript() {
+        emit_schema_type_reexports(schema, shared_import_path, output);
+        return;
+    }
+    let type_names = schema_type_names(schema);
+    for name in &type_names {
+        output.push_str(&format!(
+            "/** @typedef {{import(\"{shared_import_path}\").{name}}} {name} */\n"
+        ));
+    }
+    if !type_names.is_empty() {
+        output.push('\n');
+    }
+}
+
 pub fn schema_type_names(schema: &IrModule) -> Vec<String> {
     schema
         .enums()
@@ -261,10 +282,6 @@ pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
     }
 }
 
-pub fn emit_forms(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    emit_forms_for_target(module, options, EcmaScriptTarget::TypeScript, false, output);
-}
-
 pub(super) fn emit_forms_for_target(
     module: &IrModule,
     options: &TypeScriptOptions,
@@ -294,10 +311,6 @@ pub(super) fn emit_forms_for_target(
     }
 }
 
-pub fn emit_variables(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    emit_variables_for_target(module, options, EcmaScriptTarget::TypeScript, false, output);
-}
-
 pub(super) fn emit_variables_for_target(
     module: &IrModule,
     options: &TypeScriptOptions,
@@ -314,10 +327,6 @@ pub(super) fn emit_variables_for_target(
             text_expression_for_target(&variable.value, options, target)
         ));
     }
-}
-
-pub fn emit_local_functions(module: &IrModule, options: &TypeScriptOptions, output: &mut String) {
-    emit_local_functions_for_target(module, options, EcmaScriptTarget::TypeScript, false, output);
 }
 
 pub(super) fn emit_local_functions_for_target(
@@ -401,10 +410,11 @@ pub(super) fn emit_local_functions_for_target(
     }
 }
 
-pub fn emit_messages(
+pub(super) fn emit_messages_for_target(
     schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
     output: &mut String,
 ) -> ModuleExports {
     let nested = nested_message_tree(schema);
@@ -417,13 +427,13 @@ pub fn emit_messages(
         if signature.name.contains('.') {
             continue;
         }
-        if emit_message_function(schema, signature, locale, options, output) {
+        if emit_message_function(schema, signature, locale, options, target, output) {
             exports.top_level.push(function_name(&signature.name));
         }
     }
 
     for (group, messages) in nested.children {
-        emit_message_object(schema, &group, &messages, locale, options, output);
+        emit_message_object(schema, &group, &messages, locale, options, target, output);
         exports.groups.push(safe_identifier(&group));
     }
 
@@ -435,23 +445,33 @@ fn emit_message_function(
     signature: &IrMessage,
     locale: &IrModule,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
     output: &mut String,
 ) -> bool {
     let Some(implementation) = message_implementation(locale, &signature.name) else {
         return false;
     };
     let call_signature = MessageCallSignature::from_message(signature);
-    let body = message_body(schema, signature, implementation, options);
+    let body = message_body_for_target(schema, signature, implementation, options, target);
     let name = function_name(&signature.name);
     if !call_signature.is_parameterized() {
         emit_docs(&signature.docs, "", output);
         output.push_str(&format!("export const {name} = {body};\n\n"));
     } else {
-        output.push_str(&call_signature.implementation_overloads(&name, &signature.docs));
+        if target.is_typescript() {
+            output.push_str(&call_signature.implementation_overloads(&name, &signature.docs));
+        } else {
+            output.push_str(&call_signature.javascript_implementation_docs(&signature.docs));
+        }
         output.push_str(&format!(
-            "export function {name}({}): string {{\n  {}\n  return {body};\n}}\n\n",
-            call_signature.implementation_rest_params(),
-            call_signature.normalized_bindings_statement()
+            "export function {name}({}){} {{\n  {}\n  return {body};\n}}\n\n",
+            call_signature.implementation_rest_params_for_target(target),
+            if target.is_typescript() {
+                ": string"
+            } else {
+                ""
+            },
+            call_signature.normalized_bindings_statement_for_target(target)
         ));
     }
     true
@@ -463,12 +483,17 @@ fn emit_message_object(
     tree: &MessageTree,
     locale: &IrModule,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
     output: &mut String,
 ) {
     emit_docs(&tree.docs, "", output);
     output.push_str(&format!("export const {} = ", safe_identifier(name)));
-    emit_object_literal(schema, tree, locale, options, 0, output);
-    output.push_str(" as const;\n\n");
+    emit_object_literal(schema, tree, locale, options, target, 0, output);
+    if target.is_typescript() {
+        output.push_str(" as const;\n\n");
+    } else {
+        output.push_str(";\n\n");
+    }
 }
 
 fn emit_object_literal(
@@ -476,6 +501,7 @@ fn emit_object_literal(
     tree: &MessageTree,
     locale: &IrModule,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
     depth: usize,
     output: &mut String,
 ) {
@@ -488,14 +514,14 @@ fn emit_object_literal(
             output.push_str(&format!(
                 "{child_indent}{}: {},\n",
                 property_key(&entry.property),
-                group_property_value(schema, &entry.signature, implementation, options)
+                group_property_value(schema, &entry.signature, implementation, options, target,)
             ));
         }
     }
     for (name, child) in &tree.children {
         emit_docs(&child.docs, &child_indent, output);
         output.push_str(&format!("{child_indent}{}: ", property_key(name)));
-        emit_object_literal(schema, child, locale, options, depth + 1, output);
+        emit_object_literal(schema, child, locale, options, target, depth + 1, output);
         output.push_str(",\n");
     }
     output.push_str(&indent);
@@ -507,33 +533,27 @@ fn group_property_value(
     signature: &IrMessage,
     implementation: &IrMessage,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
 ) -> String {
     let call_signature = MessageCallSignature::from_message(signature);
     if !call_signature.is_parameterized() {
-        message_body(schema, signature, implementation, options)
+        message_body_for_target(schema, signature, implementation, options, target)
     } else {
-        format!(
+        let implementation = format!(
             "({}) => {{ {} return {}; }}",
-            call_signature.implementation_rest_params(),
-            call_signature.normalized_bindings_statement(),
-            message_body(schema, signature, implementation, options)
-        )
+            call_signature.implementation_rest_params_for_target(target),
+            call_signature.normalized_bindings_statement_for_target(target),
+            message_body_for_target(schema, signature, implementation, options, target)
+        );
+        if target.is_typescript() {
+            implementation
+        } else {
+            format!(
+                "/** @type {{{}}} */ ({implementation})",
+                call_signature.javascript_callable_type()
+            )
+        }
     }
-}
-
-pub(crate) fn message_body(
-    schema: &IrModule,
-    signature: &IrMessage,
-    implementation: &IrMessage,
-    options: &TypeScriptOptions,
-) -> String {
-    message_body_for_target(
-        schema,
-        signature,
-        implementation,
-        options,
-        EcmaScriptTarget::TypeScript,
-    )
 }
 
 pub(crate) fn message_body_for_target(

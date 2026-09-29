@@ -5,6 +5,7 @@ mod emit;
 mod expr;
 mod formatters;
 mod globals;
+mod locale;
 mod message;
 mod messages;
 mod names;
@@ -35,18 +36,13 @@ use linguini_ir::{
     LocaleIr, SchemaIr, ValidatedIr,
 };
 
-use crate::ecmascript::{EcmaImport, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaStatement};
-
-use self::emit::{
-    emit_forms, emit_local_functions, emit_locale_enum_types, emit_messages,
-    emit_schema_type_reexports, emit_variables, module_imports,
-};
 use self::formatters::{formatter_requirements, plural_required};
 use self::names::{
     escape_string, form_binding_name, portable_path_component_error, safe_file_stem,
     safe_identifier,
 };
 use self::shared::generate_shared_module;
+use crate::ecmascript::{EcmaImport, EcmaModuleOutput, EcmaNamedImport};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptOptions {
@@ -339,6 +335,10 @@ pub enum TypeScriptCodegenError {
     UnknownLocale {
         locale: String,
     },
+    UnknownLocaleNamespace {
+        locale: String,
+        namespace: String,
+    },
     UnknownMessage {
         message: String,
     },
@@ -464,6 +464,10 @@ impl fmt::Display for TypeScriptCodegenError {
             Self::UnknownLocale { locale } => {
                 write!(formatter, "configured locale `{locale}` is not present in the project")
             }
+            Self::UnknownLocaleNamespace { locale, namespace } => write!(
+                formatter,
+                "locale namespace artifact `{namespace}` is not selected for locale `{locale}`"
+            ),
             Self::UnknownMessage { message } => {
                 write!(formatter, "schema message `{message}` is not present in the project")
             }
@@ -537,12 +541,18 @@ impl fmt::Display for TypeScriptCodegenError {
     }
 }
 
-pub use artifacts::TypeScriptLocaleGlobalsArtifact;
-pub use artifacts::{TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact};
+pub use artifacts::{
+    TypeScriptLocaleArtifact, TypeScriptLocaleArtifactKind, TypeScriptLocaleGlobalsArtifact,
+    TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact,
+};
 pub use globals::{
     compile_javascript_locale_globals_artifact_module,
     compile_typescript_locale_globals_artifact_module, CompiledJavaScriptLocaleGlobalsModule,
     CompiledTypeScriptLocaleGlobalsModule,
+};
+pub use locale::{
+    compile_javascript_locale_artifact_module, compile_typescript_locale_artifact_module,
+    CompiledJavaScriptLocaleModule, CompiledTypeScriptLocaleModule,
 };
 pub use message::{
     compile_javascript_bundler_message_artifact_module, compile_javascript_bundler_message_module,
@@ -652,6 +662,13 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         &self,
     ) -> Result<Vec<TypeScriptLocaleRuntimeArtifact>, TypeScriptCodegenError> {
         artifacts::locale_runtime_artifacts(self)
+    }
+
+    /// Enumerates locale namespace modules followed by each locale barrel.
+    pub fn locale_artifacts(
+        &self,
+    ) -> Result<Vec<TypeScriptLocaleArtifact>, TypeScriptCodegenError> {
+        artifacts::locale_artifacts(self)
     }
 
     /// Enumerates one aggregate locale-global artifact for each locale that owns global symbols.
@@ -1359,46 +1376,23 @@ fn generate_typescript_module_unchecked_with_locale(
     namespaces: &[String],
     global_import_path: Option<&str>,
 ) -> String {
-    let mut imports = Vec::new();
-    for namespace in namespaces {
-        let identifier = safe_identifier(namespace);
-        let file_stem = safe_file_stem(namespace);
-        imports.push(EcmaImport::named(
-            format!("./{}/{}", options.locale, file_stem),
-            vec![EcmaNamedImport::new(&identifier, &identifier)],
-        ));
-    }
-    imports.extend(module_imports(schema, locale, options, "../shared"));
-    if let Some(runtime_import) = locale_runtime_import(
+    locale::locale_module(locale::LocaleModuleRequest {
         schema,
+        import_locale,
         locale,
         options,
-        &format!("./{}/_runtime", options.locale),
-    ) {
-        imports.push(runtime_import);
-    }
-    if let Some(global_import_path) = global_import_path {
-        if let Some(global_import) = locale_global_import(import_locale, global_import_path) {
-            imports.push(global_import);
-        }
-    }
-    let mut output = String::new();
-    emit_schema_type_reexports(schema, "../shared", &mut output);
-    emit_locale_enum_types(schema, locale, &mut output);
-    for namespace in namespaces {
-        output.push_str(&format!("export {{ {} }};\n\n", safe_identifier(namespace)));
-    }
-    emit_variables(locale, options, &mut output);
-    emit_forms(locale, options, &mut output);
-    emit_local_functions(locale, options, &mut output);
-    let exports = emit_messages(schema, locale, options, &mut output);
-    emit_locale_default(&exports, namespaces, &mut output);
-    render_project_module(
-        format!("locales/{}.ts", options.locale),
-        Some(format!("locales/{}.d.ts", options.locale)),
-        imports,
-        output,
-    )
+        namespaces,
+        shared_import_path: "../shared",
+        runtime_import_path: &format!("./{}/_runtime", options.locale),
+        global_import_path,
+        namespace_alias: None,
+        output: EcmaModuleOutput::new(
+            EcmaScriptTarget::TypeScript,
+            format!("locales/{}.ts", options.locale),
+            Some(format!("locales/{}.d.ts", options.locale)),
+        ),
+    })
+    .render_code()
 }
 
 #[cfg(test)]
@@ -1424,54 +1418,35 @@ fn generate_typescript_module_with_shared_import(
     let schema = ir.schema();
     let import_locale = ir.locale();
     let locale = locale_override.unwrap_or(import_locale);
-    let mut imports = module_imports(schema, locale, options, shared_import_path);
-    if let Some(runtime_import) =
-        locale_runtime_import(schema, locale, options, runtime_import_path)
-    {
-        imports.push(runtime_import);
-    }
-    if let Some(global_import_path) = global_import_path {
-        if let Some(global_import) = locale_global_import(import_locale, global_import_path) {
-            imports.push(global_import);
-        }
-    }
-    let mut output = String::new();
-    emit_schema_type_reexports(schema, shared_import_path, &mut output);
-    emit_locale_enum_types(schema, locale, &mut output);
-    emit_variables(locale, options, &mut output);
-    emit_forms(locale, options, &mut output);
-    emit_local_functions(locale, options, &mut output);
-    let exports = emit_messages(schema, locale, options, &mut output);
-    emit_locale_default(&exports, &[], &mut output);
-    if let Some(namespace_alias) = namespace_alias {
-        let identifier = safe_identifier(namespace_alias);
-        let alias_is_exported = exports
-            .top_level
-            .iter()
-            .chain(exports.groups.iter())
-            .any(|export| export == &identifier);
-        if !alias_is_exported {
-            output.push_str(&format!("\nexport const {identifier} = lgl;\n"));
-        }
-    }
     let namespace = namespace_alias.expect("namespace modules always have a namespace alias");
-    render_project_module(
-        format!(
-            "locales/{}/{}.ts",
-            options.locale,
-            safe_file_stem(namespace)
+    locale::locale_module(locale::LocaleModuleRequest {
+        schema,
+        import_locale,
+        locale,
+        options,
+        namespaces: &[],
+        shared_import_path,
+        runtime_import_path,
+        global_import_path,
+        namespace_alias,
+        output: EcmaModuleOutput::new(
+            EcmaScriptTarget::TypeScript,
+            format!(
+                "locales/{}/{}.ts",
+                options.locale,
+                safe_file_stem(namespace)
+            ),
+            Some(format!(
+                "locales/{}/{}.d.ts",
+                options.locale,
+                safe_file_stem(namespace)
+            )),
         ),
-        Some(format!(
-            "locales/{}/{}.d.ts",
-            options.locale,
-            safe_file_stem(namespace)
-        )),
-        imports,
-        output,
-    )
+    })
+    .render_code()
 }
 
-fn locale_global_import(locale: &IrModule, import_path: &str) -> Option<EcmaImport> {
+pub(super) fn locale_global_import(locale: &IrModule, import_path: &str) -> Option<EcmaImport> {
     let value_names = locale_global_value_names(locale);
     (!value_names.is_empty()).then(|| {
         EcmaImport::named(
@@ -1519,7 +1494,7 @@ pub(super) fn locale_globals(locale: &IrModule) -> IrModule {
         .expect("global-symbol projection preserves unique declaration names")
 }
 
-fn locale_without_globals(locale: &IrModule) -> IrModule {
+pub(super) fn locale_without_globals(locale: &IrModule) -> IrModule {
     IrModuleBuilder::seeded(locale)
         .clear_enums()
         .clear_variables()
@@ -1545,29 +1520,6 @@ pub(super) fn locale_runtime_import(
                 .collect(),
         )
     })
-}
-
-fn render_project_module(
-    output_path: String,
-    declaration_path: Option<String>,
-    imports: Vec<EcmaImport>,
-    body: String,
-) -> String {
-    let statements = if body.trim().is_empty() {
-        Vec::new()
-    } else {
-        vec![EcmaStatement::generated(body)]
-    };
-    let mut module = EcmaModule::new(EcmaModuleOutput::new(
-        EcmaScriptTarget::TypeScript,
-        output_path,
-        declaration_path,
-    ));
-    module.extend_imports(imports);
-    for statement in statements {
-        module.push_statement(statement);
-    }
-    module.render_code()
 }
 
 fn runtime_helper_names(
@@ -1624,7 +1576,7 @@ fn project_locale_options(
     })
 }
 
-fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
+pub(super) fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
     if options.included_messages.is_empty() {
         return schema.clone();
     }
@@ -1657,7 +1609,7 @@ fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
         .expect("tree-shaken schema projection preserves unique declaration names")
 }
 
-fn locale_module_for_schema(locale: &IrModule, schema: &IrModule) -> IrModule {
+pub(super) fn locale_module_for_schema(locale: &IrModule, schema: &IrModule) -> IrModule {
     let schema_groups = schema
         .groups()
         .iter()
@@ -1675,7 +1627,7 @@ fn locale_module_for_schema(locale: &IrModule, schema: &IrModule) -> IrModule {
         .expect("schema-projected locale preserves unique declaration names")
 }
 
-fn top_level_namespaces(module: &IrModule) -> Vec<String> {
+pub(super) fn top_level_namespaces(module: &IrModule) -> Vec<String> {
     let mut namespaces = module
         .messages()
         .iter()
@@ -1687,7 +1639,7 @@ fn top_level_namespaces(module: &IrModule) -> Vec<String> {
     namespaces
 }
 
-fn namespace_module(module: &IrModule, namespace: &str) -> IrModule {
+pub(super) fn namespace_module(module: &IrModule, namespace: &str) -> IrModule {
     let prefix = format!("{namespace}.");
     IrModuleBuilder::seeded(module)
         .retain_messages(|message| message.name.starts_with(&prefix))
@@ -1696,7 +1648,7 @@ fn namespace_module(module: &IrModule, namespace: &str) -> IrModule {
         .expect("namespace projection preserves unique declaration names")
 }
 
-fn root_module(module: &IrModule) -> IrModule {
+pub(super) fn root_module(module: &IrModule) -> IrModule {
     IrModuleBuilder::seeded(module)
         .retain_messages(|message| !message.name.contains('.'))
         .retain_groups(|group| !group.name.contains('.'))
@@ -1704,7 +1656,7 @@ fn root_module(module: &IrModule) -> IrModule {
         .expect("root projection preserves unique declaration names")
 }
 
-fn root_module_with_locale_items(module: &IrModule) -> IrModule {
+pub(super) fn root_module_with_locale_items(module: &IrModule) -> IrModule {
     root_module(module)
 }
 
@@ -1887,18 +1839,6 @@ fn pascal_identifier(value: &str) -> String {
             output
         })
         .collect::<String>()
-}
-
-fn emit_locale_default(exports: &emit::ModuleExports, namespaces: &[String], output: &mut String) {
-    output.push_str("const lgl = {\n");
-    for name in exports.top_level.iter().chain(exports.groups.iter()) {
-        output.push_str(&format!("  {name},\n"));
-    }
-    for namespace in namespaces {
-        output.push_str(&format!("  {},\n", safe_identifier(namespace)));
-    }
-    output.push_str("} as const;\n\n");
-    output.push_str("export default lgl;\n");
 }
 
 fn is_path_or_descendant(path: &str, parent: &str) -> bool {
