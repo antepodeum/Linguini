@@ -34,6 +34,8 @@ mod web_options;
 mod web_path;
 mod web_routes;
 mod web_runtime_links;
+mod web_server_cookie;
+mod web_switch_route;
 
 pub(crate) use crate::ecmascript::EcmaScriptTarget;
 
@@ -49,6 +51,12 @@ pub use svelte_locale::{
     SvelteLocaleMode,
 };
 pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
+pub use web_server_cookie::{
+    compile_javascript_web_server_cookie_module, compile_typescript_web_server_cookie_module,
+};
+pub use web_switch_route::{
+    compile_javascript_web_switch_route_module, compile_typescript_web_switch_route_module,
+};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;

@@ -11,12 +11,6 @@ pub const SVELTEKIT_CONTROL_DECLARATIONS: &str =
     include_str!("templates/sveltekit-control.runtime.d.ts");
 pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
 pub const WEB_DECLARATIONS: &str = include_str!("templates/web.runtime.d.ts");
-pub const WEB_SERVER_COOKIE_RUNTIME: &str = include_str!("templates/web.server-cookie.runtime.ts");
-pub const WEB_SERVER_COOKIE_DECLARATIONS: &str =
-    include_str!("templates/web.server-cookie.runtime.d.ts");
-pub const WEB_SWITCH_ROUTE_RUNTIME: &str = include_str!("templates/web.switch-route.runtime.ts");
-pub const WEB_SWITCH_ROUTE_DECLARATIONS: &str =
-    include_str!("templates/web.switch-route.runtime.d.ts");
 
 pub fn render_template(template: &str, replacements: &[(&str, String)]) -> String {
     let mut output = template.to_owned();
@@ -46,7 +40,6 @@ mod tests {
         assert!(WEB_RUNTIME.contains("createWebLocaleI18n"));
         assert!(WEB_DECLARATIONS.contains("LinguiniRequestContext"));
         assert!(WEB_DECLARATIONS.contains("LinguiniWebLocale"));
-        assert!(WEB_SERVER_COOKIE_RUNTIME.contains("persistLocaleCookie"));
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniReroute"));

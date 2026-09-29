@@ -92,6 +92,10 @@ otherwise.
 
 ## Frozen evidence
 
+- Server cookie/switch-route TS/JS/declaration snapshots, strict target types, delegation identity,
+  base paths, route suffixes, malformed encodings, same-origin query/referrer safety, redirect
+  status, and path/cookie transport parity: `tests/fixtures/golden/snapshots/js-web-server`.
+
 - Svelte facade TS/JS/declaration snapshots and strict types, real generated message-provider
   integration, live getters, preparation failures, forwarded controls, and HMR loader disposal:
   `tests/fixtures/golden/snapshots/js-svelte-facade`.

@@ -84,6 +84,11 @@ editor boundaries to update this file, public documentation, and executable test
   `compile_javascript_svelte_module`. Pass `false` for context-only state or `true` for web
   controls. Runtime bodies and declarations remain unchanged; context imports are normalized
   to the shared emitter's layout, and JavaScript uses explicit `.js` module edges.
+- Server cookie and locale-switch route integrations can use the corresponding
+  `compile_{typescript,javascript}_web_{server_cookie,switch_route}_module` functions. Cookie and
+  declaration bytes are unchanged; empty template-placeholder lines in switch routes are
+  normalized. JavaScript retains checked locale generics and source maps. Absent switch routes
+  produce no artifact, and disabled cookie capabilities produce no persistence import.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

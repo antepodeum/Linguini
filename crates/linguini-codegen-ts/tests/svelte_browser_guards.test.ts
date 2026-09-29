@@ -20,6 +20,9 @@ async function importTypeScript(source: string) {
 }
 
 async function readTemplate(name: string) {
+  if (name.startsWith("web.server-cookie.") || name.startsWith("web.switch-route.")) {
+    return readFile(new URL(`../../../tests/fixtures/golden/snapshots/js-web-server/legacy/${name}`, import.meta.url), "utf8");
+  }
   if (name === "svelte.runtime.ts") {
     return readFile(new URL("../../../tests/fixtures/golden/snapshots/js-svelte-facade/web/typescript/svelte.ts", import.meta.url), "utf8");
   }

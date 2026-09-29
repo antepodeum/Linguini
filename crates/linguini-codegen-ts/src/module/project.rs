@@ -1,9 +1,6 @@
-use super::names::escape_string;
 use super::templates::{
     render_template, SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME,
     SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
-    WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME, WEB_SWITCH_ROUTE_DECLARATIONS,
-    WEB_SWITCH_ROUTE_RUNTIME,
 };
 use super::web_runtime_links;
 use super::{web_accept_language, web_cookie, web_link_transform, web_local_storage, web_path};
@@ -253,47 +250,19 @@ pub fn generate_project_web_link_declaration(mode: super::TypeScriptLinkMode) ->
 }
 
 pub fn generate_project_web_server_cookie_module() -> String {
-    WEB_SERVER_COOKIE_RUNTIME.to_owned()
+    super::web_server_cookie::generate_typescript_web_server_cookie_module()
 }
 
 pub fn generate_project_web_server_cookie_declaration() -> String {
-    WEB_SERVER_COOKIE_DECLARATIONS.to_owned()
+    super::web_server_cookie::generate_web_server_cookie_declaration()
 }
 
 pub fn generate_project_web_switch_route_module(options: &TypeScriptWebOptions) -> Option<String> {
-    let route = options.switch_route.as_ref()?;
-    Some(render_template(
-        WEB_SWITCH_ROUTE_RUNTIME,
-        &[
-            (
-                "SERVER_COOKIE_IMPORT",
-                if options.features().has_cookie {
-                    "import { persistLocaleCookie } from \"./server-cookie.js\";".to_owned()
-                } else {
-                    String::new()
-                },
-            ),
-            ("SWITCH_ROUTE_PATH", escape_string(&route.path)),
-            (
-                "SWITCH_ROUTE_RETURN_QUERY",
-                escape_string(&route.return_query),
-            ),
-            ("SWITCH_ROUTE_STATUS", route.status.to_string()),
-            (
-                "PERSIST_SWITCH_COOKIE",
-                if options.features().has_cookie {
-                    "  if (web.options.locale.switch.writesCookie) {\n    persistLocaleCookie(web, response, locale, { origin: event.url.origin });\n  }"
-                        .to_owned()
-                } else {
-                    String::new()
-                },
-            ),
-        ],
-    ))
+    super::web_switch_route::generate_typescript_web_switch_route_module(options)
 }
 
 pub fn generate_project_web_switch_route_declaration() -> String {
-    WEB_SWITCH_ROUTE_DECLARATIONS.to_owned()
+    super::web_switch_route::generate_web_switch_route_declaration()
 }
 
 pub fn generate_project_web_declaration() -> String {

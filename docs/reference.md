@@ -94,6 +94,12 @@ mutating locale state, tolerate denied persistence, and do not import the eager 
 web-enabled Svelte facades with a boolean flag. Both targets share message providers, live locale
 getters, forwarded controls, and deterministic HMR loader disposal.
 
+`compile_typescript_web_server_cookie_module` and `compile_javascript_web_server_cookie_module`
+compile server cookie delegation. `compile_typescript_web_switch_route_module` and
+`compile_javascript_web_switch_route_module` accept the closed web policy and return `None` when
+no switch route is configured. Both targets preserve same-origin return safety and selected
+path/cookie transports.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

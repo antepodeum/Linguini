@@ -878,7 +878,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       isolation, streaming, Svelte checking, and production-build parity after each cutover. The
       closed route-exclusion, path-locale, cookie-locale, local-storage, Accept-Language, and
       transformed-link, runtime-link, Svelte locale-state, browser-effect, lightweight-control, and message-facade
-      modules now use the common backend;
+      modules, plus server cookie/switch-route leaves, now use the common backend;
       real Svelte client/server rune compilation covers locale state. Exact TypeScript bytes, checked
       JavaScript, source maps, and executable parity run in quick/full gates.
 - [ ] ESM-M9 — Switch CLI output ownership, bundler manifests, Vite virtual-module resolution,
