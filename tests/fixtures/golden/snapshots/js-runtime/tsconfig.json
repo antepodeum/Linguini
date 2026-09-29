@@ -7,5 +7,5 @@
     "strict": true,
     "target": "ES2022"
   },
-  "files": ["_runtime.js"]
+  "files": ["_runtime.js", "../ts/locales/ru/_runtime.ts", "../js-globals/typescript/locales/en-us/_runtime.ts"]
 }

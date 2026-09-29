@@ -949,7 +949,7 @@ function formatGeneratedNumber(
 
   integer = groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol);
   let ascii = fraction ? `${integer}${decimalSymbol}${fraction}` : integer;
-  if (exponent !== undefined) {
+  if (exponent !== undefined && exponentDigits !== undefined) {
     const sign = exponent < 0 ? "-" : exponentSignAlways ? "+" : "";
     ascii += `E${sign}${String(Math.abs(exponent)).padStart(exponentDigits, "0")}`;
   }
@@ -1678,6 +1678,7 @@ mod tests {
         ] {
             assert!(runtime.contains(semantic));
         }
+        assert!(runtime.contains("if (exponent !== undefined && exponentDigits !== undefined)"));
     }
 
     #[test]
