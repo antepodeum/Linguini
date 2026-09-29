@@ -4,28 +4,26 @@ use crate::ecmascript::{
     EcmaModule, EcmaModuleOutput, EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,
 };
 
-const PATH_BODY: &str = concat!(
-    "  if (!value) return undefined;\n",
-    "{}",
-    "  try {\n",
-    "    parsed = new URL(String(value), \"http://localhost\");\n",
-    "  } catch {\n",
-    "    return undefined;\n",
-    "  }\n",
-    "  const pathname = parsed.pathname.startsWith(\"/\") ? parsed.pathname : `/${parsed.pathname}`;\n",
-    "  const base = options.environment.base && options.environment.base !== \"/\"\n",
-    "    ? `/${options.environment.base.replace(/^\\/+|\\/+$/g, \"\")}`\n",
-    "    : \"\";\n",
-    "  const stripped = base && pathname === base\n",
-    "    ? \"/\"\n",
-    "    : base && pathname.startsWith(`${base}/`)\n",
-    "      ? pathname.slice(base.length)\n",
-    "      : pathname;\n",
-    "  const segment = stripped.split(\"/\").filter(Boolean)[0];\n",
-    "  return typeof segment === \"string\"\n",
-    "    ? locales.find((locale) => locale.toLowerCase() === segment.toLowerCase())\n",
-    "    : undefined;\n",
-);
+const PATH_BODY_BEFORE_PARSED: &str = "  if (!value) return undefined;\n";
+const PATH_BODY_AFTER_PARSED: &str = r#"  try {
+    parsed = new URL(String(value), "http://localhost");
+  } catch {
+    return undefined;
+  }
+  const pathname = parsed.pathname.startsWith("/") ? parsed.pathname : `/${parsed.pathname}`;
+  const base = options.environment.base && options.environment.base !== "/"
+    ? `/${options.environment.base.replace(/^\/+|\/+$/g, "")}`
+    : "";
+  const stripped = base && pathname === base
+    ? "/"
+    : base && pathname.startsWith(`${base}/`)
+      ? pathname.slice(base.length)
+      : pathname;
+  const segment = stripped.split("/").filter(Boolean)[0];
+  return typeof segment === "string"
+    ? locales.find((locale) => locale.toLowerCase() === segment.toLowerCase())
+    : undefined;
+"#;
 
 pub(super) fn generate_typescript_web_path_module() -> String {
     web_path_module(EcmaModuleOutput::new(
@@ -102,9 +100,8 @@ fn web_path_module(output: EcmaModuleOutput) -> EcmaModule {
         ),
     };
     let mut module = EcmaModule::new(output);
-    let body = PATH_BODY.replace("{}", parsed);
     module.push_statement(EcmaStatement::generated(format!(
-        "{signature}{value}{body}}}\n"
+        "{signature}{value}{PATH_BODY_BEFORE_PARSED}{parsed}{PATH_BODY_AFTER_PARSED}}}\n"
     )));
     module
 }

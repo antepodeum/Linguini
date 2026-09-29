@@ -6,14 +6,13 @@ use super::templates::{
     SVELTE_EFFECTS_DECLARATIONS, SVELTE_EFFECTS_RUNTIME, SVELTE_LOCALE_CONTEXT_DECLARATIONS,
     SVELTE_LOCALE_CONTEXT_RUNTIME, SVELTE_LOCALE_DECLARATIONS, SVELTE_LOCALE_RUNTIME,
     SVELTE_LOCALE_STANDALONE_DECLARATIONS, SVELTE_LOCALE_STANDALONE_RUNTIME, SVELTE_RUNTIME,
-    WEB_ACCEPT_LANGUAGE_DECLARATIONS, WEB_ACCEPT_LANGUAGE_RUNTIME, WEB_COOKIE_DECLARATIONS,
-    WEB_COOKIE_RUNTIME, WEB_DECLARATIONS, WEB_LINK_TRANSFORM_DECLARATIONS,
-    WEB_LINK_TRANSFORM_RUNTIME, WEB_LOCAL_STORAGE_DECLARATIONS, WEB_LOCAL_STORAGE_RUNTIME,
-    WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS, WEB_RUNTIME_LINKS_RUNTIME,
-    WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME, WEB_SWITCH_ROUTE_DECLARATIONS,
-    WEB_SWITCH_ROUTE_RUNTIME,
+    WEB_ACCEPT_LANGUAGE_DECLARATIONS, WEB_ACCEPT_LANGUAGE_RUNTIME, WEB_DECLARATIONS,
+    WEB_LINK_TRANSFORM_DECLARATIONS, WEB_LINK_TRANSFORM_RUNTIME, WEB_LOCAL_STORAGE_DECLARATIONS,
+    WEB_LOCAL_STORAGE_RUNTIME, WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS,
+    WEB_RUNTIME_LINKS_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
+    WEB_SWITCH_ROUTE_DECLARATIONS, WEB_SWITCH_ROUTE_RUNTIME,
 };
-use super::web_path;
+use super::{web_cookie, web_path};
 use super::{TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptWebOptions};
 
 pub fn generate_project_svelte_locale_module(web: bool, sveltekit: bool) -> String {
@@ -300,7 +299,7 @@ pub fn generate_project_web_module_with_options(options: &TypeScriptWebOptions) 
 pub fn generate_project_web_source_module(source: TypeScriptLocaleSource) -> String {
     match source {
         TypeScriptLocaleSource::Path => web_path::generate_typescript_web_path_module(),
-        TypeScriptLocaleSource::Cookie => WEB_COOKIE_RUNTIME.to_owned(),
+        TypeScriptLocaleSource::Cookie => web_cookie::generate_typescript_web_cookie_module(),
         TypeScriptLocaleSource::LocalStorage => WEB_LOCAL_STORAGE_RUNTIME.to_owned(),
         TypeScriptLocaleSource::AcceptLanguage => WEB_ACCEPT_LANGUAGE_RUNTIME.to_owned(),
     }
@@ -309,7 +308,7 @@ pub fn generate_project_web_source_module(source: TypeScriptLocaleSource) -> Str
 pub fn generate_project_web_source_declaration(source: TypeScriptLocaleSource) -> String {
     match source {
         TypeScriptLocaleSource::Path => web_path::generate_web_path_declaration(),
-        TypeScriptLocaleSource::Cookie => WEB_COOKIE_DECLARATIONS.to_owned(),
+        TypeScriptLocaleSource::Cookie => web_cookie::generate_web_cookie_declaration(),
         TypeScriptLocaleSource::LocalStorage => WEB_LOCAL_STORAGE_DECLARATIONS.to_owned(),
         TypeScriptLocaleSource::AcceptLanguage => WEB_ACCEPT_LANGUAGE_DECLARATIONS.to_owned(),
     }

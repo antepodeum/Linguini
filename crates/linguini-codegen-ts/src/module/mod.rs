@@ -18,6 +18,7 @@ mod signature;
 mod templates;
 mod tree;
 mod type_model;
+mod web_cookie;
 mod web_path;
 mod web_routes;
 
@@ -578,6 +579,7 @@ pub use semantic::{
     CompiledJavaScriptSemanticModule, CompiledTypeScriptSemanticModule, TypeScriptSemanticArtifact,
     TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
 };
+pub use web_cookie::{compile_javascript_web_cookie_module, compile_typescript_web_cookie_module};
 pub use web_path::{compile_javascript_web_path_module, compile_typescript_web_path_module};
 pub use web_routes::{compile_javascript_web_routes_module, compile_typescript_web_routes_module};
 

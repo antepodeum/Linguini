@@ -53,6 +53,10 @@ source maps. The generated project keeps its existing `web/routes.ts` and declar
 For selected path locale resolution, `compile_typescript_web_path_module` and
 `compile_javascript_web_path_module` render the same `resolvePathLocale` behavior with target-owned
 source maps. The generated project keeps its existing `web/path.ts` and declaration paths.
+For selected cookie locale resolution, `compile_typescript_web_cookie_module` and
+`compile_javascript_web_cookie_module` render the same `resolveCookieLocale` behavior with
+target-owned source maps. The generated project keeps its existing `web/cookie.ts` and declaration
+paths.
 
 Linguini has two file types:
 

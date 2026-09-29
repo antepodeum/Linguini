@@ -14,3 +14,4 @@ export function resolveCookieLocale<Locale extends string>(
   }
   return undefined;
 }
+//# sourceMappingURL=cookie.ts.map
