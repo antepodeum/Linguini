@@ -39,6 +39,14 @@ paths and ordered fallback-composed source identities. Compile with
 message values/callables, positional and named calls, recursive namespace exports, runtime/global
 imports, defaults, and source maps identical across targets.
 
+Project entry integrations enumerate `project_artifacts` on a validated project. The locale
+metadata artifact precedes the public index artifact. Compile either with
+`compile_typescript_project_artifact_module` or `compile_javascript_project_artifact_module` for
+target-specific `locale`/`index` code and source maps. The index loads the base locale eagerly,
+prepares other locales on demand, deduplicates concurrent loads, and permits retry after failure.
+Generated-only entry maps have no source records. `generate_typescript_project_files` retains its
+existing map-free output paths until project output ownership migrates.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

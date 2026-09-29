@@ -793,30 +793,33 @@ production path uses the fix and its relevant tests pass.
       planned for the future.
 - [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
       plus schema, locale shared-runtime, semantic, and aggregate locale-global modules now use it.
-      Locale namespace and barrel modules now use it too. Remaining project `locale`/`index` and
-      web/Svelte modules still use direct TypeScript assembly.
+      Locale namespace/barrel and project `locale`/`index` modules now use it too. Web/Svelte
+      modules still use direct TypeScript assembly.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
 - [-] ESM-A5 — Render JavaScript plus JSDoc from the shared models. Exact bundler message and
       semantic leaves now select JavaScript from the same expression, form, function, signature,
       import, runtime-helper, and source-map emitters as TypeScript; locale namespaces and barrels
-      now share them as well. Overloads, local parameters, plural rules, formatter inputs, recursive
-      namespace values, and defaults retain checked JSDoc types. Project roots and web modules still
-      need the same target routing.
+      now share them as well. Project entries retain checked-JavaScript locale metadata, loader,
+      provider, and configure types. Overloads, local parameters, plural rules, formatter inputs,
+      recursive namespace values, and defaults retain checked JSDoc types. Web modules still need
+      the same target routing.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
 - [-] ESM-A7 — Avoid a parallel TypeScript runtime implementation. Locale shared helpers now have
-      one target-aware production builder; project/web runtime modules remain TypeScript-only.
+      one target-aware production builder; project entries now share one target-aware builder too.
+      Web runtime modules remain TypeScript-only.
 - [-] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
       modules plus semantic, locale-runtime, locale-global, namespace, and locale-barrel artifacts
-      now have target-owned source maps, ordered source identity, and demand-selected helpers, but
-      project-wide output has not migrated.
+      now have target-owned source maps, ordered source identity, and demand-selected helpers.
+      Project entry artifact compilers also return target-owned maps; project-wide output has not
+      migrated.
 - [x] ESM-A9 — Make parameterless public leaves values in both surfaces.
 - [-] ESM-A10 — Keep JavaScript generation first-class and near-zero-config. Public JavaScript
       bundler-leaf, locale-runtime, locale-global, namespace, and locale-barrel compilers now emit
-      native `.js` import and source-map paths without a TypeScript transpilation pass; project-wide
-      JavaScript output remains outstanding.
+      native `.js` import and source-map paths without a TypeScript transpilation pass. Project
+      entry compilers now do the same; project-wide JavaScript output remains outstanding.
 
 #### Ordered removal of direct TypeScript assembly
 
@@ -862,9 +865,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       recursive namespaces, defaults, and source maps. Exact TypeScript byte parity, strict JSDoc,
       fallback execution, and JS/TS runtime parity run in quick/full gates; superseded locale
       assemblers are deleted.
-- [ ] ESM-M7 — Migrate project `locale` and `index` modules, eager/dynamic locale loaders, and
-      public configure/prepare APIs. Require sparse-locale, concurrent-load, retry, disposal, HMR,
-      SSR, and complete CLDR locale-resolution parity before deleting their string templates.
+- [x] ESM-M7 — Migrate project `locale` and `index` modules, eager/dynamic locale loaders, and
+      public configure/prepare APIs. The old six entry templates and direct project assembly are
+      deleted. TypeScript output and declarations retain byte snapshots; checked JavaScript has
+      strict positive/negative JSDoc, source-map snapshots, and executable target parity. Project
+      and Vite gates cover sparse locales, concurrent-load deduplication, retry, loader disposal,
+      HMR, SSR boundaries, and complete pinned-CLDR locale resolution.
 - [ ] ESM-M8 — Migrate web, Svelte, and SvelteKit modules in dependency order: closed web feature
       leaves, link/runtime modules, locale state, effects, controls, root facade, then SvelteKit
       server adapters. Require browser/server capability gating, route/link safety, request

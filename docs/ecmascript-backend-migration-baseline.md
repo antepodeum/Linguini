@@ -45,10 +45,11 @@ otherwise.
 - Project paths are validated for case-folded uniqueness and portable components before output.
   Bundler message and semantic paths use deterministic encoded components and a 240-byte bound.
 - Every physical message and semantic leaf owns an adjacent `<module>.map`. Public locale-runtime,
-  locale-global, namespace, and locale-barrel artifact compilers also return target-owned maps.
-  Trailers name the map basename, `sources`/`sourcesContent` come from ordered source records, and
-  mappings point at semantic source spans. Remaining project modules currently have no maps; adding
-  them is part of the common-backend migration, not an existing contract to imitate.
+  locale-global, namespace, locale-barrel, and project-entry artifact compilers also return
+  target-owned maps. Trailers name the map basename. Locale artifact `sources`/`sourcesContent`
+  come from ordered source records and mappings point at semantic source spans; generated-only
+  `locale`/`index` entry maps have no source records. The existing project-file generator still
+  emits those entries without maps; output ownership moves in ESM-M9.
 - `bundler/manifest.json` version 1 owns `base_locale`, `configured_locales`,
   `effective_locales`, `sources`, and `messages`; bundler mode also owns `locale_loading`,
   `applications`, `message_runtimes`, `message_semantics`, and `runtime_helpers`.
@@ -60,12 +61,15 @@ otherwise.
 - `ValidatedTypeScriptProject::try_new` is the production validation gate.
 - `generate_typescript_project_files` owns project artifact enumeration.
 - `message_artifacts`, `semantic_artifacts`, `locale_runtime_artifacts`,
-  `locale_globals_artifacts`, and `locale_artifacts` own deterministic physical metadata.
+  `locale_globals_artifacts`, `locale_artifacts`, and `project_artifacts` own deterministic physical
+  metadata.
 - The TypeScript and JavaScript message/semantic compile functions own exact leaf rendering.
 - The TypeScript and JavaScript locale-runtime and locale-global artifact compilers own shared
   target-aware runtime and aggregate-global rendering.
 - The TypeScript and JavaScript locale artifact compilers own fallback-composed namespace and
   barrel rendering, including recursive namespace/default exports.
+- The TypeScript and JavaScript project artifact compilers own `locale` metadata, eager/dynamic
+  loaders, and public configure/prepare runtime rendering.
 - `EcmaModule`, its import/statement/source records, `TypeModel`, and the TypeScript/JSDoc type
   renderers are the common backend surface to extend; target-specific assembly must not create a
   second production runtime.
@@ -80,6 +84,9 @@ otherwise.
 - Locale namespace/barrel TypeScript/JavaScript byte snapshots, strict JSDoc checks, fallback
   source maps, recursive namespaces, and executable parity:
   `tests/fixtures/golden/snapshots/js-locale`.
+- Project-entry TypeScript/JavaScript byte snapshots, strict JSDoc positive/negative checks,
+  target-owned source maps, and executable loader/provider parity:
+  `tests/fixtures/golden/snapshots/js-project`.
 - Runtime behavior: Rust project-codegen tests plus `crates/linguini-codegen-ts/tests/*.test.ts`.
 - Manifest, atomic output, and cleanup behavior: `crates/linguini-cli/src/tests.rs` and
   `crates/linguini-cli/src/project/output.rs` tests.

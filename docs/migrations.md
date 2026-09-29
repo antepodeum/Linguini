@@ -28,6 +28,11 @@ editor boundaries to update this file, public documentation, and executable test
 - Bundler integrations can compile each validated locale runtime artifact directly through the
   TypeScript or checked-JavaScript artifact compiler. These APIs preserve exact helper demand,
   ordered source identity, and target-owned source-map paths.
+- Rust codegen integrations can enumerate `project_artifacts` and compile each `locale` or `index`
+  entry with `compile_typescript_project_artifact_module` or
+  `compile_javascript_project_artifact_module`. Existing generated TypeScript module paths and
+  declarations are unchanged; the new checked-JavaScript entry artifacts use `.js` imports and
+  return adjacent source maps.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.
