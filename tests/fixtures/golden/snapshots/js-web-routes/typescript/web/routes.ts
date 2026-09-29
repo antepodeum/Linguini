@@ -21,3 +21,4 @@ export function matchesRoute(
   }
   return url.pathname === pattern;
 }
+//# sourceMappingURL=routes.ts.map

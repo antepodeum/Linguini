@@ -9,10 +9,9 @@ use super::templates::{
     WEB_ACCEPT_LANGUAGE_DECLARATIONS, WEB_ACCEPT_LANGUAGE_RUNTIME, WEB_COOKIE_DECLARATIONS,
     WEB_COOKIE_RUNTIME, WEB_DECLARATIONS, WEB_LINK_TRANSFORM_DECLARATIONS,
     WEB_LINK_TRANSFORM_RUNTIME, WEB_LOCAL_STORAGE_DECLARATIONS, WEB_LOCAL_STORAGE_RUNTIME,
-    WEB_PATH_DECLARATIONS, WEB_PATH_RUNTIME, WEB_ROUTES_DECLARATIONS, WEB_ROUTES_RUNTIME,
-    WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS, WEB_RUNTIME_LINKS_RUNTIME,
-    WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME, WEB_SWITCH_ROUTE_DECLARATIONS,
-    WEB_SWITCH_ROUTE_RUNTIME,
+    WEB_PATH_DECLARATIONS, WEB_PATH_RUNTIME, WEB_RUNTIME, WEB_RUNTIME_LINKS_DECLARATIONS,
+    WEB_RUNTIME_LINKS_RUNTIME, WEB_SERVER_COOKIE_DECLARATIONS, WEB_SERVER_COOKIE_RUNTIME,
+    WEB_SWITCH_ROUTE_DECLARATIONS, WEB_SWITCH_ROUTE_RUNTIME,
 };
 use super::{TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan, TypeScriptWebOptions};
 
@@ -337,14 +336,6 @@ pub fn generate_project_web_server_cookie_module() -> String {
 
 pub fn generate_project_web_server_cookie_declaration() -> String {
     WEB_SERVER_COOKIE_DECLARATIONS.to_owned()
-}
-
-pub fn generate_project_web_routes_module() -> String {
-    WEB_ROUTES_RUNTIME.to_owned()
-}
-
-pub fn generate_project_web_routes_declaration() -> String {
-    WEB_ROUTES_DECLARATIONS.to_owned()
 }
 
 pub fn generate_project_web_switch_route_module(options: &TypeScriptWebOptions) -> Option<String> {

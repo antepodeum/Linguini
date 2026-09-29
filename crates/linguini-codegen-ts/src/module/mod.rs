@@ -18,6 +18,7 @@ mod signature;
 mod templates;
 mod tree;
 mod type_model;
+mod web_routes;
 
 pub(crate) use crate::ecmascript::EcmaScriptTarget;
 
@@ -576,6 +577,7 @@ pub use semantic::{
     CompiledJavaScriptSemanticModule, CompiledTypeScriptSemanticModule, TypeScriptSemanticArtifact,
     TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
 };
+pub use web_routes::{compile_javascript_web_routes_module, compile_typescript_web_routes_module};
 
 impl std::error::Error for TypeScriptCodegenError {}
 
@@ -1140,12 +1142,12 @@ pub fn generate_typescript_project_files(
             if !web.exclude.is_empty() {
                 files.push(TypeScriptGeneratedFile {
                     path: "web/routes.ts".to_owned(),
-                    contents: project::generate_project_web_routes_module(),
+                    contents: web_routes::generate_typescript_web_routes_module(),
                 });
                 if options.declaration {
                     files.push(TypeScriptGeneratedFile {
                         path: "web/routes.d.ts".to_owned(),
-                        contents: project::generate_project_web_routes_declaration(),
+                        contents: web_routes::generate_web_routes_declaration(),
                     });
                 }
             }

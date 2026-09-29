@@ -47,6 +47,10 @@ prepares other locales on demand, deduplicates concurrent loads, and permits ret
 Generated-only entry maps have no source records. `generate_typescript_project_files` retains its
 existing map-free output paths until project output ownership migrates.
 
+For selected web route exclusions, `compile_typescript_web_routes_module` and
+`compile_javascript_web_routes_module` render the same `matchesRoute` behavior with target-owned
+source maps. The generated project keeps its existing `web/routes.ts` and declaration paths.
+
 Linguini has two file types:
 
 - **`.lgs`** — schema. Defines message signatures, enums, and type aliases.

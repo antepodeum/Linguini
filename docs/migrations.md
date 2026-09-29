@@ -33,6 +33,10 @@ editor boundaries to update this file, public documentation, and executable test
   `compile_javascript_project_artifact_module`. Existing generated TypeScript module paths and
   declarations are unchanged; the new checked-JavaScript entry artifacts use `.js` imports and
   return adjacent source maps.
+- Rust codegen integrations that need the generated web route-exclusion helper can call
+  `compile_typescript_web_routes_module` or `compile_javascript_web_routes_module`. Existing
+  generated TypeScript route bytes and declarations are unchanged; the JavaScript artifact uses
+  checked JSDoc and an adjacent source map.
 - Rust integrations using `linguini-schema` must replace direct `SchemaSymbols` and symbol-field
   access with the matching read-only accessors such as `messages()`, `parameters()`, and `span()`.
   Symbol tables can no longer be mutated after validated construction.

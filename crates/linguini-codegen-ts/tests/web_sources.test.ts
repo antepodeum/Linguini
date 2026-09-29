@@ -4,7 +4,7 @@ import { resolveCookieLocale } from "../src/module/templates/web.cookie.runtime.
 import { resolveLocalStorageLocale } from "../src/module/templates/web.local-storage.runtime.ts";
 import { resolveAcceptLanguageLocale } from "../src/module/templates/web.accept-language.runtime.ts";
 import { createWebLocaleI18n } from "../src/module/templates/web.runtime.ts";
-import { matchesRoute } from "../src/module/templates/web.routes.runtime.ts";
+import { matchesRoute } from "../../../tests/fixtures/golden/snapshots/js-web-routes/typescript/web/routes.ts";
 
 const locales = ["en", "de", "fr"] as const;
 const match = (value: unknown) => locales.find((locale) => locale.toLowerCase() === String(value).toLowerCase());
