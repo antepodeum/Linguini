@@ -1,0 +1,1 @@
+{"version":3,"file":"locales/fr.js","sources":["schema.lgs","en.lgl","fr.lgl"],"sourcesContent":["hello(name: String)\n","hello = Hello {name}\n","hello = Salut {name}\n"],"names":[],"mappings":";;ACAA"}

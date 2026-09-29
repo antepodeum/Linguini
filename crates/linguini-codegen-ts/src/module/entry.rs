@@ -158,35 +158,39 @@ fn typescript_locale(locales: &[TypeScriptLocaleModule], base_locale: Option<&st
 
 fn javascript_locale(locales: &[TypeScriptLocaleModule], base_locale: Option<&str>) -> String {
     format!(
-        "export const locales = /** @type {{const}} */ ([{}]);\n\
-         export const baseLocale = {};\n\n\
-         export const localeDirections = /** @type {{const}} */ ({{\n{}}});\n\n\
-         /** @typedef {{(typeof locales)[number]}} Locale */\n\
-         /** @typedef {{\"ltr\" | \"rtl\"}} TextDirection */\n\n\
-         /** @type {{Readonly<Record<string, Locale>>}} */\n\
-         const localeResolution = {{\n{}}};\n\n\
-         /**\n\
-          * @param {{unknown}} locale\n\
-          * @returns {{locale is Locale}}\n\
-          */\n\
-         export function isLocale(locale) {{\n\
-           return normalizeLocale(locale) !== undefined;\n\
-         }}\n\n\
-         /**\n\
-          * @param {{unknown}} locale\n\
-          * @returns {{Locale | undefined}}\n\
-          */\n\
-         export function normalizeLocale(locale) {{\n\
-           if (typeof locale !== \"string\") return undefined;\n\
-           return localeResolution[locale.toLowerCase()];\n\
-         }}\n\n\
-         /**\n\
-          * @param {{Locale}} locale\n\
-          * @returns {{TextDirection}}\n\
-          */\n\
-         export function getTextDirection(locale) {{\n\
-           return localeDirections[normalizeLocale(locale) ?? baseLocale];\n\
-         }}\n",
+        concat!(
+            "export const locales = /** @type {{const}} */ ([{}]);\n",
+            "export const baseLocale = {};\n\n",
+            "export const localeDirections = /** @type {{const}} */ ({{\n{}",
+            "}});\n\n",
+            "/** @typedef {{(typeof locales)[number]}} Locale */\n",
+            "/** @typedef {{\"ltr\" | \"rtl\"}} TextDirection */\n\n",
+            "/** @type {{Readonly<Record<string, Locale>>}} */\n",
+            "const localeResolution = {{\n{}",
+            "}};\n\n",
+            "/**\n",
+            " * @param {{unknown}} locale\n",
+            " * @returns {{locale is Locale}}\n",
+            " */\n",
+            "export function isLocale(locale) {{\n",
+            "  return normalizeLocale(locale) !== undefined;\n",
+            "}}\n\n",
+            "/**\n",
+            " * @param {{unknown}} locale\n",
+            " * @returns {{Locale | undefined}}\n",
+            " */\n",
+            "export function normalizeLocale(locale) {{\n",
+            "  if (typeof locale !== \"string\") return undefined;\n",
+            "  return localeResolution[locale.toLowerCase()];\n",
+            "}}\n\n",
+            "/**\n",
+            " * @param {{Locale}} locale\n",
+            " * @returns {{TextDirection}}\n",
+            " */\n",
+            "export function getTextDirection(locale) {{\n",
+            "  return localeDirections[normalizeLocale(locale) ?? baseLocale];\n",
+            "}}\n",
+        ),
         locale_literals(locales).join(", "),
         base_locale_literal(locales, base_locale),
         project_locale_directions(locales),
@@ -231,29 +235,35 @@ fn typescript_index(locales: &[TypeScriptLocaleModule], base_locale: Option<&str
 fn javascript_index(locales: &[TypeScriptLocaleModule], base_locale: Option<&str>) -> String {
     let base_locale = base_locale.expect("validated TypeScript projects have a base locale");
     format!(
-        "{}\
-         import {{ baseLocale, normalizeLocale }} from \"./locale.js\";\n\
-         export {{\n\
-           locales,\n\
-           baseLocale,\n\
-           localeDirections,\n\
-           isLocale,\n\
-           normalizeLocale,\n\
-           getTextDirection,\n\
-         }} from \"./locale.js\";\n\n\
-         /** @typedef {{import(\"./locale.js\").Locale}} Locale */\n\
-         /** @typedef {{import(\"./messages.js\").LinguiniMessages}} LinguiniMessages */\n\
-         /** @typedef {{LinguiniMessages}} Linguini */\n\
-         /**\n\
-          * @typedef {{object}} LinguiniProviderOptions\n\
-          * @property {{(() => Locale)=}} getLocale\n\
-          * @property {{(() => Locale)=}} resolveLanguage\n\
-          */\n\n\
-         /** @type {{Partial<Record<Locale, LinguiniMessages>>}} */\n\
-         export const localeModules = {{\n{}}};\n\n\
-         /** @type {{Record<Locale, () => Promise<LinguiniMessages>>}} */\n\
-         export const localeLoaders = {{\n{}}};\n\n{}",
+        concat!(
+            "{}",
+            "import {{ baseLocale, normalizeLocale }} from \"./locale.js\";\n",
+            "export {{\n",
+            "  locales,\n",
+            "  baseLocale,\n",
+            "  localeDirections,\n",
+            "  isLocale,\n",
+            "  normalizeLocale,\n",
+            "  getTextDirection,\n",
+            "}} from \"./locale.js\";\n\n",
+            "/** @typedef {{import(\"./locale.js\").Locale}} Locale */\n",
+            "/** @typedef {{typeof {}}} LinguiniMessages */\n",
+            "/** @typedef {{LinguiniMessages}} Linguini */\n",
+            "/**\n",
+            " * @typedef {{object}} LinguiniProviderOptions\n",
+            " * @property {{(() => Locale)=}} getLocale\n",
+            " * @property {{(() => Locale)=}} resolveLanguage\n",
+            " */\n\n",
+            "/** @type {{Partial<Record<Locale, LinguiniMessages>>}} */\n",
+            "export const localeModules = {{\n{}",
+            "}};\n\n",
+            "/** @type {{Record<Locale, () => Promise<LinguiniMessages>>}} */\n",
+            "export const localeLoaders = {{\n{}",
+            "}};\n\n",
+            "{}",
+        ),
         project_locale_import(base_locale, EcmaScriptTarget::JavaScript),
+        locale_identifier(base_locale),
         project_locale_modules(base_locale),
         project_locale_loaders(locales, base_locale, EcmaScriptTarget::JavaScript),
         javascript_index_runtime(),
@@ -309,61 +319,63 @@ fn typescript_index_runtime() -> &'static str {
 }
 
 fn javascript_index_runtime() -> &'static str {
-    "/** @type {Map<Locale, Promise<Linguini>>} */\n\
-     const pendingLocales = new Map();\n\n\
-     /**\n\
-      * @param {Locale} language\n\
-      * @returns {Promise<Linguini>}\n\
-      */\n\
-     export async function prepareLinguini(language) {\n\
-       const locale = normalizeLocale(language) ?? baseLocale;\n\
-       const available = localeModules[locale];\n\
-       if (available) return available;\n\
-       const pending = pendingLocales.get(locale);\n\
-       if (pending) return pending;\n\
-       const task = localeLoaders[locale]().then((loaded) => {\n\
-         localeModules[locale] = loaded;\n\
-         return loaded;\n\
-       }).finally(() => {\n\
-         pendingLocales.delete(locale);\n\
-       });\n\
-       pendingLocales.set(locale, task);\n\
-       return task;\n\
-     }\n\n\
-     /**\n\
-      * @param {Locale} language\n\
-      * @returns {Linguini}\n\
-      */\n\
-     export function createLinguini(language) {\n\
-       const locale = normalizeLocale(language) ?? baseLocale;\n\
-       const messages = localeModules[locale];\n\
-       if (messages) return messages;\n\
-       throw new Error(`Linguini: locale ${JSON.stringify(locale)} is not prepared; call prepareLinguini(locale) first`);\n\
-     }\n\n\
-     /**\n\
-      * @param {LinguiniProviderOptions} [options]\n\
-      * @returns {Linguini}\n\
-      */\n\
-     export function createLinguiniProvider(options = {}) {\n\
-       const resolve = options.getLocale ?? options.resolveLanguage ?? (() => baseLocale);\n\
-       return new Proxy({}, {\n\
-         get(_target, property) {\n\
-           return createLinguini(resolve())[/** @type {keyof Linguini} */ (property)];\n\
-         },\n\
-       });\n\
-     }\n\n\
-     /**\n\
-      * @param {{language: Locale | (() => Locale)}} options\n\
-      * @returns {Linguini}\n\
-      */\n\
-     export function configureLinguini(options) {\n\
-       if (typeof options.language === \"function\") {\n\
-         return createLinguiniProvider({ resolveLanguage: options.language });\n\
-       }\n\
-       return createLinguini(options.language);\n\
-     }\n\n\
-     /** @type {Linguini} */\n\
-     export const lgl = createLinguini(baseLocale);\n"
+    concat!(
+        "/** @type {Map<Locale, Promise<Linguini>>} */\n",
+        "const pendingLocales = new Map();\n\n",
+        "/**\n",
+        " * @param {Locale} language\n",
+        " * @returns {Promise<Linguini>}\n",
+        " */\n",
+        "export async function prepareLinguini(language) {\n",
+        "  const locale = normalizeLocale(language) ?? baseLocale;\n",
+        "  const available = localeModules[locale];\n",
+        "  if (available) return available;\n",
+        "  const pending = pendingLocales.get(locale);\n",
+        "  if (pending) return pending;\n",
+        "  const task = localeLoaders[locale]().then((loaded) => {\n",
+        "    localeModules[locale] = loaded;\n",
+        "    return loaded;\n",
+        "  }).finally(() => {\n",
+        "    pendingLocales.delete(locale);\n",
+        "  });\n",
+        "  pendingLocales.set(locale, task);\n",
+        "  return task;\n",
+        "}\n\n",
+        "/**\n",
+        " * @param {Locale} language\n",
+        " * @returns {Linguini}\n",
+        " */\n",
+        "export function createLinguini(language) {\n",
+        "  const locale = normalizeLocale(language) ?? baseLocale;\n",
+        "  const messages = localeModules[locale];\n",
+        "  if (messages) return messages;\n",
+        "  throw new Error(`Linguini: locale ${JSON.stringify(locale)} is not prepared; call prepareLinguini(locale) first`);\n",
+        "}\n\n",
+        "/**\n",
+        " * @param {LinguiniProviderOptions} [options]\n",
+        " * @returns {Linguini}\n",
+        " */\n",
+        "export function createLinguiniProvider(options = {}) {\n",
+        "  const resolve = options.getLocale ?? options.resolveLanguage ?? (() => baseLocale);\n",
+        "  return new Proxy(/** @type {Linguini} */ ({}), {\n",
+        "    get(_target, property) {\n",
+        "      return createLinguini(resolve())[/** @type {keyof Linguini} */ (property)];\n",
+        "    },\n",
+        "  });\n",
+        "}\n\n",
+        "/**\n",
+        " * @param {{language: Locale | (() => Locale)}} options\n",
+        " * @returns {Linguini}\n",
+        " */\n",
+        "export function configureLinguini(options) {\n",
+        "  if (typeof options.language === \"function\") {\n",
+        "    return createLinguiniProvider({ resolveLanguage: options.language });\n",
+        "  }\n",
+        "  return createLinguini(options.language);\n",
+        "}\n\n",
+        "/** @type {Linguini} */\n",
+        "export const lgl = createLinguini(baseLocale);\n",
+    )
 }
 
 fn locale_declaration(locales: &[TypeScriptLocaleModule], base_locale: Option<&str>) -> String {
@@ -572,28 +584,38 @@ fn locale_direction(locale: &str) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
-    use linguini_syntax::{parse_locale, parse_schema};
+    use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
     use super::{
         compile_javascript_project_artifact_module, compile_typescript_project_artifact_module,
     };
+    use crate::ecmascript::EcmaSource;
     use crate::module::{
+        compile_javascript_locale_artifact_module, generate_javascript_schema_files,
         generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectArtifactKind,
         TypeScriptProjectOptions, ValidatedTypeScriptProject,
     };
 
     #[test]
     fn project_artifacts_share_target_aware_entry_emission() {
-        let schema = lower_schema(&parse_schema("hello(name: String)\n").expect("schema parses"));
+        let schema_text = "hello(name: String)\n";
+        let english_text = "hello = Hello {name}\n";
+        let french_text = "hello = Salut {name}\n";
+        let schema =
+            lower_schema(&parse_schema_in(schema_text, SourceId(201)).expect("schema parses"));
         let locales = [
             TypeScriptLocaleModule {
                 locale: "en".into(),
-                module: lower_locale(&parse_locale("hello = Hello {name}\n").expect("English")),
+                module: lower_locale(
+                    &parse_locale_in(english_text, SourceId(202)).expect("English"),
+                ),
             },
             TypeScriptLocaleModule {
                 locale: "fr".into(),
-                module: lower_locale(&parse_locale("hello = Salut {name}\n").expect("French")),
+                module: lower_locale(&parse_locale_in(french_text, SourceId(203)).expect("French")),
             },
         ];
         let options = TypeScriptProjectOptions {
@@ -653,5 +675,71 @@ mod tests {
         assert!(index
             .code
             .contains("export async function prepareLinguini(language)"));
+
+        let snapshot_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/golden/snapshots/js-project");
+        let typescript_root = snapshot_root.join("typescript");
+        let sources = [
+            EcmaSource::new(SourceId(201), "schema.lgs", schema_text),
+            EcmaSource::new(SourceId(202), "en.lgl", english_text),
+            EcmaSource::new(SourceId(203), "fr.lgl", french_text),
+        ];
+        let mut snapshots = generate_javascript_schema_files(&schema)
+            .into_iter()
+            .filter(|file| file.path.ends_with(".js"))
+            .map(|file| (snapshot_root.join(file.path), file.contents))
+            .collect::<Vec<_>>();
+        for artifact in project.locale_artifacts().expect("locale artifacts") {
+            let compiled = compile_javascript_locale_artifact_module(&project, &artifact, &sources)
+                .expect("JavaScript locale");
+            snapshots.push((
+                snapshot_root.join(artifact.module_path.replace(".ts", ".js")),
+                compiled.code,
+            ));
+            snapshots.push((
+                snapshot_root.join(artifact.source_map_path.replace(".ts.map", ".js.map")),
+                compiled.source_map,
+            ));
+        }
+        for artifact in &artifacts {
+            let compiled = compile_javascript_project_artifact_module(&project, artifact);
+            snapshots.push((
+                snapshot_root.join(artifact.module_path.replace(".ts", ".js")),
+                compiled.code,
+            ));
+            snapshots.push((
+                snapshot_root.join(artifact.source_map_path.replace(".ts.map", ".js.map")),
+                compiled.source_map,
+            ));
+        }
+        snapshots.extend(
+            project_files
+                .iter()
+                .filter(|file| {
+                    matches!(
+                        file.path.as_str(),
+                        "shared.ts"
+                            | "messages.ts"
+                            | "locales/en.ts"
+                            | "locales/fr.ts"
+                            | "locale.ts"
+                            | "index.ts"
+                    )
+                })
+                .map(|file| (typescript_root.join(&file.path), file.contents.clone())),
+        );
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            for (path, contents) in &snapshots {
+                std::fs::create_dir_all(path.parent().expect("snapshot parent"))
+                    .expect("create snapshot directory");
+                std::fs::write(path, contents).expect("write project snapshot");
+            }
+        }
+        for (path, contents) in snapshots {
+            assert_eq!(
+                contents,
+                std::fs::read_to_string(path).expect("read project snapshot")
+            );
+        }
     }
 }
