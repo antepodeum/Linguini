@@ -6,7 +6,7 @@ import {
   createWebLocaleI18n,
   type LinguiniRuntime,
   type LinguiniWebOptions,
-} from "../src/module/templates/web.runtime.ts";
+} from "./web_fixture.ts";
 
 type Locale = "en" | "fr";
 
@@ -189,7 +189,7 @@ test("global and sticky exclusion regular expressions are deterministic", () => 
 });
 
 test("URL transforms share one parse error and boolean detection fails closed", () => {
-  const web = createWeb();
+  const web = createWeb({ routes: { exclude: ["/api/**"] } });
   const invalid = "http://[";
   const expected = { name: "TypeError", message: "Linguini: invalid URL" };
 

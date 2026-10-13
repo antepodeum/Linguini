@@ -828,3 +828,10 @@ conservatively marks that subtree or project as dynamically used. Add canonical
 message paths or group prefixes to `ignore` for dynamic resolution the scanner
 cannot see. This is a bounded lexical project scan, not a whole-program
 JavaScript type or data-flow proof.
+
+The closed project web facade now has `compile_typescript_web_module` and
+`compile_javascript_web_module` entry points. Both use the same selected physical locale-source
+modules, URL/request policy, public type model, and target-owned source maps. The superseded
+TypeScript web template is retained only as a frozen test oracle. Checked target types, closed
+source matrices, URL/link/cookie safety, and concurrent request preparation run in quick/full gates
+through `tests/fixtures/golden/snapshots/js-web`.

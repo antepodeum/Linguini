@@ -3,7 +3,7 @@ import { resolvePathLocale } from "../../../tests/fixtures/golden/snapshots/js-w
 import { resolveCookieLocale } from "../../../tests/fixtures/golden/snapshots/js-web-cookie/typescript/web/cookie.ts";
 import { resolveLocalStorageLocale } from "../../../tests/fixtures/golden/snapshots/js-web-local-storage/typescript/web/local-storage.ts";
 import { resolveAcceptLanguageLocale } from "../../../tests/fixtures/golden/snapshots/js-web-accept-language/typescript/web/accept-language.ts";
-import { createWebLocaleI18n } from "../src/module/templates/web.runtime.ts";
+import { createWebLocaleI18n } from "./web_fixture.ts";
 import { matchesRoute } from "../../../tests/fixtures/golden/snapshots/js-web-routes/typescript/web/routes.ts";
 
 const locales = ["en", "de", "fr"] as const;

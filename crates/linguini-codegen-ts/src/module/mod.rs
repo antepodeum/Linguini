@@ -28,14 +28,18 @@ mod tree;
 mod type_model;
 mod web_accept_language;
 mod web_cookie;
+mod web_facade;
 mod web_link_transform;
 mod web_local_storage;
 mod web_options;
 mod web_path;
+mod web_request;
 mod web_routes;
 mod web_runtime_links;
 mod web_server_cookie;
 mod web_switch_route;
+mod web_types;
+mod web_url;
 
 pub(crate) use crate::ecmascript::EcmaScriptTarget;
 
@@ -615,6 +619,7 @@ pub use web_accept_language::{
     compile_javascript_web_accept_language_module, compile_typescript_web_accept_language_module,
 };
 pub use web_cookie::{compile_javascript_web_cookie_module, compile_typescript_web_cookie_module};
+pub use web_facade::{compile_javascript_web_module, compile_typescript_web_module};
 pub use web_link_transform::{
     compile_javascript_web_link_transform_module, compile_typescript_web_link_transform_module,
 };

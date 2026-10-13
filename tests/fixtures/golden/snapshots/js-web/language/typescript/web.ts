@@ -1,0 +1,505 @@
+import { resolveAcceptLanguageLocale } from "./web/accept-language.js";
+
+const DEFAULT_SOURCES = ["path", "cookie", "accept-language"] as const;
+const DEFAULT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const FALLBACK_URL = "http://localhost";
+const INVALID_URL_MESSAGE = "Linguini: invalid URL";
+export type TextDirection = "ltr" | "rtl";
+export type LocaleSource = "path" | "cookie" | "local-storage" | "accept-language";
+export type LocalePrefixMode = "always" | "except-default" | "never";
+export interface LocaleSwitchPlan {
+  writesPath: boolean;
+  writesCookie: boolean;
+  writesLocalStorage: boolean;
+}
+
+export interface AlternateLink {
+  rel: "alternate";
+  hreflang: string;
+  href: string;
+}
+
+export interface LinkLocalizationAttributes {
+  download?: boolean;
+  ignored?: boolean;
+  rel?: string | null;
+}
+
+export interface LinguiniWebOptions {
+  routing?: {
+    localePrefix?: LocalePrefixMode;
+    canonical?: "redirect" | "preserve";
+  };
+  locale?: {
+    sources?: readonly LocaleSource[];
+    switch?: LocaleSwitchPlan;
+  };
+  cookie?: {
+    name?: string;
+    path?: string | "auto";
+    domain?: string;
+    maxAge?: number;
+    sameSite?: "lax" | "strict" | "none";
+    secure?: boolean | "auto";
+    httpOnly?: boolean;
+  };
+  localStorage?: { key?: string };
+  links?: { mode?: "transform" | "runtime" | "manual" };
+  routes?: { exclude?: readonly (string | RegExp | ((url: URL) => boolean))[] };
+}
+
+export interface LinguiniWebEnvironment {
+  base?: string;
+  origin?: string | URL;
+}
+
+export interface LinguiniLocaleRuntime<Locale extends string = string> {
+  locales: readonly Locale[];
+  baseLocale: Locale;
+  localeDirections?: Readonly<Record<Locale, TextDirection>>;
+  normalizeLocale?(locale: unknown): Locale | undefined;
+  getTextDirection?(locale: Locale): TextDirection;
+}
+
+export interface LinguiniRuntime<Locale extends string = string, Linguini = unknown> extends LinguiniLocaleRuntime<Locale> {
+  createLinguini(locale: Locale): Linguini;
+  prepareLinguini?(locale: Locale): Promise<Linguini>;
+}
+
+/**
+ * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL
+ * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
+ * fail closed and preserve the original href instead.
+ */
+export interface LinguiniLocaleRequestContext<Locale extends string = string> {
+  locale: Locale;
+  baseLocale: Locale;
+  locales: readonly Locale[];
+  direction: TextDirection;
+  textDirection: TextDirection;
+  lang: Locale;
+  htmlAttrs: { lang: Locale; dir: TextDirection };
+  localizeHref(href: string, locale?: Locale, input?: Record<string, unknown>): string;
+  localizeUrl(url: string | URL, locale?: Locale, input?: Record<string, unknown>): URL;
+  shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
+  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
+  localizeHrefAttribute(href: string, locale?: Locale, input?: Record<string, unknown>): string;
+  delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
+  alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
+}
+
+export interface LinguiniRequestContext<Locale extends string = string, Linguini = unknown>
+  extends LinguiniLocaleRequestContext<Locale> {
+  messages: Linguini;
+  l: Linguini;
+}
+
+/**
+ * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL
+ * operations throw `TypeError("Linguini: invalid URL")` for malformed input; link-safety helpers
+ * fail closed and preserve the original href instead.
+ */
+export interface LinguiniWebLocale<Locale extends string = string> extends LinguiniLocaleRuntime<Locale> {
+  options: ReturnType<typeof normalizeOptions>;
+  matchLocale(locale: unknown): Locale | undefined;
+  resolveLocale(input?: Record<string, unknown>): Promise<Locale>;
+  resolveLocaleSync(input?: Record<string, unknown>): Locale;
+  localizeUrl(url: string | URL, locale: Locale, input?: Record<string, unknown>): URL;
+  localizeHref(href: string, locale: Locale, input?: Record<string, unknown>): string;
+  shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
+  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
+  localizeHrefAttribute(href: string, locale: Locale, input?: Record<string, unknown>): string;
+  delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
+  delocalizePathname(pathname: string, input?: Record<string, unknown>): string;
+  alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
+  htmlAttrs(locale: Locale): { lang: Locale; dir: TextDirection };
+  getTextDirection(locale: Locale): TextDirection;
+  getCanonicalRedirect(url: string | URL, locale: Locale, input?: Record<string, unknown>): string | undefined;
+  shouldExclude(url: string | URL, input?: Record<string, unknown>): boolean;
+  setLocaleCookie(target: unknown, locale: Locale, input?: Record<string, unknown>): void;
+  serializeLocaleCookie(locale: Locale, input?: Record<string, unknown>): string;
+}
+
+export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniWebLocale<Locale> {
+  createLinguini(locale: Locale): Linguini;
+  resolveRequest(request: Request, input?: Record<string, unknown>): Promise<LinguiniRequestContext<Locale, Linguini>>;
+  createRequestContext(locale: Locale, input?: Record<string, unknown>): LinguiniRequestContext<Locale, Linguini>;
+}
+
+export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options: LinguiniWebOptions = {}, environment: LinguiniWebEnvironment = {}): LinguiniWebLocale<Locale> {
+  const normalized = normalizeOptions(runtime.baseLocale, options, environment);
+  const matchLocale = (locale: unknown) => runtime.normalizeLocale?.(locale) ?? matchLocaleValue(runtime.locales, locale);
+  const getTextDirection = (locale: Locale) => runtime.getTextDirection?.(locale) ?? runtime.localeDirections?.[locale] ?? "ltr";
+
+  function resolveLocaleSync(input: Record<string, unknown> = {}) {
+    const resolved_0 = resolveAcceptLanguageLocale(input, runtime.locales, runtime.baseLocale, matchLocale);
+    if (resolved_0) return resolved_0;
+    return runtime.baseLocale;
+  }
+
+  function localizeUrl(url: string | URL, locale: Locale, input: Record<string, unknown> = {}) {
+    const resolved = matchLocale(locale) ?? runtime.baseLocale;
+    const base = resolveBaseUrl(normalized, input);
+    const copy = parseUrl(url, base);
+    if (!isInternalHttpUrl(copy, base.origin)) return copy;
+    return localizeParsedUrl(copy, resolved);
+  }
+
+  function localizeParsedUrl(copy: URL, locale: Locale) {
+    const path = stripBasePath(copy.pathname, normalized.environment.base);
+    // In `never` mode locale-looking segments are ordinary application paths.
+    // Do not strip them while normalizing a URL that should remain unprefixed.
+    const withoutLocale = normalized.routing.localePrefix === "never"
+      ? path
+      : stripLeadingLocale(path, runtime.locales);
+    copy.pathname = joinPath(normalized.environment.base, shouldPrefixLocale(normalized, locale) ? joinPath("/", locale, withoutLocale) : withoutLocale);
+    return copy;
+  }
+
+  function localizeHref(href: string, locale: Locale, input: Record<string, unknown> = {}) {
+    const value = String(href);
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) return value;
+    const scheme = trimmed.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+    if (scheme && !["http", "https"].includes(scheme[1].toLowerCase())) return value;
+
+    const base = resolveBaseUrl(normalized, input);
+    const url = parseUrl(value, base);
+    if (!isInternalHttpUrl(url, base.origin)) return value;
+
+    const resolved = matchLocale(locale) ?? runtime.baseLocale;
+    localizeParsedUrl(url, resolved);
+    if (scheme) return url.toString();
+    return `${url.pathname}${url.search}${url.hash}`;
+  }
+
+  function shouldLocalizeHref(href: string, input: Record<string, unknown> = {}) {
+    if (normalized.links.mode === "manual") return false;
+    const value = String(href ?? "").trim();
+    if (!value || value.startsWith("#") || value.startsWith("//")) return false;
+    const scheme = value.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+    if (scheme && !["http", "https"].includes(scheme[1].toLowerCase())) return false;
+    let parsed: URL;
+    let base: URL;
+    try {
+      base = resolveBaseUrl(normalized, input);
+      parsed = parseUrl(value, base);
+    } catch {
+      return false;
+    }
+    if (!isInternalHttpUrl(parsed, base.origin)) return false;
+    return !shouldExclude(parsed, input);
+  }
+
+  function localizeHrefAttribute(href: string, locale: Locale, input: Record<string, unknown> = {}) {
+    return shouldLocalizeHref(href, input) ? localizeHref(href, locale, input) : href;
+  }
+
+  function shouldLocalizeLink(
+    href: string,
+    attributes: LinkLocalizationAttributes = {},
+    input: Record<string, unknown> = {},
+  ) {
+    if (attributes.download || attributes.ignored) return false;
+    const relations = String(attributes.rel ?? "").toLowerCase().split(/\s+/);
+    if (relations.includes("external")) return false;
+    return shouldLocalizeHref(href, input);
+  }
+
+  function delocalizeUrl(url: string | URL, input: Record<string, unknown> = {}) {
+    const base = resolveBaseUrl(normalized, input);
+    const copy = parseUrl(url, base);
+    if (!isInternalHttpUrl(copy, base.origin)) return copy;
+    if (normalized.routing.localePrefix === "never") return copy;
+    copy.pathname = joinPath(normalized.environment.base, stripLeadingLocale(stripBasePath(copy.pathname, normalized.environment.base), runtime.locales));
+    return copy;
+  }
+
+  function delocalizePathname(pathname: string, input: Record<string, unknown> = {}) {
+    return delocalizeUrl(pathname, input).pathname;
+  }
+
+  function alternateLinks(url: string | URL, input: Record<string, unknown> = {}) {
+    const parsed = parseRuntimeUrl(url, normalized, input);
+    const links: AlternateLink[] = runtime.locales.map((locale) => ({
+      rel: "alternate" as const,
+      hreflang: locale,
+      href: localizeUrl(parsed, locale, input).toString(),
+    }));
+    links.push({ rel: "alternate", hreflang: "x-default", href: localizeUrl(parsed, runtime.baseLocale, input).toString() });
+    return links;
+  }
+
+  function htmlAttrs(locale: Locale) {
+    const resolved = matchLocale(locale) ?? runtime.baseLocale;
+    return { lang: resolved, dir: getTextDirection(resolved) };
+  }
+
+  function getCanonicalRedirect(url: string | URL, locale: Locale, input: Record<string, unknown> = {}) {
+    if (normalized.routing.localePrefix === "never" || normalized.routing.canonical === "preserve" || shouldExclude(url, input)) return undefined;
+    const parsed = parseRuntimeUrl(url, normalized, input);
+    const canonical = localizeUrl(parsed, locale, input);
+    return canonical.pathname === parsed.pathname ? undefined : `${canonical.pathname}${canonical.search}${canonical.hash}`;
+  }
+
+  function shouldExclude(_url: string | URL, _input: Record<string, unknown> = {}) {
+    return false;
+  }
+
+  function serializeLocaleCookie(locale: Locale, input: Record<string, unknown> = {}) {
+    const parts = [`${normalized.cookie.name}=${encodeURIComponent(locale)}`];
+    parts.push(`Max-Age=${input.maxAge ?? normalized.cookie.maxAge}`);
+    parts.push(`Path=${normalized.cookie.path}`);
+    if (normalized.cookie.domain) parts.push(`Domain=${normalized.cookie.domain}`);
+    parts.push(`SameSite=${normalized.cookie.sameSite}`);
+    if (resolveCookieSecure(normalized.cookie.secure, input)) parts.push("Secure");
+    if (input.httpOnly ?? normalized.cookie.httpOnly) parts.push("HttpOnly");
+    return parts.join("; ");
+  }
+
+  function setLocaleCookie(target: unknown, locale: Locale, input: Record<string, unknown> = {}) {
+    const cookie = serializeLocaleCookie(locale, input);
+    const sink = target as { headers?: Pick<Headers, "append">; cookies?: { set(name: string, value: string, options?: Record<string, unknown>): void } };
+    if (sink.cookies?.set) {
+      sink.cookies.set(normalized.cookie.name, locale, {
+        path: normalized.cookie.path,
+        domain: normalized.cookie.domain,
+        maxAge: input.maxAge ?? normalized.cookie.maxAge,
+        sameSite: normalized.cookie.sameSite,
+        secure: resolveCookieSecure(normalized.cookie.secure, input),
+        httpOnly: input.httpOnly ?? normalized.cookie.httpOnly,
+      });
+    } else {
+      sink.headers?.append?.("set-cookie", cookie);
+    }
+  }
+
+  return {
+    ...runtime,
+    options: normalized,
+    matchLocale,
+    resolveLocale: async (input = {}) => resolveLocaleSync(input),
+    resolveLocaleSync,
+    localizeUrl,
+    localizeHref,
+    shouldLocalizeHref,
+    shouldLocalizeLink,
+    localizeHrefAttribute,
+    delocalizeUrl,
+    delocalizePathname,
+    alternateLinks,
+    htmlAttrs,
+    getCanonicalRedirect,
+    shouldExclude,
+    setLocaleCookie,
+    serializeLocaleCookie,
+    getTextDirection,
+  };
+}
+
+export function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options: LinguiniWebOptions = {}, environment: LinguiniWebEnvironment = {}): LinguiniWeb<Locale, Linguini> {
+  const web = createWebLocaleI18n(runtime, options, environment);
+
+  function createRequestContext(locale: Locale, contextInput: Record<string, unknown> = {}): LinguiniRequestContext<Locale, Linguini> {
+    const resolved = web.matchLocale(locale) ?? runtime.baseLocale;
+    const messages = runtime.createLinguini(resolved);
+    return {
+      locale: resolved,
+      baseLocale: runtime.baseLocale,
+      locales: runtime.locales,
+      direction: web.getTextDirection(resolved),
+      textDirection: web.getTextDirection(resolved),
+      lang: resolved,
+      messages,
+      l: messages,
+      htmlAttrs: web.htmlAttrs(resolved),
+      localizeHref: (href, nextLocale = resolved, input = contextInput) => web.localizeHref(href, nextLocale, input),
+      localizeUrl: (url, nextLocale = resolved, input = contextInput) => web.localizeUrl(url, nextLocale, input),
+      shouldLocalizeHref: (href, input = contextInput) => web.shouldLocalizeHref(href, input),
+      shouldLocalizeLink: (href, attributes = {}, input = contextInput) => web.shouldLocalizeLink(href, attributes, input),
+      localizeHrefAttribute: (href, nextLocale = resolved, input = contextInput) => web.localizeHrefAttribute(href, nextLocale, input),
+      delocalizeUrl: (url, input = contextInput) => web.delocalizeUrl(url, input),
+      alternateLinks: (url, input = contextInput) => web.alternateLinks(url, input),
+    };
+  }
+
+  return {
+    ...web,
+    createLinguini: runtime.createLinguini,
+    resolveRequest: async (request, input = {}) => {
+      const requestInput = inputFromRequest(request, input);
+      const locale = web.resolveLocaleSync(requestInput);
+      await runtime.prepareLinguini?.(locale);
+      return createRequestContext(locale, requestInput);
+    },
+    createRequestContext,
+  };
+}
+
+
+function inputFromRequest(request: Request, input: Record<string, unknown> = {}) {
+  const requestInput: Record<string, unknown> = { ...input };
+  requestInput.url ??= request.url;
+  requestInput.currentUrl ??= requestInput.url;
+  requestInput.headers ??= request.headers;
+  requestInput.cookie ??= readHeader(requestInput.headers, "cookie") ?? readHeader(request.headers, "cookie") ?? undefined;
+  return requestInput;
+}
+
+function readHeader(headers: unknown, name: string) {
+  if (!headers) return undefined;
+  const getter = (headers as { get?: (header: string) => string | null | undefined }).get;
+  if (typeof getter !== "function") return undefined;
+  try {
+    return getter.call(headers, name) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+function normalizeOptions(baseLocale: string, options: LinguiniWebOptions, environment: LinguiniWebEnvironment) {
+  const sources = options.locale?.sources ?? DEFAULT_SOURCES;
+  const base = normalizeBasePath(environment.base ?? "");
+  const origin = environment.origin;
+  const cookiePath = options.cookie?.path === "auto" || options.cookie?.path === undefined
+    ? base || "/"
+    : options.cookie.path;
+  const secure = options.cookie?.secure ?? "auto";
+  return {
+    routing: {
+      localePrefix: options.routing?.localePrefix ?? "except-default" as LocalePrefixMode,
+      canonical: options.routing?.canonical ?? "redirect" as "redirect" | "preserve",
+    },
+    locale: {
+      sources,
+      switch: options.locale?.switch ?? localeSwitchFromSources(sources),
+    },
+    cookie: {
+      name: options.cookie?.name ?? "LINGUINI_LOCALE",
+      path: cookiePath,
+      domain: options.cookie?.domain,
+      maxAge: options.cookie?.maxAge ?? DEFAULT_COOKIE_MAX_AGE,
+      sameSite: options.cookie?.sameSite ?? "lax" as "lax" | "strict" | "none",
+      secure,
+      httpOnly: Boolean(options.cookie?.httpOnly ?? false),
+    },
+    localStorage: { key: options.localStorage?.key ?? "LINGUINI_LOCALE" },
+    links: { mode: options.links?.mode ?? "runtime" as "transform" | "runtime" | "manual" },
+    routes: { exclude: options.routes?.exclude ?? [] },
+    environment: { base, origin },
+    baseLocale,
+  };
+}
+
+function localeSwitchFromSources(sources: readonly LocaleSource[]): LocaleSwitchPlan {
+  return {
+    writesPath: sources.includes("path"),
+    writesCookie: sources.includes("cookie"),
+    writesLocalStorage: sources.includes("local-storage"),
+  };
+}
+
+
+function matchLocaleValue<Locale extends string>(locales: readonly Locale[], value: unknown): Locale | undefined {
+  const candidates = Array.isArray(value) ? value : [value];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const exact = locales.find(
+      (locale) => locale.toLowerCase() === candidate.toLowerCase(),
+    );
+    if (exact) return exact;
+  }
+  return undefined;
+}
+
+function matchExactLocale<Locale extends string>(locales: readonly Locale[], value: unknown): Locale | undefined {
+  if (typeof value !== "string") return undefined;
+  return locales.find((locale) => locale.toLowerCase() === value.toLowerCase());
+}
+
+
+function stripLeadingLocale<Locale extends string>(pathname: string, locales: readonly Locale[]) {
+  const parts = pathname.split("/").filter(Boolean);
+  return matchExactLocale(locales, parts[0]) ? ensureSlash(parts.slice(1).join("/")) : ensureSlash(parts.join("/"));
+}
+
+function stripBasePath(pathname: string, basePath: string) {
+  const normalizedPath = ensureSlash(pathname);
+  const normalizedBase = basePath && basePath !== "/" ? ensureSlash(basePath).replace(/\/$/, "") : "";
+  if (!normalizedBase) return normalizedPath;
+  if (normalizedPath === normalizedBase) return "/";
+  return normalizedPath.startsWith(`${normalizedBase}/`) ? normalizedPath.slice(normalizedBase.length) || "/" : normalizedPath;
+}
+
+function joinPath(...parts: Array<string | undefined>) {
+  const joined = parts
+    .filter((part) => part !== undefined && part !== "")
+    .map((part) => String(part).replace(/^\/+|\/+$/g, ""))
+    .filter(Boolean)
+    .join("/");
+  return `/${joined}`.replace(/\/+/g, "/");
+}
+
+function ensureSlash(pathname: string) {
+  const value = String(pathname || "/");
+  return value.startsWith("/") ? value : `/${value}`;
+}
+
+function shouldPrefixLocale(options: ReturnType<typeof normalizeOptions>, locale: string) {
+  switch (options.routing.localePrefix) {
+    case "always":
+      return true;
+    case "never":
+      return false;
+    case "except-default":
+    default:
+      return locale !== options.baseLocale;
+  }
+}
+
+
+function resolveBaseUrl(options: ReturnType<typeof normalizeOptions>, input: Record<string, unknown> = {}) {
+  const origin = parseUrl(input.origin ?? options.environment.origin ?? browserLocationHref() ?? FALLBACK_URL, FALLBACK_URL);
+  const current = input.currentUrl ?? input.url;
+  return current === undefined ? origin : parseUrl(current, origin);
+}
+
+function normalizeBasePath(value: string) {
+  if (!value || value === "/") return "";
+  return ensureSlash(value).replace(/\/+$/, "");
+}
+
+function resolveEnvironmentProtocol(origin: string | URL | undefined) {
+  try {
+    return parseUrl(origin ?? browserLocationHref() ?? FALLBACK_URL, FALLBACK_URL).protocol;
+  } catch {
+    return "http:";
+  }
+}
+
+function resolveCookieSecure(policy: boolean | "auto", input: Record<string, unknown>) {
+  if (typeof input.secure === "boolean") return input.secure;
+  if (policy !== "auto") return policy;
+  return resolveEnvironmentProtocol(input.origin as string | URL | undefined) === "https:";
+}
+
+function parseRuntimeUrl(url: string | URL, options: ReturnType<typeof normalizeOptions>, input: Record<string, unknown> = {}) {
+  return parseUrl(url, resolveBaseUrl(options, input));
+}
+
+function parseUrl(value: unknown, base: string | URL) {
+  try {
+    return new URL(String(value), String(base));
+  } catch {
+    throw new TypeError(INVALID_URL_MESSAGE);
+  }
+}
+
+function isInternalHttpUrl(url: URL, origin: string) {
+  return ["http:", "https:"].includes(url.protocol) && url.origin === origin;
+}
+
+function browserLocationHref() {
+  const href = (globalThis as { location?: { href?: unknown } }).location?.href;
+  return typeof href === "string" ? href : undefined;
+}
+//# sourceMappingURL=web.ts.map

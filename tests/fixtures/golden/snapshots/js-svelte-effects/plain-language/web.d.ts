@@ -1,1 +1,1 @@
-export * from "../../../../../../crates/linguini-codegen-ts/src/module/templates/web.runtime";
+export * from "../../js-web/default/typescript/web";

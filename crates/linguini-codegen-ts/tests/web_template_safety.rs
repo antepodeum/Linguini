@@ -1,6 +1,4 @@
 const SVELTEKIT_RUNTIME: &str = include_str!("../src/module/templates/sveltekit.runtime.ts");
-const WEB_RUNTIME: &str = include_str!("../src/module/templates/web.runtime.ts");
-const WEB_DECLARATIONS: &str = include_str!("../src/module/templates/web.runtime.d.ts");
 
 #[test]
 fn sveltekit_page_transform_preserves_streaming() {
@@ -11,16 +9,20 @@ fn sveltekit_page_transform_preserves_streaming() {
 
 #[test]
 fn generated_runtime_does_not_rewrite_html_with_anchor_regexes() {
-    assert!(!WEB_RUNTIME.contains("localizeMarkupLinks"));
-    assert!(!WEB_RUNTIME.contains(r"/<a\b"));
-    assert!(!WEB_RUNTIME.contains("\"directory\""));
+    let web_runtime = linguini_codegen_ts::compile_typescript_web_module(&Default::default()).code;
+    assert!(!web_runtime.contains("localizeMarkupLinks"));
+    assert!(!web_runtime.contains(r"/<a\b"));
+    assert!(!web_runtime.contains("\"directory\""));
 }
 
 #[test]
 fn web_runtime_options_are_structured_and_drop_flat_compatibility_fields() {
+    let web_runtime = linguini_codegen_ts::compile_typescript_web_module(&Default::default()).code;
+    let web_declarations =
+        include_str!("../../../tests/fixtures/golden/snapshots/js-web/default/typescript/web.d.ts");
     for required in ["routing?: {", "locale?: {", "cookie?: {", "routes?: {"] {
-        assert!(WEB_RUNTIME.contains(required));
-        assert!(WEB_DECLARATIONS.contains(required));
+        assert!(web_runtime.contains(required));
+        assert!(web_declarations.contains(required));
     }
     for removed in [
         "prefixDefaultLocale",
@@ -28,8 +30,8 @@ fn web_runtime_options_are_structured_and_drop_flat_compatibility_fields() {
         "trailingSlash",
         "localizeLinks",
     ] {
-        assert!(!WEB_RUNTIME.contains(removed));
-        assert!(!WEB_DECLARATIONS.contains(removed));
+        assert!(!web_runtime.contains(removed));
+        assert!(!web_declarations.contains(removed));
     }
 }
 

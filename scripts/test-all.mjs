@@ -390,6 +390,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: false,
   }),
   Object.freeze({
+    id: "codegen:web-js", project: "site", label: "Closed web facade checked target conformance",
+    command: "pnpm", args: ["exec", "tsc", "--project", "../tests/fixtures/golden/snapshots/js-web/tsconfig.json"],
+    profiles: ["quick", "full"], tools: ["pnpm"], requiresNodeModules: true,
+  }),
+  Object.freeze({
+    id: "codegen:web-runtime", project: "rust", label: "Closed web facade policy and request parity",
+    command: "bun", args: ["test", "./tests/fixtures/golden/snapshots/js-web/parity.test.ts"],
+    profiles: ["quick", "full"], tools: ["bun"], requiresNodeModules: false,
+  }),
+  Object.freeze({
     id: "rust:test",
     project: "rust",
     label: "Cargo workspace tests",

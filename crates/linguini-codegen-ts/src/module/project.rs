@@ -1,6 +1,6 @@
 use super::templates::{
     render_template, SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME,
-    SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME, WEB_DECLARATIONS, WEB_RUNTIME,
+    SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME,
 };
 use super::web_runtime_links;
 use super::{web_accept_language, web_cookie, web_link_transform, web_local_storage, web_path};
@@ -134,69 +134,8 @@ pub fn generate_project_sveltekit_control_declaration() -> String {
     SVELTEKIT_CONTROL_DECLARATIONS.to_owned()
 }
 
-/// Render the project web runtime with a closed, statically selected source set.
-/// The source template intentionally keeps its compatibility resolver for the
-/// standalone runtime; generated projects import one physical module per
-/// selected source and call those functions in validated order.
 pub fn generate_project_web_module_with_options(options: &TypeScriptWebOptions) -> String {
-    let features = options.features();
-    let mut runtime = WEB_RUNTIME.to_owned();
-    let imports = web_source_imports(&features);
-    if !imports.is_empty() {
-        runtime = format!("{imports}\n{runtime}");
-    }
-    if !options.exclude.is_empty() {
-        runtime = format!("import {{ matchesRoute }} from \"./web/routes.js\";\n{runtime}");
-    }
-
-    let start = runtime
-        .find("  function resolveLocaleSync(input: Record<string, unknown> = {}) {")
-        .expect("web runtime resolveLocaleSync template");
-    let end = runtime[start..]
-        .find("\n  function localizeUrl")
-        .map(|offset| start + offset)
-        .expect("web runtime locale resolver boundary");
-    let resolver = selected_locale_resolver(&features);
-    runtime.replace_range(start..end, &resolver);
-
-    // Source helpers are emitted by the selected modules. Keep the shared locale
-    // matching helpers in this runtime because URL localization uses them too.
-    if let Some(start) = runtime.find("\nfunction resolveLocaleSource<") {
-        let end = runtime[start..]
-            .find("\nfunction matchLocaleValue")
-            .map(|offset| start + offset)
-            .expect("web runtime source helper boundary");
-        runtime.replace_range(start..end, "\n");
-    }
-    if let Some(start) = runtime.find("\nfunction firstPathSegment(") {
-        let end = runtime[start..]
-            .find("\nfunction stripLeadingLocale")
-            .map(|offset| start + offset)
-            .expect("web runtime path helper boundary");
-        runtime.replace_range(start..end, "\n");
-    }
-    if options.exclude.is_empty() {
-        let start = runtime
-            .find("  function shouldExclude(url: string | URL, input: Record<string, unknown> = {}) {")
-            .expect("web runtime route matcher entry");
-        let end = runtime[start..]
-            .find("\n  function serializeLocaleCookie")
-            .map(|offset| start + offset)
-            .expect("web runtime route matcher boundary");
-        runtime.replace_range(
-            start..end,
-            "  function shouldExclude(_url: string | URL, _input: Record<string, unknown> = {}) {\n    return false;\n  }\n",
-        );
-    }
-    let start = runtime
-        .find("\nfunction matchesRoute(")
-        .expect("web runtime shared route matcher");
-    let end = runtime[start..]
-        .find("\nfunction resolveBaseUrl")
-        .map(|offset| start + offset)
-        .expect("web runtime route matcher helper boundary");
-    runtime.replace_range(start..end, "\n");
-    runtime
+    super::web_facade::generate_typescript_web_module(options)
 }
 
 pub fn generate_project_web_source_module(source: TypeScriptLocaleSource) -> String {
@@ -266,7 +205,7 @@ pub fn generate_project_web_switch_route_declaration() -> String {
 }
 
 pub fn generate_project_web_declaration() -> String {
-    WEB_DECLARATIONS.to_owned()
+    super::web_types::generate_web_declaration()
 }
 
 fn web_options_literal(options: &TypeScriptWebOptions) -> String {
@@ -274,59 +213,4 @@ fn web_options_literal(options: &TypeScriptWebOptions) -> String {
         options,
         crate::ecmascript::EcmaScriptTarget::TypeScript,
     )
-}
-
-fn selected_locale_resolver(features: &super::TypeScriptWebFeatures) -> String {
-    let mut body =
-        String::from("  function resolveLocaleSync(input: Record<string, unknown> = {}) {\n");
-    for (index, source) in features.sources.iter().enumerate() {
-        let binding = format!("resolved_{index}");
-        let statement = match source {
-            TypeScriptLocaleSource::Path => {
-                format!(
-                    "    const {binding} = resolvePathLocale(input, normalized, runtime.locales);\n"
-                )
-            }
-            TypeScriptLocaleSource::Cookie => {
-                format!(
-                    "    const {binding} = resolveCookieLocale(input, normalized, matchLocale);\n"
-                )
-            }
-            TypeScriptLocaleSource::LocalStorage => {
-                format!(
-                    "    const {binding} = resolveLocalStorageLocale(input, normalized, matchLocale);\n"
-                )
-            }
-            TypeScriptLocaleSource::AcceptLanguage => {
-                format!(
-                    "    const {binding} = resolveAcceptLanguageLocale(input, runtime.locales, runtime.baseLocale, matchLocale);\n"
-                )
-            }
-        };
-        body.push_str(&statement);
-        body.push_str(&format!("    if ({binding}) return {binding};\n"));
-    }
-    body.push_str("    return runtime.baseLocale;\n  }\n");
-    body
-}
-
-fn web_source_imports(features: &super::TypeScriptWebFeatures) -> String {
-    features
-        .sources
-        .iter()
-        .map(|source| {
-            let (name, path) = match source {
-                TypeScriptLocaleSource::Path => ("resolvePathLocale", "path"),
-                TypeScriptLocaleSource::Cookie => ("resolveCookieLocale", "cookie"),
-                TypeScriptLocaleSource::LocalStorage => {
-                    ("resolveLocalStorageLocale", "local-storage")
-                }
-                TypeScriptLocaleSource::AcceptLanguage => {
-                    ("resolveAcceptLanguageLocale", "accept-language")
-                }
-            };
-            format!("import {{ {name} }} from \"./web/{path}.js\";")
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
 }

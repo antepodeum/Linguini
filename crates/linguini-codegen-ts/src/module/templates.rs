@@ -9,8 +9,6 @@ pub const SVELTEKIT_DECLARATIONS: &str = include_str!("templates/sveltekit.runti
 pub const SVELTEKIT_CONTROL_RUNTIME: &str = include_str!("templates/sveltekit-control.runtime.ts");
 pub const SVELTEKIT_CONTROL_DECLARATIONS: &str =
     include_str!("templates/sveltekit-control.runtime.d.ts");
-pub const WEB_RUNTIME: &str = include_str!("templates/web.runtime.ts");
-pub const WEB_DECLARATIONS: &str = include_str!("templates/web.runtime.d.ts");
 
 pub fn render_template(template: &str, replacements: &[(&str, String)]) -> String {
     let mut output = template.to_owned();
@@ -36,10 +34,6 @@ mod tests {
         assert!(SHARED_DECLARATIONS.contains("normalizeMessageArgs"));
         assert!(SINGLE_INDEX_RUNTIME.contains("createLinguini"));
         assert!(SINGLE_INDEX_DECLARATIONS.contains("createLinguini"));
-        assert!(WEB_RUNTIME.contains("createWebI18n"));
-        assert!(WEB_RUNTIME.contains("createWebLocaleI18n"));
-        assert!(WEB_DECLARATIONS.contains("LinguiniRequestContext"));
-        assert!(WEB_DECLARATIONS.contains("LinguiniWebLocale"));
         assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniHandle"));
         assert!(SVELTEKIT_RUNTIME.contains("export const linguiniReroute"));

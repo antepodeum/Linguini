@@ -150,3 +150,10 @@ otherwise.
 Each migration stage updates this baseline only when it intentionally changes ownership. Otherwise
 the relevant snapshot, typecheck, executable runtime, source-map, manifest, and consumer checks
 must remain green before the displaced assembly code is deleted.
+
+The closed project web facade now has `compile_typescript_web_module` and
+`compile_javascript_web_module` entry points. Both use the same selected physical locale-source
+modules, URL/request policy, public type model, and target-owned source maps. The superseded
+TypeScript web template is retained only as a frozen test oracle. Checked target types, closed
+source matrices, URL/link/cookie safety, and concurrent request preparation run in quick/full gates
+through `tests/fixtures/golden/snapshots/js-web`.
