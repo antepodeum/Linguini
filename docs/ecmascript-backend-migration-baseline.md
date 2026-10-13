@@ -166,3 +166,8 @@ transforms, reroutes, canonical redirects, safe locale-switch routes, and select
 Their superseded implementation templates are frozen test oracles only. Installed-SvelteKit type
 checks and executable TS/JS/frozen-runtime parity are registered quick/full gates under
 `tests/fixtures/golden/snapshots/js-sveltekit`.
+
+ESM-M8 is complete. All web/Svelte/SvelteKit runtime families now have shared target-aware
+compilers. All 55 registered full-profile gates are verified, including the packaged-source gate
+run after the implementation commit. The refreshed 1,356-file site artifact passes all seven
+site gates. ESM-M9 next moves project-wide output ownership and map emission onto these artifacts.
