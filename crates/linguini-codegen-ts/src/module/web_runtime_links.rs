@@ -6,6 +6,7 @@ use crate::ecmascript::{
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,
 };
 
+#[cfg(test)]
 pub(super) fn generate_typescript_web_runtime_links_module() -> String {
     runtime_links_module(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

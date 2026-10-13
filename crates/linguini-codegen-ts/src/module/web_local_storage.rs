@@ -12,6 +12,7 @@ const STORAGE_BODY_AFTER_VALUE: &str = r#"?.getItem(options.localStorage.key) ??
   }
 "#;
 
+#[cfg(test)]
 pub(super) fn generate_typescript_web_local_storage_module() -> String {
     web_local_storage_module(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

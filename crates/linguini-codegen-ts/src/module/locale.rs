@@ -53,6 +53,34 @@ fn compile_locale_artifact_module(
     sources: &[EcmaSource],
     target: EcmaScriptTarget,
 ) -> Result<CompiledTypeScriptLocaleModule, TypeScriptCodegenError> {
+    let module = locale_artifact_module(project, artifact, target)?;
+    let source_records = ordered_sources(&artifact.source_ids, sources)?;
+    let rendered = module.render(&source_records);
+    Ok(CompiledTypeScriptLocaleModule {
+        artifact: artifact.clone(),
+        code: rendered.code,
+        source_map: rendered.source_map,
+    })
+}
+
+pub(super) struct LocaleModuleRequest<'a> {
+    pub schema: &'a IrModule,
+    pub import_locale: &'a IrModule,
+    pub locale: &'a IrModule,
+    pub options: &'a TypeScriptOptions,
+    pub namespaces: &'a [String],
+    pub shared_import_path: &'a str,
+    pub runtime_import_path: &'a str,
+    pub global_import_path: Option<&'a str>,
+    pub namespace_alias: Option<&'a str>,
+    pub output: EcmaModuleOutput,
+}
+
+pub(super) fn locale_artifact_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    artifact: &TypeScriptLocaleArtifact,
+    target: EcmaScriptTarget,
+) -> Result<EcmaModule, TypeScriptCodegenError> {
     let configured_locale = project
         .locales
         .iter()
@@ -137,26 +165,7 @@ fn compile_locale_artifact_module(
         namespace_alias: alias,
         output: EcmaModuleOutput::new(target, output_path, None),
     });
-    let source_records = ordered_sources(&artifact.source_ids, sources)?;
-    let rendered = module.render(&source_records);
-    Ok(CompiledTypeScriptLocaleModule {
-        artifact: artifact.clone(),
-        code: rendered.code,
-        source_map: rendered.source_map,
-    })
-}
-
-pub(super) struct LocaleModuleRequest<'a> {
-    pub schema: &'a IrModule,
-    pub import_locale: &'a IrModule,
-    pub locale: &'a IrModule,
-    pub options: &'a TypeScriptOptions,
-    pub namespaces: &'a [String],
-    pub shared_import_path: &'a str,
-    pub runtime_import_path: &'a str,
-    pub global_import_path: Option<&'a str>,
-    pub namespace_alias: Option<&'a str>,
-    pub output: EcmaModuleOutput,
+    Ok(module)
 }
 
 pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {

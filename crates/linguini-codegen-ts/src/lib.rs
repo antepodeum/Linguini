@@ -8,9 +8,9 @@ pub use ecmascript::{
     RenderedEcmaModule,
 };
 pub use module::{
-    compile_javascript_bundler_message_artifact_module, compile_javascript_bundler_message_module,
-    compile_javascript_bundler_semantic_module, compile_javascript_locale_artifact_module,
-    compile_javascript_locale_globals_artifact_module,
+    compile_ecmascript_project_files, compile_javascript_bundler_message_artifact_module,
+    compile_javascript_bundler_message_module, compile_javascript_bundler_semantic_module,
+    compile_javascript_locale_artifact_module, compile_javascript_locale_globals_artifact_module,
     compile_javascript_locale_runtime_artifact_module, compile_javascript_project_artifact_module,
     compile_javascript_web_accept_language_module, compile_javascript_web_cookie_module,
     compile_javascript_web_link_transform_module, compile_javascript_web_local_storage_module,

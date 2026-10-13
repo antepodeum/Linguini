@@ -25,6 +25,7 @@ impl SvelteLocaleMode {
     }
 }
 
+#[cfg(test)]
 pub(super) fn generate_typescript_svelte_locale_module(mode: SvelteLocaleMode) -> String {
     locale_module(
         mode,

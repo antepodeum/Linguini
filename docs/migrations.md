@@ -129,3 +129,17 @@ transforms, reroutes, canonical redirects, safe locale-switch routes, and select
 Their superseded implementation templates are frozen test oracles only. Installed-SvelteKit type
 checks and executable TS/JS/frozen-runtime parity are registered quick/full gates under
 `tests/fixtures/golden/snapshots/js-sveltekit`.
+
+`compile_ecmascript_project_files(project, target, sources)` now enumerates a complete native
+TypeScript or JavaScript project through the shared module builders. It emits an owned map beside
+every implementation; declarations follow the validated declaration setting. Source paths are
+relative to the output root and are rebased to each map directory. Missing/duplicate source
+identities and output collisions fail before filesystem writes. The established
+`generate_typescript_project_files` API renders source-only output from that same artifact plan.
+The CLI now consumes mapped project artifacts through its existing atomic ownership transaction.
+JavaScript namespace typedefs retain the full message API even when declarations are disabled.
+The integrated fixture is `tests/fixtures/golden/snapshots/js-complete-project`.
+
+Locale declaration barrels now re-export their imported namespace bindings directly. This fixes
+strict declaration checking that previously reported an import/local declaration collision and a
+self-referential namespace type; the public export names and value types remain unchanged.

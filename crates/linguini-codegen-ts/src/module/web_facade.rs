@@ -7,10 +7,6 @@ use crate::ecmascript::{
     RenderedEcmaModule,
 };
 
-pub(super) fn generate_typescript_web_module(options: &TypeScriptWebOptions) -> String {
-    web_module(options, EcmaScriptTarget::TypeScript).render_code()
-}
-
 /// Compile the closed web facade as TypeScript.
 pub fn compile_typescript_web_module(options: &TypeScriptWebOptions) -> RenderedEcmaModule {
     web_module(options, EcmaScriptTarget::TypeScript).render(&[])

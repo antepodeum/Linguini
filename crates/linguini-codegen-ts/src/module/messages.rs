@@ -21,9 +21,25 @@ pub fn generate_messages_module(
     output: EcmaModuleOutput,
     shared_import_path: &str,
 ) -> String {
+    messages_module(schema, output, shared_import_path).render_code()
+}
+
+pub(super) fn messages_module(
+    schema: &IrModule,
+    output: EcmaModuleOutput,
+    shared_import_path: &str,
+) -> EcmaModule {
     let target = output.target();
     let mut module = EcmaModule::new(output);
     let type_names = message_type_names(schema);
+    if !target.is_typescript() {
+        for name in &type_names {
+            module.push_statement(EcmaStatement::documentation(
+                format!("/** @typedef {{import(\"{shared_import_path}\").{name}}} {name} */"),
+                None,
+            ));
+        }
+    }
     if !type_names.is_empty() {
         module.push_import(EcmaImport {
             specifier: shared_import_path.to_owned(),
@@ -38,13 +54,31 @@ pub fn generate_messages_module(
 
     let mut output = String::new();
     output.push_str("export type LinguiniMessages = ");
-    emit_object_type(&schema_message_tree(schema), 0, &mut output);
+    emit_object_type(
+        &schema_message_tree(schema),
+        0,
+        crate::ecmascript::EcmaScriptTarget::TypeScript,
+        &mut output,
+    );
     output.push_str(";\n");
     module.push_statement(EcmaStatement::type_declaration(output, None));
     if !target.is_typescript() {
+        let mut ty = String::new();
+        emit_object_type(&schema_message_tree(schema), 0, target, &mut ty);
+        let mut jsdoc = String::new();
+        super::names::emit_docs_with_tags(
+            &[],
+            &[super::names::JsDocTag::Typedef {
+                name: "LinguiniMessages".to_owned(),
+                ty: ty.replace("*/", "*\\u002f"),
+            }],
+            "",
+            &mut jsdoc,
+        );
+        module.push_statement(EcmaStatement::documentation(jsdoc, None));
         module.push_statement(EcmaStatement::generated("export {};"));
     }
-    module.render_code()
+    module
 }
 
 fn message_type_names(schema: &IrModule) -> Vec<String> {
@@ -81,28 +115,39 @@ fn schema_message_tree(schema: &IrModule) -> MessageTree {
     tree
 }
 
-fn emit_object_type(tree: &MessageTree, depth: usize, output: &mut String) {
+fn emit_object_type(
+    tree: &MessageTree,
+    depth: usize,
+    target: crate::ecmascript::EcmaScriptTarget,
+    output: &mut String,
+) {
     let indent = "  ".repeat(depth);
     let child_indent = "  ".repeat(depth + 1);
     output.push_str("{\n");
     for entry in &tree.messages {
         let signature = MessageCallSignature::from_message(&entry.signature);
-        if !signature.is_parameterized() {
+        if target.is_typescript() && !signature.is_parameterized() {
             emit_docs(&entry.signature.docs, &child_indent, output);
         }
         output.push_str(&format!(
             "{child_indent}readonly {}: {};\n",
             message_property_key(&entry.property, depth),
-            signature.callable_type_with_docs(&entry.signature.docs, &child_indent)
+            if target.is_typescript() {
+                signature.callable_type_with_docs(&entry.signature.docs, &child_indent)
+            } else {
+                signature.javascript_callable_type()
+            }
         ));
     }
     for (name, child) in &tree.children {
-        emit_docs(&child.docs, &child_indent, output);
+        if target.is_typescript() {
+            emit_docs(&child.docs, &child_indent, output);
+        }
         output.push_str(&format!(
             "{child_indent}readonly {}: ",
             message_property_key(name, depth)
         ));
-        emit_object_type(child, depth + 1, output);
+        emit_object_type(child, depth + 1, target, output);
         output.push_str(";\n");
     }
     output.push_str(&indent);
@@ -114,5 +159,46 @@ fn message_property_key(name: &str, depth: usize) -> String {
         safe_identifier(name)
     } else {
         property_key(name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use linguini_ir::{IrMessage, IrModuleBuilder, IrParameter};
+    #[test]
+    fn javascript_namespace_types_preserve_hostile_keys_without_declaration_files() {
+        let schema = IrModuleBuilder::new()
+            .push_message(IrMessage {
+                name: "top.bad*/key.leaf".to_owned(),
+                docs: vec!["Unsafe */ prose".to_owned()],
+                parameters: vec![IrParameter {
+                    name: "name*/key".to_owned(),
+                    ty: "String".to_owned(),
+                }],
+                body: None,
+            })
+            .build()
+            .unwrap();
+        let code = messages_module(
+            &schema,
+            EcmaModuleOutput::new(
+                crate::ecmascript::EcmaScriptTarget::JavaScript,
+                "unsafe/messages.js",
+                None,
+            ),
+            "./shared.js",
+        )
+        .render_code();
+        assert!(!code.contains("bad*/key"));
+        assert!(!code.contains("name*/key"));
+        assert!(code.contains("bad*\\u002fkey"));
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/golden/snapshots/js-complete-project/unsafe/messages.js");
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, &code).unwrap();
+        }
+        assert_eq!(code, std::fs::read_to_string(path).unwrap());
     }
 }

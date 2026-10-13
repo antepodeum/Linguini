@@ -171,3 +171,13 @@ ESM-M8 is complete. All web/Svelte/SvelteKit runtime families now have shared ta
 compilers. All 55 registered full-profile gates are verified, including the packaged-source gate
 run after the implementation commit. The refreshed 1,356-file site artifact passes all seven
 site gates. ESM-M9 next moves project-wide output ownership and map emission onto these artifacts.
+
+`compile_ecmascript_project_files(project, target, sources)` now enumerates a complete native
+TypeScript or JavaScript project through the shared module builders. It emits an owned map beside
+every implementation; declarations follow the validated declaration setting. Source paths are
+relative to the output root and are rebased to each map directory. Missing/duplicate source
+identities and output collisions fail before filesystem writes. The established
+`generate_typescript_project_files` API renders source-only output from that same artifact plan.
+The CLI now consumes mapped project artifacts through its existing atomic ownership transaction.
+JavaScript namespace typedefs retain the full message API even when declarations are disabled.
+The integrated fixture is `tests/fixtures/golden/snapshots/js-complete-project`.

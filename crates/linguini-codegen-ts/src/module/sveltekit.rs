@@ -7,12 +7,6 @@ use crate::ecmascript::{
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,
 };
 
-pub(super) fn generate_typescript_sveltekit_module(
-    options: &TypeScriptWebOptions,
-    messages: bool,
-) -> String {
-    adapter_module(options, messages, EcmaScriptTarget::TypeScript).render_code()
-}
 /// Compile the message-enabled SvelteKit server adapter as TypeScript.
 pub fn compile_typescript_sveltekit_module(options: &TypeScriptWebOptions) -> RenderedEcmaModule {
     adapter_module(options, true, EcmaScriptTarget::TypeScript).render(&[])

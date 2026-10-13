@@ -1,0 +1,1 @@
+{"version":3,"file":"locales/en.ts","sources":["../schema/main.lgs","../locale/en/main.lgl"],"sourcesContent":["/// Greeting\nhello(name: String)\nsection { title }\n","hello = Hello {name}\nsection { title = English }\n"],"names":[],"mappings":";;;ACAA"}

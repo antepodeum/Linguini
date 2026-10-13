@@ -8,13 +8,6 @@ use crate::ecmascript::{
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,
 };
 
-pub(super) fn generate_typescript_svelte_effects_module(
-    options: &TypeScriptWebOptions,
-    sveltekit: bool,
-) -> String {
-    effects_module(options, sveltekit, output(EcmaScriptTarget::TypeScript)).render_code()
-}
-
 pub(super) fn generate_svelte_effects_declaration() -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

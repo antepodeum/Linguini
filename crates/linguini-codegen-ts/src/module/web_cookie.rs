@@ -17,6 +17,7 @@ const COOKIE_BODY_AFTER_VALUE: &str = r#").split(";")) {
   return undefined;
 "#;
 
+#[cfg(test)]
 pub(super) fn generate_typescript_web_cookie_module() -> String {
     web_cookie_module(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

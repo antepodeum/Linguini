@@ -12,6 +12,14 @@ pub fn generate_shared_module(
     output: EcmaModuleOutput,
     declaration: bool,
 ) -> String {
+    shared_module(schema, output, declaration).render_code()
+}
+
+pub(super) fn shared_module(
+    schema: &IrModule,
+    output: EcmaModuleOutput,
+    declaration: bool,
+) -> EcmaModule {
     let target = output.target();
     let mut module = EcmaModule::new(output);
     let mut types = String::new();
@@ -41,7 +49,7 @@ pub fn generate_shared_module(
     } else {
         runtime
     }));
-    module.render_code()
+    module
 }
 
 fn emit_jsdoc_schema_types(schema: &IrModule, output: &mut String) {

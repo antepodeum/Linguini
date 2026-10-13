@@ -1,0 +1,1 @@
+{"version":3,"file":"locales/fr.js","sources":["../schema/main.lgs","../locale/en/main.lgl","../locale/fr/main.lgl"],"sourcesContent":["/// Greeting\nhello(name: String)\nsection { title }\n","hello = Hello {name}\nsection { title = English }\n","hello = Bonjour {name}\n"],"names":[],"mappings":";;;ACAA"}

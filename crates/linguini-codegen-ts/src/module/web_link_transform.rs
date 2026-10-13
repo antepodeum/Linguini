@@ -11,6 +11,7 @@ const LINK_BODY: &str = r#"  return web.shouldLocalizeLink(href, attributes, inp
 }
 "#;
 
+#[cfg(test)]
 pub(super) fn generate_typescript_web_link_transform_module() -> String {
     web_link_transform_module(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

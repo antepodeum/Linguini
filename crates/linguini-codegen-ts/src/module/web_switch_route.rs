@@ -8,12 +8,6 @@ use crate::ecmascript::{
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,
 };
 
-pub(super) fn generate_typescript_web_switch_route_module(
-    options: &TypeScriptWebOptions,
-) -> Option<String> {
-    Some(switch_module(options, EcmaScriptTarget::TypeScript)?.render_code())
-}
-
 pub(super) fn generate_web_switch_route_declaration() -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

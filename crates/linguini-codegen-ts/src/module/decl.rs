@@ -31,9 +31,7 @@ pub fn generate_locale_declaration_with_namespaces(
     emit_type_alias_declarations(schema, &mut output);
     for namespace in namespaces {
         let identifier = safe_identifier(namespace);
-        output.push_str(&format!(
-            "export declare const {identifier}: typeof {identifier};\n\n"
-        ));
+        output.push_str(&format!("export {{ {identifier} }};\n\n"));
     }
     let exports = emit_message_declarations(schema, &mut output);
     emit_default_declaration_with_namespaces(&exports, namespaces, &mut output);

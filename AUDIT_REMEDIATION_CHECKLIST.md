@@ -886,10 +886,14 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       preparation/isolation, streaming, redirect/switch safety, cookie policy, and real Svelte rune
       compilation pass. All 55 full-profile gates are verified, including packaged documentation
       after the source commit; the freshly regenerated real site passes all seven site gates.
-- [ ] ESM-M9 — Switch CLI output ownership, bundler manifests, Vite virtual-module resolution,
+- [-] ESM-M9 — Switch CLI output ownership, bundler manifests, Vite virtual-module resolution,
       HMR invalidation, npm examples, and VSIX consumers to structured artifacts. Require atomic
       write/cleanup parity, unchanged portable paths, truthful source maps, Vite 5–8 integration,
-      real-site production graph checks, native npm CLI tests, and native VSIX tests.
+      real-site production graph checks, native npm CLI tests, and native VSIX tests. Project-wide
+      TS/JS enumeration now shares one artifact plan, and the CLI uses its source-mapped TypeScript
+      path. Source-only JS preserves namespace typedefs without declaration companions; source
+      identities, map paths/content, and atomic ownership are covered. Remaining consumer/target
+      integration and final broad gates must pass before closure.
 - [ ] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
       templates, adapters, compatibility branches, tests that only exercise the removed path, and
       misleading compatibility-path terminology. Repository-wide absence checks must prove one

@@ -70,6 +70,23 @@ fn compile_locale_runtime_artifact_module(
     sources: &[EcmaSource],
     target: EcmaScriptTarget,
 ) -> Result<CompiledTypeScriptLocaleRuntimeModule, TypeScriptCodegenError> {
+    let module = locale_runtime_artifact_module(project, artifact, target)?;
+    let source_records = ordered_sources(&artifact.source_ids, sources)?;
+    let rendered = module.render(&source_records);
+
+    Ok(CompiledTypeScriptLocaleRuntimeModule {
+        locale: artifact.canonical_locale.clone(),
+        code: rendered.code,
+        source_map: rendered.source_map,
+        source_ids: artifact.source_ids.clone(),
+    })
+}
+
+pub(super) fn locale_runtime_artifact_module(
+    project: &ValidatedTypeScriptProject<'_>,
+    artifact: &TypeScriptLocaleRuntimeArtifact,
+    target: EcmaScriptTarget,
+) -> Result<EcmaModule, TypeScriptCodegenError> {
     let locale = project
         .locales
         .iter()
@@ -93,15 +110,7 @@ fn compile_locale_runtime_artifact_module(
         &options,
         EcmaModuleOutput::new(target, output_path, None),
     );
-    let source_records = ordered_sources(&artifact.source_ids, sources)?;
-    let rendered = module.render(&source_records);
-
-    Ok(CompiledTypeScriptLocaleRuntimeModule {
-        locale: artifact.canonical_locale.clone(),
-        code: rendered.code,
-        source_map: rendered.source_map,
-        source_ids: artifact.source_ids.clone(),
-    })
+    Ok(module)
 }
 
 pub(super) fn locale_runtime_module(

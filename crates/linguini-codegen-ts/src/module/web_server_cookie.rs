@@ -6,10 +6,6 @@ use crate::ecmascript::{
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,
 };
 
-pub(super) fn generate_typescript_web_server_cookie_module() -> String {
-    cookie_module(EcmaScriptTarget::TypeScript).render_code()
-}
-
 pub(super) fn generate_web_server_cookie_declaration() -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

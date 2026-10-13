@@ -85,6 +85,7 @@ const RANGE_BODY: &str = r#"  if (range === "*") return true;
 }
 "#;
 
+#[cfg(test)]
 pub(super) fn generate_typescript_web_accept_language_module() -> String {
     web_accept_language_module(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

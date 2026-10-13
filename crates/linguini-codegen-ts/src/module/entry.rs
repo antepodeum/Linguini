@@ -58,40 +58,6 @@ fn compile_project_artifact_module(
     }
 }
 
-pub(super) fn generate_project_locale(
-    locales: &[TypeScriptLocaleModule],
-    base_locale: Option<&str>,
-) -> String {
-    project_module(
-        locales,
-        base_locale,
-        TypeScriptProjectArtifactKind::Locale,
-        EcmaModuleOutput::new(
-            EcmaScriptTarget::TypeScript,
-            "locale.ts",
-            Some("locale.d.ts".into()),
-        ),
-    )
-    .render_code()
-}
-
-pub(super) fn generate_project_index(
-    locales: &[TypeScriptLocaleModule],
-    base_locale: Option<&str>,
-) -> String {
-    project_module(
-        locales,
-        base_locale,
-        TypeScriptProjectArtifactKind::Index,
-        EcmaModuleOutput::new(
-            EcmaScriptTarget::TypeScript,
-            "index.ts",
-            Some("index.d.ts".into()),
-        ),
-    )
-    .render_code()
-}
-
 pub(super) fn generate_project_locale_declaration(
     locales: &[TypeScriptLocaleModule],
     base_locale: Option<&str>,
@@ -103,7 +69,7 @@ pub(super) fn generate_project_index_declaration() -> String {
     index_declaration()
 }
 
-fn project_module(
+pub(super) fn project_module(
     locales: &[TypeScriptLocaleModule],
     base_locale: Option<&str>,
     kind: TypeScriptProjectArtifactKind,

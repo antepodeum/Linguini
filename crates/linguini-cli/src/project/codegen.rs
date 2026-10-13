@@ -7,11 +7,12 @@ use linguini_analyzer::{
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ts::{
-    compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_semantic_module,
-    generate_typescript_project_files, EcmaSource, TypeScriptFramework, TypeScriptGeneratedFile,
-    TypeScriptLinkMode, TypeScriptLocaleModule, TypeScriptLocalePrefixMode, TypeScriptLocaleSource,
-    TypeScriptLocaleSwitchPlan, TypeScriptProjectOptions, TypeScriptWebOptions,
-    TypeScriptWebSwitchRoute, ValidatedTypeScriptProject,
+    compile_ecmascript_project_files, compile_typescript_bundler_message_artifact_module,
+    compile_typescript_bundler_semantic_module, EcmaScriptTarget, EcmaSource, TypeScriptFramework,
+    TypeScriptGeneratedFile, TypeScriptLinkMode, TypeScriptLocaleModule,
+    TypeScriptLocalePrefixMode, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
+    TypeScriptProjectOptions, TypeScriptWebOptions, TypeScriptWebSwitchRoute,
+    ValidatedTypeScriptProject,
 };
 use linguini_config::{
     discover_application_source_files_with_fields, CanonicalMode, CookiePath, LinguiniConfig,
@@ -104,9 +105,16 @@ fn generate_typescript_target(
     };
     let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-    let mut files = generate_typescript_project_files(&project)
-        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let sources = ecma_sources(root, &schema_files, &locale_files)?;
+    let project_sources =
+        rebase_map_sources(target.out(), "index.ts.map", &sources).map_err(|reason| {
+            CliError::Diagnostics(format!(
+                "cannot rebase project source-map paths: {reason}\n"
+            ))
+        })?;
+    let mut files =
+        compile_ecmascript_project_files(&project, EcmaScriptTarget::TypeScript, &project_sources)
+            .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     files.extend(generate_bundler_files(
         root,
         &project,

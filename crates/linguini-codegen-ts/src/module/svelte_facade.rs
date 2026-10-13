@@ -16,10 +16,6 @@ const WEB_METHODS: &[&str] = &[
     "alternateLinks",
 ];
 
-pub(super) fn generate_typescript_svelte_module(web: bool) -> String {
-    facade_module(web, EcmaScriptTarget::TypeScript).render_code()
-}
-
 /// Compile the context-only or web-enabled Svelte message facade as TypeScript.
 pub fn compile_typescript_svelte_module(web: bool) -> RenderedEcmaModule {
     facade_module(web, EcmaScriptTarget::TypeScript).render(&[])

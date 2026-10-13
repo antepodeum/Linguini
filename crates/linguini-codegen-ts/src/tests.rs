@@ -2148,9 +2148,7 @@ fn project_codegen_emits_schema_namespace_objects() {
         .iter()
         .find(|file| file.path == "locales/en.d.ts")
         .expect("locale declaration");
-    assert!(declaration
-        .contents
-        .contains("export declare const checkout: typeof checkout;"));
+    assert!(declaration.contents.contains("export { checkout };"));
 }
 
 #[test]

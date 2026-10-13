@@ -25,6 +25,7 @@ const PATH_BODY_AFTER_PARSED: &str = r#"  try {
     : undefined;
 "#;
 
+#[cfg(test)]
 pub(super) fn generate_typescript_web_path_module() -> String {
     web_path_module(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

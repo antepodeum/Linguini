@@ -25,6 +25,7 @@ const ROUTE_BODY: &str = concat!(
     "  return url.pathname === pattern;\n",
 );
 
+#[cfg(test)]
 pub(super) fn generate_typescript_web_routes_module() -> String {
     web_routes_module(EcmaModuleOutput::new(
         EcmaScriptTarget::TypeScript,

@@ -7,13 +7,6 @@ use crate::ecmascript::{
     RenderedEcmaModule,
 };
 
-pub(super) fn generate_typescript_svelte_control_module(
-    options: &TypeScriptWebOptions,
-    sveltekit: bool,
-) -> String {
-    control_module(options, sveltekit, EcmaScriptTarget::TypeScript).render_code()
-}
-
 /// Compile lightweight, capability-selected Svelte browser controls as TypeScript.
 pub fn compile_typescript_svelte_control_module(
     options: &TypeScriptWebOptions,

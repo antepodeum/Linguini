@@ -410,6 +410,16 @@ export const TASKS = Object.freeze([
     profiles: ["quick", "full"], tools: ["bun"], requiresNodeModules: false,
   }),
   Object.freeze({
+    id: "codegen:complete-project-js", project: "site", label: "Complete mapped native project checked target conformance",
+    command: "pnpm", args: ["exec", "tsc", "--project", "../tests/fixtures/golden/snapshots/js-complete-project/tsconfig.json"],
+    profiles: ["quick", "full"], tools: ["pnpm"], requiresNodeModules: true,
+  }),
+  Object.freeze({
+    id: "codegen:complete-project-runtime", project: "rust", label: "Complete native project loading and fallback parity",
+    command: "bun", args: ["test", "./tests/fixtures/golden/snapshots/js-complete-project/parity.test.ts"],
+    profiles: ["quick", "full"], tools: ["bun"], requiresNodeModules: false,
+  }),
+  Object.freeze({
     id: "rust:test",
     project: "rust",
     label: "Cargo workspace tests",
