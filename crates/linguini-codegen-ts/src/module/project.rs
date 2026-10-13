@@ -1,7 +1,3 @@
-use super::templates::{
-    render_template, SVELTEKIT_CONTROL_DECLARATIONS, SVELTEKIT_CONTROL_RUNTIME,
-    SVELTEKIT_DECLARATIONS, SVELTEKIT_RUNTIME,
-};
 use super::web_runtime_links;
 use super::{web_accept_language, web_cookie, web_link_transform, web_local_storage, web_path};
 use super::{TypeScriptLocaleSource, TypeScriptWebOptions};
@@ -52,86 +48,16 @@ pub fn generate_project_svelte_control_declaration(sveltekit: bool) -> String {
 }
 
 pub fn generate_project_sveltekit_module(options: &TypeScriptWebOptions) -> String {
-    render_template(SVELTEKIT_RUNTIME, &sveltekit_replacements(options))
+    super::sveltekit::generate_typescript_sveltekit_module(options, true)
 }
-
 pub fn generate_project_sveltekit_declaration() -> String {
-    SVELTEKIT_DECLARATIONS.to_owned()
+    super::sveltekit_types::generate_ambient_declaration()
 }
-
 pub fn generate_project_sveltekit_control_module(options: &TypeScriptWebOptions) -> String {
-    render_template(SVELTEKIT_CONTROL_RUNTIME, &sveltekit_replacements(options))
+    super::sveltekit::generate_typescript_sveltekit_module(options, false)
 }
-
-fn sveltekit_replacements(options: &TypeScriptWebOptions) -> Vec<(&'static str, String)> {
-    let has_cookie = options.features().has_cookie;
-    vec![
-        ("OPTIONS", web_options_literal(options)),
-        (
-            "SERVER_COOKIE_IMPORT",
-            if has_cookie {
-                "import { persistLocaleCookie } from \"./web/server-cookie.js\";".to_owned()
-            } else {
-                String::new()
-            },
-        ),
-        (
-            "PERSIST_COOKIE_DECLARATION",
-            if has_cookie {
-                "  const persistCookie = options.persistCookie !== false && web.options.locale.switch.writesCookie;"
-                    .to_owned()
-            } else {
-                String::new()
-            },
-        ),
-        (
-            "COOKIE_INPUT",
-            if has_cookie {
-                "      cookie: event.request.headers.get(\"cookie\") ?? undefined,".to_owned()
-            } else {
-                String::new()
-            },
-        ),
-        (
-            "PERSIST_REDIRECT_COOKIE",
-            if has_cookie {
-                "      if (persistCookie) persistLocaleCookie(web, response, context.locale, { origin: event.url.origin });"
-                    .to_owned()
-            } else {
-                String::new()
-            },
-        ),
-        (
-            "PERSIST_RESPONSE_COOKIE",
-            if has_cookie {
-                "    if (persistCookie) persistLocaleCookie(web, response, context.locale, { origin: event.url.origin });"
-                    .to_owned()
-            } else {
-                String::new()
-            },
-        ),
-        (
-            "SWITCH_ROUTE_IMPORT",
-            if options.switch_route.is_some() {
-                "import { handleLocaleSwitchRoute } from \"./web/switch-route.js\";".to_owned()
-            } else {
-                String::new()
-            },
-        ),
-        (
-            "SWITCH_ROUTE_BRANCH",
-            if options.switch_route.is_some() {
-                "    const switchResponse = handleLocaleSwitchRoute(web, event);\n    if (switchResponse) return switchResponse;"
-                    .to_owned()
-            } else {
-                String::new()
-            },
-        ),
-    ]
-}
-
 pub fn generate_project_sveltekit_control_declaration() -> String {
-    SVELTEKIT_CONTROL_DECLARATIONS.to_owned()
+    super::sveltekit_types::generate_control_declaration()
 }
 
 pub fn generate_project_web_module_with_options(options: &TypeScriptWebOptions) -> String {
@@ -206,11 +132,4 @@ pub fn generate_project_web_switch_route_declaration() -> String {
 
 pub fn generate_project_web_declaration() -> String {
     super::web_types::generate_web_declaration()
-}
-
-fn web_options_literal(options: &TypeScriptWebOptions) -> String {
-    super::web_options::web_options_literal(
-        options,
-        crate::ecmascript::EcmaScriptTarget::TypeScript,
-    )
 }

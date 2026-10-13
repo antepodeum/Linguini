@@ -400,6 +400,16 @@ export const TASKS = Object.freeze([
     profiles: ["quick", "full"], tools: ["bun"], requiresNodeModules: false,
   }),
   Object.freeze({
+    id: "codegen:sveltekit-js", project: "site", label: "SvelteKit server checked target conformance",
+    command: "pnpm", args: ["exec", "tsc", "--project", "../tests/fixtures/golden/snapshots/js-sveltekit/tsconfig.json"],
+    profiles: ["quick", "full"], tools: ["pnpm"], requiresNodeModules: true,
+  }),
+  Object.freeze({
+    id: "codegen:sveltekit-runtime", project: "rust", label: "SvelteKit server request, streaming and policy parity",
+    command: "bun", args: ["test", "./tests/fixtures/golden/snapshots/js-sveltekit/parity.test.ts"],
+    profiles: ["quick", "full"], tools: ["bun"], requiresNodeModules: false,
+  }),
+  Object.freeze({
     id: "rust:test",
     project: "rust",
     label: "Cargo workspace tests",

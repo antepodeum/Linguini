@@ -42,10 +42,12 @@ pub use module::{
 pub use module::{
     compile_javascript_svelte_control_module, compile_javascript_svelte_effects_module,
     compile_javascript_svelte_locale_module, compile_javascript_svelte_module,
+    compile_javascript_sveltekit_control_module, compile_javascript_sveltekit_module,
     compile_javascript_web_runtime_links_module, compile_javascript_web_server_cookie_module,
     compile_javascript_web_switch_route_module, compile_typescript_svelte_control_module,
     compile_typescript_svelte_effects_module, compile_typescript_svelte_locale_module,
-    compile_typescript_svelte_module, compile_typescript_web_runtime_links_module,
+    compile_typescript_svelte_module, compile_typescript_sveltekit_control_module,
+    compile_typescript_sveltekit_module, compile_typescript_web_runtime_links_module,
     compile_typescript_web_server_cookie_module, compile_typescript_web_switch_route_module,
     SvelteLocaleMode,
 };

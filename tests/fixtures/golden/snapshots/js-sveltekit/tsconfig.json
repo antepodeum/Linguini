@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "allowJs": true, "checkJs": true, "module": "ESNext", "moduleResolution": "Bundler",
+    "noEmit": true, "strict": true, "target": "ES2022", "skipLibCheck": true,
+    "paths": { "@sveltejs/kit": ["../../../../../site/node_modules/@sveltejs/kit"] }
+  },
+  "include": ["consumer.js", "*/sveltekit*.js", "*/web.js", "*/web/*.js", "*/typescript/**/*.ts", "framework.d.ts"]
+}

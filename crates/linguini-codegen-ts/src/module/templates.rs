@@ -4,12 +4,7 @@ pub const SHARED_DECLARATIONS: &str = include_str!("templates/shared.runtime.d.t
 pub const SINGLE_INDEX_RUNTIME: &str = include_str!("templates/single-index.runtime.ts");
 #[cfg(test)]
 pub const SINGLE_INDEX_DECLARATIONS: &str = include_str!("templates/single-index.runtime.d.ts");
-pub const SVELTEKIT_RUNTIME: &str = include_str!("templates/sveltekit.runtime.ts");
-pub const SVELTEKIT_DECLARATIONS: &str = include_str!("templates/sveltekit.runtime.d.ts");
-pub const SVELTEKIT_CONTROL_RUNTIME: &str = include_str!("templates/sveltekit-control.runtime.ts");
-pub const SVELTEKIT_CONTROL_DECLARATIONS: &str =
-    include_str!("templates/sveltekit-control.runtime.d.ts");
-
+#[cfg(test)]
 pub fn render_template(template: &str, replacements: &[(&str, String)]) -> String {
     let mut output = template.to_owned();
     for (key, value) in replacements {
@@ -34,26 +29,6 @@ mod tests {
         assert!(SHARED_DECLARATIONS.contains("normalizeMessageArgs"));
         assert!(SINGLE_INDEX_RUNTIME.contains("createLinguini"));
         assert!(SINGLE_INDEX_DECLARATIONS.contains("createLinguini"));
-        assert!(SVELTEKIT_RUNTIME.contains("createHandle"));
-        assert!(SVELTEKIT_RUNTIME.contains("export const linguiniHandle"));
-        assert!(SVELTEKIT_RUNTIME.contains("export const linguiniReroute"));
-        assert!(SVELTEKIT_RUNTIME.contains("export const linguiniLoad"));
-        assert!(SVELTEKIT_RUNTIME.contains("{{SERVER_COOKIE_IMPORT}}"));
-        assert!(SVELTEKIT_DECLARATIONS.contains("linguiniHandle: Handle"));
-        assert!(SVELTEKIT_DECLARATIONS.contains("linguiniReroute: Reroute"));
-        assert!(SVELTEKIT_DECLARATIONS.contains("linguiniLoad: ServerLoad"));
-        assert!(SVELTEKIT_CONTROL_RUNTIME.contains("createWebLocaleI18n"));
-        assert!(SVELTEKIT_CONTROL_DECLARATIONS.contains("LinguiniServerLocaleContext"));
-        assert!(SVELTEKIT_RUNTIME.contains("status: 307"));
-        assert!(!SVELTEKIT_RUNTIME.contains("redirectStatus"));
-        assert!(SVELTEKIT_RUNTIME.contains("locals.linguini = context"));
-        assert!(!SVELTEKIT_RUNTIME.contains("locals.locale"));
-        assert!(!SVELTEKIT_RUNTIME.contains("locals.direction"));
-        assert!(!SVELTEKIT_RUNTIME.contains("locals.l ="));
-        assert!(!SVELTEKIT_DECLARATIONS.contains("\n      locale: Locale;"));
-        assert!(!SVELTEKIT_DECLARATIONS.contains("\n      direction: TextDirection;"));
-        assert!(!SVELTEKIT_DECLARATIONS.contains("\n      l: Linguini;"));
-        assert!(SVELTEKIT_DECLARATIONS.contains("SerializedLinguiniContext"));
     }
 
     #[test]

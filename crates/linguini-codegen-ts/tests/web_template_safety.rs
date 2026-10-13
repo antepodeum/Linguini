@@ -1,10 +1,10 @@
-const SVELTEKIT_RUNTIME: &str = include_str!("../src/module/templates/sveltekit.runtime.ts");
-
 #[test]
 fn sveltekit_page_transform_preserves_streaming() {
-    assert!(SVELTEKIT_RUNTIME.contains("transformPageChunk"));
-    assert!(!SVELTEKIT_RUNTIME.contains("bufferedHtml"));
-    assert!(!SVELTEKIT_RUNTIME.contains("localizeMarkupLinks"));
+    let sveltekit_runtime =
+        linguini_codegen_ts::compile_typescript_sveltekit_module(&Default::default()).code;
+    assert!(sveltekit_runtime.contains("transformPageChunk"));
+    assert!(!sveltekit_runtime.contains("bufferedHtml"));
+    assert!(!sveltekit_runtime.contains("localizeMarkupLinks"));
 }
 
 #[test]

@@ -23,6 +23,9 @@ mod svelte_effects;
 mod svelte_facade;
 mod svelte_facade_types;
 mod svelte_locale;
+mod sveltekit;
+mod sveltekit_context;
+mod sveltekit_types;
 mod templates;
 mod tree;
 mod type_model;
@@ -53,6 +56,10 @@ pub use svelte_facade::{compile_javascript_svelte_module, compile_typescript_sve
 pub use svelte_locale::{
     compile_javascript_svelte_locale_module, compile_typescript_svelte_locale_module,
     SvelteLocaleMode,
+};
+pub use sveltekit::{
+    compile_javascript_sveltekit_control_module, compile_javascript_sveltekit_module,
+    compile_typescript_sveltekit_control_module, compile_typescript_sveltekit_module,
 };
 pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 pub use web_server_cookie::{

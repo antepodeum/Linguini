@@ -835,3 +835,12 @@ modules, URL/request policy, public type model, and target-owned source maps. Th
 TypeScript web template is retained only as a frozen test oracle. Checked target types, closed
 source matrices, URL/link/cookie safety, and concurrent request preparation run in quick/full gates
 through `tests/fixtures/golden/snapshots/js-web`.
+
+SvelteKit server adapters now use one target-aware builder through
+`compile_typescript_sveltekit_module`, `compile_javascript_sveltekit_module`,
+`compile_typescript_sveltekit_control_module`, and `compile_javascript_sveltekit_control_module`.
+The generated message and metadata adapters preserve request-local contexts, streaming page
+transforms, reroutes, canonical redirects, safe locale-switch routes, and selected cookie writes.
+Their superseded implementation templates are frozen test oracles only. Installed-SvelteKit type
+checks and executable TS/JS/frozen-runtime parity are registered quick/full gates under
+`tests/fixtures/golden/snapshots/js-sveltekit`.
