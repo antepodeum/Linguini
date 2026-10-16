@@ -1,3 +1,7 @@
+mod runtime_code;
+
+pub(crate) use runtime_code::RuntimeCode;
+
 use linguini_syntax::{SourceId, Span};
 use std::collections::BTreeMap;
 

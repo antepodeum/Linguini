@@ -1,3 +1,5 @@
+mod operands;
+
 use linguini_cldr::{Operand, PluralRule, PluralRules, RelationOperator};
 
 use crate::ecmascript::EcmaScriptTarget;
@@ -42,10 +44,7 @@ pub(crate) fn generate_plural_function_for_target(
 
     output.push_str("  return \"other\";\n");
     output.push_str("}\n\n");
-    output.push_str(match target {
-        EcmaScriptTarget::TypeScript => PLURAL_OPERANDS_TYPESCRIPT_HELPER,
-        EcmaScriptTarget::JavaScript => PLURAL_OPERANDS_JAVASCRIPT_HELPER,
-    });
+    output.push_str(&operands::render(target));
     output
 }
 
@@ -116,11 +115,6 @@ fn operand_expression(operand: Operand) -> String {
     }
     .to_owned()
 }
-
-const PLURAL_OPERANDS_TYPESCRIPT_HELPER: &str =
-    include_str!("templates/plural-operands.runtime.ts");
-const PLURAL_OPERANDS_JAVASCRIPT_HELPER: &str =
-    include_str!("templates/plural-operands.runtime.js");
 
 #[cfg(test)]
 mod tests {

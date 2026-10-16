@@ -1,6 +1,6 @@
 //! Svelte message-provider facade, with optional lightweight web controls.
 
-use super::runtime_code::RuntimeCode;
+use crate::ecmascript::RuntimeCode;
 use crate::ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport,
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,

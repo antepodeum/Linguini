@@ -2,7 +2,7 @@
 
 use crate::ecmascript::EcmaScriptTarget;
 
-use super::runtime_code::RuntimeCode;
+use crate::ecmascript::RuntimeCode;
 
 pub(super) fn shared_runtime(target: EcmaScriptTarget) -> String {
     let mut code = RuntimeCode::default();

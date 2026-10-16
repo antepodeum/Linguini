@@ -1,7 +1,7 @@
 //! Shared SvelteKit server adapters with closed cookie and switch-route capabilities.
 
-use super::runtime_code::RuntimeCode;
 use super::TypeScriptWebOptions;
+use crate::ecmascript::RuntimeCode;
 use crate::ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport,
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,

@@ -1,5 +1,5 @@
 //! Request-local metadata context forwarded by the lightweight server adapter.
-use super::runtime_code::RuntimeCode;
+use crate::ecmascript::RuntimeCode;
 pub(super) fn append(code: &mut RuntimeCode) {
     code.shared("\n");
     code.typed("function createRequestContext(\n  web: import(\"./web\").LinguiniWebLocale<Locale>,\n  resolved: Locale,\n  contextInput: Record<string, unknown>,\n) {", "/** @param {import(\"./web.js\").LinguiniWebLocale<import(\"./locale.js\").Locale>} web @param {import(\"./locale.js\").Locale} resolved @param {Record<string, unknown>} contextInput @returns {import(\"./web.js\").LinguiniLocaleRequestContext<import(\"./locale.js\").Locale>} */\nfunction createRequestContext(web, resolved, contextInput) {");

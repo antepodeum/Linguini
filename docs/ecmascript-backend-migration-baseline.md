@@ -1,9 +1,8 @@
 # ECMAScript backend migration baseline
 
-This inventory freezes the production ownership boundary before the remaining direct TypeScript
-assembly is replaced. Path families include every option-gated instance of that family. The
-migration must preserve these paths and contracts unless a separately reviewed public change says
-otherwise.
+This inventory records the original artifact contracts and their current shared-backend ownership.
+Path families include every option-gated instance. All runtime families now use the common
+ECMAScript backend; the final cross-platform non-regression gates remain tracked by ESM-M11.
 
 ## Generated artifact ownership
 
@@ -14,7 +13,7 @@ otherwise.
 | Locale semantics | optional aggregate `locales/<locale>/_globals.ts`; bundler mode also owns one encoded leaf per required enum, variable, form, or function | types are re-exported through locale declarations |
 | Locale messages | `locales/<locale>/<namespace>.ts`, `locales/<locale>.ts` | matching namespace and locale `.d.ts` files |
 | Project runtime | `locale.ts`, `index.ts` | `locale.d.ts`, `index.d.ts` |
-| Web leaves | optional `web.ts`, `web/{path,cookie,local-storage,accept-language,routes,link-transform,runtime-links,server-cookie,switch-route}.ts`; `web/path`, `web/cookie`, `web/local-storage`, `web/accept-language`, `web/routes`, and `web/link-transform` now have checked-JavaScript compilers | matching `.d.ts` files |
+| Web leaves | optional `web.ts`, `web/{path,cookie,local-storage,accept-language,routes,link-transform,runtime-links,server-cookie,switch-route}.ts`; all selected web leaves have checked-JavaScript compilers | matching `.d.ts` files |
 | Svelte | optional `svelte-locale.svelte.ts`, `svelte-effects.svelte.ts`, `svelte-control.ts`, `svelte.ts` | matching `.d.ts` files |
 | SvelteKit | optional `sveltekit-control.ts`, `sveltekit.ts` | `sveltekit-control.d.ts`, ambient `linguini-app.d.ts` |
 | Bundler leaves | `bundler/messages/<encoded-message>/<encoded-locale>.ts`, `bundler/semantic/<locale>/<kind>/<encoded-name>.ts`, and one shared `locales/<locale>/_runtime.ts` | JavaScript/JSDoc compilation changes leaf extensions to `.js`; no separate declaration companion yet |
@@ -48,10 +47,10 @@ otherwise.
   locale-global, namespace, locale-barrel, and project-entry artifact compilers also return
   target-owned maps. Trailers name the map basename. Locale artifact `sources`/`sourcesContent`
   come from ordered source records and mappings point at semantic source spans; generated-only
-  `locale`/`index` entry maps have no source records. The existing project-file generator still
-  emits those entries without maps; output ownership moves in ESM-M9. The generated-only
-  `web/path`, `web/cookie`, `web/local-storage`, `web/accept-language`, `web/routes`, and
-  `web/link-transform` artifact compilers also return target-owned maps.
+  `locale`/`index` entry maps have no source records. The source-only `generate_typescript_project_files` API
+  preserves its established return contract through the same artifact plan. The CLI uses
+  `compile_ecmascript_project_files`, which owns adjacent maps for every implementation. All
+  generated-only web/Svelte/SvelteKit artifact compilers also return target-owned maps.
 - `bundler/manifest.json` version 1 owns `base_locale`, `configured_locales`,
   `effective_locales`, `sources`, and `messages`; bundler mode also owns `locale_loading`,
   `applications`, `message_runtimes`, `message_semantics`, and `runtime_helpers`.
@@ -61,7 +60,8 @@ otherwise.
 ## Public Rust boundary
 
 - `ValidatedTypeScriptProject::try_new` is the production validation gate.
-- `generate_typescript_project_files` owns project artifact enumeration.
+- `compile_ecmascript_project_files` owns mapped project output;
+  `generate_typescript_project_files` uses the same artifact plan for source-only output.
 - `message_artifacts`, `semantic_artifacts`, `locale_runtime_artifacts`,
   `locale_globals_artifacts`, `locale_artifacts`, and `project_artifacts` own deterministic physical
   metadata.
@@ -170,7 +170,7 @@ checks and executable TS/JS/frozen-runtime parity are registered quick/full gate
 ESM-M8 is complete. All web/Svelte/SvelteKit runtime families now have shared target-aware
 compilers. All 55 registered full-profile gates are verified, including the packaged-source gate
 run after the implementation commit. The refreshed 1,356-file site artifact passes all seven
-site gates. ESM-M9 next moves project-wide output ownership and map emission onto these artifacts.
+site gates. ESM-M9 subsequently moved project-wide output ownership and map emission onto these artifacts.
 
 `compile_ecmascript_project_files(project, target, sources)` now enumerates a complete native
 TypeScript or JavaScript project through the shared module builders. It emits an owned map beside
@@ -181,3 +181,15 @@ identities and output collisions fail before filesystem writes. The established
 The CLI now consumes mapped project artifacts through its existing atomic ownership transaction.
 JavaScript namespace typedefs retain the full message API even when declarations are disabled.
 The integrated fixture is `tests/fixtures/golden/snapshots/js-complete-project`.
+
+
+ESM-M10 removes the remaining production source templates. Schema dispatch and argument helpers,
+locale formatter helpers, plural operands, locale resolution, and lazy project providers each have
+one runtime body. Target differences are explicit TypeScript/JSDoc annotations consumed by
+`ecmascript::RuntimeCode`; whole modules and their maps still belong to `EcmaModule`. Locale
+formatter lowering lives in `module/formatter_codegen.rs`, independent of expression lowering.
+Project entry metadata, imports, and runtime bodies live in cohesive `module/entry/` modules.
+Production codegen sources contain no JavaScript/TypeScript runtime files or template includes.
+The `runtime_ownership` integration test guards that boundary and retired emitter names. Frozen
+oracles remain outside production sources, with test-only substitution in `module/test_templates.rs`.
+Byte snapshots, source maps, all 151 codegen tests, and strict Clippy pass after removal.

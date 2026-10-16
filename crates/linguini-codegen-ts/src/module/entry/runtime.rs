@@ -1,7 +1,7 @@
 //! Shared lazy locale preparation and message provider runtime.
 
-use super::super::runtime_code::RuntimeCode;
 use crate::ecmascript::EcmaScriptTarget;
+use crate::ecmascript::RuntimeCode;
 
 pub(super) fn runtime(target: EcmaScriptTarget) -> String {
     let mut code = RuntimeCode::default();

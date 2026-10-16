@@ -795,7 +795,7 @@ production path uses the fix and its relevant tests pass.
       plus schema, locale shared-runtime, semantic, and aggregate locale-global modules now use it.
       Locale namespace/barrel, project entries, all closed web capabilities, Svelte browser modules,
       and both SvelteKit server adapters now use it. Project-wide artifact ownership and remaining
-      schema helper-template cleanup are still tracked by ESM-M9/M10.
+      helper-template removal are complete through ESM-M9/M10; final ESM-M11 gates remain.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
@@ -805,25 +805,26 @@ production path uses the fix and its relevant tests pass.
       now share them as well. Project entries retain checked-JavaScript locale metadata, loader,
       provider, and configure types. Overloads, local parameters, plural rules, formatter inputs,
       recursive namespace values, and defaults retain checked JSDoc types. Web, Svelte, and SvelteKit
-      modules now route both targets through common builders; project-wide JavaScript output and
-      final removal/non-regression gates remain.
+      modules and project-wide output now route both targets through common builders. Production
+      runtime-template removal is complete; final ESM-M11 non-regression gates remain.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
 - [-] ESM-A7 — Avoid a parallel TypeScript runtime implementation. Locale shared helpers now have
       one target-aware production builder; project entries now share one target-aware builder too.
-      Web/Svelte/SvelteKit modules now share target-aware builders. Remaining schema shared-helper
-      templates and legacy project enumeration must be removed in ESM-M9/M10.
+      Web/Svelte/SvelteKit modules now share target-aware builders. Schema, formatter, plural,
+      and project-entry bodies each have one implementation; no production runtime templates
+      remain. Final ESM-M11 gates remain.
 - [-] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
       modules plus semantic, locale-runtime, locale-global, namespace, and locale-barrel artifacts
       now have target-owned source maps, ordered source identity, and demand-selected helpers.
-      Project entry artifact compilers also return target-owned maps; project-wide output has not
-      migrated. Every web/Svelte/SvelteKit artifact compiler now has target-owned maps too.
+      Project-wide output and every web/Svelte/SvelteKit artifact compiler now return target-owned
+      maps too. CLI atomic ownership includes those maps; final ESM-M11 gates remain.
 - [x] ESM-A9 — Make parameterless public leaves values in both surfaces.
 - [-] ESM-A10 — Keep JavaScript generation first-class and near-zero-config. Public JavaScript
       bundler-leaf, locale-runtime, locale-global, namespace, and locale-barrel compilers now emit
       native `.js` import and source-map paths without a TypeScript transpilation pass. Project
-      entry, web, Svelte, and SvelteKit compilers now do the same; project-wide JavaScript output remains
-      outstanding.
+      entry, web, Svelte, SvelteKit, and complete project compilers do the same. Final ESM-M11 gates
+      remain before this acceptance item closes.
 
 #### Ordered removal of direct TypeScript assembly
 
@@ -900,7 +901,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       native Linux VSIX packages successfully; both development and extracted-archive extension
       hosts pass activation, restart, and real LSP hover checks against VS Code 1.120.0.
       Cross-platform final coverage remains tracked by ESM-M11.
-- [-] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
+- [x] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
       templates, adapters, compatibility branches, tests that only exercise the removed path, and
       misleading compatibility-path terminology. Repository-wide absence checks must prove one
       production ECMAScript runtime implementation and one target renderer family. Shared schema
@@ -912,8 +913,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       formatter lowering has its own module, all JavaScript formatter templates are removed,
       and pinned locale behavior plus byte snapshots pass. Project locale/index entries now
       share resolution, preparation, and provider bodies too; imports, maps, and byte snapshots
-      remain unchanged. Remaining plural-operand templates and final repository-wide absence
-      checks must be resolved before closure.
+      remain unchanged. Plural operands now share the common ECMAScript fragment renderer;
+      the final paired runtime templates are deleted. The production source inventory contains
+      no TS/JS runtime files or template includes, and an integration guard rejects their return
+      alongside retired emitter names. All 151 codegen tests and strict Clippy pass; final broad
+      non-regression and cross-platform gates remain in ESM-M11.
 - [ ] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
       strict TS/`.d.ts` corpora; executable documentation; Vite 5–8; SvelteKit production; npm
@@ -1070,8 +1074,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 - [-] P2-1 — Shared ECMAScript backend and `TypeModel`. The backend-neutral public type model now
   drives message signatures, declarations, and runtime annotations and exposes TypeScript/JSDoc
   renderers. Exact message and semantic leaves select TypeScript or JavaScript through the same
-  structured emitter; schema, runtime, project, and web/Svelte statement bodies still need the
-  same ownership transfer.
+  structured emitter. Schema, runtime, project, and web/Svelte/SvelteKit bodies now share ownership;
+  production runtime templates are gone. Final ESM-M11 gates remain before closure.
 - [x] P2-2 — End-to-end documentation propagation. Parser attachment survives schema/locale
   semantic lowering for every declaration kind and reaches exact runtime exports, recursive
   namespace properties, overloads, and `.d.ts` declarations through one safe JSDoc renderer.

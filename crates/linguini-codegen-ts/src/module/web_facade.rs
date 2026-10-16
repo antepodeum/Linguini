@@ -1,7 +1,7 @@
 //! Closed web facade: statically selected locale resolvers and shared URL/request policy.
 
-use super::runtime_code::RuntimeCode;
 use super::{TypeScriptLocaleSource, TypeScriptWebOptions};
+use crate::ecmascript::RuntimeCode;
 use crate::ecmascript::{
     EcmaImport, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaScriptTarget, EcmaStatement,
     RenderedEcmaModule,

@@ -1,8 +1,35 @@
-type PluralOperand = { integer: bigint; hasFraction: boolean };
-const MAX_PLURAL_DECIMAL_DIGITS = 8192;
+//! CLDR plural operands with one runtime body for both ECMAScript targets.
 
-function pluralOperands(value: number | bigint | string) {
-  if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
+use crate::ecmascript::{EcmaScriptTarget, RuntimeCode};
+
+pub(super) fn render(target: EcmaScriptTarget) -> String {
+    let mut code = RuntimeCode::default();
+    code.typed(
+        r#"type PluralOperand = { integer: bigint; hasFraction: boolean };
+"#,
+        r#"/**
+ * @typedef {object} PluralOperand
+ * @property {bigint} integer
+ * @property {boolean} hasFraction
+ */
+"#,
+    );
+    code.shared(
+        r#"const MAX_PLURAL_DECIMAL_DIGITS = 8192;
+
+"#,
+    );
+    code.typed(
+        r#"function pluralOperands(value: number | bigint | string) {
+"#,
+        r#"/**
+ * @param {number | bigint | string} value
+ */
+function pluralOperands(value) {
+"#,
+    );
+    code.shared(
+        r#"  if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
   const source = String(value).trim();
   // Canonical CLDR input uses lowercase c for a non-negative compact-decimal
   // exponent. Native numbers may stringify with JavaScript's signed e/E
@@ -32,9 +59,20 @@ function pluralOperands(value: number | bigint | string) {
     : Math.max(decimalPosition, digits.length);
   if (expandedLength > MAX_PLURAL_DECIMAL_DIGITS) throwInvalidPluralNumber();
 
-  let integer: string;
+"#,
+    );
+    code.typed(
+        r#"  let integer: string;
   let fraction: string;
-  if (decimalPosition <= 0) {
+"#,
+        r#"  /** @type {string} */
+  let integer;
+  /** @type {string} */
+  let fraction;
+"#,
+    );
+    code.shared(
+        r#"  if (decimalPosition <= 0) {
     integer = "0";
     fraction = `${"0".repeat(-decimalPosition)}${digits}`;
   } else if (decimalPosition >= digits.length) {
@@ -47,8 +85,21 @@ function pluralOperands(value: number | bigint | string) {
   integer = integer.replace(/^0+(?=\d)/, "");
   const trimmedFraction = fraction.replace(/0+$/, "");
   const compactExponent = typeof value === "string" ? match[4] ?? "0" : "0";
-  const operand = (digits: string, hasFraction = false): PluralOperand => ({
-    integer: BigInt(digits || "0"),
+"#,
+    );
+    code.typed(
+        r#"  const operand = (digits: string, hasFraction = false): PluralOperand => ({
+"#,
+        r#"  /**
+   * @param {string} digits
+   * @param {boolean} [hasFraction]
+   * @returns {PluralOperand}
+   */
+  const operand = (digits, hasFraction = false) => ({
+"#,
+    );
+    code.shared(
+        r#"    integer: BigInt(digits || "0"),
     hasFraction,
   });
 
@@ -64,13 +115,39 @@ function pluralOperands(value: number | bigint | string) {
   };
 }
 
-function pluralOperandMatches(
-  value: PluralOperand,
+"#,
+    );
+    code.typed(
+        "",
+        r#"/**
+ * @param {PluralOperand} value
+ * @param {bigint | undefined} modulo
+ * @param {boolean} allowFraction
+ * @param {ReadonlyArray<readonly [bigint, bigint]>} ranges
+ * @returns {boolean}
+ */
+"#,
+    );
+    code.shared(
+        r#"function pluralOperandMatches(
+"#,
+    );
+    code.typed(
+        r#"  value: PluralOperand,
   modulo: bigint | undefined,
   allowFraction: boolean,
   ranges: readonly (readonly [bigint, bigint])[],
 ): boolean {
-  const integer = modulo === undefined || modulo === 0n
+"#,
+        r#"  value,
+  modulo,
+  allowFraction,
+  ranges,
+) {
+"#,
+    );
+    code.shared(
+        r#"  const integer = modulo === undefined || modulo === 0n
     ? value.integer
     : value.integer % modulo;
   return ranges.some(([start, end]) => {
@@ -82,6 +159,19 @@ function pluralOperandMatches(
   });
 }
 
-function throwInvalidPluralNumber(): never {
-  throw new RangeError("Linguini: invalid plural numeric value");
+"#,
+    );
+    code.typed(
+        r#"function throwInvalidPluralNumber(): never {
+"#,
+        r#"/** @returns {never} */
+function throwInvalidPluralNumber() {
+"#,
+    );
+    code.shared(
+        r#"  throw new RangeError("Linguini: invalid plural numeric value");
+}
+"#,
+    );
+    code.render(target)
 }

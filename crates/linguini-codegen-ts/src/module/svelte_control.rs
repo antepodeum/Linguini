@@ -1,7 +1,7 @@
 //! Lightweight browser controls, emitted from selected web capabilities.
 
-use super::runtime_code::RuntimeCode;
 use super::TypeScriptWebOptions;
+use crate::ecmascript::RuntimeCode;
 use crate::ecmascript::{
     EcmaImport, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaScriptTarget, EcmaStatement,
     RenderedEcmaModule,

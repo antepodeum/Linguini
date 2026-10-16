@@ -1,8 +1,8 @@
 //! Framework-selected browser effects with closed, guarded capability reads.
 
-use super::runtime_code::RuntimeCode;
 use super::web_options::web_options_literal;
 use super::{TypeScriptLinkMode, TypeScriptWebOptions};
+use crate::ecmascript::RuntimeCode;
 use crate::ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport,
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,

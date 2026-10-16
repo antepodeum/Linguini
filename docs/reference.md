@@ -784,6 +784,8 @@ Numeric, currency, date, and digit formatting also share runtime bodies across t
 each locale artifact includes only its required helpers and pinned CLDR data.
 Project locale resolution and lazy message providers likewise share runtime bodies,
 with target-specific type annotations and native ESM import paths.
+Plural operand extraction uses the same model, retaining decimal precision and CLDR
+compact-exponent semantics without separate TypeScript and JavaScript implementations.
 
 `locale_loading = "dynamic"` loads client locale modules on demand and waits
 for the selected locale chunk before switching locales. SSR keeps synchronous,

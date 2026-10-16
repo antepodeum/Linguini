@@ -1,6 +1,6 @@
 //! Shared url statements for the web facade.
 
-use super::runtime_code::RuntimeCode;
+use crate::ecmascript::RuntimeCode;
 
 pub(super) fn append(code: &mut RuntimeCode) {
     code.shared("\n");

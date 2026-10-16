@@ -1,10 +1,10 @@
 //! Target annotations and project imports around the shared provider runtime.
 
-use super::super::runtime_code::RuntimeCode;
 use super::{
     locale_identifier, project_locale_import, project_locale_loaders, project_locale_modules,
     EcmaScriptTarget, TypeScriptLocaleModule,
 };
+use crate::ecmascript::RuntimeCode;
 
 pub(super) fn render(
     locales: &[TypeScriptLocaleModule],

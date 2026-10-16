@@ -1,10 +1,10 @@
 //! Project locale metadata and resolution with one runtime for both targets.
 
-use super::super::runtime_code::RuntimeCode;
 use super::{
     base_locale_literal, locale_literals, project_locale_directions, project_locale_resolution,
     EcmaScriptTarget, TypeScriptLocaleModule,
 };
+use crate::ecmascript::RuntimeCode;
 
 pub(super) fn render(
     locales: &[TypeScriptLocaleModule],

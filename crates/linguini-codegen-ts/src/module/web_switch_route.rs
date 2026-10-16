@@ -1,8 +1,8 @@
 //! Same-origin locale switching with selected server cookie persistence.
 
 use super::names::escape_string;
-use super::runtime_code::RuntimeCode;
 use super::TypeScriptWebOptions;
+use crate::ecmascript::RuntimeCode;
 use crate::ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport,
     EcmaScriptTarget, EcmaStatement, RenderedEcmaModule,
