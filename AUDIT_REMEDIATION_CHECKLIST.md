@@ -194,7 +194,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
 - [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in CLDR artifacts, while the
-  site restores a deterministic checksummed 1,356-file output bundle using Node.js only; CI
+  site restores a deterministic checksummed 1,410-file output bundle using Node.js only; CI
   independently regenerates the bundle and rejects stale bytes.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [x] #12 — Hide invalid mutable public model states behind validated constructors. `IrModule`
@@ -455,7 +455,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #197 — Reject invalid dates.
 - [x] #198 — Fail visibly on missing required CLDR data.
 - [-] #199 — Emit source maps back to Linguini sources. Bundler-native physical message and
-      semantic modules have truthful maps; direct project-wide string emitters remain unmapped.
+      semantic modules have truthful maps; CLI project output now owns maps for every
+      implementation through the shared artifact plan. Source identities, paths, contents, and
+      semantic mappings are checked; schema-only type declarations still need source provenance.
 - [x] #200 — Require every declared message in direct codegen input locales.
 - [x] #201 — Replace eager locale imports with real bundler-visible splitting. The bundler-native
       Vite path exposes one virtual dynamic entry per effective locale, with no per-message client
@@ -918,11 +920,15 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       no TS/JS runtime files or template includes, and an integration guard rejects their return
       alongside retired emitter names. All 151 codegen tests and strict Clippy pass; final broad
       non-regression and cross-platform gates remain in ESM-M11.
-- [ ] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
+- [-] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
       strict TS/`.d.ts` corpora; executable documentation; Vite 5–8; SvelteKit production; npm
       launcher; native VSIX; and Linux, Windows, and macOS CI. Close ESM-A3/A5/A7/A8/A10 and P2-1
-      only after every gate passes and no direct assembly code remains.
+      only after every gate passes and no direct assembly code remains. The final shared-backend
+      source passes all 57 local full-profile gates, including locked/offline Rust tests, strict
+      workspace Clippy, properties, checked generated targets, executable/packaged documentation,
+      and the real-site production graph. Vite 5–8 and native Linux npm/VSIX tests pass as recorded
+      in ESM-M9. Cross-platform CI must still run against this source before acceptance closes.
 
 ### Documentation identity through codegen
 
@@ -1040,10 +1046,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 - [x] P0-1 — Hermetic read-only CLDR compilation.
 - [x] P0-2 — Safe manifest-owned output root.
-- [-] P0-3 — Correct form IR plus JS/JSDoc/`.d.ts` runtime corpus. Exact JavaScript message and
+- [x] P0-3 — Correct form IR plus JS/JSDoc/`.d.ts` runtime corpus. Exact JavaScript message and
       semantic-form/function leaves now share the TypeScript dependency closure and structured
       emitter, preserve overload JSDoc, and reject TypeScript-only syntax in regression coverage;
-      the project-wide JavaScript/runtime corpus remains outstanding.
+      the complete project corpus now checks native JavaScript with and without declarations,
+      TypeScript, namespace calls, fallback, lazy preparation, and provider execution. All 57
+      full-profile gates pass after removal of the duplicate runtime templates.
 - [x] P0-4 — Validated project capability as the only emitter entry.
 - [x] P0-5 — Blocking CLI error severity.
 - [x] P0-6 — Atomic cross-kind locale indexes.
