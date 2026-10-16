@@ -910,8 +910,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       pass, and executable helper parity covers fallback precedence and hostile argument keys.
       Numeric/date/digit helpers and number/currency wrappers now share runtime bodies too;
       formatter lowering has its own module, all JavaScript formatter templates are removed,
-      and pinned locale behavior plus byte snapshots pass. Remaining project-entry duplication
-      and final repository-wide absence checks must be resolved before closure.
+      and pinned locale behavior plus byte snapshots pass. Project locale/index entries now
+      share resolution, preparation, and provider bodies too; imports, maps, and byte snapshots
+      remain unchanged. Remaining plural-operand templates and final repository-wide absence
+      checks must be resolved before closure.
 - [ ] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
       strict TS/`.d.ts` corpora; executable documentation; Vite 5–8; SvelteKit production; npm
