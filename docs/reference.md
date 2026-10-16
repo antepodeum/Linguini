@@ -780,6 +780,8 @@ await. Eager locale loading retains Vite's default target.
 Generated TypeScript and checked JavaScript use the same dispatch and message-argument
 normalization bodies. Dispatch checks own branches before `_` and `other` fallbacks;
 named arguments reject unknown own keys, including symbols.
+Numeric, currency, date, and digit formatting also share runtime bodies across targets;
+each locale artifact includes only its required helpers and pinned CLDR data.
 
 `locale_loading = "dynamic"` loads client locale modules on demand and waits
 for the selected locale chunk before switching locales. SSR keeps synchronous,

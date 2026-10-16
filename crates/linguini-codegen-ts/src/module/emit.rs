@@ -7,9 +7,10 @@ use crate::ecmascript::{EcmaImport, EcmaImportBindings, EcmaNamedImport};
 use crate::plural::generate_plural_function_for_target;
 
 use super::expr::{
-    form_object_for_target, formatter_data_declaration, function_dispatch_expression_for_target,
-    text_expression_for_target, text_expression_with_context_for_target,
+    form_object_for_target, function_dispatch_expression_for_target, text_expression_for_target,
+    text_expression_with_context_for_target,
 };
+use super::formatter_codegen::formatter_data_declaration_for_target;
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
     emit_docs, emit_docs_with_tags, escape_string, form_binding_name, function_name, property_key,
@@ -185,11 +186,17 @@ pub fn emit_formatter_data(
     schema: &IrModule,
     locale: &IrModule,
     options: &TypeScriptOptions,
+    target: EcmaScriptTarget,
     output: &mut String,
 ) {
     let requirements = formatter_requirements(schema, locale);
     if requirements.any() {
-        output.push_str(&formatter_data_declaration(&options.locale, requirements));
+        output.push_str(&formatter_data_declaration_for_target(
+            &options.locale,
+            requirements,
+            target,
+            false,
+        ));
     }
 }
 

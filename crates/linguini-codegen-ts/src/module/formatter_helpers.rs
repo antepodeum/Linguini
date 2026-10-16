@@ -1,12 +1,30 @@
-/**
+//! Numeric, date, and digit helper bodies with explicit target type annotations.
+
+use crate::ecmascript::EcmaScriptTarget;
+
+use super::runtime_code::RuntimeCode;
+
+pub(super) fn number_formatter_helpers(target: EcmaScriptTarget) -> String {
+    let mut code = RuntimeCode::default();
+    code.typed(
+        r#"type GeneratedDecimal = { negative: boolean; integer: string; fraction: string };
+"#,
+        r#"/**
  * @typedef {object} GeneratedDecimal
  * @property {boolean} negative
  * @property {string} integer
  * @property {string} fraction
  */
-const MAX_GENERATED_DECIMAL_DIGITS = 8192;
+"#,
+    );
+    code.shared(
+        r#"const MAX_GENERATED_DECIMAL_DIGITS = 8192;
 
-/**
+"#,
+    );
+    code.typed(
+        "",
+        r#"/**
  * @param {GeneratedNumeric} value
  * @param {string} prefix
  * @param {string} suffix
@@ -34,8 +52,41 @@ const MAX_GENERATED_DECIMAL_DIGITS = 8192;
  * @param {number} [roundingIncrementOverride]
  * @returns {string}
  */
-function formatGeneratedNumber(
-  value,
+"#,
+    );
+    code.shared(
+        r#"function formatGeneratedNumber(
+"#,
+    );
+    code.typed(
+        r#"  value: GeneratedNumeric,
+  prefix: string,
+  suffix: string,
+  negativePrefix: string | undefined,
+  negativeSuffix: string | undefined,
+  minIntegerDigits: number,
+  minFractionDigits: number,
+  maxFractionDigits: number,
+  primaryGroupSize: number | undefined,
+  secondaryGroupSize: number | undefined,
+  decimalSymbol: string,
+  groupSymbol: string,
+  digits: string,
+  scale: number,
+  minSignificantDigits: number | undefined,
+  maxSignificantDigits: number | undefined,
+  patternRoundingIncrement: string | undefined,
+  exponentDigits: number | undefined,
+  exponentSignAlways: boolean,
+  paddingCharacter: string | undefined,
+  formatWidth: number | undefined,
+  paddingPosition: number | undefined,
+  minFractionDigitsOverride?: number,
+  maxFractionDigitsOverride?: number,
+  roundingIncrementOverride?: number,
+): string {
+"#,
+        r#"  value,
   prefix,
   suffix,
   negativePrefix,
@@ -61,14 +112,25 @@ function formatGeneratedNumber(
   maxFractionDigitsOverride,
   roundingIncrementOverride,
 ) {
-  let decimal = parseGeneratedDecimal(value);
+"#,
+    );
+    code.shared(
+        r#"  let decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
   decimal = scaleGeneratedDecimal(decimal, scale);
   const effectiveMinFractionDigits = minFractionDigitsOverride ?? minFractionDigits;
   const effectiveMaxFractionDigits = maxFractionDigitsOverride ?? maxFractionDigits;
-  /** @type {number | undefined} */
+"#,
+    );
+    code.typed(
+        r#"  let exponent: number | undefined;
+"#,
+        r#"  /** @type {number | undefined} */
   let exponent;
-  if (exponentDigits !== undefined) {
+"#,
+    );
+    code.shared(
+        r#"  if (exponentDigits !== undefined) {
     ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
   }
   let rounded = maxSignificantDigits === undefined
@@ -114,12 +176,20 @@ function formatGeneratedNumber(
   );
 }
 
-/**
+"#,
+    );
+    code.typed(
+        r#"function parseGeneratedDecimal(value: GeneratedNumeric): GeneratedDecimal | undefined {
+"#,
+        r#"/**
  * @param {GeneratedNumeric} value
  * @returns {GeneratedDecimal | undefined}
  */
 function parseGeneratedDecimal(value) {
-  if (typeof value === "number" && !Number.isFinite(value)) return undefined;
+"#,
+    );
+    code.shared(
+        r#"  if (typeof value === "number" && !Number.isFinite(value)) return undefined;
   const negativeZero = typeof value === "number" && Object.is(value, -0);
   const source = String(value);
   const match = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(source);
@@ -144,11 +214,20 @@ function parseGeneratedDecimal(value) {
     : Math.max(decimalPosition, digits.length);
   if (expandedLength > MAX_GENERATED_DECIMAL_DIGITS) throwInvalidNumber();
 
-  /** @type {string} */
+"#,
+    );
+    code.typed(
+        r#"  let integer: string;
+  let fraction: string;
+"#,
+        r#"  /** @type {string} */
   let integer;
   /** @type {string} */
   let fraction;
-  if (decimalPosition <= 0) {
+"#,
+    );
+    code.shared(
+        r#"  if (decimalPosition <= 0) {
     integer = "0";
     fraction = `${"0".repeat(-decimalPosition)}${digits}`;
   } else if (decimalPosition >= digits.length) {
@@ -167,13 +246,18 @@ function parseGeneratedDecimal(value) {
   };
 }
 
-/**
+"#,
+    );
+    code.typed(r#"function scaleGeneratedDecimal(decimal: GeneratedDecimal, scale: number): GeneratedDecimal {
+"#, r#"/**
  * @param {GeneratedDecimal} decimal
  * @param {number} scale
  * @returns {GeneratedDecimal}
  */
 function scaleGeneratedDecimal(decimal, scale) {
-  const shift = scale === 1 ? 0 : scale === 100 ? 2 : scale === 1000 ? 3 : -1;
+"#);
+    code.shared(
+        r#"  const shift = scale === 1 ? 0 : scale === 100 ? 2 : scale === 1000 ? 3 : -1;
   if (shift < 0) throwInvalidNumber();
   if (shift === 0) return decimal;
   const source = `${decimal.integer}${decimal.fraction}`;
@@ -185,19 +269,38 @@ function scaleGeneratedDecimal(decimal, scale) {
   return { negative: decimal.negative, integer, fraction };
 }
 
-/**
+"#,
+    );
+    code.typed(
+        r#"function scientificGeneratedDecimal(
+  decimal: GeneratedDecimal,
+): { decimal: GeneratedDecimal; exponent: number } {
+"#,
+        r#"/**
  * @param {GeneratedDecimal} decimal
  * @returns {{ decimal: GeneratedDecimal, exponent: number }}
  */
 function scientificGeneratedDecimal(decimal) {
-  if (/^0+$/.test(decimal.integer) && !/[1-9]/.test(decimal.fraction)) {
+"#,
+    );
+    code.shared(
+        r#"  if (/^0+$/.test(decimal.integer) && !/[1-9]/.test(decimal.fraction)) {
     return { decimal: { ...decimal, integer: "0", fraction: "" }, exponent: 0 };
   }
-  /** @type {string} */
+"#,
+    );
+    code.typed(
+        r#"  let source: string;
+  let exponent: number;
+"#,
+        r#"  /** @type {string} */
   let source;
   /** @type {number} */
   let exponent;
-  if (/[1-9]/.test(decimal.integer)) {
+"#,
+    );
+    code.shared(
+        r#"  if (/[1-9]/.test(decimal.integer)) {
     source = `${decimal.integer}${decimal.fraction}`;
     exponent = decimal.integer.length - 1;
   } else {
@@ -215,13 +318,24 @@ function scientificGeneratedDecimal(decimal) {
   };
 }
 
-/**
+"#,
+    );
+    code.typed(
+        r#"function roundGeneratedSignificant(
+  decimal: GeneratedDecimal,
+  maximumDigits: number,
+): { integer: string; fraction: string } {
+"#,
+        r#"/**
  * @param {GeneratedDecimal} decimal
  * @param {number} maximumDigits
  * @returns {{ integer: string, fraction: string }}
  */
 function roundGeneratedSignificant(decimal, maximumDigits) {
-  if (
+"#,
+    );
+    code.shared(
+        r#"  if (
     !Number.isSafeInteger(maximumDigits) ||
     maximumDigits < 1 ||
     maximumDigits > MAX_GENERATED_DECIMAL_DIGITS
@@ -245,21 +359,45 @@ function roundGeneratedSignificant(decimal, maximumDigits) {
   };
 }
 
-/**
+"#,
+    );
+    code.typed(
+        r#"function padGeneratedSignificant(
+  integer: string,
+  fraction: string,
+  minimumDigits: number,
+): string {
+"#,
+        r#"/**
  * @param {string} integer
  * @param {string} fraction
  * @param {number} minimumDigits
  * @returns {string}
  */
 function padGeneratedSignificant(integer, fraction, minimumDigits) {
-  if (!Number.isSafeInteger(minimumDigits) || minimumDigits < 1) throwInvalidNumber();
+"#,
+    );
+    code.shared(
+        r#"  if (!Number.isSafeInteger(minimumDigits) || minimumDigits < 1) throwInvalidNumber();
   const combined = `${integer}${fraction}`;
   const first = combined.search(/[1-9]/);
   const current = first < 0 ? 1 : combined.length - first;
   return fraction.padEnd(fraction.length + Math.max(0, minimumDigits - current), "0");
 }
 
-/**
+"#,
+    );
+    code.typed(
+        r#"function padGeneratedNumber(
+  prefix: string,
+  number: string,
+  suffix: string,
+  character: string | undefined,
+  width: number | undefined,
+  position: number | undefined,
+): string {
+"#,
+        r#"/**
  * @param {string} prefix
  * @param {string} number
  * @param {string} suffix
@@ -269,7 +407,10 @@ function padGeneratedSignificant(integer, fraction, minimumDigits) {
  * @returns {string}
  */
 function padGeneratedNumber(prefix, number, suffix, character, width, position) {
-  if (character === undefined || width === undefined || position === undefined) {
+"#,
+    );
+    code.shared(
+        r#"  if (character === undefined || width === undefined || position === undefined) {
     return `${prefix}${number}${suffix}`;
   }
   if ([...character].length !== 1 || !Number.isSafeInteger(width) || width < 0) {
@@ -285,14 +426,26 @@ function padGeneratedNumber(prefix, number, suffix, character, width, position) 
   }
 }
 
-/**
+"#,
+    );
+    code.typed(
+        r#"function roundGeneratedDecimal(
+  decimal: GeneratedDecimal,
+  fractionDigits: number,
+  roundingIncrement: number | string,
+): { integer: string; fraction: string } {
+"#,
+        r#"/**
  * @param {GeneratedDecimal} decimal
  * @param {number} fractionDigits
  * @param {number | string} roundingIncrement
  * @returns {{ integer: string, fraction: string }}
  */
 function roundGeneratedDecimal(decimal, fractionDigits, roundingIncrement) {
-  const quantumSource = String(roundingIncrement || 1);
+"#,
+    );
+    code.shared(
+        r#"  const quantumSource = String(roundingIncrement || 1);
   if (
     !Number.isSafeInteger(fractionDigits) ||
     fractionDigits < 0 ||
@@ -308,9 +461,17 @@ function roundGeneratedDecimal(decimal, fractionDigits, roundingIncrement) {
   const scaled = BigInt(`${decimal.integer}${keptFraction}` || "0");
   const quantum = BigInt(quantumSource);
   const remainder = scaled % quantum;
-  /** @type {boolean} */
+"#,
+    );
+    code.typed(
+        r#"  let roundUp: boolean;
+"#,
+        r#"  /** @type {boolean} */
   let roundUp;
-  if (discarded === "") {
+"#,
+    );
+    code.shared(
+        r#"  if (discarded === "") {
     roundUp = remainder * 2n >= quantum;
   } else {
     const denominator = 10n ** BigInt(discarded.length);
@@ -327,19 +488,37 @@ function roundGeneratedDecimal(decimal, fractionDigits, roundingIncrement) {
       };
 }
 
-/**
+"#,
+    );
+    code.typed(
+        r#"function trimOptionalFractionDigits(fraction: string, minDigits: number): string {
+"#,
+        r#"/**
  * @param {string} fraction
  * @param {number} minDigits
  * @returns {string}
  */
 function trimOptionalFractionDigits(fraction, minDigits) {
-  while (fraction.length > minDigits && fraction.endsWith("0")) {
+"#,
+    );
+    code.shared(
+        r#"  while (fraction.length > minDigits && fraction.endsWith("0")) {
     fraction = fraction.slice(0, -1);
   }
   return fraction;
 }
 
-/**
+"#,
+    );
+    code.typed(
+        r#"function groupIntegerDigits(
+  integer: string,
+  primaryGroupSize: number | undefined,
+  secondaryGroupSize: number | undefined,
+  groupSymbol: string,
+): string {
+"#,
+        r#"/**
  * @param {string} integer
  * @param {number | undefined} primaryGroupSize
  * @param {number | undefined} secondaryGroupSize
@@ -347,10 +526,21 @@ function trimOptionalFractionDigits(fraction, minDigits) {
  * @returns {string}
  */
 function groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, groupSymbol) {
-  if (!primaryGroupSize || integer.length <= primaryGroupSize) return integer;
-  /** @type {string[]} */
+"#,
+    );
+    code.shared(
+        r#"  if (!primaryGroupSize || integer.length <= primaryGroupSize) return integer;
+"#,
+    );
+    code.typed(
+        r#"  const groups: string[] = [];
+"#,
+        r#"  /** @type {string[]} */
   const groups = [];
-  let end = integer.length;
+"#,
+    );
+    code.shared(
+        r#"  let end = integer.length;
   let groupSize = primaryGroupSize;
   while (end > 0) {
     const start = Math.max(0, end - groupSize);
@@ -361,7 +551,148 @@ function groupIntegerDigits(integer, primaryGroupSize, secondaryGroupSize, group
   return groups.join(groupSymbol);
 }
 
-/** @returns {never} */
+"#,
+    );
+    code.typed(
+        r#"function throwInvalidNumber(): never {
+"#,
+        r#"/** @returns {never} */
 function throwInvalidNumber() {
-  throw new RangeError("Linguini: invalid numeric value");
+"#,
+    );
+    code.shared(
+        r#"  throw new RangeError("Linguini: invalid numeric value");
+}
+"#,
+    );
+    code.typed("\n", "");
+    code.render(target)
+}
+
+pub(super) fn digit_formatter_helper(target: EcmaScriptTarget) -> String {
+    let mut code = RuntimeCode::default();
+    code.typed(
+        r#"function localizeGeneratedDigits(value: string, digits: string): string {
+"#,
+        r#"/**
+ * @param {string} value
+ * @param {string} digits
+ * @returns {string}
+ */
+function localizeGeneratedDigits(value, digits) {
+"#,
+    );
+    code.shared(
+        r#"  if (digits === "0123456789") return value;
+  const symbols = Array.from(digits);
+  if (symbols.length !== 10) throw new RangeError("Linguini: invalid numbering system");
+  return value.replace(/\d/g, (digit) => symbols[digit.charCodeAt(0) - 48]);
+}
+"#,
+    );
+    code.typed("\n", "");
+    code.render(target)
+}
+
+pub(super) fn date_formatter_helpers(target: EcmaScriptTarget) -> String {
+    let mut code = RuntimeCode::default();
+    code.typed(
+        r#"function padNumber(value: number, length: number): string {
+"#,
+        r#"/**
+ * @param {number} value
+ * @param {number} length
+ * @returns {string}
+ */
+function padNumber(value, length) {
+"#,
+    );
+    code.shared(
+        r#"  return String(value).padStart(length, "0");
+}
+
+"#,
+    );
+    code.typed(
+        r#"function coerceDate(value: Date | number | string): Date {
+  let date: Date;
+"#,
+        r#"/**
+ * @param {Date | number | string} value
+ * @returns {Date}
+ */
+function coerceDate(value) {
+  /** @type {Date} */
+  let date;
+"#,
+    );
+    code.shared(r#"  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === "string") {
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (dateOnly) {
+      const year = Number(dateOnly[1]);
+      const month = Number(dateOnly[2]);
+      const day = Number(dateOnly[3]);
+      date = createUTCDate(year, month, day);
+    } else {
+      const dateTime =
+        /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/.exec(value);
+      if (!dateTime) throwInvalidDate();
+      createUTCDate(Number(dateTime[1]), Number(dateTime[2]), Number(dateTime[3]));
+      const hasTimeZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
+      date = new Date(hasTimeZone ? value : `${value}Z`);
+    }
+  } else {
+    date = new Date(value);
+  }
+  if (!Number.isFinite(date.getTime())) {
+    throwInvalidDate();
+  }
+  return date;
+}
+
+"#);
+    code.typed(
+        r#"function createUTCDate(year: number, month: number, day: number): Date {
+"#,
+        r#"/**
+ * @param {number} year
+ * @param {number} month
+ * @param {number} day
+ * @returns {Date}
+ */
+function createUTCDate(year, month, day) {
+"#,
+    );
+    code.shared(
+        r#"  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throwInvalidDate();
+  }
+  return date;
+}
+
+"#,
+    );
+    code.typed(
+        r#"function throwInvalidDate(): never {
+"#,
+        r#"/** @returns {never} */
+function throwInvalidDate() {
+"#,
+    );
+    code.shared(
+        r#"  throw new RangeError("Linguini: invalid date value");
+}
+"#,
+    );
+    code.typed("\n", "");
+    code.render(target)
 }

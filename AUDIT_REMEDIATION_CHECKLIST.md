@@ -908,7 +908,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       schema and single-index templates are removed, and template substitution is test-only.
       Existing artifact snapshots remain byte-identical, all 150 codegen tests and strict Clippy
       pass, and executable helper parity covers fallback precedence and hostile argument keys.
-      Remaining project-entry and formatter helper duplication must be removed before closure.
+      Numeric/date/digit helpers and number/currency wrappers now share runtime bodies too;
+      formatter lowering has its own module, all JavaScript formatter templates are removed,
+      and pinned locale behavior plus byte snapshots pass. Remaining project-entry duplication
+      and final repository-wide absence checks must be resolved before closure.
 - [ ] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
       strict TS/`.d.ts` corpora; executable documentation; Vite 5–8; SvelteKit production; npm

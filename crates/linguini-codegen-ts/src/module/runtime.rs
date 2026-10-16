@@ -8,7 +8,7 @@ use crate::ecmascript::{
 };
 use crate::plural::generate_plural_function_for_target;
 
-use super::expr::formatter_data_declaration_for_target;
+use super::formatter_codegen::formatter_data_declaration_for_target;
 use super::formatters::{formatter_requirements, plural_required};
 use super::message::ordered_sources;
 use super::{

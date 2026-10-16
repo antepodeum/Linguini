@@ -342,7 +342,7 @@ fn emit_message_module(
 
     if runtime_import_path.is_none() {
         let mut formatter_data = String::new();
-        emit_formatter_data(schema, locale, options, &mut formatter_data);
+        emit_formatter_data(schema, locale, options, target, &mut formatter_data);
         push_chunk(&mut statements, formatter_data, None);
     }
 
