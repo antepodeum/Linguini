@@ -886,14 +886,20 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       preparation/isolation, streaming, redirect/switch safety, cookie policy, and real Svelte rune
       compilation pass. All 55 full-profile gates are verified, including packaged documentation
       after the source commit; the freshly regenerated real site passes all seven site gates.
-- [-] ESM-M9 — Switch CLI output ownership, bundler manifests, Vite virtual-module resolution,
+- [x] ESM-M9 — Switch CLI output ownership, bundler manifests, Vite virtual-module resolution,
       HMR invalidation, npm examples, and VSIX consumers to structured artifacts. Require atomic
       write/cleanup parity, unchanged portable paths, truthful source maps, Vite 5–8 integration,
       real-site production graph checks, native npm CLI tests, and native VSIX tests. Project-wide
       TS/JS enumeration now shares one artifact plan, and the CLI uses its source-mapped TypeScript
       path. Source-only JS preserves namespace typedefs without declaration companions; source
-      identities, map paths/content, and atomic ownership are covered. Remaining consumer/target
-      integration and final broad gates must pass before closure.
+      identities, map paths/content, and atomic ownership are covered. Vite 5.4.21, 6.4.4, 7.3.7,
+      and 8.3.4 each pass all 46 plugin/integration tests; dynamic registries select an ES2022
+      default while preserving explicit targets. Quick checks pass 44/44 and the real site's
+      seven production gates pass after refreshing its local plugin dependency. Packed Linux
+      x64 npm launcher/native archives pass version, init, and source-mapped build checks. The
+      native Linux VSIX packages successfully; both development and extracted-archive extension
+      hosts pass activation, restart, and real LSP hover checks against VS Code 1.120.0.
+      Cross-platform final coverage remains tracked by ESM-M11.
 - [ ] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
       templates, adapters, compatibility branches, tests that only exercise the removed path, and
       misleading compatibility-path terminology. Repository-wide absence checks must prove one

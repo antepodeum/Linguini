@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import MagicString from "magic-string";
 import { parse as parseToml } from "smol-toml";
+import { localeBuildConfig } from "./build-target.js";
 
 const DEFAULT_CONFIG_FILE = "linguini.toml";
 const DEFAULT_SCHEMA_DIR = "linguini/schema";
@@ -272,6 +273,7 @@ export function linguini(options = {}) {
       const generatedRoot = projectLayout.generatedRoot;
       const manifestPath = path.join(generatedRoot, MANIFEST_RELATIVE_PATH);
       return {
+        ...localeBuildConfig(projectLayout.localeLoading, config.build),
         server: {
           watch: {
             // Keep this as an array so Vite's normal config merge composes it

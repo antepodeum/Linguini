@@ -727,6 +727,22 @@ test("ignores generated output and transaction trees without hiding the manifest
   }
 });
 
+test("defaults dynamic builds to top-level-await support and preserves explicit targets", async (context) => {
+  for (const localeLoading of ["eager", "dynamic"]) {
+    const { root } = await dynamicLocaleFixture({ configLocaleLoading: localeLoading });
+    context.after(() => rm(root, { recursive: true, force: true }));
+    for (const target of [undefined, "esnext", "modules", ["chrome100", "safari15"]]) {
+      const build = target === undefined ? undefined : { target };
+      const config = await linguini().config({ root, build });
+      assert.deepEqual(
+        config.build,
+        localeLoading === "dynamic" && target === undefined ? { target: "es2022" } : undefined
+      );
+      assert.deepEqual(build, target === undefined ? undefined : { target });
+    }
+  }
+});
+
 test("rejects configured paths outside the project", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-"));
   context.after(() => rm(root, { recursive: true, force: true }));

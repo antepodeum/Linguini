@@ -772,6 +772,11 @@ mode = "bundle"
 allow = ["main.title", "admin.notice"]
 ```
 
+Dynamic locale registries require top-level await. With `locale_loading = "dynamic"`,
+the Vite plugin defaults an unset `build.target` to `es2022` on all supported Vite
+versions (5–8). Explicit application targets are preserved and must support top-level
+await. Eager locale loading retains Vite's default target.
+
 `locale_loading = "dynamic"` loads client locale modules on demand and waits
 for the selected locale chunk before switching locales. SSR keeps synchronous,
 static locale imports. Omit the field for eager loading.

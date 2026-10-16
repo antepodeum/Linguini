@@ -30,3 +30,8 @@ Options:
 
 The published entry point is native Node ESM and supports Vite 5–8. The package
 ships its source entry intentionally; it does not require a transpilation step.
+
+Dynamic locale loading uses top-level await to prepare the initial locale before
+message calls. When `locale_loading = "dynamic"` and `build.target` is unset, the
+plugin selects `es2022`, including on Vite 5 and 6. Explicit targets are preserved;
+they must support top-level await. Eager locale loading keeps Vite's default target.

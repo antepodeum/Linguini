@@ -11,6 +11,10 @@ editor boundaries to update this file, public documentation, and executable test
 
 ## 0.1.0-alpha.4 remediation baseline
 
+- Vite applications using `locale_loading = "dynamic"` now default to an ES2022
+  build target when `build.target` is unset, so initial-locale preparation also
+  builds on Vite 5 and 6. Explicit targets remain authoritative and must support
+  top-level await; eager locale loading keeps Vite's default target.
 - Regenerate TypeScript output after upgrading. Generated `normalizeLocale` now uses the complete
   project-specific lookup lowered from Linguini's pinned CLDR graph instead of combining a
   JavaScript truncation heuristic with exceptional overrides.
