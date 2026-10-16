@@ -900,10 +900,15 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       native Linux VSIX packages successfully; both development and extracted-archive extension
       hosts pass activation, restart, and real LSP hover checks against VS Code 1.120.0.
       Cross-platform final coverage remains tracked by ESM-M11.
-- [ ] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
+- [-] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
       templates, adapters, compatibility branches, tests that only exercise the removed path, and
       misleading compatibility-path terminology. Repository-wide absence checks must prove one
-      production ECMAScript runtime implementation and one target renderer family.
+      production ECMAScript runtime implementation and one target renderer family. Shared schema
+      dispatch/argument helpers now use one runtime body with explicit type annotations; obsolete
+      schema and single-index templates are removed, and template substitution is test-only.
+      Existing artifact snapshots remain byte-identical, all 150 codegen tests and strict Clippy
+      pass, and executable helper parity covers fallback precedence and hostile argument keys.
+      Remaining project-entry and formatter helper duplication must be removed before closure.
 - [ ] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
       strict TS/`.d.ts` corpora; executable documentation; Vite 5–8; SvelteKit production; npm

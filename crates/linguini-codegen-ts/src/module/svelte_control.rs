@@ -256,7 +256,7 @@ mod tests {
                     sveltekit && options.features().has_path
                 );
                 assert!(!js.code.contains("./index"));
-                let declaration = super::super::templates::render_template(
+                let declaration = super::super::test_templates::render_template(
                     &std::fs::read_to_string(root.join("legacy/svelte-control.runtime.d.ts"))
                         .unwrap(),
                     &[(

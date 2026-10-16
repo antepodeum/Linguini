@@ -17,6 +17,7 @@ mod runtime;
 mod runtime_code;
 mod semantic;
 mod shared;
+mod shared_runtime;
 mod signature;
 mod svelte_control;
 mod svelte_control_types;
@@ -27,7 +28,8 @@ mod svelte_locale;
 mod sveltekit;
 mod sveltekit_context;
 mod sveltekit_types;
-mod templates;
+#[cfg(test)]
+mod test_templates;
 mod tree;
 mod type_model;
 mod web_accept_language;

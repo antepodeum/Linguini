@@ -253,7 +253,7 @@ fn request_context(code: &mut RuntimeCode, messages: bool, has_cookie: bool) {
 #[cfg(test)]
 mod tests {
     use super::super::{
-        templates::render_template, TypeScriptLocaleSource, TypeScriptWebSwitchRoute,
+        test_templates::render_template, TypeScriptLocaleSource, TypeScriptWebSwitchRoute,
     };
     use super::*;
     use std::path::Path;

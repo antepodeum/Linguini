@@ -4,7 +4,7 @@ use crate::ecmascript::{EcmaModule, EcmaModuleOutput, EcmaStatement};
 
 use super::emit::{emit_enums, emit_type_aliases};
 use super::names::{emit_docs_with_tags, escape_string, safe_identifier, JsDocTag};
-use super::templates::{SHARED_DECLARATIONS, SHARED_RUNTIME};
+use super::shared_runtime::{shared_declarations, shared_runtime};
 use super::type_model::{render_jsdoc_type, TypeModel};
 
 pub fn generate_shared_module(
@@ -38,11 +38,9 @@ pub(super) fn shared_module(
         });
     }
     let runtime = if declaration {
-        SHARED_DECLARATIONS.to_owned()
-    } else if target.is_typescript() {
-        SHARED_RUNTIME.to_owned()
+        shared_declarations().to_owned()
     } else {
-        javascript_shared_runtime()
+        shared_runtime(target)
     };
     module.push_statement(EcmaStatement::generated(if has_types {
         format!("\n{runtime}")
@@ -81,58 +79,6 @@ fn emit_jsdoc_schema_types(schema: &IrModule, output: &mut String) {
             output,
         );
     }
-}
-
-fn javascript_shared_runtime() -> String {
-    r#"/**
- * @template T
- * @param {string} key
- * @param {Record<string, T>} branches
- * @returns {T}
- */
-export function selectBranch(key, branches) {
-  if (Object.prototype.hasOwnProperty.call(branches, key)) {
-    return branches[key];
-  }
-  if (Object.prototype.hasOwnProperty.call(branches, "_")) {
-    return branches._;
-  }
-  if (Object.prototype.hasOwnProperty.call(branches, "other")) {
-    return branches.other;
-  }
-  throw new Error(`Linguini dispatch has no branch for key ${JSON.stringify(key)}`);
-}
-
-/**
- * @param {readonly unknown[]} values
- * @param {readonly string[]} keys
- * @returns {unknown[]}
- */
-export function normalizeMessageArgs(values, keys) {
-  if (values.length !== 1) {
-    return [...values];
-  }
-  const candidate = values[0];
-  if (typeof candidate !== "object" || candidate === null) {
-    return [...values];
-  }
-  const record = /** @type {Record<string, unknown>} */ (candidate);
-  if (!keys.every((key) => Object.prototype.hasOwnProperty.call(record, key))) {
-    return [...values];
-  }
-  const unknown = Reflect.ownKeys(record)
-    .filter((key) => typeof key !== "string" || !keys.includes(key))
-    .map(String)
-    .sort();
-  if (unknown.length > 0) {
-    throw new TypeError(
-      `Linguini message arguments contain unknown keys: ${unknown.join(", ")}`,
-    );
-  }
-  return keys.map((key) => record[key]);
-}
-"#
-    .to_owned()
 }
 
 #[cfg(test)]

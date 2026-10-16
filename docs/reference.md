@@ -777,6 +777,10 @@ the Vite plugin defaults an unset `build.target` to `es2022` on all supported Vi
 versions (5–8). Explicit application targets are preserved and must support top-level
 await. Eager locale loading retains Vite's default target.
 
+Generated TypeScript and checked JavaScript use the same dispatch and message-argument
+normalization bodies. Dispatch checks own branches before `_` and `other` fallbacks;
+named arguments reject unknown own keys, including symbols.
+
 `locale_loading = "dynamic"` loads client locale modules on demand and waits
 for the selected locale chunk before switching locales. SSR keeps synchronous,
 static locale imports. Omit the field for eager loading.

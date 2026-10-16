@@ -216,7 +216,7 @@ mod tests {
             let js = compile_javascript_web_switch_route_module(&options).unwrap();
             assert_eq!(js.code.contains("persistLocaleCookie"), has_cookie);
             assert!(!js.code.contains("handleLocaleSwitchRoute<"));
-            let legacy = super::super::templates::render_template(&std::fs::read_to_string(root.join("legacy/web.switch-route.runtime.ts")).unwrap(), &[
+            let legacy = super::super::test_templates::render_template(&std::fs::read_to_string(root.join("legacy/web.switch-route.runtime.ts")).unwrap(), &[
                 ("SERVER_COOKIE_IMPORT", if has_cookie { "import { persistLocaleCookie } from \"./server-cookie.js\";" } else { "" }.to_owned()),
                 ("SWITCH_ROUTE_PATH", path.to_owned()), ("SWITCH_ROUTE_RETURN_QUERY", return_query.to_owned()), ("SWITCH_ROUTE_STATUS", status.to_string()),
                 ("PERSIST_SWITCH_COOKIE", if has_cookie { "  if (web.options.locale.switch.writesCookie) {\n    persistLocaleCookie(web, response, locale, { origin: event.url.origin });\n  }" } else { "" }.to_owned()),

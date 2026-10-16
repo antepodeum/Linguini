@@ -210,7 +210,7 @@ mod tests {
                 let js = compile_javascript_svelte_effects_module(&options, sveltekit);
                 let legacy =
                     std::fs::read_to_string(root.join("legacy/svelte-effects.runtime.ts")).unwrap();
-                let rendered = super::super::templates::render_template(&legacy, &[
+                let rendered = super::super::test_templates::render_template(&legacy, &[
                     ("BROWSER_RUNTIME", String::new()),
                     ("OPTIONS", web_options_literal(&options, EcmaScriptTarget::TypeScript)),
                     ("ENVIRONMENT", if sveltekit { "{ base }" } else { "{}" }.to_owned()),
