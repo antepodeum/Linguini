@@ -806,7 +806,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [-] ESM-A3 — Use one structured ECMAScript emitter with explicit module interfaces and
       artifact ownership for exact messages, semantic variables/forms/functions, schema types,
       locale helpers/globals, namespace modules/barrels, project entries, optional web helpers,
-      Svelte adapters, and SvelteKit adapters. Common semantic/type/dependency planning belongs in
+      Svelte adapters, and SvelteKit adapters in the owning codegen crates. Common semantic/type/dependency planning belongs in
       `linguini-codegen`; ECMAScript rendering belongs in `linguini-codegen-ecmascript`. Executable
       syntax belongs in canonical JS templates, with source identity and mappings preserved.
       At compile/build time, determine the exact messages used by each page, including its
@@ -824,12 +824,17 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       Where client localization code is required, coalesce its page/locale closure into one
       self-contained payload; avoid per-message requests and extra payloads for composed components
       or layouts. Emit no localization runtime/payload when server-rendered static content suffices.
-      Fold known conditions, specialize used formatter/CLDR patterns, and remove every unneeded
+      Apply OPT-A1–A5: fold known conditions, specialize used formatter/CLDR patterns, and remove every unneeded
       branch, binding, data entry, or loader from the delivered localization graph.
       Prove these constraints on real multi-page builds and served prerendered/SSR pages: inspect
       emitted module ownership, sentinel content, initial HTML/preload/response payloads, and
       browser requests before and after explicit client transitions. Preserve sparse fallback,
       synchronous SSR, typed calls, source maps, HMR, and preload-before-switch through the change.
+      Every supported message must render during SSR: parameterless values, positional and
+      named calls, recursive namespaces, local/inline functions, forms/plurals, formatters, finite
+      dynamic references, and sparse-locale fallback. Server evaluation must use the request's
+      locale, require no browser globals or client preparation, and isolate concurrent requests.
+      The server-rendered text and initial client hydration must agree for all these forms.
       Existing application-module scoping is a baseline; it does not verify the full page-level
       and initial-locale delivery contract. Complete ESM-M12/M13 and MOD-A1–A8 before closing.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
@@ -982,6 +987,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       pattern interpreter or checked-in generated runtime sources. Schema dispatch, numeric,
       date, digit, plural-operand, and locale-provider helpers have extracted templates;
       complete all runtime families and remove their remaining TS implementation branches.
+      Static CLDR parameters must specialize the emitted implementation itself; passing a long
+      vector of constants/undefined options to a generic formatter does not satisfy this criterion.
       No generated JS/TS runtime sources belong under Rust `src/`; generation happens during builds.
       Backend-independent type models, requirement analysis, and message dependency slicing
       live in `linguini-codegen`; ECMAScript rendering stays in `linguini-codegen-ecmascript`.
@@ -997,10 +1004,14 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### Reusable backend and framework modules
 
-- [ ] MOD-A1 — Within `linguini-codegen-ecmascript`, separate the optional web runtime helpers,
-      Svelte adapter, and SvelteKit adapter into modules with explicit interfaces. Keep general
-      ECMAScript message generation independent of all three. SvelteKit reuses the Svelte adapter
-      and web helpers; neither web nor a framework adapter is a separate language backend.
+- [ ] MOD-A1 — Extract separate `linguini-codegen-svelte`, `linguini-codegen-sveltekit`, and
+      `linguini-codegen-vite` crates with explicit APIs, artifact ownership, and minimal dependency
+      edges. SvelteKit reuses Svelte and ECMAScript capabilities; Vite codegen owns the shared
+      bundler plan/integration and accepts framework adapter inputs without depending on SvelteKit.
+      Keep base `linguini-codegen-ecmascript` message generation independent of these integration
+      crates; avoid dependency cycles, duplicated emitters, and a single generic backend crate.
+      Share backend-independent semantics through `linguini-codegen`; keep optional web helper
+      syntax within its owning backend. Directory-only separation does not satisfy this criterion.
 - [ ] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
       and source-map infrastructure framework-independent. Isolate Svelte syntax/link transforms
       and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure.
@@ -1015,9 +1026,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Where client code is needed, deliver one self-contained page/locale file; load additional
       payloads only for actual client transitions. Verify output graphs and initial/transition
       browser requests, not just isolated application entries or the existence of lazy chunks.
-- [ ] MOD-A5 — Preserve synchronous SSR, sparse-locale fallback, preload-before-switch, loader
-      cleanup on navigation, HMR, source maps, typed calls, and browser/server cookie/routing policy
-      through the module/configuration migration.
+- [ ] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
+      references and sparse fallback. Resolve each request's messages/locale on the server without
+      browser APIs or client-only preparation; isolate concurrent requests and prove matching
+      hydration text. Preserve preload-before-switch, loader cleanup on navigation, HMR, source
+      maps, typed calls, and browser/server cookie/routing policy through the migration. Verify
+      both direct SSR evaluation and real framework rendering/hydration across the message matrix.
 - [ ] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.
@@ -1027,6 +1041,35 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 - [ ] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.
+
+### Specialized generated code
+
+- [ ] OPT-A1 — Parse and resolve all used CLDR number, currency, date, calendar, context, zone,
+      skeleton, plural, and composition patterns during compilation/build. Generated code must be
+      the compiled result of those patterns; it must not carry raw CLDR patterns/tables for a
+      runtime interpreter or parse CLDR syntax after generation. Parsing actual input values such
+      as numeric strings or dates is a separate, demand-selected runtime operation.
+- [ ] OPT-A2 — Emit specialized formatter implementations for the actual statically used requests.
+      Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
+      field widths, and other known choices into code. Remove unused options/branches/data; prohibit
+      the current `formatNumber(value) -> formatGeneratedNumber(value, ...21 constants...)` design.
+      Keep semantic plans reusable and syntax in canonical templates; avoid recreating a generic
+      formatter interpreter under a different name or moving the same parameter vector elsewhere.
+- [ ] OPT-A3 — Lower forms and local/inline function dispatch into direct control flow (`if`/`switch`
+      and returns) from the validated semantic tree. No per-call branch-map objects, closure tables,
+      `selectBranch` callbacks, nested dispatch IIFEs, or wrapper casts solely to support that design.
+      Merge identical branches/defaults, remove known redundant coercions, and preserve exact
+      evaluation count/order, captured values, callable attributes, plural semantics, and fallback.
+      A `Delivered(Plural, Gender)` function must select its plural branch and gender result directly.
+- [ ] OPT-A4 — Specialize helpers to the transitive operations/categories used by the page's exact
+      message closure. Deduplicate genuinely shared operations without importing whole formatter,
+      plural, locale, or message runtimes. Emit no unused helper, data entry, option dispatcher,
+      inactive locale, or scaffolding in initial page delivery; integrate with ESM-A3/MOD-A4.
+- [ ] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
+      parameter formatter forwarding and allocating dispatch tables, inspect/minify real page
+      graphs, and execute numeric/date/CLDR, function/form, sparse fallback, and SSR/hydration corpora.
+      Preserve all meaningful coverage while replacing snapshots of the superseded generated shape.
+      Keep optimization and SSR acceptance open until production generation and real consumers pass.
 
 ### Documentation identity through codegen
 
