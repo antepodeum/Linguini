@@ -200,20 +200,18 @@ pub fn emit_formatter_data(
     }
 }
 
-pub fn emit_enums(module: &IrModule, output: &mut String) {
-    for item in module.enums() {
-        emit_docs(&item.docs, "", output);
-        let variants = item
-            .variants
-            .iter()
-            .map(|variant| format!("\"{}\"", escape_string(variant)))
-            .collect::<Vec<_>>()
-            .join(" | ");
-        output.push_str(&format!(
-            "export type {} = {variants};\n\n",
-            safe_identifier(&item.name)
-        ));
-    }
+pub(super) fn emit_enum(item: &linguini_ir::IrEnum, output: &mut String) {
+    emit_docs(&item.docs, "", output);
+    let variants = item
+        .variants
+        .iter()
+        .map(|variant| format!("\"{}\"", escape_string(variant)))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    output.push_str(&format!(
+        "export type {} = {variants};\n\n",
+        safe_identifier(&item.name)
+    ));
 }
 
 pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut String) {
@@ -278,15 +276,13 @@ pub(super) fn emit_locale_enum_jsdoc_types(
     }
 }
 
-pub fn emit_type_aliases(module: &IrModule, output: &mut String) {
-    for item in module.type_aliases() {
-        emit_docs(&item.docs, "", output);
-        output.push_str(&format!(
-            "export type {} = {};\n\n",
-            safe_identifier(&item.name),
-            ts_type(&item.target)
-        ));
-    }
+pub(super) fn emit_type_alias(item: &linguini_ir::IrTypeAlias, output: &mut String) {
+    emit_docs(&item.docs, "", output);
+    output.push_str(&format!(
+        "export type {} = {};\n\n",
+        safe_identifier(&item.name),
+        ts_type(&item.target)
+    ));
 }
 
 pub(super) fn emit_forms_for_target(

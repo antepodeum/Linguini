@@ -194,7 +194,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
 - [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in CLDR artifacts, while the
-  site restores a deterministic checksummed 1,410-file output bundle using Node.js only; CI
+  site restores a deterministic checksummed 1,412-file output bundle using Node.js only; CI
   independently regenerates the bundle and rejects stale bytes.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [x] #12 — Hide invalid mutable public model states behind validated constructors. `IrModule`
@@ -454,10 +454,10 @@ production path uses the fix and its relevant tests pass.
 - [x] #196 — Make date output independent of host local time zone.
 - [x] #197 — Reject invalid dates.
 - [x] #198 — Fail visibly on missing required CLDR data.
-- [-] #199 — Emit source maps back to Linguini sources. Bundler-native physical message and
-      semantic modules have truthful maps; CLI project output now owns maps for every
-      implementation through the shared artifact plan. Source identities, paths, contents, and
-      semantic mappings are checked; schema-only type declarations still need source provenance.
+- [x] #199 — Emit source maps back to Linguini sources. The common backend maps individual
+      schema enums, aliases, messages, and groups in TS/JS output and schema declaration
+      companions. Decoded v3 mappings verify exact multi-file source positions and stable source
+      identity; CLI maps retain project-relative paths and exact sourcesContent.
 - [x] #200 — Require every declared message in direct codegen input locales.
 - [x] #201 — Replace eager locale imports with real bundler-visible splitting. The bundler-native
       Vite path exposes one virtual dynamic entry per effective locale, with no per-message client

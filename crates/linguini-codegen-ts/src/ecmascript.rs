@@ -239,7 +239,13 @@ pub struct EcmaModule {
     output: EcmaModuleOutput,
     imports: Vec<EcmaImport>,
     re_exports: Vec<EcmaReExport>,
-    statements: Vec<EcmaStatement>,
+    statements: Vec<ModuleStatement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ModuleStatement {
+    statement: EcmaStatement,
+    line_mappings: Vec<(usize, Span)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -297,11 +303,37 @@ impl EcmaModule {
     }
 
     pub fn push_statement(&mut self, statement: EcmaStatement) {
+        self.push_statement_with_mappings(statement, Vec::new());
+    }
+
+    pub(crate) fn push_statement_with_mappings(
+        &mut self,
+        statement: EcmaStatement,
+        line_mappings: Vec<(usize, Span)>,
+    ) {
         if self.output.target.is_typescript()
             || statement.kind != EcmaStatementKind::TypeDeclaration
         {
-            self.statements.push(statement);
+            self.statements.push(ModuleStatement {
+                statement,
+                line_mappings,
+            });
         }
+    }
+
+    pub(crate) fn source_ids(&self) -> Vec<SourceId> {
+        self.statements
+            .iter()
+            .flat_map(|item| {
+                item.statement
+                    .source_span
+                    .iter()
+                    .chain(item.line_mappings.iter().map(|(_, span)| span))
+            })
+            .map(|span| span.source)
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect()
     }
 
     /// Renders one ESM module without attaching a source-map trailer.
@@ -345,13 +377,15 @@ fn render_module_body(
         rendered_module_edge |= render_re_export(item, module.output.target, output);
     }
     let renders_statement = module.statements.iter().any(|statement| {
-        module.output.target.is_typescript() || statement.kind != EcmaStatementKind::TypeDeclaration
+        module.output.target.is_typescript()
+            || statement.statement.kind != EcmaStatementKind::TypeDeclaration
     });
     if rendered_module_edge && renders_statement {
         output.push('\n');
     }
 
-    for statement in &module.statements {
+    for item in &module.statements {
+        let statement = &item.statement;
         if !module.output.target.is_typescript()
             && statement.kind == EcmaStatementKind::TypeDeclaration
         {
@@ -360,6 +394,9 @@ fn render_module_body(
         let generated_line = output.bytes().filter(|byte| *byte == b'\n').count();
         if let Some(span) = statement.source_span {
             record_mapping((generated_line, span));
+        }
+        for (offset, span) in &item.line_mappings {
+            record_mapping((generated_line + offset, *span));
         }
         output.push_str(statement.code.trim_end_matches('\n'));
         output.push('\n');

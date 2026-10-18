@@ -1,9 +1,11 @@
-use linguini_ir::IrModule;
+use linguini_ir::{IrModule, IrSymbolKind};
+use linguini_syntax::Span;
 
 use crate::ecmascript::{EcmaModule, EcmaModuleOutput, EcmaStatement};
 
-use super::emit::{emit_enums, emit_type_aliases};
+use super::emit::{emit_enum, emit_type_alias};
 use super::names::{emit_docs_with_tags, escape_string, safe_identifier, JsDocTag};
+use super::provenance::map_symbol_lines;
 use super::shared_runtime::{shared_declarations, shared_runtime};
 use super::type_model::{render_jsdoc_type, TypeModel};
 
@@ -23,19 +25,45 @@ pub(super) fn shared_module(
     let target = output.target();
     let mut module = EcmaModule::new(output);
     let mut types = String::new();
+    let mut mappings = Vec::new();
     if target.is_typescript() {
-        emit_enums(schema, &mut types);
-        emit_type_aliases(schema, &mut types);
+        for item in schema.enums() {
+            let start = types.len();
+            emit_enum(item, &mut types);
+            map_symbol_lines(
+                schema,
+                IrSymbolKind::Enum,
+                &item.name,
+                start,
+                &types,
+                &mut mappings,
+            );
+        }
+        for item in schema.type_aliases() {
+            let start = types.len();
+            emit_type_alias(item, &mut types);
+            map_symbol_lines(
+                schema,
+                IrSymbolKind::TypeAlias,
+                &item.name,
+                start,
+                &types,
+                &mut mappings,
+            );
+        }
     } else {
-        emit_jsdoc_schema_types(schema, &mut types);
+        emit_jsdoc_schema_types(schema, &mut types, &mut mappings);
     }
     let has_types = !types.trim().is_empty();
     if has_types {
-        module.push_statement(if target.is_typescript() {
-            EcmaStatement::type_declaration(types, None)
-        } else {
-            EcmaStatement::documentation(types, None)
-        });
+        module.push_statement_with_mappings(
+            if target.is_typescript() {
+                EcmaStatement::type_declaration(types, None)
+            } else {
+                EcmaStatement::documentation(types, None)
+            },
+            mappings,
+        );
     }
     let runtime = if declaration {
         shared_declarations().to_owned()
@@ -50,8 +78,13 @@ pub(super) fn shared_module(
     module
 }
 
-fn emit_jsdoc_schema_types(schema: &IrModule, output: &mut String) {
+fn emit_jsdoc_schema_types(
+    schema: &IrModule,
+    output: &mut String,
+    mappings: &mut Vec<(usize, Span)>,
+) {
     for item in schema.enums() {
+        let start = output.len();
         let ty = item
             .variants
             .iter()
@@ -67,8 +100,17 @@ fn emit_jsdoc_schema_types(schema: &IrModule, output: &mut String) {
             "",
             output,
         );
+        map_symbol_lines(
+            schema,
+            IrSymbolKind::Enum,
+            &item.name,
+            start,
+            output,
+            mappings,
+        );
     }
     for item in schema.type_aliases() {
+        let start = output.len();
         emit_docs_with_tags(
             &item.docs,
             &[JsDocTag::Typedef {
@@ -77,6 +119,14 @@ fn emit_jsdoc_schema_types(schema: &IrModule, output: &mut String) {
             }],
             "",
             output,
+        );
+        map_symbol_lines(
+            schema,
+            IrSymbolKind::TypeAlias,
+            &item.name,
+            start,
+            output,
+            mappings,
         );
     }
 }

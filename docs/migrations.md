@@ -160,3 +160,7 @@ The integrated fixture is `tests/fixtures/golden/snapshots/js-complete-project`.
 Locale declaration barrels now re-export their imported namespace bindings directly. This fixes
 strict declaration checking that previously reported an import/local declaration collision and a
 self-referential namespace type; the public export names and value types remain unchanged.
+
+Generated schema types now include `shared.d.ts.map` and `messages.d.ts.map` companions.
+TypeScript and JavaScript schema maps identify the original enum, alias, message, and group
+declarations, so editor navigation can return to the Linguini source.

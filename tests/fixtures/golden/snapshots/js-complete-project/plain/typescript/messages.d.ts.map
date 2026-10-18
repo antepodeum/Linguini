@@ -1,0 +1,1 @@
+{"version":3,"file":"messages.d.ts","sources":["schema/main.lgs"],"sourcesContent":["/// Greeting\nhello(name: String)\nsection { title }\n"],"names":[],"mappings":";AACA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AACA;AAAU"}

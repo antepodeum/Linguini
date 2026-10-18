@@ -119,6 +119,11 @@ pub(super) fn rendered(files: &mut Vec<ProjectFile>, module: RenderedEcmaModule)
     files.push(ProjectFile::Rendered(module));
 }
 fn module(files: &mut Vec<ProjectFile>, module: EcmaModule, source_ids: Vec<SourceId>) {
+    let source_ids = if source_ids.is_empty() {
+        module.source_ids()
+    } else {
+        source_ids
+    };
     files.push(ProjectFile::Module { module, source_ids });
 }
 fn output(stem: &str, target: EcmaScriptTarget) -> EcmaModuleOutput {
@@ -184,23 +189,23 @@ fn append_schema(
         );
     }
     if options.declaration {
-        data(
+        module(
             files,
-            "shared.d.ts",
-            shared::generate_shared_module(
+            shared::shared_module(
                 schema,
                 EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "shared.d.ts", None),
                 true,
             ),
+            vec![],
         );
-        data(
+        module(
             files,
-            "messages.d.ts",
-            messages::generate_messages_module(
+            messages::messages_module(
                 &selected_schema,
                 EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "messages.d.ts", None),
                 &import_path_for_target("./shared", target),
             ),
+            vec![],
         );
     }
 }
@@ -387,7 +392,21 @@ mod tests {
                 ("typescript", EcmaScriptTarget::TypeScript),
                 ("javascript", EcmaScriptTarget::JavaScript),
             ] {
+                assert!(matches!(
+                    compile_ecmascript_project_files(&project, target, &sources[1..]),
+                    Err(TypeScriptCodegenError::MissingMessageSource {
+                        source_id: SourceId(7)
+                    })
+                ));
                 let files = compile_ecmascript_project_files(&project, target, &sources).unwrap();
+                for stem in ["shared", "messages"] {
+                    assert_eq!(
+                        files
+                            .iter()
+                            .any(|file| file.path == format!("{stem}.d.ts.map")),
+                        declaration
+                    );
+                }
                 for file in &files {
                     if file.path.ends_with(".d.ts") {
                         assert!(declaration);

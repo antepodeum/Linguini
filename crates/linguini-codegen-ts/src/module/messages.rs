@@ -1,12 +1,14 @@
 use std::collections::BTreeSet;
 
-use linguini_ir::IrModule;
+use linguini_ir::{IrModule, IrSymbolKind};
+use linguini_syntax::Span;
 
 use crate::ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaStatement,
 };
 
 use super::names::{emit_docs, property_key, safe_identifier};
+use super::provenance::map_symbol_lines;
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree, MessageTreeMessage};
 
@@ -53,29 +55,27 @@ pub(super) fn messages_module(
     }
 
     let mut output = String::new();
-    output.push_str("export type LinguiniMessages = ");
-    emit_object_type(
-        &schema_message_tree(schema),
-        0,
-        crate::ecmascript::EcmaScriptTarget::TypeScript,
-        &mut output,
-    );
-    output.push_str(";\n");
-    module.push_statement(EcmaStatement::type_declaration(output, None));
-    if !target.is_typescript() {
-        let mut ty = String::new();
-        emit_object_type(&schema_message_tree(schema), 0, target, &mut ty);
+    let mut mappings = Vec::new();
+    let tree = schema_message_tree(schema);
+    if target.is_typescript() {
+        output.push_str("export type LinguiniMessages = ");
+        emit_object_type(&tree, schema, "", 0, target, &mut output, &mut mappings);
+        output.push_str(";\n");
+        module
+            .push_statement_with_mappings(EcmaStatement::type_declaration(output, None), mappings);
+    } else {
+        emit_object_type(&tree, schema, "", 0, target, &mut output, &mut mappings);
         let mut jsdoc = String::new();
         super::names::emit_docs_with_tags(
             &[],
             &[super::names::JsDocTag::Typedef {
                 name: "LinguiniMessages".to_owned(),
-                ty: ty.replace("*/", "*\\u002f"),
+                ty: output.replace("*/", "*\\u002f"),
             }],
             "",
             &mut jsdoc,
         );
-        module.push_statement(EcmaStatement::documentation(jsdoc, None));
+        module.push_statement_with_mappings(EcmaStatement::documentation(jsdoc, None), mappings);
         module.push_statement(EcmaStatement::generated("export {};"));
     }
     module
@@ -117,14 +117,18 @@ fn schema_message_tree(schema: &IrModule) -> MessageTree {
 
 fn emit_object_type(
     tree: &MessageTree,
+    schema: &IrModule,
+    prefix: &str,
     depth: usize,
     target: crate::ecmascript::EcmaScriptTarget,
     output: &mut String,
+    mappings: &mut Vec<(usize, Span)>,
 ) {
     let indent = "  ".repeat(depth);
     let child_indent = "  ".repeat(depth + 1);
     output.push_str("{\n");
     for entry in &tree.messages {
+        let start = output.len();
         let signature = MessageCallSignature::from_message(&entry.signature);
         if target.is_typescript() && !signature.is_parameterized() {
             emit_docs(&entry.signature.docs, &child_indent, output);
@@ -138,8 +142,22 @@ fn emit_object_type(
                 signature.javascript_callable_type()
             }
         ));
+        map_symbol_lines(
+            schema,
+            IrSymbolKind::Message,
+            &entry.signature.name,
+            start,
+            output,
+            mappings,
+        );
     }
     for (name, child) in &tree.children {
+        let start = output.len();
+        let name_path = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{prefix}.{name}")
+        };
         if target.is_typescript() {
             emit_docs(&child.docs, &child_indent, output);
         }
@@ -147,7 +165,23 @@ fn emit_object_type(
             "{child_indent}readonly {}: ",
             message_property_key(name, depth)
         ));
-        emit_object_type(child, depth + 1, target, output);
+        map_symbol_lines(
+            schema,
+            IrSymbolKind::Group,
+            &name_path,
+            start,
+            output,
+            mappings,
+        );
+        emit_object_type(
+            child,
+            schema,
+            &name_path,
+            depth + 1,
+            target,
+            output,
+            mappings,
+        );
         output.push_str(";\n");
     }
     output.push_str(&indent);

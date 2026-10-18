@@ -19,3 +19,4 @@ export type LinguiniMessages = {
     readonly title: string;
   };
 };
+//# sourceMappingURL=messages.d.ts.map
