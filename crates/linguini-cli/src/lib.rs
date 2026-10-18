@@ -129,6 +129,7 @@ pub fn run(
         source,
     })?;
     let cli = Cli::try_parse_from(std::iter::once("linguini".to_owned()).chain(args))?;
+    let root = project::canonical_project_root(&root)?;
 
     match cli.command {
         CliCommand::Init => init_project(&root),

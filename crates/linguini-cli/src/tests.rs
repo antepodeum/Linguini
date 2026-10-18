@@ -172,6 +172,25 @@ fn aliased_project_roots_preserve_build_maps_and_format_safety() {
         assert_eq!(fs::read_to_string(path).unwrap(), content.as_str().unwrap());
     }
 
+    fs::write(alias.join("schema/broken.lgs"), "broken(name String)\n")
+        .expect("broken schema fixture");
+    let error = super::run(
+        vec!["check".to_owned(), "--format".to_owned(), "json".to_owned()],
+        Ok(alias.clone()),
+    )
+    .expect_err("invalid source must produce machine diagnostics");
+    let super::CliError::MachineDiagnostics(output) = error else {
+        panic!("expected machine diagnostics, got {error}");
+    };
+    let document: serde_json::Value = serde_json::from_str(&output).expect("JSON diagnostics");
+    assert!(document["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["code"] == "linguini.syntax" && diagnostic["path"] == "schema/broken.lgs"
+        }));
+
     let outside = TempDir::new().expect("outside directory");
     let outside_file = outside.path().join("outside.lgs");
     fs::write(&outside_file, "delivery(count:Number)\n").expect("outside source");
