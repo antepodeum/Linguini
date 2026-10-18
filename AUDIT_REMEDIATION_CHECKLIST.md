@@ -803,9 +803,35 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       error probe preserves its migration diagnostic without accepting it into the raw model.
 - [x] ESM-A2 — Treat SvelteKit as the primary supported adapter for now; it is not the only one
       planned for the future.
-- [-] ESM-A3 — Own ECMAScript emission in `linguini-codegen-ecmascript`, with backend-neutral
-      semantic models in `linguini-codegen`. Complete the template extraction and module boundaries
-      in ESM-M12 and MOD-A1–A8; the existing structured emitter alone does not satisfy them.
+- [-] ESM-A3 — Use one structured ECMAScript emitter with explicit module interfaces and
+      artifact ownership for exact messages, semantic variables/forms/functions, schema types,
+      locale helpers/globals, namespace modules/barrels, project entries, optional web helpers,
+      Svelte adapters, and SvelteKit adapters. Common semantic/type/dependency planning belongs in
+      `linguini-codegen`; ECMAScript rendering belongs in `linguini-codegen-ecmascript`. Executable
+      syntax belongs in canonical JS templates, with source identity and mappings preserved.
+      At compile/build time, determine the exact messages used by each page, including its
+      components, layouts, imported functions, bounded dynamic references, and all transitive
+      message/function/form/formatter/plural dependencies. Emit only that dependency closure:
+      no unrelated messages, symbols, CLDR data, generic dispatch machinery, or unused helpers.
+      Never ship a whole message catalog as a fallback for imprecise analysis. Resolve finite
+      dynamic use sets; diagnose unsupported unbounded access instead of silently broadening output.
+      If a page's locale is known from its build/prerender route or SSR request, resolve it there
+      and deliver only that effective locale's required messages and dependencies. Resolve missing
+      translations at message granularity while building that payload; do not ship an additional
+      whole base-locale payload for fallback. Do not require client JS to rediscover a known locale
+      or eagerly deliver inactive locales. Retain additional locale/message payloads as lazy assets
+      only where client locale switching or other actual dynamic behavior needs them.
+      Where client localization code is required, coalesce its page/locale closure into one
+      self-contained payload; avoid per-message requests and extra payloads for composed components
+      or layouts. Emit no localization runtime/payload when server-rendered static content suffices.
+      Fold known conditions, specialize used formatter/CLDR patterns, and remove every unneeded
+      branch, binding, data entry, or loader from the delivered localization graph.
+      Prove these constraints on real multi-page builds and served prerendered/SSR pages: inspect
+      emitted module ownership, sentinel content, initial HTML/preload/response payloads, and
+      browser requests before and after explicit client transitions. Preserve sparse fallback,
+      synchronous SSR, typed calls, source maps, HMR, and preload-before-switch through the change.
+      Existing application-module scoping is a baseline; it does not verify the full page-level
+      and initial-locale delivery contract. Complete ESM-M12/M13 and MOD-A1–A8 before closing.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
@@ -982,10 +1008,13 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       for those modules. Keep one source of configuration; remove `[web]` and framework policy from
       language-neutral TOML and its schema. Supply a validated build-time plan to native codegen,
       including the CLI, rather than evaluating arbitrary project JavaScript inside Rust.
-- [ ] MOD-A4 — Generate and deliver one self-contained locale payload per page and effective
-      locale, containing only that page's exact transitive message/helper dependencies. Verify
-      composed components/layouts and shared dependencies, not just isolated application entries;
-      no per-message request fanout or unused-page messages may enter the payload.
+- [ ] MOD-A4 — Enforce ESM-A3's exact page/locale delivery contract across composed components,
+      layouts, shared functions, and finite dynamic uses. Build/SSR must select a known initial
+      locale without client rediscovery; initial delivery must contain no unused messages/helpers,
+      inactive locales, or extra base-locale catalog. Resolve sparse fallback into the exact payload.
+      Where client code is needed, deliver one self-contained page/locale file; load additional
+      payloads only for actual client transitions. Verify output graphs and initial/transition
+      browser requests, not just isolated application entries or the existence of lazy chunks.
 - [ ] MOD-A5 — Preserve synchronous SSR, sparse-locale fallback, preload-before-switch, loader
       cleanup on navigation, HMR, source maps, typed calls, and browser/server cookie/routing policy
       through the module/configuration migration.
