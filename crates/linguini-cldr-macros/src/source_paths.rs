@@ -10,7 +10,7 @@ pub(crate) const SOURCE_REF: &str = "48.2.0";
 pub(crate) const SOURCE_COMMIT: &str = "bb334e8d6250c9363e957e131bf7e6d08ec72f91";
 pub(crate) const SOURCE_GIT_TREE: &str = "b297a9501ae136e59d006f0497204524a5478cc9";
 pub(crate) const SOURCE_TREE_SHA256: &str =
-    "e07cdc7cb50f577ab2df6f313568fd107cc666433f532c4a3aa4cf4aa56d9df9";
+    "d6a3fb58acb53efa0161b48263c15f80042f3fb23021be8a3b1881498ae0b927";
 pub(crate) const CLDR_VERSION: &str = "48.2.0";
 pub(crate) const UNICODE_VERSION: &str = "16.0.0";
 pub(crate) const EXPECTED_LOCALE_COUNT: usize = 766;
@@ -26,12 +26,15 @@ const NUMBERING_SYSTEMS_RELATIVE_PATH: &str =
 const LAYOUT_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-misc-full/main";
 const NUMBERS_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-numbers-full/main";
 const DATES_MAIN_RELATIVE_PATH: &str = "cldr-json/cldr-dates-full/main";
-const PACKAGE_RELATIVE_PATHS: [&str; 5] = [
+const PACKAGE_RELATIVE_PATHS: [&str; 8] = [
     "cldr-json/cldr-bcp47/package.json",
     "cldr-json/cldr-core/package.json",
     "cldr-json/cldr-numbers-full/package.json",
     "cldr-json/cldr-dates-full/package.json",
     "cldr-json/cldr-misc-full/package.json",
+    "cldr-json/cldr-cal-buddhist-full/package.json",
+    "cldr-json/cldr-cal-roc-full/package.json",
+    "cldr-json/cldr-cal-japanese-full/package.json",
 ];
 
 pub(crate) struct CldrSource {
@@ -105,10 +108,26 @@ impl CldrSource {
         input_files.push(plurals.clone());
         input_files.push(currency_data.clone());
         input_files.push(numbering_systems.clone());
+        for name in ["dayPeriods", "weekData", "calendarData"] {
+            input_files.push(checked_file(
+                &root,
+                &format!("cldr-json/cldr-core/supplemental/{name}.json"),
+            )?);
+        }
         for package in PACKAGE_RELATIVE_PATHS {
             input_files.push(checked_file(&root, package)?);
         }
         for locale in &locales {
+            input_files.push(checked_file(
+                &root,
+                &format!("{DATES_MAIN_RELATIVE_PATH}/{locale}/timeZoneNames.json"),
+            )?);
+            for calendar in ["buddhist", "roc", "japanese"] {
+                input_files.push(checked_file(
+                    &root,
+                    &format!("cldr-json/cldr-cal-{calendar}-full/main/{locale}/ca-{calendar}.json"),
+                )?);
+            }
             input_files.push(checked_file(
                 &root,
                 &format!("{NUMBERS_MAIN_RELATIVE_PATH}/{locale}/numbers.json"),
@@ -187,6 +206,21 @@ impl CldrSource {
 
     pub(crate) fn dates_main(&self) -> &Path {
         &self.dates_main
+    }
+
+    pub(crate) fn calendar_path(&self, locale: &str, calendar: &str) -> PathBuf {
+        if calendar == "gregorian" {
+            self.dates_main.join(locale).join("ca-gregorian.json")
+        } else {
+            self.root.join(format!(
+                "cldr-json/cldr-cal-{calendar}-full/main/{locale}/ca-{calendar}.json"
+            ))
+        }
+    }
+
+    pub(crate) fn supplemental_path(&self, name: &str) -> PathBuf {
+        self.root
+            .join(format!("cldr-json/cldr-core/supplemental/{name}.json"))
     }
 
     pub(crate) fn locales(&self) -> &[String] {

@@ -24,3 +24,9 @@ cargo run --offline -p linguini-cldr-macros --bin generate_cldr -- \
 Generation rejects any source whose full commit identity, package versions,
 locale coverage, or deterministic consumed-input SHA-256 differs from the
 pinned manifest. No fetch, checkout, lock, or deletion path exists.
+
+The verified input profile includes four solar calendars (Gregorian, Buddhist, ROC, and
+Japanese), contextual month/day/quarter symbols, eras, skeleton patterns, day-period rules,
+territory week rules, and GMT display formats. Symbol tables are shared across calendar
+records. The manifest records 3,060 locale/calendar pairs; Hawaiian retains its explicit
+unsupported Roman-month numbering exclusion.

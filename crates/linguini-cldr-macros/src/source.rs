@@ -21,6 +21,8 @@ pub(crate) struct GeneratedTables {
 }
 
 pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedTables, String> {
+    let calendars = crate::calendar::generate_calendar_tables(source)?;
+    let supplemental = crate::calendar::generate_supplemental_tables(source)?;
     let (locale_tables, locale) = generate_locale_tables(
         source.aliases(),
         source.parent_locales(),
@@ -49,6 +51,8 @@ pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedT
             #plural_tables
             #direction_table
             #formatting_tables
+            #calendars
+            #supplemental
         },
         plural_locales,
         plural_categories,

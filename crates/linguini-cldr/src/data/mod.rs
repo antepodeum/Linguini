@@ -2,9 +2,11 @@ mod compiled;
 
 use crate::plural::{PluralOperands, PluralRule};
 pub use compiled::{
-    built_in_plural_rules, built_in_text_direction, compiled_currency_formatting,
-    compiled_currency_fraction, compiled_date_formatting, compiled_number_formatting,
-    compiled_plural_rules, CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
+    built_in_plural_rules, built_in_text_direction, compiled_calendar_formatting,
+    compiled_currency_formatting, compiled_currency_fraction, compiled_date_formatting,
+    compiled_day_period_rules, compiled_number_formatting, compiled_plural_rules,
+    compiled_time_zone_formatting, compiled_week_data, japanese_era_starts, CompiledPluralCategory,
+    CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
 };
 pub(crate) use compiled::{
     generated_extension_key_alias, generated_extension_type_alias, generated_language_alias,
@@ -82,6 +84,43 @@ pub struct DateFormatData {
     pub date_time_formats: FormatWidths,
     pub months: DateSymbolWidths<12>,
     pub weekdays: DateSymbolWidths<7>,
+}
+
+/// Pinned CLDR calendar patterns and flattened symbol paths (for example,
+/// `months.stand-alone.wide.1`). Symbol paths retain CLDR context and width.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CalendarFormatData {
+    pub locale: &'static str,
+    pub calendar: &'static str,
+    pub date_formats: FormatWidths,
+    pub time_formats: FormatWidths,
+    pub date_time_formats: FormatWidths,
+    pub symbols: &'static [&'static [(&'static str, &'static str)]],
+    pub skeletons: &'static [(&'static str, &'static str)],
+    /// Patterns whose year uses CLDR's algorithmic Japanese first-year form.
+    pub japanese_year_patterns: &'static [&'static str],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DayPeriodRule {
+    pub name: &'static str,
+    pub at: Option<u16>,
+    pub from: Option<u16>,
+    pub before: Option<u16>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WeekData {
+    /// Sunday is zero, matching ECMAScript weekday numbering.
+    pub first_day: u8,
+    pub min_days: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TimeZoneFormatData {
+    pub gmt_format: &'static str,
+    pub gmt_zero_format: &'static str,
+    pub hour_format: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

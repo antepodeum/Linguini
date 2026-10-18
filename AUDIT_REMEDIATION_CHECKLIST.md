@@ -423,8 +423,9 @@ production path uses the fix and its relevant tests pass.
 - [x] #173 — Use tracked packaged inputs for cache invalidation.
 - [x] #174 — Move heavy data generation out of the compiler process.
 - [x] #175 — Fail on malformed or missing locale payloads.
-- [-] #176 — Generate non-Latin numbering and broader calendar data. Locale-default numeric
-      systems are compiled and emitted; broader calendar data remains open.
+- [x] #176 — Generate non-Latin numbering and broader calendar data. Pinned artifacts include
+      78 numbering systems and 3,060 locale/calendar pairs across Gregorian, Buddhist, ROC, and
+      Japanese calendars, with contextual symbols, eras, skeletons, day periods, and week rules.
 - [x] #177 — Parse text-direction JSON structurally.
 - [x] #178 — Implement complete CLDR number-pattern semantics. Quoted positive/negative
       affixes, primary/secondary grouping, fixed and significant digits, rounding increments,

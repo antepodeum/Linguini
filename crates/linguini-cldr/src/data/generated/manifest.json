@@ -1,10 +1,17 @@
 {
   "artifact": {
-    "bytes": 3338811,
+    "bytes": 12976969,
     "path": "cldr_tables.rs",
-    "sha256": "7b9fd361f3a776dd2b6b2448f3ebde743da080dfecd0adcf5f69dc43ad245c03"
+    "sha256": "2ec64ae69efa67040f7387e679071591334085548b10a317b474ed319ba7f000"
   },
   "coverage": {
+    "calendar_locale_pairs": 3060,
+    "calendars": [
+      "gregory",
+      "buddhist",
+      "roc",
+      "japanese"
+    ],
     "currency_fraction_rules": 75,
     "currency_locales": 766,
     "date_locales": 765,
@@ -48,11 +55,11 @@
     "name": "linguini-cldr-macros"
   },
   "inputs": {
-    "bytes": 20530189,
-    "file_count": 2324,
-    "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+gregorian+layout-v4",
+    "bytes": 120465767,
+    "file_count": 5394,
+    "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+zone-formats+layout-v5",
     "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
-    "tree_sha256": "e07cdc7cb50f577ab2df6f313568fd107cc666433f532c4a3aa4cf4aa56d9df9"
+    "tree_sha256": "d6a3fb58acb53efa0161b48263c15f80042f3fb23021be8a3b1881498ae0b927"
   },
   "schema": 1,
   "source": {

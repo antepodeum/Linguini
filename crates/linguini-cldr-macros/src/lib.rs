@@ -3,6 +3,7 @@
 //! This crate is a maintainer tool. It is never a build dependency of
 //! `linguini-cldr`, and generation only runs through the explicit CLI.
 
+mod calendar;
 mod formatting;
 mod locale;
 mod sha256;
@@ -49,7 +50,7 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "license": "Unicode-3.0"
         },
         "inputs": {
-            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+gregorian+layout-v4",
+            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+zone-formats+layout-v5",
             "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
             "tree_sha256": source.source_tree_sha256(),
             "file_count": source.input_file_count(),
@@ -79,6 +80,8 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "currency_locales": generated.formatting.currency_locales,
             "currency_fraction_rules": generated.formatting.currency_fraction_rules,
             "date_locales": generated.formatting.date_locales,
+            "calendars": ["gregory", "buddhist", "roc", "japanese"],
+            "calendar_locale_pairs": (source.locales().len() - 1) * calendar::CALENDARS.len(),
             "text_direction_locales": generated.formatting.text_direction_locales,
             "excluded": {
                 "date": generated.formatting.date_exclusions.iter().map(|locale| json!({
@@ -132,9 +135,9 @@ mod tests {
     const CHECKED_MANIFEST: &[u8] =
         include_bytes!("../../linguini-cldr/src/data/generated/manifest.json");
     const GOLDEN_ARTIFACT_SHA256: &str =
-        "7b9fd361f3a776dd2b6b2448f3ebde743da080dfecd0adcf5f69dc43ad245c03";
+        "2ec64ae69efa67040f7387e679071591334085548b10a317b474ed319ba7f000";
     const GOLDEN_MANIFEST_SHA256: &str =
-        "cf277c1c301f362b6c7c2e4784e25e9d07b23dd43bd57aab02d4848d7c1b4bb4";
+        "dd93984bab88d332014b495d6964614490300d08fccec620576f45b163324f18";
 
     #[test]
     fn checked_artifact_matches_full_pinned_manifest_and_golden_hash() {
@@ -160,9 +163,9 @@ mod tests {
         );
         assert_eq!(
             manifest["inputs"]["tree_sha256"],
-            "e07cdc7cb50f577ab2df6f313568fd107cc666433f532c4a3aa4cf4aa56d9df9"
+            "d6a3fb58acb53efa0161b48263c15f80042f3fb23021be8a3b1881498ae0b927"
         );
-        assert_eq!(manifest["inputs"]["file_count"], 2_324);
+        assert_eq!(manifest["inputs"]["file_count"], 5_394);
         assert_eq!(manifest["coverage"]["source_locales"], 766);
         assert_eq!(manifest["coverage"]["language_aliases"], 500);
         assert_eq!(manifest["coverage"]["script_aliases"], 1);
@@ -181,6 +184,7 @@ mod tests {
         assert_eq!(manifest["coverage"]["currency_locales"], 766);
         assert_eq!(manifest["coverage"]["currency_fraction_rules"], 75);
         assert_eq!(manifest["coverage"]["date_locales"], 765);
+        assert_eq!(manifest["coverage"]["calendar_locale_pairs"], 3060);
         assert_eq!(manifest["coverage"]["text_direction_locales"], 764);
     }
 

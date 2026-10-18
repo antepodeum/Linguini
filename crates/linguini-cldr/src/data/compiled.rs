@@ -1,6 +1,7 @@
 use super::{
-    CurrencyFormatData, CurrencyFractionData, DateFormatData, DateSymbolWidths, FormatWidths,
-    NumberFormatData, NumberPattern, NumberPatternPart, PluralCategoryRule, PluralRules,
+    CalendarFormatData, CurrencyFormatData, CurrencyFractionData, DateFormatData, DateSymbolWidths,
+    DayPeriodRule, FormatWidths, NumberFormatData, NumberPattern, NumberPatternPart,
+    PluralCategoryRule, PluralRules, TimeZoneFormatData, WeekData,
 };
 use crate::plural::{
     Condition, Operand, OperandExpression, PluralOperands, PluralRule, Range, RangeList, Relation,
@@ -120,4 +121,45 @@ pub fn compiled_date_formatting(locale: &str) -> Option<DateFormatData> {
         LocaleFallbackComponent::Main,
         generated_date_formatting,
     )
+}
+
+/// Resolve one supported solar calendar using the shared CLDR locale fallback policy.
+pub fn compiled_calendar_formatting(locale: &str, calendar: &str) -> Option<CalendarFormatData> {
+    let calendar = if calendar == "gregorian" {
+        "gregory"
+    } else {
+        calendar
+    };
+    resolve_locale_tag(locale, LocaleFallbackComponent::Main, |tag| {
+        generated_calendar_formatting(tag, calendar)
+    })
+}
+
+pub fn compiled_day_period_rules(locale: &str) -> Option<&'static [DayPeriodRule]> {
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Main,
+        generated_day_period_rules,
+    )
+}
+
+pub fn compiled_week_data(locale: &str) -> Option<WeekData> {
+    let maximized = crate::maximize_locale(locale).ok()?;
+    let territory = maximized.split('-').skip(1).find(|part| {
+        (part.len() == 2 && part.bytes().all(|byte| byte.is_ascii_uppercase()))
+            || (part.len() == 3 && part.bytes().all(|byte| byte.is_ascii_digit()))
+    })?;
+    generated_week_data(territory).or_else(|| generated_week_data("001"))
+}
+
+pub fn compiled_time_zone_formatting(locale: &str) -> Option<TimeZoneFormatData> {
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Main,
+        generated_time_zone_formatting,
+    )
+}
+
+pub fn japanese_era_starts() -> &'static [(u16, i32, u8, u8)] {
+    generated_japanese_era_starts()
 }

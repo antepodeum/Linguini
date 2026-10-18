@@ -164,3 +164,8 @@ self-referential namespace type; the public export names and value types remain 
 Generated schema types now include `shared.d.ts.map` and `messages.d.ts.map` companions.
 TypeScript and JavaScript schema maps identify the original enum, alias, message, and group
 declarations, so editor navigation can return to the Linguini source.
+
+The compiled CLDR data API now exposes Gregorian, Buddhist, ROC, and Japanese calendar
+patterns and contextual symbols through `compiled_calendar_formatting`, along with shared
+day-period, week, time-zone display, and Japanese era data. Calendar data follows the same
+canonical locale fallback policy as the existing formatting APIs.

@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "7b9fd361f3a776dd2b6b2448f3ebde743da080dfecd0adcf5f69dc43ad245c03"
+        "2ec64ae69efa67040f7387e679071591334085548b10a317b474ed319ba7f000"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -138,6 +138,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     assert_eq!(manifest["coverage"]["numbering_systems"], 78);
     assert_eq!(manifest["coverage"]["currency_fraction_rules"], 75);
     assert_eq!(manifest["coverage"]["date_locales"], 765);
+    assert_eq!(manifest["coverage"]["calendar_locale_pairs"], 3060);
 }
 
 #[test]
@@ -214,4 +215,65 @@ fn compiled_currency_fractions_apply_overrides_and_defaults() {
 
     assert_eq!(compiled_currency_fraction("US"), None);
     assert_eq!(compiled_currency_fraction("12$"), None);
+}
+
+#[test]
+fn calendar_symbols_and_supplemental_rules_retain_pinned_context_and_boundaries() {
+    use super::{
+        compiled_calendar_formatting, compiled_day_period_rules, compiled_time_zone_formatting,
+        compiled_week_data, japanese_era_starts,
+    };
+    let symbol = |locale, calendar, path| {
+        compiled_calendar_formatting(locale, calendar)
+            .unwrap()
+            .symbols
+            .iter()
+            .flat_map(|table| table.iter())
+            .find(|(name, _)| *name == path)
+            .unwrap()
+            .1
+    };
+    assert_eq!(symbol("ru", "gregory", "months.format.wide.1"), "января");
+    assert_eq!(
+        symbol("ru", "gregory", "months.stand-alone.wide.1"),
+        "январь"
+    );
+    assert_eq!(symbol("ar", "gregory", "dayPeriods.format.wide.pm"), "م");
+    assert_eq!(symbol("th", "buddhist", "eras.eraAbbr.0"), "พ.ศ.");
+    assert_eq!(symbol("zh-TW", "roc", "eras.eraAbbr.1"), "民國");
+    assert_eq!(symbol("ja", "japanese", "eras.eraAbbr.236"), "令和");
+    assert_eq!(japanese_era_starts().last(), Some(&(236, 2019, 5, 1)));
+    assert_eq!(
+        compiled_week_data("en-US").unwrap(),
+        super::WeekData {
+            first_day: 0,
+            min_days: 1
+        }
+    );
+    assert_eq!(
+        compiled_week_data("en-GB").unwrap(),
+        super::WeekData {
+            first_day: 1,
+            min_days: 4
+        }
+    );
+    let noon = compiled_day_period_rules("en-US")
+        .unwrap()
+        .iter()
+        .find(|rule| rule.name == "noon")
+        .unwrap();
+    assert_eq!(noon.at, Some(720));
+    assert_eq!(
+        compiled_time_zone_formatting("fr").unwrap().gmt_format,
+        "UTC{0}"
+    );
+    assert!(compiled_calendar_formatting("en", "unsupported").is_none());
+    assert!(compiled_calendar_formatting("zz", "gregory").is_none());
+    for calendar in ["gregory", "buddhist", "roc", "japanese"] {
+        assert!(!compiled_calendar_formatting("en-GB", calendar)
+            .unwrap()
+            .skeletons
+            .is_empty());
+        assert!(compiled_calendar_formatting("haw", calendar).is_none());
+    }
 }
