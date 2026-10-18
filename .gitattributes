@@ -1,2 +1,2 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Keep text fixtures and generated sources identical across checkout platforms.
+* text=auto eol=lf
