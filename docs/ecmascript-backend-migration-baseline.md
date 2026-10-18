@@ -202,3 +202,11 @@ execute generated messages, and preserve source-map provenance. The extracted na
 passes activation, restart, and nonempty hover containing the schema documentation. The
 remaining CLDR, schema-only provenance, WASM, and broader release criteria remain separately
 tracked in `AUDIT_REMEDIATION_CHECKLIST.md`.
+
+The output-maintenance contract is shared JS/TS templates rendered only during project builds.
+Rust owns validated semantic plans, dependency selection, and compile-time CLDR pattern
+resolution. Templates own executable source syntax; target-specific type/JSDoc fragments share
+the same bodies. Output must specialize to the project's used patterns and capabilities,
+without embedding a general CLDR interpreter. Generated runtime implementation artifacts do
+not belong in production sources. ESM-M12 tracks conversion from the earlier inline Rust
+fragment representation; shared schema dispatch is the first converted runtime family.

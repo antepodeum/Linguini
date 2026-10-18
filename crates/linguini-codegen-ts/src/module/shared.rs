@@ -66,7 +66,7 @@ pub(super) fn shared_module(
         );
     }
     let runtime = if declaration {
-        shared_declarations().to_owned()
+        shared_declarations()
     } else {
         shared_runtime(target)
     };

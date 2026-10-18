@@ -936,6 +936,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       exact schema documentation. Canonical-root regressions and portable fixture construction
       resolve the platform failures without weakening source-map or symlink safety assertions.
 
+- [-] ESM-M12 — Move executable output syntax out of inline Rust strings into unified JS/TS
+      templates. Rust must resolve used CLDR patterns and semantic requirements during builds;
+      templates emit specialized functions and only required helpers, with no runtime CLDR
+      pattern interpreter or checked-in generated runtime sources. Shared schema dispatch now
+      uses one template and type macros; remaining runtime families and specialization are open.
+
 ### Documentation identity through codegen
 
 - [x] API-D1 — Preserve docs on every declaration kind through semantic IR. Exhaustive schema and

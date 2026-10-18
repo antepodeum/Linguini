@@ -1,0 +1,35 @@
+{% import 'functions' as code -%}
+{{ code.function('selectBranch', [{'name':'key','type':'string'}, {'name':'branches','type':'Record<string, T>'}], 'T', ts, exported=true, generic='T') }}  if (Object.prototype.hasOwnProperty.call(branches, key)) {
+    return branches[key];
+  }
+  if (Object.prototype.hasOwnProperty.call(branches, "_")) {
+    return branches._;
+  }
+  if (Object.prototype.hasOwnProperty.call(branches, "other")) {
+    return branches.other;
+  }
+  throw new Error(`Linguini dispatch has no branch for key ${JSON.stringify(key)}`);
+}
+
+{{ code.function('normalizeMessageArgs', [{'name':'values','type':'readonly unknown[]'}, {'name':'keys','type':'readonly string[]'}], 'unknown[]', ts, exported=true) }}  if (values.length !== 1) {
+    return [...values];
+  }
+  const candidate = values[0];
+  if (typeof candidate !== "object" || candidate === null) {
+    return [...values];
+  }
+  const record = {% if ts %}candidate as Record<string, unknown>{% else %}/** @type {Record<string, unknown>} */ (candidate){% endif %};
+  if (!keys.every((key) => Object.prototype.hasOwnProperty.call(record, key))) {
+    return [...values];
+  }
+  const unknown = Reflect.ownKeys(record)
+    .filter((key) => typeof key !== "string" || !keys.includes(key))
+    .map(String)
+    .sort();
+  if (unknown.length > 0) {
+    throw new TypeError(
+      `Linguini message arguments contain unknown keys: ${unknown.join(", ")}`,
+    );
+  }
+  return keys.map((key) => record[key]);
+}

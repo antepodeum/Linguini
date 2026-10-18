@@ -1,4 +1,4 @@
-//! The production backend must not regain separate source-language templates.
+//! JS and TS share canonical templates; paired runtime implementations remain forbidden.
 
 use std::path::{Path, PathBuf};
 
@@ -25,7 +25,7 @@ fn production_runtime_ownership_has_no_language_templates_or_retired_emitters() 
                 path.extension().and_then(|value| value.to_str()),
                 Some("ts" | "js")
             ),
-            "runtime implementations belong in shared target emitters: {}",
+            "runtime syntax belongs in shared target templates outside Rust source: {}",
             path.display()
         );
         let source = std::fs::read_to_string(&path).expect("read codegen source");

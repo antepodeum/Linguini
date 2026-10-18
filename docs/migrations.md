@@ -169,3 +169,8 @@ The compiled CLDR data API now exposes Gregorian, Buddhist, ROC, and Japanese ca
 patterns and contextual symbols through `compiled_calendar_formatting`, along with shared
 day-period, week, time-zone display, and Japanese era data. Calendar data follows the same
 canonical locale fallback policy as the existing formatting APIs.
+
+Internal schema dispatch code now renders from one JS/TS template with shared type macros.
+This changes its source ownership while preserving generated TypeScript, JavaScript,
+declaration, and source-map bytes. Template rendering runs inside the Rust compiler during
+project generation; consumers need no additional build tools.

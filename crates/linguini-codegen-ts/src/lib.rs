@@ -1,6 +1,7 @@
 mod ecmascript;
 mod module;
 mod plural;
+mod templates;
 
 pub use ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaReExport,
