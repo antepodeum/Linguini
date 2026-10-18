@@ -655,7 +655,8 @@ production path uses the fix and its relevant tests pass.
 
 - [x] #356 — Make the declared Rust 1.76 MSRV pass as a dedicated CI job.
 - [x] #357 — Compile from packaged, offline, read-only CLDR data.
-- [-] #358 — Land and execute Linux, Windows, and macOS CI.
+- [x] #358 — Land and execute Linux, Windows, and macOS CI. Complete workspace suites pass on
+      all three hosts for the shared-backend source verified in ESM-M11.
 - [x] #359 — Land dependency, license, and advisory checks.
 - [x] #360 — Add enforceable coverage plus parser/formatter property jobs. CI rejects workspace
   line coverage below 80%, runs seeded parser/formatter/plural/path property suites separately,
@@ -793,40 +794,40 @@ production path uses the fix and its relevant tests pass.
       error probe preserves its migration diagnostic without accepting it into the raw model.
 - [x] ESM-A2 — Treat SvelteKit as the primary supported adapter for now; it is not the only one
       planned for the future.
-- [-] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
+- [x] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
       plus schema, locale shared-runtime, semantic, and aggregate locale-global modules now use it.
       Locale namespace/barrel, project entries, all closed web capabilities, Svelte browser modules,
       and both SvelteKit server adapters now use it. Project-wide artifact ownership and remaining
-      helper-template removal are complete through ESM-M9/M10; final ESM-M11 gates remain.
+      helper-template removal are complete and verified through ESM-M9–M11.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
-- [-] ESM-A5 — Render JavaScript plus JSDoc from the shared models. Exact bundler message and
+- [x] ESM-A5 — Render JavaScript plus JSDoc from the shared models. Exact bundler message and
       semantic leaves now select JavaScript from the same expression, form, function, signature,
       import, runtime-helper, and source-map emitters as TypeScript; locale namespaces and barrels
       now share them as well. Project entries retain checked-JavaScript locale metadata, loader,
       provider, and configure types. Overloads, local parameters, plural rules, formatter inputs,
       recursive namespace values, and defaults retain checked JSDoc types. Web, Svelte, and SvelteKit
       modules and project-wide output now route both targets through common builders. Production
-      runtime-template removal is complete; final ESM-M11 non-regression gates remain.
+      runtime-template removal and all ESM-M11 non-regression gates are complete.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
-- [-] ESM-A7 — Avoid a parallel TypeScript runtime implementation. Locale shared helpers now have
+- [x] ESM-A7 — Avoid a parallel TypeScript runtime implementation. Locale shared helpers now have
       one target-aware production builder; project entries now share one target-aware builder too.
       Web/Svelte/SvelteKit modules now share target-aware builders. Schema, formatter, plural,
       and project-entry bodies each have one implementation; no production runtime templates
-      remain. Final ESM-M11 gates remain.
-- [-] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
+      remain. The ownership guard and full ESM-M11 matrix pass.
+- [x] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
       modules plus semantic, locale-runtime, locale-global, namespace, and locale-barrel artifacts
       now have target-owned source maps, ordered source identity, and demand-selected helpers.
       Project-wide output and every web/Svelte/SvelteKit artifact compiler now return target-owned
-      maps too. CLI atomic ownership includes those maps; final ESM-M11 gates remain.
+      maps too. CLI atomic ownership includes those maps; the full ESM-M11 matrix passes.
 - [x] ESM-A9 — Make parameterless public leaves values in both surfaces.
-- [-] ESM-A10 — Keep JavaScript generation first-class and near-zero-config. Public JavaScript
+- [x] ESM-A10 — Keep JavaScript generation first-class and near-zero-config. Public JavaScript
       bundler-leaf, locale-runtime, locale-global, namespace, and locale-barrel compilers now emit
       native `.js` import and source-map paths without a TypeScript transpilation pass. Project
-      entry, web, Svelte, SvelteKit, and complete project compilers do the same. Final ESM-M11 gates
-      remain before this acceptance item closes.
+      entry, web, Svelte, SvelteKit, and complete project compilers do the same. Target corpora and
+      consumer integrations pass the final ESM-M11 gates.
 
 #### Ordered removal of direct TypeScript assembly
 
@@ -902,7 +903,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       x64 npm launcher/native archives pass version, init, and source-mapped build checks. The
       native Linux VSIX packages successfully; both development and extracted-archive extension
       hosts pass activation, restart, and real LSP hover checks against VS Code 1.120.0.
-      Cross-platform final coverage remains tracked by ESM-M11.
+      Cross-platform final coverage is recorded in ESM-M11.
 - [x] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
       templates, adapters, compatibility branches, tests that only exercise the removed path, and
       misleading compatibility-path terminology. Repository-wide absence checks must prove one
@@ -919,16 +920,20 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       the final paired runtime templates are deleted. The production source inventory contains
       no TS/JS runtime files or template includes, and an integration guard rejects their return
       alongside retired emitter names. All 151 codegen tests and strict Clippy pass; final broad
-      non-regression and cross-platform gates remain in ESM-M11.
-- [-] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
+      non-regression and cross-platform gates are recorded in ESM-M11.
+- [x] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
       strict TS/`.d.ts` corpora; executable documentation; Vite 5–8; SvelteKit production; npm
       launcher; native VSIX; and Linux, Windows, and macOS CI. Close ESM-A3/A5/A7/A8/A10 and P2-1
-      only after every gate passes and no direct assembly code remains. The final shared-backend
-      source passes all 57 local full-profile gates, including locked/offline Rust tests, strict
-      workspace Clippy, properties, checked generated targets, executable/packaged documentation,
-      and the real-site production graph. Vite 5–8 and native Linux npm/VSIX tests pass as recorded
-      in ESM-M9. Cross-platform CI must still run against this source before acceptance closes.
+      only after every gate passes and no direct assembly code remains. Source `1cbc4c6` passes
+      all 57 local full-profile gates and strict workspace Clippy with all targets/features.
+      [CI run 39110695824](https://github.com/antepodeum/Linguini/actions/runs/39110695824)
+      passes all 17 jobs, including complete Linux/macOS/Windows workspace tests, Rust 1.76,
+      coverage, mutation, dependency policy, public API, packaging, Vite 5–8, and SvelteKit.
+      Fresh Linux npm archives compile real sources, execute generated messages, and preserve map
+      provenance; the extracted native VSIX passes activation, restart, and nonempty hover with
+      exact schema documentation. Canonical-root regressions and portable fixture construction
+      resolve the platform failures without weakening source-map or symlink safety assertions.
 
 ### Documentation identity through codegen
 
@@ -1079,11 +1084,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### P2
 
-- [-] P2-1 — Shared ECMAScript backend and `TypeModel`. The backend-neutral public type model now
+- [x] P2-1 — Shared ECMAScript backend and `TypeModel`. The backend-neutral public type model now
   drives message signatures, declarations, and runtime annotations and exposes TypeScript/JSDoc
   renderers. Exact message and semantic leaves select TypeScript or JavaScript through the same
   structured emitter. Schema, runtime, project, and web/Svelte/SvelteKit bodies now share ownership;
-  production runtime templates are gone. Final ESM-M11 gates remain before closure.
+  production runtime templates are gone. All final ESM-M11 gates pass.
 - [x] P2-2 — End-to-end documentation propagation. Parser attachment survives schema/locale
   semantic lowering for every declaration kind and reaches exact runtime exports, recursive
   namespace properties, overloads, and `.d.ts` declarations through one safe JSDoc renderer.
@@ -1125,7 +1130,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ## Final verification
 
-- [ ] Run the complete Rust workspace test suite on Linux, Windows, and macOS.
+- [x] Run the complete Rust workspace test suite on Linux, Windows, and macOS. Verified against
+  source `1cbc4c6` in CI run 39110695824.
 - [x] Run strict Clippy for all targets and features.
 - [x] Run Rust 1.76 MSRV checks and stable checks.
 - [x] Run offline/package/source-archive verification.

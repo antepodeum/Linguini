@@ -2,7 +2,7 @@
 
 This inventory records the original artifact contracts and their current shared-backend ownership.
 Path families include every option-gated instance. All runtime families now use the common
-ECMAScript backend; the final cross-platform non-regression gates remain tracked by ESM-M11.
+ECMAScript backend; the final cross-platform non-regression gates are verified in ESM-M11.
 
 ## Generated artifact ownership
 
@@ -193,3 +193,12 @@ Production codegen sources contain no JavaScript/TypeScript runtime files or tem
 The `runtime_ownership` integration test guards that boundary and retired emitter names. Frozen
 oracles remain outside production sources, with test-only substitution in `module/test_templates.rs`.
 Byte snapshots, source maps, all 151 codegen tests, and strict Clippy pass after removal.
+
+ESM-M11 is complete for source `1cbc4c6`. All 57 local full-profile gates and strict workspace
+Clippy with all targets/features pass. [CI run 39110695824](https://github.com/antepodeum/Linguini/actions/runs/39110695824)
+passes all 17 jobs, including complete Linux, Windows, and macOS workspace suites, Rust 1.76,
+Vite 5–8, and the production SvelteKit site. Fresh Linux npm archives compile real sources,
+execute generated messages, and preserve source-map provenance. The extracted native VSIX
+passes activation, restart, and nonempty hover containing the schema documentation. The
+remaining CLDR, schema-only provenance, WASM, and broader release criteria remain separately
+tracked in `AUDIT_REMEDIATION_CHECKLIST.md`.
