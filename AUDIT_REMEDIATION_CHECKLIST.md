@@ -9,7 +9,10 @@ Status legend:
 - `[ ]` not yet completed.
 
 This file is intentionally stricter than a change log. An item stays partial until the
-production path uses the fix and its relevant tests pass.
+production path uses the fix and its relevant tests pass. Earlier verification receipts describe
+only their named source revisions; they do not certify the in-progress architecture changes below.
+The module/configuration requirements in MOD-A1–A8 supersede the earlier TOML web-policy and
+paired-runtime design. Preserve the tested behavior while replacing those ownership boundaries.
 
 ## Evidence already committed
 
@@ -693,7 +696,8 @@ production path uses the fix and its relevant tests pass.
 
 ### `docs/getting-started.md`
 
-- [x] DOC-G1 — Replace flat web configuration with minimal nested policy.
+- [-] DOC-G1 — Document the typed project-code module configuration and migrate the previously
+  verified nested TOML web examples; preserve the minimal policy and framework defaults.
 - [x] DOC-G2 — Remove `targets.ts.module` and every CJS choice.
 - [x] DOC-G3 — Explain one JavaScript runtime plus JSDoc and `.d.ts`.
 - [x] DOC-G4 — Remove manual message-loading setup from the normal SvelteKit path.
@@ -762,10 +766,12 @@ production path uses the fix and its relevant tests pass.
 
 ## Additional architecture acceptance criteria
 
-### Nested compile-time SvelteKit web policy
+### Compile-time web policy in project module configuration
 
-- [x] WEB-A1 — Parse typed optional `[web.routing]`, `[web.locale]`, `[web.cookie]`,
-      `[web.local_storage]`, `[web.links]`, `[web.routes]`, and `[web.switch_route]`.
+- [-] WEB-A1 — Configure routing, locale sources, cookies, storage, links, exclusions, and optional
+      switch routes in typed project-code module configuration. Remove `[web]` from the core TOML
+      model/schema, migrate project fixtures and guides, and diagnose the retired table. The old
+      TOML contract was verified; the replacement is not complete.
 - [x] WEB-A2 — Replace `prefix_default_locale` with `always | except-default | never`.
 - [x] WEB-A3 — Default routing to `except-default`.
 - [x] WEB-A4 — Replace `redirect` with `canonical = redirect | preserve`.
@@ -776,7 +782,9 @@ production path uses the fix and its relevant tests pass.
 - [x] WEB-A9 — Validate/derive local-storage keys only when selected.
 - [x] WEB-A10 — Replace `localize_links` with transform/runtime/manual.
 - [x] WEB-A11 — Validate deterministic route exclusions.
-- [x] WEB-A12 — Lower configuration into a closed `WebFeatures` set.
+- [-] WEB-A12 — Lower the module configuration into a validated, closed capability plan during
+      builds. Preserve source order and browser/server transition consistency; keep ECMAScript and
+      framework policy out of language-neutral project configuration.
 - [x] WEB-A13 — Generate only selected feature modules and no generic strategy loop.
 - [x] WEB-A14 — Compile one `LocaleSwitchPlan` for browser and server transports.
 - [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
@@ -795,29 +803,20 @@ production path uses the fix and its relevant tests pass.
       error probe preserves its migration diagnostic without accepting it into the raw model.
 - [x] ESM-A2 — Treat SvelteKit as the primary supported adapter for now; it is not the only one
       planned for the future.
-- [x] ESM-A3 — Introduce one structured ECMAScript module emitter; the single-message compiler
-      plus schema, locale shared-runtime, semantic, and aggregate locale-global modules now use it.
-      Locale namespace/barrel, project entries, all closed web capabilities, Svelte browser modules,
-      and both SvelteKit server adapters now use it. Project-wide artifact ownership and remaining
-      helper-template removal are complete and verified through ESM-M9–M11.
+- [-] ESM-A3 — Own ECMAScript emission in `linguini-codegen-ecmascript`, with backend-neutral
+      semantic models in `linguini-codegen`. Complete the template extraction and module boundaries
+      in ESM-M12 and MOD-A1–A8; the existing structured emitter alone does not satisfy them.
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
-- [x] ESM-A5 — Render JavaScript plus JSDoc from the shared models. Exact bundler message and
-      semantic leaves now select JavaScript from the same expression, form, function, signature,
-      import, runtime-helper, and source-map emitters as TypeScript; locale namespaces and barrels
-      now share them as well. Project entries retain checked-JavaScript locale metadata, loader,
-      provider, and configure types. Overloads, local parameters, plural rules, formatter inputs,
-      recursive namespace values, and defaults retain checked JSDoc types. Web, Svelte, and SvelteKit
-      modules and project-wide output now route both targets through common builders. Production
-      runtime-template removal and all ESM-M11 non-regression gates are complete.
+- [-] ESM-A5 — Emit canonical JavaScript with JSDoc from shared semantic models. Preserve checked
+      overloads, parameters, locale metadata, loaders, providers, formatter inputs, and recursive
+      namespaces. Reverify consumers and source maps after removing TS runtime generation.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
-- [x] ESM-A7 — Avoid a parallel TypeScript runtime implementation. Locale shared helpers now have
-      one target-aware production builder; project entries now share one target-aware builder too.
-      Web/Svelte/SvelteKit modules now share target-aware builders. Schema, formatter, plural,
-      and project-entry bodies each have one implementation; no production runtime templates
-      remain. The ownership guard and full ESM-M11 matrix pass.
+- [-] ESM-A7 — Maintain one JavaScript implementation per runtime family. Remove public TS
+      runtime emission APIs, target switches, typed implementation fragments, and paired runtime
+      templates. Keep `.d.ts` emission from the common semantic model and verify strict TS consumers.
 - [x] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
       modules plus semantic, locale-runtime, locale-global, namespace, and locale-barrel artifacts
       now have target-owned source maps, ordered source identity, and demand-selected helpers.
@@ -830,7 +829,7 @@ production path uses the fix and its relevant tests pass.
       entry, web, Svelte, SvelteKit, and complete project compilers do the same. Target corpora and
       consumer integrations pass the final ESM-M11 gates.
 
-#### Ordered removal of direct TypeScript assembly
+#### Emitter migration and canonical JavaScript template extraction
 
 This is a replacement plan, not a compatibility or dual-runtime plan. Complete the stages in
 order. During each stage, keep the old path only as a temporary parity oracle inside tests; delete
@@ -905,7 +904,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       native Linux VSIX packages successfully; both development and extracted-archive extension
       hosts pass activation, restart, and real LSP hover checks against VS Code 1.120.0.
       Cross-platform final coverage is recorded in ESM-M11.
-- [x] ESM-M10 — Delete the direct TypeScript assembly path completely: obsolete functions,
+- [-] ESM-M10 — Finish removing direct implementation assembly: obsolete functions,
       templates, adapters, compatibility branches, tests that only exercise the removed path, and
       misleading compatibility-path terminology. Repository-wide absence checks must prove one
       production ECMAScript runtime implementation and one target renderer family. Shared schema
@@ -922,7 +921,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       no TS/JS runtime files or template includes, and an integration guard rejects their return
       alongside retired emitter names. All 151 codegen tests and strict Clippy pass; final broad
       non-regression and cross-platform gates are recorded in ESM-M11.
-- [x] ESM-M11 — Run final non-regression gates: full locked Rust workspace tests and strict Clippy;
+- [-] ESM-M11 — Rerun final non-regression gates for the completed architecture: full locked Rust
+      workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
       strict TS/`.d.ts` corpora; executable documentation; Vite 5–8; SvelteKit production; npm
       launcher; native VSIX; and Linux, Windows, and macOS CI. Close ESM-A3/A5/A7/A8/A10 and P2-1
@@ -936,12 +936,14 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       exact schema documentation. Canonical-root regressions and portable fixture construction
       resolve the platform failures without weakening source-map or symlink safety assertions.
 
-- [-] ESM-M12 — Move executable output syntax out of inline Rust strings into unified JS/TS
-      templates. Rust must resolve used CLDR patterns and semantic requirements during builds;
+- [-] ESM-M12 — Move executable output syntax out of inline Rust strings into canonical
+      JavaScript templates, with separate declaration templates driven by shared semantic models.
+      Rust must resolve used CLDR patterns and semantic requirements during builds;
       templates emit specialized functions and only required helpers, with no runtime CLDR
       pattern interpreter or checked-in generated runtime sources. Schema dispatch, numeric,
-      date, digit, plural-operand, and locale-provider helpers use shared JS/TS templates;
-      remaining runtime families and specialization are open.
+      date, digit, plural-operand, and locale-provider helpers have extracted templates;
+      complete all runtime families and remove their remaining TS implementation branches.
+      No generated JS/TS runtime sources belong under Rust `src/`; generation happens during builds.
       Backend-independent type models, requirement analysis, and message dependency slicing
       live in `linguini-codegen`; ECMAScript rendering stays in `linguini-codegen-ecmascript`.
 
@@ -953,6 +955,35 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Native `build --emit-dir` renders additional owned output trees from the same validated
       project with correctly rebased source maps. The `tsc` adapter and removal of TypeScript
       runtime generation remain open.
+
+### Reusable backend and framework modules
+
+- [ ] MOD-A1 — Separate framework-independent web codegen, Svelte codegen, and SvelteKit codegen
+      into modules with explicit interfaces and artifact ownership. SvelteKit composes reusable
+      Svelte/web capabilities; web generation must work without either framework.
+- [ ] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
+      and source-map infrastructure framework-independent. Isolate Svelte syntax/link transforms
+      and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure.
+- [ ] MOD-A3 — Configure web, Svelte, and SvelteKit capabilities in the project's code/configuration
+      for those modules. Keep one source of configuration; remove `[web]` and framework policy from
+      language-neutral TOML and its schema. Supply a validated build-time plan to native codegen,
+      including the CLI, rather than evaluating arbitrary project JavaScript inside Rust.
+- [ ] MOD-A4 — Generate and deliver one self-contained locale payload per page and effective
+      locale, containing only that page's exact transitive message/helper dependencies. Verify
+      composed components/layouts and shared dependencies, not just isolated application entries;
+      no per-message request fanout or unused-page messages may enter the payload.
+- [ ] MOD-A5 — Preserve synchronous SSR, sparse-locale fallback, preload-before-switch, loader
+      cleanup on navigation, HMR, source maps, typed calls, and browser/server cookie/routing policy
+      through the module/configuration migration.
+- [ ] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
+      JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
+      needed for these boundaries; do not implement unrelated backends or speculative frameworks.
+- [ ] MOD-A7 — Share common lowering, dependency planning, and type semantics through
+      `linguini-codegen`; keep ECMAScript syntax, web platform behavior, and framework dependencies
+      within their owning backend/modules. Future language backends must not depend on web policy.
+- [ ] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
+      and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
+      project references, Vite 5–8, and SvelteKit production with the new configuration and modules.
 
 ### Documentation identity through codegen
 
@@ -1013,10 +1044,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       scope: each registry owns one cache, ref-counted loader lifecycle, and literal dynamic import
       per effective locale; message facades contain no per-message loader maps, preparation caches,
       or unprepared-locale crash branch.
-- [x] BUNDLE-A16 — Scope client message facades and locale entries by normalized application path,
+- [-] BUNDLE-A16 — Scope client message facades and locale entries by normalized application path,
       emit only that application's exact finite message set in each lazy locale payload, release
       inactive Svelte route loaders after navigation, keep SSR eager, and prove build/preview
-      behavior on a three-message production route across English, Russian, and French.
+      behavior on a three-message production route across English, Russian, and French. Existing
+      application-scoped verification is a baseline; page/component/layout coalescing and the new
+      adapter/configuration path still require the MOD-A4/A5 integration coverage.
 - [x] BUNDLE-A17 — Encode scoped locale payloads as stable indexed arrays and compile numeric
       facade lookups so canonical message paths do not survive in browser chunks, while preserving
       sparse-locale fallback, parameterless values, parameterized calls, and existing unscoped APIs.
@@ -1084,7 +1117,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### P1
 
-- [x] P1-1 — Complete SvelteKit/ESM-only configuration and documentation cleanup.
+- [-] P1-1 — Complete ESM configuration and docs with separate web/Svelte/SvelteKit modules,
+  project-code module options, and no web/framework policy in language-neutral TOML.
 - [x] P1-2 — Freeze the tested v0.1 language specification. The versioned normative document is
   linked from the public guides, guarded against contract drift, and backed by the positive and
   negative syntax corpora plus documentation conformance gates.
@@ -1103,11 +1137,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### P2
 
-- [x] P2-1 — Shared ECMAScript backend and `TypeModel`. The backend-neutral public type model now
-  drives message signatures, declarations, and runtime annotations and exposes TypeScript/JSDoc
-  renderers. Exact message and semantic leaves select TypeScript or JavaScript through the same
-  structured emitter. Schema, runtime, project, and web/Svelte/SvelteKit bodies now share ownership;
-  production runtime templates are gone. All final ESM-M11 gates pass.
+- [-] P2-1 — Complete the canonical JavaScript template backend and shared semantic models.
+  `linguini-codegen` owns common types, requirements, and message dependency slicing. Remaining
+  runtime extraction, TS implementation removal, and module boundaries require ESM-M12/M13 and
+  MOD-A1–A8 verification; earlier paired-target matrix receipts remain historical baselines.
 - [x] P2-2 — End-to-end documentation propagation. Parser attachment survives schema/locale
   semantic lowering for every declaration kind and reaches exact runtime exports, recursive
   namespace properties, overloads, and `.d.ts` declarations through one safe JSDoc renderer.
@@ -1120,7 +1153,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
   source facade before Vite replaces exact static leaves and bounded dynamic paths; 45 plugin tests
   plus real-site positive/negative Svelte/TypeScript checks pass.
 - [x] P2-7 — Positional plus named-object overloads.
-- [x] P2-8 — Nested web config plus generated feature modules.
+- [-] P2-8 — Typed project-code module configuration plus demand-selected reusable web,
+  Svelte, and SvelteKit modules; remove the superseded `[web]` TOML contract.
 - [x] P2-9 — One shared browser/server locale transition plan.
 - [x] P2-10 — Safe streaming-compatible link localization.
 - [x] P2-11 — Fully incremental/cancellable namespace-aware LSP. Cached versioned document state,
@@ -1136,8 +1170,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 - [x] P3-2 — Parser, formatter, plural, and path property/fuzz coverage. Seeded generated cases
   cover Unicode/recovery/nesting/size parser invariants, formatter no-panic/idempotence/semantic
   preservation, plural modulo arithmetic, and portable locale ancestor chains.
-- [x] P3-3 — Full documentation-to-runtime conformance corpus. All 91 blocks are registered;
-  Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
+- [-] P3-3 — Reverify the full documentation-to-runtime corpus after module/configuration migration.
+  The baseline registers 91 blocks; Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
   execute from workspace and packaged source graphs; the complete SvelteKit provider and all
   normative web-guide source variants build and typecheck against real generated output.
 - [x] P3-4 — ICU/CLDR differential tests cover 152 representative cardinal cases across eight
@@ -1160,5 +1194,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
   treated the unchanged prerelease versions as major-compatible and skipped stable-release lints.
 - [ ] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests.
 - [x] Parse, analyze, generate, typecheck, and execute every normative documentation fixture.
+- [ ] Rerun the full locked Rust/Clippy/MSRV, package/offline, documentation, strict TS/JSDoc,
+  `tsc`, Vite 5–8, SvelteKit, and cross-platform CI matrix against the final migrated source.
 - [ ] Re-read all 369 findings and every architecture criterion against final production paths.
 - [ ] Mark this checklist complete only when no `[-]` or `[ ]` items remain.
