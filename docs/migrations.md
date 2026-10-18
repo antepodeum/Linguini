@@ -183,3 +183,7 @@ Backend-independent type models, formatter/plural requirement analysis, and tran
 dependency selection now live in `linguini-codegen`. The ECMAScript backend depends on this
 shared crate and re-exports `TypeModel`; its renderers, target bindings, and templates stay in
 `linguini-codegen-ecmascript`.
+
+Numeric, date, digit, plural-operand, and locale-provider helper bodies now render from shared
+JS/TS templates during builds. This ownership change preserves their generated source and map
+bytes; no generated runtime implementation files are checked into production sources.

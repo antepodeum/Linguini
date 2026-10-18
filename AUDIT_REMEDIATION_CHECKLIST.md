@@ -939,8 +939,9 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 - [-] ESM-M12 — Move executable output syntax out of inline Rust strings into unified JS/TS
       templates. Rust must resolve used CLDR patterns and semantic requirements during builds;
       templates emit specialized functions and only required helpers, with no runtime CLDR
-      pattern interpreter or checked-in generated runtime sources. Shared schema dispatch now
-      uses one template and type macros; remaining runtime families and specialization are open.
+      pattern interpreter or checked-in generated runtime sources. Schema dispatch, numeric,
+      date, digit, plural-operand, and locale-provider helpers use shared JS/TS templates;
+      remaining runtime families and specialization are open.
       Backend-independent type models, requirement analysis, and message dependency slicing
       live in `linguini-codegen`; ECMAScript rendering stays in `linguini-codegen-ecmascript`.
 

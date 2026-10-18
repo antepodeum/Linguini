@@ -14,6 +14,26 @@ fn environment() -> &'static Environment<'static> {
         environment.set_undefined_behavior(UndefinedBehavior::Strict);
         for (name, source) in [
             ("functions", include_str!("../templates/functions.jinja")),
+            (
+                "number_helpers",
+                include_str!("../templates/number_helpers.jinja"),
+            ),
+            (
+                "digit_helpers",
+                include_str!("../templates/digit_helpers.jinja"),
+            ),
+            (
+                "date_helpers",
+                include_str!("../templates/date_helpers.jinja"),
+            ),
+            (
+                "plural_operands",
+                include_str!("../templates/plural_operands.jinja"),
+            ),
+            (
+                "provider_runtime",
+                include_str!("../templates/provider_runtime.jinja"),
+            ),
             ("shared", include_str!("../templates/shared.jinja")),
             (
                 "shared_declarations",

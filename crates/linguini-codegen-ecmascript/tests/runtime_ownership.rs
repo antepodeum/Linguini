@@ -14,7 +14,7 @@ fn source_files(directory: &Path, files: &mut Vec<PathBuf>) {
 }
 
 #[test]
-fn production_runtime_ownership_has_no_language_templates_or_retired_emitters() {
+fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = Vec::new();
     source_files(&root, &mut files);
@@ -39,7 +39,6 @@ fn production_runtime_ownership_has_no_language_templates_or_retired_emitters() 
             "fn javascript_locale(",
             "SHARED_RUNTIME",
             "SINGLE_INDEX_RUNTIME",
-            "include_str!(\"templates/",
         ] {
             assert!(
                 !source.contains(retired),
@@ -47,5 +46,18 @@ fn production_runtime_ownership_has_no_language_templates_or_retired_emitters() 
                 path.display()
             );
         }
+    }
+    let mut templates = Vec::new();
+    source_files(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("templates"),
+        &mut templates,
+    );
+    for path in templates {
+        assert_eq!(
+            path.extension().and_then(|value| value.to_str()),
+            Some("jinja"),
+            "production templates must share target bodies rather than store generated runtimes: {}",
+            path.display()
+        );
     }
 }
