@@ -202,6 +202,13 @@ pub(crate) fn create_new_file(path: &Path, contents: &str) -> CliResult<()> {
     Ok(())
 }
 
+pub(crate) fn canonical_project_root(root: &Path) -> CliResult<std::path::PathBuf> {
+    fs::canonicalize(root).map_err(|source| CliError::Io {
+        path: root.to_path_buf(),
+        source,
+    })
+}
+
 pub(crate) fn resolve_project_file(root: &Path, requested: &Path) -> CliResult<std::path::PathBuf> {
     if !requested.is_absolute()
         && requested
@@ -211,16 +218,18 @@ pub(crate) fn resolve_project_file(root: &Path, requested: &Path) -> CliResult<s
         return Err(outside_project_error(requested));
     }
 
-    let canonical_root = fs::canonicalize(root).map_err(|source| CliError::Io {
-        path: root.to_path_buf(),
-        source,
-    })?;
+    let canonical_root = canonical_project_root(root)?;
     let candidate = if requested.is_absolute() {
         requested.to_path_buf()
     } else {
         root.join(requested)
     };
-    reject_symlink_components(root, &candidate)?;
+    let candidate_root = if candidate.starts_with(root) {
+        root
+    } else {
+        &canonical_root
+    };
+    reject_symlink_components(candidate_root, &candidate)?;
     let canonical = fs::canonicalize(&candidate).map_err(|source| CliError::Io {
         path: candidate.clone(),
         source,

@@ -28,7 +28,10 @@ use sha2::{Digest, Sha256};
 use crate::{CliError, CliResult, DiagnosticFormat};
 
 use super::check::{check_project_with_options, reject_locale_files_without_schema_namespace};
-use super::io::{path_for_output, read_file, read_project_config, render_file_diagnostics};
+use super::io::{
+    canonical_project_root, path_for_output, read_file, read_project_config,
+    render_file_diagnostics,
+};
 use super::output::{replace_owned_files, GeneratedFile, SafeOutputRoot};
 use super::sources::{
     coverage_options, expected_locale_path, load_locale_sources, load_schema_sources, locale_index,
@@ -45,6 +48,8 @@ pub(crate) fn build_project_with_options(
     deny_warnings: bool,
     format: DiagnosticFormat,
 ) -> CliResult<String> {
+    let canonical_root = canonical_project_root(root)?;
+    let root = canonical_root.as_path();
     let check_output = check_project_with_options(root, deny_warnings, format)?;
     let config = read_project_config(root)?;
     let codegen_output = generate_project(root, &config)?;

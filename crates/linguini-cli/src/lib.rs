@@ -149,6 +149,7 @@ pub fn run(
 }
 
 fn format_project(root: &std::path::Path, args: &FormatArgs) -> CliResult<String> {
+    let canonical_root = project::canonical_project_root(root)?;
     let paths = if args.paths.is_empty() {
         let config_path = root.join(linguini_config::DEFAULT_CONFIG_FILE);
         let config_source = fs::read_to_string(&config_path).map_err(|source| CliError::Io {
@@ -178,12 +179,7 @@ fn format_project(root: &std::path::Path, args: &FormatArgs) -> CliResult<String
         })?;
         let formatted = format_path_source(&path, &source).map_err(CliError::Format)?;
         if formatted != source {
-            changed.push(
-                path.strip_prefix(root)
-                    .unwrap_or(&path)
-                    .display()
-                    .to_string(),
-            );
+            changed.push(project::path_for_output(&canonical_root, &path));
             if !args.check {
                 project::atomic_write_file(&path, formatted.as_bytes())?;
             }

@@ -132,6 +132,67 @@ fn format_command_rejects_files_outside_project() {
 
 #[cfg(unix)]
 #[test]
+fn aliased_project_roots_preserve_build_maps_and_format_safety() {
+    use std::os::unix::fs::symlink;
+
+    let project = temp_project_dir("aliased_project_root").expect("temporary project");
+    init_project(project.path()).expect("init project");
+    let schema = project.path().join("schema/main.lgs");
+    let locale_dir = project.path().join("locales/main");
+    fs::create_dir_all(&locale_dir).expect("locale directory");
+    fs::write(&schema, "delivery(count:Number)\n").expect("schema");
+    fs::write(locale_dir.join("en.lgl"), "delivery={count} items\n").expect("locale");
+    let aliases = TempDir::new().expect("alias directory");
+    let alias = aliases.path().join("project");
+    symlink(project.path(), &alias).expect("project root alias");
+
+    let formatted =
+        super::run(vec!["format".to_owned()], Ok(alias.clone())).expect("format aliased project");
+    assert_eq!(
+        formatted,
+        "formatted files:\nschema/main.lgs\nlocales/main/en.lgl\n"
+    );
+    assert_eq!(
+        fs::read_to_string(&schema).unwrap(),
+        "delivery(count: Number)\n"
+    );
+    build_project(&alias).expect("build aliased project");
+    let map_path = alias.join("src/generated/linguini/locales/en/main.ts.map");
+    let map: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&map_path).unwrap()).expect("source map");
+    let sources = map["sources"].as_array().expect("map sources");
+    let contents = map["sourcesContent"]
+        .as_array()
+        .expect("map source contents");
+    assert_eq!(sources.len(), 2);
+    assert_eq!(contents.len(), sources.len());
+    assert_ne!(map["mappings"], "");
+    for (source, content) in sources.iter().zip(contents) {
+        let path = map_path.parent().unwrap().join(source.as_str().unwrap());
+        assert_eq!(fs::read_to_string(path).unwrap(), content.as_str().unwrap());
+    }
+
+    let outside = TempDir::new().expect("outside directory");
+    let outside_file = outside.path().join("outside.lgs");
+    fs::write(&outside_file, "delivery(count:Number)\n").expect("outside source");
+    symlink(&outside_file, alias.join("linked.lgs")).expect("file symlink");
+    symlink(outside.path(), alias.join("linked-dir")).expect("directory symlink");
+    for requested in ["linked.lgs", "linked-dir/outside.lgs"] {
+        let error = super::run(
+            vec!["format".to_owned(), requested.to_owned()],
+            Ok(alias.clone()),
+        )
+        .expect_err("symlinks below the project root must remain rejected");
+        assert!(error.to_string().contains("symbolic-link target"));
+    }
+    assert_eq!(
+        fs::read_to_string(outside_file).unwrap(),
+        "delivery(count:Number)\n"
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn format_command_rejects_symlink_targets() {
     use std::os::unix::fs::symlink;
 
