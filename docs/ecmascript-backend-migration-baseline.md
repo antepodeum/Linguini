@@ -120,7 +120,7 @@ ECMAScript backend; the final cross-platform non-regression gates are verified i
 
 - Byte snapshots: `tests/fixtures/golden/snapshots/ts`, `ts-runtime`, and `js`.
 - Message/semantic JavaScript, JSDoc, dependency, and source-map fixtures:
-  `crates/linguini-codegen-ts/src/module/message.rs` and `semantic.rs` tests.
+  `crates/linguini-codegen-ecmascript/src/module/message.rs` and `semantic.rs` tests.
 - Locale-global TypeScript/JavaScript byte snapshots, strict JSDoc checks, source maps, and
   executable form/function parity: `tests/fixtures/golden/snapshots/js-globals`.
 - Locale namespace/barrel TypeScript/JavaScript byte snapshots, strict JSDoc checks, fallback
@@ -142,7 +142,7 @@ ECMAScript backend; the final cross-platform non-regression gates are verified i
   `tests/fixtures/golden/snapshots/js-web-accept-language`.
 - Web transformed-link TypeScript/JavaScript byte snapshots, strict JSDoc, target-owned maps, and
   selected/ignored-link parity: `tests/fixtures/golden/snapshots/js-web-link-transform`.
-- Runtime behavior: Rust project-codegen tests plus `crates/linguini-codegen-ts/tests/*.test.ts`.
+- Runtime behavior: Rust project-codegen tests plus `crates/linguini-codegen-ecmascript/tests/*.test.ts`.
 - Manifest, atomic output, and cleanup behavior: `crates/linguini-cli/src/tests.rs` and
   `crates/linguini-cli/src/project/output.rs` tests.
 - Consumer integration: Vite plugin tests, real-site builds, npm launcher tests, and VSIX tests.

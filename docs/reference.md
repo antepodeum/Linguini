@@ -8,7 +8,7 @@ The committed JSON Schema for `linguini.toml` is exported as
 and executable examples so public contract drift requires an explicit reviewed update.
 
 Codegen lowers every public parameter type into the backend-neutral
-`linguini_codegen_ts::TypeModel`. TypeScript and JSDoc spellings are rendered from that same model
+`linguini_codegen_ecmascript::TypeModel`. TypeScript and JSDoc spellings are rendered from that same model
 through `render_typescript_type` and `render_jsdoc_type`.
 
 Rust codegen integrations can call `generate_javascript_schema_files` to obtain the schema-owned

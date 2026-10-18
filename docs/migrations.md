@@ -174,3 +174,7 @@ Internal schema dispatch code now renders from one JS/TS template with shared ty
 This changes its source ownership while preserving generated TypeScript, JavaScript,
 declaration, and source-map bytes. Template rendering runs inside the Rust compiler during
 project generation; consumers need no additional build tools.
+
+The Rust code-generation crate is now `linguini-codegen-ecmascript`, covering both JavaScript and
+TypeScript. Update Cargo dependencies and use the `linguini_codegen_ecmascript` import path. The
+existing target-specific API names and generated module contracts are unchanged.

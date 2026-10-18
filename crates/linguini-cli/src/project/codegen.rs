@@ -6,7 +6,7 @@ use linguini_analyzer::{
     ApplicationImportBindingId, ApplicationReferenceKind, ApplicationUsage, DiagnosticSeverity,
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
-use linguini_codegen_ts::{
+use linguini_codegen_ecmascript::{
     compile_ecmascript_project_files, compile_typescript_bundler_message_artifact_module,
     compile_typescript_bundler_semantic_module, EcmaScriptTarget, EcmaSource, TypeScriptFramework,
     TypeScriptGeneratedFile, TypeScriptLinkMode, TypeScriptLocaleModule,

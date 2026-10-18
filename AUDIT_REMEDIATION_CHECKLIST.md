@@ -438,7 +438,7 @@ production path uses the fix and its relevant tests pass.
 - [x] #182 — Verify the vendored archive/tree cryptographically.
 - [x] #183 — Validate the packaged full-corpus manifest and golden hash.
 
-### `linguini-codegen-ts` core emitter
+### `linguini-codegen-ecmascript` core emitter
 
 - [x] #184 — Emit form branches as callable dispatch rather than discarding them.
 - [x] #185 — Preserve every selector in multi-key branches.
