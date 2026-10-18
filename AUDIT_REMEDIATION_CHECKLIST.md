@@ -1070,6 +1070,14 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       graphs, and execute numeric/date/CLDR, function/form, sparse fallback, and SSR/hydration corpora.
       Preserve all meaningful coverage while replacing snapshots of the superseded generated shape.
       Keep optimization and SSR acceptance open until production generation and real consumers pass.
+- [ ] OPT-A6 — Generate readable code wherever the compiler has enough semantic information:
+      use meaningful parameter/local/helper names, clear formatting, and direct control flow.
+      Preserve explicit source parameter names; derive readable names for unnamed selectors from
+      their semantic types and resolve collisions deterministically. Use opaque internal names
+      only where needed for correctness or isolation. Readability must not compromise runtime
+      performance, payload size, exact dependency delivery, evaluation semantics, source maps,
+      type safety, or compatibility. Verify representative generated functions, forms, and
+      formatters alongside the execution and output-size checks in OPT-A5.
 
 ### Documentation identity through codegen
 
