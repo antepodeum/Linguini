@@ -18,14 +18,14 @@ pub(super) fn generate_control_declaration() -> String {
         ]),
     });
     module.push_import(EcmaImport {
-        specifier: "./locale".to_owned(),
+        specifier: "./locale.js".to_owned(),
         bindings: EcmaImportBindings::TypeNamed(vec![
             EcmaNamedImport::new("Locale", "Locale"),
             EcmaNamedImport::new("TextDirection", "TextDirection"),
         ]),
     });
     module.push_import(EcmaImport {
-        specifier: "./web".to_owned(),
+        specifier: "./web.js".to_owned(),
         bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
             "LinguiniLocaleRequestContext",
             "LinguiniLocaleRequestContext",
@@ -49,7 +49,7 @@ pub(super) fn generate_ambient_declaration() -> String {
         ]),
     });
     module.push_import(EcmaImport {
-        specifier: "./web".to_owned(),
+        specifier: "./web.js".to_owned(),
         bindings: EcmaImportBindings::TypeNamed(vec![
             EcmaNamedImport::new(
                 "LinguiniLocaleRequestContext",
@@ -59,7 +59,7 @@ pub(super) fn generate_ambient_declaration() -> String {
         ]),
     });
     module.push_import(EcmaImport {
-        specifier: "./index".to_owned(),
+        specifier: "./index.js".to_owned(),
         bindings: EcmaImportBindings::TypeNamed(vec![
             EcmaNamedImport::new("Locale", "Locale"),
             EcmaNamedImport::new("Linguini", "Linguini"),

@@ -14,7 +14,7 @@ pub(super) fn generate_web_switch_route_declaration() -> String {
         "web/switch-route.d.ts",
         None,
     ));
-    module.push_import(type_import());
+    module.push_import(type_import(EcmaScriptTarget::JavaScript));
     module.push_statement(EcmaStatement::type_declaration("export declare function handleLocaleSwitchRoute<Locale extends string>(\n  web: LinguiniWebLocale<Locale>,\n  event: { url: URL; request: Request },\n): Response | undefined;\n", None));
     module.render_code()
 }
@@ -32,9 +32,9 @@ pub fn compile_javascript_web_switch_route_module(
     Some(switch_module(options, EcmaScriptTarget::JavaScript)?.render(&[]))
 }
 
-fn type_import() -> EcmaImport {
+fn type_import(target: EcmaScriptTarget) -> EcmaImport {
     EcmaImport {
-        specifier: "../web".to_owned(),
+        specifier: super::names::import_path_for_target("../web", target),
         bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
             "LinguiniWebLocale",
             "LinguiniWebLocale",
@@ -53,7 +53,7 @@ fn switch_module(options: &TypeScriptWebOptions, target: EcmaScriptTarget) -> Op
         },
         None,
     ));
-    module.push_import(type_import());
+    module.push_import(type_import(EcmaScriptTarget::TypeScript));
     if options.features().has_cookie {
         module.push_import(EcmaImport::named(
             "./server-cookie.js",
@@ -180,11 +180,16 @@ mod tests {
         );
         assert_eq!(
             web_server_cookie::generate_web_server_cookie_declaration(),
-            std::fs::read_to_string(root.join("legacy/web.server-cookie.runtime.d.ts")).unwrap()
+            super::super::test_templates::declaration_with_runtime_imports(
+                std::fs::read_to_string(root.join("legacy/web.server-cookie.runtime.d.ts"))
+                    .unwrap()
+            )
         );
         assert_eq!(
             generate_web_switch_route_declaration(),
-            std::fs::read_to_string(root.join("legacy/web.switch-route.runtime.d.ts")).unwrap()
+            super::super::test_templates::declaration_with_runtime_imports(
+                std::fs::read_to_string(root.join("legacy/web.switch-route.runtime.d.ts")).unwrap()
+            )
         );
         let mut snapshots = vec![
             (root.join("web/server-cookie.js"), cookie_js.code),

@@ -405,12 +405,16 @@ mod tests {
             }
             assert_eq!(
                 super::super::sveltekit_types::generate_control_declaration(),
-                std::fs::read_to_string(root.join("legacy/sveltekit-control.runtime.d.ts"))
-                    .unwrap()
+                super::super::test_templates::declaration_with_runtime_imports(
+                    std::fs::read_to_string(root.join("legacy/sveltekit-control.runtime.d.ts"))
+                        .unwrap()
+                )
             );
             assert_eq!(
                 super::super::sveltekit_types::generate_ambient_declaration(),
-                std::fs::read_to_string(root.join("legacy/sveltekit.runtime.d.ts")).unwrap()
+                super::super::test_templates::declaration_with_runtime_imports(
+                    std::fs::read_to_string(root.join("legacy/sveltekit.runtime.d.ts")).unwrap()
+                )
             );
             let mut dependencies = vec![
                 (

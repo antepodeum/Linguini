@@ -257,8 +257,10 @@ mod tests {
                 );
                 assert!(!js.code.contains("./index"));
                 let declaration = super::super::test_templates::render_template(
-                    &std::fs::read_to_string(root.join("legacy/svelte-control.runtime.d.ts"))
-                        .unwrap(),
+                    &super::super::test_templates::declaration_with_runtime_imports(
+                        std::fs::read_to_string(root.join("legacy/svelte-control.runtime.d.ts"))
+                            .unwrap(),
+                    ),
                     &[(
                         "PAGE_STATE",
                         if sveltekit {

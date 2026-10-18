@@ -1,5 +1,5 @@
-import type { Locale, TextDirection } from "./locale";
-import type { AlternateLink, LinkLocalizationAttributes } from "./web";
+import type { Locale, TextDirection } from "./locale.js";
+import type { AlternateLink, LinkLocalizationAttributes } from "./web.js";
 
 export interface LinguiniSetLocaleOptions {
   navigate?: boolean;

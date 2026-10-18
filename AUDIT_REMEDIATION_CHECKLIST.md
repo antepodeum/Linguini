@@ -945,6 +945,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Backend-independent type models, requirement analysis, and message dependency slicing
       live in `linguini-codegen`; ECMAScript rendering stays in `linguini-codegen-ecmascript`.
 
+- [ ] ESM-M13 — Emit one JavaScript runtime plus declarations from the shared semantic plan.
+      Remove TypeScript implementation generation and per-template TypeScript runtime branches.
+      Preserve strict TypeScript consumer typing without `allowJs`; integrate plain `tsc`
+      builds so generated JavaScript and owned companions reach the emitted application.
+      Keep bundler integration and source provenance covered through the transition.
+
 ### Documentation identity through codegen
 
 - [x] API-D1 — Preserve docs on every declaration kind through semantic IR. Exhaustive schema and

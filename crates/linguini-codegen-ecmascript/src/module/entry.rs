@@ -109,38 +109,11 @@ fn locale_declaration(locales: &[TypeScriptLocaleModule], base_locale: Option<&s
 }
 
 fn index_declaration() -> String {
-    concat!(
-        "import type { Locale } from \"./locale\";\n",
-        "export {\n",
-        "  locales,\n",
-        "  baseLocale,\n",
-        "  localeDirections,\n",
-        "  isLocale,\n",
-        "  normalizeLocale,\n",
-        "  getTextDirection,\n",
-        "} from \"./locale\";\n",
-        "export type { Locale, TextDirection } from \"./locale\";\n",
-        "export type * from \"./shared\";\n",
-        "import type { LinguiniMessages } from \"./messages\";\n",
-        "export type { LinguiniMessages } from \"./messages\";\n\n",
-        "export declare const localeModules: Partial<Record<Locale, LinguiniMessages>>;\n\n",
-        "export declare const localeLoaders: Record<Locale, () => Promise<LinguiniMessages>>;\n\n",
-        "type LinguiniLanguage = Locale;\n",
-        "export type Linguini = LinguiniMessages;\n\n",
-        "type LinguiniLanguageInput = LinguiniLanguage;\n\n",
-        "export type LinguiniProviderOptions = {\n",
-        "  getLocale?: () => LinguiniLanguageInput;\n",
-        "  resolveLanguage?: () => LinguiniLanguageInput;\n",
-        "};\n\n",
-        "export declare function prepareLinguini(language: LinguiniLanguageInput): Promise<Linguini>;\n\n",
-        "export declare function createLinguini(language: LinguiniLanguageInput): Linguini;\n\n",
-        "export declare function createLinguiniProvider(options?: LinguiniProviderOptions): Linguini;\n\n",
-        "export declare function configureLinguini(options: {\n",
-        "  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);\n",
-        "}): Linguini;\n\n",
-        "export declare const lgl: Linguini;\n",
+    crate::templates::render(
+        "index_declarations",
+        EcmaScriptTarget::TypeScript,
+        minijinja::context! {},
     )
-    .to_owned()
 }
 
 fn target_path(path: &str, target: EcmaScriptTarget) -> String {

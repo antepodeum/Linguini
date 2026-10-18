@@ -1,5 +1,5 @@
-import type { Locale } from "./locale";
-import type { LinguiniWebLocale } from "./web";
+import type { Locale } from "./locale.js";
+import type { LinguiniWebLocale } from "./web.js";
 
 export declare const web: LinguiniWebLocale<Locale>;
 export declare function refreshLinguiniEffects(): void;

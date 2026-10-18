@@ -1,5 +1,5 @@
-import type { Fruit, Size, Money, ShortDate } from "../../shared";
-export type { Fruit, Size, Money, ShortDate } from "../../shared";
+import type { Fruit, Size, Money, ShortDate } from "../../shared.js";
+export type { Fruit, Size, Money, ShortDate } from "../../shared.js";
 
 export declare const email_input: {
   readonly label: string;

@@ -1,6 +1,6 @@
 import type { Handle, Reroute, ServerLoad } from "@sveltejs/kit";
-import type { Locale, TextDirection } from "./locale";
-import type { LinguiniLocaleRequestContext } from "./web";
+import type { Locale, TextDirection } from "./locale.js";
+import type { LinguiniLocaleRequestContext } from "./web.js";
 
 export declare const linguiniHandle: Handle;
 export declare const linguiniReroute: Reroute;

@@ -27,7 +27,7 @@ pub(super) fn generate_web_link_transform_declaration() -> String {
         "web/link-transform.d.ts",
         None,
     ));
-    module.push_import(type_import());
+    module.push_import(type_import(EcmaScriptTarget::JavaScript));
     module.push_statement(EcmaStatement::type_declaration(
         concat!(
             "export declare function localizeTransformedHref(\n",
@@ -63,7 +63,7 @@ fn web_link_transform_module(output: EcmaModuleOutput) -> EcmaModule {
     let target = output.target();
     let mut module = EcmaModule::new(output);
     if target.is_typescript() {
-        module.push_import(type_import());
+        module.push_import(type_import(EcmaScriptTarget::TypeScript));
     }
     module.push_import(EcmaImport::named(
         "../svelte-effects.svelte.js",
@@ -95,9 +95,9 @@ fn web_link_transform_module(output: EcmaModuleOutput) -> EcmaModule {
     module
 }
 
-fn type_import() -> EcmaImport {
+fn type_import(target: EcmaScriptTarget) -> EcmaImport {
     EcmaImport {
-        specifier: "../web".to_owned(),
+        specifier: super::names::import_path_for_target("../web", target),
         bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
             "LinkLocalizationAttributes",
             "LinkLocalizationAttributes",

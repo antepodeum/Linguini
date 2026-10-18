@@ -52,8 +52,8 @@ pub(super) fn generate_svelte_control_declaration(sveltekit: bool) -> String {
         None,
     ));
     for (path, names) in [
-        ("./locale", ["Locale", "TextDirection"]),
-        ("./web", ["AlternateLink", "LinkLocalizationAttributes"]),
+        ("./locale.js", ["Locale", "TextDirection"]),
+        ("./web.js", ["AlternateLink", "LinkLocalizationAttributes"]),
     ] {
         module.push_import(EcmaImport {
             specifier: path.to_owned(),

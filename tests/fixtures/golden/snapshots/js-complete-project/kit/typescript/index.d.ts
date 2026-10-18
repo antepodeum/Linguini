@@ -1,4 +1,4 @@
-import type { Locale } from "./locale";
+import type { Locale } from "./locale.js";
 export {
   locales,
   baseLocale,
@@ -6,11 +6,11 @@ export {
   isLocale,
   normalizeLocale,
   getTextDirection,
-} from "./locale";
-export type { Locale, TextDirection } from "./locale";
-export type * from "./shared";
-import type { LinguiniMessages } from "./messages";
-export type { LinguiniMessages } from "./messages";
+} from "./locale.js";
+export type { Locale, TextDirection } from "./locale.js";
+export type * from "./shared.js";
+import type { LinguiniMessages } from "./messages.js";
+export type { LinguiniMessages } from "./messages.js";
 
 export declare const localeModules: Partial<Record<Locale, LinguiniMessages>>;
 

@@ -13,6 +13,10 @@ fn environment() -> &'static Environment<'static> {
         environment.set_keep_trailing_newline(true);
         environment.set_undefined_behavior(UndefinedBehavior::Strict);
         for (name, source) in [
+            (
+                "index_declarations",
+                include_str!("../templates/index_declarations.jinja"),
+            ),
             ("functions", include_str!("../templates/functions.jinja")),
             (
                 "number_helpers",

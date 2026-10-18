@@ -12,7 +12,7 @@ pub(super) fn generate_web_server_cookie_declaration() -> String {
         "web/server-cookie.d.ts",
         None,
     ));
-    module.push_import(type_import());
+    module.push_import(type_import(EcmaScriptTarget::JavaScript));
     module.push_statement(EcmaStatement::type_declaration("export declare function persistLocaleCookie<Locale extends string>(\n  web: LinguiniWebLocale<Locale>,\n  target: unknown,\n  locale: Locale,\n  input?: Record<string, unknown>,\n): void;\n", None));
     module.render_code()
 }
@@ -26,9 +26,9 @@ pub fn compile_javascript_web_server_cookie_module() -> RenderedEcmaModule {
     cookie_module(EcmaScriptTarget::JavaScript).render(&[])
 }
 
-fn type_import() -> EcmaImport {
+fn type_import(target: EcmaScriptTarget) -> EcmaImport {
     EcmaImport {
-        specifier: "../web".to_owned(),
+        specifier: super::names::import_path_for_target("../web", target),
         bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
             "LinguiniWebLocale",
             "LinguiniWebLocale",
@@ -46,7 +46,7 @@ fn cookie_module(target: EcmaScriptTarget) -> EcmaModule {
         },
         None,
     ));
-    module.push_import(type_import());
+    module.push_import(type_import(EcmaScriptTarget::TypeScript));
     let mut code = RuntimeCode::default();
     code.typed("export function persistLocaleCookie<Locale extends string>(\n  web: LinguiniWebLocale<Locale>,\n  target: unknown,\n  locale: Locale,\n  input: Record<string, unknown> = {},\n) {\n", "/** @template {string} Locale @param {import(\"../web.js\").LinguiniWebLocale<Locale>} web @param {unknown} target @param {Locale} locale @param {Record<string, unknown>} [input] @returns {void} */\nexport function persistLocaleCookie(web, target, locale, input = {}) {\n");
     code.shared("  web.setLocaleCookie(target, locale, input);\n}\n");

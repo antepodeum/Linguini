@@ -187,3 +187,7 @@ shared crate and re-exports `TypeModel`; its renderers, target bindings, and tem
 Numeric, date, digit, plural-operand, and locale-provider helper bodies now render from shared
 JS/TS templates during builds. This ownership change preserves their generated source and map
 bytes; no generated runtime implementation files are checked into production sources.
+
+Generated declaration imports now use explicit `.js` module paths. Strict TypeScript consumers
+can resolve JavaScript output through its adjacent `.d.ts` files with `allowJs = false`,
+including NodeNext projects. Bundler resolution remains supported.

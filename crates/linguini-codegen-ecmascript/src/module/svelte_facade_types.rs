@@ -50,7 +50,7 @@ pub(super) fn generate_svelte_declaration(web: bool) -> String {
         names.push("TextDirection");
     }
     module.push_import(EcmaImport {
-        specifier: "./index".to_owned(),
+        specifier: "./index.js".to_owned(),
         bindings: EcmaImportBindings::TypeNamed(
             names
                 .into_iter()

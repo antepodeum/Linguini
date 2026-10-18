@@ -1662,7 +1662,7 @@ fn project_codegen_encodes_unsafe_namespace_filenames_and_imports() {
         .expect("locale declaration barrel");
     assert!(declarations
         .contents
-        .contains("from \"./en/__lgl_path_61646D696E2F70617468\";"));
+        .contains("from \"./en/__lgl_path_61646D696E2F70617468.js\";"));
 }
 
 #[test]

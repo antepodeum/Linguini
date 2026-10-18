@@ -1,4 +1,4 @@
-import type { Locale } from "./locale";
+import type { Locale } from "./locale.js";
 
 export type LinguiniLocaleLoader = (locale: Locale) => void | Promise<void>;
 

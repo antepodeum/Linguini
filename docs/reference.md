@@ -21,6 +21,11 @@ Rust codegen integrations can call `generate_javascript_schema_files` to obtain 
 declaration companions. `EcmaGeneratedFile` is the language-neutral generated-file record;
 `TypeScriptGeneratedFile` remains its TypeScript-facing alias.
 
+JavaScript output with declaration companions can be consumed by strict TypeScript projects
+without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and
+Bundler resolution. A build that emits application code with `tsc` must also deliver the
+generated JavaScript files to its runtime output directory.
+
 Custom Rust codegen callers configure an embedded plural implementation through
 `TypeScriptOptions::plural_rules`. The backend renders those canonical rules directly for the
 selected ECMAScript target and export scope; callers use `plural_import` only when the plural

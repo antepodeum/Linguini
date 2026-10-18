@@ -14,7 +14,7 @@ pub(super) fn generate_svelte_effects_declaration() -> String {
         "svelte-effects.svelte.d.ts",
         None,
     ));
-    for (path, name) in [("./locale", "Locale"), ("./web", "LinguiniWebLocale")] {
+    for (path, name) in [("./locale.js", "Locale"), ("./web.js", "LinguiniWebLocale")] {
         module.push_import(EcmaImport {
             specifier: path.to_owned(),
             bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(name, name)]),
@@ -249,8 +249,10 @@ mod tests {
                 );
                 assert_eq!(
                     generate_svelte_effects_declaration(),
-                    std::fs::read_to_string(root.join("legacy/svelte-effects.runtime.d.ts"))
-                        .unwrap()
+                    super::super::test_templates::declaration_with_runtime_imports(
+                        std::fs::read_to_string(root.join("legacy/svelte-effects.runtime.d.ts"))
+                            .unwrap()
+                    )
                 );
                 for (selected, capability) in [
                     (options.features().has_path, "window.location"),

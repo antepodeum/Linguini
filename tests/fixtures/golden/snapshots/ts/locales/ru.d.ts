@@ -1,6 +1,6 @@
-import { email_input } from "./ru/email_input";
-import type { Fruit, Size, Money, ShortDate } from "../shared";
-export type { Fruit, Size, Money, ShortDate } from "../shared";
+import { email_input } from "./ru/email_input.js";
+import type { Fruit, Size, Money, ShortDate } from "../shared.js";
+export type { Fruit, Size, Money, ShortDate } from "../shared.js";
 
 export { email_input };
 

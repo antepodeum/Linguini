@@ -1,4 +1,4 @@
-import type { LinkLocalizationAttributes } from "../web";
+import type { LinkLocalizationAttributes } from "../web.js";
 
 export declare function localizeTransformedHref(
   href: string,

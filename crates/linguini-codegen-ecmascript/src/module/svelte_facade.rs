@@ -152,8 +152,12 @@ mod tests {
             assert_eq!(body(&ts.code), body(&legacy));
             assert_eq!(
                 generate_svelte_declaration(web),
-                std::fs::read_to_string(root.join(format!("{name}/legacy/svelte.runtime.d.ts")))
+                super::super::test_templates::declaration_with_runtime_imports(
+                    std::fs::read_to_string(
+                        root.join(format!("{name}/legacy/svelte.runtime.d.ts"))
+                    )
                     .unwrap()
+                )
             );
             let mut snapshots = vec![
                 (root.join(format!("{name}/svelte.js")), js.code),

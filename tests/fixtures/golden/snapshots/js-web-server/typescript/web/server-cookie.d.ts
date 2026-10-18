@@ -1,4 +1,4 @@
-import type { LinguiniWebLocale } from "../web";
+import type { LinguiniWebLocale } from "../web.js";
 
 export declare function persistLocaleCookie<Locale extends string>(
   web: LinguiniWebLocale<Locale>,

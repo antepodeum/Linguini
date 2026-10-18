@@ -1,4 +1,4 @@
-import type { Locale, Linguini } from "./index";
+import type { Locale, Linguini } from "./index.js";
 import type { LinguiniSvelteControl } from "./svelte-control.js";
 export type { LinguiniSetLocaleOptions } from "./svelte-control.js";
 

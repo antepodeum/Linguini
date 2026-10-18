@@ -415,6 +415,11 @@ export const TASKS = Object.freeze([
     profiles: ["quick", "full"], tools: ["pnpm"], requiresNodeModules: true,
   }),
   Object.freeze({
+    id: "codegen:complete-project-ts", project: "site", label: "Strict TypeScript consumer without allowJs under NodeNext",
+    command: "pnpm", args: ["exec", "tsc", "--project", "../tests/fixtures/golden/snapshots/js-complete-project/tsconfig.node.json"],
+    profiles: ["quick", "full"], tools: ["pnpm"], requiresNodeModules: true,
+  }),
+  Object.freeze({
     id: "codegen:complete-project-runtime", project: "rust", label: "Complete native project loading and fallback parity",
     command: "bun", args: ["test", "./tests/fixtures/golden/snapshots/js-complete-project/parity.test.ts"],
     profiles: ["quick", "full"], tools: ["bun"], requiresNodeModules: false,

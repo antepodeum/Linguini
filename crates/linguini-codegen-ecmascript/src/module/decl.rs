@@ -6,7 +6,10 @@ use crate::ecmascript::{
 };
 
 use super::emit::{schema_type_aliases, schema_type_names};
-use super::names::{emit_docs, function_name, property_key, safe_file_stem, safe_identifier};
+use super::names::{
+    declaration_import_path, emit_docs, function_name, property_key, safe_file_stem,
+    safe_identifier,
+};
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
 
@@ -21,7 +24,7 @@ pub fn generate_locale_declaration_with_namespaces(
         let file_stem = safe_file_stem(namespace);
         let identifier = safe_identifier(namespace);
         imports.push(EcmaImport::named(
-            format!("./{locale}/{file_stem}"),
+            format!("./{locale}/{file_stem}.js"),
             vec![EcmaNamedImport::new(&identifier, &identifier)],
         ));
     }
@@ -75,7 +78,7 @@ pub fn generate_locale_declaration_with_shared_import(
 fn type_import(schema: &IrModule, shared_import_path: &str) -> Option<EcmaImport> {
     let type_names = schema_type_names(schema);
     (!type_names.is_empty()).then(|| EcmaImport {
-        specifier: shared_import_path.to_owned(),
+        specifier: declaration_import_path(shared_import_path),
         bindings: EcmaImportBindings::TypeNamed(
             type_names
                 .into_iter()
@@ -90,7 +93,7 @@ fn type_re_exports(schema: &IrModule, shared_import_path: &str) -> Vec<EcmaReExp
     (!type_names.is_empty())
         .then(|| {
             EcmaReExport::type_named(
-                shared_import_path,
+                declaration_import_path(shared_import_path),
                 type_names
                     .into_iter()
                     .map(|name| EcmaNamedImport::new(&name, &name))

@@ -45,7 +45,7 @@ pub(super) fn generate_svelte_locale_declaration(mode: SvelteLocaleMode) -> Stri
         None,
     ));
     module.push_import(EcmaImport {
-        specifier: "./locale".to_owned(),
+        specifier: "./locale.js".to_owned(),
         bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new("Locale", "Locale")]),
     });
     let mut code = String::from("export type LinguiniLocaleLoader = (locale: Locale) => void | Promise<void>;\n\nexport declare function registerLocaleLoader(loader: LinguiniLocaleLoader): () => void;\nexport declare function prepareLocale(locale: unknown): Promise<Locale>;\nexport declare function getCurrentLocale(): Locale;\n");

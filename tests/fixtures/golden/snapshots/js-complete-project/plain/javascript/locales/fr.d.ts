@@ -1,4 +1,4 @@
-import { section } from "./fr/section";
+import { section } from "./fr/section.js";
 
 export { section };
 

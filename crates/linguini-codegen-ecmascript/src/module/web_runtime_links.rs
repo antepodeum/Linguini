@@ -22,7 +22,7 @@ pub(super) fn generate_web_runtime_links_declaration() -> String {
         "web/runtime-links.d.ts",
         None,
     ));
-    module.push_import(web_type_import());
+    module.push_import(web_type_import(EcmaScriptTarget::JavaScript));
     module.push_statement(EcmaStatement::type_declaration(
         r#"export declare function startRuntimeLinkLocalization<Locale extends string>(
   web: LinguiniWebLocale<Locale>,
@@ -53,9 +53,9 @@ fn compile_runtime_links(target: EcmaScriptTarget) -> RenderedEcmaModule {
     runtime_links_module(EcmaModuleOutput::new(target, path, None)).render(&[])
 }
 
-fn web_type_import() -> EcmaImport {
+fn web_type_import(target: EcmaScriptTarget) -> EcmaImport {
     EcmaImport {
-        specifier: "../web".to_owned(),
+        specifier: super::names::import_path_for_target("../web", target),
         bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
             "LinguiniWebLocale",
             "LinguiniWebLocale",
@@ -66,7 +66,7 @@ fn web_type_import() -> EcmaImport {
 fn runtime_links_module(output: EcmaModuleOutput) -> EcmaModule {
     let target = output.target();
     let mut module = EcmaModule::new(output);
-    module.push_import(web_type_import());
+    module.push_import(web_type_import(EcmaScriptTarget::TypeScript));
     let mut code = RuntimeCode::default();
     code.shared("const MAX_PENDING_ROOTS = 128;\nconst NODE_BUDGET = 256;\n\n");
     code.typed(

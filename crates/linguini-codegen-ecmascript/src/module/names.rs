@@ -28,6 +28,19 @@ pub(super) fn import_path_for_target(path: &str, target: EcmaScriptTarget) -> St
     }
 }
 
+/// Internal module stems refer to emitted JavaScript; external specifiers stay caller-owned.
+pub(super) fn declaration_import_path(path: &str) -> String {
+    if (path.starts_with("./") || path.starts_with("../"))
+        && ![".js", ".mjs", ".cjs", ".ts", ".mts", ".cts", ".json"]
+            .iter()
+            .any(|extension| path.ends_with(extension))
+    {
+        format!("{path}.js")
+    } else {
+        path.to_owned()
+    }
+}
+
 pub fn portable_path_component_error(name: &str) -> Option<&'static str> {
     if name.is_empty() {
         return Some("component is empty");
@@ -311,6 +324,21 @@ mod tests {
         portable_path_component_error, property_access, property_key, safe_file_stem,
         safe_identifier, string_literal,
     };
+
+    #[test]
+    fn declaration_specifiers_preserve_explicit_files_and_external_packages() {
+        for (source, expected) in [
+            ("./shared", "./shared.js"),
+            ("../locale", "../locale.js"),
+            ("./svelte-locale.svelte", "./svelte-locale.svelte.js"),
+            ("./shared.js", "./shared.js"),
+            ("./custom.mjs", "./custom.mjs"),
+            ("@app/types", "@app/types"),
+            ("package/types", "package/types"),
+        ] {
+            assert_eq!(super::declaration_import_path(source), expected);
+        }
+    }
 
     #[test]
     fn documentation_renderer_preserves_lines_paragraphs_and_safety() {

@@ -1,4 +1,4 @@
-import type { Locale, Linguini, TextDirection } from "./index";
+import type { Locale, Linguini, TextDirection } from "./index.js";
 
 export interface LinguiniRune<Locale extends string, Linguini> {
   readonly messages: Linguini;

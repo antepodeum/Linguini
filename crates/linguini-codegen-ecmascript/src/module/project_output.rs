@@ -203,7 +203,7 @@ fn append_schema(
             messages::messages_module(
                 &selected_schema,
                 EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "messages.d.ts", None),
-                &import_path_for_target("./shared", target),
+                &import_path_for_target("./shared", EcmaScriptTarget::JavaScript),
             ),
             vec![],
         );

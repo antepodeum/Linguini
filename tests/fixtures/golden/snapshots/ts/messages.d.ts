@@ -1,4 +1,4 @@
-import type { Fruit, Size, Money, ShortDate } from "./shared";
+import type { Fruit, Size, Money, ShortDate } from "./shared.js";
 
 export type LinguiniMessages = {
   readonly delivery: {
