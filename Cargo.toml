@@ -5,6 +5,7 @@ members = [
   "crates/linguini-cldr",
   "crates/linguini-cldr-macros",
   "crates/linguini-cli",
+  "crates/linguini-codegen",
   "crates/linguini-codegen-ecmascript",
   "crates/linguini-config",
   "crates/linguini-core",

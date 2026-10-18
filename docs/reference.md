@@ -7,9 +7,14 @@ The committed JSON Schema for `linguini.toml` is exported as
 `linguini_config::CONFIG_SCHEMA_JSON`. CI snapshots this schema, generated declarations, CLI help,
 and executable examples so public contract drift requires an explicit reviewed update.
 
-Codegen lowers every public parameter type into the backend-neutral
-`linguini_codegen_ecmascript::TypeModel`. TypeScript and JSDoc spellings are rendered from that same model
-through `render_typescript_type` and `render_jsdoc_type`.
+`linguini-codegen` owns backend-independent type models, formatter and plural requirement
+analysis, and transitive message dependency selection with source provenance. Other code
+generators can consume these semantic plans without depending on an output language.
+
+Public parameter types lower into `linguini_codegen::TypeModel`, also re-exported by
+`linguini-codegen-ecmascript`. The ECMAScript backend owns identifier escaping, TypeScript and
+JSDoc rendering through `render_typescript_type` and `render_jsdoc_type`, templates, and module
+emission.
 
 Rust codegen integrations can call `generate_javascript_schema_files` to obtain the schema-owned
 `shared.js` checked-JavaScript runtime and `messages.js` type boundary together with their `.d.ts`

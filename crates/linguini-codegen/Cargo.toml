@@ -1,0 +1,13 @@
+[package]
+name = "linguini-codegen"
+version = "0.1.0-alpha.4"
+description = "Backend-independent generation models and dependency planning for Linguini"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+linguini-core = { path = "../linguini-core", version = "0.1.0-alpha.4" }
+linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.4" }
+linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.4" }

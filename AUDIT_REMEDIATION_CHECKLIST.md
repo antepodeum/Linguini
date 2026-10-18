@@ -941,6 +941,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       templates emit specialized functions and only required helpers, with no runtime CLDR
       pattern interpreter or checked-in generated runtime sources. Shared schema dispatch now
       uses one template and type macros; remaining runtime families and specialization are open.
+      Backend-independent type models, requirement analysis, and message dependency slicing
+      live in `linguini-codegen`; ECMAScript rendering stays in `linguini-codegen-ecmascript`.
 
 ### Documentation identity through codegen
 

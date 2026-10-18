@@ -1,28 +1,6 @@
-use linguini_core::TypeKind;
+pub use linguini_codegen::TypeModel;
 
 use super::names::safe_identifier;
-
-/// Backend-neutral public value types accepted by generated localization APIs.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeModel {
-    String,
-    Boolean,
-    NumberInput,
-    DateInput,
-    Named(String),
-}
-
-impl TypeModel {
-    pub fn from_source_name(name: &str) -> Self {
-        match TypeKind::from_name(name) {
-            Some(TypeKind::String) => Self::String,
-            Some(TypeKind::Boolean) => Self::Boolean,
-            Some(TypeKind::Number | TypeKind::Decimal) => Self::NumberInput,
-            Some(TypeKind::Date) => Self::DateInput,
-            None => Self::Named(name.to_owned()),
-        }
-    }
-}
 
 pub fn render_typescript_type(model: &TypeModel) -> String {
     match model {
@@ -35,13 +13,7 @@ pub fn render_typescript_type(model: &TypeModel) -> String {
 }
 
 pub fn render_jsdoc_type(model: &TypeModel) -> String {
-    match model {
-        TypeModel::String => "string".to_owned(),
-        TypeModel::Boolean => "boolean".to_owned(),
-        TypeModel::NumberInput => "number | bigint | string".to_owned(),
-        TypeModel::DateInput => "Date | number | string".to_owned(),
-        TypeModel::Named(name) => safe_identifier(name),
-    }
+    render_typescript_type(model)
 }
 
 #[cfg(test)]

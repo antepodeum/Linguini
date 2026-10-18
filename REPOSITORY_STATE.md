@@ -78,7 +78,7 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove formatting branches that duplicate parser recovery decisions.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run formatter tests and any snapshot checks.
-- [x] 12. `crates/linguini-codegen-ecmascript`
+- [x] 12. `crates/linguini-codegen` and `crates/linguini-codegen-ecmascript`
   - [x] Review module tree, naming, declaration, and template boundaries.
   - [x] Check generated TypeScript, Svelte, and SvelteKit runtime contracts.
   - [x] Remove repeated string assembly when a shared emitter helper is clearer.

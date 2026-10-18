@@ -716,10 +716,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "linguini-codegen"
+version = "0.1.0-alpha.4"
+dependencies = [
+ "linguini-core",
+ "linguini-ir",
+ "linguini-syntax",
+]
+
+[[package]]
 name = "linguini-codegen-ecmascript"
 version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-cldr",
+ "linguini-codegen",
  "linguini-core",
  "linguini-ir",
  "linguini-syntax",

@@ -178,3 +178,8 @@ project generation; consumers need no additional build tools.
 The Rust code-generation crate is now `linguini-codegen-ecmascript`, covering both JavaScript and
 TypeScript. Update Cargo dependencies and use the `linguini_codegen_ecmascript` import path. The
 existing target-specific API names and generated module contracts are unchanged.
+
+Backend-independent type models, formatter/plural requirement analysis, and transitive message
+dependency selection now live in `linguini-codegen`. The ECMAScript backend depends on this
+shared crate and re-exports `TypeModel`; its renderers, target bindings, and templates stay in
+`linguini-codegen-ecmascript`.

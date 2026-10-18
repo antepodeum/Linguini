@@ -183,14 +183,14 @@ JavaScript namespace typedefs retain the full message API even when declarations
 The integrated fixture is `tests/fixtures/golden/snapshots/js-complete-project`.
 
 
-ESM-M10 removes the remaining production source templates. Schema dispatch and argument helpers,
+At ESM-M10, the remaining production source templates were removed. Schema dispatch and argument helpers,
 locale formatter helpers, plural operands, locale resolution, and lazy project providers each have
 one runtime body. Target differences are explicit TypeScript/JSDoc annotations consumed by
 `ecmascript::RuntimeCode`; whole modules and their maps still belong to `EcmaModule`. Locale
 formatter lowering lives in `module/formatter_codegen.rs`, independent of expression lowering.
 Project entry metadata, imports, and runtime bodies live in cohesive `module/entry/` modules.
-Production codegen sources contain no JavaScript/TypeScript runtime files or template includes.
-The `runtime_ownership` integration test guards that boundary and retired emitter names. Frozen
+At that milestone, production codegen sources contained no JavaScript/TypeScript runtime files
+or template includes. The `runtime_ownership` integration test guarded that boundary and retired emitter names. Frozen
 oracles remain outside production sources, with test-only substitution in `module/test_templates.rs`.
 Byte snapshots, source maps, all 151 codegen tests, and strict Clippy pass after removal.
 
@@ -210,3 +210,7 @@ the same bodies. Output must specialize to the project's used patterns and capab
 without embedding a general CLDR interpreter. Generated runtime implementation artifacts do
 not belong in production sources. ESM-M12 tracks conversion from the earlier inline Rust
 fragment representation; shared schema dispatch is the first converted runtime family.
+
+`linguini-codegen` owns shared type models, formatter/plural requirement analysis, and semantic
+message dependency slicing with source provenance. `linguini-codegen-ecmascript` consumes those
+plans and owns target syntax, JS/TS templates, identifier escaping, and module rendering.

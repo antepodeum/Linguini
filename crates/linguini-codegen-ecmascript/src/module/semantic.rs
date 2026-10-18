@@ -17,7 +17,7 @@ use crate::ecmascript::{
 use super::emit::{
     self, emit_forms_for_target, emit_local_functions_for_target, emit_variables_for_target,
 };
-use super::formatters::{formatter_requirements, plural_required};
+use super::formatters::{formatter_helper_names, formatter_requirements, plural_required};
 use super::names::{form_binding_name, import_path_for_target, safe_identifier};
 use super::{
     project_locale_options, EcmaScriptTarget, TypeScriptCodegenError, ValidatedTypeScriptProject,
@@ -349,7 +349,7 @@ fn compile_bundler_semantic_module(
             vec![EcmaNamedImport::new("selectBranch", "selectBranch")],
         ));
     }
-    let mut helpers = formatter_requirements(&IrModule::default(), &one).helper_names();
+    let mut helpers = formatter_helper_names(formatter_requirements(&IrModule::default(), &one));
     if plural_required(&IrModule::default(), &one) {
         helpers.push(&options.plural_function);
     }

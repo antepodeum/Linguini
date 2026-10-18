@@ -18,7 +18,7 @@ use super::emit::{
     self, emit_formatter_data, emit_forms_for_target, emit_local_functions_for_target,
     emit_variables_for_target,
 };
-use super::formatters::{formatter_requirements, plural_required};
+use super::formatters::{formatter_helper_names, formatter_requirements, plural_required};
 use super::names::{emit_docs, import_path_for_target};
 use super::semantic::TypeScriptSemanticImport;
 use super::signature::MessageCallSignature;
@@ -416,11 +416,11 @@ fn emit_message_module(
         schema
             .messages()
             .iter()
-            .find(|item| item.name == closure.message),
+            .find(|item| item.name == closure.message()),
         locale
             .messages()
             .iter()
-            .find(|item| item.name == closure.message),
+            .find(|item| item.name == closure.message()),
     ) {
         let call_signature = MessageCallSignature::from_message(signature);
         let body =
@@ -467,9 +467,9 @@ fn emit_message_module(
     let uses_named_message_args = schema
         .messages()
         .iter()
-        .any(|signature| signature.name == closure.message && !signature.parameters.is_empty());
+        .any(|signature| signature.name == closure.message() && !signature.parameters.is_empty());
     let runtime_helpers =
-        runtime_import_path.map(|_| formatter_requirements(schema, locale).helper_names());
+        runtime_import_path.map(|_| formatter_helper_names(formatter_requirements(schema, locale)));
     let mut module = EcmaModule::new(output);
     module.extend_imports(message_imports(MessageImportRequest {
         shared_import_path,

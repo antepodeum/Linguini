@@ -50,6 +50,7 @@ mod web_types;
 mod web_url;
 
 pub(crate) use crate::ecmascript::EcmaScriptTarget;
+use formatters::formatter_helper_names;
 
 pub use svelte_control::{
     compile_javascript_svelte_control_module, compile_typescript_svelte_control_module,
@@ -1167,8 +1168,7 @@ fn runtime_helper_names(
     locale: &IrModule,
     options: &TypeScriptOptions,
 ) -> Vec<String> {
-    let mut helpers = formatter_requirements(schema, locale)
-        .helper_names()
+    let mut helpers = formatter_helper_names(formatter_requirements(schema, locale))
         .into_iter()
         .map(str::to_owned)
         .collect::<Vec<_>>();

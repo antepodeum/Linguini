@@ -32,10 +32,12 @@ test("public contract policy requires docs, migrations, and tests together", () 
     /docs\/migrations\.md, tests or fixtures/,
   );
   assert.deepEqual(contractEvidence(["crates/linguini-ir/src/lower.rs"]).contracts, []);
-  assert.throws(
-    () => validateContractEvidence(["crates/linguini-codegen-ecmascript/src/lib.rs"]),
-    /public documentation, docs\/migrations\.md, tests or fixtures/,
-  );
+  for (const name of ["linguini-codegen", "linguini-codegen-ecmascript"]) {
+    assert.throws(
+      () => validateContractEvidence([`crates/${name}/src/lib.rs`]),
+      /public documentation, docs\/migrations\.md, tests or fixtures/,
+    );
+  }
 });
 
 test("documentation runtime fixture selection and transformation stay exact", () => {
