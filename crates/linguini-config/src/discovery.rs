@@ -672,10 +672,11 @@ mod tests {
             &["src/components/generated".to_owned()],
         )
         .expect("application discovery");
+        let canonical_root = fs::canonicalize(root.path()).expect("canonical project root");
         let relative = files
             .iter()
             .map(|path| {
-                path.strip_prefix(root.path())
+                path.strip_prefix(&canonical_root)
                     .expect("project-relative path")
                     .to_string_lossy()
                     .replace('\\', "/")
@@ -888,21 +889,37 @@ mod tests {
         let root = TempDir::new().expect("root");
         let invalid = OsString::from_vec(vec![b'n', 0xff]);
         let directory = root.path().join(invalid);
-        fs::create_dir(&directory).expect("invalid directory");
-        fs::write(directory.join("message.lgs"), "message\n").expect("source");
+        let source = directory.join("message.lgs");
+        assert!(matches!(
+            super::require_utf8_component(&directory),
+            Err(ConfigError::NonUtf8Path(_))
+        ));
+        assert!(matches!(
+            super::namespace_from_path(root.path(), &source, true),
+            Err(ConfigError::NonUtf8Path(_))
+        ));
 
-        let error = discover_schema_files(root.path()).expect_err("non-UTF-8 rejected");
+        // The macOS CI filesystem rejects these names before discovery can inspect them.
+        #[cfg(not(target_os = "macos"))]
+        {
+            fs::create_dir(&directory).expect("invalid directory");
+            fs::write(source, "message\n").expect("source");
+            let error = discover_schema_files(root.path()).expect_err("non-UTF-8 rejected");
 
-        assert!(matches!(error, ConfigError::NonUtf8Path(_)));
+            assert!(matches!(error, ConfigError::NonUtf8Path(_)));
+        }
     }
 
     #[test]
     fn rejects_case_insensitive_namespace_collisions() {
         let root = TempDir::new().expect("root");
-        fs::write(root.path().join("Shop.lgs"), "first\n").expect("first");
-        fs::write(root.path().join("shop.lgs"), "second\n").expect("second");
+        fs::create_dir(root.path().join("shop")).expect("nested directory");
+        fs::write(root.path().join("Shop.title.lgs"), "first\n").expect("first");
+        fs::write(root.path().join("shop/title.lgs"), "second\n").expect("second");
 
-        assert!(discover_schema_files(root.path()).is_err());
+        let error =
+            discover_schema_files(root.path()).expect_err("case-folded namespace collision");
+        assert!(matches!(error, ConfigError::DuplicateKey(_)));
     }
 
     #[test]
