@@ -809,9 +809,22 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] ESM-A4 — Introduce one shared language-neutral `TypeModel`. Public message parameters lower
   once into backend-neutral string, Boolean, numeric-input, date-input, or named types; TypeScript
   and JSDoc renderers consume that model, and signature generation no longer maps source types.
-- [-] ESM-A5 — Emit canonical JavaScript with JSDoc from shared semantic models. Preserve checked
-      overloads, parameters, locale metadata, loaders, providers, formatter inputs, and recursive
-      namespaces. Reverify consumers and source maps after removing TS runtime generation.
+- [-] ESM-A5 — Render canonical JavaScript plus JSDoc from the shared semantic models and
+      templates. Exact bundler message and semantic leaves must preserve expression evaluation,
+      form dispatch, local/inline functions, call signatures, imports, demand-selected runtime
+      helpers, and source mappings. Locale namespaces and barrels must preserve recursive message
+      objects, callable form attributes, parameterless values, exports, defaults, and fallback.
+      Project entries must retain checked-JavaScript locale metadata, finite locale types,
+      directions, lazy loaders, preparation, provider, and configure contracts. Positional and
+      named-object overloads, local function parameters, captured values, plural operands,
+      formatter inputs/options, schema enums/aliases, and nested namespace values must retain their
+      checked JSDoc types. Optional web helpers, Svelte adapters, SvelteKit adapters, and complete
+      project output must use the same canonical JS generation path without paired TS runtime
+      implementations or per-template TS implementation branches. Emit `.d.ts` from the same type
+      and signature models; preserve public documentation and source provenance on both surfaces.
+      Verify exact JS/declaration/source-map snapshots, executed runtime semantics, strict JSDoc,
+      and positive/negative TypeScript consumers without `allowJs`, including Node ESM, bundler,
+      plain `tsc`, and real SvelteKit integration after the module/configuration migration.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
 - [-] ESM-A7 — Maintain one JavaScript implementation per runtime family. Remove public TS
@@ -958,9 +971,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### Reusable backend and framework modules
 
-- [ ] MOD-A1 — Separate framework-independent web codegen, Svelte codegen, and SvelteKit codegen
-      into modules with explicit interfaces and artifact ownership. SvelteKit composes reusable
-      Svelte/web capabilities; web generation must work without either framework.
+- [ ] MOD-A1 — Within `linguini-codegen-ecmascript`, separate the optional web runtime helpers,
+      Svelte adapter, and SvelteKit adapter into modules with explicit interfaces. Keep general
+      ECMAScript message generation independent of all three. SvelteKit reuses the Svelte adapter
+      and web helpers; neither web nor a framework adapter is a separate language backend.
 - [ ] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
       and source-map infrastructure framework-independent. Isolate Svelte syntax/link transforms
       and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure.
