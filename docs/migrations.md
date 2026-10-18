@@ -191,3 +191,7 @@ bytes; no generated runtime implementation files are checked into production sou
 Generated declaration imports now use explicit `.js` module paths. Strict TypeScript consumers
 can resolve JavaScript output through its adjacent `.d.ts` files with `allowJs = false`,
 including NodeNext projects. Bundler resolution remains supported.
+
+`linguini build --emit-dir DIRECTORY` can additionally generate into build output directories
+without editing `linguini.toml`. The option is repeatable; duplicate directories are coalesced,
+and overlapping or unsafe locations fail validation before generated trees are written.

@@ -70,13 +70,22 @@ enum CliCommand {
     /// Apply analyzer quick fixes such as missing locale files and message stubs
     Fix(FixArgs),
     /// Build the localization project and write configured codegen outputs
-    Build(DiagnosticArgs),
+    Build(BuildArgs),
     /// Generate rendered sample data for configured locales and enum variants
     Generate,
     /// Format `.lgs` and `.lgl` files
     Format(FormatArgs),
     /// Start the Linguini language server over stdio
     Lsp,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Args)]
+pub(crate) struct BuildArgs {
+    #[command(flatten)]
+    diagnostics: DiagnosticArgs,
+    /// Also generate into a project-relative build output directory (repeatable)
+    #[arg(long = "emit-dir", value_name = "DIRECTORY")]
+    emit_dirs: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Args)]
@@ -137,9 +146,12 @@ pub fn run(
             project::check_project_with_options(&root, args.deny_warnings, args.format)
         }
         CliCommand::Fix(args) => project::fix_project(&root, &args),
-        CliCommand::Build(args) => {
-            project::build_project_with_options(&root, args.deny_warnings, args.format)
-        }
+        CliCommand::Build(args) => project::build_project_with_emissions(
+            &root,
+            args.diagnostics.deny_warnings,
+            args.diagnostics.format,
+            &args.emit_dirs,
+        ),
         CliCommand::Generate => project::generate_project_data(&root),
         CliCommand::Format(args) => format_project(&root, &args),
         CliCommand::Lsp => {

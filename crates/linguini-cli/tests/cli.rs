@@ -993,6 +993,112 @@ locale = "locales"
     project
 }
 
+#[test]
+fn build_emits_owned_trees_at_each_output_depth_with_original_source_maps() {
+    let project = TempDir::new().expect("temp project");
+    linguini()
+        .current_dir(project.path())
+        .arg("init")
+        .assert()
+        .success();
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "greeting(name: String)\n",
+    )
+    .unwrap();
+    fs::create_dir_all(project.path().join("locales/main")).unwrap();
+    let locale = project.path().join("locales/main/en.lgl");
+    fs::write(&locale, "greeting = Hello {name}\n").unwrap();
+    let build = || {
+        linguini()
+            .current_dir(project.path())
+            .args([
+                "build",
+                "--emit-dir",
+                "dist/server/generated",
+                "--emit-dir",
+                "dist/server/generated",
+            ])
+            .assert()
+            .success()
+    };
+    let result = build();
+    assert_eq!(
+        String::from_utf8_lossy(&result.get_output().stdout)
+            .matches("replaced generated tree:")
+            .count(),
+        2
+    );
+    let primary = project.path().join("src/generated/linguini");
+    let emitted = project.path().join("dist/server/generated");
+    fs::write(emitted.join("notes.txt"), "user output").unwrap();
+    fs::write(&locale, "greeting = Updated {name}\n").unwrap();
+    build();
+    assert_eq!(
+        fs::read_to_string(emitted.join("notes.txt")).unwrap(),
+        "user output"
+    );
+    let owned = fs::read_to_string(primary.join(".linguini-generated-manifest")).unwrap();
+    assert_eq!(
+        owned,
+        fs::read_to_string(emitted.join(".linguini-generated-manifest")).unwrap()
+    );
+    for path in owned.lines().skip(1).filter(|path| !path.ends_with(".map")) {
+        assert_eq!(
+            fs::read(primary.join(path)).unwrap(),
+            fs::read(emitted.join(path)).unwrap(),
+            "same generated module {path}"
+        );
+    }
+    assert_codegen_source_maps(&primary);
+    assert_codegen_source_maps(&emitted);
+}
+
+#[test]
+fn invalid_additional_outputs_fail_before_changing_the_primary_tree() {
+    let container = TempDir::new().unwrap();
+    let root = container.path().join("app");
+    fs::create_dir(&root).unwrap();
+    linguini().current_dir(&root).arg("init").assert().success();
+    fs::write(root.join("schema/main.lgs"), "greeting\n").unwrap();
+    fs::create_dir_all(root.join("locales/main")).unwrap();
+    let locale = root.join("locales/main/en.lgl");
+    fs::write(&locale, "greeting = Original\n").unwrap();
+    linguini()
+        .current_dir(&root)
+        .arg("build")
+        .assert()
+        .success();
+    let generated = root.join("src/generated/linguini");
+    let owned = fs::read_to_string(generated.join(".linguini-generated-manifest")).unwrap();
+    let original = owned
+        .lines()
+        .skip(1)
+        .map(|path| (path, fs::read(generated.join(path)).unwrap()))
+        .collect::<Vec<_>>();
+    fs::write(&locale, "greeting = Changed\n").unwrap();
+    for output in [
+        "../outside",
+        "schema/nested",
+        "src/generated",
+        "src/generated/linguini/nested",
+    ] {
+        linguini()
+            .current_dir(&root)
+            .args(["build", "--emit-dir", output])
+            .assert()
+            .failure();
+        for (path, contents) in &original {
+            assert_eq!(
+                fs::read(generated.join(path)).unwrap(),
+                *contents,
+                "no primary mutation for {output}: {path}"
+            );
+        }
+    }
+    assert!(!container.path().join("outside").exists());
+}
+
 fn assert_codegen_source_maps(directory: &Path) {
     for entry in fs::read_dir(directory).expect("generated directory") {
         let path = entry.expect("generated entry").path();

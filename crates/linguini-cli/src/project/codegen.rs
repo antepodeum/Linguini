@@ -40,19 +40,20 @@ use super::sources::{
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
 pub fn build_project(root: &Path) -> CliResult<String> {
-    build_project_with_options(root, false, DiagnosticFormat::Human)
+    build_project_with_emissions(root, false, DiagnosticFormat::Human, &[])
 }
 
-pub(crate) fn build_project_with_options(
+pub(crate) fn build_project_with_emissions(
     root: &Path,
     deny_warnings: bool,
     format: DiagnosticFormat,
+    emit_dirs: &[PathBuf],
 ) -> CliResult<String> {
     let canonical_root = canonical_project_root(root)?;
     let root = canonical_root.as_path();
     let check_output = check_project_with_options(root, deny_warnings, format)?;
     let config = read_project_config(root)?;
-    let codegen_output = generate_project(root, &config)?;
+    let codegen_output = generate_project(root, &config, emit_dirs)?;
 
     if format == DiagnosticFormat::Human {
         Ok(format!("{check_output}{codegen_output}build: ok\n"))
@@ -61,19 +62,34 @@ pub(crate) fn build_project_with_options(
     }
 }
 
-fn generate_project(root: &Path, config: &LinguiniConfig) -> CliResult<String> {
+fn generate_project(
+    root: &Path,
+    config: &LinguiniConfig,
+    emit_dirs: &[PathBuf],
+) -> CliResult<String> {
     let Some(target) = config.targets().typescript() else {
+        if !emit_dirs.is_empty() {
+            return Err(CliError::Diagnostics(
+                "--emit-dir requires a configured codegen target\n".to_owned(),
+            ));
+        }
         return Ok("codegen targets: none\n".to_owned());
     };
 
-    generate_typescript_target(root, config, target)
+    generate_typescript_target(root, config, target, emit_dirs)
 }
 
 fn generate_typescript_target(
     root: &Path,
     config: &LinguiniConfig,
     target: &TypeScriptTargetConfig,
+    emit_dirs: &[PathBuf],
 ) -> CliResult<String> {
+    let outputs = codegen_output_roots(root, config, target, emit_dirs)?;
+    let output_paths = outputs
+        .iter()
+        .map(|(path, _)| path.clone())
+        .collect::<Vec<_>>();
     let schema_files = load_schema_sources(root, config)?;
     let schema_namespaces: BTreeSet<_> = schema_files
         .iter()
@@ -111,34 +127,92 @@ fn generate_typescript_target(
     let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let sources = ecma_sources(root, &schema_files, &locale_files)?;
-    let project_sources =
-        rebase_map_sources(target.out(), "index.ts.map", &sources).map_err(|reason| {
-            CliError::Diagnostics(format!(
-                "cannot rebase project source-map paths: {reason}\n"
-            ))
-        })?;
-    let mut files =
-        compile_ecmascript_project_files(&project, EcmaScriptTarget::TypeScript, &project_sources)
-            .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-    files.extend(generate_bundler_files(
-        root,
-        &project,
-        &sources,
-        target,
-        config.project().locales(),
-        config.project().default_locale(),
-        config.web().configured(),
-    )?);
+    let mut plans = Vec::new();
+    for (directory, output) in outputs {
+        let project_sources =
+            rebase_map_sources(&directory, "index.ts.map", &sources).map_err(|reason| {
+                CliError::Diagnostics(format!(
+                    "cannot rebase project source-map paths: {reason}\n"
+                ))
+            })?;
+        let mut files = compile_ecmascript_project_files(
+            &project,
+            EcmaScriptTarget::TypeScript,
+            &project_sources,
+        )
+        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+        files.extend(generate_bundler_files(
+            root,
+            &project,
+            &sources,
+            CodegenDestination {
+                settings: target,
+                directory: &directory,
+                all_outputs: &output_paths,
+            },
+            config.project().locales(),
+            config.project().default_locale(),
+            config.web().configured(),
+        )?);
+        plans.push((output, files));
+    }
+    let mut output = String::new();
+    for (destination, files) in plans {
+        output.push_str(&write_codegen_tree(root, &destination, &files)?);
+    }
+    Ok(output)
+}
 
-    let output = SafeOutputRoot::new(
-        root,
-        Path::new(target.out()),
-        &[
-            Path::new(config.paths().schema()),
-            Path::new(config.paths().locale()),
-        ],
-    )?;
-    write_codegen_tree(root, &output, &files)
+/// Output paths are disjoint and use the same containment and symlink rules as the configured root.
+fn codegen_output_roots(
+    root: &Path,
+    config: &LinguiniConfig,
+    target: &TypeScriptTargetConfig,
+    emit_dirs: &[PathBuf],
+) -> CliResult<Vec<(String, SafeOutputRoot)>> {
+    let mut outputs: Vec<(String, SafeOutputRoot)> = Vec::new();
+    for directory in
+        std::iter::once(Path::new(target.out())).chain(emit_dirs.iter().map(PathBuf::as_path))
+    {
+        let output = SafeOutputRoot::new(
+            root,
+            directory,
+            &[
+                Path::new(config.paths().schema()),
+                Path::new(config.paths().locale()),
+            ],
+        )?;
+        if outputs
+            .iter()
+            .any(|(_, existing)| existing.path() == output.path())
+        {
+            continue;
+        }
+        if outputs.iter().any(|(_, existing)| {
+            existing.path().starts_with(output.path()) || output.path().starts_with(existing.path())
+        }) {
+            return Err(CliError::Diagnostics(
+                "codegen output directories must not overlap\n".to_owned(),
+            ));
+        }
+        let relative = output
+            .path()
+            .strip_prefix(root)
+            .expect("validated project output root")
+            .to_str()
+            .ok_or_else(|| {
+                CliError::Diagnostics("codegen output path must be valid UTF-8\n".to_owned())
+            })?
+            .replace('\\', "/");
+        outputs.push((relative, output));
+    }
+    Ok(outputs)
+}
+
+struct CodegenDestination<'a> {
+    settings: &'a TypeScriptTargetConfig,
+    directory: &'a str,
+    all_outputs: &'a [String],
 }
 
 fn ecma_sources(
@@ -215,12 +289,13 @@ fn generate_bundler_files(
     root: &Path,
     project: &ValidatedTypeScriptProject<'_>,
     sources: &[EcmaSource],
-    target: &TypeScriptTargetConfig,
+    destination: CodegenDestination<'_>,
     configured_locales: &[String],
     base_locale: &str,
     web_enabled: bool,
 ) -> CliResult<Vec<TypeScriptGeneratedFile>> {
-    let output_root = target.out();
+    let output_root = destination.directory;
+    let target = destination.settings;
     let artifacts = project
         .message_artifacts()
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
@@ -333,7 +408,8 @@ fn generate_bundler_files(
         "messages": messages,
     });
     if let Some(bundler) = target.bundler() {
-        let applications = scan_bundler_applications(root, output_root, bundler, &message_arities)?;
+        let applications =
+            scan_bundler_applications(root, destination.all_outputs, bundler, &message_arities)?;
         let manifest = manifest.as_object_mut().expect("manifest is an object");
         manifest.insert("version".to_owned(), serde_json::json!(1));
         manifest.insert(
@@ -410,13 +486,13 @@ const APPLICATION_SOURCE_ID_BASE: u32 = 0x8000_0000;
 
 fn scan_bundler_applications(
     root: &Path,
-    output_root: &str,
+    output_roots: &[String],
     config: &TypeScriptBundlerConfig,
     messages: &BTreeMap<String, usize>,
 ) -> CliResult<BTreeMap<String, serde_json::Value>> {
     validate_dynamic_allow_entries(config.dynamic(), messages)?;
     let mut exclude = config.exclude().to_vec();
-    exclude.push(output_root.to_owned());
+    exclude.extend_from_slice(output_roots);
     let paths = discover_application_source_files_with_fields(
         root,
         config.sources(),

@@ -26,6 +26,12 @@ without `allowJs`. Declaration imports use explicit runtime `.js` paths for Node
 Bundler resolution. A build that emits application code with `tsc` must also deliver the
 generated JavaScript files to its runtime output directory.
 
+Build integrations can pass repeatable `--emit-dir DIRECTORY` arguments to `linguini build`.
+The configured source output remains available for type checking, and each additional
+project-relative directory receives generated modules, declarations, and source maps from the
+same validated project. Maps resolve the original Linguini files from each output depth.
+Output directories must be disjoint and follow the configured output's ownership and path rules.
+
 Custom Rust codegen callers configure an embedded plural implementation through
 `TypeScriptOptions::plural_rules`. The backend renders those canonical rules directly for the
 selected ECMAScript target and export scope; callers use `plural_import` only when the plural
