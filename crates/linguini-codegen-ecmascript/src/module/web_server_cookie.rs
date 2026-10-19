@@ -2,7 +2,7 @@
 
 use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
 
-pub(super) fn generate_web_server_cookie_declaration() -> String {
+pub fn generate_web_server_cookie_declaration() -> String {
     crate::templates::module(
         EcmaModuleOutput::new(EcmaModuleKind::Declaration, "web/server-cookie.d.ts", None),
         "web/server-cookie_declarations",

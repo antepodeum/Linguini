@@ -143,7 +143,7 @@ fn project_files(
     append_schema(project, target, &mut files);
     append_locales(project, target, &mut files)?;
     append_entries(project, target, &mut files);
-    super::project_framework::append(project, &mut files);
+    super::project_web::append(project, &mut files);
     Ok(files)
 }
 
@@ -324,7 +324,7 @@ fn append_entries(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{EcmaFramework, EcmaLocaleModule, EcmaProjectOptions, EcmaWebOptions};
+    use super::super::{EcmaLocaleModule, EcmaProjectOptions, EcmaWebOptions};
     use super::*;
     use linguini_ir::{lower_locale_typed, lower_schema_typed};
     use linguini_syntax::{parse_locale_in, parse_schema_in};
@@ -353,17 +353,16 @@ mod tests {
         ];
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/golden/snapshots/js-complete-project");
-        for (name, declaration, framework) in [
-            ("plain", true, None),
-            ("source-only", false, None),
-            ("kit", true, Some(EcmaFramework::SvelteKit)),
+        for (name, declaration, web) in [
+            ("plain", true, false),
+            ("source-only", false, false),
+            ("kit", true, true),
         ] {
             let options = EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
                 declaration,
                 gitignore: false,
-                framework,
-                web: framework.map(|_| EcmaWebOptions::default()),
+                web: web.then(EcmaWebOptions::default),
                 ..Default::default()
             };
             let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).unwrap();
@@ -427,10 +426,7 @@ mod tests {
                     }
                     assert_eq!(file.contents, std::fs::read_to_string(path).unwrap());
                 }
-                assert_eq!(
-                    files.iter().any(|file| file.path.starts_with("web/")),
-                    framework.is_some()
-                );
+                assert_eq!(files.iter().any(|file| file.path.starts_with("web/")), web);
                 if !declaration {
                     assert!(!files.iter().any(|file| file.path.ends_with(".d.ts")));
                 }

@@ -1,6 +1,6 @@
 //! Declaration interfaces for the context-only and web-enabled Svelte facades.
 
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
     EcmaReExport, EcmaStatement,
 };

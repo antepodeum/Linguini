@@ -1,6 +1,6 @@
 //! Shared Svelte locale state and deterministic locale-loader ownership.
 
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
     EcmaStatement, RenderedEcmaModule,
 };

@@ -1,6 +1,6 @@
 //! Declaration surface shared by framework-selected Svelte browser controls.
 
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
     EcmaStatement,
 };

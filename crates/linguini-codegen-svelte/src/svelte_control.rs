@@ -1,7 +1,7 @@
 //! Lightweight browser controls, emitted from selected web capabilities.
 
 use super::EcmaWebOptions;
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport, EcmaStatement,
     RenderedEcmaModule,
 };

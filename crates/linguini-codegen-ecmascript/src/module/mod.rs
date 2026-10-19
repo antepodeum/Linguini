@@ -12,22 +12,14 @@ mod locale;
 mod message;
 mod messages;
 mod names;
-mod project_framework;
 mod project_output;
+mod project_web;
 mod provenance;
 mod runtime;
 mod semantic;
 mod shared;
 mod shared_runtime;
 mod signature;
-mod svelte_control;
-mod svelte_control_types;
-mod svelte_effects;
-mod svelte_facade;
-mod svelte_facade_types;
-mod svelte_locale;
-mod sveltekit;
-mod sveltekit_types;
 #[cfg(test)]
 mod test_templates;
 mod tree;
@@ -37,7 +29,7 @@ mod web_cookie;
 mod web_facade;
 mod web_link_transform;
 mod web_local_storage;
-mod web_options;
+pub(crate) mod web_options;
 mod web_path;
 mod web_routes;
 mod web_runtime_links;
@@ -45,14 +37,14 @@ mod web_server_cookie;
 mod web_switch_route;
 mod web_types;
 
+pub use web_options::web_options_literal as render_web_options;
+pub use web_server_cookie::generate_web_server_cookie_declaration;
+pub use web_switch_route::generate_web_switch_route_declaration;
+pub use web_types::generate_web_declaration;
+
 pub(crate) use crate::ecmascript::EcmaModuleKind;
 use formatters::formatter_helper_names;
 
-pub use svelte_control::compile_svelte_control_module;
-pub use svelte_effects::compile_svelte_effects_module;
-pub use svelte_facade::compile_svelte_module;
-pub use svelte_locale::{compile_svelte_locale_module, SvelteLocaleMode};
-pub use sveltekit::{compile_sveltekit_control_module, compile_sveltekit_module};
 pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 pub use web_server_cookie::compile_web_server_cookie_module;
 pub use web_switch_route::compile_web_switch_route_module;
@@ -112,27 +104,6 @@ pub struct EcmaProjectOptions {
     pub included_messages: Vec<String>,
     pub base_locale: Option<String>,
     pub web: Option<EcmaWebOptions>,
-    pub framework: Option<EcmaFramework>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EcmaFramework {
-    Svelte,
-    SvelteKit,
-}
-
-impl EcmaFramework {
-    pub fn from_config(value: Option<&str>) -> Option<Self> {
-        match value {
-            Some("svelte") => Some(Self::Svelte),
-            Some("sveltekit") => Some(Self::SvelteKit),
-            _ => None,
-        }
-    }
-
-    fn needs_svelte_module(self) -> bool {
-        matches!(self, Self::Svelte | Self::SvelteKit)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -286,7 +257,6 @@ impl Default for EcmaProjectOptions {
             included_messages: Vec::new(),
             base_locale: None,
             web: None,
-            framework: None,
         }
     }
 }
@@ -816,7 +786,7 @@ fn validate_project_inputs(
     Ok(())
 }
 
-fn validate_web_options(options: &EcmaWebOptions) -> Result<(), EcmaCodegenError> {
+pub fn validate_web_options(options: &EcmaWebOptions) -> Result<(), EcmaCodegenError> {
     for (index, source) in options.sources.iter().enumerate() {
         if options.sources[..index].contains(source) {
             return Err(EcmaCodegenError::DuplicateWebSource {

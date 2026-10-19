@@ -15,9 +15,19 @@ fn source_files(directory: &Path, files: &mut Vec<PathBuf>) {
 
 #[test]
 fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let crates = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("workspace crates");
+    let owners = [
+        "linguini-codegen-ecmascript",
+        "linguini-codegen-svelte",
+        "linguini-codegen-sveltekit",
+        "linguini-codegen-vite",
+    ];
     let mut files = Vec::new();
-    source_files(&root, &mut files);
+    for owner in owners {
+        source_files(&crates.join(owner).join("src"), &mut files);
+    }
     files.sort();
     for path in files {
         assert!(
@@ -69,10 +79,12 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
         }
     }
     let mut templates = Vec::new();
-    source_files(
-        &Path::new(env!("CARGO_MANIFEST_DIR")).join("templates"),
-        &mut templates,
-    );
+    for owner in owners {
+        let directory = crates.join(owner).join("templates");
+        if directory.is_dir() {
+            source_files(&directory, &mut templates);
+        }
+    }
     for path in templates {
         let source = std::fs::read_to_string(&path).expect("read codegen template");
         for branch in ["{% if ts", "{% if not ts", "{% elif ts"] {

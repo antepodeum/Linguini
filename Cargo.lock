@@ -703,6 +703,9 @@ dependencies = [
  "linguini-analyzer",
  "linguini-cldr",
  "linguini-codegen-ecmascript",
+ "linguini-codegen-svelte",
+ "linguini-codegen-sveltekit",
+ "linguini-codegen-vite",
  "linguini-config",
  "linguini-format",
  "linguini-ir",
@@ -734,6 +737,35 @@ dependencies = [
  "linguini-ir",
  "linguini-syntax",
  "minijinja",
+]
+
+[[package]]
+name = "linguini-codegen-svelte"
+version = "0.1.0-alpha.4"
+dependencies = [
+ "linguini-codegen-ecmascript",
+ "minijinja",
+]
+
+[[package]]
+name = "linguini-codegen-sveltekit"
+version = "0.1.0-alpha.4"
+dependencies = [
+ "linguini-codegen-ecmascript",
+ "linguini-codegen-svelte",
+ "linguini-ir",
+ "linguini-syntax",
+ "minijinja",
+]
+
+[[package]]
+name = "linguini-codegen-vite"
+version = "0.1.0-alpha.4"
+dependencies = [
+ "linguini-codegen-ecmascript",
+ "linguini-ir",
+ "linguini-syntax",
+ "serde_json",
 ]
 
 [[package]]

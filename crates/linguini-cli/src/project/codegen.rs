@@ -7,8 +7,7 @@ use linguini_analyzer::{
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ecmascript::{
-    compile_bundler_message_artifact_module, compile_bundler_semantic_module,
-    compile_ecmascript_project_files, EcmaFramework, EcmaGeneratedFile, EcmaLinkMode,
+    compile_ecmascript_project_files, rebase_map_sources, EcmaGeneratedFile, EcmaLinkMode,
     EcmaLocaleModule, EcmaLocalePrefixMode, EcmaLocaleSource, EcmaLocaleSwitchPlan,
     EcmaProjectOptions, EcmaSource, EcmaWebOptions, EcmaWebSwitchRoute, ValidatedEcmaProject,
 };
@@ -120,7 +119,6 @@ fn generate_target(
             .web()
             .configured()
             .then(|| legacy_web_codegen_options(config)),
-        framework: EcmaFramework::from_config(target.framework()),
     };
     let project = ValidatedEcmaProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
@@ -135,6 +133,24 @@ fn generate_target(
             })?;
         let mut files = compile_ecmascript_project_files(&project, &project_sources)
             .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+        match target.framework() {
+            Some("svelte") => files.extend(linguini_codegen_svelte::generate_project_files(
+                &linguini_codegen_svelte::SvelteProjectOptions {
+                    web: options.web.clone(),
+                    declaration: options.declaration,
+                    request_routing: false,
+                },
+                true,
+            )),
+            Some("sveltekit") => files.extend(linguini_codegen_sveltekit::generate_project_files(
+                &linguini_codegen_sveltekit::SvelteKitProjectOptions {
+                    web: options.web.clone(),
+                    declaration: options.declaration,
+                },
+                true,
+            )),
+            _ => {}
+        }
         files.extend(generate_bundler_files(
             root,
             &project,
@@ -288,191 +304,42 @@ fn generate_bundler_files(
     base_locale: &str,
     web_enabled: bool,
 ) -> CliResult<Vec<EcmaGeneratedFile>> {
-    let output_root = destination.directory;
-    let target = destination.settings;
-    let artifacts = project
-        .message_artifacts()
-        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-    let runtime_artifacts = project
-        .locale_runtime_artifacts()
-        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-    let semantic_artifacts = project
-        .semantic_artifacts()
-        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-    let mut files = Vec::with_capacity((artifacts.len() + semantic_artifacts.len()) * 2 + 1);
-    let mut messages = BTreeMap::<String, (usize, BTreeMap<String, serde_json::Value>)>::new();
-    let effective_locales = project
-        .effective_locales()
-        .into_iter()
-        .collect::<BTreeSet<_>>();
-
-    for artifact in &semantic_artifacts {
-        let map_sources = rebase_map_sources(output_root, &artifact.source_map_path, sources)
-            .map_err(|reason| {
-                CliError::Diagnostics(format!(
-                    "bundler semantic `{}` `{}` locale `{}`: cannot rebase source-map paths: {reason}\n",
-                    artifact.kind.as_str(), artifact.name, artifact.locale
-                ))
-            })?;
-        let compiled =
-            compile_bundler_semantic_module(project, artifact, &map_sources).map_err(|error| {
-                CliError::Diagnostics(format!(
-                    "bundler semantic `{}` `{}` locale `{}`: {error}\n",
-                    artifact.kind.as_str(),
-                    artifact.name,
-                    artifact.locale
-                ))
-            })?;
-        files.push(EcmaGeneratedFile {
-            path: artifact.module_path.clone(),
-            contents: compiled.code,
-        });
-        files.push(EcmaGeneratedFile {
-            path: artifact.source_map_path.clone(),
-            contents: compiled.source_map,
-        });
-    }
-
-    for artifact in &artifacts {
-        let map_sources = rebase_map_sources(output_root, &artifact.source_map_path, sources)
-            .map_err(|reason| {
-                CliError::Diagnostics(format!(
-                    "bundler message `{}` locale `{}`: cannot rebase source-map paths: {reason}\n",
-                    artifact.message, artifact.locale
-                ))
-            })?;
-        let compiled = compile_bundler_message_artifact_module(project, artifact, &map_sources)
-            .map_err(|error| {
-                CliError::Diagnostics(format!(
-                    "bundler message `{}` locale `{}`: {error}\n",
-                    artifact.message, artifact.locale
-                ))
-            })?;
-        let locale_entry = serde_json::json!({
-            "module": artifact.module_path,
-            "source_ids": compiled.source_ids().iter().map(|id| id.0).collect::<Vec<_>>(),
-        });
-        messages
-            .entry(artifact.message.clone())
-            .or_insert_with(|| (artifact.arity, BTreeMap::new()))
-            .1
-            .insert(artifact.locale.clone(), locale_entry);
-        files.push(EcmaGeneratedFile {
-            path: artifact.module_path.clone(),
-            contents: compiled.code,
-        });
-        files.push(EcmaGeneratedFile {
-            path: artifact.source_map_path.clone(),
-            contents: compiled.source_map,
-        });
-    }
-
-    let message_arities = messages
-        .iter()
-        .map(|(message, (arity, _))| (message.clone(), *arity))
-        .collect::<BTreeMap<_, _>>();
-    let messages = messages
-        .into_iter()
-        .map(|(message, (arity, locales))| {
-            (
-                message,
-                serde_json::json!({
-                    "arity": arity,
-                    "locales": locales,
-                }),
-            )
-        })
-        .collect::<BTreeMap<_, _>>();
-    let source_table = sources
-        .iter()
-        .map(|source| {
-            serde_json::json!({
-                "id": source.id.0,
-                "path": source.path,
-            })
-        })
-        .collect::<Vec<_>>();
-    let mut manifest = serde_json::json!({
-        "version": 1,
-        "base_locale": base_locale,
-        "configured_locales": configured_locales,
-        "effective_locales": effective_locales,
-        "sources": source_table,
-        "messages": messages,
-    });
-    if let Some(bundler) = target.bundler() {
-        let applications =
-            scan_bundler_applications(root, destination.all_outputs, bundler, &message_arities)?;
-        let manifest = manifest.as_object_mut().expect("manifest is an object");
-        manifest.insert("version".to_owned(), serde_json::json!(1));
-        manifest.insert(
-            "locale_loading".to_owned(),
-            serde_json::json!(bundler.locale_loading().as_str()),
-        );
-        manifest.insert("applications".to_owned(), serde_json::json!(applications));
-        let message_runtimes = runtime_artifacts
-            .iter()
-            .map(|artifact| {
-                (
-                    artifact.locale.clone(),
-                    serde_json::json!({
-                        "module": artifact.module_path,
-                        "source_ids": artifact.source_ids.iter().map(|id| id.0).collect::<Vec<_>>(),
-                    }),
-                )
-            })
-            .collect::<BTreeMap<_, _>>();
-        manifest.insert(
-            "message_runtimes".to_owned(),
-            serde_json::json!(message_runtimes),
-        );
-        let message_semantics = semantic_artifacts
-            .iter()
-            .map(|artifact| {
-                serde_json::json!({
-                    "locale": artifact.locale,
-                    "kind": artifact.kind.as_str(),
-                    "name": artifact.name,
-                    "module": artifact.module_path,
-                    "source_ids": artifact.source_ids.iter().map(|id| id.0).collect::<Vec<_>>(),
-                })
-            })
-            .collect::<Vec<_>>();
-        manifest.insert(
-            "message_semantics".to_owned(),
-            serde_json::Value::Array(message_semantics),
-        );
-        let mut runtime_helpers = serde_json::Map::new();
-        runtime_helpers.insert(
-            "svelte_locale".to_owned(),
-            serde_json::json!({
-                "import": "./svelte-locale.svelte.js",
-                "file": "svelte-locale.svelte.js",
-            }),
-        );
+    use linguini_codegen_vite::{
+        LocaleLoading, ViteApplicationPlan, ViteEmissionOptions, VitePlan,
+    };
+    let plan =
+        VitePlan::new(project).map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+    let applications = if let Some(bundler) = destination.settings.bundler() {
+        let applications = scan_bundler_applications(
+            root,
+            destination.all_outputs,
+            bundler,
+            &plan.message_arities(),
+        )?;
+        let mut runtime_helpers = BTreeMap::new();
+        runtime_helpers.insert("svelte_locale".to_owned(), serde_json::json!({"import": "./svelte-locale.svelte.js", "file": "svelte-locale.svelte.js"}));
         if web_enabled {
-            runtime_helpers.insert(
-                "svelte_effects".to_owned(),
-                serde_json::json!({
-                    "import": "./svelte-effects.svelte.js",
-                    "file": "svelte-effects.svelte.js",
-                }),
-            );
+            runtime_helpers.insert("svelte_effects".to_owned(), serde_json::json!({"import": "./svelte-effects.svelte.js", "file": "svelte-effects.svelte.js"}));
         }
-        manifest.insert(
-            "runtime_helpers".to_owned(),
-            serde_json::Value::Object(runtime_helpers),
-        );
-    }
-    let mut contents = serde_json::to_string_pretty(&manifest).map_err(|error| {
-        CliError::Diagnostics(format!("failed to serialize bundler manifest: {error}\n"))
-    })?;
-    contents.push('\n');
-    files.push(EcmaGeneratedFile {
-        path: "bundler/manifest.json".to_owned(),
-        contents,
-    });
-    Ok(files)
+        Some(ViteApplicationPlan {
+            locale_loading: match bundler.locale_loading().as_str() {
+                "dynamic" => LocaleLoading::Dynamic,
+                _ => LocaleLoading::Eager,
+            },
+            applications,
+            runtime_helpers,
+        })
+    } else {
+        None
+    };
+    plan.generate_files(&ViteEmissionOptions {
+        output_root: destination.directory,
+        sources,
+        configured_locales,
+        base_locale,
+        applications: applications.as_ref(),
+    })
+    .map_err(|error| CliError::Diagnostics(format!("{error}\n")))
 }
 
 const APPLICATION_SOURCE_ID_BASE: u32 = 0x8000_0000;
@@ -1105,60 +972,6 @@ fn strip_js_trivia(mut source: &str) -> &str {
         }
         return trimmed;
     }
-}
-
-fn lexical_relative_path(from_directory: &str, target: &str) -> Result<String, &'static str> {
-    let from = portable_relative_components(from_directory)?;
-    let target = portable_relative_components(target)?;
-    let common = from
-        .iter()
-        .zip(&target)
-        .take_while(|(left, right)| left == right)
-        .count();
-    let mut relative = vec![".."; from.len() - common];
-    relative.extend(target[common..].iter().copied());
-    if relative.is_empty() {
-        return Err("source path resolves to the map directory");
-    }
-    Ok(relative.join("/"))
-}
-
-fn rebase_map_sources(
-    output_root: &str,
-    source_map_path: &str,
-    sources: &[EcmaSource],
-) -> Result<Vec<EcmaSource>, &'static str> {
-    let map_directory = format!(
-        "{output_root}/{}",
-        source_map_path
-            .rsplit_once('/')
-            .map_or("", |(directory, _)| directory)
-    );
-    sources
-        .iter()
-        .map(|source| {
-            lexical_relative_path(&map_directory, &source.path)
-                .map(|path| EcmaSource::new(source.id, path, source.contents.clone()))
-        })
-        .collect()
-}
-
-fn portable_relative_components(value: &str) -> Result<Vec<&str>, &'static str> {
-    let has_windows_prefix = value
-        .as_bytes()
-        .get(1)
-        .is_some_and(|character| *character == b':');
-    if value.is_empty() || value.starts_with('/') || value.contains('\\') || has_windows_prefix {
-        return Err("path must be non-empty, project-relative, and use `/` separators");
-    }
-    let components = value
-        .split('/')
-        .filter(|component| !component.is_empty() && *component != ".")
-        .collect::<Vec<_>>();
-    if components.is_empty() || components.contains(&"..") {
-        return Err("path must not contain parent traversal or resolve to the project root");
-    }
-    Ok(components)
 }
 
 fn legacy_web_codegen_options(config: &LinguiniConfig) -> EcmaWebOptions {

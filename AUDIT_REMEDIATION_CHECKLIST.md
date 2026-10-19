@@ -1004,7 +1004,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### Reusable backend and framework modules
 
-- [ ] MOD-A1 — Extract separate `linguini-codegen-svelte`, `linguini-codegen-sveltekit`, and
+- [-] MOD-A1 — Extract separate `linguini-codegen-svelte`, `linguini-codegen-sveltekit`, and
       `linguini-codegen-vite` crates with explicit APIs, artifact ownership, and minimal dependency
       edges. SvelteKit reuses Svelte and ECMAScript capabilities; Vite codegen owns the shared
       bundler plan/integration and accepts framework adapter inputs without depending on SvelteKit.
@@ -1012,6 +1012,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       crates; avoid dependency cycles, duplicated emitters, and a single generic backend crate.
       Share backend-independent semantics through `linguini-codegen`; keep optional web helper
       syntax within its owning backend. Directory-only separation does not satisfy this criterion.
+      The three crates now own their transferred production implementations/templates; SvelteKit
+      composes Svelte, and the Vite plan accepts external runtime descriptors. Base ECMAScript
+      generation no longer imports or selects framework integrations. Native CLI and mapped
+      consumer fixtures use the composition. Complete the remaining host-binding, JS adapter,
+      module-configuration, and packaging/CI verification before closing the architecture work.
 - [ ] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
       and source-map infrastructure framework-independent. Isolate Svelte syntax/link transforms
       and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure.

@@ -1,8 +1,8 @@
 //! Framework-selected browser effects with closed, guarded capability reads.
 
-use super::web_options::web_options_literal;
 use super::{EcmaLinkMode, EcmaWebOptions};
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::render_web_options as web_options_literal;
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
     EcmaStatement, RenderedEcmaModule,
 };

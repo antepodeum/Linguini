@@ -4,6 +4,20 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Independent integration crates
+
+Rust callers now import Svelte generation from `linguini-codegen-svelte` and SvelteKit generation
+from `linguini-codegen-sveltekit`. Their implementations and templates moved out of the ECMAScript
+crate. `EcmaProjectOptions::framework` and `EcmaFramework` are removed: compose base project output
+with the selected integration's `generate_project_files` function. Its source-map argument selects
+source-only output or code with owned map companions. Generic web artifacts remain owned by the
+ECMAScript backend and follow its selected `web` policy.
+
+SvelteKit reuses Svelte generation. The native Vite artifact/manifest plan lives in
+`linguini-codegen-vite`; it accepts explicit application and runtime-helper plans without depending
+on either framework crate. The CLI composes these owners, and packaged CLI workspaces must include
+all three new crates. Output paths and the existing generated consumer contracts are preserved.
+
 ## Canonical JavaScript generation
 
 The ECMAScript backend emits one JavaScript implementation and optional adjacent `.d.ts`

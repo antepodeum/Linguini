@@ -7,8 +7,7 @@ const REPOSITORY_ROOT = resolve(SCRIPT_ROOT, "..");
 
 const PUBLIC_CONTRACT_PATTERNS = [
   /^crates\/linguini-cli\/src\/lib\.rs$/,
-  /^crates\/linguini-codegen\/src\//,
-  /^crates\/linguini-codegen-ecmascript\/src\/(?:lib\.rs|module\/(?:decl|project|signature)\.rs|module\/templates\/)/,
+  /^crates\/linguini-codegen(?:-(?:ecmascript|svelte|sveltekit|vite))?\/(?:src|templates)\//,
   /^crates\/linguini-config\/src\/(?:lib|model|parser)\.rs$/,
   /^crates\/linguini-core\/src\/lib\.rs$/,
   /^crates\/linguini-lsp\/src\/(?:lib|server)\.rs$/,

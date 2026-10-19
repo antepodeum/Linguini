@@ -1,7 +1,7 @@
 //! Shared SvelteKit server adapters with closed cookie and switch-route capabilities.
 
 use super::EcmaWebOptions;
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
     EcmaStatement, RenderedEcmaModule,
 };
@@ -87,7 +87,7 @@ fn adapter_module(options: &EcmaWebOptions, messages: bool, target: EcmaModuleKi
     }
     module.push_statement(EcmaStatement::generated(crate::templates::render(
         "sveltekit/adapter",
-        minijinja::context! { options => super::web_options::web_options_literal(options), messages, has_cookie, switch_route => options.switch_route.is_some() },
+        minijinja::context! { options => linguini_codegen_ecmascript::render_web_options(options), messages, has_cookie, switch_route => options.switch_route.is_some() },
     )));
     module
 }
@@ -233,11 +233,11 @@ mod tests {
             let mut dependencies = vec![
                 (
                     "web.js".to_owned(),
-                    super::super::web_facade::compile_web_module(&options).code,
+                    linguini_codegen_ecmascript::compile_web_module(&options).code,
                 ),
                 (
                     "typescript/web.d.ts".to_owned(),
-                    super::super::web_types::generate_web_declaration(),
+                    linguini_codegen_ecmascript::generate_web_declaration(),
                 ),
                 (
                     "sveltekit-control.d.ts".to_owned(),
@@ -246,17 +246,18 @@ mod tests {
             ];
             for source in options.sources.iter() {
                 let (name, js) = match source {
-                    EcmaLocaleSource::Path => {
-                        ("path", super::super::web_path::compile_web_path_module())
-                    }
+                    EcmaLocaleSource::Path => (
+                        "path",
+                        linguini_codegen_ecmascript::compile_web_path_module(),
+                    ),
                     EcmaLocaleSource::Cookie => (
                         "cookie",
-                        super::super::web_cookie::compile_web_cookie_module(),
+                        linguini_codegen_ecmascript::compile_web_cookie_module(),
                     ),
                     EcmaLocaleSource::LocalStorage => unreachable!(),
                     EcmaLocaleSource::AcceptLanguage => (
                         "accept-language",
-                        super::super::web_accept_language::compile_web_accept_language_module(),
+                        linguini_codegen_ecmascript::compile_web_accept_language_module(),
                     ),
                 };
                 dependencies.push((format!("web/{name}.js"), js.code));
@@ -264,17 +265,16 @@ mod tests {
             if !options.exclude.is_empty() {
                 dependencies.extend([(
                     "web/routes.js".to_owned(),
-                    super::super::web_routes::compile_web_routes_module().code,
+                    linguini_codegen_ecmascript::compile_web_routes_module().code,
                 )]);
             }
             if cookie {
                 dependencies.extend([(
                     "web/server-cookie.js".to_owned(),
-                    super::super::web_server_cookie::compile_web_server_cookie_module().code,
+                    linguini_codegen_ecmascript::compile_web_server_cookie_module().code,
                 )]);
             }
-            if let Some(js) =
-                super::super::web_switch_route::compile_web_switch_route_module(&options)
+            if let Some(js) = linguini_codegen_ecmascript::compile_web_switch_route_module(&options)
             {
                 dependencies.push(("web/switch-route.js".to_owned(), js.code));
             }

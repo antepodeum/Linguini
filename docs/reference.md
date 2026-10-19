@@ -12,6 +12,17 @@ analysis, exact formatter requests, closure-free inline-function lowering, stati
 and transitive message dependency selection with source provenance. Other code
 generators can consume these semantic plans without depending on an output language.
 
+Framework integrations have separate native owners. `linguini-codegen-svelte` generates Svelte
+locale state, controls, effects, and provider facades. `linguini-codegen-sveltekit` composes that
+Svelte generation with its server adapters and ambient types. Neither is a dependency of
+`linguini-codegen-ecmascript`.
+
+`linguini-codegen-vite::VitePlan` owns physical message/semantic leaves and manifest generation.
+The host compiler supplies validated application usage and explicit runtime-helper descriptors;
+Vite planning has no Svelte or SvelteKit dependency. A plan can emit into multiple output roots,
+with source-map paths rebased through the shared portable-path calculation. Integration templates
+use `EcmaTemplateEngine` for the same strict context and literal-escaping policy as the backend.
+
 Public parameter types lower into `linguini_codegen::TypeModel`, also re-exported by
 `linguini-codegen-ecmascript`. The ECMAScript backend owns identifier escaping, TypeScript and
 JSDoc rendering through `render_typescript_type` and `render_jsdoc_type`, templates, and module
@@ -85,7 +96,7 @@ the shared template. It returns owned source maps; generated project paths remai
 `web/runtime-links.js` and `web/runtime-links.d.ts`.
 
 Rust codegen callers can compile Svelte locale state with
-`compile_svelte_locale_module`, selecting
+`linguini_codegen_svelte::compile_svelte_locale_module`, selecting
 `SvelteLocaleMode::{Context, Standalone, SvelteKit}`. JavaScript output retains framework-owned
 `.svelte.js` runes, checked JSDoc, and an adjacent source map. The locale-loader registry and state implementation have one canonical JS body.
 
@@ -859,7 +870,8 @@ source matrices, URL/link/cookie safety, and concurrent request preparation run 
 through `tests/fixtures/golden/snapshots/js-web`.
 
 SvelteKit server adapters share canonical JavaScript templates through
-`compile_sveltekit_module` and `compile_sveltekit_control_module`.
+`linguini_codegen_sveltekit::compile_sveltekit_module` and
+`linguini_codegen_sveltekit::compile_sveltekit_control_module`.
 The generated message and metadata adapters preserve request-local contexts, streaming page
 transforms, reroutes, canonical redirects, safe locale-switch routes, and selected cookie writes.
 Their superseded implementation templates are frozen test oracles only. Installed-SvelteKit type

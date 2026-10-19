@@ -137,7 +137,7 @@ pub(super) fn append(module: &mut EcmaModule) {
     }
 }
 
-pub(super) fn generate_web_declaration() -> String {
+pub fn generate_web_declaration() -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
         EcmaModuleKind::Declaration,
         "web.d.ts",

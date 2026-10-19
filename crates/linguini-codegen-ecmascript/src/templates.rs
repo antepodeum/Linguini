@@ -2,43 +2,16 @@
 
 use std::sync::OnceLock;
 
-use minijinja::{Environment, UndefinedBehavior, Value};
+use crate::EcmaTemplateEngine;
+use minijinja::Value;
 
-fn environment() -> &'static Environment<'static> {
-    static ENVIRONMENT: OnceLock<Environment<'static>> = OnceLock::new();
+fn environment() -> &'static EcmaTemplateEngine {
+    static ENVIRONMENT: OnceLock<EcmaTemplateEngine> = OnceLock::new();
     ENVIRONMENT.get_or_init(|| {
-        let mut environment = Environment::new();
-        environment.set_keep_trailing_newline(true);
-        environment.set_undefined_behavior(UndefinedBehavior::Strict);
-        environment.add_filter("js", crate::ecmascript::string_literal);
-        for (name, source) in [
+        EcmaTemplateEngine::new([
             (
                 "index_declarations",
                 include_str!("../templates/index_declarations.jinja"),
-            ),
-            (
-                "sveltekit/ambient_declarations",
-                include_str!("../templates/sveltekit/ambient_declarations.jinja"),
-            ),
-            (
-                "sveltekit/control_declarations",
-                include_str!("../templates/sveltekit/control_declarations.jinja"),
-            ),
-            (
-                "svelte/effects_declarations",
-                include_str!("../templates/svelte/effects_declarations.jinja"),
-            ),
-            (
-                "svelte/control_declarations",
-                include_str!("../templates/svelte/control_declarations.jinja"),
-            ),
-            (
-                "svelte/facade_declarations",
-                include_str!("../templates/svelte/facade_declarations.jinja"),
-            ),
-            (
-                "svelte/locale_declarations",
-                include_str!("../templates/svelte/locale_declarations.jinja"),
             ),
             (
                 "web/type_declaration",
@@ -121,43 +94,6 @@ fn environment() -> &'static Environment<'static> {
                 include_str!("../templates/local_function.jinja"),
             ),
             ("plural", include_str!("../templates/plural.jinja")),
-            (
-                "svelte/facade",
-                include_str!("../templates/svelte/facade.jinja"),
-            ),
-            ("hmr", include_str!("../templates/hmr.jinja")),
-            (
-                "svelte/locale",
-                include_str!("../templates/svelte/locale.jinja"),
-            ),
-            (
-                "svelte/forwarding",
-                include_str!("../templates/svelte/forwarding.jinja"),
-            ),
-            (
-                "svelte/control",
-                include_str!("../templates/svelte/control.jinja"),
-            ),
-            (
-                "svelte/effects",
-                include_str!("../templates/svelte/effects.jinja"),
-            ),
-            (
-                "sveltekit/adapter",
-                include_str!("../templates/sveltekit/adapter.jinja"),
-            ),
-            (
-                "sveltekit/request_context",
-                include_str!("../templates/sveltekit/request_context.jinja"),
-            ),
-            (
-                "sveltekit/web_factory",
-                include_str!("../templates/sveltekit/web_factory.jinja"),
-            ),
-            (
-                "sveltekit/context",
-                include_str!("../templates/sveltekit/context.jinja"),
-            ),
             (
                 "project/locale",
                 include_str!("../templates/project/locale.jinja"),
@@ -268,21 +204,12 @@ fn environment() -> &'static Environment<'static> {
                 "shared_declarations",
                 include_str!("../templates/shared_declarations.jinja"),
             ),
-        ] {
-            environment
-                .add_template(name, source)
-                .expect("valid embedded codegen template");
-        }
-        environment
+        ])
     })
 }
 
 pub(crate) fn render(name: &str, values: Value) -> String {
-    environment()
-        .get_template(name)
-        .expect("registered codegen template")
-        .render(values)
-        .expect("complete validated codegen template context")
+    environment().render(name, values)
 }
 
 /// Render an unmapped helper module from its canonical build-time template.

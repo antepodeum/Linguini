@@ -4,7 +4,7 @@ use super::names::escape_string;
 use super::EcmaWebOptions;
 use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
 
-pub(super) fn generate_web_switch_route_declaration() -> String {
+pub fn generate_web_switch_route_declaration() -> String {
     crate::templates::module(
         EcmaModuleOutput::new(EcmaModuleKind::Declaration, "web/switch-route.d.ts", None),
         "web/switch-route_declarations",

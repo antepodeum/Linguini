@@ -1,0 +1,12 @@
+[package]
+name = "linguini-codegen-svelte"
+version = "0.1.0-alpha.4"
+description = "Svelte integration code generation for Linguini"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+linguini-codegen-ecmascript = { path = "../linguini-codegen-ecmascript", version = "0.1.0-alpha.4" }
+minijinja = { version = "=2.12.0", default-features = false, features = ["builtins", "macros", "multi_template", "serde"] }

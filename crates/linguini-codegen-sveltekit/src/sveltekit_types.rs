@@ -1,5 +1,5 @@
 //! SvelteKit declaration companions and ambient app types.
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
     EcmaStatement,
 };

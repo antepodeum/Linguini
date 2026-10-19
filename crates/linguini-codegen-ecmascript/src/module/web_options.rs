@@ -2,7 +2,7 @@
 
 use super::EcmaWebOptions;
 
-pub(super) fn web_options_literal(options: &EcmaWebOptions) -> String {
+pub fn web_options_literal(options: &EcmaWebOptions) -> String {
     let features = options.features();
     crate::templates::render(
         "web/options",

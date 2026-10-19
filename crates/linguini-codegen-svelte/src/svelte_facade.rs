@@ -1,6 +1,6 @@
 //! Svelte message-provider facade, with optional lightweight web controls.
 
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
     EcmaStatement, RenderedEcmaModule,
 };
