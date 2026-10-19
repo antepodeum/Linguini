@@ -1,12 +1,11 @@
 //! IR analysis for demand-selected formatter, plural, and inline-function support.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
-use linguini_core::TypeKind;
 use linguini_ir::{
     is_plural_intrinsic, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter, IrFormatterKind,
-    IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter, IrInlineFunctionInput, IrMessage,
-    IrModule, IrText, IrTextPart, IrValue,
+    IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter, IrInlineFunctionInput, IrModule,
+    IrText, IrTextPart, IrValue,
 };
 
 /// Semantic capabilities required by a schema and its effective locale implementation.
@@ -66,9 +65,9 @@ pub fn module_uses_inline_functions(module: &IrModule) -> bool {
 /// Collects explicit formatters and automatic parameter formatters, following type aliases.
 pub fn formatter_requirements(schema: &IrModule, locale: &IrModule) -> FormatterRequirements {
     let mut requirements = FormatterRequirements::default();
-    collect_module_formatters(schema, &mut requirements);
-    collect_module_formatters(locale, &mut requirements);
-    collect_automatic_formatters(schema, &mut requirements);
+    for request in crate::formatter_requests(schema, locale) {
+        requirements.record(&request.formatter);
+    }
     requirements
 }
 
@@ -237,153 +236,6 @@ fn expression_type(
         }
         IrExpressionKind::Reference => None,
     }
-}
-
-fn collect_module_formatters(module: &IrModule, requirements: &mut FormatterRequirements) {
-    for alias in module.type_aliases() {
-        collect_formatters(&alias.formatters, requirements);
-    }
-    for variable in module.variables() {
-        collect_text_formatters(&variable.value, requirements);
-    }
-    for message in module.messages() {
-        collect_message_formatters(message, requirements);
-    }
-    for form in module.forms() {
-        for variant in &form.variants {
-            for entry in &variant.entries {
-                collect_form_entry_formatters(entry, requirements);
-            }
-        }
-    }
-    for function in module.functions() {
-        for branch in &function.branches {
-            collect_function_branch_formatters(branch, requirements);
-        }
-    }
-}
-
-fn collect_automatic_formatters(schema: &IrModule, requirements: &mut FormatterRequirements) {
-    for parameter in schema
-        .messages()
-        .iter()
-        .flat_map(|message| &message.parameters)
-    {
-        let mut current = parameter.ty.as_str();
-        let mut visited = BTreeSet::new();
-        loop {
-            if !visited.insert(current) {
-                break;
-            }
-            if let Some(alias) = schema
-                .type_aliases()
-                .iter()
-                .find(|alias| alias.name == current)
-            {
-                if !alias.formatters.is_empty() {
-                    collect_formatters(&alias.formatters, requirements);
-                    break;
-                }
-                current = &alias.target;
-                continue;
-            }
-            if let Some(kind) = TypeKind::from_name(current).and_then(TypeKind::default_formatter) {
-                match kind {
-                    linguini_core::FormatterKind::Number => requirements.number = true,
-                    linguini_core::FormatterKind::Currency => requirements.currency = true,
-                    linguini_core::FormatterKind::Date => requirements.date = true,
-                    linguini_core::FormatterKind::Unknown(_) => {}
-                }
-            }
-            break;
-        }
-    }
-}
-
-fn collect_formatters(formatters: &[IrFormatter], requirements: &mut FormatterRequirements) {
-    for formatter in formatters {
-        requirements.record(formatter);
-    }
-}
-
-fn collect_message_formatters(message: &IrMessage, requirements: &mut FormatterRequirements) {
-    if let Some(body) = &message.body {
-        collect_text_formatters(body, requirements);
-    }
-}
-
-fn collect_form_entry_formatters(entry: &IrFormEntry, requirements: &mut FormatterRequirements) {
-    match entry {
-        IrFormEntry::Attribute { value, .. } => collect_value_formatters(value, requirements),
-        IrFormEntry::Branch(branch) => collect_text_formatters(&branch.value, requirements),
-    }
-}
-
-fn collect_value_formatters(value: &IrValue, requirements: &mut FormatterRequirements) {
-    match value {
-        IrValue::Text(text) => collect_text_formatters(text, requirements),
-        IrValue::Map(branches) => {
-            for branch in branches {
-                collect_text_formatters(&branch.value, requirements);
-            }
-        }
-        IrValue::Object(entries) => {
-            for entry in entries {
-                collect_form_entry_formatters(entry, requirements);
-            }
-        }
-    }
-}
-
-fn collect_function_branch_formatters(
-    branch: &IrFunctionBranch,
-    requirements: &mut FormatterRequirements,
-) {
-    match &branch.value {
-        IrFunctionBranchValue::Text(text) => collect_text_formatters(text, requirements),
-        IrFunctionBranchValue::Dispatch(branches) => {
-            for branch in branches {
-                collect_function_branch_formatters(branch, requirements);
-            }
-        }
-    }
-}
-
-fn collect_text_formatters(text: &IrText, requirements: &mut FormatterRequirements) {
-    for part in &text.parts {
-        if let IrTextPart::Placeholder(expression) = part {
-            collect_expression_formatters(expression, requirements);
-        }
-    }
-}
-
-fn collect_expression_formatters(
-    expression: &IrExpression,
-    requirements: &mut FormatterRequirements,
-) {
-    collect_formatters(&expression.formatters, requirements);
-    for argument in &expression.arguments {
-        collect_expression_formatters(argument, requirements);
-    }
-    if let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
-        for input in inputs {
-            collect_inline_input_formatters(input, requirements);
-        }
-        for branch in branches {
-            collect_function_branch_formatters(branch, requirements);
-        }
-    }
-}
-
-fn collect_inline_input_formatters(
-    input: &IrInlineFunctionInput,
-    requirements: &mut FormatterRequirements,
-) {
-    let value = match input {
-        IrInlineFunctionInput::Binding { value, .. }
-        | IrInlineFunctionInput::Selector { value, .. } => value,
-    };
-    collect_expression_formatters(value, requirements);
 }
 
 fn form_entry_uses_inline(entry: &IrFormEntry) -> bool {
