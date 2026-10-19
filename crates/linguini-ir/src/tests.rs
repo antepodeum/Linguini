@@ -1242,3 +1242,29 @@ fn typed_validation_preserves_project_domain_types() {
     assert!(std::ptr::eq(project.schema(), &schema));
     assert!(std::ptr::eq(project.locale(), &locale));
 }
+
+#[test]
+fn validation_accepts_callable_variants_and_checks_every_variant_and_argument() {
+    let schema = lower_schema(
+        &parse_schema(
+            "enum Fruit { apple, pear }\nroot(fruit: Fruit, count: Number, text: String)\n",
+        )
+        .expect("schema"),
+    );
+    let valid = "impl Fruit {\n apple { one => apple\n _ => apples\n label = Apple }\n pear { one => pear\n _ => pears\n label = Pear }\n}\nroot = {fruit(count)}: {fruit.label}\n";
+    let locale = lower_locale(&parse_locale(valid).expect("locale"));
+    validate_ir(&schema, &locale).expect("callable variants validate");
+    for invalid in [
+        valid.replace("fruit(count)", "fruit()"),
+        valid.replace("fruit(count)", "fruit(count, count)"),
+        valid.replace("fruit(count)", "fruit(text)"),
+        valid.replace("one => pear\n _ => pears\n ", ""),
+    ] {
+        let locale =
+            lower_locale(&parse_locale(&invalid).expect("invalid semantic fixture parses"));
+        assert!(
+            validate_ir(&schema, &locale).is_err(),
+            "must reject {invalid}"
+        );
+    }
+}

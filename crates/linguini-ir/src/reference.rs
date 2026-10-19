@@ -1470,14 +1470,36 @@ fn resolve_form_path(
     };
 
     if path.is_empty() {
-        if called {
+        if !called {
+            return Some(root_type.to_owned());
+        }
+        if form.variants.is_empty()
+            || form.variants.iter().any(|variant| {
+                !variant
+                    .entries
+                    .iter()
+                    .any(|entry| matches!(entry, IrFormEntry::Branch(_)))
+            })
+        {
             errors.push(IrReferenceError::at(
                 "IR018",
                 format!("type `{root_type}` has no unnamed callable form"),
                 span,
             ));
+            return None;
         }
-        return Some(root_type.to_owned());
+        validate_arity(root_type, 1, argument_types.len(), span, errors);
+        if let Some(Some(actual)) = argument_types.first() {
+            require_assignable(
+                &format!("argument 1 to form `{root_type}`"),
+                "Plural",
+                actual,
+                span,
+                context,
+                errors,
+            );
+        }
+        return Some("String".to_owned());
     }
 
     let mut kinds = Vec::new();
