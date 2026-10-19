@@ -135,9 +135,9 @@ mod tests {
     const CHECKED_MANIFEST: &[u8] =
         include_bytes!("../../linguini-cldr/src/data/generated/manifest.json");
     const GOLDEN_ARTIFACT_SHA256: &str =
-        "2ec64ae69efa67040f7387e679071591334085548b10a317b474ed319ba7f000";
+        "3fc9b909a1e173dca9da7b9317a0e43afaf4c4f507508a603b05a27c85683f28";
     const GOLDEN_MANIFEST_SHA256: &str =
-        "dd93984bab88d332014b495d6964614490300d08fccec620576f45b163324f18";
+        "72b93c2f7c2064ddb3fabc249bd63642b6cee33b8023c97cc91cc596f985a7bd";
 
     #[test]
     fn checked_artifact_matches_full_pinned_manifest_and_golden_hash() {
@@ -163,9 +163,9 @@ mod tests {
         );
         assert_eq!(
             manifest["inputs"]["tree_sha256"],
-            "d6a3fb58acb53efa0161b48263c15f80042f3fb23021be8a3b1881498ae0b927"
+            "ab1593dec96335c876237c976e80087a4d8631456b2b8fa2b65dd3a743ac17f8"
         );
-        assert_eq!(manifest["inputs"]["file_count"], 5_394);
+        assert_eq!(manifest["inputs"]["file_count"], 6_160);
         assert_eq!(manifest["coverage"]["source_locales"], 766);
         assert_eq!(manifest["coverage"]["language_aliases"], 500);
         assert_eq!(manifest["coverage"]["script_aliases"], 1);

@@ -1,8 +1,8 @@
 {
   "artifact": {
-    "bytes": 12976969,
+    "bytes": 15930541,
     "path": "cldr_tables.rs",
-    "sha256": "2ec64ae69efa67040f7387e679071591334085548b10a317b474ed319ba7f000"
+    "sha256": "3fc9b909a1e173dca9da7b9317a0e43afaf4c4f507508a603b05a27c85683f28"
   },
   "coverage": {
     "calendar_locale_pairs": 3060,
@@ -55,11 +55,11 @@
     "name": "linguini-cldr-macros"
   },
   "inputs": {
-    "bytes": 120465767,
-    "file_count": 5394,
+    "bytes": 153254674,
+    "file_count": 6160,
     "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+zone-formats+layout-v5",
     "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
-    "tree_sha256": "d6a3fb58acb53efa0161b48263c15f80042f3fb23021be8a3b1881498ae0b927"
+    "tree_sha256": "ab1593dec96335c876237c976e80087a4d8631456b2b8fa2b65dd3a743ac17f8"
   },
   "schema": 1,
   "source": {

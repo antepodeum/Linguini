@@ -10,7 +10,7 @@ pub(crate) const SOURCE_REF: &str = "48.2.0";
 pub(crate) const SOURCE_COMMIT: &str = "bb334e8d6250c9363e957e131bf7e6d08ec72f91";
 pub(crate) const SOURCE_GIT_TREE: &str = "b297a9501ae136e59d006f0497204524a5478cc9";
 pub(crate) const SOURCE_TREE_SHA256: &str =
-    "d6a3fb58acb53efa0161b48263c15f80042f3fb23021be8a3b1881498ae0b927";
+    "ab1593dec96335c876237c976e80087a4d8631456b2b8fa2b65dd3a743ac17f8";
 pub(crate) const CLDR_VERSION: &str = "48.2.0";
 pub(crate) const UNICODE_VERSION: &str = "16.0.0";
 pub(crate) const EXPECTED_LOCALE_COUNT: usize = 766;
@@ -131,6 +131,10 @@ impl CldrSource {
             input_files.push(checked_file(
                 &root,
                 &format!("{NUMBERS_MAIN_RELATIVE_PATH}/{locale}/numbers.json"),
+            )?);
+            input_files.push(checked_file(
+                &root,
+                &format!("{NUMBERS_MAIN_RELATIVE_PATH}/{locale}/currencies.json"),
             )?);
             input_files.push(checked_file(
                 &root,

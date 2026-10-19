@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "2ec64ae69efa67040f7387e679071591334085548b10a317b474ed319ba7f000"
+        "3fc9b909a1e173dca9da7b9317a0e43afaf4c4f507508a603b05a27c85683f28"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -276,4 +276,13 @@ fn calendar_symbols_and_supplemental_rules_retain_pinned_context_and_boundaries(
             .is_empty());
         assert!(compiled_calendar_formatting("haw", calendar).is_none());
     }
+}
+
+#[test]
+fn currency_symbols_resolve_pinned_locale_data_without_host_intl() {
+    assert_eq!(super::compiled_currency_symbol("en-US", "USD"), Some("$"));
+    assert_eq!(super::compiled_currency_symbol("en", "JPY"), Some("¥"));
+    assert_eq!(super::compiled_currency_symbol("ru", "RUB"), Some("₽"));
+    assert_eq!(super::compiled_currency_symbol("fr-CA", "CAD"), Some("$"));
+    assert_eq!(super::compiled_currency_symbol("en", "ZZZ"), None);
 }

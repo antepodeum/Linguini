@@ -103,6 +103,18 @@ pub fn compiled_currency_formatting(locale: &str) -> Option<CurrencyFormatData> 
     )
 }
 
+/// Resolve the pinned locale symbol for one currency. Unknown codes have no symbol.
+pub fn compiled_currency_symbol(locale: &str, currency: &str) -> Option<&'static str> {
+    resolve_locale_tag(
+        locale,
+        LocaleFallbackComponent::Main,
+        generated_currency_symbols,
+    )?
+    .iter()
+    .find(|(code, _)| code.eq_ignore_ascii_case(currency))
+    .map(|(_, symbol)| *symbol)
+}
+
 /// Returns CLDR supplemental fraction and rounding rules for a currency code.
 ///
 /// CLDR's `DEFAULT` rule applies to well-formed three-letter codes without a

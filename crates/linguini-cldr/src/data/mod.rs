@@ -3,10 +3,10 @@ mod compiled;
 use crate::plural::{PluralOperands, PluralRule};
 pub use compiled::{
     built_in_plural_rules, built_in_text_direction, compiled_calendar_formatting,
-    compiled_currency_formatting, compiled_currency_fraction, compiled_date_formatting,
-    compiled_day_period_rules, compiled_number_formatting, compiled_plural_rules,
-    compiled_time_zone_formatting, compiled_week_data, japanese_era_starts, CompiledPluralCategory,
-    CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
+    compiled_currency_formatting, compiled_currency_fraction, compiled_currency_symbol,
+    compiled_date_formatting, compiled_day_period_rules, compiled_number_formatting,
+    compiled_plural_rules, compiled_time_zone_formatting, compiled_week_data, japanese_era_starts,
+    CompiledPluralCategory, CompiledPluralRules, CLDR_DATA_MANIFEST_JSON,
 };
 pub(crate) use compiled::{
     generated_extension_key_alias, generated_extension_type_alias, generated_language_alias,

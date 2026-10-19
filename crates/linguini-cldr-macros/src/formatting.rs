@@ -90,6 +90,7 @@ pub(crate) fn generate_formatting_tables(
 ) -> Result<(TokenStream, FormattingCoverage), String> {
     let mut number_arms = Vec::new();
     let mut currency_arms = Vec::new();
+    let mut symbol_arms = Vec::new();
     let mut date_arms = Vec::new();
     let mut date_exclusions = Vec::new();
     let numbering_systems = extract_numbering_systems(numbering_systems_path)?;
@@ -104,6 +105,16 @@ pub(crate) fn generate_formatting_tables(
         let currency = extract_currency(&numbers_value, locale)
             .map_err(|error| format!("{}: {error}", numbers_path.display()))?;
         currency_arms.push(currency_arm(locale, currency));
+        let path = numbers_main.join(locale).join("currencies.json");
+        let value = read_json(&path)?;
+        let symbols = value["main"][locale]["numbers"]["currencies"]
+            .as_object()
+            .ok_or_else(|| format!("{}: missing currencies object", path.display()))?;
+        let entries = symbols.iter().map(|(code, value)| {
+            let symbol = value["symbol"].as_str().unwrap_or(code);
+            quote! { (#code, #symbol) }
+        });
+        symbol_arms.push(quote! { #locale => Some(&[#(#entries),*]), });
 
         let dates_path = dates_main.join(locale).join("ca-gregorian.json");
         let dates_value = read_json(&dates_path)?;
@@ -143,6 +154,10 @@ pub(crate) fn generate_formatting_tables(
                     #(#currency_arms)*
                     _ => None,
                 }
+            }
+
+            fn generated_currency_symbols(locale: &str) -> Option<&'static [(&'static str, &'static str)]> {
+                match locale { #(#symbol_arms)* _ => None }
             }
 
             fn generated_currency_fraction(currency: &str) -> Option<CurrencyFractionData> {
