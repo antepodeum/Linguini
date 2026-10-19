@@ -1,49 +1,87 @@
-//! Project locale metadata and resolution with one runtime for both targets.
+//! Semantic locale metadata and build-time locale resolution.
 
-use super::{
-    base_locale_literal, locale_literals, project_locale_directions, project_locale_resolution,
-    EcmaScriptTarget, TypeScriptLocaleModule,
-};
-use crate::ecmascript::RuntimeCode;
+use std::collections::BTreeMap;
 
-pub(super) fn render(
-    locales: &[TypeScriptLocaleModule],
-    base_locale: Option<&str>,
-    target: EcmaScriptTarget,
-) -> String {
-    let mut code = RuntimeCode::default();
-    code.shared("export const locales = ");
-    code.typed("[", "/** @type {const} */ ([");
-    code.generated(locale_literals(locales).join(", "));
-    code.typed("] as const;\n", "]);\n");
-    code.generated(format!(
-        "export const baseLocale = {};\n\n",
-        base_locale_literal(locales, base_locale)
-    ));
-    code.shared("export const localeDirections = ");
-    code.typed("{\n", "/** @type {const} */ ({\n");
-    code.generated(project_locale_directions(locales));
-    code.typed("} as const;\n\n", "});\n\n");
-    code.typed(
-        "export type Locale = (typeof locales)[number];\nexport type TextDirection = \"ltr\" | \"rtl\";\n\nconst localeResolution: Readonly<Record<string, Locale>> = {\n",
-        "/** @typedef {(typeof locales)[number]} Locale */\n/** @typedef {\"ltr\" | \"rtl\"} TextDirection */\n\n/** @type {Readonly<Record<string, Locale>>} */\nconst localeResolution = {\n",
-    );
-    code.generated(project_locale_resolution(locales));
-    code.shared("};\n\n");
-    code.typed(
-        "export function isLocale(locale: unknown): locale is Locale {\n",
-        "/**\n * @param {unknown} locale\n * @returns {locale is Locale}\n */\nexport function isLocale(locale) {\n",
-    );
-    code.shared("  return normalizeLocale(locale) !== undefined;\n}\n\n");
-    code.typed(
-        "export function normalizeLocale(locale: unknown): Locale | undefined {\n",
-        "/**\n * @param {unknown} locale\n * @returns {Locale | undefined}\n */\nexport function normalizeLocale(locale) {\n",
-    );
-    code.shared("  if (typeof locale !== \"string\") return undefined;\n  return localeResolution[locale.toLowerCase()];\n}\n\n");
-    code.typed(
-        "export function getTextDirection(locale: Locale): TextDirection {\n",
-        "/**\n * @param {Locale} locale\n * @returns {TextDirection}\n */\nexport function getTextDirection(locale) {\n",
-    );
-    code.shared("  return localeDirections[normalizeLocale(locale) ?? baseLocale];\n}\n");
-    code.render(target)
+use linguini_cldr::{canonicalize_locale, locale_resolution_candidates, maximize_locale};
+use minijinja::{context, Value};
+
+use super::{locale_direction, EcmaLocaleModule};
+use crate::module::names::{property_key, string_literal};
+
+fn metadata(locales: &[EcmaLocaleModule], base_locale: Option<&str>) -> Value {
+    let base_locale =
+        base_locale.expect("validated ECMAScript projects have an explicit base locale");
+    debug_assert!(locales.iter().any(|entry| entry.locale == base_locale));
+    let entries: Vec<_> = locales
+        .iter()
+        .map(|entry| {
+            context! {
+                literal => string_literal(&entry.locale),
+                property => property_key(&entry.locale),
+                direction => locale_direction(&entry.locale),
+            }
+        })
+        .collect();
+    let resolutions: Vec<_> = project_locale_resolution(locales)
+        .into_iter()
+        .map(|(candidate, resolved)| {
+            context! {
+                candidate => string_literal(&candidate),
+                locale => string_literal(&resolved),
+            }
+        })
+        .collect();
+    context! { locales => entries, base_locale => string_literal(base_locale), resolutions }
+}
+
+pub(super) fn render(locales: &[EcmaLocaleModule], base_locale: Option<&str>) -> String {
+    crate::templates::render("project/locale", metadata(locales, base_locale))
+}
+
+pub(super) fn declaration(locales: &[EcmaLocaleModule], base_locale: Option<&str>) -> String {
+    crate::templates::render(
+        "project/locale_declarations",
+        metadata(locales, base_locale),
+    )
+}
+
+fn project_locale_resolution(locales: &[EcmaLocaleModule]) -> BTreeMap<String, String> {
+    let mut candidates = locale_resolution_candidates()
+        .iter()
+        .map(|locale| (*locale).to_owned())
+        .collect::<Vec<_>>();
+    for locale in locales {
+        let Ok(canonical) = canonicalize_locale(&locale.locale) else {
+            continue;
+        };
+        let Some(language) = canonical.split('-').next() else {
+            continue;
+        };
+        let Ok(maximized) = maximize_locale(language) else {
+            continue;
+        };
+        if let Some(script) = maximized
+            .split('-')
+            .nth(1)
+            .filter(|subtag| subtag.len() == 4)
+        {
+            candidates.push(format!("{language}-{script}"));
+        }
+    }
+    candidates.sort();
+    candidates.dedup();
+
+    let mut resolution = locales
+        .iter()
+        .map(|locale| (locale.locale.to_ascii_lowercase(), locale.locale.clone()))
+        .collect::<BTreeMap<_, _>>();
+    for candidate in candidates {
+        if let Some(resolved) = super::super::locale_fallback_chain(locales, &candidate, None)
+            .into_iter()
+            .next()
+        {
+            resolution.insert(candidate.to_ascii_lowercase(), resolved);
+        }
+    }
+    resolution
 }

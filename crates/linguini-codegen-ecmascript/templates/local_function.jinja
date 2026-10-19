@@ -1,0 +1,3 @@
+{{ docs }}{% if exported %}export {% endif %}function {{ name }}({% for parameter in parameters %}{{ parameter }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+{{ body }}}
+{{ "\n" -}}

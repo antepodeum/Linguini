@@ -1,47 +1,13 @@
 //! Declaration interfaces for the context-only and web-enabled Svelte facades.
 
 use crate::ecmascript::{
-    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaReExport,
-    EcmaScriptTarget, EcmaStatement,
+    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
+    EcmaReExport, EcmaStatement,
 };
-
-const WEB_INTERFACE: &str = r#"export interface LinguiniRune<Locale extends string, Linguini> extends LinguiniSvelteControl<Locale> {
-  readonly messages: Linguini;
-  readonly l: Linguini;
-}
-
-export declare const linguini: LinguiniRune<Locale, Linguini>;
-export declare const l: Linguini;
-export declare const messages: Linguini;
-export declare const setLocale: LinguiniRune<Locale, Linguini>["setLocale"];
-export declare const localizeHref: LinguiniRune<Locale, Linguini>["localizeHref"];
-export declare const localizeUrl: LinguiniRune<Locale, Linguini>["localizeUrl"];
-export declare const shouldLocalizeHref: LinguiniRune<Locale, Linguini>["shouldLocalizeHref"];
-export declare const shouldLocalizeLink: LinguiniRune<Locale, Linguini>["shouldLocalizeLink"];
-export declare const localizeHrefAttribute: LinguiniRune<Locale, Linguini>["localizeHrefAttribute"];
-export declare const delocalizeUrl: LinguiniRune<Locale, Linguini>["delocalizeUrl"];
-export declare const alternateLinks: LinguiniRune<Locale, Linguini>["alternateLinks"];
-"#;
-const CONTEXT_INTERFACE: &str = r#"export interface LinguiniRune<Locale extends string, Linguini> {
-  readonly messages: Linguini;
-  readonly l: Linguini;
-  readonly locale: Locale;
-  readonly lang: Locale;
-  readonly direction: TextDirection;
-  readonly textDirection: TextDirection;
-  readonly htmlAttrs: { lang: Locale; dir: TextDirection };
-  setLocale(locale: Locale | string): Promise<Locale>;
-}
-
-export declare const linguini: LinguiniRune<Locale, Linguini>;
-export declare const l: Linguini;
-export declare const messages: Linguini;
-export declare const setLocale: LinguiniRune<Locale, Linguini>["setLocale"];
-"#;
 
 pub(super) fn generate_svelte_declaration(web: bool) -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
-        EcmaScriptTarget::TypeScript,
+        EcmaModuleKind::Declaration,
         "svelte.d.ts",
         None,
     ));
@@ -75,11 +41,7 @@ pub(super) fn generate_svelte_declaration(web: bool) -> String {
         ));
     }
     module.push_statement(EcmaStatement::type_declaration(
-        if web {
-            WEB_INTERFACE
-        } else {
-            CONTEXT_INTERFACE
-        },
+        crate::templates::render("svelte/facade_declarations", minijinja::context! { web }),
         None,
     ));
     module.render_code()

@@ -1,53 +1,36 @@
-//! Project `locale` and `index` entry modules for TypeScript and checked JavaScript.
+//! Project locale metadata and provider entry modules.
 
-use std::collections::BTreeMap;
+use linguini_cldr::built_in_text_direction;
 
-use linguini_cldr::{
-    built_in_text_direction, canonicalize_locale, locale_resolution_candidates, maximize_locale,
-};
-
-use crate::ecmascript::{EcmaModule, EcmaModuleOutput, EcmaScriptTarget, EcmaStatement};
+use crate::ecmascript::{EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaStatement};
 
 mod index;
 mod locale;
-mod runtime;
 
-use super::names::{escape_string, import_path_for_target, property_key, safe_identifier};
-use super::{
-    TypeScriptLocaleModule, TypeScriptProjectArtifact, TypeScriptProjectArtifactKind,
-    ValidatedTypeScriptProject,
-};
+use super::names::safe_identifier;
+use super::{EcmaLocaleModule, EcmaProjectArtifact, EcmaProjectArtifactKind, ValidatedEcmaProject};
 
 /// One source-mapped project entry module.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompiledTypeScriptProjectModule {
-    pub artifact: TypeScriptProjectArtifact,
+pub struct CompiledEcmaProjectModule {
+    pub artifact: EcmaProjectArtifact,
     pub code: String,
     pub source_map: String,
 }
 
-pub type CompiledJavaScriptProjectModule = CompiledTypeScriptProjectModule;
-
-pub fn compile_typescript_project_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptProjectArtifact,
-) -> CompiledTypeScriptProjectModule {
-    compile_project_artifact_module(project, artifact, EcmaScriptTarget::TypeScript)
+pub fn compile_project_artifact_module(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaProjectArtifact,
+) -> CompiledEcmaProjectModule {
+    compile_project_artifact_module_impl(project, artifact, EcmaModuleKind::JavaScript)
 }
 
-pub fn compile_javascript_project_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptProjectArtifact,
-) -> CompiledJavaScriptProjectModule {
-    compile_project_artifact_module(project, artifact, EcmaScriptTarget::JavaScript)
-}
-
-fn compile_project_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptProjectArtifact,
-    target: EcmaScriptTarget,
-) -> CompiledTypeScriptProjectModule {
-    let output_path = target_path(&artifact.module_path, target);
+fn compile_project_artifact_module_impl(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaProjectArtifact,
+    target: EcmaModuleKind,
+) -> CompiledEcmaProjectModule {
+    let output_path = artifact.module_path.clone();
     let module = project_module(
         &project.locales,
         project.options.base_locale.as_deref(),
@@ -55,7 +38,7 @@ fn compile_project_artifact_module(
         EcmaModuleOutput::new(target, output_path, None),
     );
     let rendered = module.render(&[]);
-    CompiledTypeScriptProjectModule {
+    CompiledEcmaProjectModule {
         artifact: artifact.clone(),
         code: rendered.code,
         source_map: rendered.source_map,
@@ -63,10 +46,10 @@ fn compile_project_artifact_module(
 }
 
 pub(super) fn generate_project_locale_declaration(
-    locales: &[TypeScriptLocaleModule],
+    locales: &[EcmaLocaleModule],
     base_locale: Option<&str>,
 ) -> String {
-    locale_declaration(locales, base_locale)
+    locale::declaration(locales, base_locale)
 }
 
 pub(super) fn generate_project_index_declaration() -> String {
@@ -74,192 +57,26 @@ pub(super) fn generate_project_index_declaration() -> String {
 }
 
 pub(super) fn project_module(
-    locales: &[TypeScriptLocaleModule],
+    locales: &[EcmaLocaleModule],
     base_locale: Option<&str>,
-    kind: TypeScriptProjectArtifactKind,
+    kind: EcmaProjectArtifactKind,
     output: EcmaModuleOutput,
 ) -> EcmaModule {
-    let target = output.target();
     let code = match kind {
-        TypeScriptProjectArtifactKind::Locale => locale::render(locales, base_locale, target),
-        TypeScriptProjectArtifactKind::Index => index::render(locales, base_locale, target),
+        EcmaProjectArtifactKind::Locale => locale::render(locales, base_locale),
+        EcmaProjectArtifactKind::Index => index::render(locales, base_locale),
     };
     let mut module = EcmaModule::new(output);
     module.push_statement(EcmaStatement::generated(code));
     module
 }
 
-fn locale_declaration(locales: &[TypeScriptLocaleModule], base_locale: Option<&str>) -> String {
-    format!(
-        concat!(
-            "export declare const locales: readonly [{}];\n",
-            "export declare const baseLocale: {};\n\n",
-            "export declare const localeDirections: {{\n{}",
-            "}};\n\n",
-            "export type Locale = (typeof locales)[number];\n",
-            "export type TextDirection = \"ltr\" | \"rtl\";\n\n",
-            "export declare function isLocale(locale: unknown): locale is Locale;\n",
-            "export declare function normalizeLocale(locale: unknown): Locale | undefined;\n",
-            "export declare function getTextDirection(locale: Locale): TextDirection;\n",
-        ),
-        locale_literals(locales).join(", "),
-        base_locale_literal(locales, base_locale),
-        project_locale_direction_declarations(locales),
-    )
-}
-
 fn index_declaration() -> String {
-    crate::templates::render(
-        "index_declarations",
-        EcmaScriptTarget::TypeScript,
-        minijinja::context! {},
-    )
-}
-
-fn target_path(path: &str, target: EcmaScriptTarget) -> String {
-    match target {
-        EcmaScriptTarget::TypeScript => path.to_owned(),
-        EcmaScriptTarget::JavaScript => path
-            .strip_suffix(".ts")
-            .map_or_else(|| path.to_owned(), |stem| format!("{stem}.js")),
-    }
-}
-
-fn project_locale_resolution(locales: &[TypeScriptLocaleModule]) -> String {
-    let mut candidates = locale_resolution_candidates()
-        .iter()
-        .map(|locale| (*locale).to_owned())
-        .collect::<Vec<_>>();
-    for locale in locales {
-        let Ok(canonical) = canonicalize_locale(&locale.locale) else {
-            continue;
-        };
-        let Some(language) = canonical.split('-').next() else {
-            continue;
-        };
-        let Ok(maximized) = maximize_locale(language) else {
-            continue;
-        };
-        if let Some(script) = maximized
-            .split('-')
-            .nth(1)
-            .filter(|subtag| subtag.len() == 4)
-        {
-            candidates.push(format!("{language}-{script}"));
-        }
-    }
-    candidates.sort();
-    candidates.dedup();
-
-    let mut resolution = locales
-        .iter()
-        .map(|locale| (locale.locale.to_ascii_lowercase(), locale.locale.clone()))
-        .collect::<BTreeMap<_, _>>();
-    for candidate in candidates {
-        if let Some(resolved) = super::locale_fallback_chain(locales, &candidate, None)
-            .into_iter()
-            .next()
-        {
-            resolution.insert(candidate.to_ascii_lowercase(), resolved);
-        }
-    }
-    resolution
-        .into_iter()
-        .map(|(candidate, resolved)| {
-            format!(
-                "  \"{}\": \"{}\",\n",
-                escape_string(&candidate),
-                escape_string(&resolved)
-            )
-        })
-        .collect()
-}
-
-fn project_locale_import(locale: &str, target: EcmaScriptTarget) -> String {
-    format!(
-        "import {} from \"{}\";\n",
-        locale_identifier(locale),
-        import_path_for_target(&format!("./locales/{}", escape_string(locale)), target)
-    )
-}
-
-fn project_locale_directions(locales: &[TypeScriptLocaleModule]) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            format!(
-                "  {}: \"{}\",\n",
-                property_key(&locale.locale),
-                locale_direction(&locale.locale)
-            )
-        })
-        .collect()
-}
-
-fn project_locale_direction_declarations(locales: &[TypeScriptLocaleModule]) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            format!(
-                "  readonly {}: \"{}\";\n",
-                property_key(&locale.locale),
-                locale_direction(&locale.locale)
-            )
-        })
-        .collect()
-}
-
-fn project_locale_modules(locale: &str) -> String {
-    format!(
-        "  {}: {},\n",
-        property_key(locale),
-        locale_identifier(locale)
-    )
-}
-
-fn project_locale_loaders(
-    locales: &[TypeScriptLocaleModule],
-    base_locale: &str,
-    target: EcmaScriptTarget,
-) -> String {
-    locales
-        .iter()
-        .map(|locale| {
-            if locale.locale == base_locale {
-                format!(
-                    "  {}: () => Promise.resolve({}),\n",
-                    property_key(&locale.locale),
-                    locale_identifier(&locale.locale)
-                )
-            } else {
-                let path = import_path_for_target(
-                    &format!("./locales/{}", escape_string(&locale.locale)),
-                    target,
-                );
-                format!(
-                    "  {}: () => import(\"{path}\").then((module) => module.default),\n",
-                    property_key(&locale.locale)
-                )
-            }
-        })
-        .collect()
+    crate::templates::render("index_declarations", minijinja::context! {})
 }
 
 fn locale_identifier(locale: &str) -> String {
     format!("locale_{}", safe_identifier(locale))
-}
-
-fn locale_literals(locales: &[TypeScriptLocaleModule]) -> Vec<String> {
-    locales
-        .iter()
-        .map(|locale| format!("\"{}\"", escape_string(&locale.locale)))
-        .collect()
-}
-
-fn base_locale_literal(locales: &[TypeScriptLocaleModule], base_locale: Option<&str>) -> String {
-    let locale = base_locale.expect("validated TypeScript projects have an explicit base locale");
-    debug_assert!(locales.iter().any(|entry| entry.locale == locale));
-    format!("\"{}\"", escape_string(locale))
 }
 
 fn locale_direction(locale: &str) -> &'static str {
@@ -273,14 +90,11 @@ mod tests {
     use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
-    use super::{
-        compile_javascript_project_artifact_module, compile_typescript_project_artifact_module,
-    };
+    use super::compile_project_artifact_module;
     use crate::ecmascript::EcmaSource;
     use crate::module::{
-        compile_javascript_locale_artifact_module, generate_javascript_schema_files,
-        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectArtifactKind,
-        TypeScriptProjectOptions, ValidatedTypeScriptProject,
+        compile_locale_artifact_module, generate_project_files, generate_schema_files,
+        EcmaLocaleModule, EcmaProjectArtifactKind, EcmaProjectOptions, ValidatedEcmaProject,
     };
 
     #[test]
@@ -291,69 +105,65 @@ mod tests {
         let schema =
             lower_schema(&parse_schema_in(schema_text, SourceId(201)).expect("schema parses"));
         let locales = [
-            TypeScriptLocaleModule {
+            EcmaLocaleModule {
                 locale: "en".into(),
                 module: lower_locale(
                     &parse_locale_in(english_text, SourceId(202)).expect("English"),
                 ),
             },
-            TypeScriptLocaleModule {
+            EcmaLocaleModule {
                 locale: "fr".into(),
                 module: lower_locale(&parse_locale_in(french_text, SourceId(203)).expect("French")),
             },
         ];
-        let options = TypeScriptProjectOptions {
+        let options = EcmaProjectOptions {
             base_locale: Some("en".into()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
-        let project =
-            ValidatedTypeScriptProject::try_new(&schema, &locales, &options).expect("project");
+        let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).expect("project");
         let artifacts = project.project_artifacts();
         assert_eq!(
             artifacts
                 .iter()
                 .map(|artifact| artifact.module_path.as_str())
                 .collect::<Vec<_>>(),
-            ["locale.ts", "index.ts"]
+            ["locale.js", "index.js"]
         );
         assert_eq!(artifacts, project.project_artifacts());
-        let project_files = generate_typescript_project_files(&project).expect("project files");
+        let project_files = generate_project_files(&project).expect("project files");
 
         for artifact in &artifacts {
-            let typescript = compile_typescript_project_artifact_module(&project, artifact);
-            let javascript = compile_javascript_project_artifact_module(&project, artifact);
+            let javascript = compile_project_artifact_module(&project, artifact);
             let project_file = project_files
                 .iter()
                 .find(|file| file.path == artifact.module_path)
                 .expect("project module");
             let map_name = format!("{}.map", artifact.module_path);
             assert_eq!(
-                typescript
+                javascript
                     .code
                     .strip_suffix(&format!("//# sourceMappingURL={map_name}\n"))
                     .expect("TypeScript source-map trailer"),
                 project_file.contents
             );
-            assert!(javascript.code.ends_with(&format!(
-                "//# sourceMappingURL={}\n",
-                map_name.replace(".ts.map", ".js.map")
-            )));
-            assert!(javascript.source_map.contains(&format!(
-                "\"file\":\"{}\"",
-                artifact.module_path.replace(".ts", ".js")
-            )));
+            assert!(javascript
+                .code
+                .ends_with(&format!("//# sourceMappingURL={}\n", map_name)));
+            assert!(javascript
+                .source_map
+                .contains(&format!("\"file\":\"{}\"", artifact.module_path)));
             assert!(!javascript.code.contains(" as const"));
             assert!(!javascript.code.contains("import type"));
             assert!(!javascript.code.contains("export type"));
         }
 
-        let locale = compile_javascript_project_artifact_module(&project, &artifacts[0]);
-        assert_eq!(artifacts[0].kind, TypeScriptProjectArtifactKind::Locale);
+        let locale = compile_project_artifact_module(&project, &artifacts[0]);
+        assert_eq!(artifacts[0].kind, EcmaProjectArtifactKind::Locale);
         assert!(locale.code.contains("@returns {locale is Locale}"));
         assert!(locale.code.contains("\"fr\": \"fr\""));
 
-        let index = compile_javascript_project_artifact_module(&project, &artifacts[1]);
-        assert_eq!(artifacts[1].kind, TypeScriptProjectArtifactKind::Index);
+        let index = compile_project_artifact_module(&project, &artifacts[1]);
+        assert_eq!(artifacts[1].kind, EcmaProjectArtifactKind::Index);
         assert!(index.code.contains("import(\"./locales/fr.js\")"));
         assert!(index.code.contains("const pendingLocales = new Map();"));
         assert!(index
@@ -362,56 +172,33 @@ mod tests {
 
         let snapshot_root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/golden/snapshots/js-project");
-        let typescript_root = snapshot_root.join("typescript");
         let sources = [
             EcmaSource::new(SourceId(201), "schema.lgs", schema_text),
             EcmaSource::new(SourceId(202), "en.lgl", english_text),
             EcmaSource::new(SourceId(203), "fr.lgl", french_text),
         ];
-        let mut snapshots = generate_javascript_schema_files(&schema)
+        let mut snapshots = generate_schema_files(&schema)
             .into_iter()
             .filter(|file| file.path.ends_with(".js"))
             .map(|file| (snapshot_root.join(file.path), file.contents))
             .collect::<Vec<_>>();
         for artifact in project.locale_artifacts().expect("locale artifacts") {
-            let compiled = compile_javascript_locale_artifact_module(&project, &artifact, &sources)
+            let compiled = compile_locale_artifact_module(&project, &artifact, &sources)
                 .expect("JavaScript locale");
+            snapshots.push((snapshot_root.join(&artifact.module_path), compiled.code));
             snapshots.push((
-                snapshot_root.join(artifact.module_path.replace(".ts", ".js")),
-                compiled.code,
-            ));
-            snapshots.push((
-                snapshot_root.join(artifact.source_map_path.replace(".ts.map", ".js.map")),
+                snapshot_root.join(&artifact.source_map_path),
                 compiled.source_map,
             ));
         }
         for artifact in &artifacts {
-            let compiled = compile_javascript_project_artifact_module(&project, artifact);
+            let compiled = compile_project_artifact_module(&project, artifact);
+            snapshots.push((snapshot_root.join(&artifact.module_path), compiled.code));
             snapshots.push((
-                snapshot_root.join(artifact.module_path.replace(".ts", ".js")),
-                compiled.code,
-            ));
-            snapshots.push((
-                snapshot_root.join(artifact.source_map_path.replace(".ts.map", ".js.map")),
+                snapshot_root.join(&artifact.source_map_path),
                 compiled.source_map,
             ));
         }
-        snapshots.extend(
-            project_files
-                .iter()
-                .filter(|file| {
-                    matches!(
-                        file.path.as_str(),
-                        "shared.ts"
-                            | "messages.ts"
-                            | "locales/en.ts"
-                            | "locales/fr.ts"
-                            | "locale.ts"
-                            | "index.ts"
-                    )
-                })
-                .map(|file| (typescript_root.join(&file.path), file.contents.clone())),
-        );
         if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
             for (path, contents) in &snapshots {
                 std::fs::create_dir_all(path.parent().expect("snapshot parent"))

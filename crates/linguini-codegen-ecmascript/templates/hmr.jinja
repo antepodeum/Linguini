@@ -1,0 +1,2 @@
+{% raw %}const hot = (/** @type {ImportMeta & { hot?: { dispose(callback: () => void): void } }} */ (import.meta)).hot;
+{% endraw %}hot?.dispose({{ disposer }});

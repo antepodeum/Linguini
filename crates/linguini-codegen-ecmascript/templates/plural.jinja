@@ -1,0 +1,12 @@
+/**
+ * @param {number | bigint | string} value
+ * @returns {string}
+ */
+{% if exported %}export {% endif %}function {{ name }}(value) {
+  if (value === "zero" || value === "one" || value === "two" || value === "few" || value === "many" || value === "other") return value;
+  const operands = pluralOperands(value);
+{% for category in categories %}  if ({% if not category.conditions %}true{% endif %}{% for condition in category.conditions %}({% for relation in condition %}{% if relation.negated %}!{% endif %}pluralOperandMatches(operands.{{ relation.operand }}, {% if relation.modulo is none %}undefined{% else %}{{ relation.modulo }}n{% endif %}, {{ "true" if relation.allow_fraction else "false" }}, [{% for range in relation.ranges %}[{{ range.start }}n, {{ range.end }}n]{% if not loop.last %}, {% endif %}{% endfor %}]){% if not loop.last %} && {% endif %}{% endfor %}){% if not loop.last %} || {% endif %}{% endfor %}) return {{ category.literal }};
+{% endfor %}  return "other";
+}
+
+{% include "plural_operands" %}

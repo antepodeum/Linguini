@@ -34,7 +34,7 @@ pub(super) fn messages_module(
     let target = output.target();
     let mut module = EcmaModule::new(output);
     let type_names = message_type_names(schema);
-    if !target.is_typescript() {
+    if !target.is_declaration() {
         for name in &type_names {
             module.push_statement(EcmaStatement::documentation(
                 format!("/** @typedef {{import(\"{shared_import_path}\").{name}}} {name} */"),
@@ -57,7 +57,7 @@ pub(super) fn messages_module(
     let mut output = String::new();
     let mut mappings = Vec::new();
     let tree = schema_message_tree(schema);
-    if target.is_typescript() {
+    if target.is_declaration() {
         output.push_str("export type LinguiniMessages = ");
         emit_object_type(&tree, schema, "", 0, target, &mut output, &mut mappings);
         output.push_str(";\n");
@@ -120,7 +120,7 @@ fn emit_object_type(
     schema: &IrModule,
     prefix: &str,
     depth: usize,
-    target: crate::ecmascript::EcmaScriptTarget,
+    target: crate::ecmascript::EcmaModuleKind,
     output: &mut String,
     mappings: &mut Vec<(usize, Span)>,
 ) {
@@ -130,13 +130,13 @@ fn emit_object_type(
     for entry in &tree.messages {
         let start = output.len();
         let signature = MessageCallSignature::from_message(&entry.signature);
-        if target.is_typescript() && !signature.is_parameterized() {
+        if target.is_declaration() && !signature.is_parameterized() {
             emit_docs(&entry.signature.docs, &child_indent, output);
         }
         output.push_str(&format!(
             "{child_indent}readonly {}: {};\n",
             message_property_key(&entry.property, depth),
-            if target.is_typescript() {
+            if target.is_declaration() {
                 signature.callable_type_with_docs(&entry.signature.docs, &child_indent)
             } else {
                 signature.javascript_callable_type()
@@ -158,7 +158,7 @@ fn emit_object_type(
         } else {
             format!("{prefix}.{name}")
         };
-        if target.is_typescript() {
+        if target.is_declaration() {
             emit_docs(&child.docs, &child_indent, output);
         }
         output.push_str(&format!(
@@ -217,7 +217,7 @@ mod tests {
         let code = messages_module(
             &schema,
             EcmaModuleOutput::new(
-                crate::ecmascript::EcmaScriptTarget::JavaScript,
+                crate::ecmascript::EcmaModuleKind::JavaScript,
                 "unsafe/messages.js",
                 None,
             ),

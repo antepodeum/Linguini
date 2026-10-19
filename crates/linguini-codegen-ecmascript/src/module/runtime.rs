@@ -1,31 +1,29 @@
-//! Shared locale runtime emission for TypeScript and checked JavaScript targets.
+//! Shared locale runtime emission for canonical JavaScript.
 
 use linguini_ir::IrModule;
 use linguini_syntax::SourceId;
 
-use crate::ecmascript::{
-    EcmaModule, EcmaModuleOutput, EcmaScriptTarget, EcmaSource, EcmaStatement,
-};
-use crate::plural::generate_plural_function_for_target;
+use crate::ecmascript::{EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaSource, EcmaStatement};
+use crate::plural::generate_plural_function_with_visibility;
 
-use super::formatter_codegen::formatter_data_declaration_for_target;
+use super::formatter_codegen::formatter_data_declaration;
 use super::formatters::{formatter_requirements, plural_required};
 use super::message::ordered_sources;
 use super::{
-    locale_module_for_schema, project_locale_options, visible_schema, TypeScriptCodegenError,
-    TypeScriptLocaleRuntimeArtifact, TypeScriptOptions, ValidatedTypeScriptProject,
+    locale_module_for_schema, project_locale_options, visible_schema, EcmaCodegenError,
+    EcmaLocaleRuntimeArtifact, EcmaOptions, ValidatedEcmaProject,
 };
 
 /// One source-mapped locale helper runtime emitted from the common ECMAScript model.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompiledTypeScriptLocaleRuntimeModule {
+pub struct CompiledEcmaLocaleRuntimeModule {
     pub locale: String,
     pub code: String,
     pub source_map: String,
     pub source_ids: Vec<SourceId>,
 }
 
-impl CompiledTypeScriptLocaleRuntimeModule {
+impl CompiledEcmaLocaleRuntimeModule {
     pub fn locale(&self) -> &str {
         &self.locale
     }
@@ -44,37 +42,32 @@ impl CompiledTypeScriptLocaleRuntimeModule {
 }
 
 /// Checked-JavaScript locale runtime emitted from the common ECMAScript model.
-pub type CompiledJavaScriptLocaleRuntimeModule = CompiledTypeScriptLocaleRuntimeModule;
-
-/// Compiles one canonical TypeScript locale runtime artifact without recomputing its path.
-pub fn compile_typescript_locale_runtime_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptLocaleRuntimeArtifact,
-    sources: &[EcmaSource],
-) -> Result<CompiledTypeScriptLocaleRuntimeModule, TypeScriptCodegenError> {
-    compile_locale_runtime_artifact_module(project, artifact, sources, EcmaScriptTarget::TypeScript)
-}
-
+///
 /// Compiles one canonical checked-JavaScript locale runtime artifact.
-pub fn compile_javascript_locale_runtime_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptLocaleRuntimeArtifact,
+pub fn compile_locale_runtime_artifact_module(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaLocaleRuntimeArtifact,
     sources: &[EcmaSource],
-) -> Result<CompiledJavaScriptLocaleRuntimeModule, TypeScriptCodegenError> {
-    compile_locale_runtime_artifact_module(project, artifact, sources, EcmaScriptTarget::JavaScript)
+) -> Result<CompiledEcmaLocaleRuntimeModule, EcmaCodegenError> {
+    compile_locale_runtime_artifact_module_impl(
+        project,
+        artifact,
+        sources,
+        EcmaModuleKind::JavaScript,
+    )
 }
 
-fn compile_locale_runtime_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptLocaleRuntimeArtifact,
+fn compile_locale_runtime_artifact_module_impl(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaLocaleRuntimeArtifact,
     sources: &[EcmaSource],
-    target: EcmaScriptTarget,
-) -> Result<CompiledTypeScriptLocaleRuntimeModule, TypeScriptCodegenError> {
+    target: EcmaModuleKind,
+) -> Result<CompiledEcmaLocaleRuntimeModule, EcmaCodegenError> {
     let module = locale_runtime_artifact_module(project, artifact, target)?;
     let source_records = ordered_sources(&artifact.source_ids, sources)?;
     let rendered = module.render(&source_records);
 
-    Ok(CompiledTypeScriptLocaleRuntimeModule {
+    Ok(CompiledEcmaLocaleRuntimeModule {
         locale: artifact.canonical_locale.clone(),
         code: rendered.code,
         source_map: rendered.source_map,
@@ -83,27 +76,24 @@ fn compile_locale_runtime_artifact_module(
 }
 
 pub(super) fn locale_runtime_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptLocaleRuntimeArtifact,
-    target: EcmaScriptTarget,
-) -> Result<EcmaModule, TypeScriptCodegenError> {
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaLocaleRuntimeArtifact,
+    target: EcmaModuleKind,
+) -> Result<EcmaModule, EcmaCodegenError> {
     let locale = project
         .locales
         .iter()
         .find(|locale| locale.locale == artifact.locale)
-        .ok_or_else(|| TypeScriptCodegenError::UnknownLocale {
+        .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: artifact.locale.clone(),
         })?;
     let options = project_locale_options(&locale.locale, &project.options)?;
     let schema = visible_schema(project.schema, &options);
     let locale_module = locale_module_for_schema(&locale.module, &schema);
-    let output_path = match target {
-        EcmaScriptTarget::TypeScript => artifact.module_path.clone(),
-        EcmaScriptTarget::JavaScript => artifact
-            .module_path
-            .strip_suffix(".ts")
-            .map_or_else(|| artifact.module_path.clone(), |path| format!("{path}.js")),
-    };
+    let output_path = artifact
+        .module_path
+        .strip_suffix(".ts")
+        .map_or_else(|| artifact.module_path.clone(), |path| format!("{path}.js"));
     let module = locale_runtime_module(
         &schema,
         &locale_module,
@@ -116,16 +106,17 @@ pub(super) fn locale_runtime_artifact_module(
 pub(super) fn locale_runtime_module(
     schema: &IrModule,
     locale: &IrModule,
-    options: &TypeScriptOptions,
+    options: &EcmaOptions,
     output: EcmaModuleOutput,
 ) -> EcmaModule {
-    let target = output.target();
     let mut module = EcmaModule::new(output);
     let requirements = formatter_requirements(schema, locale);
     if requirements.any() {
-        module.push_statement(EcmaStatement::generated(
-            formatter_data_declaration_for_target(&options.locale, requirements, target, true),
-        ));
+        module.push_statement(EcmaStatement::generated(formatter_data_declaration(
+            &options.locale,
+            &linguini_codegen::formatter_requests(schema, locale),
+            true,
+        )));
     }
     if plural_required(schema, locale) {
         let rules = options
@@ -133,7 +124,7 @@ pub(super) fn locale_runtime_module(
             .as_ref()
             .expect("project locale options always include plural rules");
         let source =
-            generate_plural_function_for_target(&options.plural_function, rules, target, true);
+            generate_plural_function_with_visibility(&options.plural_function, rules, true);
         module.push_statement(EcmaStatement::generated(if requirements.any() {
             format!("\n\n{source}")
         } else {
@@ -152,13 +143,9 @@ mod tests {
 
     use crate::ecmascript::EcmaSource;
 
-    use super::{
-        compile_javascript_locale_runtime_artifact_module,
-        compile_typescript_locale_runtime_artifact_module,
-    };
+    use super::compile_locale_runtime_artifact_module;
     use crate::module::{
-        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
-        ValidatedTypeScriptProject,
+        generate_project_files, EcmaLocaleModule, EcmaProjectOptions, ValidatedEcmaProject,
     };
 
     #[test]
@@ -168,17 +155,17 @@ mod tests {
             "summary = {fn(Plural(count)) {\n  one => {count @number}\n  other => Many\n}}\n";
         let schema =
             lower_schema(&parse_schema_in(schema_text, SourceId(71)).expect("schema parses"));
-        let locales = [TypeScriptLocaleModule {
+        let locales = [EcmaLocaleModule {
             locale: "en-us".to_owned(),
             module: lower_locale(
                 &parse_locale_in(locale_text, SourceId(72)).expect("locale parses"),
             ),
         }];
-        let project_options = TypeScriptProjectOptions {
+        let project_options = EcmaProjectOptions {
             base_locale: Some("en-us".to_owned()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
-        let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &project_options)
+        let project = ValidatedEcmaProject::try_new(&schema, &locales, &project_options)
             .expect("validated project");
         let artifact = project
             .locale_runtime_artifacts()
@@ -190,21 +177,16 @@ mod tests {
             EcmaSource::new(SourceId(71), "schema.lgs", schema_text),
             EcmaSource::new(SourceId(72), "locale.lgl", locale_text),
         ];
-
-        let typescript =
-            compile_typescript_locale_runtime_artifact_module(&project, &artifact, &sources)
-                .expect("TypeScript runtime");
-        let javascript =
-            compile_javascript_locale_runtime_artifact_module(&project, &artifact, &sources)
-                .expect("JavaScript runtime");
-        let project_runtime = generate_typescript_project_files(&project)
+        let javascript = compile_locale_runtime_artifact_module(&project, &artifact, &sources)
+            .expect("JavaScript runtime");
+        let project_runtime = generate_project_files(&project)
             .expect("project files")
             .into_iter()
             .find(|file| file.path == artifact.module_path)
             .expect("project runtime");
-        let source_map_trailer = "//# sourceMappingURL=_runtime.ts.map\n";
+        let source_map_trailer = "//# sourceMappingURL=_runtime.js.map\n";
         assert_eq!(
-            typescript
+            javascript
                 .code
                 .strip_suffix(source_map_trailer)
                 .expect("TypeScript source-map trailer"),

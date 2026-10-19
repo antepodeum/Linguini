@@ -3,12 +3,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use linguini_cldr::canonicalize_locale;
 use linguini_syntax::SourceId;
 
-use super::semantic::TypeScriptSemanticImport;
+use super::semantic::EcmaSemanticImport;
 use super::{
     locale_globals, locale_has_globals, locale_module_for_schema, locale_without_globals,
     namespace_module, project_locale_options, root_module, root_module_with_locale_items,
-    runtime_helper_names, top_level_namespaces, visible_schema, TypeScriptCodegenError,
-    TypeScriptOptions, ValidatedTypeScriptProject,
+    runtime_helper_names, top_level_namespaces, visible_schema, EcmaCodegenError, EcmaOptions,
+    ValidatedEcmaProject,
 };
 
 const MAX_PORTABLE_PATH_BYTES: usize = 240;
@@ -16,7 +16,7 @@ const HEX_COMPONENT_BYTES: usize = 48;
 
 /// Stable physical location and public signature metadata for one bundler leaf.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptMessageArtifact {
+pub struct EcmaMessageArtifact {
     pub locale: String,
     pub message: String,
     pub arity: usize,
@@ -27,12 +27,12 @@ pub struct TypeScriptMessageArtifact {
     pub runtime_module_path: String,
     pub runtime_import_path: String,
     /// Exact direct semantic imports used by this physical message leaf.
-    pub semantic_imports: Vec<TypeScriptSemanticImport>,
+    pub semantic_imports: Vec<EcmaSemanticImport>,
 }
 
 /// Stable physical metadata for one effective locale's shared generated-helper runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptLocaleRuntimeArtifact {
+pub struct EcmaLocaleRuntimeArtifact {
     /// Effective configured locale identity, matching message artifact metadata.
     pub locale: String,
     /// Canonical BCP 47 locale used to select generated CLDR data.
@@ -45,7 +45,7 @@ pub struct TypeScriptLocaleRuntimeArtifact {
 
 /// Stable physical metadata for one locale's aggregate global-symbol module.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptLocaleGlobalsArtifact {
+pub struct EcmaLocaleGlobalsArtifact {
     pub locale: String,
     pub canonical_locale: String,
     pub module_path: String,
@@ -54,17 +54,17 @@ pub struct TypeScriptLocaleGlobalsArtifact {
 
 /// Locale implementation module class.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeScriptLocaleArtifactKind {
+pub enum EcmaLocaleArtifactKind {
     Namespace { namespace: String },
     Barrel,
 }
 
 /// Stable physical metadata for one locale namespace or barrel module.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptLocaleArtifact {
+pub struct EcmaLocaleArtifact {
     pub locale: String,
     pub canonical_locale: String,
-    pub kind: TypeScriptLocaleArtifactKind,
+    pub kind: EcmaLocaleArtifactKind,
     pub module_path: String,
     pub source_map_path: String,
     pub source_ids: Vec<SourceId>,
@@ -72,26 +72,26 @@ pub struct TypeScriptLocaleArtifact {
 
 /// Project entry module class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TypeScriptProjectArtifactKind {
+pub enum EcmaProjectArtifactKind {
     Locale,
     Index,
 }
 
 /// Stable physical metadata for one project entry module.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptProjectArtifact {
-    pub kind: TypeScriptProjectArtifactKind,
+pub struct EcmaProjectArtifact {
+    pub kind: EcmaProjectArtifactKind,
     pub module_path: String,
     pub source_map_path: String,
 }
 
-pub(super) fn project_artifacts() -> Vec<TypeScriptProjectArtifact> {
+pub(super) fn project_artifacts() -> Vec<EcmaProjectArtifact> {
     [
-        (TypeScriptProjectArtifactKind::Locale, "locale.ts"),
-        (TypeScriptProjectArtifactKind::Index, "index.ts"),
+        (EcmaProjectArtifactKind::Locale, "locale.js"),
+        (EcmaProjectArtifactKind::Index, "index.js"),
     ]
     .into_iter()
-    .map(|(kind, module_path)| TypeScriptProjectArtifact {
+    .map(|(kind, module_path)| EcmaProjectArtifact {
         kind,
         module_path: module_path.to_owned(),
         source_map_path: format!("{module_path}.map"),
@@ -100,14 +100,14 @@ pub(super) fn project_artifacts() -> Vec<TypeScriptProjectArtifact> {
 }
 
 pub(super) fn locale_artifacts(
-    project: &ValidatedTypeScriptProject<'_>,
-) -> Result<Vec<TypeScriptLocaleArtifact>, TypeScriptCodegenError> {
+    project: &ValidatedEcmaProject<'_>,
+) -> Result<Vec<EcmaLocaleArtifact>, EcmaCodegenError> {
     let schema = if project.options.tree_shaking && !project.options.included_messages.is_empty() {
         visible_schema(
             project.schema,
-            &TypeScriptOptions {
+            &EcmaOptions {
                 included_messages: project.options.included_messages.clone(),
-                ..TypeScriptOptions::default()
+                ..EcmaOptions::default()
             },
         )
     } else {
@@ -119,18 +119,18 @@ pub(super) fn locale_artifacts(
         let namespaces = top_level_namespaces(&schema);
         for namespace in &namespaces {
             let module_path = format!(
-                "locales/{}/{}.ts",
+                "locales/{}/{}.js",
                 locale.locale,
                 super::safe_file_stem(namespace)
             );
             let namespace_schema = namespace_module(&schema, namespace);
             let namespace_locale =
                 locale_without_globals(&namespace_module(&visible_locale, namespace));
-            artifacts.push(TypeScriptLocaleArtifact {
+            artifacts.push(EcmaLocaleArtifact {
                 locale: locale.locale.clone(),
                 canonical_locale: canonicalize_locale(&locale.locale)
                     .unwrap_or_else(|_| locale.locale.clone()),
-                kind: TypeScriptLocaleArtifactKind::Namespace {
+                kind: EcmaLocaleArtifactKind::Namespace {
                     namespace: namespace.clone(),
                 },
                 source_map_path: format!("{module_path}.map"),
@@ -147,12 +147,12 @@ pub(super) fn locale_artifacts(
             )
         };
         let barrel_locale = locale_without_globals(&barrel_locale);
-        let module_path = format!("locales/{}.ts", locale.locale);
-        artifacts.push(TypeScriptLocaleArtifact {
+        let module_path = format!("locales/{}.js", locale.locale);
+        artifacts.push(EcmaLocaleArtifact {
             locale: locale.locale.clone(),
             canonical_locale: canonicalize_locale(&locale.locale)
                 .unwrap_or_else(|_| locale.locale.clone()),
-            kind: TypeScriptLocaleArtifactKind::Barrel,
+            kind: EcmaLocaleArtifactKind::Barrel,
             source_map_path: format!("{module_path}.map"),
             module_path,
             source_ids: module_source_ids(&barrel_schema, &barrel_locale),
@@ -176,14 +176,14 @@ fn module_source_ids(
 }
 
 pub(super) fn locale_globals_artifacts(
-    project: &ValidatedTypeScriptProject<'_>,
-) -> Result<Vec<TypeScriptLocaleGlobalsArtifact>, TypeScriptCodegenError> {
+    project: &ValidatedEcmaProject<'_>,
+) -> Result<Vec<EcmaLocaleGlobalsArtifact>, EcmaCodegenError> {
     let schema = if project.options.tree_shaking && !project.options.included_messages.is_empty() {
         visible_schema(
             project.schema,
-            &TypeScriptOptions {
+            &EcmaOptions {
                 included_messages: project.options.included_messages.clone(),
-                ..TypeScriptOptions::default()
+                ..EcmaOptions::default()
             },
         )
     } else {
@@ -203,11 +203,11 @@ pub(super) fn locale_globals_artifacts(
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect();
-        artifacts.push(TypeScriptLocaleGlobalsArtifact {
+        artifacts.push(EcmaLocaleGlobalsArtifact {
             locale: locale.locale.clone(),
             canonical_locale: canonicalize_locale(&locale.locale)
                 .unwrap_or_else(|_| locale.locale.clone()),
-            module_path: format!("locales/{}/_globals.ts", locale.locale),
+            module_path: format!("locales/{}/_globals.js", locale.locale),
             source_ids,
         });
     }
@@ -215,14 +215,14 @@ pub(super) fn locale_globals_artifacts(
 }
 
 pub(super) fn locale_runtime_artifacts(
-    project: &ValidatedTypeScriptProject<'_>,
-) -> Result<Vec<TypeScriptLocaleRuntimeArtifact>, TypeScriptCodegenError> {
+    project: &ValidatedEcmaProject<'_>,
+) -> Result<Vec<EcmaLocaleRuntimeArtifact>, EcmaCodegenError> {
     let schema = if project.options.tree_shaking && !project.options.included_messages.is_empty() {
         visible_schema(
             project.schema,
-            &TypeScriptOptions {
+            &EcmaOptions {
                 included_messages: project.options.included_messages.clone(),
-                ..TypeScriptOptions::default()
+                ..EcmaOptions::default()
             },
         )
     } else {
@@ -244,11 +244,11 @@ pub(super) fn locale_runtime_artifacts(
                 source_ids.extend(closure.source_ids().iter().copied());
             }
         }
-        artifacts.push(TypeScriptLocaleRuntimeArtifact {
+        artifacts.push(EcmaLocaleRuntimeArtifact {
             locale: locale.locale.clone(),
             canonical_locale: canonicalize_locale(&locale.locale)
                 .unwrap_or_else(|_| locale.locale.clone()),
-            module_path: format!("locales/{}/_runtime.ts", locale.locale),
+            module_path: format!("locales/{}/_runtime.js", locale.locale),
             source_ids: source_ids.into_iter().collect(),
         });
     }
@@ -256,14 +256,14 @@ pub(super) fn locale_runtime_artifacts(
 }
 
 pub(super) fn message_artifacts(
-    project: &ValidatedTypeScriptProject<'_>,
-) -> Result<Vec<TypeScriptMessageArtifact>, TypeScriptCodegenError> {
+    project: &ValidatedEcmaProject<'_>,
+) -> Result<Vec<EcmaMessageArtifact>, EcmaCodegenError> {
     let schema = if project.options.tree_shaking && !project.options.included_messages.is_empty() {
         visible_schema(
             project.schema,
-            &TypeScriptOptions {
+            &EcmaOptions {
                 included_messages: project.options.included_messages.clone(),
-                ..TypeScriptOptions::default()
+                ..EcmaOptions::default()
             },
         )
     } else {
@@ -287,9 +287,9 @@ pub(super) fn message_artifacts(
         for locale in &locales {
             let locale = *locale;
             let locale_file_stem = hex_component(locale.as_bytes());
-            let module_path = format!("bundler/messages/{message_path}/{locale_file_stem}.ts");
+            let module_path = format!("bundler/messages/{message_path}/{locale_file_stem}.js");
             if module_path.len() > MAX_PORTABLE_PATH_BYTES {
-                return Err(TypeScriptCodegenError::InvalidMessageArtifactPath {
+                return Err(EcmaCodegenError::InvalidMessageArtifactPath {
                     locale: locale.to_owned(),
                     message: message.to_owned(),
                     reason: "encoded path exceeds 240 bytes",
@@ -297,15 +297,15 @@ pub(super) fn message_artifacts(
             }
             let parent_depth = module_path.matches('/').count();
             let shared_import_path = format!("{}shared", "../".repeat(parent_depth));
-            let runtime_module_path = format!("locales/{locale}/_runtime.ts");
+            let runtime_module_path = format!("locales/{locale}/_runtime.js");
             let runtime_import_path =
                 format!("{}locales/{locale}/_runtime", "../".repeat(parent_depth));
-            artifacts.push(TypeScriptMessageArtifact {
+            artifacts.push(EcmaMessageArtifact {
                 locale: locale.to_owned(),
                 message: message.to_owned(),
                 arity,
                 source_map_path: format!("{module_path}.map"),
-                output_file_name: format!("{locale_file_stem}.ts"),
+                output_file_name: format!("{locale_file_stem}.js"),
                 module_path: module_path.clone(),
                 shared_import_path,
                 runtime_module_path,
@@ -348,9 +348,7 @@ fn hex_component(value: &[u8]) -> String {
     encoded
 }
 
-fn validate_unique_paths(
-    artifacts: &[TypeScriptMessageArtifact],
-) -> Result<(), TypeScriptCodegenError> {
+fn validate_unique_paths(artifacts: &[EcmaMessageArtifact]) -> Result<(), EcmaCodegenError> {
     let mut paths = BTreeMap::<String, (&str, &str)>::new();
     for artifact in artifacts {
         let folded = artifact.module_path.to_ascii_lowercase();
@@ -358,7 +356,7 @@ fn validate_unique_paths(
             folded,
             (artifact.message.as_str(), artifact.locale.as_str()),
         ) {
-            return Err(TypeScriptCodegenError::OutputPathCollision {
+            return Err(EcmaCodegenError::OutputPathCollision {
                 path: artifact.module_path.clone(),
                 conflicts_with: format!("message `{message}`, locale `{locale}`"),
             });
@@ -369,9 +367,7 @@ fn validate_unique_paths(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{
-        TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject,
-    };
+    use super::super::{EcmaLocaleModule, EcmaProjectOptions, ValidatedEcmaProject};
     use linguini_ir::{
         lower_locale_typed as lower_locale, lower_schema_typed as lower_schema, IrModule,
         IrModuleBuilder, LocaleIr, SchemaIr,
@@ -382,18 +378,18 @@ mod tests {
         schema: &'a SchemaIr,
         locale: LocaleIr,
         included_messages: Vec<String>,
-    ) -> ValidatedTypeScriptProject<'a> {
-        ValidatedTypeScriptProject::try_new(
+    ) -> ValidatedEcmaProject<'a> {
+        ValidatedEcmaProject::try_new(
             schema,
-            &[TypeScriptLocaleModule {
+            &[EcmaLocaleModule {
                 locale: "en".to_owned(),
                 module: locale,
             }],
-            &TypeScriptProjectOptions {
+            &EcmaProjectOptions {
                 tree_shaking: true,
                 included_messages,
                 base_locale: Some("en".to_owned()),
-                ..TypeScriptProjectOptions::default()
+                ..EcmaProjectOptions::default()
             },
         )
         .expect("validated project")
@@ -442,7 +438,7 @@ mod tests {
             artifact.module_path.is_ascii()
                 && artifact.module_path.starts_with("bundler/messages/x")
                 && artifact.source_map_path == format!("{}.map", artifact.module_path)
-                && artifact.runtime_module_path == "locales/en/_runtime.ts"
+                && artifact.runtime_module_path == "locales/en/_runtime.js"
                 && artifact.runtime_import_path == "../../../locales/en/_runtime"
         }));
 
@@ -483,16 +479,16 @@ mod tests {
             )
             .expect("locale"),
         );
-        let locales = [TypeScriptLocaleModule {
+        let locales = [EcmaLocaleModule {
             locale: "en-us".to_owned(),
             module: locale,
         }];
-        let project = ValidatedTypeScriptProject::try_new(
+        let project = ValidatedEcmaProject::try_new(
             &schema,
             &locales,
-            &TypeScriptProjectOptions {
+            &EcmaProjectOptions {
                 base_locale: Some("en-us".to_owned()),
-                ..TypeScriptProjectOptions::default()
+                ..EcmaProjectOptions::default()
             },
         )
         .expect("validated project");
@@ -503,12 +499,12 @@ mod tests {
         assert_eq!(artifacts.len(), 1);
         assert_eq!(artifacts[0].locale, "en-us");
         assert_eq!(artifacts[0].canonical_locale, "en-US");
-        assert_eq!(artifacts[0].module_path, "locales/en-us/_runtime.ts");
+        assert_eq!(artifacts[0].module_path, "locales/en-us/_runtime.js");
         assert_eq!(artifacts[0].source_ids, [SourceId(41), SourceId(42)]);
 
         let message_artifact = project.message_artifacts().unwrap();
         assert!(message_artifact.iter().all(|artifact| {
-            artifact.runtime_module_path == "locales/en-us/_runtime.ts"
+            artifact.runtime_module_path == "locales/en-us/_runtime.js"
                 && artifact.runtime_import_path == "../../../locales/en-us/_runtime"
         }));
     }

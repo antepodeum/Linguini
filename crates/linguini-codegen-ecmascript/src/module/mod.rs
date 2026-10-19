@@ -8,7 +8,6 @@ mod formatter_codegen;
 mod formatter_helpers;
 mod formatters;
 mod globals;
-mod hmr;
 mod locale;
 mod message;
 mod messages;
@@ -28,7 +27,6 @@ mod svelte_facade;
 mod svelte_facade_types;
 mod svelte_locale;
 mod sveltekit;
-mod sveltekit_context;
 mod sveltekit_types;
 #[cfg(test)]
 mod test_templates;
@@ -41,39 +39,23 @@ mod web_link_transform;
 mod web_local_storage;
 mod web_options;
 mod web_path;
-mod web_request;
 mod web_routes;
 mod web_runtime_links;
 mod web_server_cookie;
 mod web_switch_route;
 mod web_types;
-mod web_url;
 
-pub(crate) use crate::ecmascript::EcmaScriptTarget;
+pub(crate) use crate::ecmascript::EcmaModuleKind;
 use formatters::formatter_helper_names;
 
-pub use svelte_control::{
-    compile_javascript_svelte_control_module, compile_typescript_svelte_control_module,
-};
-pub use svelte_effects::{
-    compile_javascript_svelte_effects_module, compile_typescript_svelte_effects_module,
-};
-pub use svelte_facade::{compile_javascript_svelte_module, compile_typescript_svelte_module};
-pub use svelte_locale::{
-    compile_javascript_svelte_locale_module, compile_typescript_svelte_locale_module,
-    SvelteLocaleMode,
-};
-pub use sveltekit::{
-    compile_javascript_sveltekit_control_module, compile_javascript_sveltekit_module,
-    compile_typescript_sveltekit_control_module, compile_typescript_sveltekit_module,
-};
+pub use svelte_control::compile_svelte_control_module;
+pub use svelte_effects::compile_svelte_effects_module;
+pub use svelte_facade::compile_svelte_module;
+pub use svelte_locale::{compile_svelte_locale_module, SvelteLocaleMode};
+pub use sveltekit::{compile_sveltekit_control_module, compile_sveltekit_module};
 pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
-pub use web_server_cookie::{
-    compile_javascript_web_server_cookie_module, compile_typescript_web_server_cookie_module,
-};
-pub use web_switch_route::{
-    compile_javascript_web_switch_route_module, compile_typescript_web_switch_route_module,
-};
+pub use web_server_cookie::compile_web_server_cookie_module;
+pub use web_switch_route::compile_web_switch_route_module;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -96,7 +78,7 @@ use self::shared::generate_shared_module;
 use crate::ecmascript::{EcmaImport, EcmaModuleOutput, EcmaNamedImport};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptOptions {
+pub struct EcmaOptions {
     pub locale: String,
     pub plural_function: String,
     pub plural_import: Option<String>,
@@ -104,7 +86,7 @@ pub struct TypeScriptOptions {
     pub included_messages: Vec<String>,
 }
 
-impl Default for TypeScriptOptions {
+impl Default for EcmaOptions {
     fn default() -> Self {
         Self {
             locale: "ru".to_owned(),
@@ -117,29 +99,29 @@ impl Default for TypeScriptOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptLocaleModule {
+pub struct EcmaLocaleModule {
     pub locale: String,
     pub module: LocaleIr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptProjectOptions {
+pub struct EcmaProjectOptions {
     pub declaration: bool,
     pub gitignore: bool,
     pub tree_shaking: bool,
     pub included_messages: Vec<String>,
     pub base_locale: Option<String>,
-    pub web: Option<TypeScriptWebOptions>,
-    pub framework: Option<TypeScriptFramework>,
+    pub web: Option<EcmaWebOptions>,
+    pub framework: Option<EcmaFramework>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TypeScriptFramework {
+pub enum EcmaFramework {
     Svelte,
     SvelteKit,
 }
 
-impl TypeScriptFramework {
+impl EcmaFramework {
     pub fn from_config(value: Option<&str>) -> Option<Self> {
         match value {
             Some("svelte") => Some(Self::Svelte),
@@ -154,9 +136,9 @@ impl TypeScriptFramework {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptWebOptions {
-    pub sources: Vec<TypeScriptLocaleSource>,
-    pub locale_switch: TypeScriptLocaleSwitchPlan,
+pub struct EcmaWebOptions {
+    pub sources: Vec<EcmaLocaleSource>,
+    pub locale_switch: EcmaLocaleSwitchPlan,
     pub cookie_name: String,
     /// Explicit cookie path, or `None` to derive it from the framework base path.
     pub cookie_path: Option<String>,
@@ -168,31 +150,31 @@ pub struct TypeScriptWebOptions {
     pub cookie_http_only: bool,
     pub local_storage_key: String,
     /// Controls whether generated URLs carry a locale path segment.
-    pub locale_prefix: TypeScriptLocalePrefixMode,
+    pub locale_prefix: EcmaLocalePrefixMode,
     pub canonical_redirect: bool,
     pub exclude: Vec<String>,
     /// Link handling is a closed capability rather than an on/off flag.
-    pub link_mode: TypeScriptLinkMode,
-    pub switch_route: Option<TypeScriptWebSwitchRoute>,
+    pub link_mode: EcmaLinkMode,
+    pub switch_route: Option<EcmaWebSwitchRoute>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptWebSwitchRoute {
+pub struct EcmaWebSwitchRoute {
     pub path: String,
     pub return_query: String,
     pub status: u16,
 }
 
-/// Closed locale-prefix policy lowered into generated TypeScript projects.
+/// Closed locale-prefix policy lowered into generated ECMAScript projects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum TypeScriptLocalePrefixMode {
+pub enum EcmaLocalePrefixMode {
     Always,
     #[default]
     ExceptDefault,
     Never,
 }
 
-impl TypeScriptLocalePrefixMode {
+impl EcmaLocalePrefixMode {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Always => "always",
@@ -203,14 +185,14 @@ impl TypeScriptLocalePrefixMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum TypeScriptLinkMode {
+pub enum EcmaLinkMode {
     Transform,
     #[default]
     Runtime,
     Manual,
 }
 
-impl TypeScriptLinkMode {
+impl EcmaLinkMode {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Transform => "transform",
@@ -222,33 +204,31 @@ impl TypeScriptLinkMode {
 
 /// Closed capability view used by the generated web modules.
 ///
-/// `TypeScriptWebOptions` carries the lowered structured policy and serialization
+/// `EcmaWebOptions` carries the lowered structured policy and serialization
 /// details, while this view is what source and browser emitters inspect. Source
 /// order is fixed at lowering time; generated runtimes never dispatch over an
 /// open-ended strategy enum.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptWebFeatures {
-    pub sources: Vec<TypeScriptLocaleSource>,
+pub struct EcmaWebFeatures {
+    pub sources: Vec<EcmaLocaleSource>,
     pub has_cookie: bool,
     pub has_local_storage: bool,
     pub has_path: bool,
     pub has_accept_language: bool,
-    pub locale_switch: TypeScriptLocaleSwitchPlan,
-    pub locale_prefix: TypeScriptLocalePrefixMode,
-    pub link_mode: TypeScriptLinkMode,
-    pub switch_route: Option<TypeScriptWebSwitchRoute>,
+    pub locale_switch: EcmaLocaleSwitchPlan,
+    pub locale_prefix: EcmaLocalePrefixMode,
+    pub link_mode: EcmaLinkMode,
+    pub switch_route: Option<EcmaWebSwitchRoute>,
 }
 
-impl TypeScriptWebOptions {
-    pub fn features(&self) -> TypeScriptWebFeatures {
-        TypeScriptWebFeatures {
+impl EcmaWebOptions {
+    pub fn features(&self) -> EcmaWebFeatures {
+        EcmaWebFeatures {
             sources: self.sources.clone(),
-            has_cookie: self.sources.contains(&TypeScriptLocaleSource::Cookie),
-            has_local_storage: self.sources.contains(&TypeScriptLocaleSource::LocalStorage),
-            has_path: self.sources.contains(&TypeScriptLocaleSource::Path),
-            has_accept_language: self
-                .sources
-                .contains(&TypeScriptLocaleSource::AcceptLanguage),
+            has_cookie: self.sources.contains(&EcmaLocaleSource::Cookie),
+            has_local_storage: self.sources.contains(&EcmaLocaleSource::LocalStorage),
+            has_path: self.sources.contains(&EcmaLocaleSource::Path),
+            has_accept_language: self.sources.contains(&EcmaLocaleSource::AcceptLanguage),
             locale_switch: self.locale_switch,
             locale_prefix: self.locale_prefix,
             link_mode: self.link_mode,
@@ -262,13 +242,13 @@ impl TypeScriptWebOptions {
 /// `sources` remains the locale-resolution order. This plan is the only generated policy
 /// surface used when a browser control changes locale and persists that choice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TypeScriptLocaleSwitchPlan {
+pub struct EcmaLocaleSwitchPlan {
     pub writes_path: bool,
     pub writes_cookie: bool,
     pub writes_local_storage: bool,
 }
 
-impl Default for TypeScriptLocaleSwitchPlan {
+impl Default for EcmaLocaleSwitchPlan {
     fn default() -> Self {
         Self {
             writes_path: true,
@@ -279,14 +259,14 @@ impl Default for TypeScriptLocaleSwitchPlan {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TypeScriptLocaleSource {
+pub enum EcmaLocaleSource {
     Path,
     Cookie,
     LocalStorage,
     AcceptLanguage,
 }
 
-impl TypeScriptLocaleSource {
+impl EcmaLocaleSource {
     fn as_str(self) -> &'static str {
         match self {
             Self::Path => "path",
@@ -297,7 +277,7 @@ impl TypeScriptLocaleSource {
     }
 }
 
-impl Default for TypeScriptProjectOptions {
+impl Default for EcmaProjectOptions {
     fn default() -> Self {
         Self {
             declaration: true,
@@ -311,15 +291,15 @@ impl Default for TypeScriptProjectOptions {
     }
 }
 
-impl Default for TypeScriptWebOptions {
+impl Default for EcmaWebOptions {
     fn default() -> Self {
         Self {
             sources: vec![
-                TypeScriptLocaleSource::Path,
-                TypeScriptLocaleSource::Cookie,
-                TypeScriptLocaleSource::AcceptLanguage,
+                EcmaLocaleSource::Path,
+                EcmaLocaleSource::Cookie,
+                EcmaLocaleSource::AcceptLanguage,
             ],
-            locale_switch: TypeScriptLocaleSwitchPlan::default(),
+            locale_switch: EcmaLocaleSwitchPlan::default(),
             cookie_name: "LINGUINI_LOCALE".to_owned(),
             cookie_path: None,
             cookie_domain: None,
@@ -328,10 +308,10 @@ impl Default for TypeScriptWebOptions {
             cookie_secure: None,
             cookie_http_only: false,
             local_storage_key: "LINGUINI_LOCALE".to_owned(),
-            locale_prefix: TypeScriptLocalePrefixMode::ExceptDefault,
+            locale_prefix: EcmaLocalePrefixMode::ExceptDefault,
             canonical_redirect: true,
             exclude: Vec::new(),
-            link_mode: TypeScriptLinkMode::Runtime,
+            link_mode: EcmaLinkMode::Runtime,
             switch_route: None,
         }
     }
@@ -343,10 +323,8 @@ pub struct EcmaGeneratedFile {
     pub contents: String,
 }
 
-pub type TypeScriptGeneratedFile = EcmaGeneratedFile;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeScriptCodegenError {
+pub enum EcmaCodegenError {
     EmptyLocaleSet,
     DuplicateWebSource {
         source: String,
@@ -444,7 +422,7 @@ pub enum TypeScriptCodegenError {
     },
 }
 
-impl TypeScriptCodegenError {
+impl EcmaCodegenError {
     fn missing_plural_rules(locale: &str) -> Self {
         Self::MissingPluralRules {
             locale: locale.to_owned(),
@@ -459,11 +437,11 @@ impl TypeScriptCodegenError {
     }
 }
 
-impl fmt::Display for TypeScriptCodegenError {
+impl fmt::Display for EcmaCodegenError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EmptyLocaleSet => {
-                formatter.write_str("TypeScript project requires at least one locale")
+                formatter.write_str("ECMAScript project requires at least one locale")
             }
             Self::DuplicateWebSource { source } => {
                 write!(formatter, "generated web features contain duplicate locale source `{source}`")
@@ -498,7 +476,7 @@ impl fmt::Display for TypeScriptCodegenError {
                 "generated output path `{path}` conflicts with `{conflicts_with}` on a case-insensitive filesystem"
             ),
             Self::MissingBaseLocale => {
-                formatter.write_str("TypeScript project requires an explicit base locale")
+                formatter.write_str("ECMAScript project requires an explicit base locale")
             }
             Self::UnknownBaseLocale { base_locale } => write!(
                 formatter,
@@ -589,76 +567,50 @@ impl fmt::Display for TypeScriptCodegenError {
 }
 
 pub use artifacts::{
-    TypeScriptLocaleArtifact, TypeScriptLocaleArtifactKind, TypeScriptLocaleGlobalsArtifact,
-    TypeScriptLocaleRuntimeArtifact, TypeScriptMessageArtifact, TypeScriptProjectArtifact,
-    TypeScriptProjectArtifactKind,
+    EcmaLocaleArtifact, EcmaLocaleArtifactKind, EcmaLocaleGlobalsArtifact,
+    EcmaLocaleRuntimeArtifact, EcmaMessageArtifact, EcmaProjectArtifact, EcmaProjectArtifactKind,
 };
-pub use entry::{
-    compile_javascript_project_artifact_module, compile_typescript_project_artifact_module,
-    CompiledJavaScriptProjectModule, CompiledTypeScriptProjectModule,
-};
-pub use globals::{
-    compile_javascript_locale_globals_artifact_module,
-    compile_typescript_locale_globals_artifact_module, CompiledJavaScriptLocaleGlobalsModule,
-    CompiledTypeScriptLocaleGlobalsModule,
-};
-pub use locale::{
-    compile_javascript_locale_artifact_module, compile_typescript_locale_artifact_module,
-    CompiledJavaScriptLocaleModule, CompiledTypeScriptLocaleModule,
-};
+pub use entry::{compile_project_artifact_module, CompiledEcmaProjectModule};
+pub use globals::{compile_locale_globals_artifact_module, CompiledEcmaLocaleGlobalsModule};
+pub use locale::{compile_locale_artifact_module, CompiledEcmaLocaleModule};
 pub use message::{
-    compile_javascript_bundler_message_artifact_module, compile_javascript_bundler_message_module,
-    compile_typescript_bundler_message_artifact_module, compile_typescript_bundler_message_module,
-    compile_typescript_message_module, CompiledJavaScriptMessageModule,
-    CompiledTypeScriptMessageModule,
+    compile_bundler_message_artifact_module, compile_bundler_message_module,
+    compile_message_module, CompiledEcmaMessageModule,
 };
 pub use project_output::compile_ecmascript_project_files;
-pub use runtime::{
-    compile_javascript_locale_runtime_artifact_module,
-    compile_typescript_locale_runtime_artifact_module, CompiledJavaScriptLocaleRuntimeModule,
-    CompiledTypeScriptLocaleRuntimeModule,
-};
+pub use runtime::{compile_locale_runtime_artifact_module, CompiledEcmaLocaleRuntimeModule};
 pub use semantic::{
-    compile_javascript_bundler_semantic_module, compile_typescript_bundler_semantic_module,
-    CompiledJavaScriptSemanticModule, CompiledTypeScriptSemanticModule, TypeScriptSemanticArtifact,
-    TypeScriptSemanticImport, TypeScriptSemanticSymbolKind,
+    compile_bundler_semantic_module, CompiledEcmaSemanticModule, EcmaSemanticArtifact,
+    EcmaSemanticImport, EcmaSemanticSymbolKind,
 };
-pub use web_accept_language::{
-    compile_javascript_web_accept_language_module, compile_typescript_web_accept_language_module,
-};
-pub use web_cookie::{compile_javascript_web_cookie_module, compile_typescript_web_cookie_module};
-pub use web_facade::{compile_javascript_web_module, compile_typescript_web_module};
-pub use web_link_transform::{
-    compile_javascript_web_link_transform_module, compile_typescript_web_link_transform_module,
-};
-pub use web_local_storage::{
-    compile_javascript_web_local_storage_module, compile_typescript_web_local_storage_module,
-};
-pub use web_path::{compile_javascript_web_path_module, compile_typescript_web_path_module};
-pub use web_routes::{compile_javascript_web_routes_module, compile_typescript_web_routes_module};
-pub use web_runtime_links::{
-    compile_javascript_web_runtime_links_module, compile_typescript_web_runtime_links_module,
-};
+pub use web_accept_language::compile_web_accept_language_module;
+pub use web_cookie::compile_web_cookie_module;
+pub use web_facade::compile_web_module;
+pub use web_link_transform::compile_web_link_transform_module;
+pub use web_local_storage::compile_web_local_storage_module;
+pub use web_path::compile_web_path_module;
+pub use web_routes::compile_web_routes_module;
+pub use web_runtime_links::compile_web_runtime_links_module;
 
-impl std::error::Error for TypeScriptCodegenError {}
+impl std::error::Error for EcmaCodegenError {}
 
-/// Validated input for project-level TypeScript generation.
+/// Validated input for project-level ECMAScript generation.
 ///
 /// Construction validates the schema and every fallback-composed locale module. Its private
 /// fields prevent production callers from bypassing the IR validation boundary.
 #[derive(Debug)]
-pub struct ValidatedTypeScriptProject<'a> {
+pub struct ValidatedEcmaProject<'a> {
     schema: &'a SchemaIr,
-    locales: Vec<TypeScriptLocaleModule>,
-    options: TypeScriptProjectOptions,
+    locales: Vec<EcmaLocaleModule>,
+    options: EcmaProjectOptions,
 }
 
-impl<'a> ValidatedTypeScriptProject<'a> {
+impl<'a> ValidatedEcmaProject<'a> {
     pub fn try_new(
         schema: &'a SchemaIr,
-        locales: &[TypeScriptLocaleModule],
-        options: &TypeScriptProjectOptions,
-    ) -> Result<Self, TypeScriptCodegenError> {
+        locales: &[EcmaLocaleModule],
+        options: &EcmaProjectOptions,
+    ) -> Result<Self, EcmaCodegenError> {
         validate_project_inputs(schema, locales, options)?;
 
         let empty_locale = LocaleIr::default();
@@ -677,9 +629,9 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         let visible_schema = if options.tree_shaking && !options.included_messages.is_empty() {
             visible_schema(
                 schema,
-                &TypeScriptOptions {
+                &EcmaOptions {
                     included_messages: options.included_messages.clone(),
-                    ..TypeScriptOptions::default()
+                    ..EcmaOptions::default()
                 },
             )
         } else {
@@ -693,13 +645,24 @@ impl<'a> ValidatedTypeScriptProject<'a> {
                     .iter()
                     .any(|implementation| implementation.name == message.name)
                 {
-                    return Err(TypeScriptCodegenError::MissingMessageImplementation {
+                    return Err(EcmaCodegenError::MissingMessageImplementation {
                         locale: locale.locale.clone(),
                         message: message.name.clone(),
                     });
                 }
             }
         }
+
+        let locales = locales
+            .into_iter()
+            .map(|mut locale| {
+                locale.module = LocaleIr::try_from_module(
+                    linguini_codegen::lower_inline_functions(schema, &locale.module),
+                )
+                .expect("inline lowering preserves locale IR ownership");
+                locale
+            })
+            .collect();
 
         Ok(Self {
             schema,
@@ -712,7 +675,7 @@ impl<'a> ValidatedTypeScriptProject<'a> {
         &self,
         locale: &str,
         message: &str,
-    ) -> Result<deps::MessageDependencyClosure, TypeScriptCodegenError> {
+    ) -> Result<deps::MessageDependencyClosure, EcmaCodegenError> {
         deps::message_dependency_closure(self, locale, message)
     }
 
@@ -720,42 +683,36 @@ impl<'a> ValidatedTypeScriptProject<'a> {
     ///
     /// Returned artifact paths are deterministic, project-output-relative, forward-slash paths.
     /// Their encoding is injective under case folding and avoids platform-reserved names.
-    pub fn message_artifacts(
-        &self,
-    ) -> Result<Vec<TypeScriptMessageArtifact>, TypeScriptCodegenError> {
+    pub fn message_artifacts(&self) -> Result<Vec<EcmaMessageArtifact>, EcmaCodegenError> {
         artifacts::message_artifacts(self)
     }
 
     /// Enumerates one shared generated-helper runtime for each effective locale.
     pub fn locale_runtime_artifacts(
         &self,
-    ) -> Result<Vec<TypeScriptLocaleRuntimeArtifact>, TypeScriptCodegenError> {
+    ) -> Result<Vec<EcmaLocaleRuntimeArtifact>, EcmaCodegenError> {
         artifacts::locale_runtime_artifacts(self)
     }
 
     /// Enumerates locale namespace modules followed by each locale barrel.
-    pub fn locale_artifacts(
-        &self,
-    ) -> Result<Vec<TypeScriptLocaleArtifact>, TypeScriptCodegenError> {
+    pub fn locale_artifacts(&self) -> Result<Vec<EcmaLocaleArtifact>, EcmaCodegenError> {
         artifacts::locale_artifacts(self)
     }
 
     /// Enumerates one aggregate locale-global artifact for each locale that owns global symbols.
     pub fn locale_globals_artifacts(
         &self,
-    ) -> Result<Vec<TypeScriptLocaleGlobalsArtifact>, TypeScriptCodegenError> {
+    ) -> Result<Vec<EcmaLocaleGlobalsArtifact>, EcmaCodegenError> {
         artifacts::locale_globals_artifacts(self)
     }
 
     /// Enumerates the project locale metadata module followed by its public index.
-    pub fn project_artifacts(&self) -> Vec<TypeScriptProjectArtifact> {
+    pub fn project_artifacts(&self) -> Vec<EcmaProjectArtifact> {
         artifacts::project_artifacts()
     }
 
     /// Enumerates deterministic one-binding semantic leaves required by selected messages.
-    pub fn semantic_artifacts(
-        &self,
-    ) -> Result<Vec<TypeScriptSemanticArtifact>, TypeScriptCodegenError> {
+    pub fn semantic_artifacts(&self) -> Result<Vec<EcmaSemanticArtifact>, EcmaCodegenError> {
         semantic::semantic_artifacts(self)
     }
 
@@ -772,20 +729,20 @@ fn validate_formatter_data(
     schema: &IrModule,
     locale: &IrModule,
     locale_name: &str,
-) -> Result<(), TypeScriptCodegenError> {
+) -> Result<(), EcmaCodegenError> {
     let requirements = formatter_requirements(schema, locale);
     if requirements.needs_number_data() && compiled_number_formatting(locale_name).is_none() {
-        return Err(TypeScriptCodegenError::MissingNumberFormatting {
+        return Err(EcmaCodegenError::MissingNumberFormatting {
             locale: locale_name.to_owned(),
         });
     }
     if requirements.currency && compiled_currency_formatting(locale_name).is_none() {
-        return Err(TypeScriptCodegenError::MissingCurrencyFormatting {
+        return Err(EcmaCodegenError::MissingCurrencyFormatting {
             locale: locale_name.to_owned(),
         });
     }
     if requirements.date && compiled_date_formatting(locale_name).is_none() {
-        return Err(TypeScriptCodegenError::MissingDateFormatting {
+        return Err(EcmaCodegenError::MissingDateFormatting {
             locale: locale_name.to_owned(),
         });
     }
@@ -794,19 +751,19 @@ fn validate_formatter_data(
 
 fn validate_project_inputs(
     schema: &IrModule,
-    locales: &[TypeScriptLocaleModule],
-    options: &TypeScriptProjectOptions,
-) -> Result<(), TypeScriptCodegenError> {
+    locales: &[EcmaLocaleModule],
+    options: &EcmaProjectOptions,
+) -> Result<(), EcmaCodegenError> {
     if let Some(web) = options.web.as_ref() {
         validate_web_options(web)?;
     }
     if locales.is_empty() {
-        return Err(TypeScriptCodegenError::EmptyLocaleSet);
+        return Err(EcmaCodegenError::EmptyLocaleSet);
     }
 
     for locale in locales {
         if let Some(reason) = portable_path_component_error(&locale.locale) {
-            return Err(TypeScriptCodegenError::InvalidLocalePathComponent {
+            return Err(EcmaCodegenError::InvalidLocalePathComponent {
                 locale: locale.locale.clone(),
                 reason,
             });
@@ -818,7 +775,7 @@ fn validate_project_inputs(
             .iter()
             .find(|candidate| candidate.locale.eq_ignore_ascii_case(&locale.locale))
         {
-            return Err(TypeScriptCodegenError::DuplicateLocale {
+            return Err(EcmaCodegenError::DuplicateLocale {
                 locale: locale.locale.clone(),
                 conflicts_with: conflict.locale.clone(),
             });
@@ -828,9 +785,9 @@ fn validate_project_inputs(
     let base_locale = options
         .base_locale
         .as_deref()
-        .ok_or(TypeScriptCodegenError::MissingBaseLocale)?;
+        .ok_or(EcmaCodegenError::MissingBaseLocale)?;
     if !locales.iter().any(|locale| locale.locale == base_locale) {
-        return Err(TypeScriptCodegenError::UnknownBaseLocale {
+        return Err(EcmaCodegenError::UnknownBaseLocale {
             base_locale: base_locale.to_owned(),
         });
     }
@@ -844,7 +801,7 @@ fn validate_project_inputs(
                     .is_some_and(|rest| rest.starts_with('.'))
         }) || schema.groups().iter().any(|group| group.name == *selected);
         if !is_known {
-            return Err(TypeScriptCodegenError::UnknownIncludedMessage {
+            return Err(EcmaCodegenError::UnknownIncludedMessage {
                 message: selected.clone(),
             });
         }
@@ -859,34 +816,31 @@ fn validate_project_inputs(
     Ok(())
 }
 
-fn validate_web_options(options: &TypeScriptWebOptions) -> Result<(), TypeScriptCodegenError> {
+fn validate_web_options(options: &EcmaWebOptions) -> Result<(), EcmaCodegenError> {
     for (index, source) in options.sources.iter().enumerate() {
         if options.sources[..index].contains(source) {
-            return Err(TypeScriptCodegenError::DuplicateWebSource {
+            return Err(EcmaCodegenError::DuplicateWebSource {
                 source: source.as_str().to_owned(),
             });
         }
     }
 
-    let expected = |source: TypeScriptLocaleSource| options.sources.contains(&source);
+    let expected = |source: EcmaLocaleSource| options.sources.contains(&source);
     let checks = [
+        (EcmaLocaleSource::Path, options.locale_switch.writes_path),
         (
-            TypeScriptLocaleSource::Path,
-            options.locale_switch.writes_path,
-        ),
-        (
-            TypeScriptLocaleSource::Cookie,
+            EcmaLocaleSource::Cookie,
             options.locale_switch.writes_cookie,
         ),
         (
-            TypeScriptLocaleSource::LocalStorage,
+            EcmaLocaleSource::LocalStorage,
             options.locale_switch.writes_local_storage,
         ),
     ];
     for (source, actual) in checks {
         let expected = expected(source);
         if actual != expected {
-            return Err(TypeScriptCodegenError::WebLocaleSwitchPlanMismatch {
+            return Err(EcmaCodegenError::WebLocaleSwitchPlanMismatch {
                 source: source.as_str(),
                 expected,
                 actual,
@@ -898,9 +852,9 @@ fn validate_web_options(options: &TypeScriptWebOptions) -> Result<(), TypeScript
 
 fn validate_namespace_output_paths(
     schema: &IrModule,
-    locales: &[TypeScriptLocaleModule],
-    options: &TypeScriptProjectOptions,
-) -> Result<(), TypeScriptCodegenError> {
+    locales: &[EcmaLocaleModule],
+    options: &EcmaProjectOptions,
+) -> Result<(), EcmaCodegenError> {
     let mut output_stems = BTreeMap::<String, (String, String)>::new();
     for namespace in top_level_namespaces(schema)
         .into_iter()
@@ -920,10 +874,7 @@ fn validate_namespace_output_paths(
     {
         let stem = safe_file_stem(&namespace);
         if let Some(reason) = portable_path_component_error(&stem) {
-            return Err(TypeScriptCodegenError::InvalidNamespacePathComponent {
-                namespace,
-                reason,
-            });
+            return Err(EcmaCodegenError::InvalidNamespacePathComponent { namespace, reason });
         }
         let folded = stem.to_ascii_lowercase();
         if folded == "_runtime" || folded == "_globals" {
@@ -933,17 +884,17 @@ fn validate_namespace_output_paths(
             } else {
                 "locale globals"
             };
-            return Err(TypeScriptCodegenError::OutputPathCollision {
-                path: format!("locales/{locale}/{stem}.ts"),
-                conflicts_with: format!("locales/{locale}/{folded}.ts ({owner})"),
+            return Err(EcmaCodegenError::OutputPathCollision {
+                path: format!("locales/{locale}/{stem}.js"),
+                conflicts_with: format!("locales/{locale}/{folded}.js ({owner})"),
             });
         }
         if let Some((conflicting_namespace, conflicting_stem)) = output_stems.get(&folded) {
             let locale = &locales[0].locale;
-            return Err(TypeScriptCodegenError::OutputPathCollision {
-                path: format!("locales/{locale}/{stem}.ts"),
+            return Err(EcmaCodegenError::OutputPathCollision {
+                path: format!("locales/{locale}/{stem}.js"),
                 conflicts_with: format!(
-                    "locales/{locale}/{conflicting_stem}.ts (namespace `{conflicting_namespace}`)"
+                    "locales/{locale}/{conflicting_stem}.js (namespace `{conflicting_namespace}`)"
                 ),
             });
         }
@@ -952,29 +903,29 @@ fn validate_namespace_output_paths(
     Ok(())
 }
 
-fn validate_text_direction(locale: &str) -> Result<(), TypeScriptCodegenError> {
+fn validate_text_direction(locale: &str) -> Result<(), EcmaCodegenError> {
     match linguini_cldr::built_in_text_direction(locale) {
         Some("ltr" | "rtl") => Ok(()),
-        Some(direction) => Err(TypeScriptCodegenError::UnsupportedTextDirection {
+        Some(direction) => Err(EcmaCodegenError::UnsupportedTextDirection {
             locale: locale.to_owned(),
             direction: direction.to_owned(),
         }),
-        None => Err(TypeScriptCodegenError::MissingTextDirection {
+        None => Err(EcmaCodegenError::MissingTextDirection {
             locale: locale.to_owned(),
         }),
     }
 }
 
-pub fn generate_typescript_project_files(
-    project: &ValidatedTypeScriptProject<'_>,
-) -> Result<Vec<TypeScriptGeneratedFile>, TypeScriptCodegenError> {
-    project_output::generate_typescript_project_files(project)
+pub fn generate_project_files(
+    project: &ValidatedEcmaProject<'_>,
+) -> Result<Vec<EcmaGeneratedFile>, EcmaCodegenError> {
+    project_output::generate_project_files(project)
 }
 
 /// Generates the schema-owned JavaScript/JSDoc root and its TypeScript declaration companions.
 ///
 /// Locale and project runtime artifacts join this surface in their ordered migration stages.
-pub fn generate_javascript_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedFile> {
+pub fn generate_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedFile> {
     let module = schema.as_module();
     vec![
         EcmaGeneratedFile {
@@ -982,7 +933,7 @@ pub fn generate_javascript_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedF
             contents: generate_shared_module(
                 module,
                 EcmaModuleOutput::new(
-                    EcmaScriptTarget::JavaScript,
+                    EcmaModuleKind::JavaScript,
                     "shared.js",
                     Some("shared.d.ts".to_owned()),
                 ),
@@ -994,7 +945,7 @@ pub fn generate_javascript_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedF
             contents: messages::generate_messages_module(
                 module,
                 EcmaModuleOutput::new(
-                    EcmaScriptTarget::JavaScript,
+                    EcmaModuleKind::JavaScript,
                     "messages.js",
                     Some("messages.d.ts".to_owned()),
                 ),
@@ -1005,7 +956,7 @@ pub fn generate_javascript_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedF
             path: "shared.d.ts".to_owned(),
             contents: generate_shared_module(
                 module,
-                EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "shared.d.ts", None),
+                EcmaModuleOutput::new(EcmaModuleKind::Declaration, "shared.d.ts", None),
                 true,
             ),
         },
@@ -1013,7 +964,7 @@ pub fn generate_javascript_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedF
             path: "messages.d.ts".to_owned(),
             contents: messages::generate_messages_module(
                 module,
-                EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "messages.d.ts", None),
+                EcmaModuleOutput::new(EcmaModuleKind::Declaration, "messages.d.ts", None),
                 "./shared.js",
             ),
         },
@@ -1021,70 +972,19 @@ pub fn generate_javascript_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedF
 }
 
 fn validate_generated_output_collisions(
-    files: &[TypeScriptGeneratedFile],
-) -> Result<(), TypeScriptCodegenError> {
+    files: &[EcmaGeneratedFile],
+) -> Result<(), EcmaCodegenError> {
     let mut paths = BTreeMap::<String, &str>::new();
     for file in files {
         let folded = file.path.to_ascii_lowercase();
         if let Some(conflict) = paths.insert(folded, &file.path) {
-            return Err(TypeScriptCodegenError::OutputPathCollision {
+            return Err(EcmaCodegenError::OutputPathCollision {
                 path: file.path.clone(),
                 conflicts_with: conflict.to_owned(),
             });
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-fn generate_typescript_module_unchecked(
-    schema: &IrModule,
-    locale: &IrModule,
-    options: &TypeScriptOptions,
-    namespaces: &[String],
-) -> String {
-    generate_typescript_module_unchecked_with_locale(
-        schema, locale, locale, options, namespaces, None,
-    )
-}
-
-#[cfg(test)]
-fn generate_typescript_module_unchecked_with_locale(
-    schema: &IrModule,
-    import_locale: &IrModule,
-    locale: &IrModule,
-    options: &TypeScriptOptions,
-    namespaces: &[String],
-    global_import_path: Option<&str>,
-) -> String {
-    locale::locale_module(locale::LocaleModuleRequest {
-        schema,
-        import_locale,
-        locale,
-        options,
-        namespaces,
-        shared_import_path: "../shared",
-        runtime_import_path: &format!("./{}/_runtime", options.locale),
-        global_import_path,
-        namespace_alias: None,
-        output: EcmaModuleOutput::new(
-            EcmaScriptTarget::TypeScript,
-            format!("locales/{}.ts", options.locale),
-            Some(format!("locales/{}.d.ts", options.locale)),
-        ),
-    })
-    .render_code()
-}
-
-#[cfg(test)]
-pub(crate) fn generate_unvalidated_typescript_module_for_test(
-    schema: &IrModule,
-    locale: &IrModule,
-    locale_name: &str,
-) -> String {
-    let options = project_locale_options(locale_name, &TypeScriptProjectOptions::default())
-        .expect("test locale must have built-in plural rules");
-    generate_typescript_module_unchecked(schema, locale, &options, &[])
 }
 
 pub(super) fn locale_global_import(locale: &IrModule, import_path: &str) -> Option<EcmaImport> {
@@ -1148,7 +1048,7 @@ pub(super) fn locale_without_globals(locale: &IrModule) -> IrModule {
 pub(super) fn locale_runtime_import(
     schema: &IrModule,
     locale: &IrModule,
-    options: &TypeScriptOptions,
+    options: &EcmaOptions,
     runtime_import_path: &str,
 ) -> Option<EcmaImport> {
     let helpers = runtime_helper_names(schema, locale, options);
@@ -1166,12 +1066,9 @@ pub(super) fn locale_runtime_import(
 fn runtime_helper_names(
     schema: &IrModule,
     locale: &IrModule,
-    options: &TypeScriptOptions,
+    options: &EcmaOptions,
 ) -> Vec<String> {
-    let mut helpers = formatter_helper_names(formatter_requirements(schema, locale))
-        .into_iter()
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
+    let mut helpers = formatter_helper_names(schema, locale);
     if plural_required(schema, locale) {
         helpers.push(options.plural_function.clone());
     }
@@ -1182,20 +1079,20 @@ fn validate_typed_codegen_ir(
     schema: &SchemaIr,
     locale: &LocaleIr,
     scope: impl Into<String>,
-) -> Result<(), TypeScriptCodegenError> {
+) -> Result<(), EcmaCodegenError> {
     validate_typed_ir(schema, locale)
         .map(|_| ())
-        .map_err(|errors| TypeScriptCodegenError::invalid_ir(scope, errors))
+        .map_err(|errors| EcmaCodegenError::invalid_ir(scope, errors))
 }
 
 fn project_locale_options(
     locale: &str,
-    project_options: &TypeScriptProjectOptions,
-) -> Result<TypeScriptOptions, TypeScriptCodegenError> {
+    project_options: &EcmaProjectOptions,
+) -> Result<EcmaOptions, EcmaCodegenError> {
     let plural_function = plural_function_name(locale);
     let plural_rules = built_in_plural_rules(locale)
-        .ok_or_else(|| TypeScriptCodegenError::missing_plural_rules(locale))?;
-    Ok(TypeScriptOptions {
+        .ok_or_else(|| EcmaCodegenError::missing_plural_rules(locale))?;
+    Ok(EcmaOptions {
         locale: locale.to_owned(),
         plural_function: plural_function.clone(),
         plural_import: None,
@@ -1208,7 +1105,7 @@ fn project_locale_options(
     })
 }
 
-pub(super) fn visible_schema(schema: &IrModule, options: &TypeScriptOptions) -> IrModule {
+pub(super) fn visible_schema(schema: &IrModule, options: &EcmaOptions) -> IrModule {
     if options.included_messages.is_empty() {
         return schema.clone();
     }
@@ -1293,12 +1190,12 @@ pub(super) fn root_module_with_locale_items(module: &IrModule) -> IrModule {
 }
 
 fn fallback_locale_modules(
-    locales: &[TypeScriptLocaleModule],
+    locales: &[EcmaLocaleModule],
     base_locale: Option<&str>,
-) -> Vec<TypeScriptLocaleModule> {
+) -> Vec<EcmaLocaleModule> {
     locales
         .iter()
-        .map(|locale| TypeScriptLocaleModule {
+        .map(|locale| EcmaLocaleModule {
             locale: locale.locale.clone(),
             module: fallback_locale_module(locales, &locale.locale, base_locale),
         })
@@ -1306,7 +1203,7 @@ fn fallback_locale_modules(
 }
 
 fn fallback_locale_module(
-    locales: &[TypeScriptLocaleModule],
+    locales: &[EcmaLocaleModule],
     locale: &str,
     base_locale: Option<&str>,
 ) -> LocaleIr {
@@ -1413,7 +1310,7 @@ impl FallbackDeclarations {
 }
 
 pub(crate) fn locale_fallback_chain(
-    locales: &[TypeScriptLocaleModule],
+    locales: &[EcmaLocaleModule],
     locale: &str,
     base_locale: Option<&str>,
 ) -> Vec<String> {
@@ -1484,8 +1381,8 @@ fn is_path_or_descendant(path: &str, parent: &str) -> bool {
 mod tests {
     use super::{
         fallback_locale_module, locale_module_for_schema, namespace_module, root_module,
-        top_level_namespaces, validate_project_inputs, visible_schema, TypeScriptCodegenError,
-        TypeScriptLocaleModule, TypeScriptOptions, TypeScriptProjectOptions,
+        top_level_namespaces, validate_project_inputs, visible_schema, EcmaCodegenError,
+        EcmaLocaleModule, EcmaOptions, EcmaProjectOptions,
     };
     use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale, parse_schema};
@@ -1496,9 +1393,9 @@ mod tests {
             &parse_schema("top { keep { title } drop { hidden } }\nunrelated { other }\n")
                 .expect("schema parses"),
         );
-        let options = TypeScriptOptions {
+        let options = EcmaOptions {
             included_messages: vec!["top.keep.title".to_owned()],
-            ..TypeScriptOptions::default()
+            ..EcmaOptions::default()
         };
 
         let visible = visible_schema(&schema, &options);
@@ -1526,9 +1423,9 @@ mod tests {
         let schema = lower_schema(
             &parse_schema("top { empty {} nested { title } }\n").expect("schema parses"),
         );
-        let options = TypeScriptOptions {
+        let options = EcmaOptions {
             included_messages: vec!["top".to_owned()],
-            ..TypeScriptOptions::default()
+            ..EcmaOptions::default()
         };
 
         let visible = visible_schema(&schema, &options);
@@ -1546,27 +1443,27 @@ mod tests {
     #[test]
     fn direct_empty_group_selection_is_valid_and_unknown_path_stays_rejected() {
         let schema = lower_schema(&parse_schema("top { empty {} }\n").expect("schema parses"));
-        let locales = [TypeScriptLocaleModule {
+        let locales = [EcmaLocaleModule {
             locale: "en".to_owned(),
             module: Default::default(),
         }];
-        let options = TypeScriptProjectOptions {
+        let options = EcmaProjectOptions {
             tree_shaking: true,
             included_messages: vec!["top.empty".to_owned()],
             base_locale: Some("en".to_owned()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
 
         validate_project_inputs(&schema, &locales, &options)
             .expect("declared empty group is valid selection");
 
-        let unknown = TypeScriptProjectOptions {
+        let unknown = EcmaProjectOptions {
             included_messages: vec!["top.unknown".to_owned()],
             ..options
         };
         assert!(matches!(
             validate_project_inputs(&schema, &locales, &unknown),
-            Err(TypeScriptCodegenError::UnknownIncludedMessage { message })
+            Err(EcmaCodegenError::UnknownIncludedMessage { message })
                 if message == "top.unknown"
         ));
     }
@@ -1574,7 +1471,7 @@ mod tests {
     #[test]
     fn locale_runtime_path_is_reserved_from_namespace_outputs() {
         let schema = lower_schema(&parse_schema("_runtime { title }\n").expect("schema parses"));
-        let locales = [TypeScriptLocaleModule {
+        let locales = [EcmaLocaleModule {
             locale: "en".to_owned(),
             module: lower_locale(
                 &parse_locale("_runtime { title = Title }\n").expect("locale parses"),
@@ -1583,23 +1480,23 @@ mod tests {
         let error = validate_project_inputs(
             &schema,
             &locales,
-            &TypeScriptProjectOptions {
+            &EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
-                ..TypeScriptProjectOptions::default()
+                ..EcmaProjectOptions::default()
             },
         )
         .expect_err("runtime namespace collision");
         assert!(matches!(
             error,
-            TypeScriptCodegenError::OutputPathCollision { path, conflicts_with }
-                if path == "locales/en/_runtime.ts" && conflicts_with.contains("locale runtime")
+            EcmaCodegenError::OutputPathCollision { path, conflicts_with }
+                if path == "locales/en/_runtime.js" && conflicts_with.contains("locale runtime")
         ));
     }
 
     #[test]
     fn locale_globals_path_is_reserved_from_namespace_outputs() {
         let schema = lower_schema(&parse_schema("_globals { title }\n").expect("schema parses"));
-        let locales = [TypeScriptLocaleModule {
+        let locales = [EcmaLocaleModule {
             locale: "en".to_owned(),
             module: lower_locale(
                 &parse_locale("_globals { title = Title }\n").expect("locale parses"),
@@ -1608,16 +1505,16 @@ mod tests {
         let error = validate_project_inputs(
             &schema,
             &locales,
-            &TypeScriptProjectOptions {
+            &EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
-                ..TypeScriptProjectOptions::default()
+                ..EcmaProjectOptions::default()
             },
         )
         .expect_err("globals namespace collision");
         assert!(matches!(
             error,
-            TypeScriptCodegenError::OutputPathCollision { path, conflicts_with }
-                if path == "locales/en/_globals.ts" && conflicts_with.contains("locale globals")
+            EcmaCodegenError::OutputPathCollision { path, conflicts_with }
+                if path == "locales/en/_globals.js" && conflicts_with.contains("locale globals")
         ));
     }
 
@@ -1650,7 +1547,7 @@ mod tests {
 
     #[test]
     fn fallback_group_metadata_follows_locale_precedence() {
-        let base = TypeScriptLocaleModule {
+        let base = EcmaLocaleModule {
             locale: "en".to_owned(),
             module: lower_locale(
                 &parse_locale(
@@ -1659,7 +1556,7 @@ mod tests {
                 .expect("base locale parses"),
             ),
         };
-        let regional = TypeScriptLocaleModule {
+        let regional = EcmaLocaleModule {
             locale: "en-US".to_owned(),
             module: lower_locale(
                 &parse_locale("/// Regional section\nsection { title = Regional }\n")

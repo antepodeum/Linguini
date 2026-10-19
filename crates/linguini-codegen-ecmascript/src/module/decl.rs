@@ -1,8 +1,8 @@
 use linguini_ir::{IrMessage, IrModule};
 
 use crate::ecmascript::{
-    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaReExport,
-    EcmaScriptTarget, EcmaStatement,
+    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
+    EcmaReExport, EcmaStatement,
 };
 
 use super::emit::{schema_type_aliases, schema_type_names};
@@ -119,7 +119,7 @@ fn render_declaration_module(
     body: String,
 ) -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
-        EcmaScriptTarget::TypeScript,
+        EcmaModuleKind::Declaration,
         output_path,
         None,
     ));

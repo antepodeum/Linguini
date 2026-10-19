@@ -1,0 +1,24 @@
+{% raw %}
+/** @param {Request} request @param {Record<string, unknown>} [input] @returns {Record<string, unknown>} */
+function inputFromRequest(request, input = {}) {
+  /** @type {Record<string, unknown>} */
+  const requestInput = { ...input };
+  requestInput.url ??= request.url;
+  requestInput.currentUrl ??= requestInput.url;
+  requestInput.headers ??= request.headers;
+  requestInput.cookie ??= readHeader(requestInput.headers, "cookie") ?? readHeader(request.headers, "cookie") ?? undefined;
+  return requestInput;
+}
+
+/** @param {unknown} headers @param {string} name @returns {string | undefined} */
+function readHeader(headers, name) {
+  if (!headers) return undefined;
+  const getter = (/** @type {{ get?: (header: string) => string | null | undefined }} */ (headers)).get;
+  if (typeof getter !== "function") return undefined;
+  try {
+    return getter.call(headers, name) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+{% endraw %}

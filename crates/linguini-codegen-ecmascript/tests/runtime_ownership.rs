@@ -1,4 +1,4 @@
-//! JS and TS share canonical templates; paired runtime implementations remain forbidden.
+//! Canonical JS templates own runtime syntax; declarations share the semantic model.
 
 use std::path::{Path, PathBuf};
 
@@ -30,6 +30,11 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
         );
         let source = std::fs::read_to_string(&path).expect("read codegen source");
         for retired in [
+            "pub fn compile_typescript_",
+            "pub fn compile_javascript_",
+            "pub fn generate_typescript_",
+            "fn implementation_rest_params_for_target(",
+            "fn normalized_bindings_statement_for_target(",
             "fn javascript_shared_runtime(",
             "fn typescript_index_runtime(",
             "fn javascript_index_runtime(",
@@ -46,6 +51,22 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
                 path.display()
             );
         }
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("web_"))
+        {
+            assert!(
+                !source.contains("RuntimeCode"),
+                "web runtime bodies must be templates: {}",
+                path.display()
+            );
+            assert!(
+                !source.contains("_BODY"),
+                "inline web runtime fragments reintroduced: {}",
+                path.display()
+            );
+        }
     }
     let mut templates = Vec::new();
     source_files(
@@ -53,6 +74,14 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
         &mut templates,
     );
     for path in templates {
+        let source = std::fs::read_to_string(&path).expect("read codegen template");
+        for branch in ["{% if ts", "{% if not ts", "{% elif ts"] {
+            assert!(
+                !source.contains(branch),
+                "paired TS runtime branch reintroduced: {}",
+                path.display()
+            );
+        }
         assert_eq!(
             path.extension().and_then(|value| value.to_str()),
             Some("jinja"),

@@ -1,0 +1,39 @@
+/**
+ * @param {GeneratedNumeric} value
+ * @returns {string}
+ */
+{% if exported %}export {% endif %}function {{ name }}(value) {
+  {% if plan.scale != 1 or plan.exponent_digits is not none %}let{% else %}const{% endif %} decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+{% if plan.scale != 1 %}  decimal = scaleGeneratedDecimal(decimal, {{ plan.scale }});
+{% endif %}{% if plan.exponent_digits is not none %}  let exponent;
+  ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
+{% endif %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} rounded = {% if plan.max_significant is not none %}roundGeneratedSignificant(decimal, {{ plan.max_significant }}){% else %}roundGeneratedDecimal(decimal, {{ plan.max_fraction }}, {{ plan.rounding|js }}){% endif %};
+{% if plan.exponent_digits is not none %}  if (rounded.integer.length > 1) {
+    const shift = rounded.integer.length - 1;
+    exponent += shift;
+    rounded = { integer: rounded.integer[0], fraction: `${rounded.integer.slice(1)}${rounded.fraction}` };
+  }
+{% endif %}  {% if plan.primary_group is not none %}let{% else %}const{% endif %} integer = rounded.integer{% if plan.min_integer > 1 %}.padStart({{ plan.min_integer }}, "0"){% endif %};
+  {% if plan.min_significant is not none %}let{% else %}const{% endif %} fraction = trimOptionalFractionDigits(rounded.fraction, {{ plan.min_fraction }});
+{% if plan.min_significant is not none %}  fraction = padGeneratedSignificant(integer, fraction, {{ plan.min_significant }});
+{% endif %}{% if plan.primary_group is not none %}  if (integer.length > {{ plan.primary_group }}) {
+    const groups = [integer.slice(-{{ plan.primary_group }})];
+    let end = integer.length - {{ plan.primary_group }};
+    while (end > 0) {
+      const start = Math.max(0, end - {{ plan.secondary_group }});
+      groups.push(integer.slice(start, end));
+      end = start;
+    }
+    integer = groups.reverse().join({{ plan.group_symbol|js }});
+  }
+{% endif %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} formatted = fraction ? integer + {{ plan.decimal_symbol|js }} + fraction : integer;
+{% if plan.exponent_digits is not none %}  formatted += `E${exponent < 0 ? "-" : {{ '"+"' if plan.exponent_sign else '""' }}}${String(Math.abs(exponent)).padStart({{ plan.exponent_digits }}, "0")}`;
+{% endif %}{% if plan.digits != "0123456789" %}  const localized = formatted.replace(/\d/g, (digit) => {{ plan.digits|js }}[digit.charCodeAt(0) - 48]);
+{% endif %}  const prefix = decimal.negative ? {{ plan.negative_prefix|js }} : {{ plan.prefix|js }};
+{% if plan.suffix == plan.negative_suffix %}{% if plan.suffix %}  const suffix = {{ plan.suffix|js }};
+{% endif %}{% else %}  const suffix = decimal.negative ? {{ plan.negative_suffix|js }} : {{ plan.suffix|js }};
+{% endif %}{% if plan.padding is not none %}  const padding = {{ plan.padding.character|js }}.repeat(Math.max(0, {{ plan.padding.width }} - [...(prefix + {{ 'localized' if plan.digits != '0123456789' else 'formatted' }}{% if plan.suffix or plan.suffix != plan.negative_suffix %} + suffix{% endif %})].length));
+{% endif %}  return {% if plan.padding is not none and plan.padding.position == 0 %}padding + {% endif %}prefix + {% if plan.padding is not none and plan.padding.position == 1 %}padding + {% endif %}{{ 'localized' if plan.digits != '0123456789' else 'formatted' }}{% if plan.padding is not none and plan.padding.position == 2 %} + padding{% endif %}{% if plan.suffix or plan.suffix != plan.negative_suffix %} + suffix{% endif %}{% if plan.padding is not none and plan.padding.position == 3 %} + padding{% endif %};
+}
+{{ "\n" -}}

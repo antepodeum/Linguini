@@ -214,3 +214,9 @@ fragment representation; shared schema dispatch is the first converted runtime f
 `linguini-codegen` owns shared type models, formatter/plural requirement analysis, and semantic
 message dependency slicing with source provenance. `linguini-codegen-ecmascript` consumes those
 plans and owns target syntax, JS/TS templates, identifier escaping, and module rendering.
+
+The canonical runtime transition supersedes the intermediate paired APIs above: runtime output
+is JavaScript only, with adjacent declarations for TypeScript consumers. See
+[migration notes](./migrations.md#canonical-javascript-generation) for the current Rust API names
+and generated artifact paths. Earlier TS implementations remain historical parity evidence,
+not production runtime backends.

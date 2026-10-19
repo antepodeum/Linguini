@@ -1,0 +1,15 @@
+{% macro statements(node, indent="  ") -%}
+{% if node.kind == "return" %}{{ indent }}return {{ node.value }};
+{% elif node.arms|length == 1 and node.arms[0].keys|length == 1 and node.fallback is not none %}{% set arm = node.arms[0] %}{% if arm.result.kind != "return" and node.fallback.kind == "return" %}{{ indent }}if ({{ node.selector }} !== {{ arm.keys[0]|js }}) return {{ node.fallback.value }};
+{{ statements(arm.result, indent) }}{% elif arm.result.kind == "return" %}{{ indent }}if ({{ node.selector }} === {{ arm.keys[0]|js }}) return {{ arm.result.value }};
+{{ statements(node.fallback, indent) }}{% else %}{{ indent }}if ({{ node.selector }} === {{ arm.keys[0]|js }}) {
+{{ statements(arm.result, indent + "  ") }}{{ indent }}}
+{{ statements(node.fallback, indent) }}{% endif %}{% elif not node.arms and node.fallback is not none %}{{ indent }}{{ node.selector }};
+{{ statements(node.fallback, indent) }}{% else %}{% if node.fallback is none %}{{ indent }}const {{ node.key_binding }} = {{ node.selector }};
+{% endif %}{{ indent }}switch ({% if node.fallback is none %}{{ node.key_binding }}{% else %}{{ node.selector }}{% endif %}) {
+{% for arm in node.arms %}{% for key in arm.keys %}{{ indent }}  case {{ key|js }}:
+{% endfor %}{{ statements(arm.result, indent + "    ") }}{% endfor %}{{ indent }}  default:
+{% if node.fallback is not none %}{{ statements(node.fallback, indent + "    ") }}{% else %}{{ indent }}    throw new Error(`Linguini dispatch has no branch for key ${JSON.stringify({{ node.key_binding }})}`);
+{% endif %}{{ indent }}}
+{% endif %}{%- endmacro -%}
+{{ statements(node) }}

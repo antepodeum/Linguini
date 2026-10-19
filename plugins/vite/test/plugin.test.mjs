@@ -183,23 +183,23 @@ async function bundlerFixture({ source, applicationName = "page.svelte" } = {}) 
   const application = path.join(root, applicationKey);
   const code =
     source ??
-    '<script>\r\nimport { l as tr, helper } from "../../build/custom-linguini/svelte.ts";\r\nconst привет = tr.main.title;\r\n</script>\r\n';
+    '<script>\r\nimport { l as tr, helper } from "../../build/custom-linguini/svelte.js";\r\nconst привет = tr.main.title;\r\n</script>\r\n';
   await mkdir(path.dirname(application), { recursive: true });
   await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
   await writeFile(application, code);
-  await writeFile(path.join(generated, "svelte.ts"), "export const l = {};\n");
+  await writeFile(path.join(generated, "svelte.js"), "export const l = {};\n");
   await writeFile(
-    path.join(generated, "svelte-locale.svelte.ts"),
+    path.join(generated, "svelte-locale.svelte.js"),
     'export function getCurrentLocale() { return "en"; }\n'
   );
-  await writeFile(path.join(generated, "svelte-effects.svelte.ts"), "globalThis.effects = true;\n");
+  await writeFile(path.join(generated, "svelte-effects.svelte.js"), "globalThis.effects = true;\n");
   await writeFile(
-    path.join(generated, "bundler/messages/main/title/en.ts"),
+    path.join(generated, "bundler/messages/main/title/en.js"),
     'export function message() { return "Title"; }\n'
   );
   const declarationText = code.includes("l as tr, helper")
-    ? 'import { l as tr, helper } from "../../build/custom-linguini/svelte.ts";'
-    : 'import { l as tr } from "../../build/custom-linguini/svelte.ts";';
+    ? 'import { l as tr, helper } from "../../build/custom-linguini/svelte.js";'
+    : 'import { l as tr } from "../../build/custom-linguini/svelte.js";';
   const declaration = byteSpan(code, declarationText);
   const item = byteSpan(code, "l as tr");
   const removal = code.includes("l as tr, ") ? byteSpan(code, "l as tr, ") : declaration;
@@ -217,11 +217,11 @@ async function bundlerFixture({ source, applicationName = "page.svelte" } = {}) 
     runtime_helpers: {
       svelte_locale: {
         import: "./svelte-locale.svelte.js",
-        file: "svelte-locale.svelte.ts"
+        file: "svelte-locale.svelte.js"
       },
       svelte_effects: {
         import: "./svelte-effects.svelte.js",
-        file: "svelte-effects.svelte.ts"
+        file: "svelte-effects.svelte.js"
       }
     },
     messages: {
@@ -229,14 +229,14 @@ async function bundlerFixture({ source, applicationName = "page.svelte" } = {}) 
         arity: 0,
         locales: {
           en: {
-            module: "bundler/messages/main/title/en.ts",
+            module: "bundler/messages/main/title/en.js",
             source_ids: [1, 2]
           }
         }
       }
     },
     message_runtimes: {
-      en: { module: "locales/en/_runtime.ts", source_ids: [1, 2] }
+      en: { module: "locales/en/_runtime.js", source_ids: [1, 2] }
     },
     message_semantics: [],
     applications: {
@@ -256,7 +256,7 @@ async function bundlerFixture({ source, applicationName = "page.svelte" } = {}) 
             local: "tr",
             provenance: {
               kind: "imported",
-              module_specifier: "../../build/custom-linguini/svelte.ts",
+              module_specifier: "../../build/custom-linguini/svelte.js",
               symbol: "l"
             },
             arity: 0,
@@ -266,7 +266,7 @@ async function bundlerFixture({ source, applicationName = "page.svelte" } = {}) 
         imports: [
           {
             binding_id: "binding",
-            module_specifier: "../../build/custom-linguini/svelte.ts",
+            module_specifier: "../../build/custom-linguini/svelte.js",
             imported: "l",
             local: "tr",
             declaration_start: declaration[0],
@@ -301,9 +301,9 @@ async function runtimeFixture() {
   data.manifest.sources[1].path = "src/locale/shop/ru.lgl";
   data.manifest.messages["main.title"].locales.en.source_ids = [1];
   data.manifest.message_runtimes = {
-    en: { module: "locales/en/_runtime.ts", source_ids: [2] }
+    en: { module: "locales/en/_runtime.js", source_ids: [2] }
   };
-  data.runtimeModule = path.join(data.generated, "locales/en/_runtime.ts");
+  data.runtimeModule = path.join(data.generated, "locales/en/_runtime.js");
   await mkdir(path.dirname(data.runtimeModule), { recursive: true });
   await writeFile(data.runtimeModule, "export {};\n");
   await writeFile(
@@ -350,13 +350,13 @@ async function semanticHmrFixture() {
       locale: "en",
       kind: "variable",
       name: "title",
-      module: "bundler/semantic/en/variable/title.ts",
+      module: "bundler/semantic/en/variable/title.js",
       source_ids: [1]
     }
   ];
   data.semanticModule = path.join(
     data.generated,
-    "bundler/semantic/en/variable/title.ts"
+    "bundler/semantic/en/variable/title.js"
   );
   await mkdir(path.dirname(data.semanticModule), { recursive: true });
   await writeFile(data.semanticModule, "export {};\n");
@@ -366,8 +366,8 @@ async function semanticHmrFixture() {
 
 async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
   const body = [
-    'import { l as tr } from "../../build/custom-linguini/svelte.ts";',
-    'import { messages as alt } from "../../build/custom-linguini/svelte.ts";',
+    'import { l as tr } from "../../build/custom-linguini/svelte.js";',
+    'import { messages as alt } from "../../build/custom-linguini/svelte.js";',
     'const __linguini_dispatch_0 = "user-owned";',
     "export const fixed = tr.main.title;",
     "export const value = tr.main[ /* keep */ ключ ];",
@@ -383,7 +383,7 @@ async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
     : body;
   const data = await bundlerFixture({ source: code, applicationName });
   const declarationText =
-    'import { l as tr } from "../../build/custom-linguini/svelte.ts";';
+    'import { l as tr } from "../../build/custom-linguini/svelte.js";';
   const declaration = byteSpan(code, declarationText);
   const item = byteSpan(code, "l as tr");
   const binding = data.manifest.applications[data.applicationKey].imports[0];
@@ -406,7 +406,7 @@ async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
   });
   const application = data.manifest.applications[data.applicationKey];
   const altDeclarationText =
-    'import { messages as alt } from "../../build/custom-linguini/svelte.ts";';
+    'import { messages as alt } from "../../build/custom-linguini/svelte.js";';
   const altDeclaration = byteSpan(code, altDeclarationText);
   const altItem = byteSpan(code, "messages as alt");
   const altBinding = {
@@ -541,7 +541,7 @@ async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
     arity: 1,
     locales: {
       en: {
-        module: "bundler/messages/main/items/en.ts",
+        module: "bundler/messages/main/items/en.js",
         source_ids: [1, 2]
       }
     }
@@ -550,7 +550,7 @@ async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
     arity: 0,
     locales: {
       en: {
-        module: "bundler/messages/main/__proto__/en.ts",
+        module: "bundler/messages/main/__proto__/en.js",
         source_ids: [1, 2]
       }
     }
@@ -559,15 +559,15 @@ async function dynamicBundlerFixture({ applicationName = "dynamic.ts" } = {}) {
     arity: 0,
     locales: {
       en: {
-        module: "bundler/messages/notice/en.ts",
+        module: "bundler/messages/notice/en.js",
         source_ids: [1, 2]
       }
     }
   };
   for (const [relative, contents] of [
-    ["bundler/messages/main/__proto__/en.ts", 'export function message() { return "Proto"; }\n'],
-    ["bundler/messages/main/items/en.ts", 'export function message(value) { return `Items:${value}`; }\n'],
-    ["bundler/messages/notice/en.ts", 'export function message() { return "Notice"; }\n']
+    ["bundler/messages/main/__proto__/en.js", 'export function message() { return "Proto"; }\n'],
+    ["bundler/messages/main/items/en.js", 'export function message(value) { return `Items:${value}`; }\n'],
+    ["bundler/messages/notice/en.js", 'export function message() { return "Notice"; }\n']
   ]) {
     const file = path.join(data.generated, relative);
     await mkdir(path.dirname(file), { recursive: true });
@@ -598,7 +598,7 @@ async function selectiveHmrFixture() {
   await writeFile(files.itemsLocale, "items = Items\n");
   await writeFile(files.sharedSchema, "# shared dependency\n");
   await writeFile(files.unrelatedSchema, "unused\n");
-  const itemsModule = path.join(data.generated, "bundler/messages/main/items/en.ts");
+  const itemsModule = path.join(data.generated, "bundler/messages/main/items/en.js");
   await mkdir(path.dirname(itemsModule), { recursive: true });
   await writeFile(itemsModule, 'export function message(count) { return String(count); }\n');
   data.manifest.sources = [
@@ -614,7 +614,7 @@ async function selectiveHmrFixture() {
     arity: 1,
     locales: {
       en: {
-        module: "bundler/messages/main/items/en.ts",
+        module: "bundler/messages/main/items/en.js",
         source_ids: [3, 4, 5]
       }
     }
@@ -626,7 +626,7 @@ async function selectiveHmrFixture() {
   return {
     ...data,
     files,
-    titleModule: path.join(data.generated, "bundler/messages/main/title/en.ts"),
+    titleModule: path.join(data.generated, "bundler/messages/main/title/en.js"),
     itemsModule,
     titleVirtual: resolvedMessageId("main.title"),
     itemsVirtual: resolvedMessageId("main.items"),
@@ -1191,7 +1191,7 @@ test("transforms Unicode Svelte source and loads exact virtual module", async (c
   const result = await plugin.transform.call(
     {
       async resolve() {
-        return { id: path.join(fixtureData.generated, "svelte.ts") };
+        return { id: path.join(fixtureData.generated, "svelte.js") };
       }
     },
     fixtureData.code,
@@ -1210,15 +1210,15 @@ test("transforms Unicode Svelte source and loads exact virtual module", async (c
   assert.equal(resolved, `\0${publicId}`);
   const virtual = plugin.load(resolved);
   assert.match(virtual, /getCurrentLocale/);
-  assert.match(virtual, /svelte-effects\.svelte\.ts/);
-  assert.match(virtual, /bundler\/messages\/main\/title\/en\.ts/);
-  assert.doesNotMatch(virtual, /(?:^|\/)index(?:\.|["'])|\/svelte\.ts["']/m);
+  assert.match(virtual, /svelte-effects\.svelte\.js/);
+  assert.match(virtual, /bundler\/messages\/main\/title\/en\.js/);
+  assert.doesNotMatch(virtual, /(?:^|\/)index(?:\.|["'])|\/svelte\.js["']/m);
   assert.match(virtual, /__linguini_messages\[getCurrentLocale\(\)\]/);
 });
 
 test("transform link mode rewrites safe static Svelte anchors only", async (context) => {
   const source = [
-    '<script>import { l as tr } from "../../build/custom-linguini/svelte.ts"; const title = tr.main.title;</script>',
+    '<script>import { l as tr } from "../../build/custom-linguini/svelte.js"; const title = tr.main.title;</script>',
     '<a href="/account">Account</a>',
     '<a href="/download" download>Download</a>',
     '<a href="/ignored" data-linguini-ignore>Ignored</a>',
@@ -1238,7 +1238,7 @@ test("transform link mode rewrites safe static Svelte anchors only", async (cont
   const result = await plugin.transform.call(
     {
       async resolve() {
-        return { id: path.join(fixtureData.generated, "svelte.ts") };
+        return { id: path.join(fixtureData.generated, "svelte.js") };
       }
     },
     source,
@@ -1261,7 +1261,7 @@ test("rejects stale bytes and skips unsafe bindings", async (context) => {
   await plugin.buildStart.call({ addWatchFile() {} });
   await assert.rejects(
     plugin.transform.call(
-      { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+      { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.js") }) },
       fixtureData.code.replace("привет", "hello"),
       fixtureData.application
     ),
@@ -1273,7 +1273,7 @@ test("rejects stale bytes and skips unsafe bindings", async (context) => {
     fixtureData.application
   );
   assert.equal(unchanged, undefined);
-  const generatedEntry = path.join(fixtureData.generated, "svelte.ts");
+  const generatedEntry = path.join(fixtureData.generated, "svelte.js");
   for (const suffix of ["?raw", "?url", "#fragment", "?raw#fragment"]) {
     assert.equal(
       await plugin.transform.call(
@@ -1301,7 +1301,7 @@ test("rejects stale bytes and skips unsafe bindings", async (context) => {
   );
   assert.equal(
     await plugin.transform.call(
-      { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+      { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.js") }) },
       fixtureData.code,
       `${fixtureData.application}?svelte&type=script`
     ),
@@ -1314,7 +1314,7 @@ test("rejects stale bytes and skips unsafe bindings", async (context) => {
   await queriedPlugin.buildStart.call({ addWatchFile() {} });
   assert.ok(
     await queriedPlugin.transform.call(
-      { resolve: async () => ({ id: path.join(queried.generated, "svelte.ts") }) },
+      { resolve: async () => ({ id: path.join(queried.generated, "svelte.js") }) },
       queried.code,
       queried.application
     )
@@ -1322,7 +1322,7 @@ test("rejects stale bytes and skips unsafe bindings", async (context) => {
   for (const suffix of ["?raw", "?url", "?worker", "#fragment", "?raw#fragment"]) {
     assert.equal(
       await queriedPlugin.transform.call(
-        { resolve: async () => ({ id: path.join(queried.generated, "svelte.ts") }) },
+        { resolve: async () => ({ id: path.join(queried.generated, "svelte.js") }) },
         "transformed payload that must not be hashed",
         `${queried.application}${suffix}`
       ),
@@ -1332,7 +1332,7 @@ test("rejects stale bytes and skips unsafe bindings", async (context) => {
   for (const unsupported of ["page.vue", "page.astro", "page.css", "page.svelte?raw"]) {
     assert.equal(
       await plugin.transform.call(
-        { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+        { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.js") }) },
         fixtureData.code,
         path.join(path.dirname(fixtureData.application), unsupported)
       ),
@@ -1348,7 +1348,7 @@ test("transforms static and dynamic refs with finite frozen dispatches", async (
   await plugin.configResolved({ root: data.root });
   await plugin.buildStart.call({ addWatchFile() {} });
   const result = await plugin.transform.call(
-    { resolve: async () => ({ id: path.join(data.generated, "svelte.ts") }) },
+    { resolve: async () => ({ id: path.join(data.generated, "svelte.js") }) },
     data.code,
     data.application
   );
@@ -1359,7 +1359,7 @@ test("transforms static and dynamic refs with finite frozen dispatches", async (
   for (const message of ["main.__proto__", "main.items", "main.title", "notice"]) {
     assert.equal(result.code.split(encoded(message)).length - 1, 1);
   }
-  assert.doesNotMatch(result.code, /from "\.\.\/\.\.\/build\/custom-linguini\/svelte\.ts"/);
+  assert.doesNotMatch(result.code, /from "\.\.\/\.\.\/build\/custom-linguini\/svelte\.js"/);
   const titleImport = result.code.match(
     new RegExp(`message as (__linguini_message_\\d+) \\} from "${encoded("main.title")}"`)
   );
@@ -1443,7 +1443,7 @@ test("uses only explicit dynamic references and rejects resolver mismatch", asyn
   await staticPlugin.configResolved({ root: staticOnly.root });
   await staticPlugin.buildStart.call({ addWatchFile() {} });
   const staticResult = await staticPlugin.transform.call(
-    { resolve: async () => ({ id: path.join(staticOnly.generated, "svelte.ts") }) },
+    { resolve: async () => ({ id: path.join(staticOnly.generated, "svelte.js") }) },
     staticOnly.code,
     staticOnly.application
   );
@@ -1457,7 +1457,7 @@ test("uses only explicit dynamic references and rejects resolver mismatch", asyn
   await dynamicPlugin.buildStart.call({ addWatchFile() {} });
   await assert.rejects(
     dynamicPlugin.transform.call(
-      { resolve: async () => ({ id: path.join(dynamic.generated, "svelte.ts") }) },
+      { resolve: async () => ({ id: path.join(dynamic.generated, "svelte.js") }) },
       dynamic.code.replace("user-owned", "changed"),
       dynamic.application
     ),
@@ -1469,7 +1469,7 @@ test("uses only explicit dynamic references and rejects resolver mismatch", asyn
       dynamic.code,
       dynamic.application
     ),
-    /must resolve to generated svelte\.ts/
+    /must resolve to generated svelte\.js/
   );
   await assert.rejects(
     dynamicPlugin.transform.call(
@@ -1485,11 +1485,11 @@ test("uses only explicit dynamic references and rejects resolver mismatch", asyn
   );
   await assert.rejects(
     dynamicPlugin.transform.call(
-      { resolve: async () => ({ id: path.join(dynamic.generated, "index.ts") }) },
+      { resolve: async () => ({ id: path.join(dynamic.generated, "index.js") }) },
       dynamic.code,
       dynamic.application
     ),
-    /must resolve to generated svelte\.ts/
+    /must resolve to generated svelte\.js/
   );
 });
 
@@ -1500,7 +1500,7 @@ test("keeps deduped dynamic helpers inside Svelte script scope", async (context)
   await plugin.configResolved({ root: data.root });
   await plugin.buildStart.call({ addWatchFile() {} });
   const result = await plugin.transform.call(
-    { resolve: async () => ({ id: path.join(data.generated, "svelte.ts") }) },
+    { resolve: async () => ({ id: path.join(data.generated, "svelte.js") }) },
     data.code,
     data.application
   );
@@ -1726,7 +1726,7 @@ test("semantic deltas invalidate source-specific and old/new semantic modules", 
   context.after(() => rm(data.root, { recursive: true, force: true }));
   const movedSemantic = path.join(
     data.generated,
-    "bundler/semantic/en/variable/title-next.ts"
+    "bundler/semantic/en/variable/title-next.js"
   );
   await writeFile(movedSemantic, "export {};\n");
   const sourceChange = path.join(data.root, "src/schema/shop/delivery.lgs");
@@ -1753,7 +1753,7 @@ test("semantic deltas invalidate source-specific and old/new semantic modules", 
 
   nextManifest = structuredClone(nextManifest);
   nextManifest.message_semantics[0].module =
-    "bundler/semantic/en/variable/title-next.ts";
+    "bundler/semantic/en/variable/title-next.js";
   await writeFile(data.manifestPath, JSON.stringify(nextManifest));
   harness.invalidated.length = 0;
   await plugin.handleHotUpdate({
@@ -1766,7 +1766,7 @@ test("semantic deltas invalidate source-specific and old/new semantic modules", 
 
 test("allocates generated aliases around existing JavaScript bindings", async (context) => {
   const source = [
-    'import { l as tr, helper } from "../../build/custom-linguini/svelte.ts";',
+    'import { l as tr, helper } from "../../build/custom-linguini/svelte.js";',
     'const __linguini_message_0 = "user-owned";',
     "const title = tr.main.title;",
     ""
@@ -1777,7 +1777,7 @@ test("allocates generated aliases around existing JavaScript bindings", async (c
   await plugin.configResolved({ root: fixtureData.root });
   await plugin.buildStart.call({ addWatchFile() {} });
   const result = await plugin.transform.call(
-    { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+    { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.js") }) },
     source,
     fixtureData.application
   );
@@ -1793,12 +1793,12 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
     '<script context="module">',
     'const emoji = "😀";',
     'const __linguini_message_0 = "module-owned";',
-    'import { l as moduleL } from "../../build/custom-linguini/svelte.ts";',
+    'import { l as moduleL } from "../../build/custom-linguini/svelte.js";',
     "const moduleTitle = moduleL.main.title;",
     "</script>",
     "<script>",
     'const __linguini_message_1 = "instance-owned";',
-    'import { messages as instanceL, helper } from "../../build/custom-linguini/svelte.ts";',
+    'import { messages as instanceL, helper } from "../../build/custom-linguini/svelte.js";',
     "const instanceTitle = instanceL.main.title;",
     "const implicitTitle = implicit.main.title;",
     "</script>",
@@ -1810,7 +1810,7 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
     const removal = byteSpan(source, removalText);
     return {
       binding_id: id,
-      module_specifier: "../../build/custom-linguini/svelte.ts",
+      module_specifier: "../../build/custom-linguini/svelte.js",
       imported,
       local,
       declaration_start: declaration[0],
@@ -1843,16 +1843,16 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
           ? { kind: "implicit" }
           : {
               kind: "imported",
-              module_specifier: "../../build/custom-linguini/svelte.ts",
+              module_specifier: "../../build/custom-linguini/svelte.js",
               symbol: local === "moduleL" ? "l" : "messages"
             },
       arity: 0,
       binding_id: bindingId
     };
   };
-  const moduleDeclaration = 'import { l as moduleL } from "../../build/custom-linguini/svelte.ts";';
+  const moduleDeclaration = 'import { l as moduleL } from "../../build/custom-linguini/svelte.js";';
   const instanceDeclaration =
-    'import { messages as instanceL, helper } from "../../build/custom-linguini/svelte.ts";';
+    'import { messages as instanceL, helper } from "../../build/custom-linguini/svelte.js";';
   const application = fixtureData.manifest.applications[fixtureData.applicationKey];
   application.sha256 = createHash("sha256").update(Buffer.from(source)).digest("hex");
   application.byte_length = Buffer.byteLength(source);
@@ -1881,7 +1881,7 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
   await plugin.configResolved({ root: fixtureData.root });
   await plugin.buildStart.call({ addWatchFile() {} });
   const result = await plugin.transform.call(
-    { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.ts") }) },
+    { resolve: async () => ({ id: path.join(fixtureData.generated, "svelte.js") }) },
     source,
     fixtureData.application
   );
@@ -1897,7 +1897,7 @@ test("keeps virtual imports inside each Svelte script scope and collapses sole i
 test("scopes dynamic Svelte facades and loader lifetime to one application", async (context) => {
   const source = [
     '<script context="module">',
-    'import { l as tr } from "../../build/custom-linguini/svelte.ts";',
+    'import { l as tr } from "../../build/custom-linguini/svelte.js";',
     "export const title = tr.main.title;",
     "</script>",
     '<script data-module="fixture">',
@@ -1920,7 +1920,7 @@ test("scopes dynamic Svelte facades and loader lifetime to one application", asy
     ].join("\n")
   );
   await writeFile(
-    path.join(data.generated, "svelte-locale.svelte.ts"),
+    path.join(data.generated, "svelte-locale.svelte.js"),
     [
       'export function getCurrentLocale() { return "en"; }',
       "export function registerLocaleLoader() { return () => {}; }",
@@ -1935,7 +1935,7 @@ test("scopes dynamic Svelte facades and loader lifetime to one application", asy
   await plugin.configResolved({ root: data.root });
   await plugin.buildStart.call({ addWatchFile() {} });
   const result = await plugin.transform.call(
-    { resolve: async () => ({ id: path.join(data.generated, "svelte.ts") }) },
+    { resolve: async () => ({ id: path.join(data.generated, "svelte.js") }) },
     source,
     data.application
   );
@@ -1995,7 +1995,7 @@ test("scoped locale payloads keep sorted indices across sparse message entries",
   data.manifest.configured_locales = ["en", "fr"];
   data.manifest.effective_locales = ["en", "fr"];
   data.manifest.message_runtimes.fr = {
-    module: "locales/fr/_runtime.ts",
+    module: "locales/fr/_runtime.js",
     source_ids: []
   };
   await writeFile(
@@ -2010,10 +2010,10 @@ test("scoped locale payloads keep sorted indices across sparse message entries",
     ].join("\n")
   );
   await mkdir(path.join(data.generated, "locales/fr"), { recursive: true });
-  await writeFile(path.join(data.generated, "locales/fr/_runtime.ts"), "export {};\n");
+  await writeFile(path.join(data.generated, "locales/fr/_runtime.js"), "export {};\n");
   for (const canonical of ["main.__proto__", "main.title", "notice"]) {
     const message = data.manifest.messages[canonical];
-    const module = message.locales.en.module.replace(/\/en\.ts$/, "/fr.ts");
+    const module = message.locales.en.module.replace(/\/en\.js$/, "/fr.js");
     message.locales.fr = { module, source_ids: [] };
     await mkdir(path.dirname(path.join(data.generated, module)), { recursive: true });
     await writeFile(
@@ -2175,9 +2175,9 @@ test("selective HMR follows exact message source dependencies", async (context) 
   const data = await selectiveHmrFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
   let nextManifest = structuredClone(data.manifest);
-  const unrelatedGenerated = path.join(data.generated, "index.ts");
+  const unrelatedGenerated = path.join(data.generated, "index.js");
   const addedSource = path.join(data.root, "src/schema/shop/added.lgs");
-  const addedModule = path.join(data.generated, "bundler/messages/main/added/en.ts");
+  const addedModule = path.join(data.generated, "bundler/messages/main/added/en.js");
   const addedVirtual = resolvedMessageId("main.added");
   const harness = mockServer([
     { id: data.titleVirtual },
@@ -2244,7 +2244,7 @@ test("selective HMR follows exact message source dependencies", async (context) 
     arity: 0,
     locales: {
       en: {
-        module: "bundler/messages/main/added/en.ts",
+        module: "bundler/messages/main/added/en.js",
         source_ids: [7]
       }
     }
@@ -2295,7 +2295,7 @@ test("selective HMR follows exact message source dependencies", async (context) 
 test("manifest deltas target applications, renames, and helper transitions", async (context) => {
   const data = await selectiveHmrFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
-  const unrelatedGenerated = path.join(data.generated, "index.ts");
+  const unrelatedGenerated = path.join(data.generated, "index.js");
   const enLocaleVirtual = "\0virtual:linguini/locale/656e";
   const harness = mockServer([
     { id: data.titleVirtual },
@@ -2346,10 +2346,10 @@ test("manifest deltas target applications, renames, and helper transitions", asy
   manifest = structuredClone(manifest);
   manifest.runtime_helpers.svelte_locale = {
     import: "./svelte-locale-alt.svelte.js",
-    file: "svelte-locale-alt.svelte.ts"
+    file: "svelte-locale-alt.svelte.js"
   };
   await writeFile(
-    path.join(data.generated, "svelte-locale-alt.svelte.ts"),
+    path.join(data.generated, "svelte-locale-alt.svelte.js"),
     'export function getCurrentLocale() { return "en"; }\n'
   );
   const helperBroad = await reload(manifest);
@@ -2365,7 +2365,7 @@ test("HMR fingerprints dynamic app contracts and message descriptors", async (co
   const manifestPath = path.join(data.generated, "bundler/manifest.json");
   const otherModule = path.join(
     data.generated,
-    "bundler/messages/main/other/en.ts"
+    "bundler/messages/main/other/en.js"
   );
   await mkdir(path.dirname(otherModule), { recursive: true });
   await writeFile(otherModule, 'export function message() { return "Other"; }\n');
@@ -2373,7 +2373,7 @@ test("HMR fingerprints dynamic app contracts and message descriptors", async (co
     arity: 0,
     locales: {
       en: {
-        module: "bundler/messages/main/other/en.ts",
+        module: "bundler/messages/main/other/en.js",
         source_ids: [1, 2]
       }
     }
@@ -2381,7 +2381,7 @@ test("HMR fingerprints dynamic app contracts and message descriptors", async (co
   await writeFile(manifestPath, JSON.stringify(data.manifest));
   const itemsModule = path.join(
     data.generated,
-    "bundler/messages/main/items/en.ts"
+    "bundler/messages/main/items/en.js"
   );
   const itemsVirtual = resolvedMessageId("main.items");
   const otherVirtual = resolvedMessageId("main.other");
@@ -2446,18 +2446,18 @@ test("HMR fingerprints dynamic app contracts and message descriptors", async (co
 test("message descriptor deltas invalidate only changed locale modules", async (context) => {
   const data = await selectiveHmrFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
-  const frModule = path.join(data.generated, "bundler/messages/main/title/fr.ts");
-  const movedFrModule = path.join(data.generated, "bundler/messages/main/title/fr-next.ts");
+  const frModule = path.join(data.generated, "bundler/messages/main/title/fr.js");
+  const movedFrModule = path.join(data.generated, "bundler/messages/main/title/fr-next.js");
   await writeFile(frModule, 'export function message() { return "Titre"; }\n');
   await writeFile(movedFrModule, 'export function message() { return "Titre next"; }\n');
   data.manifest.configured_locales.push("fr");
   data.manifest.effective_locales.push("fr");
   data.manifest.messages["main.title"].locales.fr = {
-    module: "bundler/messages/main/title/fr.ts",
+    module: "bundler/messages/main/title/fr.js",
     source_ids: [2]
   };
   data.manifest.message_runtimes.fr = {
-    module: "locales/fr/_runtime.ts",
+    module: "locales/fr/_runtime.js",
     source_ids: [2]
   };
   await writeFile(data.manifestPath, JSON.stringify(data.manifest));
@@ -2491,7 +2491,7 @@ test("message descriptor deltas invalidate only changed locale modules", async (
   harness.invalidated.length = 0;
   next = structuredClone(next);
   next.messages["main.title"].locales.fr.module =
-    "bundler/messages/main/title/fr-next.ts";
+    "bundler/messages/main/title/fr-next.js";
   await writeFile(data.manifestPath, JSON.stringify(next));
   await plugin.handleHotUpdate({
     file: data.manifestPath,
@@ -2510,7 +2510,7 @@ test("message descriptor deltas invalidate only changed locale modules", async (
 test("runtime deltas invalidate source-specific and old/new runtime modules", async (context) => {
   const data = await runtimeFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));
-  const movedRuntime = path.join(data.generated, "locales/en/runtime-next.ts");
+  const movedRuntime = path.join(data.generated, "locales/en/runtime-next.js");
   await writeFile(movedRuntime, "export {};\n");
   const sourceChange = path.join(data.root, "src/locale/shop/ru.lgl");
   let nextManifest = structuredClone(data.manifest);
@@ -2538,7 +2538,7 @@ test("runtime deltas invalidate source-specific and old/new runtime modules", as
 
   nextManifest = structuredClone(nextManifest);
   nextManifest.message_runtimes.en = {
-    module: "locales/en/runtime-next.ts",
+    module: "locales/en/runtime-next.js",
     source_ids: [1]
   };
   await writeFile(data.generated + "/bundler/manifest.json", JSON.stringify(nextManifest));

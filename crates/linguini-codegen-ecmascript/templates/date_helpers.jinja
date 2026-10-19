@@ -1,23 +1,20 @@
-{% if ts %}function padNumber(value: number, length: number): string {
-{% else %}/**
+/**
  * @param {number} value
  * @param {number} length
  * @returns {string}
  */
 function padNumber(value, length) {
-{% endif %}  return String(value).padStart(length, "0");
+  return String(value).padStart(length, "0");
 }
 
-{% if ts %}function coerceDate(value: Date | number | string): Date {
-  let date: Date;
-{% else %}/**
+/**
  * @param {Date | number | string} value
  * @returns {Date}
  */
 function coerceDate(value) {
   /** @type {Date} */
   let date;
-{% endif %}  if (value instanceof Date) {
+  if (value instanceof Date) {
     date = value;
   } else if (typeof value === "string") {
     const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -43,15 +40,14 @@ function coerceDate(value) {
   return date;
 }
 
-{% if ts %}function createUTCDate(year: number, month: number, day: number): Date {
-{% else %}/**
+/**
  * @param {number} year
  * @param {number} month
  * @param {number} day
  * @returns {Date}
  */
 function createUTCDate(year, month, day) {
-{% endif %}  const date = new Date(0);
+  const date = new Date(0);
   date.setUTCHours(0, 0, 0, 0);
   date.setUTCFullYear(year, month - 1, day);
   if (
@@ -64,10 +60,7 @@ function createUTCDate(year, month, day) {
   return date;
 }
 
-{% if ts %}function throwInvalidDate(): never {
-{% else %}/** @returns {never} */
+/** @returns {never} */
 function throwInvalidDate() {
-{% endif %}  throw new RangeError("Linguini: invalid date value");
+  throw new RangeError("Linguini: invalid date value");
 }
-{% if ts %}
-{% endif %}

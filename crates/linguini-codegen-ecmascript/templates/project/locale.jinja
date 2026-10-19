@@ -1,0 +1,39 @@
+export const locales = /** @type {const} */ ([{% for locale in locales %}{{ locale.literal }}{% if not loop.last %}, {% endif %}{% endfor %}]);
+export const baseLocale = {{ base_locale }};
+
+export const localeDirections = /** @type {const} */ ({
+{% for locale in locales %}  {{ locale.property }}: "{{ locale.direction }}",
+{% endfor %}});
+
+/** @typedef {(typeof locales)[number]} Locale */
+/** @typedef {"ltr" | "rtl"} TextDirection */
+
+/** @type {Readonly<Record<string, Locale>>} */
+const localeResolution = {
+{% for resolution in resolutions %}  {{ resolution.candidate }}: {{ resolution.locale }},
+{% endfor %}};
+
+/**
+ * @param {unknown} locale
+ * @returns {locale is Locale}
+ */
+export function isLocale(locale) {
+  return normalizeLocale(locale) !== undefined;
+}
+
+/**
+ * @param {unknown} locale
+ * @returns {Locale | undefined}
+ */
+export function normalizeLocale(locale) {
+  if (typeof locale !== "string") return undefined;
+  return localeResolution[locale.toLowerCase()];
+}
+
+/**
+ * @param {Locale} locale
+ * @returns {TextDirection}
+ */
+export function getTextDirection(locale) {
+  return localeDirections[normalizeLocale(locale) ?? baseLocale];
+}

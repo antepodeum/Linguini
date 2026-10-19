@@ -1754,7 +1754,7 @@ async function transformApplication(
     ),
     ...dynamicBindingIds
   ]);
-  const generatedEntry = normalizeResolvedFileId(path.resolve(generatedRoot, "svelte.ts"));
+  const generatedEntry = normalizeResolvedFileId(path.resolve(generatedRoot, "svelte.js"));
   const acceptedBindings = new Map();
   for (const bindingId of referencedBindingIds) {
     const binding = application.imports.get(bindingId);
@@ -1788,7 +1788,7 @@ async function transformApplication(
     if (normalizeResolvedFileId(resolvedId) !== generatedEntry) {
       if (dynamicBindingIds.has(bindingId)) {
         throw new Error(
-          `Linguini dynamic binding ${bindingId} must resolve to generated svelte.ts`
+          `Linguini dynamic binding ${bindingId} must resolve to generated svelte.js`
         );
       }
       continue;

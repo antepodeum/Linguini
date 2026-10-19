@@ -2,12 +2,11 @@
 
 use super::names::import_path_for_target;
 use super::{
-    artifacts, decl, entry, globals, locale, messages, runtime, shared, EcmaGeneratedFile,
-    TypeScriptCodegenError, TypeScriptLocaleArtifactKind, TypeScriptOptions,
-    ValidatedTypeScriptProject,
+    artifacts, decl, entry, globals, locale, messages, runtime, shared, EcmaCodegenError,
+    EcmaGeneratedFile, EcmaLocaleArtifactKind, EcmaOptions, ValidatedEcmaProject,
 };
 use crate::ecmascript::{
-    EcmaModule, EcmaModuleOutput, EcmaScriptTarget, EcmaSource, RenderedEcmaModule,
+    EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaSource, RenderedEcmaModule,
 };
 use linguini_syntax::SourceId;
 
@@ -46,7 +45,7 @@ impl ProjectFile {
         self,
         sources: &[EcmaSource],
         files: &mut Vec<EcmaGeneratedFile>,
-    ) -> Result<(), TypeScriptCodegenError> {
+    ) -> Result<(), EcmaCodegenError> {
         match self {
             Self::Data(file) => files.push(file),
             Self::Rendered(module) => append_rendered(files, module),
@@ -81,11 +80,11 @@ fn append_rendered(files: &mut Vec<EcmaGeneratedFile>, module: RenderedEcmaModul
     });
 }
 
-/// Generate the established source-only TypeScript project API from structured artifacts.
-pub(super) fn generate_typescript_project_files(
-    project: &ValidatedTypeScriptProject<'_>,
-) -> Result<Vec<EcmaGeneratedFile>, TypeScriptCodegenError> {
-    let files = project_files(project, EcmaScriptTarget::TypeScript)?
+/// Generate the source-only ECMAScript project API from structured artifacts.
+pub(super) fn generate_project_files(
+    project: &ValidatedEcmaProject<'_>,
+) -> Result<Vec<EcmaGeneratedFile>, EcmaCodegenError> {
+    let files = project_files(project, EcmaModuleKind::JavaScript)?
         .into_iter()
         .map(ProjectFile::source_only)
         .collect::<Vec<_>>();
@@ -97,12 +96,11 @@ pub(super) fn generate_typescript_project_files(
 /// Every referenced source identity must be present exactly once in `sources`.
 /// Source paths are relative to the output root; each map rebases them to its own directory.
 pub fn compile_ecmascript_project_files(
-    project: &ValidatedTypeScriptProject<'_>,
-    target: EcmaScriptTarget,
+    project: &ValidatedEcmaProject<'_>,
     sources: &[EcmaSource],
-) -> Result<Vec<EcmaGeneratedFile>, TypeScriptCodegenError> {
+) -> Result<Vec<EcmaGeneratedFile>, EcmaCodegenError> {
     let mut files = Vec::new();
-    for artifact in project_files(project, target)? {
+    for artifact in project_files(project, EcmaModuleKind::JavaScript)? {
         artifact.with_sources(sources, &mut files)?;
     }
     super::validate_generated_output_collisions(&files)?;
@@ -126,39 +124,39 @@ fn module(files: &mut Vec<ProjectFile>, module: EcmaModule, source_ids: Vec<Sour
     };
     files.push(ProjectFile::Module { module, source_ids });
 }
-fn output(stem: &str, target: EcmaScriptTarget) -> EcmaModuleOutput {
+fn output(stem: &str, target: EcmaModuleKind) -> EcmaModuleOutput {
     EcmaModuleOutput::new(
         target,
         format!(
             "{stem}.{}",
-            if target.is_typescript() { "ts" } else { "js" }
+            if target.is_declaration() { "ts" } else { "js" }
         ),
         None,
     )
 }
 
 fn project_files(
-    project: &ValidatedTypeScriptProject<'_>,
-    target: EcmaScriptTarget,
-) -> Result<Vec<ProjectFile>, TypeScriptCodegenError> {
+    project: &ValidatedEcmaProject<'_>,
+    target: EcmaModuleKind,
+) -> Result<Vec<ProjectFile>, EcmaCodegenError> {
     let mut files = Vec::new();
     append_schema(project, target, &mut files);
     append_locales(project, target, &mut files)?;
     append_entries(project, target, &mut files);
-    super::project_framework::append(project, target, &mut files);
+    super::project_framework::append(project, &mut files);
     Ok(files)
 }
 
 fn append_schema(
-    project: &ValidatedTypeScriptProject<'_>,
-    target: EcmaScriptTarget,
+    project: &ValidatedEcmaProject<'_>,
+    target: EcmaModuleKind,
     files: &mut Vec<ProjectFile>,
 ) {
     let options = &project.options;
     let schema = project.schema.as_module();
     let selected_schema = super::visible_schema(
         schema,
-        &TypeScriptOptions {
+        &EcmaOptions {
             included_messages: if options.tree_shaking {
                 options.included_messages.clone()
             } else {
@@ -193,7 +191,7 @@ fn append_schema(
             files,
             shared::shared_module(
                 schema,
-                EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "shared.d.ts", None),
+                EcmaModuleOutput::new(EcmaModuleKind::Declaration, "shared.d.ts", None),
                 true,
             ),
             vec![],
@@ -202,8 +200,8 @@ fn append_schema(
             files,
             messages::messages_module(
                 &selected_schema,
-                EcmaModuleOutput::new(EcmaScriptTarget::TypeScript, "messages.d.ts", None),
-                &import_path_for_target("./shared", EcmaScriptTarget::JavaScript),
+                EcmaModuleOutput::new(EcmaModuleKind::Declaration, "messages.d.ts", None),
+                &import_path_for_target("./shared", EcmaModuleKind::JavaScript),
             ),
             vec![],
         );
@@ -211,10 +209,10 @@ fn append_schema(
 }
 
 fn append_locales(
-    project: &ValidatedTypeScriptProject<'_>,
-    target: EcmaScriptTarget,
+    project: &ValidatedEcmaProject<'_>,
+    target: EcmaModuleKind,
     files: &mut Vec<ProjectFile>,
-) -> Result<(), TypeScriptCodegenError> {
+) -> Result<(), EcmaCodegenError> {
     let options = &project.options;
     let schema = project.schema.as_module();
     let runtimes = project.locale_runtime_artifacts()?;
@@ -253,10 +251,10 @@ fn append_locales(
                 let locale_options = super::project_locale_options(&locale.locale, options)?;
                 let schema = super::visible_schema(schema, &locale_options);
                 let (path, declaration) = match &artifact.kind {
-                    TypeScriptLocaleArtifactKind::Namespace { namespace } => {
+                    EcmaLocaleArtifactKind::Namespace { namespace } => {
                         let schema = super::namespace_module(&schema, namespace);
                         let path =
-                            artifact.module_path.trim_end_matches(".ts").to_owned() + ".d.ts";
+                            artifact.module_path.trim_end_matches(".js").to_owned() + ".d.ts";
                         let declaration = decl::generate_locale_declaration_with_shared_import(
                             &schema,
                             &path,
@@ -265,7 +263,7 @@ fn append_locales(
                         );
                         (path, declaration)
                     }
-                    TypeScriptLocaleArtifactKind::Barrel => {
+                    EcmaLocaleArtifactKind::Barrel => {
                         let namespaces = super::top_level_namespaces(&schema);
                         let root = if namespaces.is_empty() {
                             schema
@@ -290,13 +288,13 @@ fn append_locales(
 }
 
 fn append_entries(
-    project: &ValidatedTypeScriptProject<'_>,
-    target: EcmaScriptTarget,
+    project: &ValidatedEcmaProject<'_>,
+    target: EcmaModuleKind,
     files: &mut Vec<ProjectFile>,
 ) {
     let options = &project.options;
     for artifact in artifacts::project_artifacts() {
-        let stem = artifact.module_path.trim_end_matches(".ts");
+        let stem = artifact.module_path.trim_end_matches(".js");
         module(
             files,
             entry::project_module(
@@ -309,13 +307,13 @@ fn append_entries(
         );
         if options.declaration {
             let declaration = match artifact.kind {
-                super::TypeScriptProjectArtifactKind::Locale => {
+                super::EcmaProjectArtifactKind::Locale => {
                     entry::generate_project_locale_declaration(
                         &project.locales,
                         options.base_locale.as_deref(),
                     )
                 }
-                super::TypeScriptProjectArtifactKind::Index => {
+                super::EcmaProjectArtifactKind::Index => {
                     entry::generate_project_index_declaration()
                 }
             };
@@ -326,9 +324,7 @@ fn append_entries(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{
-        TypeScriptFramework, TypeScriptLocaleModule, TypeScriptProjectOptions, TypeScriptWebOptions,
-    };
+    use super::super::{EcmaFramework, EcmaLocaleModule, EcmaProjectOptions, EcmaWebOptions};
     use super::*;
     use linguini_ir::{lower_locale_typed, lower_schema_typed};
     use linguini_syntax::{parse_locale_in, parse_schema_in};
@@ -341,11 +337,11 @@ mod tests {
         let fr_source = "hello = Bonjour {name}\n";
         let schema = lower_schema_typed(&parse_schema_in(schema_source, SourceId(7)).unwrap());
         let locales = [
-            TypeScriptLocaleModule {
+            EcmaLocaleModule {
                 locale: "en".to_owned(),
                 module: lower_locale_typed(&parse_locale_in(en_source, SourceId(11)).unwrap()),
             },
-            TypeScriptLocaleModule {
+            EcmaLocaleModule {
                 locale: "fr".to_owned(),
                 module: lower_locale_typed(&parse_locale_in(fr_source, SourceId(13)).unwrap()),
             },
@@ -360,26 +356,20 @@ mod tests {
         for (name, declaration, framework) in [
             ("plain", true, None),
             ("source-only", false, None),
-            ("kit", true, Some(TypeScriptFramework::SvelteKit)),
+            ("kit", true, Some(EcmaFramework::SvelteKit)),
         ] {
-            let options = TypeScriptProjectOptions {
+            let options = EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
                 declaration,
                 gitignore: false,
                 framework,
-                web: framework.map(|_| TypeScriptWebOptions::default()),
+                web: framework.map(|_| EcmaWebOptions::default()),
                 ..Default::default()
             };
-            let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &options).unwrap();
+            let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).unwrap();
+            assert!(compile_ecmascript_project_files(&project, &sources[..1]).is_err());
             assert!(compile_ecmascript_project_files(
                 &project,
-                EcmaScriptTarget::TypeScript,
-                &sources[..1]
-            )
-            .is_err());
-            assert!(compile_ecmascript_project_files(
-                &project,
-                EcmaScriptTarget::TypeScript,
                 &[
                     sources[0].clone(),
                     sources[0].clone(),
@@ -388,17 +378,15 @@ mod tests {
                 ]
             )
             .is_err());
-            for (language, target) in [
-                ("typescript", EcmaScriptTarget::TypeScript),
-                ("javascript", EcmaScriptTarget::JavaScript),
-            ] {
+            {
+                let language = "javascript";
                 assert!(matches!(
-                    compile_ecmascript_project_files(&project, target, &sources[1..]),
-                    Err(TypeScriptCodegenError::MissingMessageSource {
+                    compile_ecmascript_project_files(&project, &sources[1..]),
+                    Err(EcmaCodegenError::MissingMessageSource {
                         source_id: SourceId(7)
                     })
                 ));
-                let files = compile_ecmascript_project_files(&project, target, &sources).unwrap();
+                let files = compile_ecmascript_project_files(&project, &sources).unwrap();
                 for stem in ["shared", "messages"] {
                     assert_eq!(
                         files
@@ -420,12 +408,7 @@ mod tests {
                             "//# sourceMappingURL={}\n",
                             file.path.rsplit('/').next().unwrap()
                         )));
-                        if file.path
-                            == format!(
-                                "locales/fr/section.{}.map",
-                                if target.is_typescript() { "ts" } else { "js" }
-                            )
-                        {
+                        if file.path == "locales/fr/section.js.map" {
                             assert!(file
                                 .contents
                                 .contains(en_source.replace('\n', "\\n").as_str()));

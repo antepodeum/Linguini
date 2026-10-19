@@ -447,7 +447,7 @@ declaration = true
 }
 
 #[test]
-fn build_command_generates_typescript_preserves_user_files_and_needs_no_cldr_cache() {
+fn build_command_generates_javascript_preserves_user_files_and_needs_no_cldr_cache() {
     let project = TempDir::new().expect("temp project");
     linguini()
         .current_dir(project.path())
@@ -468,16 +468,16 @@ fn build_command_generates_typescript_preserves_user_files_and_needs_no_cldr_cac
         .assert()
         .success()
         .stdout(contains("generated files:"))
-        .stdout(contains("src/generated/linguini/locales/en.ts"))
+        .stdout(contains("src/generated/linguini/locales/en.js"))
         .stdout(contains("build: ok"));
 
     assert!(project
         .path()
-        .join("src/generated/linguini/locales/en.ts")
+        .join("src/generated/linguini/locales/en.js")
         .exists());
     assert!(project
         .path()
-        .join("src/generated/linguini/index.ts")
+        .join("src/generated/linguini/index.js")
         .exists());
     let generated_gitignore =
         fs::read_to_string(project.path().join("src/generated/linguini/.gitignore"))
@@ -492,10 +492,10 @@ fn build_command_generates_typescript_preserves_user_files_and_needs_no_cldr_cac
     let ownership = fs::read_to_string(generated_root.join(".linguini-generated-manifest"))
         .expect("ownership manifest");
     for path in [
-        "index.ts.map",
-        "locale.ts.map",
-        "locales/en.ts.map",
-        "locales/en/shop.ts.map",
+        "index.js.map",
+        "locale.js.map",
+        "locales/en.js.map",
+        "locales/en/shop.js.map",
     ] {
         assert!(
             ownership.lines().any(|owned| owned == path),
@@ -901,7 +901,7 @@ fn build_json_keeps_stdout_machine_readable_and_generates_files() {
     assert!(!stdout.contains("build: ok"));
     assert!(project
         .path()
-        .join("src/generated/linguini/index.ts")
+        .join("src/generated/linguini/index.js")
         .exists());
 }
 

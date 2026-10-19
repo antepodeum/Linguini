@@ -1,125 +1,54 @@
-mod operands;
+//! Build-time CLDR plural-rule lowering for canonical runtime templates.
 
-use linguini_cldr::{Operand, PluralRule, PluralRules, RelationOperator};
-
-use crate::ecmascript::EcmaScriptTarget;
+use linguini_cldr::{Operand, PluralRules, RelationOperator};
+use minijinja::context;
 
 pub fn generate_plural_function(function_name: &str, rules: &PluralRules) -> String {
-    generate_plural_function_for_target(function_name, rules, EcmaScriptTarget::TypeScript, true)
+    generate_plural_function_with_visibility(function_name, rules, true)
 }
 
-pub(crate) fn generate_plural_function_for_target(
+pub(crate) fn generate_plural_function_with_visibility(
     function_name: &str,
     rules: &PluralRules,
-    target: EcmaScriptTarget,
     exported: bool,
 ) -> String {
-    let mut output = String::new();
-    match target {
-        EcmaScriptTarget::TypeScript => output.push_str(&format!(
-            "{}function {function_name}(value: number | bigint | string): string {{\n",
-            if exported { "export " } else { "" }
-        )),
-        EcmaScriptTarget::JavaScript => output.push_str(&format!(
-            "/**\n * @param {{number | bigint | string}} value\n * @returns {{string}}\n */\n{}function {function_name}(value) {{\n",
-            if exported { "export " } else { "" }
-        )),
-    }
-    output.push_str(
-        "  if (value === \"zero\" || value === \"one\" || value === \"two\" || value === \"few\" || value === \"many\" || value === \"other\") return value;\n",
-    );
-    output.push_str("  const operands = pluralOperands(value);\n");
-
-    for category in rules
-        .categories
-        .iter()
-        .filter(|category| category.category != "other")
-    {
-        output.push_str(&format!(
-            "  if ({}) return \"{}\";\n",
-            rule_expression(&category.rule),
-            category.category
-        ));
-    }
-
-    output.push_str("  return \"other\";\n");
-    output.push_str("}\n\n");
-    output.push_str(&operands::render(target));
-    output
+    let categories: Vec<_> = rules.categories.iter().filter(|entry| entry.category != "other").map(|entry| {
+        let conditions: Vec<Vec<_>> = entry.rule.conditions.iter().map(|condition| {
+            condition.relations.iter().map(|relation| {
+                let ranges: Vec<_> = relation.ranges.ranges.iter().map(|range| context! { start => range.start, end => range.end }).collect();
+                context! {
+                    operand => operand_name(relation.expression.operand),
+                    modulo => relation.expression.modulo,
+                    allow_fraction => matches!(relation.operator, RelationOperator::Within | RelationOperator::NotWithin),
+                    negated => matches!(relation.operator, RelationOperator::NotEqual | RelationOperator::NotIn | RelationOperator::NotWithin),
+                    ranges,
+                }
+            }).collect()
+        }).collect();
+        context! { literal => crate::ecmascript::string_literal(&entry.category), conditions }
+    }).collect();
+    crate::templates::render(
+        "plural",
+        context! { name => function_name, exported, categories },
+    )
 }
 
-fn rule_expression(rule: &PluralRule) -> String {
-    if rule.conditions.is_empty() {
-        return "true".to_owned();
-    }
-
-    rule.conditions
-        .iter()
-        .map(|condition| {
-            condition
-                .relations
-                .iter()
-                .map(|relation| {
-                    let value = operand_expression(relation.expression.operand);
-                    relation_expression(
-                        &value,
-                        relation.expression.modulo,
-                        relation.operator,
-                        &relation.ranges.ranges,
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(" && ")
-        })
-        .map(|condition| format!("({condition})"))
-        .collect::<Vec<_>>()
-        .join(" || ")
-}
-
-fn relation_expression(
-    value: &str,
-    modulo: Option<u64>,
-    operator: RelationOperator,
-    ranges: &[linguini_cldr::Range],
-) -> String {
-    let ranges = ranges
-        .iter()
-        .map(|range| format!("[{}n, {}n]", range.start, range.end))
-        .collect::<Vec<_>>()
-        .join(", ");
-    let modulo = modulo.map_or_else(|| "undefined".to_owned(), |value| format!("{value}n"));
-    let allow_fraction = matches!(
-        operator,
-        RelationOperator::Within | RelationOperator::NotWithin
-    );
-    let contains = format!("pluralOperandMatches({value}, {modulo}, {allow_fraction}, [{ranges}])");
-
-    match operator {
-        RelationOperator::Equal | RelationOperator::In | RelationOperator::Within => contains,
-        RelationOperator::NotEqual | RelationOperator::NotIn | RelationOperator::NotWithin => {
-            format!("!{contains}")
-        }
-    }
-}
-
-fn operand_expression(operand: Operand) -> String {
+fn operand_name(operand: Operand) -> &'static str {
     match operand {
-        Operand::N => "operands.n",
-        Operand::I => "operands.i",
-        Operand::V => "operands.v",
-        Operand::W => "operands.w",
-        Operand::F => "operands.f",
-        Operand::T => "operands.t",
-        Operand::C => "operands.c",
-        Operand::E => "operands.e",
+        Operand::N => "n",
+        Operand::I => "i",
+        Operand::V => "v",
+        Operand::W => "w",
+        Operand::F => "f",
+        Operand::T => "t",
+        Operand::C => "c",
+        Operand::E => "e",
     }
-    .to_owned()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{generate_plural_function, generate_plural_function_for_target};
-    use crate::ecmascript::EcmaScriptTarget;
+    use super::{generate_plural_function, generate_plural_function_with_visibility};
     use linguini_cldr::built_in_plural_rules;
     use std::io::Write;
     use std::path::Path;
@@ -130,7 +59,7 @@ mod tests {
         let rules = built_in_plural_rules("ru").expect("rules");
         let output = generate_plural_function("pluralRu", &rules);
         let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/golden/snapshots/codegen-ts-plural-ru.ts");
+            .join("../../tests/fixtures/golden/snapshots/codegen-js-plural-ru.js");
         if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
             std::fs::write(&snapshot, &output).expect("write plural snapshot");
         }
@@ -144,12 +73,8 @@ mod tests {
     #[test]
     fn generated_javascript_plural_function_snapshot_is_stable() {
         let rules = built_in_plural_rules("ru").expect("rules");
-        let output = generate_plural_function_for_target(
-            "pluralRu",
-            &rules,
-            EcmaScriptTarget::JavaScript,
-            true,
-        );
+        let output = generate_plural_function_with_visibility("pluralRu", &rules, true);
+        assert_eq!(output, generate_plural_function("pluralRu", &rules));
         let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/golden/snapshots/codegen-js-plural-ru.js");
         if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
@@ -217,12 +142,7 @@ mod tests {
             );
         }
 
-        let generated = generate_plural_function_for_target(
-            "pluralFr",
-            &rules,
-            EcmaScriptTarget::JavaScript,
-            true,
-        );
+        let generated = generate_plural_function_with_visibility("pluralFr", &rules, true);
         let malformed = malformed
             .iter()
             .map(|sample| format!("{sample:?}"))

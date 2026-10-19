@@ -1,0 +1,31 @@
+import {{ base_binding }} from {{ base_path }};
+import { baseLocale, normalizeLocale } from "./locale.js";
+export {
+  locales,
+  baseLocale,
+  localeDirections,
+  isLocale,
+  normalizeLocale,
+  getTextDirection,
+} from "./locale.js";
+
+/** @typedef {import("./locale.js").Locale} Locale */
+/** @typedef {typeof {{ base_binding }}} LinguiniMessages */
+/** @typedef {LinguiniMessages} Linguini */
+/**
+ * @typedef {object} LinguiniProviderOptions
+ * @property {(() => Locale)=} getLocale
+ * @property {(() => Locale)=} resolveLanguage
+ */
+
+/** @type {Partial<Record<Locale, LinguiniMessages>>} */
+export const localeModules = {
+  {{ base_property }}: {{ base_binding }},
+};
+
+/** @type {Record<Locale, () => Promise<LinguiniMessages>>} */
+export const localeLoaders = {
+{% for locale in locales %}  {{ locale.property }}: () => {% if locale.is_base %}Promise.resolve({{ base_binding }}){% else %}import({{ locale.path }}).then((module) => module.default){% endif %},
+{% endfor %}};
+
+{% include "provider_runtime" %}

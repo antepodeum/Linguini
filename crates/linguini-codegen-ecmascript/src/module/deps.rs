@@ -1,19 +1,19 @@
 //! Validated ECMAScript project lookup around shared semantic dependency planning.
 
-use super::{TypeScriptCodegenError, ValidatedTypeScriptProject};
+use super::{EcmaCodegenError, ValidatedEcmaProject};
 pub(crate) use linguini_codegen::MessageDependencyClosure;
 use linguini_codegen::MessageDependencyError;
 
 pub(crate) fn message_dependency_closure(
-    project: &ValidatedTypeScriptProject<'_>,
+    project: &ValidatedEcmaProject<'_>,
     locale: &str,
     message: &str,
-) -> Result<MessageDependencyClosure, TypeScriptCodegenError> {
+) -> Result<MessageDependencyClosure, EcmaCodegenError> {
     let locale_entry = project
         .locales
         .iter()
         .find(|entry| entry.locale == locale)
-        .ok_or_else(|| TypeScriptCodegenError::UnknownLocale {
+        .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: locale.to_owned(),
         })?;
     linguini_codegen::message_dependency_closure(
@@ -24,10 +24,10 @@ pub(crate) fn message_dependency_closure(
     )
     .map_err(|error| match error {
         MessageDependencyError::UnknownMessage { message } => {
-            TypeScriptCodegenError::UnknownMessage { message }
+            EcmaCodegenError::UnknownMessage { message }
         }
         MessageDependencyError::MissingMessageImplementation { locale, message } => {
-            TypeScriptCodegenError::MissingMessageImplementation { locale, message }
+            EcmaCodegenError::MissingMessageImplementation { locale, message }
         }
     })
 }
@@ -35,29 +35,29 @@ pub(crate) fn message_dependency_closure(
 #[cfg(test)]
 mod tests {
     use super::message_dependency_closure;
-    use crate::{TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject};
+    use crate::{EcmaLocaleModule, EcmaProjectOptions, ValidatedEcmaProject};
     use linguini_ir::{
         lower_locale_typed as lower_locale, lower_schema_typed as lower_schema, IrModuleBuilder,
     };
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
-    fn project_for(schema_text: &str, locale_text: &str) -> ValidatedTypeScriptProject<'static> {
+    fn project_for(schema_text: &str, locale_text: &str) -> ValidatedEcmaProject<'static> {
         let schema = Box::leak(Box::new(lower_schema(
             &parse_schema_in(schema_text, SourceId(7)).expect("schema"),
         )));
         let locale = lower_locale(&parse_locale_in(locale_text, SourceId(8)).expect("locale"));
-        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+        let locales = Box::leak(Box::new(vec![EcmaLocaleModule {
             locale: "en".to_owned(),
             module: locale,
         }]));
-        let options = TypeScriptProjectOptions {
+        let options = EcmaProjectOptions {
             base_locale: Some("en".to_owned()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
-        ValidatedTypeScriptProject::try_new(schema, locales, &options).expect("validated project")
+        ValidatedEcmaProject::try_new(schema, locales, &options).expect("validated project")
     }
 
-    fn project() -> ValidatedTypeScriptProject<'static> {
+    fn project() -> ValidatedEcmaProject<'static> {
         project_for(
             "type Text = String\nroot(value: Text)\ndrop\n",
             "let helper = Hello\nroot = {helper} {value}\ndrop = Drop\n",
@@ -100,11 +100,11 @@ mod tests {
         let project = project();
         assert!(matches!(
             message_dependency_closure(&project, "fr", "root"),
-            Err(crate::TypeScriptCodegenError::UnknownLocale { locale }) if locale == "fr"
+            Err(crate::EcmaCodegenError::UnknownLocale { locale }) if locale == "fr"
         ));
         assert!(matches!(
             message_dependency_closure(&project, "en", "missing"),
-            Err(crate::TypeScriptCodegenError::UnknownMessage { message }) if message == "missing"
+            Err(crate::EcmaCodegenError::UnknownMessage { message }) if message == "missing"
         ));
         let mut missing = project_for("root\n", "root = Root\n");
         missing.locales[0].module = linguini_ir::LocaleIr::try_from_module(
@@ -116,7 +116,7 @@ mod tests {
         .expect("projection remains locale IR");
         assert!(matches!(
             message_dependency_closure(&missing, "en", "root"),
-            Err(crate::TypeScriptCodegenError::MissingMessageImplementation { locale, message })
+            Err(crate::EcmaCodegenError::MissingMessageImplementation { locale, message })
                 if locale == "en" && message == "root"
         ));
     }
@@ -132,8 +132,16 @@ mod tests {
         assert_eq!(closure.schema().type_aliases().len(), 1);
         assert_eq!(closure.schema().enums().len(), 1);
         assert_eq!(closure.locale_module().forms().len(), 1);
-        assert_eq!(closure.locale_module().functions().len(), 1);
+        assert_eq!(closure.locale_module().functions().len(), 2);
         assert_eq!(closure.locale_module().forms()[0].name, "Fruit");
-        assert_eq!(closure.locale_module().functions()[0].name, "Render");
+        assert_eq!(
+            closure
+                .locale_module()
+                .functions()
+                .iter()
+                .map(|function| function.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Render", "summary_inline"]
+        );
     }
 }

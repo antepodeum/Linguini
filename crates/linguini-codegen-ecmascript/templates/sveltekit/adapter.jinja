@@ -1,0 +1,90 @@
+const options = {{ options }};
+
+{% raw %}/** @type {import("@sveltejs/kit").Handle} */
+export const linguiniHandle ={% endraw %} createHandle({% if messages %}runtime{% else %}locale{% endif %}, options);
+{% raw %}/** @type {import("@sveltejs/kit").Reroute} */
+export const linguiniReroute ={% endraw %} createReroute({% if messages %}runtime{% else %}locale{% endif %}, options);
+{% raw %}/** @type {import("@sveltejs/kit").ServerLoad} */
+export const linguiniLoad = createLoad();
+/** @type {import("@sveltejs/kit").Handle} */
+export const handle = linguiniHandle;
+/** @type {import("@sveltejs/kit").Reroute} */
+export const reroute = linguiniReroute;
+/** @type {import("@sveltejs/kit").ServerLoad} */
+export const load = linguiniLoad;
+
+{% endraw %}{% if messages %}{% raw %}/** @param {typeof import("./index.js")} runtime @param {Record<string, unknown>} [options] @returns {import("@sveltejs/kit").Handle} */
+function createHandle(runtime, options = {}) {{% endraw %}{% else %}{% raw %}/** @param {typeof import("./locale.js")} runtime @param {Record<string, unknown>} [options] @returns {import("@sveltejs/kit").Handle} */
+function createHandle(runtime, options = {}) {{% endraw %}{% endif %}{% raw %}
+  const web = {% endraw %}{% include "sveltekit/web_factory" %}{% raw %};
+{% endraw %}{% if has_cookie %}{% raw %}  const persistCookie = options.persistCookie !== false && web.options.locale.switch.writesCookie;{% endraw %}{% endif %}{% raw %}
+
+  /** @param {Parameters<import("@sveltejs/kit").Handle>[0]} input */
+  return async function linguiniHandle({ event, resolve }) {
+    if (web.shouldExclude(event.url)) {
+      return resolve(event);
+    }
+{% endraw %}{% if switch_route %}{% raw %}    const switchResponse = handleLocaleSwitchRoute(web, event);
+    if (switchResponse) return switchResponse;{% endraw %}{% endif %}{% raw %}
+
+{% endraw %}{% include "sveltekit/request_context" %}{% raw %}
+
+    event.locals.linguini = context;
+
+    const redirectLocation = web.getCanonicalRedirect(event.url, context.locale);
+    if (redirectLocation) {
+      const response = new Response(null, {
+        status: 307,
+        headers: { location: redirectLocation },
+      });
+{% endraw %}{% if has_cookie %}{% raw %}      if (persistCookie) persistLocaleCookie(web, response, context.locale, { origin: event.url.origin });{% endraw %}{% endif %}{% raw %}
+      return response;
+    }
+
+    const response = await resolve(event, {
+      transformPageChunk: ({ html }) =>
+        html
+          .replaceAll("%linguini.lang%", context.lang)
+          .replaceAll("%linguini.dir%", context.direction)
+          .replaceAll("%linguini.locale%", context.locale),
+    });
+
+{% endraw %}{% if has_cookie %}{% raw %}    if (persistCookie) persistLocaleCookie(web, response, context.locale, { origin: event.url.origin });{% endraw %}{% endif %}{% raw %}
+    return response;
+  };
+}
+
+{% endraw %}{% if messages %}{% raw %}/** @param {typeof import("./index.js")} runtime @param {Record<string, unknown>} [options] @returns {import("@sveltejs/kit").Reroute} */
+function createReroute(runtime, options = {}) {{% endraw %}{% else %}{% raw %}/** @param {typeof import("./locale.js")} runtime @param {Record<string, unknown>} [options] @returns {import("@sveltejs/kit").Reroute} */
+function createReroute(runtime, options = {}) {{% endraw %}{% endif %}{% raw %}
+  const web = {% endraw %}{% include "sveltekit/web_factory" %}{% raw %};
+  /** @param {{url: URL}} input */
+  return function linguiniReroute({ url }) {
+    if (web.shouldExclude(url)) return undefined;
+    const delocalized = web.delocalizePathname(url.pathname);
+    return delocalized === url.pathname ? undefined : delocalized;
+  };
+}
+{% endraw %}{% if not messages %}{% include "sveltekit/context" %}{% endif %}{% raw %}
+function createLoad() {
+  /** @param {{locals: App.Locals}} input */
+  return function linguiniLayoutLoad({ locals }) {
+    return {
+      linguini: serializeContext(locals.linguini),
+    };
+  };
+}
+
+/** @param {import("./sveltekit-control.js").LinguiniSvelteKitLocaleContext | undefined} context @returns {import("./sveltekit-control.js").LinguiniSerializedContext | undefined} */
+function serializeContext(context) {
+  if (!context) return undefined;
+  return {
+    locale: context.locale,
+    baseLocale: context.baseLocale,
+    locales: context.locales,
+    direction: context.direction,
+    lang: context.lang,
+    htmlAttrs: context.htmlAttrs,
+  };
+}
+{% endraw %}

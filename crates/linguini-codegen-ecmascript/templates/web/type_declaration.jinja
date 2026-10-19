@@ -1,0 +1,5 @@
+{{ documentation }}{{ header }}{% if alias is not none %} {{ alias }};
+{% else %} {
+{% for member in members %}  {{ member.name }}{{ "?" if member.optional }}{% if member.parameters is not none %}({{ member.parameters }}){% endif %}: {{ member.value_type }};
+{% endfor %}}
+{% endif %}

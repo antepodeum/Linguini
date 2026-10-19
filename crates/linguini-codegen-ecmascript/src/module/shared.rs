@@ -26,7 +26,7 @@ pub(super) fn shared_module(
     let mut module = EcmaModule::new(output);
     let mut types = String::new();
     let mut mappings = Vec::new();
-    if target.is_typescript() {
+    if target.is_declaration() {
         for item in schema.enums() {
             let start = types.len();
             emit_enum(item, &mut types);
@@ -57,7 +57,7 @@ pub(super) fn shared_module(
     let has_types = !types.trim().is_empty();
     if has_types {
         module.push_statement_with_mappings(
-            if target.is_typescript() {
+            if target.is_declaration() {
                 EcmaStatement::type_declaration(types, None)
             } else {
                 EcmaStatement::documentation(types, None)
@@ -68,7 +68,7 @@ pub(super) fn shared_module(
     let runtime = if declaration {
         shared_declarations()
     } else {
-        shared_runtime(target)
+        shared_runtime()
     };
     module.push_statement(EcmaStatement::generated(if has_types {
         format!("\n{runtime}")
@@ -136,7 +136,7 @@ mod tests {
     use linguini_ir::lower_schema_typed;
     use linguini_syntax::parse_schema;
 
-    use crate::ecmascript::{EcmaModuleOutput, EcmaScriptTarget};
+    use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput};
 
     use super::generate_shared_module;
 
@@ -149,7 +149,7 @@ mod tests {
         let output = generate_shared_module(
             schema.as_module(),
             EcmaModuleOutput::new(
-                EcmaScriptTarget::JavaScript,
+                EcmaModuleKind::JavaScript,
                 "shared.js",
                 Some("shared.d.ts".to_owned()),
             ),

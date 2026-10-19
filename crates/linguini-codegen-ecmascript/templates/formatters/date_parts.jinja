@@ -1,0 +1,14 @@
+{% macro field(part) -%}
+{% if part.field == "y" %}{% if part.width == 2 %}padNumber(date.getUTCFullYear() % 100, 2){% else %}String(date.getUTCFullYear()){% endif %}
+{%- elif part.field in ["M", "L"] %}{% if part.width >= 3 %}{{ part.table }}[date.getUTCMonth()]{% elif part.width == 2 %}padNumber(date.getUTCMonth() + 1, 2){% else %}String(date.getUTCMonth() + 1){% endif %}
+{%- elif part.field == "E" %}{{ part.table }}[date.getUTCDay()]
+{%- elif part.field == "d" %}{% if part.width == 2 %}padNumber(date.getUTCDate(), 2){% else %}String(date.getUTCDate()){% endif %}
+{%- elif part.field in ["H", "h", "K", "k", "m", "s"] %}{% if part.width == 2 %}padNumber({% else %}String({% endif %}{% if part.field == "H" %}date.getUTCHours(){% elif part.field == "h" %}date.getUTCHours() % 12 || 12{% elif part.field == "K" %}date.getUTCHours() % 12{% elif part.field == "k" %}date.getUTCHours() || 24{% elif part.field == "m" %}date.getUTCMinutes(){% else %}date.getUTCSeconds(){% endif %}{% if part.width == 2 %}, 2{% endif %})
+{%- elif part.field == "S" %}padNumber(date.getUTCMilliseconds(), 3){% if part.width > 3 %}.padEnd({{ part.width }}, "0"){% endif %}{% if part.width != 3 %}.slice(0, {{ part.width }}){% endif %}
+{%- elif part.field in ["a", "b", "B"] %}(date.getUTCHours() < 12 ? {{ part.am|js }} : {{ part.pm|js }})
+{%- elif part.field == "G" %}(date.getUTCFullYear() > 0 ? {{ part.ad|js }} : {{ part.bc|js }})
+{%- else %}"UTC"{% endif %}
+{%- endmacro %}
+{% macro expression(parts, digits) -%}
+{% for part in parts %}{% if part.kind == "literal" %}{{ part.value|js }}{% else %}{% if digits != "0123456789" and part.numeric %}localizeGeneratedDigits({% endif %}{{ field(part) }}{% if digits != "0123456789" and part.numeric %}, {{ digits|js }}){% endif %}{% endif %}{{ " + " if not loop.last }}{% else %}""{% endfor %}
+{%- endmacro %}

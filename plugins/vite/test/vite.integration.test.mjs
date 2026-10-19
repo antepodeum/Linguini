@@ -63,31 +63,31 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
     ].join("\n")
   );
   await writeFile(
-    path.join(generated, "svelte.ts"),
-    'import "./index.ts"; throw new Error("FORBIDDEN_SVELTE");\n'
+    path.join(generated, "svelte.js"),
+    'import "./index.js"; throw new Error("FORBIDDEN_SVELTE");\n'
   );
-  await writeFile(path.join(generated, "index.ts"), 'throw new Error("FORBIDDEN_INDEX");\n');
+  await writeFile(path.join(generated, "index.js"), 'throw new Error("FORBIDDEN_INDEX");\n');
   await writeFile(
-    path.join(generated, "svelte-locale.svelte.ts"),
+    path.join(generated, "svelte-locale.svelte.js"),
     'export function getCurrentLocale() { return "en"; }\n'
   );
   await writeFile(
-    path.join(generated, "svelte-effects.svelte.ts"),
+    path.join(generated, "svelte-effects.svelte.js"),
     "globalThis.__linguiniEffects = true;\n"
   );
-  const titleModule = path.join(generated, "bundler/messages/main/title/en.ts");
-  const itemsModule = path.join(generated, "bundler/messages/main/items/en.ts");
+  const titleModule = path.join(generated, "bundler/messages/main/title/en.js");
+  const itemsModule = path.join(generated, "bundler/messages/main/items/en.js");
   await writeFile(titleModule, 'export function message() { return "EXACT_TITLE"; }\n');
   await writeFile(itemsModule, 'export function message(count) { return `EXACT_ITEMS:${count}`; }\n');
   const sources = {
     "entry-one.js": [
-      'import { l } from "./generated/linguini/svelte.ts";',
+      'import { l } from "./generated/linguini/svelte.js";',
       "export const title = l.main.title;",
       "export const items = l.main.items(2);",
       ""
     ].join("\n"),
     "entry-two.js": [
-      'import { messages as l } from "./generated/linguini/svelte.ts";',
+      'import { messages as l } from "./generated/linguini/svelte.js";',
       "export const title = l.main.title;",
       ""
     ].join("\n")
@@ -116,7 +116,7 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
           local: "l",
           provenance: {
             kind: "imported",
-            module_specifier: "./generated/linguini/svelte.ts",
+            module_specifier: "./generated/linguini/svelte.js",
             symbol: imported
           },
           arity,
@@ -135,7 +135,7 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
       imports: [
         {
           binding_id: `${file}:binding`,
-          module_specifier: "./generated/linguini/svelte.ts",
+          module_specifier: "./generated/linguini/svelte.js",
           imported,
           local: "l",
           declaration_start: declarationStart,
@@ -165,25 +165,25 @@ test("real multi-entry build owns exact messages in shared and route chunks", as
     effective_locales: ["en"],
     sources: [{ id: 1, path: "linguini/schema/main.lgs" }],
     runtime_helpers: {
-      svelte_locale: { import: "./svelte-locale.svelte.js", file: "svelte-locale.svelte.ts" },
-      svelte_effects: { import: "./svelte-effects.svelte.js", file: "svelte-effects.svelte.ts" }
+      svelte_locale: { import: "./svelte-locale.svelte.js", file: "svelte-locale.svelte.js" },
+      svelte_effects: { import: "./svelte-effects.svelte.js", file: "svelte-effects.svelte.js" }
     },
     messages: {
       "main.title": {
         arity: 0,
         locales: {
-          en: { module: "bundler/messages/main/title/en.ts", source_ids: [1] }
+          en: { module: "bundler/messages/main/title/en.js", source_ids: [1] }
         }
       },
       "main.items": {
         arity: 1,
         locales: {
-          en: { module: "bundler/messages/main/items/en.ts", source_ids: [1] }
+          en: { module: "bundler/messages/main/items/en.js", source_ids: [1] }
         }
       }
     },
     message_runtimes: {
-      en: { module: "locales/en/_runtime.ts", source_ids: [1] }
+      en: { module: "locales/en/_runtime.js", source_ids: [1] }
     },
     message_semantics: [],
     applications
@@ -227,7 +227,7 @@ test("real Vite build bundles finite dynamic refs without eager barrel", async (
   const generated = path.join(root, "generated/linguini");
   const entry = path.join(root, "entry.js");
   const source = [
-    'import { l } from "./generated/linguini/svelte.ts";',
+    'import { l } from "./generated/linguini/svelte.js";',
     "export const fixed = l.main.title;",
     "export const selected = l.main[key];",
     "export const called = l.main[action](2);",
@@ -251,19 +251,19 @@ test("real Vite build bundles finite dynamic refs without eager barrel", async (
   );
   await writeFile(entry, source);
   await writeFile(
-    path.join(generated, "svelte.ts"),
-    'import "./index.ts"; throw new Error("FORBIDDEN_DYNAMIC_SVELTE");\n'
+    path.join(generated, "svelte.js"),
+    'import "./index.js"; throw new Error("FORBIDDEN_DYNAMIC_SVELTE");\n'
   );
   await writeFile(
-    path.join(generated, "index.ts"),
+    path.join(generated, "index.js"),
     'throw new Error("FORBIDDEN_DYNAMIC_INDEX");\n'
   );
   await writeFile(
-    path.join(generated, "svelte-locale.svelte.ts"),
+    path.join(generated, "svelte-locale.svelte.js"),
     'export function getCurrentLocale() { return "en"; }\n'
   );
-  const titleModule = path.join(generated, "bundler/messages/main/title/en.ts");
-  const itemsModule = path.join(generated, "bundler/messages/main/items/en.ts");
+  const titleModule = path.join(generated, "bundler/messages/main/title/en.js");
+  const itemsModule = path.join(generated, "bundler/messages/main/items/en.js");
   await writeFile(
     titleModule,
     'export function message() { return "EXACT_DYNAMIC_TITLE"; }\n'
@@ -272,7 +272,7 @@ test("real Vite build bundles finite dynamic refs without eager barrel", async (
     itemsModule,
     'export function message(count) { return `EXACT_DYNAMIC_ITEMS:${count}`; }\n'
   );
-  const declarationText = 'import { l } from "./generated/linguini/svelte.ts";';
+  const declarationText = 'import { l } from "./generated/linguini/svelte.js";';
   const declarationStart = 0;
   const declarationEnd = Buffer.byteLength(declarationText);
   const itemStart = Buffer.from(source).indexOf(Buffer.from("l"));
@@ -287,7 +287,7 @@ test("real Vite build bundles finite dynamic refs without eager barrel", async (
       local: "l",
       provenance: {
         kind: "imported",
-        module_specifier: "./generated/linguini/svelte.ts",
+        module_specifier: "./generated/linguini/svelte.js",
         symbol: "l"
       },
       arity,
@@ -310,7 +310,7 @@ test("real Vite build bundles finite dynamic refs without eager barrel", async (
       local: "l",
       provenance: {
         kind: "imported",
-        module_specifier: "./generated/linguini/svelte.ts",
+        module_specifier: "./generated/linguini/svelte.js",
         symbol: "l"
       },
       binding_id: bindingId,
@@ -330,25 +330,25 @@ test("real Vite build bundles finite dynamic refs without eager barrel", async (
     runtime_helpers: {
       svelte_locale: {
         import: "./svelte-locale.svelte.js",
-        file: "svelte-locale.svelte.ts"
+        file: "svelte-locale.svelte.js"
       }
     },
     messages: {
       "main.items": {
         arity: 1,
         locales: {
-          en: { module: "bundler/messages/main/items/en.ts", source_ids: [1] }
+          en: { module: "bundler/messages/main/items/en.js", source_ids: [1] }
         }
       },
       "main.title": {
         arity: 0,
         locales: {
-          en: { module: "bundler/messages/main/title/en.ts", source_ids: [1] }
+          en: { module: "bundler/messages/main/title/en.js", source_ids: [1] }
         }
       }
     },
     message_runtimes: {
-      en: { module: "locales/en/_runtime.ts", source_ids: [1] }
+      en: { module: "locales/en/_runtime.js", source_ids: [1] }
     },
     message_semantics: [],
     applications: {
@@ -366,7 +366,7 @@ test("real Vite build bundles finite dynamic refs without eager barrel", async (
         imports: [
           {
             binding_id: bindingId,
-            module_specifier: "./generated/linguini/svelte.ts",
+            module_specifier: "./generated/linguini/svelte.js",
             imported: "l",
             local: "l",
             declaration_start: declarationStart,
@@ -474,8 +474,8 @@ test("real dynamic client boundaries keep inactive locales out of entry and SSR 
         }
       },
       message_runtimes: {
-        en: { module: "locales/en/_runtime.ts", source_ids: [] },
-        fr: { module: "locales/fr/_runtime.ts", source_ids: [] }
+        en: { module: "locales/en/_runtime.js", source_ids: [] },
+        fr: { module: "locales/fr/_runtime.js", source_ids: [] }
       },
       message_semantics: [],
       messages: {
@@ -683,7 +683,7 @@ test("real two-app build emits self-contained application-scoped locale chunks",
       ""
     ].join("\n")
   );
-  await writeFile(path.join(generated, "svelte.ts"), "export const l = {};\n");
+  await writeFile(path.join(generated, "svelte.js"), "export const l = {};\n");
   for (const locale of ["en", "fr"]) {
     for (const message of ["title", "items", "unused"]) {
       const marker = `${locale.toUpperCase()}_${message.toUpperCase()}`;
@@ -699,12 +699,12 @@ test("real two-app build emits self-contained application-scoped locale chunks",
   }
   const sources = {
     "tiny.js": [
-      'import { l } from "./generated/linguini/svelte.ts";',
+      'import { l } from "./generated/linguini/svelte.js";',
       "export const title = l.main.title;",
       ""
     ].join("\n"),
     "large.js": [
-      'import { l } from "./generated/linguini/svelte.ts";',
+      'import { l } from "./generated/linguini/svelte.js";',
       "export const title = l.main.title;",
       "export const items = l.main.items(2);",
       ""
@@ -731,7 +731,7 @@ test("real two-app build emits self-contained application-scoped locale chunks",
         local: "l",
         provenance: {
           kind: "imported",
-          module_specifier: "./generated/linguini/svelte.ts",
+          module_specifier: "./generated/linguini/svelte.js",
           symbol: "l"
         },
         arity,
@@ -749,7 +749,7 @@ test("real two-app build emits self-contained application-scoped locale chunks",
       imports: [
         {
           binding_id: bindingId,
-          module_specifier: "./generated/linguini/svelte.ts",
+          module_specifier: "./generated/linguini/svelte.js",
           imported: "l",
           local: "l",
           declaration_start: 0,

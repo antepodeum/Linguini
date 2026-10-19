@@ -1,0 +1,89 @@
+import { email_input } from "./ru/email_input.js";
+import { normalizeMessageArgs } from "../shared.js";
+import { formatCurrency_code_RUB, formatDate_style_short, formatNumber } from "./ru/_runtime.js";
+import { cart_label, __lgl_form_4672756974, Delivered, SizeAdj, DeliveryNote } from "./ru/_globals.js";
+
+/** @typedef {import("../shared.js").Fruit} Fruit */
+/** @typedef {import("../shared.js").Size} Size */
+/** @typedef {import("../shared.js").Money} Money */
+/** @typedef {import("../shared.js").ShortDate} ShortDate */
+
+export { email_input };
+
+/**
+ * Displayed on the product delivery confirmation card.
+ *
+ * @overload
+ * @param {Fruit} fruit
+ * @param {Size} size
+ * @param {number | bigint | string} count
+ * @returns {string}
+ */
+/**
+ * Displayed on the product delivery confirmation card.
+ *
+ * @overload
+ * @param {{ fruit: Fruit; size: Size; count: number | bigint | string }} args
+ * @returns {string}
+ */
+/**
+ * @param {...*} __lgl_args
+ * @returns {string}
+ */
+export function delivery(...__lgl_args) {
+  const [fruit, size, count] = normalizeMessageArgs(__lgl_args, ["fruit", "size", "count"]);
+  return String(Delivered(count, __lgl_form_4672756974[fruit].Gender)) + " " + String(SizeAdj(size, count, __lgl_form_4672756974[fruit].Gender)) + " " + String(__lgl_form_4672756974[fruit].nom(count));
+}
+
+/**
+ * Shown near cart item count.
+ *
+ * @overload
+ * @param {number | bigint | string} count
+ * @param {Fruit} fruit
+ * @returns {string}
+ */
+/**
+ * Shown near cart item count.
+ *
+ * @overload
+ * @param {{ count: number | bigint | string; fruit: Fruit }} args
+ * @returns {string}
+ */
+/**
+ * @param {...*} __lgl_args
+ * @returns {string}
+ */
+export function counted(...__lgl_args) {
+  const [count, fruit] = normalizeMessageArgs(__lgl_args, ["count", "fruit"]);
+  return String(cart_label) + " " + String(formatNumber(count)) + " " + String(__lgl_form_4672756974[fruit].nom(count));
+}
+
+/**
+ * @overload
+ * @param {Money} amount
+ * @param {ShortDate} date
+ * @returns {string}
+ */
+/**
+ * @overload
+ * @param {{ amount: Money; date: ShortDate }} args
+ * @returns {string}
+ */
+/**
+ * @param {...*} __lgl_args
+ * @returns {string}
+ */
+export function price(...__lgl_args) {
+  const [amount, date] = normalizeMessageArgs(__lgl_args, ["amount", "date"]);
+  return "Цена " + String(formatCurrency_code_RUB(amount)) + " на " + String(formatDate_style_short(date));
+}
+
+const lgl = {
+  delivery,
+  counted,
+  price,
+  email_input,
+};
+
+export default lgl;

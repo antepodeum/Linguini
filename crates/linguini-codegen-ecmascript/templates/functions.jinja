@@ -1,11 +1,8 @@
-{% macro function(name, params, returns, ts, exported=false, generic=none) -%}
-{% if not ts %}/**
+{% macro function(name, params, returns, exported=false, generic=none) -%}
+/**
 {% if generic %} * @template {{ generic }}
 {% endif %}{% for param in params %} * @param { {{- param.type -}} } {{ param.name }}
 {% endfor %} * @returns { {{- returns -}} }
  */
-{% endif %}{% if exported %}export {% endif %}function {{ name }}{% if ts and generic %}<{{ generic }}>{% endif %}({% if ts %}
-{% for param in params %}  {{ param.name }}: {{ param.type }},
-{% endfor %}): {{ returns }} {
-{% else %}{% for param in params %}{{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
-{% endif %}{%- endmacro %}
+{% if exported %}export {% endif %}function {{ name }}({% for param in params %}{{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+{% endmacro %}

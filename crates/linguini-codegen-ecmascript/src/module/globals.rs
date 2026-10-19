@@ -1,34 +1,31 @@
-//! Aggregate locale-global module emission for TypeScript and checked JavaScript.
+//! Aggregate locale-global module emission for canonical JavaScript.
 
 use linguini_ir::{IrModule, IrModuleBuilder, IrSymbolKind};
 use linguini_syntax::SourceId;
 
-use crate::ecmascript::{
-    EcmaModule, EcmaModuleOutput, EcmaScriptTarget, EcmaSource, EcmaStatement,
-};
+use crate::ecmascript::{EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaSource, EcmaStatement};
 
 use super::emit::{
-    emit_forms_for_target, emit_local_functions_for_target, emit_locale_enum_jsdoc_types,
-    emit_locale_enum_types, emit_variables_for_target, module_imports,
+    emit_forms, emit_local_functions, emit_locale_enum_jsdoc_types, emit_variables, module_imports,
 };
 use super::message::ordered_sources;
-use super::names::{import_path_for_target, safe_identifier};
+use super::names::import_path_for_target;
 use super::{
     locale_global_value_names, locale_globals, locale_module_for_schema, locale_runtime_import,
-    project_locale_options, visible_schema, TypeScriptCodegenError,
-    TypeScriptLocaleGlobalsArtifact, TypeScriptOptions, ValidatedTypeScriptProject,
+    project_locale_options, visible_schema, EcmaCodegenError, EcmaLocaleGlobalsArtifact,
+    EcmaOptions, ValidatedEcmaProject,
 };
 
 /// One source-mapped aggregate locale-global module.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompiledTypeScriptLocaleGlobalsModule {
+pub struct CompiledEcmaLocaleGlobalsModule {
     pub locale: String,
     pub code: String,
     pub source_map: String,
     pub source_ids: Vec<SourceId>,
 }
 
-impl CompiledTypeScriptLocaleGlobalsModule {
+impl CompiledEcmaLocaleGlobalsModule {
     pub fn locale(&self) -> &str {
         &self.locale
     }
@@ -46,34 +43,29 @@ impl CompiledTypeScriptLocaleGlobalsModule {
     }
 }
 
-pub type CompiledJavaScriptLocaleGlobalsModule = CompiledTypeScriptLocaleGlobalsModule;
-
-pub fn compile_typescript_locale_globals_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptLocaleGlobalsArtifact,
+pub fn compile_locale_globals_artifact_module(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaLocaleGlobalsArtifact,
     sources: &[EcmaSource],
-) -> Result<CompiledTypeScriptLocaleGlobalsModule, TypeScriptCodegenError> {
-    compile_locale_globals_artifact_module(project, artifact, sources, EcmaScriptTarget::TypeScript)
+) -> Result<CompiledEcmaLocaleGlobalsModule, EcmaCodegenError> {
+    compile_locale_globals_artifact_module_impl(
+        project,
+        artifact,
+        sources,
+        EcmaModuleKind::JavaScript,
+    )
 }
 
-pub fn compile_javascript_locale_globals_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptLocaleGlobalsArtifact,
+fn compile_locale_globals_artifact_module_impl(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaLocaleGlobalsArtifact,
     sources: &[EcmaSource],
-) -> Result<CompiledJavaScriptLocaleGlobalsModule, TypeScriptCodegenError> {
-    compile_locale_globals_artifact_module(project, artifact, sources, EcmaScriptTarget::JavaScript)
-}
-
-fn compile_locale_globals_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptLocaleGlobalsArtifact,
-    sources: &[EcmaSource],
-    target: EcmaScriptTarget,
-) -> Result<CompiledTypeScriptLocaleGlobalsModule, TypeScriptCodegenError> {
+    target: EcmaModuleKind,
+) -> Result<CompiledEcmaLocaleGlobalsModule, EcmaCodegenError> {
     let module = locale_globals_artifact_module(project, artifact, target)?;
     let source_records = ordered_sources(&artifact.source_ids, sources)?;
     let rendered = module.render(&source_records);
-    Ok(CompiledTypeScriptLocaleGlobalsModule {
+    Ok(CompiledEcmaLocaleGlobalsModule {
         locale: artifact.canonical_locale.clone(),
         code: rendered.code,
         source_map: rendered.source_map,
@@ -82,27 +74,24 @@ fn compile_locale_globals_artifact_module(
 }
 
 pub(super) fn locale_globals_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptLocaleGlobalsArtifact,
-    target: EcmaScriptTarget,
-) -> Result<EcmaModule, TypeScriptCodegenError> {
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaLocaleGlobalsArtifact,
+    target: EcmaModuleKind,
+) -> Result<EcmaModule, EcmaCodegenError> {
     let locale = project
         .locales
         .iter()
         .find(|locale| locale.locale == artifact.locale)
-        .ok_or_else(|| TypeScriptCodegenError::UnknownLocale {
+        .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: artifact.locale.clone(),
         })?;
     let options = project_locale_options(&locale.locale, &project.options)?;
     let schema = visible_schema(project.schema, &options);
     let locale_module = locale_module_for_schema(&locale.module, &schema);
-    let output_path = match target {
-        EcmaScriptTarget::TypeScript => artifact.module_path.clone(),
-        EcmaScriptTarget::JavaScript => artifact
-            .module_path
-            .strip_suffix(".ts")
-            .map_or_else(|| artifact.module_path.clone(), |path| format!("{path}.js")),
-    };
+    let output_path = artifact
+        .module_path
+        .strip_suffix(".ts")
+        .map_or_else(|| artifact.module_path.clone(), |path| format!("{path}.js"));
     let module = locale_globals_module(
         &schema,
         &locale_module,
@@ -115,7 +104,7 @@ pub(super) fn locale_globals_artifact_module(
 pub(super) fn locale_globals_module(
     schema: &IrModule,
     locale: &IrModule,
-    options: &TypeScriptOptions,
+    options: &EcmaOptions,
     output: EcmaModuleOutput,
 ) -> EcmaModule {
     let target = output.target();
@@ -134,38 +123,13 @@ pub(super) fn locale_globals_module(
     }
 
     let mut body = String::new();
-    if target.is_typescript() {
-        emit_locale_enum_types(&globals_schema, &globals, &mut body);
-    } else {
+    {
         emit_locale_enum_jsdoc_types(&globals_schema, &globals, &mut body);
     }
-    emit_variables_for_target(&globals, options, target, false, &mut body);
-    emit_forms_for_target(&globals, options, target, false, &mut body);
-    emit_local_functions_for_target(&globals, options, target, false, &mut body);
+    emit_variables(&globals, options, false, &mut body);
+    emit_forms(&globals, options, false, &mut body);
+    emit_local_functions(&globals, options, false, &mut body);
 
-    if target.is_typescript() {
-        let local_enum_names = globals
-            .enums()
-            .iter()
-            .filter(|item| {
-                !globals_schema
-                    .enums()
-                    .iter()
-                    .any(|schema| schema.name == item.name)
-                    && !globals_schema
-                        .type_aliases()
-                        .iter()
-                        .any(|schema| schema.name == item.name)
-            })
-            .map(|item| safe_identifier(&item.name))
-            .collect::<Vec<_>>();
-        if !local_enum_names.is_empty() {
-            body.push_str(&format!(
-                "export type {{ {} }};\n",
-                local_enum_names.join(", ")
-            ));
-        }
-    }
     let value_names = locale_global_value_names(&globals);
     if !value_names.is_empty() {
         body.push_str(&format!("export {{ {} }};\n", value_names.join(", ")));
@@ -188,17 +152,11 @@ mod tests {
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
     use crate::ecmascript::EcmaSource;
-    use crate::{
-        compile_javascript_locale_runtime_artifact_module, generate_javascript_schema_files,
-    };
+    use crate::{compile_locale_runtime_artifact_module, generate_schema_files};
 
-    use super::{
-        compile_javascript_locale_globals_artifact_module,
-        compile_typescript_locale_globals_artifact_module,
-    };
+    use super::compile_locale_globals_artifact_module;
     use crate::module::{
-        generate_typescript_project_files, TypeScriptLocaleModule, TypeScriptProjectOptions,
-        ValidatedTypeScriptProject,
+        generate_project_files, EcmaLocaleModule, EcmaProjectOptions, ValidatedEcmaProject,
     };
 
     #[test]
@@ -228,17 +186,17 @@ fn Render(Gender, Plural) {\n\
 summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
         let schema =
             lower_schema(&parse_schema_in(schema_text, SourceId(81)).expect("schema parses"));
-        let locales = [TypeScriptLocaleModule {
+        let locales = [EcmaLocaleModule {
             locale: "en-us".to_owned(),
             module: lower_locale(
                 &parse_locale_in(locale_text, SourceId(82)).expect("locale parses"),
             ),
         }];
-        let project_options = TypeScriptProjectOptions {
+        let project_options = EcmaProjectOptions {
             base_locale: Some("en-us".to_owned()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
-        let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &project_options)
+        let project = ValidatedEcmaProject::try_new(&schema, &locales, &project_options)
             .expect("validated project");
         let artifacts = project
             .locale_globals_artifacts()
@@ -247,40 +205,35 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
         let artifact = &artifacts[0];
         assert_eq!(artifact.locale, "en-us");
         assert_eq!(artifact.canonical_locale, "en-US");
-        assert_eq!(artifact.module_path, "locales/en-us/_globals.ts");
+        assert_eq!(artifact.module_path, "locales/en-us/_globals.js");
         assert_eq!(artifact.source_ids, [SourceId(82)]);
         let sources = [
             EcmaSource::new(SourceId(81), "schema.lgs", schema_text),
             EcmaSource::new(SourceId(82), "locale.lgl", locale_text),
         ];
-
-        let typescript =
-            compile_typescript_locale_globals_artifact_module(&project, artifact, &sources)
-                .expect("TypeScript globals");
-        let javascript =
-            compile_javascript_locale_globals_artifact_module(&project, artifact, &sources)
-                .expect("JavaScript globals");
-        let project_files = generate_typescript_project_files(&project).expect("project files");
+        let javascript = compile_locale_globals_artifact_module(&project, artifact, &sources)
+            .expect("JavaScript globals");
+        let project_files = generate_project_files(&project).expect("project files");
         let project_globals = project_files
             .iter()
             .find(|file| file.path == artifact.module_path)
             .expect("project globals");
         assert_eq!(
-            typescript
+            javascript
                 .code()
-                .strip_suffix("//# sourceMappingURL=_globals.ts.map\n")
+                .strip_suffix("//# sourceMappingURL=_globals.js.map\n")
                 .expect("TypeScript source-map trailer"),
             project_globals.contents
         );
 
-        assert!(javascript.code().contains("from \"../../shared.js\""));
+        assert!(!javascript.code().contains("from \"../../shared.js\""));
         assert!(javascript.code().contains("from \"./_runtime.js\""));
         assert!(javascript
             .code()
             .contains("/** @typedef {\"male\" | \"other\"} Gender */"));
         assert!(javascript
             .code()
-            .contains("@param {number | bigint | string} __lgl_p1"));
+            .contains("@param {number | bigint | string} plural"));
         assert!(javascript
             .code()
             .contains("/** @type {(value: number | bigint | string) => string} */ ((value) =>"));
@@ -308,29 +261,15 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
             .into_iter()
             .next()
             .expect("English runtime artifact");
-        let runtime = compile_javascript_locale_runtime_artifact_module(
-            &project,
-            &runtime_artifact,
-            &sources,
-        )
-        .expect("JavaScript runtime");
-        let shared = generate_javascript_schema_files(&schema)
+        let runtime = compile_locale_runtime_artifact_module(&project, &runtime_artifact, &sources)
+            .expect("JavaScript runtime");
+        let shared = generate_schema_files(&schema)
             .into_iter()
             .find(|file| file.path == "shared.js")
             .expect("JavaScript shared module");
         let snapshot_root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/golden/snapshots/js-globals");
         let locale_snapshot_root = snapshot_root.join("locales/en-us");
-        let typescript_snapshot_root = snapshot_root.join("typescript");
-        let typescript_locale_snapshot_root = typescript_snapshot_root.join("locales/en-us");
-        let project_shared = project_files
-            .iter()
-            .find(|file| file.path == "shared.ts")
-            .expect("project shared module");
-        let project_runtime = project_files
-            .iter()
-            .find(|file| file.path == "locales/en-us/_runtime.ts")
-            .expect("project runtime module");
         let snapshots = [
             (snapshot_root.join("shared.js"), shared.contents.as_str()),
             (
@@ -342,24 +281,10 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
                 locale_snapshot_root.join("_globals.js.map"),
                 javascript.source_map(),
             ),
-            (
-                typescript_snapshot_root.join("shared.ts"),
-                project_shared.contents.as_str(),
-            ),
-            (
-                typescript_locale_snapshot_root.join("_runtime.ts"),
-                project_runtime.contents.as_str(),
-            ),
-            (
-                typescript_locale_snapshot_root.join("_globals.ts"),
-                project_globals.contents.as_str(),
-            ),
         ];
         if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
             std::fs::create_dir_all(&locale_snapshot_root)
                 .expect("create globals snapshot directory");
-            std::fs::create_dir_all(&typescript_locale_snapshot_root)
-                .expect("create TypeScript globals snapshot directory");
             for (path, contents) in &snapshots {
                 std::fs::write(path, contents).expect("write globals snapshot");
             }
@@ -376,17 +301,17 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
     fn locale_globals_artifacts_omit_locales_without_globals() {
         let schema =
             lower_schema(&parse_schema_in("message\n", SourceId(91)).expect("schema parses"));
-        let locales = [TypeScriptLocaleModule {
+        let locales = [EcmaLocaleModule {
             locale: "en".to_owned(),
             module: lower_locale(
                 &parse_locale_in("message = Message\n", SourceId(92)).expect("locale parses"),
             ),
         }];
-        let project_options = TypeScriptProjectOptions {
+        let project_options = EcmaProjectOptions {
             base_locale: Some("en".to_owned()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
-        let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &project_options)
+        let project = ValidatedEcmaProject::try_new(&schema, &locales, &project_options)
             .expect("validated project");
 
         assert!(project

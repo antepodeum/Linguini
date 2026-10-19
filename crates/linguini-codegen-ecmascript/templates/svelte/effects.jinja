@@ -1,0 +1,45 @@
+{% if not sveltekit %}const browser = typeof window !== "undefined" && typeof document !== "undefined";
+
+{% endif %}/** @type {import("./web.js").LinguiniWebLocale<import("./locale.js").Locale>} */
+export const web = createWebLocaleI18n(locale, {{ options }}, {% if sveltekit %}{ base }{% else %}{}{% endif %});
+
+initializeCurrentLocale(readInitialLocale());
+
+{% if runtime_links %}{% raw %}const linkEffects = browser
+  ? startRuntimeLinkLocalization(web, getCurrentLocale)
+  : undefined;
+
+{% endraw %}{% else %}{% raw %}/** @type {{ refresh(): void; destroy(): void } | undefined} */
+const linkEffects = undefined;
+
+{% endraw %}{% endif %}{% raw %}/** @returns {void} */
+export function refreshLinguiniEffects() {
+  linkEffects?.refresh();
+}
+
+/** @returns {void} */
+export function destroyLinguiniEffects() {
+  linkEffects?.destroy();
+}
+
+{% endraw %}{% with disposer="destroyLinguiniEffects" %}{% include "hmr" %}{% endwith %}{% raw %}
+function readInitialLocale() {
+  if (!browser) return web.baseLocale;
+  return web.resolveLocaleSync({
+{% endraw %}{% if has_path %}{% raw %}    url: readBrowserCapability(() => window.location.href),
+{% endraw %}{% endif %}{% if has_cookie %}{% raw %}    cookie: readBrowserCapability(() => document.cookie),
+{% endraw %}{% endif %}{% if has_local_storage %}{% raw %}    localStorage: readBrowserCapability(() => window.localStorage),
+{% endraw %}{% endif %}{% if has_accept_language %}{% raw %}    navigator: readBrowserCapability(() => window.navigator),
+{% endraw %}{% endif %}{% if no_sources %}{% raw %}
+{% endraw %}{% endif %}{% raw %}  });
+}
+
+/** @template T @param {() => T} read @returns {T | undefined} */
+function readBrowserCapability(read) {
+  try {
+    return read();
+  } catch {
+    return undefined;
+  }
+}
+{% endraw %}

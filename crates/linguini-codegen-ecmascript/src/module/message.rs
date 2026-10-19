@@ -1,4 +1,4 @@
-//! Public compiler for one bundler-native TypeScript message module.
+//! Public compiler for one bundler-native JavaScript message module.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -14,24 +14,20 @@ use crate::ecmascript::{
 };
 
 use super::deps::MessageDependencyClosure;
-use super::emit::{
-    self, emit_formatter_data, emit_forms_for_target, emit_local_functions_for_target,
-    emit_variables_for_target,
-};
-use super::formatters::{formatter_helper_names, formatter_requirements, plural_required};
+use super::emit::{self, emit_formatter_data, emit_forms, emit_local_functions, emit_variables};
+use super::formatters::{formatter_helper_names, plural_required};
 use super::names::{emit_docs, import_path_for_target};
-use super::semantic::TypeScriptSemanticImport;
+use super::semantic::EcmaSemanticImport;
 use super::signature::MessageCallSignature;
 use super::{
-    EcmaScriptTarget, TypeScriptCodegenError, TypeScriptMessageArtifact, TypeScriptOptions,
-    ValidatedTypeScriptProject,
+    EcmaCodegenError, EcmaMessageArtifact, EcmaModuleKind, EcmaOptions, ValidatedEcmaProject,
 };
 
 /// One complete physical ESM module for one schema message and locale.
 ///
 /// The generated module has exactly one public export, `message`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompiledTypeScriptMessageModule {
+pub struct CompiledEcmaMessageModule {
     pub locale: String,
     pub message: String,
     pub code: String,
@@ -39,7 +35,7 @@ pub struct CompiledTypeScriptMessageModule {
     pub source_ids: Vec<SourceId>,
 }
 
-impl CompiledTypeScriptMessageModule {
+impl CompiledEcmaMessageModule {
     pub fn locale(&self) -> &str {
         &self.locale
     }
@@ -62,20 +58,19 @@ impl CompiledTypeScriptMessageModule {
 }
 
 /// A source-mapped JavaScript ESM message leaf emitted from the shared ECMAScript model.
-pub type CompiledJavaScriptMessageModule = CompiledTypeScriptMessageModule;
-
-/// Compiles one validated project message into a deterministic source-mapped TypeScript ESM
+///
+/// Compiles one validated project message into a deterministic source-mapped JavaScript ESM
 /// module. The closure is computed from the validated project, so callers cannot accidentally
 /// emit unvalidated IR or pull unrelated project leaves into the output.
-pub fn compile_typescript_message_module(
-    project: &ValidatedTypeScriptProject<'_>,
+pub fn compile_message_module(
+    project: &ValidatedEcmaProject<'_>,
     locale: &str,
     canonical_message: &str,
     output_file_name: &str,
     shared_import_path: &str,
     sources: &[EcmaSource],
-) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
-    compile_message_module(
+) -> Result<CompiledEcmaMessageModule, EcmaCodegenError> {
+    compile_message_module_impl(
         project,
         MessageModuleRequest {
             locale,
@@ -85,58 +80,7 @@ pub fn compile_typescript_message_module(
             emission: MessageModuleEmission::Standalone,
             runtime_import_path: None,
             semantic_imports: None,
-            target: EcmaScriptTarget::TypeScript,
-        },
-        sources,
-    )
-}
-
-/// Compiles one physical bundler leaf which shares locale-specific formatter and plural helpers.
-///
-/// `runtime_import_path` is an ESM specifier from the generated message module to the effective
-/// locale runtime emitted by [`super::generate_typescript_project_files`].
-pub fn compile_typescript_bundler_message_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    locale: &str,
-    canonical_message: &str,
-    output_file_name: &str,
-    shared_import_path: &str,
-    runtime_import_path: &str,
-    sources: &[EcmaSource],
-) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
-    compile_message_module(
-        project,
-        MessageModuleRequest {
-            locale,
-            canonical_message,
-            output_file_name,
-            shared_import_path,
-            emission: MessageModuleEmission::Bundler,
-            runtime_import_path: Some(runtime_import_path),
-            semantic_imports: None,
-            target: EcmaScriptTarget::TypeScript,
-        },
-        sources,
-    )
-}
-
-/// Compiles one canonical physical message artifact without recomputing or inferring its paths.
-pub fn compile_typescript_bundler_message_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptMessageArtifact,
-    sources: &[EcmaSource],
-) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
-    compile_message_module(
-        project,
-        MessageModuleRequest {
-            locale: &artifact.locale,
-            canonical_message: &artifact.message,
-            output_file_name: &artifact.output_file_name,
-            shared_import_path: &artifact.shared_import_path,
-            emission: MessageModuleEmission::Bundler,
-            runtime_import_path: Some(&artifact.runtime_import_path),
-            semantic_imports: Some(&artifact.semantic_imports),
-            target: EcmaScriptTarget::TypeScript,
+            target: EcmaModuleKind::JavaScript,
         },
         sources,
     )
@@ -146,16 +90,16 @@ pub fn compile_typescript_bundler_message_artifact_module(
 ///
 /// Runtime and semantic value dependencies remain imports. Type-only imports and TypeScript
 /// syntax are omitted, while public call contracts are retained as checked-JavaScript JSDoc.
-pub fn compile_javascript_bundler_message_module(
-    project: &ValidatedTypeScriptProject<'_>,
+pub fn compile_bundler_message_module(
+    project: &ValidatedEcmaProject<'_>,
     locale: &str,
     canonical_message: &str,
     output_file_name: &str,
     shared_import_path: &str,
     runtime_import_path: &str,
     sources: &[EcmaSource],
-) -> Result<CompiledJavaScriptMessageModule, TypeScriptCodegenError> {
-    compile_message_module(
+) -> Result<CompiledEcmaMessageModule, EcmaCodegenError> {
+    compile_message_module_impl(
         project,
         MessageModuleRequest {
             locale,
@@ -165,33 +109,30 @@ pub fn compile_javascript_bundler_message_module(
             emission: MessageModuleEmission::Bundler,
             runtime_import_path: Some(runtime_import_path),
             semantic_imports: None,
-            target: EcmaScriptTarget::JavaScript,
+            target: EcmaModuleKind::JavaScript,
         },
         sources,
     )
 }
 
 /// Compiles one canonical physical JavaScript message artifact without recomputing its paths.
-pub fn compile_javascript_bundler_message_artifact_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptMessageArtifact,
+pub fn compile_bundler_message_artifact_module(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaMessageArtifact,
     sources: &[EcmaSource],
-) -> Result<CompiledJavaScriptMessageModule, TypeScriptCodegenError> {
-    let output_file_name = artifact.output_file_name.strip_suffix(".ts").map_or_else(
-        || artifact.output_file_name.clone(),
-        |stem| format!("{stem}.js"),
-    );
-    compile_message_module(
+) -> Result<CompiledEcmaMessageModule, EcmaCodegenError> {
+    let output_file_name = &artifact.output_file_name;
+    compile_message_module_impl(
         project,
         MessageModuleRequest {
             locale: &artifact.locale,
             canonical_message: &artifact.message,
-            output_file_name: &output_file_name,
+            output_file_name,
             shared_import_path: &artifact.shared_import_path,
             emission: MessageModuleEmission::Bundler,
             runtime_import_path: Some(&artifact.runtime_import_path),
             semantic_imports: Some(&artifact.semantic_imports),
-            target: EcmaScriptTarget::JavaScript,
+            target: EcmaModuleKind::JavaScript,
         },
         sources,
     )
@@ -210,15 +151,15 @@ struct MessageModuleRequest<'a> {
     shared_import_path: &'a str,
     emission: MessageModuleEmission,
     runtime_import_path: Option<&'a str>,
-    semantic_imports: Option<&'a [TypeScriptSemanticImport]>,
-    target: EcmaScriptTarget,
+    semantic_imports: Option<&'a [EcmaSemanticImport]>,
+    target: EcmaModuleKind,
 }
 
-fn compile_message_module(
-    project: &ValidatedTypeScriptProject<'_>,
+fn compile_message_module_impl(
+    project: &ValidatedEcmaProject<'_>,
     request: MessageModuleRequest<'_>,
     sources: &[EcmaSource],
-) -> Result<CompiledTypeScriptMessageModule, TypeScriptCodegenError> {
+) -> Result<CompiledEcmaMessageModule, EcmaCodegenError> {
     let MessageModuleRequest {
         locale,
         canonical_message,
@@ -241,7 +182,7 @@ fn compile_message_module(
                     .unwrap_or(false)
         })
         .map(|entry| entry.locale.as_str())
-        .ok_or_else(|| TypeScriptCodegenError::UnknownLocale {
+        .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: locale.to_owned(),
         })?;
     let canonical_locale =
@@ -275,7 +216,7 @@ fn compile_message_module(
     );
     let rendered = module.render(&source_records);
 
-    Ok(CompiledTypeScriptMessageModule {
+    Ok(CompiledEcmaMessageModule {
         locale: canonical_locale,
         message: canonical_message.to_owned(),
         code: rendered.code,
@@ -287,11 +228,11 @@ fn compile_message_module(
 pub(super) fn ordered_sources(
     source_ids: &[SourceId],
     sources: &[EcmaSource],
-) -> Result<Vec<EcmaSource>, TypeScriptCodegenError> {
+) -> Result<Vec<EcmaSource>, EcmaCodegenError> {
     let mut seen = BTreeSet::new();
     for source in sources {
         if !seen.insert(source.id) {
-            return Err(TypeScriptCodegenError::DuplicateMessageSource {
+            return Err(EcmaCodegenError::DuplicateMessageSource {
                 source_id: source.id,
             });
         }
@@ -306,7 +247,7 @@ pub(super) fn ordered_sources(
             records
                 .get(source_id)
                 .map(|source| (*source).clone())
-                .ok_or(TypeScriptCodegenError::MissingMessageSource {
+                .ok_or(EcmaCodegenError::MissingMessageSource {
                     source_id: *source_id,
                 })
         })
@@ -315,11 +256,11 @@ pub(super) fn ordered_sources(
 
 fn emit_message_module(
     closure: &MessageDependencyClosure,
-    options: &TypeScriptOptions,
+    options: &EcmaOptions,
     shared_import_path: &str,
     emission: MessageModuleEmission,
     runtime_import_path: Option<&str>,
-    semantic_imports: &[TypeScriptSemanticImport],
+    semantic_imports: &[EcmaSemanticImport],
     output: EcmaModuleOutput,
 ) -> EcmaModule {
     let target = output.target();
@@ -342,22 +283,8 @@ fn emit_message_module(
 
     if runtime_import_path.is_none() {
         let mut formatter_data = String::new();
-        emit_formatter_data(schema, locale, options, target, &mut formatter_data);
+        emit_formatter_data(schema, locale, options, &mut formatter_data);
         push_chunk(&mut statements, formatter_data, None);
-    }
-
-    for item in locale.enums().iter().filter(|_| target.is_typescript()) {
-        let one = IrModuleBuilder::new()
-            .push_enum(item.clone())
-            .build()
-            .expect("single-symbol module is unique by construction");
-        let mut output = String::new();
-        emit::emit_locale_enum_types(schema, &one, &mut output);
-        push_chunk(
-            &mut statements,
-            output,
-            symbol_span(locale, IrSymbolKind::Enum, &item.name, None),
-        );
     }
 
     for item in locale.variables() {
@@ -366,7 +293,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_variables_for_target(&one, options, target, false, &mut output);
+        emit_variables(&one, options, false, &mut output);
         push_chunk(
             &mut statements,
             output,
@@ -385,7 +312,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_forms_for_target(&one, options, target, false, &mut output);
+        emit_forms(&one, options, false, &mut output);
         push_chunk(
             &mut statements,
             output,
@@ -399,7 +326,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_local_functions_for_target(&one, options, target, false, &mut output);
+        emit_local_functions(&one, options, false, &mut output);
         push_chunk(
             &mut statements,
             output,
@@ -423,33 +350,25 @@ fn emit_message_module(
             .find(|item| item.name == closure.message()),
     ) {
         let call_signature = MessageCallSignature::from_message(signature);
-        let body =
-            emit::message_body_for_target(schema, signature, implementation, options, target);
+        let body = emit::message_body(schema, signature, implementation, options);
         let output = if !call_signature.is_parameterized() {
             let mut docs = String::new();
             emit_docs(&signature.docs, "", &mut docs);
             match emission {
                 MessageModuleEmission::Standalone => {
-                    format!("{docs}export const message = (): string => {body};\n")
+                    format!("{docs}export const message = () => {body};\n")
                 }
                 MessageModuleEmission::Bundler => {
                     format!("{docs}export const message = {body};\n")
                 }
             }
         } else {
-            if target.is_typescript() {
-                format!(
-                    "{}export function message({}): string {{\n  {}\n  return {body};\n}}\n",
-                    call_signature.implementation_overloads("message", &signature.docs),
-                    call_signature.implementation_rest_params(),
-                    call_signature.normalized_bindings_statement()
-                )
-            } else {
+            {
                 format!(
                     "{}export function message({}) {{\n  {}\n  return {body};\n}}\n",
                     call_signature.javascript_implementation_docs(&signature.docs),
-                    call_signature.implementation_rest_params_for_target(target),
-                    call_signature.normalized_bindings_statement_for_target(target)
+                    call_signature.implementation_rest_params(),
+                    call_signature.normalized_bindings_statement()
                 )
             }
         };
@@ -468,13 +387,11 @@ fn emit_message_module(
         .messages()
         .iter()
         .any(|signature| signature.name == closure.message() && !signature.parameters.is_empty());
-    let runtime_helpers =
-        runtime_import_path.map(|_| formatter_helper_names(formatter_requirements(schema, locale)));
+    let runtime_helpers = runtime_import_path.map(|_| formatter_helper_names(schema, locale));
     let mut module = EcmaModule::new(output);
     module.extend_imports(message_imports(MessageImportRequest {
         shared_import_path,
         runtime_import_path,
-        schema,
         plural_function: &options.plural_function,
         uses_select_branch,
         uses_named_message_args,
@@ -483,7 +400,7 @@ fn emit_message_module(
         target,
     }));
     for dependency in semantic_imports {
-        if dependency.type_only && !target.is_typescript() {
+        if dependency.type_only {
             continue;
         }
         module.push_import(EcmaImport {
@@ -501,7 +418,7 @@ fn emit_message_module(
             },
         });
     }
-    if !target.is_typescript() {
+    {
         let typedefs = emit::schema_type_names(schema)
             .into_iter()
             .map(|name| {
@@ -519,7 +436,7 @@ fn emit_message_module(
     }
     if uses_plural && runtime_import_path.is_none() {
         let mut plural_helpers = String::new();
-        emit::emit_plural_helpers(options, target, &mut plural_helpers);
+        emit::emit_plural_helpers(options, &mut plural_helpers);
         push_statement(&mut module, plural_helpers, None);
     }
     for (code, span) in statements {
@@ -531,29 +448,16 @@ fn emit_message_module(
 struct MessageImportRequest<'a> {
     shared_import_path: &'a str,
     runtime_import_path: Option<&'a str>,
-    schema: &'a IrModule,
     plural_function: &'a str,
     uses_select_branch: bool,
     uses_named_message_args: bool,
     uses_plural: bool,
-    runtime_helpers: &'a [&'a str],
-    target: EcmaScriptTarget,
+    runtime_helpers: &'a [String],
+    target: EcmaModuleKind,
 }
 
 fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
     let mut imports = Vec::new();
-    let type_names = emit::schema_type_names(request.schema);
-    if request.target.is_typescript() && !type_names.is_empty() {
-        imports.push(EcmaImport {
-            specifier: import_path_for_target(request.shared_import_path, request.target),
-            bindings: EcmaImportBindings::TypeNamed(
-                type_names
-                    .iter()
-                    .map(|name| EcmaNamedImport::new(name, name))
-                    .collect(),
-            ),
-        });
-    }
     let mut shared_helpers = Vec::new();
     if request.uses_select_branch {
         shared_helpers.push("selectBranch");
@@ -573,14 +477,14 @@ fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
     if let Some(runtime_import_path) = request.runtime_import_path {
         let mut helpers = request.runtime_helpers.to_vec();
         if request.uses_plural {
-            helpers.push(request.plural_function);
+            helpers.push(request.plural_function.to_owned());
         }
         if !helpers.is_empty() {
             imports.push(EcmaImport::named(
                 import_path_for_target(runtime_import_path, request.target),
                 helpers
                     .into_iter()
-                    .map(|name| EcmaNamedImport::new(name, name))
+                    .map(|name| EcmaNamedImport::new(&name, &name))
                     .collect(),
             ));
         }
@@ -662,42 +566,37 @@ fn value_span(value: &IrValue) -> Option<Span> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        compile_javascript_bundler_message_module, compile_typescript_bundler_message_module,
-        compile_typescript_message_module,
-    };
-    use crate::{
-        EcmaSource, TypeScriptLocaleModule, TypeScriptProjectOptions, ValidatedTypeScriptProject,
-    };
+    use super::{compile_bundler_message_module, compile_message_module};
+    use crate::{EcmaLocaleModule, EcmaProjectOptions, EcmaSource, ValidatedEcmaProject};
     use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
     const SCHEMA: &str = "/// Greeting\nroot(name: String)\ndrop\n";
     const LOCALE: &str = "let helper = Hello\nroot = {helper}, {name}\ndrop = Drop\n";
 
-    fn project() -> ValidatedTypeScriptProject<'static> {
+    fn project() -> ValidatedEcmaProject<'static> {
         let schema = Box::leak(Box::new(lower_schema(
             &parse_schema_in(SCHEMA, SourceId(7)).expect("schema"),
         )));
         let locale = lower_locale(&parse_locale_in(LOCALE, SourceId(8)).expect("locale"));
-        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+        let locales = Box::leak(Box::new(vec![EcmaLocaleModule {
             locale: "en".to_owned(),
             module: locale,
         }]));
-        let options = TypeScriptProjectOptions {
+        let options = EcmaProjectOptions {
             base_locale: Some("en".to_owned()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
-        ValidatedTypeScriptProject::try_new(schema, locales, &options).expect("project")
+        ValidatedEcmaProject::try_new(schema, locales, &options).expect("project")
     }
 
     #[test]
     fn emits_one_callable_export_and_sorted_sources() {
-        let result = compile_typescript_message_module(
+        let result = compile_message_module(
             &project(),
             "en",
             "root",
-            "messages/root.ts",
+            "messages/root.js",
             "../../shared",
             &[
                 EcmaSource::new(SourceId(8), "locale.lgs", LOCALE),
@@ -709,18 +608,14 @@ mod tests {
         assert_eq!(result.locale, "en");
         assert_eq!(result.message, "root");
         assert_eq!(result.source_ids, vec![SourceId(7), SourceId(8)]);
-        assert!(result
-            .code
-            .contains("export function message(name: string)"));
-        assert!(result
-            .code
-            .contains("export function message(args: { name: string }): string;"));
-        assert_eq!(result.code.matches("export function message").count(), 3);
+        assert!(result.code.contains("@param {string} name"));
+        assert!(result.code.contains("@param {{ name: string }} args"));
+        assert_eq!(result.code.matches("export function message").count(), 1);
         assert_eq!(result.code.matches("return String(helper)").count(), 1);
         assert!(result
             .code
             .contains("normalizeMessageArgs(__lgl_args, [\"name\"])"));
-        assert!(result.code.ends_with("//# sourceMappingURL=root.ts.map\n"));
+        assert!(result.code.ends_with("//# sourceMappingURL=root.js.map\n"));
         assert!(result
             .source_map
             .contains("\"sources\":[\"schema.lgs\",\"locale.lgs\"]"));
@@ -731,11 +626,11 @@ mod tests {
             .is_some_and(|mapping| !mapping.starts_with('"')));
         assert!(!result.code.contains("drop"));
 
-        let reordered = compile_typescript_message_module(
+        let reordered = compile_message_module(
             &project(),
             "en",
             "root",
-            "messages/root.ts",
+            "messages/root.js",
             "../../shared",
             &[
                 EcmaSource::new(SourceId(7), "schema.lgs", SCHEMA),
@@ -753,20 +648,20 @@ mod tests {
             &parse_schema_in("/// Greeting\nroot\n", SourceId(7)).expect("schema"),
         )));
         let locale = lower_locale(&parse_locale_in("root = Hello\n", SourceId(8)).expect("locale"));
-        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+        let locales = Box::leak(Box::new(vec![EcmaLocaleModule {
             locale: "en".to_owned(),
             module: locale,
         }]));
-        let options = TypeScriptProjectOptions {
+        let options = EcmaProjectOptions {
             base_locale: Some("en".to_owned()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
-        let project = ValidatedTypeScriptProject::try_new(schema, locales, &options).unwrap();
-        let result = compile_typescript_message_module(
+        let project = ValidatedEcmaProject::try_new(schema, locales, &options).unwrap();
+        let result = compile_message_module(
             &project,
             "en",
             "root",
-            "root.ts",
+            "root.js",
             "./shared",
             &[
                 EcmaSource::new(SourceId(7), "schema.lgs", "/// Greeting\nroot\n"),
@@ -774,15 +669,15 @@ mod tests {
             ],
         )
         .unwrap();
-        assert!(result.code.contains("export const message = (): string =>"));
+        assert!(result.code.contains("export const message = () =>"));
         assert_eq!(result.code.matches("export ").count(), 1);
         assert!(!result.code.contains("plural("));
 
-        let bundler = compile_typescript_bundler_message_module(
+        let bundler = compile_bundler_message_module(
             &project,
             "en",
             "root",
-            "root.ts",
+            "root.js",
             "./shared",
             "./runtime",
             &[
@@ -794,11 +689,11 @@ mod tests {
         assert!(bundler.code.contains("export const message = \"Hello\";"));
         assert!(!bundler.code.contains("message = (): string =>"));
         assert_eq!(bundler.code.matches("export ").count(), 1);
-        let reordered_bundler = compile_typescript_bundler_message_module(
+        let reordered_bundler = compile_bundler_message_module(
             &project,
             "en",
             "root",
-            "root.ts",
+            "root.js",
             "./shared",
             "./runtime",
             &[
@@ -813,18 +708,18 @@ mod tests {
 
     #[test]
     fn missing_dependency_source_is_precise() {
-        let error = compile_typescript_message_module(
+        let error = compile_message_module(
             &project(),
             "en",
             "root",
-            "root.ts",
+            "root.js",
             "./shared",
             &[EcmaSource::new(SourceId(7), "schema.lgs", "")],
         )
         .expect_err("missing source should fail");
         assert!(matches!(
             error,
-            crate::TypeScriptCodegenError::MissingMessageSource {
+            crate::EcmaCodegenError::MissingMessageSource {
                 source_id: SourceId(8)
             }
         ));
@@ -832,11 +727,11 @@ mod tests {
 
     #[test]
     fn duplicate_source_records_are_rejected_before_indexing() {
-        let error = compile_typescript_message_module(
+        let error = compile_message_module(
             &project(),
             "en",
             "root",
-            "root.ts",
+            "root.js",
             "./shared",
             &[
                 EcmaSource::new(SourceId(7), "schema.lgs", SCHEMA),
@@ -847,7 +742,7 @@ mod tests {
         .expect_err("duplicate source should fail");
         assert!(matches!(
             error,
-            crate::TypeScriptCodegenError::DuplicateMessageSource {
+            crate::EcmaCodegenError::DuplicateMessageSource {
                 source_id: SourceId(7)
             }
         ));
@@ -861,20 +756,20 @@ mod tests {
             &parse_schema_in(schema_text, SourceId(17)).expect("schema"),
         )));
         let locale = lower_locale(&parse_locale_in(locale_text, SourceId(18)).expect("locale"));
-        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+        let locales = Box::leak(Box::new(vec![EcmaLocaleModule {
             locale: "en".to_owned(),
             module: locale,
         }]));
-        let options = TypeScriptProjectOptions {
+        let options = EcmaProjectOptions {
             base_locale: Some("en".to_owned()),
-            ..TypeScriptProjectOptions::default()
+            ..EcmaProjectOptions::default()
         };
-        let project = ValidatedTypeScriptProject::try_new(schema, locales, &options).unwrap();
-        let result = compile_typescript_message_module(
+        let project = ValidatedEcmaProject::try_new(schema, locales, &options).unwrap();
+        let result = compile_message_module(
             &project,
             "en",
             "summary",
-            "summary.ts",
+            "summary.js",
             "./shared",
             &[
                 EcmaSource::new(SourceId(17), "schema.lgs", schema_text),
@@ -883,9 +778,7 @@ mod tests {
         )
         .unwrap();
         assert!(result.code.contains("function pluralEn("));
-        assert!(result
-            .code
-            .contains("import { selectBranch, normalizeMessageArgs }"));
+        assert!(result.code.contains("import { normalizeMessageArgs }"));
         assert!(result.code.contains("pluralEn(count)"));
     }
 
@@ -898,16 +791,16 @@ mod tests {
             &parse_schema_in(schema_text, SourceId(27)).expect("schema"),
         )));
         let locale = lower_locale(&parse_locale_in(locale_text, SourceId(28)).expect("locale"));
-        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+        let locales = Box::leak(Box::new(vec![EcmaLocaleModule {
             locale: "en".to_owned(),
             module: locale,
         }]));
-        let project = ValidatedTypeScriptProject::try_new(
+        let project = ValidatedEcmaProject::try_new(
             schema,
             locales,
-            &TypeScriptProjectOptions {
+            &EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
-                ..TypeScriptProjectOptions::default()
+                ..EcmaProjectOptions::default()
             },
         )
         .unwrap();
@@ -916,11 +809,11 @@ mod tests {
             EcmaSource::new(SourceId(28), "locale.lgl", locale_text),
         ];
 
-        let shared = compile_typescript_bundler_message_module(
+        let shared = compile_bundler_message_module(
             &project,
             "en",
             "summary",
-            "summary.ts",
+            "summary.js",
             "../../../shared",
             "../../../locales/en/_runtime",
             &sources,
@@ -928,18 +821,18 @@ mod tests {
         .unwrap();
         assert!(shared
             .code
-            .contains("import { formatNumber, pluralEn } from \"../../../locales/en/_runtime\";"));
+            .contains("import { pluralEn } from \"../../../locales/en/_runtime.js\";"));
         assert!(shared
             .code
-            .contains("import { selectBranch, normalizeMessageArgs } from \"../../../shared\";"));
+            .contains("import { normalizeMessageArgs } from \"../../../shared.js\";"));
         assert!(!shared.code.contains("function formatNumber("));
         assert!(!shared.code.contains("function pluralEn("));
 
-        let standalone = compile_typescript_message_module(
+        let standalone = compile_message_module(
             &project,
             "en",
             "summary",
-            "summary.ts",
+            "summary.js",
             "../../../shared",
             &sources,
         )
@@ -961,16 +854,16 @@ mod tests {
             &parse_schema_in(schema_text, SourceId(47)).expect("schema"),
         )));
         let locale = lower_locale(&parse_locale_in(locale_text, SourceId(48)).expect("locale"));
-        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+        let locales = Box::leak(Box::new(vec![EcmaLocaleModule {
             locale: "en".to_owned(),
             module: locale,
         }]));
-        let project = ValidatedTypeScriptProject::try_new(
+        let project = ValidatedEcmaProject::try_new(
             schema,
             locales,
-            &TypeScriptProjectOptions {
+            &EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
-                ..TypeScriptProjectOptions::default()
+                ..EcmaProjectOptions::default()
             },
         )
         .unwrap();
@@ -978,7 +871,7 @@ mod tests {
             EcmaSource::new(SourceId(47), "schema.lgs", schema_text),
             EcmaSource::new(SourceId(48), "locale.lgl", locale_text),
         ];
-        let compiled = compile_javascript_bundler_message_module(
+        let compiled = compile_bundler_message_module(
             &project,
             "en",
             "greeting",
@@ -1026,20 +919,19 @@ mod tests {
             .into_iter()
             .find(|artifact| artifact.message == "greeting")
             .expect("greeting artifact");
-        let artifact_compiled = super::compile_javascript_bundler_message_artifact_module(
-            &project, &artifact, &sources,
-        )
-        .expect("artifact compile");
+        let artifact_compiled =
+            super::compile_bundler_message_artifact_module(&project, &artifact, &sources)
+                .expect("artifact compile");
         assert!(artifact_compiled
             .code
             .contains("from \"../../../shared.js\""));
         assert!(artifact_compiled
             .code
             .contains("from \"../../semantic/en/function/x4772656574696e67.js\""));
-        assert!(artifact_compiled.code.contains("/_runtime.js\";"));
+        assert!(!artifact_compiled.code.contains("/_runtime.js\";"));
         let javascript_map = artifact
             .output_file_name
-            .strip_suffix(".ts")
+            .strip_suffix(".js")
             .map(|stem| format!("//# sourceMappingURL={stem}.js.map"))
             .expect("TypeScript artifact name");
         assert!(artifact_compiled.code.contains(&javascript_map));
@@ -1053,24 +945,24 @@ mod tests {
             &parse_schema_in(schema_text, SourceId(37)).expect("schema"),
         )));
         let locale = lower_locale(&parse_locale_in(locale_text, SourceId(38)).expect("locale"));
-        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+        let locales = Box::leak(Box::new(vec![EcmaLocaleModule {
             locale: "en".to_owned(),
             module: locale,
         }]));
-        let project = ValidatedTypeScriptProject::try_new(
+        let project = ValidatedEcmaProject::try_new(
             schema,
             locales,
-            &TypeScriptProjectOptions {
+            &EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
-                ..TypeScriptProjectOptions::default()
+                ..EcmaProjectOptions::default()
             },
         )
         .unwrap();
-        let compiled = compile_typescript_bundler_message_module(
+        let compiled = compile_bundler_message_module(
             &project,
             "en",
             "literal",
-            "literal.ts",
+            "literal.js",
             "../../../shared",
             "../../../locales/en/_runtime",
             &[
@@ -1083,7 +975,7 @@ mod tests {
         assert!(compiled.code.contains("formatNumber( pluralEn("));
         assert!(!compiled
             .code
-            .contains("from \"../../../locales/en/_runtime\""));
+            .contains("from \"../../../locales/en/_runtime.js\""));
         assert!(!compiled.code.contains("function pluralEn("));
     }
 }

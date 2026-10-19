@@ -1,7 +1,83 @@
-use crate::ecmascript::EcmaScriptTarget;
+use crate::ecmascript::EcmaModuleKind;
 
 pub fn function_name(name: &str) -> String {
     safe_identifier(name)
+}
+
+/// Stable readable names for source selectors declared by type instead of by name.
+pub(super) fn function_parameter_names(
+    parameters: &[linguini_ir::IrFunctionParameter],
+    branches: &[linguini_ir::IrFunctionBranch],
+    plural_function: &str,
+) -> Vec<String> {
+    use linguini_ir::{
+        IrExpression, IrExpressionKind, IrFunctionBranchValue, IrInlineFunctionInput, IrTextPart,
+    };
+    use std::collections::BTreeSet;
+    fn expression_names(expression: &IrExpression, used: &mut BTreeSet<String>) {
+        if let Some(root) = expression.path.first() {
+            used.insert(safe_identifier(root));
+        }
+        for argument in &expression.arguments {
+            expression_names(argument, used);
+        }
+        if let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
+            for input in inputs {
+                let value = match input {
+                    IrInlineFunctionInput::Binding { name, value, .. } => {
+                        used.insert(safe_identifier(name));
+                        value
+                    }
+                    IrInlineFunctionInput::Selector { value, .. } => value,
+                };
+                expression_names(value, used);
+            }
+            branch_names(branches, used);
+        }
+    }
+    fn branch_names(branches: &[linguini_ir::IrFunctionBranch], used: &mut BTreeSet<String>) {
+        for branch in branches {
+            match &branch.value {
+                IrFunctionBranchValue::Text(text) => {
+                    for part in &text.parts {
+                        if let IrTextPart::Placeholder(expression) = part {
+                            expression_names(expression, used);
+                        }
+                    }
+                }
+                IrFunctionBranchValue::Dispatch(children) => branch_names(children, used),
+            }
+        }
+    }
+    let mut used = parameters
+        .iter()
+        .filter_map(|parameter| parameter.name.as_deref().map(safe_identifier))
+        .collect::<BTreeSet<_>>();
+    used.insert(plural_function.to_owned());
+    branch_names(branches, &mut used);
+    parameters
+        .iter()
+        .map(|parameter| {
+            if let Some(name) = &parameter.name {
+                return safe_identifier(name);
+            }
+            let ty = parameter.ty.rsplit('.').next().unwrap_or(&parameter.ty);
+            let mut chars = ty.chars();
+            let base = safe_identifier(
+                &chars
+                    .next()
+                    .map(|first| first.to_lowercase().collect::<String>() + chars.as_str())
+                    .unwrap_or_else(|| "value".to_owned()),
+            );
+            let mut name = base.clone();
+            let mut suffix = 2;
+            while !used.insert(name.clone()) {
+                name = format!("{base}{suffix}");
+                suffix += 1;
+            }
+            name
+        })
+        .collect()
 }
 
 pub fn safe_identifier(name: &str) -> String {
@@ -20,8 +96,8 @@ pub fn safe_file_stem(name: &str) -> String {
     encoded_name("__lgl_path_", name)
 }
 
-pub(super) fn import_path_for_target(path: &str, target: EcmaScriptTarget) -> String {
-    if target.is_typescript() || path.ends_with(".js") {
+pub(super) fn import_path_for_target(path: &str, target: EcmaModuleKind) -> String {
+    if target.is_declaration() || path.ends_with(".js") {
         path.to_owned()
     } else {
         format!("{path}.js")
@@ -120,34 +196,7 @@ pub fn property_key(name: &str) -> String {
     }
 }
 
-pub fn string_literal(value: &str) -> String {
-    format!("\"{}\"", escape_string(value))
-}
-
-pub fn escape_string(value: &str) -> String {
-    let mut output = String::with_capacity(value.len());
-    for character in value.chars() {
-        match character {
-            '"' => output.push_str("\\\""),
-            '\\' => output.push_str("\\\\"),
-            '\u{0008}' => output.push_str("\\b"),
-            '\u{000C}' => output.push_str("\\f"),
-            '\n' => output.push_str("\\n"),
-            '\r' => output.push_str("\\r"),
-            '\t' => output.push_str("\\t"),
-            '\u{0000}'..='\u{001F}' | '\u{007F}' => {
-                use std::fmt::Write;
-
-                write!(output, "\\u{:04X}", character as u32)
-                    .expect("writing to a String cannot fail");
-            }
-            '\u{2028}' => output.push_str("\\u2028"),
-            '\u{2029}' => output.push_str("\\u2029"),
-            _ => output.push(character),
-        }
-    }
-    output
-}
+pub(crate) use crate::ecmascript::{escape_string, string_literal};
 
 pub fn escape_comment(value: &str) -> String {
     value.replace("*/", "* /")

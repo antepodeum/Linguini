@@ -1,46 +1,20 @@
-//! Framework-selected project artifacts; shared target compilers own every implementation.
+//! Framework-selected project artifacts from canonical JavaScript compilers.
 
 use super::project_output::{data, rendered, ProjectFile};
-use super::{
-    TypeScriptFramework, TypeScriptLinkMode, TypeScriptLocaleSource, ValidatedTypeScriptProject,
-};
-use crate::ecmascript::{EcmaScriptTarget, RenderedEcmaModule};
+use super::{EcmaFramework, EcmaLinkMode, EcmaLocaleSource, ValidatedEcmaProject};
 
-fn select(
-    target: EcmaScriptTarget,
-    typescript: impl FnOnce() -> RenderedEcmaModule,
-    javascript: impl FnOnce() -> RenderedEcmaModule,
-) -> RenderedEcmaModule {
-    if target.is_typescript() {
-        typescript()
-    } else {
-        javascript()
-    }
-}
-
-pub(super) fn append(
-    project: &ValidatedTypeScriptProject<'_>,
-    target: EcmaScriptTarget,
-    files: &mut Vec<ProjectFile>,
-) {
+pub(super) fn append(project: &ValidatedEcmaProject<'_>, files: &mut Vec<ProjectFile>) {
     let options = &project.options;
     if !options
         .framework
-        .is_some_and(TypeScriptFramework::needs_svelte_module)
+        .is_some_and(EcmaFramework::needs_svelte_module)
     {
         return;
     }
-    let kit = options.framework == Some(TypeScriptFramework::SvelteKit);
+    let kit = options.framework == Some(EcmaFramework::SvelteKit);
     let declarations = options.declaration;
     if let Some(web) = &options.web {
-        rendered(
-            files,
-            select(
-                target,
-                || super::web_facade::compile_typescript_web_module(web),
-                || super::web_facade::compile_javascript_web_module(web),
-            ),
-        );
+        rendered(files, super::web_facade::compile_web_module(web));
         if declarations {
             data(
                 files,
@@ -50,26 +24,14 @@ pub(super) fn append(
         }
         for source in &web.sources {
             let module = match source {
-                TypeScriptLocaleSource::Path => select(
-                    target,
-                    super::web_path::compile_typescript_web_path_module,
-                    super::web_path::compile_javascript_web_path_module,
-                ),
-                TypeScriptLocaleSource::Cookie => select(
-                    target,
-                    super::web_cookie::compile_typescript_web_cookie_module,
-                    super::web_cookie::compile_javascript_web_cookie_module,
-                ),
-                TypeScriptLocaleSource::LocalStorage => select(
-                    target,
-                    super::web_local_storage::compile_typescript_web_local_storage_module,
-                    super::web_local_storage::compile_javascript_web_local_storage_module,
-                ),
-                TypeScriptLocaleSource::AcceptLanguage => select(
-                    target,
-                    super::web_accept_language::compile_typescript_web_accept_language_module,
-                    super::web_accept_language::compile_javascript_web_accept_language_module,
-                ),
+                EcmaLocaleSource::Path => super::web_path::compile_web_path_module(),
+                EcmaLocaleSource::Cookie => super::web_cookie::compile_web_cookie_module(),
+                EcmaLocaleSource::LocalStorage => {
+                    super::web_local_storage::compile_web_local_storage_module()
+                }
+                EcmaLocaleSource::AcceptLanguage => {
+                    super::web_accept_language::compile_web_accept_language_module()
+                }
             };
             rendered(files, module);
             if declarations {
@@ -81,14 +43,7 @@ pub(super) fn append(
             }
         }
         if !web.exclude.is_empty() {
-            rendered(
-                files,
-                select(
-                    target,
-                    super::web_routes::compile_typescript_web_routes_module,
-                    super::web_routes::compile_javascript_web_routes_module,
-                ),
-            );
+            rendered(files, super::web_routes::compile_web_routes_module());
             if declarations {
                 data(
                     files,
@@ -98,14 +53,10 @@ pub(super) fn append(
             }
         }
         match web.link_mode {
-            TypeScriptLinkMode::Transform => {
+            EcmaLinkMode::Transform => {
                 rendered(
                     files,
-                    select(
-                        target,
-                        super::web_link_transform::compile_typescript_web_link_transform_module,
-                        super::web_link_transform::compile_javascript_web_link_transform_module,
-                    ),
+                    super::web_link_transform::compile_web_link_transform_module(),
                 );
                 if declarations {
                     data(
@@ -115,14 +66,10 @@ pub(super) fn append(
                     );
                 }
             }
-            TypeScriptLinkMode::Runtime => {
+            EcmaLinkMode::Runtime => {
                 rendered(
                     files,
-                    select(
-                        target,
-                        super::web_runtime_links::compile_typescript_web_runtime_links_module,
-                        super::web_runtime_links::compile_javascript_web_runtime_links_module,
-                    ),
+                    super::web_runtime_links::compile_web_runtime_links_module(),
                 );
                 if declarations {
                     data(
@@ -132,16 +79,12 @@ pub(super) fn append(
                     );
                 }
             }
-            TypeScriptLinkMode::Manual => {}
+            EcmaLinkMode::Manual => {}
         }
         if kit && web.features().has_cookie {
             rendered(
                 files,
-                select(
-                    target,
-                    super::web_server_cookie::compile_typescript_web_server_cookie_module,
-                    super::web_server_cookie::compile_javascript_web_server_cookie_module,
-                ),
+                super::web_server_cookie::compile_web_server_cookie_module(),
             );
             if declarations {
                 data(
@@ -152,20 +95,10 @@ pub(super) fn append(
             }
         }
         if kit && web.switch_route.is_some() {
-            rendered(
-                files,
-                select(
-                    target,
-                    || {
-                        super::web_switch_route::compile_typescript_web_switch_route_module(web)
-                            .expect("selected switch route")
-                    },
-                    || {
-                        super::web_switch_route::compile_javascript_web_switch_route_module(web)
-                            .expect("selected switch route")
-                    },
-                ),
-            );
+            rendered(files, {
+                super::web_switch_route::compile_web_switch_route_module(web)
+                    .expect("selected switch route")
+            });
             if declarations {
                 data(
                     files,
@@ -176,11 +109,7 @@ pub(super) fn append(
         }
         rendered(
             files,
-            select(
-                target,
-                || super::svelte_effects::compile_typescript_svelte_effects_module(web, kit),
-                || super::svelte_effects::compile_javascript_svelte_effects_module(web, kit),
-            ),
+            super::svelte_effects::compile_svelte_effects_module(web, kit),
         );
         if declarations {
             data(
@@ -191,11 +120,7 @@ pub(super) fn append(
         }
         rendered(
             files,
-            select(
-                target,
-                || super::svelte_control::compile_typescript_svelte_control_module(web, kit),
-                || super::svelte_control::compile_javascript_svelte_control_module(web, kit),
-            ),
+            super::svelte_control::compile_svelte_control_module(web, kit),
         );
         if declarations {
             data(
@@ -208,11 +133,7 @@ pub(super) fn append(
     let mode = super::svelte_locale::SvelteLocaleMode::from_framework(options.web.is_some(), kit);
     rendered(
         files,
-        select(
-            target,
-            || super::svelte_locale::compile_typescript_svelte_locale_module(mode),
-            || super::svelte_locale::compile_javascript_svelte_locale_module(mode),
-        ),
+        super::svelte_locale::compile_svelte_locale_module(mode),
     );
     if declarations {
         data(
@@ -223,11 +144,7 @@ pub(super) fn append(
     }
     rendered(
         files,
-        select(
-            target,
-            || super::svelte_facade::compile_typescript_svelte_module(options.web.is_some()),
-            || super::svelte_facade::compile_javascript_svelte_module(options.web.is_some()),
-        ),
+        super::svelte_facade::compile_svelte_module(options.web.is_some()),
     );
     if declarations {
         data(
@@ -239,11 +156,7 @@ pub(super) fn append(
     if let Some(web) = options.web.as_ref().filter(|_| kit) {
         rendered(
             files,
-            select(
-                target,
-                || super::sveltekit::compile_typescript_sveltekit_control_module(web),
-                || super::sveltekit::compile_javascript_sveltekit_control_module(web),
-            ),
+            super::sveltekit::compile_sveltekit_control_module(web),
         );
         if declarations {
             data(
@@ -252,14 +165,7 @@ pub(super) fn append(
                 super::sveltekit_types::generate_control_declaration(),
             );
         }
-        rendered(
-            files,
-            select(
-                target,
-                || super::sveltekit::compile_typescript_sveltekit_module(web),
-                || super::sveltekit::compile_javascript_sveltekit_module(web),
-            ),
-        );
+        rendered(files, super::sveltekit::compile_sveltekit_module(web));
         if declarations {
             data(
                 files,
@@ -270,14 +176,14 @@ pub(super) fn append(
     }
 }
 
-fn source_declaration(source: TypeScriptLocaleSource) -> String {
+fn source_declaration(source: EcmaLocaleSource) -> String {
     match source {
-        TypeScriptLocaleSource::Path => super::web_path::generate_web_path_declaration(),
-        TypeScriptLocaleSource::Cookie => super::web_cookie::generate_web_cookie_declaration(),
-        TypeScriptLocaleSource::LocalStorage => {
+        EcmaLocaleSource::Path => super::web_path::generate_web_path_declaration(),
+        EcmaLocaleSource::Cookie => super::web_cookie::generate_web_cookie_declaration(),
+        EcmaLocaleSource::LocalStorage => {
             super::web_local_storage::generate_web_local_storage_declaration()
         }
-        TypeScriptLocaleSource::AcceptLanguage => {
+        EcmaLocaleSource::AcceptLanguage => {
             super::web_accept_language::generate_web_accept_language_declaration()
         }
     }

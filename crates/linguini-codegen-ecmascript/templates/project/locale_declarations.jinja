@@ -1,0 +1,13 @@
+export declare const locales: readonly [{% for locale in locales %}{{ locale.literal }}{% if not loop.last %}, {% endif %}{% endfor %}];
+export declare const baseLocale: {{ base_locale }};
+
+export declare const localeDirections: {
+{% for locale in locales %}  readonly {{ locale.property }}: "{{ locale.direction }}";
+{% endfor %}};
+
+export type Locale = (typeof locales)[number];
+export type TextDirection = "ltr" | "rtl";
+
+export declare function isLocale(locale: unknown): locale is Locale;
+export declare function normalizeLocale(locale: unknown): Locale | undefined;
+export declare function getTextDirection(locale: Locale): TextDirection;

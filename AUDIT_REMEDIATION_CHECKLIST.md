@@ -824,7 +824,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       Where client localization code is required, coalesce its page/locale closure into one
       self-contained payload; avoid per-message requests and extra payloads for composed components
       or layouts. Emit no localization runtime/payload when server-rendered static content suffices.
-      Apply OPT-A1–A5: fold known conditions, specialize used formatter/CLDR patterns, and remove every unneeded
+      Apply OPT-A1–A6: fold known conditions, specialize used formatter/CLDR patterns, and remove every unneeded
       branch, binding, data entry, or loader from the delivered localization graph.
       Prove these constraints on real multi-page builds and served prerendered/SSR pages: inspect
       emitted module ownership, sentinel content, initial HTML/preload/response payloads, and
@@ -1044,18 +1044,18 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### Specialized generated code
 
-- [ ] OPT-A1 — Parse and resolve all used CLDR number, currency, date, calendar, context, zone,
+- [-] OPT-A1 — Parse and resolve all used CLDR number, currency, date, calendar, context, zone,
       skeleton, plural, and composition patterns during compilation/build. Generated code must be
       the compiled result of those patterns; it must not carry raw CLDR patterns/tables for a
       runtime interpreter or parse CLDR syntax after generation. Parsing actual input values such
       as numeric strings or dates is a separate, demand-selected runtime operation.
-- [ ] OPT-A2 — Emit specialized formatter implementations for the actual statically used requests.
+- [-] OPT-A2 — Emit specialized formatter implementations for the actual statically used requests.
       Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
       field widths, and other known choices into code. Remove unused options/branches/data; prohibit
       the current `formatNumber(value) -> formatGeneratedNumber(value, ...21 constants...)` design.
       Keep semantic plans reusable and syntax in canonical templates; avoid recreating a generic
       formatter interpreter under a different name or moving the same parameter vector elsewhere.
-- [ ] OPT-A3 — Lower forms and local/inline function dispatch into direct control flow (`if`/`switch`
+- [-] OPT-A3 — Lower forms and local/inline function dispatch into direct control flow (`if`/`switch`
       and returns) from the validated semantic tree. No per-call branch-map objects, closure tables,
       `selectBranch` callbacks, nested dispatch IIFEs, or wrapper casts solely to support that design.
       Merge identical branches/defaults, remove known redundant coercions, and preserve exact
@@ -1065,12 +1065,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       message closure. Deduplicate genuinely shared operations without importing whole formatter,
       plural, locale, or message runtimes. Emit no unused helper, data entry, option dispatcher,
       inactive locale, or scaffolding in initial page delivery; integrate with ESM-A3/MOD-A4.
-- [ ] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
+- [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page
       graphs, and execute numeric/date/CLDR, function/form, sparse fallback, and SSR/hydration corpora.
       Preserve all meaningful coverage while replacing snapshots of the superseded generated shape.
       Keep optimization and SSR acceptance open until production generation and real consumers pass.
-- [ ] OPT-A6 — Generate readable code wherever the compiler has enough semantic information:
+- [-] OPT-A6 — Generate readable code wherever the compiler has enough semantic information:
       use meaningful parameter/local/helper names, clear formatting, and direct control flow.
       Preserve explicit source parameter names; derive readable names for unnamed selectors from
       their semantic types and resolve collisions deterministically. Use opaque internal names
@@ -1078,6 +1078,15 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       performance, payload size, exact dependency delivery, evaluation semantics, source maps,
       type safety, or compatibility. Verify representative generated functions, forms, and
       formatters alongside the execution and output-size checks in OPT-A5.
+
+The canonical JS migration now resolves actual formatter requests (including schema alias
+inheritance and explicit overrides), compiles number/currency choices and selected Gregorian
+widths into value-only functions, and obtains currency symbols from pinned CLDR data. Named and
+inline dispatch use static decision trees; inline captures become explicit helper arguments.
+Executed ESM fixtures cover nested branches, callable form attributes, multi-key branches,
+`__proto__`, fallback errors, source provenance, and naming collisions. Selector names derive from
+semantic types. These receipts do not close expanded calendar/context/zone/skeleton support,
+remaining emitter extraction, exact page delivery, or framework SSR/hydration verification.
 
 ### Documentation identity through codegen
 

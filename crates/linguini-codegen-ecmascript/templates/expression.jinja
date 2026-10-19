@@ -1,0 +1,9 @@
+{%- if kind == "object" -%}
+{% if dispatcher is not none and fields %}Object.assign({{ dispatcher }}, {% endif %}{% if dispatcher is none or fields %}{ {% for field in fields %}{{ field.key }}: {{ field.value }}{{ ", " if not loop.last }}{% endfor %} }{% else %}{{ dispatcher }}{% endif %}{% if dispatcher is not none and fields %}){% endif %}
+{%- elif kind == "concat" -%}
+{% for value in values %}{{ value }}{{ " + " if not loop.last }}{% else %}""{% endfor %}
+{%- elif kind == "string" -%}
+String({{ value }})
+{%- elif kind == "value" -%}
+{% if empty %}""{% else %}{% if form is not none %}{{ form }}[{{ root }}]{{ suffix }}{% else %}{{ path }}{% endif %}{% if called %}({% for argument in arguments %}{{ argument }}{{ ", " if not loop.last }}{% endfor %}){% endif %}{% endif %}
+{%- endif -%}

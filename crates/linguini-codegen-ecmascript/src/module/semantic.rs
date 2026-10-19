@@ -14,28 +14,24 @@ use crate::ecmascript::{
     EcmaStatement,
 };
 
-use super::emit::{
-    self, emit_forms_for_target, emit_local_functions_for_target, emit_variables_for_target,
-};
-use super::formatters::{formatter_helper_names, formatter_requirements, plural_required};
+use super::emit::{self, emit_forms, emit_local_functions, emit_variables};
+use super::formatters::{formatter_helper_names, plural_required};
 use super::names::{form_binding_name, import_path_for_target, safe_identifier};
-use super::{
-    project_locale_options, EcmaScriptTarget, TypeScriptCodegenError, ValidatedTypeScriptProject,
-};
+use super::{project_locale_options, EcmaCodegenError, EcmaModuleKind, ValidatedEcmaProject};
 
 const MAX_PORTABLE_PATH_BYTES: usize = 240;
 const MAX_ENCODED_NAME_BYTES: usize = 96;
 
 /// Stable semantic symbol class. Ordering is part of artifact determinism.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum TypeScriptSemanticSymbolKind {
+pub enum EcmaSemanticSymbolKind {
     LocaleEnum,
     LocaleVariable,
     LocaleForm,
     LocaleFunction,
 }
 
-impl TypeScriptSemanticSymbolKind {
+impl EcmaSemanticSymbolKind {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::LocaleEnum => "enum",
@@ -57,8 +53,8 @@ impl TypeScriptSemanticSymbolKind {
 
 /// Exact direct semantic ESM edge.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TypeScriptSemanticImport {
-    pub kind: TypeScriptSemanticSymbolKind,
+pub struct EcmaSemanticImport {
+    pub kind: EcmaSemanticSymbolKind,
     pub name: String,
     pub binding: String,
     pub module_path: String,
@@ -69,9 +65,9 @@ pub struct TypeScriptSemanticImport {
 
 /// Stable descriptor for one generated semantic leaf.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeScriptSemanticArtifact {
+pub struct EcmaSemanticArtifact {
     pub locale: String,
-    pub kind: TypeScriptSemanticSymbolKind,
+    pub kind: EcmaSemanticSymbolKind,
     pub name: String,
     pub binding: String,
     pub module_path: String,
@@ -81,30 +77,27 @@ pub struct TypeScriptSemanticArtifact {
     pub runtime_module_path: String,
     pub runtime_import_path: String,
     pub source_ids: Vec<SourceId>,
-    pub imports: Vec<TypeScriptSemanticImport>,
+    pub imports: Vec<EcmaSemanticImport>,
 }
 
 /// Rendered one-binding semantic module.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompiledTypeScriptSemanticModule {
-    pub artifact: TypeScriptSemanticArtifact,
+pub struct CompiledEcmaSemanticModule {
+    pub artifact: EcmaSemanticArtifact,
     pub code: String,
     pub source_map: String,
 }
 
-/// A source-mapped JavaScript ESM semantic leaf emitted from the shared symbol model.
-pub type CompiledJavaScriptSemanticModule = CompiledTypeScriptSemanticModule;
-
 pub(super) fn semantic_artifacts(
-    project: &ValidatedTypeScriptProject<'_>,
-) -> Result<Vec<TypeScriptSemanticArtifact>, TypeScriptCodegenError> {
+    project: &ValidatedEcmaProject<'_>,
+) -> Result<Vec<EcmaSemanticArtifact>, EcmaCodegenError> {
     let selected_messages =
         if project.options.tree_shaking && !project.options.included_messages.is_empty() {
             super::visible_schema(
                 project.schema,
-                &super::TypeScriptOptions {
+                &super::EcmaOptions {
                     included_messages: project.options.included_messages.clone(),
-                    ..super::TypeScriptOptions::default()
+                    ..super::EcmaOptions::default()
                 },
             )
         } else {
@@ -122,28 +115,28 @@ pub(super) fn semantic_artifacts(
             for item in closure.locale_module().enums() {
                 required.insert((
                     locale.locale.clone(),
-                    TypeScriptSemanticSymbolKind::LocaleEnum,
+                    EcmaSemanticSymbolKind::LocaleEnum,
                     item.name.clone(),
                 ));
             }
             for item in closure.locale_module().variables() {
                 required.insert((
                     locale.locale.clone(),
-                    TypeScriptSemanticSymbolKind::LocaleVariable,
+                    EcmaSemanticSymbolKind::LocaleVariable,
                     item.name.clone(),
                 ));
             }
             for item in closure.locale_module().forms() {
                 required.insert((
                     locale.locale.clone(),
-                    TypeScriptSemanticSymbolKind::LocaleForm,
+                    EcmaSemanticSymbolKind::LocaleForm,
                     item.name.clone(),
                 ));
             }
             for item in closure.locale_module().functions() {
                 required.insert((
                     locale.locale.clone(),
-                    TypeScriptSemanticSymbolKind::LocaleFunction,
+                    EcmaSemanticSymbolKind::LocaleFunction,
                     item.name.clone(),
                 ));
             }
@@ -176,20 +169,20 @@ pub(super) fn semantic_artifacts(
             let Some((dependency_path, dependency_binding)) = base.get(&key) else {
                 continue;
             };
-            imports.push(TypeScriptSemanticImport {
+            imports.push(EcmaSemanticImport {
                 kind: dependency_kind,
                 name: dependency_name.clone(),
                 binding: dependency_binding.clone(),
                 module_path: dependency_path.clone(),
                 import_path: relative_import(module_path, dependency_path),
                 source_ids: symbol_source_ids(locale_module, dependency_kind, &dependency_name),
-                type_only: dependency_kind == TypeScriptSemanticSymbolKind::LocaleEnum,
+                type_only: dependency_kind == EcmaSemanticSymbolKind::LocaleEnum,
             });
         }
         imports.sort();
         let parent_depth = module_path.matches('/').count();
-        let runtime_module_path = format!("locales/{locale}/_runtime.ts");
-        artifacts.push(TypeScriptSemanticArtifact {
+        let runtime_module_path = format!("locales/{locale}/_runtime.js");
+        artifacts.push(EcmaSemanticArtifact {
             locale: locale.clone(),
             kind: *kind,
             name: name.clone(),
@@ -212,41 +205,33 @@ pub(super) fn semantic_artifacts(
     Ok(artifacts)
 }
 
-pub fn compile_typescript_bundler_semantic_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptSemanticArtifact,
-    sources: &[EcmaSource],
-) -> Result<CompiledTypeScriptSemanticModule, TypeScriptCodegenError> {
-    compile_bundler_semantic_module(project, artifact, sources, EcmaScriptTarget::TypeScript)
-}
-
 /// Compiles one semantic artifact into a source-mapped JavaScript ESM bundler leaf.
-pub fn compile_javascript_bundler_semantic_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptSemanticArtifact,
+pub fn compile_bundler_semantic_module(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaSemanticArtifact,
     sources: &[EcmaSource],
-) -> Result<CompiledJavaScriptSemanticModule, TypeScriptCodegenError> {
-    compile_bundler_semantic_module(project, artifact, sources, EcmaScriptTarget::JavaScript)
+) -> Result<CompiledEcmaSemanticModule, EcmaCodegenError> {
+    compile_bundler_semantic_module_impl(project, artifact, sources, EcmaModuleKind::JavaScript)
 }
 
-fn compile_bundler_semantic_module(
-    project: &ValidatedTypeScriptProject<'_>,
-    artifact: &TypeScriptSemanticArtifact,
+fn compile_bundler_semantic_module_impl(
+    project: &ValidatedEcmaProject<'_>,
+    artifact: &EcmaSemanticArtifact,
     sources: &[EcmaSource],
-    target: EcmaScriptTarget,
-) -> Result<CompiledTypeScriptSemanticModule, TypeScriptCodegenError> {
+    target: EcmaModuleKind,
+) -> Result<CompiledEcmaSemanticModule, EcmaCodegenError> {
     let locale = &project
         .locales
         .iter()
         .find(|entry| entry.locale == artifact.locale)
-        .ok_or_else(|| TypeScriptCodegenError::UnknownLocale {
+        .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: artifact.locale.clone(),
         })?
         .module;
     let options = project_locale_options(&artifact.locale, &project.options)?;
     let one = one_symbol_module(locale, artifact.kind, &artifact.name);
     if !module_has_symbol(&one, artifact.kind) {
-        return Err(TypeScriptCodegenError::UnknownSemanticArtifact {
+        return Err(EcmaCodegenError::UnknownSemanticArtifact {
             locale: artifact.locale.clone(),
             kind: artifact.kind.as_str().to_owned(),
             name: artifact.name.clone(),
@@ -255,7 +240,7 @@ fn compile_bundler_semantic_module(
     let mut imports = artifact
         .imports
         .iter()
-        .filter(|dependency| target.is_typescript() || !dependency.type_only)
+        .filter(|dependency| !dependency.type_only)
         .map(|dependency| EcmaImport {
             specifier: import_path_for_target(&dependency.import_path, target),
             bindings: if dependency.type_only {
@@ -273,45 +258,29 @@ fn compile_bundler_semantic_module(
         .collect::<Vec<_>>();
 
     let type_names = schema_types_for_symbol(project.schema, &one);
-    if target.is_typescript() && !type_names.is_empty() {
-        imports.push(EcmaImport {
-            specifier: artifact.shared_import_path.clone(),
-            bindings: EcmaImportBindings::TypeNamed(
-                type_names
-                    .iter()
-                    .map(|name| EcmaNamedImport::new(name, name))
-                    .collect(),
-            ),
-        });
-    }
-
     let mut output = String::new();
     match artifact.kind {
-        TypeScriptSemanticSymbolKind::LocaleEnum => {
-            if target.is_typescript() {
-                emit::emit_locale_enum_types_with_exports(project.schema, &one, true, &mut output);
-            } else {
-                emit::emit_locale_enum_jsdoc_types(project.schema, &one, &mut output);
-                output.push_str("export {};\n");
-            }
+        EcmaSemanticSymbolKind::LocaleEnum => {
+            emit::emit_locale_enum_jsdoc_types(project.schema, &one, &mut output);
+            output.push_str("export {};\n");
         }
-        TypeScriptSemanticSymbolKind::LocaleVariable => {
-            emit_variables_for_target(&one, &options, target, true, &mut output);
+        EcmaSemanticSymbolKind::LocaleVariable => {
+            emit_variables(&one, &options, true, &mut output);
         }
-        TypeScriptSemanticSymbolKind::LocaleForm => {
-            emit_forms_for_target(&one, &options, target, true, &mut output);
+        EcmaSemanticSymbolKind::LocaleForm => {
+            emit_forms(&one, &options, true, &mut output);
         }
-        TypeScriptSemanticSymbolKind::LocaleFunction => {
-            emit_local_functions_for_target(&one, &options, target, true, &mut output);
+        EcmaSemanticSymbolKind::LocaleFunction => {
+            emit_local_functions(&one, &options, true, &mut output);
         }
     }
 
-    if !target.is_typescript() {
+    {
         let locale_enum_names = artifact
             .imports
             .iter()
             .filter(|dependency| {
-                dependency.type_only && dependency.kind == TypeScriptSemanticSymbolKind::LocaleEnum
+                dependency.type_only && dependency.kind == EcmaSemanticSymbolKind::LocaleEnum
             })
             .map(|dependency| dependency.name.as_str())
             .collect::<BTreeSet<_>>();
@@ -349,16 +318,16 @@ fn compile_bundler_semantic_module(
             vec![EcmaNamedImport::new("selectBranch", "selectBranch")],
         ));
     }
-    let mut helpers = formatter_helper_names(formatter_requirements(&IrModule::default(), &one));
+    let mut helpers = formatter_helper_names(&IrModule::default(), &one);
     if plural_required(&IrModule::default(), &one) {
-        helpers.push(&options.plural_function);
+        helpers.push(options.plural_function.clone());
     }
     if !helpers.is_empty() {
         imports.push(EcmaImport::named(
             import_path_for_target(&artifact.runtime_import_path, target),
             helpers
                 .into_iter()
-                .map(|name| EcmaNamedImport::new(name, name))
+                .map(|name| EcmaNamedImport::new(&name, &name))
                 .collect(),
         ));
     }
@@ -369,10 +338,8 @@ fn compile_bundler_semantic_module(
         Some(span) => EcmaStatement::mapped(output, span),
         None => EcmaStatement::generated(output),
     };
-    let output_file_name = if target.is_typescript() {
-        artifact.output_file_name.clone()
-    } else {
-        artifact.output_file_name.strip_suffix(".ts").map_or_else(
+    let output_file_name = {
+        artifact.output_file_name.strip_suffix(".js").map_or_else(
             || artifact.output_file_name.clone(),
             |stem| format!("{stem}.js"),
         )
@@ -382,7 +349,7 @@ fn compile_bundler_semantic_module(
     module.push_statement(statement);
     let source_records = ordered_sources(&artifact.source_ids, sources)?;
     let rendered = module.render(&source_records);
-    Ok(CompiledTypeScriptSemanticModule {
+    Ok(CompiledEcmaSemanticModule {
         artifact: artifact.clone(),
         code: rendered.code,
         source_map: rendered.source_map,
@@ -390,11 +357,11 @@ fn compile_bundler_semantic_module(
 }
 
 pub(super) fn message_imports_from_shared(
-    project: &ValidatedTypeScriptProject<'_>,
+    project: &ValidatedEcmaProject<'_>,
     locale: &str,
     message: &str,
     shared_import_path: &str,
-) -> Result<Vec<TypeScriptSemanticImport>, TypeScriptCodegenError> {
+) -> Result<Vec<EcmaSemanticImport>, EcmaCodegenError> {
     let artifacts = semantic_artifacts(project)?;
     let javascript =
         shared_import_path.ends_with("/shared.js") || shared_import_path == "shared.js";
@@ -408,7 +375,7 @@ pub(super) fn message_imports_from_shared(
         let path = format!(
             "{}/{}",
             root.trim_end_matches('/'),
-            artifact.module_path.trim_end_matches(".ts")
+            artifact.module_path.trim_end_matches(".js")
         );
         if javascript {
             format!("{path}.js")
@@ -419,17 +386,17 @@ pub(super) fn message_imports_from_shared(
 }
 
 pub(super) fn message_imports_with_artifacts(
-    project: &ValidatedTypeScriptProject<'_>,
+    project: &ValidatedEcmaProject<'_>,
     locale: &str,
     message: &str,
-    artifacts: &[TypeScriptSemanticArtifact],
-    import_path: impl Fn(&TypeScriptSemanticArtifact) -> String,
-) -> Result<Vec<TypeScriptSemanticImport>, TypeScriptCodegenError> {
+    artifacts: &[EcmaSemanticArtifact],
+    import_path: impl Fn(&EcmaSemanticArtifact) -> String,
+) -> Result<Vec<EcmaSemanticImport>, EcmaCodegenError> {
     let locale_module = &project
         .locales
         .iter()
         .find(|entry| entry.locale == locale)
-        .ok_or_else(|| TypeScriptCodegenError::UnknownLocale {
+        .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: locale.to_owned(),
         })?
         .module;
@@ -438,14 +405,14 @@ pub(super) fn message_imports_with_artifacts(
         .messages()
         .iter()
         .find(|item| item.name == message)
-        .ok_or_else(|| TypeScriptCodegenError::UnknownMessage {
+        .ok_or_else(|| EcmaCodegenError::UnknownMessage {
             message: message.to_owned(),
         })?;
     let implementation = locale_module
         .messages()
         .iter()
         .find(|item| item.name == message)
-        .ok_or_else(|| TypeScriptCodegenError::MissingMessageImplementation {
+        .ok_or_else(|| EcmaCodegenError::MissingMessageImplementation {
             locale: locale.to_owned(),
             message: message.to_owned(),
         })?;
@@ -468,35 +435,35 @@ pub(super) fn message_imports_with_artifacts(
             artifacts
                 .iter()
                 .find(|item| item.locale == locale && item.kind == kind && item.name == name)
-                .map(|item| TypeScriptSemanticImport {
+                .map(|item| EcmaSemanticImport {
                     kind,
                     name,
                     binding: item.binding.clone(),
                     module_path: item.module_path.clone(),
                     import_path: import_path(item),
                     source_ids: item.source_ids.clone(),
-                    type_only: kind == TypeScriptSemanticSymbolKind::LocaleEnum,
+                    type_only: kind == EcmaSemanticSymbolKind::LocaleEnum,
                 })
         })
         .collect())
 }
 
-fn semantic_binding(kind: TypeScriptSemanticSymbolKind, name: &str) -> String {
+fn semantic_binding(kind: EcmaSemanticSymbolKind, name: &str) -> String {
     match kind {
-        TypeScriptSemanticSymbolKind::LocaleForm => form_binding_name(name),
+        EcmaSemanticSymbolKind::LocaleForm => form_binding_name(name),
         _ => safe_identifier(name),
     }
 }
 
 fn semantic_module_path(
     locale: &str,
-    kind: TypeScriptSemanticSymbolKind,
+    kind: EcmaSemanticSymbolKind,
     name: &str,
-) -> Result<String, TypeScriptCodegenError> {
+) -> Result<String, EcmaCodegenError> {
     let encoded = encoded_path(name.as_bytes());
-    let path = format!("bundler/semantic/{locale}/{}/{encoded}.ts", kind.as_str());
+    let path = format!("bundler/semantic/{locale}/{}/{encoded}.js", kind.as_str());
     if path.len() > MAX_PORTABLE_PATH_BYTES {
-        return Err(TypeScriptCodegenError::InvalidSemanticArtifactPath {
+        return Err(EcmaCodegenError::InvalidSemanticArtifactPath {
             locale: locale.to_owned(),
             kind: kind.as_str().to_owned(),
             name: name.to_owned(),
@@ -527,7 +494,7 @@ fn fnv1a(value: &[u8]) -> u64 {
 
 pub(super) fn relative_import(from: &str, to: &str) -> String {
     let from_parts = from.split('/').collect::<Vec<_>>();
-    let mut to_parts = to.trim_end_matches(".ts").split('/').collect::<Vec<_>>();
+    let mut to_parts = to.trim_end_matches(".js").split('/').collect::<Vec<_>>();
     let from_dirs = &from_parts[..from_parts.len() - 1];
     let common = from_dirs
         .iter()
@@ -543,12 +510,12 @@ pub(super) fn relative_import(from: &str, to: &str) -> String {
 }
 
 fn validate_paths(
-    base: &BTreeMap<(String, TypeScriptSemanticSymbolKind, String), (String, String)>,
-) -> Result<(), TypeScriptCodegenError> {
+    base: &BTreeMap<(String, EcmaSemanticSymbolKind, String), (String, String)>,
+) -> Result<(), EcmaCodegenError> {
     let mut paths = BTreeMap::new();
     for ((locale, kind, name), (path, _)) in base {
         if let Some(conflict) = paths.insert(path.to_ascii_lowercase(), (locale, kind, name)) {
-            return Err(TypeScriptCodegenError::OutputPathCollision {
+            return Err(EcmaCodegenError::OutputPathCollision {
                 path: path.clone(),
                 conflicts_with: format!(
                     "semantic {} `{}` for locale `{}`",
@@ -562,14 +529,14 @@ fn validate_paths(
     Ok(())
 }
 
-fn validate_cycles(artifacts: &[TypeScriptSemanticArtifact]) -> Result<(), TypeScriptCodegenError> {
+fn validate_cycles(artifacts: &[EcmaSemanticArtifact]) -> Result<(), EcmaCodegenError> {
     let by_path = artifacts
         .iter()
         .map(|item| (item.module_path.as_str(), item))
         .collect::<BTreeMap<_, _>>();
     fn visit<'a>(
         path: &'a str,
-        by_path: &BTreeMap<&'a str, &'a TypeScriptSemanticArtifact>,
+        by_path: &BTreeMap<&'a str, &'a EcmaSemanticArtifact>,
         active: &mut Vec<&'a str>,
         done: &mut BTreeSet<&'a str>,
     ) -> Option<Vec<String>> {
@@ -603,7 +570,7 @@ fn validate_cycles(artifacts: &[TypeScriptSemanticArtifact]) -> Result<(), TypeS
     let mut done = BTreeSet::new();
     for artifact in artifacts {
         if let Some(cycle) = visit(&artifact.module_path, &by_path, &mut Vec::new(), &mut done) {
-            return Err(TypeScriptCodegenError::SemanticDependencyCycle {
+            return Err(EcmaCodegenError::SemanticDependencyCycle {
                 locale: artifact.locale.clone(),
                 cycle,
             });
@@ -612,11 +579,7 @@ fn validate_cycles(artifacts: &[TypeScriptSemanticArtifact]) -> Result<(), TypeS
     Ok(())
 }
 
-fn one_symbol_module(
-    locale: &IrModule,
-    kind: TypeScriptSemanticSymbolKind,
-    name: &str,
-) -> IrModule {
+fn one_symbol_module(locale: &IrModule, kind: EcmaSemanticSymbolKind, name: &str) -> IrModule {
     let selected = kind.ir_kind();
     IrModuleBuilder::seeded(locale)
         .retain_symbols(|item_kind, item_name| item_kind == selected && item_name == name)
@@ -624,16 +587,16 @@ fn one_symbol_module(
         .expect("single-symbol projection preserves unique declaration names")
 }
 
-fn module_has_symbol(module: &IrModule, kind: TypeScriptSemanticSymbolKind) -> bool {
+fn module_has_symbol(module: &IrModule, kind: EcmaSemanticSymbolKind) -> bool {
     match kind {
-        TypeScriptSemanticSymbolKind::LocaleEnum => !module.enums().is_empty(),
-        TypeScriptSemanticSymbolKind::LocaleVariable => !module.variables().is_empty(),
-        TypeScriptSemanticSymbolKind::LocaleForm => !module.forms().is_empty(),
-        TypeScriptSemanticSymbolKind::LocaleFunction => !module.functions().is_empty(),
+        EcmaSemanticSymbolKind::LocaleEnum => !module.enums().is_empty(),
+        EcmaSemanticSymbolKind::LocaleVariable => !module.variables().is_empty(),
+        EcmaSemanticSymbolKind::LocaleForm => !module.forms().is_empty(),
+        EcmaSemanticSymbolKind::LocaleFunction => !module.functions().is_empty(),
     }
 }
 
-fn symbol_span(locale: &IrModule, kind: TypeScriptSemanticSymbolKind, name: &str) -> Option<Span> {
+fn symbol_span(locale: &IrModule, kind: EcmaSemanticSymbolKind, name: &str) -> Option<Span> {
     locale
         .origins()
         .iter()
@@ -642,30 +605,26 @@ fn symbol_span(locale: &IrModule, kind: TypeScriptSemanticSymbolKind, name: &str
         .map(|origin| origin.span)
 }
 
-fn symbol_source_ids(
-    locale: &IrModule,
-    kind: TypeScriptSemanticSymbolKind,
-    name: &str,
-) -> Vec<SourceId> {
+fn symbol_source_ids(locale: &IrModule, kind: EcmaSemanticSymbolKind, name: &str) -> Vec<SourceId> {
     let mut sources = BTreeSet::new();
     if let Some(span) = symbol_span(locale, kind, name) {
         sources.insert(span.source);
     }
     match kind {
-        TypeScriptSemanticSymbolKind::LocaleEnum => {}
-        TypeScriptSemanticSymbolKind::LocaleVariable => {
+        EcmaSemanticSymbolKind::LocaleEnum => {}
+        EcmaSemanticSymbolKind::LocaleVariable => {
             if let Some(item) = locale.variables().iter().find(|item| item.name == name) {
                 collect_text_source_ids(&item.value, &mut sources);
             }
         }
-        TypeScriptSemanticSymbolKind::LocaleForm => {
+        EcmaSemanticSymbolKind::LocaleForm => {
             if let Some(item) = locale.forms().iter().find(|item| item.name == name) {
                 for variant in &item.variants {
                     collect_form_source_ids(&variant.entries, &mut sources);
                 }
             }
         }
-        TypeScriptSemanticSymbolKind::LocaleFunction => {
+        EcmaSemanticSymbolKind::LocaleFunction => {
             if let Some(item) = locale.functions().iter().find(|item| item.name == name) {
                 for branch in &item.branches {
                     collect_function_source_ids(branch, &mut sources);
@@ -745,11 +704,11 @@ fn collect_value_source_ids(value: &IrValue, output: &mut BTreeSet<SourceId>) {
 fn ordered_sources(
     ids: &[SourceId],
     sources: &[EcmaSource],
-) -> Result<Vec<EcmaSource>, TypeScriptCodegenError> {
+) -> Result<Vec<EcmaSource>, EcmaCodegenError> {
     let mut records = BTreeMap::new();
     for source in sources {
         if records.insert(source.id, source).is_some() {
-            return Err(TypeScriptCodegenError::DuplicateMessageSource {
+            return Err(EcmaCodegenError::DuplicateMessageSource {
                 source_id: source.id,
             });
         }
@@ -759,7 +718,7 @@ fn ordered_sources(
             records
                 .get(id)
                 .map(|item| (*item).clone())
-                .ok_or(TypeScriptCodegenError::MissingMessageSource { source_id: *id })
+                .ok_or(EcmaCodegenError::MissingMessageSource { source_id: *id })
         })
         .collect()
 }
@@ -810,25 +769,25 @@ fn collect_form_types(schema: &IrModule, entries: &[IrFormEntry], names: &mut BT
 fn direct_dependencies(
     schema: &IrModule,
     locale: &IrModule,
-    kind: TypeScriptSemanticSymbolKind,
+    kind: EcmaSemanticSymbolKind,
     name: &str,
-) -> BTreeSet<(TypeScriptSemanticSymbolKind, String)> {
+) -> BTreeSet<(EcmaSemanticSymbolKind, String)> {
     let mut collector = ReferenceCollector::new(schema, locale);
     match kind {
-        TypeScriptSemanticSymbolKind::LocaleEnum => {}
-        TypeScriptSemanticSymbolKind::LocaleVariable => {
+        EcmaSemanticSymbolKind::LocaleEnum => {}
+        EcmaSemanticSymbolKind::LocaleVariable => {
             if let Some(item) = locale.variables().iter().find(|item| item.name == name) {
                 collector.text(&item.value, &BTreeMap::new());
             }
         }
-        TypeScriptSemanticSymbolKind::LocaleForm => {
+        EcmaSemanticSymbolKind::LocaleForm => {
             if let Some(item) = locale.forms().iter().find(|item| item.name == name) {
                 for variant in &item.variants {
                     collector.form_entries(&variant.entries, &BTreeMap::new());
                 }
             }
         }
-        TypeScriptSemanticSymbolKind::LocaleFunction => {
+        EcmaSemanticSymbolKind::LocaleFunction => {
             if let Some(item) = locale.functions().iter().find(|item| item.name == name) {
                 for parameter in &item.parameters {
                     collector.record_type(&parameter.ty);
@@ -859,7 +818,7 @@ fn parameter_context(parameters: &[IrFunctionParameter]) -> BTreeMap<String, Str
 struct ReferenceCollector<'a> {
     schema: &'a IrModule,
     locale: &'a IrModule,
-    dependencies: BTreeSet<(TypeScriptSemanticSymbolKind, String)>,
+    dependencies: BTreeSet<(EcmaSemanticSymbolKind, String)>,
 }
 impl<'a> ReferenceCollector<'a> {
     fn new(schema: &'a IrModule, locale: &'a IrModule) -> Self {
@@ -873,7 +832,7 @@ impl<'a> ReferenceCollector<'a> {
         let resolved = self.resolve_type(ty);
         if self.locale.enums().iter().any(|item| item.name == resolved) {
             self.dependencies
-                .insert((TypeScriptSemanticSymbolKind::LocaleEnum, resolved));
+                .insert((EcmaSemanticSymbolKind::LocaleEnum, resolved));
         }
     }
     fn text(&mut self, text: &IrText, context: &BTreeMap<String, String>) {
@@ -909,12 +868,12 @@ impl<'a> ReferenceCollector<'a> {
         let full = expr.path.join(".");
         if self.locale.functions().iter().any(|item| item.name == full) {
             self.dependencies
-                .insert((TypeScriptSemanticSymbolKind::LocaleFunction, full));
+                .insert((EcmaSemanticSymbolKind::LocaleFunction, full));
             return;
         }
         if self.locale.forms().iter().any(|item| item.name == full) {
             self.dependencies
-                .insert((TypeScriptSemanticSymbolKind::LocaleForm, full));
+                .insert((EcmaSemanticSymbolKind::LocaleForm, full));
             return;
         }
         if let Some(ty) = context.get(&expr.path[0]) {
@@ -922,7 +881,7 @@ impl<'a> ReferenceCollector<'a> {
                 let resolved = self.resolve_type(ty);
                 if self.locale.forms().iter().any(|item| item.name == resolved) {
                     self.dependencies
-                        .insert((TypeScriptSemanticSymbolKind::LocaleForm, resolved));
+                        .insert((EcmaSemanticSymbolKind::LocaleForm, resolved));
                 }
             }
         }
@@ -934,10 +893,8 @@ impl<'a> ReferenceCollector<'a> {
                 .iter()
                 .any(|item| item.name == expr.path[0])
         {
-            self.dependencies.insert((
-                TypeScriptSemanticSymbolKind::LocaleVariable,
-                expr.path[0].clone(),
-            ));
+            self.dependencies
+                .insert((EcmaSemanticSymbolKind::LocaleVariable, expr.path[0].clone()));
         }
     }
     fn resolve_type(&self, ty: &str) -> String {
@@ -1019,28 +976,26 @@ fn inferred_expression_type(
 mod tests {
     use super::*;
     use crate::{
-        compile_javascript_bundler_semantic_module,
-        compile_typescript_bundler_message_artifact_module,
-        compile_typescript_bundler_message_module, EcmaSource, TypeScriptLocaleModule,
-        TypeScriptProjectOptions,
+        compile_bundler_message_artifact_module, compile_bundler_message_module,
+        compile_bundler_semantic_module, EcmaLocaleModule, EcmaProjectOptions, EcmaSource,
     };
     use linguini_ir::{lower_locale_typed as lower_locale, lower_schema_typed as lower_schema};
     use linguini_syntax::{parse_locale_in, parse_schema_in};
 
-    fn project(schema: &str, locale: &str) -> ValidatedTypeScriptProject<'static> {
+    fn project(schema: &str, locale: &str) -> ValidatedEcmaProject<'static> {
         let schema = Box::leak(Box::new(lower_schema(
             &parse_schema_in(schema, SourceId(11)).expect("schema"),
         )));
-        let locales = Box::leak(Box::new(vec![TypeScriptLocaleModule {
+        let locales = Box::leak(Box::new(vec![EcmaLocaleModule {
             locale: "en".to_owned(),
             module: lower_locale(&parse_locale_in(locale, SourceId(12)).expect("locale")),
         }]));
-        ValidatedTypeScriptProject::try_new(
+        ValidatedEcmaProject::try_new(
             schema,
             locales,
-            &TypeScriptProjectOptions {
+            &EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
-                ..TypeScriptProjectOptions::default()
+                ..EcmaProjectOptions::default()
             },
         )
         .expect("project")
@@ -1061,7 +1016,7 @@ mod tests {
         let artifacts = project.semantic_artifacts().expect("artifacts");
         assert_eq!(artifacts.len(), 1);
         let artifact = &artifacts[0];
-        assert_eq!(artifact.kind, TypeScriptSemanticSymbolKind::LocaleVariable);
+        assert_eq!(artifact.kind, EcmaSemanticSymbolKind::LocaleVariable);
         assert_eq!(artifact.name, "shared");
         assert!(artifact
             .module_path
@@ -1072,7 +1027,7 @@ mod tests {
         assert!(message_artifacts
             .iter()
             .all(|message| message.semantic_imports
-                == vec![TypeScriptSemanticImport {
+                == vec![EcmaSemanticImport {
                     kind: artifact.kind,
                     name: artifact.name.clone(),
                     binding: artifact.binding.clone(),
@@ -1086,34 +1041,28 @@ mod tests {
             .iter()
             .find(|item| item.message == "first")
             .unwrap();
-        let compiled = compile_typescript_bundler_message_artifact_module(
-            &project,
-            first,
-            &sources(schema, locale),
-        )
-        .expect("message");
+        let compiled =
+            compile_bundler_message_artifact_module(&project, first, &sources(schema, locale))
+                .expect("message");
         assert!(compiled.code.contains(&format!(
-            "import {{ shared }} from \"{}\";",
+            "import {{ shared }} from \"{}.js\";",
             first.semantic_imports[0].import_path
         )));
         assert!(!compiled.code.contains("const shared ="));
 
-        let semantic = compile_typescript_bundler_semantic_module(
-            &project,
-            artifact,
-            &sources(schema, locale),
-        )
-        .expect("semantic");
+        let semantic =
+            compile_bundler_semantic_module(&project, artifact, &sources(schema, locale))
+                .expect("semantic");
         assert!(semantic.code.contains("export const shared = \"Common\";"));
         assert_eq!(semantic.code.matches("export ").count(), 1);
         assert!(semantic.source_map.contains("en.lgl"));
         assert!(semantic.source_map.contains("\"mappings\":\"AAAA\""));
 
-        let relocated = compile_typescript_bundler_message_module(
+        let relocated = compile_bundler_message_module(
             &project,
             "en",
             "first",
-            "leaf.ts",
+            "leaf.js",
             "../../shared",
             "../../locales/en/_runtime",
             &sources(schema, locale),
@@ -1136,12 +1085,9 @@ mod tests {
             .find(|artifact| artifact.name == "Render")
             .expect("Render artifact");
 
-        let compiled = compile_javascript_bundler_semantic_module(
-            &project,
-            &artifact,
-            &sources(schema, locale),
-        )
-        .expect("JavaScript semantic module");
+        let compiled =
+            compile_bundler_semantic_module(&project, &artifact, &sources(schema, locale))
+                .expect("JavaScript semantic module");
 
         assert!(compiled.code.contains("export function Render(value)"));
         assert!(compiled.code.contains("formatNumber(value)"));
@@ -1154,7 +1100,7 @@ mod tests {
         assert!(!compiled.code.contains(" as const"));
         assert!(compiled.code.ends_with(&format!(
             "//# sourceMappingURL={}\n",
-            artifact.output_file_name.replace(".ts", ".js.map")
+            artifact.output_file_name.replace(".js", ".js.map")
         )));
     }
 
@@ -1166,16 +1112,13 @@ mod tests {
         let artifacts = project.semantic_artifacts().expect("artifacts");
         let function = artifacts
             .iter()
-            .find(|item| item.kind == TypeScriptSemanticSymbolKind::LocaleFunction)
+            .find(|item| item.kind == EcmaSemanticSymbolKind::LocaleFunction)
             .unwrap();
         assert_eq!(function.imports.len(), 1);
         assert_eq!(function.imports[0].name, "prefix");
-        let compiled = compile_typescript_bundler_semantic_module(
-            &project,
-            function,
-            &sources(schema, locale),
-        )
-        .expect("function");
+        let compiled =
+            compile_bundler_semantic_module(&project, function, &sources(schema, locale))
+                .expect("function");
         assert!(compiled.code.contains("import { prefix }"));
         assert!(compiled.code.contains("import { formatNumber }"));
         assert!(!compiled.code.contains("formatCurrency"));
@@ -1183,7 +1126,7 @@ mod tests {
         assert_eq!(compiled.code.matches("export ").count(), 1);
 
         let message = project.message_artifacts().expect("messages").remove(0);
-        let physical = compile_typescript_bundler_message_module(
+        let physical = compile_bundler_message_module(
             &project,
             "en",
             "root",
@@ -1206,22 +1149,22 @@ mod tests {
         let artifacts = project.semantic_artifacts().expect("artifacts");
         let form = artifacts
             .iter()
-            .find(|item| item.kind == TypeScriptSemanticSymbolKind::LocaleForm)
+            .find(|item| item.kind == EcmaSemanticSymbolKind::LocaleForm)
             .expect("form");
         let locale_enum = artifacts
             .iter()
-            .find(|item| item.kind == TypeScriptSemanticSymbolKind::LocaleEnum)
+            .find(|item| item.kind == EcmaSemanticSymbolKind::LocaleEnum)
             .expect("locale enum");
         let function = artifacts
             .iter()
-            .find(|item| item.kind == TypeScriptSemanticSymbolKind::LocaleFunction)
+            .find(|item| item.kind == EcmaSemanticSymbolKind::LocaleFunction)
             .expect("function");
         assert!(function
             .imports
             .iter()
             .any(|dependency| { dependency.name == locale_enum.name && dependency.type_only }));
         let message = project.message_artifacts().expect("messages").remove(0);
-        let physical = compile_typescript_bundler_message_module(
+        let physical = compile_bundler_message_module(
             &project,
             "en",
             "root",
@@ -1235,30 +1178,23 @@ mod tests {
             .code
             .contains(&format!("import {{ {} }}", form.binding)));
         assert!(!physical.code.contains(&format!("const {} =", form.binding)));
-        let enum_module = compile_typescript_bundler_semantic_module(
-            &project,
-            locale_enum,
-            &sources(schema, locale),
-        )
-        .expect("enum module");
-        assert!(enum_module.code.contains("export type Gender"));
+        let enum_module =
+            compile_bundler_semantic_module(&project, locale_enum, &sources(schema, locale))
+                .expect("enum module");
+        assert!(enum_module
+            .code
+            .contains("@typedef {\"male\" | \"other\"} Gender"));
         assert_eq!(enum_module.code.matches("export ").count(), 1);
 
-        let javascript_enum = compile_javascript_bundler_semantic_module(
-            &project,
-            locale_enum,
-            &sources(schema, locale),
-        )
-        .expect("JavaScript enum module");
+        let javascript_enum =
+            compile_bundler_semantic_module(&project, locale_enum, &sources(schema, locale))
+                .expect("JavaScript enum module");
         assert!(javascript_enum
             .code
             .contains("/** @typedef {\"male\" | \"other\"} Gender */"));
-        let javascript_function = compile_javascript_bundler_semantic_module(
-            &project,
-            function,
-            &sources(schema, locale),
-        )
-        .expect("JavaScript function module");
+        let javascript_function =
+            compile_bundler_semantic_module(&project, function, &sources(schema, locale))
+                .expect("JavaScript function module");
         assert!(javascript_function
             .code
             .contains("/** @typedef {\"male\" | \"other\"} Gender */"));
@@ -1274,24 +1210,38 @@ mod tests {
             .semantic_artifacts()
             .expect("artifacts")
             .into_iter()
-            .find(|item| item.kind == TypeScriptSemanticSymbolKind::LocaleForm)
+            .find(|item| item.kind == EcmaSemanticSymbolKind::LocaleForm)
             .expect("form");
         let message = project.message_artifacts().expect("messages").remove(0);
 
+        let helper = project
+            .semantic_artifacts()
+            .expect("artifacts")
+            .into_iter()
+            .find(|artifact| artifact.name == "root_inline")
+            .expect("lifted inline function");
         assert!(message
             .semantic_imports
             .iter()
+            .any(|dependency| dependency.module_path == helper.module_path));
+        assert!(!message
+            .semantic_imports
+            .iter()
             .any(|dependency| dependency.module_path == form.module_path));
-        let compiled = compile_typescript_bundler_message_artifact_module(
-            &project,
-            &message,
-            &sources(schema, locale),
-        )
-        .expect("message");
+        assert!(helper
+            .imports
+            .iter()
+            .any(|dependency| dependency.module_path == form.module_path));
+        let compiled = compile_bundler_semantic_module(&project, &helper, &sources(schema, locale))
+            .expect("inline helper");
         assert!(compiled
             .code
             .contains(&format!("import {{ {} }}", form.binding)));
         assert!(!compiled.code.contains(&format!("const {} =", form.binding)));
+        let message =
+            compile_bundler_message_artifact_module(&project, &message, &sources(schema, locale))
+                .expect("message");
+        assert!(message.code.contains("root_inline(fruit)"));
     }
 
     #[test]
@@ -1308,41 +1258,32 @@ mod tests {
     #[test]
     fn long_names_are_portable_and_semantic_cycles_are_rejected() {
         let long_name = "a".repeat(400);
-        let path = semantic_module_path(
-            "en",
-            TypeScriptSemanticSymbolKind::LocaleVariable,
-            &long_name,
-        )
-        .expect("portable path");
+        let path = semantic_module_path("en", EcmaSemanticSymbolKind::LocaleVariable, &long_name)
+            .expect("portable path");
         assert!(path.len() <= MAX_PORTABLE_PATH_BYTES);
         assert!(path.is_ascii());
         assert_eq!(
             path,
-            semantic_module_path(
-                "en",
-                TypeScriptSemanticSymbolKind::LocaleVariable,
-                &long_name
-            )
-            .unwrap()
+            semantic_module_path("en", EcmaSemanticSymbolKind::LocaleVariable, &long_name).unwrap()
         );
 
-        let make = |name: &str, dependency: &str| TypeScriptSemanticArtifact {
+        let make = |name: &str, dependency: &str| EcmaSemanticArtifact {
             locale: "en".into(),
-            kind: TypeScriptSemanticSymbolKind::LocaleVariable,
+            kind: EcmaSemanticSymbolKind::LocaleVariable,
             name: name.into(),
             binding: name.into(),
-            module_path: format!("{name}.ts"),
-            source_map_path: format!("{name}.ts.map"),
-            output_file_name: format!("{name}.ts"),
+            module_path: format!("{name}.js"),
+            source_map_path: format!("{name}.js.map"),
+            output_file_name: format!("{name}.js"),
             shared_import_path: "./shared".into(),
-            runtime_module_path: "locales/en/_runtime.ts".into(),
+            runtime_module_path: "locales/en/_runtime.js".into(),
             runtime_import_path: "./runtime".into(),
             source_ids: vec![],
-            imports: vec![TypeScriptSemanticImport {
-                kind: TypeScriptSemanticSymbolKind::LocaleVariable,
+            imports: vec![EcmaSemanticImport {
+                kind: EcmaSemanticSymbolKind::LocaleVariable,
                 name: dependency.into(),
                 binding: dependency.into(),
-                module_path: format!("{dependency}.ts"),
+                module_path: format!("{dependency}.js"),
                 import_path: format!("./{dependency}"),
                 source_ids: vec![],
                 type_only: false,
@@ -1350,7 +1291,7 @@ mod tests {
         };
         assert!(matches!(
             validate_cycles(&[make("a", "b"), make("b", "a")]),
-            Err(TypeScriptCodegenError::SemanticDependencyCycle { .. })
+            Err(EcmaCodegenError::SemanticDependencyCycle { .. })
         ));
     }
 
@@ -1378,7 +1319,7 @@ mod tests {
             .expect("cross-source fixture preserves unique declaration names");
 
         assert_eq!(
-            symbol_source_ids(&locale, TypeScriptSemanticSymbolKind::LocaleForm, "Fruit"),
+            symbol_source_ids(&locale, EcmaSemanticSymbolKind::LocaleForm, "Fruit"),
             vec![SourceId(20), SourceId(21)]
         );
     }

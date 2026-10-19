@@ -1,0 +1,15 @@
+{% raw %}    /** @param {string} href @param {Locale} [locale] @param {Record<string, unknown>} [input] */
+    localizeHref: (href, locale = getCurrentLocale(), input) => web.localizeHref(href, locale, input),
+    /** @param {string | URL} url @param {Locale} [locale] @param {Record<string, unknown>} [input] */
+    localizeUrl: (url, locale = getCurrentLocale(), input) => web.localizeUrl(url, locale, input),
+    /** @param {string} href @param {Record<string, unknown>} [input] */
+    shouldLocalizeHref: (href, input) => web.shouldLocalizeHref(href, input),
+    /** @param {string} href @param {LinkLocalizationAttributes} [attributes] @param {Record<string, unknown>} [input] */
+    shouldLocalizeLink: (href, attributes = {}, input) => web.shouldLocalizeLink(href, attributes, input),
+    /** @param {string} href @param {Locale} [locale] @param {Record<string, unknown>} [input] */
+    localizeHrefAttribute: (href, locale = getCurrentLocale(), input) => web.localizeHrefAttribute(href, locale, input),
+    /** @param {string | URL} url @param {Record<string, unknown>} [input] */
+    delocalizeUrl: (url, input) => web.delocalizeUrl(url, input),
+    /** @param {string | URL} url @param {Record<string, unknown>} [input] */
+    alternateLinks: (url, input) => web.alternateLinks(url, input),
+{% endraw %}

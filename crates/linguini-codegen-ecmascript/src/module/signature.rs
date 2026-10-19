@@ -7,9 +7,8 @@
 
 use linguini_ir::IrMessage;
 
-use super::names::{emit_docs_with_tags, property_key, safe_identifier, string_literal, JsDocTag};
+use super::names::{emit_docs_with_tags, property_key, safe_identifier, JsDocTag};
 use super::type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
-use super::EcmaScriptTarget;
 
 const IMPLEMENTATION_ARGS: &str = "__lgl_args";
 
@@ -91,16 +90,7 @@ impl MessageCallSignature {
     /// property keys.  This gives the implementation one type-safe input shape while keeping
     /// expression references valid for reserved and punctuation-bearing source names.
     pub(crate) fn implementation_rest_params(&self) -> String {
-        self.implementation_rest_params_for_target(EcmaScriptTarget::TypeScript)
-    }
-
-    pub(crate) fn implementation_rest_params_for_target(&self, target: EcmaScriptTarget) -> String {
-        if !target.is_typescript() {
-            return format!("...{IMPLEMENTATION_ARGS}");
-        }
-        let positional = format!("[{}]", self.positional_params());
-        let named = format!("[args: {}]", self.named_object_type());
-        format!("...{IMPLEMENTATION_ARGS}: {positional} | {named}")
+        format!("...{IMPLEMENTATION_ARGS}")
     }
 
     #[cfg(test)]
@@ -113,40 +103,24 @@ impl MessageCallSignature {
 
     /// Emit the one normalization/destructure statement used by implementations.
     pub(crate) fn normalized_bindings_statement(&self) -> String {
-        self.normalized_bindings_statement_for_target(EcmaScriptTarget::TypeScript)
-    }
-
-    pub(crate) fn normalized_bindings_statement_for_target(
-        &self,
-        target: EcmaScriptTarget,
-    ) -> String {
         let bindings = self
             .parameters
             .iter()
-            .map(|parameter| parameter.binding.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
+            .map(|parameter| &parameter.binding)
+            .collect::<Vec<_>>();
         let keys = self
             .parameters
             .iter()
-            .map(|parameter| string_literal(&parameter.source_name))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let tuple_type = format!(
-            "[{}]",
-            self.parameters
-                .iter()
-                .map(|parameter| render_typescript_type(&parameter.ty))
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        if target.is_typescript() {
-            format!(
-                "const [{bindings}] = normalizeMessageArgs({IMPLEMENTATION_ARGS}, [{keys}]) as {tuple_type};"
-            )
-        } else {
-            format!("const [{bindings}] = normalizeMessageArgs({IMPLEMENTATION_ARGS}, [{keys}]);")
-        }
+            .map(|parameter| &parameter.source_name)
+            .collect::<Vec<_>>();
+        crate::templates::render(
+            "module/normalization",
+            minijinja::context! {
+                bindings, keys, arguments => IMPLEMENTATION_ARGS,
+            },
+        )
+        .trim_end()
+        .to_owned()
     }
 
     /// The public callable value type used by locale and nested message objects.
@@ -226,26 +200,6 @@ impl MessageCallSignature {
         emit_docs_with_tags(docs, &self.named_doc_tags(), "", &mut output);
         output.push_str(&format!(
             "export declare function {name}(args: {}): string;\n\n",
-            self.named_object_type()
-        ));
-        output
-    }
-
-    /// Render both overload declarations which precede one generated TypeScript implementation.
-    pub(crate) fn implementation_overloads(&self, name: &str, docs: &[String]) -> String {
-        if !self.is_parameterized() {
-            return String::new();
-        }
-
-        let mut output = String::new();
-        emit_docs_with_tags(docs, &self.positional_doc_tags(), "", &mut output);
-        output.push_str(&format!(
-            "export function {name}({}): string;\n",
-            self.positional_params()
-        ));
-        emit_docs_with_tags(docs, &self.named_doc_tags(), "", &mut output);
-        output.push_str(&format!(
-            "export function {name}(args: {}): string;\n",
             self.named_object_type()
         ));
         output
@@ -352,13 +306,10 @@ mod tests {
             signature.named_object_type(),
             "{ count: number | bigint | string }"
         );
-        assert_eq!(
-            signature.implementation_rest_params(),
-            "...__lgl_args: [count: number | bigint | string] | [args: { count: number | bigint | string }]"
-        );
+        assert_eq!(signature.implementation_rest_params(), "...__lgl_args");
         assert_eq!(
             signature.normalized_bindings_statement(),
-            "const [count] = normalizeMessageArgs(__lgl_args, [\"count\"]) as [number | bigint | string];"
+            "const [count] = normalizeMessageArgs(__lgl_args, [\"count\"]);"
         );
         assert_eq!(
             signature.callable_type(),
@@ -408,7 +359,7 @@ mod tests {
         );
         assert!(signature
             .implementation_rest_params()
-            .starts_with("...__lgl_args:"));
+            .starts_with("...__lgl_args"));
     }
 
     #[test]
@@ -424,15 +375,12 @@ mod tests {
         assert!(declarations.contains(
             "export declare function message(args: { count: number | bigint | string }): string;"
         ));
-        let implementation =
-            signature.implementation_overloads("message", &["A message".to_owned()]);
+        let implementation = signature.javascript_implementation_docs(&["A message".to_owned()]);
         assert_eq!(implementation.matches(" * A message").count(), 2);
-        assert_eq!(implementation.matches(" * @returns {string}").count(), 2);
-        assert!(implementation
-            .contains("export function message(count: number | bigint | string): string;"));
-        assert!(implementation.contains(
-            "export function message(args: { count: number | bigint | string }): string;"
-        ));
+        assert_eq!(implementation.matches(" * @overload").count(), 2);
+        assert_eq!(implementation.matches(" * @returns {string}").count(), 3);
+        assert!(implementation.contains(" * @param {number | bigint | string} count"));
+        assert!(implementation.contains(" * @param {{ count: number | bigint | string }} args"));
     }
 
     #[test]

@@ -1,16 +1,15 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use linguini_core::TypeKind;
-use linguini_ir::{IrFormatter, IrFormatterArgument, IrFunction, IrMessage, IrModule};
+use linguini_codegen::parameter_formatters;
+use linguini_ir::{IrMessage, IrModule};
 
 use crate::ecmascript::{EcmaImport, EcmaImportBindings, EcmaNamedImport};
-use crate::plural::generate_plural_function_for_target;
+use crate::plural::generate_plural_function_with_visibility;
 
 use super::expr::{
-    form_object_for_target, function_dispatch_expression_for_target, text_expression_for_target,
-    text_expression_with_context_for_target,
+    form_object, function_dispatch_body, text_expression, text_expression_with_context,
 };
-use super::formatter_codegen::formatter_data_declaration_for_target;
+use super::formatter_codegen::formatter_data_declaration;
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
     emit_docs, emit_docs_with_tags, escape_string, form_binding_name, function_name, property_key,
@@ -19,7 +18,7 @@ use super::names::{
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
 use super::type_model::{render_jsdoc_type, TypeModel};
-use super::{EcmaScriptTarget, TypeScriptOptions};
+use super::EcmaOptions;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleExports {
@@ -30,7 +29,7 @@ pub struct ModuleExports {
 pub fn module_imports(
     schema: &IrModule,
     locale: &IrModule,
-    options: &TypeScriptOptions,
+    options: &EcmaOptions,
     shared_import_path: &str,
 ) -> Vec<EcmaImport> {
     let mut imports = Vec::new();
@@ -54,9 +53,6 @@ pub fn module_imports(
             && message_implementation(locale, &signature.name).is_some()
     });
     let mut shared_helpers = Vec::new();
-    if uses_forms || uses_dispatch {
-        shared_helpers.push("selectBranch");
-    }
     if uses_named_message_args {
         shared_helpers.push("normalizeMessageArgs");
     }
@@ -83,6 +79,7 @@ pub fn module_imports(
     imports
 }
 
+#[cfg(test)]
 pub fn emit_schema_type_reexports(
     schema: &IrModule,
     shared_import_path: &str,
@@ -103,16 +100,12 @@ pub fn emit_schema_type_reexports(
     }
 }
 
-pub(super) fn emit_schema_types_for_target(
+pub(super) fn emit_schema_jsdoc_types(
     schema: &IrModule,
     shared_import_path: &str,
-    target: EcmaScriptTarget,
+
     output: &mut String,
 ) {
-    if target.is_typescript() {
-        emit_schema_type_reexports(schema, shared_import_path, output);
-        return;
-    }
     let type_names = schema_type_names(schema);
     for name in &type_names {
         output.push_str(&format!(
@@ -169,14 +162,10 @@ pub fn schema_type_aliases(schema: &IrModule) -> Vec<(String, String)> {
         .collect()
 }
 
-pub fn emit_plural_helpers(
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
-    output: &mut String,
-) {
+pub fn emit_plural_helpers(options: &EcmaOptions, output: &mut String) {
     if let Some(rules) = &options.plural_rules {
         let source =
-            generate_plural_function_for_target(&options.plural_function, rules, target, false);
+            generate_plural_function_with_visibility(&options.plural_function, rules, false);
         output.push_str(source.trim_end());
         output.push_str("\n\n");
     }
@@ -185,16 +174,14 @@ pub fn emit_plural_helpers(
 pub fn emit_formatter_data(
     schema: &IrModule,
     locale: &IrModule,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
     output: &mut String,
 ) {
     let requirements = formatter_requirements(schema, locale);
     if requirements.any() {
-        output.push_str(&formatter_data_declaration_for_target(
+        output.push_str(&formatter_data_declaration(
             &options.locale,
-            requirements,
-            target,
+            &linguini_codegen::formatter_requests(schema, locale),
             false,
         ));
     }
@@ -212,40 +199,6 @@ pub(super) fn emit_enum(item: &linguini_ir::IrEnum, output: &mut String) {
         "export type {} = {variants};\n\n",
         safe_identifier(&item.name)
     ));
-}
-
-pub fn emit_locale_enum_types(schema: &IrModule, locale: &IrModule, output: &mut String) {
-    emit_locale_enum_types_with_exports(schema, locale, false, output);
-}
-
-pub(super) fn emit_locale_enum_types_with_exports(
-    schema: &IrModule,
-    locale: &IrModule,
-    exported: bool,
-    output: &mut String,
-) {
-    let export = if exported { "export " } else { "" };
-    for item in locale.enums() {
-        let supplied_by_schema = schema.enums().iter().any(|schema| schema.name == item.name)
-            || schema
-                .type_aliases()
-                .iter()
-                .any(|schema| schema.name == item.name);
-        if supplied_by_schema {
-            continue;
-        }
-        emit_docs(&item.docs, "", output);
-        let variants = item
-            .variants
-            .iter()
-            .map(|variant| format!("\"{}\"", escape_string(variant)))
-            .collect::<Vec<_>>()
-            .join(" | ");
-        output.push_str(&format!(
-            "{export}type {} = {variants};\n\n",
-            safe_identifier(&item.name)
-        ));
-    }
 }
 
 pub(super) fn emit_locale_enum_jsdoc_types(
@@ -285,66 +238,51 @@ pub(super) fn emit_type_alias(item: &linguini_ir::IrTypeAlias, output: &mut Stri
     ));
 }
 
-pub(super) fn emit_forms_for_target(
+pub(super) fn emit_forms(
     module: &IrModule,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
     exported: bool,
     output: &mut String,
 ) {
-    let export = if exported { "export " } else { "" };
     for form in module.forms() {
         emit_docs(&form.docs, "", output);
-        output.push_str(&format!(
-            "{export}const {} = {{\n",
-            form_binding_name(&form.name)
+        let variants = form.variants.iter().map(|variant| minijinja::context! {
+            key => property_key(&variant.name), value => form_object(&variant.entries, options),
+        }).collect::<Vec<_>>();
+        output.push_str(&crate::templates::render(
+            "module/form",
+            minijinja::context! { exported, name => form_binding_name(&form.name), variants },
         ));
-        for variant in &form.variants {
-            output.push_str(&format!(
-                "  {}: {},\n",
-                property_key(&variant.name),
-                form_object_for_target(&variant.entries, options, target)
-            ));
-        }
-        if target.is_typescript() {
-            output.push_str("} as const;\n\n");
-        } else {
-            output.push_str("};\n\n");
-        }
     }
 }
 
-pub(super) fn emit_variables_for_target(
+pub(super) fn emit_variables(
     module: &IrModule,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
     exported: bool,
     output: &mut String,
 ) {
-    let export = if exported { "export " } else { "" };
     for variable in module.variables() {
         emit_docs(&variable.docs, "", output);
-        output.push_str(&format!(
-            "{export}const {} = {};\n\n",
-            safe_identifier(&variable.name),
-            text_expression_for_target(&variable.value, options, target)
-        ));
+        output.push_str(&crate::templates::render("module/constant", minijinja::context! {
+            exported, name => safe_identifier(&variable.name), value => text_expression(&variable.value, options),
+        }));
     }
 }
 
-pub(super) fn emit_local_functions_for_target(
+pub(super) fn emit_local_functions(
     module: &IrModule,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
     exported: bool,
     output: &mut String,
 ) {
-    let export = if exported { "export " } else { "" };
     for function in module.functions() {
-        let parameter_names = function_parameters(function);
-        if target.is_typescript() {
-            emit_docs(&function.docs, "", output);
-        } else {
+        let parameter_names = super::names::function_parameter_names(
+            &function.parameters,
+            &function.branches,
+            &options.plural_function,
+        );
+        {
             let tags = parameter_names
                 .iter()
                 .zip(&function.parameters)
@@ -362,32 +300,6 @@ pub(super) fn emit_local_functions_for_target(
                 .collect::<Vec<_>>();
             emit_docs_with_tags(&function.docs, &tags, "", output);
         }
-        let params = if target.is_typescript() {
-            parameter_names
-                .iter()
-                .zip(&function.parameters)
-                .map(|(name, parameter)| {
-                    let ty = if parameter.ty == "Plural" {
-                        "number | bigint | string".to_owned()
-                    } else {
-                        ts_type(&parameter.ty)
-                    };
-                    format!("{name}: {ty}")
-                })
-                .collect::<Vec<_>>()
-                .join(", ")
-        } else {
-            parameter_names.join(", ")
-        };
-        let return_type = if target.is_typescript() {
-            ": string"
-        } else {
-            ""
-        };
-        output.push_str(&format!(
-            "{export}function {}({params}){return_type} {{\n",
-            safe_identifier(&function.name)
-        ));
         let context = function
             .parameters
             .iter()
@@ -398,26 +310,23 @@ pub(super) fn emit_local_functions_for_target(
                     .map(|name| (name.clone(), parameter.ty.clone()))
             })
             .collect::<BTreeMap<_, _>>();
-        output.push_str(&format!(
-            "  return {};\n",
-            function_dispatch_expression_for_target(
-                &function.parameters,
-                &function.branches,
-                &context,
-                &BTreeMap::new(),
-                options,
-                target,
-            )
-        ));
-        output.push_str("}\n\n");
+        let body = function_dispatch_body(
+            &function.parameters,
+            &function.branches,
+            &context,
+            &BTreeMap::new(),
+            options,
+        );
+        output.push_str(&crate::templates::render("local_function", minijinja::context! {
+            docs => "", name => safe_identifier(&function.name), parameters => parameter_names, body, exported,
+        }));
     }
 }
 
-pub(super) fn emit_messages_for_target(
+pub(super) fn emit_messages(
     schema: &IrModule,
     locale: &IrModule,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
     output: &mut String,
 ) -> ModuleExports {
     let nested = nested_message_tree(schema);
@@ -430,13 +339,13 @@ pub(super) fn emit_messages_for_target(
         if signature.name.contains('.') {
             continue;
         }
-        if emit_message_function(schema, signature, locale, options, target, output) {
+        if emit_message_function(schema, signature, locale, options, output) {
             exports.top_level.push(function_name(&signature.name));
         }
     }
 
     for (group, messages) in nested.children {
-        emit_message_object(schema, &group, &messages, locale, options, target, output);
+        emit_message_object(schema, &group, &messages, locale, options, output);
         exports.groups.push(safe_identifier(&group));
     }
 
@@ -447,34 +356,31 @@ fn emit_message_function(
     schema: &IrModule,
     signature: &IrMessage,
     locale: &IrModule,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
     output: &mut String,
 ) -> bool {
     let Some(implementation) = message_implementation(locale, &signature.name) else {
         return false;
     };
     let call_signature = MessageCallSignature::from_message(signature);
-    let body = message_body_for_target(schema, signature, implementation, options, target);
+    let body = message_body(schema, signature, implementation, options);
     let name = function_name(&signature.name);
     if !call_signature.is_parameterized() {
         emit_docs(&signature.docs, "", output);
-        output.push_str(&format!("export const {name} = {body};\n\n"));
+        output.push_str(&crate::templates::render(
+            "module/constant",
+            minijinja::context! { exported => true, name, value => body },
+        ));
     } else {
-        if target.is_typescript() {
-            output.push_str(&call_signature.implementation_overloads(&name, &signature.docs));
-        } else {
+        {
             output.push_str(&call_signature.javascript_implementation_docs(&signature.docs));
         }
-        output.push_str(&format!(
-            "export function {name}({}){} {{\n  {}\n  return {body};\n}}\n\n",
-            call_signature.implementation_rest_params_for_target(target),
-            if target.is_typescript() {
-                ": string"
-            } else {
-                ""
+        output.push_str(&crate::templates::render(
+            "module/message",
+            minijinja::context! {
+                name, parameters => call_signature.implementation_rest_params(),
+                normalization => call_signature.normalized_bindings_statement(), body,
             },
-            call_signature.normalized_bindings_statement_for_target(target)
         ));
     }
     true
@@ -485,86 +391,78 @@ fn emit_message_object(
     name: &str,
     tree: &MessageTree,
     locale: &IrModule,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
     output: &mut String,
 ) {
     emit_docs(&tree.docs, "", output);
-    output.push_str(&format!("export const {} = ", safe_identifier(name)));
-    emit_object_literal(schema, tree, locale, options, target, 0, output);
-    if target.is_typescript() {
-        output.push_str(" as const;\n\n");
-    } else {
-        output.push_str(";\n\n");
-    }
+    let value = object_literal(schema, tree, locale, options, 0);
+    output.push_str(&crate::templates::render(
+        "module/constant",
+        minijinja::context! {
+            exported => true, name => safe_identifier(name), value,
+        },
+    ));
 }
 
-fn emit_object_literal(
+fn object_literal(
     schema: &IrModule,
     tree: &MessageTree,
     locale: &IrModule,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
     depth: usize,
-    output: &mut String,
-) {
+) -> String {
     let indent = "  ".repeat(depth);
     let child_indent = "  ".repeat(depth + 1);
-    output.push_str("{\n");
+    let mut fields = Vec::new();
     for entry in &tree.messages {
         if let Some(implementation) = message_implementation(locale, &entry.signature.name) {
-            emit_docs(&entry.signature.docs, &child_indent, output);
-            output.push_str(&format!(
-                "{child_indent}{}: {},\n",
-                property_key(&entry.property),
-                group_property_value(schema, &entry.signature, implementation, options, target,)
-            ));
+            let mut docs = String::new();
+            emit_docs(&entry.signature.docs, &child_indent, &mut docs);
+            fields.push(minijinja::context! { docs, key => property_key(&entry.property), value => group_property_value(schema, &entry.signature, implementation, options) });
         }
     }
     for (name, child) in &tree.children {
-        emit_docs(&child.docs, &child_indent, output);
-        output.push_str(&format!("{child_indent}{}: ", property_key(name)));
-        emit_object_literal(schema, child, locale, options, target, depth + 1, output);
-        output.push_str(",\n");
+        let mut docs = String::new();
+        emit_docs(&child.docs, &child_indent, &mut docs);
+        fields.push(minijinja::context! { docs, key => property_key(name), value => object_literal(schema, child, locale, options, depth + 1) });
     }
-    output.push_str(&indent);
-    output.push('}');
+    crate::templates::render(
+        "module/object",
+        minijinja::context! { indent, child_indent, fields },
+    )
+    .trim_end()
+    .to_owned()
 }
 
 fn group_property_value(
     schema: &IrModule,
     signature: &IrMessage,
     implementation: &IrMessage,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
 ) -> String {
     let call_signature = MessageCallSignature::from_message(signature);
     if !call_signature.is_parameterized() {
-        message_body_for_target(schema, signature, implementation, options, target)
+        message_body(schema, signature, implementation, options)
     } else {
-        let implementation = format!(
-            "({}) => {{ {} return {}; }}",
-            call_signature.implementation_rest_params_for_target(target),
-            call_signature.normalized_bindings_statement_for_target(target),
-            message_body_for_target(schema, signature, implementation, options, target)
-        );
-        if target.is_typescript() {
-            implementation
-        } else {
-            format!(
-                "/** @type {{{}}} */ ({implementation})",
-                call_signature.javascript_callable_type()
-            )
-        }
+        crate::templates::render(
+            "module/message_property",
+            minijinja::context! {
+                callable_type => call_signature.javascript_callable_type(),
+                parameters => call_signature.implementation_rest_params(),
+                normalization => call_signature.normalized_bindings_statement(),
+                body => message_body(schema, signature, implementation, options),
+            },
+        )
+        .trim_end()
+        .to_owned()
     }
 }
 
-pub(crate) fn message_body_for_target(
+pub(crate) fn message_body(
     schema: &IrModule,
     signature: &IrMessage,
     implementation: &IrMessage,
-    options: &TypeScriptOptions,
-    target: EcmaScriptTarget,
+    options: &EcmaOptions,
 ) -> String {
     let context = signature
         .parameters
@@ -575,59 +473,8 @@ pub(crate) fn message_body_for_target(
     implementation
         .body
         .as_ref()
-        .map(|body| {
-            text_expression_with_context_for_target(
-                body,
-                &context,
-                &default_formatters,
-                options,
-                target,
-            )
-        })
+        .map(|body| text_expression_with_context(body, &context, &default_formatters, options))
         .unwrap_or_else(|| "\"\"".to_owned())
-}
-
-fn parameter_formatters(
-    schema: &IrModule,
-    signature: &IrMessage,
-) -> BTreeMap<String, Vec<IrFormatter>> {
-    signature
-        .parameters
-        .iter()
-        .filter_map(|parameter| {
-            default_type_formatters(schema, &parameter.ty)
-                .map(|formatters| (parameter.name.clone(), formatters))
-        })
-        .collect()
-}
-
-fn default_type_formatters(schema: &IrModule, ty: &str) -> Option<Vec<IrFormatter>> {
-    let mut current = ty;
-    let mut visited = BTreeSet::new();
-
-    loop {
-        if !visited.insert(current) {
-            return None;
-        }
-
-        if let Some(alias) = schema
-            .type_aliases()
-            .iter()
-            .find(|alias| alias.name == current)
-        {
-            if !alias.formatters.is_empty() {
-                return Some(alias.formatters.clone());
-            }
-            current = &alias.target;
-            continue;
-        }
-
-        let kind = TypeKind::from_name(current)?.default_formatter()?;
-        return Some(vec![IrFormatter {
-            kind,
-            arguments: Vec::<IrFormatterArgument>::new(),
-        }]);
-    }
 }
 
 fn message_implementation<'a>(module: &'a IrModule, name: &str) -> Option<&'a IrMessage> {
@@ -635,21 +482,6 @@ fn message_implementation<'a>(module: &'a IrModule, name: &str) -> Option<&'a Ir
         .messages()
         .iter()
         .find(|message| message.name == name)
-}
-
-fn function_parameters(function: &IrFunction) -> Vec<String> {
-    function
-        .parameters
-        .iter()
-        .enumerate()
-        .map(|(index, parameter)| {
-            parameter
-                .name
-                .as_deref()
-                .map(safe_identifier)
-                .unwrap_or_else(|| format!("__lgl_p{index}"))
-        })
-        .collect()
 }
 
 #[cfg(test)]

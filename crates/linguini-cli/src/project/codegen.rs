@@ -7,12 +7,10 @@ use linguini_analyzer::{
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ecmascript::{
-    compile_ecmascript_project_files, compile_typescript_bundler_message_artifact_module,
-    compile_typescript_bundler_semantic_module, EcmaScriptTarget, EcmaSource, TypeScriptFramework,
-    TypeScriptGeneratedFile, TypeScriptLinkMode, TypeScriptLocaleModule,
-    TypeScriptLocalePrefixMode, TypeScriptLocaleSource, TypeScriptLocaleSwitchPlan,
-    TypeScriptProjectOptions, TypeScriptWebOptions, TypeScriptWebSwitchRoute,
-    ValidatedTypeScriptProject,
+    compile_bundler_message_artifact_module, compile_bundler_semantic_module,
+    compile_ecmascript_project_files, EcmaFramework, EcmaGeneratedFile, EcmaLinkMode,
+    EcmaLocaleModule, EcmaLocalePrefixMode, EcmaLocaleSource, EcmaLocaleSwitchPlan,
+    EcmaProjectOptions, EcmaSource, EcmaWebOptions, EcmaWebSwitchRoute, ValidatedEcmaProject,
 };
 use linguini_config::{
     discover_application_source_files_with_fields, CanonicalMode, CookiePath, LinguiniConfig,
@@ -76,10 +74,10 @@ fn generate_project(
         return Ok("codegen targets: none\n".to_owned());
     };
 
-    generate_typescript_target(root, config, target, emit_dirs)
+    generate_target(root, config, target, emit_dirs)
 }
 
-fn generate_typescript_target(
+fn generate_target(
     root: &Path,
     config: &LinguiniConfig,
     target: &TypeScriptTargetConfig,
@@ -106,13 +104,13 @@ fn generate_typescript_target(
     for locale in config.project().locales() {
         let locale_ir = build_locale_ir(root, config, &schema_files, &locale_index, locale)?;
         ensure_locale_ir_resolves(&schema, &locale_ir, locale)?;
-        locales.push(TypeScriptLocaleModule {
+        locales.push(EcmaLocaleModule {
             locale: locale.to_owned(),
             module: locale_ir,
         });
     }
 
-    let options = TypeScriptProjectOptions {
+    let options = EcmaProjectOptions {
         declaration: target.declaration(),
         gitignore: target.gitignore(),
         tree_shaking: target.tree_shaking(),
@@ -122,25 +120,21 @@ fn generate_typescript_target(
             .web()
             .configured()
             .then(|| legacy_web_codegen_options(config)),
-        framework: TypeScriptFramework::from_config(target.framework()),
+        framework: EcmaFramework::from_config(target.framework()),
     };
-    let project = ValidatedTypeScriptProject::try_new(&schema, &locales, &options)
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let sources = ecma_sources(root, &schema_files, &locale_files)?;
     let mut plans = Vec::new();
     for (directory, output) in outputs {
         let project_sources =
-            rebase_map_sources(&directory, "index.ts.map", &sources).map_err(|reason| {
+            rebase_map_sources(&directory, "index.js.map", &sources).map_err(|reason| {
                 CliError::Diagnostics(format!(
                     "cannot rebase project source-map paths: {reason}\n"
                 ))
             })?;
-        let mut files = compile_ecmascript_project_files(
-            &project,
-            EcmaScriptTarget::TypeScript,
-            &project_sources,
-        )
-        .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+        let mut files = compile_ecmascript_project_files(&project, &project_sources)
+            .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
         files.extend(generate_bundler_files(
             root,
             &project,
@@ -287,13 +281,13 @@ fn project_relative_source_path(root: &Path, path: &Path) -> CliResult<String> {
 
 fn generate_bundler_files(
     root: &Path,
-    project: &ValidatedTypeScriptProject<'_>,
+    project: &ValidatedEcmaProject<'_>,
     sources: &[EcmaSource],
     destination: CodegenDestination<'_>,
     configured_locales: &[String],
     base_locale: &str,
     web_enabled: bool,
-) -> CliResult<Vec<TypeScriptGeneratedFile>> {
+) -> CliResult<Vec<EcmaGeneratedFile>> {
     let output_root = destination.directory;
     let target = destination.settings;
     let artifacts = project
@@ -320,8 +314,8 @@ fn generate_bundler_files(
                     artifact.kind.as_str(), artifact.name, artifact.locale
                 ))
             })?;
-        let compiled = compile_typescript_bundler_semantic_module(project, artifact, &map_sources)
-            .map_err(|error| {
+        let compiled =
+            compile_bundler_semantic_module(project, artifact, &map_sources).map_err(|error| {
                 CliError::Diagnostics(format!(
                     "bundler semantic `{}` `{}` locale `{}`: {error}\n",
                     artifact.kind.as_str(),
@@ -329,11 +323,11 @@ fn generate_bundler_files(
                     artifact.locale
                 ))
             })?;
-        files.push(TypeScriptGeneratedFile {
+        files.push(EcmaGeneratedFile {
             path: artifact.module_path.clone(),
             contents: compiled.code,
         });
-        files.push(TypeScriptGeneratedFile {
+        files.push(EcmaGeneratedFile {
             path: artifact.source_map_path.clone(),
             contents: compiled.source_map,
         });
@@ -347,14 +341,13 @@ fn generate_bundler_files(
                     artifact.message, artifact.locale
                 ))
             })?;
-        let compiled =
-            compile_typescript_bundler_message_artifact_module(project, artifact, &map_sources)
-                .map_err(|error| {
-                    CliError::Diagnostics(format!(
-                        "bundler message `{}` locale `{}`: {error}\n",
-                        artifact.message, artifact.locale
-                    ))
-                })?;
+        let compiled = compile_bundler_message_artifact_module(project, artifact, &map_sources)
+            .map_err(|error| {
+                CliError::Diagnostics(format!(
+                    "bundler message `{}` locale `{}`: {error}\n",
+                    artifact.message, artifact.locale
+                ))
+            })?;
         let locale_entry = serde_json::json!({
             "module": artifact.module_path,
             "source_ids": compiled.source_ids().iter().map(|id| id.0).collect::<Vec<_>>(),
@@ -364,11 +357,11 @@ fn generate_bundler_files(
             .or_insert_with(|| (artifact.arity, BTreeMap::new()))
             .1
             .insert(artifact.locale.clone(), locale_entry);
-        files.push(TypeScriptGeneratedFile {
+        files.push(EcmaGeneratedFile {
             path: artifact.module_path.clone(),
             contents: compiled.code,
         });
-        files.push(TypeScriptGeneratedFile {
+        files.push(EcmaGeneratedFile {
             path: artifact.source_map_path.clone(),
             contents: compiled.source_map,
         });
@@ -454,7 +447,7 @@ fn generate_bundler_files(
             "svelte_locale".to_owned(),
             serde_json::json!({
                 "import": "./svelte-locale.svelte.js",
-                "file": "svelte-locale.svelte.ts",
+                "file": "svelte-locale.svelte.js",
             }),
         );
         if web_enabled {
@@ -462,7 +455,7 @@ fn generate_bundler_files(
                 "svelte_effects".to_owned(),
                 serde_json::json!({
                     "import": "./svelte-effects.svelte.js",
-                    "file": "svelte-effects.svelte.ts",
+                    "file": "svelte-effects.svelte.js",
                 }),
             );
         }
@@ -475,7 +468,7 @@ fn generate_bundler_files(
         CliError::Diagnostics(format!("failed to serialize bundler manifest: {error}\n"))
     })?;
     contents.push('\n');
-    files.push(TypeScriptGeneratedFile {
+    files.push(EcmaGeneratedFile {
         path: "bundler/manifest.json".to_owned(),
         contents,
     });
@@ -1168,7 +1161,7 @@ fn portable_relative_components(value: &str) -> Result<Vec<&str>, &'static str> 
     Ok(components)
 }
 
-fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
+fn legacy_web_codegen_options(config: &LinguiniConfig) -> EcmaWebOptions {
     let features = config.web().features();
     let cookie = features.cookie();
     let local_storage = features.local_storage();
@@ -1176,16 +1169,16 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
         .source_order()
         .iter()
         .map(|source| match source {
-            linguini_config::LocaleSource::Path => TypeScriptLocaleSource::Path,
-            linguini_config::LocaleSource::Cookie => TypeScriptLocaleSource::Cookie,
-            linguini_config::LocaleSource::LocalStorage => TypeScriptLocaleSource::LocalStorage,
-            linguini_config::LocaleSource::AcceptLanguage => TypeScriptLocaleSource::AcceptLanguage,
+            linguini_config::LocaleSource::Path => EcmaLocaleSource::Path,
+            linguini_config::LocaleSource::Cookie => EcmaLocaleSource::Cookie,
+            linguini_config::LocaleSource::LocalStorage => EcmaLocaleSource::LocalStorage,
+            linguini_config::LocaleSource::AcceptLanguage => EcmaLocaleSource::AcceptLanguage,
         })
         .collect::<Vec<_>>();
 
-    TypeScriptWebOptions {
+    EcmaWebOptions {
         sources,
-        locale_switch: TypeScriptLocaleSwitchPlan {
+        locale_switch: EcmaLocaleSwitchPlan {
             writes_path: features.locale_switch().writes_path(),
             writes_cookie: features.locale_switch().writes_cookie(),
             writes_local_storage: features.locale_switch().writes_local_storage(),
@@ -1214,24 +1207,22 @@ fn legacy_web_codegen_options(config: &LinguiniConfig) -> TypeScriptWebOptions {
             .map(|storage| storage.key().to_owned())
             .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
         locale_prefix: match features.locale_prefix() {
-            LocalePrefixMode::Always => TypeScriptLocalePrefixMode::Always,
-            LocalePrefixMode::ExceptDefault => TypeScriptLocalePrefixMode::ExceptDefault,
-            LocalePrefixMode::Never => TypeScriptLocalePrefixMode::Never,
+            LocalePrefixMode::Always => EcmaLocalePrefixMode::Always,
+            LocalePrefixMode::ExceptDefault => EcmaLocalePrefixMode::ExceptDefault,
+            LocalePrefixMode::Never => EcmaLocalePrefixMode::Never,
         },
         canonical_redirect: features.canonical() == CanonicalMode::Redirect,
         exclude: features.route_exclusions().to_vec(),
         link_mode: match features.links() {
-            LinkMode::Transform => TypeScriptLinkMode::Transform,
-            LinkMode::Runtime => TypeScriptLinkMode::Runtime,
-            LinkMode::Manual => TypeScriptLinkMode::Manual,
+            LinkMode::Transform => EcmaLinkMode::Transform,
+            LinkMode::Runtime => EcmaLinkMode::Runtime,
+            LinkMode::Manual => EcmaLinkMode::Manual,
         },
-        switch_route: features
-            .switch_route()
-            .map(|route| TypeScriptWebSwitchRoute {
-                path: route.path().to_owned(),
-                return_query: route.return_query().to_owned(),
-                status: route.status(),
-            }),
+        switch_route: features.switch_route().map(|route| EcmaWebSwitchRoute {
+            path: route.path().to_owned(),
+            return_query: route.return_query().to_owned(),
+            status: route.status(),
+        }),
     }
 }
 
@@ -1397,7 +1388,7 @@ fn ensure_locale_ir_resolves(
 fn write_codegen_tree(
     root: &Path,
     out_dir: &SafeOutputRoot,
-    files: &[TypeScriptGeneratedFile],
+    files: &[EcmaGeneratedFile],
 ) -> CliResult<String> {
     let mut generated = Vec::with_capacity(files.len());
     let mut output = String::from("generated files:\n");

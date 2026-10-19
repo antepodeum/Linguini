@@ -8,7 +8,8 @@ The committed JSON Schema for `linguini.toml` is exported as
 and executable examples so public contract drift requires an explicit reviewed update.
 
 `linguini-codegen` owns backend-independent type models, formatter and plural requirement
-analysis, and transitive message dependency selection with source provenance. Other code
+analysis, exact formatter requests, closure-free inline-function lowering, static decision trees,
+and transitive message dependency selection with source provenance. Other code
 generators can consume these semantic plans without depending on an output language.
 
 Public parameter types lower into `linguini_codegen::TypeModel`, also re-exported by
@@ -16,10 +17,11 @@ Public parameter types lower into `linguini_codegen::TypeModel`, also re-exporte
 JSDoc rendering through `render_typescript_type` and `render_jsdoc_type`, templates, and module
 emission.
 
-Rust codegen integrations can call `generate_javascript_schema_files` to obtain the schema-owned
+Rust codegen integrations can call `generate_schema_files` to obtain the schema-owned
 `shared.js` checked-JavaScript runtime and `messages.js` type boundary together with their `.d.ts`
-declaration companions. `EcmaGeneratedFile` is the language-neutral generated-file record;
-`TypeScriptGeneratedFile` remains its TypeScript-facing alias.
+declaration companions. `EcmaGeneratedFile` records each generated path and its contents.
+Runtime compilers emit JavaScript; TypeScript consumers use adjacent declarations from the same
+semantic type and signature models. Separate TS implementation emitters have been removed.
 
 JavaScript output with declaration companions can be consumed by strict TypeScript projects
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and
@@ -33,88 +35,77 @@ same validated project. Maps resolve the original Linguini files from each outpu
 Output directories must be disjoint and follow the configured output's ownership and path rules.
 
 Custom Rust codegen callers configure an embedded plural implementation through
-`TypeScriptOptions::plural_rules`. The backend renders those canonical rules directly for the
-selected ECMAScript target and export scope; callers use `plural_import` only when the plural
+`EcmaOptions::plural_rules`. The backend renders those canonical rules directly for the
+JavaScript export scope; callers use `plural_import` only when the plural
 function is supplied by another module.
 
 Bundler integrations enumerate `locale_runtime_artifacts` from a validated project, then compile
-each artifact with `compile_typescript_locale_runtime_artifact_module` or
-`compile_javascript_locale_runtime_artifact_module`. Both targets share helper-demand analysis,
+each artifact with `compile_locale_runtime_artifact_module`. Runtime artifacts share helper-demand analysis,
 canonical CLDR inputs, artifact source identities, and source-map ownership.
 
 Integrations that need aggregate locale symbols enumerate `locale_globals_artifacts`, then compile
-each artifact with `compile_typescript_locale_globals_artifact_module` or
-`compile_javascript_locale_globals_artifact_module`. Local enums, variables, forms, functions,
-runtime-helper imports, checked JSDoc, and source maps come from the same target-aware models used
+each artifact with `compile_locale_globals_artifact_module`. Local enums, variables, forms, functions,
+runtime-helper imports, checked JSDoc, and source maps come from the same semantic models used
 by physical semantic leaves. Locales without global symbols do not produce an artifact.
 
 Locale implementation integrations enumerate `locale_artifacts`. Each effective locale produces
 its selected namespace artifacts followed by one barrel artifact; metadata retains deterministic
 paths and ordered fallback-composed source identities. Compile with
-`compile_typescript_locale_artifact_module` or `compile_javascript_locale_artifact_module` to keep
+`compile_locale_artifact_module` to keep
 message values/callables, positional and named calls, recursive namespace exports, runtime/global
-imports, defaults, and source maps identical across targets.
+imports, defaults, and source maps consistent across direct and bundler emission.
 
 Project entry integrations enumerate `project_artifacts` on a validated project. The locale
 metadata artifact precedes the public index artifact. Compile either with
-`compile_typescript_project_artifact_module` or `compile_javascript_project_artifact_module` for
-target-specific `locale`/`index` code and source maps. The index loads the base locale eagerly,
+`compile_project_artifact_module` for
+`locale.js`/`index.js` code and source maps. The index loads the base locale eagerly,
 prepares other locales on demand, deduplicates concurrent loads, and permits retry after failure.
-Generated-only entry maps have no source records. `generate_typescript_project_files` retains its
-existing map-free output paths until project output ownership migrates.
+Generated-only entry maps have no source records. `generate_project_files` renders the same
+artifact plan without map companions; `compile_ecmascript_project_files(project, sources)` adds
+owned source maps and validates all source identities before rendering.
 
-For selected web route exclusions, `compile_typescript_web_routes_module` and
-`compile_javascript_web_routes_module` render the same `matchesRoute` behavior with target-owned
-source maps. The generated project keeps its existing `web/routes.ts` and declaration paths.
-For selected path locale resolution, `compile_typescript_web_path_module` and
-`compile_javascript_web_path_module` render the same `resolvePathLocale` behavior with target-owned
-source maps. The generated project keeps its existing `web/path.ts` and declaration paths.
-For selected cookie locale resolution, `compile_typescript_web_cookie_module` and
-`compile_javascript_web_cookie_module` render the same `resolveCookieLocale` behavior with
-target-owned source maps. The generated project keeps its existing `web/cookie.ts` and declaration
+For selected web route exclusions, `compile_web_routes_module` renders `matchesRoute` behavior with owned
+source maps. The generated project keeps its existing `web/routes.js` and declaration paths.
+For selected path locale resolution, `compile_web_path_module` renders `resolvePathLocale` behavior with owned
+source maps. The generated project keeps its existing `web/path.js` and declaration paths.
+For selected cookie locale resolution, `compile_web_cookie_module` renders `resolveCookieLocale` behavior with
+owned source maps. The generated project keeps its existing `web/cookie.js` and declaration
 paths.
-For selected local-storage locale resolution, `compile_typescript_web_local_storage_module` and
-`compile_javascript_web_local_storage_module` render the same `resolveLocalStorageLocale` behavior
-with target-owned source maps. The generated project keeps its existing `web/local-storage.ts` and
+For selected local-storage locale resolution, `compile_web_local_storage_module` renders `resolveLocalStorageLocale` behavior
+with owned source maps. The generated project keeps its existing `web/local-storage.js` and
 declaration paths.
-For selected Accept-Language resolution, `compile_typescript_web_accept_language_module` and
-`compile_javascript_web_accept_language_module` render the same `resolveAcceptLanguageLocale`
-behavior with target-owned source maps. The generated project keeps its existing
-`web/accept-language.ts` and declaration paths.
-For transformed links, `compile_typescript_web_link_transform_module` and
-`compile_javascript_web_link_transform_module` render the same `localizeTransformedHref` behavior
+For selected Accept-Language resolution, `compile_web_accept_language_module` renders `resolveAcceptLanguageLocale`
+behavior with owned source maps. The generated project keeps its existing
+`web/accept-language.js` and declaration paths.
+For transformed links, `compile_web_link_transform_module` renders `localizeTransformedHref` behavior
 with target-owned imports and source maps. The generated project keeps its existing
-`web/link-transform.ts` and declaration paths.
-For browser runtime links, `compile_typescript_web_runtime_links_module` and
-`compile_javascript_web_runtime_links_module` render the owned observer and bounded traversal from
-the same runtime fragments. Both return target-owned source maps; generated project paths remain
-`web/runtime-links.ts` and `web/runtime-links.d.ts`.
+`web/link-transform.js` and declaration paths.
+For browser runtime links, `compile_web_runtime_links_module` renders the owned observer and bounded traversal from
+the shared template. It returns owned source maps; generated project paths remain
+`web/runtime-links.js` and `web/runtime-links.d.ts`.
 
 Rust codegen callers can compile Svelte locale state with
-`compile_typescript_svelte_locale_module` or `compile_javascript_svelte_locale_module`, selecting
+`compile_svelte_locale_module`, selecting
 `SvelteLocaleMode::{Context, Standalone, SvelteKit}`. JavaScript output retains framework-owned
-`.svelte.js` runes, checked JSDoc, and an adjacent source map. Both targets use one locale-loader
-registry and state implementation.
+`.svelte.js` runes, checked JSDoc, and an adjacent source map. The locale-loader registry and state implementation have one canonical JS body.
 
-`compile_typescript_svelte_effects_module` and `compile_javascript_svelte_effects_module` accept
-the closed `TypeScriptWebOptions` policy and a SvelteKit flag. They emit selected, guarded browser
+`compile_svelte_effects_module` accepts
+the closed `EcmaWebOptions` policy and a SvelteKit flag. It emits selected, guarded browser
 reads, framework-owned base/browser imports, runtime-link lifecycle ownership, and HMR disposal
 from one implementation.
 
-`compile_typescript_svelte_control_module` and `compile_javascript_svelte_control_module` compile
+`compile_svelte_control_module` compiles
 lightweight controls from the same closed policy and SvelteKit flag. Navigation, cookie writes,
 and storage writes are included only for selected capabilities. Controls prepare messages before
 mutating locale state, tolerate denied persistence, and do not import the eager message runtime.
 
-`compile_typescript_svelte_module` and `compile_javascript_svelte_module` select context-only or
-web-enabled Svelte facades with a boolean flag. Both targets share message providers, live locale
-getters, forwarded controls, and deterministic HMR loader disposal.
+`compile_svelte_module` selects context-only or
+web-enabled Svelte facades with a boolean flag. The template owns message providers, live locale getters, forwarded controls, and deterministic
+HMR loader disposal.
 
-`compile_typescript_web_server_cookie_module` and `compile_javascript_web_server_cookie_module`
-compile server cookie delegation. `compile_typescript_web_switch_route_module` and
-`compile_javascript_web_switch_route_module` accept the closed web policy and return `None` when
-no switch route is configured. Both targets preserve same-origin return safety and selected
-path/cookie transports.
+`compile_web_server_cookie_module`
+compiles server cookie delegation. `compile_web_switch_route_module` accepts the closed web policy and returns `None` when
+no switch route is configured. They preserve same-origin return safety and selected path/cookie transports.
 
 Linguini has two file types:
 
@@ -172,9 +163,11 @@ summary(count: Number, total: Decimal, created: Date)
 summary = {count} items, {total}, {created}
 ```
 
-Generated TypeScript emits the locale CLDR data once per locale module and
-passes a shared `FORMATTER_DATA` constant into each formatter call, so repeated
-interpolations do not inline the full number/date/currency table.
+The compiler resolves each used formatter request against pinned CLDR data at build time.
+Generated JavaScript contains specialized functions for those requests, with static symbols,
+precision, grouping, affixes, and date/time widths compiled into the implementation. Calls pass
+only their input value; generated code carries no CLDR pattern interpreter or runtime option
+object. Unused formatter requests and helper operations are omitted.
 
 The formatter list is canonical:
 
@@ -198,9 +191,9 @@ surface. Current guarantees are:
   styles are not exposed.
 - `@currency` requires a three-letter code. It applies CLDR standard or
   accounting affixes, currency fraction digits, rounding increments, spacing,
-  and locale separators. The host `Intl.NumberFormat` supplies only the display
-  symbol. Currency display-name/plural forms and cash-rounding selection are not
-  exposed.
+  and locale separators. Display symbols also come from pinned CLDR data during
+  generation, so the output does not query host `Intl.NumberFormat`. Currency
+  display-name/plural forms and cash-rounding selection are not exposed.
 - `@date` accepts a valid `Date`, epoch-millisecond number, ISO `YYYY-MM-DD`, or
   ISO date-time string. Date-only and zone-less date-time input is interpreted
   in UTC, and output is host-time-zone independent. `style` selects a CLDR date
@@ -860,28 +853,25 @@ message paths or group prefixes to `ignore` for dynamic resolution the scanner
 cannot see. This is a bounded lexical project scan, not a whole-program
 JavaScript type or data-flow proof.
 
-The closed project web facade now has `compile_typescript_web_module` and
-`compile_javascript_web_module` entry points. Both use the same selected physical locale-source
-modules, URL/request policy, public type model, and target-owned source maps. The superseded
-TypeScript web template is retained only as a frozen test oracle. Checked target types, closed
+The closed project web facade has one `compile_web_module` entry point. It uses the same selected physical locale-source
+modules, URL/request policy, public type model, and owned source maps. The web runtime templates live under the ECMAScript backend's `templates/web/` directory. Checked target types, closed
 source matrices, URL/link/cookie safety, and concurrent request preparation run in quick/full gates
 through `tests/fixtures/golden/snapshots/js-web`.
 
-SvelteKit server adapters now use one target-aware builder through
-`compile_typescript_sveltekit_module`, `compile_javascript_sveltekit_module`,
-`compile_typescript_sveltekit_control_module`, and `compile_javascript_sveltekit_control_module`.
+SvelteKit server adapters share canonical JavaScript templates through
+`compile_sveltekit_module` and `compile_sveltekit_control_module`.
 The generated message and metadata adapters preserve request-local contexts, streaming page
 transforms, reroutes, canonical redirects, safe locale-switch routes, and selected cookie writes.
 Their superseded implementation templates are frozen test oracles only. Installed-SvelteKit type
 checks and executable TS/JS/frozen-runtime parity are registered quick/full gates under
 `tests/fixtures/golden/snapshots/js-sveltekit`.
 
-`compile_ecmascript_project_files(project, target, sources)` now enumerates a complete native
-TypeScript or JavaScript project through the shared module builders. It emits an owned map beside
+`compile_ecmascript_project_files(project, sources)` enumerates a complete JavaScript project
+and optional declarations through the common artifact plan. It emits an owned map beside
 every implementation; declarations follow the validated declaration setting. Source paths are
 relative to the output root and are rebased to each map directory. Missing/duplicate source
 identities and output collisions fail before filesystem writes. The established
-`generate_typescript_project_files` API renders source-only output from that same artifact plan.
+`generate_project_files` API renders source-only output from that same artifact plan.
 The CLI now consumes mapped project artifacts through its existing atomic ownership transaction.
 JavaScript namespace typedefs retain the full message API even when declarations are disabled.
 The integrated fixture is `tests/fixtures/golden/snapshots/js-complete-project`.

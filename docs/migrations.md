@@ -1,13 +1,50 @@
 # Migration notes
 
-Rust integrations can compile selected browser link localization through
-`compile_typescript_web_runtime_links_module` or `compile_javascript_web_runtime_links_module`.
-The JavaScript output retains checked lifecycle and DOM types through JSDoc; TypeScript bytes and
-declaration companions retain their existing contract.
-
 This file records required application changes when a public Linguini contract changes. The CI
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
+
+## Canonical JavaScript generation
+
+The ECMAScript backend emits one JavaScript implementation and optional adjacent `.d.ts`
+declarations. TypeScript consumption remains supported, including strict NodeNext and Bundler
+projects with `allowJs = false`. The generated runtime files now end in `.js`, with `.js.map`
+companions; Svelte rune helpers use `.svelte.js`. Update explicit generated `.ts` imports to `.js`.
+Keep application TypeScript source files and ordinary TypeScript compiler settings as before.
+
+For Rust integrations, replace paired `compile_typescript_*` / `compile_javascript_*` functions
+with `compile_*`. Replace `generate_typescript_project_files` with `generate_project_files`, and
+`generate_javascript_schema_files` with `generate_schema_files`. Backend model names now use the
+`Ecma` prefix: `EcmaOptions`, `EcmaProjectOptions`, `ValidatedEcmaProject`, `EcmaLocaleModule`, and
+`CompiledEcma*Module`. Use `EcmaGeneratedFile` directly; the TypeScript alias is removed.
+`compile_ecmascript_project_files(project, sources)` no longer accepts a runtime target.
+`EcmaModuleKind::{JavaScript, Declaration}` distinguishes JS grammar from `.d.ts` grammar and
+cannot request a TypeScript implementation. Custom plural-rule emission also produces JavaScript.
+
+The Vite integration consumes these JS artifacts directly. Module paths recorded in the bundler
+manifest and helper descriptors now refer to `.js` files. Rebuild generated output before using
+an updated plugin; existing owned `.ts` runtime files are removed by the normal build transaction.
+A plain `tsc` application build must deliver generated JS to its runtime output; integrations can
+reuse `linguini build --emit-dir DIRECTORY` without enabling `allowJs`.
+
+The web runtime helpers now live in build-time templates, including URL and request operations,
+locale resolvers, route matching, bounded DOM traversal, and server cookie/switch handling.
+There is no paired TS implementation body for these helpers. Declarations retain their public
+contracts and explicit runtime `.js` imports.
+
+Function and form dispatch now uses direct branches and returns. Inline functions are lifted to
+static helpers with explicit captured arguments; generated calls preserve eager inputs and lazy
+branch results without building branch objects or callback tables. Unnamed selectors receive
+readable names derived from their types, with deterministic collision handling.
+
+Formatter calls now pass only the input value. The compiler resolves each used request into
+specialized number/currency/date code and selected helpers. Currency symbols come from pinned
+CLDR data instead of host `Intl.NumberFormat`; explicit formatter options produce separate,
+readable helper bindings. These locale-runtime helpers are generated implementation details;
+applications should continue calling the schema's generated message API.
+
+The intermediate APIs and paired-output parity receipts below describe earlier remediation
+stages; this section supersedes their runtime target names and `.ts` output paths.
 
 ## 0.1.0-alpha.4 remediation baseline
 

@@ -29,7 +29,7 @@ pub(super) fn map_symbol_lines(
 
 #[cfg(test)]
 mod tests {
-    use crate::ecmascript::{EcmaModuleOutput, EcmaScriptTarget, EcmaSource};
+    use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput, EcmaSource};
     use linguini_ir::lower_schema;
     use linguini_syntax::{parse_schema_in, SourceId};
 
@@ -96,18 +96,10 @@ mod tests {
             EcmaSource::new(SourceId(17), "schema/first.lgs", first),
             EcmaSource::new(SourceId(3), "schema/second.lgs", second),
         ];
-        for target in [EcmaScriptTarget::TypeScript, EcmaScriptTarget::JavaScript] {
-            for declaration in [false, true] {
-                if declaration && !target.is_typescript() {
-                    continue;
-                }
-                let extension = if declaration {
-                    "d.ts"
-                } else if target.is_typescript() {
-                    "ts"
-                } else {
-                    "js"
-                };
+        for target in [EcmaModuleKind::Declaration, EcmaModuleKind::JavaScript] {
+            {
+                let declaration = target.is_declaration();
+                let extension = if declaration { "d.ts" } else { "js" };
                 for (stem, module) in [
                     (
                         "shared",
@@ -139,7 +131,7 @@ mod tests {
                     for (needle, source, original_line, original_column) in if stem == "shared" {
                         vec![
                             (
-                                if target.is_typescript() {
+                                if target.is_declaration() {
                                     "export type Tone"
                                 } else {
                                     "@typedef {\"warm\""
@@ -149,7 +141,7 @@ mod tests {
                                 0,
                             ),
                             (
-                                if target.is_typescript() {
+                                if target.is_declaration() {
                                     "export type Amount"
                                 } else {
                                     "@typedef {number"

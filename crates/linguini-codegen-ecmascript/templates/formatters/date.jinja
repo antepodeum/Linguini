@@ -1,0 +1,10 @@
+{% from "formatters/date_parts" import expression %}{% for table in tables %}const {{ table.name }} = [{% for value in table.values %}{{ value|js }}{{ ", " if not loop.last }}{% endfor %}];
+{% endfor %}/**
+ * @param {Date | number | string} value
+ * @returns {string}
+ */
+{% if exported %}export {% endif %}function {{ name }}(value) {
+  const date = coerceDate(value);
+  return {{ expression(parts, digits) }};
+}
+{{ "\n" -}}

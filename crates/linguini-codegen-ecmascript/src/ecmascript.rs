@@ -1,19 +1,19 @@
-mod runtime_code;
-
-pub(crate) use runtime_code::RuntimeCode;
+mod literals;
+use literals::string_literal as json_string;
+pub(crate) use literals::{escape_string, string_literal};
 
 use linguini_syntax::{SourceId, Span};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EcmaScriptTarget {
-    TypeScript,
+pub enum EcmaModuleKind {
+    Declaration,
     JavaScript,
 }
 
-impl EcmaScriptTarget {
-    pub fn is_typescript(self) -> bool {
-        matches!(self, Self::TypeScript)
+impl EcmaModuleKind {
+    pub fn is_declaration(self) -> bool {
+        matches!(self, Self::Declaration)
     }
 }
 
@@ -182,24 +182,24 @@ impl EcmaStatement {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EcmaModuleOutput {
-    target: EcmaScriptTarget,
+    target: EcmaModuleKind,
     path: String,
     declaration_path: Option<String>,
 }
 
 impl EcmaModuleOutput {
     pub fn new(
-        target: EcmaScriptTarget,
+        target: EcmaModuleKind,
         path: impl Into<String>,
         declaration_path: Option<String>,
     ) -> Self {
         let path = path.into();
         match target {
-            EcmaScriptTarget::TypeScript => assert!(
-                path.ends_with(".ts"),
-                "TypeScript ECMAScript output must end in .ts"
+            EcmaModuleKind::Declaration => assert!(
+                path.ends_with(".d.ts"),
+                "declaration output must end in .d.ts"
             ),
-            EcmaScriptTarget::JavaScript => assert!(
+            EcmaModuleKind::JavaScript => assert!(
                 path.ends_with(".js"),
                 "JavaScript ECMAScript output must end in .js"
             ),
@@ -221,7 +221,7 @@ impl EcmaModuleOutput {
         format!("{}.map", self.path)
     }
 
-    pub fn target(&self) -> EcmaScriptTarget {
+    pub fn target(&self) -> EcmaModuleKind {
         self.target
     }
 
@@ -270,7 +270,7 @@ impl EcmaModule {
     }
 
     pub fn push_import(&mut self, mut item: EcmaImport) {
-        if !self.output.target.is_typescript() {
+        if !self.output.target.is_declaration() {
             if let EcmaImportBindings::NamedWithTypes { values, .. } = item.bindings {
                 if values.is_empty() {
                     return;
@@ -278,7 +278,7 @@ impl EcmaModule {
                 item.bindings = EcmaImportBindings::Named(values);
             }
         }
-        if self.output.target.is_typescript()
+        if self.output.target.is_declaration()
             || !matches!(item.bindings, EcmaImportBindings::TypeNamed(_))
         {
             self.imports.push(item);
@@ -292,7 +292,7 @@ impl EcmaModule {
     }
 
     pub fn push_re_export(&mut self, item: EcmaReExport) {
-        if self.output.target.is_typescript()
+        if self.output.target.is_declaration()
             || !matches!(
                 item.bindings,
                 EcmaReExportBindings::TypeAll | EcmaReExportBindings::TypeNamed(_)
@@ -311,7 +311,7 @@ impl EcmaModule {
         statement: EcmaStatement,
         line_mappings: Vec<(usize, Span)>,
     ) {
-        if self.output.target.is_typescript()
+        if self.output.target.is_declaration()
             || statement.kind != EcmaStatementKind::TypeDeclaration
         {
             self.statements.push(ModuleStatement {
@@ -377,7 +377,7 @@ fn render_module_body(
         rendered_module_edge |= render_re_export(item, module.output.target, output);
     }
     let renders_statement = module.statements.iter().any(|statement| {
-        module.output.target.is_typescript()
+        module.output.target.is_declaration()
             || statement.statement.kind != EcmaStatementKind::TypeDeclaration
     });
     if rendered_module_edge && renders_statement {
@@ -386,7 +386,7 @@ fn render_module_body(
 
     for item in &module.statements {
         let statement = &item.statement;
-        if !module.output.target.is_typescript()
+        if !module.output.target.is_declaration()
             && statement.kind == EcmaStatementKind::TypeDeclaration
         {
             continue;
@@ -403,8 +403,8 @@ fn render_module_body(
     }
 }
 
-fn render_import(item: &EcmaImport, target: EcmaScriptTarget, output: &mut String) -> bool {
-    if !target.is_typescript() && matches!(item.bindings, EcmaImportBindings::TypeNamed(_)) {
+fn render_import(item: &EcmaImport, target: EcmaModuleKind, output: &mut String) -> bool {
+    if !target.is_declaration() && matches!(item.bindings, EcmaImportBindings::TypeNamed(_)) {
         return false;
     }
     output.push_str("import ");
@@ -476,8 +476,8 @@ fn render_import(item: &EcmaImport, target: EcmaScriptTarget, output: &mut Strin
     true
 }
 
-fn render_re_export(item: &EcmaReExport, target: EcmaScriptTarget, output: &mut String) -> bool {
-    if !target.is_typescript()
+fn render_re_export(item: &EcmaReExport, target: EcmaModuleKind, output: &mut String) -> bool {
+    if !target.is_declaration()
         && matches!(
             item.bindings,
             EcmaReExportBindings::TypeAll | EcmaReExportBindings::TypeNamed(_)
@@ -620,44 +620,19 @@ fn encode_vlq(value: i64, output: &mut String) {
     }
 }
 
-fn json_string(value: &str) -> String {
-    let mut output = String::from("\"");
-    for character in value.chars() {
-        match character {
-            '\"' => output.push_str("\\\""),
-            '\\' => output.push_str("\\\\"),
-            '\u{0008}' => output.push_str("\\b"),
-            '\u{000C}' => output.push_str("\\f"),
-            '\n' => output.push_str("\\n"),
-            '\r' => output.push_str("\\r"),
-            '\t' => output.push_str("\\t"),
-            '\u{0000}'..='\u{001F}' | '\u{007F}' => {
-                use std::fmt::Write;
-                write!(output, "\\u{:04X}", character as u32)
-                    .expect("writing to a String cannot fail");
-            }
-            '\u{2028}' => output.push_str("\\u2028"),
-            '\u{2029}' => output.push_str("\\u2029"),
-            _ => output.push(character),
-        }
-    }
-    output.push('\"');
-    output
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport,
-        EcmaReExport, EcmaScriptTarget, EcmaSource, EcmaStatement,
+        EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput,
+        EcmaNamedImport, EcmaReExport, EcmaSource, EcmaStatement,
     };
     use linguini_syntax::{SourceId, Span};
 
     #[test]
     fn mixed_imports_keep_values_and_drop_type_only_dependencies_in_javascript() {
-        for target in [EcmaScriptTarget::TypeScript, EcmaScriptTarget::JavaScript] {
-            let path = if target.is_typescript() {
-                "entry.ts"
+        for target in [EcmaModuleKind::Declaration, EcmaModuleKind::JavaScript] {
+            let path = if target.is_declaration() {
+                "entry.d.ts"
             } else {
                 "entry.js"
             };
@@ -673,7 +648,7 @@ mod tests {
                 vec![EcmaNamedImport::new("OnlyType", "OnlyType")],
             ));
             let code = module.render_code();
-            if target.is_typescript() {
+            if target.is_declaration() {
                 assert!(code.contains("import { normalize as normalizeLocale, type Locale as LocaleName } from \"./locale.js\";"));
                 assert!(code.contains("import { type OnlyType } from \"./types.js\";"));
             } else {
@@ -693,7 +668,7 @@ mod tests {
             "/// Café\nhello(name: String)\n",
         );
         let mut module = EcmaModule::new(EcmaModuleOutput::new(
-            EcmaScriptTarget::JavaScript,
+            EcmaModuleKind::JavaScript,
             "messages/hello.js",
             None,
         ));
@@ -726,7 +701,7 @@ mod tests {
     #[test]
     fn renders_the_same_module_body_without_a_source_map_trailer() {
         let mut module = EcmaModule::new(EcmaModuleOutput::new(
-            EcmaScriptTarget::JavaScript,
+            EcmaModuleKind::JavaScript,
             "messages/hello.js",
             None,
         ));
@@ -748,7 +723,7 @@ mod tests {
     #[test]
     fn target_owns_paths_and_excludes_types_from_javascript() {
         let mut module = EcmaModule::new(EcmaModuleOutput::new(
-            EcmaScriptTarget::JavaScript,
+            EcmaModuleKind::JavaScript,
             "messages/hello.js",
             Some("messages/hello.d.ts".to_owned()),
         ));

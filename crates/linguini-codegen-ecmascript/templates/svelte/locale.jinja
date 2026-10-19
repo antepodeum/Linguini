@@ -1,0 +1,80 @@
+{% raw %}/** @typedef {import("./locale.js").Locale} Locale */
+/** @typedef {(locale: Locale) => void | Promise<void>} LinguiniLocaleLoader */
+
+/** @type {Set<LinguiniLocaleLoader>} */ const localeLoaders = new Set();
+
+{% endraw %}{% if sveltekit %}{% raw %}/** @type {Locale} */ let clientLocale = $state(baseLocale);
+let hasClientOverride = $state(false);
+
+/**
+ * Register a locale message loader and return its deterministic disposer.
+ *
+ * The disposer is idempotent, which lets HMR consumers safely replace a loader
+ * without retaining callbacks from a previous module instance.
+ */
+{% endraw %}{% else %}{% raw %}/** @type {Locale} */ let activeLocale = $state(baseLocale);
+
+{% endraw %}{% endif %}{% raw %}/** @param {LinguiniLocaleLoader} loader @returns {() => void} */
+export function registerLocaleLoader(loader) {
+  localeLoaders.add(loader);
+  let disposed = false;
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    localeLoaders.delete(loader);
+  };
+}
+
+{% endraw %}{% if sveltekit %}{% raw %}/**
+ * Ensure all currently registered consumers have loaded a locale's messages.
+ *
+ * This intentionally snapshots the registry before starting work: a loader
+ * may register or dispose another loader while its promise is pending, but
+ * that mutation must not alter the current preparation operation.
+ */
+{% endraw %}{% endif %}{% raw %}/** @param {unknown} locale @returns {Promise<Locale>} */
+export async function prepareLocale(locale) {
+  const resolved = normalizeLocale(locale) ?? baseLocale;
+  const loaders = [...localeLoaders];
+  await Promise.all(loaders.map((loader) => loader(resolved)));
+  return resolved;
+}
+
+/** @returns {Locale} */
+export function getCurrentLocale() {
+{% endraw %}{% if sveltekit %}{% raw %}  const dataLocale = page.data?.linguini?.locale;
+  const resolvedClientLocale = normalizeLocale(clientLocale) ?? baseLocale;
+  return hasClientOverride
+    ? resolvedClientLocale
+    : normalizeLocale(dataLocale) ?? resolvedClientLocale;
+}
+
+{% endraw %}{% else %}{% raw %}  return activeLocale;
+}
+
+{% endraw %}{% endif %}{% if web %}{% raw %}/** @param {unknown} locale @returns {Locale} */
+export function initializeCurrentLocale(locale) {
+{% endraw %}{% if sveltekit %}{% raw %}  clientLocale = normalizeLocale(locale) ?? baseLocale;
+  hasClientOverride = false;
+  return clientLocale;
+}
+
+{% endraw %}{% else %}{% raw %}  activeLocale = normalizeLocale(locale) ?? baseLocale;
+  return activeLocale;
+}
+
+{% endraw %}{% endif %}{% endif %}{% raw %}/** @param {unknown} locale @returns {Locale} */
+export function setCurrentLocale(locale) {
+{% endraw %}{% if sveltekit %}{% raw %}  clientLocale = normalizeLocale(locale) ?? baseLocale;
+  hasClientOverride = true;
+  return clientLocale;
+}
+
+/** @returns {void} */
+export function clearCurrentLocaleOverride() {
+  hasClientOverride = false;
+}
+{% endraw %}{% else %}{% raw %}  activeLocale = normalizeLocale(locale) ?? baseLocale;
+  return activeLocale;
+}
+{% endraw %}{% endif %}

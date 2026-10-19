@@ -1,20 +1,12 @@
-{% if ts %}export type LinguiniProviderOptions = {
-  getLocale?: () => LinguiniLanguageInput;
-  resolveLanguage?: () => LinguiniLanguageInput;
-};
-
-{% endif %}{% if ts %}const pendingLocales = new Map<Locale, Promise<Linguini>>();
-
-{% else %}/** @type {Map<Locale, Promise<Linguini>>} */
+/** @type {Map<Locale, Promise<Linguini>>} */
 const pendingLocales = new Map();
 
-{% endif %}{% if ts %}export async function prepareLinguini(language: LinguiniLanguageInput): Promise<Linguini> {
-{% else %}/**
+/**
  * @param {Locale} language
  * @returns {Promise<Linguini>}
  */
 export async function prepareLinguini(language) {
-{% endif %}  const locale = normalizeLocale(language) ?? baseLocale;
+  const locale = normalizeLocale(language) ?? baseLocale;
   const available = localeModules[locale];
   if (available) return available;
   const pending = pendingLocales.get(locale);
@@ -29,49 +21,40 @@ export async function prepareLinguini(language) {
   return task;
 }
 
-{% if ts %}export function createLinguini(language: LinguiniLanguageInput): Linguini {
-{% else %}/**
+/**
  * @param {Locale} language
  * @returns {Linguini}
  */
 export function createLinguini(language) {
-{% endif %}  const locale = normalizeLocale(language) ?? baseLocale;
+  const locale = normalizeLocale(language) ?? baseLocale;
   const messages = localeModules[locale];
   if (messages) return messages;
   throw new Error(`Linguini: locale ${JSON.stringify(locale)} is not prepared; call prepareLinguini(locale) first`);
 }
 
-{% if ts %}export function createLinguiniProvider(options: LinguiniProviderOptions = {}): Linguini {
-{% else %}/**
+/**
  * @param {LinguiniProviderOptions} [options]
  * @returns {Linguini}
  */
 export function createLinguiniProvider(options = {}) {
-{% endif %}  const resolve = options.getLocale ?? options.resolveLanguage ?? (() => baseLocale);
-{% if ts %}  return new Proxy({} as Linguini, {
-{% else %}  return new Proxy(/** @type {Linguini} */ ({}), {
-{% endif %}    get(_target, property) {
-{% if ts %}      return createLinguini(resolve())[property as keyof Linguini];
-{% else %}      return createLinguini(resolve())[/** @type {keyof Linguini} */ (property)];
-{% endif %}    },
+  const resolve = options.getLocale ?? options.resolveLanguage ?? (() => baseLocale);
+  return new Proxy(/** @type {Linguini} */ ({}), {
+    get(_target, property) {
+      return createLinguini(resolve())[/** @type {keyof Linguini} */ (property)];
+    },
   });
 }
 
-{% if ts %}export function configureLinguini(options: {
-  language: LinguiniLanguageInput | (() => LinguiniLanguageInput);
-}): Linguini {
-{% else %}/**
+/**
  * @param {{ "{{" }}language: Locale | (() => Locale)}} options
  * @returns {Linguini}
  */
 export function configureLinguini(options) {
-{% endif %}  if (typeof options.language === "function") {
+  if (typeof options.language === "function") {
     return createLinguiniProvider({ resolveLanguage: options.language });
   }
   return createLinguini(options.language);
 }
 
-{% if ts %}export const lgl: Linguini = createLinguini(baseLocale);
-{% else %}/** @type {Linguini} */
+/** @type {Linguini} */
 export const lgl = createLinguini(baseLocale);
-{% endif %}

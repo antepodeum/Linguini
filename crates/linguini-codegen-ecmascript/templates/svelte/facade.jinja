@@ -1,0 +1,40 @@
+{%- set web_methods = ["localizeHref", "localizeUrl", "shouldLocalizeHref", "shouldLocalizeLink", "localizeHrefAttribute", "delocalizeUrl", "alternateLinks"] -%}
+{% if web %}const unregisterRuntimeLoader = registerLocaleLoader(async (locale) => {
+  await runtime.prepareLinguini(locale);
+});
+{% with disposer="unregisterRuntimeLoader" %}{% include "hmr" %}{% endwith %}
+export const linguini = createLinguiniRune(runtime, controls);
+{% else %}export const linguini = createLinguiniRune(runtime);
+{% endif %}{% for name in ["l", "messages", "setLocale"] + (web_methods if web else []) %}export const {{ name }} = linguini.{{ name }};
+{% endfor %}
+{% if web %}/** @param {typeof import("./index.js")} runtime @param {typeof import("./svelte-control.js").linguini} controls */
+function createLinguiniRune(runtime, controls) {
+  const messages = runtime.createLinguiniProvider({
+    getLocale: () => controls.locale,
+  });
+
+{% else %}/** @param {typeof import("./index.js")} runtime */
+function createLinguiniRune(runtime) {
+  const messages = runtime.createLinguiniProvider({
+    getLocale: getCurrentLocale,
+  });
+
+  /** @param {string} nextLocale @returns {Promise<import("./index.js").Locale>} */
+  async function setLocale(nextLocale) {
+    return setCurrentLocale(await prepareLocale(nextLocale));
+  }
+
+{% endif %}  return {
+    messages,
+    l: messages,
+{% for name in ["locale", "lang", "direction", "textDirection", "htmlAttrs"] %}    get {{ name }}() {
+{% if web %}      return controls.{{ name }};
+{% elif name in ["locale", "lang"] %}      return getCurrentLocale();
+{% elif name in ["direction", "textDirection"] %}      return runtime.getTextDirection(getCurrentLocale());
+{% else %}      const locale = getCurrentLocale();
+      return { lang: locale, dir: runtime.getTextDirection(locale) };
+{% endif %}    },
+{% endfor %}{% if web %}{% for name in ["setLocale"] + web_methods + ["destroy"] %}    {{ name }}: controls.{{ name }},
+{% endfor %}{% else %}    setLocale,
+{% endif %}  };
+}
