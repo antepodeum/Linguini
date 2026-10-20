@@ -105,6 +105,26 @@ pub(crate) fn replace_owned_files(
     let old_paths = read_manifest(output.path())?;
     validate_existing_ownership(output.path(), &old_paths, &new_paths)?;
 
+    let mut changed_paths = BTreeSet::new();
+    for file in files {
+        if !file_matches(&output.path().join(&file.path), file.contents.as_bytes())? {
+            changed_paths.insert(file.path.clone());
+        }
+    }
+    let manifest = render_manifest(&new_paths);
+    let manifest_changed = !file_matches(&output.path().join(MANIFEST_NAME), manifest.as_bytes())?;
+    let mut affected = old_paths
+        .difference(&new_paths)
+        .chain(changed_paths.iter())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if manifest_changed {
+        affected.insert(PathBuf::from(MANIFEST_NAME));
+    }
+    if affected.is_empty() {
+        return Ok(());
+    }
+
     let transaction = TransactionDir::create(
         output
             .path()
@@ -123,16 +143,13 @@ pub(crate) fn replace_owned_files(
     })?;
 
     for file in files {
-        write_staged_file(&staged_root.join(&file.path), file.contents.as_bytes())?;
+        if changed_paths.contains(&file.path) {
+            write_staged_file(&staged_root.join(&file.path), file.contents.as_bytes())?;
+        }
     }
-    let manifest = render_manifest(&new_paths);
-    write_staged_file(&staged_root.join(MANIFEST_NAME), manifest.as_bytes())?;
-
-    let mut affected = old_paths
-        .union(&new_paths)
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    affected.insert(PathBuf::from(MANIFEST_NAME));
+    if manifest_changed {
+        write_staged_file(&staged_root.join(MANIFEST_NAME), manifest.as_bytes())?;
+    }
 
     let mut backed_up = Vec::new();
     for relative in &affected {
@@ -159,8 +176,10 @@ pub(crate) fn replace_owned_files(
     }
 
     let mut installed = Vec::new();
-    let mut install_paths = new_paths.iter().cloned().collect::<Vec<_>>();
-    install_paths.push(PathBuf::from(MANIFEST_NAME));
+    let mut install_paths = changed_paths.into_iter().collect::<Vec<_>>();
+    if manifest_changed {
+        install_paths.push(PathBuf::from(MANIFEST_NAME));
+    }
     for relative in install_paths {
         let staged = staged_root.join(&relative);
         let destination = output.path().join(&relative);
@@ -191,6 +210,17 @@ pub(crate) fn replace_owned_files(
 
     prune_empty_owned_directories(output.path(), &old_paths, &new_paths);
     Ok(())
+}
+
+fn file_matches(path: &Path, contents: &[u8]) -> CliResult<bool> {
+    match fs::read(path) {
+        Ok(existing) => Ok(existing == contents),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(false),
+        Err(source) => Err(CliError::Io {
+            path: path.to_path_buf(),
+            source,
+        }),
+    }
 }
 
 fn resolve_project_path(
@@ -751,6 +781,101 @@ mod tests {
             "keep"
         );
         assert!(output.path().join(MANIFEST_NAME).is_file());
+    }
+
+    #[test]
+    fn preserves_unchanged_file_identity_and_repairs_missing_owned_files() {
+        let project = TempDir::new().expect("project");
+        let output = output(&project, "generated");
+        let files = [
+            GeneratedFile {
+                path: PathBuf::from("index.js"),
+                contents: "export const text = 'Hello';\n",
+            },
+            GeneratedFile {
+                path: PathBuf::from("index.d.ts"),
+                contents: "export declare const text: string;\n",
+            },
+        ];
+        replace_owned_files(&output, &files).expect("initial generation");
+        let old_time = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000);
+        for relative in ["index.js", "index.d.ts", MANIFEST_NAME] {
+            fs::OpenOptions::new()
+                .write(true)
+                .open(output.path().join(relative))
+                .unwrap()
+                .set_times(fs::FileTimes::new().set_modified(old_time))
+                .unwrap();
+        }
+        #[cfg(unix)]
+        let declaration_inode = {
+            use std::os::unix::fs::MetadataExt;
+            fs::metadata(output.path().join("index.d.ts"))
+                .unwrap()
+                .ino()
+        };
+        replace_owned_files(&output, &files).expect("unchanged generation");
+        for relative in ["index.js", "index.d.ts", MANIFEST_NAME] {
+            assert_eq!(
+                fs::metadata(output.path().join(relative))
+                    .unwrap()
+                    .modified()
+                    .unwrap(),
+                old_time
+            );
+        }
+        let changed = [
+            GeneratedFile {
+                path: PathBuf::from("index.js"),
+                contents: "export const text = 'Bonjour';\n",
+            },
+            GeneratedFile {
+                path: PathBuf::from("index.d.ts"),
+                contents: files[1].contents,
+            },
+        ];
+        replace_owned_files(&output, &changed).expect("message-only change");
+        assert_eq!(
+            fs::read_to_string(output.path().join("index.js")).unwrap(),
+            changed[0].contents
+        );
+        assert_eq!(
+            fs::metadata(output.path().join("index.d.ts"))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            old_time
+        );
+        assert_eq!(
+            fs::metadata(output.path().join(MANIFEST_NAME))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            old_time
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            assert_eq!(
+                fs::metadata(output.path().join("index.d.ts"))
+                    .unwrap()
+                    .ino(),
+                declaration_inode
+            );
+        }
+        fs::remove_file(output.path().join("index.js")).unwrap();
+        replace_owned_files(&output, &changed).expect("repair missing owned runtime");
+        assert_eq!(
+            fs::read_to_string(output.path().join("index.js")).unwrap(),
+            changed[0].contents
+        );
+        assert_eq!(
+            fs::metadata(output.path().join("index.d.ts"))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            old_time
+        );
     }
 
     #[test]

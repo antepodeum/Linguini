@@ -54,6 +54,10 @@ an updated plugin; existing owned `.ts` runtime files are removed by the normal 
 A plain `tsc` application build must deliver generated JS to its runtime output; integrations can
 reuse `linguini build --emit-dir DIRECTORY` without enabling `allowJs`.
 
+Repeated native builds preserve unchanged owned files instead of replacing them. Message-only
+changes retain declaration timestamps, allowing TypeScript incremental and watch builds to reuse
+their type graph. Existing ownership, stale-file removal, and rollback rules still apply.
+
 The web runtime helpers now live in build-time templates, including URL and request operations,
 locale resolvers, route matching, bounded DOM traversal, and server cookie/switch handling.
 There is no paired TS implementation body for these helpers. Declarations retain their public

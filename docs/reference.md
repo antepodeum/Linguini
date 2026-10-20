@@ -44,6 +44,10 @@ The configured source output remains available for type checking, and each addit
 project-relative directory receives generated modules, declarations, and source maps from the
 same validated project. Maps resolve the original Linguini files from each output depth.
 Output directories must be disjoint and follow the configured output's ownership and path rules.
+Builds preserve unchanged owned files and their timestamps, including declarations and the
+ownership manifest. Text-only message edits therefore do not invalidate TypeScript's type inputs.
+Changed and stale files still use the ownership-checked transaction and rollback; missing owned
+files are restored on the next build.
 
 Custom Rust codegen callers configure an embedded plural implementation through
 `EcmaOptions::plural_rules`. The backend renders those canonical rules directly for the
