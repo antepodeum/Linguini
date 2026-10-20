@@ -2,4 +2,4 @@ export function {{ name }}({{ parameters }}) {
   {{ normalization }}
   return {{ body }};
 }
-{{ "\n" -}}
+{{ "\n" if blank_line|default(true) else "" -}}

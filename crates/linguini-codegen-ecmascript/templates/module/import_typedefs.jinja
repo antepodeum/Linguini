@@ -1,0 +1,1 @@
+{% for name in names -%}/** @typedef {import({{ module|js }}).{{ name }}} {{ name }} */{{ "\n" if not loop.last }}{% endfor -%}

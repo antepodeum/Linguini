@@ -1,2 +1,2 @@
-{% if exported %}export {% endif %}const {{ name }} = {{ value }};
-{{ "\n" -}}
+{% if exported %}export {% endif %}const {{ name }} = {% if callable|default(false) %}() => {% endif %}{{ value }};
+{{ "\n" if blank_line|default(true) else "" -}}

@@ -351,27 +351,26 @@ fn emit_message_module(
     ) {
         let call_signature = MessageCallSignature::from_message(signature);
         let body = emit::message_body(schema, signature, implementation, options);
-        let output = if !call_signature.is_parameterized() {
-            let mut docs = String::new();
-            emit_docs(&signature.docs, "", &mut docs);
-            match emission {
-                MessageModuleEmission::Standalone => {
-                    format!("{docs}export const message = () => {body};\n")
-                }
-                MessageModuleEmission::Bundler => {
-                    format!("{docs}export const message = {body};\n")
-                }
-            }
+        let mut output = String::new();
+        if !call_signature.is_parameterized() {
+            emit_docs(&signature.docs, "", &mut output);
+            output.push_str(&crate::templates::render(
+                "module/constant",
+                minijinja::context! {
+                    exported => true, name => "message", value => body,
+                    callable => emission == MessageModuleEmission::Standalone, blank_line => false,
+                },
+            ));
         } else {
-            {
-                format!(
-                    "{}export function message({}) {{\n  {}\n  return {body};\n}}\n",
-                    call_signature.javascript_implementation_docs(&signature.docs),
-                    call_signature.implementation_rest_params(),
-                    call_signature.normalized_bindings_statement()
-                )
-            }
-        };
+            output.push_str(&call_signature.javascript_implementation_docs(&signature.docs));
+            output.push_str(&crate::templates::render(
+                "module/message",
+                minijinja::context! {
+                    name => "message", parameters => call_signature.implementation_rest_params(),
+                    normalization => call_signature.normalized_bindings_statement(), body, blank_line => false,
+                },
+            ));
+        }
         push_chunk(
             &mut statements,
             output,
@@ -405,33 +404,17 @@ fn emit_message_module(
         }
         module.push_import(EcmaImport {
             specifier: import_path_for_target(&dependency.import_path, target),
-            bindings: if dependency.type_only {
-                EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
-                    &dependency.binding,
-                    &dependency.binding,
-                )])
-            } else {
-                EcmaImportBindings::Named(vec![EcmaNamedImport::new(
-                    &dependency.binding,
-                    &dependency.binding,
-                )])
-            },
+            bindings: EcmaImportBindings::Named(vec![EcmaNamedImport::new(
+                &dependency.binding,
+                &dependency.binding,
+            )]),
         });
     }
     {
-        let typedefs = emit::schema_type_names(schema)
-            .into_iter()
-            .map(|name| {
-                format!(
-                    "/** @typedef {{import({}).{name}}} {name} */",
-                    super::names::string_literal(&import_path_for_target(
-                        shared_import_path,
-                        target,
-                    ))
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
+        let typedefs = crate::templates::render(
+            "module/import_typedefs",
+            minijinja::context! { names => emit::schema_type_names(schema), module => import_path_for_target(shared_import_path, target) },
+        );
         push_statement(&mut module, typedefs, None);
     }
     if uses_plural && runtime_import_path.is_none() {

@@ -195,7 +195,10 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
         emit_locale_enum_jsdoc_types(request.schema, request.locale, &mut body);
     }
     for namespace in request.namespaces {
-        body.push_str(&format!("export {{ {} }};\n\n", safe_identifier(namespace)));
+        body.push_str(&crate::templates::render(
+            "module/exports",
+            minijinja::context! { names => [safe_identifier(namespace)], blank_line => true },
+        ));
     }
     emit_variables(request.locale, request.options, false, &mut body);
     emit_forms(request.locale, request.options, false, &mut body);
@@ -210,7 +213,8 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
             .chain(exports.groups.iter())
             .any(|export| export == &identifier);
         if !alias_is_exported {
-            body.push_str(&format!("\nexport const {identifier} = lgl;\n"));
+            body.push('\n');
+            body.push_str(&crate::templates::render("module/constant", minijinja::context! { exported => true, name => identifier, value => "lgl", blank_line => false }));
         }
     }
 

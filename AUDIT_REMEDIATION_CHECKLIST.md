@@ -985,8 +985,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Rust must resolve used CLDR patterns and semantic requirements during builds;
       templates emit specialized functions and only required helpers, with no runtime CLDR
       pattern interpreter or checked-in generated runtime sources. Schema dispatch, numeric,
-      date, digit, plural-operand, and locale-provider helpers have extracted templates;
-      complete all runtime families and remove their remaining TS implementation branches.
+      date, digit, plural-operand, and locale-provider helpers have extracted templates.
+      Physical message exports, namespace aliases, value re-exports, and imported JSDoc typedefs
+      also use shared module templates, with byte/map snapshots preserved. Complete remaining
+      declaration/type syntax extraction and demand-selected CLDR helper generation.
       Static CLDR parameters must specialize the emitted implementation itself; passing a long
       vector of constants/undefined options to a generic formatter does not satisfy this criterion.
       No generated JS/TS runtime sources belong under Rust `src/`; generation happens during builds.

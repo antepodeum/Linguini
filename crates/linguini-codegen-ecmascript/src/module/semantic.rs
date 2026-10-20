@@ -262,7 +262,10 @@ fn compile_bundler_semantic_module_impl(
     match artifact.kind {
         EcmaSemanticSymbolKind::LocaleEnum => {
             emit::emit_locale_enum_jsdoc_types(project.schema, &one, &mut output);
-            output.push_str("export {};\n");
+            output.push_str(&crate::templates::render(
+                "module/exports",
+                minijinja::context! { names => Vec::<String>::new(), blank_line => false },
+            ));
         }
         EcmaSemanticSymbolKind::LocaleVariable => {
             emit_variables(&one, &options, true, &mut output);
@@ -292,16 +295,10 @@ fn compile_bundler_semantic_module_impl(
             .expect("locale enum dependency projection preserves unique names");
         let mut typedefs = String::new();
         emit::emit_locale_enum_jsdoc_types(project.schema, &locale_enums, &mut typedefs);
-        let schema_typedefs = type_names
-            .iter()
-            .map(|name| {
-                format!(
-                    "/** @typedef {{import(\"{}\").{name}}} {name} */",
-                    import_path_for_target(&artifact.shared_import_path, target)
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
+        let schema_typedefs = crate::templates::render(
+            "module/import_typedefs",
+            minijinja::context! { names => type_names, module => import_path_for_target(&artifact.shared_import_path, target) },
+        );
         if !schema_typedefs.is_empty() {
             typedefs.push_str(&schema_typedefs);
             typedefs.push('\n');

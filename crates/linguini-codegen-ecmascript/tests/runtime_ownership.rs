@@ -39,6 +39,32 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
             path.display()
         );
         let source = std::fs::read_to_string(&path).expect("read codegen source");
+        if path.parent()
+            == Some(
+                crates
+                    .join("linguini-codegen-ecmascript/src/module")
+                    .as_path(),
+            )
+            && matches!(
+                path.file_name().and_then(|name| name.to_str()),
+                Some("message.rs" | "locale.rs" | "globals.rs" | "semantic.rs" | "messages.rs")
+            )
+        {
+            let production = source.split("#[cfg(test)]").next().unwrap();
+            for inline in [
+                "export function message(",
+                "export const message =",
+                "\"export {};\\n\"",
+                "export {{ {} }};",
+                "@typedef {{import(",
+            ] {
+                assert!(
+                    !production.contains(inline),
+                    "module output belongs in shared templates: {} ({inline})",
+                    path.display()
+                );
+            }
+        }
         if path.starts_with(crates.join("linguini-codegen-svelte")) {
             let production = source.split("#[cfg(test)]").next().unwrap();
             for framework_api in ["$app/", "App.PageState", "SvelteKit", "sveltekit: bool"] {

@@ -10,6 +10,14 @@ fn environment() -> &'static EcmaTemplateEngine {
     ENVIRONMENT.get_or_init(|| {
         EcmaTemplateEngine::new([
             (
+                "module/exports",
+                include_str!("../templates/module/exports.jinja"),
+            ),
+            (
+                "module/import_typedefs",
+                include_str!("../templates/module/import_typedefs.jinja"),
+            ),
+            (
                 "index_declarations",
                 include_str!("../templates/index_declarations.jinja"),
             ),

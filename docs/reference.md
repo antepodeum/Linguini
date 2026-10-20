@@ -33,6 +33,9 @@ Rust codegen integrations can call `generate_schema_files` to obtain the schema-
 declaration companions. `EcmaGeneratedFile` records each generated path and its contents.
 Runtime compilers emit JavaScript; TypeScript consumers use adjacent declarations from the same
 semantic type and signature models. Separate TS implementation emitters have been removed.
+Physical message compilers reuse the project emitter's constant/function templates, and module
+exports and imported JSDoc typedefs share syntax templates across locale and semantic artifacts.
+Rust selects the semantic plan and source spans; executable statement syntax belongs in templates.
 
 JavaScript output with declaration companions can be consumed by strict TypeScript projects
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and

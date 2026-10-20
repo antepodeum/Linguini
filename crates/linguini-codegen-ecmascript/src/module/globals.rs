@@ -132,7 +132,10 @@ pub(super) fn locale_globals_module(
 
     let value_names = locale_global_value_names(&globals);
     if !value_names.is_empty() {
-        body.push_str(&format!("export {{ {} }};\n", value_names.join(", ")));
+        body.push_str(&crate::templates::render(
+            "module/exports",
+            minijinja::context! { names => value_names, blank_line => false },
+        ));
     }
 
     let mut module = EcmaModule::new(output);

@@ -107,13 +107,12 @@ pub(super) fn emit_schema_jsdoc_types(
     output: &mut String,
 ) {
     let type_names = schema_type_names(schema);
-    for name in &type_names {
-        output.push_str(&format!(
-            "/** @typedef {{import(\"{shared_import_path}\").{name}}} {name} */\n"
-        ));
-    }
     if !type_names.is_empty() {
-        output.push('\n');
+        output.push_str(&crate::templates::render(
+            "module/import_typedefs",
+            minijinja::context! { names => type_names, module => shared_import_path },
+        ));
+        output.push_str("\n\n");
     }
 }
 

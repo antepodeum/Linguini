@@ -1,0 +1,2 @@
+export {% if names %}{ {{ names|join(", ") }} }{% else %}{}{% endif %};
+{{ "\n" if blank_line else "" -}}

@@ -37,7 +37,10 @@ pub(super) fn messages_module(
     if !target.is_declaration() {
         for name in &type_names {
             module.push_statement(EcmaStatement::documentation(
-                format!("/** @typedef {{import(\"{shared_import_path}\").{name}}} {name} */"),
+                crate::templates::render(
+                    "module/import_typedefs",
+                    minijinja::context! { names => [name], module => shared_import_path },
+                ),
                 None,
             ));
         }
