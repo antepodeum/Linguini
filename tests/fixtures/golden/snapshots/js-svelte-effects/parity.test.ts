@@ -42,6 +42,9 @@ describe("browser effect target parity and capability ownership", () => {
               Object.defineProperty(globalThis, "document", { configurable: true, value: Object.defineProperty({}, "cookie", { get: getter("cookie", "LINGUINI_LOCALE=fr") }) });
             }
             Reflect.set(globalThis, probeKey, probe);
+            javascript = javascript
+              .replace(/import \{ browser \} from ["']\.\.\/host\.js["'];/, "const browser = probe.browser;")
+              .replace(/import \{ base \} from ["']\.\.\/host\.js["'];/, 'const base = "/app";');
             javascript = `const probe = globalThis[Symbol.for(${JSON.stringify(Symbol.keyFor(probeKey))})];\n` + javascript
               .replace(/import \{ browser \} from ["']\$app\/environment["'];/, "const browser = probe.browser;")
               .replace(/import \{ base \} from ["']\$app\/paths["'];/, 'const base = "/app";')

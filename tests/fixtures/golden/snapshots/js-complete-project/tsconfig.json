@@ -4,5 +4,5 @@
     "noEmit": true, "strict": true, "target": "ES2022",
     "paths": { "@sveltejs/kit": ["../../../../../site/node_modules/@sveltejs/kit"] }
   },
-  "include": ["typescript-consumer.ts", "consumer.js", "unsafe/*.js", "plain/javascript/**/*.js", "plain/typescript/**/*.ts", "source-only/javascript/**/*.js", "source-only/typescript/**/*.ts", "kit/javascript/**/*.js", "kit/typescript/**/*.ts", "framework.d.ts"]
+  "include": ["svelte-host-consumer.ts", "typescript-consumer.ts", "consumer.js", "unsafe/*.js", "plain/javascript/**/*.js", "plain/typescript/**/*.ts", "source-only/javascript/**/*.js", "source-only/typescript/**/*.ts", "kit/javascript/**/*.js", "kit/typescript/**/*.ts", "framework.d.ts"]
 }

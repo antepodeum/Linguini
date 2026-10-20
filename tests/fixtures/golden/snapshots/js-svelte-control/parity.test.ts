@@ -69,7 +69,7 @@ describe("lightweight control target and frozen-runtime parity", () => {
                 .replace("{{NAVIGATION}}", navigation[framework]);
             }
             return withGlobals({ window: browser ? window : undefined, document: browser ? document : undefined }, () => withRuntimeHost(source, target === "javascript" ? "javascript" : "typescript", {
-              modules: { "$app/environment": { browser }, "$app/navigation": { goto: go }, "./svelte-effects.svelte.js": effects, "./svelte-locale.svelte.js": state },
+              modules: { "$app/environment": { browser }, "$app/navigation": { goto: go }, "../host.js": { browser, navigate: (href: string, options: any) => go(href, { replaceState: Boolean(options.replaceState), invalidateAll: Boolean(options.invalidateAll), keepFocus: options.keepFocus, noScroll: options.noScroll, state: options.state }) }, "./svelte-effects.svelte.js": effects, "./svelte-locale.svelte.js": state },
             }, async (controls) => {
               expect(controls.linguini.locale).toBe("en");
               const operation = controls.setLocale("fr", { navigate: scenario !== "options-off", cookie: scenario !== "options-off", replaceState: scenario === "replace-navigation", state: { tab: "account" } });

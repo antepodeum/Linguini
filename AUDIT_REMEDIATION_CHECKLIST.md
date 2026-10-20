@@ -1015,8 +1015,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       The three crates now own their transferred production implementations/templates; SvelteKit
       composes Svelte, and the Vite plan accepts external runtime descriptors. Base ECMAScript
       generation no longer imports or selects framework integrations. Native CLI and mapped
-      consumer fixtures use the composition. Complete the remaining host-binding, JS adapter,
-      module-configuration, and packaging/CI verification before closing the architecture work.
+      consumer fixtures use the composition. Svelte accepts explicit host imports; SvelteKit
+      owns request-locale reads and navigation templates, with no navigation runtime in pathless
+      output. Complete JS adapter, module-configuration, and packaging/CI verification before
+      closing the architecture work.
 - [ ] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
       and source-map infrastructure framework-independent. Isolate Svelte syntax/link transforms
       and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure.

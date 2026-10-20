@@ -1,4 +1,4 @@
-import { browser } from "$app/environment";
+import { browser } from "../host.js";
 import { destroyLinguiniEffects, refreshLinguiniEffects, web } from "./svelte-effects.svelte.js";
 import { getCurrentLocale, prepareLocale, setCurrentLocale } from "./svelte-locale.svelte.js";
 

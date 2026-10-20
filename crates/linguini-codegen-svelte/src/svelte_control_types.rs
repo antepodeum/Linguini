@@ -5,7 +5,7 @@ use linguini_codegen_ecmascript::{
     EcmaStatement,
 };
 
-pub(super) fn generate_svelte_control_declaration(sveltekit: bool) -> String {
+pub(super) fn generate_svelte_control_declaration(host: &crate::SvelteHost) -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
         EcmaModuleKind::Declaration,
         "svelte-control.d.ts",
@@ -25,8 +25,9 @@ pub(super) fn generate_svelte_control_declaration(sveltekit: bool) -> String {
             ),
         });
     }
-    let state = if sveltekit {
-        "App.PageState"
+    let state = if let Some(binding) = &host.navigation_state {
+        module.push_import(binding.type_import("NavigationState"));
+        "NavigationState"
     } else {
         "unknown"
     };

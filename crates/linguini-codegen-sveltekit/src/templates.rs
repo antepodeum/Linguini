@@ -8,6 +8,22 @@ pub(crate) fn render(name: &str, values: Value) -> String {
         .get_or_init(|| {
             EcmaTemplateEngine::new([
                 (
+                    "sveltekit/locale",
+                    include_str!("../templates/sveltekit/locale.jinja"),
+                ),
+                (
+                    "sveltekit/locale_declarations",
+                    include_str!("../templates/sveltekit/locale_declarations.jinja"),
+                ),
+                (
+                    "sveltekit/navigation",
+                    include_str!("../templates/sveltekit/navigation.jinja"),
+                ),
+                (
+                    "sveltekit/navigation_declarations",
+                    include_str!("../templates/sveltekit/navigation_declarations.jinja"),
+                ),
+                (
                     "sveltekit/adapter",
                     include_str!("../templates/sveltekit/adapter.jinja"),
                 ),

@@ -1,5 +1,5 @@
-import { browser } from "$app/environment";
-import { base } from "$app/paths";
+import { browser } from "../host.js";
+import { base } from "../host.js";
 import * as locale from "./locale.js";
 import { createWebLocaleI18n } from "./web.js";
 import { getCurrentLocale, initializeCurrentLocale } from "./svelte-locale.svelte.js";

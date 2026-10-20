@@ -1,5 +1,5 @@
-import { browser } from "$app/environment";
-import { goto } from "$app/navigation";
+import { browser } from "../host.js";
+import { navigate } from "../host.js";
 import { destroyLinguiniEffects, refreshLinguiniEffects, web } from "./svelte-effects.svelte.js";
 import { clearCurrentLocaleOverride, getCurrentLocale, prepareLocale, setCurrentLocale } from "./svelte-locale.svelte.js";
 
@@ -41,13 +41,7 @@ function createLinguiniControl() {
       }
       if (options.navigate && web.options.locale.switch.writesPath) {
         const href = web.localizeHref(window.location.href, resolved);
-        await goto(href, {
-          replaceState: Boolean(options.replaceState),
-          invalidateAll: Boolean(options.invalidateAll),
-          keepFocus: options.keepFocus,
-          noScroll: options.noScroll,
-          state: /** @type {App.PageState | undefined} */ (options.state),
-        });
+        await navigate(href, options);
         clearCurrentLocaleOverride();
       }
       refreshLinguiniEffects();

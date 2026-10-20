@@ -1,7 +1,7 @@
 {% raw %}/** @typedef {import("./locale.js").Locale} Locale */
 /** @typedef {import("./web.js").LinkLocalizationAttributes} LinkLocalizationAttributes */
 
-{% endraw %}{% if not sveltekit %}{% raw %}const browser = typeof window !== "undefined" && typeof document !== "undefined";
+{% endraw %}{% if not external_browser %}{% raw %}const browser = typeof window !== "undefined" && typeof document !== "undefined";
 
 {% endraw %}{% endif %}{% raw %}export const linguini = createLinguiniControl();
 export const setLocale = linguini.setLocale;
@@ -38,15 +38,9 @@ function createLinguiniControl() {
       }
 {% endraw %}{% endif %}{% if has_path %}{% raw %}      if (options.navigate && web.options.locale.switch.writesPath) {
         const href = web.localizeHref(window.location.href, resolved);
-{% endraw %}{% if sveltekit %}{% raw %}        await goto(href, {
-          replaceState: Boolean(options.replaceState),
-          invalidateAll: Boolean(options.invalidateAll),
-          keepFocus: options.keepFocus,
-          noScroll: options.noScroll,
-          state: /** @type {App.PageState | undefined} */ (options.state),
-        });
-        clearCurrentLocaleOverride();
-{% endraw %}{% else %}{% raw %}        if (options.replaceState) {
+{% endraw %}{% if navigation %}{% raw %}        await navigate(href, options);
+{% endraw %}{% if request_locale %}{% raw %}        clearCurrentLocaleOverride();
+{% endraw %}{% endif %}{% else %}{% raw %}        if (options.replaceState) {
           window.location.replace(href);
         } else {
           window.location.assign(href);

@@ -27,6 +27,7 @@ async function compileState(mode: string, target: "javascript" | "typescript", g
   const result = compileModule(javascript, { filename, generate, dev: false });
   expect(result.warnings).toEqual([]);
   const compiled = result.js.code
+    .replace(/import \{ getRequestLocale \} from ["']\.\.\/host\.js["'];/, `const getRequestLocale = () => globalThis[Symbol.for(${JSON.stringify(Symbol.keyFor(pageKey))})].data?.linguini?.locale;`)
     .replace(/from (["'])svelte\/internal\/(client|server)\1/g, (_match: string, _quote: string, name: string) => `from ${JSON.stringify(pathToFileURL(requireSite.resolve(`svelte/internal/${name}`)).href)}`)
     .replace(/import \{ page \} from ["']\$app\/state["'];/, `const page = globalThis[Symbol.for(${JSON.stringify(Symbol.keyFor(pageKey))})];`)
     .replace(/from ["']\.\/locale(?:\.js)?["']/g, `from ${JSON.stringify(localeUrl)}`);

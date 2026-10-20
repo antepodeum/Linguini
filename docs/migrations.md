@@ -18,6 +18,19 @@ SvelteKit reuses Svelte generation. The native Vite artifact/manifest plan lives
 on either framework crate. The CLI composes these owners, and packaged CLI workspaces must include
 all three new crates. Output paths and the existing generated consumer contracts are preserved.
 
+Svelte generation now takes explicit `SvelteHost` bindings instead of a SvelteKit boolean.
+Replace `SvelteProjectOptions::request_routing` with `host` (use `SvelteHost::default()` for a
+standalone app). The low-level effects/control compilers also take `&SvelteHost`.
+Replace `SvelteLocaleMode` with `SvelteLocaleOptions { initialize, request_locale }` when compiling
+locale state directly. Host bindings identify named ESM imports, including optional navigation
+state types; they do not contain executable source strings.
+
+SvelteKit composition supplies its own request-locale and navigation modules. Rebuild owned
+output to include `sveltekit-locale.js` and, for path-based navigation, `sveltekit-navigation.js`
+with their map/declaration companions. Request locale is read from SvelteKit page context when a
+message consumer asks for it. Pathless policies emit no navigation runtime or `$app/navigation`
+dependency. Application-facing locale-switch options and `App.PageState` typing are preserved.
+
 ## Canonical JavaScript generation
 
 The ECMAScript backend emits one JavaScript implementation and optional adjacent `.d.ts`

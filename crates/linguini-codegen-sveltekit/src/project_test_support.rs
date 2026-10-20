@@ -57,7 +57,7 @@ pub fn generate_project_files(
                 &linguini_codegen_svelte::SvelteProjectOptions {
                     web: options.web.clone(),
                     declaration: options.declaration,
-                    request_routing: false,
+                    host: Default::default(),
                 },
                 false,
             ))

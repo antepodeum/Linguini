@@ -6,6 +6,12 @@ Install the Vite plugin.
 npm install @antepod/linguini-vite
 ```
 
+Native integrations compose `linguini-codegen-sveltekit` with the ECMAScript backend. The
+SvelteKit crate reuses `linguini-codegen-svelte` through explicit host imports and owns the
+request-context and `goto` bridges. Standalone Svelte generation uses browser navigation by
+default and can accept another host without depending on SvelteKit. Only path-enabled policies
+emit the SvelteKit navigation runtime.
+
 ## Linguini config
 
 ```toml

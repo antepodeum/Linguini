@@ -124,7 +124,18 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(svelte_control
         .contents
         .contains("from \"$app/environment\""));
-    assert!(svelte_control.contents.contains("from \"$app/navigation\""));
+    assert!(svelte_control
+        .contents
+        .contains("from \"./sveltekit-navigation.js\""));
+    assert!(svelte_control
+        .contents
+        .contains("await navigate(href, options)"));
+    let navigation = files
+        .iter()
+        .find(|file| file.path == "sveltekit-navigation.js")
+        .unwrap();
+    assert!(navigation.contents.contains("from \"$app/navigation\""));
+    assert!(navigation.contents.contains("return goto(href, {"));
     assert!(!svelte.contents.contains("createWebI18n"));
     assert!(!svelte.contents.contains("@antepod/"));
     assert!(svelte.contents.contains("export const l = linguini.l;"));
@@ -225,7 +236,20 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .iter()
         .find(|file| file.path == "svelte-locale.svelte.js")
         .expect("Svelte locale helper");
-    assert!(svelte_locale.contents.contains("from \"$app/state\""));
+    assert!(svelte_locale
+        .contents
+        .contains("from \"./sveltekit-locale.js\""));
+    let request_locale = files
+        .iter()
+        .find(|file| file.path == "sveltekit-locale.js")
+        .unwrap();
+    assert!(request_locale.contents.contains("from \"$app/state\""));
+    assert!(request_locale
+        .contents
+        .contains("return page.data?.linguini?.locale"));
+    assert!(svelte_locale
+        .contents
+        .contains("const dataLocale = getRequestLocale()"));
     assert!(svelte_locale
         .contents
         .contains("let clientLocale = $state(baseLocale)"));
@@ -256,8 +280,8 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
 
     let goto_position = svelte_control
         .contents
-        .find("await goto(")
-        .expect("goto call");
+        .find("await navigate(")
+        .expect("host navigation call");
     let clear_position = svelte_control
         .contents
         .find("clearCurrentLocaleOverride();")
@@ -624,6 +648,13 @@ fn project_codegen_pathless_sveltekit_controls_drop_navigation_dependencies() {
         )
         .expect("pathless SvelteKit policy");
 
+        assert!(!files
+            .iter()
+            .any(|file| file.path == "sveltekit-navigation.js"));
+        assert!(files
+            .iter()
+            .filter(|file| file.path.ends_with(".js"))
+            .all(|file| !file.contents.contains("$app/navigation")));
         let control = files
             .iter()
             .find(|file| file.path == "svelte-control.js")
@@ -955,6 +986,8 @@ fn composed_mapped_project_matches_the_strict_typescript_consumer_fixture() {
         "sveltekit.js",
         "sveltekit-control.js",
         "web/server-cookie.js",
+        "sveltekit-locale.js",
+        "sveltekit-navigation.js",
     ] {
         assert!(paths.contains(&path.to_owned()));
         assert!(paths.contains(&format!("{path}.map")));

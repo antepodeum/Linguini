@@ -9,25 +9,25 @@ use linguini_codegen_ecmascript::{
 /// Compile lightweight, capability-selected Svelte browser controls as checked JavaScript.
 pub fn compile_svelte_control_module(
     options: &EcmaWebOptions,
-    sveltekit: bool,
+    host: &crate::SvelteHost,
 ) -> RenderedEcmaModule {
-    control_module(options, sveltekit, EcmaModuleKind::JavaScript).render(&[])
+    control_module(options, host, EcmaModuleKind::JavaScript).render(&[])
 }
 
-fn control_module(options: &EcmaWebOptions, sveltekit: bool, target: EcmaModuleKind) -> EcmaModule {
+fn control_module(
+    options: &EcmaWebOptions,
+    host: &crate::SvelteHost,
+    target: EcmaModuleKind,
+) -> EcmaModule {
     let features = options.features();
     let path = "svelte-control.js";
     let mut module = EcmaModule::new(EcmaModuleOutput::new(target, path, None));
-    if sveltekit {
-        module.push_import(EcmaImport::named(
-            "$app/environment",
-            vec![EcmaNamedImport::new("browser", "browser")],
-        ));
-        if features.has_path {
-            module.push_import(EcmaImport::named(
-                "$app/navigation",
-                vec![EcmaNamedImport::new("goto", "goto")],
-            ));
+    if let Some(binding) = &host.browser {
+        module.push_import(binding.value_import("browser"));
+    }
+    if features.has_path {
+        if let Some(binding) = &host.navigate {
+            module.push_import(binding.value_import("navigate"));
         }
     }
     module.push_import(EcmaImport::named(
@@ -39,7 +39,7 @@ fn control_module(options: &EcmaWebOptions, sveltekit: bool, target: EcmaModuleK
         ],
     ));
     let mut locale_imports = Vec::new();
-    if sveltekit && features.has_path {
+    if host.navigate.is_some() && host.request_locale.is_some() && features.has_path {
         locale_imports.push(EcmaNamedImport::new(
             "clearCurrentLocaleOverride",
             "clearCurrentLocaleOverride",
@@ -54,7 +54,7 @@ fn control_module(options: &EcmaWebOptions, sveltekit: bool, target: EcmaModuleK
     ));
     module.push_statement(EcmaStatement::generated(crate::templates::render(
         "svelte/control",
-        minijinja::context! { sveltekit, has_path => features.has_path, has_cookie => features.has_cookie, has_local_storage => features.has_local_storage },
+        minijinja::context! { external_browser => host.browser.is_some(), navigation => host.navigate.is_some(), request_locale => host.request_locale.is_some(), has_path => features.has_path, has_cookie => features.has_cookie, has_local_storage => features.has_local_storage },
     )));
     module
 }
@@ -92,7 +92,12 @@ mod tests {
             };
             for sveltekit in [false, true] {
                 let name = format!("{}-{name}", if sveltekit { "kit" } else { "plain" });
-                let js = compile_svelte_control_module(&options, sveltekit);
+                let host = if sveltekit {
+                    crate::host::test_host()
+                } else {
+                    Default::default()
+                };
+                let js = compile_svelte_control_module(&options, &host);
                 for (selected, capability) in [
                     (options.features().has_path, "window.location"),
                     (options.features().has_cookie, "document.cookie"),
@@ -101,7 +106,7 @@ mod tests {
                     assert_eq!(js.code.contains(capability), selected);
                 }
                 assert_eq!(
-                    js.code.contains("$app/navigation"),
+                    js.code.contains("navigate } from"),
                     sveltekit && options.features().has_path
                 );
                 assert_eq!(
@@ -109,7 +114,7 @@ mod tests {
                     sveltekit && options.features().has_path
                 );
                 assert!(!js.code.contains("./index"));
-                let declaration = super::super::test_templates::render_template(
+                let mut declaration = super::super::test_templates::render_template(
                     &super::super::test_templates::declaration_with_runtime_imports(
                         std::fs::read_to_string(root.join("legacy/svelte-control.runtime.d.ts"))
                             .unwrap(),
@@ -117,14 +122,21 @@ mod tests {
                     &[(
                         "PAGE_STATE",
                         if sveltekit {
-                            "App.PageState"
+                            "NavigationState"
                         } else {
                             "unknown"
                         }
                         .to_owned(),
                     )],
                 );
-                assert_eq!(generate_svelte_control_declaration(sveltekit), declaration);
+                if sveltekit {
+                    declaration = declaration.replacen(
+                        "\n\n",
+                        "\nimport type { NavigationState } from \"../host.js\";\n\n",
+                        1,
+                    );
+                }
+                assert_eq!(generate_svelte_control_declaration(&host), declaration);
                 let snapshots = [
                     (root.join(format!("{name}/svelte-control.js")), js.code),
                     (
@@ -133,7 +145,7 @@ mod tests {
                     ),
                     (
                         root.join(format!("{name}/typescript/svelte-control.d.ts")),
-                        generate_svelte_control_declaration(sveltekit),
+                        generate_svelte_control_declaration(&host),
                     ),
                 ];
                 if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {

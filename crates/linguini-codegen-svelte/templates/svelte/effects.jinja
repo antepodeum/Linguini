@@ -1,7 +1,7 @@
-{% if not sveltekit %}const browser = typeof window !== "undefined" && typeof document !== "undefined";
+{% if not external_browser %}const browser = typeof window !== "undefined" && typeof document !== "undefined";
 
 {% endif %}/** @type {import("./web.js").LinguiniWebLocale<import("./locale.js").Locale>} */
-export const web = createWebLocaleI18n(locale, {{ options }}, {% if sveltekit %}{ base }{% else %}{}{% endif %});
+export const web = createWebLocaleI18n(locale, {{ options }}, {% if base_path %}{ base }{% else %}{}{% endif %});
 
 initializeCurrentLocale(readInitialLocale());
 

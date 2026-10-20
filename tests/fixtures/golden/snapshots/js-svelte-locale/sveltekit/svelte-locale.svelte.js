@@ -1,4 +1,4 @@
-import { page } from "$app/state";
+import { getRequestLocale } from "../host.js";
 import { baseLocale, normalizeLocale } from "./locale.js";
 
 /** @typedef {import("./locale.js").Locale} Locale */
@@ -43,7 +43,7 @@ export async function prepareLocale(locale) {
 
 /** @returns {Locale} */
 export function getCurrentLocale() {
-  const dataLocale = page.data?.linguini?.locale;
+  const dataLocale = getRequestLocale();
   const resolvedClientLocale = normalizeLocale(clientLocale) ?? baseLocale;
   return hasClientOverride
     ? resolvedClientLocale

@@ -39,6 +39,16 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
             path.display()
         );
         let source = std::fs::read_to_string(&path).expect("read codegen source");
+        if path.starts_with(crates.join("linguini-codegen-svelte")) {
+            let production = source.split("#[cfg(test)]").next().unwrap();
+            for framework_api in ["$app/", "App.PageState", "SvelteKit", "sveltekit: bool"] {
+                assert!(
+                    !production.contains(framework_api),
+                    "Svelte host behavior belongs in the framework adapter: {} ({framework_api})",
+                    path.display()
+                );
+            }
+        }
         for retired in [
             "pub fn compile_typescript_",
             "pub fn compile_javascript_",
@@ -87,6 +97,15 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
     }
     for path in templates {
         let source = std::fs::read_to_string(&path).expect("read codegen template");
+        if path.starts_with(crates.join("linguini-codegen-svelte")) {
+            for framework_api in ["$app/", "App.PageState", "page.data", "goto(", "sveltekit"] {
+                assert!(
+                    !source.contains(framework_api),
+                    "framework behavior in Svelte template {}: {framework_api}",
+                    path.display()
+                );
+            }
+        }
         for branch in ["{% if ts", "{% if not ts", "{% elif ts"] {
             assert!(
                 !source.contains(branch),

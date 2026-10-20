@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": []
   },
-  "include": ["typescript-consumer.ts"]
+  "include": ["svelte-host-consumer.ts", "typescript-consumer.ts"]
 }

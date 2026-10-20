@@ -1,5 +1,6 @@
 //! Framework integration generation. The ECMAScript backend remains independent.
 
+mod host;
 mod sveltekit;
 mod sveltekit_types;
 mod templates;
@@ -47,11 +48,38 @@ pub fn generate_project_files(
             }
         }
     }
+    let host = if let Some(web) = &options.web {
+        files.extend(generated_module_files(
+            host::compile_locale_module(),
+            source_maps,
+        ));
+        if options.declaration {
+            files.push(EcmaGeneratedFile {
+                path: "sveltekit-locale.d.ts".into(),
+                contents: host::declaration("locale"),
+            });
+        }
+        if web.features().has_path {
+            files.extend(generated_module_files(
+                host::compile_navigation_module(),
+                source_maps,
+            ));
+        }
+        if options.declaration {
+            files.push(EcmaGeneratedFile {
+                path: "sveltekit-navigation.d.ts".into(),
+                contents: host::declaration("navigation"),
+            });
+        }
+        host::bindings(web.features().has_path)
+    } else {
+        Default::default()
+    };
     files.extend(linguini_codegen_svelte::generate_project_files(
         &linguini_codegen_svelte::SvelteProjectOptions {
             web: options.web.clone(),
             declaration: options.declaration,
-            request_routing: true,
+            host,
         },
         source_maps,
     ));

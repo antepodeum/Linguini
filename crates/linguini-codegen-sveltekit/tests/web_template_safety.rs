@@ -38,7 +38,10 @@ fn web_runtime_options_are_structured_and_drop_flat_compatibility_fields() {
 #[test]
 fn browser_link_observer_is_owned_batched_and_bounded() {
     let svelte_runtime = linguini_codegen_svelte::compile_svelte_module(true).code;
-    let effects = linguini_codegen_svelte::compile_svelte_effects_module(&Default::default(), true);
+    let effects = linguini_codegen_svelte::compile_svelte_effects_module(
+        &Default::default(),
+        &Default::default(),
+    );
     let runtime = linguini_codegen_ecmascript::compile_web_runtime_links_module();
     let web_runtime_links = runtime.code;
     assert!(effects

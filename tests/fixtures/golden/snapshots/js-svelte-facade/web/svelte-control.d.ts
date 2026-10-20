@@ -8,7 +8,7 @@ export interface LinguiniSetLocaleOptions {
   keepFocus?: boolean;
   noScroll?: boolean;
   cookie?: boolean;
-  state?: App.PageState;
+  state?: unknown;
 }
 
 export interface LinguiniSvelteControl<Locale extends string> {

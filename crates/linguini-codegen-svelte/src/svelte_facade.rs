@@ -79,7 +79,9 @@ mod tests {
             if web {
                 snapshots.push((
                     root.join("web/svelte-control.d.ts"),
-                    super::super::svelte_control_types::generate_svelte_control_declaration(true),
+                    super::super::svelte_control_types::generate_svelte_control_declaration(
+                        &Default::default(),
+                    ),
                 ));
             }
             if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {

@@ -29,9 +29,9 @@ pub(super) fn generate_svelte_effects_declaration() -> String {
 /// Compile browser effects with selected framework imports as checked JavaScript.
 pub fn compile_svelte_effects_module(
     options: &EcmaWebOptions,
-    sveltekit: bool,
+    host: &crate::SvelteHost,
 ) -> RenderedEcmaModule {
-    effects_module(options, sveltekit, output(EcmaModuleKind::JavaScript)).render(&[])
+    effects_module(options, host, output(EcmaModuleKind::JavaScript)).render(&[])
 }
 
 fn output(target: EcmaModuleKind) -> EcmaModuleOutput {
@@ -40,18 +40,16 @@ fn output(target: EcmaModuleKind) -> EcmaModuleOutput {
 
 fn effects_module(
     options: &EcmaWebOptions,
-    sveltekit: bool,
+    host: &crate::SvelteHost,
     output: EcmaModuleOutput,
 ) -> EcmaModule {
     let features = options.features();
     let mut module = EcmaModule::new(output);
-    if sveltekit {
-        for (path, name) in [("$app/environment", "browser"), ("$app/paths", "base")] {
-            module.push_import(EcmaImport::named(
-                path,
-                vec![EcmaNamedImport::new(name, name)],
-            ));
-        }
+    if let Some(binding) = &host.browser {
+        module.push_import(binding.value_import("browser"));
+    }
+    if let Some(binding) = &host.base_path {
+        module.push_import(binding.value_import("base"));
     }
     module.push_import(EcmaImport {
         specifier: "./locale.js".to_owned(),
@@ -83,7 +81,7 @@ fn effects_module(
     module.push_statement(EcmaStatement::generated(crate::templates::render(
         "svelte/effects",
         minijinja::context! {
-            options => web_options_literal(options), sveltekit,
+            options => web_options_literal(options), external_browser => host.browser.is_some(), base_path => host.base_path.is_some(),
             runtime_links => features.link_mode == EcmaLinkMode::Runtime,
             has_path => features.has_path, has_cookie => features.has_cookie,
             has_local_storage => features.has_local_storage, has_accept_language => features.has_accept_language,
@@ -144,7 +142,12 @@ mod tests {
             };
             for sveltekit in [false, true] {
                 let name = format!("{}-{name}", if sveltekit { "kit" } else { "plain" });
-                let js = compile_svelte_effects_module(&options, sveltekit);
+                let host = if sveltekit {
+                    crate::host::test_host()
+                } else {
+                    Default::default()
+                };
+                let js = compile_svelte_effects_module(&options, &host);
                 assert_eq!(
                     generate_svelte_effects_declaration(),
                     super::super::test_templates::declaration_with_runtime_imports(

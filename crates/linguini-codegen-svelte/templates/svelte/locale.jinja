@@ -3,7 +3,7 @@
 
 /** @type {Set<LinguiniLocaleLoader>} */ const localeLoaders = new Set();
 
-{% endraw %}{% if sveltekit %}{% raw %}/** @type {Locale} */ let clientLocale = $state(baseLocale);
+{% endraw %}{% if request_locale %}{% raw %}/** @type {Locale} */ let clientLocale = $state(baseLocale);
 let hasClientOverride = $state(false);
 
 /**
@@ -25,7 +25,7 @@ export function registerLocaleLoader(loader) {
   };
 }
 
-{% endraw %}{% if sveltekit %}{% raw %}/**
+{% endraw %}{% if request_locale %}{% raw %}/**
  * Ensure all currently registered consumers have loaded a locale's messages.
  *
  * This intentionally snapshots the registry before starting work: a loader
@@ -42,7 +42,7 @@ export async function prepareLocale(locale) {
 
 /** @returns {Locale} */
 export function getCurrentLocale() {
-{% endraw %}{% if sveltekit %}{% raw %}  const dataLocale = page.data?.linguini?.locale;
+{% endraw %}{% if request_locale %}{% raw %}  const dataLocale = getRequestLocale();
   const resolvedClientLocale = normalizeLocale(clientLocale) ?? baseLocale;
   return hasClientOverride
     ? resolvedClientLocale
@@ -54,7 +54,7 @@ export function getCurrentLocale() {
 
 {% endraw %}{% endif %}{% if web %}{% raw %}/** @param {unknown} locale @returns {Locale} */
 export function initializeCurrentLocale(locale) {
-{% endraw %}{% if sveltekit %}{% raw %}  clientLocale = normalizeLocale(locale) ?? baseLocale;
+{% endraw %}{% if request_locale %}{% raw %}  clientLocale = normalizeLocale(locale) ?? baseLocale;
   hasClientOverride = false;
   return clientLocale;
 }
@@ -65,7 +65,7 @@ export function initializeCurrentLocale(locale) {
 
 {% endraw %}{% endif %}{% endif %}{% raw %}/** @param {unknown} locale @returns {Locale} */
 export function setCurrentLocale(locale) {
-{% endraw %}{% if sveltekit %}{% raw %}  clientLocale = normalizeLocale(locale) ?? baseLocale;
+{% endraw %}{% if request_locale %}{% raw %}  clientLocale = normalizeLocale(locale) ?? baseLocale;
   hasClientOverride = true;
   return clientLocale;
 }

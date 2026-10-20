@@ -1,5 +1,6 @@
 import type { Locale, TextDirection } from "./locale.js";
 import type { AlternateLink, LinkLocalizationAttributes } from "./web.js";
+import type { NavigationState } from "../host.js";
 
 export interface LinguiniSetLocaleOptions {
   navigate?: boolean;
@@ -8,7 +9,7 @@ export interface LinguiniSetLocaleOptions {
   keepFocus?: boolean;
   noScroll?: boolean;
   cookie?: boolean;
-  state?: App.PageState;
+  state?: NavigationState;
 }
 
 export interface LinguiniSvelteControl<Locale extends string> {

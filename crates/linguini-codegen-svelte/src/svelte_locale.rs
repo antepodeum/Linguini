@@ -5,26 +5,14 @@ use linguini_codegen_ecmascript::{
     EcmaStatement, RenderedEcmaModule,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SvelteLocaleMode {
-    Context,
-    Standalone,
-    SvelteKit,
+/// Locale initialization and request-scoped read capabilities.
+#[derive(Debug, Clone, Default)]
+pub struct SvelteLocaleOptions {
+    pub initialize: bool,
+    pub request_locale: Option<crate::SvelteHostImport>,
 }
 
-impl SvelteLocaleMode {
-    pub(super) fn from_framework(web: bool, sveltekit: bool) -> Self {
-        if !web {
-            Self::Context
-        } else if sveltekit {
-            Self::SvelteKit
-        } else {
-            Self::Standalone
-        }
-    }
-}
-
-pub(super) fn generate_svelte_locale_declaration(mode: SvelteLocaleMode) -> String {
+pub(super) fn generate_svelte_locale_declaration(options: &SvelteLocaleOptions) -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
         EcmaModuleKind::Declaration,
         "svelte-locale.svelte.d.ts",
@@ -36,29 +24,26 @@ pub(super) fn generate_svelte_locale_declaration(mode: SvelteLocaleMode) -> Stri
     });
     let code = crate::templates::render(
         "svelte/locale_declarations",
-        minijinja::context! { initialize => mode != SvelteLocaleMode::Context, override => mode == SvelteLocaleMode::SvelteKit },
+        minijinja::context! { initialize => options.initialize, override => options.request_locale.is_some() },
     );
     module.push_statement(EcmaStatement::type_declaration(code, None));
     module.render_code()
 }
 
 /// Compile framework-selected Svelte locale state as checked JavaScript.
-pub fn compile_svelte_locale_module(mode: SvelteLocaleMode) -> RenderedEcmaModule {
-    compile_locale(mode, EcmaModuleKind::JavaScript)
+pub fn compile_svelte_locale_module(options: &SvelteLocaleOptions) -> RenderedEcmaModule {
+    compile_locale(options, EcmaModuleKind::JavaScript)
 }
 
-fn compile_locale(mode: SvelteLocaleMode, target: EcmaModuleKind) -> RenderedEcmaModule {
+fn compile_locale(options: &SvelteLocaleOptions, target: EcmaModuleKind) -> RenderedEcmaModule {
     let path = "svelte-locale.svelte.js";
-    locale_module(mode, EcmaModuleOutput::new(target, path, None)).render(&[])
+    locale_module(options, EcmaModuleOutput::new(target, path, None)).render(&[])
 }
 
-fn locale_module(mode: SvelteLocaleMode, output: EcmaModuleOutput) -> EcmaModule {
+fn locale_module(options: &SvelteLocaleOptions, output: EcmaModuleOutput) -> EcmaModule {
     let mut module = EcmaModule::new(output);
-    if mode == SvelteLocaleMode::SvelteKit {
-        module.push_import(EcmaImport::named(
-            "$app/state",
-            vec![EcmaNamedImport::new("page", "page")],
-        ));
+    if let Some(binding) = &options.request_locale {
+        module.push_import(binding.value_import("getRequestLocale"));
     }
     module.push_import(EcmaImport::named_with_types(
         "./locale.js",
@@ -70,7 +55,7 @@ fn locale_module(mode: SvelteLocaleMode, output: EcmaModuleOutput) -> EcmaModule
     ));
     module.push_statement(EcmaStatement::generated(crate::templates::render(
         "svelte/locale",
-        minijinja::context! { sveltekit => mode == SvelteLocaleMode::SvelteKit, web => mode != SvelteLocaleMode::Context },
+        minijinja::context! { request_locale => options.request_locale.is_some(), web => options.initialize },
     )));
     module
 }
@@ -85,11 +70,23 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/golden/snapshots/js-svelte-locale");
         for (name, mode) in [
-            ("context", SvelteLocaleMode::Context),
-            ("standalone", SvelteLocaleMode::Standalone),
-            ("sveltekit", SvelteLocaleMode::SvelteKit),
+            ("context", SvelteLocaleOptions::default()),
+            (
+                "standalone",
+                SvelteLocaleOptions {
+                    initialize: true,
+                    request_locale: None,
+                },
+            ),
+            (
+                "sveltekit",
+                SvelteLocaleOptions {
+                    initialize: true,
+                    request_locale: crate::host::test_host().request_locale,
+                },
+            ),
         ] {
-            let js = compile_svelte_locale_module(mode);
+            let js = compile_svelte_locale_module(&mode);
             assert!(!js.code.contains("$state<"));
             assert!(!js.code.contains("type Locale }"));
             let snapshots = [
@@ -100,7 +97,7 @@ mod tests {
                 ),
                 (
                     root.join(name).join("typescript/svelte-locale.svelte.d.ts"),
-                    generate_svelte_locale_declaration(mode),
+                    generate_svelte_locale_declaration(&mode),
                 ),
             ];
             if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {

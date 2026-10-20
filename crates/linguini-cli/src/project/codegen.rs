@@ -138,7 +138,7 @@ fn generate_target(
                 &linguini_codegen_svelte::SvelteProjectOptions {
                     web: options.web.clone(),
                     declaration: options.declaration,
-                    request_routing: false,
+                    host: Default::default(),
                 },
                 true,
             )),
