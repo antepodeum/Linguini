@@ -86,6 +86,9 @@ pub(crate) struct BuildArgs {
     /// Also generate into a project-relative build output directory (repeatable)
     #[arg(long = "emit-dir", value_name = "DIRECTORY")]
     emit_dirs: Vec<PathBuf>,
+    /// Update declarations in an additional build output directory (repeatable)
+    #[arg(long = "emit-declaration-dir", value_name = "DIRECTORY")]
+    emit_declaration_dirs: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Args)]
@@ -151,6 +154,7 @@ pub fn run(
             args.diagnostics.deny_warnings,
             args.diagnostics.format,
             &args.emit_dirs,
+            &args.emit_declaration_dirs,
         ),
         CliCommand::Generate => project::generate_project_data(&root),
         CliCommand::Format(args) => format_project(&root, &args),

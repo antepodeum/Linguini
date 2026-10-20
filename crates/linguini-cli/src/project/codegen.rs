@@ -29,7 +29,9 @@ use super::io::{
     canonical_project_root, path_for_output, read_file, read_project_config,
     render_file_diagnostics,
 };
-use super::output::{replace_owned_files, GeneratedFile, SafeOutputRoot};
+use super::output::{
+    replace_owned_files, replace_owned_files_in_scope, GeneratedFile, SafeOutputRoot,
+};
 use super::sources::{
     coverage_options, expected_locale_path, load_locale_sources, load_schema_sources, locale_index,
     schema_project_diagnostics,
@@ -37,7 +39,7 @@ use super::sources::{
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
 pub fn build_project(root: &Path) -> CliResult<String> {
-    build_project_with_emissions(root, false, DiagnosticFormat::Human, &[])
+    build_project_with_emissions(root, false, DiagnosticFormat::Human, &[], &[])
 }
 
 pub(crate) fn build_project_with_emissions(
@@ -45,12 +47,13 @@ pub(crate) fn build_project_with_emissions(
     deny_warnings: bool,
     format: DiagnosticFormat,
     emit_dirs: &[PathBuf],
+    emit_declaration_dirs: &[PathBuf],
 ) -> CliResult<String> {
     let canonical_root = canonical_project_root(root)?;
     let root = canonical_root.as_path();
     let check_output = check_project_with_options(root, deny_warnings, format)?;
     let config = read_project_config(root)?;
-    let codegen_output = generate_project(root, &config, emit_dirs)?;
+    let codegen_output = generate_project(root, &config, emit_dirs, emit_declaration_dirs)?;
 
     if format == DiagnosticFormat::Human {
         Ok(format!("{check_output}{codegen_output}build: ok\n"))
@@ -63,17 +66,18 @@ fn generate_project(
     root: &Path,
     config: &LinguiniConfig,
     emit_dirs: &[PathBuf],
+    emit_declaration_dirs: &[PathBuf],
 ) -> CliResult<String> {
     let Some(target) = config.targets().typescript() else {
-        if !emit_dirs.is_empty() {
+        if !emit_dirs.is_empty() || !emit_declaration_dirs.is_empty() {
             return Err(CliError::Diagnostics(
-                "--emit-dir requires a configured codegen target\n".to_owned(),
+                "additional emission requires a configured codegen target\n".to_owned(),
             ));
         }
         return Ok("codegen targets: none\n".to_owned());
     };
 
-    generate_target(root, config, target, emit_dirs)
+    generate_target(root, config, target, emit_dirs, emit_declaration_dirs)
 }
 
 fn generate_target(
@@ -81,11 +85,17 @@ fn generate_target(
     config: &LinguiniConfig,
     target: &TypeScriptTargetConfig,
     emit_dirs: &[PathBuf],
+    emit_declaration_dirs: &[PathBuf],
 ) -> CliResult<String> {
-    let outputs = codegen_output_roots(root, config, target, emit_dirs)?;
+    if !emit_declaration_dirs.is_empty() && !target.declaration() {
+        return Err(CliError::Diagnostics(
+            "--emit-declaration-dir requires declarations to be enabled\n".to_owned(),
+        ));
+    }
+    let outputs = codegen_output_roots(root, config, target, emit_dirs, emit_declaration_dirs)?;
     let output_paths = outputs
         .iter()
-        .map(|(path, _)| path.clone())
+        .map(|output| output.directory.clone())
         .collect::<Vec<_>>();
     let schema_files = load_schema_sources(root, config)?;
     let schema_namespaces: BTreeSet<_> = schema_files
@@ -124,7 +134,12 @@ fn generate_target(
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let sources = ecma_sources(root, &schema_files, &locale_files)?;
     let mut plans = Vec::new();
-    for (directory, output) in outputs {
+    for destination in outputs {
+        let CodegenOutput {
+            directory,
+            output,
+            declarations_only,
+        } = destination;
         let project_sources =
             rebase_map_sources(&directory, "index.js.map", &sources).map_err(|reason| {
                 CliError::Diagnostics(format!(
@@ -151,24 +166,33 @@ fn generate_target(
             )),
             _ => {}
         }
-        files.extend(generate_bundler_files(
-            root,
-            &project,
-            &sources,
-            CodegenDestination {
-                settings: target,
-                directory: &directory,
-                all_outputs: &output_paths,
-            },
-            config.project().locales(),
-            config.project().default_locale(),
-            config.web().configured(),
-        )?);
-        plans.push((output, files));
+        if declarations_only {
+            files.retain(|file| is_declaration_artifact(Path::new(&file.path)));
+        } else {
+            files.extend(generate_bundler_files(
+                root,
+                &project,
+                &sources,
+                CodegenDestination {
+                    settings: target,
+                    directory: &directory,
+                    all_outputs: &output_paths,
+                },
+                config.project().locales(),
+                config.project().default_locale(),
+                config.web().configured(),
+            )?);
+        }
+        plans.push((output, files, declarations_only));
     }
     let mut output = String::new();
-    for (destination, files) in plans {
-        output.push_str(&write_codegen_tree(root, &destination, &files)?);
+    for (destination, files, declarations_only) in plans {
+        output.push_str(&write_codegen_tree(
+            root,
+            &destination,
+            &files,
+            declarations_only,
+        )?);
     }
     Ok(output)
 }
@@ -179,11 +203,17 @@ fn codegen_output_roots(
     config: &LinguiniConfig,
     target: &TypeScriptTargetConfig,
     emit_dirs: &[PathBuf],
-) -> CliResult<Vec<(String, SafeOutputRoot)>> {
-    let mut outputs: Vec<(String, SafeOutputRoot)> = Vec::new();
-    for directory in
-        std::iter::once(Path::new(target.out())).chain(emit_dirs.iter().map(PathBuf::as_path))
-    {
+    emit_declaration_dirs: &[PathBuf],
+) -> CliResult<Vec<CodegenOutput>> {
+    let mut outputs: Vec<CodegenOutput> = Vec::new();
+    let directories = std::iter::once((Path::new(target.out()), false))
+        .chain(emit_dirs.iter().map(|path| (path.as_path(), false)))
+        .chain(
+            emit_declaration_dirs
+                .iter()
+                .map(|path| (path.as_path(), true)),
+        );
+    for (directory, declarations_only) in directories {
         let output = SafeOutputRoot::new(
             root,
             directory,
@@ -194,12 +224,13 @@ fn codegen_output_roots(
         )?;
         if outputs
             .iter()
-            .any(|(_, existing)| existing.path() == output.path())
+            .any(|existing| existing.output.path() == output.path())
         {
             continue;
         }
-        if outputs.iter().any(|(_, existing)| {
-            existing.path().starts_with(output.path()) || output.path().starts_with(existing.path())
+        if outputs.iter().any(|existing| {
+            existing.output.path().starts_with(output.path())
+                || output.path().starts_with(existing.output.path())
         }) {
             return Err(CliError::Diagnostics(
                 "codegen output directories must not overlap\n".to_owned(),
@@ -214,9 +245,24 @@ fn codegen_output_roots(
                 CliError::Diagnostics("codegen output path must be valid UTF-8\n".to_owned())
             })?
             .replace('\\', "/");
-        outputs.push((relative, output));
+        outputs.push(CodegenOutput {
+            directory: relative,
+            output,
+            declarations_only,
+        });
     }
     Ok(outputs)
+}
+
+struct CodegenOutput {
+    directory: String,
+    output: SafeOutputRoot,
+    declarations_only: bool,
+}
+
+fn is_declaration_artifact(path: &Path) -> bool {
+    path.to_str()
+        .is_some_and(|path| path.ends_with(".d.ts") || path.ends_with(".d.ts.map"))
 }
 
 struct CodegenDestination<'a> {
@@ -1202,6 +1248,7 @@ fn write_codegen_tree(
     root: &Path,
     out_dir: &SafeOutputRoot,
     files: &[EcmaGeneratedFile],
+    declarations_only: bool,
 ) -> CliResult<String> {
     let mut generated = Vec::with_capacity(files.len());
     let mut output = String::from("generated files:\n");
@@ -1217,7 +1264,11 @@ fn write_codegen_tree(
         ));
     }
 
-    replace_owned_files(out_dir, &generated)?;
+    if declarations_only {
+        replace_owned_files_in_scope(out_dir, &generated, is_declaration_artifact)?;
+    } else {
+        replace_owned_files(out_dir, &generated)?;
+    }
     output.push_str(&format!(
         "replaced generated tree: {}\n",
         path_for_output(root, out_dir.path())

@@ -83,11 +83,26 @@ pub(crate) fn replace_owned_files(
     output: &SafeOutputRoot,
     files: &[GeneratedFile<'_>],
 ) -> CliResult<()> {
+    replace_owned_files_in_scope(output, files, |_| true)
+}
+
+/// Update one artifact class while retaining owned files outside that class.
+pub(crate) fn replace_owned_files_in_scope(
+    output: &SafeOutputRoot,
+    files: &[GeneratedFile<'_>],
+    in_scope: impl Fn(&Path) -> bool,
+) -> CliResult<()> {
     output.prepare()?;
 
     let mut new_paths = BTreeSet::new();
     for file in files {
         validate_relative_path(&file.path)?;
+        if !in_scope(&file.path) {
+            return Err(unsafe_generated_path(
+                &file.path,
+                "file is outside the requested output scope",
+            ));
+        }
         if file.path == Path::new(MANIFEST_NAME) {
             return Err(unsafe_generated_path(
                 &file.path,
@@ -103,6 +118,7 @@ pub(crate) fn replace_owned_files(
     }
 
     let old_paths = read_manifest(output.path())?;
+    new_paths.extend(old_paths.iter().filter(|path| !in_scope(path)).cloned());
     validate_existing_ownership(output.path(), &old_paths, &new_paths)?;
 
     let mut changed_paths = BTreeSet::new();
@@ -648,7 +664,11 @@ impl Drop for TransactionDir {
 
 #[cfg(test)]
 mod tests {
-    use super::{replace_owned_files, GeneratedFile, SafeOutputRoot, MANIFEST_NAME};
+    use super::{
+        read_manifest, replace_owned_files, replace_owned_files_in_scope, GeneratedFile,
+        SafeOutputRoot, MANIFEST_NAME,
+    };
+    use std::collections::BTreeSet;
     use std::fs;
     use std::path::{Path, PathBuf};
     use tempfile::TempDir;
@@ -875,6 +895,65 @@ mod tests {
                 .modified()
                 .unwrap(),
             old_time
+        );
+    }
+
+    #[test]
+    fn scoped_replacement_removes_stale_types_and_preserves_other_owned_artifacts() {
+        let project = TempDir::new().unwrap();
+        let output = output(&project, "generated");
+        replace_owned_files(
+            &output,
+            &[
+                GeneratedFile {
+                    path: "index.js".into(),
+                    contents: "runtime",
+                },
+                GeneratedFile {
+                    path: "index.d.ts".into(),
+                    contents: "old types",
+                },
+                GeneratedFile {
+                    path: "stale.d.ts".into(),
+                    contents: "stale types",
+                },
+            ],
+        )
+        .unwrap();
+        replace_owned_files_in_scope(
+            &output,
+            &[GeneratedFile {
+                path: "index.d.ts".into(),
+                contents: "new types",
+            }],
+            |path| path.extension().is_some_and(|extension| extension == "ts"),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_to_string(output.path().join("index.js")).unwrap(),
+            "runtime"
+        );
+        assert_eq!(
+            fs::read_to_string(output.path().join("index.d.ts")).unwrap(),
+            "new types"
+        );
+        assert!(!output.path().join("stale.d.ts").exists());
+        assert_eq!(
+            read_manifest(output.path()).unwrap(),
+            BTreeSet::from([PathBuf::from("index.js"), PathBuf::from("index.d.ts")])
+        );
+        let result = replace_owned_files_in_scope(
+            &output,
+            &[GeneratedFile {
+                path: "index.js".into(),
+                contents: "wrong scope",
+            }],
+            |path| path.extension().is_some_and(|extension| extension == "ts"),
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(output.path().join("index.js")).unwrap(),
+            "runtime"
         );
     }
 

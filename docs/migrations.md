@@ -58,6 +58,12 @@ Repeated native builds preserve unchanged owned files instead of replacing them.
 changes retain declaration timestamps, allowing TypeScript incremental and watch builds to reuse
 their type graph. Existing ownership, stale-file removal, and rollback rules still apply.
 
+Native build integrations can prepare dependent types with repeatable `--emit-declaration-dir`
+arguments. These output roots receive declarations and declaration maps while retaining any
+previously owned runtime. Use `--emit-dir` after successful application compilation to update the
+runtime as well. This supports project references and separate TypeScript declaration output
+directories without copying or rewriting generated source in the JavaScript integration.
+
 The web runtime helpers now live in build-time templates, including URL and request operations,
 locale resolvers, route matching, bounded DOM traversal, and server cookie/switch handling.
 There is no paired TS implementation body for these helpers. Declarations retain their public

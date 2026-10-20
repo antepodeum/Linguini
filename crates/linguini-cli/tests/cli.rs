@@ -1055,6 +1055,71 @@ fn build_emits_owned_trees_at_each_output_depth_with_original_source_maps() {
 }
 
 #[test]
+fn declaration_emission_updates_types_without_publishing_or_removing_runtime() {
+    let project = TempDir::new().unwrap();
+    linguini()
+        .current_dir(project.path())
+        .arg("init")
+        .assert()
+        .success();
+    let schema = project.path().join("schema/main.lgs");
+    let locale = project.path().join("locales/main/en.lgl");
+    fs::create_dir_all(locale.parent().unwrap()).unwrap();
+    fs::write(&schema, "greeting(name: String)\n").unwrap();
+    fs::write(&locale, "greeting = Hello {name}\n").unwrap();
+    let build = |flag| {
+        linguini()
+            .current_dir(project.path())
+            .args(["build", flag, "dist/types/generated"])
+            .assert()
+            .success();
+    };
+    build("--emit-declaration-dir");
+    let primary = project.path().join("src/generated/linguini");
+    let emitted = project.path().join("dist/types/generated");
+    let manifest = || fs::read_to_string(emitted.join(".linguini-generated-manifest")).unwrap();
+    assert!(manifest()
+        .lines()
+        .skip(1)
+        .all(|path| path.ends_with(".d.ts") || path.ends_with(".d.ts.map")));
+    assert!(emitted.join("index.d.ts").exists());
+    assert!(!emitted.join("index.js").exists());
+    assert_codegen_source_maps(&emitted);
+
+    build("--emit-dir");
+    let runtime = fs::read(emitted.join("locales/en/main.js")).unwrap();
+    let runtime_time = fs::metadata(emitted.join("locales/en/main.js"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    fs::write(&schema, "greeting(user: String)\n").unwrap();
+    fs::write(&locale, "greeting = Updated {user}\n").unwrap();
+    build("--emit-declaration-dir");
+    assert_eq!(
+        fs::read(emitted.join("locales/en/main.js")).unwrap(),
+        runtime
+    );
+    assert_eq!(
+        fs::metadata(emitted.join("locales/en/main.js"))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        runtime_time
+    );
+    assert_eq!(
+        fs::read(emitted.join("messages.d.ts")).unwrap(),
+        fs::read(primary.join("messages.d.ts")).unwrap()
+    );
+    assert!(manifest().contains("locales/en/main.js\n"));
+    build("--emit-dir");
+    assert_ne!(
+        fs::read(emitted.join("locales/en/main.js")).unwrap(),
+        runtime
+    );
+    assert_codegen_source_maps(&emitted);
+}
+
+#[test]
 fn invalid_additional_outputs_fail_before_changing_the_primary_tree() {
     let container = TempDir::new().unwrap();
     let root = container.path().join("app");

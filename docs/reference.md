@@ -49,6 +49,12 @@ ownership manifest. Text-only message edits therefore do not invalidate TypeScri
 Changed and stale files still use the ownership-checked transaction and rollback; missing owned
 files are restored on the next build.
 
+`linguini build --emit-declaration-dir DIRECTORY` updates only `.d.ts` artifacts and their maps
+in an additional output root. It retains existing owned runtime artifacts there, removes stale
+owned declarations, and preserves unowned files. This lets a compiler integration prepare types
+for referenced projects before compilation, then deliver runtime code after successful checking.
+Declarations must be enabled for this option; the usual containment and ownership rules apply.
+
 Custom Rust codegen callers configure an embedded plural implementation through
 `EcmaOptions::plural_rules`. The backend renders those canonical rules directly for the
 JavaScript export scope; callers use `plural_import` only when the plural
