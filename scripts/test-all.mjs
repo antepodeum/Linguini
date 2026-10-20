@@ -8,6 +8,7 @@ export const REPOSITORY_ROOT = resolve(SCRIPT_ROOT, "..");
 
 export const PROJECTS = Object.freeze([
   Object.freeze({ id: "rust", path: ".", manager: "cargo", aliases: ["cargo"] }),
+  Object.freeze({ id: "tsc", path: "plugins/tsc", manager: "pnpm", aliases: ["plugins/tsc"] }),
   Object.freeze({ id: "vite", path: "plugins/vite", manager: "pnpm", aliases: ["plugins/vite"] }),
   Object.freeze({ id: "cli", path: "packages/cli", manager: "pnpm", aliases: ["packages/cli"] }),
   Object.freeze({ id: "vscode", path: "editors/vscode", manager: "pnpm", aliases: ["editors/vscode"] }),
@@ -505,6 +506,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: true,
   }),
   nodeTask({
+    id: "tsc:test",
+    project: "tsc",
+    label: "Native TypeScript build, incremental, watch and package integration",
+    command: "pnpm",
+    args: ["test"],
+    profiles: ["quick", "full"],
+    tools: ["pnpm", "cargo"],
+    requiresNodeModules: true,
+  }),
+  nodeTask({
     id: "cli:test",
     project: "cli",
     label: "CLI package tests",
@@ -753,7 +764,7 @@ export const USAGE = `Usage: node scripts/test-all.mjs [options]
 
 Options:
   --profile <quick|full|site>  Select the ordered task profile (default: quick)
-  --project <name>             Repeat to limit to rust, vite, cli, vscode, or site
+  --project <name>             Repeat to limit to rust, tsc, vite, cli, vscode, or site
   --task <id>                  Repeat to run exact task IDs (for example site:check)
   --help                       Show this help
 

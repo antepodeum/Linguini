@@ -38,6 +38,10 @@ JavaScript output with declaration companions can be consumed by strict TypeScri
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and
 Bundler resolution. A build that emits application code with `tsc` must also deliver the
 generated JavaScript files to its runtime output directory.
+The [TypeScript build adapter](./typescript.md), `@antepod/linguini-tsc`, integrates native
+generation with regular, incremental, solution, and watch compilation. It prepares generated
+declarations before checking dependent projects and delivers runtime code after successful
+compilation, including message-only updates that TypeScript considers up to date.
 
 Build integrations can pass repeatable `--emit-dir DIRECTORY` arguments to `linguini build`.
 The configured source output remains available for type checking, and each additional

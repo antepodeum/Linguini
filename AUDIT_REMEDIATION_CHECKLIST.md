@@ -998,9 +998,15 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Preserve strict TypeScript consumer typing without `allowJs`; integrate plain `tsc`
       builds so generated JavaScript and owned companions reach the emitted application.
       Keep bundler integration and source provenance covered through the transition.
-      Native `build --emit-dir` renders additional owned output trees from the same validated
-      project with correctly rebased source maps. The `tsc` adapter and removal of TypeScript
-      runtime generation remain open.
+      Runtime generation now emits canonical JS and adjacent declarations. Native `build
+      --emit-dir` renders additional owned output trees with rebased source maps; declaration
+      destinations prepare types while preserving prior runtime. `@antepod/linguini-tsc` uses
+      public compiler/build/watch APIs and covers strict consumers, incremental references,
+      message-only updates, separate declaration output, and an installed package.
+      Linux integration tests pass with TypeScript 5.8.3 and 6.0.3; the cross-platform CI matrix
+      is configured but requires a run against the final migration. Complete
+      module/configuration migration and the final bundler/framework/platform matrix before
+      closing this transition.
 
 ### Reusable backend and framework modules
 

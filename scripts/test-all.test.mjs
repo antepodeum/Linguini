@@ -34,6 +34,7 @@ test("public contract policy requires docs, migrations, and tests together", () 
     /docs\/migrations\.md, tests or fixtures/,
   );
   assert.deepEqual(contractEvidence(["crates/linguini-ir/src/lower.rs"]).contracts, []);
+  assert.throws(() => validateContractEvidence(["plugins/tsc/src/index.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   for (const name of ["linguini-codegen", "linguini-codegen-ecmascript", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) {
     assert.throws(
       () => validateContractEvidence([`crates/${name}/src/lib.rs`]),
@@ -72,6 +73,8 @@ test("standalone JavaScript contract covers JSDoc and negative overloads", () =>
 });
 
 test("documentation code-block registry covers typed, plain, and fragmented fences", () => {
+  assert.equal(extractCodeblocks('```json\n{"compilerOptions":{"strict":true}}\n```\n', "docs/tsc.md")[0].language, "json");
+  assert.throws(() => extractCodeblocks('```json\n{"strict":true,}\n```\n', "docs/tsc.md"), /docs\/tsc.md:1: invalid JSON/);
   const blocks = extractCodeblocks(
     "```ts\nconst value: string = \"ok\";\n```\n```\nplain output\n```\n```toml fragment=policy\n[key]\n```\n",
     "docs/example.md",
@@ -169,6 +172,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "docs:examples",
       "docs:packaged",
       "vite:test",
+      "tsc:test",
       "cli:test",
       "vscode:test",
       "site:generate",
@@ -178,7 +182,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "site:graph",
     ],
   );
-  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "vite", "cli", "vscode", "site"]);
+  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "tsc", "vite", "cli", "vscode", "site"]);
 });
 
 test("profiles select the expected ordered task groups", () => {
@@ -227,6 +231,7 @@ test("profiles select the expected ordered task groups", () => {
     "codegen:complete-project-ts",
     "codegen:complete-project-runtime",
     "vite:test",
+    "tsc:test",
     "cli:test",
   ]);
   assert.deepEqual(selectTasks({ profile: "site" }).map((task) => task.id), [
@@ -253,6 +258,7 @@ test("repeated project and task filters are accepted and intersect", () => {
     "--task=site:check",
   ]);
   assert.deepEqual(options.projects, ["vite", "site"]);
+  assert.deepEqual(selectTasks({ projects: ["tsc"] }).map((task) => task.id), ["tsc:test"]);
   assert.deepEqual(options.tasks, ["vite:test", "site:check"]);
   assert.deepEqual(selectTasks(options).map((task) => task.id), ["vite:test", "site:check"]);
 });
@@ -343,12 +349,13 @@ test("task execution continues after a failure and aggregates exit status", () =
     "codegen:complete-project-ts",
     "codegen:complete-project-runtime",
     "vite:test",
+    "tsc:test",
     "cli:test",
   ]);
   assert.deepEqual(summary.failed.map((result) => result.task.id), ["vite:test"]);
   assert.deepEqual(
     summary.results.map((result) => result.durationMs),
-    Array(45).fill(12),
+    Array(46).fill(12),
   );
 });
 

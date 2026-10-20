@@ -6,7 +6,7 @@ const SCRIPT_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_ROOT, "..");
 const OPENING_FENCE = /^```([a-z0-9-]*)(?:\s+(.+))?$/;
 const FRAGMENT = /^fragment=([a-z0-9]+(?:-[a-z0-9]+)*)$/;
-const LANGUAGES = new Set(["", "bash", "html", "lgl", "lgs", "sh", "svelte", "text", "toml", "ts"]);
+const LANGUAGES = new Set(["", "bash", "html", "json", "lgl", "lgs", "sh", "svelte", "text", "toml", "ts"]);
 
 export function extractCodeblocks(markdown, sourcePath) {
   const lines = markdown.split(/\r?\n/);
@@ -34,6 +34,10 @@ export function extractCodeblocks(markdown, sourcePath) {
     if (line === "```") {
       if (!open.body.some((bodyLine) => bodyLine.trim() !== "")) {
         throw new Error(`${sourcePath}:${open.line}: empty documentation fence`);
+      }
+      if (open.language === "json" && open.fragment === undefined) {
+        try { JSON.parse(open.body.join("\n")); }
+        catch (error) { throw new Error(`${sourcePath}:${open.line}: invalid JSON documentation fence: ${error.message}`); }
       }
       blocks.push(Object.freeze({
         language: open.language,

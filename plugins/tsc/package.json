@@ -1,0 +1,41 @@
+{
+  "name": "@antepod/linguini-tsc",
+  "version": "0.1.0-alpha.4",
+  "description": "Native Linguini generation for TypeScript builds and watch mode",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antepodeum/Linguini.git",
+    "directory": "plugins/tsc"
+  },
+  "packageManager": "pnpm@11.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "linguini-tsc": "./bin/linguini-tsc.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.8 <7"
+  },
+  "dependencies": {
+    "smol-toml": "1.7.1"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

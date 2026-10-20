@@ -4,6 +4,22 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Plain TypeScript compiler integration
+
+Use `@antepod/linguini-tsc` to build a TypeScript application with generated JavaScript and
+declarations while keeping `allowJs` disabled. The `linguini-tsc` executable supports project
+builds, incremental solution builds (`--build`), and both watch modes through TypeScript's public
+APIs. It reads `extends` and project references and uses the native CLI for all generated files
+and source maps. Update the native CLI alongside the adapter to obtain declaration-output support.
+
+The adapter delivers generated types beside application declarations, including separate
+`declarationDir` output, and runtime beside emitted application JavaScript. `--noEmit` prepares
+source types; `--emitDeclarationOnly` emits types without a new runtime. Message-only edits update
+runtime even when TypeScript skips compilation. Existing runtime output survives a failed native
+rebuild. Programmatic watch callers must call the returned `close()` when finished.
+
+See the [TypeScript build integration guide](./typescript.md) for setup and output rules.
+
 ## Independent integration crates
 
 Rust callers now import Svelte generation from `linguini-codegen-svelte` and SvelteKit generation

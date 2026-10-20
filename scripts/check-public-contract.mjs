@@ -14,7 +14,7 @@ const PUBLIC_CONTRACT_PATTERNS = [
   /^crates\/linguini-syntax\/src\/(?:ast|lib|parser)\.rs$/,
   /^editors\/vscode\/src\//,
   /^packages\/cli\/(?:bin|lib)\//,
-  /^plugins\/vite\/src\//,
+  /^plugins\/(?:vite|tsc)\/(?:src|bin)\//,
 ];
 
 export function contractEvidence(paths) {

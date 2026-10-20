@@ -14,7 +14,7 @@ No more JSON archaeology, string-key roulette, and runtime localization surprise
 > Linguini is in a very early stage of development. APIs, generated output, and package boundaries can change quickly while the core model is still being hardened. [Check repository state](./REPOSITORY_STATE.md)
 
 The current web release is SvelteKit-first and ESM-only. It also emits a
-framework-agnostic TypeScript runtime and a Svelte adapter; other framework
+framework-agnostic JavaScript runtime with TypeScript declarations and a Svelte adapter; other framework
 adapters and CommonJS output are outside the current release scope.
 
 **[Why Linguini](./docs/why.md)** · **[v0.1 Specification](./docs/language-v0.1.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)** · **[Web/SvelteKit](./docs/web-sveltekit.md)**
@@ -132,7 +132,7 @@ modules that can be used from app code.
 | Analyzer  | missing implementations, invalid references, resolved branch coverage and locale-call types                        |
 | Formatter | `.lgs` / `.lgl` formatting and `--check` mode                                                                      |
 | LSP       | diagnostics, completion, hover, definition, references, symbols, semantic tokens, formatting, rename, code actions |
-| Codegen   | TypeScript and generated Svelte 5/SvelteKit adapters today; other targets are not part of the current release      |
+| Codegen   | JavaScript with TypeScript declarations and generated Svelte 5/SvelteKit adapters; other targets are not part of the current release |
 | Editor    | VS Code extension                                                                                                  |
 
 ---
@@ -229,8 +229,8 @@ The root runner provides repository-wide local verification:
 
 ```bash
 pnpm dev:site --host 127.0.0.1   # site with workspace-local Linguini packages
-pnpm test:quick   # Rust formatting plus focused Vite and CLI tests
-pnpm test:full    # Rust, Vite, CLI, VS Code, and real-site gates
+pnpm test:quick   # Rust formatting, codegen, Vite, tsc, and CLI checks
+pnpm test:full    # Rust, Vite, tsc, CLI, VS Code, and real-site gates
 pnpm test:site    # generate, test, check, build, and inspect the site graph
 ```
 

@@ -201,6 +201,40 @@ jobs:
         working-directory: plugins/vite
         run: pnpm test
 
+  typescript:
+    name: TypeScript (${{ matrix.os }}, ${{ matrix.typescript }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, node: 20, typescript: 5.8.3 }
+          - { os: ubuntu-24.04, node: 24, typescript: 6.0.3 }
+          - { os: windows-latest, node: 24, typescript: 6.0.3 }
+          - { os: macos-14, node: 24, typescript: 6.0.3 }
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.97.1
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+          cache-dependency-path: plugins/tsc/pnpm-lock.yaml
+      - name: Install compiler integration dependencies
+        working-directory: plugins/tsc
+        run: pnpm install --frozen-lockfile
+      - name: Select tested TypeScript version
+        working-directory: plugins/tsc
+        run: pnpm add --save-dev --lockfile=false "typescript@${{ matrix.typescript }}"
+      - name: Test native compiler integration
+        working-directory: plugins/tsc
+        run: pnpm test
+
   site:
     name: SvelteKit site
     runs-on: ubuntu-24.04
