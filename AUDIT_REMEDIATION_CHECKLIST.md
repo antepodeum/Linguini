@@ -1111,6 +1111,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Switch routes compile their marker and suffix bounds in Rust; runtime requests retain only
       host base-path composition and locale extraction. Executed comparisons retain encoded-locale,
       suffix, redirect, same-origin return-target, and cookie/path transport behavior.
+      Svelte effects select browser/locale imports, capability readers, and HMR ownership from
+      enabled sources/link mode; no-source initialization uses the base locale. Controls omit
+      unused switch-option objects/defaults. Executed effect/control matrices preserve SSR,
+      denied capabilities/persistence, preloading, navigation/state, callable arity, and cleanup.
       Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page

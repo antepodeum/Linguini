@@ -1,9 +1,9 @@
-{% raw %}/** @typedef {import("./locale.js").Locale} Locale */
+/** @typedef {import("./locale.js").Locale} Locale */
 /** @typedef {import("./web.js").LinkLocalizationAttributes} LinkLocalizationAttributes */
 
-{% endraw %}{% if not external_browser %}{% raw %}const browser = typeof window !== "undefined" && typeof document !== "undefined";
+{% if not external_browser %}const browser = typeof window !== "undefined" && typeof document !== "undefined";
 
-{% endraw %}{% endif %}{% raw %}export const linguini = createLinguiniControl();
+{% endif %}export const linguini = createLinguiniControl();
 export const setLocale = linguini.setLocale;
 export const localizeHref = linguini.localizeHref;
 export const localizeUrl = linguini.localizeUrl;
@@ -15,38 +15,38 @@ export const alternateLinks = linguini.alternateLinks;
 export const destroy = linguini.destroy;
 
 function createLinguiniControl() {
-  /** @param {string} nextLocale @param {Record<string, unknown>} [setOptions] @returns {Promise<Locale>} */
-  async function setLocale(nextLocale, setOptions = {}) {
+  /** @param {string} nextLocale @param {Record<string, unknown>} [{% if has_path or has_cookie %}setOptions{% else %}_setOptions{% endif %}] @returns {Promise<Locale>} */
+  async function setLocale(nextLocale, {% if has_path or has_cookie %}setOptions = {}{% else %}_setOptions = undefined{% endif %}) {
     const resolved = await prepareLocale(nextLocale);
-    /** @type {Record<string, unknown> & {cookie: boolean; navigate: boolean; replaceState: boolean; invalidateAll: boolean; keepFocus: boolean; noScroll: boolean}} */
+{% if has_path or has_cookie %}    /** @type {Record<string, unknown> & { {% if has_cookie %}cookie: boolean; {% endif %}{% if has_path %}navigate: boolean; replaceState: boolean; {% if navigation %}invalidateAll: boolean; keepFocus: boolean; noScroll: boolean; {% endif %}{% endif %}}} */
     const options = {
-      cookie: true,
-      navigate: true,
+{% if has_cookie %}      cookie: true,
+{% endif %}{% if has_path %}      navigate: true,
       replaceState: false,
-      invalidateAll: true,
+{% if navigation %}      invalidateAll: true,
       keepFocus: true,
       noScroll: true,
-      ...setOptions,
+{% endif %}{% endif %}      ...setOptions,
     };
-    if (browser) {
+{% endif %}    if (browser) {
       setCurrentLocale(resolved);
-{% endraw %}{% if has_local_storage %}{% raw %}      if (web.options.locale.switch.writesLocalStorage) {
+{% if has_local_storage %}      if (web.options.locale.switch.writesLocalStorage) {
         writeLocalStorage(web, resolved);
       }
-{% endraw %}{% endif %}{% if has_cookie %}{% raw %}      if (options.cookie && web.options.locale.switch.writesCookie) {
+{% endif %}{% if has_cookie %}      if (options.cookie && web.options.locale.switch.writesCookie) {
         writeLocaleCookie(web, resolved);
       }
-{% endraw %}{% endif %}{% if has_path %}{% raw %}      if (options.navigate && web.options.locale.switch.writesPath) {
+{% endif %}{% if has_path %}      if (options.navigate && web.options.locale.switch.writesPath) {
         const href = web.localizeHref(window.location.href, resolved);
-{% endraw %}{% if navigation %}{% raw %}        await navigate(href, options);
-{% endraw %}{% if request_locale %}{% raw %}        clearCurrentLocaleOverride();
-{% endraw %}{% endif %}{% else %}{% raw %}        if (options.replaceState) {
+{% if navigation %}        await navigate(href, options);
+{% if request_locale %}        clearCurrentLocaleOverride();
+{% endif %}{% else %}        if (options.replaceState) {
           window.location.replace(href);
         } else {
           window.location.assign(href);
         }
-{% endraw %}{% endif %}{% raw %}      }
-{% endraw %}{% endif %}{% raw %}      refreshLinguiniEffects();
+{% endif %}      }
+{% endif %}      refreshLinguiniEffects();
     }
 
     return resolved;
@@ -69,11 +69,10 @@ function createLinguiniControl() {
       return web.htmlAttrs(getCurrentLocale());
     },
     setLocale,
-{% endraw %}{% include "svelte/forwarding" %}{% raw %}    destroy: destroyLinguiniEffects,
+{% include "svelte/forwarding" %}    destroy: destroyLinguiniEffects,
   };
 }
-{% endraw %}{% if has_local_storage %}{% raw %}
-/** @param {typeof import("./svelte-effects.svelte.js").web} web @param {string} locale */
+{% if has_local_storage %}/** @param {typeof import("./svelte-effects.svelte.js").web} web @param {string} locale */
 function writeLocalStorage(web, locale) {
   try {
     window.localStorage.setItem(web.options.localStorage.key, locale);
@@ -81,8 +80,7 @@ function writeLocalStorage(web, locale) {
     // Ignore storage failures in private browsing and locked-down contexts.
   }
 }
-{% endraw %}{% endif %}{% if has_cookie %}{% raw %}
-/** @param {typeof import("./svelte-effects.svelte.js").web} web @param {Locale} locale */
+{% endif %}{% if has_cookie %}/** @param {typeof import("./svelte-effects.svelte.js").web} web @param {Locale} locale */
 function writeLocaleCookie(web, locale) {
   try {
     document.cookie = web.serializeLocaleCookie(locale, { httpOnly: false });
@@ -90,4 +88,4 @@ function writeLocaleCookie(web, locale) {
     // Ignore cookie failures in sandboxed and locked-down contexts.
   }
 }
-{% endraw %}{% endif %}
+{% endif %}

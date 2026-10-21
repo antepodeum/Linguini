@@ -130,14 +130,20 @@ Rust codegen callers can compile Svelte locale state with
 `.svelte.js` runes, checked JSDoc, and an adjacent source map. The locale-loader registry and state implementation have one canonical JS body.
 
 `compile_svelte_effects_module` accepts
-the closed `EcmaWebOptions` policy and a SvelteKit flag. It emits selected, guarded browser
+the closed `EcmaWebOptions` policy and explicit `SvelteHost` bindings. It emits selected, guarded browser
 reads, framework-owned base/browser imports, runtime-link lifecycle ownership, and HMR disposal
-from one implementation.
+from one implementation. With no locale sources, initialization uses the known base locale and
+omits capability readers. Browser imports/checks are selected independently for locale reads and
+runtime links. Manual/transform link modes retain no-op refresh/destroy exports while omitting
+the unused effects object, locale getter import, and HMR registration.
 
 `compile_svelte_control_module` compiles
-lightweight controls from the same closed policy and SvelteKit flag. Navigation, cookie writes,
+lightweight controls from the same closed policy and host bindings. Navigation, cookie writes,
 and storage writes are included only for selected capabilities. Controls prepare messages before
 mutating locale state, tolerate denied persistence, and do not import the eager message runtime.
+Controls without path/cookie capabilities omit switch-option construction; selected transports
+receive only their needed defaults. The optional options argument, callable arity, and navigation
+state forwarding remain available.
 
 `compile_svelte_module` selects context-only or
 web-enabled Svelte facades with a boolean flag. The template owns message providers, live locale getters, forwarded controls, and deterministic

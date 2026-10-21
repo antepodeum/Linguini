@@ -19,11 +19,11 @@ describe("browser effect target parity and capability ownership", () => {
             const filename = target === "javascript" ? `${root}/svelte-effects.svelte.js` : `${root}/typescript/svelte-effects.svelte.ts`;
             // Inject the host before stripping TS: Bun otherwise folds import.meta.hot away.
             const source = (await readFile(new URL(filename, import.meta.url), "utf8"))
-              .replaceAll("import.meta", "({ hot: { dispose(callback) { probe.dispose = callback; } } })");
+              .replaceAll("import.meta", "({ hot: { dispose(callback) { probe.registrations++; probe.dispose = callback; } } })");
             let javascript = target === "typescript" ? transpiler.transformSync(source) : source;
             const probe = {
               browser: environment !== "server", reads: [] as string[], input: undefined as Record<string, unknown> | undefined,
-              locale: "", starts: 0, refreshes: 0, destroys: 0, dispose: () => {}, options: {} as any, environment: {} as any,
+              locale: "", starts: 0, refreshes: 0, destroys: 0, registrations: 0, dispose: () => {}, options: {} as any, environment: {} as any,
             };
             const descriptors = ["window", "document"].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
             const getter = (key: string, value: unknown) => () => {
@@ -53,13 +53,14 @@ describe("browser effect target parity and capability ownership", () => {
                 probe.options = options; probe.environment = environment;
                 return { ...runtime, resolveLocaleSync(input) { probe.input = input; return Object.values(input).some(Boolean) ? "fr" : "en"; } };
               };`)
-              .replace(/import \{ getCurrentLocale, initializeCurrentLocale \} from ["']\.\/svelte-locale\.svelte\.js["'];/, 'const getCurrentLocale = () => probe.locale; const initializeCurrentLocale = (locale) => { probe.locale = locale; };')
+              .replace(/import \{ (?:getCurrentLocale, )?initializeCurrentLocale \} from ["']\.\/svelte-locale\.svelte\.js["'];/, 'const getCurrentLocale = () => probe.locale; const initializeCurrentLocale = (locale) => { probe.locale = locale; };')
               .replace(/import \{ startRuntimeLinkLocalization \} from ["']\.\/web\/runtime-links\.js["'];/, `const startRuntimeLinkLocalization = (_web, current) => {
                 probe.starts++; if (current() !== probe.locale) throw new Error("wrong locale reader");
                 return { refresh() { probe.refreshes++; }, destroy() { probe.destroys++; } };
               };`);
             try {
               const effects = await import(`data:text/javascript;base64,${Buffer.from(`${javascript}\n// ${nonce++}`).toString("base64")}`);
+              expect(probe.registrations).toBe(target === "javascript" && capability !== "all" ? 0 : 1);
               const expectedKeys = environment === "server" ? [] : keys[capability];
               expect(probe.reads).toEqual(expectedKeys);
               expect(Object.keys(probe.input ?? {})).toEqual(expectedKeys);

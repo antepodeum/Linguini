@@ -2,28 +2,21 @@ import { browser } from "../host.js";
 import { base } from "../host.js";
 import * as locale from "./locale.js";
 import { createWebLocaleI18n } from "./web.js";
-import { getCurrentLocale, initializeCurrentLocale } from "./svelte-locale.svelte.js";
+import { initializeCurrentLocale } from "./svelte-locale.svelte.js";
 
 /** @type {import("./web.js").LinguiniWebLocale<import("./locale.js").Locale>} */
 export const web = createWebLocaleI18n(locale, { routing: { localePrefix: "except-default", canonical: "redirect" }, locale: { sources: ["path"], switch: { writesPath: true, writesCookie: true, writesLocalStorage: false } }, links: { mode: "transform" }, routes: { exclude: [] } }, { base });
 
 initializeCurrentLocale(readInitialLocale());
 
-/** @type {{ refresh(): void; destroy(): void } | undefined} */
-const linkEffects = undefined;
-
 /** @returns {void} */
 export function refreshLinguiniEffects() {
-  linkEffects?.refresh();
 }
 
 /** @returns {void} */
 export function destroyLinguiniEffects() {
-  linkEffects?.destroy();
 }
 
-const hot = (/** @type {ImportMeta & { hot?: { dispose(callback: () => void): void } }} */ (import.meta)).hot;
-hot?.dispose(destroyLinguiniEffects);
 
 function readInitialLocale() {
   if (!browser) return web.baseLocale;

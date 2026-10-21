@@ -18,19 +18,9 @@ export const alternateLinks = linguini.alternateLinks;
 export const destroy = linguini.destroy;
 
 function createLinguiniControl() {
-  /** @param {string} nextLocale @param {Record<string, unknown>} [setOptions] @returns {Promise<Locale>} */
-  async function setLocale(nextLocale, setOptions = {}) {
+  /** @param {string} nextLocale @param {Record<string, unknown>} [_setOptions] @returns {Promise<Locale>} */
+  async function setLocale(nextLocale, _setOptions = undefined) {
     const resolved = await prepareLocale(nextLocale);
-    /** @type {Record<string, unknown> & {cookie: boolean; navigate: boolean; replaceState: boolean; invalidateAll: boolean; keepFocus: boolean; noScroll: boolean}} */
-    const options = {
-      cookie: true,
-      navigate: true,
-      replaceState: false,
-      invalidateAll: true,
-      keepFocus: true,
-      noScroll: true,
-      ...setOptions,
-    };
     if (browser) {
       setCurrentLocale(resolved);
       if (web.options.locale.switch.writesLocalStorage) {
@@ -76,7 +66,6 @@ function createLinguiniControl() {
     destroy: destroyLinguiniEffects,
   };
 }
-
 /** @param {typeof import("./svelte-effects.svelte.js").web} web @param {string} locale */
 function writeLocalStorage(web, locale) {
   try {

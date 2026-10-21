@@ -199,7 +199,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
     assert!(!svelte_effects
         .contents
         .contains("startAutoLinkLocalization(getCurrentLocale)"));
-    assert!(svelte_effects
+    assert!(!svelte_effects
         .contents
         .contains("hot?.dispose(destroyLinguiniEffects)"));
     assert!(svelte_effects.contents.contains("name: \"SHOP_LOCALE\""));
@@ -223,9 +223,7 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         assert!(!svelte_effects.contents.contains(forbidden));
     }
     assert!(!svelte_effects.contents.contains("MutationObserver"));
-    assert!(svelte_effects
-        .contents
-        .contains("const linkEffects = undefined"));
+    assert!(!svelte_effects.contents.contains("linkEffects"));
     assert!(!svelte_effects.contents.contains("window.localStorage"));
     let svelte_effects_declaration = files
         .iter()
@@ -567,7 +565,9 @@ fn project_codegen_allows_closed_web_features_without_sources() {
         .expect("effects runtime");
     assert!(effects
         .contents
-        .contains("web.resolveLocaleSync({\n\n  });"));
+        .contains("initializeCurrentLocale(web.baseLocale)"));
+    assert!(!effects.contents.contains("readInitialLocale"));
+    assert!(!effects.contents.contains("readBrowserCapability"));
     assert!(!effects
         .contents
         .contains("readBrowserCapability(() => window."));
@@ -614,7 +614,8 @@ fn project_codegen_manual_link_mode_disables_runtime_observer() {
         .expect("effects runtime");
     assert!(effects.contents.contains("links: { mode: \"manual\" }"));
     assert!(!effects.contents.contains("MutationObserver"));
-    assert!(effects.contents.contains("const linkEffects = undefined"));
+    assert!(!effects.contents.contains("linkEffects"));
+    assert!(!effects.contents.contains("hot?.dispose"));
     assert!(!files
         .iter()
         .any(|file| file.path == "web/runtime-links.js" || file.path == "web/link-transform.js"));

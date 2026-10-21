@@ -57,6 +57,13 @@ with their map/declaration companions. Request locale is read from SvelteKit pag
 message consumer asks for it. Pathless policies emit no navigation runtime or `$app/navigation`
 dependency. Application-facing locale-switch options and `App.PageState` typing are preserved.
 
+Svelte effects now omit browser readers when no locale sources are selected and initialize from
+the base locale directly. Runtime-link imports, effect objects, and HMR disposal are emitted only
+for runtime-link mode. Refresh/destroy exports remain callable no-ops in manual/transform modes.
+Controls without path/cookie capabilities no longer allocate an unused options object; defaults
+follow the selected transport and host navigation capabilities. Optional switch arguments,
+callable arity, denied-persistence handling, and navigation-state forwarding are preserved.
+
 ## Canonical JavaScript generation
 
 The ECMAScript backend emits one JavaScript implementation and optional adjacent `.d.ts`

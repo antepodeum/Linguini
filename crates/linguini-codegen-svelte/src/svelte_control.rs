@@ -114,6 +114,22 @@ mod tests {
                     sveltekit && options.features().has_path
                 );
                 assert!(!js.code.contains("./index"));
+                assert_eq!(
+                    js.code.contains("const options ="),
+                    options.features().has_path || options.features().has_cookie
+                );
+                assert_eq!(
+                    js.code.contains("cookie: true"),
+                    options.features().has_cookie
+                );
+                assert_eq!(
+                    js.code.contains("navigate: true"),
+                    options.features().has_path
+                );
+                assert_eq!(
+                    js.code.contains("invalidateAll: true"),
+                    sveltekit && options.features().has_path
+                );
                 let mut declaration = super::super::test_templates::render_template(
                     &super::super::test_templates::declaration_with_runtime_imports(
                         std::fs::read_to_string(root.join("legacy/svelte-control.runtime.d.ts"))

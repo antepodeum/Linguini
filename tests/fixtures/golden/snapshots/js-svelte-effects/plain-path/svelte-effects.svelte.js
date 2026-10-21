@@ -1,6 +1,6 @@
 import * as locale from "./locale.js";
 import { createWebLocaleI18n } from "./web.js";
-import { getCurrentLocale, initializeCurrentLocale } from "./svelte-locale.svelte.js";
+import { initializeCurrentLocale } from "./svelte-locale.svelte.js";
 
 const browser = typeof window !== "undefined" && typeof document !== "undefined";
 
@@ -9,21 +9,14 @@ export const web = createWebLocaleI18n(locale, { routing: { localePrefix: "excep
 
 initializeCurrentLocale(readInitialLocale());
 
-/** @type {{ refresh(): void; destroy(): void } | undefined} */
-const linkEffects = undefined;
-
 /** @returns {void} */
 export function refreshLinguiniEffects() {
-  linkEffects?.refresh();
 }
 
 /** @returns {void} */
 export function destroyLinguiniEffects() {
-  linkEffects?.destroy();
 }
 
-const hot = (/** @type {ImportMeta & { hot?: { dispose(callback: () => void): void } }} */ (import.meta)).hot;
-hot?.dispose(destroyLinguiniEffects);
 
 function readInitialLocale() {
   if (!browser) return web.baseLocale;

@@ -21,7 +21,7 @@ function createLinguiniControl() {
   /** @param {string} nextLocale @param {Record<string, unknown>} [setOptions] @returns {Promise<Locale>} */
   async function setLocale(nextLocale, setOptions = {}) {
     const resolved = await prepareLocale(nextLocale);
-    /** @type {Record<string, unknown> & {cookie: boolean; navigate: boolean; replaceState: boolean; invalidateAll: boolean; keepFocus: boolean; noScroll: boolean}} */
+    /** @type {Record<string, unknown> & { cookie: boolean; navigate: boolean; replaceState: boolean; invalidateAll: boolean; keepFocus: boolean; noScroll: boolean; }} */
     const options = {
       cookie: true,
       navigate: true,
@@ -84,7 +84,6 @@ function createLinguiniControl() {
     destroy: destroyLinguiniEffects,
   };
 }
-
 /** @param {typeof import("./svelte-effects.svelte.js").web} web @param {string} locale */
 function writeLocalStorage(web, locale) {
   try {
@@ -93,7 +92,6 @@ function writeLocalStorage(web, locale) {
     // Ignore storage failures in private browsing and locked-down contexts.
   }
 }
-
 /** @param {typeof import("./svelte-effects.svelte.js").web} web @param {Locale} locale */
 function writeLocaleCookie(web, locale) {
   try {

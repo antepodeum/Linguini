@@ -44,9 +44,13 @@ fn effects_module(
     output: EcmaModuleOutput,
 ) -> EcmaModule {
     let features = options.features();
+    let runtime_links = features.link_mode == EcmaLinkMode::Runtime;
+    let needs_browser = runtime_links || !features.sources.is_empty();
     let mut module = EcmaModule::new(output);
-    if let Some(binding) = &host.browser {
-        module.push_import(binding.value_import("browser"));
+    if needs_browser {
+        if let Some(binding) = &host.browser {
+            module.push_import(binding.value_import("browser"));
+        }
     }
     if let Some(binding) = &host.base_path {
         module.push_import(binding.value_import("base"));
@@ -62,14 +66,19 @@ fn effects_module(
             "createWebLocaleI18n",
         )],
     ));
+    let mut locale_imports = Vec::new();
+    if runtime_links {
+        locale_imports.push(EcmaNamedImport::new("getCurrentLocale", "getCurrentLocale"));
+    }
+    locale_imports.push(EcmaNamedImport::new(
+        "initializeCurrentLocale",
+        "initializeCurrentLocale",
+    ));
     module.push_import(EcmaImport::named(
         "./svelte-locale.svelte.js",
-        vec![
-            EcmaNamedImport::new("getCurrentLocale", "getCurrentLocale"),
-            EcmaNamedImport::new("initializeCurrentLocale", "initializeCurrentLocale"),
-        ],
+        locale_imports,
     ));
-    if features.link_mode == EcmaLinkMode::Runtime {
+    if runtime_links {
         module.push_import(EcmaImport::named(
             "./web/runtime-links.js",
             vec![EcmaNamedImport::new(
@@ -82,7 +91,7 @@ fn effects_module(
         "svelte/effects",
         minijinja::context! {
             options => web_options_literal(options), external_browser => host.browser.is_some(), base_path => host.base_path.is_some(),
-            runtime_links => features.link_mode == EcmaLinkMode::Runtime,
+            runtime_links, needs_browser,
             has_path => features.has_path, has_cookie => features.has_cookie,
             has_local_storage => features.has_local_storage, has_accept_language => features.has_accept_language,
             no_sources => features.sources.is_empty(),
@@ -167,6 +176,18 @@ mod tests {
                     js.code.contains("startRuntimeLinkLocalization"),
                     link_mode == EcmaLinkMode::Runtime
                 );
+                let runtime_links = link_mode == EcmaLinkMode::Runtime;
+                let has_sources = !options.sources.is_empty();
+                assert_eq!(js.code.contains("readInitialLocale"), has_sources);
+                assert_eq!(js.code.contains("readBrowserCapability"), has_sources);
+                assert_eq!(js.code.contains("getCurrentLocale"), runtime_links);
+                assert_eq!(js.code.contains("const linkEffects"), runtime_links);
+                assert_eq!(js.code.contains("hot?.dispose("), runtime_links);
+                assert_eq!(
+                    js.code.contains("const browser") || js.code.contains("{ browser }"),
+                    runtime_links || has_sources
+                );
+                assert!(!js.code.contains("const linkEffects = undefined"));
                 assert!(!js.code.contains(" as const"));
                 let snapshots = [
                     (
@@ -191,6 +212,32 @@ mod tests {
                 for (path, code) in snapshots {
                     assert_eq!(code, std::fs::read_to_string(path).unwrap());
                 }
+            }
+        }
+        // Runtime links need a browser guard even when locale resolution has no sources.
+        for link_mode in [
+            EcmaLinkMode::Manual,
+            EcmaLinkMode::Transform,
+            EcmaLinkMode::Runtime,
+        ] {
+            let options = EcmaWebOptions {
+                sources: vec![],
+                link_mode,
+                ..Default::default()
+            };
+            for host in [crate::SvelteHost::default(), crate::host::test_host()] {
+                let js = compile_svelte_effects_module(&options, &host);
+                assert!(js.code.contains("initializeCurrentLocale(web.baseLocale)"));
+                assert!(!js.code.contains("readInitialLocale"));
+                assert!(!js.code.contains("readBrowserCapability"));
+                assert_eq!(
+                    js.code.contains("startRuntimeLinkLocalization"),
+                    link_mode == EcmaLinkMode::Runtime
+                );
+                assert_eq!(
+                    js.code.contains("const browser") || js.code.contains("{ browser }"),
+                    link_mode == EcmaLinkMode::Runtime
+                );
             }
         }
     }
