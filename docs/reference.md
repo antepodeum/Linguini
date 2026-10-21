@@ -209,6 +209,8 @@ bigint when a carry is necessary. Fixed-width currency fractions skip optional-d
 Scale shifts and significant-digit widths are compiled into selected helpers. Date padding and
 digit helpers are selected from the actual compiled fields. The regression corpus checks each
 operation in isolation against executed generated code and an exact rational rounding oracle.
+Significant rounding retains the expansion bound for precision derived from the input value;
+static CLDR choices are validated during generation.
 Plural predicates also compile during builds: only required scalar operands are produced at their
 first use, common guards are shared, and modulo results are calculated once. Comparisons use
 direct conditions without per-call operand objects or range arrays. Fraction-digit counts do not

@@ -135,6 +135,8 @@ Their runtime APIs take actual values rather than static pattern options. Fixed-
 fractions skip optional-digit trimming, and date padding helpers follow the compiled fields.
 Input validation and exact arithmetic remain covered by executed corpora, including a rational
 rounding oracle, long fractions, increments, carries, negative zero, and bigint inputs.
+Input-derived significant precision still checks the decimal expansion limit before padding;
+the removal of static option validation does not remove that runtime input bound.
 Plural rules now compile to direct numeric comparisons, shared guards,
 and one calculation per required remainder. Operand calculations are emitted at the first rule
 that needs them; no per-call operand object, range array, or generic relation interpreter remains.

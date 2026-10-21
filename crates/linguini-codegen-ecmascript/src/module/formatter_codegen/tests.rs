@@ -286,6 +286,30 @@ fn compiled_date_fields_select_padding_helpers() {
 }
 
 #[test]
+fn significant_rounding_checks_input_derived_expansion_before_padding() {
+    let numbers = compiled_number_formatting("en").unwrap();
+    let mut pattern = numbers.decimal_pattern;
+    pattern.positive.max_significant_digits = Some(3);
+    let helpers = number_helpers(&[number_plan(&pattern, None, &numbers, None)]);
+    assert_eq!(
+        execute(&format!(
+            r#"{helpers}
+const admitted = parseGeneratedDecimal("0." + "0".repeat(8189) + "1");
+const rounded = roundTo3SignificantDigits(admitted);
+if (rounded.fraction.length !== 8192) throw new Error("valid significant expansion was rejected");
+const exceeds = parseGeneratedDecimal("0." + "0".repeat(8190) + "1");
+if (!exceeds) throw new Error("the input itself is valid");
+let rejected = false;
+try {{ roundTo3SignificantDigits(exceeds); }} catch(error) {{ rejected = error instanceof RangeError; }}
+if (!rejected) throw new Error("input-derived significant expansion exceeded the output limit");
+console.log("ok");
+"#
+        )),
+        "ok"
+    );
+}
+
+#[test]
 fn generated_javascript_formatter_runtime_snapshot_is_stable() {
     let output = formatter_data_declaration(
         "ru",

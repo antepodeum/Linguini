@@ -143,6 +143,7 @@ function padTo{{ plan.min_significant }}SignificantDigits(integer, fraction) {
  * @returns {{ "{{" }} integer: string, fraction: string }}
  */
 function roundGeneratedFraction(decimal, fractionDigits) {
+  if (fractionDigits > MAX_GENERATED_DECIMAL_DIGITS) throwInvalidNumber();
   const fraction = decimal.fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0");
   if (decimal.fraction.length <= fractionDigits || decimal.fraction[fractionDigits] < "5") return { integer: decimal.integer, fraction };
   const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(fractionDigits + 1, "0");
