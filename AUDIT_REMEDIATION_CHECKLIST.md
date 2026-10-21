@@ -1082,10 +1082,13 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Merge identical branches/defaults, remove known redundant coercions, and preserve exact
       evaluation count/order, captured values, callable attributes, plural semantics, and fallback.
       A `Delivered(Plural, Gender)` function must select its plural branch and gender result directly.
-- [ ] OPT-A4 — Specialize helpers to the transitive operations/categories used by the page's exact
+- [-] OPT-A4 — Specialize helpers to the transitive operations/categories used by the page's exact
       message closure. Deduplicate genuinely shared operations without importing whole formatter,
       plural, locale, or message runtimes. Emit no unused helper, data entry, option dispatcher,
       inactive locale, or scaffolding in initial page delivery; integrate with ESM-A3/MOD-A4.
+      Numeric scale/scientific/significant/padding helpers now have independent demand flags,
+      verified by isolated generated/executed plans and absence checks for unselected helpers.
+      Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page
       graphs, and execute numeric/date/CLDR, function/form, sparse fallback, and SSR/hydration corpora.

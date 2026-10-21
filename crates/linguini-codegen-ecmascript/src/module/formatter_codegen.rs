@@ -360,6 +360,71 @@ mod tests {
     }
 
     #[test]
+    fn numeric_operations_are_selected_independently_and_execute_without_unused_helpers() {
+        for (operation, expected) in [
+            ("plain", "12.346"),
+            ("scale", "1,234.567"),
+            ("scientific", "1.235E01"),
+            ("significant", "12.3"),
+            ("significant_padding", "12.34567"),
+        ] {
+            let numbers = compiled_number_formatting("en").unwrap();
+            let mut pattern = numbers.decimal_pattern;
+            match operation {
+                "scale" => pattern.positive.scale = 100,
+                "scientific" => pattern.positive.exponent_digits = Some(2),
+                "significant" => pattern.positive.max_significant_digits = Some(3),
+                "significant_padding" => {
+                    pattern.positive.min_significant_digits = Some(4);
+                    pattern.positive.max_fraction_digits = 5;
+                }
+                _ => {}
+            }
+            let plan = number_plan(&pattern, None, &numbers, None);
+            let formatter = crate::templates::render(
+                "formatters/number",
+                minijinja::context! {
+                    name => "formatTest", plan, exported => false,
+                },
+            );
+            let helpers = crate::templates::render(
+                "number_helpers",
+                minijinja::context! {
+                    scale => operation == "scale", scientific => operation == "scientific",
+                    significant => operation == "significant", significant_padding => operation == "significant_padding",
+                },
+            );
+            for (name, selected) in [
+                ("scaleGeneratedDecimal", "scale"),
+                ("scientificGeneratedDecimal", "scientific"),
+                ("roundGeneratedSignificant", "significant"),
+                ("padGeneratedSignificant", "significant_padding"),
+            ] {
+                assert_eq!(
+                    helpers.contains(&format!("function {name}(")),
+                    operation == selected,
+                    "{operation}: {name}"
+                );
+            }
+            assert_eq!(
+                execute(&format!(
+                    "{formatter}{helpers}console.log(formatTest('12.34567'));"
+                )),
+                expected,
+                "{operation}"
+            );
+            if operation == "significant_padding" {
+                assert_eq!(
+                    execute(&format!(
+                        "{formatter}{helpers}console.log(formatTest('12'));"
+                    )),
+                    "12.00"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn currency_increment_is_specialized_before_runtime_execution() {
         let numbers = compiled_number_formatting("en").unwrap();
         let mut pattern = compiled_currency_formatting("en").unwrap().standard_pattern;

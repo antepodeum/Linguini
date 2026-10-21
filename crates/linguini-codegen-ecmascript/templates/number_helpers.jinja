@@ -77,7 +77,7 @@ function scaleGeneratedDecimal(decimal, scale) {
   return { negative: decimal.negative, integer, fraction };
 }
 
-{% if scientific %}{% endif %}/**
+{% endif %}{% if scientific %}/**
  * @param {GeneratedDecimal} decimal
  * @returns {{ "{{" }} decimal: GeneratedDecimal, exponent: number }}
  */
@@ -107,7 +107,7 @@ function scientificGeneratedDecimal(decimal) {
   };
 }
 
-{% if significant %}{% endif %}/**
+{% endif %}{% if significant %}/**
  * @param {GeneratedDecimal} decimal
  * @param {number} maximumDigits
  * @returns {{ "{{" }} integer: string, fraction: string }}
@@ -137,7 +137,7 @@ function roundGeneratedSignificant(decimal, maximumDigits) {
   };
 }
 
-{% if significant_padding %}{% endif %}/**
+{% endif %}{% if significant_padding %}/**
  * @param {string} integer
  * @param {string} fraction
  * @param {number} minimumDigits

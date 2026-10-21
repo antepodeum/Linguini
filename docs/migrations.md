@@ -126,7 +126,10 @@ Formatter calls now pass only the input value. The compiler resolves each used r
 specialized number/currency/date code and selected helpers. Currency symbols come from pinned
 CLDR data instead of host `Intl.NumberFormat`; explicit formatter options produce separate,
 readable helper bindings. These locale-runtime helpers are generated implementation details;
-applications should continue calling the schema's generated message API.
+applications should continue calling the schema's generated message API. Numeric scaling,
+scientific notation, significant rounding, and significant padding now have independent helper
+selection. A request for one operation neither emits unrelated helpers nor relies on another
+operation being enabled.
 
 The intermediate APIs and paired-output parity receipts below describe earlier remediation
 stages; this section supersedes their runtime target names and `.ts` output paths.

@@ -201,7 +201,9 @@ The compiler resolves each used formatter request against pinned CLDR data at bu
 Generated JavaScript contains specialized functions for those requests, with static symbols,
 precision, grouping, affixes, and date/time widths compiled into the implementation. Calls pass
 only their input value; generated code carries no CLDR pattern interpreter or runtime option
-object. Unused formatter requests and helper operations are omitted.
+object. Unused formatter requests and helper operations are omitted. Scaling, scientific
+notation, significant rounding, and significant padding are selected independently from the
+compiled numeric plans.
 
 The formatter list is canonical:
 
