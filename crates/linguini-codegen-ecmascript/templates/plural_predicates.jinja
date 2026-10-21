@@ -1,0 +1,20 @@
+{% macro integer(relation) -%}
+{{ relation.modulo_name if relation.modulo_name is not none else relation.binding }}
+{%- endmacro %}
+{% macro predicate(relation, invert=false) -%}
+{% set negated = relation.negated != invert -%}
+{% if relation.operand != "n" and relation.ranges|length == 1 -%}
+{% set range = relation.ranges[0] -%}
+{% if range.start == range.end -%}
+{{ integer(relation) }} {{ "!==" if negated else "===" }} {{ range.start }}{{ "n" if relation.bigint }}
+{%- else -%}
+({{ integer(relation) }} {{ "<" if negated else ">=" }} {{ range.start }}{{ "n" if relation.bigint }} {{ "||" if negated else "&&" }} {{ integer(relation) }} {{ ">" if negated else "<=" }} {{ range.end }}{{ "n" if relation.bigint }})
+{%- endif -%}
+{% else -%}
+{% if negated %}!{% endif %}({% if relation.operand == "n" and not relation.allow_fraction %}!hasFraction && ({% endif %}{% for range in relation.ranges %}{% if range.start == range.end %}{% if relation.operand == "n" and relation.allow_fraction %}(!hasFraction && {% endif %}{{ integer(relation) }} === {{ range.start }}{{ "n" if relation.bigint }}{% if relation.operand == "n" and relation.allow_fraction %}){% endif %}{% else %}({{ integer(relation) }} >= {{ range.start }}{{ "n" if relation.bigint }} && {% if relation.operand == "n" and relation.allow_fraction %}({{ integer(relation) }} < {{ range.end }}{{ "n" if relation.bigint }} || ({{ integer(relation) }} === {{ range.end }}{{ "n" if relation.bigint }} && !hasFraction)){% else %}{{ integer(relation) }} <= {{ range.end }}{{ "n" if relation.bigint }}{% endif %}){% endif %}{{ " || " if not loop.last }}{% else %}false{% endfor %}{% if relation.operand == "n" and not relation.allow_fraction %}){% endif %})
+{%- endif %}
+{%- endmacro %}
+{% macro moduli(expressions) -%}
+{% for expression in expressions %}  const {{ expression.name }} = {{ expression.binding }} % {{ expression.modulo }}{{ "n" if expression.bigint }};
+{% endfor %}
+{%- endmacro %}

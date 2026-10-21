@@ -7,6 +7,7 @@ mod dependencies;
 mod formatters;
 mod inline;
 mod paths;
+mod plurals;
 mod requirements;
 mod types;
 
@@ -26,3 +27,4 @@ pub use formatters::{
 pub use inline::lower_inline_functions;
 
 pub use paths::lexical_relative_path;
+pub use plurals::{PluralDecisionPlan, PluralRequirements};

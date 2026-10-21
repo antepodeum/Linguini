@@ -722,6 +722,7 @@ dependencies = [
 name = "linguini-codegen"
 version = "0.1.0-alpha.4"
 dependencies = [
+ "linguini-cldr",
  "linguini-core",
  "linguini-ir",
  "linguini-syntax",

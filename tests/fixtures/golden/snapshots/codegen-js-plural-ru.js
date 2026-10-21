@@ -4,24 +4,6 @@
  */
 export function pluralRu(value) {
   if (value === "zero" || value === "one" || value === "two" || value === "few" || value === "many" || value === "other") return value;
-  const operands = pluralOperands(value);
-  if ((pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 10n, false, [[1n, 1n]]) && !pluralOperandMatches(operands.i, 100n, false, [[11n, 11n]]))) return "one";
-  if ((pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 10n, false, [[2n, 4n]]) && !pluralOperandMatches(operands.i, 100n, false, [[12n, 14n]]))) return "few";
-  if ((pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 10n, false, [[0n, 0n]])) || (pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 10n, false, [[5n, 9n]])) || (pluralOperandMatches(operands.v, undefined, false, [[0n, 0n]]) && pluralOperandMatches(operands.i, 100n, false, [[11n, 14n]]))) return "many";
-  return "other";
-}
-
-/**
- * @typedef {object} PluralOperand
- * @property {bigint} integer
- * @property {boolean} hasFraction
- */
-const MAX_PLURAL_DECIMAL_DIGITS = 8192;
-
-/**
- * @param {number | bigint | string} value
- */
-function pluralOperands(value) {
   if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
   const source = String(value).trim();
   // Canonical CLDR input uses lowercase c for a non-negative compact-decimal
@@ -45,76 +27,29 @@ function pluralOperands(value) {
     throwInvalidPluralNumber();
   }
 
-  const digits = `${whole}${sourceFraction}` || "0";
+  const digitCount = whole.length + sourceFraction.length;
   const decimalPosition = whole.length + exponent;
   const expandedLength = decimalPosition <= 0
-    ? -decimalPosition + digits.length
-    : Math.max(decimalPosition, digits.length);
+    ? -decimalPosition + digitCount
+    : Math.max(decimalPosition, digitCount);
   if (expandedLength > MAX_PLURAL_DECIMAL_DIGITS) throwInvalidPluralNumber();
 
-  /** @type {string} */
-  let integer;
-  /** @type {string} */
-  let fraction;
-  if (decimalPosition <= 0) {
-    integer = "0";
-    fraction = `${"0".repeat(-decimalPosition)}${digits}`;
-  } else if (decimalPosition >= digits.length) {
-    integer = `${digits}${"0".repeat(decimalPosition - digits.length)}`;
-    fraction = "";
-  } else {
-    integer = digits.slice(0, decimalPosition);
-    fraction = digits.slice(decimalPosition);
-  }
-  integer = integer.replace(/^0+(?=\d)/, "");
-  const trimmedFraction = fraction.replace(/0+$/, "");
-  const compactExponent = typeof value === "string" ? match[4] ?? "0" : "0";
-  /**
-   * @param {string} digits
-   * @param {boolean} [hasFraction]
-   * @returns {PluralOperand}
-   */
-  const operand = (digits, hasFraction = false) => ({
-    integer: BigInt(digits || "0"),
-    hasFraction,
-  });
-
-  return {
-    n: operand(integer, /[1-9]/.test(fraction)),
-    i: operand(integer),
-    v: operand(String(fraction.length)),
-    w: operand(String(trimmedFraction.length)),
-    f: operand(fraction),
-    t: operand(trimmedFraction),
-    c: operand(compactExponent),
-    e: operand(compactExponent),
-  };
+  const visibleFractionDigits = Math.max(0, digitCount - decimalPosition);
+  if (visibleFractionDigits !== 0) return "other";
+  const digits = `${whole}${sourceFraction}`;
+  const integer = decimalPosition <= 0 ? "0"
+    : decimalPosition >= digitCount ? `${digits}${"0".repeat(decimalPosition - digitCount)}`
+    : digits.slice(0, decimalPosition);
+  const integerValue = BigInt(integer);
+  const integerValueModulo10 = integerValue % 10n;
+  const integerValueModulo100 = integerValue % 100n;
+  if (integerValueModulo10 === 1n && integerValueModulo100 !== 11n) return "one";
+  if ((integerValueModulo10 >= 2n && integerValueModulo10 <= 4n) && (integerValueModulo100 < 12n || integerValueModulo100 > 14n)) return "few";
+  if (integerValueModulo10 === 0n || (integerValueModulo10 >= 5n && integerValueModulo10 <= 9n) || (integerValueModulo100 >= 11n && integerValueModulo100 <= 14n)) return "many";
+  return "other";
 }
 
-/**
- * @param {PluralOperand} value
- * @param {bigint | undefined} modulo
- * @param {boolean} allowFraction
- * @param {ReadonlyArray<readonly [bigint, bigint]>} ranges
- * @returns {boolean}
- */
-function pluralOperandMatches(
-  value,
-  modulo,
-  allowFraction,
-  ranges,
-) {
-  const integer = modulo === undefined || modulo === 0n
-    ? value.integer
-    : value.integer % modulo;
-  return ranges.some(([start, end]) => {
-    if (!allowFraction) {
-      return !value.hasFraction && integer >= start && integer <= end;
-    }
-    return integer >= start &&
-      (integer < end || (integer === end && !value.hasFraction));
-  });
-}
+const MAX_PLURAL_DECIMAL_DIGITS = 8192;
 
 /** @returns {never} */
 function throwInvalidPluralNumber() {

@@ -1,12 +1,20 @@
+{% from "plural_predicates" import predicate, moduli -%}
+{% from "plural_operands" import emit_operands -%}
 /**
  * @param {number | bigint | string} value
  * @returns {string}
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {
   if (value === "zero" || value === "one" || value === "two" || value === "few" || value === "many" || value === "other") return value;
-  const operands = pluralOperands(value);
-{% for category in categories %}  if ({% if not category.conditions %}true{% endif %}{% for condition in category.conditions %}({% for relation in condition %}{% if relation.negated %}!{% endif %}pluralOperandMatches(operands.{{ relation.operand }}, {% if relation.modulo is none %}undefined{% else %}{{ relation.modulo }}n{% endif %}, {{ "true" if relation.allow_fraction else "false" }}, [{% for range in relation.ranges %}[{{ range.start }}n, {{ range.end }}n]{% if not loop.last %}, {% endif %}{% endfor %}]){% if not loop.last %} && {% endif %}{% endfor %}){% if not loop.last %} || {% endif %}{% endfor %}) return {{ category.literal }};
+{% include "plural_input" %}
+{% for guard in guards %}{{ emit_operands(guard.operations) }}{{ moduli(guard.moduli) }}  if ({{ predicate(guard.relation, true) }}) return "other";
+{% endfor %}{% for category in categories %}{{ emit_operands(category.operations) }}{{ moduli(category.moduli) }}  if ({% for condition in category.conditions %}{% for relation in condition %}{{ predicate(relation) }}{{ " && " if not loop.last }}{% else %}true{% endfor %}{{ " || " if not loop.last }}{% else %}false{% endfor %}) return {{ category.name|js }};
 {% endfor %}  return "other";
 }
 
-{% include "plural_operands" %}
+const MAX_PLURAL_DECIMAL_DIGITS = 8192;
+
+/** @returns {never} */
+function throwInvalidPluralNumber() {
+  throw new RangeError("Linguini: invalid plural numeric value");
+}

@@ -1056,7 +1056,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.
       The same core now passes real Vite multi-entry graph and executed-output checks with ECMAScript and custom non-Svelte entry/runtime descriptors.
       Native module configuration and additional framework integrations remain open.
-- [ ] MOD-A7 — Share common lowering, dependency planning, and type semantics through
+- [-] MOD-A7 — Share common lowering, dependency planning, and type semantics through
       `linguini-codegen`; keep ECMAScript syntax, web platform behavior, and framework dependencies
       within their owning backend/modules. Future language backends must not depend on web policy.
 - [ ] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
@@ -1088,6 +1088,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       inactive locale, or scaffolding in initial page delivery; integrate with ESM-A3/MOD-A4.
       Numeric scale/scientific/significant/padding helpers now have independent demand flags,
       verified by isolated generated/executed plans and absence checks for unselected helpers.
+      Plural decision/operand demand is shared through `linguini-codegen`; generated predicates use
+      direct comparisons, common guards, and one calculation per remainder. Operands are local
+      scalars emitted at first use, without operand objects, relation-helper calls, or range arrays.
+      Fraction-digit counts avoid constructing fractional strings or bigints; Russian fractions
+      return before bigint construction, verified by executing with bigint construction disabled.
+      Executed corpora cover 24 locales, fractional operators, compact exponents, and invalid inputs.
       Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page

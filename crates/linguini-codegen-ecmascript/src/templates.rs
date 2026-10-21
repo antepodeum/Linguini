@@ -143,6 +143,10 @@ fn environment() -> &'static EcmaTemplateEngine {
             ),
             ("plural", include_str!("../templates/plural.jinja")),
             (
+                "plural_predicates",
+                include_str!("../templates/plural_predicates.jinja"),
+            ),
+            (
                 "project/locale",
                 include_str!("../templates/project/locale.jinja"),
             ),
@@ -175,6 +179,10 @@ fn environment() -> &'static EcmaTemplateEngine {
             (
                 "date_helpers",
                 include_str!("../templates/date_helpers.jinja"),
+            ),
+            (
+                "plural_input",
+                include_str!("../templates/plural_input.jinja"),
             ),
             (
                 "plural_operands",

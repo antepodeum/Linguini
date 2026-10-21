@@ -205,6 +205,10 @@ object. Unused formatter requests and helper operations are omitted. Scaling, sc
 notation, significant rounding, and significant padding are selected independently from the
 compiled numeric plans. The regression corpus checks each operation in isolation against
 executed generated code.
+Plural predicates also compile during builds: only required scalar operands are produced at their
+first use, common guards are shared, and modulo results are calculated once. Comparisons use
+direct conditions without per-call operand objects or range arrays. Fraction-digit counts do not
+construct decimal strings or bigints; exact integer/fraction values retain bigint arithmetic.
 
 The formatter list is canonical:
 
