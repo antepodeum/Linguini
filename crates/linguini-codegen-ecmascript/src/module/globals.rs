@@ -6,7 +6,8 @@ use linguini_syntax::SourceId;
 use crate::ecmascript::{EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaSource, EcmaStatement};
 
 use super::emit::{
-    emit_forms, emit_local_functions, emit_locale_enum_jsdoc_types, emit_variables, module_imports,
+    emit_forms, emit_local_functions, emit_locale_enum_jsdoc_types, emit_schema_jsdoc_types,
+    emit_variables, module_imports,
 };
 use super::message::ordered_sources;
 use super::names::import_path_for_target;
@@ -123,6 +124,7 @@ pub(super) fn locale_globals_module(
     }
 
     let mut body = String::new();
+    emit_schema_jsdoc_types(&globals_schema, &shared_import_path, &mut body);
     {
         emit_locale_enum_jsdoc_types(&globals_schema, &globals, &mut body);
     }
@@ -242,7 +244,7 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
             .contains("/** @type {(value: number | bigint | string) => string} */ ((value) =>"));
         assert!(javascript
             .code()
-            .contains("export { prefix, __lgl_form_4672756974, Render };"));
+            .contains("export { prefix, __lgl_form_Fruit, Render };"));
         for forbidden in ["type Gender =", ": string", " as const", "import type"] {
             assert!(!javascript.code().contains(forbidden), "{forbidden}");
         }

@@ -2,7 +2,7 @@ import { normalizeMessageArgs } from "../../shared.js";
 
 export const account = {
   label: "Account",
-  personalized: /** @type {((name: string) => string) & ((args: { name: string }) => string)} */ ((...__lgl_args) => { const [name] = normalizeMessageArgs(__lgl_args, ["name"]); return "Welcome " + String(name); }),
+  personalized: /** @type {((name: string) => string) & ((args: { name: string }) => string)} */ ((...__lgl_args) => { const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, ["name"])); return "Welcome " + String(name); }),
   nested: {
     status: "Ready",
   },

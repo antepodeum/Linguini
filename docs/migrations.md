@@ -112,7 +112,15 @@ configuration or generated API changes are required for this extraction.
 Function and form dispatch now uses direct branches and returns. Inline functions are lifted to
 static helpers with explicit captured arguments; generated calls preserve eager inputs and lazy
 branch results without building branch objects or callback tables. Unnamed selectors receive
-readable names derived from their types, with deterministic collision handling.
+readable names derived from their types, with deterministic collision handling. Internal form
+bindings now retain source names (`__lgl_form_Fruit`); safe qualified names retain their components
+(`__lgl_name_shop$Money`). Reserved internal prefixes and ambiguous names remain encoded. Rebuild
+all generated artifacts together; applications should use the public message/type API rather than
+importing private generated bindings. Argument normalization retains a JSDoc tuple assertion
+from the same call signature, and locale globals import their schema typedefs. This preserves
+strict checking of implementation bodies as well as declaration-only consumer checking. Static
+form attributes retain literal types so their enum values can be passed directly to generated
+functions. These annotations add no runtime validation or allocation.
 
 Formatter calls now pass only the input value. The compiler resolves each used request into
 specialized number/currency/date code and selected helpers. Currency symbols come from pinned

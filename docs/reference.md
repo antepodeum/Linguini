@@ -39,6 +39,9 @@ Rust selects the semantic plan and source spans; executable statement syntax bel
 Declaration signatures and JSDoc are rendered from the common message-call model through
 build-time templates. The schema-owned contract and locale declarations share namespace-type
 rendering with per-message and group provenance.
+Generated internal bindings retain readable source names and qualified components when safe.
+Reserved compiler prefixes and ambiguous identifier spellings are encoded deterministically to
+prevent collisions with source declarations. These internal names are not a public import API.
 
 JavaScript output with declaration companions can be consumed by strict TypeScript projects
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and

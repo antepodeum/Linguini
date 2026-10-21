@@ -1,10 +1,12 @@
 import { pluralEnUs } from "./_runtime.js";
 
+/** @typedef {import("../../shared.js").Fruit} Fruit */
+
 /** @typedef {"male" | "other"} Gender */
 const prefix = "Total";
 
-const __lgl_form_4672756974 = {
-  apple: { Gender: "male", label: /** @type {(value: number | bigint | string) => string} */ ((value) => {
+const __lgl_form_Fruit = {
+  apple: { Gender: /** @type {const} */ ("male"), label: /** @type {(value: number | bigint | string) => string} */ ((value) => {
   if (pluralEnUs(value) === "one") return "One " + String(prefix);
   return "Many " + String(prefix);
 }) },
@@ -24,5 +26,5 @@ function Render(gender, plural) {
   return "Other many";
 }
 
-export { prefix, __lgl_form_4672756974, Render };
+export { prefix, __lgl_form_Fruit, Render };
 //# sourceMappingURL=_globals.js.map

@@ -504,7 +504,7 @@ mod tests {
 
         emit_schema_type_reexports(&schema, "./shared", &mut output);
 
-        assert!(output.contains("export type Fruit = __lgl_name_73686F702E4672756974;"));
-        assert!(output.contains("export type Money = __lgl_name_73686F702E4D6F6E6579;"));
+        assert!(output.contains("export type Fruit = __lgl_name_shop$Fruit;"));
+        assert!(output.contains("export type Money = __lgl_name_shop$Money;"));
     }
 }

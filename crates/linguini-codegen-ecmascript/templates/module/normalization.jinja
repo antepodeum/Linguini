@@ -1,1 +1,1 @@
-const [{% for name in bindings %}{{ name }}{{ ", " if not loop.last }}{% endfor %}] = normalizeMessageArgs({{ arguments }}, [{% for key in keys %}{{ key|js }}{{ ", " if not loop.last }}{% endfor %}]);
+const [{% for name in bindings %}{{ name }}{{ ", " if not loop.last }}{% endfor %}] = /** @type { {{- tuple -}} } */ (normalizeMessageArgs({{ arguments }}, [{% for key in keys %}{{ key|js }}{{ ", " if not loop.last }}{% endfor %}]));

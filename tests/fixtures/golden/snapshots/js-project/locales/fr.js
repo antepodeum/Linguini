@@ -15,7 +15,7 @@ import { normalizeMessageArgs } from "../shared.js";
  * @returns {string}
  */
 export function hello(...__lgl_args) {
-  const [name] = normalizeMessageArgs(__lgl_args, ["name"]);
+  const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, ["name"]));
   return "Salut " + String(name);
 }
 

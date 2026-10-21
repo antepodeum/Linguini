@@ -20,7 +20,7 @@ pub(super) fn form_object(entries: &[IrFormEntry], options: &EcmaOptions) -> Str
                 name,
                 parameters,
                 value,
-            } => Some(minijinja::context! { key => property_key(name), value => value_expression_with_parameters(value, parameters, options) }),
+            } => Some(minijinja::context! { key => property_key(name), value => attribute_expression(value, parameters, options) }),
             IrFormEntry::Branch(_) => None,
         })
         .collect::<Vec<_>>();
@@ -46,6 +46,34 @@ pub(super) fn form_object(entries: &[IrFormEntry], options: &EcmaOptions) -> Str
         "expression",
         minijinja::context! { kind => "object", fields, dispatcher },
     )
+}
+
+fn attribute_expression(
+    value: &IrValue,
+    parameters: &[IrFunctionParameter],
+    options: &EcmaOptions,
+) -> String {
+    if let IrValue::Text(text) = value {
+        let literal = text
+            .parts
+            .iter()
+            .try_fold(String::new(), |mut value, part| {
+                if let IrTextPart::Text(text) = part {
+                    value.push_str(text);
+                    Some(value)
+                } else {
+                    None
+                }
+            });
+        if let Some(value) = literal {
+            // Enum-valued attributes must retain their literal union when a form is indexed.
+            return crate::templates::render(
+                "expression",
+                minijinja::context! { kind => "literal_attribute", value },
+            );
+        }
+    }
+    value_expression_with_parameters(value, parameters, options)
 }
 
 fn value_expression_with_parameters(
@@ -447,7 +475,7 @@ mod tests {
                 &context,
                 &options
             ),
-            "__lgl_form_4974656D[item]()"
+            "__lgl_form_Item[item]()"
         );
         assert_eq!(
             expression_value(
@@ -463,7 +491,7 @@ mod tests {
                 &context,
                 &options
             ),
-            "__lgl_form_4974656D[item].label()"
+            "__lgl_form_Item[item].label()"
         );
         assert_eq!(
             expression_value(
@@ -471,7 +499,7 @@ mod tests {
                 &context,
                 &options
             ),
-            "__lgl_form_4974656D[item].label"
+            "__lgl_form_Item[item].label"
         );
     }
 

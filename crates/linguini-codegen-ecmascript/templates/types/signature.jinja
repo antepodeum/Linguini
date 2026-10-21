@@ -3,6 +3,7 @@
 {%- endmacro -%}
 {%- macro named(parameters) -%}{ {% for parameter in parameters %}{{ parameter.property }}: {{ parameter.ty }}{{ "; " if not loop.last }}{% endfor %} }{%- endmacro -%}
 {%- if kind == "positional" -%}{{ positional(parameters) }}
+{%- elif kind == "tuple" -%}[{{ positional(parameters) }}]
 {%- elif kind == "named" -%}{{ named(parameters) }}
 {%- elif kind == "named_argument" -%}args: {{ named(parameters) }}
 {%- elif kind == "rest" -%}...{{ name }}

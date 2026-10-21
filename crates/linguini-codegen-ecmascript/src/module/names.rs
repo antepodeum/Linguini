@@ -85,7 +85,20 @@ pub fn safe_identifier(name: &str) -> String {
         return name.to_owned();
     }
 
+    if let Some(path) = readable_qualified_name(name) {
+        return format!("__lgl_name_{path}");
+    }
     encoded_name("__lgl_name_", name)
+}
+
+fn readable_qualified_name(name: &str) -> Option<String> {
+    // The separator cannot appear inside a readable component. Encoded names contain
+    // only hex digits after their prefix, so the two representations cannot collide.
+    (name.contains('.')
+        && name
+            .split('.')
+            .all(|part| is_identifier_text(part) && !part.contains('$')))
+    .then(|| name.replace('.', "$"))
 }
 
 pub fn safe_file_stem(name: &str) -> String {
@@ -164,7 +177,14 @@ fn encoded_name(prefix: &str, name: &str) -> String {
 }
 
 pub fn form_binding_name(name: &str) -> String {
-    encoded_name("__lgl_form_", name)
+    if is_identifier_text(name) && !name.contains('$') {
+        return format!("__lgl_form_{name}");
+    }
+    if let Some(path) = readable_qualified_name(name) {
+        return format!("__lgl_form_{path}");
+    }
+    // A leading separator distinguishes escaped names from ordinary hex-looking names.
+    encoded_name("__lgl_form_$", name)
 }
 
 pub fn property_access(name: &str) -> String {
@@ -256,6 +276,10 @@ pub fn ts_type(name: &str) -> String {
 }
 
 fn is_safe_identifier(name: &str) -> bool {
+    is_identifier_text(name) && !is_reserved_word(name)
+}
+
+fn is_identifier_text(name: &str) -> bool {
     let mut characters = name.chars();
     let Some(first) = characters.next() else {
         return false;
@@ -264,7 +288,6 @@ fn is_safe_identifier(name: &str) -> bool {
     matches!(first, '_' | '$' | 'a'..='z' | 'A'..='Z')
         && characters
             .all(|character| matches!(character, '_' | '$' | 'a'..='z' | 'A'..='Z' | '0'..='9'))
-        && !is_reserved_word(name)
 }
 
 fn is_windows_reserved_stem(name: &str) -> bool {
@@ -407,10 +430,7 @@ mod tests {
         assert_eq!(safe_identifier("日本語"), "__lgl_name_E697A5E69CACE8AA9E");
         assert_eq!(safe_identifier("\u{0000}"), "__lgl_name_00");
         assert_eq!(safe_identifier(""), "__lgl_name_");
-        assert_eq!(
-            function_name("account.delete"),
-            "__lgl_name_6163636F756E742E64656C657465"
-        );
+        assert_eq!(function_name("account.delete"), "__lgl_name_account$delete");
 
         assert_ne!(
             safe_identifier("message-name"),
@@ -423,8 +443,57 @@ mod tests {
         );
         assert_ne!(
             form_binding_name("Fruit"),
-            safe_identifier("__lgl_form_4672756974")
+            safe_identifier("__lgl_form_Fruit")
         );
+    }
+
+    #[test]
+    fn readable_internal_names_are_injective_across_namespaces_and_escaped_inputs() {
+        assert_eq!(form_binding_name("Fruit"), "__lgl_form_Fruit");
+        assert_eq!(form_binding_name("shop.Fruit"), "__lgl_form_shop$Fruit");
+        assert_eq!(safe_identifier("shop.Money"), "__lgl_name_shop$Money");
+        let names = [
+            "",
+            "Fruit",
+            "fruit",
+            "class",
+            "shop.Fruit",
+            "shop$Fruit",
+            "shop..Fruit",
+            "a.b.c",
+            "a$b.c",
+            "a.b$c",
+            "a$.b",
+            "a.$b",
+            "Fruit-name",
+            "Fruit_name",
+            "__lgl_form_Fruit",
+            "__lgl_form_shop$Fruit",
+            "__lgl_form_$E697A5",
+            "__lgl_name_shop$Fruit",
+            "__lgl_name_4672756974",
+            "日本語",
+            "E697A5E69CACE8AA9E",
+            "\0",
+            "$",
+            "a.0",
+            "a_0",
+            "a.٠",
+            "a._0",
+        ];
+        let mut identifiers = std::collections::BTreeSet::new();
+        for source in names {
+            for identifier in [safe_identifier(source), form_binding_name(source)] {
+                assert!(
+                    super::is_safe_identifier(&identifier),
+                    "invalid binding for {source:?}"
+                );
+                assert!(
+                    identifiers.insert(identifier),
+                    "binding collision for {source:?}"
+                );
+            }
+        }
     }
 
     #[test]

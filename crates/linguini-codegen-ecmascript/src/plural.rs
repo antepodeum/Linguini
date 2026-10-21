@@ -55,9 +55,13 @@ mod tests {
     use std::process::{Command, Stdio};
 
     #[test]
-    fn generated_plural_function_snapshot_is_stable() {
+    fn generated_public_plural_function_snapshot_is_stable() {
         let rules = built_in_plural_rules("ru").expect("rules");
         let output = generate_plural_function("pluralRu", &rules);
+        assert_eq!(
+            output,
+            generate_plural_function_with_visibility("pluralRu", &rules, true)
+        );
         let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/golden/snapshots/codegen-js-plural-ru.js");
         if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
@@ -67,23 +71,6 @@ mod tests {
         assert_eq!(
             output,
             std::fs::read_to_string(snapshot).expect("read plural snapshot")
-        );
-    }
-
-    #[test]
-    fn generated_javascript_plural_function_snapshot_is_stable() {
-        let rules = built_in_plural_rules("ru").expect("rules");
-        let output = generate_plural_function_with_visibility("pluralRu", &rules, true);
-        assert_eq!(output, generate_plural_function("pluralRu", &rules));
-        let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/golden/snapshots/codegen-js-plural-ru.js");
-        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
-            std::fs::write(&snapshot, &output).expect("write JavaScript plural snapshot");
-        }
-
-        assert_eq!(
-            output,
-            std::fs::read_to_string(snapshot).expect("read JavaScript plural snapshot")
         );
     }
 

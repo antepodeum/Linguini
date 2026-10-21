@@ -98,6 +98,7 @@ impl MessageCallSignature {
             "module/normalization",
             minijinja::context! {
                 bindings, keys, arguments => IMPLEMENTATION_ARGS,
+                tuple => self.render_signature("tuple", true),
             },
         )
         .trim_end()
@@ -270,7 +271,7 @@ mod tests {
         assert_eq!(signature.implementation_rest_params(), "...__lgl_args");
         assert_eq!(
             signature.normalized_bindings_statement(),
-            "const [count] = normalizeMessageArgs(__lgl_args, [\"count\"]);"
+            "const [count] = /** @type {[count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, [\"count\"]));"
         );
         assert_eq!(
             signature.callable_type(),

@@ -1,10 +1,15 @@
 import { pluralRu } from "./_runtime.js";
 
+/** @typedef {import("../../shared.js").Fruit} Fruit */
+/** @typedef {import("../../shared.js").Size} Size */
+/** @typedef {import("../../shared.js").Money} Money */
+/** @typedef {import("../../shared.js").ShortDate} ShortDate */
+
 /** @typedef {"male" | "female" | "neuter" | "other"} Gender */
 const cart_label = "В корзине";
 
-const __lgl_form_4672756974 = {
-  apple: { Gender: "neuter", emoji: "🍎", nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
+const __lgl_form_Fruit = {
+  apple: { Gender: /** @type {const} */ ("neuter"), emoji: /** @type {const} */ ("🍎"), nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
   switch (pluralRu(value)) {
     case "one":
       return "яблоко";
@@ -16,8 +21,8 @@ const __lgl_form_4672756974 = {
 }), gen: /** @type {(value: number | bigint | string) => string} */ ((value) => {
   if (pluralRu(value) === "one") return "яблока";
   return "яблок";
-}), display: { short: "ябл.", long: "спелое яблоко" } },
-  pear: { Gender: "female", emoji: "🍐", nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
+}), display: { short: /** @type {const} */ ("ябл."), long: /** @type {const} */ ("спелое яблоко") } },
+  pear: { Gender: /** @type {const} */ ("female"), emoji: /** @type {const} */ ("🍐"), nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
   switch (pluralRu(value)) {
     case "one":
       return "груша";
@@ -30,7 +35,7 @@ const __lgl_form_4672756974 = {
   if (pluralRu(value) === "one") return "груши";
   return "груш";
 }) },
-  orange: { Gender: "male", emoji: "🍊", nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
+  orange: { Gender: /** @type {const} */ ("male"), emoji: /** @type {const} */ ("🍊"), nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
   switch (pluralRu(value)) {
     case "one":
       return "апельсин";
@@ -107,4 +112,4 @@ function DeliveryNote(plural, gender, item) {
   return "Доставлен " + String(item);
 }
 
-export { cart_label, __lgl_form_4672756974, Delivered, SizeAdj, DeliveryNote };
+export { cart_label, __lgl_form_Fruit, Delivered, SizeAdj, DeliveryNote };

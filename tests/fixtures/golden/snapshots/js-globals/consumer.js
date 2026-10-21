@@ -1,6 +1,6 @@
 import {
   Render,
-  __lgl_form_4672756974 as Fruit,
+  __lgl_form_Fruit as Fruit,
   prefix,
 } from "./locales/en-us/_globals.js";
 
@@ -19,6 +19,7 @@ assertEqual(Render("male", 1), "One");
 assertEqual(Render("male", 2), "Many");
 assertEqual(Render("other", 1), "Other one");
 assertEqual(Render("other", 2), "Other many");
+assertEqual(Render(Fruit.apple.Gender, 1), "One");
 assertEqual(Fruit.apple.label(1), "One Total");
 assertEqual(Fruit.apple.label(2), "Many Total");
 

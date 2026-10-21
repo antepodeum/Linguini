@@ -4,6 +4,8 @@
 {% for value in values %}{{ value }}{{ " + " if not loop.last }}{% else %}""{% endfor %}
 {%- elif kind == "string" -%}
 String({{ value }})
+{%- elif kind == "literal_attribute" -%}
+/** @type {const} */ ({{ value|js }})
 {%- elif kind == "value" -%}
 {% if empty %}""{% else %}{% if form is not none %}{{ form }}[{{ root }}]{{ suffix }}{% else %}{{ path }}{% endif %}{% if called %}({% for argument in arguments %}{{ argument }}{{ ", " if not loop.last }}{% endfor %}){% endif %}{% endif %}
 {%- endif -%}

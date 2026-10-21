@@ -680,7 +680,7 @@ account {
     assert!(!account_module.contents.contains("label: () =>"));
     assert!(account_module
         .contents
-        .contains("personalized: /** @type {((name: string) => string) & ((args: { name: string }) => string)} */ ((...__lgl_args) => { const [name] = normalizeMessageArgs(__lgl_args, [\"name\"]); return \"Hello \" + String(name); }),"));
+        .contains("personalized: /** @type {((name: string) => string) & ((args: { name: string }) => string)} */ ((...__lgl_args) => { const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, [\"name\"])); return \"Hello \" + String(name); }),"));
 
     let locale_declaration = files
         .iter()

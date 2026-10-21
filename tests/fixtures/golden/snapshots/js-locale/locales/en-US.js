@@ -18,7 +18,7 @@ export { account };
  * @returns {string}
  */
 export function root(...__lgl_args) {
-  const [name] = normalizeMessageArgs(__lgl_args, ["name"]);
+  const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, ["name"]));
   return "Howdy " + String(name);
 }
 

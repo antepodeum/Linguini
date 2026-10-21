@@ -1106,7 +1106,8 @@ widths into value-only functions, and obtains currency symbols from pinned CLDR 
 inline dispatch use static decision trees; inline captures become explicit helper arguments.
 Executed ESM fixtures cover nested branches, callable form attributes, multi-key branches,
 `__proto__`, fallback errors, source provenance, and naming collisions. Selector names derive from
-semantic types. These receipts do not close expanded calendar/context/zone/skeleton support,
+semantic types, and common form/qualified bindings retain readable source components with
+collision-safe escaping. These receipts do not close expanded calendar/context/zone/skeleton support,
 remaining emitter extraction, exact page delivery, or framework SSR/hydration verification.
 
 ### Documentation identity through codegen

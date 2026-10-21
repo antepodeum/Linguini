@@ -35,7 +35,7 @@ mod tests {
             (
                 "shop.Money",
                 TypeModel::Named("shop.Money".to_owned()),
-                "__lgl_name_73686F702E4D6F6E6579",
+                "__lgl_name_shop$Money",
             ),
         ];
 

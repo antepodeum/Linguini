@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   Render as renderJavaScript,
-  __lgl_form_4672756974 as fruitJavaScript,
+  __lgl_form_Fruit as fruitJavaScript,
   prefix as prefixJavaScript,
 } from "./locales/en-us/_globals.js";
 import {
