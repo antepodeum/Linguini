@@ -958,8 +958,34 @@ fn validate_generated_output_collisions(
     Ok(())
 }
 
-pub(super) fn locale_global_import(locale: &IrModule, import_path: &str) -> Option<EcmaImport> {
-    let value_names = locale_global_value_names(locale);
+pub(super) fn locale_global_import(
+    schema: &IrModule,
+    implementation: &IrModule,
+    locale: &IrModule,
+    import_path: &str,
+) -> Option<EcmaImport> {
+    let required = implementation
+        .messages()
+        .iter()
+        .flat_map(|message| {
+            schema
+                .messages()
+                .iter()
+                .find(|signature| signature.name == message.name)
+                .map(|signature| {
+                    linguini_codegen::direct_message_dependencies(
+                        schema, locale, signature, message,
+                    )
+                })
+        })
+        .flatten()
+        .filter(|(kind, _)| *kind != EcmaSemanticSymbolKind::LocaleEnum)
+        .map(|(kind, name)| semantic::semantic_binding(kind, &name))
+        .collect::<BTreeSet<_>>();
+    let value_names = locale_global_value_names(locale)
+        .into_iter()
+        .filter(|name| required.contains(name))
+        .collect::<Vec<_>>();
     (!value_names.is_empty()).then(|| {
         EcmaImport::named(
             import_path,

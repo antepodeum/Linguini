@@ -146,6 +146,13 @@ Input validation, compact exponents, and explicit plural-category inputs retain 
 The formatter regression corpus is kept in its own backend test module, including generated-code
 execution and checks for omitted helper families.
 
+Namespace modules now import only the global values directly used by their messages; static
+namespaces and re-export-only barrels omit global runtime imports. Rebuild generated files
+together. Public message APIs remain unchanged. Direct semantic dependency planning now lives
+in `linguini-codegen` alongside the transitive closure planner; the ECMAScript symbol-kind name
+remains a compatible re-export. Both planners preserve simultaneous inline-input scope, and
+alias-typed form calls use the resolved runtime form binding instead of an undefined alias binding.
+
 The intermediate APIs and paired-output parity receipts below describe earlier remediation
 stages; this section supersedes their runtime target names and `.ts` output paths.
 

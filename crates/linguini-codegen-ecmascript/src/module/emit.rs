@@ -243,6 +243,7 @@ pub(super) fn emit_type_alias(item: &linguini_ir::IrTypeAlias, output: &mut Stri
 }
 
 pub(super) fn emit_forms(
+    schema: &IrModule,
     module: &IrModule,
     options: &EcmaOptions,
     exported: bool,
@@ -251,7 +252,7 @@ pub(super) fn emit_forms(
     for form in module.forms() {
         emit_docs(&form.docs, "", output);
         let variants = form.variants.iter().map(|variant| minijinja::context! {
-            key => property_key(&variant.name), value => form_object(&variant.entries, options),
+            key => property_key(&variant.name), value => form_object(schema, &variant.entries, options),
         }).collect::<Vec<_>>();
         output.push_str(&crate::templates::render(
             "module/form",
@@ -275,6 +276,7 @@ pub(super) fn emit_variables(
 }
 
 pub(super) fn emit_local_functions(
+    schema: &IrModule,
     module: &IrModule,
     options: &EcmaOptions,
     exported: bool,
@@ -308,10 +310,12 @@ pub(super) fn emit_local_functions(
             .parameters
             .iter()
             .filter_map(|parameter| {
-                parameter
-                    .name
-                    .as_ref()
-                    .map(|name| (name.clone(), parameter.ty.clone()))
+                parameter.name.as_ref().map(|name| {
+                    (
+                        name.clone(),
+                        linguini_codegen::resolve_type_name(schema, &parameter.ty).to_owned(),
+                    )
+                })
             })
             .collect::<BTreeMap<_, _>>();
         let body = function_dispatch_body(
@@ -471,7 +475,12 @@ pub(crate) fn message_body(
     let context = signature
         .parameters
         .iter()
-        .map(|parameter| (parameter.name.clone(), parameter.ty.clone()))
+        .map(|parameter| {
+            (
+                parameter.name.clone(),
+                linguini_codegen::resolve_type_name(schema, &parameter.ty).to_owned(),
+            )
+        })
         .collect::<BTreeMap<_, _>>();
     let default_formatters = parameter_formatters(schema, signature);
     implementation

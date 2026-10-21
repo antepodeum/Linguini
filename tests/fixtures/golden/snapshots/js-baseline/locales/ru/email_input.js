@@ -1,5 +1,3 @@
-import { cart_label, __lgl_form_Fruit, Delivered, SizeAdj, DeliveryNote } from "./_globals.js";
-
 /** @typedef {import("../../shared.js").Fruit} Fruit */
 /** @typedef {import("../../shared.js").Size} Size */
 /** @typedef {import("../../shared.js").Money} Money */

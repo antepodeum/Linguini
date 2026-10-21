@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter,
-    IrFormatterKind, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter, IrText,
-    IrTextPart, IrValue,
+    IrFormatterKind, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter, IrModule,
+    IrText, IrTextPart, IrValue,
 };
 
 use super::names::{
@@ -12,7 +12,11 @@ use super::names::{
 };
 use super::{render_jsdoc_type, EcmaOptions, TypeModel};
 
-pub(super) fn form_object(entries: &[IrFormEntry], options: &EcmaOptions) -> String {
+pub(super) fn form_object(
+    schema: &IrModule,
+    entries: &[IrFormEntry],
+    options: &EcmaOptions,
+) -> String {
     let fields = entries
         .iter()
         .filter_map(|entry| match entry {
@@ -20,7 +24,7 @@ pub(super) fn form_object(entries: &[IrFormEntry], options: &EcmaOptions) -> Str
                 name,
                 parameters,
                 value,
-            } => Some(minijinja::context! { key => property_key(name), value => attribute_expression(value, parameters, options) }),
+            } => Some(minijinja::context! { key => property_key(name), value => attribute_expression(schema, value, parameters, options) }),
             IrFormEntry::Branch(_) => None,
         })
         .collect::<Vec<_>>();
@@ -34,6 +38,7 @@ pub(super) fn form_object(entries: &[IrFormEntry], options: &EcmaOptions) -> Str
 
     let dispatcher = (!branches.is_empty()).then(|| {
         map_expression(
+            schema,
             &branches,
             &[IrFunctionParameter {
                 name: None,
@@ -49,6 +54,7 @@ pub(super) fn form_object(entries: &[IrFormEntry], options: &EcmaOptions) -> Str
 }
 
 fn attribute_expression(
+    schema: &IrModule,
     value: &IrValue,
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
@@ -73,22 +79,24 @@ fn attribute_expression(
             );
         }
     }
-    value_expression_with_parameters(value, parameters, options)
+    value_expression_with_parameters(schema, value, parameters, options)
 }
 
 fn value_expression_with_parameters(
+    schema: &IrModule,
     value: &IrValue,
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
 ) -> String {
     match value {
         IrValue::Text(text) => text_expression(text, options),
-        IrValue::Map(branches) => map_expression(branches, parameters, options),
-        IrValue::Object(entries) => form_object(entries, options),
+        IrValue::Map(branches) => map_expression(schema, branches, parameters, options),
+        IrValue::Object(entries) => form_object(schema, entries, options),
     }
 }
 
 pub fn map_expression(
+    schema: &IrModule,
     branches: &[IrBranch],
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
@@ -96,10 +104,12 @@ pub fn map_expression(
     let context = parameters
         .iter()
         .filter_map(|parameter| {
-            parameter
-                .name
-                .as_ref()
-                .map(|name| (name.clone(), parameter.ty.clone()))
+            parameter.name.as_ref().map(|name| {
+                (
+                    name.clone(),
+                    linguini_codegen::resolve_type_name(schema, &parameter.ty).to_owned(),
+                )
+            })
         })
         .collect::<BTreeMap<_, _>>();
     let dispatch = parameters
@@ -513,7 +523,11 @@ mod tests {
         );
         let entries = &locale.forms()[0].variants[0].entries;
 
-        let emitted = form_object(entries, &EcmaOptions::default());
+        let emitted = form_object(
+            &linguini_ir::IrModule::default(),
+            entries,
+            &EcmaOptions::default(),
+        );
 
         assert!(emitted.contains("label: /** @type {(gender: Gender) => string} */ ((gender) => {"));
         assert!(emitted.contains("if (String(gender) === \"male\") return \"He\";"));

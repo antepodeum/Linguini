@@ -210,15 +210,11 @@ impl<'a> ClosureWalker<'a> {
     }
 
     fn message_context(&self, message: &linguini_ir::IrMessage) -> BTreeMap<String, String> {
-        let mut context = self
-            .variables
-            .keys()
-            .map(|name| ((*name).to_owned(), "String".to_owned()))
-            .collect::<BTreeMap<_, _>>();
-        for parameter in &message.parameters {
-            context.insert(parameter.name.clone(), parameter.ty.clone());
-        }
-        context
+        message
+            .parameters
+            .iter()
+            .map(|parameter| (parameter.name.clone(), parameter.ty.clone()))
+            .collect()
     }
 
     fn visit_type(&mut self, ty: &str) {
@@ -258,12 +254,11 @@ impl<'a> ClosureWalker<'a> {
                 for input in inputs {
                     match input {
                         IrInlineFunctionInput::Binding { name, value, .. } => {
-                            self.visit_expression(value, &branch_context);
-                            branch_context
-                                .insert(name.clone(), inferred_type(value, &branch_context));
+                            self.visit_expression(value, context);
+                            branch_context.insert(name.clone(), inferred_type(value, context));
                         }
                         IrInlineFunctionInput::Selector { value, .. } => {
-                            self.visit_expression(value, &branch_context);
+                            self.visit_expression(value, context);
                         }
                     }
                 }
@@ -280,21 +275,19 @@ impl<'a> ClosureWalker<'a> {
         if path.is_empty() {
             return;
         }
-        let full = path.join(".");
-        if self.functions.contains_key(full.as_str()) {
-            self.visit_function(full.as_str());
-            return;
-        }
-        if self.forms.contains_key(full.as_str()) {
-            self.visit_form(full.as_str());
-            return;
-        }
         if let Some(root_type) = context.get(&path[0]) {
             if path.len() > 1 || called {
                 self.visit_form(root_type);
-            } else if self.variables.contains_key(path[0].as_str()) {
-                self.visit_variable(path[0].as_str());
             }
+            return;
+        }
+        let full = path.join(".");
+        if self.functions.contains_key(full.as_str()) {
+            self.visit_function(full.as_str());
+        } else if self.forms.contains_key(full.as_str()) {
+            self.visit_form(full.as_str());
+        } else if !called && self.variables.contains_key(full.as_str()) {
+            self.visit_variable(full.as_str());
         }
     }
 
@@ -307,11 +300,7 @@ impl<'a> ClosureWalker<'a> {
         if !self.visiting_variables.insert(name.to_owned()) {
             return;
         }
-        let context = self
-            .variables
-            .keys()
-            .map(|item| ((*item).to_owned(), "String".to_owned()))
-            .collect::<BTreeMap<_, _>>();
+        let context = BTreeMap::new();
         self.visit_text(&variable.value, &context);
         self.visiting_variables.remove(name);
     }
@@ -325,11 +314,7 @@ impl<'a> ClosureWalker<'a> {
         if !self.visiting_functions.insert(name.to_owned()) {
             return;
         }
-        let mut context = self
-            .variables
-            .keys()
-            .map(|item| ((*item).to_owned(), "String".to_owned()))
-            .collect::<BTreeMap<_, _>>();
+        let mut context = BTreeMap::new();
         for parameter in &function.parameters {
             self.visit_type(&parameter.ty);
             if let Some(name) = &parameter.name {
@@ -367,11 +352,7 @@ impl<'a> ClosureWalker<'a> {
         if !self.visiting_forms.insert(form.name.clone()) {
             return;
         }
-        let context = self
-            .variables
-            .keys()
-            .map(|item| ((*item).to_owned(), "String".to_owned()))
-            .collect::<BTreeMap<_, _>>();
+        let context = BTreeMap::new();
         for variant in &form.variants {
             self.visit_form_entries(&variant.entries, &context);
         }

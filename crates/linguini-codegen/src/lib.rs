@@ -4,6 +4,7 @@
 
 mod decision;
 mod dependencies;
+mod direct_dependencies;
 mod formatters;
 mod inline;
 mod paths;
@@ -16,10 +17,13 @@ pub use decision::{Decision, DecisionArm};
 pub use dependencies::{
     message_dependency_closure, MessageDependencyClosure, MessageDependencyError,
 };
+pub use direct_dependencies::{
+    direct_message_dependencies, direct_symbol_dependencies, SemanticSymbolKind,
+};
 pub use requirements::{
     formatter_requirements, module_uses_inline_functions, plural_required, FormatterRequirements,
 };
-pub use types::TypeModel;
+pub use types::{resolve_type_name, TypeModel};
 
 pub use formatters::{
     default_type_formatters, formatter_requests, parameter_formatters, FormatterRequest,

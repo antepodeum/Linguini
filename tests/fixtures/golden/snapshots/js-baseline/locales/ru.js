@@ -1,7 +1,7 @@
 import { email_input } from "./ru/email_input.js";
 import { normalizeMessageArgs } from "../shared.js";
 import { formatCurrency_code_RUB, formatDate_style_short, formatNumber } from "./ru/_runtime.js";
-import { cart_label, __lgl_form_Fruit, Delivered, SizeAdj, DeliveryNote } from "./ru/_globals.js";
+import { cart_label, __lgl_form_Fruit, Delivered, SizeAdj } from "./ru/_globals.js";
 
 /** @typedef {import("../shared.js").Fruit} Fruit */
 /** @typedef {import("../shared.js").Size} Size */

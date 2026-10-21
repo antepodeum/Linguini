@@ -1,5 +1,22 @@
 use linguini_core::TypeKind;
 
+/// Resolve an alias chain before selecting runtime form or primitive operations.
+/// Semantic validation rejects cycles; the bound also makes this safe on raw IR.
+pub fn resolve_type_name<'a>(schema: &'a linguini_ir::IrModule, name: &'a str) -> &'a str {
+    let mut current = name;
+    for _ in 0..schema.type_aliases().len() {
+        let Some(alias) = schema
+            .type_aliases()
+            .iter()
+            .find(|alias| alias.name == current)
+        else {
+            break;
+        };
+        current = &alias.target;
+    }
+    current
+}
+
 /// Backend-neutral public value types accepted by generated localization APIs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeModel {

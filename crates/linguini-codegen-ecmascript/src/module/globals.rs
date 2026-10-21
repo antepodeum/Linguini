@@ -129,8 +129,8 @@ pub(super) fn locale_globals_module(
         emit_locale_enum_jsdoc_types(&globals_schema, &globals, &mut body);
     }
     emit_variables(&globals, options, false, &mut body);
-    emit_forms(&globals, options, false, &mut body);
-    emit_local_functions(&globals, options, false, &mut body);
+    emit_forms(schema, &globals, options, false, &mut body);
+    emit_local_functions(schema, &globals, options, false, &mut body);
 
     let value_names = locale_global_value_names(&globals);
     if !value_names.is_empty() {

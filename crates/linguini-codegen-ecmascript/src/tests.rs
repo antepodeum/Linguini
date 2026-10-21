@@ -826,13 +826,16 @@ plain = Raw {price @number}
 
 #[test]
 fn project_namespace_modules_share_the_locale_runtime() {
-    let schema = lower_schema(&parse_schema("account { total(value: Number) }\n").expect("schema"));
+    let schema = lower_schema(
+        &parse_schema("account { total(value: Number) }\nstatus { ready }\n").expect("schema"),
+    );
     let locale = lower_locale(
         &parse_locale(
             "let prefix = Total\n\
              form Amount(Plural) { one => item\n_ => items }\n\
              fn Render(value: String) { _ => {value} }\n\
-             account { total = {prefix} {Render(Amount(value))}: {value @number} }\n",
+             account { total = {prefix} {Render(Amount(value))}: {value @number} }\n\
+             status { ready = Ready }\n",
         )
         .expect("locale"),
     );
@@ -866,8 +869,14 @@ fn project_namespace_modules_share_the_locale_runtime() {
         .find(|file| file.path == "locales/en.js")
         .expect("locale barrel");
     assert!(!barrel.contents.contains("formatNumber"));
-    assert!(barrel.contents.contains("from \"./en/_globals.js\";"));
+    assert!(!barrel.contents.contains("_globals.js"));
     assert!(!barrel.contents.contains("const prefix ="));
+    let static_namespace = files
+        .iter()
+        .find(|file| file.path == "locales/en/status.js")
+        .expect("static namespace");
+    assert!(!static_namespace.contents.contains("_globals.js"));
+    assert!(!static_namespace.contents.contains("_runtime.js"));
     let runtime = files
         .iter()
         .find(|file| file.path == "locales/en/_runtime.js")
@@ -889,6 +898,109 @@ fn project_namespace_modules_share_the_locale_runtime() {
     assert!(globals
         .contents
         .contains("export { prefix, Amount, Render };"));
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"const { account, status } = await import('./locales/en.js'); console.log(JSON.stringify([account.total(1), account.total({value: 2}), status.ready]));"#
+        ),
+        r#"["Total item: 1","Total items: 2","Ready"]"#
+    );
+}
+
+#[test]
+fn project_global_imports_follow_direct_edges_and_lexical_scope() {
+    let schema_text = concat!(
+        "enum Fruit { apple }\ntype Item = Fruit\n",
+        "shop { fruit(item: Item, other: String, count: Number) }\n",
+    );
+    let locale_text = concat!(
+        "let unused = Unused global\nlet base = Fresh\nlet leaf = {base}\n",
+        "fn Render(value: String) { _ => {leaf} {value} }\n",
+        "impl Fruit { apple { form nom(Plural) {\n one => apple\n _ => apples\n} } }\n",
+        "shop { fruit = {Render(fn(item: other, next: item) { _ => {next.nom(count)} })} }\n",
+    );
+    let schema_id = linguini_syntax::SourceId(11);
+    let locale_id = linguini_syntax::SourceId(12);
+    let schema = lower_schema(&linguini_syntax::parse_schema_in(schema_text, schema_id).unwrap());
+    let locale = lower_locale(&linguini_syntax::parse_locale_in(locale_text, locale_id).unwrap());
+    let options = project_options("en");
+    let locales = [
+        EcmaLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        },
+        EcmaLocaleModule {
+            locale: "en-US".to_owned(),
+            module: Default::default(),
+        },
+    ];
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).unwrap();
+    let mut files = crate::generate_project_files(&project).unwrap();
+    let namespace = files
+        .iter()
+        .find(|file| file.path == "locales/en/shop.js")
+        .unwrap();
+    assert!(namespace
+        .contents
+        .contains("import { Render, fruit_inline } from \"./_globals.js\";"));
+    assert!(!namespace.contents.contains("unused"));
+    let closure = project
+        .message_dependency_closure("en", "shop.fruit")
+        .unwrap();
+    assert_eq!(
+        closure
+            .locale_module()
+            .variables()
+            .iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>(),
+        ["base", "leaf"]
+    );
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"const { shop } = await import('./locales/en.js'); const regional = await import('./locales/en-US.js'); console.log(JSON.stringify([shop.fruit('apple', 'ignored', 1), shop.fruit({item: 'apple', other: 'ignored', count: 2}), regional.shop.fruit('apple', 'ignored', 2)]));"#,
+        ),
+        r#"["Fresh apple","Fresh apples","Fresh apples"]"#
+    );
+    let sources = [
+        crate::EcmaSource::new(schema_id, "schema.lgs", schema_text),
+        crate::EcmaSource::new(locale_id, "en.lgl", locale_text),
+    ];
+    for artifact in project.semantic_artifacts().unwrap() {
+        assert_ne!(artifact.name, "unused");
+        let compiled =
+            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    let artifact = project.message_artifacts().unwrap().remove(0);
+    assert_eq!(
+        artifact
+            .semantic_imports
+            .iter()
+            .map(|import| import.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Render", "fruit_inline"]
+    );
+    let compiled =
+        crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+    files.push(EcmaGeneratedFile {
+        path: artifact.module_path.clone(),
+        contents: compiled.code,
+    });
+    assert_eq!(
+        execute_project(
+            &files,
+            &format!(
+                "const {{ message: fruit }} = await import('./{}'); console.log(JSON.stringify([fruit('apple', 'ignored', 1), fruit({{item: 'apple', other: 'ignored', count: 2}})]));",
+                artifact.module_path
+            ),
+        ),
+        r#"["Fresh apple","Fresh apples"]"#
+    );
 }
 
 #[test]

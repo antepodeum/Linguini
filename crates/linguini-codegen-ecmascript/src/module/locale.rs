@@ -182,6 +182,8 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
     }
     if let Some(global_import_path) = request.global_import_path {
         if let Some(global_import) = locale_global_import(
+            request.schema,
+            request.locale,
             request.import_locale,
             &import_path_for_target(global_import_path, target),
         ) {
@@ -201,8 +203,20 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
         ));
     }
     emit_variables(request.locale, request.options, false, &mut body);
-    emit_forms(request.locale, request.options, false, &mut body);
-    emit_local_functions(request.locale, request.options, false, &mut body);
+    emit_forms(
+        request.schema,
+        request.locale,
+        request.options,
+        false,
+        &mut body,
+    );
+    emit_local_functions(
+        request.schema,
+        request.locale,
+        request.options,
+        false,
+        &mut body,
+    );
     let exports = emit_messages(request.schema, request.locale, request.options, &mut body);
     emit_locale_default(&exports, request.namespaces, &mut body);
     if let Some(namespace_alias) = request.namespace_alias {

@@ -3,9 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use linguini_ir::{
-    is_plural_intrinsic, IrExpression, IrExpressionKind, IrFormEntry, IrFunctionBranch,
-    IrFunctionBranchValue, IrFunctionParameter, IrInlineFunctionInput, IrModule, IrModuleBuilder,
-    IrSymbolKind, IrText, IrTextPart, IrValue,
+    IrExpression, IrExpressionKind, IrFormEntry, IrFunctionBranch, IrFunctionBranchValue,
+    IrInlineFunctionInput, IrModule, IrModuleBuilder, IrSymbolKind, IrText, IrTextPart, IrValue,
 };
 use linguini_syntax::{SourceId, Span};
 
@@ -22,34 +21,9 @@ use super::{project_locale_options, EcmaCodegenError, EcmaModuleKind, ValidatedE
 const MAX_PORTABLE_PATH_BYTES: usize = 240;
 const MAX_ENCODED_NAME_BYTES: usize = 96;
 
-/// Stable semantic symbol class. Ordering is part of artifact determinism.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum EcmaSemanticSymbolKind {
-    LocaleEnum,
-    LocaleVariable,
-    LocaleForm,
-    LocaleFunction,
-}
-
-impl EcmaSemanticSymbolKind {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::LocaleEnum => "enum",
-            Self::LocaleVariable => "variable",
-            Self::LocaleForm => "form",
-            Self::LocaleFunction => "function",
-        }
-    }
-
-    fn ir_kind(self) -> IrSymbolKind {
-        match self {
-            Self::LocaleEnum => IrSymbolKind::Enum,
-            Self::LocaleVariable => IrSymbolKind::Variable,
-            Self::LocaleForm => IrSymbolKind::Form,
-            Self::LocaleFunction => IrSymbolKind::Function,
-        }
-    }
-}
+use linguini_codegen::direct_symbol_dependencies as direct_dependencies;
+/// Stable semantic symbol class shared with other code-generation backends.
+pub use linguini_codegen::SemanticSymbolKind as EcmaSemanticSymbolKind;
 
 /// Exact direct semantic ESM edge.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -271,10 +245,10 @@ fn compile_bundler_semantic_module_impl(
             emit_variables(&one, &options, true, &mut output);
         }
         EcmaSemanticSymbolKind::LocaleForm => {
-            emit_forms(&one, &options, true, &mut output);
+            emit_forms(project.schema, &one, &options, true, &mut output);
         }
         EcmaSemanticSymbolKind::LocaleFunction => {
-            emit_local_functions(&one, &options, true, &mut output);
+            emit_local_functions(project.schema, &one, &options, true, &mut output);
         }
     }
 
@@ -413,39 +387,31 @@ pub(super) fn message_imports_with_artifacts(
             locale: locale.to_owned(),
             message: message.to_owned(),
         })?;
-    let mut collector = ReferenceCollector::new(project.schema, locale_module);
-    let context = signature
-        .parameters
-        .iter()
-        .map(|p| (p.name.clone(), p.ty.clone()))
-        .collect();
-    for parameter in &signature.parameters {
-        collector.record_type(&parameter.ty);
-    }
-    if let Some(body) = &implementation.body {
-        collector.text(body, &context);
-    }
-    Ok(collector
-        .dependencies
-        .into_iter()
-        .filter_map(|(kind, name)| {
-            artifacts
-                .iter()
-                .find(|item| item.locale == locale && item.kind == kind && item.name == name)
-                .map(|item| EcmaSemanticImport {
-                    kind,
-                    name,
-                    binding: item.binding.clone(),
-                    module_path: item.module_path.clone(),
-                    import_path: import_path(item),
-                    source_ids: item.source_ids.clone(),
-                    type_only: kind == EcmaSemanticSymbolKind::LocaleEnum,
-                })
-        })
-        .collect())
+    Ok(linguini_codegen::direct_message_dependencies(
+        project.schema,
+        locale_module,
+        signature,
+        implementation,
+    )
+    .into_iter()
+    .filter_map(|(kind, name)| {
+        artifacts
+            .iter()
+            .find(|item| item.locale == locale && item.kind == kind && item.name == name)
+            .map(|item| EcmaSemanticImport {
+                kind,
+                name,
+                binding: item.binding.clone(),
+                module_path: item.module_path.clone(),
+                import_path: import_path(item),
+                source_ids: item.source_ids.clone(),
+                type_only: kind == EcmaSemanticSymbolKind::LocaleEnum,
+            })
+    })
+    .collect())
 }
 
-fn semantic_binding(kind: EcmaSemanticSymbolKind, name: &str) -> String {
+pub(super) fn semantic_binding(kind: EcmaSemanticSymbolKind, name: &str) -> String {
     match kind {
         EcmaSemanticSymbolKind::LocaleForm => form_binding_name(name),
         _ => safe_identifier(name),
@@ -760,212 +726,6 @@ fn collect_form_types(schema: &IrModule, entries: &[IrFormEntry], names: &mut BT
                 collect_form_types(schema, children, names);
             }
         }
-    }
-}
-
-fn direct_dependencies(
-    schema: &IrModule,
-    locale: &IrModule,
-    kind: EcmaSemanticSymbolKind,
-    name: &str,
-) -> BTreeSet<(EcmaSemanticSymbolKind, String)> {
-    let mut collector = ReferenceCollector::new(schema, locale);
-    match kind {
-        EcmaSemanticSymbolKind::LocaleEnum => {}
-        EcmaSemanticSymbolKind::LocaleVariable => {
-            if let Some(item) = locale.variables().iter().find(|item| item.name == name) {
-                collector.text(&item.value, &BTreeMap::new());
-            }
-        }
-        EcmaSemanticSymbolKind::LocaleForm => {
-            if let Some(item) = locale.forms().iter().find(|item| item.name == name) {
-                for variant in &item.variants {
-                    collector.form_entries(&variant.entries, &BTreeMap::new());
-                }
-            }
-        }
-        EcmaSemanticSymbolKind::LocaleFunction => {
-            if let Some(item) = locale.functions().iter().find(|item| item.name == name) {
-                for parameter in &item.parameters {
-                    collector.record_type(&parameter.ty);
-                }
-                let context = parameter_context(&item.parameters);
-                for branch in &item.branches {
-                    collector.function_branch(branch, &context);
-                }
-            }
-        }
-    }
-    collector.dependencies.remove(&(kind, name.to_owned()));
-    collector.dependencies
-}
-
-fn parameter_context(parameters: &[IrFunctionParameter]) -> BTreeMap<String, String> {
-    parameters
-        .iter()
-        .filter_map(|parameter| {
-            parameter
-                .name
-                .as_ref()
-                .map(|name| (name.clone(), parameter.ty.clone()))
-        })
-        .collect()
-}
-
-struct ReferenceCollector<'a> {
-    schema: &'a IrModule,
-    locale: &'a IrModule,
-    dependencies: BTreeSet<(EcmaSemanticSymbolKind, String)>,
-}
-impl<'a> ReferenceCollector<'a> {
-    fn new(schema: &'a IrModule, locale: &'a IrModule) -> Self {
-        Self {
-            schema,
-            locale,
-            dependencies: BTreeSet::new(),
-        }
-    }
-    fn record_type(&mut self, ty: &str) {
-        let resolved = self.resolve_type(ty);
-        if self.locale.enums().iter().any(|item| item.name == resolved) {
-            self.dependencies
-                .insert((EcmaSemanticSymbolKind::LocaleEnum, resolved));
-        }
-    }
-    fn text(&mut self, text: &IrText, context: &BTreeMap<String, String>) {
-        for part in &text.parts {
-            if let IrTextPart::Placeholder(expr) = part {
-                self.expression(expr, context);
-            }
-        }
-    }
-    fn expression(&mut self, expr: &IrExpression, context: &BTreeMap<String, String>) {
-        for arg in &expr.arguments {
-            self.expression(arg, context);
-        }
-        if let IrExpressionKind::InlineFunction { inputs, branches } = &expr.kind {
-            let mut inner = context.clone();
-            for input in inputs {
-                match input {
-                    IrInlineFunctionInput::Binding { name, value, .. } => {
-                        self.expression(value, &inner);
-                        inner.insert(name.clone(), inferred_expression_type(value, &inner));
-                    }
-                    IrInlineFunctionInput::Selector { value, .. } => self.expression(value, &inner),
-                }
-            }
-            for branch in branches {
-                self.function_branch(branch, &inner);
-            }
-            return;
-        }
-        if expr.path.is_empty() {
-            return;
-        }
-        let full = expr.path.join(".");
-        if self.locale.functions().iter().any(|item| item.name == full) {
-            self.dependencies
-                .insert((EcmaSemanticSymbolKind::LocaleFunction, full));
-            return;
-        }
-        if self.locale.forms().iter().any(|item| item.name == full) {
-            self.dependencies
-                .insert((EcmaSemanticSymbolKind::LocaleForm, full));
-            return;
-        }
-        if let Some(ty) = context.get(&expr.path[0]) {
-            if expr.path.len() > 1 || expr.kind == IrExpressionKind::Call {
-                let resolved = self.resolve_type(ty);
-                if self.locale.forms().iter().any(|item| item.name == resolved) {
-                    self.dependencies
-                        .insert((EcmaSemanticSymbolKind::LocaleForm, resolved));
-                }
-            }
-        }
-        if expr.kind == IrExpressionKind::Reference
-            && expr.path.len() == 1
-            && self
-                .locale
-                .variables()
-                .iter()
-                .any(|item| item.name == expr.path[0])
-        {
-            self.dependencies
-                .insert((EcmaSemanticSymbolKind::LocaleVariable, expr.path[0].clone()));
-        }
-    }
-    fn resolve_type(&self, ty: &str) -> String {
-        let mut current = ty.to_owned();
-        let mut seen = BTreeSet::new();
-        while seen.insert(current.clone()) {
-            if let Some(alias) = self
-                .schema
-                .type_aliases()
-                .iter()
-                .find(|item| item.name == current)
-            {
-                current = alias.target.clone();
-            } else {
-                break;
-            }
-        }
-        current
-    }
-    fn function_branch(&mut self, branch: &IrFunctionBranch, context: &BTreeMap<String, String>) {
-        match &branch.value {
-            IrFunctionBranchValue::Text(text) => self.text(text, context),
-            IrFunctionBranchValue::Dispatch(items) => {
-                for item in items {
-                    self.function_branch(item, context);
-                }
-            }
-        }
-    }
-    fn form_entries(&mut self, entries: &[IrFormEntry], inherited: &BTreeMap<String, String>) {
-        for entry in entries {
-            match entry {
-                IrFormEntry::Attribute {
-                    parameters, value, ..
-                } => {
-                    for parameter in parameters {
-                        self.record_type(&parameter.ty);
-                    }
-                    let mut context = inherited.clone();
-                    context.extend(parameter_context(parameters));
-                    self.value(value, &context);
-                }
-                IrFormEntry::Branch(branch) => self.text(&branch.value, inherited),
-            }
-        }
-    }
-    fn value(&mut self, value: &IrValue, context: &BTreeMap<String, String>) {
-        match value {
-            IrValue::Text(text) => self.text(text, context),
-            IrValue::Map(branches) => {
-                for branch in branches {
-                    self.text(&branch.value, context)
-                }
-            }
-            IrValue::Object(entries) => self.form_entries(entries, context),
-        }
-    }
-}
-
-fn inferred_expression_type(
-    expression: &IrExpression,
-    context: &BTreeMap<String, String>,
-) -> String {
-    match &expression.kind {
-        IrExpressionKind::Reference if expression.path.len() == 1 => context
-            .get(&expression.path[0])
-            .cloned()
-            .unwrap_or_else(|| "String".to_owned()),
-        IrExpressionKind::Call
-            if expression.path.len() == 1 && is_plural_intrinsic(&expression.path[0]) =>
-        {
-            "Plural".to_owned()
-        }
-        _ => "String".to_owned(),
     }
 }
 

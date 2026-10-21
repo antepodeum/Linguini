@@ -1104,6 +1104,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Fraction-digit counts avoid constructing fractional strings or bigints; Russian fractions
       return before bigint construction, verified by executing with bigint construction disabled.
       Executed corpora cover 24 locales, fractional operators, compact exponents, and invalid inputs.
+      Namespace/barrel global imports now follow shared direct semantic edges; static namespaces
+      and re-export-only barrels omit them. Project and physical-leaf execution covers captured
+      globals, alias-typed callable forms, simultaneous inline-input scope, named/positional calls,
+      and sparse regional fallback. Transitive dependency selection remains a separate shared plan.
       Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page

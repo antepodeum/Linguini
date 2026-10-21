@@ -9,7 +9,7 @@ and executable examples so public contract drift requires an explicit reviewed u
 
 `linguini-codegen` owns backend-independent type models, formatter and plural requirement
 analysis, exact formatter requests, closure-free inline-function lowering, static decision trees,
-and transitive message dependency selection with source provenance. Other code
+and direct/transitive message dependency selection with source provenance. Other code
 generators can consume these semantic plans without depending on an output language.
 
 Framework integrations have separate native owners. `linguini-codegen-svelte` generates Svelte
@@ -88,6 +88,12 @@ paths and ordered fallback-composed source identities. Compile with
 `compile_locale_artifact_module` to keep
 message values/callables, positional and named calls, recursive namespace exports, runtime/global
 imports, defaults, and source maps consistent across direct and bundler emission.
+Namespace modules import only the global values directly referenced by their messages.
+Re-export-only barrels and static namespaces omit global runtime imports. The shared
+`direct_message_dependencies` and `direct_symbol_dependencies` planners distinguish direct
+edges from transitive dependencies, follow aliases, and preserve simultaneous inline-input
+scope. Alias-typed form references use the resolved form's runtime binding while declarations
+retain the source alias.
 
 Project entry integrations enumerate `project_artifacts` on a validated project. The locale
 metadata artifact precedes the public index artifact. Compile either with
