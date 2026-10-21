@@ -67,7 +67,13 @@ functions form lexical closures over surrounding parameters and bindings.
 
 Inline text ends at its structural line boundary. `"""..."""` is a dedented semantic block;
 `raw"""..."""` preserves content bytes. `{{` emits a literal opening brace. Quoted fragments can
-contain structural delimiters as text.
+contain structural delimiters as text. The first non-whitespace characters after `=` or `=>`
+select the mode: an unquoted start keeps later quotes and backslashes literal until the line or
+structural boundary. A quoted start enables decoded string fragments with the escapes listed in
+the reference; placeholders are outside those fragments. Multiline blocks retain literal
+backslashes and single/double quotes, interpolate placeholders, and close at the next triple
+quote. Dedented blocks normalize line endings and remove structural edge lines/common indentation;
+raw blocks preserve whitespace and line endings.
 
 ## Names and resolution
 

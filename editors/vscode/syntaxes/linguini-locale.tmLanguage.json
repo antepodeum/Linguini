@@ -66,7 +66,7 @@
               "name": "punctuation.definition.string.begin.linguini.locale"
             }
           },
-          "end": "\"",
+          "end": "\"|(?=$)",
           "endCaptures": {
             "0": {
               "name": "punctuation.definition.string.end.linguini.locale"
@@ -75,7 +75,7 @@
           "patterns": [
             {
               "name": "constant.character.escape.linguini.locale",
-              "match": "\\\\(?:[\"\\\\nrt]|u\\{[0-9A-Fa-f]+\\})"
+              "match": "\\\\(?:[\"\\\\nrt0]|u\\{[0-9A-Fa-f]{1,6}\\})"
             }
           ]
         }
@@ -182,15 +182,21 @@
     "valueLines": {
       "patterns": [
         {
+          "include": "#blockValues"
+        },
+        {
           "name": "meta.value.linguini.locale",
-          "begin": "=>|=",
+          "begin": "(?:=>|=)[^\\S\\r\\n]*(?=\")",
           "beginCaptures": {
             "0": {
               "name": "keyword.operator.assignment.linguini.locale"
             }
           },
-          "end": "$",
+          "end": "(?=\\}(?!\\}))|$",
           "patterns": [
+            {
+              "include": "#literalBraces"
+            },
             {
               "include": "#inlineFunctions"
             },
@@ -198,10 +204,32 @@
               "include": "#placeholders"
             },
             {
-              "include": "#formatters"
+              "include": "#strings"
             },
             {
-              "include": "#strings"
+              "name": "string.unquoted.raw-text.linguini.locale",
+              "match": "[^\\n{}\"]+"
+            }
+          ]
+        },
+        {
+          "name": "meta.value.linguini.locale",
+          "begin": "(?:=>|=)",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.operator.assignment.linguini.locale"
+            }
+          },
+          "end": "(?=\\}(?!\\}))|$",
+          "patterns": [
+            {
+              "include": "#literalBraces"
+            },
+            {
+              "include": "#inlineFunctions"
+            },
+            {
+              "include": "#placeholders"
             },
             {
               "name": "string.unquoted.raw-text.linguini.locale",
@@ -329,8 +357,11 @@
     "inlineBranchValues": {
       "patterns": [
         {
+          "include": "#blockValues"
+        },
+        {
           "name": "meta.function.inline.branch-value.linguini.locale",
-          "begin": "=>",
+          "begin": "(?:=>)[^\\S\\r\\n]*(?=\")",
           "beginCaptures": {
             "0": {
               "name": "keyword.operator.arrow.linguini.locale"
@@ -338,6 +369,9 @@
           },
           "end": "(?=\\})|$",
           "patterns": [
+            {
+              "include": "#literalBraces"
+            },
             {
               "include": "#inlineFunctions"
             },
@@ -350,6 +384,31 @@
             {
               "name": "string.unquoted.raw-text.linguini.locale",
               "match": "[^\\n{}\"]+"
+            }
+          ]
+        },
+        {
+          "name": "meta.function.inline.branch-value.linguini.locale",
+          "begin": "(?:=>)",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.operator.arrow.linguini.locale"
+            }
+          },
+          "end": "(?=\\})|$",
+          "patterns": [
+            {
+              "include": "#literalBraces"
+            },
+            {
+              "include": "#inlineFunctions"
+            },
+            {
+              "include": "#placeholders"
+            },
+            {
+              "name": "string.unquoted.raw-text.linguini.locale",
+              "match": "[^\\n{}]+"
             }
           ]
         }
@@ -510,6 +569,55 @@
         {
           "name": "variable.other.member.linguini.locale",
           "match": "\\b[a-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "literalBraces": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.linguini.locale",
+          "match": "\\{\\{|\\}\\}"
+        }
+      ]
+    },
+    "blockValues": {
+      "patterns": [
+        {
+          "name": "meta.value.multiline.linguini.locale",
+          "contentName": "string.quoted.multi.linguini.locale",
+          "begin": "(=>|=)[^\\S\\r\\n]*(raw)?(\"\"\")",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.operator.assignment.linguini.locale"
+            },
+            "2": {
+              "name": "storage.modifier.raw.linguini.locale"
+            },
+            "3": {
+              "name": "punctuation.definition.string.begin.linguini.locale"
+            }
+          },
+          "end": "\"\"\"",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.linguini.locale"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#literalBraces"
+            },
+            {
+              "include": "#inlineFunctions"
+            },
+            {
+              "include": "#placeholders"
+            },
+            {
+              "name": "string.unquoted.raw-text.linguini.locale",
+              "match": "[^{}\"\\r\\n]+|\"(?!\"\")|\"\"(?!\")"
+            }
+          ]
         }
       ]
     }

@@ -1233,6 +1233,11 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
   matrices cover empty, one-line, quote-rich, interpolated, CRLF, Unicode, indentation, internal
   blank, and trailing-space cases; codegen now asserts exact dedented and byte-preserving raw
   expressions from parsed semantic IR.
+- [x] TEXT-A11 — Keep quotes literal after an unquoted value start, including unmatched quotes
+  and text after placeholders; preserve explicit quoted escapes and both multiline modes.
+  The failure was reproduced and the lexer now tracks the selected text mode. Parser, formatter,
+  generated execution, editor scopes, and documentation syntax checks pass; the full Rust
+  workspace passes, and regenerating the real site retains its prior archive hash.
 
 ### Arbitrarily nested message groups
 

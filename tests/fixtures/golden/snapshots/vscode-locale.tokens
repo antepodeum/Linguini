@@ -300,3 +300,43 @@ Newline @ 715..716
 RBrace @ 716..717
 RBrace @ 717..718
 Newline @ 718..719
+Newline @ 719..720
+Ident("quote_text") @ 720..730
+Whitespace @ 730..731
+Equals @ 731..732
+RawText(" He said \"hello\" and measured 6\"") @ 732..764
+Newline @ 764..765
+Ident("quoted_text") @ 765..776
+Whitespace @ 776..777
+Equals @ 777..778
+RawText(" ") @ 778..779
+String("\"hello\"\n\t🍎\0") @ 779..805
+Newline @ 805..806
+Ident("block_text") @ 806..816
+Whitespace @ 816..817
+Equals @ 817..818
+TripleQuote @ 818..822
+RawText("\n") @ 822..823
+RawText("  Hello \"friend\", ") @ 823..841
+LBrace @ 841..842
+Ident("name") @ 842..846
+RBrace @ 846..847
+RawText(".") @ 847..848
+RawText("\n") @ 848..849
+RawText("    C:\\new\\test") @ 849..864
+RawText("\n") @ 864..865
+TripleQuote @ 865..868
+Newline @ 868..869
+Ident("wire_text") @ 869..878
+Whitespace @ 878..879
+Equals @ 879..880
+RawTripleQuote @ 880..887
+RawText("  \"hello\"") @ 887..896
+RawText("\n") @ 896..897
+RawText("  ") @ 897..899
+LBrace @ 899..900
+Ident("product_name") @ 900..912
+RBrace @ 912..913
+RawText("  ") @ 913..915
+RawTripleQuote @ 915..918
+Newline @ 918..919

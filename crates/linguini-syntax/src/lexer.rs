@@ -35,10 +35,17 @@ impl LexError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Code,
-    SingleLineText,
+    SingleLineText(TextStyle),
     Multiline(MultilineTextMode),
     Expression(ExpressionMode),
     InlineBranchText(InlineBranchTextMode),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TextStyle {
+    Start,
+    Unquoted,
+    Quoted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,6 +73,7 @@ struct ExpressionMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct InlineBranchTextMode {
+    style: TextStyle,
     expression: ExpressionMode,
     body_depth: usize,
 }
@@ -171,7 +179,7 @@ impl<'src> Lexer<'src> {
         while self.offset < self.source.len() {
             let result = match self.mode {
                 Mode::Code => self.next_code(),
-                Mode::SingleLineText => self.next_single_line_text(),
+                Mode::SingleLineText(style) => self.next_single_line_text(style),
                 Mode::Multiline(mode) => self.next_multiline_text(mode),
                 Mode::Expression(mode) => self.next_expression(mode),
                 Mode::InlineBranchText(mode) => self.next_inline_branch_text(mode),
@@ -185,7 +193,7 @@ impl<'src> Lexer<'src> {
 
         let eof = self.span(self.offset, self.offset);
         match self.mode {
-            Mode::Code | Mode::SingleLineText => {}
+            Mode::Code | Mode::SingleLineText(_) => {}
             Mode::Multiline(_) => self
                 .errors
                 .push(LexError::new("unterminated multiline text", eof)),
@@ -220,7 +228,7 @@ impl<'src> Lexer<'src> {
         }
         if self.rest().starts_with("=>") {
             self.offset += 2;
-            self.mode = Mode::SingleLineText;
+            self.mode = Mode::SingleLineText(TextStyle::Start);
             self.last_significant = Some(SignificantToken::Other);
             return Ok(self.token(TokenKind::Arrow, start, self.offset));
         }
@@ -275,7 +283,7 @@ impl<'src> Lexer<'src> {
                     && self.paren_depth == 0
                     && self.last_significant == Some(SignificantToken::Identifier)
                 {
-                    self.mode = Mode::SingleLineText;
+                    self.mode = Mode::SingleLineText(TextStyle::Start);
                 }
                 TokenKind::Equals
             }
@@ -294,10 +302,13 @@ impl<'src> Lexer<'src> {
         Ok(self.token(kind, start, end))
     }
 
-    fn next_single_line_text(&mut self) -> Result<Token, LexError> {
+    fn next_single_line_text(&mut self, style: TextStyle) -> Result<Token, LexError> {
         let start = self.offset;
 
-        if let Some((end, kind, mode)) = self.scan_text_block_start(start) {
+        if let Some((end, kind, mode)) = (style == TextStyle::Start)
+            .then(|| self.scan_text_block_start(start))
+            .flatten()
+        {
             self.offset = end;
             self.mode = Mode::Multiline(MultilineTextMode {
                 kind: mode,
@@ -305,6 +316,8 @@ impl<'src> Lexer<'src> {
             });
             return Ok(self.token(kind, start, end));
         }
+        let style = self.resolve_text_style(start, style);
+        self.mode = Mode::SingleLineText(style);
         if let Some(end) = self.scan_newline(start) {
             self.offset = end;
             self.mode = Mode::Code;
@@ -323,7 +336,7 @@ impl<'src> Lexer<'src> {
             let end = start + 1;
             self.open_brace(start, end)?;
             self.offset = end;
-            self.resume_modes.push(Mode::SingleLineText);
+            self.resume_modes.push(Mode::SingleLineText(style));
             self.mode = Mode::Expression(ExpressionMode {
                 placeholder_depth: self.brace_depth,
             });
@@ -337,17 +350,12 @@ impl<'src> Lexer<'src> {
             self.last_significant = Some(SignificantToken::Other);
             return Ok(self.token(TokenKind::RBrace, start, end));
         }
-        if self.current_char() == Some('"') {
+        if style == TextStyle::Quoted && self.current_char() == Some('"') {
             return self.scan_string_literal();
         }
 
-        let end = self.scan_until(start, |rest, ch| {
-            ch == '{'
-                || ch == '}'
-                || ch == '"'
-                || ch == '\n'
-                || ch == '\r'
-                || rest.starts_with("raw\"\"\"")
+        let end = self.scan_until(start, |_, ch| {
+            matches!(ch, '{' | '}' | '\n' | '\r') || (style == TextStyle::Quoted && ch == '"')
         });
         if end == start {
             return self.invalid_current("invalid text token");
@@ -446,6 +454,7 @@ impl<'src> Lexer<'src> {
         if self.rest().starts_with("=>") {
             self.offset += 2;
             self.mode = Mode::InlineBranchText(InlineBranchTextMode {
+                style: TextStyle::Start,
                 expression: mode,
                 body_depth: self.brace_depth,
             });
@@ -503,10 +512,16 @@ impl<'src> Lexer<'src> {
         Ok(self.token(kind, start, end))
     }
 
-    fn next_inline_branch_text(&mut self, mode: InlineBranchTextMode) -> Result<Token, LexError> {
+    fn next_inline_branch_text(
+        &mut self,
+        mut mode: InlineBranchTextMode,
+    ) -> Result<Token, LexError> {
         let start = self.offset;
 
-        if let Some((end, kind, multiline)) = self.scan_text_block_start(start) {
+        if let Some((end, kind, multiline)) = (mode.style == TextStyle::Start)
+            .then(|| self.scan_text_block_start(start))
+            .flatten()
+        {
             self.offset = end;
             self.mode = Mode::Multiline(MultilineTextMode {
                 kind: multiline,
@@ -514,6 +529,8 @@ impl<'src> Lexer<'src> {
             });
             return Ok(self.token(kind, start, end));
         }
+        mode.style = self.resolve_text_style(start, mode.style);
+        self.mode = Mode::InlineBranchText(mode);
         if let Some(end) = self.scan_newline(start) {
             self.offset = end;
             self.mode = Mode::Expression(mode.expression);
@@ -540,12 +557,13 @@ impl<'src> Lexer<'src> {
             });
             return Ok(self.token(TokenKind::LBrace, start, end));
         }
-        if self.current_char() == Some('"') {
+        if mode.style == TextStyle::Quoted && self.current_char() == Some('"') {
             return self.scan_string_literal();
         }
 
         let end = self.scan_until(start, |_, character| {
-            matches!(character, '{' | '}' | '"' | '\n' | '\r')
+            matches!(character, '{' | '}' | '\n' | '\r')
+                || (mode.style == TextStyle::Quoted && character == '"')
         });
         if end == start {
             return self.invalid_current("invalid inline function text token");
@@ -559,6 +577,18 @@ impl<'src> Lexer<'src> {
             start,
             end,
         ))
+    }
+
+    fn resolve_text_style(&self, start: usize, style: TextStyle) -> TextStyle {
+        if style != TextStyle::Start {
+            return style;
+        }
+        let first = self.scan_horizontal_whitespace(start).unwrap_or(start);
+        if self.source[first..].starts_with('"') {
+            TextStyle::Quoted
+        } else {
+            TextStyle::Unquoted
+        }
     }
 
     fn scan_text_block_start(&self, start: usize) -> Option<(usize, TokenKind, MultilineMode)> {

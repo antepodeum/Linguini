@@ -111,6 +111,44 @@ fn project_codegen_emits_dedented_and_raw_semantic_text_exactly() {
     );
 }
 
+#[test]
+fn parsed_text_modes_execute_with_exact_quotes_escapes_and_whitespace() {
+    let schema = lower_schema(
+        &parse_schema("plain\njoined(name: String)\nescaped\nblock(name: String)\nwire\n")
+            .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(concat!(
+            "plain = He said \"hello\" and measured 6\"\n",
+            "joined = Hello {name}, \"friend\".\n",
+            "escaped = \"  \\\"hello\\\"\\n\\t\\\\\\u{1F34E}\\0  \"\n",
+            "block = \"\"\"\r\n",
+            "  He said \"hello\", {name}.\r\n",
+            "    C:\\new\\test  \r\n",
+            "  \"\"\"\n",
+            "wire = raw\"\"\"\r\n  He said \"hello\".\r\n  \"\"\"\n",
+        ))
+        .expect("text-mode locale"),
+    );
+    let files = generate_project_files(
+        &schema,
+        &[EcmaLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("codegen");
+    let output = execute_project(
+        &files,
+        r#"const {default: l} = await import('./locales/en.js'); console.log(JSON.stringify([l.plain, l.joined('Ada'), l.escaped, l.block('Ada'), l.wire]));"#,
+    );
+    assert_eq!(
+        output,
+        r#"["He said \"hello\" and measured 6\"","Hello Ada, \"friend\".","  \"hello\"\n\t\\🍎\u0000  ","He said \"hello\", Ada.\n  C:\\new\\test  ","\r\n  He said \"hello\".\r\n  "]"#
+    );
+}
+
 fn assert_snapshot(path: &str, snapshot: &str) {
     if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
         let path = repo_root().join(path);

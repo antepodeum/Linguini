@@ -11,3 +11,8 @@ account {
   title
   subtitle(count: Number)
 }
+
+quote_text
+quoted_text
+block_text(name: String)
+wire_text

@@ -149,6 +149,15 @@ stages; this section supersedes their runtime target names and `.ts` output path
 
 ## 0.1.0-alpha.4 remediation baseline
 
+Unquoted locale text now selects its mode at the start of the value. A later `"`
+is literal text, including an unmatched quote; it no longer starts a quoted fragment,
+silently disappears, or raises an unterminated-string error. The same rule applies
+after a placeholder and inside named/inline function branches. If existing source
+used a later quoted fragment for decoding, begin the value with a quoted fragment
+instead, for example `"Hello "{name}"!"`. Explicitly quoted strings retain their
+escapes; `"""` and `raw"""` retain their dedented and byte-preserving block semantics.
+The reference now documents all four modes, brace handling, and invalid escapes.
+
 - CLI commands now resolve project roots consistently across filesystem aliases on
   Windows and macOS. Diagnostic paths, file-scoped fixes, formatting reports, and
   generated source maps use the same root identity. Formatting reports portable

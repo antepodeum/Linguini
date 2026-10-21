@@ -711,6 +711,87 @@
       "scopes": [
         "punctuation.section.block.linguini.schema"
       ]
+    },
+    {
+      "kind": "Ident",
+      "text": "quote_text",
+      "line": 15,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "quoted_text",
+      "line": 16,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "block_text",
+      "line": 17,
+      "column": 1,
+      "scopes": [
+        "entity.name.function.message.linguini.schema"
+      ]
+    },
+    {
+      "kind": "LParen",
+      "text": "(",
+      "line": 17,
+      "column": 11,
+      "scopes": [
+        "punctuation.section.parameters.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 17,
+      "column": 12,
+      "scopes": [
+        "variable.parameter.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Colon",
+      "text": ":",
+      "line": 17,
+      "column": 16,
+      "scopes": [
+        "punctuation.separator.key-value.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "String",
+      "line": 17,
+      "column": 18,
+      "scopes": [
+        "support.type.linguini.schema"
+      ]
+    },
+    {
+      "kind": "RParen",
+      "text": ")",
+      "line": 17,
+      "column": 24,
+      "scopes": [
+        "punctuation.section.parameters.linguini.schema"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "wire_text",
+      "line": 18,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.linguini.schema"
+      ]
     }
   ],
   "locale": [
@@ -1747,7 +1828,7 @@
       "line": 32,
       "column": 12,
       "scopes": [
-        "string.unquoted.raw-text.linguini.locale"
+        "keyword.operator.arrow.linguini.locale"
       ]
     },
     {
@@ -2136,7 +2217,7 @@
       "line": 38,
       "column": 11,
       "scopes": [
-        "string.unquoted.raw-text.linguini.locale"
+        "keyword.operator.arrow.linguini.locale"
       ]
     },
     {
@@ -2409,6 +2490,291 @@
       "column": 2,
       "scopes": [
         "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "quote_text",
+      "line": 46,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.message.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Equals",
+      "text": "=",
+      "line": 46,
+      "column": 12,
+      "scopes": [
+        "keyword.operator.assignment.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " He said \"hello\" and measured 6\"",
+      "line": 46,
+      "column": 13,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "quoted_text",
+      "line": 47,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.message.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Equals",
+      "text": "=",
+      "line": 47,
+      "column": 13,
+      "scopes": [
+        "keyword.operator.assignment.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": " ",
+      "line": 47,
+      "column": 14,
+      "scopes": [
+        "keyword.operator.assignment.linguini.locale"
+      ]
+    },
+    {
+      "kind": "String",
+      "text": "\"\\\"hello\\\"\\n\\t\\u{1F34E}\\0\"",
+      "line": 47,
+      "column": 15,
+      "scopes": [
+        "punctuation.definition.string.begin.linguini.locale",
+        "constant.character.escape.linguini.locale",
+        "string.quoted.double.linguini.locale",
+        "punctuation.definition.string.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "block_text",
+      "line": 48,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.message.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Equals",
+      "text": "=",
+      "line": 48,
+      "column": 12,
+      "scopes": [
+        "keyword.operator.assignment.linguini.locale"
+      ]
+    },
+    {
+      "kind": "TripleQuote",
+      "text": " \"\"\"",
+      "line": 48,
+      "column": 13,
+      "scopes": [
+        "meta.value.multiline.linguini.locale",
+        "punctuation.definition.string.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "\n",
+      "line": 48,
+      "column": 17,
+      "scopes": [
+        "meta.value.multiline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "  Hello \"friend\", ",
+      "line": 49,
+      "column": 1,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 49,
+      "column": 19,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "name",
+      "line": 49,
+      "column": 20,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 49,
+      "column": 24,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": ".",
+      "line": 49,
+      "column": 25,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "\n",
+      "line": 49,
+      "column": 26,
+      "scopes": [
+        "meta.value.multiline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "    C:\\new\\test",
+      "line": 50,
+      "column": 1,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "\n",
+      "line": 50,
+      "column": 16,
+      "scopes": [
+        "meta.value.multiline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "TripleQuote",
+      "text": "\"\"\"",
+      "line": 51,
+      "column": 1,
+      "scopes": [
+        "punctuation.definition.string.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "wire_text",
+      "line": 52,
+      "column": 1,
+      "scopes": [
+        "variable.other.member.message.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Equals",
+      "text": "=",
+      "line": 52,
+      "column": 11,
+      "scopes": [
+        "keyword.operator.assignment.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawTripleQuote",
+      "text": " raw\"\"\"",
+      "line": 52,
+      "column": 12,
+      "scopes": [
+        "meta.value.multiline.linguini.locale",
+        "storage.modifier.raw.linguini.locale",
+        "punctuation.definition.string.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "  \"hello\"",
+      "line": 52,
+      "column": 19,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "\n",
+      "line": 52,
+      "column": 28,
+      "scopes": [
+        "meta.value.multiline.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "  ",
+      "line": 53,
+      "column": 1,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "LBrace",
+      "text": "{",
+      "line": 53,
+      "column": 3,
+      "scopes": [
+        "punctuation.section.interpolation.begin.linguini.locale"
+      ]
+    },
+    {
+      "kind": "Ident",
+      "text": "product_name",
+      "line": 53,
+      "column": 4,
+      "scopes": [
+        "variable.parameter.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RBrace",
+      "text": "}",
+      "line": 53,
+      "column": 16,
+      "scopes": [
+        "punctuation.section.interpolation.end.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawText",
+      "text": "  ",
+      "line": 53,
+      "column": 17,
+      "scopes": [
+        "string.unquoted.raw-text.linguini.locale"
+      ]
+    },
+    {
+      "kind": "RawTripleQuote",
+      "text": "\"\"\"",
+      "line": 53,
+      "column": 19,
+      "scopes": [
+        "punctuation.definition.string.end.linguini.locale"
       ]
     }
   ]

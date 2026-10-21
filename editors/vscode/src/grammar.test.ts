@@ -153,6 +153,20 @@ function scopeContract(
   return lexerTokens
     .filter((token) => !["Whitespace", "Newline"].includes(token.kind))
     .map((token) => {
+      // TextMate omits the newline token itself. For a semantic block newline,
+      // prove its state carries into the first token of the following line.
+      if (token.kind === "RawText" && /^(?:\r\n|\r|\n)$/.test(token.text)) {
+        const nextScopes = scopeLines[token.line + 1]?.[0]?.scopes ?? [];
+        const blockScope = "meta.value.multiline.linguini.locale";
+        assert.ok(nextScopes.includes(blockScope), `block newline on line ${token.line + 1} lost its multiline state`);
+        return {
+          kind: token.kind,
+          text: token.text,
+          line: token.line + 1,
+          column: token.column + 1,
+          scopes: [blockScope],
+        };
+      }
       const endColumn = token.column + token.text.length;
       const overlaps = scopeLines[token.line].filter(
         (scope) => scope.end > token.column && scope.start < endColumn,
@@ -287,4 +301,46 @@ test("TextMate grammars and editor configuration match lexer goldens", async () 
 
   const expected = JSON.parse(fs.readFileSync(goldenPath, "utf8"));
   assert.deepEqual(actual, expected);
+});
+
+test("locale text scopes select quoting at the value start and preserve multiline context", async () => {
+  const grammar = await loadGrammar(fixtures.locale.scopeName, fixtures.locale.grammar);
+  const source = [
+    'plain = He said "hello" and measured 6"',
+    'next = Still plain',
+    'joined = Hello {name}, "friend".',
+    'quoted = "\\\"hello\\\"\\n\\0"',
+    'block = """',
+    '  "hello" {name}',
+    '  """',
+    'wire = raw"""  "hello"',
+    '  {name}  """',
+    'last = Plain again',
+    'inline = {fn() { _ => The screen is 6"}}!',
+    'unicode_space = \u00a0"kept"',
+    'unterminated = "broken',
+    'after_error = Plain after an invalid literal',
+  ].join("\n");
+  const lines = source.split("\n");
+  const scopes = tokenize(grammar, source);
+  function at(line: number, text: string) {
+    const column = lines[line].indexOf(text);
+    assert.ok(column >= 0, `${line}: missing ${text}`);
+    return scopes[line].find(token => token.start <= column && token.end > column)?.scopes ?? [];
+  }
+  for (const [line, text] of [[0, '"hello"'], [0, '6"'], [1, 'Still'], [2, '"friend"'], [9, 'Plain'], [10, '6"']] as const) {
+    assert.ok(at(line, text).includes("string.unquoted.raw-text.linguini.locale"), `${line}: ${text} is raw text`);
+    assert.ok(!at(line, text).includes("string.quoted.double.linguini.locale"), `${line}: ${text} must not start a quoted literal`);
+  }
+  assert.ok(at(2, "name").includes("meta.interpolation.linguini.locale"));
+  assert.ok(at(3, "\\0").includes("constant.character.escape.linguini.locale"));
+  for (const [line, text] of [[5, '"hello"'], [7, '"hello"']] as const) {
+    assert.ok(at(line, text).includes("string.quoted.multi.linguini.locale"));
+    assert.ok(!at(line, text).includes("string.quoted.double.linguini.locale"));
+  }
+  assert.ok(at(5, "name").includes("meta.interpolation.linguini.locale"));
+  assert.ok(at(8, "name").includes("meta.interpolation.linguini.locale"));
+  assert.ok(at(11, "kept").includes("string.quoted.double.linguini.locale"));
+  assert.ok(at(13, "Plain").includes("string.unquoted.raw-text.linguini.locale"));
+  assert.ok(!at(13, "Plain").includes("string.quoted.double.linguini.locale"));
 });

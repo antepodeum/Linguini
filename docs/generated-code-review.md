@@ -45,10 +45,10 @@ selection have since been implemented and tested. Date-semantic substitutions an
 open findings still need work. Historical TypeScript and oldest JavaScript comparison fixtures retain `Intl`, generic formatter forwarding, branch maps, and the retired
 plural matcher. Their existence must not be mistaken for current generator acceptance.
 
-## Queued syntax follow-up
+## Syntax follow-up
 
-After the current generator fixes, verify quotes and escapes in message text, the end-of-line
-boundary for unquoted text, and multiline forms both preserving indentation and trimming a
-common indent. Document the actual supported syntax with executed parser examples, including
-failure cases. Do not claim quote handling or Kotlin-like indentation behavior is fixed without
-those checks.
+The unquoted-quote failure was reproduced and corrected by selecting the lexer mode at the
+start of a value. Parser, formatter-preservation, generated-runtime, and editor-grammar cases
+cover literal/unmatched quotes, quoted escapes, interpolation, and multiline whitespace.
+The reference documents unquoted, quoted, dedented, and raw modes and their boundaries;
+migration notes identify the corrected handling of later quotes.

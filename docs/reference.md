@@ -456,10 +456,54 @@ greeting = Hello, {name}!
 price    = Total: {amount} {currency}
 ```
 
-### Text blocks and literal braces
+### Text, quotes, and escapes
+
+After `=` or a branch's `=>`, the first non-whitespace characters select the text
+mode. If the value starts without a quote or multiline delimiter, it is unquoted
+text through the line break. Quotes later in that text are ordinary characters,
+including an unmatched quote; backslashes do not introduce escapes:
+
+```lgl
+said = He said "hello".
+screen = The screen is 6"
+path = C:\new\test
+greeting = Hello {name}, "friend".
+```
+
+Unquoted text trims its outer whitespace. Interior whitespace, quotes, `//`,
+`=`, and `=>` are text. `{expression}` still interpolates a value, and structural
+closing braces still end a containing declaration/inline branch. Write comments
+before a declaration rather than after its unquoted value.
+
+Start with `"` to write an explicitly quoted string. Delimiting quotes are
+removed, whitespace inside them is preserved, and escapes are decoded. String
+fragments can be joined with placeholders outside the quotes:
+
+```lgl
+escaped = "\"hello\"\n\t\u{1F34E}"
+preserved = "  keep these spaces  "
+greeting = "Hello "{name}"!"
+literal_braces = "{name} is literal here"
+```
+
+| Escape in a quoted string | Result |
+| --- | --- |
+| `\"` | Double quote |
+| `\\` | Backslash |
+| `\n`, `\r`, `\t` | Line feed, carriage return, tab |
+| `\0` | NUL |
+| `\u{HEX}` | Unicode scalar with one to six hexadecimal digits |
+
+Unknown escapes, surrogate/out-of-range Unicode values, and unterminated quoted
+strings are errors. A quoted string cannot cross a source line break; use a
+multiline block for that. Braces inside a quoted string are literal, so
+`"Hello {name}"` does not interpolate `name`. The same string escapes apply to
+quoted annotation arguments.
+
+### Multiline text and literal braces
 
 Inline message text ends at the line break. Use `"""` for a multiline block
-whose layout should follow source indentation:
+whose common source indentation should be removed, like `trimIndent`:
 
 ```lgl
 receipt = """
@@ -479,9 +523,38 @@ Use `raw"""` when every whitespace and line-ending byte between the delimiters
 is data. Raw blocks do not remove structural edge lines, dedent, or normalize
 line endings. Both block modes still parse `{expression}` placeholders.
 
-In inline, dedented, and raw message text, write `{{` for a literal `{` and `}}`
-for a literal `}`. A single `{` begins a placeholder. Quoted string fragments
-inside inline-function branch text can also carry a literal closing brace.
+```lgl
+wire = raw"""
+  first line
+    second line
+  """
+```
+
+This raw value starts with a newline and retains the two spaces before its
+closing delimiter. Replacing `raw"""` with `"""` produces
+`first line\n  second line`, with no edge newline. Dedenting removes an exact
+common whitespace prefix; tabs are never expanded into spaces. A placeholder
+counts as content when determining indentation, before its runtime value is
+inserted.
+
+Both block modes preserve ordinary `"`/`""` quotes and backslashes literally:
+`\n` inside a block is a backslash followed by `n`. The next `"""` closes the
+block. To include that exact delimiter in the output, reference a quoted local
+value:
+
+```lgl
+let triple_quotes = "\"\"\""
+explanation = """
+  Delimiter: {triple_quotes}
+"""
+```
+
+In ordinary inline message text and both multiline modes, write `{{` for a
+literal `{` and `}}` for a literal `}`. A single `{` begins a placeholder.
+Inside an inline-function branch, a closing brace is structural; use a
+quoted-start branch such as `_ => "result }"`, or a multiline block with `}}`,
+when the branch's output needs a literal closing brace. Multiline blocks work
+in messages, local values, form attributes, and function branches.
 
 ### Local variables
 

@@ -42,3 +42,12 @@ inline_nested = {fn(tone, Plural(count), greet: Greeting(tone, count)) {
     _ => Hi {name}
   }
 }}
+
+quote_text = He said "hello" and measured 6"
+quoted_text = "\"hello\"\n\t\u{1F34E}\0"
+block_text = """
+  Hello "friend", {name}.
+    C:\new\test
+"""
+wire_text = raw"""  "hello"
+  {product_name}  """

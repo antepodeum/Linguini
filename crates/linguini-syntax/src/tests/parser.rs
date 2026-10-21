@@ -547,6 +547,118 @@ fn supports_empty_one_line_and_quote_rich_multiline_blocks() {
 }
 
 #[test]
+fn unquoted_text_keeps_quotes_backslashes_and_block_markers_until_its_boundary() {
+    let source = concat!(
+        "plain = He said \"hello\".\n",
+        "unmatched = The screen is 6\"\n",
+        "path = C:\\new\\test // literal, not a comment\n",
+        "joined = Hello {name}, \"friend\".\n",
+        "marker = Literal raw\"\"\" and \"\"\" markers\n",
+        "inline = {fn() { _ => The screen is 6\"}}!\n",
+        "fn Quote(String) {\n  _ => He said \"hello\".\n}\n",
+        "next = Still a separate message\n",
+    );
+    let locale = parse_locale(source).expect("unquoted quotes are text");
+    let values = locale
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            LocaleDeclaration::Message(message) => Some(render_pattern(&message.value)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        &values[..5],
+        [
+            "He said \"hello\".",
+            "The screen is 6\"",
+            "C:\\new\\test // literal, not a comment",
+            "Hello {name}, \"friend\".",
+            "Literal raw\"\"\" and \"\"\" markers",
+        ]
+    );
+    let LocaleDeclaration::Message(inline) = &locale.declarations[5] else {
+        panic!("inline message");
+    };
+    let TextPart::Placeholder(placeholder) = &inline.value.parts[0] else {
+        panic!("inline placeholder");
+    };
+    let crate::ExpressionKind::InlineFunction { branches, .. } = &placeholder.expression.kind
+    else {
+        panic!("inline function");
+    };
+    let FunctionBranchValue::Text(text) = &branches[0].value else {
+        panic!("inline text");
+    };
+    assert_eq!(render_pattern(text), "The screen is 6\"");
+    let LocaleDeclaration::Function(function) = &locale.declarations[6] else {
+        panic!("named function");
+    };
+    let FunctionBranchValue::Text(text) = &function.branches[0].value else {
+        panic!("named text");
+    };
+    assert_eq!(render_pattern(text), "He said \"hello\".");
+    assert_eq!(values.last().unwrap(), "Still a separate message");
+}
+
+#[test]
+fn quoted_text_preserves_escapes_and_interpolation_outside_string_fragments() {
+    let locale = parse_locale(concat!(
+        "escaped = \"  \\\"hello\\\"\\n\\r\\t\\\\\\u{1F34E}\\0  \"\n",
+        "joined = \"Hello \"{name}\"! \\\"friend\\\"\"\n",
+        "braces = \"{literal} and }\"\n",
+    ))
+    .expect("quoted message literals");
+    let values = locale
+        .declarations
+        .iter()
+        .map(|declaration| {
+            let LocaleDeclaration::Message(message) = declaration else {
+                panic!("message");
+            };
+            render_pattern(&message.value)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        values,
+        [
+            "  \"hello\"\n\r\t\\🍎\0  ",
+            "Hello {name}! \"friend\"",
+            "{literal} and }"
+        ]
+    );
+    let LocaleDeclaration::Message(braces) = &locale.declarations[2] else {
+        panic!("message");
+    };
+    assert!(braces
+        .value
+        .parts
+        .iter()
+        .all(|part| matches!(part, TextPart::Text(_))));
+
+    for invalid in [
+        r#"value = "unterminated"#,
+        r#"value = "\x41""#,
+        r#"value = "\u{}""#,
+        r#"value = "\u{D800}""#,
+        r#"value = "\u{110000}""#,
+    ] {
+        assert!(
+            parse_locale(invalid).is_err(),
+            "invalid quoted literal: {invalid}"
+        );
+    }
+    for ending in ["\n", "\r\n", "\r", ""] {
+        let source = format!("value = Unpaired \" quote{ending}");
+        let locale = parse_locale(&source).expect("unquoted quote at line/EOF boundary");
+        let LocaleDeclaration::Message(message) = &locale.declarations[0] else {
+            panic!("message");
+        };
+        assert_eq!(render_pattern(&message.value), "Unpaired \" quote");
+    }
+}
+
+#[test]
 fn parses_literal_brace_escapes() {
     let locale = parse_locale("value = {{name}} = {name}\nblock = \"\"\"{{x}}\"\"\"\n")
         .expect("escaped braces");

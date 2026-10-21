@@ -52,6 +52,28 @@ fn preserves_raw_text_spacing_and_single_blank_line() {
 }
 
 #[test]
+fn preserves_unquoted_quotes_and_explicit_quoted_escapes_idempotently() {
+    let source = concat!(
+        "plain=He said \"hello\" and measured 6\"\n",
+        "path=C:\\new\\test\n",
+        "joined=Hello {name}, \"friend\".\n",
+        "escaped=\"  \\\"hello\\\"\\n\\u{1F34E}  \"\n",
+        "inline={fn(){_=>The screen is 6\"}}!\n",
+    );
+    let before = message_semantics(source);
+    let formatted = format_source(SourceKind::Locale, source, &FormatOptions::default())
+        .expect("format quoted text");
+    assert_eq!(message_semantics(&formatted), before);
+    assert_eq!(
+        format_source(SourceKind::Locale, &formatted, &FormatOptions::default())
+            .expect("format twice"),
+        formatted
+    );
+    assert!(formatted.contains("He said \"hello\" and measured 6\""));
+    assert!(formatted.contains("\\u{1F34E}"));
+}
+
+#[test]
 fn preserves_adjacent_locale_placeholders_without_inner_spaces() {
     let source = "message = {first}{second} {amount @currency(code = \"RUB\")}\n";
     let formatted =
