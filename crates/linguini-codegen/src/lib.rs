@@ -9,6 +9,7 @@ mod inline;
 mod paths;
 mod plurals;
 mod requirements;
+mod rounding;
 mod types;
 
 pub use decision::{Decision, DecisionArm};
@@ -28,3 +29,4 @@ pub use inline::lower_inline_functions;
 
 pub use paths::lexical_relative_path;
 pub use plurals::{PluralDecisionPlan, PluralRequirements};
+pub use rounding::NumberRoundingPlan;

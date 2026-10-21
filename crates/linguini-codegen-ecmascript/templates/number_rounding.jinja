@@ -1,0 +1,14 @@
+/**
+ * @param {GeneratedDecimal} decimal
+ * @returns {{ "{{" }} integer: string, fraction: string }}
+ */
+function {{ name }}(decimal) {
+{% if fraction_digits > 0 %}  const fraction = decimal.fraction.slice(0, {{ fraction_digits }}).padEnd({{ fraction_digits }}, "0");
+{% endif %}{% if increment == "1" %}  if (decimal.fraction.length <= {{ fraction_digits }} || decimal.fraction[{{ fraction_digits }}] < "5") return { integer: decimal.integer, {% if fraction_digits > 0 %}fraction{% else %}fraction: ""{% endif %} };
+  const digits = (BigInt({% if fraction_digits > 0 %}`${decimal.integer}${fraction}`{% else %}decimal.integer{% endif %}) + 1n).toString(){% if fraction_digits > 0 %}.padStart({{ fraction_digits + 1 }}, "0"){% endif %};
+{% else %}  const scaled = BigInt({% if fraction_digits > 0 %}`${decimal.integer}${fraction}`{% else %}decimal.integer{% endif %});
+  const remainder = scaled % {{ increment }}n;
+  const roundUp = remainder {{ ">" if half_fraction else ">=" }} {{ half }}n{% if half_fraction %} || (remainder === {{ half }}n && decimal.fraction[{{ fraction_digits }}] >= "5"){% endif %};
+  const digits = (scaled - remainder + (roundUp ? {{ increment }}n : 0n)).toString(){% if fraction_digits > 0 %}.padStart({{ fraction_digits + 1 }}, "0"){% endif %};
+{% endif %}  return {% if fraction_digits == 0 %}{ integer: digits, fraction: "" }{% else %}{ integer: digits.slice(0, -{{ fraction_digits }}), fraction: digits.slice(-{{ fraction_digits }}) }{% endif %};
+}

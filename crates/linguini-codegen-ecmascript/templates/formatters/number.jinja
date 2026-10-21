@@ -5,18 +5,18 @@
 {% if exported %}export {% endif %}function {{ name }}(value) {
   {% if plan.scale != 1 or plan.exponent_digits is not none %}let{% else %}const{% endif %} decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
-{% if plan.scale != 1 %}  decimal = scaleGeneratedDecimal(decimal, {{ plan.scale }});
+{% if plan.scale != 1 %}  decimal = scaleBy{{ plan.scale }}(decimal);
 {% endif %}{% if plan.exponent_digits is not none %}  let exponent;
   ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
-{% endif %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} rounded = {% if plan.max_significant is not none %}roundGeneratedSignificant(decimal, {{ plan.max_significant }}){% else %}roundGeneratedDecimal(decimal, {{ plan.max_fraction }}, {{ plan.rounding|js }}){% endif %};
+{% endif %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} rounded = {% if plan.max_significant is not none %}roundTo{{ plan.max_significant }}SignificantDigits(decimal){% else %}{{ plan.rounding_helper }}(decimal){% endif %};
 {% if plan.exponent_digits is not none %}  if (rounded.integer.length > 1) {
     const shift = rounded.integer.length - 1;
     exponent += shift;
     rounded = { integer: rounded.integer[0], fraction: `${rounded.integer.slice(1)}${rounded.fraction}` };
   }
 {% endif %}  {% if plan.primary_group is not none %}let{% else %}const{% endif %} integer = rounded.integer{% if plan.min_integer > 1 %}.padStart({{ plan.min_integer }}, "0"){% endif %};
-  {% if plan.min_significant is not none %}let{% else %}const{% endif %} fraction = trimOptionalFractionDigits(rounded.fraction, {{ plan.min_fraction }});
-{% if plan.min_significant is not none %}  fraction = padGeneratedSignificant(integer, fraction, {{ plan.min_significant }});
+  {% if plan.min_significant is not none %}let{% else %}const{% endif %} fraction = {% if plan.max_significant is none and plan.min_fraction == plan.max_fraction %}rounded.fraction{% elif plan.min_fraction == 0 %}rounded.fraction.replace(/0+$/, ""){% else %}rounded.fraction.slice(0, {{ plan.min_fraction }}) + rounded.fraction.slice({{ plan.min_fraction }}).replace(/0+$/, ""){% endif %};
+{% if plan.min_significant is not none %}  fraction = padTo{{ plan.min_significant }}SignificantDigits(integer, fraction);
 {% endif %}{% if plan.primary_group is not none %}  if (integer.length > {{ plan.primary_group }}) {
     const groups = [integer.slice(-{{ plan.primary_group }})];
     let end = integer.length - {{ plan.primary_group }};

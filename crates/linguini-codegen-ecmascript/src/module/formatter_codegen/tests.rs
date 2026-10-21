@@ -83,12 +83,9 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
     let plan = number_plan(&pattern, None, &numbers, None);
     let generated = crate::templates::render(
         "formatters/number",
-        minijinja::context! { name => "formatTest", plan, exported => false },
+        minijinja::context! { name => "formatTest", plan => plan.clone(), exported => false },
     );
-    let helpers = crate::templates::render(
-        "number_helpers",
-        minijinja::context! { scale => true, scientific => true, significant => true, significant_padding => true },
-    );
+    let helpers = number_helpers(&[plan]);
     assert!(!generated.contains("formatGeneratedNumber"));
     assert!(!generated.contains("undefined"));
     let script = format!("{generated}{helpers}console.log(JSON.stringify([formatTest('12.345'), formatTest('-12.345'), formatTest('0')]));");
@@ -99,6 +96,8 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
 
     let runtime = formatter_data_declaration("en", &[request(IrFormatterKind::Number, &[])], false);
     for unused in [
+        "function scaleBy",
+        "SignificantDigits(",
         "scaleGeneratedDecimal",
         "roundGeneratedSignificant",
         "scientificGeneratedDecimal",
@@ -136,21 +135,15 @@ fn numeric_operations_are_selected_independently_and_execute_without_unused_help
         let formatter = crate::templates::render(
             "formatters/number",
             minijinja::context! {
-                name => "formatTest", plan, exported => false,
+                name => "formatTest", plan => plan.clone(), exported => false,
             },
         );
-        let helpers = crate::templates::render(
-            "number_helpers",
-            minijinja::context! {
-                scale => operation == "scale", scientific => operation == "scientific",
-                significant => operation == "significant", significant_padding => operation == "significant_padding",
-            },
-        );
+        let helpers = number_helpers(&[plan]);
         for (name, selected) in [
-            ("scaleGeneratedDecimal", "scale"),
+            ("scaleBy100", "scale"),
             ("scientificGeneratedDecimal", "scientific"),
-            ("roundGeneratedSignificant", "significant"),
-            ("padGeneratedSignificant", "significant_padding"),
+            ("roundTo3SignificantDigits", "significant"),
+            ("padTo4SignificantDigits", "significant_padding"),
         ] {
             assert_eq!(
                 helpers.contains(&format!("function {name}(")),
@@ -186,16 +179,110 @@ fn currency_increment_is_specialized_before_runtime_execution() {
     let formatter = crate::templates::render(
         "formatters/number",
         minijinja::context! {
-            name => "formatCash", plan, exported => false,
+            name => "formatCash", plan => plan.clone(), exported => false,
         },
     );
-    let helpers = crate::templates::render(
-        "number_helpers",
-        minijinja::context! {
-            scale => false, scientific => false, significant => false, significant_padding => false,
-        },
-    );
+    let helpers = number_helpers(&[plan]);
+    assert!(formatter.contains("const fraction = rounded.fraction;"));
+    assert!(!helpers.contains("trimOptionalFractionDigits"));
     assert_eq!(execute(&format!("{formatter}{helpers}console.log(JSON.stringify(['1.23','1.22','-1.23'].map(formatCash)));")), r#"["CHF1.25","CHF1.20","-CHF1.25"]"#);
+}
+
+#[test]
+fn compiled_rounding_matches_exact_rational_oracle_without_static_runtime_parsing() {
+    let numbers = compiled_number_formatting("en").unwrap();
+    let mut plans = Vec::new();
+    let mut cases = String::new();
+    for precision in 0..=4 {
+        for increment in [
+            "1",
+            "2",
+            "3",
+            "5",
+            "10",
+            "25",
+            "100",
+            "125",
+            "18446744073709551617",
+        ] {
+            let mut pattern = numbers.decimal_pattern;
+            pattern.positive.max_fraction_digits = precision;
+            let plan = number_plan(&pattern, None, &numbers, Some(increment));
+            let name = plan.get_attr("rounding_helper").unwrap();
+            cases.push_str(&format!("[{name}, {precision}, {increment:?}],"));
+            plans.push(plan);
+        }
+    }
+    // Identical formatter requests must share the emitted rounding implementation.
+    plans.push(plans[0].clone());
+    let helpers = number_helpers(&plans);
+    assert_eq!(
+        helpers.matches("function roundTo0FractionDigits(").count(),
+        1
+    );
+    for retired in [
+        "roundingIncrement",
+        "quantumSource",
+        "roundGeneratedDecimal",
+        "10n **",
+        "trimOptionalFractionDigits",
+    ] {
+        assert!(
+            !helpers.contains(retired),
+            "static runtime operation: {retired}"
+        );
+    }
+    let output = execute(&format!(
+        r#"{helpers}
+function expected(decimal, precision, increment) {{
+  const denominator = 10n ** BigInt(decimal.fraction.length);
+  const numerator = BigInt(decimal.integer + decimal.fraction) * 10n ** BigInt(precision);
+  const quantum = BigInt(increment);
+  const units = (2n * numerator + quantum * denominator) / (2n * quantum * denominator);
+  const digits = (units * quantum).toString().padStart(precision + 1, "0");
+  return precision === 0 ? {{ integer: digits, fraction: "" }} : {{ integer: digits.slice(0, -precision), fraction: digits.slice(-precision) }};
+}}
+const samples = ["0", "0.00001", "0.00499", "0.005", "0.00501", "0.00999", "1.225", "9.99999", "999.99999", "123456789012345678901234567890.55555", "1." + "9".repeat(8000)];
+for (let value = 0; value <= 1000; value++) samples.push((value / 100).toFixed(2));
+for (const [round, precision, increment] of [{cases}]) {{
+  for (const sample of samples) {{
+    const [integer, fraction = ""] = sample.split(".");
+    const decimal = {{ negative: false, integer, fraction }};
+    const actual = round(decimal);
+    const wanted = expected(decimal, precision, increment);
+    if (JSON.stringify(actual) !== JSON.stringify(wanted)) throw new Error(JSON.stringify([round.name, sample, actual, wanted]));
+  }}
+}}
+const originalBigInt = globalThis.BigInt;
+globalThis.BigInt = () => {{ throw new Error("exact/non-incrementing unit rounding must skip bigint construction"); }};
+try {{
+  const actual = roundTo3FractionDigits({{ negative: false, integer: "12345678901234567890", fraction: "1234" }});
+  if (actual.integer !== "12345678901234567890" || actual.fraction !== "123") throw new Error("unit rounding changed exact digits");
+}} finally {{ globalThis.BigInt = originalBigInt; }}
+console.log("ok");
+"#
+    ));
+    assert_eq!(output, "ok");
+}
+
+#[test]
+fn compiled_date_fields_select_padding_helpers() {
+    let medium = request(IrFormatterKind::Date, &[]);
+    let short = request(IrFormatterKind::Date, &[("style", "short")]);
+    let unpadded = formatter_data_declaration("ru", std::slice::from_ref(&medium), false);
+    assert!(!unpadded.contains("padNumber("));
+    assert_eq!(
+        execute(&format!("{unpadded}console.log(formatDate('2024-01-02'));")),
+        "2 янв. 2024 г."
+    );
+    let padded = formatter_data_declaration("ru", &[medium, short], false);
+    assert_eq!(padded.matches("function padNumber(").count(), 1);
+    assert_eq!(
+        execute(&format!(
+            "{padded}console.log(formatDate_style_short('2024-01-02'));"
+        )),
+        "02.01.2024"
+    );
 }
 
 #[test]

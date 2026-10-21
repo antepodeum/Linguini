@@ -169,6 +169,10 @@ fn environment() -> &'static EcmaTemplateEngine {
             ),
             ("web/url", include_str!("../templates/web/url.jinja")),
             (
+                "number_rounding",
+                include_str!("../templates/number_rounding.jinja"),
+            ),
+            (
                 "number_helpers",
                 include_str!("../templates/number_helpers.jinja"),
             ),

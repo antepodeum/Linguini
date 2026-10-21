@@ -7,9 +7,9 @@
 export function formatNumber(value) {
   const decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
-  const rounded = roundGeneratedDecimal(decimal, 3, "1");
+  const rounded = roundTo3FractionDigits(decimal);
   let integer = rounded.integer;
-  const fraction = trimOptionalFractionDigits(rounded.fraction, 0);
+  const fraction = rounded.fraction.replace(/0+$/, "");
   if (integer.length > 3) {
     const groups = [integer.slice(-3)];
     let end = integer.length - 3;
@@ -88,56 +88,13 @@ function parseGeneratedDecimal(value) {
 
 /**
  * @param {GeneratedDecimal} decimal
- * @param {number} fractionDigits
- * @param {number | string} roundingIncrement
  * @returns {{ integer: string, fraction: string }}
  */
-function roundGeneratedDecimal(decimal, fractionDigits, roundingIncrement) {
-  const quantumSource = String(roundingIncrement || 1);
-  if (
-    !Number.isSafeInteger(fractionDigits) ||
-    fractionDigits < 0 ||
-    fractionDigits > MAX_GENERATED_DECIMAL_DIGITS ||
-    !/^\d+$/.test(quantumSource) ||
-    quantumSource.length > MAX_GENERATED_DECIMAL_DIGITS
-  ) {
-    throwInvalidNumber();
-  }
-
-  const keptFraction = decimal.fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0");
-  const discarded = decimal.fraction.slice(fractionDigits);
-  const scaled = BigInt(`${decimal.integer}${keptFraction}` || "0");
-  const quantum = BigInt(quantumSource);
-  const remainder = scaled % quantum;
-  /** @type {boolean} */
-  let roundUp;
-  if (discarded === "") {
-    roundUp = remainder * 2n >= quantum;
-  } else {
-    const denominator = 10n ** BigInt(discarded.length);
-    const exactRemainder = remainder * denominator + BigInt(discarded);
-    roundUp = exactRemainder * 2n >= quantum * denominator;
-  }
-  const rounded = (scaled / quantum + (roundUp ? 1n : 0n)) * quantum;
-  const digits = rounded.toString().padStart(fractionDigits + 1, "0");
-  return fractionDigits === 0
-    ? { integer: digits, fraction: "" }
-    : {
-        integer: digits.slice(0, -fractionDigits),
-        fraction: digits.slice(-fractionDigits),
-      };
-}
-
-/**
- * @param {string} fraction
- * @param {number} minDigits
- * @returns {string}
- */
-function trimOptionalFractionDigits(fraction, minDigits) {
-  while (fraction.length > minDigits && fraction.endsWith("0")) {
-    fraction = fraction.slice(0, -1);
-  }
-  return fraction;
+function roundTo3FractionDigits(decimal) {
+  const fraction = decimal.fraction.slice(0, 3).padEnd(3, "0");
+  if (decimal.fraction.length <= 3 || decimal.fraction[3] < "5") return { integer: decimal.integer, fraction };
+  const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(4, "0");
+  return { integer: digits.slice(0, -3), fraction: digits.slice(-3) };
 }
 
 /** @returns {never} */

@@ -1092,6 +1092,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       inactive locale, or scaffolding in initial page delivery; integrate with ESM-A3/MOD-A4.
       Numeric scale/scientific/significant/padding helpers now have independent demand flags,
       verified by isolated generated/executed plans and absence checks for unselected helpers.
+      Precision, rounding quantum/halfway threshold, scale shifts, and significant widths are
+      compiled into deduplicated helpers; no static option validation or discarded-digit power
+      expansion remains. Unit rounding skips bigint construction unless a carry is needed.
+      Fixed-width currency fractions omit trimming; date helpers follow actual field demand.
+      A 45-plan exact rational oracle covers precision/increment combinations, carries, huge
+      values, and 8,000-digit fractions alongside the locale, currency, and scientific corpora.
       Plural decision/operand demand is shared through `linguini-codegen`; generated predicates use
       direct comparisons, common guards, and one calculation per remainder. Operands are local
       scalars emitted at first use, without operand objects, relation-helper calls, or range arrays.

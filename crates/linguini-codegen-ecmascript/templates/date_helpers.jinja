@@ -1,4 +1,4 @@
-/**
+{% if padding %}/**
  * @param {number} value
  * @param {number} length
  * @returns {string}
@@ -7,7 +7,7 @@ function padNumber(value, length) {
   return String(value).padStart(length, "0");
 }
 
-/**
+{% endif %}/**
  * @param {Date | number | string} value
  * @returns {Date}
  */

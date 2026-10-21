@@ -129,7 +129,13 @@ readable helper bindings. These locale-runtime helpers are generated implementat
 applications should continue calling the schema's generated message API. Numeric scaling,
 scientific notation, significant rounding, and significant padding now have independent helper
 selection. A request for one operation neither emits unrelated helpers nor relies on another
-operation being enabled. Plural rules now compile to direct numeric comparisons, shared guards,
+operation being enabled. Fraction precision, rounding quantum/halfway threshold, scale shift,
+and significant-digit widths are now compiled into selected, deduplicated numeric helpers.
+Their runtime APIs take actual values rather than static pattern options. Fixed-width currency
+fractions skip optional-digit trimming, and date padding helpers follow the compiled fields.
+Input validation and exact arithmetic remain covered by executed corpora, including a rational
+rounding oracle, long fractions, increments, carries, negative zero, and bigint inputs.
+Plural rules now compile to direct numeric comparisons, shared guards,
 and one calculation per required remainder. Operand calculations are emitted at the first rule
 that needs them; no per-call operand object, range array, or generic relation interpreter remains.
 Visible-digit counts and compact exponents use bounded numbers; integer and fractional values

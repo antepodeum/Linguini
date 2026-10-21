@@ -203,8 +203,12 @@ precision, grouping, affixes, and date/time widths compiled into the implementat
 only their input value; generated code carries no CLDR pattern interpreter or runtime option
 object. Unused formatter requests and helper operations are omitted. Scaling, scientific
 notation, significant rounding, and significant padding are selected independently from the
-compiled numeric plans. The regression corpus checks each operation in isolation against
-executed generated code.
+compiled numeric plans. Rounding helpers embed their precision and increment, share identical
+plans, and avoid revalidating those static choices at runtime. Unit rounding only constructs a
+bigint when a carry is necessary. Fixed-width currency fractions skip optional-digit trimming.
+Scale shifts and significant-digit widths are compiled into selected helpers. Date padding and
+digit helpers are selected from the actual compiled fields. The regression corpus checks each
+operation in isolation against executed generated code and an exact rational rounding oracle.
 Plural predicates also compile during builds: only required scalar operands are produced at their
 first use, common guards are shared, and modulo results are calculated once. Comparisons use
 direct conditions without per-call operand objects or range arrays. Fraction-digit counts do not
