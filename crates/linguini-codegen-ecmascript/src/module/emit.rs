@@ -94,8 +94,9 @@ pub fn emit_schema_type_reexports(
         ));
     }
     for (public_name, generated_name) in schema_type_aliases(schema) {
-        output.push_str(&format!(
-            "export type {public_name} = {generated_name};\n\n"
+        output.push_str(&crate::templates::render(
+            "declarations/alias",
+            minijinja::context! { name => public_name, ty => generated_name },
         ));
     }
 }
@@ -194,9 +195,9 @@ pub(super) fn emit_enum(item: &linguini_ir::IrEnum, output: &mut String) {
         .map(|variant| format!("\"{}\"", escape_string(variant)))
         .collect::<Vec<_>>()
         .join(" | ");
-    output.push_str(&format!(
-        "export type {} = {variants};\n\n",
-        safe_identifier(&item.name)
+    output.push_str(&crate::templates::render(
+        "declarations/alias",
+        minijinja::context! { name => safe_identifier(&item.name), ty => variants },
     ));
 }
 
@@ -221,19 +222,23 @@ pub(super) fn emit_locale_enum_jsdoc_types(
             .map(|variant| format!("\"{}\"", escape_string(variant)))
             .collect::<Vec<_>>()
             .join(" | ");
-        output.push_str(&format!(
-            "/** @typedef {{{variants}}} {} */\n",
-            safe_identifier(&item.name)
-        ));
+        emit_docs_with_tags(
+            &[],
+            &[JsDocTag::Typedef {
+                name: safe_identifier(&item.name),
+                ty: variants.replace("*/", "*\\u002f"),
+            }],
+            "",
+            output,
+        );
     }
 }
 
 pub(super) fn emit_type_alias(item: &linguini_ir::IrTypeAlias, output: &mut String) {
     emit_docs(&item.docs, "", output);
-    output.push_str(&format!(
-        "export type {} = {};\n\n",
-        safe_identifier(&item.name),
-        ts_type(&item.target)
+    output.push_str(&crate::templates::render(
+        "declarations/alias",
+        minijinja::context! { name => safe_identifier(&item.name), ty => ts_type(&item.target) },
     ));
 }
 

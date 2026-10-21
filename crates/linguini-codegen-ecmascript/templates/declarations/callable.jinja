@@ -1,0 +1,3 @@
+{
+{% for overload in overloads %}{{ overload.docs }}{{ indent }}  ({{ overload.parameters }}): string;
+{% endfor %}{{ indent }}}{{ "" -}}

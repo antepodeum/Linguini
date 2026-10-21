@@ -237,34 +237,18 @@ pub(crate) fn emit_docs_with_tags(
         lines.push(String::new());
     }
     lines.extend(tags.iter().map(|tag| {
-        escape_comment(&match tag {
-            JsDocTag::Overload => "@overload".to_owned(),
-            JsDocTag::Param { name, ty } => format!("@param {{{ty}}} {name}"),
-            JsDocTag::Returns { ty } => format!("@returns {{{ty}}}"),
-            JsDocTag::Typedef { name, ty } => format!("@typedef {{{ty}}} {name}"),
-        })
+        let context = match tag {
+            JsDocTag::Overload => minijinja::context! { kind => "overload" },
+            JsDocTag::Param { name, ty } => minijinja::context! { kind => "param", name, ty },
+            JsDocTag::Returns { ty } => minijinja::context! { kind => "returns", ty },
+            JsDocTag::Typedef { name, ty } => minijinja::context! { kind => "typedef", name, ty },
+        };
+        escape_comment(&crate::templates::render("types/doc_tag", context))
     }));
-    if let [line] = lines.as_slice() {
-        output.push_str(indent);
-        output.push_str("/** ");
-        output.push_str(line);
-        output.push_str(" */\n");
-        return;
-    }
-
-    output.push_str(indent);
-    output.push_str("/**\n");
-    for line in lines {
-        output.push_str(indent);
-        output.push_str(" *");
-        if !line.is_empty() {
-            output.push(' ');
-            output.push_str(&line);
-        }
-        output.push('\n');
-    }
-    output.push_str(indent);
-    output.push_str(" */\n");
+    output.push_str(&crate::templates::render(
+        "types/documentation",
+        minijinja::context! { indent, lines },
+    ));
 }
 
 pub fn ts_type(name: &str) -> String {

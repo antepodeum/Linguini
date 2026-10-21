@@ -7,8 +7,7 @@ use crate::ecmascript::{
 
 use super::emit::{schema_type_aliases, schema_type_names};
 use super::names::{
-    declaration_import_path, emit_docs, function_name, property_key, safe_file_stem,
-    safe_identifier,
+    declaration_import_path, emit_docs, function_name, safe_file_stem, safe_identifier,
 };
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
@@ -34,7 +33,10 @@ pub fn generate_locale_declaration_with_namespaces(
     emit_type_alias_declarations(schema, &mut output);
     for namespace in namespaces {
         let identifier = safe_identifier(namespace);
-        output.push_str(&format!("export {{ {identifier} }};\n\n"));
+        output.push_str(&crate::templates::render(
+            "module/exports",
+            minijinja::context! { names => [identifier], blank_line => true },
+        ));
     }
     let exports = emit_message_declarations(schema, &mut output);
     emit_default_declaration_with_namespaces(&exports, namespaces, &mut output);
@@ -62,8 +64,10 @@ pub fn generate_locale_declaration_with_shared_import(
     if let Some(namespace_alias) = namespace_alias {
         let identifier = safe_identifier(namespace_alias);
         if !exports.iter().any(|export| export == &identifier) {
-            output.push_str(&format!(
-                "\nexport declare const {identifier}: typeof lgl;\n"
+            output.push('\n');
+            output.push_str(&crate::templates::render(
+                "declarations/constant",
+                minijinja::context! { name => identifier, ty => "typeof lgl", blank_line => false },
             ));
         }
     }
@@ -106,8 +110,9 @@ fn type_re_exports(schema: &IrModule, shared_import_path: &str) -> Vec<EcmaReExp
 
 fn emit_type_alias_declarations(schema: &IrModule, output: &mut String) {
     for (public_name, generated_name) in schema_type_aliases(schema) {
-        output.push_str(&format!(
-            "export type {public_name} = {generated_name};\n\n"
+        output.push_str(&crate::templates::render(
+            "declarations/alias",
+            minijinja::context! { name => public_name, ty => generated_name },
         ));
     }
 }
@@ -153,34 +158,11 @@ fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<Stri
 
 fn emit_message_object_declaration(name: &str, tree: &MessageTree, output: &mut String) {
     emit_docs(&tree.docs, "", output);
-    output.push_str(&format!("export declare const {}: ", safe_identifier(name)));
-    emit_object_type(tree, 0, output);
-    output.push_str(";\n\n");
-}
-
-fn emit_object_type(tree: &MessageTree, depth: usize, output: &mut String) {
-    let indent = "  ".repeat(depth);
-    let child_indent = "  ".repeat(depth + 1);
-    output.push_str("{\n");
-    for entry in &tree.messages {
-        let signature = MessageCallSignature::from_message(&entry.signature);
-        if !signature.is_parameterized() {
-            emit_docs(&entry.signature.docs, &child_indent, output);
-        }
-        output.push_str(&format!(
-            "{child_indent}readonly {}: {};\n",
-            property_key(&entry.property),
-            signature.callable_type_with_docs(&entry.signature.docs, &child_indent)
-        ));
-    }
-    for (name, child) in &tree.children {
-        emit_docs(&child.docs, &child_indent, output);
-        output.push_str(&format!("{child_indent}readonly {}: ", property_key(name)));
-        emit_object_type(child, depth + 1, output);
-        output.push_str(";\n");
-    }
-    output.push_str(&indent);
-    output.push('}');
+    let (ty, _) = super::type_tree::MessageTreeType::locale_declaration().render(tree);
+    output.push_str(&crate::templates::render(
+        "declarations/constant",
+        minijinja::context! { name => safe_identifier(name), ty, blank_line => true },
+    ));
 }
 
 fn emit_function_declaration(signature: &IrMessage, output: &mut String) {
@@ -200,14 +182,13 @@ fn emit_default_declaration_with_namespaces(
     namespaces: &[String],
     output: &mut String,
 ) {
-    output.push_str("declare const lgl: {\n");
-    for name in exports {
-        output.push_str(&format!("  readonly {name}: typeof {name};\n"));
-    }
-    for namespace in namespaces {
-        let identifier = safe_identifier(namespace);
-        output.push_str(&format!("  readonly {identifier}: typeof {identifier};\n"));
-    }
-    output.push_str("};\n\n");
-    output.push_str("export default lgl;\n");
+    let names = exports
+        .iter()
+        .cloned()
+        .chain(namespaces.iter().map(|name| safe_identifier(name)))
+        .collect::<Vec<_>>();
+    output.push_str(&crate::templates::render(
+        "declarations/default",
+        minijinja::context! { names },
+    ));
 }

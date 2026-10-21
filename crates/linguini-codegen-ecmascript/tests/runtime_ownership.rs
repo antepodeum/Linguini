@@ -47,7 +47,18 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
             )
             && matches!(
                 path.file_name().and_then(|name| name.to_str()),
-                Some("message.rs" | "locale.rs" | "globals.rs" | "semantic.rs" | "messages.rs")
+                Some(
+                    "message.rs"
+                        | "locale.rs"
+                        | "globals.rs"
+                        | "semantic.rs"
+                        | "messages.rs"
+                        | "decl.rs"
+                        | "signature.rs"
+                        | "names.rs"
+                        | "emit.rs"
+                        | "type_tree.rs"
+                )
             )
         {
             let production = source.split("#[cfg(test)]").next().unwrap();
@@ -57,10 +68,27 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
                 "\"export {};\\n\"",
                 "export {{ {} }};",
                 "@typedef {{import(",
+                "export declare const {",
+                "export declare function {",
+                "export type {",
+                "readonly {}:",
+                "@param {{{",
+                "@returns {{{",
+                "@typedef {{{",
             ] {
                 assert!(
                     !production.contains(inline),
                     "module output belongs in shared templates: {} ({inline})",
+                    path.display()
+                );
+            }
+            if matches!(
+                path.file_name().and_then(|name| name.to_str()),
+                Some("messages.rs" | "decl.rs")
+            ) {
+                assert!(
+                    !production.contains("fn emit_object_type("),
+                    "namespace types must share the provenance-aware renderer: {}",
                     path.display()
                 );
             }

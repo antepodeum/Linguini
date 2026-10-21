@@ -10,6 +10,46 @@ fn environment() -> &'static EcmaTemplateEngine {
     ENVIRONMENT.get_or_init(|| {
         EcmaTemplateEngine::new([
             (
+                "types/documentation",
+                include_str!("../templates/types/documentation.jinja"),
+            ),
+            (
+                "types/object",
+                include_str!("../templates/types/object.jinja"),
+            ),
+            (
+                "types/doc_tag",
+                include_str!("../templates/types/doc_tag.jinja"),
+            ),
+            (
+                "types/signature",
+                include_str!("../templates/types/signature.jinja"),
+            ),
+            (
+                "declarations/constant",
+                include_str!("../templates/declarations/constant.jinja"),
+            ),
+            (
+                "declarations/function",
+                include_str!("../templates/declarations/function.jinja"),
+            ),
+            (
+                "declarations/callable",
+                include_str!("../templates/declarations/callable.jinja"),
+            ),
+            (
+                "declarations/alias",
+                include_str!("../templates/declarations/alias.jinja"),
+            ),
+            (
+                "declarations/default",
+                include_str!("../templates/declarations/default.jinja"),
+            ),
+            (
+                "declarations/property",
+                include_str!("../templates/declarations/property.jinja"),
+            ),
+            (
                 "module/exports",
                 include_str!("../templates/module/exports.jinja"),
             ),

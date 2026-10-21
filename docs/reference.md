@@ -36,6 +36,9 @@ semantic type and signature models. Separate TS implementation emitters have bee
 Physical message compilers reuse the project emitter's constant/function templates, and module
 exports and imported JSDoc typedefs share syntax templates across locale and semantic artifacts.
 Rust selects the semantic plan and source spans; executable statement syntax belongs in templates.
+Declaration signatures and JSDoc are rendered from the common message-call model through
+build-time templates. The schema-owned contract and locale declarations share namespace-type
+rendering with per-message and group provenance.
 
 JavaScript output with declaration companions can be consumed by strict TypeScript projects
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and

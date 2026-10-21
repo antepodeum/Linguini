@@ -24,6 +24,7 @@ mod signature;
 mod test_templates;
 mod tree;
 mod type_model;
+mod type_tree;
 mod web_accept_language;
 mod web_cookie;
 mod web_facade;

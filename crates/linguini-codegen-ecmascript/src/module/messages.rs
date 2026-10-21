@@ -1,15 +1,12 @@
 use std::collections::BTreeSet;
 
-use linguini_ir::{IrModule, IrSymbolKind};
-use linguini_syntax::Span;
+use linguini_ir::IrModule;
 
 use crate::ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaStatement,
 };
 
-use super::names::{emit_docs, property_key, safe_identifier};
-use super::provenance::map_symbol_lines;
-use super::signature::MessageCallSignature;
+use super::names::safe_identifier;
 use super::tree::{nested_message_tree, MessageTree, MessageTreeMessage};
 
 /// Generate the schema-owned namespace type used by the project runtime.
@@ -57,17 +54,17 @@ pub(super) fn messages_module(
         });
     }
 
-    let mut output = String::new();
-    let mut mappings = Vec::new();
     let tree = schema_message_tree(schema);
+    let (output, mappings) =
+        super::type_tree::MessageTreeType::schema(schema, target).render(&tree);
     if target.is_declaration() {
-        output.push_str("export type LinguiniMessages = ");
-        emit_object_type(&tree, schema, "", 0, target, &mut output, &mut mappings);
-        output.push_str(";\n");
+        let output = crate::templates::render(
+            "declarations/alias",
+            minijinja::context! { name => "LinguiniMessages", ty => output, blank_line => false },
+        );
         module
             .push_statement_with_mappings(EcmaStatement::type_declaration(output, None), mappings);
     } else {
-        emit_object_type(&tree, schema, "", 0, target, &mut output, &mut mappings);
         let mut jsdoc = String::new();
         super::names::emit_docs_with_tags(
             &[],
@@ -79,7 +76,10 @@ pub(super) fn messages_module(
             &mut jsdoc,
         );
         module.push_statement_with_mappings(EcmaStatement::documentation(jsdoc, None), mappings);
-        module.push_statement(EcmaStatement::generated("export {};"));
+        module.push_statement(EcmaStatement::generated(crate::templates::render(
+            "module/exports",
+            minijinja::context! { names => Vec::<String>::new(), blank_line => false },
+        )));
     }
     module
 }
@@ -116,87 +116,6 @@ fn schema_message_tree(schema: &IrModule) -> MessageTree {
         }
     }
     tree
-}
-
-fn emit_object_type(
-    tree: &MessageTree,
-    schema: &IrModule,
-    prefix: &str,
-    depth: usize,
-    target: crate::ecmascript::EcmaModuleKind,
-    output: &mut String,
-    mappings: &mut Vec<(usize, Span)>,
-) {
-    let indent = "  ".repeat(depth);
-    let child_indent = "  ".repeat(depth + 1);
-    output.push_str("{\n");
-    for entry in &tree.messages {
-        let start = output.len();
-        let signature = MessageCallSignature::from_message(&entry.signature);
-        if target.is_declaration() && !signature.is_parameterized() {
-            emit_docs(&entry.signature.docs, &child_indent, output);
-        }
-        output.push_str(&format!(
-            "{child_indent}readonly {}: {};\n",
-            message_property_key(&entry.property, depth),
-            if target.is_declaration() {
-                signature.callable_type_with_docs(&entry.signature.docs, &child_indent)
-            } else {
-                signature.javascript_callable_type()
-            }
-        ));
-        map_symbol_lines(
-            schema,
-            IrSymbolKind::Message,
-            &entry.signature.name,
-            start,
-            output,
-            mappings,
-        );
-    }
-    for (name, child) in &tree.children {
-        let start = output.len();
-        let name_path = if prefix.is_empty() {
-            name.clone()
-        } else {
-            format!("{prefix}.{name}")
-        };
-        if target.is_declaration() {
-            emit_docs(&child.docs, &child_indent, output);
-        }
-        output.push_str(&format!(
-            "{child_indent}readonly {}: ",
-            message_property_key(name, depth)
-        ));
-        map_symbol_lines(
-            schema,
-            IrSymbolKind::Group,
-            &name_path,
-            start,
-            output,
-            mappings,
-        );
-        emit_object_type(
-            child,
-            schema,
-            &name_path,
-            depth + 1,
-            target,
-            output,
-            mappings,
-        );
-        output.push_str(";\n");
-    }
-    output.push_str(&indent);
-    output.push('}');
-}
-
-fn message_property_key(name: &str, depth: usize) -> String {
-    if depth == 0 {
-        safe_identifier(name)
-    } else {
-        property_key(name)
-    }
 }
 
 #[cfg(test)]

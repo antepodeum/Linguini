@@ -1,0 +1,5 @@
+declare const lgl: {
+{% for name in names %}  readonly {{ name }}: typeof {{ name }};
+{% endfor %}};
+
+export default lgl;

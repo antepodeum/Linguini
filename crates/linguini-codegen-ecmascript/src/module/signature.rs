@@ -25,18 +25,6 @@ impl MessageCallParameter {
     pub(crate) fn property_key(&self) -> String {
         property_key(&self.source_name)
     }
-
-    fn tuple_label(&self) -> String {
-        format!("{}: {}", self.binding, render_typescript_type(&self.ty))
-    }
-
-    fn named_property(&self) -> String {
-        format!(
-            "{}: {}",
-            self.property_key(),
-            render_typescript_type(&self.ty)
-        )
-    }
 }
 
 /// A normalized call contract for one schema message.
@@ -66,22 +54,12 @@ impl MessageCallSignature {
 
     /// Positional call parameters, for example `count: number, date: Date | number | string`.
     pub(crate) fn positional_params(&self) -> String {
-        self.parameters
-            .iter()
-            .map(MessageCallParameter::tuple_label)
-            .collect::<Vec<_>>()
-            .join(", ")
+        self.render_signature("positional", false)
     }
 
     /// Required named-object argument type, preserving source property names.
     pub(crate) fn named_object_type(&self) -> String {
-        let properties = self
-            .parameters
-            .iter()
-            .map(MessageCallParameter::named_property)
-            .collect::<Vec<_>>()
-            .join("; ");
-        format!("{{ {properties} }}")
+        self.render_signature("named", false)
     }
 
     /// The implementation rest parameter accepted by the generated runtime leaf.
@@ -90,7 +68,10 @@ impl MessageCallSignature {
     /// property keys.  This gives the implementation one type-safe input shape while keeping
     /// expression references valid for reserved and punctuation-bearing source names.
     pub(crate) fn implementation_rest_params(&self) -> String {
-        format!("...{IMPLEMENTATION_ARGS}")
+        crate::templates::render(
+            "types/signature",
+            minijinja::context! { kind => "rest", name => IMPLEMENTATION_ARGS },
+        )
     }
 
     #[cfg(test)]
@@ -125,35 +106,21 @@ impl MessageCallSignature {
 
     /// The public callable value type used by locale and nested message objects.
     pub(crate) fn callable_type(&self) -> String {
-        if !self.is_parameterized() {
-            return "string".to_owned();
-        }
-        format!(
-            "{{ ({}): string; (args: {}): string; }}",
-            self.positional_params(),
-            self.named_object_type()
-        )
+        self.render_signature("callable", false)
     }
 
     pub(crate) fn javascript_callable_type(&self) -> String {
-        if !self.is_parameterized() {
-            return "string".to_owned();
-        }
-        let positional = self
-            .parameters
-            .iter()
-            .map(|parameter| {
-                format!(
-                    "{}: {}",
-                    parameter.binding,
-                    render_jsdoc_type(&parameter.ty)
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!(
-            "(({positional}) => string) & ((args: {}) => string)",
-            self.named_object_type()
+        self.render_signature("callable", true)
+    }
+
+    fn render_signature(&self, kind: &str, jsdoc: bool) -> String {
+        let parameters = self.parameters.iter().map(|parameter| minijinja::context! {
+            binding => &parameter.binding, property => parameter.property_key(),
+            ty => if jsdoc { render_jsdoc_type(&parameter.ty) } else { render_typescript_type(&parameter.ty) },
+        }).collect::<Vec<_>>();
+        crate::templates::render(
+            "types/signature",
+            minijinja::context! { kind, jsdoc, parameters },
         )
     }
 
@@ -187,21 +154,18 @@ impl MessageCallSignature {
         if !self.is_parameterized() {
             let mut output = String::new();
             super::names::emit_docs(docs, "", &mut output);
-            output.push_str(&format!("export declare const {name}: string;\n\n"));
+            output.push_str(&crate::templates::render(
+                "declarations/constant",
+                minijinja::context! { name, ty => "string", blank_line => true },
+            ));
             return output;
         }
 
         let mut output = String::new();
         emit_docs_with_tags(docs, &self.positional_doc_tags(), "", &mut output);
-        output.push_str(&format!(
-            "export declare function {name}({}): string;\n",
-            self.positional_params()
-        ));
+        output.push_str(&crate::templates::render("declarations/function", minijinja::context! { name, parameters => self.positional_params(), blank_line => false }));
         emit_docs_with_tags(docs, &self.named_doc_tags(), "", &mut output);
-        output.push_str(&format!(
-            "export declare function {name}(args: {}): string;\n\n",
-            self.named_object_type()
-        ));
+        output.push_str(&crate::templates::render("declarations/function", minijinja::context! { name, parameters => self.render_signature("named_argument", false), blank_line => true }));
         output
     }
 
@@ -239,28 +203,25 @@ impl MessageCallSignature {
         if !self.is_parameterized() {
             return self.callable_type();
         }
-        let mut output = String::from("{\n");
-        emit_docs_with_tags(
-            docs,
-            &self.positional_doc_tags(),
-            &format!("{indent}  "),
-            &mut output,
-        );
-        output.push_str(&format!(
-            "{indent}  ({}): string;\n",
-            self.positional_params()
-        ));
-        emit_docs_with_tags(
-            docs,
-            &self.named_doc_tags(),
-            &format!("{indent}  "),
-            &mut output,
-        );
-        output.push_str(&format!(
-            "{indent}  (args: {}): string;\n{indent}}}",
-            self.named_object_type()
-        ));
-        output
+        let child_indent = format!("{indent}  ");
+        let overloads = [
+            (self.positional_doc_tags(), self.positional_params()),
+            (
+                self.named_doc_tags(),
+                self.render_signature("named_argument", false),
+            ),
+        ]
+        .into_iter()
+        .map(|(tags, parameters)| {
+            let mut documentation = String::new();
+            emit_docs_with_tags(docs, &tags, &child_indent, &mut documentation);
+            minijinja::context! { docs => documentation, parameters }
+        })
+        .collect::<Vec<_>>();
+        crate::templates::render(
+            "declarations/callable",
+            minijinja::context! { indent, overloads },
+        )
     }
 }
 

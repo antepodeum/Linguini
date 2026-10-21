@@ -1,0 +1,5 @@
+{% if lines|length == 1 %}{{ indent }}/** {{ lines[0] }} */
+{% else %}{{ indent }}/**
+{% for line in lines %}{{ indent }} *{{ " " ~ line if line else "" }}
+{% endfor %}{{ indent }} */
+{% endif -%}

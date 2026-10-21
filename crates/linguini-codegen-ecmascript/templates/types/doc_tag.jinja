@@ -1,0 +1,5 @@
+{%- if kind == "overload" -%}@overload
+{%- elif kind == "param" -%}@param { {{- ty -}} } {{ name }}
+{%- elif kind == "returns" -%}@returns { {{- ty -}} }
+{%- elif kind == "typedef" -%}@typedef { {{- ty -}} } {{ name }}
+{%- endif -%}
