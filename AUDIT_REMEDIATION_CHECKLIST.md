@@ -1118,6 +1118,9 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Accept-Language uses direct preference selection and scalar winner state, without per-locale
       filter/sort arrays or candidate objects. Explicit cases and 512 frozen-runtime comparisons
       retain specificity exclusions, quality, input/base/locale order, and navigator fallback.
+      Numeric grouping compiles equal/unequal group widths into direct string loops without
+      group arrays/reversal/join. A 32-plan execution corpus covers width boundaries, padding,
+      Unicode separators, negative zero, and 8,192-digit inputs alongside formatter/rounding cases.
       Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page

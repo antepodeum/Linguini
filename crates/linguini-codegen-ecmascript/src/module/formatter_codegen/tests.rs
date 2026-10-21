@@ -266,6 +266,75 @@ console.log("ok");
 }
 
 #[test]
+fn compiled_grouping_covers_width_boundaries_padding_and_long_exact_values() {
+    let mut numbers = compiled_number_formatting("en").unwrap();
+    let mut plans = Vec::new();
+    let mut generated = String::new();
+    let mut cases = String::new();
+    for primary in 1..=4 {
+        for secondary in 1..=4 {
+            for minimum in [1, 6] {
+                let mut pattern = numbers.decimal_pattern;
+                pattern.positive.primary_group_size = Some(primary);
+                pattern.positive.secondary_group_size = Some(secondary);
+                pattern.positive.min_integer_digits = minimum;
+                pattern.positive.min_fraction_digits = 0;
+                pattern.positive.max_fraction_digits = 0;
+                numbers.group_symbol = if minimum == 1 { "," } else { "🍎" };
+                let plan = number_plan(&pattern, None, &numbers, None);
+                let name = format!("group{primary}_{secondary}_{minimum}");
+                generated.push_str(&crate::templates::render(
+                    "formatters/number",
+                    minijinja::context! { name => &name, plan => plan.clone(), exported => false },
+                ));
+                cases.push_str(&format!(
+                    "[{name}, {primary}, {secondary}, {minimum}, {:?}],",
+                    numbers.group_symbol
+                ));
+                plans.push(plan);
+            }
+        }
+    }
+    for retired in ["groups.push", "groups.reverse", ".join(", "Math.max(0, end"] {
+        assert!(!generated.contains(retired), "grouping retained {retired}");
+    }
+    assert_eq!(
+        execute(&format!(
+            r#"{generated}{helpers}
+function expected(value, primary, secondary, minimum, separator) {{
+  const negative = value.startsWith("-");
+  let digits = (negative ? value.slice(1) : value).padStart(minimum, "0");
+  const groups = [];
+  let width = primary;
+  while (digits.length > width) {{
+    groups.unshift(digits.slice(-width));
+    digits = digits.slice(0, -width);
+    width = secondary;
+  }}
+  groups.unshift(digits);
+  return (negative ? "-" : "") + groups.join(separator);
+}}
+const values = ["0", "-0", "12345678", "9".repeat(8192)];
+for (let length = 1; length <= 36; length++) values.push("123456789".repeat(4).slice(0, length));
+for (const [format, primary, secondary, minimum, separator] of [{cases}]) {{
+  for (const digits of values) {{
+    for (const value of [digits, digits === "0" || digits === "-0" ? digits : "-" + digits]) {{
+      const actual = format(value);
+      const wanted = expected(value, primary, secondary, minimum, separator);
+      if (actual !== wanted) throw new Error(JSON.stringify([format.name, value, actual, wanted]));
+    }}
+  }}
+}}
+if (group3_3_1("12345678") !== "12,345,678" || group3_2_1("12345678") !== "1,23,45,678") throw new Error("standard and Indian grouping drifted");
+console.log("ok");
+"#,
+            helpers = number_helpers(&plans),
+        )),
+        "ok"
+    );
+}
+
+#[test]
 fn compiled_date_fields_select_padding_helpers() {
     let medium = request(IrFormatterKind::Date, &[]);
     let short = request(IrFormatterKind::Date, &[("style", "short")]);

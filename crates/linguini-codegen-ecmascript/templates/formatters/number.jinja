@@ -18,14 +18,13 @@
   {% if plan.min_significant is not none %}let{% else %}const{% endif %} fraction = {% if plan.max_significant is none and plan.min_fraction == plan.max_fraction %}rounded.fraction{% elif plan.min_fraction == 0 %}rounded.fraction.replace(/0+$/, ""){% else %}rounded.fraction.slice(0, {{ plan.min_fraction }}) + rounded.fraction.slice({{ plan.min_fraction }}).replace(/0+$/, ""){% endif %};
 {% if plan.min_significant is not none %}  fraction = padTo{{ plan.min_significant }}SignificantDigits(integer, fraction);
 {% endif %}{% if plan.primary_group is not none %}  if (integer.length > {{ plan.primary_group }}) {
-    const groups = [integer.slice(-{{ plan.primary_group }})];
-    let end = integer.length - {{ plan.primary_group }};
-    while (end > 0) {
-      const start = Math.max(0, end - {{ plan.secondary_group }});
-      groups.push(integer.slice(start, end));
-      end = start;
+{% if plan.primary_group != plan.secondary_group %}    const primaryStart = integer.length - {{ plan.primary_group }};
+{% endif %}    const firstGroup = {% if plan.secondary_group == 1 %}1{% else %}{{ 'integer.length' if plan.primary_group == plan.secondary_group else 'primaryStart' }} % {{ plan.secondary_group }} || {{ plan.secondary_group }}{% endif %};
+    let grouped = integer.slice(0, firstGroup);
+    for (let offset = firstGroup; offset < {{ 'integer.length' if plan.primary_group == plan.secondary_group else 'primaryStart' }}; offset += {{ plan.secondary_group }}) {
+      grouped += {{ plan.group_symbol|js }} + integer.slice(offset, offset + {{ plan.secondary_group }});
     }
-    integer = groups.reverse().join({{ plan.group_symbol|js }});
+    integer = grouped{% if plan.primary_group != plan.secondary_group %} + {{ plan.group_symbol|js }} + integer.slice(primaryStart){% endif %};
   }
 {% endif %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} formatted = fraction ? integer + {{ plan.decimal_symbol|js }} + fraction : integer;
 {% if plan.exponent_digits is not none %}  formatted += `E${exponent < 0 ? "-" : {{ '"+"' if plan.exponent_sign else '""' }}}${String(Math.abs(exponent)).padStart({{ plan.exponent_digits }}, "0")}`;

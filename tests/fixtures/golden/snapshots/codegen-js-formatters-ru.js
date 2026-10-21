@@ -11,14 +11,12 @@ export function formatNumber(value) {
   let integer = rounded.integer;
   const fraction = rounded.fraction.replace(/0+$/, "");
   if (integer.length > 3) {
-    const groups = [integer.slice(-3)];
-    let end = integer.length - 3;
-    while (end > 0) {
-      const start = Math.max(0, end - 3);
-      groups.push(integer.slice(start, end));
-      end = start;
+    const firstGroup = integer.length % 3 || 3;
+    let grouped = integer.slice(0, firstGroup);
+    for (let offset = firstGroup; offset < integer.length; offset += 3) {
+      grouped += " " + integer.slice(offset, offset + 3);
     }
-    integer = groups.reverse().join(" ");
+    integer = grouped;
   }
   const formatted = fraction ? integer + "," + fraction : integer;
   const prefix = decimal.negative ? "-" : "";
@@ -36,14 +34,12 @@ export function formatCurrency(value) {
   let integer = rounded.integer;
   const fraction = rounded.fraction;
   if (integer.length > 3) {
-    const groups = [integer.slice(-3)];
-    let end = integer.length - 3;
-    while (end > 0) {
-      const start = Math.max(0, end - 3);
-      groups.push(integer.slice(start, end));
-      end = start;
+    const firstGroup = integer.length % 3 || 3;
+    let grouped = integer.slice(0, firstGroup);
+    for (let offset = firstGroup; offset < integer.length; offset += 3) {
+      grouped += " " + integer.slice(offset, offset + 3);
     }
-    integer = groups.reverse().join(" ");
+    integer = grouped;
   }
   const formatted = fraction ? integer + "," + fraction : integer;
   const prefix = decimal.negative ? "-" : "";

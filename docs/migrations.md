@@ -169,6 +169,11 @@ Accept-Language selection now scans preferences without per-locale filtering/sor
 objects. Most-specific exclusions, quality, input order, base preference, and configured locale
 order retain their behavior. Navigator fallback and the public resolver signature are unchanged.
 
+Number/currency grouping now emits a direct string loop specialized for the compiled group
+widths. It no longer builds/reverses/joins a temporary group array. Public formatter inputs and
+outputs are unchanged, including primary/secondary grouping, padding, exact long values, and
+negative zero.
+
 The intermediate APIs and paired-output parity receipts below describe earlier remediation
 stages; this section supersedes their runtime target names and `.ts` output paths.
 

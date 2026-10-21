@@ -229,6 +229,9 @@ digit helpers are selected from the actual compiled fields. The regression corpu
 operation in isolation against executed generated code and an exact rational rounding oracle.
 Significant rounding retains the expansion bound for precision derived from the input value;
 static CLDR choices are validated during generation.
+Numeric grouping uses a direct string loop compiled for the selected primary/secondary widths,
+with separate output for equal widths and no group array, reversal, or join. Executed cases cover
+width boundaries, padding, Unicode separators, negative zero, and the decimal input-size limit.
 Plural predicates also compile during builds: only required scalar operands are produced at their
 first use, common guards are shared, and modulo results are calculated once. Comparisons use
 direct conditions without per-call operand objects or range arrays. Fraction-digit counts do not
