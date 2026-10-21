@@ -1065,6 +1065,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### Specialized generated code
 
+The [fixture review](docs/generated-code-review.md) records concrete remaining generator
+findings, their current owners, and semantic/output verification requirements. Its open items
+remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion receipt.
+
 - [-] OPT-A1 — Parse and resolve all used CLDR number, currency, date, calendar, context, zone,
       skeleton, plural, and composition patterns during compilation/build. Generated code must be
       the compiled result of those patterns; it must not carry raw CLDR patterns/tables for a
