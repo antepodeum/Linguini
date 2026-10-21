@@ -1,6 +1,5 @@
 //! Same-origin locale switching with selected server cookie persistence.
 
-use super::names::escape_string;
 use super::EcmaWebOptions;
 use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
 
@@ -16,13 +15,15 @@ pub fn generate_web_switch_route_declaration() -> String {
 /// Compile the configured locale switch route, or omit the absent capability.
 pub fn compile_web_switch_route_module(options: &EcmaWebOptions) -> Option<RenderedEcmaModule> {
     let route = options.switch_route.as_ref()?;
+    let (route_prefix, route_suffix) = route.path.split_once("{locale}")?;
     Some(
         crate::templates::module(
             EcmaModuleOutput::new(EcmaModuleKind::JavaScript, "web/switch-route.js", None),
             "web/switch-route",
             minijinja::context! {
-                route_path => escape_string(&route.path),
-                return_query => escape_string(&route.return_query),
+                route_prefix, route_suffix,
+                route_suffix_length => route_suffix.encode_utf16().count(),
+                return_query => route.return_query,
                 status => route.status,
                 has_cookie => options.features().has_cookie,
             },
@@ -84,6 +85,13 @@ mod tests {
             let js = compile_web_switch_route_module(&options).unwrap();
             assert_eq!(js.code.contains("persistLocaleCookie"), has_cookie);
             assert!(!js.code.contains("handleLocaleSwitchRoute<"));
+            assert!(!js.code.contains("{locale}"));
+            assert!(!js.code.contains("indexOf("));
+            assert!(!js.code.contains("markerIndex"));
+            assert_eq!(
+                js.code.contains("pathname.endsWith("),
+                !path.ends_with("{locale}")
+            );
             snapshots.extend([
                 (root.join(format!("{name}/web/switch-route.js")), js.code),
                 (

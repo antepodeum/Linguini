@@ -49,7 +49,7 @@ describe("server cookie and switch-route target parity", () => {
                   return { url, request: new Request(url, { headers: referer ? { referer } : {} }) };
                 };
                 const result: unknown[] = [];
-                for (const path of ["/other", `/locale/de${suffix}`, `/locale/%zz${suffix}`, `/locale/fr/extra${suffix}`, `/locale/${suffix}`]) {
+                for (const path of ["/other", `/locale/de${suffix}`, `/locale/%zz${suffix}`, `/locale/fr/extra${suffix}`, `/locale/${suffix}`, `/locale/fr${suffix}/extra`, `/locale/fr%2fextra${suffix}`]) {
                   expect(switchRoute.handleLocaleSwitchRoute(web, event(path))).toBeUndefined();
                 }
                 const cases = [
@@ -71,7 +71,10 @@ describe("server cookie and switch-route target parity", () => {
                 expect(referer.headers.get("location")).toBe(writesPath ? "/en/previous" : "/previous");
                 const foreign = switchRoute.handleLocaleSwitchRoute(web, event(`/locale/en${suffix}`, undefined, "https://evil.example/previous")) as Response;
                 expect(foreign.headers.get("location")).toBe(writesPath ? `/en${base || "/"}` : base || "/");
-                expect(persisted).toBe(variant === "cookie" && writesCookie ? cases.length + 2 : 0);
+                const encoded = switchRoute.handleLocaleSwitchRoute(web, event(`/locale/%66r${suffix}`, "/encoded")) as Response;
+                expect(encoded.status).toBe(status);
+                expect(encoded.headers.get("location")).toBe(writesPath ? "/fr/encoded" : "/encoded");
+                expect(persisted).toBe(variant === "cookie" && writesCookie ? cases.length + 3 : 0);
                 return result;
               });
             };

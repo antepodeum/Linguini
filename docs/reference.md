@@ -145,7 +145,10 @@ HMR loader disposal.
 
 `compile_web_server_cookie_module`
 compiles server cookie delegation. `compile_web_switch_route_module` accepts the closed web policy and returns `None` when
-no switch route is configured. They preserve same-origin return safety and selected path/cookie transports.
+no switch route is configured or its path has no locale marker. Project validation requires exactly
+one marker. The compiler splits the route into a static prefix and suffix; requests only prepend
+the host base path and extract the encoded locale. Empty suffixes omit suffix checks. These
+modules preserve same-origin return safety and selected path/cookie transports.
 
 Linguini has two file types:
 

@@ -105,7 +105,10 @@ fn project_codegen_emits_generated_sveltekit_adapter_when_enabled() {
         .iter()
         .find(|file| file.path == "web/switch-route.js")
         .expect("switch route capability");
-    assert!(switch_route.contents.contains("/_linguini/locale/{locale}"));
+    assert!(switch_route
+        .contents
+        .contains("web.options.environment.base + \"/_linguini/locale/\""));
+    assert!(!switch_route.contents.contains("{locale}"));
     assert!(switch_route.contents.contains("const redirectStatus = 303"));
     assert!(switch_route.contents.contains("persistLocaleCookie"));
     assert!(switch_route.contents.contains("web.localizeHref"));

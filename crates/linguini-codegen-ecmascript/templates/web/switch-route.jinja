@@ -1,7 +1,6 @@
 {% if has_cookie %}import { persistLocaleCookie } from "./server-cookie.js";
 
-{% endif %}const routePath = "{{ route_path }}";
-const returnQuery = "{{ return_query }}";
+{% endif %}const returnQuery = {{ return_query|js }};
 const redirectStatus = {{ status }};
 
 {% raw %}/** @template {string} Locale @param {import("../web.js").LinguiniWebLocale<Locale>} web @param {{url: URL; request: Request}} event @returns {Response | undefined} */
@@ -31,17 +30,10 @@ export function handleLocaleSwitchRoute(web, event) {
 
 /** @template {string} Locale @param {import("../web.js").LinguiniWebLocale<Locale>} web @param {string} pathname @returns {Locale | undefined} */
 function matchSwitchLocale(web, pathname) {
-  const effectiveRoutePath = `${web.options.environment.base}${routePath}` || routePath;
-  const marker = "{locale}";
-  const markerIndex = effectiveRoutePath.indexOf(marker);
-  const prefix = effectiveRoutePath.slice(0, markerIndex);
-  const suffix = effectiveRoutePath.slice(markerIndex + marker.length);
-  if (!pathname.startsWith(prefix) || !pathname.endsWith(suffix)) return undefined;
-  const encoded = pathname.slice(
-    prefix.length,
-    suffix.length > 0 ? pathname.length - suffix.length : pathname.length,
-  );
-  if (!encoded || encoded.includes("/")) return undefined;
+{% endraw %}  const prefix = web.options.environment.base + {{ route_prefix|js }};
+  if (!pathname.startsWith(prefix){% if route_suffix %} || !pathname.endsWith({{ route_suffix|js }}){% endif %}) return undefined;
+  const encoded = pathname.slice(prefix.length{% if route_suffix %}, pathname.length - {{ route_suffix_length }}{% endif %});
+{% raw %}  if (!encoded || encoded.includes("/")) return undefined;
   try {
     return web.matchLocale(decodeURIComponent(encoded));
   } catch {

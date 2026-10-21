@@ -1,6 +1,5 @@
 import { persistLocaleCookie } from "./server-cookie.js";
 
-const routePath = "/locale/{locale}";
 const returnQuery = "return";
 const redirectStatus = 303;
 
@@ -30,16 +29,9 @@ export function handleLocaleSwitchRoute(web, event) {
 
 /** @template {string} Locale @param {import("../web.js").LinguiniWebLocale<Locale>} web @param {string} pathname @returns {Locale | undefined} */
 function matchSwitchLocale(web, pathname) {
-  const effectiveRoutePath = `${web.options.environment.base}${routePath}` || routePath;
-  const marker = "{locale}";
-  const markerIndex = effectiveRoutePath.indexOf(marker);
-  const prefix = effectiveRoutePath.slice(0, markerIndex);
-  const suffix = effectiveRoutePath.slice(markerIndex + marker.length);
-  if (!pathname.startsWith(prefix) || !pathname.endsWith(suffix)) return undefined;
-  const encoded = pathname.slice(
-    prefix.length,
-    suffix.length > 0 ? pathname.length - suffix.length : pathname.length,
-  );
+  const prefix = web.options.environment.base + "/locale/";
+  if (!pathname.startsWith(prefix)) return undefined;
+  const encoded = pathname.slice(prefix.length);
   if (!encoded || encoded.includes("/")) return undefined;
   try {
     return web.matchLocale(decodeURIComponent(encoded));

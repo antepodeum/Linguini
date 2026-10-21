@@ -153,6 +153,11 @@ in `linguini-codegen` alongside the transitive closure planner; the ECMAScript s
 remains a compatible re-export. Both planners preserve simultaneous inline-input scope, and
 alias-typed form calls use the resolved runtime form binding instead of an undefined alias binding.
 
+Switch-route generation now compiles the configured `{locale}` marker into a fixed prefix/suffix
+and extraction bound. Generated requests no longer search or split the route template, and routes
+without a suffix omit its check. Host base paths remain dynamic. Redirect status, percent decoding,
+same-origin return validation, and selected cookie/path transports keep their existing contracts.
+
 The intermediate APIs and paired-output parity receipts below describe earlier remediation
 stages; this section supersedes their runtime target names and `.ts` output paths.
 

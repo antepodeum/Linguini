@@ -1108,6 +1108,9 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       and re-export-only barrels omit them. Project and physical-leaf execution covers captured
       globals, alias-typed callable forms, simultaneous inline-input scope, named/positional calls,
       and sparse regional fallback. Transitive dependency selection remains a separate shared plan.
+      Switch routes compile their marker and suffix bounds in Rust; runtime requests retain only
+      host base-path composition and locale extraction. Executed comparisons retain encoded-locale,
+      suffix, redirect, same-origin return-target, and cookie/path transport behavior.
       Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page
