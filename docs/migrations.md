@@ -174,6 +174,13 @@ widths. It no longer builds/reverses/joins a temporary group array. Public forma
 outputs are unchanged, including primary/secondary grouping, padding, exact long values, and
 negative zero.
 
+Date generation now resolves locale/context/width-specific symbols from pinned CLDR data:
+formatting and standalone month names, narrow/short name widths, AM/PM, and Gregorian era labels.
+Rebuild generated code; Arabic and Hindi time results now use `م` and `pm` instead of the incorrect
+hard-coded `PM`. Identical selected name tables within one formatter share a binding. The shared
+Rust `date_field_symbols` plan and `CalendarFormatData::symbol` lookup contain no target syntax;
+JavaScript receives selected literals/tables without runtime CLDR symbol-path lookup.
+
 The intermediate APIs and paired-output parity receipts below describe earlier remediation
 stages; this section supersedes their runtime target names and `.ts` output paths.
 

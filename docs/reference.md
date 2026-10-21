@@ -11,6 +11,9 @@ and executable examples so public contract drift requires an explicit reviewed u
 analysis, exact formatter requests, closure-free inline-function lowering, static decision trees,
 and direct/transitive message dependency selection with source provenance. Other code
 generators can consume these semantic plans without depending on an output language.
+`date_field_symbols` resolves Gregorian month/weekday contexts and widths, AM/PM values, and era
+labels through the pinned calendar data before emission. `CalendarFormatData::symbol` provides
+the shared data lookup; generated JavaScript receives only the selected literals/name tables.
 
 Framework integrations have separate native owners. `linguini-codegen-svelte` generates Svelte
 locale state, controls, effects, and provider facades. `linguini-codegen-sveltekit` composes that
@@ -229,6 +232,12 @@ digit helpers are selected from the actual compiled fields. The regression corpu
 operation in isolation against executed generated code and an exact rational rounding oracle.
 Significant rounding retains the expansion bound for precision derived from the input value;
 static CLDR choices are validated during generation.
+Date symbol selection distinguishes formatting `M` from standalone `L`, narrow month/weekday
+names, short weekday names, and locale/width-specific AM/PM and Gregorian era labels. Identical
+name tables within a formatter share one binding. These choices follow the
+[CLDR date-field rules](https://unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table).
+Extended calendar, flexible-period, zone, and skeleton compilation remains under remediation;
+the public date request currently selects `style` and `time_style`.
 Numeric grouping uses a direct string loop compiled for the selected primary/secondary widths,
 with separate output for equal widths and no group array, reversal, or join. Executed cases cover
 width boundaries, padding, Unicode separators, negative zero, and the decimal input-size limit.

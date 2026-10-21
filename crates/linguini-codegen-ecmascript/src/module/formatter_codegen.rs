@@ -228,8 +228,10 @@ fn date_parts(
 ) {
     use minijinja::context;
     let mut helpers = DateHelperRequirements::default();
+    let calendar = linguini_cldr::compiled_calendar_formatting(dates.locale, "gregory")
+        .expect("validated locale has pinned Gregorian symbols");
     let mut parts = Vec::new();
-    let mut tables = std::collections::BTreeMap::new();
+    let mut tables = std::collections::BTreeMap::<String, Vec<&str>>::new();
     let mut chars = pattern.chars().peekable();
     let mut literal = String::new();
     let mut quoted = false;
@@ -256,25 +258,29 @@ fn date_parts(
             width += 1;
         }
         let mut table = None;
-        let symbols: Option<&[&str]> = match character {
-            'M' | 'L' if width >= 4 => Some(&dates.months.wide),
-            'M' | 'L' if width == 3 => Some(&dates.months.abbreviated),
-            'E' if width >= 4 => Some(&dates.weekdays.wide),
-            'E' => Some(&dates.weekdays.abbreviated),
-            _ => None,
-        };
-        if let Some(values) = symbols {
-            let binding = format!(
-                "{name}_{}_{width}",
+        let symbols = linguini_codegen::date_field_symbols(&calendar, character, width)
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing pinned CLDR symbols: {} {character}/{width}",
+                    dates.locale
+                )
+            });
+        if let Some(values) = symbols.names {
+            let proposed = format!(
+                "{name}_{}{}_{width}",
+                if character == 'L' { "standalone_" } else { "" },
                 if matches!(character, 'M' | 'L') {
                     "months"
                 } else {
                     "weekdays"
                 }
             );
-            tables
-                .entry(binding.clone())
-                .or_insert_with(|| context! { name => &binding, values });
+            let binding = tables
+                .iter()
+                .find(|(_, existing)| **existing == values)
+                .map(|(binding, _)| binding.clone())
+                .unwrap_or(proposed);
+            tables.entry(binding.clone()).or_insert(values);
             table = Some(binding);
         }
         let numeric = matches!(
@@ -283,13 +289,20 @@ fn date_parts(
         ) || matches!(character, 'M' | 'L') && width <= 2;
         helpers.padding |= character == 'S' || (numeric && width == 2);
         helpers.digits |= numeric && dates.digits != "0123456789";
-        parts.push(context! { kind => "field", field => character.to_string(), width, table, numeric, am => "AM", pm => "PM", ad => "AD", bc => "BC" });
+        parts.push(context! { kind => "field", field => character.to_string(), width, table, numeric, am => symbols.am, pm => symbols.pm, ad => symbols.ad, bc => symbols.bc });
     }
     assert!(!quoted, "validated CLDR pattern has balanced quoting");
     if !literal.is_empty() {
         parts.push(context! { kind => "literal", value => literal });
     }
-    (parts, tables.into_values().collect(), helpers)
+    (
+        parts,
+        tables
+            .into_iter()
+            .map(|(name, values)| context! { name, values })
+            .collect(),
+        helpers,
+    )
 }
 
 #[cfg(test)]

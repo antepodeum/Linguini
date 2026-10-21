@@ -226,12 +226,8 @@ fn calendar_symbols_and_supplemental_rules_retain_pinned_context_and_boundaries(
     let symbol = |locale, calendar, path| {
         compiled_calendar_formatting(locale, calendar)
             .unwrap()
-            .symbols
-            .iter()
-            .flat_map(|table| table.iter())
-            .find(|(name, _)| *name == path)
+            .symbol(path)
             .unwrap()
-            .1
     };
     assert_eq!(symbol("ru", "gregory", "months.format.wide.1"), "января");
     assert_eq!(
@@ -239,6 +235,16 @@ fn calendar_symbols_and_supplemental_rules_retain_pinned_context_and_boundaries(
         "январь"
     );
     assert_eq!(symbol("ar", "gregory", "dayPeriods.format.wide.pm"), "م");
+    assert_eq!(
+        symbol("hi", "gregory", "dayPeriods.format.abbreviated.pm"),
+        "pm"
+    );
+    assert_eq!(
+        compiled_calendar_formatting("en", "gregory")
+            .unwrap()
+            .symbol("missing.symbol"),
+        None
+    );
     assert_eq!(symbol("th", "buddhist", "eras.eraAbbr.0"), "พ.ศ.");
     assert_eq!(symbol("zh-TW", "roc", "eras.eraAbbr.1"), "民國");
     assert_eq!(symbol("ja", "japanese", "eras.eraAbbr.236"), "令和");

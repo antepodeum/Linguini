@@ -416,11 +416,11 @@ fn generated_javascript_formatters_execute_pinned_locale_corpus() {
         ),
         (
             "ar",
-            "[\"1,234,567.89\",\"\u{200f}1,234,567.89\u{a0}ZZZ\",\"2\u{200f}/1\u{200f}/2024\u{60c} 1:04 PM\"]",
+            "[\"1,234,567.89\",\"\u{200f}1,234,567.89\u{a0}ZZZ\",\"2\u{200f}/1\u{200f}/2024\u{60c} 1:04 م\"]",
         ),
         (
             "hi",
-            "[\"12,34,567.89\",\"ZZZ12,34,567.89\",\"2/1/24, 1:04 PM\"]",
+            "[\"12,34,567.89\",\"ZZZ12,34,567.89\",\"2/1/24, 1:04 pm\"]",
         ),
     ];
     for (locale, expected) in cases {
@@ -537,6 +537,43 @@ fn generated_date_runtime_composes_cldr_date_and_time_widths() {
         "1/2/24, 1:04\u{202f}PM"
     );
     let _ = dates;
+}
+
+#[test]
+fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
+    for (locale, pattern, value, expected) in [
+        ("ru", "MMMM LLLL", "2024-01-02T01:00:00Z", "января январь"),
+        ("en", "MMMM LLLL", "2024-01-02T01:00:00Z", "January January"),
+        ("en", "MMMMM EEEEE EEEEEE", "2024-01-02T01:00:00Z", "J T Tu"),
+        ("en", "aaa aaaa aaaaa", "2024-01-02T13:00:00Z", "PM PM p"),
+        ("ar", "a", "2024-01-02T13:00:00Z", "م"),
+        ("zh", "a", "2024-01-02T01:00:00Z", "上午"),
+        (
+            "ru",
+            "G GGGG GGGGG",
+            "0000-01-02T01:00:00Z",
+            "до н. э. до Рождества Христова до н.э.",
+        ),
+    ] {
+        let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
+        let (parts, tables, _) = date_parts(pattern, &dates, "formatTest");
+        let formatter = crate::templates::render(
+            "formatters/date",
+            minijinja::context! { name => "formatTest", exported => false, parts, tables, digits => dates.digits },
+        );
+        if locale == "en" && pattern == "MMMM LLLL" {
+            assert_eq!(formatter.matches("const formatTest_").count(), 1);
+        }
+        let emitted = format!("{formatter}{}", date_formatter_helpers(false));
+        assert!(!emitted.contains("dayPeriods"));
+        assert!(!emitted.contains("stand-alone"));
+        assert!(!emitted.contains("Intl.DateTimeFormat"));
+        assert_eq!(
+            execute(&format!("{emitted}console.log(formatTest({value:?}));")),
+            expected,
+            "{locale}: {pattern}"
+        );
+    }
 }
 
 #[test]

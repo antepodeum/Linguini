@@ -101,6 +101,17 @@ pub struct CalendarFormatData {
     pub japanese_year_patterns: &'static [&'static str],
 }
 
+impl CalendarFormatData {
+    /// Resolve one context/width-qualified symbol from the pinned calendar data.
+    pub fn symbol(&self, path: &str) -> Option<&'static str> {
+        self.symbols
+            .iter()
+            .flat_map(|table| table.iter())
+            .find(|(name, _)| *name == path)
+            .map(|(_, value)| *value)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DayPeriodRule {
     pub name: &'static str,
