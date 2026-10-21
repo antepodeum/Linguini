@@ -165,6 +165,10 @@ and extraction bound. Generated requests no longer search or split the route tem
 without a suffix omit its check. Host base paths remain dynamic. Redirect status, percent decoding,
 same-origin return validation, and selected cookie/path transports keep their existing contracts.
 
+Accept-Language selection now scans preferences without per-locale filtering/sorting or candidate
+objects. Most-specific exclusions, quality, input order, base preference, and configured locale
+order retain their behavior. Navigator fallback and the public resolver signature are unchanged.
+
 The intermediate APIs and paired-output parity receipts below describe earlier remediation
 stages; this section supersedes their runtime target names and `.ts` output paths.
 

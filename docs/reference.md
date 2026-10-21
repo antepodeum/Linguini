@@ -117,6 +117,9 @@ declaration paths.
 For selected Accept-Language resolution, `compile_web_accept_language_module` renders `resolveAcceptLanguageLocale`
 behavior with owned source maps. The generated project keeps its existing
 `web/accept-language.js` and declaration paths.
+Preference selection scans the parsed header directly, preserving highest-specificity exclusions,
+first matching input order, quality ranking, base-locale preference, and configured locale order.
+It normalizes ranges/locales once and allocates no filtered/sorted candidate arrays per locale.
 For transformed links, `compile_web_link_transform_module` renders `localizeTransformedHref` behavior
 with target-owned imports and source maps. The generated project keeps its existing
 `web/link-transform.js` and declaration paths.

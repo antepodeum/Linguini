@@ -36,6 +36,10 @@ mod tests {
         let javascript = compile_web_accept_language_module();
         assert!(javascript.code.contains("@template {string} Locale"));
         assert!(!javascript.code.contains("let best:"));
+        assert!(!javascript.code.contains(".filter("));
+        assert!(!javascript.code.contains(".sort("));
+        assert!(!javascript.code.contains("locales.entries()"));
+        assert!(!javascript.code.contains("const candidate = {"));
         assert!(javascript
             .code
             .ends_with("//# sourceMappingURL=accept-language.js.map\n"));

@@ -1115,6 +1115,9 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       enabled sources/link mode; no-source initialization uses the base locale. Controls omit
       unused switch-option objects/defaults. Executed effect/control matrices preserve SSR,
       denied capabilities/persistence, preloading, navigation/state, callable arity, and cleanup.
+      Accept-Language uses direct preference selection and scalar winner state, without per-locale
+      filter/sort arrays or candidate objects. Explicit cases and 512 frozen-runtime comparisons
+      retain specificity exclusions, quality, input/base/locale order, and navigator fallback.
       Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page

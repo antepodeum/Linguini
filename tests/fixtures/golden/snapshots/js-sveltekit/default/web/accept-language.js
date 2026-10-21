@@ -40,7 +40,7 @@ function parseAcceptLanguage(header) {
   if (!header) return [];
   return String(header).split(",").flatMap((part, index) => {
     const [rawRange, ...parameters] = part.split(";");
-    const range = rawRange.trim();
+    const range = rawRange.trim().toLowerCase();
     if (!/^(?:\*|[A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*)$/.test(range)) return [];
     let quality = 1;
     for (const parameter of parameters) {
@@ -64,19 +64,31 @@ function parseAcceptLanguage(header) {
  */
 function resolveAcceptLanguage(locales, baseLocale, header) {
   const preferences = parseAcceptLanguage(header);
-  /** @type {{locale: Locale, quality: number, preferenceIndex: number, base: boolean, localeIndex: number} | undefined} */ let best;
-  for (const [localeIndex, locale] of locales.entries()) {
-    const preference = preferences
-      .filter((candidate) => languageRangeMatches(candidate.range, locale))
-      .sort((left, right) => right.specificity - left.specificity || left.index - right.index)[0];
+  const normalizedBase = baseLocale.toLowerCase();
+  /** @type {Locale | undefined} */ let bestLocale;
+  let bestQuality = -1;
+  let bestPreferenceIndex = Infinity;
+  let bestIsBase = false;
+  for (const locale of locales) {
+    const normalizedLocale = locale.toLowerCase();
+    /** @type {LanguagePreference | undefined} */ let preference;
+    for (const candidate of preferences) {
+      // Input order breaks equal-specificity ties; a more specific q=0 still excludes.
+      if ((!preference || candidate.specificity > preference.specificity) &&
+        languageRangeMatches(candidate.range, normalizedLocale)) preference = candidate;
+    }
     if (!preference || preference.quality <= 0) continue;
-    const candidate = { locale, quality: preference.quality, preferenceIndex: preference.index, base: locale.toLowerCase() === baseLocale.toLowerCase(), localeIndex };
-    if (!best || candidate.quality > best.quality ||
-      (candidate.quality === best.quality && candidate.preferenceIndex < best.preferenceIndex) ||
-      (candidate.quality === best.quality && candidate.preferenceIndex === best.preferenceIndex && candidate.base && !best.base) ||
-      (candidate.quality === best.quality && candidate.preferenceIndex === best.preferenceIndex && candidate.base === best.base && candidate.localeIndex < best.localeIndex)) best = candidate;
+    const isBase = normalizedLocale === normalizedBase;
+    if (preference.quality > bestQuality ||
+      (preference.quality === bestQuality && preference.index < bestPreferenceIndex) ||
+      (preference.quality === bestQuality && preference.index === bestPreferenceIndex && isBase && !bestIsBase)) {
+      bestLocale = locale;
+      bestQuality = preference.quality;
+      bestPreferenceIndex = preference.index;
+      bestIsBase = isBase;
+    }
   }
-  return best?.locale;
+  return bestLocale;
 }
 
 /**
@@ -102,13 +114,11 @@ function resolveNavigatorLanguage(locales, baseLocale, value) {
 
 /**
  * @param {string} range
- * @param {string} locale
+ * @param {string} normalizedLocale
  * @returns {boolean}
  */
-function languageRangeMatches(range, locale) {
+function languageRangeMatches(range, normalizedLocale) {
   if (range === "*") return true;
-  const normalizedRange = range.toLowerCase();
-  const normalizedLocale = locale.toLowerCase();
-  return normalizedRange === normalizedLocale || normalizedLocale.startsWith(`${normalizedRange}-`) || normalizedRange.startsWith(`${normalizedLocale}-`);
+  return range === normalizedLocale || normalizedLocale.startsWith(`${range}-`) || range.startsWith(`${normalizedLocale}-`);
 }
 //# sourceMappingURL=accept-language.js.map
