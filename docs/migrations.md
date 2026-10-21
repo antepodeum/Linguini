@@ -20,6 +20,16 @@ rebuild. Programmatic watch callers must call the returned `close()` when finish
 
 See the [TypeScript build integration guide](./typescript.md) for setup and output rules.
 
+## Explicit Vite framework adapter
+
+Svelte and SvelteKit projects now import the Vite plugin from
+`@antepod/linguini-vite/svelte`. The main package entry is framework-neutral. It accepts an
+explicit `LinguiniFrameworkAdapter` for generated entry/export names, runtime descriptors,
+source extensions, script scopes, static links, and locale-loader cleanup. Other integrations
+can reuse Vite's graph, watch, validation, and message transform without importing Svelte.
+The Svelte adapter preserves existing generated paths and manifest descriptors; this step
+requires only the import-path update in application Vite configuration.
+
 ## Independent integration crates
 
 Rust callers now import Svelte generation from `linguini-codegen-svelte` and SvelteKit generation

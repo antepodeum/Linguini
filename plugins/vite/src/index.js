@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import MagicString from "magic-string";
 import { parse as parseToml } from "smol-toml";
 import { localeBuildConfig } from "./build-target.js";
+import { frameworkAdapter } from "./framework.js";
+import { toVitePath } from "./paths.js";
 
 const DEFAULT_CONFIG_FILE = "linguini.toml";
 const DEFAULT_SCHEMA_DIR = "linguini/schema";
@@ -25,6 +27,7 @@ const VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX = `${VIRTUAL_LOCALE_REGISTRY_ID}/`;
 const RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX = `\0${VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX}`;
 
 export function linguini(options = {}) {
+  const adapter = frameworkAdapter(options.adapter);
   let viteConfig;
   let projectRoot = process.cwd();
   let layout;
@@ -41,7 +44,7 @@ export function linguini(options = {}) {
 
   async function reloadManifest() {
     const previous = bundlerManifest;
-    const next = await readBundlerManifest(layout);
+    const next = await readBundlerManifest(layout, adapter);
     bundlerManifest = next;
     return { previous, next };
   }
@@ -215,7 +218,7 @@ export function linguini(options = {}) {
     const wasWatched = watchedFiles.has(absolute);
     const wasApplication =
       bundlerManifest?.applicationsByFile.has(absolute) ||
-      isBundlerApplicationSource(absolute, previousLayout);
+      isBundlerApplicationSource(absolute, previousLayout, adapter);
     const relevant =
       wasWatched ||
       wasApplication ||
@@ -400,14 +403,14 @@ export function linguini(options = {}) {
       );
     },
     async transform(code, id, transformOptions) {
-      if (!bundlerManifest || !isRawApplicationModule(id)) {
+      if (!bundlerManifest || !isRawApplicationModule(id, adapter)) {
         return undefined;
       }
       const file = path.resolve(stripQueryAndHash(id));
       const application = bundlerManifest.applicationsByFile.get(file);
       if (!application) {
         return layout.linkMode === "transform"
-          ? transformStaticSvelteLinks(code, id, layout.generatedRoot)
+          ? transformStaticLinks(code, id, layout.generatedRoot, adapter)
           : undefined;
       }
       return transformApplication.call(
@@ -418,7 +421,8 @@ export function linguini(options = {}) {
         bundlerManifest,
         layout.generatedRoot,
         shouldUseDynamicLocaleLoading(this, transformOptions),
-        layout.linkMode
+        layout.linkMode,
+        adapter
       );
     }
   };
@@ -799,7 +803,7 @@ function comparePaths(left, right) {
   return left.replaceAll("\\", "/").localeCompare(right.replaceAll("\\", "/"), "en");
 }
 
-async function readBundlerManifest(layout) {
+async function readBundlerManifest(layout, adapter) {
   if (!layout.bundlerEnabled) {
     return undefined;
   }
@@ -825,10 +829,10 @@ async function readBundlerManifest(layout) {
   if (raw.version !== 1) {
     throw new Error(`unsupported Linguini bundler manifest version ${raw.version}`);
   }
-  return validateManifest(raw, layout, manifestPath);
+  return validateManifest(raw, layout, manifestPath, adapter);
 }
 
-function validateManifest(raw, layout, manifestPath) {
+function validateManifest(raw, layout, manifestPath, adapter) {
   const context = `Linguini bundler manifest ${manifestPath}`;
   const localeLoading = validateLocaleLoading(raw.locale_loading, `${context}.locale_loading`);
   if (layout.localeLoading !== localeLoading) {
@@ -893,17 +897,17 @@ function validateManifest(raw, layout, manifestPath) {
     throw new Error(`${context}.runtime_helpers must be an object`);
   }
   const localeHelper = validateRuntimeHelper(
-    raw.runtime_helpers.svelte_locale,
-    "runtime_helpers.svelte_locale",
+    raw.runtime_helpers[adapter.localeHelper],
+    `runtime_helpers.${adapter.localeHelper}`,
     layout.generatedRoot,
     context
   );
   const effectsHelper =
-    raw.runtime_helpers.svelte_effects === undefined
+    adapter.effectsHelper === undefined || raw.runtime_helpers[adapter.effectsHelper] === undefined
       ? undefined
       : validateRuntimeHelper(
-          raw.runtime_helpers.svelte_effects,
-          "runtime_helpers.svelte_effects",
+          raw.runtime_helpers[adapter.effectsHelper],
+          `runtime_helpers.${adapter.effectsHelper}`,
           layout.generatedRoot,
           context
         );
@@ -957,7 +961,8 @@ function validateManifest(raw, layout, manifestPath) {
       rawApplication,
       relative,
       context,
-      messages
+      messages,
+      adapter
     );
     if (applicationSourceIds.has(rawApplication.source_id)) {
       throw new Error(`${context}.applications has duplicate source_id ${rawApplication.source_id}`);
@@ -1121,7 +1126,7 @@ function validateMessageSemantics(raw, effectiveLocales, sourceIds, layout, cont
   return semantics;
 }
 
-function validateApplication(raw, relative, context, messages) {
+function validateApplication(raw, relative, context, messages, adapter) {
   const field = `${context}.applications.${relative}`;
   if (
     !isRecord(raw) ||
@@ -1253,7 +1258,8 @@ function validateApplication(raw, relative, context, messages) {
     field,
     raw.byte_length,
     messages,
-    imports
+    imports,
+    adapter
   );
   validateReferenceNonoverlap(references, dynamicReferences, field);
   validateImportRemovalNonoverlap(imports, field);
@@ -1286,7 +1292,7 @@ function validateApplication(raw, relative, context, messages) {
   });
 }
 
-function validateDynamicReferences(raw, field, byteLength, messages, imports) {
+function validateDynamicReferences(raw, field, byteLength, messages, imports, adapter) {
   if (!Array.isArray(raw)) {
     throw new Error(`${field}.dynamic_references must be an array`);
   }
@@ -1322,7 +1328,7 @@ function validateDynamicReferences(raw, field, byteLength, messages, imports) {
       !binding ||
       !binding.transformable ||
       !binding.analyzerTrackedUsesOnly ||
-      (binding.imported !== "l" && binding.imported !== "messages") ||
+      !adapter.messageExports.includes(binding.imported) ||
       typeof item.local !== "string" ||
       item.local !== binding.local ||
       !isRecord(provenance) ||
@@ -1693,7 +1699,8 @@ async function transformApplication(
   manifest,
   generatedRoot,
   dynamicClient = false,
-  linkMode = "manual"
+  linkMode,
+  adapter
 ) {
   const bytes = Buffer.from(code, "utf8");
   const digest = createHash("sha256").update(bytes).digest("hex");
@@ -1754,14 +1761,14 @@ async function transformApplication(
     ),
     ...dynamicBindingIds
   ]);
-  const generatedEntry = normalizeResolvedFileId(path.resolve(generatedRoot, "svelte.js"));
+  const generatedEntry = normalizeResolvedFileId(path.resolve(generatedRoot, adapter.entry));
   const acceptedBindings = new Map();
   for (const bindingId of referencedBindingIds) {
     const binding = application.imports.get(bindingId);
     if (
       !binding?.transformable ||
       !binding.analyzerTrackedUsesOnly ||
-      (binding.imported !== "l" && binding.imported !== "messages")
+      !adapter.messageExports.includes(binding.imported)
     ) {
       if (dynamicBindingIds.has(bindingId)) {
         throw new Error(
@@ -1788,7 +1795,7 @@ async function transformApplication(
     if (normalizeResolvedFileId(resolvedId) !== generatedEntry) {
       if (dynamicBindingIds.has(bindingId)) {
         throw new Error(
-          `Linguini dynamic binding ${bindingId} must resolve to generated svelte.js`
+          `Linguini dynamic binding ${bindingId} must resolve to generated ${adapter.entry}`
         );
       }
       continue;
@@ -1820,7 +1827,7 @@ async function transformApplication(
       }))
   ].sort((left, right) => left.start - right.start || left.end - right.end);
   const linkOperations = linkMode === "transform"
-    ? findStaticSvelteLinkOperations(code, application.relative)
+    ? adapter.findStaticLinks?.(code, application.relative) ?? []
     : [];
   if (operations.length === 0 && linkOperations.length === 0) {
     return undefined;
@@ -1839,7 +1846,8 @@ async function transformApplication(
         binding.declarationStart,
         application.relative
       );
-      const scopeInfo = applicationScope(code, declarationStart, application.relative);
+      const scopeInfo = adapter.applicationScope?.(code, declarationStart, application.relative)
+        ?? { key: "module", insertionByte: 0 };
       scopeKey = scopeInfo.key;
       bindingScopes.set(operation.bindingId, scopeKey);
       if (!scopes.has(scopeKey)) {
@@ -1960,10 +1968,10 @@ async function transformApplication(
     magic.prependLeft(insertion, `${imports}${dispatches}`);
   }
   if (linkOperations.length > 0) {
-    applyStaticSvelteLinkOperations(magic, code, application.relative, generatedRoot, linkOperations);
+    adapter.applyStaticLinks(magic, code, application.relative, generatedRoot, linkOperations);
   }
   if (dynamicClient && manifest.localeLoading === "dynamic") {
-    injectLocaleLoaderLifecycle(magic, code, application, scopeId, allocateAlias);
+    injectLocaleLoaderLifecycle(magic, code, application, scopeId, allocateAlias, adapter);
   }
   return {
     code: magic.toString(),
@@ -1975,115 +1983,16 @@ async function transformApplication(
   };
 }
 
-function transformStaticSvelteLinks(code, id, generatedRoot) {
+function transformStaticLinks(code, id, generatedRoot, adapter) {
   const sourceName = stripQueryAndHash(id);
-  const operations = findStaticSvelteLinkOperations(code, sourceName);
+  const operations = adapter.findStaticLinks?.(code, sourceName) ?? [];
   if (operations.length === 0) return undefined;
   const magic = new MagicString(code);
-  applyStaticSvelteLinkOperations(magic, code, sourceName, generatedRoot, operations);
+  adapter.applyStaticLinks(magic, code, sourceName, generatedRoot, operations);
   return {
     code: magic.toString(),
-    map: magic.generateMap({
-      hires: true,
-      source: sourceName,
-      includeContent: true
-    })
+    map: magic.generateMap({ hires: true, source: sourceName, includeContent: true })
   };
-}
-
-function applyStaticSvelteLinkOperations(magic, code, sourceName, generatedRoot, operations) {
-  let aliasIndex = 0;
-  let alias;
-  do {
-    alias = `__linguini_localize_href_${aliasIndex++}`;
-  } while (code.includes(alias));
-  for (const operation of operations) {
-    magic.overwrite(
-      operation.start,
-      operation.end,
-      `href={${alias}(${JSON.stringify(operation.href)})}`
-    );
-  }
-  const helper = toVitePath(path.resolve(generatedRoot, "web/link-transform.js"));
-  const importLine = `import { localizeTransformedHref as ${alias} } from ${JSON.stringify(helper)};\n`;
-  const instance = findSvelteInstanceScript(code);
-  if (instance) {
-    magic.prependLeft(instance.insertion, importLine);
-  } else {
-    magic.append(`\n<script>\n${importLine}</script>\n`);
-  }
-}
-
-function findStaticSvelteLinkOperations(code, sourceName) {
-  if (path.extname(sourceName).toLowerCase() !== ".svelte") return [];
-  const operations = [];
-  let cursor = 0;
-  while (cursor < code.length) {
-    const start = code.indexOf("<", cursor);
-    if (start === -1) break;
-    if (code.startsWith("<!--", start)) {
-      const end = code.indexOf("-->", start + 4);
-      cursor = end === -1 ? code.length : end + 3;
-      continue;
-    }
-    const nameMatch = /^<\s*([A-Za-z][\w:-]*)\b/.exec(code.slice(start));
-    if (!nameMatch) {
-      cursor = start + 1;
-      continue;
-    }
-    const tagName = nameMatch[1].toLowerCase();
-    const end = findSvelteOpeningTagEnd(code, start + nameMatch[0].length);
-    if (end === -1) break;
-    if (tagName === "script" || tagName === "style") {
-      const close = code.toLowerCase().indexOf(`</${tagName}`, end + 1);
-      cursor = close === -1 ? code.length : close + tagName.length + 3;
-      continue;
-    }
-    if (tagName === "a") {
-      const opening = code.slice(start, end + 1);
-      const href = /\bhref\s*=\s*(["'])(.*?)\1/is.exec(opening);
-      if (href && !/[{}]/.test(href[2]) && !shouldSkipStaticAnchor(opening)) {
-        const attributeOffset = href.index;
-        operations.push({
-          start: start + attributeOffset,
-          end: start + attributeOffset + href[0].length,
-          href: href[2]
-        });
-      }
-    }
-    cursor = end + 1;
-  }
-  return operations;
-}
-
-function findSvelteOpeningTagEnd(code, start) {
-  let quote;
-  let braces = 0;
-  for (let cursor = start; cursor < code.length; cursor += 1) {
-    const character = code[cursor];
-    if (quote) {
-      if (character === "\\") cursor += 1;
-      else if (character === quote) quote = undefined;
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      quote = character;
-    } else if (character === "{") {
-      braces += 1;
-    } else if (character === "}" && braces > 0) {
-      braces -= 1;
-    } else if (character === ">" && braces === 0) {
-      return cursor;
-    }
-  }
-  return -1;
-}
-
-function shouldSkipStaticAnchor(opening) {
-  if (/\sdownload(?:\s|=|\/?>)/i.test(opening)) return true;
-  if (/\sdata-linguini-(?:ignore|no-localize)(?:\s|=|\/?>)/i.test(opening)) return true;
-  const rel = /\srel\s*=\s*(["'])(.*?)\1/is.exec(opening)?.[2] ?? "";
-  return rel.split(/\s+/).some((token) => token.toLowerCase() === "external");
 }
 
 function renderDynamicDispatch(alias, entries) {
@@ -2099,75 +2008,17 @@ function renderDynamicDispatch(alias, entries) {
   return `const ${alias} = Object.freeze(Object.defineProperties(Object.create(null), { ${descriptors} }));\n`;
 }
 
-function applicationScope(code, insertion, sourceName) {
-  if (path.extname(sourceName).toLowerCase() !== ".svelte") {
-    return { key: "module", insertionByte: 0 };
-  }
-  const openPattern = /<script\b[^>]*>/gi;
-  let match;
-  while ((match = openPattern.exec(code))) {
-    const close = code.indexOf("</script>", openPattern.lastIndex);
-    if (close === -1) {
-      break;
-    }
-    if (insertion >= openPattern.lastIndex && insertion <= close) {
-      return {
-        key: `${match.index}:${close}`,
-        insertionByte: Buffer.byteLength(code.slice(0, openPattern.lastIndex), "utf8")
-      };
-    }
-    openPattern.lastIndex = close + "</script>".length;
-  }
-  throw new Error(`Linguini import binding is outside a Svelte script in ${sourceName}`);
-}
-
-function injectLocaleLoaderLifecycle(magic, code, application, scope, allocateAlias) {
+function injectLocaleLoaderLifecycle(magic, code, application, scope, allocateAlias, adapter) {
   const registry = virtualLocaleRegistryId(scope);
   let lifecycleAlias = 0;
-  const nextLifecycleAlias = () => lifecycleAlias++;
-  const acquire = allocateAlias("__linguini_acquire_locale_loader_", nextLifecycleAlias);
-  const release = allocateAlias("__linguini_release_locale_loader_", nextLifecycleAlias);
-  if (path.extname(application.relative).toLowerCase() !== ".svelte") {
-    magic.prepend(
-      `import { acquireLocaleLoader as ${acquire} } from ${JSON.stringify(registry)};\n` +
-        `const ${release} = ${acquire}();\n` +
-        `if (import.meta.hot) import.meta.hot.dispose(${release});\n`
-    );
-    return;
-  }
-  const onDestroy = allocateAlias("__linguini_on_destroy_", nextLifecycleAlias);
-  const lifecycle =
-    `import { onDestroy as ${onDestroy} } from "svelte";\n` +
+  const allocate = (prefix) => allocateAlias(prefix, () => lifecycleAlias++);
+  const acquire = allocate("__linguini_acquire_locale_loader_");
+  const release = allocate("__linguini_release_locale_loader_");
+  const prelude =
     `import { acquireLocaleLoader as ${acquire} } from ${JSON.stringify(registry)};\n` +
-    `const ${release} = ${acquire}();\n` +
-    `${onDestroy}(${release});\n`;
-  const instance = findSvelteInstanceScript(code);
-  if (instance) {
-    magic.prependLeft(instance.insertion, lifecycle);
-  } else {
-    magic.append(`\n<script>\n${lifecycle}</script>\n`);
-  }
-}
-
-function findSvelteInstanceScript(code) {
-  const pattern = /<script\b[^>]*>/gi;
-  let match;
-  while ((match = pattern.exec(code))) {
-    if (!isSvelteModuleScript(match[0])) {
-      return { insertion: pattern.lastIndex };
-    }
-    const close = code.indexOf("</script>", pattern.lastIndex);
-    if (close === -1) break;
-    pattern.lastIndex = close + "</script>".length;
-  }
-  return undefined;
-}
-
-function isSvelteModuleScript(openingTag) {
-  return (
-    /\scontext\s*=\s*(["'])module\1/i.test(openingTag) ||
-    /\smodule(?:\s|>|=)/i.test(openingTag)
-  );
+    `const ${release} = ${acquire}();\n`;
+  if (adapter.injectLocaleLoaderLifecycle?.(magic, code, application, { prelude, release, allocateAlias: allocate })) return;
+  magic.prepend(prelude + `if (import.meta.hot) import.meta.hot.dispose(${release});\n`);
 }
 
 function importDeletions(code, bindings, byteToUtf16, sourceName) {
@@ -2583,7 +2434,7 @@ function decodeVirtualId(encoded, kind) {
   return decoded;
 }
 
-function isRawApplicationModule(id) {
+function isRawApplicationModule(id, adapter) {
   if (id.includes("\0")) {
     return false;
   }
@@ -2592,12 +2443,12 @@ function isRawApplicationModule(id) {
     return false;
   }
   const extension = path.extname(file).toLowerCase();
-  return extension === ".svelte" || JS_TS_EXTENSIONS.has(extension);
+  return adapter.extensions.includes(extension) || JS_TS_EXTENSIONS.has(extension);
 }
 
-function isBundlerApplicationSource(file, projectLayout) {
+function isBundlerApplicationSource(file, projectLayout, adapter) {
   const extension = path.extname(file).toLowerCase();
-  if (extension !== ".svelte" && !JS_TS_EXTENSIONS.has(extension)) {
+  if (!adapter.extensions.includes(extension) && !JS_TS_EXTENSIONS.has(extension)) {
     return false;
   }
   const generatedRoot = projectLayout.generatedRoot;
@@ -2606,19 +2457,19 @@ function isBundlerApplicationSource(file, projectLayout) {
   }
   if (
     projectLayout.bundlerExcludeRoots.some(
-      (excluded) => pathRuleMatches(excluded, file)
+      (excluded) => pathRuleMatches(excluded, file, adapter)
     )
   ) {
     return false;
   }
   return projectLayout.bundlerSourceRoots.some((source) => {
-    return pathRuleMatches(source, file);
+    return pathRuleMatches(source, file, adapter);
   });
 }
 
-function pathRuleMatches(rule, file) {
+function pathRuleMatches(rule, file, adapter) {
   const extension = path.extname(rule).toLowerCase();
-  if (extension === ".svelte" || JS_TS_EXTENSIONS.has(extension)) {
+  if (adapter.extensions.includes(extension) || JS_TS_EXTENSIONS.has(extension)) {
     return file === rule;
   }
   return file === rule || isWithin(rule, file);
@@ -2734,11 +2585,6 @@ function isRecord(value) {
 
 function isNonnegativeInteger(value) {
   return Number.isSafeInteger(value) && value >= 0;
-}
-
-function toVitePath(file) {
-  const normalized = file.replaceAll(path.sep, "/");
-  return /^[A-Za-z]:\//.test(normalized) ? `/@fs/${normalized}` : normalized;
 }
 
 function withContext(error, context) {

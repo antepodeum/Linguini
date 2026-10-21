@@ -1029,9 +1029,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       owns request-locale reads and navigation templates, with no navigation runtime in pathless
       output. Complete JS adapter, module-configuration, and packaging/CI verification before
       closing the architecture work.
-- [ ] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
+- [-] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
       and source-map infrastructure framework-independent. Isolate Svelte syntax/link transforms
-      and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure.
+      and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure. The JS Vite
+      core now accepts an explicit framework adapter; `/svelte` owns script scopes, static links, and component cleanup.
+      Native helper-plan/config migration and composed-page ownership remain open.
 - [ ] MOD-A3 — Configure web, Svelte, and SvelteKit capabilities in the project's code/configuration
       for those modules. Keep one source of configuration; remove `[web]` and framework policy from
       language-neutral TOML and its schema. Supply a validated build-time plan to native codegen,
@@ -1049,9 +1051,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       hydration text. Preserve preload-before-switch, loader cleanup on navigation, HMR, source
       maps, typed calls, and browser/server cookie/routing policy through the migration. Verify
       both direct SSR evaluation and real framework rendering/hydration across the message matrix.
-- [ ] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
+- [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.
+      The same core now passes real Vite multi-entry graph and executed-output checks with ECMAScript and custom non-Svelte entry/runtime descriptors.
+      Native module configuration and additional framework integrations remain open.
 - [ ] MOD-A7 — Share common lowering, dependency planning, and type semantics through
       `linguini-codegen`; keep ECMAScript syntax, web platform behavior, and framework dependencies
       within their owning backend/modules. Future language backends must not depend on web policy.

@@ -1,6 +1,16 @@
 # @antepod/linguini-vite
 
-Vite plugin for Linguini projects.
+Vite plugin for Linguini projects. Use `@antepod/linguini-vite/svelte` for Svelte and
+SvelteKit applications. It composes the framework-neutral core with Svelte script scopes,
+component cleanup, and static-link transforms. SvelteKit request and navigation behavior
+remains in the native SvelteKit codegen module.
+
+The main package entry exports the Vite core without framework imports or syntax. Its
+`adapter` option selects generated entry/export names, runtime-helper descriptors, additional
+source extensions, and optional scope/link/lifecycle hooks. Other integrations can supply a
+matching native manifest through the build callback. The default uses `index.js`, the `lgl`
+export, and the `locale` helper descriptor. The current native Svelte manifest uses the Svelte
+adapter; the core does not infer an adapter from TOML.
 
 It watches `linguini.toml` and only the `.lgs`/`.lgl` files below the configured
 source roots. Changes are debounced and serialized, including changes that arrive
@@ -9,7 +19,7 @@ Vite's error overlay.
 
 ```js
 import { defineConfig } from "vite";
-import linguini from "@antepod/linguini-vite";
+import linguini from "@antepod/linguini-vite/svelte";
 
 export default defineConfig({
   plugins: [linguini()]

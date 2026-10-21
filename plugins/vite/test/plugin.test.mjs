@@ -9,9 +9,9 @@ import { pathToFileURL } from "node:url";
 import {
   discoverLinguiniFiles,
   isLinguiniSource,
-  linguini,
   readProjectLayout
 } from "../src/index.js";
+import { linguini } from "../src/svelte.js";
 
 async function fixture({ bundler = false } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-"));

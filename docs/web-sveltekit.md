@@ -61,7 +61,7 @@ chunks on demand and preload the selected locale before a locale switch. SSR
 uses synchronous static locale imports; omit the field for eager loading.
 
 Use `framework = "svelte"` for a Svelte-only app. Omit `framework` to generate
-only the framework-agnostic TypeScript runtime.
+only the framework-agnostic JavaScript runtime with optional TypeScript declarations.
 
 ## Web config
 
@@ -259,7 +259,7 @@ Add the Vite plugin so generated files update during development:
 // vite.config.ts
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
-import linguini from "@antepod/linguini-vite";
+import linguini from "@antepod/linguini-vite/svelte";
 
 export default defineConfig(({ command }) => ({
   plugins: [

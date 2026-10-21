@@ -9,6 +9,10 @@
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
+    },
+    "./svelte": {
+      "types": "./src/svelte.d.ts",
+      "default": "./src/svelte.js"
     }
   },
   "files": [
