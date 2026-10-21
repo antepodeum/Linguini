@@ -80,6 +80,11 @@ an updated plugin; existing owned `.ts` runtime files are removed by the normal 
 A plain `tsc` application build must deliver generated JS to its runtime output; integrations can
 reuse `linguini build --emit-dir DIRECTORY` without enabling `allowJs`.
 
+The site output archive has been regenerated from the canonical JavaScript backend. Its
+Node-only restore path now delivers `.js` runtime and `.d.ts` companions, including the new
+SvelteKit host bridges. Rebuild an application archive after updating the native generator;
+restoring an archive produced by the retired TypeScript emitter does not migrate its contents.
+
 Repeated native builds preserve unchanged owned files instead of replacing them. Message-only
 changes retain declaration timestamps, allowing TypeScript incremental and watch builds to reuse
 their type graph. Existing ownership, stale-file removal, and rollback rules still apply.

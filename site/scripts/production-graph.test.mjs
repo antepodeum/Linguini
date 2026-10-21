@@ -103,8 +103,14 @@ for (const semantic of generatedManifest.message_semantics) {
   assert.equal(statSync(modulePath).isFile(), true, `${key} semantic module is missing`);
   assert.equal(statSync(`${modulePath}.map`).isFile(), true, `${key} semantic map is missing`);
   const source = readFileSync(modulePath, 'utf8');
-  const exportedBinding = /export (?:const|function|type) ([A-Za-z_$][\w$]*)/.exec(source)?.[1];
-  assert.ok(exportedBinding, `${key} has no single exported semantic binding`);
+  const exportedBinding = semantic.kind === 'enum'
+    ? /@typedef \{[^\n]+\} ([A-Za-z_$][\w$]*) \*\//.exec(source)?.[1]
+    : /export (?:const|function) ([A-Za-z_$][\w$]*)/.exec(source)?.[1];
+  assert.ok(exportedBinding, `${key} has no exported semantic contract`);
+  if (semantic.kind === 'enum') {
+    assert.match(source, /export \{\};/, `${key} must remain a type-only module`);
+    assert.doesNotMatch(source, /export (?:const|function)/, `${key} emitted an enum runtime`);
+  }
   semanticBindings.add(exportedBinding);
 }
 assert.ok(semanticModuleIds.size > 0, 'no shared semantic modules were generated');
@@ -180,14 +186,14 @@ for (const message of Object.values(generatedManifest.messages)) {
         `${moduleId} contains inline semantic binding ${binding}`
       );
     }
-    if (source.includes('/_runtime"')) runtimeImportCount += 1;
+    if (/from ["'][^"']+\/_runtime\.js["']/.test(source)) runtimeImportCount += 1;
     if (source.includes('/semantic/')) semanticImportCount += 1;
     if (message.arity === 0) {
       parameterlessLeafCount += 1;
       assert.match(source, /export const message = /, `${moduleId} is not a value export`);
       assert.doesNotMatch(
         source,
-        /export const message = \(\): string =>/,
+        /export (?:const message = \([^)]*\) =>|function message\()/,
         `${moduleId} wraps a parameterless value in a function`
       );
     }

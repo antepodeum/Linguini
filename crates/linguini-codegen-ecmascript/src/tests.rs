@@ -883,12 +883,14 @@ fn project_literal_helper_names_do_not_require_runtime_exports() {
 #[test]
 fn project_codegen_applies_cldr_currency_minor_units() {
     let schema = lower_schema(
-        &parse_schema("yen(value: Decimal)\ndinar(value: Decimal)\nuf(value: Decimal)\n")
+        &parse_schema("dollar(value: Decimal)\nyen(value: Decimal)\nlowercase(value: Decimal)\ndinar(value: Decimal)\nuf(value: Decimal)\n")
             .expect("schema"),
     );
     let locale = lower_locale(
         &parse_locale(
-            "yen = {value @currency(code = \"JPY\")}\n\
+            "dollar = {value @currency(code = \"USD\")}\n\
+yen = {value @currency(code = \"JPY\")}\n\
+lowercase = {value @currency(code = \"jpy\")}\n\
 dinar = {value @currency(code = \"KWD\")}\n\
 uf = {value @currency(code = \"CLF\")}\n",
         )
@@ -918,6 +920,40 @@ uf = {value @currency(code = \"CLF\")}\n",
             r#"const { yen, dinar, uf } = await import('./locales/en.js'); console.log(JSON.stringify([yen('1234.56789'),dinar('1234.56789'),uf('1234.56789')]));"#
         ),
         r#"["¥1,235","KWD1,234.568","CLF1,234.5679"]"#
+    );
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"const { dollar, yen, lowercase, dinar, uf } = await import('./locales/en.js'); console.log(JSON.stringify([dollar('1.005'),yen('1.25'),lowercase('1.25'),dinar('1.2345'),uf('1.23456')]));"#
+        ),
+        r#"["$1.01","¥1","¥1","KWD1.235","CLF1.2346"]"#
+    );
+}
+
+#[test]
+fn project_inline_dispatch_keeps_unselected_formatter_results_lazy() {
+    let schema = lower_schema(
+        &parse_schema("enum Choice { safe, format }\nrender(choice: Choice, value: Number)\n")
+            .unwrap(),
+    );
+    let locale = lower_locale(
+        &parse_locale("render = {fn(choice) {\n  safe => Safe\n  _ => {value}\n}}\n").unwrap(),
+    );
+    let files = generate_project_files(
+        &schema,
+        &[EcmaLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"const { render } = await import('./locales/en.js'); const result = [render('safe', 'invalid'), render('format', '1234.5')]; try { render('format', 'invalid'); throw new Error('selected formatter did not run'); } catch(error) { if (!(error instanceof RangeError)) throw error; result.push(error.name); } console.log(JSON.stringify(result));"#
+        ),
+        r#"["Safe","1,234.5","RangeError"]"#
     );
 }
 

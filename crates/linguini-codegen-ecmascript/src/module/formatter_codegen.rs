@@ -360,6 +360,28 @@ mod tests {
     }
 
     #[test]
+    fn currency_increment_is_specialized_before_runtime_execution() {
+        let numbers = compiled_number_formatting("en").unwrap();
+        let mut pattern = compiled_currency_formatting("en").unwrap().standard_pattern;
+        pattern.positive.min_fraction_digits = 2;
+        pattern.positive.max_fraction_digits = 2;
+        let plan = number_plan(&pattern, Some("CHF"), &numbers, Some("5"));
+        let formatter = crate::templates::render(
+            "formatters/number",
+            minijinja::context! {
+                name => "formatCash", plan, exported => false,
+            },
+        );
+        let helpers = crate::templates::render(
+            "number_helpers",
+            minijinja::context! {
+                scale => false, scientific => false, significant => false, significant_padding => false,
+            },
+        );
+        assert_eq!(execute(&format!("{formatter}{helpers}console.log(JSON.stringify(['1.23','1.22','-1.23'].map(formatCash)));")), r#"["CHF1.25","CHF1.20","-CHF1.25"]"#);
+    }
+
+    #[test]
     fn generated_javascript_formatter_runtime_snapshot_is_stable() {
         let output = formatter_data_declaration(
             "ru",

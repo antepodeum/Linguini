@@ -22,18 +22,18 @@ function numericPart(value) {
   return match[0];
 }
 
-test('executes generated inline, exact numeric, currency, and plural runtime', async (context) => {
+test('executes generated JavaScript messages, lazy forms, exact numbers, currency, and plurals', async (context) => {
   const directory = mkdtempSync(join(tmpdir(), 'linguini-runtime-'));
   const localeDirectory = join(directory, 'locales');
   mkdirSync(join(localeDirectory, 'en'), { recursive: true });
   mkdirSync(join(localeDirectory, 'ru'), { recursive: true });
 
   writeFileSync(
-    join(directory, 'shared.ts'),
-    readFileSync(join(generatedRoot, 'shared.ts'), 'utf8')
+    join(directory, 'shared.js'),
+    readFileSync(join(generatedRoot, 'shared.js'), 'utf8')
   );
   for (const locale of ['en', 'ru']) {
-    for (const module of ['_runtime.ts', '_globals.ts']) {
+    for (const module of ['_runtime.js', '_globals.js']) {
       writeFileSync(
         join(localeDirectory, locale, module),
         readFileSync(join(generatedRoot, 'locales', locale, module), 'utf8')
@@ -41,28 +41,18 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
     }
   }
 
-  const enSourcePath = join(generatedRoot, 'locales/en/main.ts');
-  const originalEnSource = readFileSync(enSourcePath, 'utf8');
-  const lazyBranchPattern =
-    /(size_line:[^\n]*?, _: \(\)(?:: string)? => )[^\n]+?( \}\)\(\)\)\(size,)/;
-  const enSource = originalEnSource.replace(
-    lazyBranchPattern,
-    '$1(() => { throw new Error("unselected inline branch ran"); })()$2'
-  );
-  assert.notEqual(enSource, originalEnSource, 'generated inline branch shape changed');
-  writeFileSync(
-    join(localeDirectory, 'en/main.ts'),
-    `${enSource}\nexport { formatNumber as __testFormatNumber, formatCurrency as __testFormatCurrency, pluralEn as __testPlural };\nexport const __testProto = (key: string) => selectBranch(key, { ["__proto__"]: () => "safe", _: () => "fallback" })();\n`
-  );
-
-  const ruSource = readFileSync(
-    join(generatedRoot, 'locales/ru/main.ts'),
-    'utf8'
-  );
-  writeFileSync(
-    join(localeDirectory, 'ru/main.ts'),
-    `${ruSource}\nexport { pluralRu as __testPlural } from "./_runtime";\n`
-  );
+  for (const locale of ['en', 'ru']) {
+    writeFileSync(
+      join(localeDirectory, locale, 'main.js'),
+      readFileSync(join(generatedRoot, 'locales', locale, 'main.js'), 'utf8')
+    );
+  }
+  // Poison one form branch: the unselected result must remain lazy after lowering.
+  const globalsPath = join(localeDirectory, 'en/_globals.js');
+  const globals = readFileSync(globalsPath, 'utf8');
+  const poisoned = globals.replace('return "full-size";', 'throw new Error("unselected form branch ran");');
+  assert.notEqual(poisoned, globals, 'the selected form branch must be instrumented');
+  writeFileSync(globalsPath, poisoned);
 
   const server = await createServer({
     root: directory,
@@ -76,14 +66,18 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
     rmSync(directory, { recursive: true, force: true });
   });
 
-  const en = await server.ssrLoadModule('/locales/en/main.ts');
-  const ru = await server.ssrLoadModule('/locales/ru/main.ts');
+  const en = await server.ssrLoadModule('/locales/en/main.js');
+  const ru = await server.ssrLoadModule('/locales/ru/main.js');
+  const enRuntime = await server.ssrLoadModule('/locales/en/_runtime.js');
+  const ruRuntime = await server.ssrLoadModule('/locales/ru/_runtime.js');
+  const shared = await server.ssrLoadModule('/shared.js');
 
   assert.equal(
     en.main.playground.cart_summary({ count: '1', fruit: 'apple' }),
     'Cart has 1 apple'
   );
   assert.equal(en.main.playground.cart_summary('2', 'pear'), 'Cart has 2 pears');
+  assert.equal(ru.main.playground.cart_summary('2', 'pear'), 'В корзине 2 груши');
   assert.throws(
     () => en.main.playground.cart_summary({ count: '1', fruit: 'apple', extra: true }),
     /unknown keys: extra/
@@ -97,57 +91,40 @@ test('executes generated inline, exact numeric, currency, and plural runtime', a
     en.main.playground.override_format('1299.5', '2026-05-19')
   );
   assert.equal(en.main.playground.size_line('small'), 'Size form: compact');
-  assert.equal(en.__testProto('__proto__'), 'safe');
-  assert.equal(en.__testProto('missing'), 'fallback');
+  assert.throws(() => en.main.playground.size_line('big'), /unselected form branch ran/);
+  const protoBranches = { ['__proto__']: () => 'safe', _: () => 'fallback' };
+  assert.equal(shared.selectBranch('__proto__', protoBranches)(), 'safe');
+  assert.equal(shared.selectBranch('missing', protoBranches)(), 'fallback');
 
   assert.equal(
-    en.__testFormatNumber(900719925474099312345n),
+    enRuntime.formatNumber(900719925474099312345n),
     '900,719,925,474,099,312,345'
   );
   assert.equal(
-    en.__testFormatNumber('900719925474099312345.6789'),
+    enRuntime.formatNumber('900719925474099312345.6789'),
     '900,719,925,474,099,312,345.679'
   );
-  assert.equal(en.__testFormatNumber('999.9999'), '1,000');
-  assert.equal(en.__testFormatNumber('-0'), '-0');
-  assert.equal(en.__testFormatNumber('1.2345e3'), '1,234.5');
-  assert.throws(() => en.__testFormatNumber('not-a-number'), RangeError);
+  assert.equal(enRuntime.formatNumber('999.9999'), '1,000');
+  assert.equal(enRuntime.formatNumber('-0'), '-0');
+  assert.equal(enRuntime.formatNumber('1.2345e3'), '1,234.5');
+  assert.throws(() => enRuntime.formatNumber('not-a-number'), RangeError);
   assert.throws(
-    () => en.__testFormatNumber(`1e${'0'.repeat(8192)}1`),
+    () => enRuntime.formatNumber(`1e${'0'.repeat(8192)}1`),
     RangeError
   );
 
-  assert.equal(
-    numericPart(en.__testFormatCurrency('1.005', 2, 0, { code: 'USD' })),
-    '1.01'
-  );
-  assert.equal(
-    numericPart(en.__testFormatCurrency('1.25', 0, 0, { code: 'JPY' })),
-    '1'
-  );
-  assert.ok(
-    en.__testFormatCurrency('1.25', 0, 0, { code: 'jpy' }).includes('¥')
-  );
-  assert.equal(
-    numericPart(en.__testFormatCurrency('1.2345', 3, 0, { code: 'KWD' })),
-    '1.235'
-  );
-  assert.equal(
-    numericPart(en.__testFormatCurrency('1.23456', 4, 0, { code: 'CLF' })),
-    '1.2346'
-  );
-  assert.equal(
-    numericPart(en.__testFormatCurrency('1.23', 2, 5, { code: 'CHF' })),
-    '1.25'
-  );
+  assert.equal(numericPart(enRuntime.formatCurrency_code_USD('1.005')), '1.01');
+  assert.ok(enRuntime.formatCurrency_code_USD('1.005').startsWith('$'));
+  // Other currencies and rounding increments are compiled as distinct requests in
+  // the backend's executed formatter corpus, rather than runtime options here.
 
-  assert.equal(en.__testPlural(1n), 'one');
-  assert.equal(ru.__testPlural('10000000000000000000000000000000000000001'), 'one');
-  assert.equal(ru.__testPlural('10000000000000000000000000000000000000011'), 'many');
-  assert.equal(ru.__testPlural('1.0'), 'other');
-  assert.equal(ru.__testPlural('1c0'), 'one');
-  assert.throws(() => ru.__testPlural('x'), RangeError);
-  assert.throws(() => ru.__testPlural('1'.repeat(8193)), RangeError);
+  assert.equal(enRuntime.pluralEn(1n), 'one');
+  assert.equal(ruRuntime.pluralRu('10000000000000000000000000000000000000001'), 'one');
+  assert.equal(ruRuntime.pluralRu('10000000000000000000000000000000000000011'), 'many');
+  assert.equal(ruRuntime.pluralRu('1.0'), 'other');
+  assert.equal(ruRuntime.pluralRu('1c0'), 'one');
+  assert.throws(() => ruRuntime.pluralRu('x'), RangeError);
+  assert.throws(() => ruRuntime.pluralRu('1'.repeat(8193)), RangeError);
 });
 
 test('loads non-base locales once before synchronous access', async (context) => {
@@ -160,7 +137,7 @@ test('loads non-base locales once before synchronous access', async (context) =>
   });
   context.after(() => server.close());
 
-  const runtime = await server.ssrLoadModule('/index.ts');
+  const runtime = await server.ssrLoadModule('/index.js');
   assert.equal(runtime.createLinguini('en'), runtime.localeModules.en);
   assert.equal(runtime.localeModules.ru, undefined);
   assert.throws(

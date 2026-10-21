@@ -197,7 +197,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
 - [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in CLDR artifacts, while the
-  site restores a deterministic checksummed 1,412-file output bundle using Node.js only; CI
+  site restores a deterministic checksummed 1,422-file canonical JS/declaration output bundle using Node.js only; CI
   independently regenerates the bundle and rejects stale bytes.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [x] #12 — Hide invalid mutable public model states behind validated constructors. `IrModule`
@@ -1183,6 +1183,9 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 - [x] LOCAL-A1 — Provide one root runner with ordered quick, full, and real-site profiles across
       every project/package in this repository.
 - [x] LOCAL-A2 — Generate, type-check, build, and inspect the real site production graph locally.
+      The canonical JS archive is refreshed; runtime/round-trip tests, Svelte checking, production
+      build, and scoped graph assertions pass locally. This application-scope baseline does not
+      close the composed-page, request/network, or hydration requirements in MOD-A4/A5.
 - [x] LOCAL-A3 — Start the real site development server without generated-output watcher storms,
       rebuild after locale edits, and verify English and localized routes in a browser.
 
