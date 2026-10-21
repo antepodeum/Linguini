@@ -203,7 +203,8 @@ precision, grouping, affixes, and date/time widths compiled into the implementat
 only their input value; generated code carries no CLDR pattern interpreter or runtime option
 object. Unused formatter requests and helper operations are omitted. Scaling, scientific
 notation, significant rounding, and significant padding are selected independently from the
-compiled numeric plans.
+compiled numeric plans. The regression corpus checks each operation in isolation against
+executed generated code.
 
 The formatter list is canonical:
 

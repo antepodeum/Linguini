@@ -129,7 +129,8 @@ readable helper bindings. These locale-runtime helpers are generated implementat
 applications should continue calling the schema's generated message API. Numeric scaling,
 scientific notation, significant rounding, and significant padding now have independent helper
 selection. A request for one operation neither emits unrelated helpers nor relies on another
-operation being enabled.
+operation being enabled. The formatter regression corpus is kept in its own backend test
+module, including generated-code execution and checks for omitted helper families.
 
 The intermediate APIs and paired-output parity receipts below describe earlier remediation
 stages; this section supersedes their runtime target names and `.ts` output paths.
