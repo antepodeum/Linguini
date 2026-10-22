@@ -20,6 +20,7 @@ export const PACKAGED_RUNTIME_CRATES = Object.freeze([
   "linguini-cli",
   "linguini-codegen",
   "linguini-codegen-ecmascript",
+  "linguini-codegen-ecmascript-web",
   "linguini-codegen-svelte",
   "linguini-codegen-sveltekit",
   "linguini-codegen-vite",

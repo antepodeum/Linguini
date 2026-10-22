@@ -62,18 +62,6 @@ fn environment() -> &'static EcmaTemplateEngine {
                 include_str!("../templates/index_declarations.jinja"),
             ),
             (
-                "web/type_declaration",
-                include_str!("../templates/web/type_declaration.jinja"),
-            ),
-            (
-                "web/type_jsdoc",
-                include_str!("../templates/web/type_jsdoc.jinja"),
-            ),
-            (
-                "web/factory_declaration",
-                include_str!("../templates/web/factory_declaration.jinja"),
-            ),
-            (
                 "module/constant",
                 include_str!("../templates/module/constant.jinja"),
             ),
@@ -102,10 +90,6 @@ fn environment() -> &'static EcmaTemplateEngine {
                 include_str!("../templates/module/normalization.jinja"),
             ),
             ("functions", include_str!("../templates/functions.jinja")),
-            (
-                "web/options",
-                include_str!("../templates/web/options.jinja"),
-            ),
             ("expression", include_str!("../templates/expression.jinja")),
             (
                 "formatters/date",
@@ -159,16 +143,6 @@ fn environment() -> &'static EcmaTemplateEngine {
                 include_str!("../templates/project/index.jinja"),
             ),
             (
-                "web/constants",
-                include_str!("../templates/web/constants.jinja"),
-            ),
-            ("web/facade", include_str!("../templates/web/facade.jinja")),
-            (
-                "web/request",
-                include_str!("../templates/web/request.jinja"),
-            ),
-            ("web/url", include_str!("../templates/web/url.jinja")),
-            (
                 "number_rounding",
                 include_str!("../templates/number_rounding.jinja"),
             ),
@@ -196,69 +170,6 @@ fn environment() -> &'static EcmaTemplateEngine {
                 "provider_runtime",
                 include_str!("../templates/provider_runtime.jinja"),
             ),
-            ("web/path", include_str!("../templates/web/path.jinja")),
-            (
-                "web/path_declarations",
-                include_str!("../templates/web/path_declarations.jinja"),
-            ),
-            ("web/cookie", include_str!("../templates/web/cookie.jinja")),
-            (
-                "web/cookie_declarations",
-                include_str!("../templates/web/cookie_declarations.jinja"),
-            ),
-            (
-                "web/local-storage",
-                include_str!("../templates/web/local-storage.jinja"),
-            ),
-            (
-                "web/local-storage_declarations",
-                include_str!("../templates/web/local-storage_declarations.jinja"),
-            ),
-            (
-                "web/accept-language",
-                include_str!("../templates/web/accept-language.jinja"),
-            ),
-            (
-                "web/accept-language_declarations",
-                include_str!("../templates/web/accept-language_declarations.jinja"),
-            ),
-            ("web/routes", include_str!("../templates/web/routes.jinja")),
-            (
-                "web/routes_declarations",
-                include_str!("../templates/web/routes_declarations.jinja"),
-            ),
-            (
-                "web/link-transform",
-                include_str!("../templates/web/link-transform.jinja"),
-            ),
-            (
-                "web/link-transform_declarations",
-                include_str!("../templates/web/link-transform_declarations.jinja"),
-            ),
-            (
-                "web/runtime-links",
-                include_str!("../templates/web/runtime-links.jinja"),
-            ),
-            (
-                "web/runtime-links_declarations",
-                include_str!("../templates/web/runtime-links_declarations.jinja"),
-            ),
-            (
-                "web/server-cookie",
-                include_str!("../templates/web/server-cookie.jinja"),
-            ),
-            (
-                "web/server-cookie_declarations",
-                include_str!("../templates/web/server-cookie_declarations.jinja"),
-            ),
-            (
-                "web/switch-route",
-                include_str!("../templates/web/switch-route.jinja"),
-            ),
-            (
-                "web/switch-route_declarations",
-                include_str!("../templates/web/switch-route_declarations.jinja"),
-            ),
             ("shared", include_str!("../templates/shared.jinja")),
             (
                 "shared_declarations",
@@ -270,17 +181,4 @@ fn environment() -> &'static EcmaTemplateEngine {
 
 pub(crate) fn render(name: &str, values: Value) -> String {
     environment().render(name, values)
-}
-
-/// Render an unmapped helper module from its canonical build-time template.
-pub(crate) fn module(
-    output: crate::ecmascript::EcmaModuleOutput,
-    name: &str,
-    values: Value,
-) -> crate::ecmascript::EcmaModule {
-    let mut module = crate::ecmascript::EcmaModule::new(output);
-    module.push_statement(crate::ecmascript::EcmaStatement::generated(render(
-        name, values,
-    )));
-    module
 }

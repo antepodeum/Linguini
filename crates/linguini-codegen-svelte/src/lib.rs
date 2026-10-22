@@ -11,8 +11,8 @@ mod templates;
 #[cfg(test)]
 mod test_templates;
 #[cfg(test)]
-use linguini_codegen_ecmascript::EcmaLocaleSource;
-use linguini_codegen_ecmascript::{EcmaLinkMode, EcmaWebOptions};
+use linguini_codegen_ecmascript_web::EcmaLocaleSource;
+use linguini_codegen_ecmascript_web::{EcmaLinkMode, EcmaWebOptions};
 
 pub use host::{SvelteHost, SvelteHostImport};
 pub use svelte_control::compile_svelte_control_module;

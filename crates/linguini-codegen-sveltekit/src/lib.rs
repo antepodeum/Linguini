@@ -6,9 +6,9 @@ mod sveltekit_types;
 mod templates;
 #[cfg(test)]
 mod test_templates;
-use linguini_codegen_ecmascript::EcmaWebOptions;
+use linguini_codegen_ecmascript_web::EcmaWebOptions;
 #[cfg(test)]
-use linguini_codegen_ecmascript::{EcmaLocaleSource, EcmaWebSwitchRoute};
+use linguini_codegen_ecmascript_web::{EcmaLocaleSource, EcmaWebSwitchRoute};
 
 pub use sveltekit::{compile_sveltekit_control_module, compile_sveltekit_module};
 
@@ -28,22 +28,25 @@ pub fn generate_project_files(
     if let Some(web) = &options.web {
         if web.features().has_cookie {
             files.extend(generated_module_files(
-                linguini_codegen_ecmascript::compile_web_server_cookie_module(),
+                linguini_codegen_ecmascript_web::compile_web_server_cookie_module(),
                 source_maps,
             ));
             if options.declaration {
                 files.push(EcmaGeneratedFile {
                     path: "web/server-cookie.d.ts".into(),
-                    contents: linguini_codegen_ecmascript::generate_web_server_cookie_declaration(),
+                    contents:
+                        linguini_codegen_ecmascript_web::generate_web_server_cookie_declaration(),
                 });
             }
         }
-        if let Some(module) = linguini_codegen_ecmascript::compile_web_switch_route_module(web) {
+        if let Some(module) = linguini_codegen_ecmascript_web::compile_web_switch_route_module(web)
+        {
             files.extend(generated_module_files(module, source_maps));
             if options.declaration {
                 files.push(EcmaGeneratedFile {
                     path: "web/switch-route.d.ts".into(),
-                    contents: linguini_codegen_ecmascript::generate_web_switch_route_declaration(),
+                    contents:
+                        linguini_codegen_ecmascript_web::generate_web_switch_route_declaration(),
                 });
             }
         }

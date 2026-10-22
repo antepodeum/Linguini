@@ -1,6 +1,6 @@
 //! Accept-Language locale-resolution leaf for generated web runtimes.
 
-use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
+use linguini_codegen_ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
 
 pub(super) fn generate_web_accept_language_declaration() -> String {
     crate::templates::module(

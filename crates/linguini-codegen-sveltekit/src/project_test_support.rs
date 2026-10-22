@@ -1,5 +1,9 @@
 //! Historical integration scenarios composed through independent production module APIs.
 pub use linguini_codegen_ecmascript::*;
+pub use linguini_codegen_ecmascript_web::{
+    EcmaLinkMode, EcmaLocalePrefixMode, EcmaLocaleSource, EcmaLocaleSwitchPlan, EcmaWebOptions,
+    EcmaWebSwitchRoute,
+};
 #[derive(Clone, Copy)]
 pub enum EcmaFramework {
     Svelte,
@@ -23,7 +27,7 @@ impl Default for EcmaProjectOptions {
             tree_shaking: base.tree_shaking,
             included_messages: base.included_messages,
             base_locale: base.base_locale,
-            web: base.web,
+            web: None,
             framework: None,
         }
     }
@@ -47,10 +51,21 @@ pub fn generate_project_files(
         tree_shaking: options.tree_shaking,
         included_messages: options.included_messages.clone(),
         base_locale: options.base_locale.clone(),
-        web: options.web.clone(),
     };
     let project = ValidatedEcmaProject::try_new(schema, locales, &base)?;
     let mut files = linguini_codegen_ecmascript::generate_project_files(&project)?;
+    if let Some(web) = &options.web {
+        files.extend(
+            linguini_codegen_ecmascript_web::generate_project_files(
+                &linguini_codegen_ecmascript_web::WebProjectOptions {
+                    web: web.clone(),
+                    declaration: options.declaration,
+                },
+                false,
+            )
+            .expect("closed web policy is valid"),
+        );
+    }
     match options.framework {
         Some(EcmaFramework::Svelte) => {
             files.extend(linguini_codegen_svelte::generate_project_files(

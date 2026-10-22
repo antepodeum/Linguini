@@ -1,6 +1,6 @@
 //! Owned, bounded browser link-localization runtime.
 
-use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
+use linguini_codegen_ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
 
 pub(super) fn generate_web_runtime_links_declaration() -> String {
     crate::templates::module(

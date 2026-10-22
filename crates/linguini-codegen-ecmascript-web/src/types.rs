@@ -1,6 +1,6 @@
 //! Public web API model shared by TypeScript, JSDoc, and declaration output.
 
-use crate::ecmascript::{EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaStatement};
+use linguini_codegen_ecmascript::{EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaStatement};
 
 struct WebType {
     header: &'static str,

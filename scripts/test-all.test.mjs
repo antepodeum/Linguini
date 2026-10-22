@@ -35,7 +35,7 @@ test("public contract policy requires docs, migrations, and tests together", () 
   );
   assert.deepEqual(contractEvidence(["crates/linguini-ir/src/lower.rs"]).contracts, []);
   assert.throws(() => validateContractEvidence(["plugins/tsc/src/index.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
-  for (const name of ["linguini-codegen", "linguini-codegen-ecmascript", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) {
+  for (const name of ["linguini-codegen", "linguini-codegen-ecmascript", "linguini-codegen-ecmascript-web", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) {
     assert.throws(
       () => validateContractEvidence([`crates/${name}/src/lib.rs`]),
       /public documentation, docs\/migrations\.md, tests or fixtures/,
@@ -376,11 +376,17 @@ test("main returns nonzero for failures without calling real suites", () => {
 test("codegen integrations retain independent dependency and packaging boundaries", () => {
   const dependencies = (name) => readFileSync(new URL(`../crates/${name}/Cargo.toml`, import.meta.url), "utf8").split("[dependencies]\n")[1].split(/\n\[/)[0];
   const ecma = dependencies("linguini-codegen-ecmascript");
+  const web = dependencies("linguini-codegen-ecmascript-web");
   const svelte = dependencies("linguini-codegen-svelte");
   const kit = dependencies("linguini-codegen-sveltekit");
   const vite = dependencies("linguini-codegen-vite");
   for (const owner of [ecma, vite]) assert.doesNotMatch(owner, /linguini-codegen-svelte(?:kit)?\s*=/);
+  assert.doesNotMatch(ecma, /linguini-codegen-ecmascript-web\s*=/);
+  assert.match(web, /linguini-codegen-ecmascript\s*=/);
+  assert.doesNotMatch(web, /linguini-codegen-(?:svelte(?:kit)?|vite)\s*=/);
+  assert.match(svelte, /linguini-codegen-ecmascript-web\s*=/);
+  assert.match(kit, /linguini-codegen-ecmascript-web\s*=/);
   assert.doesNotMatch(svelte, /linguini-codegen-(?:sveltekit|vite)\s*=/);
   assert.match(kit, /linguini-codegen-svelte\s*=/);
-  for (const name of ["linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) assert(PACKAGED_RUNTIME_CRATES.includes(name));
+  for (const name of ["linguini-codegen-ecmascript-web", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) assert(PACKAGED_RUNTIME_CRATES.includes(name));
 });

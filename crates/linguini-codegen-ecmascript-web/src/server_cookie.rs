@@ -1,6 +1,6 @@
 //! Server cookie persistence delegates to the shared web policy.
 
-use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
+use linguini_codegen_ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
 
 pub fn generate_web_server_cookie_declaration() -> String {
     crate::templates::module(

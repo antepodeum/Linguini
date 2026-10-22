@@ -703,6 +703,7 @@ dependencies = [
  "linguini-analyzer",
  "linguini-cldr",
  "linguini-codegen-ecmascript",
+ "linguini-codegen-ecmascript-web",
  "linguini-codegen-svelte",
  "linguini-codegen-sveltekit",
  "linguini-codegen-vite",
@@ -741,10 +742,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "linguini-codegen-ecmascript-web"
+version = "0.1.0-alpha.4"
+dependencies = [
+ "linguini-codegen-ecmascript",
+ "minijinja",
+]
+
+[[package]]
 name = "linguini-codegen-svelte"
 version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-codegen-ecmascript",
+ "linguini-codegen-ecmascript-web",
  "minijinja",
 ]
 
@@ -753,6 +763,7 @@ name = "linguini-codegen-sveltekit"
 version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-codegen-ecmascript",
+ "linguini-codegen-ecmascript-web",
  "linguini-codegen-svelte",
  "linguini-ir",
  "linguini-syntax",

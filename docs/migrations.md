@@ -379,3 +379,13 @@ including NodeNext projects. Bundler resolution remains supported.
 `linguini build --emit-dir DIRECTORY` can additionally generate into build output directories
 without editing `linguini.toml`. The option is repeatable; duplicate directories are coalesced,
 and overlapping or unsafe locations fail validation before generated trees are written.
+
+Web generation now belongs to `linguini-codegen-ecmascript-web`. Rust integrations must move
+`EcmaWebOptions`, its policy types, `render_web_options`, and `compile_web_*` imports to
+`linguini_codegen_ecmascript_web`. `WebCodegenError` owns web-policy validation failures.
+Remove `EcmaProjectOptions.web`; explicitly append the web crate's
+`generate_project_files(&WebProjectOptions { web, declaration }, source_maps)` output alongside
+language artifacts, then append the selected framework artifacts. SvelteKit composes Svelte and
+web capabilities; the base ECMAScript crate depends on neither. Generated module paths, runtime
+contracts, declarations, and source-map contents are preserved. The CLI handles this composition;
+this ownership change does not yet remove legacy `[web]` project configuration.

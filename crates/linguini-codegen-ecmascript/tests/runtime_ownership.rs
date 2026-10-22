@@ -20,11 +20,18 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
         .expect("workspace crates");
     let owners = [
         "linguini-codegen-ecmascript",
+        "linguini-codegen-ecmascript-web",
         "linguini-codegen-svelte",
         "linguini-codegen-sveltekit",
         "linguini-codegen-vite",
     ];
     let mut files = Vec::new();
+    assert!(
+        !crates
+            .join("linguini-codegen-ecmascript/templates/web")
+            .exists(),
+        "web templates belong to the web integration crate"
+    );
     for owner in owners {
         source_files(&crates.join(owner).join("src"), &mut files);
     }
@@ -39,6 +46,16 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
             path.display()
         );
         let source = std::fs::read_to_string(&path).expect("read codegen source");
+        if path.starts_with(crates.join("linguini-codegen-ecmascript/src")) {
+            let production = source.split("#[cfg(test)]").next().unwrap();
+            for web_api in ["EcmaWebOptions", "compile_web_", "web_options", "web/"] {
+                assert!(
+                    !production.contains(web_api),
+                    "web generation belongs to its integration crate: {} ({web_api})",
+                    path.display()
+                );
+            }
+        }
         if path.parent()
             == Some(
                 crates
@@ -125,11 +142,7 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
                 path.display()
             );
         }
-        if path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| name.starts_with("web_"))
-        {
+        if path.starts_with(crates.join("linguini-codegen-ecmascript-web/src")) {
             assert!(
                 !source.contains("RuntimeCode"),
                 "web runtime bodies must be templates: {}",

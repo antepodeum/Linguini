@@ -941,11 +941,10 @@ fn composed_mapped_project_matches_the_strict_typescript_consumer_fixture() {
             module: lower_locale(&parse_locale_in(fr_source, SourceId(13)).unwrap()),
         },
     ];
-    let web = linguini_codegen_ecmascript::EcmaWebOptions::default();
+    let web = linguini_codegen_ecmascript_web::EcmaWebOptions::default();
     let options = linguini_codegen_ecmascript::EcmaProjectOptions {
         base_locale: Some("en".into()),
         gitignore: false,
-        web: Some(web.clone()),
         ..Default::default()
     };
     let project =
@@ -958,6 +957,16 @@ fn composed_mapped_project_matches_the_strict_typescript_consumer_fixture() {
     ];
     let mut files =
         linguini_codegen_ecmascript::compile_ecmascript_project_files(&project, &sources).unwrap();
+    files.extend(
+        linguini_codegen_ecmascript_web::generate_project_files(
+            &linguini_codegen_ecmascript_web::WebProjectOptions {
+                web: web.clone(),
+                declaration: true,
+            },
+            true,
+        )
+        .unwrap(),
+    );
     files.extend(super::generate_project_files(
         &super::SvelteKitProjectOptions {
             web: Some(web),

@@ -1,7 +1,7 @@
 //! Closed web facade: statically selected locale resolvers and shared URL/request policy.
 
 use super::{EcmaLocaleSource, EcmaWebOptions};
-use crate::ecmascript::{
+use linguini_codegen_ecmascript::{
     EcmaImport, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport, EcmaStatement,
     RenderedEcmaModule,
 };
@@ -39,7 +39,7 @@ fn web_module(options: &EcmaWebOptions) -> EcmaModule {
         "web/constants",
         minijinja::context! {},
     )));
-    super::web_types::append(&mut module);
+    super::types::append(&mut module);
     let sources: Vec<_> = options
         .features()
         .sources
@@ -60,9 +60,7 @@ fn web_module(options: &EcmaWebOptions) -> EcmaModule {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{
-        web_accept_language, web_cookie, web_local_storage, web_path, web_routes, web_types,
-    };
+    use super::super::{accept_language, cookie, local_storage, path, routes, types};
     use super::*;
     use std::path::Path;
 
@@ -71,7 +69,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/golden/snapshots/js-web");
         assert_eq!(
-            web_types::generate_web_declaration(),
+            types::generate_web_declaration(),
             std::fs::read_to_string(root.join("legacy/web.runtime.d.ts")).unwrap()
         );
         let cases = [
@@ -145,15 +143,15 @@ mod tests {
                 EcmaLocaleSource::AcceptLanguage,
             ] {
                 let (path, js_leaf) = match source {
-                    EcmaLocaleSource::Path => ("path", web_path::compile_web_path_module()),
-                    EcmaLocaleSource::Cookie => ("cookie", web_cookie::compile_web_cookie_module()),
+                    EcmaLocaleSource::Path => ("path", path::compile_web_path_module()),
+                    EcmaLocaleSource::Cookie => ("cookie", cookie::compile_web_cookie_module()),
                     EcmaLocaleSource::LocalStorage => (
                         "local-storage",
-                        web_local_storage::compile_web_local_storage_module(),
+                        local_storage::compile_web_local_storage_module(),
                     ),
                     EcmaLocaleSource::AcceptLanguage => (
                         "accept-language",
-                        web_accept_language::compile_web_accept_language_module(),
+                        accept_language::compile_web_accept_language_module(),
                     ),
                 };
                 assert_eq!(
@@ -167,13 +165,13 @@ mod tests {
             if !options.exclude.is_empty() {
                 snapshots.push((
                     root.join(format!("{name}/web/routes.js")),
-                    web_routes::compile_web_routes_module().code,
+                    routes::compile_web_routes_module().code,
                 ));
             }
             snapshots.extend([
                 (
                     root.join(format!("{name}/typescript/web.d.ts")),
-                    web_types::generate_web_declaration(),
+                    types::generate_web_declaration(),
                 ),
                 (root.join(format!("{name}/web.js")), js.code),
                 (root.join(format!("{name}/web.js.map")), js.source_map),

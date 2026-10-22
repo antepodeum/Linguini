@@ -1,11 +1,11 @@
 //! Framework-selected browser effects with closed, guarded capability reads.
 
 use super::{EcmaLinkMode, EcmaWebOptions};
-use linguini_codegen_ecmascript::render_web_options as web_options_literal;
 use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
     EcmaStatement, RenderedEcmaModule,
 };
+use linguini_codegen_ecmascript_web::render_web_options as web_options_literal;
 
 pub(super) fn generate_svelte_effects_declaration() -> String {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(

@@ -1,6 +1,6 @@
 //! Build-time transformed-link helper for generated web projects.
 
-use crate::ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
+use linguini_codegen_ecmascript::{EcmaModuleKind, EcmaModuleOutput, RenderedEcmaModule};
 
 pub(super) fn generate_web_link_transform_declaration() -> String {
     crate::templates::module(

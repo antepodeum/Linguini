@@ -1014,18 +1014,22 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
 
 ### Reusable backend and framework modules
 
-- [-] MOD-A1 — Extract separate `linguini-codegen-svelte`, `linguini-codegen-sveltekit`, and
-      `linguini-codegen-vite` crates with explicit APIs, artifact ownership, and minimal dependency
+- [-] MOD-A1 — Extract separate `linguini-codegen-ecmascript-web`, `linguini-codegen-svelte`,
+      `linguini-codegen-sveltekit`, and `linguini-codegen-vite` crates with explicit APIs, artifact ownership, and minimal dependency
       edges. SvelteKit reuses Svelte and ECMAScript capabilities; Vite codegen owns the shared
       bundler plan/integration and accepts framework adapter inputs without depending on SvelteKit.
       Keep base `linguini-codegen-ecmascript` message generation independent of these integration
       crates; avoid dependency cycles, duplicated emitters, and a single generic backend crate.
       Share backend-independent semantics through `linguini-codegen`; keep optional web helper
-      syntax within its owning backend. Directory-only separation does not satisfy this criterion.
-      The three crates now own their transferred production implementations/templates; SvelteKit
+      syntax within its own web crate. Directory-only separation does not satisfy this criterion.
+      The four crates now own their transferred production implementations/templates; SvelteKit
       composes Svelte, and the Vite plan accepts external runtime descriptors. Base ECMAScript
-      generation no longer imports or selects framework integrations. Native CLI and mapped
-      consumer fixtures use the composition. Svelte accepts explicit host imports; SvelteKit
+      generation no longer imports or selects web or framework integrations. Web policy types,
+      validation/errors, locale-source and URL/request templates, and selected artifact emission
+      belong to `linguini-codegen-ecmascript-web`, which depends only on ECMAScript rendering
+      and its template engine. Native CLI and mapped consumer fixtures explicitly compose these
+      owners. Independent web artifact tests cover capability selection, ordering, declarations,
+      and mapped/source-only output. Svelte accepts explicit host imports; SvelteKit
       owns request-locale reads and navigation templates, with no navigation runtime in pathless
       output. Complete JS adapter, module-configuration, and packaging/CI verification before
       closing the architecture work.

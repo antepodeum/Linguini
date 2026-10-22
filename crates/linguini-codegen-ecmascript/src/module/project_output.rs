@@ -15,7 +15,6 @@ pub(super) enum ProjectFile {
         module: EcmaModule,
         source_ids: Vec<SourceId>,
     },
-    Rendered(RenderedEcmaModule),
     Data(EcmaGeneratedFile),
 }
 
@@ -25,17 +24,6 @@ impl ProjectFile {
             Self::Module { module, .. } => EcmaGeneratedFile {
                 path: module.output().path().to_owned(),
                 contents: module.render_code(),
-            },
-            Self::Rendered(module) => EcmaGeneratedFile {
-                path: module.output.path().to_owned(),
-                contents: module
-                    .code
-                    .strip_suffix(&format!(
-                        "//# sourceMappingURL={}\n",
-                        module.output.source_map_path().rsplit('/').next().unwrap()
-                    ))
-                    .expect("renderer owns map trailer")
-                    .to_owned(),
             },
             Self::Data(file) => file,
         }
@@ -48,7 +36,6 @@ impl ProjectFile {
     ) -> Result<(), EcmaCodegenError> {
         match self {
             Self::Data(file) => files.push(file),
-            Self::Rendered(module) => append_rendered(files, module),
             Self::Module { module, source_ids } => {
                 let mut records = super::message::ordered_sources(&source_ids, sources)?;
                 let prefix = "../".repeat(
@@ -113,9 +100,6 @@ pub(super) fn data(files: &mut Vec<ProjectFile>, path: impl Into<String>, conten
         contents,
     }));
 }
-pub(super) fn rendered(files: &mut Vec<ProjectFile>, module: RenderedEcmaModule) {
-    files.push(ProjectFile::Rendered(module));
-}
 fn module(files: &mut Vec<ProjectFile>, module: EcmaModule, source_ids: Vec<SourceId>) {
     let source_ids = if source_ids.is_empty() {
         module.source_ids()
@@ -143,7 +127,6 @@ fn project_files(
     append_schema(project, target, &mut files);
     append_locales(project, target, &mut files)?;
     append_entries(project, target, &mut files);
-    super::project_web::append(project, &mut files);
     Ok(files)
 }
 
@@ -324,7 +307,7 @@ fn append_entries(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{EcmaLocaleModule, EcmaProjectOptions, EcmaWebOptions};
+    use super::super::{EcmaLocaleModule, EcmaProjectOptions};
     use super::*;
     use linguini_ir::{lower_locale_typed, lower_schema_typed};
     use linguini_syntax::{parse_locale_in, parse_schema_in};
@@ -353,16 +336,11 @@ mod tests {
         ];
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/golden/snapshots/js-complete-project");
-        for (name, declaration, web) in [
-            ("plain", true, false),
-            ("source-only", false, false),
-            ("kit", true, true),
-        ] {
+        for (name, declaration) in [("plain", true), ("source-only", false)] {
             let options = EcmaProjectOptions {
                 base_locale: Some("en".to_owned()),
                 declaration,
                 gitignore: false,
-                web: web.then(EcmaWebOptions::default),
                 ..Default::default()
             };
             let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).unwrap();
@@ -426,7 +404,7 @@ mod tests {
                     }
                     assert_eq!(file.contents, std::fs::read_to_string(path).unwrap());
                 }
-                assert_eq!(files.iter().any(|file| file.path.starts_with("web/")), web);
+                assert!(!files.iter().any(|file| file.path.starts_with("web/")));
                 if !declaration {
                     assert!(!files.iter().any(|file| file.path.ends_with(".d.ts")));
                 }

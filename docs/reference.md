@@ -15,7 +15,15 @@ generators can consume these semantic plans without depending on an output langu
 labels through the pinned calendar data before emission. `CalendarFormatData::symbol` provides
 the shared data lookup; generated JavaScript receives only the selected literals/name tables.
 
-Framework integrations have separate native owners. `linguini-codegen-svelte` generates Svelte
+Web and framework integrations have separate native owners.
+`linguini-codegen-ecmascript-web` owns web policy validation, locale-source leaves, URL/request
+helpers, cookie and locale-switch route emitters, declarations, and `templates/web/`.
+Its `generate_project_files(&WebProjectOptions, source_maps)` emits only the selected web artifacts.
+Compose these files with the language artifacts and the selected framework artifacts. Web policy
+and errors belong to this crate; `EcmaProjectOptions` contains only language output options.
+The base ECMAScript crate has no dependency on web or framework codegen.
+
+`linguini-codegen-svelte` generates Svelte
 locale state, controls, effects, and provider facades. `linguini-codegen-sveltekit` composes that
 Svelte generation with its server adapters and ambient types. Neither is a dependency of
 `linguini-codegen-ecmascript`.
@@ -1004,7 +1012,7 @@ cannot see. This is a bounded lexical project scan, not a whole-program
 JavaScript type or data-flow proof.
 
 The closed project web facade has one `compile_web_module` entry point. It uses the same selected physical locale-source
-modules, URL/request policy, public type model, and owned source maps. The web runtime templates live under the ECMAScript backend's `templates/web/` directory. Checked target types, closed
+modules, URL/request policy, public type model, and owned source maps. The web runtime templates live under `linguini-codegen-ecmascript-web/templates/web/`. Checked target types, closed
 source matrices, URL/link/cookie safety, and concurrent request preparation run in quick/full gates
 through `tests/fixtures/golden/snapshots/js-web`.
 
@@ -1017,8 +1025,9 @@ Their superseded implementation templates are frozen test oracles only. Installe
 checks and executable TS/JS/frozen-runtime parity are registered quick/full gates under
 `tests/fixtures/golden/snapshots/js-sveltekit`.
 
-`compile_ecmascript_project_files(project, sources)` enumerates a complete JavaScript project
-and optional declarations through the common artifact plan. It emits an owned map beside
+`compile_ecmascript_project_files(project, sources)` enumerates the language-owned JavaScript
+artifacts and optional declarations through the common artifact plan. The CLI explicitly composes
+web and framework artifacts from their owning crates. It emits an owned map beside
 every implementation; declarations follow the validated declaration setting. Source paths are
 relative to the output root and are rebased to each map directory. Missing/duplicate source
 identities and output collisions fail before filesystem writes. The established

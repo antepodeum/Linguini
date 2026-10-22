@@ -7,9 +7,12 @@ use linguini_analyzer::{
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ecmascript::{
-    compile_ecmascript_project_files, rebase_map_sources, EcmaGeneratedFile, EcmaLinkMode,
-    EcmaLocaleModule, EcmaLocalePrefixMode, EcmaLocaleSource, EcmaLocaleSwitchPlan,
-    EcmaProjectOptions, EcmaSource, EcmaWebOptions, EcmaWebSwitchRoute, ValidatedEcmaProject,
+    compile_ecmascript_project_files, rebase_map_sources, EcmaGeneratedFile, EcmaLocaleModule,
+    EcmaProjectOptions, EcmaSource, ValidatedEcmaProject,
+};
+use linguini_codegen_ecmascript_web::{
+    EcmaLinkMode, EcmaLocalePrefixMode, EcmaLocaleSource, EcmaLocaleSwitchPlan, EcmaWebOptions,
+    EcmaWebSwitchRoute,
 };
 use linguini_config::{
     discover_application_source_files_with_fields, CanonicalMode, CookiePath, LinguiniConfig,
@@ -125,11 +128,11 @@ fn generate_target(
         tree_shaking: target.tree_shaking(),
         included_messages: target.messages().to_vec(),
         base_locale: Some(config.project().default_locale().to_owned()),
-        web: config
-            .web()
-            .configured()
-            .then(|| legacy_web_codegen_options(config)),
     };
+    let web_options = config
+        .web()
+        .configured()
+        .then(|| legacy_web_codegen_options(config));
     let project = ValidatedEcmaProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let sources = ecma_sources(root, &schema_files, &locale_files)?;
@@ -148,10 +151,22 @@ fn generate_target(
             })?;
         let mut files = compile_ecmascript_project_files(&project, &project_sources)
             .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
+        if let Some(web) = &web_options {
+            files.extend(
+                linguini_codegen_ecmascript_web::generate_project_files(
+                    &linguini_codegen_ecmascript_web::WebProjectOptions {
+                        web: web.clone(),
+                        declaration: options.declaration,
+                    },
+                    true,
+                )
+                .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?,
+            );
+        }
         match target.framework() {
             Some("svelte") => files.extend(linguini_codegen_svelte::generate_project_files(
                 &linguini_codegen_svelte::SvelteProjectOptions {
-                    web: options.web.clone(),
+                    web: web_options.clone(),
                     declaration: options.declaration,
                     host: Default::default(),
                 },
@@ -159,7 +174,7 @@ fn generate_target(
             )),
             Some("sveltekit") => files.extend(linguini_codegen_sveltekit::generate_project_files(
                 &linguini_codegen_sveltekit::SvelteKitProjectOptions {
-                    web: options.web.clone(),
+                    web: web_options.clone(),
                     declaration: options.declaration,
                 },
                 true,
