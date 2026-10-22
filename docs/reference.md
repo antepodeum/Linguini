@@ -19,6 +19,9 @@ optional noon/midnight points. Missing labels fall back during generation, and a
 intervals merge. ECMAScript templates emit direct scalar comparisons and literals, reading only
 needed UTC clock fields once. Exact points use the precision displayed by the pattern; quoted
 field letters do not change that precision. Midnight refers to the start of the displayed day.
+Gregorian `y` uses the year within its era (1 BCE is year 1), shares the original year with `G`,
+and pads to the requested minimum width. Only `yy` truncates to the last two digits. Year-only
+padding requests select their padding helper during generation.
 See [UTS #35 v48.2 day-period rules](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Day_Period_Rules).
 
 Web and framework integrations have separate native owners.

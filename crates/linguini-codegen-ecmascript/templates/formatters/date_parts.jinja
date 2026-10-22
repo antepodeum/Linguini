@@ -1,5 +1,5 @@
 {% macro field(part, clock) -%}
-{% if part.field == "y" %}{% if part.width == 2 %}padNumber(date.getUTCFullYear() % 100, 2){% else %}String(date.getUTCFullYear()){% endif %}
+{% if part.field == "y" %}{% if part.width == 2 %}padNumber(year % 100, 2){% elif part.width > 2 %}padNumber(year, {{ part.width }}){% else %}String(year){% endif %}
 {%- elif part.field in ["M", "L"] %}{% if part.width >= 3 %}{{ part.table }}[date.getUTCMonth()]{% elif part.width == 2 %}padNumber(date.getUTCMonth() + 1, 2){% else %}String(date.getUTCMonth() + 1){% endif %}
 {%- elif part.field == "E" %}{{ part.table }}[date.getUTCDay()]
 {%- elif part.field == "d" %}{% if part.width == 2 %}padNumber(date.getUTCDate(), 2){% else %}String(date.getUTCDate()){% endif %}
@@ -7,7 +7,7 @@
 {%- elif part.field == "S" %}padNumber({{ "milliseconds" if clock.milliseconds else "date.getUTCMilliseconds()" }}, 3){% if part.width > 3 %}.padEnd({{ part.width }}, "0"){% endif %}{% if part.width != 3 %}.slice(0, {{ part.width }}){% endif %}
 {%- elif part.period is not none %}{{ part.period.binding }}
 {%- elif part.field in ["a", "b", "B"] %}({{ "hours" if clock.hours else "date.getUTCHours()" }} < 12 ? {{ part.am|js }} : {{ part.pm|js }})
-{%- elif part.field == "G" %}(date.getUTCFullYear() > 0 ? {{ part.ad|js }} : {{ part.bc|js }})
+{%- elif part.field == "G" %}({{ "extendedYear" if clock.year else "date.getUTCFullYear()" }} > 0 ? {{ part.ad|js }} : {{ part.bc|js }})
 {%- else %}"UTC"{% endif %}
 {%- endmacro %}
 {% macro expression(parts, digits, clock) -%}

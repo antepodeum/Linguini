@@ -55,6 +55,17 @@ export function formatNarrow(value) {
 }
 
 /**
+ * @param {Date | number | string} value
+ * @returns {string}
+ */
+export function formatYear(value) {
+  const date = coerceDate(value);
+  const extendedYear = date.getUTCFullYear();
+  const year = extendedYear > 0 ? extendedYear : 1 - extendedYear;
+  return String(year) + " " + padNumber(year % 100, 2) + " " + padNumber(year, 4) + " " + (extendedYear > 0 ? "AD" : "BC");
+}
+
+/**
  * @param {number} value
  * @param {number} length
  * @returns {string}

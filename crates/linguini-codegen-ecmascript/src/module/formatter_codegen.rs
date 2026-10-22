@@ -324,7 +324,8 @@ fn date_parts(
             character,
             'y' | 'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' | 'S'
         ) || matches!(character, 'M' | 'L') && width <= 2;
-        helpers.padding |= character == 'S' || (numeric && width == 2);
+        helpers.padding |=
+            character == 'S' || (numeric && width == 2) || (character == 'y' && width > 2);
         helpers.digits |= numeric && dates.digits != "0123456789";
         parts.push(context! { kind => "field", field => character.to_string(), width, table, numeric, period, am => symbols.am, pm => symbols.pm, ad => symbols.ad, bc => symbols.bc });
     }
@@ -342,6 +343,8 @@ fn date_parts(
         helpers,
         clock: context! {
             exact_time => exact_count > 1 && (fields.contains(&'m') || fields.contains(&'s') || fields.contains(&'S')),
+            year => fields.contains(&'y'),
+            era => fields.contains(&'G'),
             hours => has_periods,
             minutes => (exact_periods || total_minutes) && fields.contains(&'m'),
             seconds => exact_periods && fields.contains(&'s'),
@@ -349,17 +352,6 @@ fn date_parts(
             total_minutes,
         },
     }
-}
-
-#[cfg(test)]
-fn date_pattern_expression(pattern: &str, dates: &linguini_cldr::DateFormatData) -> String {
-    let pattern = date_parts(pattern, dates, "test");
-    crate::templates::render(
-        "formatters/date_expression",
-        minijinja::context! { parts => pattern.parts, clock => pattern.clock, digits => dates.digits },
-    )
-    .trim()
-    .to_owned()
 }
 
 #[cfg(test)]

@@ -54,7 +54,9 @@ const formatDate_months_3 = ["янв.", "февр.", "мар.", "апр.", "ма
  */
 export function formatDate(value) {
   const date = coerceDate(value);
-  return String(date.getUTCDate()) + " " + formatDate_months_3[date.getUTCMonth()] + " " + String(date.getUTCFullYear()) + " г.";
+  let year = date.getUTCFullYear();
+  if (year <= 0) year = 1 - year;
+  return String(date.getUTCDate()) + " " + formatDate_months_3[date.getUTCMonth()] + " " + String(year) + " г.";
 }
 
 /**

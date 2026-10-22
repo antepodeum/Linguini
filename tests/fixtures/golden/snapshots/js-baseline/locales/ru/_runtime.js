@@ -30,7 +30,9 @@ export function formatCurrency_code_RUB(value) {
  */
 export function formatDate_style_short(value) {
   const date = coerceDate(value);
-  return padNumber(date.getUTCDate(), 2) + "." + padNumber(date.getUTCMonth() + 1, 2) + "." + String(date.getUTCFullYear());
+  let year = date.getUTCFullYear();
+  if (year <= 0) year = 1 - year;
+  return padNumber(date.getUTCDate(), 2) + "." + padNumber(date.getUTCMonth() + 1, 2) + "." + String(year);
 }
 
 /**

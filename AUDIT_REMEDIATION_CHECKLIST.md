@@ -1084,6 +1084,8 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Fixed/flexible day-period rules and label fallback now lower through the shared build-time
       plan into direct conditions; executed coverage checks 483,840 locale/width/time combinations
       against raw pinned rules, plus display precision and missing-label/merged-span cases.
+      Gregorian year-of-era conversion and width padding now cover 18 BCE/CE year samples and
+      eight widths, sharing the UTC year read and selecting year-only padding helpers.
       Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
       field widths, and other known choices into code. Remove unused options/branches/data; prohibit
       the current `formatNumber(value) -> formatGeneratedNumber(value, ...21 constants...)` design.

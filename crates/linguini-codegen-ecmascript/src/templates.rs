@@ -104,10 +104,6 @@ fn environment() -> &'static EcmaTemplateEngine {
                 include_str!("../templates/formatters/types.jinja"),
             ),
             (
-                "formatters/date_expression",
-                include_str!("../templates/formatters/date_expression.jinja"),
-            ),
-            (
                 "formatter_call",
                 include_str!("../templates/formatter_call.jinja"),
             ),

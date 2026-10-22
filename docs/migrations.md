@@ -400,3 +400,9 @@ substituting AM/PM for every value. For example, English `B` at 09:30 emits “i
 `b` can emit “noon” or “midnight”. Exact points follow the displayed time precision, with midnight
 at the beginning of the day. Localized labels, missing-label fallbacks, intervals, and widths
 resolve during generation; no CLDR rule tables or interpreter are added to runtime output.
+
+Gregorian date field `y` now formats the year within its era: astronomical year zero displays
+as 1 BCE, and negative years count backward within BCE. Widths of three or more digits now
+zero-pad to the requested minimum; `yy` keeps its two-digit truncation. For example, `yyyy G`
+formats year 1 as `0001 AD`, and year zero as `0001 BC`. Year and era formatting share one UTC
+year read, and date requests containing only a padded year select the padding helper correctly.

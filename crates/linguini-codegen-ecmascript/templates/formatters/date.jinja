@@ -5,7 +5,11 @@
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {
   const date = coerceDate(value);
-{% if clock.hours %}  const hours = date.getUTCHours();
+{% if clock.year %}{% if clock.era %}  const extendedYear = date.getUTCFullYear();
+  const year = extendedYear > 0 ? extendedYear : 1 - extendedYear;
+{% else %}  let year = date.getUTCFullYear();
+  if (year <= 0) year = 1 - year;
+{% endif %}{% endif %}{% if clock.hours %}  const hours = date.getUTCHours();
 {% endif %}{% if clock.minutes %}  const minutes = date.getUTCMinutes();
 {% endif %}{% if clock.seconds %}  const seconds = date.getUTCSeconds();
 {% endif %}{% if clock.milliseconds %}  const milliseconds = date.getUTCMilliseconds();

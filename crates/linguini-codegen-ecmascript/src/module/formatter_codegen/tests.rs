@@ -479,15 +479,9 @@ console.log(JSON.stringify([formatNumber("1234567.89"), {currency}("1234567.89")
 
 #[test]
 fn generated_date_runtime_uses_utc_fields_only() {
-    let dates = linguini_cldr::compiled_date_formatting("en").expect("English date data");
-    let emitted = [
-        dates.date_formats.full,
-        dates.date_formats.long,
-        dates.date_formats.medium,
-        dates.date_formats.short,
-    ]
-    .map(|pattern| date_pattern_expression(pattern, &dates))
-    .join("\n");
+    let requests = ["full", "long", "medium", "short"]
+        .map(|style| request(IrFormatterKind::Date, &[("style", style)]));
+    let emitted = formatter_data_declaration("en", &requests, false);
 
     assert!(emitted.contains("date.getUTCFullYear()"));
     assert!(emitted.contains("date.getUTCMonth()"));
@@ -552,6 +546,18 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
         ("en", "b", "2024-01-02T12:00:00Z", "noon"),
         ("en", "b", "2024-01-02T00:00:00Z", "midnight"),
         (
+            "en",
+            "y yy yyy yyyy yyyyy G",
+            "0001-01-02T01:00:00Z",
+            "1 01 001 0001 00001 AD",
+        ),
+        (
+            "en",
+            "y yy yyy yyyy yyyyy G",
+            "0000-01-02T01:00:00Z",
+            "1 01 001 0001 00001 BC",
+        ),
+        (
             "ru",
             "G GGGG GGGGG",
             "0000-01-02T01:00:00Z",
@@ -567,7 +573,10 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
         if locale == "en" && pattern == "MMMM LLLL" {
             assert_eq!(formatter.matches("const formatTest_").count(), 1);
         }
-        let emitted = format!("{formatter}{}", date_formatter_helpers(false));
+        let emitted = format!(
+            "{formatter}{}",
+            date_formatter_helpers(compiled.helpers.padding)
+        );
         assert!(!emitted.contains("dayPeriods"));
         assert!(!emitted.contains("stand-alone"));
         assert!(!emitted.contains("Intl.DateTimeFormat"));
@@ -577,6 +586,56 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
             "{locale}: {pattern}"
         );
     }
+}
+
+#[test]
+fn gregorian_years_preserve_era_boundaries_and_minimum_widths() {
+    let dates = linguini_cldr::compiled_date_formatting("en").unwrap();
+    let pattern = "y yy yyy yyyy yyyyy yyyyyy yyyyyyy yyyyyyyy G";
+    let compiled = date_parts(pattern, &dates, "formatYear");
+    assert!(compiled.helpers.padding);
+    let formatter = crate::templates::render(
+        "formatters/date",
+        minijinja::context! { name => "formatYear", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+    );
+    assert_eq!(formatter.matches("date.getUTCFullYear()").count(), 1);
+    assert!(!formatter.contains("Intl."));
+    let mut script = format!("{formatter}{}", date_formatter_helpers(true));
+    for extended in [
+        -271820, -10000, -1000, -100, -99, -2, -1, 0, 1, 2, 9, 10, 99, 100, 101, 9999, 10000,
+        275000,
+    ] {
+        let year = if extended <= 0 {
+            1 - extended
+        } else {
+            extended
+        };
+        let mut expected = (1..=8)
+            .map(|width| format!("{:0width$}", if width == 2 { year % 100 } else { year }))
+            .collect::<Vec<_>>()
+            .join(" ");
+        expected.push_str(if extended <= 0 { " BC" } else { " AD" });
+        script.push_str(&format!("{{ const date = new Date(0); date.setUTCFullYear({extended}, 0, 2); if (formatYear(date) !== {expected:?}) throw new Error('year {extended}'); }}\n"));
+    }
+    script.push_str("console.log('ok');");
+    assert_eq!(execute(&script), "ok");
+    let mut dates = dates;
+    dates.date_formats.medium = "yyyy";
+    let (padded, requirements) = generated_date_request(
+        &dates,
+        &request(IrFormatterKind::Date, &[]),
+        "formatPaddedYear",
+        false,
+    );
+    assert!(requirements.padding);
+    assert!(!padded.contains("extendedYear"));
+    assert_eq!(
+        execute(&format!(
+            "{padded}{}console.log(formatPaddedYear('0001-01-02'));",
+            date_formatter_helpers(requirements.padding)
+        )),
+        "0001"
+    );
 }
 
 #[test]
@@ -724,6 +783,7 @@ fn compiled_day_period_fixture_preserves_readable_checked_javascript() {
         ("formatFlexible", "en", "h:mm:ss.SSS B"),
         ("formatFixed", "ru", "HH:mm bbbb"),
         ("formatNarrow", "ar", "BBBBB"),
+        ("formatYear", "en", "y yy yyyy G"),
     ] {
         let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
         let compiled = date_parts(pattern, &dates, name);
