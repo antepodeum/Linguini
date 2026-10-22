@@ -18,6 +18,8 @@ the shared data lookup; generated JavaScript receives only the selected literals
 Web and framework integrations have separate native owners.
 `linguini-codegen-ecmascript-web` owns web policy validation, locale-source leaves, URL/request
 helpers, cookie and locale-switch route emitters, declarations, and `templates/web/`.
+The web declaration and JSDoc templates share one static type model, including generic parameters,
+inheritance, methods, optional members, and aliases; Rust composes the rendered artifacts.
 Its `generate_project_files(&WebProjectOptions, source_maps)` emits only the selected web artifacts.
 Compose these files with the language artifacts and the selected framework artifacts. Web policy
 and errors belong to this crate; `EcmaProjectOptions` contains only language output options.

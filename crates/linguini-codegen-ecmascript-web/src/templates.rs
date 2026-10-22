@@ -7,6 +7,7 @@ pub(crate) fn render(name: &str, values: Value) -> String {
     ENGINE
         .get_or_init(|| {
             EcmaTemplateEngine::new([
+                ("web/types", include_str!("../templates/web/types.jinja")),
                 (
                     "web/type_declaration",
                     include_str!("../templates/web/type_declaration.jinja"),

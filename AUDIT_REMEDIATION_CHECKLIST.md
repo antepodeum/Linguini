@@ -989,8 +989,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Physical message exports, namespace aliases, value re-exports, and imported JSDoc typedefs
       also use shared module templates, with byte/map snapshots preserved. Declaration exports,
       overloads, callable signatures, and JSDoc now use shared templates; locale and schema message
-      types share one provenance-aware namespace renderer. Complete remaining type syntax
-      extraction and demand-selected CLDR helper generation.
+      types share one provenance-aware namespace renderer. Web aliases, interfaces, generic
+      parameters, inheritance, methods, and member types now live in one shared template model
+      used by both JSDoc and declarations, preserving generated source/map bytes. Complete the
+      remaining type-renderer audit and demand-selected CLDR helper generation.
       Static CLDR parameters must specialize the emitted implementation itself; passing a long
       vector of constants/undefined options to a generic formatter does not satisfy this criterion.
       No generated JS/TS runtime sources belong under Rust `src/`; generation happens during builds.

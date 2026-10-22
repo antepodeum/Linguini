@@ -153,6 +153,19 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
                 "inline web runtime fragments reintroduced: {}",
                 path.display()
             );
+            let production = source.split("#[cfg(test)]").next().unwrap();
+            for inline_type in [
+                "export interface ",
+                "export type ",
+                "jsdoc_templates:",
+                "value_type:",
+            ] {
+                assert!(
+                    !production.contains(inline_type),
+                    "web type syntax belongs in shared templates: {} ({inline_type})",
+                    path.display()
+                );
+            }
         }
     }
     let mut templates = Vec::new();

@@ -389,3 +389,8 @@ language artifacts, then append the selected framework artifacts. SvelteKit comp
 web capabilities; the base ECMAScript crate depends on neither. Generated module paths, runtime
 contracts, declarations, and source-map contents are preserved. The CLI handles this composition;
 this ownership change does not yet remove legacy `[web]` project configuration.
+
+Web declaration and JSDoc type definitions now share the static model in
+`linguini-codegen-ecmascript-web/templates/web/types.jinja`. Rust no longer contains web API type
+headers, method signatures, or member type expressions. Generated source, declaration, and map
+bytes remain unchanged; no consumer migration is required for this template extraction.

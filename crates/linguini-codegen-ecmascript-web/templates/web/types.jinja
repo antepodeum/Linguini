@@ -1,0 +1,204 @@
+{# One web API model for declaration and JSDoc templates. #}
+{% set types = [
+  {
+    "name": "TextDirection",
+    "documentation": "",
+    "parents": "",
+    "alias": "\"ltr\" | \"rtl\"",
+    "generics": [],
+    "multiline_parent": false,
+    "members": [
+    ]
+  },
+  {
+    "name": "LocaleSource",
+    "documentation": "",
+    "parents": "",
+    "alias": "\"path\" | \"cookie\" | \"local-storage\" | \"accept-language\"",
+    "generics": [],
+    "multiline_parent": false,
+    "members": [
+    ]
+  },
+  {
+    "name": "LocalePrefixMode",
+    "documentation": "",
+    "parents": "",
+    "alias": "\"always\" | \"except-default\" | \"never\"",
+    "generics": [],
+    "multiline_parent": false,
+    "members": [
+    ]
+  },
+  {
+    "name": "LocaleSwitchPlan",
+    "documentation": "",
+    "parents": "",
+    "alias": none,
+    "generics": [],
+    "multiline_parent": false,
+    "members": [
+      {"name": "writesPath", "optional": false, "parameters": none, "value_type": "boolean"},
+      {"name": "writesCookie", "optional": false, "parameters": none, "value_type": "boolean"},
+      {"name": "writesLocalStorage", "optional": false, "parameters": none, "value_type": "boolean"}
+    ]
+  },
+  {
+    "name": "AlternateLink",
+    "documentation": "",
+    "parents": "",
+    "alias": none,
+    "generics": [],
+    "multiline_parent": false,
+    "members": [
+      {"name": "rel", "optional": false, "parameters": none, "value_type": "\"alternate\""},
+      {"name": "hreflang", "optional": false, "parameters": none, "value_type": "string"},
+      {"name": "href", "optional": false, "parameters": none, "value_type": "string"}
+    ]
+  },
+  {
+    "name": "LinkLocalizationAttributes",
+    "documentation": "",
+    "parents": "",
+    "alias": none,
+    "generics": [],
+    "multiline_parent": false,
+    "members": [
+      {"name": "download", "optional": true, "parameters": none, "value_type": "boolean"},
+      {"name": "ignored", "optional": true, "parameters": none, "value_type": "boolean"},
+      {"name": "rel", "optional": true, "parameters": none, "value_type": "string | null"}
+    ]
+  },
+  {
+    "name": "LinguiniWebOptions",
+    "documentation": "",
+    "parents": "",
+    "alias": none,
+    "generics": [],
+    "multiline_parent": false,
+    "members": [
+      {"name": "routing", "optional": true, "parameters": none, "value_type": "{\n    localePrefix?: LocalePrefixMode;\n    canonical?: \"redirect\" | \"preserve\";\n  }"},
+      {"name": "locale", "optional": true, "parameters": none, "value_type": "{\n    sources?: readonly LocaleSource[];\n    switch?: LocaleSwitchPlan;\n  }"},
+      {"name": "cookie", "optional": true, "parameters": none, "value_type": "{\n    name?: string;\n    path?: string | \"auto\";\n    domain?: string;\n    maxAge?: number;\n    sameSite?: \"lax\" | \"strict\" | \"none\";\n    secure?: boolean | \"auto\";\n    httpOnly?: boolean;\n  }"},
+      {"name": "localStorage", "optional": true, "parameters": none, "value_type": "{ key?: string }"},
+      {"name": "links", "optional": true, "parameters": none, "value_type": "{ mode?: \"transform\" | \"runtime\" | \"manual\" }"},
+      {"name": "routes", "optional": true, "parameters": none, "value_type": "{ exclude?: readonly (string | RegExp | ((url: URL) => boolean))[] }"}
+    ]
+  },
+  {
+    "name": "LinguiniWebEnvironment",
+    "documentation": "",
+    "parents": "",
+    "alias": none,
+    "generics": [],
+    "multiline_parent": false,
+    "members": [
+      {"name": "base", "optional": true, "parameters": none, "value_type": "string"},
+      {"name": "origin", "optional": true, "parameters": none, "value_type": "string | URL"}
+    ]
+  },
+  {
+    "name": "LinguiniLocaleRuntime",
+    "documentation": "",
+    "parents": "",
+    "alias": none,
+    "generics": [{"name": "Locale", "bound": "string", "default": "string"}],
+    "multiline_parent": false,
+    "members": [
+      {"name": "locales", "optional": false, "parameters": none, "value_type": "readonly Locale[]"},
+      {"name": "baseLocale", "optional": false, "parameters": none, "value_type": "Locale"},
+      {"name": "localeDirections", "optional": true, "parameters": none, "value_type": "Readonly<Record<Locale, TextDirection>>"},
+      {"name": "normalizeLocale", "optional": true, "parameters": "locale: unknown", "value_type": "Locale | undefined"},
+      {"name": "getTextDirection", "optional": true, "parameters": "locale: Locale", "value_type": "TextDirection"}
+    ]
+  },
+  {
+    "name": "LinguiniRuntime",
+    "documentation": "",
+    "parents": "LinguiniLocaleRuntime<Locale>",
+    "alias": none,
+    "generics": [{"name": "Locale", "bound": "string", "default": "string"}, {"name": "Linguini", "bound": none, "default": "unknown"}],
+    "multiline_parent": false,
+    "members": [
+      {"name": "createLinguini", "optional": false, "parameters": "locale: Locale", "value_type": "Linguini"},
+      {"name": "prepareLinguini", "optional": true, "parameters": "locale: Locale", "value_type": "Promise<Linguini>"}
+    ]
+  },
+  {
+    "name": "LinguiniLocaleRequestContext",
+    "documentation": "/**\n * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL\n * operations throw `TypeError(\"Linguini: invalid URL\")` for malformed input; link-safety helpers\n * fail closed and preserve the original href instead.\n */\n",
+    "parents": "",
+    "alias": none,
+    "generics": [{"name": "Locale", "bound": "string", "default": "string"}],
+    "multiline_parent": false,
+    "members": [
+      {"name": "locale", "optional": false, "parameters": none, "value_type": "Locale"},
+      {"name": "baseLocale", "optional": false, "parameters": none, "value_type": "Locale"},
+      {"name": "locales", "optional": false, "parameters": none, "value_type": "readonly Locale[]"},
+      {"name": "direction", "optional": false, "parameters": none, "value_type": "TextDirection"},
+      {"name": "textDirection", "optional": false, "parameters": none, "value_type": "TextDirection"},
+      {"name": "lang", "optional": false, "parameters": none, "value_type": "Locale"},
+      {"name": "htmlAttrs", "optional": false, "parameters": none, "value_type": "{ lang: Locale; dir: TextDirection }"},
+      {"name": "localizeHref", "optional": false, "parameters": "href: string, locale?: Locale, input?: Record<string, unknown>", "value_type": "string"},
+      {"name": "localizeUrl", "optional": false, "parameters": "url: string | URL, locale?: Locale, input?: Record<string, unknown>", "value_type": "URL"},
+      {"name": "shouldLocalizeHref", "optional": false, "parameters": "href: string, input?: Record<string, unknown>", "value_type": "boolean"},
+      {"name": "shouldLocalizeLink", "optional": false, "parameters": "href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>", "value_type": "boolean"},
+      {"name": "localizeHrefAttribute", "optional": false, "parameters": "href: string, locale?: Locale, input?: Record<string, unknown>", "value_type": "string"},
+      {"name": "delocalizeUrl", "optional": false, "parameters": "url: string | URL, input?: Record<string, unknown>", "value_type": "URL"},
+      {"name": "alternateLinks", "optional": false, "parameters": "url: string | URL, input?: Record<string, unknown>", "value_type": "AlternateLink[]"}
+    ]
+  },
+  {
+    "name": "LinguiniRequestContext",
+    "documentation": "",
+    "parents": "LinguiniLocaleRequestContext<Locale>",
+    "alias": none,
+    "generics": [{"name": "Locale", "bound": "string", "default": "string"}, {"name": "Linguini", "bound": none, "default": "unknown"}],
+    "multiline_parent": true,
+    "members": [
+      {"name": "messages", "optional": false, "parameters": none, "value_type": "Linguini"},
+      {"name": "l", "optional": false, "parameters": none, "value_type": "Linguini"}
+    ]
+  },
+  {
+    "name": "LinguiniWebLocale",
+    "documentation": "/**\n * Localization and delocalization leave external and non-HTTP URLs unchanged. Explicit URL\n * operations throw `TypeError(\"Linguini: invalid URL\")` for malformed input; link-safety helpers\n * fail closed and preserve the original href instead.\n */\n",
+    "parents": "LinguiniLocaleRuntime<Locale>",
+    "alias": none,
+    "generics": [{"name": "Locale", "bound": "string", "default": "string"}],
+    "multiline_parent": false,
+    "members": [
+      {"name": "options", "optional": false, "parameters": none, "value_type": "{\n    routing: { localePrefix: LocalePrefixMode; canonical: \"redirect\" | \"preserve\" };\n    locale: { sources: readonly LocaleSource[]; switch: LocaleSwitchPlan };\n    cookie: { name: string; path: string; domain?: string; maxAge: number; sameSite: \"lax\" | \"strict\" | \"none\"; secure: boolean | \"auto\"; httpOnly: boolean };\n    localStorage: { key: string };\n    links: { mode: \"transform\" | \"runtime\" | \"manual\" };\n    routes: { exclude: readonly (string | RegExp | ((url: URL) => boolean))[] };\n    environment: { base: string; origin?: string | URL };\n    baseLocale: string;\n  }"},
+      {"name": "matchLocale", "optional": false, "parameters": "locale: unknown", "value_type": "Locale | undefined"},
+      {"name": "resolveLocale", "optional": false, "parameters": "input?: Record<string, unknown>", "value_type": "Promise<Locale>"},
+      {"name": "resolveLocaleSync", "optional": false, "parameters": "input?: Record<string, unknown>", "value_type": "Locale"},
+      {"name": "localizeUrl", "optional": false, "parameters": "url: string | URL, locale: Locale, input?: Record<string, unknown>", "value_type": "URL"},
+      {"name": "localizeHref", "optional": false, "parameters": "href: string, locale: Locale, input?: Record<string, unknown>", "value_type": "string"},
+      {"name": "shouldLocalizeHref", "optional": false, "parameters": "href: string, input?: Record<string, unknown>", "value_type": "boolean"},
+      {"name": "shouldLocalizeLink", "optional": false, "parameters": "href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>", "value_type": "boolean"},
+      {"name": "localizeHrefAttribute", "optional": false, "parameters": "href: string, locale: Locale, input?: Record<string, unknown>", "value_type": "string"},
+      {"name": "delocalizeUrl", "optional": false, "parameters": "url: string | URL, input?: Record<string, unknown>", "value_type": "URL"},
+      {"name": "delocalizePathname", "optional": false, "parameters": "pathname: string, input?: Record<string, unknown>", "value_type": "string"},
+      {"name": "alternateLinks", "optional": false, "parameters": "url: string | URL, input?: Record<string, unknown>", "value_type": "AlternateLink[]"},
+      {"name": "htmlAttrs", "optional": false, "parameters": "locale: Locale", "value_type": "{ lang: Locale; dir: TextDirection }"},
+      {"name": "getTextDirection", "optional": false, "parameters": "locale: Locale", "value_type": "TextDirection"},
+      {"name": "getCanonicalRedirect", "optional": false, "parameters": "url: string | URL, locale: Locale, input?: Record<string, unknown>", "value_type": "string | undefined"},
+      {"name": "shouldExclude", "optional": false, "parameters": "url: string | URL, input?: Record<string, unknown>", "value_type": "boolean"},
+      {"name": "setLocaleCookie", "optional": false, "parameters": "target: unknown, locale: Locale, input?: Record<string, unknown>", "value_type": "void"},
+      {"name": "serializeLocaleCookie", "optional": false, "parameters": "locale: Locale, input?: Record<string, unknown>", "value_type": "string"}
+    ]
+  },
+  {
+    "name": "LinguiniWeb",
+    "documentation": "",
+    "parents": "LinguiniWebLocale<Locale>",
+    "alias": none,
+    "generics": [{"name": "Locale", "bound": "string", "default": "string"}, {"name": "Linguini", "bound": none, "default": "unknown"}],
+    "multiline_parent": false,
+    "members": [
+      {"name": "createLinguini", "optional": false, "parameters": "locale: Locale", "value_type": "Linguini"},
+      {"name": "resolveRequest", "optional": false, "parameters": "request: Request, input?: Record<string, unknown>", "value_type": "Promise<LinguiniRequestContext<Locale, Linguini>>"},
+      {"name": "createRequestContext", "optional": false, "parameters": "locale: Locale, input?: Record<string, unknown>", "value_type": "LinguiniRequestContext<Locale, Linguini>"}
+    ]
+  }
+] %}

@@ -1,1 +1,5 @@
-{{ documentation }}/** {{ jsdoc_templates }} @typedef {{ "{" }}{% if parents %}{{ parents }} & {% endif %}{% if alias is not none %}{{ alias }}{% else %}{ {% for member in members %}{{ member.name }}{{ "?" if member.optional }}: {% if member.parameters is not none %}({{ member.parameters }}) => {% endif %}{{ member.value_type }}{{ "; " if not loop.last }}{% endfor %} }{% endif %}{{ "}" }} {{ name }} */
+{% from "web/types" import types -%}
+{% for item in types -%}
+{{ item.documentation }}/** {% for generic in item.generics %}@template{% if generic.bound %} {{ "{" }}{{ generic.bound }}{{ "}" }}{% endif %} [{{ generic.name }}={{ generic.default }}]{{ " " if not loop.last }}{% endfor %} @typedef {{ "{" }}{% if item.parents %}{{ item.parents }} & {% endif %}{% if item.alias is not none %}{{ item.alias }}{% else %}{ {% for member in item.members %}{{ member.name }}{{ "?" if member.optional }}: {% if member.parameters is not none %}({{ member.parameters }}) => {% endif %}{{ member.value_type }}{{ "; " if not loop.last }}{% endfor %} }{% endif %}{{ "}" }} {{ item.name }} */
+{% if item.alias is none and not loop.last %}
+{% endif %}{% endfor %}
