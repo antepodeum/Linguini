@@ -548,6 +548,9 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
         ("en", "aaa aaaa aaaaa", "2024-01-02T13:00:00Z", "PM PM p"),
         ("ar", "a", "2024-01-02T13:00:00Z", "م"),
         ("zh", "a", "2024-01-02T01:00:00Z", "上午"),
+        ("en", "B", "2024-01-02T09:30:00Z", "in the morning"),
+        ("en", "b", "2024-01-02T12:00:00Z", "noon"),
+        ("en", "b", "2024-01-02T00:00:00Z", "midnight"),
         (
             "ru",
             "G GGGG GGGGG",
@@ -556,10 +559,10 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
         ),
     ] {
         let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
-        let (parts, tables, _) = date_parts(pattern, &dates, "formatTest");
+        let compiled = date_parts(pattern, &dates, "formatTest");
         let formatter = crate::templates::render(
             "formatters/date",
-            minijinja::context! { name => "formatTest", exported => false, parts, tables, digits => dates.digits },
+            minijinja::context! { name => "formatTest", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
         );
         if locale == "en" && pattern == "MMMM LLLL" {
             assert_eq!(formatter.matches("const formatTest_").count(), 1);
@@ -574,6 +577,168 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
             "{locale}: {pattern}"
         );
     }
+}
+
+#[test]
+fn compiled_day_periods_match_pinned_rules_across_every_minute_and_precision() {
+    let mut script = String::from("import assert from 'node:assert/strict';\n");
+    script.push_str(&date_formatter_helpers(true));
+    script.push_str(&digit_formatter_helper());
+    let mut count = 0;
+    for locale in [
+        "en", "en-GB", "ru", "zh", "ar", "fr", "de", "es", "hi", "ja", "ko", "pt", "fi", "bn",
+    ] {
+        let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
+        let calendar = linguini_cldr::compiled_calendar_formatting(locale, "gregory").unwrap();
+        let rules = linguini_cldr::compiled_day_period_rules(locale).unwrap_or_default();
+        for field in ['b', 'B'] {
+            for width in [1, 4, 5] {
+                let name = format!("period{count}");
+                count += 1;
+                let pattern = format!("{}'|'m'|'s'|'SSS", field.to_string().repeat(width));
+                let compiled = date_parts(&pattern, &dates, &name);
+                let formatter = crate::templates::render(
+                    "formatters/date",
+                    minijinja::context! { name, exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+                );
+                for forbidden in [
+                    "dayPeriods",
+                    "dayPeriodRule",
+                    "Intl.",
+                    "resolveDayPeriod",
+                    "totalMinutes",
+                ] {
+                    assert!(!formatter.contains(forbidden), "{locale}: {forbidden}");
+                }
+                for getter in [
+                    "getUTCHours",
+                    "getUTCMinutes",
+                    "getUTCSeconds",
+                    "getUTCMilliseconds",
+                ] {
+                    assert!(formatter.matches(getter).count() <= 1, "{locale}: {getter}");
+                }
+                script.push_str(&formatter);
+                let symbol_width = match width {
+                    4 => "wide",
+                    5 => "narrow",
+                    _ => "abbreviated",
+                };
+                let symbol =
+                    |period| calendar.symbol(&format!("dayPeriods.format.{symbol_width}.{period}"));
+                let mut general = Vec::new();
+                let mut exact = Vec::new();
+                for minute in 0..1440 {
+                    let fallback = symbol(if minute < 720 { "am" } else { "pm" }).unwrap();
+                    // Independent reference evaluation of the raw pinned rules, not the compiled plan.
+                    let range = rules.iter().find(|rule| match (rule.from, rule.before) {
+                        (Some(from), Some(before)) if from < before => {
+                            from <= minute && minute < before
+                        }
+                        (Some(from), Some(before)) => minute >= from || minute < before,
+                        _ => false,
+                    });
+                    let regular = if field == 'B' {
+                        range.and_then(|rule| symbol(rule.name)).unwrap_or(fallback)
+                    } else {
+                        fallback
+                    };
+                    general.push(regular);
+                    exact.push(
+                        rules
+                            .iter()
+                            .find(|rule| {
+                                rule.at == Some(minute) && matches!(rule.name, "noon" | "midnight")
+                            })
+                            .and_then(|rule| symbol(rule.name))
+                            .unwrap_or(regular),
+                    );
+                }
+                script.push_str(&format!(r#"
+{{
+  const general = {general:?}, exact = {exact:?};
+  for (let minute = 0; minute < 1440; minute++) {{
+    for (const offset of [0, 1, 1000, 59000]) {{
+      const value = new Date(Date.UTC(2024, 0, 2) + minute * 60000 + offset);
+      assert.equal({name}(value).split('|')[0], (offset === 0 ? exact : general)[minute], `{locale}/{field}/{width}/${{minute}}/${{offset}}`);
+    }}
+  }}
+}}
+"#));
+            }
+        }
+    }
+    script.push_str("console.log('ok');\n");
+    assert_eq!(execute(&script), "ok");
+}
+
+#[test]
+fn exact_periods_follow_displayed_fields_and_omit_unused_clock_reads() {
+    for (pattern, value, expected) in [
+        ("b", "2024-01-02T12:30:45.123Z", "noon"),
+        ("b'|'m", "2024-01-02T12:30:45.123Z", "PM|30"),
+        ("b'|'m", "2024-01-02T12:00:45.123Z", "noon|0"),
+        ("b'|'m'|'s", "2024-01-02T12:00:01.123Z", "PM|0|1"),
+        ("b'|'m'|'s", "2024-01-02T12:00:00.123Z", "noon|0|0"),
+        ("b'|'m'|'s'|'SSS", "2024-01-02T12:00:00.001Z", "PM|0|0|001"),
+        ("'m s S' B", "2024-01-02T12:30:45.123Z", "m s S noon"),
+        ("B BBB'|'m", "2024-01-02T12:00:00Z", "noon noon|0"),
+        (
+            "b B b'|'m'|'s",
+            "2024-01-02T12:00:01Z",
+            "PM in the afternoon PM|0|1",
+        ),
+    ] {
+        let dates = linguini_cldr::compiled_date_formatting("en").unwrap();
+        let compiled = date_parts(pattern, &dates, "formatPeriod");
+        let formatter = crate::templates::render(
+            "formatters/date",
+            minijinja::context! { name => "formatPeriod", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+        );
+        if pattern == "B BBB'|'m" {
+            assert_eq!(formatter.matches("let dayPeriod").count(), 1);
+        }
+        if pattern == "b B b'|'m'|'s" {
+            assert_eq!(formatter.matches("let dayPeriod").count(), 2);
+            assert_eq!(formatter.matches("const exactTime").count(), 1);
+        }
+        if !pattern.contains('|') {
+            for getter in ["getUTCMinutes", "getUTCSeconds", "getUTCMilliseconds"] {
+                assert!(!formatter.contains(getter));
+            }
+        }
+        assert_eq!(
+            execute(&format!(
+                "{formatter}{}console.log(formatPeriod({value:?}));",
+                date_formatter_helpers(true)
+            )),
+            expected
+        );
+    }
+}
+
+#[test]
+fn compiled_day_period_fixture_preserves_readable_checked_javascript() {
+    let mut output = String::new();
+    for (name, locale, pattern) in [
+        ("formatFlexible", "en", "h:mm:ss.SSS B"),
+        ("formatFixed", "ru", "HH:mm bbbb"),
+        ("formatNarrow", "ar", "BBBBB"),
+    ] {
+        let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
+        let compiled = date_parts(pattern, &dates, name);
+        output.push_str(&crate::templates::render(
+            "formatters/date",
+            minijinja::context! { name, exported => true, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+        ));
+    }
+    output.push_str(&date_formatter_helpers(true));
+    let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/golden/snapshots/js-date/date.js");
+    if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&snapshot, &output).unwrap();
+    }
+    assert_eq!(output, std::fs::read_to_string(snapshot).unwrap());
 }
 
 #[test]

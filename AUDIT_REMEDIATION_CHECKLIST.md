@@ -1081,6 +1081,9 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       runtime interpreter or parse CLDR syntax after generation. Parsing actual input values such
       as numeric strings or dates is a separate, demand-selected runtime operation.
 - [-] OPT-A2 — Emit specialized formatter implementations for the actual statically used requests.
+      Fixed/flexible day-period rules and label fallback now lower through the shared build-time
+      plan into direct conditions; executed coverage checks 483,840 locale/width/time combinations
+      against raw pinned rules, plus display precision and missing-label/merged-span cases.
       Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
       field widths, and other known choices into code. Remove unused options/branches/data; prohibit
       the current `formatNumber(value) -> formatGeneratedNumber(value, ...21 constants...)` design.

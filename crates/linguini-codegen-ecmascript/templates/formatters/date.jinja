@@ -5,6 +5,16 @@
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {
   const date = coerceDate(value);
-  return {{ expression(parts, digits) }};
+{% if clock.hours %}  const hours = date.getUTCHours();
+{% endif %}{% if clock.minutes %}  const minutes = date.getUTCMinutes();
+{% endif %}{% if clock.seconds %}  const seconds = date.getUTCSeconds();
+{% endif %}{% if clock.milliseconds %}  const milliseconds = date.getUTCMilliseconds();
+{% endif %}{% if clock.total_minutes %}  const totalMinutes = hours * 60{% if clock.minutes %} + minutes{% endif %};
+{% endif %}{% if clock.exact_time %}  const exactTime = {% if clock.minutes %}minutes === 0{% endif %}{% if clock.seconds %}{{ " && " if clock.minutes }}seconds === 0{% endif %}{% if clock.milliseconds %}{{ " && " if clock.minutes or clock.seconds }}milliseconds === 0{% endif %};
+{% endif %}{% for period in periods %}{% if period.exact or period.spans|length > 1 %}  let {{ period.binding }};
+{% for exact in period.exact %}  {{ "else " if not loop.first }}if (hours === {{ exact.hour }}{% if clock.exact_time %} && exactTime{% else %}{% if clock.minutes %} && minutes === {{ exact.minute }}{% endif %}{% if clock.seconds %} && seconds === 0{% endif %}{% if clock.milliseconds %} && milliseconds === 0{% endif %}{% endif %}) {{ period.binding }} = {{ exact.value|js }};
+{% endfor %}{% for span in period.spans %}  {% if not loop.first or period.exact %}else {% endif %}{% if not loop.last %}if ({{ "totalMinutes" if period.minute_clock else "hours" }} < {{ span.before }}) {% endif %}{{ period.binding }} = {{ span.value|js }};
+{% endfor %}{% else %}  const {{ period.binding }} = {{ period.spans[0].value|js }};
+{% endif %}{% endfor %}  return {{ expression(parts, digits, clock) }};
 }
 {{ "\n" -}}

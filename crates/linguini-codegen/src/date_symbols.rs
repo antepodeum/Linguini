@@ -14,7 +14,7 @@ pub struct DateFieldSymbols {
 
 /// Resolve CLDR context/width choices in Rust, with no target syntax or runtime lookup data.
 /// `None` indicates a required symbol is absent from the supplied calendar.
-/// Flexible-period rule selection is separate from these AM/PM symbol values.
+/// `day_period_plan` separately resolves fixed/flexible rules and their symbol fallbacks.
 pub fn date_field_symbols(
     calendar: &CalendarFormatData,
     field: char,

@@ -3,6 +3,7 @@
 //! Target backends own syntax, identifier escaping, runtime templates, and file emission.
 
 mod date_symbols;
+mod day_periods;
 mod decision;
 mod dependencies;
 mod direct_dependencies;
@@ -15,6 +16,7 @@ mod rounding;
 mod types;
 
 pub use date_symbols::{date_field_symbols, DateFieldSymbols};
+pub use day_periods::{day_period_plan, DayPeriodPlan, DayPeriodSpan, ExactDayPeriod};
 pub use decision::{Decision, DecisionArm};
 pub use dependencies::{
     message_dependency_closure, MessageDependencyClosure, MessageDependencyError,

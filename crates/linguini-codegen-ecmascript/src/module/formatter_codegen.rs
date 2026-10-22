@@ -207,25 +207,29 @@ fn generated_date_request(
         (Some(part), None) | (None, Some(part)) => part.to_owned(),
         (None, None) => unreachable!("at least a date or time pattern"),
     };
-    let (parts, tables, helpers) = date_parts(&pattern, dates, name);
+    let pattern = date_parts(&pattern, dates, name);
     (
         crate::templates::render(
             "formatters/date",
-            minijinja::context! { name, exported, parts, tables, digits => dates.digits },
+            minijinja::context! { name, exported, parts => pattern.parts, tables => pattern.tables, periods => pattern.periods, clock => pattern.clock, digits => dates.digits },
         ),
-        helpers,
+        pattern.helpers,
     )
+}
+
+struct CompiledDatePattern {
+    parts: Vec<minijinja::Value>,
+    tables: Vec<minijinja::Value>,
+    periods: Vec<minijinja::Value>,
+    helpers: DateHelperRequirements,
+    clock: minijinja::Value,
 }
 
 fn date_parts(
     pattern: &str,
     dates: &linguini_cldr::DateFormatData,
     name: &str,
-) -> (
-    Vec<minijinja::Value>,
-    Vec<minijinja::Value>,
-    DateHelperRequirements,
-) {
+) -> CompiledDatePattern {
     use minijinja::context;
     let mut helpers = DateHelperRequirements::default();
     let calendar = linguini_cldr::compiled_calendar_formatting(dates.locale, "gregory")
@@ -235,6 +239,19 @@ fn date_parts(
     let mut chars = pattern.chars().peekable();
     let mut literal = String::new();
     let mut quoted = false;
+    let mut fields = std::collections::BTreeSet::new();
+    let mut has_periods = false;
+    let mut exact_periods = false;
+    let mut total_minutes = false;
+    let mut periods = Vec::<(linguini_codegen::DayPeriodPlan, minijinja::Value)>::new();
+    let mut exact_count = 0;
+    let period_binding = |index| {
+        if index == 0 {
+            "dayPeriod".to_owned()
+        } else {
+            format!("dayPeriod{}", index + 1)
+        }
+    };
     while let Some(character) = chars.next() {
         if character == '\'' {
             if chars.peek() == Some(&'\'') {
@@ -257,6 +274,26 @@ fn date_parts(
             chars.next();
             width += 1;
         }
+        fields.insert(character);
+        let period = linguini_codegen::day_period_plan(&calendar, character, width).map(|plan| {
+            if let Some(index) = periods.iter().position(|(existing, _)| existing == &plan) {
+                return context! { binding => period_binding(index) };
+            }
+            let binding = period_binding(periods.len());
+            has_periods |= !plan.exact.is_empty() || plan.spans.len() > 1;
+            exact_periods |= !plan.exact.is_empty();
+            exact_count += plan.exact.len();
+            let minute_clock = plan.spans.iter().any(|span| span.before % 60 != 0);
+            total_minutes |= minute_clock;
+            let spans: Vec<_> = plan.spans.iter().map(|span| context! {
+                before => if minute_clock { span.before } else { span.before / 60 }, value => span.value,
+            }).collect();
+            let exact: Vec<_> = plan.exact.iter().map(|period| context! {
+                hour => period.at / 60, minute => period.at % 60, value => period.value,
+            }).collect();
+            periods.push((plan, context! { binding, spans, exact, minute_clock }));
+            context! { binding }
+        });
         let mut table = None;
         let symbols = linguini_codegen::date_field_symbols(&calendar, character, width)
             .unwrap_or_else(|| {
@@ -289,28 +326,37 @@ fn date_parts(
         ) || matches!(character, 'M' | 'L') && width <= 2;
         helpers.padding |= character == 'S' || (numeric && width == 2);
         helpers.digits |= numeric && dates.digits != "0123456789";
-        parts.push(context! { kind => "field", field => character.to_string(), width, table, numeric, am => symbols.am, pm => symbols.pm, ad => symbols.ad, bc => symbols.bc });
+        parts.push(context! { kind => "field", field => character.to_string(), width, table, numeric, period, am => symbols.am, pm => symbols.pm, ad => symbols.ad, bc => symbols.bc });
     }
     assert!(!quoted, "validated CLDR pattern has balanced quoting");
     if !literal.is_empty() {
         parts.push(context! { kind => "literal", value => literal });
     }
-    (
+    CompiledDatePattern {
         parts,
-        tables
+        tables: tables
             .into_iter()
             .map(|(name, values)| context! { name, values })
             .collect(),
+        periods: periods.into_iter().map(|(_, value)| value).collect(),
         helpers,
-    )
+        clock: context! {
+            exact_time => exact_count > 1 && (fields.contains(&'m') || fields.contains(&'s') || fields.contains(&'S')),
+            hours => has_periods,
+            minutes => (exact_periods || total_minutes) && fields.contains(&'m'),
+            seconds => exact_periods && fields.contains(&'s'),
+            milliseconds => exact_periods && fields.contains(&'S'),
+            total_minutes,
+        },
+    }
 }
 
 #[cfg(test)]
 fn date_pattern_expression(pattern: &str, dates: &linguini_cldr::DateFormatData) -> String {
-    let (parts, _, _) = date_parts(pattern, dates, "test");
+    let pattern = date_parts(pattern, dates, "test");
     crate::templates::render(
         "formatters/date_expression",
-        minijinja::context! { parts, digits => dates.digits },
+        minijinja::context! { parts => pattern.parts, clock => pattern.clock, digits => dates.digits },
     )
     .trim()
     .to_owned()

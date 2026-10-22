@@ -14,6 +14,12 @@ generators can consume these semantic plans without depending on an output langu
 `date_field_symbols` resolves Gregorian month/weekday contexts and widths, AM/PM values, and era
 labels through the pinned calendar data before emission. `CalendarFormatData::symbol` provides
 the shared data lookup; generated JavaScript receives only the selected literals/name tables.
+`day_period_plan` resolves fixed (`b`) and flexible (`B`) day periods into disjoint intervals and
+optional noon/midnight points. Missing labels fall back during generation, and adjacent equal
+intervals merge. ECMAScript templates emit direct scalar comparisons and literals, reading only
+needed UTC clock fields once. Exact points use the precision displayed by the pattern; quoted
+field letters do not change that precision. Midnight refers to the start of the displayed day.
+See [UTS #35 v48.2 day-period rules](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Day_Period_Rules).
 
 Web and framework integrations have separate native owners.
 `linguini-codegen-ecmascript-web` owns web policy validation, locale-source leaves, URL/request

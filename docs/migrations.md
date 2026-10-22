@@ -394,3 +394,9 @@ Web declaration and JSDoc type definitions now share the static model in
 `linguini-codegen-ecmascript-web/templates/web/types.jinja`. Rust no longer contains web API type
 headers, method signatures, or member type expressions. Generated source, declaration, and map
 bytes remain unchanged; no consumer migration is required for this template extraction.
+
+Compiled date fields `b` and `B` now use the pinned fixed/flexible day-period rules instead of
+substituting AM/PM for every value. For example, English `B` at 09:30 emits “in the morning”, and
+`b` can emit “noon” or “midnight”. Exact points follow the displayed time precision, with midnight
+at the beginning of the day. Localized labels, missing-label fallbacks, intervals, and widths
+resolve during generation; no CLDR rule tables or interpreter are added to runtime output.
