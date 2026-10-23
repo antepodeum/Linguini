@@ -684,10 +684,12 @@ test("real dynamic client graph shares one locale registry across message facade
   assert.match(chunks.map((chunk) => chunk.code).join("\n"), /EN_ITEMS|FR_ITEMS/);
 });
 
-test("real two-app build emits self-contained application-scoped locale chunks", async (context) => {
+test("real two-app build folds sparse fallback and owns the transitive locale closure", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-scoped-locales-"));
   context.after(() => rm(root, { recursive: true, force: true }));
   const generated = path.join(root, "generated/linguini");
+  await writeFile(path.join(root, "package.json"), '{"type":"module"}');
+  context.after(() => { delete globalThis.__linguiniPayloadLoads; });
   await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
   await mkdir(path.join(generated, "bundler/messages/main/items"), { recursive: true });
   await mkdir(path.join(generated, "bundler/messages/main/unused"), { recursive: true });
@@ -706,19 +708,30 @@ test("real two-app build emits self-contained application-scoped locale chunks",
   await writeFile(
     path.join(generated, "svelte-locale.js"),
     [
-      'export function getCurrentLocale() { return "en"; }',
-      "export function registerLocaleLoader() { return () => {}; }",
+      'let current = "fr";',
+      'const loaders = new Set();',
+      'export function getCurrentLocale() { return current; }',
+      'export function registerLocaleLoader(loader) { loaders.add(loader); return () => loaders.delete(loader); }',
+      'export async function setLocale(locale) { await Promise.all([...loaders].map(loader => loader(locale))); current = locale; }',
+
       ""
     ].join("\n")
   );
   await writeFile(path.join(generated, "svelte.js"), "export const l = {};\n");
+  await writeFile(path.join(generated, "shared-value.js"), 'export const suffix = "DEPENDENCY";\n');
+  await writeFile(path.join(generated, "shared-functions.js"), `
+import {suffix} from './shared-value.js';
+export function formatUsed(value) { return value + ':' + suffix; }
+export function unusedHelper() { return 'FORBIDDEN_HELPER'; }
+`);
+
   for (const locale of ["en", "fr"]) {
     for (const message of ["title", "items", "unused"]) {
       const marker = `${locale.toUpperCase()}_${message.toUpperCase()}`;
       const arity = message === "items" ? "value" : "";
       const body = arity
-        ? `export function message(value) { return ${JSON.stringify(marker + ":")} + value; }\n`
-        : `export function message() { return ${JSON.stringify(marker)}; }\n`;
+        ? `import {formatUsed} from '../../../../shared-functions.js';\nexport function message(value) { return ${JSON.stringify(marker + ":")} + formatUsed(value); }\n`
+        : `export const message = ${JSON.stringify(marker)};\n`;
       await writeFile(
         path.join(generated, `bundler/messages/main/${message}/${locale}.js`),
         body
@@ -728,13 +741,14 @@ test("real two-app build emits self-contained application-scoped locale chunks",
   const sources = {
     "tiny.js": [
       'import { l } from "./generated/linguini/svelte.js";',
-      "export const title = l.main.title;",
+      'export { setLocale } from "./generated/linguini/svelte-locale.js";',
+      "export function render() { return l.main.title; }",
       ""
     ].join("\n"),
     "large.js": [
       'import { l } from "./generated/linguini/svelte.js";',
-      "export const title = l.main.title;",
-      "export const items = l.main.items(2);",
+      'export { setLocale } from "./generated/linguini/svelte-locale.js";',
+      "export function render() { return [l.main.title, l.main.items(2)]; }",
       ""
     ].join("\n")
   };
@@ -801,7 +815,7 @@ test("real two-app build emits self-contained application-scoped locale chunks",
   }
   const locales = (message) =>
     Object.fromEntries(
-      ["en", "fr"].map((locale) => [
+      ["en", "fr"].filter(locale => message !== "items" || locale !== "fr").map((locale) => [
         locale,
         { module: `bundler/messages/main/${message}/${locale}.js`, source_ids: [] }
       ])
@@ -840,10 +854,18 @@ test("real two-app build emits self-contained application-scoped locale chunks",
   const result = await build({
     root,
     logLevel: "silent",
-    plugins: [linguini({ root, buildOnStart: false })],
+    plugins: [linguini({ root, buildOnStart: false }), {
+      name: "observe-locale-payload-evaluation",
+      transform(code, id) {
+        if (id.startsWith("\0virtual:linguini/locale/")) {
+          return `globalThis.__linguiniPayloadLoads ??= [];\nglobalThis.__linguiniPayloadLoads.push(${JSON.stringify(id)});\n${code}`;
+        }
+      }
+    }],
     build: {
       write: false,
       rollupOptions: {
+        preserveEntrySignatures: "strict",
         input: { tiny: path.join(root, "tiny.js"), large: path.join(root, "large.js") }
       }
     }
@@ -871,14 +893,20 @@ test("real two-app build emits self-contained application-scoped locale chunks",
       if (relative === "tiny.js") {
         assert.doesNotMatch(chunk.code, /ITEMS|UNUSED/);
         assert.equal(
-          Object.keys(chunk.modules).filter((id) => id.includes(`linguini-scope=${scope}`)).length,
+          Object.keys(chunk.modules).filter((id) => id.includes("/bundler/messages/") && id.includes(`linguini-scope=${scope}`)).length,
           1
         );
       } else {
         assert.match(chunk.code, /ITEMS/);
+        assert.match(chunk.code, /EN_ITEMS/);
+        assert.match(chunk.code, /DEPENDENCY/);
+        assert.doesNotMatch(chunk.code, /FR_ITEMS|FORBIDDEN_HELPER/);
+        for (const dependency of ["shared-functions.js", "shared-value.js"]) {
+          assert.ok(Object.keys(chunk.modules).some(id => id.includes(dependency + "?linguini-scope=")));
+        }
         assert.doesNotMatch(chunk.code, /UNUSED/);
         assert.equal(
-          Object.keys(chunk.modules).filter((id) => id.includes(`linguini-scope=${scope}`)).length,
+          Object.keys(chunk.modules).filter((id) => id.includes("/bundler/messages/") && id.includes(`linguini-scope=${scope}`)).length,
           2
         );
       }
@@ -888,4 +916,24 @@ test("real two-app build emits self-contained application-scoped locale chunks",
     assert.ok(Object.keys(entry.modules).some((id) => id.includes(`/message/${scope}/`)));
     assert.deepEqual(new Set(entry.dynamicImports), new Set(owned.map((chunk) => chunk.fileName)));
   }
+  const output = path.join(root, "dist");
+  for (const chunk of chunks) {
+    const file = path.join(output, chunk.fileName);
+    await mkdir(path.dirname(file), {recursive:true});
+    await writeFile(file, chunk.code);
+  }
+  const entries = {};
+  for (const name of ["tiny", "large"]) {
+    const entry = chunks.find(chunk => chunk.isEntry && chunk.name === name);
+    entries[name] = await import(pathToFileURL(path.join(output, entry.fileName)).href);
+  }
+  assert.equal(entries.tiny.render(), "FR_TITLE");
+  assert.deepEqual(entries.large.render(), ["FR_TITLE", "EN_ITEMS:2:DEPENDENCY"]);
+  assert.equal(globalThis.__linguiniPayloadLoads.length, 2);
+  assert.ok(globalThis.__linguiniPayloadLoads.every(id => id.endsWith("/6672")), "Initial fallback must not evaluate an English payload");
+  await entries.tiny.setLocale("en");
+  assert.equal(entries.tiny.render(), "EN_TITLE");
+  assert.deepEqual(entries.large.render(), ["EN_TITLE", "EN_ITEMS:2:DEPENDENCY"]);
+  assert.equal(globalThis.__linguiniPayloadLoads.length, 4);
+  assert.equal(globalThis.__linguiniPayloadLoads.filter(id => id.endsWith("/656e")).length, 2);
 });

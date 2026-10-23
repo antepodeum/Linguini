@@ -812,7 +812,7 @@ test("locale-loading policy validates config parity and preserves eager/SSR boun
   assert.match(dynamicRegistry, /registerLocaleLoader/);
   assert.match(dynamicRegistry, /import\("virtual:linguini\/locale\/656e"\)/);
   assert.match(dynamicRegistry, /import\("virtual:linguini\/locale\/6672"\)/);
-  assert.match(dynamicRegistry, /await __linguini_load\(__linguini_initial_locale\)/);
+  assert.match(dynamicRegistry, /await __linguini_load\(__linguini_fallback_locale\)/);
   assert.doesNotMatch(dynamicRegistry, /import\.meta\.hot\.accept/);
 
   const dynamicSsr = dynamicPlugin.load.call(
@@ -897,7 +897,7 @@ test("dynamic wrappers support value messages and retain initial locale fallback
   assert.equal(runtime.message(), "FR");
 });
 
-test("shared locale registry loads base for sparse initial locale maps", async (context) => {
+test("shared locale registry uses fallback compiled into the selected locale payload", async (context) => {
   const data = await dynamicLocaleFixture({
     configLocaleLoading: "dynamic",
     manifestLocaleLoading: "dynamic",
@@ -923,6 +923,10 @@ test("shared locale registry loads base for sparse initial locale maps", async (
     registry.source
   );
   await writeFile(registry.file, registrySource);
+  const english = localeModules.get("virtual:linguini/locale/656e");
+  const englishSource = await readFile(english, "utf8");
+  await rm(english); // Initial French fallback must not fetch the English payload.
+
   const localizedSource = source.replaceAll(
     JSON.stringify(registry.publicId),
     JSON.stringify(registry.file)
@@ -934,6 +938,10 @@ test("shared locale registry loads base for sparse initial locale maps", async (
   assert.equal(runtime.message(), "EN");
   helper.setCurrentLocale("fr");
   await helper.prepareLocale("fr");
+  assert.equal(runtime.message(), "EN");
+  await writeFile(english, englishSource);
+  await helper.prepareLocale("en");
+  helper.setCurrentLocale("en");
   assert.equal(runtime.message(), "EN");
 });
 
@@ -1956,7 +1964,7 @@ test("scopes dynamic Svelte facades and loader lifetime to one application", asy
   assert.match(registry, /__linguini_loader_references === 1/);
   assert.match(registry, /__linguini_loader_references === 0/);
   assert.match(registry, new RegExp(`virtual:linguini/locale/${scope}/656e`));
-  assert.match(registry, /__linguini_required_message_count = 1/);
+  assert.doesNotMatch(registry, /__linguini_required_message_count|__linguini_initial_complete|__linguini_has_all_messages/);
   assert.match(registry, /Array\.isArray\(messages\)/);
   assert.doesNotMatch(registry, /main\.title|__linguini_required_messages/);
 
@@ -2041,8 +2049,8 @@ test("scoped locale payloads keep sorted indices across sparse message entries",
   assert.match(en, /__linguini_locale_message_1/);
   assert.match(en, /__linguini_locale_message_2/);
   assert.match(en, /__linguini_locale_message_3/);
-  assert.match(fr, /Object\.freeze\(\[__linguini_locale_message_0, , __linguini_locale_message_2, __linguini_locale_message_3\]\)/);
-  assert.doesNotMatch(fr, /__linguini_locale_message_1/);
+  assert.match(fr, /Object\.freeze\(\[__linguini_locale_message_0, __linguini_locale_message_1, __linguini_locale_message_2, __linguini_locale_message_3\]\)/);
+  assert.match(fr, /main\/items\/en\.js\?linguini-scope=/);
 
   const title = await loadScoped("message", Buffer.from("main.title").toString("hex"));
   const items = await loadScoped("message", Buffer.from("main.items").toString("hex"));
@@ -2055,7 +2063,7 @@ test("scoped locale payloads keep sorted indices across sparse message entries",
     { environment: { config: { consumer: "client" } } },
     await plugin.resolveId(`virtual:linguini/locale-registry/${scope}`)
   );
-  assert.match(registry, /__linguini_required_message_count = 4/);
+  assert.doesNotMatch(registry, /__linguini_required_message_count|__linguini_initial_complete|__linguini_has_all_messages/);
   assert.match(registry, /Array\.isArray\(messages\)/);
   assert.doesNotMatch(registry, /main\.title|main\.items|main\.unused|__linguini_required_messages/);
 });

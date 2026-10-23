@@ -471,3 +471,8 @@ Multiline token spans exclude each line terminator, and UTF-16 offsets round-tri
 Generated messages now use number, currency, and date formatter results directly, omitting
 redundant outer `String` calls. Input coercion, formatter order, exceptions, aliases, and the
 public string result contract are preserved. No application changes are required.
+
+Vite now folds missing translations into the selected locale payload at message granularity.
+Sparse locales no longer trigger an additional base-locale payload request. Generated message
+dependencies, including shared functions and formatter helpers, stay within their owning
+application/locale payload. Loader cleanup, HMR, and preload-before-switch remain supported.

@@ -8,7 +8,7 @@ import { DEFAULT_CONFIG_FILE, DEFAULT_PATHS, resolveProjectPath as resolveWithin
 import { readEcmascriptProject, validateLocaleLoading, isDynamicMessagePath } from "@antepodeum/linguini-project/ecmascript";
 import { localeBuildConfig } from "./build-target.js";
 import { frameworkAdapter } from "./framework.js";
-import { toVitePath } from "./paths.js";
+import { toVitePath, scopedPhysicalModuleId, resolvePayloadDependency } from "./paths.js";
 
 const DEFAULT_SCHEMA_DIR = DEFAULT_PATHS.schema;
 const DEFAULT_LOCALE_DIR = DEFAULT_PATHS.locale;
@@ -345,7 +345,10 @@ export function linguini(options = {}) {
         return [];
       }
     },
-    async resolveId(id) {
+    async resolveId(id, importer) {
+      const dependency = await resolvePayloadDependency(id, importer, layout?.generatedRoot,
+        (source, parent) => this.resolve(source, parent, { skipSelf: true }));
+      if (dependency) return dependency;
       if (id === VIRTUAL_LOCALE_REGISTRY_ID) {
         return RESOLVED_VIRTUAL_LOCALE_REGISTRY_ID;
       }
@@ -389,11 +392,8 @@ export function linguini(options = {}) {
       if (id.startsWith(RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX)) {
         const scope = id.slice(RESOLVED_VIRTUAL_SCOPED_LOCALE_REGISTRY_PREFIX.length);
         decodeScopeId(scope);
-        return renderVirtualLocaleRegistryModule(
-          bundlerManifest,
-          applicationForScope(bundlerManifest, scope),
-          scope
-        );
+        applicationForScope(bundlerManifest, scope);
+        return renderVirtualLocaleRegistryModule(bundlerManifest, scope);
       }
       const { scope, value: message } = decodeScopedVirtualParts(
         id.slice(RESOLVED_VIRTUAL_MESSAGE_PREFIX.length),
@@ -1956,15 +1956,11 @@ function renderVirtualLocaleModule(manifest, locale, application, scope) {
     : bundledMessageNames(manifest);
   for (const [index, canonical] of messages.entries()) {
     const message = manifest.messages.get(canonical);
-    const entry = message.locales.get(locale);
-    if (!entry) {
-      if (scope) entries.push("");
-      continue;
-    }
+    const entry = message.locales.get(locale) ?? message.locales.get(manifest.baseLocale);
     const local = `__linguini_locale_message_${scope ? index : entries.length}`;
     imports.push(
       `import { message as ${local} } from ${JSON.stringify(
-        scopedPhysicalModuleId(entry.module, scope)
+        scopedPhysicalModuleId(entry.module, scope, locale)
       )};`
     );
     entries.push(scope ? local : `${JSON.stringify(canonical)}: ${local}`);
@@ -2021,7 +2017,7 @@ function isResolvedScopedVirtualId(id) {
   return false;
 }
 
-function renderVirtualLocaleRegistryModule(manifest, application, scope) {
+function renderVirtualLocaleRegistryModule(manifest, scope) {
   const imports = [
     `import { getCurrentLocale, registerLocaleLoader } from ${JSON.stringify(
       toVitePath(manifest.localeHelper.file)
@@ -2037,19 +2033,12 @@ function renderVirtualLocaleRegistryModule(manifest, application, scope) {
       )})`
   );
   const scoped = Boolean(scope);
-  const requiredMessages = application
-    ? applicationMessageNames(application)
-    : bundledMessageNames(manifest);
   const lines = [
     ...imports,
     `const __linguini_loaders = Object.freeze({ ${loaders.join(", ")} });`,
     `const __linguini_base_locale = ${JSON.stringify(manifest.baseLocale)};`,
-    scoped
-      ? `const __linguini_required_message_count = ${requiredMessages.length};`
-      : `const __linguini_required_messages = Object.freeze(${JSON.stringify(requiredMessages)});`,
     "const __linguini_prepared = new Map();",
     "const __linguini_pending = new Map();",
-    "let __linguini_fallback_locale;",
     "function __linguini_load(locale) {",
     "  if (__linguini_prepared.has(locale)) return Promise.resolve(__linguini_prepared.get(locale));",
     "  const pending = __linguini_pending.get(locale);",
@@ -2077,46 +2066,14 @@ function renderVirtualLocaleRegistryModule(manifest, application, scope) {
     "  return task;",
     "}",
     "const __linguini_initial_locale = getCurrentLocale();",
-    "await __linguini_load(__linguini_initial_locale);",
-    "__linguini_fallback_locale = __linguini_initial_locale;",
-    "const __linguini_initial_messages = __linguini_prepared.get(__linguini_initial_locale);",
-    ...(scoped
-      ? ["const __linguini_initial_complete = __linguini_has_all_messages(__linguini_initial_messages);"]
-      : [
-          "const __linguini_initial_complete = __linguini_initial_messages && __linguini_required_messages.every((canonical) => __linguini_initial_messages[canonical] !== undefined);"
-        ]),
-    "if (!__linguini_initial_complete) {",
-    "  await __linguini_load(__linguini_base_locale);",
-    "  if (__linguini_prepared.has(__linguini_base_locale)) {",
-    "    __linguini_fallback_locale = __linguini_base_locale;",
-    "  }",
-    "}",
-    ...(scoped
-      ? [
-          "function __linguini_has_all_messages(messages) {",
-          "  if (!Array.isArray(messages) || messages.length < __linguini_required_message_count) return false;",
-          "  for (let index = 0; index < __linguini_required_message_count; index += 1) {",
-          "    if (messages[index] === undefined) return false;",
-          "  }",
-          "  return true;",
-          "}",
-          "export function getLocaleMessage(locale, index) {",
-          "  const selected = __linguini_prepared.get(locale)?.[index];",
-          "  if (selected !== undefined) return selected;",
-          "  const fallback = __linguini_prepared.get(__linguini_fallback_locale)?.[index];",
-          "  if (fallback !== undefined) return fallback;",
-          "  return __linguini_prepared.get(__linguini_base_locale)?.[index];",
-          "}"
-        ]
-      : [
-          "export function getLocaleMessage(locale, canonical) {",
-          "  const selected = __linguini_prepared.get(locale)?.[canonical];",
-          "  if (selected !== undefined) return selected;",
-          "  const fallback = __linguini_prepared.get(__linguini_fallback_locale)?.[canonical];",
-          "  if (fallback !== undefined) return fallback;",
-          "  return __linguini_prepared.get(__linguini_base_locale)?.[canonical];",
-          "}"
-        ])
+    "const __linguini_fallback_locale = Object.prototype.hasOwnProperty.call(__linguini_loaders, __linguini_initial_locale)",
+    "  ? __linguini_initial_locale : __linguini_base_locale;",
+    "await __linguini_load(__linguini_fallback_locale);",
+    `export function getLocaleMessage(locale, ${scoped ? "index" : "canonical"}) {`,
+    `  const selected = __linguini_prepared.get(locale)?.[${scoped ? "index" : "canonical"}];`,
+    "  if (selected !== undefined) return selected;",
+    `  return __linguini_prepared.get(__linguini_fallback_locale)?.[${scoped ? "index" : "canonical"}];`,
+    "}"
   ];
   if (scope) {
     lines.push(
@@ -2258,10 +2215,6 @@ function virtualLocaleRegistryId(scope) {
     : VIRTUAL_LOCALE_REGISTRY_ID;
 }
 
-function scopedPhysicalModuleId(file, scope) {
-  const vitePath = toVitePath(file);
-  return scope ? `${vitePath}?linguini-scope=${scope}` : vitePath;
-}
 
 function decodeVirtualId(encoded, kind) {
   if (!/^(?:[0-9a-f]{2})+$/.test(encoded)) {
