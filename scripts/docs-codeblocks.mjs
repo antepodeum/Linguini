@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,7 +7,7 @@ const SCRIPT_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_ROOT, "..");
 const OPENING_FENCE = /^```([a-z0-9-]*)(?:\s+(.+))?$/;
 const FRAGMENT = /^fragment=([a-z0-9]+(?:-[a-z0-9]+)*)$/;
-const LANGUAGES = new Set(["", "bash", "html", "json", "lgl", "lgs", "sh", "svelte", "text", "toml", "ts"]);
+const LANGUAGES = new Set(["", "bash", "html", "js", "json", "lgl", "lgs", "sh", "svelte", "text", "toml", "ts"]);
 
 export function extractCodeblocks(markdown, sourcePath) {
   const lines = markdown.split(/\r?\n/);
@@ -75,6 +76,11 @@ export function documentedCodeblocks(root = REPOSITORY_ROOT) {
 export function main({ root = REPOSITORY_ROOT } = {}) {
   const blocks = documentedCodeblocks(root);
   if (blocks.length === 0) throw new Error("documentation contains no code blocks");
+  for (const block of blocks.filter(block => block.language === "js")) {
+    const result = spawnSync(process.execPath, ["--input-type=module", "--check"], {input:block.source, encoding:"utf8"});
+    if (result.status !== 0) throw new Error(`${block.sourcePath}:${block.line}: invalid JavaScript: ${result.stderr}`);
+  }
+
   const counts = new Map();
   for (const block of blocks) counts.set(block.language, (counts.get(block.language) ?? 0) + 1);
   const summary = [...counts.entries()]

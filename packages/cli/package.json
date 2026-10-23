@@ -1,5 +1,5 @@
 {
-  "name": "@linguini/cli",
+  "name": "@antepodeum/linguini",
   "version": "0.1.0-alpha.4",
   "description": "Native Linguini compiler, CLI, and language-server launcher",
   "license": "Apache-2.0",
@@ -17,14 +17,24 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.6"
   },
   "optionalDependencies": {
-    "@linguini/cli-darwin-arm64": "0.1.0-alpha.4",
-    "@linguini/cli-darwin-x64": "0.1.0-alpha.4",
-    "@linguini/cli-linux-arm64": "0.1.0-alpha.4",
-    "@linguini/cli-linux-x64": "0.1.0-alpha.4",
-    "@linguini/cli-win32-arm64": "0.1.0-alpha.4",
-    "@linguini/cli-win32-x64": "0.1.0-alpha.4"
+    "@antepodeum/linguini-darwin-arm64": "0.1.0-alpha.4",
+    "@antepodeum/linguini-darwin-x64": "0.1.0-alpha.4",
+    "@antepodeum/linguini-linux-arm64": "0.1.0-alpha.4",
+    "@antepodeum/linguini-linux-x64": "0.1.0-alpha.4",
+    "@antepodeum/linguini-win32-arm64": "0.1.0-alpha.4",
+    "@antepodeum/linguini-win32-x64": "0.1.0-alpha.4"
+  },
+  "dependencies": {
+    "@antepodeum/linguini-project": "0.1.0-alpha.4"
+  },
+  "exports": {
+    "./modules": {
+      "types": "./lib/modules.d.ts",
+      "default": "./lib/modules.js"
+    },
+    "./package.json": "./package.json"
   }
 }

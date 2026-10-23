@@ -1,19 +1,25 @@
 // ECMAScript build layout shared by CLI frontends, bundlers, and compiler adapters.
 import { DEFAULT_PATHS, readProjectConfig, readProjectConfigSync, resolveProjectPath } from "./index.js";
+import { readModuleConfiguration, readModuleConfigurationSync, moduleConfigPaths } from "./modules.js";
 const resolveWithin = resolveProjectPath;
 const DEFAULT_SCHEMA_DIR = DEFAULT_PATHS.schema;
 const DEFAULT_LOCALE_DIR = DEFAULT_PATHS.locale;
 const DEFAULT_GENERATED_DIR = "generated/linguini";
 
 export async function readEcmascriptProject(root, configFile) {
-  return ecmascriptLayout(await readProjectConfig(root, configFile));
+  return ecmascriptLayout(await readProjectConfig(root, configFile), await readModuleConfiguration(root));
 }
 
 export function readEcmascriptProjectSync(root, configFile) {
-  return ecmascriptLayout(readProjectConfigSync(root, configFile));
+  return ecmascriptLayout(readProjectConfigSync(root, configFile), readModuleConfigurationSync(root));
 }
 
-function ecmascriptLayout({ projectRoot, configPath, configExists, document }) {
+function ecmascriptLayout({ projectRoot, configPath, configExists, document }, moduleConfiguration) {
+  const modulePlan = moduleConfiguration.plan;
+  if (document?.web !== undefined || document?.targets?.ts?.framework !== undefined) {
+    throw new Error("Configure web and framework modules in linguini.config.mjs; TOML web/framework policy was removed");
+  }
+  const web = modulePlan.modules.find(module => module.id === "ecmascript.web");
   const schema = readString(document?.paths?.schema, DEFAULT_SCHEMA_DIR, "paths.schema");
   const locale = readString(document?.paths?.locale, DEFAULT_LOCALE_DIR, "paths.locale");
   const generated = readString(
@@ -45,9 +51,9 @@ function ecmascriptLayout({ projectRoot, configPath, configExists, document }) {
     "targets.ts.bundler.locale_loading"
   );
   const linkMode = validateLinkMode(
-    document?.web?.links?.mode,
-    document?.web === undefined ? "manual" : "transform",
-    "web.links.mode"
+    web?.options?.links?.mode,
+    web === undefined ? "manual" : "transform",
+    "ecmascript.web.links.mode"
   );
   validateBundlerDynamic(rawBundler?.dynamic);
 
@@ -55,6 +61,10 @@ function ecmascriptLayout({ projectRoot, configPath, configExists, document }) {
     projectRoot,
     configPath,
     configExists,
+    modulePlan,
+    moduleDependencies: moduleConfiguration.dependencies,
+    moduleConfigExists: moduleConfiguration.configPath !== undefined,
+    moduleConfigPaths: Object.freeze(moduleConfigPaths(projectRoot)),
     targetConfigured: document?.targets?.ts !== undefined,
     schemaRoot: resolveWithin(projectRoot, schema, "paths.schema"),
     localeRoot: resolveWithin(projectRoot, locale, "paths.locale"),

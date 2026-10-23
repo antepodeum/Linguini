@@ -47,7 +47,7 @@ fn documented_toml_is_registered_and_valid() {
         });
     }
 
-    assert_eq!(fences.len(), 11, "new TOML fences must be registered");
+    assert_eq!(fences.len(), 9, "new TOML fences must be registered");
     assert_eq!(
         fences
             .iter()
@@ -60,7 +60,7 @@ fn documented_toml_is_registered_and_valid() {
             .iter()
             .filter(|fence| fence.fragment.is_some())
             .count(),
-        6
+        4
     );
 }
 

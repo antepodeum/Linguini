@@ -20,6 +20,20 @@ pub use svelte_effects::compile_svelte_effects_module;
 pub use svelte_facade::compile_svelte_module;
 pub use svelte_locale::{compile_svelte_locale_module, SvelteLocaleOptions};
 
+/// Browser runtime descriptors supplied to framework-independent bundler planning.
+pub fn runtime_helper_descriptors(
+    web: Option<&EcmaWebOptions>,
+) -> std::collections::BTreeMap<String, serde_json::Value> {
+    let mut helpers = std::collections::BTreeMap::from([(
+        "svelte_locale".to_owned(),
+        serde_json::json!({"import":"./svelte-locale.svelte.js", "file":"svelte-locale.svelte.js"}),
+    )]);
+    if web.is_some() {
+        helpers.insert("svelte_effects".to_owned(), serde_json::json!({"import":"./svelte-effects.svelte.js", "file":"svelte-effects.svelte.js"}));
+    }
+    helpers
+}
+
 /// Selected Svelte artifacts and their external routing capabilities.
 pub struct SvelteProjectOptions {
     pub web: Option<EcmaWebOptions>,

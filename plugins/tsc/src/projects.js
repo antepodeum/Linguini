@@ -1,6 +1,6 @@
 import { realpathSync } from "node:fs";
 import path from "node:path";
-import { readEcmascriptProjectSync } from "@antepod/linguini-project/ecmascript";
+import { readEcmascriptProjectSync } from "@antepodeum/linguini-project/ecmascript";
 import ts from "typescript";
 
 export function readProjects(roots, overrides, cwd, solution = false) {
@@ -34,22 +34,28 @@ export function configPath(value, cwd) {
   return ts.sys.directoryExists(candidate) ? path.join(candidate, "tsconfig.json") : candidate;
 }
 
-export function findLinguiniProject(config) {
+export function findLinguiniProject(config, layouts = new Map()) {
   let root = path.dirname(config);
   while (true) {
     const configFile = path.join(root, "linguini.toml");
     if (ts.sys.fileExists(configFile)) {
+      if (layouts.has(root)) return layouts.get(root);
       const layout = readEcmascriptProjectSync(root);
       if (!layout.targetConfigured) return undefined;
       for (const directory of [layout.generatedRoot, layout.schemaRoot, layout.localeRoot]) {
         if (directory === root) throw new Error(`Linguini path equals its project root: ${directory}`);
       }
-      return {
+      const project = {
         root,
         configFile,
         generated: layout.generatedRoot,
+        modulePlan: layout.modulePlan,
+        moduleConfigExists: layout.moduleConfigExists,
+        moduleFiles: [...layout.moduleConfigPaths, ...layout.moduleDependencies],
         sources: [layout.schemaRoot, layout.localeRoot],
       };
+      layouts.set(root, project);
+      return project;
     }
     const parent = path.dirname(root);
     if (parent === root) return undefined;

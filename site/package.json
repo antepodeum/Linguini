@@ -1,5 +1,5 @@
 {
-  "name": "@antepod/linguini-site",
+  "name": "@antepodeum/linguini-site",
   "private": true,
   "version": "0.1.0-alpha.4",
   "type": "module",
@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "pnpm highlight:build && vite dev",
     "linguini:build": "node scripts/restore-linguini-output.mjs",
-    "linguini:refresh": "cargo run --locked -p linguini-cli -- build && pnpm linguini:package && pnpm highlight:refresh",
+    "linguini:refresh": "node scripts/refresh-linguini.mjs && pnpm linguini:package && pnpm highlight:refresh",
     "linguini:package": "node scripts/package-linguini-output.mjs",
     "linguini:verify": "pnpm linguini:build && pnpm test",
     "build:generated": "pnpm highlight:build && vite build",
@@ -22,7 +22,7 @@
     "highlight:refresh": "node scripts/refresh-highlights.mjs"
   },
   "dependencies": {
-    "@antepod/linguini-vite": "file:../plugins/vite",
+    "@antepodeum/linguini-vite": "file:../plugins/vite",
     "@fontsource-variable/newsreader": "^5.2.8",
     "@fontsource-variable/work-sans": "^5.2.8",
     "@iconify-svelte/skill-icons": "^1.0.3",
@@ -42,6 +42,7 @@
     "svelte-check": "^4.4.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^6.0.2",
-    "vite": "^8.0.7"
+    "vite": "^8.0.7",
+    "@antepodeum/linguini": "file:../packages/cli"
   }
 }

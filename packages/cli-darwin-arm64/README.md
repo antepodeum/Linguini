@@ -1,4 +1,4 @@
-# @linguini/cli-darwin-arm64
+# @antepodeum/linguini-darwin-arm64
 
-Native macOS arm64 binary payload for `@linguini/cli`. Install the launcher,
+Native macOS arm64 binary payload for `@antepodeum/linguini`. Install the launcher,
 not this package directly.

@@ -4,7 +4,7 @@ Build Linguini messages with an ordinary TypeScript application, without enablin
 Install the native Linguini CLI separately and make `linguini` available on `PATH`.
 
 ```sh
-pnpm add -D @antepod/linguini-tsc typescript
+pnpm add -D @antepodeum/linguini-tsc typescript
 pnpm exec linguini-tsc --project tsconfig.json
 pnpm exec linguini-tsc --watch
 pnpm exec linguini-tsc --build

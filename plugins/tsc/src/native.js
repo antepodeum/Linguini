@@ -6,8 +6,9 @@ import { findLinguiniProject, runtimeOutput } from "./projects.js";
 
 export function prepareNative(graph, options, emission = "source") {
   const builds = new Map();
+  const layouts = new Map();
   for (const [config, parsed] of graph.projects) {
-    const layout = findLinguiniProject(config);
+    const layout = findLinguiniProject(config, layouts);
     if (!layout) continue;
     let build = builds.get(layout.root);
     if (!build) {
@@ -27,9 +28,15 @@ export function prepareNative(graph, options, emission = "source") {
     if (emission === "declarations" && !build.declarations.size) continue;
     if (emission === "runtime" && !build.outputs.size) continue;
     const args = [...(options.nativeArgs ?? ["build"]), ...[...build.outputs].sort().flatMap((output) => ["--emit-dir", output]), ...[...build.declarations].sort().flatMap((output) => ["--emit-declaration-dir", output])];
-    const result = spawnSync(options.command ?? "linguini", args, { cwd: build.root, stdio: "inherit", env: options.env ?? process.env });
-    if (result.error) throw result.error;
-    if (result.status !== 0) throw new Error(`Native Linguini build failed (${result.signal ?? result.status}) in ${build.root}`);
+    const input = build.moduleConfigExists ? JSON.stringify(build.modulePlan) : undefined;
+    if (input !== undefined) args.push("--module-plan-stdin");
+    const result = spawnSync(options.command ?? "linguini", args, { cwd: build.root, input,
+      stdio: input === undefined ? "inherit" : ["pipe", "inherit", "inherit"], env: options.env ?? process.env });
+    if (result.error || result.status !== 0) {
+      const error = result.error ?? new Error(`Native Linguini build failed (${result.signal ?? result.status}) in ${build.root}`);
+      error.moduleDependencies = build.moduleFiles;
+      throw error;
+    }
   }
   return [...builds.values()];
 }

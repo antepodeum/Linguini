@@ -5,13 +5,19 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@antepod/linguini-project': file:../packages/project
+  '@antepodeum/linguini-project': file:../packages/project
+  '@antepodeum/linguini-darwin-arm64': file:../packages/cli-darwin-arm64
+  '@antepodeum/linguini-darwin-x64': file:../packages/cli-darwin-x64
+  '@antepodeum/linguini-linux-arm64': file:../packages/cli-linux-arm64
+  '@antepodeum/linguini-linux-x64': file:../packages/cli-linux-x64
+  '@antepodeum/linguini-win32-arm64': file:../packages/cli-win32-arm64
+  '@antepodeum/linguini-win32-x64': file:../packages/cli-win32-x64
 
 importers:
 
   .:
     dependencies:
-      '@antepod/linguini-vite':
+      '@antepodeum/linguini-vite':
         specifier: file:../plugins/vite
         version: file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
       '@fontsource-variable/newsreader':
@@ -36,6 +42,9 @@ importers:
         specifier: ^2.6.0
         version: 2.6.1
     devDependencies:
+      '@antepodeum/linguini':
+        specifier: file:../packages/cli
+        version: file:../packages/cli
       '@sveltejs/adapter-static':
         specifier: ^3.0.8
         version: 3.0.10(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))
@@ -76,14 +85,50 @@ packages:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
 
-  '@antepod/linguini-project@file:../packages/project':
-    resolution: {directory: ../packages/project, type: directory}
-    engines: {node: '>=20'}
+  '@antepodeum/linguini-darwin-arm64@file:../packages/cli-darwin-arm64':
+    resolution: {directory: ../packages/cli-darwin-arm64, type: directory}
+    cpu: [arm64]
+    os: [darwin]
 
-  '@antepod/linguini-vite@file:../plugins/vite':
+  '@antepodeum/linguini-darwin-x64@file:../packages/cli-darwin-x64':
+    resolution: {directory: ../packages/cli-darwin-x64, type: directory}
+    cpu: [x64]
+    os: [darwin]
+
+  '@antepodeum/linguini-linux-arm64@file:../packages/cli-linux-arm64':
+    resolution: {directory: ../packages/cli-linux-arm64, type: directory}
+    cpu: [arm64]
+    os: [linux]
+
+  '@antepodeum/linguini-linux-x64@file:../packages/cli-linux-x64':
+    resolution: {directory: ../packages/cli-linux-x64, type: directory}
+    cpu: [x64]
+    os: [linux]
+
+  '@antepodeum/linguini-project@file:../packages/project':
+    resolution: {directory: ../packages/project, type: directory}
+    engines: {node: '>=20.6'}
+
+  '@antepodeum/linguini-vite@file:../plugins/vite':
     resolution: {directory: ../plugins/vite, type: directory}
+    engines: {node: '>=20.6'}
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
+
+  '@antepodeum/linguini-win32-arm64@file:../packages/cli-win32-arm64':
+    resolution: {directory: ../packages/cli-win32-arm64, type: directory}
+    cpu: [arm64]
+    os: [win32]
+
+  '@antepodeum/linguini-win32-x64@file:../packages/cli-win32-x64':
+    resolution: {directory: ../packages/cli-win32-x64, type: directory}
+    cpu: [x64]
+    os: [win32]
+
+  '@antepodeum/linguini@file:../packages/cli':
+    resolution: {directory: ../packages/cli, type: directory}
+    engines: {node: '>=20.6'}
+    hasBin: true
 
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
@@ -1019,15 +1064,44 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@antepod/linguini-project@file:../packages/project':
+  '@antepodeum/linguini-darwin-arm64@file:../packages/cli-darwin-arm64':
+    optional: true
+
+  '@antepodeum/linguini-darwin-x64@file:../packages/cli-darwin-x64':
+    optional: true
+
+  '@antepodeum/linguini-linux-arm64@file:../packages/cli-linux-arm64':
+    optional: true
+
+  '@antepodeum/linguini-linux-x64@file:../packages/cli-linux-x64':
+    optional: true
+
+  '@antepodeum/linguini-project@file:../packages/project':
     dependencies:
       smol-toml: 1.7.1
 
-  '@antepod/linguini-vite@file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
+  '@antepodeum/linguini-vite@file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
     dependencies:
-      '@antepod/linguini-project': file:../packages/project
+      '@antepodeum/linguini-project': file:../packages/project
       magic-string: 0.30.21
       vite: 8.0.13(@types/node@24.12.4)(jiti@1.21.7)
+
+  '@antepodeum/linguini-win32-arm64@file:../packages/cli-win32-arm64':
+    optional: true
+
+  '@antepodeum/linguini-win32-x64@file:../packages/cli-win32-x64':
+    optional: true
+
+  '@antepodeum/linguini@file:../packages/cli':
+    dependencies:
+      '@antepodeum/linguini-project': file:../packages/project
+    optionalDependencies:
+      '@antepodeum/linguini-darwin-arm64': file:../packages/cli-darwin-arm64
+      '@antepodeum/linguini-darwin-x64': file:../packages/cli-darwin-x64
+      '@antepodeum/linguini-linux-arm64': file:../packages/cli-linux-arm64
+      '@antepodeum/linguini-linux-x64': file:../packages/cli-linux-x64
+      '@antepodeum/linguini-win32-arm64': file:../packages/cli-win32-arm64
+      '@antepodeum/linguini-win32-x64': file:../packages/cli-win32-x64
 
   '@emnapi/core@1.10.0':
     dependencies:

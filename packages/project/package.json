@@ -1,5 +1,5 @@
 {
-  "name": "@antepod/linguini-project",
+  "name": "@antepodeum/linguini-project",
   "version": "0.1.0-alpha.4",
   "description": "Shared project configuration loading for Linguini build integrations",
   "type": "module",
@@ -11,7 +11,7 @@
   },
   "packageManager": "pnpm@11.1.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.6"
   },
   "exports": {
     ".": {
@@ -21,6 +21,14 @@
     "./ecmascript": {
       "types": "./src/ecmascript.d.ts",
       "default": "./src/ecmascript.js"
+    },
+    "./modules": {
+      "types": "./src/modules.d.ts",
+      "default": "./src/modules.js"
+    },
+    "./ecmascript/modules": {
+      "types": "./src/ecmascript/modules.d.ts",
+      "default": "./src/ecmascript/modules.js"
     }
   },
   "files": [

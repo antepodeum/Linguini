@@ -36,9 +36,8 @@ locale_loading = "dynamic"
 [targets.ts.bundler.dynamic]
 mode = "bundle"
 allow = ["main.title"]
-[web.links]
-mode = "runtime"
 `);
+  writeFileSync(path.join(root, "linguini.modules.json"), JSON.stringify({version:1, modules:[{id:"ecmascript.web", options:{links:{mode:"runtime"}}}]}));
   const selected = readEcmascriptProjectSync(root, "custom.toml");
   assert.deepEqual(await readEcmascriptProject(root, "custom.toml"), selected);
   assert.equal(selected.targetConfigured, true);
@@ -67,7 +66,7 @@ test("both hosts reject malformed documents and invalid layout values consistent
     ['[targets.ts.bundler]\nsources = []', /non-empty string array/],
     ['[targets.ts.bundler]\nsources = ["src"]\nlocale_loading = "lazy"', /locale_loading.*eager/],
     ['[targets.ts.bundler]\nsources = ["src"]\n[targets.ts.bundler.dynamic]\nmode = "bundle"\nallow = ["a", "A"]', /duplicate path/],
-    ['[web.links]\nmode = "unsafe"', /links.mode.*transform/],
+    ['[web.links]\nmode = "unsafe"', /TOML web\/framework policy was removed/],
   ]) {
     writeFileSync(path.join(root, "linguini.toml"), source);
     assert.throws(() => readEcmascriptProjectSync(root), expected);

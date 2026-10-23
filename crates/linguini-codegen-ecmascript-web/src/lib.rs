@@ -1,6 +1,7 @@
 //! Framework-independent ECMAScript web integration and artifact ownership.
 
 mod accept_language;
+mod configuration;
 mod cookie;
 mod error;
 mod facade;
@@ -20,6 +21,7 @@ mod test_templates;
 mod types;
 mod validation;
 pub use accept_language::compile_web_accept_language_module;
+pub use configuration::parse_module_options;
 pub use cookie::compile_web_cookie_module;
 pub use error::WebCodegenError;
 pub use facade::compile_web_module;

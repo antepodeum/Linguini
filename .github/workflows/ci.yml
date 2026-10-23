@@ -76,7 +76,7 @@ jobs:
       - name: Verify packaged site output is current
         working-directory: site
         run: |
-          cargo run --locked -p linguini-cli -- build
+          node scripts/refresh-linguini.mjs
           node scripts/package-linguini-output.mjs
           node scripts/refresh-highlights.mjs --check
           git diff --exit-code -- generated

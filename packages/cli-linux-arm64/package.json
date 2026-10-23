@@ -1,5 +1,5 @@
 {
-  "name": "@linguini/cli-linux-arm64",
+  "name": "@antepodeum/linguini-linux-arm64",
   "version": "0.1.0-alpha.4",
   "description": "Linguini native binary for Linux arm64",
   "license": "Apache-2.0",

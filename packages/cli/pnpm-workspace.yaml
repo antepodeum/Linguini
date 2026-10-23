@@ -1,0 +1,8 @@
+overrides:
+  '@antepodeum/linguini-project': file:../project
+  '@antepodeum/linguini-darwin-arm64': file:../cli-darwin-arm64
+  '@antepodeum/linguini-darwin-x64': file:../cli-darwin-x64
+  '@antepodeum/linguini-linux-arm64': file:../cli-linux-arm64
+  '@antepodeum/linguini-linux-x64': file:../cli-linux-x64
+  '@antepodeum/linguini-win32-arm64': file:../cli-win32-arm64
+  '@antepodeum/linguini-win32-x64': file:../cli-win32-x64

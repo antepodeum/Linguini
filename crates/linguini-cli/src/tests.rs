@@ -9,6 +9,19 @@ fn temp_project_dir(name: &str) -> std::io::Result<TempDir> {
         .tempdir()
 }
 
+fn write_module_plan(root: &std::path::Path, framework: &str, web: Option<serde_json::Value>) {
+    let mut modules = Vec::new();
+    if let Some(web) = web {
+        modules.push(serde_json::json!({"id":"ecmascript.web", "options":web}));
+    }
+    modules.push(serde_json::json!({"id":framework, "options":{}}));
+    fs::write(
+        root.join("linguini.modules.json"),
+        serde_json::to_vec(&serde_json::json!({"version":1, "modules":modules})).unwrap(),
+    )
+    .unwrap();
+}
+
 #[test]
 fn cli_argument_parser_is_clap_backed() {
     let command = Cli::command();
@@ -808,6 +821,7 @@ tree_shaking = false
 #[test]
 fn bundler_semantic_artifacts_are_shared_mapped_and_manifested() {
     let project = temp_project_dir("bundler-semantic-artifacts").expect("project");
+    write_module_plan(project.path(), "svelte", None);
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
     fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
     fs::create_dir_all(project.path().join("src")).expect("source dir");
@@ -827,7 +841,6 @@ declaration = false
 gitignore = false
 tree_shaking = true
 messages = ["main.first", "main.second", "main.plain"]
-framework = "svelte"
 [targets.ts.bundler]
 sources = ["src"]
 exclude = []
@@ -974,6 +987,7 @@ exclude = []
 #[test]
 fn bundler_manifest_bridges_application_references_before_output_mutation() {
     let project = temp_project_dir("bundler-applications").expect("project");
+    write_module_plan(project.path(), "svelte", None);
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
     fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
     fs::create_dir_all(project.path().join("src/app")).expect("app dir");
@@ -991,7 +1005,6 @@ locale = "locales"
 out = "src/generated/linguini"
 declaration = false
 gitignore = false
-framework = "svelte"
 [targets.ts.bundler]
 sources = ["src", "src/app"]
 exclude = []
@@ -1302,13 +1315,12 @@ allow = ["main.title", "main.items"]
         .any(|entry| entry["reason"] == "arity_mismatch"));
     assert_eq!(mismatch_app["imports"][0]["transformable"], false);
 
-    let base_config = fs::read_to_string(&config_path).expect("read config");
     for framework in ["svelte", "sveltekit"] {
-        let web_config = base_config.replace(
-            "framework = \"svelte\"",
-            &format!("framework = \"{framework}\""),
-        ) + "\n[web.routing]\nlocale_prefix = \"always\"\n";
-        fs::write(&config_path, web_config).expect("web config");
+        write_module_plan(
+            project.path(),
+            framework,
+            Some(serde_json::json!({"routing":{"localePrefix":"always"}})),
+        );
         build_project(project.path()).expect("web build");
         let web_manifest: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&manifest_path).expect("web manifest"))
@@ -1341,6 +1353,7 @@ allow = ["main.title", "main.items"]
 #[test]
 fn bundler_dynamic_error_rejects_before_output_mutation() {
     let project = temp_project_dir("bundler-dynamic-strict").expect("project");
+    write_module_plan(project.path(), "svelte", None);
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
     fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
     fs::create_dir_all(project.path().join("src")).expect("src dir");
@@ -1359,7 +1372,6 @@ locale = "locales"
 out = "build/generated"
 declaration = false
 gitignore = false
-framework = "svelte"
 [targets.ts.bundler]
 sources = ["src"]
 "#,
@@ -1395,6 +1407,7 @@ sources = ["src"]
 
 fn dynamic_bundler_project(name: &str, policy: &str, source: &str) -> TempDir {
     let project = temp_project_dir(name).expect("project");
+    write_module_plan(project.path(), "svelte", None);
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
     fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
     fs::create_dir_all(project.path().join("src")).expect("src dir");
@@ -1413,7 +1426,6 @@ locale = "locales"
 out = "build/generated"
 declaration = false
 gitignore = false
-framework = "svelte"
 [targets.ts.bundler]
 sources = ["src"]
 {policy}

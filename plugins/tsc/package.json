@@ -1,5 +1,5 @@
 {
-  "name": "@antepod/linguini-tsc",
+  "name": "@antepodeum/linguini-tsc",
   "version": "0.1.0-alpha.4",
   "description": "Native Linguini generation for TypeScript builds and watch mode",
   "type": "module",
@@ -11,7 +11,7 @@
   },
   "packageManager": "pnpm@11.1.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.6"
   },
   "bin": {
     "linguini-tsc": "./bin/linguini-tsc.js"
@@ -20,6 +20,10 @@
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
+    },
+    "./modules": {
+      "types": "./src/modules.d.ts",
+      "default": "./src/modules.js"
     }
   },
   "files": [
@@ -33,7 +37,7 @@
     "typescript": ">=5.8 <7"
   },
   "dependencies": {
-    "@antepod/linguini-project": "0.1.0-alpha.4"
+    "@antepodeum/linguini-project": "0.1.0-alpha.4"
   },
   "devDependencies": {
     "typescript": "6.0.3"

@@ -1,2 +1,8 @@
 overrides:
-  '@antepod/linguini-project': file:../packages/project
+  '@antepodeum/linguini-project': file:../packages/project
+  '@antepodeum/linguini-darwin-arm64': file:../packages/cli-darwin-arm64
+  '@antepodeum/linguini-darwin-x64': file:../packages/cli-darwin-x64
+  '@antepodeum/linguini-linux-arm64': file:../packages/cli-linux-arm64
+  '@antepodeum/linguini-linux-x64': file:../packages/cli-linux-x64
+  '@antepodeum/linguini-win32-arm64': file:../packages/cli-win32-arm64
+  '@antepodeum/linguini-win32-x64': file:../packages/cli-win32-x64

@@ -702,6 +702,7 @@ dependencies = [
  "clap",
  "linguini-analyzer",
  "linguini-cldr",
+ "linguini-codegen",
  "linguini-codegen-ecmascript",
  "linguini-codegen-ecmascript-web",
  "linguini-codegen-svelte",
@@ -727,6 +728,8 @@ dependencies = [
  "linguini-core",
  "linguini-ir",
  "linguini-syntax",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -747,6 +750,8 @@ version = "0.1.0-alpha.4"
 dependencies = [
  "linguini-codegen-ecmascript",
  "minijinja",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -756,6 +761,7 @@ dependencies = [
  "linguini-codegen-ecmascript",
  "linguini-codegen-ecmascript-web",
  "minijinja",
+ "serde_json",
 ]
 
 [[package]]
@@ -768,6 +774,7 @@ dependencies = [
  "linguini-ir",
  "linguini-syntax",
  "minijinja",
+ "serde_json",
 ]
 
 [[package]]

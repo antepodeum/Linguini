@@ -191,7 +191,7 @@ dependency. It selects the matching platform package without downloading code
 at first run:
 
 ```bash
-npm install --save-dev @linguini/cli@0.1.0-alpha.4
+npm install --save-dev @antepodeum/linguini@0.1.0-alpha.4
 npx linguini check
 ```
 

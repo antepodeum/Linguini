@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { documentedCodeblocks } from "./docs-codeblocks.mjs";
+import { readModuleConfigurationSync } from "../packages/project/src/modules.js";
 
 const SCRIPT_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_ROOT, "..");
@@ -73,7 +74,7 @@ documentedGreeting(42);
 function writeDocumentedSvelteKitExample(blocks, root, projectRoot) {
   const sourcePath = "docs/examples/sveltekit-locale-provider.md";
   const fixtures = [
-    ["linguini.toml", "toml", ["[web.switch_route]", 'name = "app"']],
+    ["linguini.toml", "toml", ['name = "app"', "[targets.ts]"]],
     ["linguini/schema/account.lgs", "lgs", ["// linguini/schema/account.lgs", "greeting(name: String)"]],
     ["linguini/locale/account/en.lgl", "lgl", ["// linguini/locale/account/en.lgl", "title = Account"]],
     ["linguini/locale/account/ru.lgl", "lgl", ["// linguini/locale/account/ru.lgl", "title = Аккаунт"]],
@@ -88,6 +89,7 @@ function writeDocumentedSvelteKitExample(blocks, root, projectRoot) {
     mkdirSync(dirname(destination), { recursive: true });
     writeFileSync(destination, block.source);
   }
+  writeModuleConfig(blocks, projectRoot, sourcePath, ["switchRoute"]);
   writeFileSync(join(projectRoot, "package.json"), '{"private":true,"type":"module"}\n');
   writeFileSync(
     join(projectRoot, "svelte.config.js"),
@@ -121,14 +123,10 @@ function writeWebGuideExample(blocks, root, projectRoot) {
   const baseConfig = findUniqueBlock(blocks, {
     sourcePath,
     language: "toml",
-    includes: ['name = "app"', '[targets.ts]', 'framework = "sveltekit"'],
+    includes: ['name = "app"', '[targets.ts]'],
   });
-  const webConfig = findUniqueBlock(blocks, {
-    sourcePath,
-    language: "toml",
-    includes: ["[web.routing]", "[web.locale]", "[web.switch_route]"],
-  });
-  writeFileSync(join(projectRoot, "linguini.toml"), `${baseConfig.source}\n${webConfig.source}`);
+  writeFileSync(join(projectRoot, "linguini.toml"), baseConfig.source);
+  writeModuleConfig(blocks, projectRoot, sourcePath, ["switchRoute"]);
   const schemas = {
     home: "title\nsubtitle\ngreeting(name: String)\n",
     nav: "pricing\nsettings\n",
@@ -162,7 +160,7 @@ function writeWebGuideExample(blocks, root, projectRoot) {
 
   writeFileSync(
     join(projectRoot, "package.json"),
-    '{"private":true,"type":"module","dependencies":{"@antepod/linguini-vite":"file:placeholder"}}\n',
+    '{"private":true,"type":"module","dependencies":{"@antepodeum/linguini-vite":"file:placeholder"}}\n',
   );
   writeFileSync(
     join(projectRoot, "svelte.config.js"),
@@ -219,7 +217,17 @@ function writeWebGuideExample(blocks, root, projectRoot) {
   };
 }
 
+function writeModuleConfig(blocks, projectRoot, sourcePath, includes = []) {
+  const config = findUniqueBlock(blocks, { sourcePath, language: "js", includes: ["// linguini.config.mjs", "export default defineModules", ...includes] });
+  writeFileSync(join(projectRoot, "linguini.config.mjs"), config.source);
+}
+
 function run(command, args, options) {
+  if (command === "cargo" && args.includes("--") && args[args.indexOf("--") + 1] === "build") {
+    const { plan } = readModuleConfigurationSync(options.cwd);
+    args = [...args, "--module-plan-stdin"];
+    options = { ...options, input: JSON.stringify(plan) };
+  }
   const result = spawnSync(command, args, { encoding: "utf8", ...options });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -239,7 +247,7 @@ export async function main({
   const config = findUniqueBlock(blocks, {
     sourcePath,
     language: "toml",
-    includes: ['name           = "my-app"', '[targets.ts]', '[web.routing]'],
+    includes: ['name           = "my-app"', '[targets.ts]'],
   });
   const schema = findUniqueBlock(blocks, {
     sourcePath,
@@ -275,6 +283,9 @@ export async function main({
   let server;
   try {
     writeFileSync(join(projectRoot, "linguini.toml"), config.source);
+    symlinkSync(resolve(root, "site/node_modules"), join(projectRoot, "node_modules"), "dir");
+    writeModuleConfig(blocks, projectRoot, sourcePath);
+
     writeFileSync(join(schemaRoot, "main.lgs"), schema.source);
     writeFileSync(join(localeRoot, "en.lgl"), english.source);
     writeFileSync(join(localeRoot, "ru.lgl"), russian.source);

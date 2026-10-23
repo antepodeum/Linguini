@@ -92,6 +92,12 @@ pub(crate) struct BuildArgs {
     /// Update declarations in an additional build output directory (repeatable)
     #[arg(long = "emit-declaration-dir", value_name = "DIRECTORY")]
     emit_declaration_dirs: Vec<PathBuf>,
+    /// Read a versioned module plan prepared by a build frontend
+    #[arg(long, value_name = "FILE", conflicts_with = "module_plan_stdin")]
+    module_plan: Option<PathBuf>,
+    /// Read a versioned module plan from standard input
+    #[arg(long, conflicts_with = "module_plan")]
+    module_plan_stdin: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Args)]
@@ -152,13 +158,21 @@ pub fn run(
             project::check_project_with_options(&root, args.deny_warnings, args.format)
         }
         CliCommand::Fix(args) => project::fix_project(&root, &args),
-        CliCommand::Build(args) => project::build_project_with_emissions(
-            &root,
-            args.diagnostics.deny_warnings,
-            args.diagnostics.format,
-            &args.emit_dirs,
-            &args.emit_declaration_dirs,
-        ),
+        CliCommand::Build(args) => {
+            let modules = project::read_module_plan(
+                &root,
+                args.module_plan.as_deref(),
+                args.module_plan_stdin,
+            )?;
+            project::build_project_with_emissions(
+                &root,
+                args.diagnostics.deny_warnings,
+                args.diagnostics.format,
+                &args.emit_dirs,
+                &args.emit_declaration_dirs,
+                &modules,
+            )
+        }
         CliCommand::Generate => project::generate_project_data(&root),
         CliCommand::Format(args) => format_project(&root, &args),
         CliCommand::Highlight { path } => highlight::highlight_file(&root, &path),

@@ -1,5 +1,5 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import linguini from '@antepod/linguini-vite/svelte';
+import linguini from '@antepodeum/linguini-vite/svelte';
 import { defineConfig } from 'vite';
 
 export default defineConfig(({ command }) => ({

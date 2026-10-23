@@ -1,5 +1,5 @@
 {
-  "name": "@linguini/cli-win32-arm64",
+  "name": "@antepodeum/linguini-win32-arm64",
   "version": "0.1.0-alpha.4",
   "description": "Linguini native binary for Windows arm64",
   "license": "Apache-2.0",

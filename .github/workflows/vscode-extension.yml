@@ -79,6 +79,10 @@ jobs:
       - name: Pack native npm package
         working-directory: packages/cli-${{ matrix.platform }}
         run: npm pack --pack-destination ../../release
+      - name: Pack shared module configuration package
+        if: matrix.platform == 'linux-x64'
+        working-directory: packages/project
+        run: npm pack --pack-destination ../../release
       - name: Pack launcher npm package
         if: matrix.platform == 'linux-x64'
         working-directory: packages/cli
@@ -174,24 +178,30 @@ jobs:
           pattern: linguini-*
           path: release-assets
           merge-multiple: true
-      - name: Publish platform packages before launcher
+      - name: Publish shared and platform packages before launcher
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
           native=(
-            release-assets/linguini-cli-{darwin-arm64,darwin-x64,linux-arm64,linux-x64,win32-arm64,win32-x64}-*.tgz
+            release-assets/antepodeum-linguini-{darwin-arm64,darwin-x64,linux-arm64,linux-x64,win32-arm64,win32-x64}-*.tgz
           )
           if (( ${#native[@]} != 6 )); then
             printf 'Expected 6 native packages, found %s.\n' "${#native[@]}" >&2
             exit 1
           fi
-          for package in "${native[@]}"; do
-            npm publish "$package" --access public --provenance
-          done
-          launcher=(release-assets/linguini-cli-[0-9]*.tgz)
+          launcher=(release-assets/antepodeum-linguini-[0-9]*.tgz)
           if (( ${#launcher[@]} != 1 )); then
             printf 'Expected 1 launcher package, found %s.\n' "${#launcher[@]}" >&2
             exit 1
           fi
+          shared=(release-assets/antepodeum-linguini-project-*.tgz)
+          if (( ${#shared[@]} != 1 )); then
+            printf 'Expected 1 shared configuration package, found %s.\n' "${#shared[@]}" >&2
+            exit 1
+          fi
+          npm publish "${shared[0]}" --access public --provenance
+          for package in "${native[@]}"; do
+            npm publish "$package" --access public --provenance
+          done
           npm publish "${launcher[0]}" --access public --provenance

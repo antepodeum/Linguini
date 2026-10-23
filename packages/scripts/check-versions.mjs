@@ -20,6 +20,17 @@ const manifests = [
   "site/package.json"
 ];
 
+const npmManifests = [launcherPath, ...manifests.filter(relative => relative !== "editors/vscode/package.json"), "package.json"];
+for (const relative of npmManifests) {
+  const manifest = JSON.parse(await readFile(path.join(root, relative), "utf8"));
+  if (manifest.name !== "@antepodeum/linguini" && !manifest.name.startsWith("@antepodeum/linguini-")) {
+    throw new Error(`${relative}: npm package must use @antepodeum/linguini or @antepodeum/linguini-*`);
+  }
+  if (!manifest.private) for (const [name, version] of Object.entries(manifest.dependencies ?? {})) {
+    if (name.startsWith("@antepodeum/linguini") && version !== expected) throw new Error(`${relative}: ${name} must be pinned to ${expected}`);
+  }
+}
+
 for (const relative of manifests) {
   const manifest = JSON.parse(await readFile(path.join(root, relative), "utf8"));
   if (manifest.version !== expected) {
@@ -44,14 +55,14 @@ if (nativeDependencies.length !== 6) {
   throw new Error(`${launcherPath}: expected exactly 6 native optional dependencies`);
 }
 for (const [name, version] of nativeDependencies) {
-  if (!name.startsWith("@linguini/cli-") || version !== expected) {
+  if (!name.startsWith("@antepodeum/linguini-") || version !== expected) {
     throw new Error(`${launcherPath}: ${name} must be pinned exactly to ${expected}`);
   }
 }
 
 const documentedInstallCommands = [
-  ["README.md", `@linguini/cli@${expected}`, `linguini-cli --version ${expected}`],
-  ["docs/getting-started.md", `@linguini/cli@${expected}`, `linguini-cli --version ${expected}`]
+  ["README.md", `@antepodeum/linguini@${expected}`, `linguini-cli --version ${expected}`],
+  ["docs/getting-started.md", `@antepodeum/linguini@${expected}`, `linguini-cli --version ${expected}`]
 ];
 for (const [relative, ...required] of documentedInstallCommands) {
   const source = await readFile(path.join(root, relative), "utf8");

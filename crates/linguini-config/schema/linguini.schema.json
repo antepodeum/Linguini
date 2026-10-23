@@ -38,7 +38,6 @@
             "gitignore": { "type": "boolean", "default": true },
             "tree_shaking": { "type": "boolean", "default": false },
             "messages": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
-            "framework": { "enum": ["svelte", "sveltekit"] },
             "bundler": { "$ref": "#/$defs/bundler" }
           }
         }
@@ -55,56 +54,6 @@
             "sources": { "$ref": "#/$defs/pathList" },
             "exclude": { "$ref": "#/$defs/pathList" },
             "ignore": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] }
-          }
-        }
-      }
-    },
-    "web": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "routing": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "locale_prefix": { "enum": ["always", "except-default", "never"], "default": "except-default" },
-            "canonical": { "enum": ["redirect", "preserve"], "default": "redirect" }
-          }
-        },
-        "locale": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "sources": {
-              "type": "array",
-              "uniqueItems": true,
-              "items": { "enum": ["path", "cookie", "local-storage", "accept-language"] }
-            }
-          }
-        },
-        "cookie": { "$ref": "#/$defs/cookie" },
-        "local_storage": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": { "key": { "type": "string", "minLength": 1 } }
-        },
-        "links": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": { "mode": { "enum": ["transform", "runtime", "manual"], "default": "transform" } }
-        },
-        "routes": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": { "exclude": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] } }
-        },
-        "switch_route": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "path": { "type": "string", "default": "/_linguini/locale/{locale}" },
-            "return_query": { "type": "string", "minLength": 1, "default": "return" },
-            "status": { "type": "integer", "minimum": 300, "maximum": 399, "default": 303 }
           }
         }
       }
@@ -129,19 +78,6 @@
             "allow": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 }, "default": [] }
           }
         }
-      }
-    },
-    "cookie": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "path": { "type": "string", "default": "auto" },
-        "domain": { "type": "string", "minLength": 1 },
-        "max_age": { "type": "string", "pattern": "^[0-9]+[smhdw]?$", "default": "365d" },
-        "same_site": { "enum": ["lax", "strict", "none"], "default": "lax" },
-        "secure": { "oneOf": [{ "type": "boolean" }, { "const": "auto" }], "default": "auto" },
-        "http_only": { "type": "boolean", "default": false }
       }
     }
   }

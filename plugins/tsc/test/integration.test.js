@@ -161,22 +161,28 @@ test("a packed installation provides its executable, public types, and runnable 
   const packed = pnpm(["pack", "--out", archive], fileURLToPath(new URL("../", import.meta.url)));
   assert.equal(packed.status, 0, packed.stderr);
   write(root, "package.json", JSON.stringify({ type: "module", private: true, dependencies: {
-    "@antepod/linguini-tsc": `file:${archive.replaceAll("\\", "/")}`,
+    "@antepodeum/linguini-tsc": `file:${archive.replaceAll("\\", "/")}`,
     typescript: "6.0.3",
   } }));
   const projectArchive = path.join(root, "linguini-project.tgz");
   const projectPackage = pnpm(["pack", "--out", projectArchive], fileURLToPath(new URL("../../../packages/project/", import.meta.url)));
   assert.equal(projectPackage.status, 0, projectPackage.stderr);
-  write(root, "pnpm-workspace.yaml", `overrides:\n  '@antepod/linguini-project': ${JSON.stringify(`file:${projectArchive.replaceAll("\\", "/")}`)}\n`);
+  write(root, "pnpm-workspace.yaml", `overrides:\n  '@antepodeum/linguini-project': ${JSON.stringify(`file:${projectArchive.replaceAll("\\", "/")}`)}\n`);
   const installed = pnpm(["install", "--offline", "--ignore-scripts"], root);
   assert.equal(installed.status, 0, installed.stderr + installed.stdout);
-  write(root, "src/api.ts", `import type { LinguiniTypeScriptOptions } from "@antepod/linguini-tsc";
+  write(root, "linguini.config.mjs", `import {defineModules, web} from '@antepodeum/linguini-tsc/modules';
+export default defineModules([web({locale:{sources:[]},links:{mode:'manual'}})]);`);
+  write(root, "src/api.ts", `import {defineModules, web} from "@antepodeum/linguini-tsc/modules";
+import type { LinguiniTypeScriptOptions } from "@antepodeum/linguini-tsc";
+const modules = defineModules([web({cookie:{secure:'auto'}})]);
+// @ts-expect-error static cookie policy is a closed union
+void (() => web({cookie:{secure:'always'}}));
 const options: LinguiniTypeScriptOptions = { cwd: ".", command: "linguini", reportError: (error) => error.message };
 // @ts-expect-error Diagnostic reporters receive typed TypeScript diagnostics.
 const wrong: LinguiniTypeScriptOptions = { reportDiagnostic: (error: string) => error };
 void [options, wrong];
 `);
-  const executable = path.join(root, "node_modules/@antepod/linguini-tsc/bin/linguini-tsc.js");
+  const executable = path.join(root, "node_modules/@antepodeum/linguini-tsc/bin/linguini-tsc.js");
   const built = spawnSync(process.execPath, [executable, "--project", "tsconfig.json"], { cwd: root, encoding: "utf8", env: { ...process.env, LINGUINI_COMMAND: command } });
   assert.equal(built.status, 0, built.stderr + built.stdout);
   assert.equal(execute(root), "Bonjour Ada");
@@ -221,9 +227,29 @@ test("watch and solution-watch deliver text-only edits, recover from native erro
   for (const solution of [false, true]) {
     const root = fixture(solution ? { composite: true, declaration: true } : {});
     const nativeErrors = [];
+    const modulesEntry = new URL("../src/modules.js", import.meta.url).href;
+    write(root, "policy.mjs", 'export const sources = ["cookie"];');
+    write(root, "linguini.config.mjs", `
+import {defineModules, web} from ${JSON.stringify(modulesEntry)};
+import {sources} from './policy.mjs';
+export default defineModules([web({locale:{sources}, links:{mode:'manual'}})]);
+`);
     const result = compile(root, solution ? ["--build", "--watch"] : ["--watch"], { reportError: (error) => nativeErrors.push(error) });
     try {
       assert.equal(execute(root), "Bonjour Ada");
+      assert.ok(readFileSync(path.join(root, "dist/generated/web.js"), "utf8").includes("resolveCookieLocale"));
+      write(root, "policy.mjs", 'export const sources = ["accept-language"];');
+      await eventually(() => readFileSync(path.join(root, "dist/generated/web.js"), "utf8").includes("resolveAcceptLanguageLocale"));
+      assert.equal(execute(root), "Bonjour Ada");
+      write(root, "linguini.config.mjs", `
+import {defineModules,web} from ${JSON.stringify(modulesEntry)};
+import {sources} from './introduced.mjs';
+export default defineModules([web({locale:{sources},links:{mode:'manual'}})]);`);
+      await eventually(() => nativeErrors.length > 0);
+      assert.ok(readFileSync(path.join(root, "dist/generated/web.js"), "utf8").includes("resolveAcceptLanguageLocale"));
+      write(root, "introduced.mjs", 'export const sources = ["path"];');
+      await eventually(() => readFileSync(path.join(root, "dist/generated/web.js"), "utf8").includes("resolvePathLocale"));
+      nativeErrors.length = 0;
       const application = statSync(path.join(root, "dist/app.js")).mtimeMs;
       write(root, "locale/main/fr.lgl", "greeting = Salut {name}\n");
       await eventually(() => readFileSync(path.join(root, "dist/generated/locales/fr/main.js"), "utf8").includes("Salut"));

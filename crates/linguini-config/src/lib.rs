@@ -9,13 +9,9 @@ pub use discovery::{
 };
 pub use error::{ConfigError, ConfigResult};
 pub use model::{
-    AnalysisConfig, CanonicalMode, CookiePath, LinguiniConfig, LinkMode, LocalePrefixMode,
-    LocaleSource, LocaleSwitchPlan, PathsConfig, ProjectConfig, SameSite, SecurePolicy,
-    TargetsConfig, TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig,
-    TypeScriptBundlerDynamicMode, TypeScriptBundlerLocaleLoading, TypeScriptTargetConfig,
-    UnusedMessagesConfig, WebConfig, WebCookieConfig, WebFeatures, WebLinksConfig,
-    WebLocalStorageConfig, WebLocaleConfig, WebRoutesConfig, WebRoutingConfig,
-    WebSwitchRouteConfig,
+    AnalysisConfig, LinguiniConfig, PathsConfig, ProjectConfig, TargetsConfig,
+    TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig, TypeScriptBundlerDynamicMode,
+    TypeScriptBundlerLocaleLoading, TypeScriptTargetConfig, UnusedMessagesConfig,
 };
 pub use parser::parse_config;
 

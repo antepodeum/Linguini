@@ -29,7 +29,8 @@ pub struct EcmaWebSwitchRoute {
 }
 
 /// Closed locale-prefix policy lowered into generated ECMAScript projects.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum EcmaLocalePrefixMode {
     Always,
     #[default]
@@ -47,7 +48,8 @@ impl EcmaLocalePrefixMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum EcmaLinkMode {
     Transform,
     #[default]
@@ -121,7 +123,8 @@ impl Default for EcmaLocaleSwitchPlan {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum EcmaLocaleSource {
     Path,
     Cookie,

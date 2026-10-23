@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { linguini } from "@antepod/linguini-vite";
-import { linguini as svelte, svelteAdapter } from "@antepod/linguini-vite/svelte";
+import { linguini } from "@antepodeum/linguini-vite";
+import { linguini as svelte, svelteAdapter } from "@antepodeum/linguini-vite/svelte";
 
 test("published framework boundary is explicit and validates complete adapter contracts", async () => {
   assert.equal(linguini().name, "vite-plugin-linguini");

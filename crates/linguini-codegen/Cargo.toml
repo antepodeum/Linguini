@@ -12,3 +12,5 @@ linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.4" }
 linguini-core = { path = "../linguini-core", version = "0.1.0-alpha.4" }
 linguini-ir = { path = "../linguini-ir", version = "0.1.0-alpha.4" }
 linguini-syntax = { path = "../linguini-syntax", version = "0.1.0-alpha.4" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"

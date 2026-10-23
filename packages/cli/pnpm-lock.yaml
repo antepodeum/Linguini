@@ -1,0 +1,107 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+overrides:
+  '@antepodeum/linguini-project': file:../project
+  '@antepodeum/linguini-darwin-arm64': file:../cli-darwin-arm64
+  '@antepodeum/linguini-darwin-x64': file:../cli-darwin-x64
+  '@antepodeum/linguini-linux-arm64': file:../cli-linux-arm64
+  '@antepodeum/linguini-linux-x64': file:../cli-linux-x64
+  '@antepodeum/linguini-win32-arm64': file:../cli-win32-arm64
+  '@antepodeum/linguini-win32-x64': file:../cli-win32-x64
+
+importers:
+
+  .:
+    dependencies:
+      '@antepodeum/linguini-project':
+        specifier: file:../project
+        version: file:../project
+    optionalDependencies:
+      '@antepodeum/linguini-darwin-arm64':
+        specifier: file:../cli-darwin-arm64
+        version: file:../cli-darwin-arm64
+      '@antepodeum/linguini-darwin-x64':
+        specifier: file:../cli-darwin-x64
+        version: file:../cli-darwin-x64
+      '@antepodeum/linguini-linux-arm64':
+        specifier: file:../cli-linux-arm64
+        version: file:../cli-linux-arm64
+      '@antepodeum/linguini-linux-x64':
+        specifier: file:../cli-linux-x64
+        version: file:../cli-linux-x64
+      '@antepodeum/linguini-win32-arm64':
+        specifier: file:../cli-win32-arm64
+        version: file:../cli-win32-arm64
+      '@antepodeum/linguini-win32-x64':
+        specifier: file:../cli-win32-x64
+        version: file:../cli-win32-x64
+
+packages:
+
+  '@antepodeum/linguini-project@file:../project':
+    resolution: {directory: ../project, type: directory}
+    engines: {node: '>=20.6'}
+
+  '@antepodeum/linguini-darwin-arm64@file:../cli-darwin-arm64':
+    resolution: {directory: ../cli-darwin-arm64, type: directory}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@antepodeum/linguini-darwin-x64@file:../cli-darwin-x64':
+    resolution: {directory: ../cli-darwin-x64, type: directory}
+    cpu: [x64]
+    os: [darwin]
+
+  '@antepodeum/linguini-linux-arm64@file:../cli-linux-arm64':
+    resolution: {directory: ../cli-linux-arm64, type: directory}
+    cpu: [arm64]
+    os: [linux]
+
+  '@antepodeum/linguini-linux-x64@file:../cli-linux-x64':
+    resolution: {directory: ../cli-linux-x64, type: directory}
+    cpu: [x64]
+    os: [linux]
+
+  '@antepodeum/linguini-win32-arm64@file:../cli-win32-arm64':
+    resolution: {directory: ../cli-win32-arm64, type: directory}
+    cpu: [arm64]
+    os: [win32]
+
+  '@antepodeum/linguini-win32-x64@file:../cli-win32-x64':
+    resolution: {directory: ../cli-win32-x64, type: directory}
+    cpu: [x64]
+    os: [win32]
+
+  smol-toml@1.7.1:
+    resolution: {integrity: sha512-PPlsspAZ4jbMBu5DMFhfUGDQLu/vrL4SyBROVS37x8ynnVmFIs1VPBz1Co8Xks3TvpIaZXmU85y4DrQ+UyVFoQ==}
+    engines: {node: '>= 18'}
+
+snapshots:
+
+  '@antepodeum/linguini-project@file:../project':
+    dependencies:
+      smol-toml: 1.7.1
+
+  '@antepodeum/linguini-darwin-arm64@file:../cli-darwin-arm64':
+    optional: true
+
+  '@antepodeum/linguini-darwin-x64@file:../cli-darwin-x64':
+    optional: true
+
+  '@antepodeum/linguini-linux-arm64@file:../cli-linux-arm64':
+    optional: true
+
+  '@antepodeum/linguini-linux-x64@file:../cli-linux-x64':
+    optional: true
+
+  '@antepodeum/linguini-win32-arm64@file:../cli-win32-arm64':
+    optional: true
+
+  '@antepodeum/linguini-win32-x64@file:../cli-win32-x64':
+    optional: true
+
+  smol-toml@1.7.1: {}

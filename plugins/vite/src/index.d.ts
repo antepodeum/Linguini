@@ -51,18 +51,7 @@ export declare function discoverLinguiniFiles(
   configFile?: string
 ): Promise<string[]>;
 
-export interface LinguiniProjectLayout {
-  readonly projectRoot: string;
-  readonly configPath: string;
-  readonly configExists: boolean;
-  readonly schemaRoot: string;
-  readonly localeRoot: string;
-  readonly generatedRoot: string;
-  readonly bundlerSourceRoots: readonly string[];
-  readonly bundlerExcludeRoots: readonly string[];
-  readonly localeLoading: "eager" | "dynamic";
-  readonly linkMode: "transform" | "runtime" | "manual";
-}
+export type LinguiniProjectLayout = import("@antepodeum/linguini-project/ecmascript").EcmascriptProjectLayout;
 
 export declare function readProjectLayout(
   root: string,

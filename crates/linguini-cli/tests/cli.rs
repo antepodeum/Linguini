@@ -1201,3 +1201,85 @@ fn assert_codegen_source_maps(directory: &Path) {
         }
     }
 }
+
+#[test]
+fn native_module_plan_transport_is_validated_before_output_mutation() {
+    let project = TempDir::new().unwrap();
+    fs::create_dir_all(project.path().join("schema")).unwrap();
+    fs::create_dir_all(project.path().join("locale/main")).unwrap();
+    fs::create_dir_all(project.path().join("src")).unwrap();
+    fs::write(
+        project.path().join("linguini.toml"),
+        concat!(
+            "[project]\nname = \"modules\"\ndefault_locale = \"en\"\nlocales = [\"en\"]\n",
+            "[paths]\nschema = \"schema\"\nlocale = \"locale\"\n",
+            "[targets.ts]\nout = \"generated\"\n[targets.ts.bundler]\nsources = [\"src\"]\n",
+        ),
+    )
+    .unwrap();
+    fs::write(project.path().join("schema/main.lgs"), "title\n").unwrap();
+    fs::write(project.path().join("locale/main/en.lgl"), "title = Hello\n").unwrap();
+    fs::write(
+        project.path().join("src/app.js"),
+        "export const app = true;\n",
+    )
+    .unwrap();
+    linguini()
+        .current_dir(project.path())
+        .arg("build")
+        .assert()
+        .success();
+    let manifest = project.path().join("generated/bundler/manifest.json");
+    let plain: Value = serde_json::from_str(&fs::read_to_string(&manifest).unwrap()).unwrap();
+    assert_eq!(plain["runtime_helpers"], serde_json::json!({}));
+    assert!(!project
+        .path()
+        .join("generated/svelte-locale.svelte.js")
+        .exists());
+    let valid = serde_json::json!({"version":1,"modules":[
+        {"id":"ecmascript.web","options":{"locale":{"sources":["cookie"]},"switchRoute":{"returnQuery":"next","status":307}}},
+        {"id":"sveltekit","options":{}}
+    ]});
+    linguini()
+        .current_dir(project.path())
+        .args(["build", "--module-plan-stdin", "--format", "json"])
+        .write_stdin(valid.to_string())
+        .assert()
+        .success()
+        .stdout(predicates::function::function(|source: &str| {
+            serde_json::from_str::<Value>(source).is_ok()
+        }));
+    assert!(project.path().join("generated/sveltekit.js").exists());
+    assert!(project
+        .path()
+        .join("generated/web/switch-route.js")
+        .exists());
+    let baseline = fs::read(&manifest).unwrap();
+    let index = fs::read(project.path().join("generated/index.js")).unwrap();
+    for invalid in [
+        serde_json::json!({"version":2,"modules":[]}),
+        serde_json::json!({"version":1,"modules":[{"id":"unknown","options":{}}]}),
+        serde_json::json!({"version":1,"modules":[{"id":"ecmascript.web","options":{"unknown":true}}]}),
+        serde_json::json!({"version":1,"modules":[{"id":"svelte","options":{}},{"id":"sveltekit","options":{}}]}),
+        serde_json::json!({"version":1,"modules":[{"id":"ecmascript.web","options":{"locale":{"sources":["local-storage"]}}},{"id":"sveltekit","options":{}}]}),
+    ] {
+        linguini()
+            .current_dir(project.path())
+            .args(["build", "--module-plan-stdin"])
+            .write_stdin(invalid.to_string())
+            .assert()
+            .failure();
+        assert_eq!(fs::read(&manifest).unwrap(), baseline);
+        assert_eq!(
+            fs::read(project.path().join("generated/index.js")).unwrap(),
+            index
+        );
+    }
+    fs::write(project.path().join("selected.json"), valid.to_string()).unwrap();
+    linguini()
+        .current_dir(project.path())
+        .args(["build", "--module-plan", "selected.json"])
+        .assert()
+        .success();
+    assert_eq!(fs::read(&manifest).unwrap(), baseline);
+}

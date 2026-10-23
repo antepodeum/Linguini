@@ -5,7 +5,7 @@ use std::path::{Component, Path};
 /// Validated project configuration returned by [`crate::parse_config`].
 ///
 /// Fields and nested collections are read-only outside this crate. This prevents callers from
-/// bypassing parsing, normalization, cross-field validation, or closed web-feature lowering.
+/// bypassing parsing, normalization, cross-field validation, or closed target validation.
 ///
 /// ```compile_fail
 /// use linguini_config::LinguiniConfig;
@@ -20,7 +20,6 @@ pub struct LinguiniConfig {
     pub(crate) paths: PathsConfig,
     pub(crate) targets: TargetsConfig,
     pub(crate) analysis: AnalysisConfig,
-    pub(crate) web: WebConfig,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -61,7 +60,6 @@ pub struct TypeScriptTargetConfig {
     pub(crate) gitignore: bool,
     pub(crate) tree_shaking: bool,
     pub(crate) messages: Vec<String>,
-    pub(crate) framework: Option<String>,
     pub(crate) bundler: Option<TypeScriptBundlerConfig>,
 }
 
@@ -127,197 +125,6 @@ pub struct TypeScriptBundlerDynamicConfig {
     pub(crate) allow: Vec<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct WebConfig {
-    pub(crate) configured: bool,
-    pub(crate) routing: WebRoutingConfig,
-    pub(crate) locale: WebLocaleConfig,
-    pub(crate) cookie: Option<WebCookieConfig>,
-    pub(crate) local_storage: Option<WebLocalStorageConfig>,
-    pub(crate) links: WebLinksConfig,
-    pub(crate) routes: WebRoutesConfig,
-    pub(crate) switch_route: Option<WebSwitchRouteConfig>,
-    pub(crate) locale_switch: LocaleSwitchPlan,
-}
-
-/// Closed, generated web policy lowered from a validated [`WebConfig`].
-///
-/// Code generators should consume this capability set instead of reaching into the
-/// individual configuration namespaces.  The source order is retained exactly as
-/// configured; capability fields are present only when their source was selected by
-/// validation.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct WebFeatures {
-    pub(crate) locale_prefix: LocalePrefixMode,
-    pub(crate) canonical: CanonicalMode,
-    pub(crate) source_order: Vec<LocaleSource>,
-    pub(crate) cookie: Option<WebCookieConfig>,
-    pub(crate) local_storage: Option<WebLocalStorageConfig>,
-    pub(crate) links: LinkMode,
-    pub(crate) route_exclusions: Vec<String>,
-    pub(crate) switch_route: Option<WebSwitchRouteConfig>,
-    pub(crate) locale_switch: LocaleSwitchPlan,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct WebRoutingConfig {
-    pub(crate) locale_prefix: LocalePrefixMode,
-    pub(crate) canonical: CanonicalMode,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum LocalePrefixMode {
-    Always,
-    ExceptDefault,
-    Never,
-}
-
-impl LocalePrefixMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Always => "always",
-            Self::ExceptDefault => "except-default",
-            Self::Never => "never",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum CanonicalMode {
-    Redirect,
-    Preserve,
-}
-
-impl CanonicalMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Redirect => "redirect",
-            Self::Preserve => "preserve",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct WebLocaleConfig {
-    pub(crate) sources: Vec<LocaleSource>,
-}
-
-#[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-pub enum LocaleSource {
-    Path,
-    Cookie,
-    LocalStorage,
-    AcceptLanguage,
-}
-
-impl LocaleSource {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Path => "path",
-            Self::Cookie => "cookie",
-            Self::LocalStorage => "local-storage",
-            Self::AcceptLanguage => "accept-language",
-        }
-    }
-
-    pub(crate) fn parse(value: &str) -> ConfigResult<Self> {
-        match value {
-            "path" => Ok(Self::Path),
-            "cookie" => Ok(Self::Cookie),
-            "local-storage" => Ok(Self::LocalStorage),
-            "accept-language" => Ok(Self::AcceptLanguage),
-            _ => Err(ConfigError::InvalidString(value.to_owned())),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct WebCookieConfig {
-    pub(crate) name: String,
-    pub(crate) path: CookiePath,
-    pub(crate) domain: Option<String>,
-    pub(crate) max_age_seconds: u64,
-    pub(crate) same_site: SameSite,
-    pub(crate) secure: SecurePolicy,
-    pub(crate) http_only: bool,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum CookiePath {
-    Auto,
-    Explicit(String),
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum SameSite {
-    Lax,
-    Strict,
-    None,
-}
-
-impl SameSite {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Lax => "lax",
-            Self::Strict => "strict",
-            Self::None => "none",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum SecurePolicy {
-    Auto,
-    Always,
-    Never,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct WebLocalStorageConfig {
-    pub(crate) key: String,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct WebLinksConfig {
-    pub(crate) mode: LinkMode,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum LinkMode {
-    Transform,
-    Runtime,
-    Manual,
-}
-
-impl LinkMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Transform => "transform",
-            Self::Runtime => "runtime",
-            Self::Manual => "manual",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Default)]
-pub struct WebRoutesConfig {
-    pub(crate) exclude: Vec<String>,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct WebSwitchRouteConfig {
-    pub(crate) path: String,
-    pub(crate) return_query: String,
-    pub(crate) status: u16,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct LocaleSwitchPlan {
-    pub(crate) writes_path: bool,
-    pub(crate) writes_cookie: bool,
-    pub(crate) writes_local_storage: bool,
-}
-
 impl LinguiniConfig {
     pub fn project(&self) -> &ProjectConfig {
         &self.project
@@ -333,10 +140,6 @@ impl LinguiniConfig {
 
     pub fn analysis(&self) -> &AnalysisConfig {
         &self.analysis
-    }
-
-    pub fn web(&self) -> &WebConfig {
-        &self.web
     }
 }
 
@@ -411,10 +214,6 @@ impl TypeScriptTargetConfig {
         &self.messages
     }
 
-    pub fn framework(&self) -> Option<&str> {
-        self.framework.as_deref()
-    }
-
     pub fn bundler(&self) -> Option<&TypeScriptBundlerConfig> {
         self.bundler.as_ref()
     }
@@ -454,243 +253,6 @@ impl TypeScriptBundlerDynamicConfig {
     }
 }
 
-impl WebConfig {
-    pub fn configured(&self) -> bool {
-        self.configured
-    }
-
-    pub fn routing(&self) -> WebRoutingConfig {
-        self.routing
-    }
-
-    pub fn locale(&self) -> &WebLocaleConfig {
-        &self.locale
-    }
-
-    pub fn cookie(&self) -> Option<&WebCookieConfig> {
-        self.cookie.as_ref()
-    }
-
-    pub fn local_storage(&self) -> Option<&WebLocalStorageConfig> {
-        self.local_storage.as_ref()
-    }
-
-    pub fn links(&self) -> WebLinksConfig {
-        self.links
-    }
-
-    pub fn routes(&self) -> &WebRoutesConfig {
-        &self.routes
-    }
-
-    pub fn switch_route(&self) -> Option<&WebSwitchRouteConfig> {
-        self.switch_route.as_ref()
-    }
-
-    pub fn locale_switch(&self) -> LocaleSwitchPlan {
-        self.locale_switch
-    }
-}
-
-impl WebFeatures {
-    pub fn locale_prefix(&self) -> LocalePrefixMode {
-        self.locale_prefix
-    }
-
-    pub fn canonical(&self) -> CanonicalMode {
-        self.canonical
-    }
-
-    pub fn source_order(&self) -> &[LocaleSource] {
-        &self.source_order
-    }
-
-    pub fn cookie(&self) -> Option<&WebCookieConfig> {
-        self.cookie.as_ref()
-    }
-
-    pub fn local_storage(&self) -> Option<&WebLocalStorageConfig> {
-        self.local_storage.as_ref()
-    }
-
-    pub fn links(&self) -> LinkMode {
-        self.links
-    }
-
-    pub fn route_exclusions(&self) -> &[String] {
-        &self.route_exclusions
-    }
-
-    pub fn switch_route(&self) -> Option<&WebSwitchRouteConfig> {
-        self.switch_route.as_ref()
-    }
-
-    pub fn locale_switch(&self) -> LocaleSwitchPlan {
-        self.locale_switch
-    }
-}
-
-impl WebRoutingConfig {
-    pub fn locale_prefix(self) -> LocalePrefixMode {
-        self.locale_prefix
-    }
-
-    pub fn canonical(self) -> CanonicalMode {
-        self.canonical
-    }
-}
-
-impl WebLocaleConfig {
-    pub fn sources(&self) -> &[LocaleSource] {
-        &self.sources
-    }
-}
-
-impl WebCookieConfig {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn path(&self) -> &CookiePath {
-        &self.path
-    }
-
-    pub fn domain(&self) -> Option<&str> {
-        self.domain.as_deref()
-    }
-
-    pub fn max_age_seconds(&self) -> u64 {
-        self.max_age_seconds
-    }
-
-    pub fn same_site(&self) -> SameSite {
-        self.same_site
-    }
-
-    pub fn secure(&self) -> SecurePolicy {
-        self.secure
-    }
-
-    pub fn http_only(&self) -> bool {
-        self.http_only
-    }
-}
-
-impl WebLocalStorageConfig {
-    pub fn key(&self) -> &str {
-        &self.key
-    }
-}
-
-impl WebLinksConfig {
-    pub fn mode(self) -> LinkMode {
-        self.mode
-    }
-}
-
-impl WebRoutesConfig {
-    pub fn exclude(&self) -> &[String] {
-        &self.exclude
-    }
-}
-
-impl WebSwitchRouteConfig {
-    pub fn path(&self) -> &str {
-        &self.path
-    }
-
-    pub fn return_query(&self) -> &str {
-        &self.return_query
-    }
-
-    pub fn status(&self) -> u16 {
-        self.status
-    }
-}
-
-impl LocaleSwitchPlan {
-    pub(crate) fn compile(sources: &[LocaleSource]) -> Self {
-        Self {
-            writes_path: sources.contains(&LocaleSource::Path),
-            writes_cookie: sources.contains(&LocaleSource::Cookie),
-            writes_local_storage: sources.contains(&LocaleSource::LocalStorage),
-        }
-    }
-
-    pub fn has_server_transport(self) -> bool {
-        self.writes_path || self.writes_cookie
-    }
-
-    pub fn writes_path(self) -> bool {
-        self.writes_path
-    }
-
-    pub fn writes_cookie(self) -> bool {
-        self.writes_cookie
-    }
-
-    pub fn writes_local_storage(self) -> bool {
-        self.writes_local_storage
-    }
-}
-
-impl WebConfig {
-    /// Lower the validated configuration into one closed capability set.
-    ///
-    /// Callers should perform [`LinguiniConfig::validate`] before consuming this
-    /// value.  The parser already does so, while this method remains deliberately
-    /// side-effect free for callers that construct configurations directly.
-    pub fn features(&self) -> WebFeatures {
-        WebFeatures {
-            locale_prefix: self.routing.locale_prefix,
-            canonical: self.routing.canonical,
-            source_order: self.locale.sources.clone(),
-            cookie: self.cookie.clone(),
-            local_storage: self.local_storage.clone(),
-            links: self.links.mode,
-            route_exclusions: self.routes.exclude.clone(),
-            switch_route: self.switch_route.clone(),
-            locale_switch: self.locale_switch,
-        }
-    }
-}
-
-impl Default for WebConfig {
-    fn default() -> Self {
-        let sources = vec![
-            LocaleSource::Path,
-            LocaleSource::Cookie,
-            LocaleSource::AcceptLanguage,
-        ];
-        Self {
-            configured: false,
-            routing: WebRoutingConfig {
-                locale_prefix: LocalePrefixMode::ExceptDefault,
-                canonical: CanonicalMode::Redirect,
-            },
-            locale: WebLocaleConfig {
-                sources: sources.clone(),
-            },
-            cookie: Some(WebCookieConfig {
-                name: "LINGUINI_LOCALE".to_owned(),
-                path: CookiePath::Auto,
-                domain: None,
-                max_age_seconds: 365 * 24 * 60 * 60,
-                same_site: SameSite::Lax,
-                secure: SecurePolicy::Auto,
-                http_only: false,
-            }),
-            local_storage: None,
-            links: WebLinksConfig {
-                mode: LinkMode::Transform,
-            },
-            routes: WebRoutesConfig::default(),
-            switch_route: None,
-            locale_switch: LocaleSwitchPlan::compile(&sources),
-        }
-    }
-}
-
 impl LinguiniConfig {
     pub fn validate(&self) -> ConfigResult<()> {
         validate_project(&self.project)?;
@@ -723,19 +285,7 @@ impl LinguiniConfig {
                     "targets.ts.messages requires tree_shaking = true".to_owned(),
                 ));
             }
-            if let Some(framework) = &ts.framework {
-                match framework.as_str() {
-                    "svelte" | "sveltekit" => {}
-                    value => return Err(ConfigError::InvalidString(value.to_owned())),
-                }
-            }
             if let Some(bundler) = &ts.bundler {
-                if !matches!(ts.framework.as_deref(), Some("svelte" | "sveltekit")) {
-                    return Err(ConfigError::InvalidString(
-                        "targets.ts.bundler requires targets.ts.framework = \"svelte\" or \"sveltekit\""
-                            .to_owned(),
-                    ));
-                }
                 validate_application_paths(
                     "targets.ts.bundler.sources",
                     &bundler.sources,
@@ -746,19 +296,6 @@ impl LinguiniConfig {
             }
         }
 
-        validate_web(&self.web)?;
-        if self
-            .targets
-            .ts
-            .as_ref()
-            .is_some_and(|target| target.framework.as_deref() == Some("sveltekit"))
-            && self.web.locale.sources == [LocaleSource::LocalStorage]
-        {
-            return Err(ConfigError::InvalidString(
-                "local-storage-only locale resolution cannot determine the locale during SvelteKit SSR; add `cookie` or `path`, or use the client-only `svelte` framework"
-                    .to_owned(),
-            ));
-        }
         Ok(())
     }
 }
@@ -932,158 +469,6 @@ fn validate_project(project: &ProjectConfig) -> ConfigResult<()> {
         .any(|locale| locale.eq_ignore_ascii_case(&project.default_locale))
     {
         return Err(ConfigError::MissingField("project.locales default_locale"));
-    }
-    Ok(())
-}
-
-fn validate_web(web: &WebConfig) -> ConfigResult<()> {
-    let mut sources = BTreeSet::new();
-    for source in &web.locale.sources {
-        if !sources.insert(*source) {
-            return Err(ConfigError::DuplicateKey(format!(
-                "web.locale.sources source `{}`",
-                source.as_str()
-            )));
-        }
-    }
-    if web.routing.locale_prefix == LocalePrefixMode::Never && sources.contains(&LocaleSource::Path)
-    {
-        return Err(ConfigError::InvalidString(
-            "`path` locale source requires a URL locale prefix".to_owned(),
-        ));
-    }
-
-    let wants_cookie = sources.contains(&LocaleSource::Cookie);
-    if wants_cookie != web.cookie.is_some() {
-        return Err(ConfigError::InvalidString(
-            "web.cookie capability must match `cookie` in web.locale.sources".to_owned(),
-        ));
-    }
-    let wants_local_storage = sources.contains(&LocaleSource::LocalStorage);
-    if wants_local_storage != web.local_storage.is_some() {
-        return Err(ConfigError::InvalidString(
-            "web.local_storage capability must match `local-storage` in web.locale.sources"
-                .to_owned(),
-        ));
-    }
-
-    if let Some(cookie) = &web.cookie {
-        validate_cookie(cookie)?;
-    }
-    if let Some(storage) = &web.local_storage {
-        if storage.key.is_empty() || storage.key.chars().any(|character| character.is_control()) {
-            return Err(ConfigError::InvalidString(storage.key.clone()));
-        }
-    }
-    for pattern in &web.routes.exclude {
-        if !pattern.starts_with('/') || pattern.starts_with("//") || pattern.contains(['?', '#']) {
-            return Err(ConfigError::InvalidString(pattern.clone()));
-        }
-    }
-
-    let compiled_plan = LocaleSwitchPlan::compile(&web.locale.sources);
-    if web.locale_switch != compiled_plan {
-        return Err(ConfigError::InvalidString(
-            "web.locale_switch does not match configured locale sources".to_owned(),
-        ));
-    }
-    if let Some(route) = &web.switch_route {
-        validate_switch_route(route)?;
-        if !compiled_plan.has_server_transport() {
-            return Err(ConfigError::InvalidString(
-                "web.switch_route requires `path` or `cookie` in web.locale.sources".to_owned(),
-            ));
-        }
-    }
-    Ok(())
-}
-
-fn validate_cookie(cookie: &WebCookieConfig) -> ConfigResult<()> {
-    if cookie.name.is_empty()
-        || cookie.name.bytes().any(|byte| {
-            byte <= 0x20
-                || byte >= 0x7f
-                || matches!(
-                    byte,
-                    b'(' | b')'
-                        | b'<'
-                        | b'>'
-                        | b'@'
-                        | b','
-                        | b';'
-                        | b':'
-                        | b'\\'
-                        | b'"'
-                        | b'/'
-                        | b'['
-                        | b']'
-                        | b'?'
-                        | b'='
-                        | b'{'
-                        | b'}'
-                )
-        })
-    {
-        return Err(ConfigError::InvalidString(cookie.name.clone()));
-    }
-    if let CookiePath::Explicit(path) = &cookie.path {
-        if !path.starts_with('/')
-            || path
-                .bytes()
-                .any(|byte| byte < 0x20 || byte == 0x7f || byte == b';')
-        {
-            return Err(ConfigError::InvalidString(path.clone()));
-        }
-    }
-    if let Some(domain) = &cookie.domain {
-        if domain.is_empty()
-            || domain.starts_with('.')
-            || domain.ends_with('.')
-            || domain
-                .bytes()
-                .any(|byte| !(byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-')))
-        {
-            return Err(ConfigError::InvalidString(domain.clone()));
-        }
-    }
-    if cookie.max_age_seconds == 0 {
-        return Err(ConfigError::InvalidString(
-            "web.cookie.max_age must be positive".to_owned(),
-        ));
-    }
-    if cookie.same_site == SameSite::None && cookie.secure != SecurePolicy::Always {
-        return Err(ConfigError::InvalidString(
-            "SameSite=None requires web.cookie.secure = true".to_owned(),
-        ));
-    }
-    if cookie.http_only {
-        return Err(ConfigError::InvalidString(
-            "web.cookie.http_only must be false while browser locale switching is enabled"
-                .to_owned(),
-        ));
-    }
-    Ok(())
-}
-
-fn validate_switch_route(route: &WebSwitchRouteConfig) -> ConfigResult<()> {
-    if !route.path.starts_with('/')
-        || route.path.starts_with("//")
-        || route.path.matches("{locale}").count() != 1
-        || route.path.contains(['?', '#'])
-        || route.path.split('/').any(|segment| segment == "..")
-    {
-        return Err(ConfigError::InvalidString(route.path.clone()));
-    }
-    if route.return_query.is_empty()
-        || !route
-            .return_query
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-    {
-        return Err(ConfigError::InvalidString(route.return_query.clone()));
-    }
-    if !matches!(route.status, 301 | 302 | 303 | 307 | 308) {
-        return Err(ConfigError::InvalidString(route.status.to_string()));
     }
     Ok(())
 }
@@ -1364,7 +749,6 @@ mod tests {
         canonicalize_locale_tag, validate_locale_tag, AnalysisConfig, LinguiniConfig, PathsConfig,
         ProjectConfig, TargetsConfig, TypeScriptBundlerConfig, TypeScriptBundlerDynamicConfig,
         TypeScriptBundlerDynamicMode, TypeScriptBundlerLocaleLoading, TypeScriptTargetConfig,
-        WebConfig,
     };
     use crate::ConfigError;
 
@@ -1429,12 +813,11 @@ mod tests {
                         gitignore: true,
                         tree_shaking: false,
                         messages: Vec::new(),
-                        framework: None,
+
                         bundler: None,
                     }),
                 },
                 analysis: super::AnalysisConfig::default(),
-                web: super::WebConfig::default(),
             };
 
             assert!(config.validate().is_err(), "{out}");
@@ -1460,7 +843,7 @@ mod tests {
                     gitignore: true,
                     tree_shaking: false,
                     messages: Vec::new(),
-                    framework: Some("svelte".to_owned()),
+
                     bundler: Some(TypeScriptBundlerConfig {
                         sources: vec!["src".to_owned()],
                         exclude: Vec::new(),
@@ -1473,7 +856,6 @@ mod tests {
                 }),
             },
             analysis: AnalysisConfig::default(),
-            web: WebConfig::default(),
         };
 
         assert!(base().validate().is_ok());

@@ -1,2 +1,2 @@
 overrides:
-  '@antepod/linguini-project': file:../../packages/project
+  '@antepodeum/linguini-project': file:../../packages/project

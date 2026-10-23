@@ -1,5 +1,5 @@
 {
-  "name": "@antepod/linguini-vite",
+  "name": "@antepodeum/linguini-vite",
   "version": "0.1.0-alpha.4",
   "description": "Vite plugin for Linguini source watching and JavaScript codegen",
   "type": "module",
@@ -13,6 +13,10 @@
     "./svelte": {
       "types": "./src/svelte.d.ts",
       "default": "./src/svelte.js"
+    },
+    "./modules": {
+      "types": "./src/modules.d.ts",
+      "default": "./src/modules.js"
     }
   },
   "files": [
@@ -26,6 +30,9 @@
   },
   "dependencies": {
     "magic-string": "0.30.21",
-    "@antepod/linguini-project": "0.1.0-alpha.4"
+    "@antepodeum/linguini-project": "0.1.0-alpha.4"
+  },
+  "engines": {
+    "node": ">=20.6"
   }
 }

@@ -39,12 +39,12 @@ locale state, controls, effects, and provider facades. `linguini-codegen-sveltek
 Svelte generation with its server adapters and ambient types. Neither is a dependency of
 `linguini-codegen-ecmascript`.
 
-`@antepod/linguini-project` owns frontend configuration reading and project-relative path resolution.
+`@antepodeum/linguini-project` owns frontend configuration reading and project-relative path resolution.
 Its `./ecmascript` entry derives the same layout for asynchronous Vite and synchronous `tsc` hosts,
 including generated/source roots, locale loading, finite dynamic uses, and link mode. Frameworks
 and compiler APIs remain in their adapters. The language-neutral entry has no framework imports.
-This shared reader still accepts the existing TOML layout; typed module configuration and native
-plan transport are the next migration steps.
+Its generic module loader evaluates code configuration in Node for synchronous and asynchronous
+hosts, tracks imported files for watch mode, and passes only validated JSON data to native codegen.
 
 `linguini-codegen-vite::VitePlan` owns physical message/semantic leaves and manifest generation.
 The host compiler supplies validated application usage and explicit runtime-helper descriptors;
@@ -76,7 +76,7 @@ JavaScript output with declaration companions can be consumed by strict TypeScri
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and
 Bundler resolution. A build that emits application code with `tsc` must also deliver the
 generated JavaScript files to its runtime output directory.
-The [TypeScript build adapter](./typescript.md), `@antepod/linguini-tsc`, integrates native
+The [TypeScript build adapter](./typescript.md), `@antepodeum/linguini-tsc`, integrates native
 generation with regular, incremental, solution, and watch compilation. It prepares generated
 declarations before checking dependent projects and delivers runtime code after successful
 compilation, including message-only updates that TypeScript considers up to date.
@@ -935,11 +935,22 @@ locale = "linguini/locale"
 out         = "src/generated/linguini"
 declaration = true
 gitignore   = true                      # emit generated .gitignore
-framework   = "sveltekit"              # enables the bundler integration
 
 [targets.ts.bundler]
 sources = ["src"]
 # locale_loading = "dynamic"           # eager is the default
+```
+
+Configure the selected modules in `linguini.config.mjs`:
+
+```js
+// linguini.config.mjs
+// @ts-check
+import { defineModules, svelteKit } from "@antepodeum/linguini/modules";
+
+export default defineModules([
+  svelteKit()
+]);
 ```
 
 Generated message access is nested by canonical path. Parameterless leaves are
@@ -983,13 +994,16 @@ Svelte and SvelteKit integrations perform this preparation for their normal
 switch and request flows. Pending loads are deduplicated, and non-base locale
 loaders use bundler-visible dynamic `import()` edges.
 
-Web options use nested tables such as `[web.routing]`, `[web.locale]`,
-`[web.cookie]`, `[web.local_storage]`, `[web.links]`, `[web.routes]`, and the
-optional `[web.switch_route]`; the legacy flat web fields are not part of the
-current config format. Generated projects emit only the selected source, link,
-route-matcher, server-cookie, and switch-route capability modules. See
-[`web-sveltekit.md`](web-sveltekit.md) for defaults, validation, transport, and
-no-JavaScript behavior.
+Web and framework policy belongs in `linguini.config.mjs`, using `defineModules`, `web`,
+`svelte`, and `svelteKit` from `@antepodeum/linguini/modules`. The Vite and TypeScript integrations
+also re-export these helpers from their `/modules` entry. TOML retains project/source/target
+settings; `[web]` and `targets.ts.framework` are rejected with migration diagnostics.
+Node evaluates the authored configuration and passes a version 1 data-only module plan through
+`build --module-plan-stdin`; native integrations can instead use `--module-plan <file>` or
+`linguini.modules.json`. One configuration source is allowed per project. The native compiler
+validates module ids, dependencies, and owner-specific options before changing output trees.
+Typed module configuration and its complete import dependency graph require Node 20.6 or later.
+See [`web-sveltekit.md`](web-sveltekit.md) for defaults, validation, transport, and no-JavaScript behavior.
 
 The public web runtime mirrors this structure through `routing`, `locale`,
 `cookie`, `localStorage`, `links`, and `routes` objects. Removed flat runtime

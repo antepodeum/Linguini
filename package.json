@@ -1,5 +1,5 @@
 {
-  "name": "@linguini/repository",
+  "name": "@antepodeum/linguini-repository",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.1.0",

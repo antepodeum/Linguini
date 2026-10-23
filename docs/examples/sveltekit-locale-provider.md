@@ -16,27 +16,43 @@ locale = "linguini/locale"
 [targets.ts]
 out = "src/lib/generated/linguini"
 declaration = true
-framework = "sveltekit"
 
 [targets.ts.bundler]
 sources = ["src"]
+```
 
-[web.routing]
-locale_prefix = "never"
+Configure the selected modules in `linguini.config.mjs`:
 
-[web.locale]
-sources = ["cookie", "accept-language"]
+```js
+// linguini.config.mjs
+// @ts-check
+import { defineModules, web, svelteKit } from "@antepodeum/linguini/modules";
 
-[web.cookie]
-path = "auto"
-
-[web.links]
-mode = "transform"
-
-[web.switch_route]
-path = "/_linguini/locale/{locale}"
-return_query = "return"
-status = 303
+export default defineModules([
+  web({
+    routing: {
+      localePrefix: "never"
+    },
+    locale: {
+      sources: [
+        "cookie",
+        "accept-language"
+      ]
+    },
+    cookie: {
+      path: "auto"
+    },
+    links: {
+      mode: "transform"
+    },
+    switchRoute: {
+      path: "/_linguini/locale/{locale}",
+      returnQuery: "return",
+      status: 303
+    }
+  }),
+  svelteKit()
+]);
 ```
 
 The component below uses this schema and its two locale implementations:

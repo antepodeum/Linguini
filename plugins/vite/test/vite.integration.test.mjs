@@ -70,7 +70,7 @@ for (const kind of ["svelte", "ecmascript", "custom"]) {
         'locales = ["en"]',
         "[targets.ts]",
         'out = "generated/linguini"',
-        ...(kind === "svelte" ? ['framework = "svelte"'] : []),
+
         "[targets.ts.bundler]",
         'sources = ["entry-one.js", "entry-two.js"]',
         ""
@@ -268,7 +268,7 @@ test("real Vite build bundles finite dynamic refs without eager barrel", async (
     [
       "[targets.ts]",
       'out = "generated/linguini"',
-      'framework = "svelte"',
+
       "[targets.ts.bundler]",
       'sources = ["entry.js"]',
       "[targets.ts.bundler.dynamic]",
@@ -458,7 +458,7 @@ test("real dynamic client boundaries keep inactive locales out of entry and SSR 
     [
       "[targets.ts]",
       'out = "generated/linguini"',
-      'framework = "svelte"',
+
       "[targets.ts.bundler]",
       'sources = ["entry.js"]',
       'locale_loading = "dynamic"',
@@ -578,7 +578,7 @@ test("real dynamic client graph shares one locale registry across message facade
     [
       "[targets.ts]",
       'out = "generated/linguini"',
-      'framework = "svelte"',
+
       "[targets.ts.bundler]",
       'sources = ["entry.js"]',
       'locale_loading = "dynamic"',
@@ -696,7 +696,7 @@ test("real two-app build emits self-contained application-scoped locale chunks",
     [
       "[targets.ts]",
       'out = "generated/linguini"',
-      'framework = "svelte"',
+
       "[targets.ts.bundler]",
       'sources = ["tiny.js", "large.js"]',
       'locale_loading = "dynamic"',

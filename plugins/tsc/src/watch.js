@@ -34,7 +34,7 @@ export function watchSystem(cwd) {
 
 export function watchNative(graph, builds, changed, system) {
   const watchers = [];
-  const files = new Set([...graph.configFiles, ...builds.map((build) => build.configFile)]);
+  const files = new Set([...graph.configFiles, ...builds.flatMap((build) => [build.configFile, ...build.moduleFiles])]);
   for (const file of files) watchers.push(system.watchFile(file, changed, 250));
   const directories = new Set(builds.flatMap((build) => build.sources));
   let count = 0;
@@ -75,7 +75,18 @@ export function watchTypeScript(context, graph, builds) {
   let closed = false;
   let successful = false;
   let nativeValid = true;
-  const failure = (error) => { nativeValid = false; (options.reportError ?? ((error) => console.error(`[linguini-tsc] ${error.message}`)))(error); };
+  const failedModuleWatches = new Map();
+  const clearFailedModuleWatches = () => {
+    for (const watcher of failedModuleWatches.values()) watcher.close();
+    failedModuleWatches.clear();
+  };
+  const failure = (error) => {
+    for (const file of error.moduleDependencies ?? []) {
+      if (!failedModuleWatches.has(file)) failedModuleWatches.set(file, resources.system.watchFile(file, schedule, 250));
+    }
+    nativeValid = false;
+    (options.reportError ?? ((error) => console.error(`[linguini-tsc] ${error.message}`)))(error);
+  };
   function emitRuntime() {
     if (nativeValid) deliver(graph);
   }
@@ -86,6 +97,7 @@ export function watchTypeScript(context, graph, builds) {
     prepareTypes(graph);
     nativeValid = graph.errors.length === 0;
     graph.errors.forEach(report);
+    clearFailedModuleWatches();
     closeNative();
     closeNative = watchNative(graph, builds, schedule, resources.system);
   }
@@ -154,6 +166,7 @@ export function watchTypeScript(context, graph, builds) {
       clearTimeout(timer);
       closeNative();
       if (!buildMode) compiler.close();
+      clearFailedModuleWatches();
       resources.close();
     },
   };

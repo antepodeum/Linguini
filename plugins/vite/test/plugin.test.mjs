@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { appendFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -1228,10 +1228,7 @@ test("transform link mode rewrites safe static Svelte anchors only", async (cont
   ].join("\n");
   const fixtureData = await bundlerFixture({ source });
   context.after(() => rm(fixtureData.root, { recursive: true, force: true }));
-  await appendFile(
-    path.join(fixtureData.root, "linguini.toml"),
-    '\n[web.links]\nmode = "transform"\n'
-  );
+  await writeFile(path.join(fixtureData.root, "linguini.modules.json"), JSON.stringify({version:1, modules:[{id:"ecmascript.web", options:{links:{mode:"transform"}}}]}));
   const plugin = linguini({ root: fixtureData.root, buildOnStart: false });
   await plugin.configResolved({ root: fixtureData.root });
   await plugin.buildStart.call({ addWatchFile() {} });
@@ -2145,7 +2142,7 @@ test("watches configured application roots so newly added modules rebuild manife
       'locale = "src/locale"',
       "[targets.ts]",
       'out = "build/custom-linguini"',
-      'framework = "svelte"',
+
       "[targets.ts.bundler]",
       'sources = ["src/app"]',
       ""
@@ -2549,4 +2546,47 @@ test("runtime deltas invalidate source-specific and old/new runtime modules", as
     timestamp: 91
   });
   assert.deepEqual([...harness.invalidated].sort(), [data.runtimeModule, movedRuntime].sort());
+});
+
+
+test("module configuration crosses the native data boundary and imported policy changes rebuild", async context => {
+  const root = await fixture();
+  context.after(() => rm(root, {recursive:true, force:true}));
+  const modulesEntry = new URL("../src/modules.js", import.meta.url).href;
+  const policy = path.join(root, "policy.mjs");
+  await writeFile(policy, 'export const mode = "manual";');
+  await writeFile(path.join(root, "linguini.config.mjs"), `
+import {defineModules,web,svelteKit} from ${JSON.stringify(modulesEntry)};
+import {mode} from './policy.mjs';
+export default defineModules([web({links:{mode}}),svelteKit()]);`);
+  const compiler = path.join(root, "compiler.mjs");
+  await writeFile(compiler, `import {readFileSync,writeFileSync} from 'node:fs';
+if (!process.argv.includes('--module-plan-stdin')) throw new Error('missing module transport');
+writeFileSync('last-plan.json', readFileSync(0, 'utf8'));`);
+  const plugin = linguini({root, command:process.execPath, args:[compiler, "build"]});
+  const watches = [];
+  await plugin.buildStart.call({addWatchFile:file => watches.push(file)});
+  let sent = JSON.parse(await readFile(path.join(root, "last-plan.json"), "utf8"));
+  assert.deepEqual(sent.modules.map(module => module.id), ["ecmascript.web", "sveltekit"]);
+  assert.equal(sent.modules[0].options.links.mode, "manual");
+  assert.ok(watches.includes(policy));
+  assert.equal((await readProjectLayout(root)).linkMode, "manual");
+  await writeFile(policy, 'export const mode = "runtime";');
+  const mock = mockServer();
+  await plugin.handleHotUpdate({file:policy, server:mock.server, modules:[]});
+  sent = JSON.parse(await readFile(path.join(root, "last-plan.json"), "utf8"));
+  assert.equal(sent.modules[0].options.links.mode, "runtime");
+  assert.equal((await readProjectLayout(root)).linkMode, "runtime");
+  await writeFile(path.join(root, "linguini.config.mjs"), `
+import {defineModules,web} from ${JSON.stringify(modulesEntry)};
+import {mode} from './introduced.mjs';
+export default defineModules([web({links:{mode}})]);`);
+  await plugin.handleHotUpdate({file:path.join(root, "linguini.config.mjs"), server:mock.server, modules:[]});
+  assert.ok(mock.events.some(event => event.type === "error" && event.err.message.includes("introduced.mjs")));
+  const introduced = path.join(root, "introduced.mjs");
+  assert.ok(mock.added.includes(introduced));
+  await writeFile(introduced, 'export const mode = "manual";');
+  await plugin.handleHotUpdate({file:introduced,server:mock.server,modules:[]});
+  sent = JSON.parse(await readFile(path.join(root, "last-plan.json"), "utf8"));
+  assert.equal(sent.modules[0].options.links.mode, "manual");
 });

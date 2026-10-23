@@ -10,13 +10,9 @@ use linguini_codegen_ecmascript::{
     compile_ecmascript_project_files, rebase_map_sources, EcmaGeneratedFile, EcmaLocaleModule,
     EcmaProjectOptions, EcmaSource, ValidatedEcmaProject,
 };
-use linguini_codegen_ecmascript_web::{
-    EcmaLinkMode, EcmaLocalePrefixMode, EcmaLocaleSource, EcmaLocaleSwitchPlan, EcmaWebOptions,
-    EcmaWebSwitchRoute,
-};
 use linguini_config::{
-    discover_application_source_files_with_fields, CanonicalMode, CookiePath, LinguiniConfig,
-    LinkMode, LocalePrefixMode, SecurePolicy, TypeScriptBundlerConfig, TypeScriptTargetConfig,
+    discover_application_source_files_with_fields, LinguiniConfig, TypeScriptBundlerConfig,
+    TypeScriptTargetConfig,
 };
 use linguini_ir::{
     ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, IrModule,
@@ -25,6 +21,7 @@ use linguini_ir::{
 use linguini_syntax::SourceId;
 use sha2::{Digest, Sha256};
 
+use super::modules::{Framework, ModuleCapabilities};
 use crate::{CliError, CliResult, DiagnosticFormat};
 
 use super::check::{check_project_with_options, reject_locale_files_without_schema_namespace};
@@ -42,7 +39,8 @@ use super::sources::{
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
 pub fn build_project(root: &Path) -> CliResult<String> {
-    build_project_with_emissions(root, false, DiagnosticFormat::Human, &[], &[])
+    let modules = super::modules::read_module_plan(root, None, false)?;
+    build_project_with_emissions(root, false, DiagnosticFormat::Human, &[], &[], &modules)
 }
 
 pub(crate) fn build_project_with_emissions(
@@ -51,12 +49,14 @@ pub(crate) fn build_project_with_emissions(
     format: DiagnosticFormat,
     emit_dirs: &[PathBuf],
     emit_declaration_dirs: &[PathBuf],
+    modules: &linguini_codegen::ModulePlan,
 ) -> CliResult<String> {
     let canonical_root = canonical_project_root(root)?;
     let root = canonical_root.as_path();
     let check_output = check_project_with_options(root, deny_warnings, format)?;
     let config = read_project_config(root)?;
-    let codegen_output = generate_project(root, &config, emit_dirs, emit_declaration_dirs)?;
+    let codegen_output =
+        generate_project(root, &config, emit_dirs, emit_declaration_dirs, modules)?;
 
     if format == DiagnosticFormat::Human {
         Ok(format!("{check_output}{codegen_output}build: ok\n"))
@@ -70,7 +70,13 @@ fn generate_project(
     config: &LinguiniConfig,
     emit_dirs: &[PathBuf],
     emit_declaration_dirs: &[PathBuf],
+    modules: &linguini_codegen::ModulePlan,
 ) -> CliResult<String> {
+    if config.targets().typescript().is_none() && !modules.modules().is_empty() {
+        return Err(CliError::Diagnostics(
+            "module plan requires an ECMAScript codegen target\n".to_owned(),
+        ));
+    }
     let Some(target) = config.targets().typescript() else {
         if !emit_dirs.is_empty() || !emit_declaration_dirs.is_empty() {
             return Err(CliError::Diagnostics(
@@ -80,7 +86,14 @@ fn generate_project(
         return Ok("codegen targets: none\n".to_owned());
     };
 
-    generate_target(root, config, target, emit_dirs, emit_declaration_dirs)
+    generate_target(
+        root,
+        config,
+        target,
+        emit_dirs,
+        emit_declaration_dirs,
+        modules,
+    )
 }
 
 fn generate_target(
@@ -89,6 +102,7 @@ fn generate_target(
     target: &TypeScriptTargetConfig,
     emit_dirs: &[PathBuf],
     emit_declaration_dirs: &[PathBuf],
+    modules: &linguini_codegen::ModulePlan,
 ) -> CliResult<String> {
     if !emit_declaration_dirs.is_empty() && !target.declaration() {
         return Err(CliError::Diagnostics(
@@ -129,10 +143,8 @@ fn generate_target(
         included_messages: target.messages().to_vec(),
         base_locale: Some(config.project().default_locale().to_owned()),
     };
-    let web_options = config
-        .web()
-        .configured()
-        .then(|| legacy_web_codegen_options(config));
+    let capabilities = ModuleCapabilities::compile(modules, config.project().name())?;
+    let web_options = &capabilities.web;
     let project = ValidatedEcmaProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let sources = ecma_sources(root, &schema_files, &locale_files)?;
@@ -151,7 +163,7 @@ fn generate_target(
             })?;
         let mut files = compile_ecmascript_project_files(&project, &project_sources)
             .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-        if let Some(web) = &web_options {
+        if let Some(web) = web_options {
             files.extend(
                 linguini_codegen_ecmascript_web::generate_project_files(
                     &linguini_codegen_ecmascript_web::WebProjectOptions {
@@ -163,22 +175,26 @@ fn generate_target(
                 .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?,
             );
         }
-        match target.framework() {
-            Some("svelte") => files.extend(linguini_codegen_svelte::generate_project_files(
-                &linguini_codegen_svelte::SvelteProjectOptions {
-                    web: web_options.clone(),
-                    declaration: options.declaration,
-                    host: Default::default(),
-                },
-                true,
-            )),
-            Some("sveltekit") => files.extend(linguini_codegen_sveltekit::generate_project_files(
-                &linguini_codegen_sveltekit::SvelteKitProjectOptions {
-                    web: web_options.clone(),
-                    declaration: options.declaration,
-                },
-                true,
-            )),
+        match capabilities.framework {
+            Some(Framework::Svelte) => {
+                files.extend(linguini_codegen_svelte::generate_project_files(
+                    &linguini_codegen_svelte::SvelteProjectOptions {
+                        web: web_options.clone(),
+                        declaration: options.declaration,
+                        host: Default::default(),
+                    },
+                    true,
+                ))
+            }
+            Some(Framework::SvelteKit) => {
+                files.extend(linguini_codegen_sveltekit::generate_project_files(
+                    &linguini_codegen_sveltekit::SvelteKitProjectOptions {
+                        web: web_options.clone(),
+                        declaration: options.declaration,
+                    },
+                    true,
+                ))
+            }
             _ => {}
         }
         if declarations_only {
@@ -195,7 +211,7 @@ fn generate_target(
                 },
                 config.project().locales(),
                 config.project().default_locale(),
-                config.web().configured(),
+                &capabilities,
             )?);
         }
         plans.push((output, files, declarations_only));
@@ -363,7 +379,7 @@ fn generate_bundler_files(
     destination: CodegenDestination<'_>,
     configured_locales: &[String],
     base_locale: &str,
-    web_enabled: bool,
+    capabilities: &ModuleCapabilities,
 ) -> CliResult<Vec<EcmaGeneratedFile>> {
     use linguini_codegen_vite::{
         LocaleLoading, ViteApplicationPlan, ViteEmissionOptions, VitePlan,
@@ -378,9 +394,9 @@ fn generate_bundler_files(
             &plan.message_arities(),
         )?;
         let mut runtime_helpers = BTreeMap::new();
-        runtime_helpers.insert("svelte_locale".to_owned(), serde_json::json!({"import": "./svelte-locale.svelte.js", "file": "svelte-locale.svelte.js"}));
-        if web_enabled {
-            runtime_helpers.insert("svelte_effects".to_owned(), serde_json::json!({"import": "./svelte-effects.svelte.js", "file": "svelte-effects.svelte.js"}));
+        if capabilities.framework.is_some() {
+            runtime_helpers =
+                linguini_codegen_svelte::runtime_helper_descriptors(capabilities.web.as_ref());
         }
         Some(ViteApplicationPlan {
             locale_loading: match bundler.locale_loading().as_str() {
@@ -1035,71 +1051,6 @@ fn strip_js_trivia(mut source: &str) -> &str {
     }
 }
 
-fn legacy_web_codegen_options(config: &LinguiniConfig) -> EcmaWebOptions {
-    let features = config.web().features();
-    let cookie = features.cookie();
-    let local_storage = features.local_storage();
-    let sources = features
-        .source_order()
-        .iter()
-        .map(|source| match source {
-            linguini_config::LocaleSource::Path => EcmaLocaleSource::Path,
-            linguini_config::LocaleSource::Cookie => EcmaLocaleSource::Cookie,
-            linguini_config::LocaleSource::LocalStorage => EcmaLocaleSource::LocalStorage,
-            linguini_config::LocaleSource::AcceptLanguage => EcmaLocaleSource::AcceptLanguage,
-        })
-        .collect::<Vec<_>>();
-
-    EcmaWebOptions {
-        sources,
-        locale_switch: EcmaLocaleSwitchPlan {
-            writes_path: features.locale_switch().writes_path(),
-            writes_cookie: features.locale_switch().writes_cookie(),
-            writes_local_storage: features.locale_switch().writes_local_storage(),
-        },
-        cookie_name: cookie
-            .map(|cookie| cookie.name().to_owned())
-            .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
-        cookie_path: cookie.and_then(|cookie| match cookie.path() {
-            CookiePath::Auto => None,
-            CookiePath::Explicit(path) => Some(path.clone()),
-        }),
-        cookie_domain: cookie.and_then(|cookie| cookie.domain().map(str::to_owned)),
-        cookie_max_age: cookie
-            .map(|cookie| cookie.max_age_seconds())
-            .unwrap_or(365 * 24 * 60 * 60),
-        cookie_same_site: cookie
-            .map(|cookie| cookie.same_site().as_str().to_owned())
-            .unwrap_or_else(|| "lax".to_owned()),
-        cookie_secure: cookie.and_then(|cookie| match cookie.secure() {
-            SecurePolicy::Auto => None,
-            SecurePolicy::Always => Some(true),
-            SecurePolicy::Never => Some(false),
-        }),
-        cookie_http_only: cookie.map(|cookie| cookie.http_only()).unwrap_or(false),
-        local_storage_key: local_storage
-            .map(|storage| storage.key().to_owned())
-            .unwrap_or_else(|| "LINGUINI_LOCALE".to_owned()),
-        locale_prefix: match features.locale_prefix() {
-            LocalePrefixMode::Always => EcmaLocalePrefixMode::Always,
-            LocalePrefixMode::ExceptDefault => EcmaLocalePrefixMode::ExceptDefault,
-            LocalePrefixMode::Never => EcmaLocalePrefixMode::Never,
-        },
-        canonical_redirect: features.canonical() == CanonicalMode::Redirect,
-        exclude: features.route_exclusions().to_vec(),
-        link_mode: match features.links() {
-            LinkMode::Transform => EcmaLinkMode::Transform,
-            LinkMode::Runtime => EcmaLinkMode::Runtime,
-            LinkMode::Manual => EcmaLinkMode::Manual,
-        },
-        switch_route: features.switch_route().map(|route| EcmaWebSwitchRoute {
-            path: route.path().to_owned(),
-            return_query: route.return_query().to_owned(),
-            status: route.status(),
-        }),
-    }
-}
-
 fn build_locale_ir(
     root: &Path,
     config: &LinguiniConfig,
@@ -1415,46 +1366,13 @@ fn can_insert_fallback_symbol(module: &IrModule, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        immediate_dynamic_messages, legacy_web_codegen_options, merge_module,
-        merge_module_fallback, namespaced_module, project_locale_fallbacks,
-        project_relative_source_path,
+        immediate_dynamic_messages, merge_module, merge_module_fallback, namespaced_module,
+        project_locale_fallbacks, project_relative_source_path,
     };
-    use linguini_config::{
-        parse_config, TypeScriptBundlerDynamicConfig, TypeScriptBundlerDynamicMode,
-    };
+    use linguini_config::{TypeScriptBundlerDynamicConfig, TypeScriptBundlerDynamicMode};
     use linguini_ir::lower_locale;
     use linguini_syntax::parse_locale;
     use std::collections::BTreeMap;
-
-    #[test]
-    fn closed_web_lowering_preserves_switch_route_transport() {
-        let config = parse_config(
-            r#"
-                [project]
-                name = "shop"
-                default_locale = "en"
-                locales = ["en", "de"]
-                [paths]
-                schema = "schema"
-                locale = "locale"
-                [web.locale]
-                sources = ["path", "cookie"]
-                [web.switch_route]
-                path = "/_linguini/locale/{locale}"
-                return_query = "next"
-                status = 307
-            "#,
-        )
-        .expect("valid switch route config");
-
-        let lowered = legacy_web_codegen_options(&config);
-        let route = lowered.switch_route.expect("lowered switch route");
-        assert_eq!(route.path, "/_linguini/locale/{locale}");
-        assert_eq!(route.return_query, "next");
-        assert_eq!(route.status, 307);
-        assert!(lowered.locale_switch.writes_path);
-        assert!(lowered.locale_switch.writes_cookie);
-    }
 
     #[test]
     fn root_dynamic_prefix_accepts_exact_top_level_leaf() {

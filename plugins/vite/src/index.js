@@ -4,8 +4,8 @@ import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import MagicString from "magic-string";
-import { DEFAULT_CONFIG_FILE, DEFAULT_PATHS, resolveProjectPath as resolveWithin } from "@antepod/linguini-project";
-import { readEcmascriptProject, validateLocaleLoading, isDynamicMessagePath } from "@antepod/linguini-project/ecmascript";
+import { DEFAULT_CONFIG_FILE, DEFAULT_PATHS, resolveProjectPath as resolveWithin } from "@antepodeum/linguini-project";
+import { readEcmascriptProject, validateLocaleLoading, isDynamicMessagePath } from "@antepodeum/linguini-project/ecmascript";
 import { localeBuildConfig } from "./build-target.js";
 import { frameworkAdapter } from "./framework.js";
 import { toVitePath } from "./paths.js";
@@ -84,7 +84,7 @@ export function linguini(options = {}) {
   }
 
   async function reconcileWatches(server) {
-    const nextFiles = new Set(await discoverLinguiniFiles(projectRoot, options.configFile));
+    const nextFiles = new Set([...(await discoverLinguiniFiles(projectRoot, options.configFile)), ...layout.moduleConfigPaths]);
     nextFiles.add(path.join(layout.generatedRoot, MANIFEST_RELATIVE_PATH));
     for (const application of bundlerManifest?.applicationFiles ?? []) {
       nextFiles.add(application);
@@ -196,6 +196,18 @@ export function linguini(options = {}) {
   }
 
   async function rebuildForFile(file, server, reason, timestamp) {
+    try { return await rebuildForFileImpl(file, server, reason, timestamp); }
+    catch (error) {
+      const files = error.moduleDependencies ?? [];
+      if (files.length) {
+        server.watcher.add(files);
+        for (const file of files) watchedFiles.add(file);
+      }
+      throw error;
+    }
+  }
+
+  async function rebuildForFileImpl(file, server, reason, timestamp) {
     const absolute = path.resolve(file);
     const previousLayout = layout ?? (await refreshLayout());
     const manifestPath = path.join(previousLayout.generatedRoot, MANIFEST_RELATIVE_PATH);
@@ -226,7 +238,7 @@ export function linguini(options = {}) {
       return undefined;
     }
 
-    const configChanged = absolute === previousLayout.configPath;
+    const configChanged = absolute === previousLayout.configPath || previousLayout.moduleConfigPaths.includes(absolute) || previousLayout.moduleDependencies.includes(absolute);
     if (configChanged || reason !== "hot-update") {
       await refreshLayout();
     }
@@ -301,6 +313,7 @@ export function linguini(options = {}) {
         await reloadManifest();
       }
       const files = await discoverLinguiniFiles(projectRoot, options.configFile);
+      files.push(...layout.moduleConfigPaths);
       files.push(path.join(layout.generatedRoot, MANIFEST_RELATIVE_PATH));
       files.push(...(bundlerManifest?.applicationFiles ?? []));
       files.push(...layout.bundlerSourceRoots);
@@ -435,9 +448,10 @@ export async function discoverLinguiniFiles(root, configFile = DEFAULT_CONFIG_FI
   if (layout.configExists) {
     files.push(layout.configPath);
   }
+  files.push(...layout.moduleDependencies);
   files.push(...(await collectFiles(layout.schemaRoot, ".lgs")));
   files.push(...(await collectFiles(layout.localeRoot, ".lgl")));
-  return files.sort(comparePaths);
+  return [...new Set(files)].sort(comparePaths);
 }
 
 export async function readProjectLayout(root, configFile = DEFAULT_CONFIG_FILE) {
@@ -461,6 +475,8 @@ export function isLinguiniSource(
 
   return (
     absolute === configPath ||
+    (projectLayout?.moduleConfigPaths?.includes(absolute) ?? false) ||
+    (projectLayout?.moduleDependencies?.includes(absolute) ?? false) ||
     (absolute.endsWith(".lgs") && isWithin(schemaRoot, absolute)) ||
     (absolute.endsWith(".lgl") && isWithin(localeRoot, absolute))
   );
@@ -472,13 +488,20 @@ async function buildProject(root, options, reason) {
     return;
   }
   const command = options.command ?? "linguini";
-  const args = options.args ?? ["build"];
-  await execFilePromise(command, args, { cwd: root });
+  const args = [...(options.args ?? ["build"])];
+  const layout = args.includes("build") ? await readProjectLayout(root, options.configFile) : undefined;
+  const input = layout?.moduleConfigExists ? JSON.stringify(layout.modulePlan) : undefined;
+  if (input !== undefined) args.push("--module-plan-stdin");
+  try { await execFilePromise(command, args, { cwd: root }, input); }
+  catch (error) {
+    if (layout) error.moduleDependencies = [...layout.moduleConfigPaths, ...layout.moduleDependencies];
+    throw error;
+  }
 }
 
-function execFilePromise(command, args, options) {
+function execFilePromise(command, args, options, input) {
   return new Promise((resolve, reject) => {
-    execFile(command, args, options, (error, stdout, stderr) => {
+    const child = execFile(command, args, options, (error, stdout, stderr) => {
       if (error) {
         error.message = [error.message, stderr.trim(), stdout.trim()].filter(Boolean).join("\n");
         reject(error);
@@ -486,6 +509,8 @@ function execFilePromise(command, args, options) {
         resolve({ stdout, stderr });
       }
     });
+    child.stdin?.on("error", error => { if (error.code !== "EPIPE") reject(error); });
+    child.stdin?.end(input);
   });
 }
 

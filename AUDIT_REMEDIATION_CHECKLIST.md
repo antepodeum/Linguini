@@ -1011,7 +1011,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Keep bundler integration and source provenance covered through the transition.
       Runtime generation now emits canonical JS and adjacent declarations. Native `build
       --emit-dir` renders additional owned output trees with rebased source maps; declaration
-      destinations prepare types while preserving prior runtime. `@antepod/linguini-tsc` uses
+      destinations prepare types while preserving prior runtime. `@antepodeum/linguini-tsc` uses
       public compiler/build/watch APIs and covers strict consumers, incremental references,
       message-only updates, separate declaration output, and an installed package.
       Linux integration tests pass with TypeScript 5.8.3 and 6.0.3; the cross-platform CI matrix
@@ -1044,14 +1044,19 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       and source-map infrastructure framework-independent. Isolate Svelte syntax/link transforms
       and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure. The JS Vite
       core now accepts an explicit framework adapter; `/svelte` owns script scopes, static links, and component cleanup.
-      Native helper-plan/config migration and composed-page ownership remain open.
-- [ ] MOD-A3 — Configure web, Svelte, and SvelteKit capabilities in the project's code/configuration
+      Native helper descriptors now come from the selected framework owner; module configuration
+      is explicit. Composed-page ownership remains open.
+- [x] MOD-A3 — Configure web, Svelte, and SvelteKit capabilities in the project's code/configuration
       for those modules. Keep one source of configuration; remove `[web]` and framework policy from
       language-neutral TOML and its schema. Supply a validated build-time plan to native codegen,
       including the CLI, rather than evaluating arbitrary project JavaScript inside Rust.
-      Vite and `tsc` now share the frontend project/layout reader in `@antepod/linguini-project`,
-      with sync/async policy parity and a packaged runtime/declaration check. Typed module
-      configuration, native plan transport, and removal of legacy TOML policy remain open.
+      `linguini.config.mjs` uses typed module factories; shared sync/async Node loading reloads
+      imported ESM/CJS configuration and tracks aliases and failed imports for watch recovery.
+      The npm launcher, Vite, and both `tsc` watch modes pass one versioned JSON plan to native
+      codegen. Native CLI also accepts a static JSON plan or explicit file/stdin transport.
+      Owning modules validate options before output mutation; neutral TOML/schema reject removed
+      policy. CLI integration, packed strict TS APIs, executable docs, and the real site verify
+      the migration; the site archive remains byte-identical.
 - [ ] MOD-A4 — Enforce ESM-A3's exact page/locale delivery contract across composed components,
       layouts, shared functions, and finite dynamic uses. Build/SSR must select a known initial
       locale without client rediscovery; initial delivery must contain no unused messages/helpers,
@@ -1069,13 +1074,18 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.
       The same core now passes real Vite multi-entry graph and executed-output checks with ECMAScript and custom non-Svelte entry/runtime descriptors.
-      Native module configuration and additional framework integrations remain open.
+      Native configuration is framework-neutral; additional framework integrations remain open.
 - [-] MOD-A7 — Share common lowering, dependency planning, and type semantics through
       `linguini-codegen`; keep ECMAScript syntax, web platform behavior, and framework dependencies
       within their owning backend/modules. Future language backends must not depend on web policy.
-- [ ] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
+- [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.
+      Public module SDKs, native transport, docs, and site now use the new configuration. All npm
+      packages use `@antepodeum/linguini` / `@antepodeum/linguini-*`; release tooling packs the
+      shared SDK and platform packages before the launcher. Local Vite, strict tsc/packed APIs,
+      site production, and exact archive parity pass. Cross-version/platform and composed-page
+      delivery/SSR verification remain open.
 
 ### Specialized generated code
 

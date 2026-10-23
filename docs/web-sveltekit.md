@@ -3,7 +3,7 @@
 Install the Vite plugin.
 
 ```sh
-npm install @antepod/linguini-vite
+npm install @antepodeum/linguini-vite
 ```
 
 Native integrations compose `linguini-codegen-sveltekit` with the ECMAScript backend. The
@@ -28,11 +28,22 @@ locale = "locales"
 out = "src/lib/generated/linguini"
 declaration = true
 gitignore = true
-framework = "sveltekit"
 
 [targets.ts.bundler]
 sources = ["src"]
 # locale_loading = "dynamic" # eager is the default
+```
+
+Configure the selected modules in `linguini.config.mjs`:
+
+```js
+// linguini.config.mjs
+// @ts-check
+import { defineModules, svelteKit } from "@antepodeum/linguini/modules";
+
+export default defineModules([
+  svelteKit()
+]);
 ```
 
 The bundler target enables exact per-message module imports for the configured
@@ -60,42 +71,31 @@ With `locale_loading = "dynamic"`, client virtual message modules import locale
 chunks on demand and preload the selected locale before a locale switch. SSR
 uses synchronous static locale imports; omit the field for eager loading.
 
-Use `framework = "svelte"` for a Svelte-only app. Omit `framework` to generate
-only the framework-agnostic JavaScript runtime with optional TypeScript declarations.
+Use `svelte()` instead of `svelteKit()` for a Svelte-only app. Omit both modules
+for the framework-independent JavaScript runtime with optional TypeScript declarations.
 
 ## Web config
 
-```toml fragment=web-policy
-[web.routing]
-locale_prefix = "except-default" # default; also "always" or "never"
-canonical = "redirect"   # or "preserve"
+```js
+// linguini.config.mjs
+// @ts-check
+import { defineModules, web, svelteKit } from "@antepodeum/linguini/modules";
 
-# Sources are checked left-to-right; the first supported locale wins.
-[web.locale]
-sources = ["path", "cookie", "local-storage", "accept-language"]
-
-[web.cookie]
-name = "LINGUINI_LOCALE"
-path = "auto"
-max_age = "365d"
-same_site = "lax" # "lax", "strict", or "none"
-secure = false     # "auto" is also supported
-http_only = false
-
-[web.local_storage]
-key = "LINGUINI_LOCALE"
-
-[web.links]
-mode = "transform" # "transform" (default), "runtime", or "manual"
-
-[web.routes]
-exclude = ["/_app/**", "/favicon.ico"]
-
-# Optional no-JavaScript locale switch transport.
-[web.switch_route]
-path = "/_linguini/locale/{locale}"
-return_query = "return"
-status = 303
+export default defineModules([
+  web({
+    routing: { localePrefix: "except-default", canonical: "redirect" },
+    locale: { sources: ["path", "cookie", "local-storage", "accept-language"] },
+    cookie: {
+      name: "LINGUINI_LOCALE", path: "auto", maxAge: "365d",
+      sameSite: "lax", secure: false, httpOnly: false
+    },
+    localStorage: { key: "LINGUINI_LOCALE" },
+    links: { mode: "transform" },
+    routes: { exclude: ["/_app/**", "/favicon.ico"] },
+    switchRoute: { path: "/_linguini/locale/{locale}", returnQuery: "return", status: 303 }
+  }),
+  svelteKit()
+]);
 ```
 
 Supported locale matching is compiled from the pinned CLDR canonicalization and parent graph.
@@ -155,7 +155,7 @@ selected and defaults to the project-derived `linguini:<project>:locale` key;
 its key must be non-empty and contain no control characters.
 
 SvelteKit SSR cannot read browser local storage. A
-`sources = ["local-storage"]` SvelteKit configuration is rejected with a
+`locale.sources: ["local-storage"]` SvelteKit configuration is rejected with a
 diagnostic; add `cookie` or `path` so the server can resolve the locale, or use
 the client-only `svelte` framework. A switch route likewise requires `path` or
 `cookie`, because an HTTP response cannot write local storage.
@@ -173,83 +173,29 @@ localization, and the switch route.
 
 Common policies are concise:
 
-```toml fragment=policy-alternatives
-# Path-only: locale is in every URL and switching navigates.
-[web.routing]
-locale_prefix = "always"
-[web.locale]
-sources = ["path"]
+```js fragment=policy-alternatives
+import { web } from "@antepodeum/linguini/modules";
 
-# Cookie-only/pathless: switching persists without changing the URL.
-# [web.routing]
-# locale_prefix = "never"
-# [web.locale]
-# sources = ["cookie", "accept-language"]
-
-# Hybrid: URL wins, cookie remembers, header negotiates first visit.
-# [web.locale]
-# sources = ["path", "cookie", "accept-language"]
-
-# Client-only Svelte storage (not valid as the sole SvelteKit SSR source).
-# [web.locale]
-# sources = ["local-storage"]
+const pathOnly = web({ routing: { localePrefix: "always" }, locale: { sources: ["path"] } });
+const pathless = web({ routing: { localePrefix: "never" }, locale: { sources: ["cookie", "accept-language"] } });
+const hybrid = web({ locale: { sources: ["path", "cookie", "accept-language"] } });
+// Pair this browser-only policy with svelte(), not svelteKit().
+const clientStorage = web({ locale: { sources: ["local-storage"] } });
 ```
 
-## Migration from flat web options
+## Migration to module configuration
 
-Flat `[web]` keys are rejected. Migrate each configured field explicitly:
+`[web]`, its nested TOML tables, and `targets.ts.framework` have been removed. Put web policy
+in `web({...})` and select `svelte()` or `svelteKit()` in `linguini.config.mjs`. The compiler
+launcher, Vite adapter, and TypeScript adapter evaluate that file in Node and pass one versioned
+JSON plan to native codegen. Rust validates the plan before writing generated outputs and does
+not evaluate project JavaScript. Imported config files are tracked for watch rebuilds.
 
-| Removed flat config | Current config |
-| --- | --- |
-| `strategy = ["url", "cookie", "localStorage", "header"]` | `[web.locale] sources = ["path", "cookie", "local-storage", "accept-language"]` |
-| `cookie_name` | `[web.cookie] name` |
-| `cookie_path` | `[web.cookie] path`; prefer `"auto"` for the SvelteKit base |
-| `cookie_domain` | `[web.cookie] domain` |
-| `cookie_max_age = 86400` | `[web.cookie] max_age = "1d"` |
-| `cookie_same_site` | `[web.cookie] same_site` |
-| `cookie_secure` | `[web.cookie] secure`; `"auto"` derives it from the request protocol |
-| `cookie_http_only` | `[web.cookie] http_only` |
-| `local_storage_key` | `[web.local_storage] key` |
-| `global_variable_name` | removed; choose a validated locale source |
-| `prefix_default_locale = true` | `[web.routing] locale_prefix = "always"` |
-| `prefix_default_locale = false` | `[web.routing] locale_prefix = "except-default"` |
-| `redirect = true` / `false` | `[web.routing] canonical = "redirect"` / `"preserve"` |
-| `exclude` | `[web.routes] exclude` |
-| `localize_links = true` | `[web.links] mode = "runtime"` (or `"transform"` for build-time anchors) |
-| `localize_links = false` | `[web.links] mode = "manual"` |
-| `base_path` | removed; SvelteKit supplies `$app/paths.base` |
-| `origin` | removed; request/browser context supplies it |
-| `trailing_slash` | removed; the matched SvelteKit route owns it |
-| `targets.ts.module` | removed; generated output is always ESM |
+Module option names use JavaScript casing: `routing.localePrefix`, `cookie.maxAge`,
+`cookie.sameSite`, `cookie.httpOnly`, `localStorage`, `switchRoute`, and
+`switchRoute.returnQuery`. Locale source names remain `path`, `cookie`, `local-storage`,
+and `accept-language`. Select each module once; SvelteKit already composes Svelte.
 
-The former `url`, `localStorage`, and `header` strategy spellings are now
-`path`, `local-storage`, and `accept-language`. `baseLocale` is an implicit final
-fallback and is not listed. The unused `preferredLanguage`, `navigator`,
-`globalVariable`, `custom-*`, and `global_variable_name` paths have no direct
-replacement; choose one of the four validated sources instead.
-
-`base_path`, `origin`, and `trailing_slash` also have no Linguini config
-replacement. SvelteKit supplies base and origin at runtime and owns the matched
-route's trailing-slash policy, as described above. `targets.ts.module` is
-removed because generated output is always ESM.
-
-Framework-agnostic callers of `createWebI18n` use the same nested shape:
-
-| Removed runtime option | Current runtime option |
-| --- | --- |
-| `sources` | `locale.sources` |
-| `localeSwitch` | `locale.switch` (normally generated from config) |
-| `localePrefix` / `prefixDefaultLocale` | `routing.localePrefix` |
-| `redirect` | `routing.canonical` with `"redirect"` or `"preserve"` |
-| `cookieName`, `cookiePath`, `cookieDomain` | `cookie.name`, `cookie.path`, `cookie.domain` |
-| `cookieMaxAge`, `cookieSameSite` | `cookie.maxAge`, `cookie.sameSite` |
-| `cookieSecure`, `cookieHttpOnly` | `cookie.secure`, `cookie.httpOnly` |
-| `localStorageKey` | `localStorage.key` |
-| `globalVariableName` | removed; choose a validated locale source |
-| `localizeLinks` | `links.mode` |
-| `exclude` | `routes.exclude` |
-| `basePath`, `origin` | third `environment` argument: `base`, `origin` |
-| `trailingSlash` | removed; preserve the input path and let the router canonicalize it |
 
 ## SvelteKit files
 
@@ -259,7 +205,7 @@ Add the Vite plugin so generated files update during development:
 // vite.config.ts
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
-import linguini from "@antepod/linguini-vite/svelte";
+import linguini from "@antepodeum/linguini-vite/svelte";
 
 export default defineConfig(({ command }) => ({
   plugins: [
@@ -415,7 +361,7 @@ External links, `mailto:`/`tel:` links, hash-only links, `download` links,
 `data-linguini-ignore` or `data-linguini-no-localize` are left unchanged by the
 selected link implementation.
 
-When `[web.switch_route]` is enabled, ordinary static links can switch locale
+When `web({ switchRoute: {...} })` is configured, ordinary static links can switch locale
 without JavaScript:
 
 ```svelte

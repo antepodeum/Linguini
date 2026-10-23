@@ -33,9 +33,30 @@ fn committed_config_schema_snapshot_matches_public_tables_and_defaults() {
         schema["properties"]["targets"]["properties"]["ts"]["properties"]["out"]["default"],
         "src/generated/linguini"
     );
-    assert_eq!(
-        schema["properties"]["web"]["properties"]["routing"]["properties"]["locale_prefix"]["enum"],
-        serde_json::json!(["always", "except-default", "never"])
+    assert!(schema["properties"].get("web").is_none());
+    assert!(
+        schema["properties"]["targets"]["properties"]["ts"]["properties"]
+            .get("framework")
+            .is_none()
     );
     assert!(CONFIG_SCHEMA_JSON.ends_with('\n'));
+}
+
+#[test]
+fn neutral_config_rejects_removed_framework_policy_with_migrations() {
+    let base = "[project]\nname = \"shop\"\ndefault_locale = \"en\"\nlocales = [\"en\"]\n[paths]\nschema = \"schema\"\nlocale = \"locale\"\n";
+    for (section, field) in [
+        ("[web]\n", "web"),
+        ("[web.routing]\nlocale_prefix = \"always\"\n", "web"),
+        (
+            "[targets.ts]\nframework = \"sveltekit\"\n",
+            "targets.ts.framework",
+        ),
+    ] {
+        let error = parse_config(&format!("{base}{section}")).expect_err("removed policy");
+        assert!(
+            matches!(error, super::ConfigError::RemovedField { field: actual, .. } if actual == field)
+        );
+        assert!(error.to_string().contains("linguini.config.mjs"));
+    }
 }

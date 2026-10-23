@@ -11,7 +11,7 @@ Projects created by this release use the frozen [v0.1 language contract](./langu
 ## Install the CLI
 
 ```bash
-npm install --save-dev @linguini/cli@0.1.0-alpha.4
+npm install --save-dev @antepodeum/linguini@0.1.0-alpha.4
 npx linguini check
 ```
 
@@ -55,24 +55,41 @@ locale = "linguini/locale"
 out         = "src/generated/linguini"
 declaration = true
 gitignore   = true
-framework   = "sveltekit"
 
 [targets.ts.bundler]
 sources = ["src"]
-
-[web.routing]
-locale_prefix = "except-default"
-
-[web.locale]
-sources = ["path", "cookie", "accept-language"]
-
-[web.cookie]
-path = "auto"
 ```
 
-This is the minimal nested SvelteKit policy for localized paths with cookie
-persistence and request-language fallback. Omit the `[web.*]` tables when the
-framework-agnostic runtime needs no web routing policy. The current generator
+Configure the selected modules in `linguini.config.mjs`:
+
+```js
+// linguini.config.mjs
+// @ts-check
+import { defineModules, web, svelteKit } from "@antepodeum/linguini/modules";
+
+export default defineModules([
+  web({
+    routing: {
+      localePrefix: "except-default"
+    },
+    locale: {
+      sources: [
+        "path",
+        "cookie",
+        "accept-language"
+      ]
+    },
+    cookie: {
+      path: "auto"
+    }
+  }),
+  svelteKit()
+]);
+```
+
+The module configuration selects localized paths, cookie persistence, and request-language
+fallback. Omit `web()` when no web routing policy is needed, and omit `svelteKit()` for
+framework-independent output. The current generator
 emits ESM only; there is no module-format switch.
 
 ### Paths and namespaces
@@ -186,7 +203,7 @@ Writes generated code to the paths configured in `linguini.toml`.
 
 ## Use in your app
 
-For SvelteKit, add `@antepod/linguini-vite`, export the generated
+For SvelteKit, add `@antepodeum/linguini-vite`, export the generated
 `sveltekit-control` hooks and root load, then import `l` from the generated
 Svelte facade. The integration resolves and prepares locale modules; normal
 components do not manually import messages or every locale. See the complete
@@ -222,7 +239,6 @@ list canonical message paths explicitly:
 
 ```toml fragment=bundler-policy
 [targets.ts]
-framework = "sveltekit"
 
 [targets.ts.bundler]
 sources = ["src"]

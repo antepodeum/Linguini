@@ -151,7 +151,7 @@ fn keeps_dynamic_key_trivia_and_rejects_non_read_contexts() {
 
 #[test]
 fn exposes_source_aware_static_references_and_provenance() {
-    let source = r#"import { l as messages } from "@linguini/messages";
+    let source = r#"import { l as messages } from "@antepodeum/linguini-messages";
 messages.main.title;
 messages.main.items(count);"#;
     let usage = ApplicationUsage::from_source_in(source, SourceId(9));
@@ -172,7 +172,7 @@ messages.main.items(count);"#;
     assert_eq!(
         references[0].binding.provenance,
         ApplicationBindingProvenance::Imported {
-            module_specifier: "@linguini/messages".to_owned(),
+            module_specifier: "@antepodeum/linguini-messages".to_owned(),
             imported: "l".to_owned(),
         }
     );
@@ -196,7 +196,7 @@ fn preserves_duplicate_spans_and_marks_implicit_roots() {
 
 #[test]
 fn records_factory_bindings_and_excludes_dynamic_paths() {
-    let source = r#"import { createLinguini as make } from "@linguini/runtime";
+    let source = r#"import { createLinguini as make } from "@antepodeum/linguini-runtime";
 make("en").main.title();
 make("en").main[group]();"#;
     let usage = ApplicationUsage::from_source_in(source, SourceId(4));
@@ -277,7 +277,7 @@ fn factory_bracket_reference_span_includes_its_receiver() {
 
 #[test]
 fn does_not_emit_imported_provenance_for_properties_or_shadowed_bindings() {
-    let source = r#"import { l as messages } from "@linguini/generated";
+    let source = r#"import { l as messages } from "@antepodeum/linguini-generated";
 messages.main.global();
 obj.messages.main.property();
 obj["messages"].main.bracket_property();

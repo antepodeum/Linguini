@@ -9,6 +9,7 @@ mod dependencies;
 mod direct_dependencies;
 mod formatters;
 mod inline;
+mod modules;
 mod paths;
 mod plurals;
 mod requirements;
@@ -34,6 +35,7 @@ pub use formatters::{
 };
 
 pub use inline::lower_inline_functions;
+pub use modules::{ModuleConfiguration, ModulePlan, ModulePlanError};
 
 pub use paths::lexical_relative_path;
 pub use plurals::{PluralDecisionPlan, PluralRequirements};
