@@ -1,0 +1,43 @@
+{
+  "name": "@antepodeum/linguini-web",
+  "version": "0.1.0-alpha.4",
+  "description": "Reusable locale resolution, URL routing, and persistence for Linguini applications",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "packageManager": "pnpm@11.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antepodeum/Linguini.git",
+    "directory": "packages/web"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./runtime-links": {
+      "types": "./dist/runtime-links.d.ts",
+      "default": "./dist/runtime-links.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "pnpm build && node --test",
+    "check": "tsc --project tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

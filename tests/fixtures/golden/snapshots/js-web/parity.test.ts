@@ -1,6 +1,23 @@
 import { test, expect } from "bun:test";
 import { createWebI18n as legacy, createWebLocaleI18n as legacyLocale } from "./legacy/web.runtime";
 
+import * as webPackage from "../../../../../packages/web/src/index.ts";
+
+const resolverFactories = {
+  path: webPackage.pathLocale,
+  cookie: webPackage.cookieLocale,
+  "local-storage": webPackage.localStorageLocale,
+  "accept-language": webPackage.requestLanguage,
+};
+function runtimeOptions(options: any = {}) {
+  const names: (keyof typeof resolverFactories)[] = options.locale?.sources ?? ["path", "cookie", "accept-language"];
+  return {...options, locale:{...options.locale, sources:names.map(name => resolverFactories[name]())}};
+}
+const npm = {
+  createWebI18n: (runtime: any, options?: any, environment?: any) => webPackage.createWebI18n(runtime, runtimeOptions(options), environment),
+  createWebLocaleI18n: (runtime: any, options?: any, environment?: any) => webPackage.createWebLocaleI18n(runtime, runtimeOptions(options), environment),
+};
+
 const cases = [
   ["default", ["path", "cookie", "accept-language"]],
   ["all", ["path", "cookie", "local-storage", "accept-language"]],
@@ -17,7 +34,7 @@ for (const [name, sources] of cases) {
     const ts = await import(`./${name}/typescript/web.ts`);
     const options = { locale: { sources }, routes: { exclude: name === "all" ? ["/api/**", /^\/private/g, (url: URL) => url.pathname === "/predicate"] : [] } };
     const oracle = legacy(runtime, options, environment);
-    for (const compiler of [js, ts]) {
+    for (const compiler of [js, ts, npm]) {
       const web = compiler.createWebI18n(runtime, options, environment);
       expect(web.options).toEqual(oracle.options);
       const inputs = [
@@ -74,8 +91,8 @@ for (const [name, sources] of cases) {
 }
 
 test("request preparation precedes factories and concurrent requests retain their own input", async () => {
-  for (const target of ["web.js", "typescript/web.ts"]) {
-    const compiler = await import(`./all/${target}`);
+  for (const target of ["web.js", "typescript/web.ts", "npm"]) {
+    const compiler = target === "npm" ? npm : await import(`./all/${target}`);
     const prepared = new Set<string>(), calls: string[] = [];
     const web = compiler.createWebI18n({ ...runtime,
       async prepareLinguini(locale: string) { await Bun.sleep(locale === "fr" ? 5 : 1); prepared.add(locale); calls.push(`prepare:${locale}`); },

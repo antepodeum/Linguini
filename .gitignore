@@ -5,3 +5,6 @@
 /packages/cli-*/bin/
 editors/vscode/dist/
 crates/linguini-cldr-macros/vendor/
+
+/packages/web/dist/
+/packages/sveltekit/dist/

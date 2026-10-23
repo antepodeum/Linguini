@@ -7,7 +7,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/antepodeum/Linguini.git",
-    "directory": "plugins/tsc"
+    "directory": "packages/tsc"
   },
   "packageManager": "pnpm@11.1.0",
   "engines": {

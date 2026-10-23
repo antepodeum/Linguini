@@ -476,3 +476,16 @@ Vite now folds missing translations into the selected locale payload at message 
 Sparse locales no longer trigger an additional base-locale payload request. Generated message
 dependencies, including shared functions and formatter helpers, stay within their owning
 application/locale payload. Loader cleanup, HMR, and preload-before-switch remain supported.
+
+All npm package source directories now live under `packages/`. Move source-checkout paths from
+`plugins/vite` and `plugins/tsc` to `packages/vite` and `packages/tsc`; update local `file:`
+dependencies and scripts accordingly. Published package names and adapter entry points are
+unchanged by this directory move. Runtime adapter packages are maintained in TypeScript and
+publish built JavaScript and declarations.
+
+The new `@antepodeum/linguini-web` and `@antepodeum/linguini-sveltekit` packages contain reusable
+TypeScript runtime adapters. Their options are application runtime values; they are not native
+code-generation inputs. Runtime locale sources are explicit capabilities (`pathLocale()`,
+`cookieLocale()`, `requestLanguage()`, `localStorageLocale()`). The SvelteKit server entry
+creates hooks and serialized request metadata without importing a generated message catalog.
+The site and compiler integration are being migrated to these boundaries.

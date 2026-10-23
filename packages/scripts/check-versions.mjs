@@ -14,8 +14,10 @@ const manifests = [
   "packages/cli-win32-arm64/package.json",
   "packages/cli-win32-x64/package.json",
   "packages/project/package.json",
-  "plugins/vite/package.json",
-  "plugins/tsc/package.json",
+  "packages/web/package.json",
+  "packages/sveltekit/package.json",
+  "packages/vite/package.json",
+  "packages/tsc/package.json",
   "editors/vscode/package.json",
   "site/package.json"
 ];

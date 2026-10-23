@@ -1,0 +1,2 @@
+overrides:
+  '@antepodeum/linguini-web': file:../web

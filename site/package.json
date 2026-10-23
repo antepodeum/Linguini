@@ -22,7 +22,7 @@
     "highlight:refresh": "node scripts/refresh-highlights.mjs"
   },
   "dependencies": {
-    "@antepodeum/linguini-vite": "file:../plugins/vite",
+    "@antepodeum/linguini-vite": "file:../packages/vite",
     "@fontsource-variable/newsreader": "^5.2.8",
     "@fontsource-variable/work-sans": "^5.2.8",
     "@iconify-svelte/skill-icons": "^1.0.3",

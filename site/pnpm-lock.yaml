@@ -18,8 +18,8 @@ importers:
   .:
     dependencies:
       '@antepodeum/linguini-vite':
-        specifier: file:../plugins/vite
-        version: file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
+        specifier: file:../packages/vite
+        version: file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
       '@fontsource-variable/newsreader':
         specifier: ^5.2.8
         version: 5.2.10
@@ -109,8 +109,8 @@ packages:
     resolution: {directory: ../packages/project, type: directory}
     engines: {node: '>=20.6'}
 
-  '@antepodeum/linguini-vite@file:../plugins/vite':
-    resolution: {directory: ../plugins/vite, type: directory}
+  '@antepodeum/linguini-vite@file:../packages/vite':
+    resolution: {directory: ../packages/vite, type: directory}
     engines: {node: '>=20.6'}
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -1080,7 +1080,7 @@ snapshots:
     dependencies:
       smol-toml: 1.7.1
 
-  '@antepodeum/linguini-vite@file:../plugins/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
+  '@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
     dependencies:
       '@antepodeum/linguini-project': file:../packages/project
       magic-string: 0.30.21

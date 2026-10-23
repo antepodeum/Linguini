@@ -30,13 +30,13 @@ test("public contract policy requires docs, migrations, and tests together", () 
   ];
   assert.equal(validateContractEvidence(complete).contracts.length, 1);
   assert.throws(
-    () => validateContractEvidence(["plugins/vite/src/index.js", "docs/web-sveltekit.md"]),
+    () => validateContractEvidence(["packages/vite/src/index.js", "docs/web-sveltekit.md"]),
     /docs\/migrations\.md, tests or fixtures/,
   );
   assert.throws(() => validateContractEvidence(["packages/project/src/ecmascript.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   assert.deepEqual(contractEvidence(["crates/linguini-ir/src/lower.rs"]).contracts, []);
   assert.throws(() => validateContractEvidence(["crates/linguini-schema/src/highlight.rs"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
-  assert.throws(() => validateContractEvidence(["plugins/tsc/src/index.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
+  assert.throws(() => validateContractEvidence(["packages/tsc/src/index.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   for (const name of ["linguini-codegen", "linguini-codegen-ecmascript", "linguini-codegen-ecmascript-web", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) {
     assert.throws(
       () => validateContractEvidence([`crates/${name}/src/lib.rs`]),
@@ -127,6 +127,8 @@ test("registry is explicit and ordered across repository projects", () => {
       "repo:contracts",
       "repo:js-boundaries",
       "project:test",
+    "web:test",
+    "sveltekit:test",
       "rust:fmt",
       "codegen:schema-js",
       "codegen:runtime-js",
@@ -188,7 +190,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "site:graph",
     ],
   );
-  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "tsc", "vite", "cli", "vscode", "site"]);
+  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "web", "sveltekit", "tsc", "vite", "cli", "vscode", "site"]);
 });
 
 test("profiles select the expected ordered task groups", () => {
@@ -197,6 +199,8 @@ test("profiles select the expected ordered task groups", () => {
     "repo:contracts",
     "repo:js-boundaries",
     "project:test",
+    "web:test",
+    "sveltekit:test",
     "rust:fmt",
     "codegen:schema-js",
     "codegen:runtime-js",
@@ -318,6 +322,8 @@ test("task execution continues after a failure and aggregates exit status", () =
     "repo:contracts",
     "repo:js-boundaries",
     "project:test",
+    "web:test",
+    "sveltekit:test",
     "rust:fmt",
     "codegen:schema-js",
     "codegen:runtime-js",

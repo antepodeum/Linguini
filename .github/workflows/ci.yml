@@ -58,6 +58,32 @@ jobs:
         working-directory: packages/project
         run: pnpm test
 
+  runtime-adapters:
+    name: Runtime adapters (Node ${{ matrix.node }})
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+          cache-dependency-path: |
+            packages/web/pnpm-lock.yaml
+            packages/sveltekit/pnpm-lock.yaml
+      - name: Install and test TypeScript web runtime
+        working-directory: packages/web
+        run: pnpm install --frozen-lockfile && pnpm test
+      - name: Install and test TypeScript SvelteKit hooks and packages
+        working-directory: packages/sveltekit
+        run: pnpm install --frozen-lockfile && pnpm test
+
   rust:
     name: Rust workspace
     runs-on: ubuntu-24.04
@@ -215,15 +241,15 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: plugins/vite/pnpm-lock.yaml
+          cache-dependency-path: packages/vite/pnpm-lock.yaml
       - name: Install plugin dependencies
-        working-directory: plugins/vite
+        working-directory: packages/vite
         run: pnpm install --frozen-lockfile
       - name: Select tested Vite major
-        working-directory: plugins/vite
+        working-directory: packages/vite
         run: pnpm add --save-dev --lockfile=false "vite@^${{ matrix.vite }}.0.0"
       - name: Test plugin against real Vite
-        working-directory: plugins/vite
+        working-directory: packages/vite
         run: pnpm test
 
   typescript:
@@ -249,15 +275,15 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
-          cache-dependency-path: plugins/tsc/pnpm-lock.yaml
+          cache-dependency-path: packages/tsc/pnpm-lock.yaml
       - name: Install compiler integration dependencies
-        working-directory: plugins/tsc
+        working-directory: packages/tsc
         run: pnpm install --frozen-lockfile
       - name: Select tested TypeScript version
-        working-directory: plugins/tsc
+        working-directory: packages/tsc
         run: pnpm add --save-dev --lockfile=false "typescript@${{ matrix.typescript }}"
       - name: Test native compiler integration
-        working-directory: plugins/tsc
+        working-directory: packages/tsc
         run: pnpm test
 
   site:

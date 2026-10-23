@@ -8,7 +8,7 @@ This file tracks the current repository surface and the remaining desloppifying 
 - TypeScript codegen currently targets plain TypeScript plus Svelte 5 and SvelteKit runtimes.
 - Website lives in `site/` and is prerendered with locale-aware SvelteKit routing.
 - VS Code extension lives in `editors/vscode/`.
-- Vite plugin lives in `plugins/vite/`.
+- Vite plugin lives in `packages/vite/`.
 - CLDR plural and formatting data is generated at Rust compile time from pinned CLDR JSON.
 
 ## Desloppifying Progress
@@ -96,7 +96,7 @@ This file tracks the current repository surface and the remaining desloppifying 
   - [x] Remove CLI-only duplication that now belongs in library crates.
   - [x] Remove placeholder tests that do not assert real behavior.
   - [x] Run CLI tests and representative end-to-end commands.
-- [x] 15. `plugins/vite`
+- [x] 15. `packages/vite`
   - [x] Review plugin contract against the CLI and generated output layout.
   - [x] Check watch, rebuild, error reporting, and package entrypoints.
   - [x] Remove duplicated config or path handling that should come from CLI output.

@@ -1,0 +1,53 @@
+{
+  "name": "@antepodeum/linguini-sveltekit",
+  "version": "0.1.0-alpha.4",
+  "description": "SvelteKit runtime hooks and request-locale integration for Linguini",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "packageManager": "pnpm@11.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antepodeum/Linguini.git",
+    "directory": "packages/sveltekit"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "pnpm build && node --test",
+    "check": "tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@antepodeum/linguini-web": "0.1.0-alpha.4"
+  },
+  "peerDependencies": {
+    "@sveltejs/kit": "^2.57.0",
+    "svelte": "^5.55.0"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "2.60.1",
+    "svelte": "5.55.8",
+    "typescript": "6.0.3",
+    "@types/node": "24.12.4"
+  }
+}

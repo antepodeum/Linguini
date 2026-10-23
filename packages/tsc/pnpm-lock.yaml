@@ -5,15 +5,15 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@antepodeum/linguini-project': file:../../packages/project
+  '@antepodeum/linguini-project': file:../project
 
 importers:
 
   .:
     dependencies:
       '@antepodeum/linguini-project':
-        specifier: file:../../packages/project
-        version: file:../../packages/project
+        specifier: file:../project
+        version: file:../project
     devDependencies:
       typescript:
         specifier: 6.0.3
@@ -21,8 +21,8 @@ importers:
 
 packages:
 
-  '@antepodeum/linguini-project@file:../../packages/project':
-    resolution: {directory: ../../packages/project, type: directory}
+  '@antepodeum/linguini-project@file:../project':
+    resolution: {directory: ../project, type: directory}
     engines: {node: '>=20'}
 
   smol-toml@1.7.1:
@@ -36,7 +36,7 @@ packages:
 
 snapshots:
 
-  '@antepodeum/linguini-project@file:../../packages/project':
+  '@antepodeum/linguini-project@file:../project':
     dependencies:
       smol-toml: 1.7.1
 

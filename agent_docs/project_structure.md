@@ -14,7 +14,7 @@
   composes Svelte and web artifacts.
 - `crates/linguini-codegen-vite`: framework-independent physical message/semantic leaves and
   manifest planning, accepting explicit runtime-helper descriptors from the host compiler.
-- `plugins/vite`: Vite lifecycle and application usage integration, with Svelte-specific syntax
+- `packages/vite`: Vite lifecycle and application usage integration, with Svelte-specific syntax
   handling isolated behind the `/svelte` adapter.
 
 - `packages/project`: shared JavaScript project-configuration reading and path resolution, with
@@ -24,3 +24,12 @@
 - `crates/linguini-schema/src/highlight.rs`: source-span classification over the shared lexer
   tokens and semantic occurrences. LSP owns UTF-16/protocol conversion; the CLI and Markdown
   host expose that same pipeline. Site builds render packaged native highlight tokens.
+
+# npm packages
+
+All reusable npm packages live in `packages/`; there is no separate `plugins/` tree.
+`packages/vite` and `packages/tsc` are build integrations, `packages/project` owns common
+frontend project loading, and `packages/cli` with its platform packages provides the native
+launcher. `packages/web` and `packages/sveltekit` contain TypeScript runtime adapter sources;
+their JavaScript, declarations, and maps are emitted only into ignored `dist/` directories.
+The site remains an application under `site/`, and the editor extension stays under `editors/`.
