@@ -1,31 +1,14 @@
-import { createHighlighterCore, type LanguageRegistration } from 'shiki/core';
-import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
-import svelteGrammar from 'shiki/langs/svelte.mjs';
-import darkPlusTheme from 'shiki/themes/dark-plus.mjs';
-import linguiniLocaleGrammar from '../../../../editors/vscode/syntaxes/linguini-locale.tmLanguage.json';
-import linguiniSchemaGrammar from '../../../../editors/vscode/syntaxes/linguini-schema.tmLanguage.json';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { examples } from './examples.mjs';
+import { examplesHash } from './highlight-render.mjs';
 
-const highlighter = createHighlighterCore({
-  engine: createJavaScriptRegexEngine(),
-  themes: [darkPlusTheme],
-  langs: [
-    svelteGrammar,
-    {
-      ...(linguiniLocaleGrammar as unknown as LanguageRegistration),
-      name: 'linguini-locale',
-      aliases: ['lgl']
-    },
-    {
-      ...(linguiniSchemaGrammar as unknown as LanguageRegistration),
-      name: 'linguini-schema',
-      aliases: ['lgs']
-    }
-  ]
-});
+type CodeBlocks = Record<keyof typeof examples, string>;
 
-export async function highlightCode(code: string, lang: string) {
-  return (await highlighter).codeToHtml(code, {
-    lang,
-    theme: 'dark-plus'
-  });
+export async function highlightedExamples(): Promise<CodeBlocks> {
+  const artifact = JSON.parse(await readFile(resolve('.svelte-kit/linguini/highlights.json'), 'utf8'));
+  if (artifact.version !== 1 || artifact.sourceHash !== examplesHash(examples)) {
+    throw new Error('Site highlights are stale. Run pnpm highlight:build.');
+  }
+  return artifact.codeBlocks;
 }

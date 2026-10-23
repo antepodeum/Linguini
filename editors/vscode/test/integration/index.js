@@ -25,6 +25,38 @@ async function run() {
     .map((content) => (typeof content === 'string' ? content : content.value))
     .join('\n');
   assert.match(hoverText, /Product delivery sentence shown after checkout\./);
+  const locale = await vscode.workspace.openTextDocument({ language: 'linguini-locale', content:
+    'plain = 🍎 He said "hello" {name}\r\nblock = """\r\n  text {name}\r\n"""\r\n' });
+  await assertHighlight(locale, '"hello"', 'string');
+  await assertHighlight(locale, 'text', 'string');
+  const markdown = await vscode.workspace.openTextDocument({ language: 'markdown', content:
+    '# Examples\r\n  ~~~lgl\r\n  text = 🍎 "hello" {name}\r\n  ~~~\r\n' });
+  await assertHighlight(markdown, '"hello"', 'string');
+  const replacement = new vscode.WorkspaceEdit();
+  replacement.insert(locale.uri, new vscode.Position(0, 0), '// edited\n');
+  assert.equal(await vscode.workspace.applyEdit(replacement), true);
+  await assertHighlight(locale, '"hello"', 'string');
+  await vscode.commands.executeCommand('linguini.restartServer');
+  await assertHighlight(markdown, '"hello"', 'string');
+
+}
+
+async function assertHighlight(document, text, expectedType) {
+  const legend = await vscode.commands.executeCommand('vscode.provideDocumentSemanticTokensLegend', document.uri);
+  const tokens = await vscode.commands.executeCommand('vscode.provideDocumentSemanticTokens', document.uri);
+  assert.ok(legend && tokens, `semantic provider must support ${document.languageId}`);
+  const expected = document.positionAt(document.getText().indexOf(text));
+  let line = 0;
+  let column = 0;
+  for (let index = 0; index < tokens.data.length; index += 5) {
+    line += tokens.data[index];
+    column = tokens.data[index] === 0 ? column + tokens.data[index + 1] : tokens.data[index + 1];
+    if (line === expected.line && column <= expected.character && column + tokens.data[index + 2] > expected.character) {
+      assert.equal(legend.tokenTypes[tokens.data[index + 3]], expectedType);
+      return;
+    }
+  }
+  assert.fail(`${document.languageId}: no semantic highlight for ${text}`);
 }
 
 module.exports = { run };

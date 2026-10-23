@@ -1,0 +1,97 @@
+const heroLocaleCode = `impl Fruit {
+  apple {
+    Gender = neuter
+    emoji = 🍎
+
+    form nom(Plural) {
+      one => apple
+      _ => apples
+    }
+  }
+
+  ...
+}
+
+form SizeWord(Size) {
+  small => compact
+  big => full-size
+}
+
+cart_summary = Cart has {count} {SizeWord(size)} {fruit.nom(count)}`;
+
+const schemaExample = `enum Fruit {
+  apple,
+  pear
+}
+
+enum Size {
+  small,
+  big
+}
+
+type Money = Decimal @currency(code = "USD")
+
+checkout(
+  count: Number,
+  fruit: Fruit,
+  size: Size,
+  total: Money
+)`;
+
+const localeExample = `impl Fruit {
+  apple {
+    Gender = neuter
+
+    form nom(Plural) {
+      one => apple
+      _ => apples
+    }
+  }
+
+  pear {
+    Gender = female
+
+    form nom(Plural) {
+      one => pear
+      _ => pears
+    }
+  }
+}
+
+enum Gender {
+  female,
+  neuter
+}
+
+form SizeWord(Size) {
+  small => compact
+  big => full-size
+}
+
+checkout = {count} {SizeWord(size)} {fruit.nom(count)}, {total}`;
+
+const sveltekitExample = `<script lang="ts">
+  import { l } from '$lib/generated/linguini/svelte';
+  import { setLocale } from '$lib/generated/linguini/svelte-control';
+  import { locales } from '$lib/generated/linguini/locale';
+</script>
+
+<a href="/checkout">
+  {l.main.checkout({ count: 3, fruit: "apple", size: "big", total: 1234 })}
+</a>
+
+{#each locales as locale}
+  <button
+    type="button"
+    onclick={() => setLocale(locale)}
+  >
+    {locale}
+  </button>
+{/each}`;
+
+export const examples = {
+  heroLocale: { source: heroLocaleCode, language: 'linguini-locale' },
+  schema: { source: schemaExample, language: 'linguini-schema' },
+  locale: { source: localeExample, language: 'linguini-locale' },
+  sveltekit: { source: sveltekitExample, language: 'svelte' }
+};

@@ -6,6 +6,7 @@ import {
   LanguageClientOptions,
   ServerOptions
 } from 'vscode-languageclient/node';
+import { registerMarkdownHighlighting } from './highlight';
 import { DebouncedSerialTask } from './restart';
 import {
   expandServerArgument,
@@ -23,6 +24,7 @@ interface ProtocolVersion {
 }
 
 let client: LanguageClient | undefined;
+let markdownHighlighting: vscode.Disposable | undefined;
 let restarter: DebouncedSerialTask | undefined;
 let traceOutputChannel: vscode.LogOutputChannel | undefined;
 
@@ -79,6 +81,8 @@ export async function deactivate(): Promise<void> {
   await restarter?.flush();
   restarter?.dispose();
   restarter = undefined;
+  markdownHighlighting?.dispose();
+  markdownHighlighting = undefined;
   const active = client;
   client = undefined;
   await active?.stop();
@@ -141,6 +145,8 @@ function createClient(context: vscode.ExtensionContext): {
 }
 
 async function replaceClient(context: vscode.ExtensionContext): Promise<void> {
+  markdownHighlighting?.dispose();
+  markdownHighlighting = undefined;
   const previous = client;
   client = undefined;
   await previous?.stop();
@@ -150,6 +156,7 @@ async function replaceClient(context: vscode.ExtensionContext): Promise<void> {
     await next.client.start();
     const version = await next.client.sendRequest<ProtocolVersion>('linguini/protocolVersion');
     validateProtocol(version, next.server);
+    markdownHighlighting = await registerMarkdownHighlighting(next.client, isSemanticHighlightingEnabled);
     client = next.client;
   } catch (error) {
     await next.client.stop().catch(() => undefined);

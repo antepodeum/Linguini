@@ -413,3 +413,13 @@ preserved; malformed layout fields now fail consistently before native generatio
 No application change is required. Source checkouts resolve the shared package through local pnpm
 overrides; published adapters depend on its pinned release version. Publish the shared project
 package before the adapters for a new release. This extraction does not yet remove `[web]`.
+
+VS Code highlighting now comes entirely from the shared Rust language pipeline. The Linguini
+TextMate grammars and their regex dependencies have been removed. Keep semantic highlighting
+and the matching native server enabled; existing theme scope mappings still apply. Markdown
+Linguini fences use the same native token classification. Quotes no longer auto-close in locale
+text because they can be literal characters; explicit quote surrounding is retained.
+
+The CLI adds `highlight <file.lgs|file.lgl>` for versioned JSON token output, also available through
+the `linguini/highlight` LSP request. Site examples use this output at refresh time and check its
+source hash during ordinary builds. Generated highlight HTML lives only in `.svelte-kit`.

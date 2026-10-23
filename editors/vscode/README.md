@@ -10,7 +10,9 @@ server must pass the protocol and compiler-version handshake.
 ## Features
 
 - Language contributions for `.lgs` and `.lgl`.
-- TextMate grammars for declarations, selectors, interpolations, formatters, raw locale text, strings, comments, and punctuation.
+- Highlighting from the shared Rust lexer and semantic walk, including incomplete edits,
+  unquoted text, interpolation, comments, and multiline strings.
+- Markdown Linguini fences use the same native highlighter.
 - Semantic token scope mappings for schema and locale files.
 - Language client activation through `vscode-languageclient/node`.
 - Document formatting is provided by the Linguini LSP.
@@ -56,3 +58,9 @@ l.account.title;
 l.account.greeting("Artemy");
 l.account.greeting({ name: "Artemy" });
 ```
+
+Highlighting requires the matching language server and semantic highlighting to be enabled.
+`linguini.semanticHighlighting.enabled` controls both Linguini files and Markdown fences.
+Theme fallback scopes provide colors without a separate language grammar. Quote auto-closing
+is disabled because quotes can be ordinary characters in unquoted locale text; explicit quote
+surrounding remains available.

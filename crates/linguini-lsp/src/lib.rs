@@ -1,5 +1,6 @@
 mod code_action;
 mod document;
+mod highlight;
 mod server;
 
 pub use document::{
@@ -10,6 +11,7 @@ pub use document::{
     semantic_tokens, workspace_symbols, CompletionCandidate, CompletionKind, LinguiniDocument,
     LinguiniSemanticToken, SemanticLegend, WorkspaceReference, WorkspaceTextEdit,
 };
+pub use highlight::highlight_source;
 pub use server::{run_stdio, run_stdio_blocking, try_run_stdio_blocking};
 
 #[cfg(test)]

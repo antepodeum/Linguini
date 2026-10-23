@@ -5,19 +5,21 @@
   "type": "module",
   "packageManager": "pnpm@11.1.0",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "pnpm highlight:build && vite dev",
     "linguini:build": "node scripts/restore-linguini-output.mjs",
-    "linguini:refresh": "cargo run --locked -p linguini-cli -- build && pnpm linguini:package",
+    "linguini:refresh": "cargo run --locked -p linguini-cli -- build && pnpm linguini:package && pnpm highlight:refresh",
     "linguini:package": "node scripts/package-linguini-output.mjs",
     "linguini:verify": "pnpm linguini:build && pnpm test",
-    "build:generated": "vite build",
+    "build:generated": "pnpm highlight:build && vite build",
     "build": "pnpm linguini:build && pnpm build:generated",
     "test:production": "pnpm linguini:build && pnpm build:generated && node scripts/production-graph.test.mjs",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
-    "test": "node --test scripts/generated-runtime.test.mjs scripts/packaged-output.test.mjs",
+    "test": "node --test scripts/generated-runtime.test.mjs scripts/packaged-output.test.mjs scripts/highlight.test.mjs",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "highlight:build": "node scripts/highlight-examples.mjs",
+    "highlight:refresh": "node scripts/refresh-highlights.mjs"
   },
   "dependencies": {
     "@antepod/linguini-vite": "file:../plugins/vite",

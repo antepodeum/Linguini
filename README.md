@@ -201,8 +201,8 @@ Rust users may instead install the same CLI through Cargo:
 cargo install linguini-cli --version 0.1.0-alpha.4
 ```
 
-The VS Code extension and generated tooling use the `linguini` command by
-default and do not include a bundled binary.
+Published desktop VS Code packages bundle a matching native language server.
+Generated tooling uses the `linguini` command by default.
 
 Builds consume checked-in, hash-verified CLDR artifacts only. Compilation never
 fetches CLDR data or invokes `git`; an incomplete source archive fails explicitly.
@@ -214,6 +214,7 @@ linguini fix       Apply quick fixes — missing files, message stubs
 linguini build     Build and write codegen outputs
 linguini generate  Render sample output for all locales and enum variants
 linguini format    Format .lgs and .lgl files
+linguini highlight Emit parser-backed JSON highlight tokens for a .lgs or .lgl file
 linguini lsp       Start the language server over stdio
 ```
 

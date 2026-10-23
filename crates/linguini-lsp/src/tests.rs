@@ -886,3 +886,117 @@ fn configured_locale_drives_plural_hover_for_custom_layout() {
 
     assert!(hover.contains("Locale `ru` category `one`"));
 }
+
+#[test]
+fn parser_highlighting_covers_complete_fixtures_without_a_textmate_grammar() {
+    use linguini_syntax::{lex_schema_with_recovery, lex_with_recovery, TokenKind};
+    for (language, source, tokens) in [
+        (
+            "lgs",
+            include_str!("../../../tests/fixtures/golden/syntax/all.lgs"),
+            lex_schema_with_recovery(include_str!(
+                "../../../tests/fixtures/golden/syntax/all.lgs"
+            ))
+            .tokens,
+        ),
+        (
+            "lgl",
+            include_str!("../../../tests/fixtures/golden/syntax/all.lgl"),
+            lex_with_recovery(include_str!(
+                "../../../tests/fixtures/golden/syntax/all.lgl"
+            ))
+            .tokens,
+        ),
+    ] {
+        let document = LinguiniDocument::new("linguini:fixture", language, source);
+        let highlighted = semantic_tokens(&document);
+        assert!(highlighted.iter().any(|token| token.token_type == 0));
+        assert!(highlighted.iter().any(|token| token.token_type == 9));
+        for token in tokens {
+            if matches!(
+                token.kind,
+                TokenKind::Whitespace | TokenKind::Newline | TokenKind::Error(_)
+            ) {
+                continue;
+            }
+            let mut start = token.span.start;
+            for part in source[token.span.start..token.span.end].split_inclusive('\n') {
+                let text = part.trim_end_matches(['\r', '\n']);
+                if !text.is_empty() {
+                    let (line, column) = document.position(start);
+                    assert!(
+                        highlighted.iter().any(|highlight| highlight.line == line
+                            && highlight.start == column
+                            && highlight.length == text.encode_utf16().count() as u32),
+                        "{language}: missing native highlight for {text:?}"
+                    );
+                }
+                start += part.len();
+            }
+        }
+        for pair in highlighted.windows(2) {
+            assert!(
+                pair[0].line < pair[1].line || pair[0].start + pair[0].length <= pair[1].start,
+                "native highlight spans must not overlap"
+            );
+        }
+        let standalone = crate::highlight_source(language, source).expect("standalone highlights");
+        assert_eq!(standalone["version"], 1);
+        let standalone = standalone["tokens"].as_array().expect("token array");
+        assert_eq!(standalone.len(), highlighted.len());
+        for (standalone, editor) in standalone.iter().zip(&highlighted) {
+            assert_eq!(standalone["line"], editor.line);
+            assert_eq!(standalone["start"], editor.start);
+            assert_eq!(standalone["length"], editor.length);
+            assert_eq!(
+                standalone["type"],
+                super::SemanticLegend::TYPES[editor.token_type as usize]
+            );
+        }
+    }
+}
+
+#[test]
+fn parser_highlighting_preserves_quoting_blocks_unicode_and_recovery() {
+    let source = concat!(
+        "plain = He said \"hello\" and measured 6\"\r\n",
+        "joined = 🍎 {name}, \"friend\".\r\n",
+        "quoted = \"\\\"hello\\\"\\n\\0\"\r\n",
+        "block = \"\"\"\r\n  \"hello\" {name}\r\n  \"\"\"\r\n",
+        "wire = raw\"\"\"  \"hello\"\r\n  {name}  \"\"\"\r\n",
+        "unterminated = \"broken\r\n",
+        "after_error = Plain after an invalid literal\r\n",
+    );
+    let document = LinguiniDocument::new("linguini:recovery", "lgl", source);
+    let tokens = semantic_tokens(&document);
+    for text in ["He said", "6\"", "🍎", "friend", "\\0", "Plain after"] {
+        let (line, start) = document.position(source.find(text).expect("sample exists"));
+        assert!(
+            tokens.iter().any(|token| token.line == line
+                && token.start <= start
+                && start < token.start + token.length
+                && token.token_type == 4),
+            "{text:?} must be string text"
+        );
+    }
+    for (offset, _) in source.match_indices("name") {
+        let (line, start) = document.position(offset);
+        assert!(
+            tokens.iter().any(|token| token.line == line
+                && token.start == start
+                && token.length == 4
+                && token.token_type != 4),
+            "interpolation must stay distinct from text"
+        );
+    }
+    // Even partially typed declarations must retain lexical colors without a complete AST.
+    for end in source
+        .char_indices()
+        .map(|(offset, _)| offset)
+        .chain([source.len()])
+    {
+        assert!(crate::highlight_source("lgl", &source[..end]).is_some());
+    }
+    assert!(crate::highlight_source("markdown", source).is_none());
+    assert!(crate::highlight_source("lgl", &"x".repeat(4 * 1024 * 1024 + 1)).is_none());
+}

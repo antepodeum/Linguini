@@ -7,7 +7,7 @@ use linguini_analyzer::{
     analyze_locale_file, Diagnostic, DiagnosticSeverity, LocaleCoverageOptions,
 };
 use linguini_format::{format_source, FormatOptions, SourceKind};
-use linguini_schema::SchemaDatabase;
+use linguini_schema::{highlight_tokens, HighlightKind, SchemaDatabase};
 use linguini_syntax::{
     parse_locale_with_recovery_in, parse_schema_with_recovery_in, validate_locale_ast,
     validate_schema_ast, FunctionDeclaration, LocaleDeclaration, LocaleFile, ParseOutput,
@@ -22,9 +22,7 @@ use self::semantic::{
     SemanticKey,
 };
 use self::symbols::symbols;
-use self::tokens::{
-    base_keywords, is_placeholder_context, prefix_at_boundary, semantic_token_type, tokens,
-};
+use self::tokens::{base_keywords, is_placeholder_context, prefix_at_boundary, tokens};
 
 const MAX_DOCUMENT_BYTES: usize = 4 * 1024 * 1024;
 const MAX_NESTING_DEPTH: usize = 256;
@@ -111,16 +109,7 @@ pub struct LinguiniSemanticToken {
 pub struct SemanticLegend;
 
 impl SemanticLegend {
-    pub const TYPES: [&'static str; 8] = [
-        "keyword",
-        "variable",
-        "enum",
-        "enumMember",
-        "string",
-        "comment",
-        "operator",
-        "function",
-    ];
+    pub const TYPES: [&'static str; 10] = HighlightKind::NAMES;
 }
 
 impl LinguiniDocument {
@@ -749,31 +738,13 @@ pub fn semantic_tokens(document: &LinguiniDocument) -> Vec<LinguiniSemanticToken
     if !document.is_within_safety_limits() {
         return Vec::new();
     }
-    let source_tokens = tokens(document);
-    let semantic_types = occurrences(document)
-        .into_iter()
-        .map(|occurrence| {
-            let token_type = match occurrence.key {
-                SemanticKey::Type(_) => 2,
-                SemanticKey::EnumVariant { .. } => 3,
-                SemanticKey::Function(_) | SemanticKey::FormAttribute { .. } => 7,
-                SemanticKey::Message(_)
-                | SemanticKey::Variable(_)
-                | SemanticKey::Parameter { .. } => 1,
-            };
-            ((occurrence.span.start, occurrence.span.end), token_type)
-        })
-        .collect::<BTreeMap<_, _>>();
     let mut raw = Vec::new();
-    for (index, token) in source_tokens.iter().enumerate() {
-        let token_type = semantic_types
-            .get(&(token.span.start, token.span.end))
-            .copied()
-            .or_else(|| semantic_token_type(&source_tokens, index));
-        let Some(token_type) = token_type else {
-            continue;
-        };
-        raw.extend(semantic_tokens_for_span(document, token.span, token_type));
+    for token in highlight_tokens(&tokens(document), &occurrences(document)) {
+        raw.extend(semantic_tokens_for_span(
+            document,
+            token.span,
+            token.kind as u32,
+        ));
     }
 
     raw.sort_by_key(|token| (token.line, token.start));

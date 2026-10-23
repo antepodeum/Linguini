@@ -1,4 +1,7 @@
+mod highlight;
 mod navigation;
+
+pub use highlight::{highlight_tokens, HighlightKind, HighlightToken};
 
 pub use navigation::{locale_occurrences, schema_occurrences, SemanticKey, SemanticOccurrence};
 

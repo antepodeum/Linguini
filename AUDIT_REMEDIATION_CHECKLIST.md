@@ -634,7 +634,10 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #341 — Add unit, packaging, and real-server smoke coverage.
 - [x] #342 — Pin packaging tools and avoid `npx --yes`.
 - [x] #343 — Use one lockfile convention inside the extension.
-- [x] #344 — Add lexer-derived grammar and language-configuration golden tests.
+- [x] #344 — Use the shared recoverable Rust lexer and semantic walk for highlighting, replacing
+  the parallel TextMate grammar and grammar goldens. Cover complete syntax fixtures, UTF-16,
+  quotes/escapes, multiline strings, interpolation, incomplete edits, language configuration,
+  Markdown fence mapping, packaged native tokens, and real VS Code restart/edit behavior.
 - [x] #345 — Perform a compiler/LSP protocol version handshake.
 - [x] #346 — Verify clean extension install, compile, package, and VSIX contents.
 

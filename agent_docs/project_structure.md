@@ -20,3 +20,7 @@
 - `packages/project`: shared JavaScript project-configuration reading and path resolution, with
   an ECMAScript layout entry used by the Vite and TypeScript adapters. Owns synchronous and
   asynchronous host parity and its packaged runtime/declaration contract.
+
+- `crates/linguini-schema/src/highlight.rs`: source-span classification over the shared lexer
+  tokens and semantic occurrences. LSP owns UTF-16/protocol conversion; the CLI and Markdown
+  host expose that same pipeline. Site builds render packaged native highlight tokens.

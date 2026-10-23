@@ -1057,3 +1057,23 @@ The integrated fixture is `tests/fixtures/golden/snapshots/js-complete-project`.
 Locale declaration barrels now re-export their imported namespace bindings directly. This fixes
 strict declaration checking that previously reported an import/local declaration collision and a
 self-referential namespace type; the public export names and value types remain unchanged.
+
+### Editor and build-time highlighting
+
+Linguini files are highlighted by the recoverable Rust lexer and the shared schema/locale
+semantic walk. `linguini-schema::highlight_tokens` classifies those tokens and occurrences;
+LSP converts their source spans to UTF-16 positions. VS Code uses these semantic tokens,
+including lexical colors while a declaration is incomplete. There is no separate TextMate
+language grammar. Highlighting requires the matching server and semantic highlighting enabled.
+Markdown Linguini fences forward their content to the same highlighter and map positions back
+to the Markdown document.
+
+`linguini highlight example.lgl` (or `.lgs`) emits versioned JSON with a token legend and
+zero-based UTF-16 `line`, `start`, and `length` values and named token `type` fields. The
+`linguini/highlight` LSP request accepts `language` (`lgs`, `lgl`, or the full language ID) and
+`source` strings and returns the same response. Both paths enforce document safety limits.
+
+Site Linguini examples consume checked native token artifacts; normal development and builds
+render escaped HTML into `.svelte-kit` without running Rust. `pnpm --dir site highlight:refresh`
+updates the packaged tokens after changing an example or the highlighter. The full test profile
+and Rust CI compare those artifacts with native output. Shiki handles the Svelte example only.

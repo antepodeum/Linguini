@@ -35,6 +35,7 @@ test("public contract policy requires docs, migrations, and tests together", () 
   );
   assert.throws(() => validateContractEvidence(["packages/project/src/ecmascript.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   assert.deepEqual(contractEvidence(["crates/linguini-ir/src/lower.rs"]).contracts, []);
+  assert.throws(() => validateContractEvidence(["crates/linguini-schema/src/highlight.rs"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   assert.throws(() => validateContractEvidence(["plugins/tsc/src/index.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   for (const name of ["linguini-codegen", "linguini-codegen-ecmascript", "linguini-codegen-ecmascript-web", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) {
     assert.throws(
@@ -168,6 +169,7 @@ test("registry is explicit and ordered across repository projects", () => {
     "codegen:complete-project-js",
     "codegen:complete-project-ts",
     "codegen:complete-project-runtime",
+      "codegen:highlight",
       "rust:test",
       "rust:clippy",
       "docs:syntax",

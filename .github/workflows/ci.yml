@@ -78,6 +78,7 @@ jobs:
         run: |
           cargo run --locked -p linguini-cli -- build
           node scripts/package-linguini-output.mjs
+          node scripts/refresh-highlights.mjs --check
           git diff --exit-code -- generated
 
   coverage:

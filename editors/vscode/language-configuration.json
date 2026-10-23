@@ -20,14 +20,6 @@
     {
       "open": "(",
       "close": ")"
-    },
-    {
-      "open": "\"",
-      "close": "\"",
-      "notIn": [
-        "string",
-        "comment"
-      ]
     }
   ],
   "surroundingPairs": [

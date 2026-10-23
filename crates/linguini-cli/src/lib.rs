@@ -1,3 +1,4 @@
+mod highlight;
 mod project;
 
 #[cfg(test)]
@@ -75,6 +76,8 @@ enum CliCommand {
     Generate,
     /// Format `.lgs` and `.lgl` files
     Format(FormatArgs),
+    /// Emit parser-backed highlight tokens as JSON for one `.lgs` or `.lgl` file
+    Highlight { path: PathBuf },
     /// Start the Linguini language server over stdio
     Lsp,
 }
@@ -158,6 +161,7 @@ pub fn run(
         ),
         CliCommand::Generate => project::generate_project_data(&root),
         CliCommand::Format(args) => format_project(&root, &args),
+        CliCommand::Highlight { path } => highlight::highlight_file(&root, &path),
         CliCommand::Lsp => {
             linguini_lsp::run_stdio_blocking();
             Ok(String::new())

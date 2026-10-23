@@ -375,6 +375,20 @@ impl Backend {
         }
     }
 
+    async fn highlight(&self, params: serde_json::Value) -> Result<serde_json::Value> {
+        let language = params
+            .get("language")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| Error::invalid_params("highlight requires a language string"))?;
+        let source = params
+            .get("source")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| Error::invalid_params("highlight requires a source string"))?;
+        crate::highlight_source(language, source).ok_or_else(|| {
+            Error::invalid_params("unsupported language or highlight safety limit exceeded")
+        })
+    }
+
     async fn protocol_version(&self) -> Result<serde_json::Value> {
         Ok(protocol_version_response())
     }
@@ -913,6 +927,7 @@ pub async fn run_stdio() {
     let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
     let (service, socket) = LspService::build(Backend::new)
         .custom_method("linguini/protocolVersion", Backend::protocol_version)
+        .custom_method("linguini/highlight", Backend::highlight)
         .finish();
     Server::new(stdin, stdout, socket).serve(service).await;
 }

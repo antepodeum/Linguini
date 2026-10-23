@@ -1553,3 +1553,26 @@ fn strip_ansi(value: &str) -> String {
     }
     output
 }
+
+#[test]
+fn highlight_command_matches_editor_tokens_without_a_project_config() {
+    let root = temp_project_dir("highlight").expect("temporary directory");
+    let source = "hello = 🍎 {name}, \"friend\"\n";
+    fs::write(root.path().join("sample.lgl"), source).expect("sample source");
+    let output = super::run(
+        ["highlight".to_owned(), "sample.lgl".to_owned()],
+        Ok(root.path().to_path_buf()),
+    )
+    .expect("highlight command");
+    let actual: serde_json::Value = serde_json::from_str(&output).expect("JSON tokens");
+    assert_eq!(
+        actual,
+        linguini_lsp::highlight_source("lgl", source).expect("editor tokens")
+    );
+    fs::write(root.path().join("sample.txt"), source).expect("unsupported file");
+    assert!(super::run(
+        ["highlight".to_owned(), "sample.txt".to_owned()],
+        Ok(root.path().to_path_buf())
+    )
+    .is_err());
+}

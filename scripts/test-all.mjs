@@ -456,6 +456,16 @@ export const TASKS = Object.freeze([
     command: "bun", args: ["test", "./tests/fixtures/golden/snapshots/js-complete-project/parity.test.ts"],
     profiles: ["quick", "full"], tools: ["bun"], requiresNodeModules: false,
   }),
+  nodeTask({
+    id: "codegen:highlight",
+    project: "rust",
+    label: "Native site highlight artifact parity",
+    command: "node",
+    args: ["site/scripts/refresh-highlights.mjs", "--check"],
+    profiles: ["full"],
+    tools: ["cargo"],
+    requiresNodeModules: false,
+  }),
   Object.freeze({
     id: "rust:test",
     project: "rust",

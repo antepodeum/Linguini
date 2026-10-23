@@ -22,12 +22,13 @@
   "activationEvents": [
     "onLanguage:linguini-schema",
     "onLanguage:linguini-locale",
-    "workspaceContains:**/linguini.toml"
+    "workspaceContains:**/linguini.toml",
+    "onLanguage:markdown"
   ],
   "main": "./dist/extension.js",
   "scripts": {
     "compile": "tsc -p ./",
-    "test": "pnpm run compile && node --test out/grammar.test.js out/restart.test.js out/server-resolution.test.js",
+    "test": "pnpm run compile && node --test out/highlight.test.js out/restart.test.js out/server-resolution.test.js",
     "bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=dist/extension.js --sourcemap --sources-content=false",
     "test:integration": "pnpm run bundle && node ./scripts/run-integration-tests.js",
     "package:vsix": "node ./scripts/package-vsix.js",
@@ -61,32 +62,6 @@
           ".lgl"
         ],
         "configuration": "./language-configuration.json"
-      }
-    ],
-    "grammars": [
-      {
-        "language": "linguini-schema",
-        "scopeName": "source.linguini.schema",
-        "path": "./syntaxes/linguini-schema.tmLanguage.json"
-      },
-      {
-        "language": "linguini-locale",
-        "scopeName": "source.linguini.locale",
-        "path": "./syntaxes/linguini-locale.tmLanguage.json"
-      },
-      {
-        "scopeName": "markdown.linguini.schema.codeblock",
-        "path": "./syntaxes/markdown-linguini-schema.tmLanguage.json",
-        "injectTo": [
-          "text.html.markdown"
-        ]
-      },
-      {
-        "scopeName": "markdown.linguini.locale.codeblock",
-        "path": "./syntaxes/markdown-linguini-locale.tmLanguage.json",
-        "injectTo": [
-          "text.html.markdown"
-        ]
       }
     ],
     "configuration": {
@@ -143,6 +118,12 @@
       {
         "language": "linguini-schema",
         "scopes": {
+          "keyword": [
+            "keyword.control.linguini"
+          ],
+          "variable": [
+            "variable.other.linguini"
+          ],
           "enum": [
             "entity.name.type.enum.linguini"
           ],
@@ -158,17 +139,26 @@
           "parameter": [
             "variable.parameter.linguini"
           ],
-          "property": [
-            "variable.other.member.linguini"
+          "string": [
+            "string.quoted.linguini"
           ],
-          "keyword": [
-            "keyword.control.linguini"
+          "comment": [
+            "comment.line.double-slash.linguini"
+          ],
+          "operator": [
+            "keyword.operator.linguini"
           ]
         }
       },
       {
         "language": "linguini-locale",
         "scopes": {
+          "keyword": [
+            "keyword.control.linguini"
+          ],
+          "variable": [
+            "variable.other.linguini"
+          ],
           "enum": [
             "entity.name.type.enum.linguini"
           ],
@@ -184,14 +174,14 @@
           "parameter": [
             "variable.parameter.linguini"
           ],
-          "property": [
-            "variable.other.member.linguini"
-          ],
-          "keyword": [
-            "keyword.control.linguini"
-          ],
           "string": [
-            "string.unquoted.linguini"
+            "string.quoted.linguini"
+          ],
+          "comment": [
+            "comment.line.double-slash.linguini"
+          ],
+          "operator": [
+            "keyword.operator.linguini"
           ]
         }
       }
@@ -213,8 +203,6 @@
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.1",
     "ovsx": "1.0.2",
-    "typescript": "5.9.3",
-    "vscode-oniguruma": "2.0.1",
-    "vscode-textmate": "9.3.2"
+    "typescript": "5.9.3"
   }
 }
