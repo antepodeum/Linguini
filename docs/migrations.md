@@ -426,3 +426,7 @@ source hash during ordinary builds. Generated highlight HTML lives only in `.sve
 
 Highlight and LSP source positions now recognize CR-only line endings as well as LF and CRLF.
 Multiline token spans exclude each line terminator, and UTF-16 offsets round-trip in all three forms.
+
+Generated messages now use number, currency, and date formatter results directly, omitting
+redundant outer `String` calls. Input coercion, formatter order, exceptions, aliases, and the
+public string result contract are preserved. No application changes are required.

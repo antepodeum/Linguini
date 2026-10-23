@@ -100,7 +100,7 @@ fn project_codegen_emits_dedented_and_raw_semantic_text_exactly() {
         .expect("locale module");
 
     assert!(generated.contents.contains(
-        "return \"Order \" + String(order_id) + \"\\n  \" + String(formatNumber(item_count)) + \" items  \\nThank you.\";"
+        "return \"Order \" + String(order_id) + \"\\n  \" + formatNumber(item_count) + \" items  \\nThank you.\";"
     ));
     assert!(
         generated.contents.contains(
@@ -2411,4 +2411,81 @@ fn project_codegen_uses_cldr_text_direction_metadata() {
         .expect("locale module");
     assert!(locale.contents.contains(r#"en: "ltr""#));
     assert!(locale.contents.contains(r#"ar: "rtl""#));
+}
+
+#[test]
+fn formatter_results_skip_redundant_coercion_and_preserve_input_evaluation() {
+    let schema = lower_schema(
+        &parse_schema(concat!(
+            "type Money = Decimal @currency(code = \"USD\")\n",
+            "type Day = Date @date(style = \"short\")\n",
+            "numeric(value: Number)\nmoney(value: Money)\nday(value: Day)\n",
+            "mixed(label: String, value: Number)\nplain(value: String)\n",
+        ))
+        .expect("formatter schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale(concat!(
+            "numeric = {value}\nmoney = {value}\nday = {value}\n",
+            "mixed = {label} / {value}\nplain = {value}\n",
+        ))
+        .expect("formatter locale"),
+    );
+    let files = generate_project_files(
+        &schema,
+        &[EcmaLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("codegen");
+    let code = &files
+        .iter()
+        .find(|file| file.path == "locales/en.js")
+        .expect("locale")
+        .contents;
+    assert!(code.contains("return formatNumber(value);"));
+    assert!(code.contains("return formatCurrency_code_USD(value);"));
+    assert!(code.contains("return formatDate_style_short(value);"));
+    assert!(code.contains("return String(value);"));
+    assert!(!code.contains("String(format"));
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"
+import assert from 'node:assert/strict';
+const {default: l} = await import('./locales/en.js');
+const events = [];
+const number = { [Symbol.toPrimitive](hint) { events.push(`number:${hint}`); return '1234.5'; } };
+const raw = { [Symbol.toPrimitive](hint) { events.push(`raw:${hint}`); return 'raw'; } };
+assert.equal(l.numeric(number), '1,234.5');
+assert.deepEqual(events.splice(0), ['number:string']);
+assert.equal(l.numeric({value: number}), '1,234.5');
+assert.deepEqual(events.splice(0), ['number:string']);
+assert.equal(l.money(number), '$1,234.50');
+assert.deepEqual(events.splice(0), ['number:string']);
+assert.equal(l.mixed(raw, number), 'raw / 1,234.5');
+assert.deepEqual(events.splice(0), ['raw:string', 'number:string']);
+assert.equal(l.plain(raw), 'raw');
+assert.deepEqual(events.splice(0), ['raw:string']);
+const date = new Date('2024-01-02T12:34:56Z');
+date.getTime = () => { events.push('getTime'); return Date.prototype.getTime.call(date); };
+assert.equal(l.day(date), '1/2/24');
+assert.deepEqual(events.splice(0), ['getTime']);
+for (const value of [NaN, Infinity, -Infinity, -0, 12345678901234567890n, '1.2300']) {
+  assert.equal(typeof l.numeric(value), 'string');
+  assert.equal(typeof l.money(value), 'string');
+}
+assert.throws(() => l.numeric('invalid'), {name: 'RangeError', message: 'Linguini: invalid numeric value'});
+assert.throws(() => l.day('invalid'), {name: 'RangeError', message: 'Linguini: invalid date value'});
+const failure = new Error('input coercion failed');
+const throwing = { [Symbol.toPrimitive]() { events.push('throw'); throw failure; } };
+assert.throws(() => l.mixed(raw, throwing), error => error === failure);
+assert.deepEqual(events, ['raw:string', 'throw']);
+console.log('formatter-coercion-ok');
+"#
+        ),
+        "formatter-coercion-ok"
+    );
 }

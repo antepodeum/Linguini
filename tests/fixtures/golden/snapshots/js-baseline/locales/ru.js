@@ -56,7 +56,7 @@ export function delivery(...__lgl_args) {
  */
 export function counted(...__lgl_args) {
   const [count, fruit] = /** @type {[count: number | bigint | string, fruit: Fruit]} */ (normalizeMessageArgs(__lgl_args, ["count", "fruit"]));
-  return String(cart_label) + " " + String(formatNumber(count)) + " " + String(__lgl_form_Fruit[fruit].nom(count));
+  return String(cart_label) + " " + formatNumber(count) + " " + String(__lgl_form_Fruit[fruit].nom(count));
 }
 
 /**
@@ -76,7 +76,7 @@ export function counted(...__lgl_args) {
  */
 export function price(...__lgl_args) {
   const [amount, date] = /** @type {[amount: Money, date: ShortDate]} */ (normalizeMessageArgs(__lgl_args, ["amount", "date"]));
-  return "Цена " + String(formatCurrency_code_RUB(amount)) + " на " + String(formatDate_style_short(date));
+  return "Цена " + formatCurrency_code_RUB(amount) + " на " + formatDate_style_short(date);
 }
 
 const lgl = {

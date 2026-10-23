@@ -203,7 +203,10 @@ fn expression_string(
     } else {
         expression.formatters.as_slice()
     };
-    let formatted = apply_formatters(value, formatters);
+    let (formatted, produces_string) = apply_formatters(value, formatters);
+    if produces_string {
+        return formatted;
+    }
     crate::templates::render(
         "expression",
         minijinja::context! { kind => "string", value => formatted },
@@ -391,11 +394,13 @@ fn selector_expression(value: &str, plural: bool, coerce: bool, options: &EcmaOp
     .to_owned()
 }
 
-fn apply_formatters(value: String, formatters: &[IrFormatter]) -> String {
-    formatters.iter().fold(value, |current, formatter| {
+fn apply_formatters(value: String, formatters: &[IrFormatter]) -> (String, bool) {
+    let mut produces_string = false;
+    let formatted = formatters.iter().fold(value, |current, formatter| {
         if matches!(formatter.kind, IrFormatterKind::Unknown(_)) {
             return current;
         }
+        produces_string = true;
         let name = super::formatters::formatter_binding(&linguini_codegen::FormatterRequest::new(
             formatter,
         ));
@@ -405,13 +410,14 @@ fn apply_formatters(value: String, formatters: &[IrFormatter]) -> String {
         )
         .trim_end()
         .to_owned()
-    })
+    });
+    (formatted, produces_string)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{expression_value, form_object, EcmaOptions};
-    use linguini_ir::{lower_locale, IrExpression, IrExpressionKind};
+    use super::{expression_string, expression_value, form_object, EcmaOptions};
+    use linguini_ir::{lower_locale, IrExpression, IrExpressionKind, IrFormatter, IrFormatterKind};
     use linguini_syntax::{parse_locale, Span};
     use std::collections::BTreeMap;
 
@@ -422,6 +428,42 @@ mod tests {
             arguments: Vec::new(),
             formatters: Vec::new(),
             span: Span::new(0, 0),
+        }
+    }
+
+    #[test]
+    fn only_applied_string_formatters_remove_expression_coercion() {
+        let context = BTreeMap::new();
+        let options = EcmaOptions::default();
+        let unknown = IrFormatter {
+            kind: IrFormatterKind::Unknown("custom".to_owned()),
+            arguments: Vec::new(),
+        };
+        for (kind, expected) in [
+            (IrFormatterKind::Number, "formatNumber(value)"),
+            (IrFormatterKind::Currency, "formatCurrency(value)"),
+            (IrFormatterKind::Date, "formatDate(value)"),
+        ] {
+            let formatter = IrFormatter {
+                kind,
+                arguments: Vec::new(),
+            };
+            let mut value = expression(IrExpressionKind::Reference, &["value"]);
+            let defaults = BTreeMap::from([("value".to_owned(), vec![formatter.clone()])]);
+            assert_eq!(
+                expression_string(&value, &context, &defaults, &options),
+                expected
+            );
+            value.formatters = vec![unknown.clone()];
+            assert_eq!(
+                expression_string(&value, &context, &defaults, &options),
+                "String(value)"
+            );
+            value.formatters = vec![unknown.clone(), formatter, unknown.clone()];
+            assert_eq!(
+                expression_string(&value, &context, &defaults, &options),
+                expected
+            );
         }
     }
 

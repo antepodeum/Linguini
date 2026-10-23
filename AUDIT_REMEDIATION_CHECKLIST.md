@@ -998,6 +998,8 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       remaining type-renderer audit and demand-selected CLDR helper generation.
       Static CLDR parameters must specialize the emitted implementation itself; passing a long
       vector of constants/undefined options to a generic formatter does not satisfy this criterion.
+      Generated number/currency/date results also omit redundant outer `String` calls while
+      preserving raw input coercion, aliases, evaluation order, and formatter exceptions.
       No generated JS/TS runtime sources belong under Rust `src/`; generation happens during builds.
       Backend-independent type models, requirement analysis, and message dependency slicing
       live in `linguini-codegen`; ECMAScript rendering stays in `linguini-codegen-ecmascript`.
