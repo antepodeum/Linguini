@@ -1000,3 +1000,18 @@ fn parser_highlighting_preserves_quoting_blocks_unicode_and_recovery() {
     assert!(crate::highlight_source("markdown", source).is_none());
     assert!(crate::highlight_source("lgl", &"x".repeat(4 * 1024 * 1024 + 1)).is_none());
 }
+
+#[test]
+fn highlight_positions_agree_for_lf_crlf_and_cr_line_endings() {
+    let source = "plain = 🍎 {name}\nblock = \"\"\"\n  text {name}\n\"\"\"\n";
+    let expected = semantic_tokens(&LinguiniDocument::new("linguini:lf", "lgl", source));
+    for newline in ["\r\n", "\r"] {
+        let document =
+            LinguiniDocument::new("linguini:newlines", "lgl", source.replace('\n', newline));
+        assert_eq!(semantic_tokens(&document), expected, "{newline:?}");
+        let offset = document.text.find("text").expect("text offset");
+        let (line, column) = document.position(offset);
+        assert_eq!((line, column), (2, 2));
+        assert_eq!(document.offset(line, column), offset);
+    }
+}

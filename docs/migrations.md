@@ -423,3 +423,6 @@ text because they can be literal characters; explicit quote surrounding is retai
 The CLI adds `highlight <file.lgs|file.lgl>` for versioned JSON token output, also available through
 the `linguini/highlight` LSP request. Site examples use this output at refresh time and check its
 source hash during ordinary builds. Generated highlight HTML lives only in `.svelte-kit`.
+
+Highlight and LSP source positions now recognize CR-only line endings as well as LF and CRLF.
+Multiline token spans exclude each line terminator, and UTF-16 offsets round-trip in all three forms.

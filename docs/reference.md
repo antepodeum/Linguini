@@ -1071,7 +1071,8 @@ to the Markdown document.
 `linguini highlight example.lgl` (or `.lgs`) emits versioned JSON with a token legend and
 zero-based UTF-16 `line`, `start`, and `length` values and named token `type` fields. The
 `linguini/highlight` LSP request accepts `language` (`lgs`, `lgl`, or the full language ID) and
-`source` strings and returns the same response. Both paths enforce document safety limits.
+`source` strings and returns the same response. LF, CRLF, and CR line endings use the same
+coordinates. Both paths enforce document safety limits.
 
 Site Linguini examples consume checked native token artifacts; normal development and builds
 render escaped HTML into `.svelte-kit` without running Rust. `pnpm --dir site highlight:refresh`

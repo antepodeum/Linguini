@@ -893,14 +893,9 @@ fn semantic_tokens_for_span(
     let span_end = span.end.min(document.text.len());
     while segment_start < span_end {
         let newline = document.text[segment_start..span_end]
-            .find('\n')
+            .find(['\r', '\n'])
             .map(|relative| segment_start + relative);
-        let mut segment_end = newline.unwrap_or(span_end);
-        if segment_end > segment_start
-            && document.text.as_bytes().get(segment_end - 1) == Some(&b'\r')
-        {
-            segment_end -= 1;
-        }
+        let segment_end = newline.unwrap_or(span_end);
         if segment_end > segment_start {
             let (line, start) = document.position(segment_start);
             let (_, end) = document.position(segment_end);
@@ -916,6 +911,12 @@ fn semantic_tokens_for_span(
             break;
         };
         segment_start = newline + 1;
+        if document.text.as_bytes()[newline] == b'\r'
+            && segment_start < span_end
+            && document.text.as_bytes()[segment_start] == b'\n'
+        {
+            segment_start += 1;
+        }
     }
     output
 }
@@ -1067,10 +1068,20 @@ fn line_end(source: &str, line_starts: &[usize], line: usize) -> usize {
 
 fn line_starts(source: &str) -> Vec<usize> {
     let mut starts = vec![0];
-    for (index, byte) in source.bytes().enumerate() {
-        if byte == b'\n' {
-            starts.push(index + 1);
+    let bytes = source.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\r' => {
+                if bytes.get(index + 1) == Some(&b'\n') {
+                    index += 1;
+                }
+                starts.push(index + 1);
+            }
+            b'\n' => starts.push(index + 1),
+            _ => {}
         }
+        index += 1;
     }
     starts
 }
