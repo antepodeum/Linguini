@@ -16,3 +16,7 @@
   manifest planning, accepting explicit runtime-helper descriptors from the host compiler.
 - `plugins/vite`: Vite lifecycle and application usage integration, with Svelte-specific syntax
   handling isolated behind the `/svelte` adapter.
+
+- `packages/project`: shared JavaScript project-configuration reading and path resolution, with
+  an ECMAScript layout entry used by the Vite and TypeScript adapters. Owns synchronous and
+  asynchronous host parity and its packaged runtime/declaration contract.

@@ -4,21 +4,28 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@antepod/linguini-project': file:../../packages/project
+
 importers:
 
   .:
     dependencies:
+      '@antepod/linguini-project':
+        specifier: file:../../packages/project
+        version: file:../../packages/project
       magic-string:
         specifier: 0.30.21
         version: 0.30.21
-      smol-toml:
-        specifier: 1.7.1
-        version: 1.7.1
       vite:
         specifier: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
         version: 7.3.3
 
 packages:
+
+  '@antepod/linguini-project@file:../../packages/project':
+    resolution: {directory: ../../packages/project, type: directory}
+    engines: {node: '>=20'}
 
   '@esbuild/aix-ppc64@0.27.7':
     resolution: {integrity: sha512-EKX3Qwmhz1eMdEJokhALr0YiD0lhQNwDqkPYyPhiSwKrh7/4KRjQc04sZ8db+5DVVnZ1LmbNDI1uAMPEUBnQPg==}
@@ -416,6 +423,10 @@ packages:
         optional: true
 
 snapshots:
+
+  '@antepod/linguini-project@file:../../packages/project':
+    dependencies:
+      smol-toml: 1.7.1
 
   '@esbuild/aix-ppc64@0.27.7':
     optional: true

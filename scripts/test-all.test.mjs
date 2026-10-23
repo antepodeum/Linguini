@@ -33,6 +33,7 @@ test("public contract policy requires docs, migrations, and tests together", () 
     () => validateContractEvidence(["plugins/vite/src/index.js", "docs/web-sveltekit.md"]),
     /docs\/migrations\.md, tests or fixtures/,
   );
+  assert.throws(() => validateContractEvidence(["packages/project/src/ecmascript.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   assert.deepEqual(contractEvidence(["crates/linguini-ir/src/lower.rs"]).contracts, []);
   assert.throws(() => validateContractEvidence(["plugins/tsc/src/index.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   for (const name of ["linguini-codegen", "linguini-codegen-ecmascript", "linguini-codegen-ecmascript-web", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) {
@@ -124,6 +125,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "repo:versions",
       "repo:contracts",
       "repo:js-boundaries",
+      "project:test",
       "rust:fmt",
       "codegen:schema-js",
       "codegen:runtime-js",
@@ -184,7 +186,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "site:graph",
     ],
   );
-  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "tsc", "vite", "cli", "vscode", "site"]);
+  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "tsc", "vite", "cli", "vscode", "site"]);
 });
 
 test("profiles select the expected ordered task groups", () => {
@@ -192,6 +194,7 @@ test("profiles select the expected ordered task groups", () => {
     "repo:versions",
     "repo:contracts",
     "repo:js-boundaries",
+    "project:test",
     "rust:fmt",
     "codegen:schema-js",
     "codegen:runtime-js",
@@ -312,6 +315,7 @@ test("task execution continues after a failure and aggregates exit status", () =
     "repo:versions",
     "repo:contracts",
     "repo:js-boundaries",
+    "project:test",
     "rust:fmt",
     "codegen:schema-js",
     "codegen:runtime-js",

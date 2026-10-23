@@ -1,0 +1,38 @@
+{
+  "name": "@antepod/linguini-project",
+  "version": "0.1.0-alpha.4",
+  "description": "Shared project configuration loading for Linguini build integrations",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antepodeum/Linguini.git",
+    "directory": "packages/project"
+  },
+  "packageManager": "pnpm@11.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./ecmascript": {
+      "types": "./src/ecmascript.d.ts",
+      "default": "./src/ecmascript.js"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "smol-toml": "1.7.1"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

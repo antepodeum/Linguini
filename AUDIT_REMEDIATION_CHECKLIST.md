@@ -1044,6 +1044,9 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       for those modules. Keep one source of configuration; remove `[web]` and framework policy from
       language-neutral TOML and its schema. Supply a validated build-time plan to native codegen,
       including the CLI, rather than evaluating arbitrary project JavaScript inside Rust.
+      Vite and `tsc` now share the frontend project/layout reader in `@antepod/linguini-project`,
+      with sync/async policy parity and a packaged runtime/declaration check. Typed module
+      configuration, native plan transport, and removal of legacy TOML policy remain open.
 - [ ] MOD-A4 — Enforce ESM-A3's exact page/locale delivery contract across composed components,
       layouts, shared functions, and finite dynamic uses. Build/SSR must select a known initial
       locale without client rediscovery; initial delivery must contain no unused messages/helpers,

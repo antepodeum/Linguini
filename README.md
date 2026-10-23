@@ -225,11 +225,12 @@ linguini lsp       Start the language server over stdio
 cargo test --workspace
 ```
 
-The root runner provides repository-wide local verification:
+Install the shared configuration package with `pnpm --dir packages/project install --frozen-lockfile`
+before using the root runner. It provides repository-wide local verification:
 
 ```bash
 pnpm dev:site --host 127.0.0.1   # site with workspace-local Linguini packages
-pnpm test:quick   # Rust formatting, codegen, Vite, tsc, and CLI checks
+pnpm test:quick   # project config, Rust formatting, codegen, Vite, tsc, and CLI checks
 pnpm test:full    # Rust, Vite, tsc, CLI, VS Code, and real-site gates
 pnpm test:site    # generate, test, check, build, and inspect the site graph
 ```

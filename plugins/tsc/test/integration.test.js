@@ -164,6 +164,10 @@ test("a packed installation provides its executable, public types, and runnable 
     "@antepod/linguini-tsc": `file:${archive.replaceAll("\\", "/")}`,
     typescript: "6.0.3",
   } }));
+  const projectArchive = path.join(root, "linguini-project.tgz");
+  const projectPackage = pnpm(["pack", "--out", projectArchive], fileURLToPath(new URL("../../../packages/project/", import.meta.url)));
+  assert.equal(projectPackage.status, 0, projectPackage.stderr);
+  write(root, "pnpm-workspace.yaml", `overrides:\n  '@antepod/linguini-project': ${JSON.stringify(`file:${projectArchive.replaceAll("\\", "/")}`)}\n`);
   const installed = pnpm(["install", "--offline", "--ignore-scripts"], root);
   assert.equal(installed.status, 0, installed.stderr + installed.stdout);
   write(root, "src/api.ts", `import type { LinguiniTypeScriptOptions } from "@antepod/linguini-tsc";

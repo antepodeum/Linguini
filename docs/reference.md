@@ -39,6 +39,13 @@ locale state, controls, effects, and provider facades. `linguini-codegen-sveltek
 Svelte generation with its server adapters and ambient types. Neither is a dependency of
 `linguini-codegen-ecmascript`.
 
+`@antepod/linguini-project` owns frontend configuration reading and project-relative path resolution.
+Its `./ecmascript` entry derives the same layout for asynchronous Vite and synchronous `tsc` hosts,
+including generated/source roots, locale loading, finite dynamic uses, and link mode. Frameworks
+and compiler APIs remain in their adapters. The language-neutral entry has no framework imports.
+This shared reader still accepts the existing TOML layout; typed module configuration and native
+plan transport are the next migration steps.
+
 `linguini-codegen-vite::VitePlan` owns physical message/semantic leaves and manifest generation.
 The host compiler supplies validated application usage and explicit runtime-helper descriptors;
 Vite planning has no Svelte or SvelteKit dependency. A plan can emit into multiple output roots,

@@ -1,0 +1,2 @@
+overrides:
+  '@antepod/linguini-project': file:../../packages/project

@@ -1,6 +1,6 @@
-import { readFileSync, realpathSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import path from "node:path";
-import { parse } from "smol-toml";
+import { readEcmascriptProjectSync } from "@antepod/linguini-project/ecmascript";
 import ts from "typescript";
 
 export function readProjects(roots, overrides, cwd, solution = false) {
@@ -39,14 +39,16 @@ export function findLinguiniProject(config) {
   while (true) {
     const configFile = path.join(root, "linguini.toml");
     if (ts.sys.fileExists(configFile)) {
-      const document = parse(readFileSync(configFile, "utf8"));
-      if (!document.targets?.ts) return undefined;
-      const resolve = (value, fallback) => within(root, value ?? fallback);
+      const layout = readEcmascriptProjectSync(root);
+      if (!layout.targetConfigured) return undefined;
+      for (const directory of [layout.generatedRoot, layout.schemaRoot, layout.localeRoot]) {
+        if (directory === root) throw new Error(`Linguini path equals its project root: ${directory}`);
+      }
       return {
         root,
         configFile,
-        generated: resolve(document.targets.ts.out, "generated/linguini"),
-        sources: [resolve(document.paths?.schema, "linguini/schema"), resolve(document.paths?.locale, "linguini/locale")],
+        generated: layout.generatedRoot,
+        sources: [layout.schemaRoot, layout.localeRoot],
       };
     }
     const parent = path.dirname(root);
@@ -86,13 +88,6 @@ export function runtimeOutput(parsed, layout, declarations = false) {
     throw new Error(`Linguini output ${destination} must remain inside its project root ${layout.root}`);
   }
   return destination === layout.generated ? undefined : path.relative(layout.root, destination);
-}
-
-function within(root, relative) {
-  if (typeof relative !== "string" || !relative || path.isAbsolute(relative)) throw new Error("Linguini paths must be non-empty project-relative strings");
-  const absolute = path.resolve(root, relative);
-  if (!isWithin(root, absolute) || absolute === root) throw new Error(`Linguini path escapes or equals its project root: ${relative}`);
-  return absolute;
 }
 
 function isWithin(root, file) {

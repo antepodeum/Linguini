@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const expectedManager = "pnpm@11.1.0";
-const projects = [".", "plugins/vite", "plugins/tsc", "site", "editors/vscode"];
+const projects = [".", "packages/project", "plugins/vite", "plugins/tsc", "site", "editors/vscode"];
 
 for (const project of projects) {
   const manifestPath = join(root, project, "package.json");

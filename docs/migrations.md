@@ -406,3 +406,10 @@ as 1 BCE, and negative years count backward within BCE. Widths of three or more 
 zero-pad to the requested minimum; `yy` keeps its two-digit truncation. For example, `yyyy G`
 formats year 1 as `0001 AD`, and year zero as `0001 BC`. Year and era formatting share one UTC
 year read, and date requests containing only a padded year select the padding helper correctly.
+
+Vite and TypeScript adapters now depend on `@antepod/linguini-project` for shared configuration
+loading and ECMAScript layout validation. Existing valid TOML paths and adapter entry points are
+preserved; malformed layout fields now fail consistently before native generation in both hosts.
+No application change is required. Source checkouts resolve the shared package through local pnpm
+overrides; published adapters depend on its pinned release version. Publish the shared project
+package before the adapters for a new release. This extraction does not yet remove `[web]`.

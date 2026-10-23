@@ -6,6 +6,7 @@ const SCRIPT_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_ROOT, "..");
 
 const PUBLIC_CONTRACT_PATTERNS = [
+  /^packages\/project\/src\//,
   /^crates\/linguini-cli\/src\/lib\.rs$/,
   /^crates\/linguini-codegen(?:-(?:ecmascript(?:-web)?|svelte|sveltekit|vite))?\/(?:src|templates)\//,
   /^crates\/linguini-config\/src\/(?:lib|model|parser)\.rs$/,
