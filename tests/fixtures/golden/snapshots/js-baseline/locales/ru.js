@@ -10,6 +10,9 @@ import { cart_label, __lgl_form_Fruit, Delivered, SizeAdj } from "./ru/_globals.
 
 export { email_input };
 
+const __lgl_delivery_keys = ["fruit", "size", "count"];
+const __lgl_counted_keys = ["count", "fruit"];
+const __lgl_price_keys = ["amount", "date"];
 /**
  * Displayed on the product delivery confirmation card.
  *
@@ -31,7 +34,7 @@ export { email_input };
  * @returns {string}
  */
 export function delivery(...__lgl_args) {
-  const [fruit, size, count] = /** @type {[fruit: Fruit, size: Size, count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, ["fruit", "size", "count"]));
+  const [fruit, size, count] = /** @type {[fruit: Fruit, size: Size, count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, __lgl_delivery_keys));
   return String(Delivered(count, __lgl_form_Fruit[fruit].Gender)) + " " + String(SizeAdj(size, count, __lgl_form_Fruit[fruit].Gender)) + " " + String(__lgl_form_Fruit[fruit].nom(count));
 }
 
@@ -55,7 +58,7 @@ export function delivery(...__lgl_args) {
  * @returns {string}
  */
 export function counted(...__lgl_args) {
-  const [count, fruit] = /** @type {[count: number | bigint | string, fruit: Fruit]} */ (normalizeMessageArgs(__lgl_args, ["count", "fruit"]));
+  const [count, fruit] = /** @type {[count: number | bigint | string, fruit: Fruit]} */ (normalizeMessageArgs(__lgl_args, __lgl_counted_keys));
   return String(cart_label) + " " + formatNumber(count) + " " + String(__lgl_form_Fruit[fruit].nom(count));
 }
 
@@ -75,7 +78,7 @@ export function counted(...__lgl_args) {
  * @returns {string}
  */
 export function price(...__lgl_args) {
-  const [amount, date] = /** @type {[amount: Money, date: ShortDate]} */ (normalizeMessageArgs(__lgl_args, ["amount", "date"]));
+  const [amount, date] = /** @type {[amount: Money, date: ShortDate]} */ (normalizeMessageArgs(__lgl_args, __lgl_price_keys));
   return "Цена " + formatCurrency_code_RUB(amount) + " на " + formatDate_style_short(date);
 }
 

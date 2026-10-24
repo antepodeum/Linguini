@@ -939,6 +939,10 @@ Use the `@antepodeum/linguini-sveltekit/vite` adapter for SvelteKit project bind
 Configure web resolution and routing through the npm runtime adapters in application code;
 see [Web and SvelteKit](./web-sveltekit.md).
 
+Message argument keys are initialized once per module. Positional normalization reuses the
+existing argument array; named-object normalization validates all own keys before reading values
+in schema parameter order. Inherited properties do not satisfy required named parameters.
+
 Generated message access is nested by canonical path. Parameterless leaves are
 values (`l.main.title`); parameterized leaves remain callable with their schema
 signature (`l.main.greeting("Artemy")`). The Svelte/Vite transform rewrites

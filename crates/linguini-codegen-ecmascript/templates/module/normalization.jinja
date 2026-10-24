@@ -1,1 +1,5 @@
-const [{% for name in bindings %}{{ name }}{{ ", " if not loop.last }}{% endfor %}] = /** @type { {{- tuple -}} } */ (normalizeMessageArgs({{ arguments }}, [{% for key in keys %}{{ key|js }}{{ ", " if not loop.last }}{% endfor %}]));
+{% if declaration|default(false) -%}
+const {{ keys_binding }} = [{% for key in keys %}{{ key|js }}{{ ", " if not loop.last }}{% endfor %}];
+{% else -%}
+const [{% for name in bindings %}{{ name }}{{ ", " if not loop.last }}{% endfor %}] = /** @type { {{- tuple -}} } */ (normalizeMessageArgs({{ arguments }}, {{ keys_binding }}));
+{% endif -%}

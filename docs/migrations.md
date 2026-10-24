@@ -36,6 +36,14 @@ runtime bodies. Rebuild owned output to remove old `web*`, `sveltekit*`, and Sve
 artifacts. Application controls use the npm adapters. npm runtime source is TypeScript; builds
 produce JavaScript, declarations, and source maps.
 
+## Generated argument normalization
+
+Static message parameter names are initialized once per generated module. Positional calls reuse
+their argument array; named calls retain own-property checks, unknown-key errors, and schema-order
+property reads. Direct users of `normalizeMessageArgs` must not rely on a fresh positional copy.
+Mutable inputs retain mutable result typing; readonly inputs have a readonly overload. Public
+message call signatures are unchanged. Rebuild generated output to obtain the optimization.
+
 ## Plain TypeScript compiler integration
 
 Use `@antepodeum/linguini-tsc` to build a TypeScript application with generated JavaScript and

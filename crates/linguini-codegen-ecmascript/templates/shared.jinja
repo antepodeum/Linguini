@@ -11,16 +11,28 @@
   throw new Error(`Linguini dispatch has no branch for key ${JSON.stringify(key)}`);
 }
 
-{{ code.function('normalizeMessageArgs', [{'name':'values','type':'readonly unknown[]'}, {'name':'keys','type':'readonly string[]'}], 'unknown[]', exported=true) }}  if (values.length !== 1) {
-    return [...values];
+/**
+ * @overload
+ * @param {unknown[]} values
+ * @param {readonly string[]} keys
+ * @returns {unknown[]}
+ */
+/**
+ * @overload
+ * @param {readonly unknown[]} values
+ * @param {readonly string[]} keys
+ * @returns {readonly unknown[]}
+ */
+{{ code.function('normalizeMessageArgs', [{'name':'values','type':'readonly unknown[]'}, {'name':'keys','type':'readonly string[]'}], 'readonly unknown[]', exported=true) }}  if (values.length !== 1) {
+    return values;
   }
   const candidate = values[0];
   if (typeof candidate !== "object" || candidate === null) {
-    return [...values];
+    return values;
   }
   const record = /** @type {Record<string, unknown>} */ (candidate);
   if (!keys.every((key) => Object.prototype.hasOwnProperty.call(record, key))) {
-    return [...values];
+    return values;
   }
   const unknown = Reflect.ownKeys(record)
     .filter((key) => typeof key !== "string" || !keys.includes(key))

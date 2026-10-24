@@ -18,21 +18,33 @@ export function selectBranch(key, branches) {
 }
 
 /**
- * @param {readonly unknown[]} values
+ * @overload
+ * @param {unknown[]} values
  * @param {readonly string[]} keys
  * @returns {unknown[]}
  */
+/**
+ * @overload
+ * @param {readonly unknown[]} values
+ * @param {readonly string[]} keys
+ * @returns {readonly unknown[]}
+ */
+/**
+ * @param {readonly unknown[]} values
+ * @param {readonly string[]} keys
+ * @returns {readonly unknown[]}
+ */
 export function normalizeMessageArgs(values, keys) {
   if (values.length !== 1) {
-    return [...values];
+    return values;
   }
   const candidate = values[0];
   if (typeof candidate !== "object" || candidate === null) {
-    return [...values];
+    return values;
   }
   const record = /** @type {Record<string, unknown>} */ (candidate);
   if (!keys.every((key) => Object.prototype.hasOwnProperty.call(record, key))) {
-    return [...values];
+    return values;
   }
   const unknown = Reflect.ownKeys(record)
     .filter((key) => typeof key !== "string" || !keys.includes(key))

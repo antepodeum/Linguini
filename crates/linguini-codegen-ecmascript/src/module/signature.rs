@@ -31,11 +31,13 @@ impl MessageCallParameter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MessageCallSignature {
     parameters: Vec<MessageCallParameter>,
+    keys_binding: String,
 }
 
 impl MessageCallSignature {
     pub(crate) fn from_message(message: &IrMessage) -> Self {
         Self {
+            keys_binding: format!("__lgl_{}_keys", super::names::function_name(&message.name)),
             parameters: message
                 .parameters
                 .iter()
@@ -89,6 +91,19 @@ impl MessageCallSignature {
             .iter()
             .map(|parameter| &parameter.binding)
             .collect::<Vec<_>>();
+        crate::templates::render(
+            "module/normalization",
+            minijinja::context! {
+                bindings, keys_binding => &self.keys_binding, arguments => IMPLEMENTATION_ARGS,
+                tuple => self.render_signature("tuple", true),
+            },
+        )
+        .trim_end()
+        .to_owned()
+    }
+
+    /// Static source keys belong to module initialization, never to a message call.
+    pub(crate) fn argument_keys_declaration(&self) -> String {
         let keys = self
             .parameters
             .iter()
@@ -96,13 +111,8 @@ impl MessageCallSignature {
             .collect::<Vec<_>>();
         crate::templates::render(
             "module/normalization",
-            minijinja::context! {
-                bindings, keys, arguments => IMPLEMENTATION_ARGS,
-                tuple => self.render_signature("tuple", true),
-            },
+            minijinja::context! { declaration => true, keys, keys_binding => &self.keys_binding },
         )
-        .trim_end()
-        .to_owned()
     }
 
     /// The public callable value type used by locale and nested message objects.
@@ -271,7 +281,7 @@ mod tests {
         assert_eq!(signature.implementation_rest_params(), "...__lgl_args");
         assert_eq!(
             signature.normalized_bindings_statement(),
-            "const [count] = /** @type {[count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, [\"count\"]));"
+            "const [count] = /** @type {[count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, __lgl_message_keys));"
         );
         assert_eq!(
             signature.callable_type(),

@@ -337,6 +337,15 @@ pub(super) fn emit_messages(
     options: &EcmaOptions,
     output: &mut String,
 ) -> ModuleExports {
+    for signature in schema.messages() {
+        if !signature.parameters.is_empty()
+            && message_implementation(locale, &signature.name).is_some()
+        {
+            output.push_str(
+                &MessageCallSignature::from_message(signature).argument_keys_declaration(),
+            );
+        }
+    }
     let nested = nested_message_tree(schema);
     let mut exports = ModuleExports {
         top_level: Vec::new(),

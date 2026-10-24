@@ -1131,6 +1131,9 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Plural decision/operand demand is shared through `linguini-codegen`; generated predicates use
       direct comparisons, common guards, and one calculation per remainder. Operands are local
       scalars emitted at first use, without operand objects, relation-helper calls, or range arrays.
+      Message parameter-key arrays are initialized once per module; positional normalization
+      reuses its argument array. Generated execution preserves named own-key validation, sorted
+      unknown-key errors, Proxy/getter order, and frozen positional inputs.
       Fraction-digit counts avoid constructing fractional strings or bigints; Russian fractions
       return before bigint construction, verified by executing with bigint construction disabled.
       Executed corpora cover 24 locales, fractional operators, compact exponents, and invalid inputs.

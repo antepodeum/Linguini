@@ -362,6 +362,7 @@ fn emit_message_module(
                 },
             ));
         } else {
+            output.push_str(&call_signature.argument_keys_declaration());
             output.push_str(&call_signature.javascript_implementation_docs(&signature.docs));
             output.push_str(&crate::templates::render(
                 "module/message",
@@ -597,7 +598,7 @@ mod tests {
         assert_eq!(result.code.matches("return String(helper)").count(), 1);
         assert!(result
             .code
-            .contains("normalizeMessageArgs(__lgl_args, [\"name\"])"));
+            .contains("normalizeMessageArgs(__lgl_args, __lgl_root_keys)"));
         assert!(result.code.ends_with("//# sourceMappingURL=root.js.map\n"));
         assert!(result
             .source_map

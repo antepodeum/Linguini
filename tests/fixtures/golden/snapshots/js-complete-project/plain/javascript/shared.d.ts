@@ -4,7 +4,12 @@ export declare function selectBranch<T>(
 ): T;
 
 export declare function normalizeMessageArgs(
-  values: readonly unknown[],
+  values: unknown[],
   keys: readonly string[],
 ): unknown[];
+
+export declare function normalizeMessageArgs(
+  values: readonly unknown[],
+  keys: readonly string[],
+): readonly unknown[];
 //# sourceMappingURL=shared.d.ts.map

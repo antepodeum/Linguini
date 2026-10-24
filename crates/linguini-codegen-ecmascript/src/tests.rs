@@ -149,6 +149,73 @@ fn parsed_text_modes_execute_with_exact_quotes_escapes_and_whitespace() {
     );
 }
 
+#[test]
+fn message_argument_normalization_reuses_positional_arrays_and_preserves_named_observations() {
+    let schema = lower_schema(
+        &parse_schema(
+            "greeting(first: String, second: String)\naccount { greet(first: String) }\n",
+        )
+        .expect("schema"),
+    );
+    let locale = lower_locale(
+        &parse_locale("greeting = {first}/{second}\naccount { greet = Hello {first} }\n")
+            .expect("locale"),
+    );
+    let files = generate_project_files(
+        &schema,
+        &[EcmaLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .expect("codegen");
+    for file in files.iter().filter(|file| file.path.ends_with(".js")) {
+        assert!(
+            !file.contents.contains("normalizeMessageArgs(__lgl_args, ["),
+            "{}",
+            file.path
+        );
+    }
+    let output = execute_project(
+        &files,
+        r#"
+import assert from 'node:assert/strict';
+import {normalizeMessageArgs} from './shared.js';
+import {greeting} from './locales/en.js';
+import {account} from './locales/en/account.js';
+for (const values of [[], ['Ada'], [null], [new Date(0)], [{other:'value'}], ['Ada','Lovelace'], [{first:'Ada'},'tail']]) {
+  assert.equal(normalizeMessageArgs(values, ['first','second']), values);
+}
+const trace = [];
+const named = new Proxy({get first(){trace.push('first');return 'Ada'}, get second(){trace.push('second');return 'Lovelace'}}, {
+  getOwnPropertyDescriptor(target,key){trace.push('own:'+key);return Reflect.getOwnPropertyDescriptor(target,key)},
+  ownKeys(target){trace.push('keys');return Reflect.ownKeys(target)},
+});
+assert.equal(greeting(named), 'Ada/Lovelace');
+assert.deepEqual(trace, ['own:first','own:second','keys','first','second']);
+assert.equal(greeting('Ada','Lovelace'), 'Ada/Lovelace');
+assert.equal(account.greet({first:'Ada'}), 'Hello Ada');
+const inherited = Object.create({first:'Ada',second:'Lovelace'});
+const positional = [inherited];
+assert.equal(normalizeMessageArgs(positional,['first','second']), positional);
+const hostile = Object.create(null);
+Object.defineProperty(hostile,'__proto__',{value:'safe',enumerable:true});
+assert.deepEqual(normalizeMessageArgs([hostile],['__proto__']),['safe']);
+let reads = 0;
+const invalid = {get first(){reads++;throw Error('must validate before reading')},second:'B',z:1,a:2};
+Object.defineProperty(invalid,'hidden',{value:3});
+invalid[Symbol('extra')] = 4;
+assert.throws(()=>greeting(invalid), {name:'TypeError',message:'Linguini message arguments contain unknown keys: Symbol(extra), a, hidden, z'});
+assert.equal(reads,0);
+const frozen = Object.freeze(['Ada']);
+assert.equal(normalizeMessageArgs(frozen,['first']),frozen);
+console.log('ok');
+"#,
+    );
+    assert_eq!(output, "ok");
+}
+
 fn assert_snapshot(path: &str, snapshot: &str) {
     if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
         let path = repo_root().join(path);
@@ -718,7 +785,7 @@ account {
     assert!(!account_module.contents.contains("label: () =>"));
     assert!(account_module
         .contents
-        .contains("personalized: /** @type {((name: string) => string) & ((args: { name: string }) => string)} */ ((...__lgl_args) => { const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, [\"name\"])); return \"Hello \" + String(name); }),"));
+        .contains("personalized: /** @type {((name: string) => string) & ((args: { name: string }) => string)} */ ((...__lgl_args) => { const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, __lgl___lgl_name_account$personalized_keys)); return \"Hello \" + String(name); }),"));
 
     let locale_declaration = files
         .iter()

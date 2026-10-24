@@ -3,6 +3,7 @@ import { normalizeMessageArgs } from "../shared.js";
 
 export { section };
 
+const __lgl_hello_keys = ["name"];
 /**
  * Greeting
  *
@@ -22,7 +23,7 @@ export { section };
  * @returns {string}
  */
 export function hello(...__lgl_args) {
-  const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, ["name"]));
+  const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, __lgl_hello_keys));
   return "Hello " + String(name);
 }
 
