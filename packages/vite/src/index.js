@@ -30,6 +30,7 @@ export function linguini(options = {}) {
   let viteConfig;
   let projectRoot = process.cwd();
   let layout;
+  let linkModule;
   let pendingBuild;
   let buildDirty = false;
   let buildReasons = new Set();
@@ -38,6 +39,7 @@ export function linguini(options = {}) {
 
   async function refreshLayout() {
     layout = await readProjectLayout(projectRoot, options.configFile);
+    linkModule = options.linkModule === undefined ? undefined : toVitePath(resolveWithin(projectRoot, options.linkModule, "linkModule"));
     return layout;
   }
 
@@ -84,7 +86,7 @@ export function linguini(options = {}) {
   }
 
   async function reconcileWatches(server) {
-    const nextFiles = new Set([...(await discoverLinguiniFiles(projectRoot, options.configFile)), ...layout.moduleConfigPaths]);
+    const nextFiles = new Set(await discoverLinguiniFiles(projectRoot, options.configFile));
     nextFiles.add(path.join(layout.generatedRoot, MANIFEST_RELATIVE_PATH));
     for (const application of bundlerManifest?.applicationFiles ?? []) {
       nextFiles.add(application);
@@ -196,18 +198,6 @@ export function linguini(options = {}) {
   }
 
   async function rebuildForFile(file, server, reason, timestamp) {
-    try { return await rebuildForFileImpl(file, server, reason, timestamp); }
-    catch (error) {
-      const files = error.moduleDependencies ?? [];
-      if (files.length) {
-        server.watcher.add(files);
-        for (const file of files) watchedFiles.add(file);
-      }
-      throw error;
-    }
-  }
-
-  async function rebuildForFileImpl(file, server, reason, timestamp) {
     const absolute = path.resolve(file);
     const previousLayout = layout ?? (await refreshLayout());
     const manifestPath = path.join(previousLayout.generatedRoot, MANIFEST_RELATIVE_PATH);
@@ -238,7 +228,7 @@ export function linguini(options = {}) {
       return undefined;
     }
 
-    const configChanged = absolute === previousLayout.configPath || previousLayout.moduleConfigPaths.includes(absolute) || previousLayout.moduleDependencies.includes(absolute);
+    const configChanged = absolute === previousLayout.configPath;
     if (configChanged || reason !== "hot-update") {
       await refreshLayout();
     }
@@ -313,7 +303,6 @@ export function linguini(options = {}) {
         await reloadManifest();
       }
       const files = await discoverLinguiniFiles(projectRoot, options.configFile);
-      files.push(...layout.moduleConfigPaths);
       files.push(path.join(layout.generatedRoot, MANIFEST_RELATIVE_PATH));
       files.push(...(bundlerManifest?.applicationFiles ?? []));
       files.push(...layout.bundlerSourceRoots);
@@ -421,8 +410,8 @@ export function linguini(options = {}) {
       const file = path.resolve(stripQueryAndHash(id));
       const application = bundlerManifest.applicationsByFile.get(file);
       if (!application) {
-        return layout.linkMode === "transform"
-          ? transformStaticLinks(code, id, layout.generatedRoot, adapter)
+        return linkModule !== undefined
+          ? transformStaticLinks(code, id, layout.generatedRoot, adapter, linkModule)
           : undefined;
       }
       return transformApplication.call(
@@ -433,7 +422,7 @@ export function linguini(options = {}) {
         bundlerManifest,
         layout.generatedRoot,
         shouldUseDynamicLocaleLoading(this, transformOptions),
-        layout.linkMode,
+        linkModule,
         adapter
       );
     }
@@ -448,7 +437,6 @@ export async function discoverLinguiniFiles(root, configFile = DEFAULT_CONFIG_FI
   if (layout.configExists) {
     files.push(layout.configPath);
   }
-  files.push(...layout.moduleDependencies);
   files.push(...(await collectFiles(layout.schemaRoot, ".lgs")));
   files.push(...(await collectFiles(layout.localeRoot, ".lgl")));
   return [...new Set(files)].sort(comparePaths);
@@ -475,8 +463,6 @@ export function isLinguiniSource(
 
   return (
     absolute === configPath ||
-    (projectLayout?.moduleConfigPaths?.includes(absolute) ?? false) ||
-    (projectLayout?.moduleDependencies?.includes(absolute) ?? false) ||
     (absolute.endsWith(".lgs") && isWithin(schemaRoot, absolute)) ||
     (absolute.endsWith(".lgl") && isWithin(localeRoot, absolute))
   );
@@ -489,17 +475,10 @@ async function buildProject(root, options, reason) {
   }
   const command = options.command ?? "linguini";
   const args = [...(options.args ?? ["build"])];
-  const layout = args.includes("build") ? await readProjectLayout(root, options.configFile) : undefined;
-  const input = layout?.moduleConfigExists ? JSON.stringify(layout.modulePlan) : undefined;
-  if (input !== undefined) args.push("--module-plan-stdin");
-  try { await execFilePromise(command, args, { cwd: root }, input); }
-  catch (error) {
-    if (layout) error.moduleDependencies = [...layout.moduleConfigPaths, ...layout.moduleDependencies];
-    throw error;
-  }
+  await execFilePromise(command, args, { cwd: root });
 }
 
-function execFilePromise(command, args, options, input) {
+function execFilePromise(command, args, options) {
   return new Promise((resolve, reject) => {
     const child = execFile(command, args, options, (error, stdout, stderr) => {
       if (error) {
@@ -510,7 +489,7 @@ function execFilePromise(command, args, options, input) {
       }
     });
     child.stdin?.on("error", error => { if (error.code !== "EPIPE") reject(error); });
-    child.stdin?.end(input);
+    child.stdin?.end();
   });
 }
 
@@ -1539,7 +1518,7 @@ async function transformApplication(
   manifest,
   generatedRoot,
   dynamicClient = false,
-  linkMode,
+  linkModule,
   adapter
 ) {
   const bytes = Buffer.from(code, "utf8");
@@ -1666,7 +1645,7 @@ async function transformApplication(
         reference
       }))
   ].sort((left, right) => left.start - right.start || left.end - right.end);
-  const linkOperations = linkMode === "transform"
+  const linkOperations = linkModule !== undefined
     ? adapter.findStaticLinks?.(code, application.relative) ?? []
     : [];
   if (operations.length === 0 && linkOperations.length === 0) {
@@ -1808,7 +1787,7 @@ async function transformApplication(
     magic.prependLeft(insertion, `${imports}${dispatches}`);
   }
   if (linkOperations.length > 0) {
-    adapter.applyStaticLinks(magic, code, application.relative, generatedRoot, linkOperations);
+    adapter.applyStaticLinks(magic, code, application.relative, generatedRoot, linkOperations, linkModule);
   }
   if (dynamicClient && manifest.localeLoading === "dynamic") {
     injectLocaleLoaderLifecycle(magic, code, application, scopeId, allocateAlias, adapter);
@@ -1823,12 +1802,12 @@ async function transformApplication(
   };
 }
 
-function transformStaticLinks(code, id, generatedRoot, adapter) {
+function transformStaticLinks(code, id, generatedRoot, adapter, linkModule) {
   const sourceName = stripQueryAndHash(id);
   const operations = adapter.findStaticLinks?.(code, sourceName) ?? [];
   if (operations.length === 0) return undefined;
   const magic = new MagicString(code);
-  adapter.applyStaticLinks(magic, code, sourceName, generatedRoot, operations);
+  adapter.applyStaticLinks(magic, code, sourceName, generatedRoot, operations, linkModule);
   return {
     code: magic.toString(),
     map: magic.generateMap({ hires: true, source: sourceName, includeContent: true })

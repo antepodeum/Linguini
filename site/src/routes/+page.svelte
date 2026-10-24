@@ -33,7 +33,7 @@
   import Button from '$lib/components/button.svelte';
   import CodeBlock from '$lib/components/code-block.svelte';
   import { l } from '$lib/generated/linguini/svelte';
-  import { linguini, setLocale } from '$lib/generated/linguini/svelte-control';
+  import { linguini, setLocale } from '$lib/linguini';
   import { locales, type Locale } from '$lib/generated/linguini/locale';
   import type { Fruit, Size } from '$lib/generated/linguini/locales/en';
   import type { PageData } from './$types';

@@ -7,23 +7,6 @@ pub(crate) fn render(name: &str, values: Value) -> String {
     ENGINE
         .get_or_init(|| {
             EcmaTemplateEngine::new([
-                ("hmr", include_str!("../templates/hmr.jinja")),
-                (
-                    "svelte/control",
-                    include_str!("../templates/svelte/control.jinja"),
-                ),
-                (
-                    "svelte/control_declarations",
-                    include_str!("../templates/svelte/control_declarations.jinja"),
-                ),
-                (
-                    "svelte/effects",
-                    include_str!("../templates/svelte/effects.jinja"),
-                ),
-                (
-                    "svelte/effects_declarations",
-                    include_str!("../templates/svelte/effects_declarations.jinja"),
-                ),
                 (
                     "svelte/facade",
                     include_str!("../templates/svelte/facade.jinja"),
@@ -31,10 +14,6 @@ pub(crate) fn render(name: &str, values: Value) -> String {
                 (
                     "svelte/facade_declarations",
                     include_str!("../templates/svelte/facade_declarations.jinja"),
-                ),
-                (
-                    "svelte/forwarding",
-                    include_str!("../templates/svelte/forwarding.jinja"),
                 ),
                 (
                     "svelte/locale",

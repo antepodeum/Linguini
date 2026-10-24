@@ -75,10 +75,14 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
           cache-dependency-path: |
+            packages/svelte/pnpm-lock.yaml
             packages/web/pnpm-lock.yaml
             packages/sveltekit/pnpm-lock.yaml
       - name: Install and test TypeScript web runtime
         working-directory: packages/web
+        run: pnpm install --frozen-lockfile && pnpm test
+      - name: Install and test TypeScript Svelte runtime
+        working-directory: packages/svelte
         run: pnpm install --frozen-lockfile && pnpm test
       - name: Install and test TypeScript SvelteKit hooks and packages
         working-directory: packages/sveltekit
@@ -299,6 +303,8 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: site/pnpm-lock.yaml
+      - name: Build local runtime packages
+        run: node packages/scripts/prepare-runtime-packages.mjs
       - name: Install site dependencies
         working-directory: site
         run: pnpm install --frozen-lockfile

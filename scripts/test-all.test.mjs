@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { PACKAGED_RUNTIME_CRATES } from "./docs-packaged.mjs";
 import test from "node:test";
 
 import {
+  REPOSITORY_ROOT,
   PROJECTS,
   TASKS,
   main,
@@ -128,7 +130,8 @@ test("registry is explicit and ordered across repository projects", () => {
       "repo:js-boundaries",
       "project:test",
     "web:test",
-    "sveltekit:test",
+    "svelte:test",
+      "sveltekit:test",
       "rust:fmt",
       "codegen:schema-js",
       "codegen:runtime-js",
@@ -190,7 +193,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "site:graph",
     ],
   );
-  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "web", "sveltekit", "tsc", "vite", "cli", "vscode", "site"]);
+  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "web", "svelte", "sveltekit", "tsc", "vite", "cli", "vscode", "site"]);
 });
 
 test("profiles select the expected ordered task groups", () => {
@@ -200,7 +203,8 @@ test("profiles select the expected ordered task groups", () => {
     "repo:js-boundaries",
     "project:test",
     "web:test",
-    "sveltekit:test",
+    "svelte:test",
+      "sveltekit:test",
     "rust:fmt",
     "codegen:schema-js",
     "codegen:runtime-js",
@@ -323,7 +327,8 @@ test("task execution continues after a failure and aggregates exit status", () =
     "repo:js-boundaries",
     "project:test",
     "web:test",
-    "sveltekit:test",
+    "svelte:test",
+      "sveltekit:test",
     "rust:fmt",
     "codegen:schema-js",
     "codegen:runtime-js",
@@ -391,20 +396,16 @@ test("main returns nonzero for failures without calling real suites", () => {
   assert.match(output.join("\n"), /1 failed/);
 });
 
-test("codegen integrations retain independent dependency and packaging boundaries", () => {
-  const dependencies = (name) => readFileSync(new URL(`../crates/${name}/Cargo.toml`, import.meta.url), "utf8").split("[dependencies]\n")[1].split(/\n\[/)[0];
-  const ecma = dependencies("linguini-codegen-ecmascript");
-  const web = dependencies("linguini-codegen-ecmascript-web");
-  const svelte = dependencies("linguini-codegen-svelte");
-  const kit = dependencies("linguini-codegen-sveltekit");
-  const vite = dependencies("linguini-codegen-vite");
-  for (const owner of [ecma, vite]) assert.doesNotMatch(owner, /linguini-codegen-svelte(?:kit)?\s*=/);
-  assert.doesNotMatch(ecma, /linguini-codegen-ecmascript-web\s*=/);
-  assert.match(web, /linguini-codegen-ecmascript\s*=/);
-  assert.doesNotMatch(web, /linguini-codegen-(?:svelte(?:kit)?|vite)\s*=/);
-  assert.match(svelte, /linguini-codegen-ecmascript-web\s*=/);
-  assert.match(kit, /linguini-codegen-ecmascript-web\s*=/);
-  assert.doesNotMatch(svelte, /linguini-codegen-(?:sveltekit|vite)\s*=/);
-  assert.match(kit, /linguini-codegen-svelte\s*=/);
-  for (const name of ["linguini-codegen-ecmascript-web", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) assert(PACKAGED_RUNTIME_CRATES.includes(name));
+test("message codegen and typed runtime adapters retain independent ownership", () => {
+  const crate = name => readFileSync(resolve(REPOSITORY_ROOT, "crates", name, "Cargo.toml"), "utf8");
+  const ecma=crate("linguini-codegen-ecmascript"), vite=crate("linguini-codegen-vite"), svelte=crate("linguini-codegen-svelte");
+  for (const owner of [ecma,vite,svelte]) assert.doesNotMatch(owner,/linguini-codegen-(?:ecmascript-web|sveltekit)\s*=/);
+  for (const owner of [ecma,vite]) assert.doesNotMatch(owner,/linguini-codegen-svelte\s*=/);
+  for (const retired of ["linguini-codegen-ecmascript-web","linguini-codegen-sveltekit"]) assert(!PACKAGED_RUNTIME_CRATES.includes(retired));
+  for (const name of ["web","svelte","sveltekit"]) {
+    const manifest=JSON.parse(readFileSync(resolve(REPOSITORY_ROOT,"packages",name,"package.json"),"utf8"));
+    assert.equal(manifest.name,"@antepodeum/linguini-"+name);
+    assert.match(manifest.scripts.build,/tsc/);
+    assert.ok(manifest.files.includes("dist"));
+  }
 });

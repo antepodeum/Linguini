@@ -20,17 +20,24 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
         .expect("workspace crates");
     let owners = [
         "linguini-codegen-ecmascript",
-        "linguini-codegen-ecmascript-web",
         "linguini-codegen-svelte",
-        "linguini-codegen-sveltekit",
         "linguini-codegen-vite",
     ];
     let mut files = Vec::new();
+    for retired in [
+        "linguini-codegen-ecmascript-web",
+        "linguini-codegen-sveltekit",
+    ] {
+        assert!(
+            !crates.join(retired).exists(),
+            "runtime adapter reintroduced as codegen: {retired}"
+        );
+    }
     assert!(
         !crates
             .join("linguini-codegen-ecmascript/templates/web")
             .exists(),
-        "web templates belong to the web integration crate"
+        "web runtime belongs in the npm adapter"
     );
     for owner in owners {
         source_files(&crates.join(owner).join("src"), &mut files);
@@ -51,7 +58,7 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
             for web_api in ["EcmaWebOptions", "compile_web_", "web_options", "web/"] {
                 assert!(
                     !production.contains(web_api),
-                    "web generation belongs to its integration crate: {} ({web_api})",
+                    "web runtime must not be generated: {} ({web_api})",
                     path.display()
                 );
             }

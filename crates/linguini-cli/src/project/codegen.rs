@@ -21,7 +21,6 @@ use linguini_ir::{
 use linguini_syntax::SourceId;
 use sha2::{Digest, Sha256};
 
-use super::modules::{Framework, ModuleCapabilities};
 use crate::{CliError, CliResult, DiagnosticFormat};
 
 use super::check::{check_project_with_options, reject_locale_files_without_schema_namespace};
@@ -39,8 +38,7 @@ use super::sources::{
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
 pub fn build_project(root: &Path) -> CliResult<String> {
-    let modules = super::modules::read_module_plan(root, None, false)?;
-    build_project_with_emissions(root, false, DiagnosticFormat::Human, &[], &[], &modules)
+    build_project_with_emissions(root, false, DiagnosticFormat::Human, &[], &[], false, None)
 }
 
 pub(crate) fn build_project_with_emissions(
@@ -49,14 +47,21 @@ pub(crate) fn build_project_with_emissions(
     format: DiagnosticFormat,
     emit_dirs: &[PathBuf],
     emit_declaration_dirs: &[PathBuf],
-    modules: &linguini_codegen::ModulePlan,
+    svelte: bool,
+    host_module: Option<&str>,
 ) -> CliResult<String> {
     let canonical_root = canonical_project_root(root)?;
     let root = canonical_root.as_path();
     let check_output = check_project_with_options(root, deny_warnings, format)?;
     let config = read_project_config(root)?;
-    let codegen_output =
-        generate_project(root, &config, emit_dirs, emit_declaration_dirs, modules)?;
+    let codegen_output = generate_project(
+        root,
+        &config,
+        emit_dirs,
+        emit_declaration_dirs,
+        svelte,
+        host_module,
+    )?;
 
     if format == DiagnosticFormat::Human {
         Ok(format!("{check_output}{codegen_output}build: ok\n"))
@@ -70,11 +75,12 @@ fn generate_project(
     config: &LinguiniConfig,
     emit_dirs: &[PathBuf],
     emit_declaration_dirs: &[PathBuf],
-    modules: &linguini_codegen::ModulePlan,
+    svelte: bool,
+    host_module: Option<&str>,
 ) -> CliResult<String> {
-    if config.targets().typescript().is_none() && !modules.modules().is_empty() {
+    if config.targets().typescript().is_none() && svelte {
         return Err(CliError::Diagnostics(
-            "module plan requires an ECMAScript codegen target\n".to_owned(),
+            "Svelte bindings require an ECMAScript codegen target\n".to_owned(),
         ));
     }
     let Some(target) = config.targets().typescript() else {
@@ -92,7 +98,8 @@ fn generate_project(
         target,
         emit_dirs,
         emit_declaration_dirs,
-        modules,
+        svelte,
+        host_module,
     )
 }
 
@@ -102,7 +109,8 @@ fn generate_target(
     target: &TypeScriptTargetConfig,
     emit_dirs: &[PathBuf],
     emit_declaration_dirs: &[PathBuf],
-    modules: &linguini_codegen::ModulePlan,
+    svelte: bool,
+    host_module: Option<&str>,
 ) -> CliResult<String> {
     if !emit_declaration_dirs.is_empty() && !target.declaration() {
         return Err(CliError::Diagnostics(
@@ -143,8 +151,6 @@ fn generate_target(
         included_messages: target.messages().to_vec(),
         base_locale: Some(config.project().default_locale().to_owned()),
     };
-    let capabilities = ModuleCapabilities::compile(modules, config.project().name())?;
-    let web_options = &capabilities.web;
     let project = ValidatedEcmaProject::try_new(&schema, &locales, &options)
         .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
     let sources = ecma_sources(root, &schema_files, &locale_files)?;
@@ -163,39 +169,14 @@ fn generate_target(
             })?;
         let mut files = compile_ecmascript_project_files(&project, &project_sources)
             .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?;
-        if let Some(web) = web_options {
-            files.extend(
-                linguini_codegen_ecmascript_web::generate_project_files(
-                    &linguini_codegen_ecmascript_web::WebProjectOptions {
-                        web: web.clone(),
-                        declaration: options.declaration,
-                    },
-                    true,
-                )
-                .map_err(|error| CliError::Diagnostics(format!("{error}\n")))?,
-            );
-        }
-        match capabilities.framework {
-            Some(Framework::Svelte) => {
-                files.extend(linguini_codegen_svelte::generate_project_files(
-                    &linguini_codegen_svelte::SvelteProjectOptions {
-                        web: web_options.clone(),
-                        declaration: options.declaration,
-                        host: Default::default(),
-                    },
-                    true,
-                ))
-            }
-            Some(Framework::SvelteKit) => {
-                files.extend(linguini_codegen_sveltekit::generate_project_files(
-                    &linguini_codegen_sveltekit::SvelteKitProjectOptions {
-                        web: web_options.clone(),
-                        declaration: options.declaration,
-                    },
-                    true,
-                ))
-            }
-            _ => {}
+        if svelte {
+            files.extend(linguini_codegen_svelte::generate_project_files(
+                &linguini_codegen_svelte::SvelteProjectOptions {
+                    declaration: options.declaration,
+                    host_module: host_module.map(str::to_owned),
+                },
+                true,
+            ));
         }
         if declarations_only {
             files.retain(|file| is_declaration_artifact(Path::new(&file.path)));
@@ -211,7 +192,7 @@ fn generate_target(
                 },
                 config.project().locales(),
                 config.project().default_locale(),
-                &capabilities,
+                svelte,
             )?);
         }
         plans.push((output, files, declarations_only));
@@ -379,7 +360,7 @@ fn generate_bundler_files(
     destination: CodegenDestination<'_>,
     configured_locales: &[String],
     base_locale: &str,
-    capabilities: &ModuleCapabilities,
+    svelte: bool,
 ) -> CliResult<Vec<EcmaGeneratedFile>> {
     use linguini_codegen_vite::{
         LocaleLoading, ViteApplicationPlan, ViteEmissionOptions, VitePlan,
@@ -394,9 +375,8 @@ fn generate_bundler_files(
             &plan.message_arities(),
         )?;
         let mut runtime_helpers = BTreeMap::new();
-        if capabilities.framework.is_some() {
-            runtime_helpers =
-                linguini_codegen_svelte::runtime_helper_descriptors(capabilities.web.as_ref());
+        if svelte {
+            runtime_helpers = linguini_codegen_svelte::runtime_helper_descriptors();
         }
         Some(ViteApplicationPlan {
             locale_loading: match bundler.locale_loading().as_str() {

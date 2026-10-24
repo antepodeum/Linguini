@@ -72,7 +72,7 @@ checkout = {count} {SizeWord(size)} {fruit.nom(count)}, {total}`;
 
 const sveltekitExample = `<script lang="ts">
   import { l } from '$lib/generated/linguini/svelte';
-  import { setLocale } from '$lib/generated/linguini/svelte-control';
+  import { setLocale } from '$lib/linguini';
   import { locales } from '$lib/generated/linguini/locale';
 </script>
 

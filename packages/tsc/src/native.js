@@ -28,13 +28,11 @@ export function prepareNative(graph, options, emission = "source") {
     if (emission === "declarations" && !build.declarations.size) continue;
     if (emission === "runtime" && !build.outputs.size) continue;
     const args = [...(options.nativeArgs ?? ["build"]), ...[...build.outputs].sort().flatMap((output) => ["--emit-dir", output]), ...[...build.declarations].sort().flatMap((output) => ["--emit-declaration-dir", output])];
-    const input = build.moduleConfigExists ? JSON.stringify(build.modulePlan) : undefined;
-    if (input !== undefined) args.push("--module-plan-stdin");
-    const result = spawnSync(options.command ?? "linguini", args, { cwd: build.root, input,
-      stdio: input === undefined ? "inherit" : ["pipe", "inherit", "inherit"], env: options.env ?? process.env });
+    const result = spawnSync(options.command ?? "linguini", args, {
+      cwd: build.root, stdio: "inherit", env: options.env ?? process.env,
+    });
     if (result.error || result.status !== 0) {
       const error = result.error ?? new Error(`Native Linguini build failed (${result.signal ?? result.status}) in ${build.root}`);
-      error.moduleDependencies = build.moduleFiles;
       throw error;
     }
   }

@@ -11,7 +11,7 @@
   },
   "packageManager": "pnpm@11.1.0",
   "engines": {
-    "node": ">=20.6"
+    "node": ">=20"
   },
   "exports": {
     ".": {
@@ -21,14 +21,6 @@
     "./ecmascript": {
       "types": "./src/ecmascript.d.ts",
       "default": "./src/ecmascript.js"
-    },
-    "./modules": {
-      "types": "./src/modules.d.ts",
-      "default": "./src/modules.js"
-    },
-    "./ecmascript/modules": {
-      "types": "./src/ecmascript/modules.d.ts",
-      "default": "./src/ecmascript/modules.js"
     }
   },
   "files": [

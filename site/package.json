@@ -29,7 +29,9 @@
     "@lucide/svelte": "^1.0.1",
     "clsx": "^2.1.1",
     "shiki": "^4.0.2",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "@antepodeum/linguini-web": "file:../packages/web",
+    "@antepodeum/linguini-sveltekit": "file:../packages/sveltekit"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.8",

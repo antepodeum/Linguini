@@ -1,9 +1,5 @@
-export type LinguiniLocaleLoader = (locale: Locale) => void | Promise<void>;
-
-export declare function registerLocaleLoader(loader: LinguiniLocaleLoader): () => void;
-export declare function prepareLocale(locale: unknown): Promise<Locale>;
-export declare function getCurrentLocale(): Locale;
-{% if initialize %}export declare function initializeCurrentLocale(locale: unknown): Locale;
-{% endif %}export declare function setCurrentLocale(locale: unknown): Locale;
-{% if override %}export declare function clearCurrentLocaleOverride(): void;
-{% endif %}
+import type { Locale } from "./locale.js";
+import type { LocaleState } from {{ runtime|js }};
+export declare const localeState: LocaleState<Locale>;
+{% for name in ["getCurrentLocale", "setCurrentLocale", "initializeCurrentLocale", "clearCurrentLocaleOverride", "prepareLocale", "registerLocaleLoader"] %}export declare const {{ name }}: LocaleState<Locale>["{{ name }}"];
+{% endfor %}

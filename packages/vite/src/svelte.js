@@ -1,6 +1,5 @@
 import path from "node:path";
 import { linguini as viteLinguini } from "./index.js";
-import { toVitePath } from "./paths.js";
 
 /** Svelte syntax and component lifecycle, composed with the framework-neutral Vite core. */
 export const svelteAdapter = Object.freeze({
@@ -16,11 +15,13 @@ export const svelteAdapter = Object.freeze({
 });
 
 export function linguini(options = {}) {
-  return viteLinguini({ ...options, adapter: svelteAdapter });
+  const args = [...(options.args ?? ["build"])];
+  if (args.includes("build") && !args.includes("--svelte")) args.push("--svelte");
+  return viteLinguini({ ...options, args, adapter: svelteAdapter });
 }
 export default linguini;
 
-function applyStaticLinks(magic, code, sourceName, generatedRoot, operations) {
+function applyStaticLinks(magic, code, sourceName, generatedRoot, operations, linkModule) {
   let aliasIndex = 0;
   let alias;
   do {
@@ -33,7 +34,8 @@ function applyStaticLinks(magic, code, sourceName, generatedRoot, operations) {
       `href={${alias}(${JSON.stringify(operation.href)})}`
     );
   }
-  const helper = toVitePath(path.resolve(generatedRoot, "web/link-transform.js"));
+  if (!linkModule) throw new Error("Static link transforms require a project linkModule");
+  const helper = linkModule;
   const importLine = `import { localizeTransformedHref as ${alias} } from ${JSON.stringify(helper)};\n`;
   const instance = findSvelteInstanceScript(code);
   if (instance) {

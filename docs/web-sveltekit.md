@@ -1,18 +1,15 @@
-# Web and SvelteKit setup
+# Web and SvelteKit
 
-Install the Vite plugin.
+Web routing and SvelteKit hooks are reusable TypeScript runtime packages. Configure them in
+application modules. Native codegen compiles messages, CLDR operations, types/maps, and small
+project bindings; routing, request-language, and persistence options remain application code.
 
 ```sh
-npm install @antepodeum/linguini-vite
+npm install @antepodeum/linguini-web @antepodeum/linguini-sveltekit
+npm install --save-dev @antepodeum/linguini-vite
 ```
 
-Native integrations compose `linguini-codegen-sveltekit` with the ECMAScript backend. The
-SvelteKit crate reuses `linguini-codegen-svelte` through explicit host imports and owns the
-request-context and `goto` bridges. Standalone Svelte generation uses browser navigation by
-default and can accept another host without depending on SvelteKit. Only path-enabled policies
-emit the SvelteKit navigation runtime.
-
-## Linguini config
+## Translation build
 
 ```toml
 [project]
@@ -31,31 +28,35 @@ gitignore = true
 
 [targets.ts.bundler]
 sources = ["src"]
-# locale_loading = "dynamic" # eager is the default
+locale_loading = "dynamic"
 ```
 
-Configure the selected modules in `linguini.config.mjs`:
+Use the SvelteKit build adapter, which composes the shared Vite/Svelte integration:
 
-```js
-// linguini.config.mjs
-// @ts-check
-import { defineModules, svelteKit } from "@antepodeum/linguini/modules";
+```ts
+// vite.config.ts
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import linguini from "@antepodeum/linguini-sveltekit/vite";
 
-export default defineModules([
-  svelteKit()
-]);
+export default defineConfig({
+  plugins: [linguini({ buildOnStart: true }), sveltekit()],
+});
 ```
 
-The bundler target enables exact per-message module imports for the configured
-source roots. Components that import `l` from the generated Svelte facade are
-rewritten to the message modules they statically read; the generated message
-barrel is not needed in that browser graph. Parameterless leaves are values
-(`l.home.title`), while parameterized leaves remain callable
-with equivalent positional and named-object overloads
-(`l.home.greeting("Artemy")` or `l.home.greeting({ name: "Artemy" })`).
+The adapter prepares the native Svelte import/type bindings and keeps exact message selection,
+source maps, watch, and HMR in the shared Vite core. Direct native builds use
+`linguini build --svelte --svelte-host-module @antepodeum/linguini-sveltekit/client`.
+Standalone Svelte installs `@antepodeum/linguini-svelte` and uses
+`@antepodeum/linguini-vite/svelte`; framework-independent consumers use the main Vite entry.
 
-Dynamic access is strict by default. A finite, explicit escape can be enabled
-with canonical message paths:
+With dynamic locale loading, client messages load before the active locale changes. SSR evaluates
+messages synchronously using the request locale. Sparse translation fallback is folded per message
+into the selected locale payload. Composed page delivery and browser-request verification are
+tracked separately in the remediation checklist.
+
+Finite dynamic message access requires an exact allow list. Unbounded access is diagnosed
+instead of widening a page to the whole catalog:
 
 ```toml fragment=dynamic-policy
 [targets.ts.bundler.dynamic]
@@ -63,272 +64,140 @@ mode = "bundle"
 allow = ["home.title", "home.greeting"]
 ```
 
-`allow` is an exact list of canonical message leaves; wildcards and namespace
-patterns are not accepted. `mode = "error"` is the default and rejects
-computed or otherwise dynamic message access during the bundler build.
+The default `mode = "error"` rejects computed accesses. Wildcards and namespace patterns are
+not accepted in the allow list.
 
-With `locale_loading = "dynamic"`, client virtual message modules import locale
-chunks on demand and preload the selected locale before a locale switch. SSR
-uses synchronous static locale imports; omit the field for eager loading.
+## Application runtime configuration
 
-Use `svelte()` instead of `svelteKit()` for a Svelte-only app. Omit both modules
-for the framework-independent JavaScript runtime with optional TypeScript declarations.
-
-## Web config
-
-```js
-// linguini.config.mjs
-// @ts-check
-import { defineModules, web, svelteKit } from "@antepodeum/linguini/modules";
-
-export default defineModules([
-  web({
-    routing: { localePrefix: "except-default", canonical: "redirect" },
-    locale: { sources: ["path", "cookie", "local-storage", "accept-language"] },
-    cookie: {
-      name: "LINGUINI_LOCALE", path: "auto", maxAge: "365d",
-      sameSite: "lax", secure: false, httpOnly: false
-    },
-    localStorage: { key: "LINGUINI_LOCALE" },
-    links: { mode: "transform" },
-    routes: { exclude: ["/_app/**", "/favicon.ico"] },
-    switchRoute: { path: "/_linguini/locale/{locale}", returnQuery: "return", status: 303 }
-  }),
-  svelteKit()
-]);
-```
-
-Supported locale matching is compiled from the pinned CLDR canonicalization and parent graph.
-Aliases, likely-script parents, and configured locale spellings resolve through one generated
-lookup; tags outside that pinned graph are unsupported and continue to the next source or the
-implicit base-locale fallback.
-
-Linguini derives URL environment facts from SvelteKit instead of duplicating
-them in `linguini.toml` or generated runtime policy:
-
-- Application base comes from SvelteKit's `$app/paths` `base` export. It follows
-  `kit.paths.base` in both server and browser modules. `cookie.path = "auto"`
-  uses that base, falling back to `/` for a root deployment.
-- Request origin comes from `event.url.origin` on the server. Browser helpers
-  use `window.location`; callers of the framework-agnostic runtime can supply
-  the same request environment explicitly.
-- Trailing-slash behavior belongs to the matched SvelteKit route. Linguini
-  preserves the slash shape of the input URL; SvelteKit applies that route's
-  `trailingSlash` option, including canonical redirects and prerendered output.
-
-Set an application-wide trailing-slash default in the root layout and override
-it in child routes when needed:
+Share URL and persistence settings in an ordinary application module. Resolver functions are
+referenced only by the server factory, so unused request-language and cookie-reading code can
+be removed from the client graph.
 
 ```ts
-// src/routes/+layout.ts
-export const trailingSlash = "never"; // "never", "always", or "ignore"
+// src/lib/linguini-web.ts
+import { base } from "$app/paths";
+import {
+  createWebLocaleI18n, pathLocale, cookieLocale, requestLanguage,
+} from "@antepodeum/linguini-web";
+import type { LocaleResolver, LinguiniWebOptions } from "@antepodeum/linguini-web";
+import * as locale from "$lib/generated/linguini/locale.js";
+
+const policy = {
+  routing: { localePrefix: "except-default", canonical: "redirect" },
+  locale: { switch: { writesPath: true, writesCookie: true, writesLocalStorage: false } },
+  cookie: { name: "APP_LOCALE", path: "auto", maxAge: 365 * 24 * 60 * 60 },
+  links: { mode: "manual" },
+  routes: { exclude: ["/_app/**", "/favicon.ico"] },
+} satisfies LinguiniWebOptions;
+
+function createWeb(sources: readonly LocaleResolver[] = []) {
+  return createWebLocaleI18n(locale, {
+    ...policy, locale: { ...policy.locale, sources },
+  }, { base });
+}
+export const web = createWeb();
+export function createRequestWeb() {
+  return createWeb([pathLocale(), cookieLocale(), requestLanguage()]);
+}
 ```
 
-Changing `BASE_PATH`/`kit.paths.base` therefore requires no post-generation
-rewrite of Linguini files. Route-specific trailing-slash overrides also require
-no Linguini configuration.
+Resolvers run in configured order. An empty list selects the base locale. `pathLocale()` reads
+its first localized path segment, `cookieLocale()` reads the configured cookie, and
+`requestLanguage()` negotiates the request header. `localStorageLocale()` is available for
+browser applications; SvelteKit rejects storage-only server resolution. Initial browser rendering
+uses the serialized SSR locale instead of negotiating it again.
 
-Available locale sources:
+Locale matching uses the generated metadata's pinned CLDR canonicalization and parent lookup.
+Unsupported values continue to the next resolver and finally to the base locale. Runtime adapters
+parse actual URLs, headers, and cookies; they do not interpret CLDR formatting patterns.
 
-| Source              | Reads from                                                  |
-| ------------------- | ----------------------------------------------------------- |
-| `path`              | the first localized path segment, for example `/ru/pricing` |
-| `cookie`            | the configured locale cookie                                |
-| `local-storage`     | the configured browser storage key                          |
-| `accept-language`   | the server `Accept-Language` header                         |
-
-Sources are resolved exactly in configured order. Without an explicit list,
-the default is `path`, `cookie`, then `accept-language`; with
-`locale_prefix = "never"`, it is `cookie`, then `accept-language`. If no source
-selects a supported locale, the project default locale wins. `always` prefixes
-every locale, `except-default` omits only the default locale, and `never` omits
-all locale path segments and therefore cannot be combined with the `path`
-source.
-
-The cookie capability exists only when `cookie` is selected. Its defaults are
-the project-derived `LINGUINI_<PROJECT>_LOCALE` name, automatic SvelteKit base
-path, no domain, `365d`, `SameSite=Lax`, secure `auto`, and `HttpOnly=false`.
-Cookie names, paths, domains, and positive durations are validated;
-`SameSite=None` requires `secure = true`, and browser switching requires
-`http_only = false`. The local-storage capability likewise exists only when
-selected and defaults to the project-derived `linguini:<project>:locale` key;
-its key must be non-empty and contain no control characters.
-
-SvelteKit SSR cannot read browser local storage. A
-`locale.sources: ["local-storage"]` SvelteKit configuration is rejected with a
-diagnostic; add `cookie` or `path` so the server can resolve the locale, or use
-the client-only `svelte` framework. A switch route likewise requires `path` or
-`cookie`, because an HTTP response cannot write local storage.
-
-Generated output contains only selected capabilities: source resolvers, one
-link implementation, an exclusion matcher when exclusions exist, server cookie
-persistence when cookies are selected, and the switch route only when its table
-is present.
-
-Route exclusions are exact path matches unless a pattern ends in `/**`; that
-form matches the named path and its slash-delimited descendants, but not a
-longer sibling prefix. Patterns must start with one `/`, cannot contain a query
-or fragment, and are shared by locale resolution, canonical redirects, link
-localization, and the switch route.
-
-Common policies are concise:
-
-```js fragment=policy-alternatives
-import { web } from "@antepodeum/linguini/modules";
-
-const pathOnly = web({ routing: { localePrefix: "always" }, locale: { sources: ["path"] } });
-const pathless = web({ routing: { localePrefix: "never" }, locale: { sources: ["cookie", "accept-language"] } });
-const hybrid = web({ locale: { sources: ["path", "cookie", "accept-language"] } });
-// Pair this browser-only policy with svelte(), not svelteKit().
-const clientStorage = web({ locale: { sources: ["local-storage"] } });
-```
-
-## Migration to module configuration
-
-`[web]`, its nested TOML tables, and `targets.ts.framework` have been removed. Put web policy
-in `web({...})` and select `svelte()` or `svelteKit()` in `linguini.config.mjs`. The compiler
-launcher, Vite adapter, and TypeScript adapter evaluate that file in Node and pass one versioned
-JSON plan to native codegen. Rust validates the plan before writing generated outputs and does
-not evaluate project JavaScript. Imported config files are tracked for watch rebuilds.
-
-Module option names use JavaScript casing: `routing.localePrefix`, `cookie.maxAge`,
-`cookie.sameSite`, `cookie.httpOnly`, `localStorage`, `switchRoute`, and
-`switchRoute.returnQuery`. Locale source names remain `path`, `cookie`, `local-storage`,
-and `accept-language`. Select each module once; SvelteKit already composes Svelte.
-
-
-## SvelteKit files
-
-Add the Vite plugin so generated files update during development:
-
-```ts
-// vite.config.ts
-import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite";
-import linguini from "@antepodeum/linguini-vite/svelte";
-
-export default defineConfig(({ command }) => ({
-  plugins: [
-    linguini({ buildOnStart: command === "serve" }),
-    sveltekit(),
-  ],
-}));
-```
-
-Build the generated runtime before a production build. Keep the Vite plugin in
-the production config so it can transform the generated message imports, but
-disable its startup code generation when the build is driven explicitly:
-
-```sh
-linguini build
-vite build
-```
-
-Use the generated hooks and root layout load:
+Routing accepts `always`, `except-default`, or `never` locale prefixes and `redirect` or `preserve`
+canonical handling. Cookie options include `name`, `path`, `domain`, positive `maxAge` in seconds,
+`sameSite`, `secure`, and `httpOnly`. `auto` cookie paths follow SvelteKit's base. `SameSite=None`
+requires a secure cookie. HttpOnly browser switching needs a server persistence callback or the
+switch endpoint. Read sources and write transports are separate runtime choices.
 
 ```ts
 // src/hooks.server.ts
-export { handle } from "$lib/generated/linguini/sveltekit-control";
-```
+import { createHandle } from "@antepodeum/linguini-sveltekit/server";
+import { createRequestWeb } from "$lib/linguini-web";
 
-```ts
-// src/hooks.ts
-export { reroute } from "$lib/generated/linguini/sveltekit-control";
-```
-
-```ts
-// src/routes/+layout.server.ts
-export { load } from "$lib/generated/linguini/sveltekit-control";
-```
-
-These lightweight hooks import locale and web state without the eager message
-barrel. Use the full generated `sveltekit` module instead when server code
-needs `locals.linguini` message access or the typed server context.
-
-The short `handle`, `reroute`, and `load` exports are for applications that do
-not already define those hooks. For composition, import the collision-free
-`linguiniHandle`, `linguiniReroute`, and `linguiniLoad` exports instead.
-SvelteKit's `sequence` helper composes server handles; put Linguini first when a
-later handle reads `event.locals.linguini`:
-
-```ts
-// src/hooks.server.ts
-import { sequence } from "@sveltejs/kit/hooks";
-import { linguiniHandle } from "$lib/generated/linguini/sveltekit";
-import { appHandle } from "$lib/server/app-handle";
-
-export const handle = sequence(linguiniHandle, appHandle);
-```
-
-SvelteKit accepts one `reroute` hook. Give the application hook explicit
-priority and use Linguini when it does not reroute the URL:
-
-```ts
-// src/hooks.ts
-import type { Reroute } from "@sveltejs/kit";
-import { linguiniReroute } from "$lib/generated/linguini/sveltekit";
-import { appReroute } from "$lib/app-reroute";
-
-export const reroute: Reroute = async (event) =>
-  (await appReroute(event)) ?? (await linguiniReroute(event));
-```
-
-Compose root server-load results explicitly. Spread the Linguini result last so
-the reserved `data.linguini` field cannot be replaced accidentally:
-
-```ts
-// src/routes/+layout.server.ts
-import type { LayoutServerLoad } from "./$types";
-import { linguiniLoad } from "$lib/generated/linguini/sveltekit";
-import { appLoad } from "$lib/server/app-load";
-
-export const load: LayoutServerLoad = async (event) => ({
-  ...(await appLoad(event)),
-  ...(await linguiniLoad(event)),
+export const handle = createHandle(createRequestWeb(), {
+  switchRoute: { path: "/_linguini/locale/{locale}", returnQuery: "return", status: 303 },
 });
 ```
 
-Use the generated HTML placeholders:
+```ts
+// src/hooks.ts
+import { createReroute } from "@antepodeum/linguini-sveltekit";
+import { web } from "$lib/linguini-web";
 
-```html
-<!-- src/app.html -->
-<html lang="%linguini.lang%" dir="%linguini.dir%">
-  <body data-sveltekit-preload-data="hover">
-    <div style="display: contents">%sveltekit.body%</div>
-  </body>
-</html>
+export const reroute = createReroute(web);
 ```
 
-The generated `linguini-app.d.ts` augments `App.Locals` and `App.PageData`, so
-server loads can use the request-scoped locale context without handwritten app
-ambient declarations. The locale-only control hook and full hook are represented
-truthfully as a union; narrow on `"l" in linguini` before reading messages.
-Linguini owns only `locals.linguini`; it does not reserve
-generic application fields such as `locals.locale`, `locals.direction`, or
-`locals.l`.
+```ts
+// src/routes/+layout.server.ts
+import { createLoad } from "@antepodeum/linguini-sveltekit/server";
+import type { Locale } from "$lib/generated/linguini/locale.js";
 
-The generated declaration file is a module that imports local generated types
-at the top level and augments SvelteKit's global `App` namespace inside
-`declare global`. If your app already has `src/app.d.ts`, keep your own
-declarations there and include the generated declaration through TypeScript's
-normal `include` paths; do not copy generated imports into `namespace App`.
+export const load = createLoad<Locale>();
+```
+
+The hook stores request-local metadata in `locals.linguini`, handles canonical redirects and
+optional switch endpoints, and replaces Linguini HTML placeholders while streaming. Split
+placeholders retain only their unfinished suffix. Hooks do not import message catalogs.
+The root load serializes locale metadata for matching SSR and hydration.
 
 ```ts
 // src/app.d.ts
+import type { LinguiniLocaleRequestContext } from "@antepodeum/linguini-web";
+import type { SerializedLinguiniContext } from "@antepodeum/linguini-sveltekit";
+import type { Locale } from "$lib/generated/linguini/locale.js";
+
 declare global {
   namespace App {
-    interface Error {
-      message: string;
-    }
+    interface Error {}
+    interface Locals { linguini?: LinguiniLocaleRequestContext<Locale> }
+    interface PageData { linguini?: SerializedLinguiniContext<Locale> }
   }
 }
-
 export {};
 ```
 
-## Svelte usage
+```html
+<!doctype html>
+<html lang="%linguini.lang%" dir="%linguini.dir%">
+  <head>%sveltekit.head%</head>
+  <body data-sveltekit-preload-data="hover"><div style="display: contents">%sveltekit.body%</div></body>
+</html>
+```
 
-Components usually import only `l`:
+SvelteKit owns the base path, request origin, and matched route's trailing-slash policy.
+Linguini preserves the input slash shape; no generated policy rewrite is needed.
+
+```ts
+// src/routes/+layout.ts
+export const trailingSlash = "never";
+```
+
+## Controls and message calls
+
+```ts
+// src/lib/linguini.ts
+import { createControls } from "@antepodeum/linguini-sveltekit/client";
+import * as state from "$lib/generated/linguini/svelte-locale.svelte.js";
+import { web } from "./linguini-web";
+
+export const linguini = createControls(web, state);
+export const setLocale = linguini.setLocale;
+export const localizeHref = linguini.localizeHref;
+export const localizeUrl = linguini.localizeUrl;
+export const shouldLocalizeHref = linguini.shouldLocalizeHref;
+export const shouldLocalizeLink = linguini.shouldLocalizeLink;
+export const localizeHrefAttribute = linguini.localizeHrefAttribute;
+export const delocalizeUrl = linguini.delocalizeUrl;
+export const alternateLinks = linguini.alternateLinks;
+```
 
 ```svelte
 <script lang="ts">
@@ -338,50 +207,33 @@ Components usually import only `l`:
 <h1>{l.home.title}</h1>
 ```
 
-With `mode = "transform"`, the Vite plugin rewrites safe static Svelte anchor
-attributes to the generated `localizeHref` helper. `mode = "runtime"` instead
-ships the bounded browser observer for anchors created after hydration.
-`mode = "manual"` emits neither mechanism. For dynamic or programmatic URLs,
-render the helper result directly:
-
 ```svelte
 <script lang="ts">
-  import { l, localizeHref } from "$lib/generated/linguini/svelte";
+  import { l } from "$lib/generated/linguini/svelte";
+  import { localizeHref } from "$lib/linguini";
 </script>
 
 <a href={localizeHref("/pricing")}>{l.nav.pricing}</a>
 <a href={localizeHref("/account/settings")}>{l.nav.settings}</a>
 ```
 
-For the `ru` locale these render as `/ru/pricing` and `/ru/account/settings`.
-The generated SvelteKit response hook replaces only the Linguini HTML
-placeholders in each response chunk; it does not parse or buffer arbitrary HTML.
-External links, `mailto:`/`tel:` links, hash-only links, `download` links,
-`rel="external"` links, excluded routes, and links marked with
-`data-linguini-ignore` or `data-linguini-no-localize` are left unchanged by the
-selected link implementation.
-
-When `web({ switchRoute: {...} })` is configured, ordinary static links can switch locale
-without JavaScript:
-
 ```svelte
-<a href="/_linguini/locale/en?return=/account">English</a>
-<a href="/_linguini/locale/ru?return=/account">Русский</a>
+<script lang="ts">
+  import { base } from "$app/paths";
+</script>
+
+<a href={`${base}/_linguini/locale/en?return=/account`}>English</a>
+<a href={`${base}/_linguini/locale/ru?return=/account`}>Русский</a>
 ```
 
-The generated handler validates the locale and same-origin return target, falls
-back to a same-origin `Referer` and then the SvelteKit base path, uses
-`localizeHref` only when the shared transition plan writes the path, writes the
-configured cookie only when selected, and returns the configured redirect
-status. Absolute, protocol-relative, backslash, and encoded external return
-targets are rejected.
-
-Use the generated helpers for locale switching or programmatic URLs:
+The optional endpoint validates the locale and same-origin return path, then applies the selected
+path/cookie transport. It rejects external, protocol-relative, backslash, and encoded external
+return targets. Without a return path it uses a safe Referer or the application base.
 
 ```svelte
 <script lang="ts">
   import { l } from "$lib/generated/linguini/svelte";
-  import { setLocale } from "$lib/generated/linguini/svelte-control";
+  import { setLocale } from "$lib/linguini";
   import { locales } from "$lib/generated/linguini/locale";
 </script>
 
@@ -390,41 +242,81 @@ Use the generated helpers for locale switching or programmatic URLs:
     <button type="button" onclick={() => setLocale(locale)}>{locale}</button>
   {/each}
 </nav>
-
 <p>{l.home.subtitle}</p>
 ```
 
-Other generated client helpers:
+Controls preload registered active consumers before publishing a locale. Denied browser storage
+or cookie writes do not break rendering. Navigation and history options pass through the SvelteKit
+adapter. Loader disposal remains owned by the Vite/Svelte integration.
+
+Use `linkModule: "src/lib/link-transform.ts"` in the Vite options to transform static anchors
+through an application module exporting `localizeTransformedHref`. For browser-created anchors,
+explicitly initialize `startRuntimeLinkLocalization` from `@antepodeum/linguini-web/runtime-links`
+and dispose it when its owner is destroyed. These choices do not change native message generation.
 
 ```ts
+// src/lib/documented-client-helpers.ts
 import {
-  alternateLinks,
-  delocalizeUrl,
-  linguini,
-  localizeHref,
-  localizeHrefAttribute,
-  localizeUrl,
-  shouldLocalizeHref,
-  shouldLocalizeLink,
-} from "$lib/generated/linguini/svelte";
+  alternateLinks, delocalizeUrl, linguini, localizeHref, localizeHrefAttribute,
+  localizeUrl, shouldLocalizeHref, shouldLocalizeLink,
+} from "$lib/linguini";
 ```
 
-## Server usage
+## Server messages and hook composition
 
-`handle` stores a request-scoped context in `event.locals`:
+Server load functions can explicitly prepare and select generated messages. Request locale is
+passed as a value; it is never stored in shared mutable server state.
 
 ```ts
 import type { PageServerLoad } from "./$types";
+import { prepareLinguini, createLinguini } from "$lib/generated/linguini/index.js";
 
-export const load: PageServerLoad = ({ locals }) => {
-  const { linguini } = locals;
-  if (!("l" in linguini)) {
-    throw new Error("Use linguiniHandle from the generated sveltekit module");
-  }
-  return {
-    title: linguini.l.home.title,
-    locale: linguini.locale,
-    canonical: linguini.localizeHref("/pricing"),
-  };
+export const load: PageServerLoad = async ({ locals }) => {
+  const context = locals.linguini;
+  if (!context) throw new Error("The locale hook is missing");
+  await prepareLinguini(context.locale);
+  const messages = createLinguini(context.locale);
+  return { title: messages.home.title, locale: context.locale, canonical: context.localizeHref("/pricing") };
 };
+```
+
+Compose hooks through SvelteKit's standard interfaces:
+
+```ts
+// src/hooks.server.ts
+import { sequence } from "@sveltejs/kit/hooks";
+import { createHandle } from "@antepodeum/linguini-sveltekit/server";
+import { createRequestWeb } from "$lib/linguini-web";
+import { appHandle } from "$lib/server/app-handle";
+
+const linguiniHandle = createHandle(createRequestWeb(), {
+  switchRoute: { path: "/_linguini/locale/{locale}" },
+});
+export const handle = sequence(linguiniHandle, appHandle);
+```
+
+```ts
+// src/hooks.ts
+import type { Reroute } from "@sveltejs/kit";
+import { createReroute } from "@antepodeum/linguini-sveltekit";
+import { web } from "$lib/linguini-web";
+import { appReroute } from "$lib/app-reroute";
+
+const linguiniReroute = createReroute(web);
+export const reroute: Reroute = async event =>
+  (await appReroute(event)) ?? (await linguiniReroute(event));
+```
+
+```ts
+// src/routes/+layout.server.ts
+import type { LayoutServerLoad } from "./$types";
+import type { Locale } from "$lib/generated/linguini/locale.js";
+import { createLoad } from "@antepodeum/linguini-sveltekit/server";
+import { appLoad } from "$lib/server/app-load";
+
+const linguiniLoad = createLoad<Locale>();
+export const load: LayoutServerLoad = async event => ({
+  ...(await appLoad(event)),
+  ...linguiniLoad(event),
+});
 ```

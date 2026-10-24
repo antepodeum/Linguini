@@ -1,1 +1,4 @@
-export { load } from '$lib/generated/linguini/sveltekit-control';
+import { createLoad } from '@antepodeum/linguini-sveltekit/server';
+import type { Locale } from '$lib/generated/linguini/locale.js';
+
+export const load = createLoad<Locale>();

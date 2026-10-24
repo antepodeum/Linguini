@@ -227,7 +227,15 @@ cargo test --workspace
 ```
 
 Install the shared configuration package with `pnpm --dir packages/project install --frozen-lockfile`
-before using the root runner. It provides repository-wide local verification:
+before using the root runner. Build the local TypeScript runtime packages before installing
+site dependencies (published packages already contain their compiled output):
+
+```bash
+node packages/scripts/prepare-runtime-packages.mjs
+pnpm --dir site install --frozen-lockfile
+```
+
+The root runner provides repository-wide local verification:
 
 ```bash
 pnpm dev:site --host 127.0.0.1   # site with workspace-local Linguini packages

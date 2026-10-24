@@ -46,6 +46,6 @@ message calls. When `locale_loading = "dynamic"` and `build.target` is unset, th
 plugin selects `es2022`, including on Vite 5 and 6. Explicit targets are preserved;
 they must support top-level await. Eager locale loading keeps Vite's default target.
 
-Configure web/framework capabilities in `linguini.config.mjs` using typed factories from
-`@antepodeum/linguini-vite/modules`. The plugin evaluates configuration in Node and passes a
-validated data-only plan to the native CLI. Node 20.6 or newer is required.
+Use `@antepodeum/linguini-sveltekit/vite` for SvelteKit and this package’s `/svelte` entry for
+standalone Svelte. Runtime routing and persistence are configured through their npm adapters.
+An optional `linkModule` selects a project helper for static-link transforms.

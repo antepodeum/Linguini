@@ -10,6 +10,7 @@ export const PROJECTS = Object.freeze([
   Object.freeze({ id: "rust", path: ".", manager: "cargo", aliases: ["cargo"] }),
   Object.freeze({ id: "project", path: "packages/project", manager: "pnpm", aliases: ["packages/project"] }),
   Object.freeze({ id: "web", path: "packages/web", manager: "pnpm", aliases: ["packages/web"] }),
+  Object.freeze({ id: "svelte", path: "packages/svelte", manager: "pnpm", aliases: ["packages/svelte"] }),
   Object.freeze({ id: "sveltekit", path: "packages/sveltekit", manager: "pnpm", aliases: ["packages/sveltekit"] }),
   Object.freeze({ id: "tsc", path: "packages/tsc", manager: "pnpm", aliases: ["packages/tsc"] }),
   Object.freeze({ id: "vite", path: "packages/vite", manager: "pnpm", aliases: ["packages/vite"] }),
@@ -82,6 +83,10 @@ export const TASKS = Object.freeze([
     profiles: ["quick", "full"],
     tools: ["pnpm"],
     requiresNodeModules: true,
+  }),
+  nodeTask({
+    id: "svelte:test", project: "svelte", label: "TypeScript Svelte runtime and real rune compilation",
+    command: "pnpm", args: ["test"], profiles: ["quick", "full"], tools: ["pnpm"], requiresNodeModules: true,
   }),
   nodeTask({
     id: "sveltekit:test",
@@ -827,7 +832,7 @@ export const USAGE = `Usage: node scripts/test-all.mjs [options]
 
 Options:
   --profile <quick|full|site>  Select the ordered task profile (default: quick)
-  --project <name>             Repeat to limit to rust, project, tsc, vite, cli, vscode, or site
+  --project <name>             Repeat to limit to a registered project
   --task <id>                  Repeat to run exact task IDs (for example site:check)
   --help                       Show this help
 

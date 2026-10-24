@@ -57,6 +57,9 @@ fn neutral_config_rejects_removed_framework_policy_with_migrations() {
         assert!(
             matches!(error, super::ConfigError::RemovedField { field: actual, .. } if actual == field)
         );
-        assert!(error.to_string().contains("linguini.config.mjs"));
+        assert!(
+            error.to_string().contains("runtime adapters")
+                || error.to_string().contains("build integration")
+        );
     }
 }

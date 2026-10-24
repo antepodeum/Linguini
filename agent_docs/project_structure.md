@@ -2,16 +2,12 @@
 
 - `crates/linguini-codegen`: backend-independent type models, formatter/plural/inline-function
   requirement analysis, and transitive message dependency slicing with source provenance.
-- `crates/linguini-codegen-ecmascript`: JavaScript and TypeScript target syntax, identifier
-  escaping, language runtime templates, module artifacts, and source maps. This backend consumes
-  the shared code-generation plans without depending on web or framework integrations.
-- `crates/linguini-codegen-ecmascript-web`: web policy validation, URL/request and locale-source
-  templates, cookie/switch-route emitters, declarations, and selected web artifacts. Depends on
-  ECMAScript rendering without a framework or Vite dependency.
-- `crates/linguini-codegen-svelte`: Svelte locale state, controls, effects, and provider facades;
-  consumes explicit host bindings and shared web capabilities.
-- `crates/linguini-codegen-sveltekit`: SvelteKit request, navigation, and server adapters;
-  composes Svelte and web artifacts.
+- `crates/linguini-codegen-ecmascript`: canonical JavaScript runtime syntax, adjacent
+  declarations, identifier escaping, module artifacts, and source maps. It consumes shared
+  semantic plans without depending on web or framework integrations.
+- `crates/linguini-codegen-svelte`: thin project-specific Svelte import/export and type bindings.
+  It references reusable npm factories and accepts an optional host module; it contains no
+  generic state, controls, effects, web, or SvelteKit runtime implementation.
 - `crates/linguini-codegen-vite`: framework-independent physical message/semantic leaves and
   manifest planning, accepting explicit runtime-helper descriptors from the host compiler.
 - `packages/vite`: Vite lifecycle and application usage integration, with Svelte-specific syntax
@@ -30,6 +26,12 @@
 All reusable npm packages live in `packages/`; there is no separate `plugins/` tree.
 `packages/vite` and `packages/tsc` are build integrations, `packages/project` owns common
 frontend project loading, and `packages/cli` with its platform packages provides the native
-launcher. `packages/web` and `packages/sveltekit` contain TypeScript runtime adapter sources;
+launcher. `packages/web`, `packages/svelte`, and `packages/sveltekit` contain TypeScript runtime adapter sources;
 their JavaScript, declarations, and maps are emitted only into ignored `dist/` directories.
 The site remains an application under `site/`, and the editor extension stays under `editors/`.
+
+`packages/web` owns locale-source capabilities, URLs, persistence, and framework-independent
+client controls. `packages/svelte` owns rune state and message providers. `packages/sveltekit`
+composes those runtimes with request hooks, metadata serialization, and navigation, and exposes
+`/vite` by composing the shared Svelte/Vite integration. Runtime policy is ordinary application
+TypeScript; the native CLI reads neutral TOML and never evaluates an npm policy configuration.

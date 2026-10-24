@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { platformPackage } from "../lib/platform.js";
@@ -29,16 +29,8 @@ if (digest !== manifest.sha256) {
 }
 
 const args = process.argv.slice(2);
-let input;
-if (args[0] === "build" && !args.some(arg => arg === "--module-plan" || arg.startsWith("--module-plan=")) && !args.includes("--module-plan-stdin") &&
-    ["linguini.config.mjs", "linguini.modules.json"].some(file => existsSync(path.resolve(file)))) {
-  const { readModuleConfigurationSync } = await import("@antepodeum/linguini-project/modules");
-  input = JSON.stringify(readModuleConfigurationSync(process.cwd()).plan);
-  args.push("--module-plan-stdin");
-}
 const result = spawnSync(executable, args, {
-  input,
-  stdio: input === undefined ? "inherit" : ["pipe", "inherit", "inherit"],
+  stdio: "inherit",
   windowsHide: false
 });
 if (result.error) {

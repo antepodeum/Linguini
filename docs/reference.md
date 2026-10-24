@@ -24,27 +24,21 @@ and pads to the requested minimum width. Only `yy` truncates to the last two dig
 padding requests select their padding helper during generation.
 See [UTS #35 v48.2 day-period rules](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Day_Period_Rules).
 
-Web and framework integrations have separate native owners.
-`linguini-codegen-ecmascript-web` owns web policy validation, locale-source leaves, URL/request
-helpers, cookie and locale-switch route emitters, declarations, and `templates/web/`.
-The web declaration and JSDoc templates share one static type model, including generic parameters,
-inheritance, methods, optional members, and aliases; Rust composes the rendered artifacts.
-Its `generate_project_files(&WebProjectOptions, source_maps)` emits only the selected web artifacts.
-Compose these files with the language artifacts and the selected framework artifacts. Web policy
-and errors belong to this crate; `EcmaProjectOptions` contains only language output options.
-The base ECMAScript crate has no dependency on web or framework codegen.
+Web and framework integrations have separate runtime owners.
+`@antepodeum/linguini-web` owns reusable URL, resolver, cookie, and request operations.
+`@antepodeum/linguini-sveltekit` supplies runtime hooks and request context. These TypeScript
+packages are configured in application code.
 
-`linguini-codegen-svelte` generates Svelte
-locale state, controls, effects, and provider facades. `linguini-codegen-sveltekit` composes that
-Svelte generation with its server adapters and ambient types. Neither is a dependency of
-`linguini-codegen-ecmascript`.
+`linguini-codegen-svelte` emits project imports and types backed by the reusable
+`@antepodeum/linguini-svelte` runtime. The ECMAScript backend remains independent of framework
+and web adapters. SvelteKit server hooks are configured through its npm runtime package.
 
 `@antepodeum/linguini-project` owns frontend configuration reading and project-relative path resolution.
 Its `./ecmascript` entry derives the same layout for asynchronous Vite and synchronous `tsc` hosts,
-including generated/source roots, locale loading, finite dynamic uses, and link mode. Frameworks
+including generated/source roots, locale loading and finite dynamic uses. Frameworks
 and compiler APIs remain in their adapters. The language-neutral entry has no framework imports.
-Its generic module loader evaluates code configuration in Node for synchronous and asynchronous
-hosts, tracks imported files for watch mode, and passes only validated JSON data to native codegen.
+It reads neutral project paths and target settings. Runtime adapter configuration is loaded by
+the application and its ordinary frontend module graph.
 
 `linguini-codegen-vite::VitePlan` owns physical message/semantic leaves and manifest generation.
 The host compiler supplies validated application usage and explicit runtime-helper descriptors;
@@ -941,17 +935,9 @@ sources = ["src"]
 # locale_loading = "dynamic"           # eager is the default
 ```
 
-Configure the selected modules in `linguini.config.mjs`:
-
-```js
-// linguini.config.mjs
-// @ts-check
-import { defineModules, svelteKit } from "@antepodeum/linguini/modules";
-
-export default defineModules([
-  svelteKit()
-]);
-```
+Use the `@antepodeum/linguini-sveltekit/vite` adapter for SvelteKit project bindings.
+Configure web resolution and routing through the npm runtime adapters in application code;
+see [Web and SvelteKit](./web-sveltekit.md).
 
 Generated message access is nested by canonical path. Parameterless leaves are
 values (`l.main.title`); parameterized leaves remain callable with their schema
@@ -994,22 +980,11 @@ Svelte and SvelteKit integrations perform this preparation for their normal
 switch and request flows. Pending loads are deduplicated, and non-base locale
 loaders use bundler-visible dynamic `import()` edges.
 
-Web and framework policy belongs in `linguini.config.mjs`, using `defineModules`, `web`,
-`svelte`, and `svelteKit` from `@antepodeum/linguini/modules`. The Vite and TypeScript integrations
-also re-export these helpers from their `/modules` entry. TOML retains project/source/target
-settings; `[web]` and `targets.ts.framework` are rejected with migration diagnostics.
-Node evaluates the authored configuration and passes a version 1 data-only module plan through
-`build --module-plan-stdin`; native integrations can instead use `--module-plan <file>` or
-`linguini.modules.json`. One configuration source is allowed per project. The native compiler
-validates module ids, dependencies, and owner-specific options before changing output trees.
-Typed module configuration and its complete import dependency graph require Node 20.6 or later.
-See [`web-sveltekit.md`](web-sveltekit.md) for defaults, validation, transport, and no-JavaScript behavior.
-
-The public web runtime mirrors this structure through `routing`, `locale`,
-`cookie`, `localStorage`, `links`, and `routes` objects. Removed flat runtime
-properties are not accepted as compatibility aliases. SvelteKit adapters pass
-the application base from `$app/paths`; request/browser context supplies the
-origin, and SvelteKit remains the sole trailing-slash authority.
+Web routing, locale-source selection, and persistence belong to `@antepodeum/linguini-web` and
+`@antepodeum/linguini-sveltekit` runtime adapters, configured in application TypeScript and hooks.
+Native codegen emits messages, selected CLDR operations, declarations/maps, and thin Svelte
+project bindings. It emits no web or SvelteKit runtime implementation. Neutral TOML rejects
+`[web]` and `targets.ts.framework`. See [Web and SvelteKit](./web-sveltekit.md).
 
 ### Opt-in unused-message analysis
 
@@ -1043,23 +1018,13 @@ message paths or group prefixes to `ignore` for dynamic resolution the scanner
 cannot see. This is a bounded lexical project scan, not a whole-program
 JavaScript type or data-flow proof.
 
-The closed project web facade has one `compile_web_module` entry point. It uses the same selected physical locale-source
-modules, URL/request policy, public type model, and owned source maps. The web runtime templates live under `linguini-codegen-ecmascript-web/templates/web/`. Checked target types, closed
-source matrices, URL/link/cookie safety, and concurrent request preparation run in quick/full gates
-through `tests/fixtures/golden/snapshots/js-web`.
-
-SvelteKit server adapters share canonical JavaScript templates through
-`linguini_codegen_sveltekit::compile_sveltekit_module` and
-`linguini_codegen_sveltekit::compile_sveltekit_control_module`.
-The generated message and metadata adapters preserve request-local contexts, streaming page
-transforms, reroutes, canonical redirects, safe locale-switch routes, and selected cookie writes.
-Their superseded implementation templates are frozen test oracles only. Installed-SvelteKit type
-checks and executable TS/JS/frozen-runtime parity are registered quick/full gates under
-`tests/fixtures/golden/snapshots/js-sveltekit`.
+Web and SvelteKit request behavior is implemented in the npm runtime adapters. Their runtime
+sources and declarations are TypeScript, with package tests for URL/cookie policy, request
+isolation, streaming HTML, typed consumers, and real Svelte rune compilation.
 
 `compile_ecmascript_project_files(project, sources)` enumerates the language-owned JavaScript
 artifacts and optional declarations through the common artifact plan. The CLI explicitly composes
-web and framework artifacts from their owning crates. It emits an owned map beside
+thin Svelte import/type bindings from their owner. It emits an owned map beside
 every implementation; declarations follow the validated declaration setting. Source paths are
 relative to the output root and are rebased to each map directory. Missing/duplicate source
 identities and output collisions fail before filesystem writes. The established

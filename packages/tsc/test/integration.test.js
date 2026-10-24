@@ -170,13 +170,7 @@ test("a packed installation provides its executable, public types, and runnable 
   write(root, "pnpm-workspace.yaml", `overrides:\n  '@antepodeum/linguini-project': ${JSON.stringify(`file:${projectArchive.replaceAll("\\", "/")}`)}\n`);
   const installed = pnpm(["install", "--offline", "--ignore-scripts"], root);
   assert.equal(installed.status, 0, installed.stderr + installed.stdout);
-  write(root, "linguini.config.mjs", `import {defineModules, web} from '@antepodeum/linguini-tsc/modules';
-export default defineModules([web({locale:{sources:[]},links:{mode:'manual'}})]);`);
-  write(root, "src/api.ts", `import {defineModules, web} from "@antepodeum/linguini-tsc/modules";
-import type { LinguiniTypeScriptOptions } from "@antepodeum/linguini-tsc";
-const modules = defineModules([web({cookie:{secure:'auto'}})]);
-// @ts-expect-error static cookie policy is a closed union
-void (() => web({cookie:{secure:'always'}}));
+  write(root, "src/api.ts", `import type { LinguiniTypeScriptOptions } from "@antepodeum/linguini-tsc";
 const options: LinguiniTypeScriptOptions = { cwd: ".", command: "linguini", reportError: (error) => error.message };
 // @ts-expect-error Diagnostic reporters receive typed TypeScript diagnostics.
 const wrong: LinguiniTypeScriptOptions = { reportDiagnostic: (error: string) => error };
@@ -227,29 +221,11 @@ test("watch and solution-watch deliver text-only edits, recover from native erro
   for (const solution of [false, true]) {
     const root = fixture(solution ? { composite: true, declaration: true } : {});
     const nativeErrors = [];
-    const modulesEntry = new URL("../src/modules.js", import.meta.url).href;
-    write(root, "policy.mjs", 'export const sources = ["cookie"];');
-    write(root, "linguini.config.mjs", `
-import {defineModules, web} from ${JSON.stringify(modulesEntry)};
-import {sources} from './policy.mjs';
-export default defineModules([web({locale:{sources}, links:{mode:'manual'}})]);
-`);
+    write(root, "linguini.config.mjs", "throw new Error('native compiler must not evaluate runtime configuration');");
     const result = compile(root, solution ? ["--build", "--watch"] : ["--watch"], { reportError: (error) => nativeErrors.push(error) });
     try {
       assert.equal(execute(root), "Bonjour Ada");
-      assert.ok(readFileSync(path.join(root, "dist/generated/web.js"), "utf8").includes("resolveCookieLocale"));
-      write(root, "policy.mjs", 'export const sources = ["accept-language"];');
-      await eventually(() => readFileSync(path.join(root, "dist/generated/web.js"), "utf8").includes("resolveAcceptLanguageLocale"));
-      assert.equal(execute(root), "Bonjour Ada");
-      write(root, "linguini.config.mjs", `
-import {defineModules,web} from ${JSON.stringify(modulesEntry)};
-import {sources} from './introduced.mjs';
-export default defineModules([web({locale:{sources},links:{mode:'manual'}})]);`);
-      await eventually(() => nativeErrors.length > 0);
-      assert.ok(readFileSync(path.join(root, "dist/generated/web.js"), "utf8").includes("resolveAcceptLanguageLocale"));
-      write(root, "introduced.mjs", 'export const sources = ["path"];');
-      await eventually(() => readFileSync(path.join(root, "dist/generated/web.js"), "utf8").includes("resolvePathLocale"));
-      nativeErrors.length = 0;
+      assert.ok(!existsSync(path.join(root, "dist/generated/web.js")));
       const application = statSync(path.join(root, "dist/app.js")).mtimeMs;
       write(root, "locale/main/fr.lgl", "greeting = Salut {name}\n");
       await eventually(() => readFileSync(path.join(root, "dist/generated/locales/fr/main.js"), "utf8").includes("Salut"));

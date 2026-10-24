@@ -12,14 +12,11 @@ name = "linguini"
 path = "src/main.rs"
 
 [dependencies]
-linguini-codegen = { path = "../linguini-codegen", version = "0.1.0-alpha.4" }
-linguini-codegen-ecmascript-web = { path = "../linguini-codegen-ecmascript-web", version = "0.1.0-alpha.4" }
 clap = { version = "=4.5.61", features = ["derive"] }
 linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.4" }
 linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.4" }
 linguini-codegen-ecmascript = { path = "../linguini-codegen-ecmascript", version = "0.1.0-alpha.4" }
 linguini-codegen-svelte = { path = "../linguini-codegen-svelte", version = "0.1.0-alpha.4" }
-linguini-codegen-sveltekit = { path = "../linguini-codegen-sveltekit", version = "0.1.0-alpha.4" }
 linguini-codegen-vite = { path = "../linguini-codegen-vite", version = "0.1.0-alpha.4" }
 linguini-config = { path = "../linguini-config", version = "0.1.0-alpha.4" }
 linguini-format = { path = "../linguini-format", version = "0.1.0-alpha.4" }

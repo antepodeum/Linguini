@@ -12,14 +12,23 @@ overrides:
   '@antepodeum/linguini-linux-x64': file:../packages/cli-linux-x64
   '@antepodeum/linguini-win32-arm64': file:../packages/cli-win32-arm64
   '@antepodeum/linguini-win32-x64': file:../packages/cli-win32-x64
+  '@antepodeum/linguini-web': file:../packages/web
+  '@antepodeum/linguini-vite': file:../packages/vite
+  '@antepodeum/linguini-svelte': file:../packages/svelte
 
 importers:
 
   .:
     dependencies:
+      '@antepodeum/linguini-sveltekit':
+        specifier: file:../packages/sveltekit
+        version: file:../packages/sveltekit(@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)
       '@antepodeum/linguini-vite':
         specifier: file:../packages/vite
         version: file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
+      '@antepodeum/linguini-web':
+        specifier: file:../packages/web
+        version: file:../packages/web
       '@fontsource-variable/newsreader':
         specifier: ^5.2.8
         version: 5.2.10
@@ -107,13 +116,34 @@ packages:
 
   '@antepodeum/linguini-project@file:../packages/project':
     resolution: {directory: ../packages/project, type: directory}
-    engines: {node: '>=20.6'}
+    engines: {node: '>=20'}
+
+  '@antepodeum/linguini-svelte@file:../packages/svelte':
+    resolution: {directory: ../packages/svelte, type: directory}
+    engines: {node: '>=20'}
+    peerDependencies:
+      svelte: ^5.55.0
+
+  '@antepodeum/linguini-sveltekit@file:../packages/sveltekit':
+    resolution: {directory: ../packages/sveltekit, type: directory}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@antepodeum/linguini-vite': 0.1.0-alpha.4
+      '@sveltejs/kit': ^2.57.0
+      svelte: ^5.55.0
+    peerDependenciesMeta:
+      '@antepodeum/linguini-vite':
+        optional: true
 
   '@antepodeum/linguini-vite@file:../packages/vite':
     resolution: {directory: ../packages/vite, type: directory}
-    engines: {node: '>=20.6'}
+    engines: {node: '>=20'}
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
+
+  '@antepodeum/linguini-web@file:../packages/web':
+    resolution: {directory: ../packages/web, type: directory}
+    engines: {node: '>=20'}
 
   '@antepodeum/linguini-win32-arm64@file:../packages/cli-win32-arm64':
     resolution: {directory: ../packages/cli-win32-arm64, type: directory}
@@ -127,7 +157,7 @@ packages:
 
   '@antepodeum/linguini@file:../packages/cli':
     resolution: {directory: ../packages/cli, type: directory}
-    engines: {node: '>=20.6'}
+    engines: {node: '>=20'}
     hasBin: true
 
   '@emnapi/core@1.10.0':
@@ -1080,11 +1110,26 @@ snapshots:
     dependencies:
       smol-toml: 1.7.1
 
+  '@antepodeum/linguini-svelte@file:../packages/svelte(svelte@5.55.8)':
+    dependencies:
+      svelte: 5.55.8
+
+  '@antepodeum/linguini-sveltekit@file:../packages/sveltekit(@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)':
+    dependencies:
+      '@antepodeum/linguini-svelte': file:../packages/svelte(svelte@5.55.8)
+      '@antepodeum/linguini-web': file:../packages/web
+      '@sveltejs/kit': 2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
+      svelte: 5.55.8
+    optionalDependencies:
+      '@antepodeum/linguini-vite': file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
+
   '@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
     dependencies:
       '@antepodeum/linguini-project': file:../packages/project
       magic-string: 0.30.21
       vite: 8.0.13(@types/node@24.12.4)(jiti@1.21.7)
+
+  '@antepodeum/linguini-web@file:../packages/web': {}
 
   '@antepodeum/linguini-win32-arm64@file:../packages/cli-win32-arm64':
     optional: true
@@ -1093,8 +1138,6 @@ snapshots:
     optional: true
 
   '@antepodeum/linguini@file:../packages/cli':
-    dependencies:
-      '@antepodeum/linguini-project': file:../packages/project
     optionalDependencies:
       '@antepodeum/linguini-darwin-arm64': file:../packages/cli-darwin-arm64
       '@antepodeum/linguini-darwin-x64': file:../packages/cli-darwin-x64

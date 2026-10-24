@@ -49,9 +49,6 @@ export function findLinguiniProject(config, layouts = new Map()) {
         root,
         configFile,
         generated: layout.generatedRoot,
-        modulePlan: layout.modulePlan,
-        moduleConfigExists: layout.moduleConfigExists,
-        moduleFiles: [...layout.moduleConfigPaths, ...layout.moduleDependencies],
         sources: [layout.schemaRoot, layout.localeRoot],
       };
       layouts.set(root, project);

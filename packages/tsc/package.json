@@ -11,7 +11,7 @@
   },
   "packageManager": "pnpm@11.1.0",
   "engines": {
-    "node": ">=20.6"
+    "node": ">=20"
   },
   "bin": {
     "linguini-tsc": "./bin/linguini-tsc.js"
@@ -20,10 +20,6 @@
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
-    },
-    "./modules": {
-      "types": "./src/modules.d.ts",
-      "default": "./src/modules.js"
     }
   },
   "files": [

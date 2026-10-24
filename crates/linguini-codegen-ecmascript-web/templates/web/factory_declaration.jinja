@@ -1,3 +1,0 @@
-{% if locale_only %}export declare function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options?: LinguiniWebOptions, environment?: LinguiniWebEnvironment): LinguiniWebLocale<Locale>;
-{% else %}export declare function createWebI18n<Locale extends string, Linguini>(runtime: LinguiniRuntime<Locale, Linguini>, options?: LinguiniWebOptions, environment?: LinguiniWebEnvironment): LinguiniWeb<Locale, Linguini>;
-{% endif %}

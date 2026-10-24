@@ -1,7 +1,7 @@
 # Getting Started
 
 > **Preview status.** Linguini is functional end-to-end — the language, analyzer,
-> LSP, and TypeScript codegen all work. The codebase is being actively cleaned up
+> LSP, and ECMAScript codegen all work. The codebase is being actively cleaned up
 > and the syntax is stabilizing. Expect rough edges, and feel free to open issues.
 
 Projects created by this release use the frozen [v0.1 language contract](./language-v0.1.md).
@@ -60,37 +60,10 @@ gitignore   = true
 sources = ["src"]
 ```
 
-Configure the selected modules in `linguini.config.mjs`:
-
-```js
-// linguini.config.mjs
-// @ts-check
-import { defineModules, web, svelteKit } from "@antepodeum/linguini/modules";
-
-export default defineModules([
-  web({
-    routing: {
-      localePrefix: "except-default"
-    },
-    locale: {
-      sources: [
-        "path",
-        "cookie",
-        "accept-language"
-      ]
-    },
-    cookie: {
-      path: "auto"
-    }
-  }),
-  svelteKit()
-]);
-```
-
-The module configuration selects localized paths, cookie persistence, and request-language
-fallback. Omit `web()` when no web routing policy is needed, and omit `svelteKit()` for
-framework-independent output. The current generator
-emits ESM only; there is no module-format switch.
+Web routing, cookies, and request-language resolution are configured in application TypeScript
+modules and hooks using the [web and SvelteKit runtime adapters](./web-sveltekit.md).
+The SvelteKit Vite adapter prepares the project-specific Svelte imports and types. Native message
+generation uses the translation sources and target settings above.
 
 ### Paths and namespaces
 
@@ -99,8 +72,8 @@ directory. Use `/` as the separator. Linguini trims surrounding whitespace and
 normalizes repeated `/`, leading `./`, and trailing `/`. Absolute paths, `\`,
 parent traversal (`..`), and overlapping source/output roots are rejected.
 
-`project.name` is project metadata and supplies default cookie/local-storage
-names when those web features are enabled. It is not a source namespace and
+`project.name` is project metadata. Cookie and storage names belong to application runtime
+configuration. The project name is not a source namespace and
 does not appear in generated message paths.
 
 Each schema file owns the filesystem namespace formed from its path below
@@ -203,11 +176,10 @@ Writes generated code to the paths configured in `linguini.toml`.
 
 ## Use in your app
 
-For SvelteKit, add `@antepodeum/linguini-vite`, export the generated
-`sveltekit-control` hooks and root load, then import `l` from the generated
-Svelte facade. The integration resolves and prepares locale modules; normal
-components do not manually import messages or every locale. See the complete
-[SvelteKit setup](./web-sveltekit.md).
+For SvelteKit, install `@antepodeum/linguini-sveltekit`, `@antepodeum/linguini-web`, and
+`@antepodeum/linguini-vite`. Configure the npm hooks and root load, then import `l` from the
+generated Svelte facade. The integration prepares message dependencies for components.
+See the complete [SvelteKit setup](./web-sveltekit.md).
 
 For direct framework-agnostic use:
 

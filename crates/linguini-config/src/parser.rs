@@ -110,14 +110,14 @@ fn removed_module_field(source: &str) -> Option<(&'static str, &'static str)> {
     if value.get("web").is_some() {
         return Some((
             "web",
-            "configure the ecmascript.web module in linguini.config.mjs",
+            "configure web runtime adapters in application modules and hooks",
         ));
     }
     let target = value.get("targets")?.get("ts")?;
     if target.get("framework").is_some() {
         return Some((
             "targets.ts.framework",
-            "configure the svelte or sveltekit module in linguini.config.mjs",
+            "select Svelte project bindings through the build integration",
         ));
     }
     target.get("module").map(|_| {

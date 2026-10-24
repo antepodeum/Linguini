@@ -1,6 +1,6 @@
 # SvelteKit locale provider example
 
-The generated SvelteKit adapter is the locale provider. Configure a pathless
+The SvelteKit runtime adapter supplies request-local locale context. Configure a pathless
 site with cookie persistence and the optional no-JavaScript switch transport:
 
 ```toml
@@ -21,38 +21,34 @@ declaration = true
 sources = ["src"]
 ```
 
-Configure the selected modules in `linguini.config.mjs`:
+Configure the runtime in an ordinary application module:
 
-```js
-// linguini.config.mjs
-// @ts-check
-import { defineModules, web, svelteKit } from "@antepodeum/linguini/modules";
+```ts
+// src/lib/linguini-web.ts
+import { base } from "$app/paths";
+import {
+  createWebLocaleI18n, cookieLocale, requestLanguage,
+} from "@antepodeum/linguini-web";
+import type { LocaleResolver, LinguiniWebOptions } from "@antepodeum/linguini-web";
+import * as locale from "$lib/generated/linguini/locale.js";
 
-export default defineModules([
-  web({
-    routing: {
-      localePrefix: "never"
-    },
-    locale: {
-      sources: [
-        "cookie",
-        "accept-language"
-      ]
-    },
-    cookie: {
-      path: "auto"
-    },
-    links: {
-      mode: "transform"
-    },
-    switchRoute: {
-      path: "/_linguini/locale/{locale}",
-      returnQuery: "return",
-      status: 303
-    }
-  }),
-  svelteKit()
-]);
+const policy = {
+  routing: { localePrefix: "never", canonical: "redirect" },
+  locale: { switch: { writesPath: false, writesCookie: true, writesLocalStorage: false } },
+  cookie: { name: "APP_LOCALE", path: "auto", maxAge: 365 * 24 * 60 * 60 },
+  links: { mode: "manual" },
+  routes: { exclude: ["/_app/**", "/favicon.ico"] },
+} satisfies LinguiniWebOptions;
+
+function createWeb(sources: readonly LocaleResolver[] = []) {
+  return createWebLocaleI18n(locale, {
+    ...policy, locale: { ...policy.locale, sources },
+  }, { base });
+}
+export const web = createWeb();
+export function createRequestWeb() {
+  return createWeb([cookieLocale(), requestLanguage()]);
+}
 ```
 
 The component below uses this schema and its two locale implementations:
@@ -81,41 +77,78 @@ greeting = Привет, {name}!
 settings = Настройки
 ```
 
-`locale_prefix = "never"` cannot read a locale from the path. The cookie gives
+`localePrefix: "never"` cannot read a locale from the path. The cookie gives
 both the server and browser a persistent source, while `accept-language`
-negotiates the first request. The generated browser switch and switch route use
-the same compiled transition plan: write the cookie, leave the path unprefixed,
-and navigate to the resulting URL.
+negotiates the first request. Browser controls and the optional server switch route share the application runtime policy: write
+the cookie and leave paths unprefixed.
 
-Export the generated request hooks and root data loader:
+Create the request hooks and root data loader:
 
 ```ts
 // src/hooks.server.ts
-export { handle } from "$lib/generated/linguini/sveltekit-control";
+import { createHandle } from "@antepodeum/linguini-sveltekit/server";
+import { createRequestWeb } from "$lib/linguini-web";
+export const handle = createHandle(createRequestWeb(), {
+  switchRoute: { path: "/_linguini/locale/{locale}", returnQuery: "return", status: 303 },
+});
 ```
 
 ```ts
 // src/hooks.ts
-export { reroute } from "$lib/generated/linguini/sveltekit-control";
+import { createReroute } from "@antepodeum/linguini-sveltekit";
+import { web } from "$lib/linguini-web";
+export const reroute = createReroute(web);
 ```
 
 ```ts
 // src/routes/+layout.server.ts
-export { load } from "$lib/generated/linguini/sveltekit-control";
+import { createLoad } from "@antepodeum/linguini-sveltekit/server";
+import type { Locale } from "$lib/generated/linguini/locale.js";
+export const load = createLoad<Locale>();
 ```
 
-The generated Svelte facade consumes that request data and owns the reactive
+```ts
+// src/lib/linguini.ts
+import { createControls } from "@antepodeum/linguini-sveltekit/client";
+import * as state from "$lib/generated/linguini/svelte-locale.svelte.js";
+import { web } from "./linguini-web";
+
+export const linguini = createControls(web, state);
+export const setLocale = linguini.setLocale;
+export const localizeHref = linguini.localizeHref;
+export const localizeUrl = linguini.localizeUrl;
+export const shouldLocalizeHref = linguini.shouldLocalizeHref;
+export const shouldLocalizeLink = linguini.shouldLocalizeLink;
+export const localizeHrefAttribute = linguini.localizeHrefAttribute;
+export const delocalizeUrl = linguini.delocalizeUrl;
+export const alternateLinks = linguini.alternateLinks;
+```
+
+```ts
+// src/app.d.ts
+import type { LinguiniLocaleRequestContext } from "@antepodeum/linguini-web";
+import type { SerializedLinguiniContext } from "@antepodeum/linguini-sveltekit";
+import type { Locale } from "$lib/generated/linguini/locale.js";
+
+declare global {
+  namespace App {
+    interface Error {}
+    interface Locals { linguini?: LinguiniLocaleRequestContext<Locale> }
+    interface PageData { linguini?: SerializedLinguiniContext<Locale> }
+  }
+}
+export {};
+```
+
+The Svelte runtime consumes that request data and owns the reactive
 locale context. Components import message access and controls, not individual
 locale or message modules:
 
 ```svelte
 <!-- src/routes/account/+page.svelte -->
 <script lang="ts">
-  import {
-    l,
-    localizeHref,
-    setLocale,
-  } from "$lib/generated/linguini/svelte";
+  import { l } from "$lib/generated/linguini/svelte";
+  import { localizeHref, setLocale } from "$lib/linguini";
 
   let name = "Artemy";
 </script>
@@ -141,6 +174,5 @@ values. `greeting(name: String)` is callable through its named-object overload.
 `localizeHref` is still the single programmatic-link helper; under this pathless
 policy it preserves `/account/settings` while applying base/origin rules.
 
-`setLocale` prepares a non-base locale before publishing it. The SvelteKit
-request path does the same during SSR. No application-level provider singleton,
+`setLocale` prepares a non-base locale before publishing it. SSR message access uses the server request locale. No application-level provider singleton,
 manual locale barrel, or eager import of every locale is needed.

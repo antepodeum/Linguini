@@ -6,3 +6,6 @@ overrides:
   '@antepodeum/linguini-linux-x64': file:../packages/cli-linux-x64
   '@antepodeum/linguini-win32-arm64': file:../packages/cli-win32-arm64
   '@antepodeum/linguini-win32-x64': file:../packages/cli-win32-x64
+  '@antepodeum/linguini-web': file:../packages/web
+  '@antepodeum/linguini-vite': file:../packages/vite
+  '@antepodeum/linguini-svelte': file:../packages/svelte

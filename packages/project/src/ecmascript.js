@@ -1,25 +1,22 @@
 // ECMAScript build layout shared by CLI frontends, bundlers, and compiler adapters.
 import { DEFAULT_PATHS, readProjectConfig, readProjectConfigSync, resolveProjectPath } from "./index.js";
-import { readModuleConfiguration, readModuleConfigurationSync, moduleConfigPaths } from "./modules.js";
 const resolveWithin = resolveProjectPath;
 const DEFAULT_SCHEMA_DIR = DEFAULT_PATHS.schema;
 const DEFAULT_LOCALE_DIR = DEFAULT_PATHS.locale;
 const DEFAULT_GENERATED_DIR = "generated/linguini";
 
 export async function readEcmascriptProject(root, configFile) {
-  return ecmascriptLayout(await readProjectConfig(root, configFile), await readModuleConfiguration(root));
+  return ecmascriptLayout(await readProjectConfig(root, configFile));
 }
 
 export function readEcmascriptProjectSync(root, configFile) {
-  return ecmascriptLayout(readProjectConfigSync(root, configFile), readModuleConfigurationSync(root));
+  return ecmascriptLayout(readProjectConfigSync(root, configFile));
 }
 
-function ecmascriptLayout({ projectRoot, configPath, configExists, document }, moduleConfiguration) {
-  const modulePlan = moduleConfiguration.plan;
+function ecmascriptLayout({ projectRoot, configPath, configExists, document }) {
   if (document?.web !== undefined || document?.targets?.ts?.framework !== undefined) {
-    throw new Error("Configure web and framework modules in linguini.config.mjs; TOML web/framework policy was removed");
+    throw new Error("Configure web policy in application runtime modules and hooks; TOML web/framework policy was removed");
   }
-  const web = modulePlan.modules.find(module => module.id === "ecmascript.web");
   const schema = readString(document?.paths?.schema, DEFAULT_SCHEMA_DIR, "paths.schema");
   const locale = readString(document?.paths?.locale, DEFAULT_LOCALE_DIR, "paths.locale");
   const generated = readString(
@@ -50,21 +47,12 @@ function ecmascriptLayout({ projectRoot, configPath, configExists, document }, m
     rawBundler?.locale_loading,
     "targets.ts.bundler.locale_loading"
   );
-  const linkMode = validateLinkMode(
-    web?.options?.links?.mode,
-    web === undefined ? "manual" : "transform",
-    "ecmascript.web.links.mode"
-  );
   validateBundlerDynamic(rawBundler?.dynamic);
 
   return Object.freeze({
     projectRoot,
     configPath,
     configExists,
-    modulePlan,
-    moduleDependencies: moduleConfiguration.dependencies,
-    moduleConfigExists: moduleConfiguration.configPath !== undefined,
-    moduleConfigPaths: Object.freeze(moduleConfigPaths(projectRoot)),
     targetConfigured: document?.targets?.ts !== undefined,
     schemaRoot: resolveWithin(projectRoot, schema, "paths.schema"),
     localeRoot: resolveWithin(projectRoot, locale, "paths.locale"),
@@ -81,7 +69,6 @@ function ecmascriptLayout({ projectRoot, configPath, configExists, document }, m
       )
     ]),
     localeLoading,
-    linkMode,
     bundlerEnabled: rawBundler !== undefined
   });
 }
@@ -150,16 +137,6 @@ export function validateLocaleLoading(value, field) {
     throw new TypeError(`Linguini config field ${field} must be "eager" or "dynamic"`);
   }
   return value;
-}
-
-function validateLinkMode(value, fallback, field) {
-  const mode = value ?? fallback;
-  if (mode !== "transform" && mode !== "runtime" && mode !== "manual") {
-    throw new TypeError(
-      `Linguini config field ${field} must be "transform", "runtime", or "manual"`
-    );
-  }
-  return mode;
 }
 
 export function isDynamicMessagePath(message) {

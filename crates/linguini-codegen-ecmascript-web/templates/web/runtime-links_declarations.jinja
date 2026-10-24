@@ -1,7 +1,0 @@
-{% raw %}import type { LinguiniWebLocale } from "../web.js";
-
-export declare function startRuntimeLinkLocalization<Locale extends string>(
-  web: LinguiniWebLocale<Locale>,
-  getLocale: () => Locale,
-): { refresh(): void; destroy(): void } | undefined;
-{% endraw %}

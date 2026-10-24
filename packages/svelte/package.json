@@ -1,0 +1,41 @@
+{
+  "name": "@antepodeum/linguini-svelte",
+  "version": "0.1.0-alpha.4",
+  "description": "Reusable Svelte locale state and typed message providers for Linguini",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "packageManager": "pnpm@11.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antepodeum/Linguini.git",
+    "directory": "packages/svelte"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "pnpm build && node --test",
+    "check": "tsc --project tsconfig.json --noEmit",
+    "prepack": "pnpm build"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "svelte": "5.55.8"
+  },
+  "peerDependencies": {
+    "svelte": "^5.55.0"
+  }
+}

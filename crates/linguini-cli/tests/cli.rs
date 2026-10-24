@@ -1203,7 +1203,7 @@ fn assert_codegen_source_maps(directory: &Path) {
 }
 
 #[test]
-fn native_module_plan_transport_is_validated_before_output_mutation() {
+fn runtime_policy_does_not_select_native_output_and_bindings_have_no_web_runtime() {
     let project = TempDir::new().unwrap();
     fs::create_dir_all(project.path().join("schema")).unwrap();
     fs::create_dir_all(project.path().join("locale/main")).unwrap();
@@ -1236,50 +1236,64 @@ fn native_module_plan_transport_is_validated_before_output_mutation() {
         .path()
         .join("generated/svelte-locale.svelte.js")
         .exists());
-    let valid = serde_json::json!({"version":1,"modules":[
-        {"id":"ecmascript.web","options":{"locale":{"sources":["cookie"]},"switchRoute":{"returnQuery":"next","status":307}}},
-        {"id":"sveltekit","options":{}}
-    ]});
-    linguini()
-        .current_dir(project.path())
-        .args(["build", "--module-plan-stdin", "--format", "json"])
-        .write_stdin(valid.to_string())
-        .assert()
-        .success()
-        .stdout(predicates::function::function(|source: &str| {
-            serde_json::from_str::<Value>(source).is_ok()
-        }));
-    assert!(project.path().join("generated/sveltekit.js").exists());
-    assert!(project
-        .path()
-        .join("generated/web/switch-route.js")
-        .exists());
-    let baseline = fs::read(&manifest).unwrap();
     let index = fs::read(project.path().join("generated/index.js")).unwrap();
-    for invalid in [
-        serde_json::json!({"version":2,"modules":[]}),
-        serde_json::json!({"version":1,"modules":[{"id":"unknown","options":{}}]}),
-        serde_json::json!({"version":1,"modules":[{"id":"ecmascript.web","options":{"unknown":true}}]}),
-        serde_json::json!({"version":1,"modules":[{"id":"svelte","options":{}},{"id":"sveltekit","options":{}}]}),
-        serde_json::json!({"version":1,"modules":[{"id":"ecmascript.web","options":{"locale":{"sources":["local-storage"]}}},{"id":"sveltekit","options":{}}]}),
+    for policy in [
+        "throw new Error('never evaluate project runtime config');",
+        "export const cookie = 'CHANGED';",
     ] {
+        fs::write(project.path().join("linguini.config.mjs"), policy).unwrap();
+        fs::write(
+            project.path().join("linguini.modules.json"),
+            "invalid retired transport",
+        )
+        .unwrap();
         linguini()
             .current_dir(project.path())
-            .args(["build", "--module-plan-stdin"])
-            .write_stdin(invalid.to_string())
+            .args(["build", "--format", "json"])
             .assert()
-            .failure();
-        assert_eq!(fs::read(&manifest).unwrap(), baseline);
+            .success();
         assert_eq!(
             fs::read(project.path().join("generated/index.js")).unwrap(),
             index
         );
     }
-    fs::write(project.path().join("selected.json"), valid.to_string()).unwrap();
     linguini()
         .current_dir(project.path())
-        .args(["build", "--module-plan", "selected.json"])
+        .args([
+            "build",
+            "--svelte",
+            "--svelte-host-module",
+            "@antepodeum/linguini-sveltekit/client",
+        ])
         .assert()
         .success();
-    assert_eq!(fs::read(&manifest).unwrap(), baseline);
+    assert!(project.path().join("generated/svelte.js").exists());
+    let locale =
+        fs::read_to_string(project.path().join("generated/svelte-locale.svelte.js")).unwrap();
+    assert!(locale.contains("@antepodeum/linguini-sveltekit/client"));
+    for forbidden in [
+        "web",
+        "web.js",
+        "sveltekit.js",
+        "sveltekit-control.js",
+        "svelte-effects.svelte.js",
+        "svelte-control.js",
+    ] {
+        assert!(
+            !project.path().join("generated").join(forbidden).exists(),
+            "unexpected runtime artifact: {forbidden}"
+        );
+    }
+    let baseline = fs::read(&manifest).unwrap();
+    for args in [
+        vec!["build", "--module-plan-stdin"],
+        vec!["build", "--svelte-host-module", "missing-svelte-flag"],
+    ] {
+        linguini()
+            .current_dir(project.path())
+            .args(args)
+            .assert()
+            .failure();
+        assert_eq!(fs::read(&manifest).unwrap(), baseline);
+    }
 }

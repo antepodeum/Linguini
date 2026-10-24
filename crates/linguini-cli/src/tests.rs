@@ -9,17 +9,16 @@ fn temp_project_dir(name: &str) -> std::io::Result<TempDir> {
         .tempdir()
 }
 
-fn write_module_plan(root: &std::path::Path, framework: &str, web: Option<serde_json::Value>) {
-    let mut modules = Vec::new();
-    if let Some(web) = web {
-        modules.push(serde_json::json!({"id":"ecmascript.web", "options":web}));
-    }
-    modules.push(serde_json::json!({"id":framework, "options":{}}));
-    fs::write(
-        root.join("linguini.modules.json"),
-        serde_json::to_vec(&serde_json::json!({"version":1, "modules":modules})).unwrap(),
+fn build_svelte_project(root: &std::path::Path) -> super::CliResult<String> {
+    super::project::build_project_with_emissions(
+        root,
+        false,
+        super::DiagnosticFormat::Human,
+        &[],
+        &[],
+        true,
+        None,
     )
-    .unwrap();
 }
 
 #[test]
@@ -821,7 +820,7 @@ tree_shaking = false
 #[test]
 fn bundler_semantic_artifacts_are_shared_mapped_and_manifested() {
     let project = temp_project_dir("bundler-semantic-artifacts").expect("project");
-    write_module_plan(project.path(), "svelte", None);
+    let build_project = build_svelte_project;
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
     fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
     fs::create_dir_all(project.path().join("src")).expect("source dir");
@@ -987,7 +986,7 @@ exclude = []
 #[test]
 fn bundler_manifest_bridges_application_references_before_output_mutation() {
     let project = temp_project_dir("bundler-applications").expect("project");
-    write_module_plan(project.path(), "svelte", None);
+    let build_project = build_svelte_project;
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
     fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
     fs::create_dir_all(project.path().join("src/app")).expect("app dir");
@@ -1315,27 +1314,40 @@ allow = ["main.title", "main.items"]
         .any(|entry| entry["reason"] == "arity_mismatch"));
     assert_eq!(mismatch_app["imports"][0]["transformable"], false);
 
-    for framework in ["svelte", "sveltekit"] {
-        write_module_plan(
+    for request_module in [None, Some("@antepodeum/linguini-sveltekit/client")] {
+        super::project::build_project_with_emissions(
             project.path(),
-            framework,
-            Some(serde_json::json!({"routing":{"localePrefix":"always"}})),
-        );
-        build_project(project.path()).expect("web build");
-        let web_manifest: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(&manifest_path).expect("web manifest"))
-                .expect("web manifest JSON");
+            false,
+            super::DiagnosticFormat::Human,
+            &[],
+            &[],
+            true,
+            request_module,
+        )
+        .expect("Svelte bindings");
+        let manifest: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+        assert!(manifest["runtime_helpers"].get("svelte_effects").is_none());
         assert_eq!(
-            web_manifest["runtime_helpers"]["svelte_effects"],
-            serde_json::json!({
-                "import": "./svelte-effects.svelte.js",
-                "file": "svelte-effects.svelte.js"
-            })
+            manifest["runtime_helpers"]["svelte_locale"]["file"],
+            "svelte-locale.svelte.js"
         );
-        assert!(project
-            .path()
-            .join("src/generated/linguini/svelte-effects.svelte.js")
-            .exists());
+        for forbidden in [
+            "web.js",
+            "sveltekit.js",
+            "sveltekit-control.js",
+            "svelte-effects.svelte.js",
+            "svelte-control.js",
+        ] {
+            assert!(
+                !project
+                    .path()
+                    .join("src/generated/linguini")
+                    .join(forbidden)
+                    .exists(),
+                "unexpected runtime artifact: {forbidden}"
+            );
+        }
     }
 
     let dynamic_config = fs::read_to_string(&config_path)
@@ -1353,7 +1365,7 @@ allow = ["main.title", "main.items"]
 #[test]
 fn bundler_dynamic_error_rejects_before_output_mutation() {
     let project = temp_project_dir("bundler-dynamic-strict").expect("project");
-    write_module_plan(project.path(), "svelte", None);
+    let build_project = build_svelte_project;
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
     fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
     fs::create_dir_all(project.path().join("src")).expect("src dir");
@@ -1407,7 +1419,6 @@ sources = ["src"]
 
 fn dynamic_bundler_project(name: &str, policy: &str, source: &str) -> TempDir {
     let project = temp_project_dir(name).expect("project");
-    write_module_plan(project.path(), "svelte", None);
     fs::create_dir_all(project.path().join("schema")).expect("schema dir");
     fs::create_dir_all(project.path().join("locales/main")).expect("locale dir");
     fs::create_dir_all(project.path().join("src")).expect("src dir");

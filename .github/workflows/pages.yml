@@ -37,6 +37,8 @@ jobs:
         id: pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
+      - name: Build local runtime packages
+        run: node packages/scripts/prepare-runtime-packages.mjs
       - name: Install site dependencies
         working-directory: site
         run: pnpm install --frozen-lockfile

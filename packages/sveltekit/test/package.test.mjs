@@ -20,7 +20,8 @@ test('published runtime packages preserve strict TypeScript, declarations/maps, 
   const packageRoot=fileURLToPath(new URL('../',import.meta.url));
   const webRoot=fileURLToPath(new URL('../../web/',import.meta.url));
   const store=pnpm(['store','path'],packageRoot).trim();
-  const web=path.join(root,'web.tgz'),kit=path.join(root,'kit.tgz');
+  const web=path.join(root,'web.tgz'),kit=path.join(root,'kit.tgz'),svelte=path.join(root,'svelte.tgz');
+  pnpm(['pack','--out',svelte],fileURLToPath(new URL('../../svelte/',import.meta.url)));
   pnpm(['pack','--out',web],webRoot);
   pnpm(['pack','--out',kit],packageRoot);
   const consumer=path.join(root,'consumer');mkdirSync(consumer);
@@ -29,7 +30,7 @@ test('published runtime packages preserve strict TypeScript, declarations/maps, 
     '@antepodeum/linguini-web':`file:${web.replaceAll('\\','/')}`,
     '@sveltejs/kit':'2.60.1',svelte:'5.55.8',typescript:'6.0.3','@types/node':'24.12.4',
   }}));
-  writeFileSync(path.join(consumer,'pnpm-workspace.yaml'),`overrides:\n  '@antepodeum/linguini-web': ${JSON.stringify(`file:${web.replaceAll('\\','/')}`)}\n`);
+  writeFileSync(path.join(consumer,'pnpm-workspace.yaml'),`overrides:\n  '@antepodeum/linguini-web': ${JSON.stringify(`file:${web.replaceAll('\\','/')}`)}\n  '@antepodeum/linguini-svelte': ${JSON.stringify(`file:${svelte.replaceAll('\\','/')}`)}\n`);
   pnpm(['install','--offline','--ignore-scripts','--store-dir',store],consumer);
   writeFileSync(path.join(consumer,'tsconfig.json'),JSON.stringify({compilerOptions:{strict:true,allowJs:false,skipLibCheck:false,module:'NodeNext',moduleResolution:'NodeNext',target:'ES2022',outDir:'output',types:['node','@sveltejs/kit']},include:['consumer.ts']}));
   writeFileSync(path.join(consumer,'consumer.ts'),`

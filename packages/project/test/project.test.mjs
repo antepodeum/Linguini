@@ -21,7 +21,6 @@ test("sync and async hosts share defaults, configured paths, and closed layout p
   assert.equal(missing.schemaRoot, path.join(root, "linguini/schema"));
   assert.equal(missing.localeRoot, path.join(root, "linguini/locale"));
   assert.equal(missing.generatedRoot, path.join(root, "generated/linguini"));
-  assert.equal(missing.linkMode, "manual");
   assert.equal(missing.localeLoading, "eager");
   writeFileSync(path.join(root, "custom.toml"), `
 [paths]
@@ -37,7 +36,7 @@ locale_loading = "dynamic"
 mode = "bundle"
 allow = ["main.title"]
 `);
-  writeFileSync(path.join(root, "linguini.modules.json"), JSON.stringify({version:1, modules:[{id:"ecmascript.web", options:{links:{mode:"runtime"}}}]}));
+  writeFileSync(path.join(root, "linguini.config.mjs"), 'throw new Error("runtime config must never be evaluated by native build integrations");');
   const selected = readEcmascriptProjectSync(root, "custom.toml");
   assert.deepEqual(await readEcmascriptProject(root, "custom.toml"), selected);
   assert.equal(selected.targetConfigured, true);
@@ -48,7 +47,6 @@ allow = ["main.title"]
   assert.deepEqual(selected.bundlerSourceRoots, [path.join(root, "src"), path.join(root, "components")]);
   assert.deepEqual(selected.bundlerExcludeRoots, [path.join(root, "src/generated"), path.join(root, "src/tests")]);
   assert.equal(selected.localeLoading, "dynamic");
-  assert.equal(selected.linkMode, "runtime");
   assert(Object.isFrozen(selected));
   assert(Object.isFrozen(selected.bundlerSourceRoots));
   assert(Object.isFrozen(selected.bundlerExcludeRoots));

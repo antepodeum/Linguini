@@ -6,11 +6,20 @@ settings:
 
 overrides:
   '@antepodeum/linguini-web': file:../web
+  '@antepodeum/linguini-vite': file:../vite
+  '@antepodeum/linguini-project': file:../project
+  '@antepodeum/linguini-svelte': file:../svelte
 
 importers:
 
   .:
     dependencies:
+      '@antepodeum/linguini-svelte':
+        specifier: file:../svelte
+        version: file:../svelte(svelte@5.55.8)
+      '@antepodeum/linguini-vite':
+        specifier: file:../vite
+        version: file:../vite(vite@8.3.5(@types/node@24.12.4))
       '@antepodeum/linguini-web':
         specifier: file:../web
         version: file:../web
@@ -29,6 +38,22 @@ importers:
         version: 6.0.3
 
 packages:
+
+  '@antepodeum/linguini-project@file:../project':
+    resolution: {directory: ../project, type: directory}
+    engines: {node: '>=20'}
+
+  '@antepodeum/linguini-svelte@file:../svelte':
+    resolution: {directory: ../svelte, type: directory}
+    engines: {node: '>=20'}
+    peerDependencies:
+      svelte: ^5.55.0
+
+  '@antepodeum/linguini-vite@file:../vite':
+    resolution: {directory: ../vite, type: directory}
+    engines: {node: '>=20'}
+    peerDependencies:
+      vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
 
   '@antepodeum/linguini-web@file:../web':
     resolution: {directory: ../web, type: directory}
@@ -381,6 +406,10 @@ packages:
     resolution: {integrity: sha512-2wcC/oGxHis/BoHkkPwldgiPSYcpZK3JU28WoMVv55yHJgcZ8rlXvuG9iZggz+sU1d4bRgIGASwyWqjxu3FM0g==}
     engines: {node: '>=18'}
 
+  smol-toml@1.7.1:
+    resolution: {integrity: sha512-PPlsspAZ4jbMBu5DMFhfUGDQLu/vrL4SyBROVS37x8ynnVmFIs1VPBz1Co8Xks3TvpIaZXmU85y4DrQ+UyVFoQ==}
+    engines: {node: '>= 18'}
+
   source-map-js@1.2.2:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
@@ -460,6 +489,20 @@ packages:
     resolution: {integrity: sha512-msJxIvYDYcoNL+PJsu+7qmpDWsYmAxTY+2TNYXXF0hzBzBk0BMecOqDOG/EckUoKCuKwObfbugIl8QpqHDXeFA==}
 
 snapshots:
+
+  '@antepodeum/linguini-project@file:../project':
+    dependencies:
+      smol-toml: 1.7.1
+
+  '@antepodeum/linguini-svelte@file:../svelte(svelte@5.55.8)':
+    dependencies:
+      svelte: 5.55.8
+
+  '@antepodeum/linguini-vite@file:../vite(vite@8.3.5(@types/node@24.12.4))':
+    dependencies:
+      '@antepodeum/linguini-project': file:../project
+      magic-string: 0.30.21
+      vite: 8.3.5(@types/node@24.12.4)
 
   '@antepodeum/linguini-web@file:../web': {}
 
@@ -716,6 +759,8 @@ snapshots:
       '@polka/url': 1.0.0-next.29
       mrmime: 2.0.1
       totalist: 3.0.1
+
+  smol-toml@1.7.1: {}
 
   source-map-js@1.2.2: {}
 

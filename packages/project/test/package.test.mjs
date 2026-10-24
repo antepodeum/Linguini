@@ -27,22 +27,9 @@ test("packed project APIs execute and preserve strict TypeScript contracts", (co
   } }));
   pnpm(["install", "--offline", "--ignore-scripts", "--store-dir", store], root);
   writeFileSync(path.join(root, "linguini.toml"), '[targets.ts]\nout = "generated/messages"');
-  writeFileSync(path.join(root, "linguini.config.mjs"), `
-import { defineModules } from "@antepodeum/linguini-project/modules";
-import { web, svelteKit } from "@antepodeum/linguini-project/ecmascript/modules";
-export default defineModules([web({links:{mode:"runtime"}}), svelteKit()]);
-`);
   writeFileSync(path.join(root, "consumer.ts"), `
 import { readProjectConfig, readProjectConfigSync } from "@antepodeum/linguini-project";
 import { readEcmascriptProject, readEcmascriptProjectSync } from "@antepodeum/linguini-project/ecmascript";
-import { defineModules, readModuleConfigurationSync } from "@antepodeum/linguini-project/modules";
-import { web, svelteKit } from "@antepodeum/linguini-project/ecmascript/modules";
-const plan = defineModules([web({locale:{sources:["path"]}}), svelteKit()]);
-const loaded = readModuleConfigurationSync(".");
-// @ts-expect-error locale sources are a closed module capability
-void (() => web({locale:{sources:["preferredLanguage"]}}));
-// @ts-expect-error SvelteKit composes selected modules without arbitrary options
-void (() => svelteKit({web:true}));
 const project = await readProjectConfig(".");
 const sync = readProjectConfigSync(".");
 const layout = await readEcmascriptProject(".");
@@ -52,7 +39,7 @@ const mode: "eager" | "dynamic" = layout.localeLoading;
 void (() => readProjectConfig(42));
 // @ts-expect-error the selected layout is immutable
 void (() => { layout.generatedRoot = "unsafe"; });
-console.log(JSON.stringify([project.configExists, sync.configExists, layout.targetConfigured, mode, again.generatedRoot.endsWith("messages"), plan.modules.length, loaded.plan.modules[0].id, layout.linkMode]));
+console.log(JSON.stringify([project.configExists, sync.configExists, layout.targetConfigured, mode, again.generatedRoot.endsWith("messages")]));
 `);
   writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: {
     strict: true, module: "NodeNext", moduleResolution: "NodeNext", target: "ES2022", outDir: "dist",
@@ -60,7 +47,7 @@ console.log(JSON.stringify([project.configExists, sync.configExists, layout.targ
   pnpm(["exec", "tsc", "--project", "tsconfig.json"], root);
   const result = spawnSync(process.execPath, [path.join(root, "dist/consumer.js")], { cwd: root, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout), [true, true, true, "eager", true, 2, "ecmascript.web", "runtime"]);
+  assert.deepEqual(JSON.parse(result.stdout), [true, true, true, "eager", true]);
   const manifest = JSON.parse(readFileSync(path.join(root, "node_modules/@antepodeum/linguini-project/package.json"), "utf8"));
   assert.equal(manifest.dependencies["smol-toml"], "1.7.1");
 });

@@ -79,10 +79,17 @@ jobs:
       - name: Pack native npm package
         working-directory: packages/cli-${{ matrix.platform }}
         run: npm pack --pack-destination ../../release
-      - name: Pack shared module configuration package
+      - name: Pack shared project configuration package
         if: matrix.platform == 'linux-x64'
         working-directory: packages/project
         run: npm pack --pack-destination ../../release
+      - name: Build and pack runtime and build adapters
+        if: matrix.platform == 'linux-x64'
+        run: |
+          node packages/scripts/prepare-runtime-packages.mjs
+          for package in web svelte sveltekit vite tsc; do
+            (cd "packages/$package" && npm pack --pack-destination ../../release)
+          done
       - name: Pack launcher npm package
         if: matrix.platform == 'linux-x64'
         working-directory: packages/cli
@@ -178,7 +185,7 @@ jobs:
           pattern: linguini-*
           path: release-assets
           merge-multiple: true
-      - name: Publish shared and platform packages before launcher
+      - name: Publish dependencies before adapters and launcher
         shell: bash
         run: |
           set -euo pipefail
@@ -205,3 +212,11 @@ jobs:
             npm publish "$package" --access public --provenance
           done
           npm publish "${launcher[0]}" --access public --provenance
+          for name in web svelte vite tsc sveltekit; do
+            packages=(release-assets/antepodeum-linguini-"$name"-*.tgz)
+            if (( ${#packages[@]} != 1 )); then
+              printf 'Expected 1 %s package, found %s.\n' "$name" "${#packages[@]}" >&2
+              exit 1
+            fi
+            npm publish "${packages[0]}" --access public --provenance
+          done

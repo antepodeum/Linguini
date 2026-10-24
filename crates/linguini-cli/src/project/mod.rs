@@ -3,7 +3,6 @@ mod codegen;
 mod diagnostics;
 mod fixes;
 mod io;
-mod modules;
 mod output;
 mod sources;
 mod test_data;
@@ -21,7 +20,6 @@ pub use io::init_project;
 pub(crate) use io::{
     atomic_write_file, canonical_project_root, path_for_output, resolve_project_file,
 };
-pub(crate) use modules::read_module_plan;
 pub(crate) use test_data::generate_project_data;
 
 #[derive(Debug, Clone)]

@@ -13,10 +13,6 @@
     "./svelte": {
       "types": "./src/svelte.d.ts",
       "default": "./src/svelte.js"
-    },
-    "./modules": {
-      "types": "./src/modules.d.ts",
-      "default": "./src/modules.js"
     }
   },
   "files": [
@@ -33,6 +29,6 @@
     "@antepodeum/linguini-project": "0.1.0-alpha.4"
   },
   "engines": {
-    "node": ">=20.6"
+    "node": ">=20"
   }
 }

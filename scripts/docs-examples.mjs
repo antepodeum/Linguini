@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { documentedCodeblocks } from "./docs-codeblocks.mjs";
-import { readModuleConfigurationSync } from "../packages/project/src/modules.js";
 
 const SCRIPT_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_ROOT, "..");
@@ -78,18 +77,20 @@ function writeDocumentedSvelteKitExample(blocks, root, projectRoot) {
     ["linguini/schema/account.lgs", "lgs", ["// linguini/schema/account.lgs", "greeting(name: String)"]],
     ["linguini/locale/account/en.lgl", "lgl", ["// linguini/locale/account/en.lgl", "title = Account"]],
     ["linguini/locale/account/ru.lgl", "lgl", ["// linguini/locale/account/ru.lgl", "title = Аккаунт"]],
-    ["src/hooks.server.ts", "ts", ["// src/hooks.server.ts", "export { handle }"]],
-    ["src/hooks.ts", "ts", ["// src/hooks.ts", "export { reroute }"]],
-    ["src/routes/+layout.server.ts", "ts", ["// src/routes/+layout.server.ts", "export { load }"]],
+    ["src/lib/linguini-web.ts", "ts", ["// src/lib/linguini-web.ts", "createRequestWeb"]],
+    ["src/lib/linguini.ts", "ts", ["// src/lib/linguini.ts", "createControls"]],
+    ["src/app.d.ts", "ts", ["// src/app.d.ts", "SerializedLinguiniContext"]],
+    ["src/hooks.server.ts", "ts", ["// src/hooks.server.ts", "export const handle"]],
+    ["src/hooks.ts", "ts", ["// src/hooks.ts", "export const reroute"]],
+    ["src/routes/+layout.server.ts", "ts", ["// src/routes/+layout.server.ts", "export const load"]],
     ["src/routes/account/+page.svelte", "svelte", ["<!-- src/routes/account/+page.svelte -->", "l.account.greeting"]],
   ];
   for (const [relativePath, language, includes] of fixtures) {
     const block = findUniqueBlock(blocks, { sourcePath, language, includes });
     const destination = join(projectRoot, relativePath);
     mkdirSync(dirname(destination), { recursive: true });
-    writeFileSync(destination, block.source);
+    writeFileSync(destination, relativePath === "vite.config.ts" ? block.source.replace("buildOnStart: true", "buildOnStart: false") : block.source);
   }
-  writeModuleConfig(blocks, projectRoot, sourcePath, ["switchRoute"]);
   writeFileSync(join(projectRoot, "package.json"), '{"private":true,"type":"module"}\n');
   writeFileSync(
     join(projectRoot, "svelte.config.js"),
@@ -117,7 +118,7 @@ function writeWebGuideExample(blocks, root, projectRoot) {
     const block = select(language, includes);
     const destination = join(projectRoot, relativePath);
     mkdirSync(dirname(destination), { recursive: true });
-    writeFileSync(destination, block.source);
+    writeFileSync(destination, relativePath === "vite.config.ts" ? block.source.replace("buildOnStart: true", "buildOnStart: false") : block.source);
   };
 
   const baseConfig = findUniqueBlock(blocks, {
@@ -126,7 +127,6 @@ function writeWebGuideExample(blocks, root, projectRoot) {
     includes: ['name = "app"', '[targets.ts]'],
   });
   writeFileSync(join(projectRoot, "linguini.toml"), baseConfig.source);
-  writeModuleConfig(blocks, projectRoot, sourcePath, ["switchRoute"]);
   const schemas = {
     home: "title\nsubtitle\ngreeting(name: String)\n",
     nav: "pricing\nsettings\n",
@@ -174,17 +174,19 @@ function writeWebGuideExample(blocks, root, projectRoot) {
 
   writeBlock("src/routes/+layout.ts", "ts", ["trailingSlash", '"never"']);
   writeBlock("vite.config.ts", "ts", ["defineConfig", "buildOnStart", "sveltekit()"]);
-  writeBlock("src/hooks.server.ts", "ts", ["sveltekit-control", "export { handle }"]);
-  writeBlock("src/hooks.ts", "ts", ["sveltekit-control", "export { reroute }"]);
-  writeBlock("src/routes/+layout.server.ts", "ts", ["sveltekit-control", "export { load }"]);
+  writeBlock("src/lib/linguini-web.ts", "ts", ["// src/lib/linguini-web.ts", "createRequestWeb"]);
+  writeBlock("src/lib/linguini.ts", "ts", ["// src/lib/linguini.ts", "createControls"]);
+  writeBlock("src/hooks.server.ts", "ts", ["export const handle = createHandle"]);
+  writeBlock("src/hooks.ts", "ts", ["export const reroute = createReroute"]);
+  writeBlock("src/routes/+layout.server.ts", "ts", ["export const load = createLoad"]);
   writeBlock("src/app.html", "html", ["%linguini.lang%", "%sveltekit.body%"]);
   writeBlock("src/app.d.ts", "ts", ["interface Error", "export {}"]);
   writeBlock("src/routes/examples/basic/+page.svelte", "svelte", ["l.home.title"]);
   writeBlock("src/routes/examples/links/+page.svelte", "svelte", ["l.nav.pricing", "localizeHref"]);
   writeBlock("src/routes/examples/no-script/+page.svelte", "svelte", ["/_linguini/locale/en"]);
   writeBlock("src/routes/examples/switch/+page.svelte", "svelte", ["setLocale", "l.home.subtitle"]);
-  writeBlock("src/lib/documented-client-helpers.ts", "ts", ["alternateLinks", "shouldLocalizeLink"]);
-  writeBlock("src/routes/server-example/+page.server.ts", "ts", ["linguini.l.home.title"]);
+  writeBlock("src/lib/documented-client-helpers.ts", "ts", ["// src/lib/documented-client-helpers.ts", "shouldLocalizeLink"]);
+  writeBlock("src/routes/server-example/+page.server.ts", "ts", ["prepareLinguini", "messages.home.title"]);
 
   mkdirSync(join(projectRoot, "src/lib/server"), { recursive: true });
   writeFileSync(
@@ -217,16 +219,10 @@ function writeWebGuideExample(blocks, root, projectRoot) {
   };
 }
 
-function writeModuleConfig(blocks, projectRoot, sourcePath, includes = []) {
-  const config = findUniqueBlock(blocks, { sourcePath, language: "js", includes: ["// linguini.config.mjs", "export default defineModules", ...includes] });
-  writeFileSync(join(projectRoot, "linguini.config.mjs"), config.source);
-}
 
 function run(command, args, options) {
   if (command === "cargo" && args.includes("--") && args[args.indexOf("--") + 1] === "build") {
-    const { plan } = readModuleConfigurationSync(options.cwd);
-    args = [...args, "--module-plan-stdin"];
-    options = { ...options, input: JSON.stringify(plan) };
+    if (existsSync(join(options.cwd, "src/hooks.server.ts"))) args = [...args, "--svelte", "--svelte-host-module", "@antepodeum/linguini-sveltekit/client"];
   }
   const result = spawnSync(command, args, { encoding: "utf8", ...options });
   if (result.error) throw result.error;
@@ -284,7 +280,6 @@ export async function main({
   try {
     writeFileSync(join(projectRoot, "linguini.toml"), config.source);
     symlinkSync(resolve(root, "site/node_modules"), join(projectRoot, "node_modules"), "dir");
-    writeModuleConfig(blocks, projectRoot, sourcePath);
 
     writeFileSync(join(schemaRoot, "main.lgs"), schema.source);
     writeFileSync(join(localeRoot, "en.lgl"), english.source);

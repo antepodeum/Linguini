@@ -18,7 +18,7 @@ export interface LinguiniFrameworkAdapter {
     { key: string; insertionByte: number } | undefined;
   findStaticLinks?(code: string, sourceName: string): readonly LinguiniStaticLink[];
   applyStaticLinks?(magic: MagicString, code: string, sourceName: string,
-    generatedRoot: string, operations: readonly LinguiniStaticLink[]): void;
+    generatedRoot: string, operations: readonly LinguiniStaticLink[], linkModule?: string): void;
   /** Return true when the adapter owns cleanup; false uses module/HMR cleanup. */
   injectLocaleLoaderLifecycle?(magic: MagicString, code: string,
     application: { readonly relative: string },
@@ -34,6 +34,8 @@ export interface LinguiniBuildContext {
 export interface LinguiniViteOptions {
   root?: string;
   configFile?: string;
+  /** Project-relative module exporting localizeTransformedHref for static-link transforms. */
+  linkModule?: string;
   command?: string;
   args?: string[];
   buildOnStart?: boolean;

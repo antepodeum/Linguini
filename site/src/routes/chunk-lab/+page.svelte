@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { localizeHref, linguini, setLocale } from '$lib/generated/linguini/svelte-control';
+  import { localizeHref, linguini, setLocale } from '$lib/linguini';
   import { l } from '$lib/generated/linguini/svelte';
 
   const labLocales = ['en', 'ru', 'fr'] as const;

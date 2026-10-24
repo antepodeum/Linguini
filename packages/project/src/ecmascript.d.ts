@@ -1,12 +1,7 @@
-import type { ModulePlan } from "./modules.js";
 export interface EcmascriptProjectLayout {
   readonly projectRoot: string;
   readonly configPath: string;
   readonly configExists: boolean;
-  readonly modulePlan: ModulePlan;
-  readonly moduleDependencies: readonly string[];
-  readonly moduleConfigExists: boolean;
-  readonly moduleConfigPaths: readonly string[];
   readonly targetConfigured: boolean;
   readonly schemaRoot: string;
   readonly localeRoot: string;
@@ -14,7 +9,6 @@ export interface EcmascriptProjectLayout {
   readonly bundlerSourceRoots: readonly string[];
   readonly bundlerExcludeRoots: readonly string[];
   readonly localeLoading: "eager" | "dynamic";
-  readonly linkMode: "transform" | "runtime" | "manual";
   readonly bundlerEnabled: boolean;
 }
 
