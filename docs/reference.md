@@ -256,7 +256,7 @@ Date symbol selection distinguishes formatting `M` from standalone `L`, narrow m
 names, short weekday names, and locale/width-specific AM/PM and Gregorian era labels. Identical
 name tables within a formatter share one binding. These choices follow the
 [CLDR date-field rules](https://unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table).
-Extended calendar, flexible-period, zone, and skeleton compilation remains under remediation;
+Extended calendar, zone, and skeleton compilation remains under remediation;
 the public date request currently selects `style` and `time_style`.
 Numeric grouping uses a direct string loop compiled for the selected primary/secondary widths,
 with separate output for equal widths and no group array, reversal, or join. Executed cases cover
@@ -298,10 +298,10 @@ surface. Current guarantees are:
   `"long"`, `"medium"`, or `"short"`. Supplying only `time_style` emits only
   the time, while supplying both combines them with the matching CLDR
   date-time pattern. Rendering uses pinned Gregorian patterns plus
-  wide/abbreviated month and weekday names. Time fields are evaluated in UTC;
-  zone-bearing widths render the deterministic `UTC` marker. Localized day
-  periods, selectable time zones, non-Gregorian calendars, stand-alone symbol
-  contexts, and skeleton selection are not implemented.
+  context/width-specific month and weekday names, eras, and localized fixed/flexible
+  day periods. Time fields are evaluated in UTC; zone-bearing widths currently render
+  a deterministic `UTC` marker. Selectable time zones, non-Gregorian calendars, and
+  skeleton selection remain under remediation.
 
 ```lgl
 created_at = {created @date(style = "long", time_style = "short")}

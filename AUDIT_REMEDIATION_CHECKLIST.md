@@ -197,7 +197,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
 - [ ] #9 — Expand CLDR formatting to the documented production contract.
 - [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in CLDR artifacts, while the
-  site restores a deterministic checksummed 1,422-file canonical JS/declaration output bundle using Node.js only; CI
+  site restores a deterministic checksummed 1,380-file canonical JS/declaration output bundle using Node.js only; CI
   independently regenerates the bundle and rejects stale bytes.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [x] #12 — Hide invalid mutable public model states behind validated constructors. `IrModule`
@@ -699,8 +699,9 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 
 ### `docs/getting-started.md`
 
-- [-] DOC-G1 — Document the typed project-code module configuration and migrate the previously
-  verified nested TOML web examples; preserve the minimal policy and framework defaults.
+- [x] DOC-G1 — Document runtime adapters configured in application TypeScript and hooks.
+  Retire the policy DSL and nested TOML web examples; executable application examples verify
+  explicit resolver capabilities and the SvelteKit build/runtime integration.
 - [x] DOC-G2 — Remove `targets.ts.module` and every CJS choice.
 - [x] DOC-G3 — Explain one JavaScript runtime plus JSDoc and `.d.ts`.
 - [x] DOC-G4 — Remove manual message-loading setup from the normal SvelteKit path.
@@ -769,36 +770,43 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 
 ## Additional architecture acceptance criteria
 
-### Compile-time web policy in project module configuration
+### Application-owned web runtime policy
 
-- [-] WEB-A1 — Configure routing, locale sources, cookies, storage, links, exclusions, and optional
-      switch routes in typed project-code module configuration. Remove `[web]` from the core TOML
-      model/schema, migrate project fixtures and guides, and diagnose the retired table. The old
-      TOML contract was verified; the replacement is not complete.
+These requirements follow the corrected npm runtime boundary in MOD-A1–A3. Routing and
+persistence settings do not select native codegen output. Runtime packages are maintained in
+TypeScript, and application/bundler imports select their capabilities.
+
+- [x] WEB-A1 — Configure routing, locale sources, cookies, storage, links, exclusions, and optional
+      switch routes in application TypeScript modules/hooks. Remove `[web]` from neutral TOML,
+      diagnose the retired table, and remove the policy DSL/native transport. The site and all
+      documented SvelteKit variants build and typecheck against the npm adapters.
 - [x] WEB-A2 — Replace `prefix_default_locale` with `always | except-default | never`.
 - [x] WEB-A3 — Default routing to `except-default`.
 - [x] WEB-A4 — Replace `redirect` with `canonical = redirect | preserve`.
-- [x] WEB-A5 — Remove configured origin, base path, and trailing slash.
-- [x] WEB-A6 — Restrict sources to path, cookie, local-storage, and accept-language.
-- [x] WEB-A7 — Derive source defaults from routing and validate contradictions.
-- [x] WEB-A8 — Validate cookie namespace defaults and `SameSite=None` security.
-- [x] WEB-A9 — Validate/derive local-storage keys only when selected.
+- [x] WEB-A5 — Obtain origin/base from application environment and leave trailing slash to the framework.
+- [x] WEB-A6 — Provide explicit path, cookie, local-storage, and accept-language capabilities.
+- [x] WEB-A7 — Preserve explicit source order, reject duplicates, and fall back to the base locale
+      when no capability resolves. The runtime does not infer hidden resolvers from routing settings.
+- [x] WEB-A8 — Validate cookie options and `SameSite=None` security.
+- [x] WEB-A9 — Validate provided local-storage keys and derive normalized runtime defaults.
 - [x] WEB-A10 — Replace `localize_links` with transform/runtime/manual.
-- [x] WEB-A11 — Validate deterministic route exclusions.
-- [-] WEB-A12 — Lower the module configuration into a validated, closed capability plan during
-      builds. Preserve source order and browser/server transition consistency; keep ECMAScript and
-      framework policy out of language-neutral project configuration.
-- [x] WEB-A13 — Generate only selected feature modules and no generic strategy loop.
-- [x] WEB-A14 — Compile one `LocaleSwitchPlan` for browser and server transports.
+- [x] WEB-A11 — Validate route patterns and reset stateful regexes between evaluations.
+- [x] WEB-A12 — Normalize and validate runtime options when creating application adapters.
+      Preserve source order and a common browser/server transition policy; keep this policy out
+      of native configuration, compiler semantics, and generated message artifacts.
+- [-] WEB-A13 — Import resolver implementations as explicit capabilities and keep metadata-only
+      request hooks independent of message catalogs. Verify tree-shaken page graphs for unused
+      platform operations and libraries; exact delivery remains GEN-A9/MOD-A4.
+- [x] WEB-A14 — Normalize one `LocaleSwitchPlan` shared by browser and server transports.
 - [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
-- [x] WEB-A16 — Generate a safe optional switch route with validated return targets.
-- [x] WEB-A17 — Reject switch routes with no server-writable transition.
+- [x] WEB-A16 — Create an optional runtime switch handler with validated same-origin return targets.
+- [x] WEB-A17 — Reject switch handlers with no server-writable transition.
 - [x] WEB-A18 — Share one route matcher across resolution, redirects, links, and switching.
 - [x] WEB-A19 — Diagnose local-storage-only SSR expectations.
-- [x] WEB-A20 — Remove every obsolete flat field from runtime, templates, and docs. Public runtime
-      policy is nested, generated SvelteKit adapters inject `$app/paths.base`, request/browser
-      context owns origin, SvelteKit owns trailing slashes, and the Pages build no longer mutates
-      generated source after codegen.
+- [x] WEB-A20 — Remove obsolete flat policy fields. Application adapters receive `$app/paths.base`;
+      request/browser context owns origin and SvelteKit owns trailing slashes. Builds do not
+      mutate generated runtime source to apply web policy. Runtime TypeScript and declarations
+      are built into npm `dist/`, while native output contains only thin framework bindings.
 
 ### One SvelteKit/ESM ECMAScript backend
 
@@ -808,8 +816,8 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       planned for the future.
 - [-] ESM-A3 — Use one structured ECMAScript emitter with explicit module interfaces and
       artifact ownership for exact messages, semantic variables/forms/functions, schema types,
-      locale helpers/globals, namespace modules/barrels, project entries, optional web helpers,
-      Svelte adapters, and SvelteKit adapters in the owning codegen crates. Common semantic/type/dependency planning belongs in
+      locale helpers/globals, namespace modules/barrels, project entries, and thin Svelte bindings
+      in their owning codegen crates; reusable web/Svelte/SvelteKit behavior belongs in npm runtime adapters. Common semantic/type/dependency planning belongs in
       `linguini-codegen`; ECMAScript rendering belongs in `linguini-codegen-ecmascript`. Executable
       syntax belongs in canonical JS templates, with source identity and mappings preserved.
       At compile/build time, determine the exact messages used by each page, including its
@@ -852,9 +860,10 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       directions, lazy loaders, preparation, provider, and configure contracts. Positional and
       named-object overloads, local function parameters, captured values, plural operands,
       formatter inputs/options, schema enums/aliases, and nested namespace values must retain their
-      checked JSDoc types. Optional web helpers, Svelte adapters, SvelteKit adapters, and complete
-      project output must use the same canonical JS generation path without paired TS runtime
-      implementations or per-template TS implementation branches. Emit `.d.ts` from the same type
+      checked JSDoc types. Thin framework bindings and complete native project output must use
+      the same canonical JS generation path without paired TS runtime implementations or
+      per-template TS implementation branches. Reusable web/Svelte/SvelteKit runtime adapters
+      use one maintained TypeScript implementation per npm package, with build-produced JS/types/maps. Emit `.d.ts` from the same type
       and signature models; preserve public documentation and source provenance on both surfaces.
       Verify exact JS/declaration/source-map snapshots, executed runtime semantics, strict JSDoc,
       and positive/negative TypeScript consumers without `allowJs`, including Node ESM, bundler,
@@ -1323,8 +1332,9 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 
 ### P1
 
-- [-] P1-1 — Complete ESM configuration and docs with separate web/Svelte/SvelteKit modules,
-  project-code module options, and no web/framework policy in language-neutral TOML.
+- [x] P1-1 — Keep native ESM targets separate from application-owned web/Svelte/SvelteKit runtime
+  adapters. Remove web/framework policy from neutral TOML and the temporary native policy DSL.
+  Workspace and packaged executable documentation plus real-site production pass on `c665a88`.
 - [x] P1-2 — Freeze the tested v0.1 language specification. The versioned normative document is
   linked from the public guides, guarded against contract drift, and backed by the positive and
   negative syntax corpora plus documentation conformance gates.
@@ -1359,8 +1369,9 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
   source facade before Vite replaces exact static leaves and bounded dynamic paths; 45 plugin tests
   plus real-site positive/negative Svelte/TypeScript checks pass.
 - [x] P2-7 — Positional plus named-object overloads.
-- [-] P2-8 — Typed project-code module configuration plus demand-selected reusable web,
-  Svelte, and SvelteKit modules; remove the superseded `[web]` TOML contract.
+- [-] P2-8 — Typed application runtime configuration with reusable web/Svelte/SvelteKit npm
+  packages and thin project bindings. The `[web]` TOML contract, native policy plan, and generic
+  runtime generation are removed; verify exact composed-page delivery and bundle demand.
 - [x] P2-9 — One shared browser/server locale transition plan.
 - [x] P2-10 — Safe streaming-compatible link localization.
 - [x] P2-11 — Fully incremental/cancellable namespace-aware LSP. Cached versioned document state,
@@ -1376,10 +1387,10 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 - [x] P3-2 — Parser, formatter, plural, and path property/fuzz coverage. Seeded generated cases
   cover Unicode/recovery/nesting/size parser invariants, formatter no-panic/idempotence/semantic
   preservation, plural modulo arithmetic, and portable locale ancestor chains.
-- [-] P3-3 — Reverify the full documentation-to-runtime corpus after module/configuration migration.
-  The baseline registers 91 blocks; Linguini syntax, canonical configuration, and the Getting Started JavaScript/TypeScript runtime
-  execute from workspace and packaged source graphs; the complete SvelteKit provider and all
-  normative web-guide source variants build and typecheck against real generated output.
+- [x] P3-3 — Reverify the documentation-to-runtime corpus after the runtime migration. On
+  `c665a88`, all 101 registered blocks pass the full profile: syntax/configuration, workspace
+  and packaged JavaScript/TypeScript execution, and every documented SvelteKit source variant.
+  Later public contract changes still require companion documentation and executable verification.
 - [x] P3-4 — ICU/CLDR differential tests cover 152 representative cardinal cases across eight
   structurally distinct plural-rule families.
 - [-] P3-5 — Vite/native VSIX/npm CLI/WASM integration matrix.
