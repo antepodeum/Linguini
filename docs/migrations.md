@@ -48,6 +48,13 @@ The SvelteKit hook ignores slash-only canonical URL differences. SvelteKit retai
 `trailingSlash`; the adapter still redirects missing or incorrect locale prefixes. This prevents
 redirect loops when the framework requires a trailing slash.
 
+## Generated string results and form formatting
+
+Rebuild generated output to remove redundant interpolation coercion around validated function,
+inline-function, callable-form, and plural results. Raw input coercion and public call signatures
+are unchanged. Generated form objects use multiline formatting; runtime behavior and the
+canonical JavaScript/declaration boundary are unchanged.
+
 ## Generated argument normalization
 
 Static message parameter names are initialized once per generated module. Positional calls reuse

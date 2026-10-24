@@ -6,10 +6,13 @@ import { pluralEnUs } from "./_runtime.js";
 const prefix = "Total";
 
 const __lgl_form_Fruit = {
-  apple: { Gender: /** @type {const} */ ("male"), label: /** @type {(value: number | bigint | string) => string} */ ((value) => {
-  if (pluralEnUs(value) === "one") return "One " + String(prefix);
-  return "Many " + String(prefix);
-}) },
+  apple: {
+    Gender: /** @type {const} */ ("male"),
+    label: /** @type {(value: number | bigint | string) => string} */ ((value) => {
+      if (pluralEnUs(value) === "one") return "One " + String(prefix);
+      return "Many " + String(prefix);
+    }),
+  },
 };
 
 /**

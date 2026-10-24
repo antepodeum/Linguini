@@ -8,6 +8,16 @@ use linguini_ir::{
     IrText, IrTextPart, IrValue,
 };
 
+/// String-valued operations in validated IR. Named/inline functions and callable form
+/// branches return text; the plural intrinsic returns a category string. Raw references
+/// retain runtime coercion even when their public schema type is String.
+pub fn expression_has_string_result(expression: &IrExpression) -> bool {
+    matches!(
+        expression.kind,
+        IrExpressionKind::Call | IrExpressionKind::InlineFunction { .. }
+    )
+}
+
 /// Semantic capabilities required by a schema and its effective locale implementation.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct FormatterRequirements {

@@ -25,7 +25,8 @@ pub use direct_dependencies::{
     direct_message_dependencies, direct_symbol_dependencies, SemanticSymbolKind,
 };
 pub use requirements::{
-    formatter_requirements, module_uses_inline_functions, plural_required, FormatterRequirements,
+    expression_has_string_result, formatter_requirements, module_uses_inline_functions,
+    plural_required, FormatterRequirements,
 };
 pub use types::{resolve_type_name, TypeModel};
 

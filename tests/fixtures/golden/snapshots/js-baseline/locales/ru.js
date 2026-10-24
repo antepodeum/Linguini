@@ -35,7 +35,7 @@ const __lgl_price_keys = ["amount", "date"];
  */
 export function delivery(...__lgl_args) {
   const [fruit, size, count] = /** @type {[fruit: Fruit, size: Size, count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, __lgl_delivery_keys));
-  return String(Delivered(count, __lgl_form_Fruit[fruit].Gender)) + " " + String(SizeAdj(size, count, __lgl_form_Fruit[fruit].Gender)) + " " + String(__lgl_form_Fruit[fruit].nom(count));
+  return Delivered(count, __lgl_form_Fruit[fruit].Gender) + " " + SizeAdj(size, count, __lgl_form_Fruit[fruit].Gender) + " " + __lgl_form_Fruit[fruit].nom(count);
 }
 
 /**
@@ -59,7 +59,7 @@ export function delivery(...__lgl_args) {
  */
 export function counted(...__lgl_args) {
   const [count, fruit] = /** @type {[count: number | bigint | string, fruit: Fruit]} */ (normalizeMessageArgs(__lgl_args, __lgl_counted_keys));
-  return String(cart_label) + " " + formatNumber(count) + " " + String(__lgl_form_Fruit[fruit].nom(count));
+  return String(cart_label) + " " + formatNumber(count) + " " + __lgl_form_Fruit[fruit].nom(count);
 }
 
 /**

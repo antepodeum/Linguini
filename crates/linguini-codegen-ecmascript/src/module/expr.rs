@@ -204,7 +204,7 @@ fn expression_string(
         expression.formatters.as_slice()
     };
     let (formatted, produces_string) = apply_formatters(value, formatters);
-    if produces_string {
+    if produces_string || linguini_codegen::expression_has_string_result(expression) {
         return formatted;
     }
     crate::templates::render(

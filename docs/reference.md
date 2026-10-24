@@ -939,6 +939,11 @@ Use the `@antepodeum/linguini-sveltekit/vite` adapter for SvelteKit project bind
 Configure web resolution and routing through the npm runtime adapters in application code;
 see [Web and SvelteKit](./web-sveltekit.md).
 
+Generated named/inline function calls, callable form branches, plural intrinsic calls, and
+formatter results already produce strings, so interpolation does not wrap them in `String` again.
+Raw user inputs retain runtime coercion, including inputs whose public schema type is `String`.
+Form objects and nested dispatch bodies use multiline indentation in generated source.
+
 Message argument keys are initialized once per module. Positional normalization reuses the
 existing argument array; named-object normalization validates all own keys before reading values
 in schema parameter order. Inherited properties do not satisfy required named parameters.

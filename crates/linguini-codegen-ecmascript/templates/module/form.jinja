@@ -1,4 +1,4 @@
 {% if exported %}export {% endif %}const {{ name }} = {
-{% for variant in variants %}  {{ variant.key }}: {{ variant.value }},
+{% for variant in variants %}  {{ variant.key }}: {{ variant.value|replace("\n", "\n  ") }},
 {% endfor %}};
 {{ "\n" -}}

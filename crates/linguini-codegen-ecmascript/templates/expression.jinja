@@ -1,5 +1,7 @@
 {%- if kind == "object" -%}
-{% if dispatcher is not none and fields %}Object.assign({{ dispatcher }}, {% endif %}{% if dispatcher is none or fields %}{ {% for field in fields %}{{ field.key }}: {{ field.value }}{{ ", " if not loop.last }}{% endfor %} }{% else %}{{ dispatcher }}{% endif %}{% if dispatcher is not none and fields %}){% endif %}
+{% if dispatcher is not none and fields %}Object.assign({{ dispatcher }}, {% endif %}{% if dispatcher is none or fields %}{% if fields %}{
+{% for field in fields %}  {{ field.key }}: {{ field.value|replace("\n", "\n  ") }},
+{% endfor %}}{% else %}{}{% endif %}{% else %}{{ dispatcher }}{% endif %}{% if dispatcher is not none and fields %}){% endif %}
 {%- elif kind == "concat" -%}
 {% for value in values %}{{ value }}{{ " + " if not loop.last }}{% else %}""{% endfor %}
 {%- elif kind == "string" -%}

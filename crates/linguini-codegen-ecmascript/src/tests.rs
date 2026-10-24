@@ -2544,6 +2544,7 @@ for (const value of [NaN, Infinity, -Infinity, -0, 12345678901234567890n, '1.230
   assert.equal(typeof l.numeric(value), 'string');
   assert.equal(typeof l.money(value), 'string');
 }
+
 assert.throws(() => l.numeric('invalid'), {name: 'RangeError', message: 'Linguini: invalid numeric value'});
 assert.throws(() => l.day('invalid'), {name: 'RangeError', message: 'Linguini: invalid date value'});
 const failure = new Error('input coercion failed');
@@ -2554,5 +2555,82 @@ console.log('formatter-coercion-ok');
 "#
         ),
         "formatter-coercion-ok"
+    );
+}
+
+#[test]
+fn generated_call_results_omit_coercion_without_changing_raw_inputs_or_eager_inline_captures() {
+    let schema = lower_schema(
+        &parse_schema(concat!(
+            "enum Item { apple }\n",
+            "called(value: String, item: Item, count: Number)\n",
+            "inline(value: String, key: String)\nplain(value: String)\n",
+        ))
+        .unwrap(),
+    );
+    let locale = lower_locale(
+        &parse_locale(concat!(
+            "fn Ready() { _ => ready }\nfn Echo(value: String) { _ => {value} }\n",
+            "impl Item { apple { form nom(Plural) {\n one => apple\n _ => apples\n} } }\n",
+            "called = {Ready()}:{Echo(value)}:{item.nom(count)}:{Plural(count)}\n",
+            "inline = {fn(key, copy: Echo(value)) {\n a => {copy}\n _ => {Ready()}\n}}\n",
+            "plain = {value}\n",
+        ))
+        .unwrap(),
+    );
+    let files = generate_project_files(
+        &schema,
+        &[EcmaLocaleModule {
+            locale: "en".to_owned(),
+            module: locale,
+        }],
+        &project_options("en"),
+    )
+    .unwrap();
+    let module = &files
+        .iter()
+        .find(|file| file.path == "locales/en.js")
+        .unwrap()
+        .contents;
+    for redundant in [
+        "String(Ready(",
+        "String(Echo(",
+        "String(__lgl_form_Item[",
+        "String(pluralEn(",
+        "String(inline_inline(",
+    ] {
+        assert!(!module.contains(redundant), "{redundant}: {module}");
+    }
+    assert!(module.contains("return String(value);"));
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"
+import assert from 'node:assert/strict';
+const {default:l} = await import('./locales/en.js');
+const trace = [];
+const raw = {[Symbol.toPrimitive](hint){trace.push(hint);return 'Ada'}};
+const original = String;
+globalThis.String = new Proxy(original, {apply(target, receiver, args){
+  if (['ready','Ada','apples','other'].includes(args[0])) throw Error('redundant string-result coercion');
+  return Reflect.apply(target, receiver, args);
+}});
+try {
+  assert.equal(l.called(raw,'apple',2), 'ready:Ada:apples:other');
+  assert.deepEqual(trace.splice(0), ['string']);
+  assert.equal(l.called({value:raw,item:'apple',count:2}), 'ready:Ada:apples:other');
+  assert.deepEqual(trace.splice(0), ['string']);
+  assert.equal(l.inline(raw,'unknown'), 'ready');
+  assert.deepEqual(trace.splice(0), ['string']);
+  assert.equal(l.plain(raw), 'Ada');
+  assert.deepEqual(trace.splice(0), ['string']);
+  const failure = new Error('input failure');
+  const throwing = {[Symbol.toPrimitive](){throw failure}};
+  assert.throws(()=>l.inline(throwing,'unknown'), error=>error===failure);
+} finally {globalThis.String = original;}
+console.log('ok');
+"#
+        ),
+        "ok"
     );
 }
