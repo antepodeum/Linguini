@@ -1066,19 +1066,27 @@ and the composed payload/SSR requirements below.
       The policy DSL, worker, transport, and native flags are removed. Executable documentation
       builds every documented hook variant, and launcher/project tests prove root policy files
       are not evaluated. Runtime package and site tests exercise policy without a native rebuild.
-- [ ] MOD-A4 — Enforce ESM-A3's exact page/locale delivery contract across composed components,
+- [-] MOD-A4 — Enforce ESM-A3's exact page/locale delivery contract across composed components,
       layouts, shared functions, and finite dynamic uses. Build/SSR must select a known initial
       locale without client rediscovery; initial delivery must contain no unused messages/helpers,
       inactive locales, or extra base-locale catalog. Resolve sparse fallback into the exact payload.
       Where client code is needed, deliver one self-contained page/locale file; load additional
       payloads only for actual client transitions. Verify output graphs and initial/transition
-      browser requests, not just isolated application entries or the existence of lazy chunks.
-- [ ] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
+      browser requests, not just isolated application entries or the existence of lazy chunks. The production
+      browser gate now proves French SSR bootstrap fetches only the exact French route payload,
+      then one English payload on an explicit switch; JavaScript-disabled rendering needs neither.
+      Component/layout composition and cross-page navigation remain open.
+- [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching
       hydration text. Preserve preload-before-switch, loader cleanup on navigation, HMR, source
       maps, typed calls, and browser/server cookie/routing policy through the migration. Verify
       both direct SSR evaluation and real framework rendering/hydration across the message matrix.
+      The built SvelteKit server now renders concurrent French/Russian/English requests with values,
+      recursive namespaces, named/positional calls, forms/plurals, and number/currency/date formatters.
+      Chromium verifies French hydration text and locale switching. Finite dynamic calls, the full
+      sparse-fallback matrix, and composed-page hydration remain open. Live SSR also covers the
+      trailing-slash redirect-loop fix; prerendering alone did not expose that failure.
 - [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.

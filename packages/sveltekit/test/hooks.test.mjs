@@ -68,3 +68,17 @@ test('server switching is optional runtime policy and storage-only resolution is
   assert.equal(response.headers.get('location'),'/app/page');
   assert.match(response.headers.get('set-cookie'),/^LANG=fr;/);
 });
+
+test('localized canonical URLs leave trailing-slash normalization to SvelteKit', async () => {
+  const web = createWebLocaleI18n(runtime, {routing:{localePrefix:'always'}, locale:{sources:[pathLocale()]}}, environment);
+  const handle = createHandle(web);
+  for (const path of ['/app/fr/', '/app/fr/shop/', '/app/fr/shop', '/app/fr/shop/?q=1']) {
+    let rendered = false;
+    const response = await handle({event:event(path), resolve:async () => {rendered = true; return new Response('rendered');}});
+    assert.equal(rendered, true, path);
+    assert.equal(response.status, 200, path);
+  }
+  const response = await handle({event:event('/app/shop/?q=1'), resolve:async () => {throw Error('missing prefix must redirect');}});
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), '/app/en/shop?q=1');
+});

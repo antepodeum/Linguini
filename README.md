@@ -233,6 +233,7 @@ site dependencies (published packages already contain their compiled output):
 ```bash
 node packages/scripts/prepare-runtime-packages.mjs
 pnpm --dir site install --frozen-lockfile
+pnpm --dir site exec playwright install chromium  # production browser tests
 ```
 
 The root runner provides repository-wide local verification:

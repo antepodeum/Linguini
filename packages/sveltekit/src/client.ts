@@ -2,7 +2,9 @@ import { page } from '$app/state';
 import { goto } from '$app/navigation';
 
 export function getRequestLocale(): unknown {
-  return page.data.linguini?.locale;
+  // Route modules can load before SvelteKit publishes page.data during hydration.
+  // The hook has already selected this locale and written it into the SSR HTML.
+  return page.data.linguini?.locale ?? (browser ? document.documentElement.lang : undefined);
 }
 
 export type NavigationState = App.PageState;

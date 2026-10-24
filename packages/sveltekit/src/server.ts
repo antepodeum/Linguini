@@ -31,7 +31,9 @@ export function createHandle<Locale extends string>(web: LinguiniWebLocale<Local
     const context = createLocaleRequestContext(web, locale, input);
     (event.locals as {linguini?: LinguiniLocaleRequestContext<Locale>}).linguini = context;
     const location = web.getCanonicalRedirect(event.url, locale);
-    if (location) {
+    // SvelteKit owns trailingSlash. Redirecting a slash-only difference here
+    // would alternate with SvelteKit's own canonical redirect indefinitely.
+    if (location && new URL(location, event.url).pathname.replace(/\/+$/, '') !== event.url.pathname.replace(/\/+$/, '')) {
       const response = new Response(null, {status:307, headers:{location}});
       if (persistCookie) web.setLocaleCookie(response, locale, {origin:event.url.origin});
       return response;

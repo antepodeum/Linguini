@@ -320,6 +320,12 @@ jobs:
       - name: Build generated site
         working-directory: site
         run: pnpm build:generated
+      - name: Install Chromium for hydration tests
+        working-directory: site
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Verify production hydration and SSR
+        working-directory: site
+        run: pnpm test:browser
       - name: Verify production message graph
         working-directory: site
         run: node scripts/production-graph.test.mjs

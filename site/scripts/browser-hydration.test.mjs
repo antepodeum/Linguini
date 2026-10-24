@@ -1,0 +1,107 @@
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {readFile, stat} from 'node:fs/promises';
+import {basename, extname, join, resolve, sep} from 'node:path';
+import test from 'node:test';
+import {fileURLToPath} from 'node:url';
+import {chromium} from 'playwright';
+
+const site = fileURLToPath(new URL('../', import.meta.url));
+const output = join(site, 'build');
+
+async function serve(context) {
+  const types = {'.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.css':'text/css', '.svg':'image/svg+xml', '.woff2':'font/woff2'};
+  const server = createServer(async (request, response) => {
+    try {
+      const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+      let file = resolve(output, '.' + pathname);
+      if (file !== output && !file.startsWith(output + sep)) throw Error('outside output');
+      if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
+      const body = await readFile(file);
+      response.writeHead(200, {'content-type':types[extname(file)] ?? 'application/octet-stream'});
+      response.end(body);
+    } catch {
+      response.writeHead(404);
+      response.end('Not found');
+    }
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  context.after(() => new Promise((resolve, reject) => {
+    server.close(error => error ? reject(error) : resolve());
+    server.closeAllConnections();
+  }));
+  return `http://127.0.0.1:${server.address().port}`;
+}
+
+test('French prerender hydrates its selected locale and loads only its page payload before explicit switching', {timeout:30_000}, async context => {
+  const origin = await serve(context);
+  const browser = await chromium.launch();
+  context.after(() => browser.close());
+  const session = await browser.newContext();
+  const page = await session.newPage();
+  const requests = [];
+  const errors = [];
+  page.on('request', request => requests.push(new URL(request.url()).pathname));
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => {
+    if (/hydration_/i.test(message.text())) errors.push(message.text());
+  });
+  const manifest = JSON.parse(await readFile(join(site, '.svelte-kit/output/client/.vite/manifest.json'), 'utf8'));
+  const scope = Buffer.from('src/routes/chunk-lab/+page.svelte').toString('hex');
+  const payload = locale => manifest[`virtual:linguini/locale/${scope}/${Buffer.from(locale).toString('hex')}`].file;
+  const files = new Set(Object.entries(manifest).filter(([id]) => id.startsWith('virtual:linguini/locale/')).map(([, entry]) => basename(entry.file)));
+  const requestedPayloads = () => requests.filter(url => files.has(basename(url))).map(url => basename(url));
+  const fr = (await import('../src/lib/generated/linguini/locales/fr/main.js')).main.hero.tagline;
+  const en = (await import('../src/lib/generated/linguini/locales/en/main.js')).main.hero.tagline;
+  assert.notEqual(fr, en, 'the hydration probe must distinguish locales');
+
+  const html = await (await fetch(origin + '/fr/chunk-lab/')).text();
+  assert.ok(html.includes(fr), 'French text must be present before any client execution');
+  await page.goto(origin + '/fr/chunk-lab/', {waitUntil:'networkidle'});
+  assert.deepEqual(requestedPayloads(), [basename(payload('fr'))]);
+  assert.equal(await page.locator('main p').nth(1).textContent(), fr);
+  assert.deepEqual(errors, []);
+
+  await page.getByRole('link', {name:'EN', exact:true}).click();
+  await page.waitForURL('**/en/chunk-lab/');
+  await page.waitForFunction(expected => document.querySelectorAll('main p')[1]?.textContent === expected, en);
+  assert.deepEqual(requestedPayloads(), [basename(payload('fr')), basename(payload('en'))]);
+  assert.deepEqual(errors, []);
+
+  const noJavaScript = await browser.newContext({javaScriptEnabled:false});
+  const staticPage = await noJavaScript.newPage();
+  const staticRequests = [];
+  staticPage.on('request', request => staticRequests.push(basename(new URL(request.url()).pathname)));
+  await staticPage.goto(origin + '/fr/chunk-lab/');
+  assert.equal(await staticPage.locator('main p').nth(1).textContent(), fr);
+  assert.deepEqual(staticRequests.filter(file => files.has(file)), []);
+});
+
+test('built SvelteKit SSR isolates concurrent locales and renders values, calls, forms, and formatters', async () => {
+  const {Server} = await import('../.svelte-kit/output/server/index.js');
+  const {manifest} = await import('../.svelte-kit/output/server/manifest-full.js');
+  const server = new Server(manifest);
+  await server.init({env:process.env});
+  const locales = ['fr', 'ru', 'en', 'ru', 'en', 'fr'];
+  await Promise.all(locales.map(async locale => {
+    const response = await server.respond(new Request(`http://localhost/${locale}/`), {getClientAddress:() => '127.0.0.1'});
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    const messages = (await import(`../src/lib/generated/linguini/locales/${locale}/main.js`)).main;
+    assert.ok(html.includes(`<html lang="${locale}" dir="ltr">`));
+    const values = [
+      messages.hero.tagline,
+      messages.playground.sentence({fruit:'apple', size:'small', count:3, amount:1299.5, date:'2026-05-19'}),
+      messages.playground.cart_summary(3, 'apple'),
+      messages.playground.number_format({value:1299.5}),
+      messages.playground.currency_format(1299.5),
+      messages.playground.date_format({date:'2026-05-19'}),
+      messages.playground.override_format({date:'2026-05-19', amount:1299.5}),
+      messages.playground.size_line('small'),
+    ];
+    for (const value of values) {
+      const escaped = value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+      assert.ok(html.includes(escaped), `${locale} SSR did not render ${JSON.stringify(value)}`);
+    }
+  }));
+});

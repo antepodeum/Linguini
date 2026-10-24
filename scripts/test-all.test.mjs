@@ -191,6 +191,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "site:check",
       "site:build",
       "site:graph",
+      "site:browser",
     ],
   );
   assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "web", "svelte", "sveltekit", "tsc", "vite", "cli", "vscode", "site"]);
@@ -259,6 +260,7 @@ test("profiles select the expected ordered task groups", () => {
     "site:check",
     "site:build",
     "site:graph",
+    "site:browser",
   ]);
   assert.equal(selectTasks({ profile: "full" }).length, TASKS.length);
 });

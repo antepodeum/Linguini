@@ -36,6 +36,18 @@ runtime bodies. Rebuild owned output to remove old `web*`, `sveltekit*`, and Sve
 artifacts. Application controls use the npm adapters. npm runtime source is TypeScript; builds
 produce JavaScript, declarations, and source maps.
 
+## SvelteKit hydration locale and redirects
+
+Keep `lang="%linguini.lang%"` on the root HTML element, as shown in the web guide. The server
+hook writes the selected request locale there. During initial hydration, route modules can load
+before SvelteKit publishes `page.data`; the client adapter uses that server-selected HTML locale
+until serialized page metadata is available. This avoids loading a base-locale payload for a
+non-base SSR page. It does not infer the locale from browser preferences or persistence.
+
+The SvelteKit hook ignores slash-only canonical URL differences. SvelteKit retains ownership of
+`trailingSlash`; the adapter still redirects missing or incorrect locale prefixes. This prevents
+redirect loops when the framework requires a trailing slash.
+
 ## Generated argument normalization
 
 Static message parameter names are initialized once per generated module. Positional calls reuse

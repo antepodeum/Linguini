@@ -653,6 +653,16 @@ export const TASKS = Object.freeze([
     tools: [],
     requiresNodeModules: true,
   }),
+  nodeTask({
+    id: "site:browser",
+    project: "site",
+    label: "Production hydration, locale requests, and concurrent SSR",
+    command: "pnpm",
+    args: ["test:browser"],
+    profiles: ["full", "site"],
+    tools: ["pnpm"],
+    requiresNodeModules: true,
+  }),
 ].map((task) => Object.freeze(task)));
 
 export const PROFILES = Object.freeze(["quick", "full", "site"]);

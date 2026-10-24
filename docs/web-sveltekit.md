@@ -262,6 +262,10 @@ import {
 } from "$lib/linguini";
 ```
 
+The root HTML `lang` marker also supplies the server-selected locale while SvelteKit loads
+hydration modules, before `page.data` is available. Keep the marker synchronized with the server
+hook; client startup uses this explicit value rather than resolving cookies or language preferences.
+
 ## Server messages and hook composition
 
 Server load functions can explicitly prepare and select generated messages. Request locale is

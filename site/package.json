@@ -19,32 +19,34 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "highlight:build": "node scripts/highlight-examples.mjs",
-    "highlight:refresh": "node scripts/refresh-highlights.mjs"
+    "highlight:refresh": "node scripts/refresh-highlights.mjs",
+    "test:browser": "node --test scripts/browser-hydration.test.mjs"
   },
   "dependencies": {
+    "@antepodeum/linguini-sveltekit": "file:../packages/sveltekit",
     "@antepodeum/linguini-vite": "file:../packages/vite",
+    "@antepodeum/linguini-web": "file:../packages/web",
     "@fontsource-variable/newsreader": "^5.2.8",
     "@fontsource-variable/work-sans": "^5.2.8",
     "@iconify-svelte/skill-icons": "^1.0.3",
     "@lucide/svelte": "^1.0.1",
     "clsx": "^2.1.1",
     "shiki": "^4.0.2",
-    "tailwind-merge": "^2.6.0",
-    "@antepodeum/linguini-web": "file:../packages/web",
-    "@antepodeum/linguini-sveltekit": "file:../packages/sveltekit"
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@antepodeum/linguini": "file:../packages/cli",
     "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/kit": "^2.57.0",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@types/node": "^24.10.0",
     "autoprefixer": "^10.4.20",
+    "playwright": "1.64.1",
     "postcss": "^8.4.49",
     "svelte": "^5.55.2",
     "svelte-check": "^4.4.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^6.0.2",
-    "vite": "^8.0.7",
-    "@antepodeum/linguini": "file:../packages/cli"
+    "vite": "^8.0.7"
   }
 }
