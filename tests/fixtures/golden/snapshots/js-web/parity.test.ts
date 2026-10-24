@@ -58,6 +58,11 @@ for (const [name, sources] of cases) {
           expect(actual.getCanonicalRedirect(href, "fr")).toBe(expected.getCanonicalRedirect(href, "fr"));
           for (const attributes of [{}, { download: true }, { ignored: true }, { rel: "help EXTERNAL" }]) {
             expect(actual.shouldLocalizeLink(href, attributes)).toBe(expected.shouldLocalizeLink(href, attributes));
+            if (compiler === npm) {
+              expect(actual.localizeLinkHref(href, 'fr', attributes)).toBe(
+                expected.shouldLocalizeLink(href, attributes) ? expected.localizeHref(href, 'fr') : href,
+              );
+            }
           }
         }
       }

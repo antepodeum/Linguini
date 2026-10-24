@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createWebLocaleI18n, createWebI18n, pathLocale, cookieLocale, requestLanguage, localStorageLocale} from '../dist/index.js';
+import {createWebLocaleI18n, createWebI18n, createLocaleRequestContext, pathLocale, cookieLocale, requestLanguage, localStorageLocale} from '../dist/index.js';
 import {createLocaleSwitchHandler} from '../dist/server.js';
 
 const runtime = {locales:['en','fr','ar'],baseLocale:'en',getTextDirection:locale => locale === 'ar' ? 'rtl' : 'ltr'};
@@ -60,4 +60,62 @@ test('message-enabled request contexts preload before calls and isolate concurre
   assert.equal(en.messages.greeting('Ada'),'en:Ada');
   assert.equal(fr.localizeUrl('/next').origin,'https://fr.test');
   assert.equal(en.localizeUrl('/next').origin,'https://en.test');
+});
+
+test('combined link localization parses one environment snapshot and isolates exclusion mutations', context => {
+  const web = createWebLocaleI18n(runtime, {}, environment);
+  const NativeURL = globalThis.URL;
+  let parses = 0;
+  globalThis.URL = class extends NativeURL {
+    constructor(...args) { super(...args); parses++; }
+  };
+  context.after(() => { globalThis.URL = NativeURL; });
+  let originReads = 0;
+  let currentReads = 0;
+  const input = {
+    get origin() { originReads++; return environment.origin; },
+    get currentUrl() { currentReads++; return environment.origin + '/app/en/shop'; },
+  };
+  assert.equal(web.localizeLinkHref('/app/en/cart?q=1#part', 'fr', {}, input), '/app/fr/cart?q=1#part');
+  assert.equal(parses, 3, 'resolve origin/current URL once, then parse the href once');
+  assert.equal(originReads, 1);
+  assert.equal(currentReads, 1);
+  for (const attributes of [{download:true}, {ignored:true}, {rel:'nofollow EXTERNAL'}]) {
+    assert.equal(web.localizeLinkHref('/cart', 'fr', attributes, input), '/cart');
+  }
+  assert.equal(parses, 3, 'ignored link attributes must short-circuit URL parsing');
+  for (const href of ['#part', '//external.test/path', 'mailto:a@example.test', 'http://[', 'https://external.test/cart']) {
+    assert.equal(web.localizeLinkHref(href, 'fr', {}, input), href);
+  }
+  const observations = [];
+  const changing = createWebLocaleI18n(runtime, {routes:{exclude:[
+    url => { observations.push(url.pathname); url.pathname = '/mutated'; return false; },
+    url => { observations.push(url.pathname); return false; },
+  ]}}, environment);
+  assert.equal(changing.localizeLinkHref('/app/en/cart', 'fr'), '/app/fr/cart');
+  assert.deepEqual(observations, ['/app/en/cart', '/mutated']);
+  const failure = new Error('predicate failed');
+  const throwing = createWebLocaleI18n(runtime, {routes:{exclude:[() => {throw failure;}]}}, environment);
+  assert.throws(() => throwing.localizeLinkHref('/cart', 'fr'), error => error === failure);
+  const manual = createWebLocaleI18n(runtime, {links:{mode:'manual'}}, environment);
+  assert.equal(manual.localizeLinkHref('/cart', 'fr'), '/cart');
+});
+
+test('request metadata snapshots direction once per context without caching across requests', () => {
+  let calls = 0;
+  let reads = 0;
+  const web = createWebLocaleI18n({...runtime, get getTextDirection() {
+    reads++;
+    return () => ++calls === 1 ? 'ltr' : 'rtl';
+  }}, {}, environment);
+  // Factory construction spreads runtime metadata once; only context reads count here.
+  reads = 0;
+  const first = createLocaleRequestContext(web, 'fr');
+  const second = createLocaleRequestContext(web, 'ar');
+  assert.equal(calls, 2);
+  assert.equal(reads, 2);
+  assert.deepEqual([first.direction, first.textDirection, first.htmlAttrs.dir], ['ltr', 'ltr', 'ltr']);
+  assert.deepEqual([second.direction, second.textDirection, second.htmlAttrs.dir], ['rtl', 'rtl', 'rtl']);
+  assert.equal(first.localizeLinkHref('/app/en/cart'), '/app/fr/cart');
+  assert.equal(second.localizeLinkHref('/app/en/cart'), '/app/ar/cart');
 });

@@ -85,16 +85,41 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
     }
 
     function localizeHrefAttribute(href: string, locale: Locale, input: Record<string, unknown> = {}): string {
-        return shouldLocalizeHref(href, input) ? localizeHref(href, locale, input) : href;
+        return localizeLinkHref(href, locale, {}, input);
+    }
+
+    function localizeLinkHref(href: string, locale: Locale, attributes: LinkLocalizationAttributes = {}, input: Record<string, unknown> = {}): string {
+        if (normalized.links.mode === 'manual' || !localizableAttributes(attributes)) return href;
+        const value = String(href ?? '').trim();
+        if (!value || value.startsWith('#') || value.startsWith('//')) return href;
+        const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(value);
+        if (scheme && !['http', 'https'].includes(scheme[1].toLowerCase())) return href;
+        let url: URL;
+        try {
+            const base = resolveBaseUrl(normalized, input);
+            url = parseUrl(value, base);
+            if (!isInternalHttpUrl(url, base.origin)) return href;
+        } catch {
+            return href;
+        }
+        // Predicates receive an isolated URL. Their mutations must not change the
+        // URL being localized, but later predicates still observe earlier mutations.
+        const exclusions = normalized.routes.exclude;
+        const checked = exclusions.some(matcher => typeof matcher === 'function') ? new URL(url) : url;
+        if (exclusions.some(matcher => matchesRoute(matcher, checked))) return href;
+        localizeParsedUrl(url, matchLocale(locale) ?? runtime.baseLocale);
+        return scheme ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
     }
 
     function shouldLocalizeLink(href: string, attributes: LinkLocalizationAttributes = {}, input: Record<string, unknown> = {}): boolean {
+        return localizableAttributes(attributes) && shouldLocalizeHref(href, input);
+    }
+
+    function localizableAttributes(attributes: LinkLocalizationAttributes): boolean {
         if (attributes.download || attributes.ignored)
             return false;
         const relations = String(attributes.rel ?? "").toLowerCase().split(/\s+/);
-        if (relations.includes("external"))
-            return false;
-        return shouldLocalizeHref(href, input);
+        return !relations.includes("external");
     }
 
     function delocalizeUrl(url: string | URL, input: Record<string, unknown> = {}): URL {
@@ -193,6 +218,7 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         shouldLocalizeHref,
         shouldLocalizeLink,
         localizeHrefAttribute,
+        localizeLinkHref,
         delocalizeUrl,
         delocalizePathname,
         alternateLinks,

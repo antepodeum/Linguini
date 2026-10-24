@@ -195,6 +195,7 @@ export const localizeUrl = linguini.localizeUrl;
 export const shouldLocalizeHref = linguini.shouldLocalizeHref;
 export const shouldLocalizeLink = linguini.shouldLocalizeLink;
 export const localizeHrefAttribute = linguini.localizeHrefAttribute;
+export const localizeLinkHref = linguini.localizeLinkHref;
 export const delocalizeUrl = linguini.delocalizeUrl;
 export const alternateLinks = linguini.alternateLinks;
 ```
@@ -258,9 +259,15 @@ and dispose it when its owner is destroyed. These choices do not change native m
 // src/lib/documented-client-helpers.ts
 import {
   alternateLinks, delocalizeUrl, linguini, localizeHref, localizeHrefAttribute,
-  localizeUrl, shouldLocalizeHref, shouldLocalizeLink,
+  localizeUrl, localizeLinkHref, shouldLocalizeHref, shouldLocalizeLink,
 } from "$lib/linguini";
 ```
+
+For a link with attributes, `localizeLinkHref(href, locale, attributes)` checks download, ignore,
+external-rel, URL, and exclusion policy using one URL/environment snapshot. Runtime anchor
+localization uses this combined operation. Exclusion predicates run in order against an isolated
+URL, so their mutations do not rewrite the eventual target. Request metadata snapshots direction
+once per context; its direction fields agree, while another request evaluates its own direction.
 
 The root HTML `lang` marker also supplies the server-selected locale while SvelteKit loads
 hydration modules, before `page.data` is available. Keep the marker synchronized with the server

@@ -1,18 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import { startRuntimeLinkLocalization as javascript } from "./web/runtime-links.js";
 import { startRuntimeLinkLocalization as typescript } from "./typescript/web/runtime-links.ts";
+import { startRuntimeLinkLocalization as runtime } from "../../../../../packages/web/src/runtime-links.ts";
 import { withLinkBrowser } from "./browser-harness.ts";
 
 const web = {
   shouldLocalizeLink: (href: string, attributes: { download?: boolean; ignored?: boolean }) =>
     href.startsWith("/") && !attributes.download && !attributes.ignored,
   localizeHref: (href: string, locale: string) => `/${locale}${href.replace(/^\/(?:en|de)/, "")}`,
+  localizeLinkHref(href: string, locale: string, attributes: { download?: boolean; ignored?: boolean }): string {
+    return this.shouldLocalizeLink(href, attributes) ? this.localizeHref(href, locale) : href;
+  },
 };
+
+const maintained = runtime as unknown as typeof javascript;
 
 describe("owned runtime-link target parity", () => {
   test("server initialization has no browser effects", () => {
     expect(javascript(web, () => "en")).toBeUndefined();
     expect(typescript(web, () => "en")).toBeUndefined();
+    expect(maintained(web, () => "en")).toBeUndefined();
   });
 
   for (const animation of [true, false]) {
@@ -43,7 +50,9 @@ describe("owned runtime-link target parity", () => {
         expect(browser.frames.size + browser.timers.size).toBe(0);
         return browser.anchors.map((anchor) => [anchor.getAttribute("href"), anchor.writes]);
       });
-      expect(run(javascript)).toEqual(run(typescript));
+      const expected = run(typescript);
+      expect(run(javascript)).toEqual(expected);
+      expect(run(maintained)).toEqual(expected);
     });
   }
 });

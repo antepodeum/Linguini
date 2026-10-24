@@ -79,6 +79,8 @@ export interface LinguiniLocaleRequestContext<Locale extends string = string> {
   shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
   shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
   localizeHrefAttribute(href: string, locale?: Locale, input?: Record<string, unknown>): string;
+  /** Validate link attributes and localize using one URL/environment snapshot. */
+  localizeLinkHref(href: string, locale?: Locale, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];
 }
@@ -113,6 +115,8 @@ export interface LinguiniWebLocale<Locale extends string = string> extends Lingu
   shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
   shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
   localizeHrefAttribute(href: string, locale: Locale, input?: Record<string, unknown>): string;
+  /** Validate link attributes and localize using one URL/environment snapshot. */
+  localizeLinkHref(href: string, locale: Locale, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
   delocalizePathname(pathname: string, input?: Record<string, unknown>): string;
   alternateLinks(url: string | URL, input?: Record<string, unknown>): AlternateLink[];

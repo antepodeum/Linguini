@@ -40,6 +40,11 @@ import {createHandle,createLoad} from '@antepodeum/linguini-sveltekit/server';
 import type {Handle} from '@sveltejs/kit';
 const metadata={locales:['en','fr'] as const,baseLocale:'en' as const};
 const web=createWebLocaleI18n(metadata,{locale:{sources:[pathLocale(),cookieLocale({name:'LANG'})]}});
+if (web.localizeLinkHref('/en/shop','fr',{download:false}) !== '/fr/shop') throw Error('combined link localization failed');
+// @ts-expect-error Combined links preserve finite locale typing.
+void (()=>web.localizeLinkHref('/','ar'));
+// @ts-expect-error Link attributes remain typed in installed declarations.
+void (()=>web.localizeLinkHref('/','fr',{download:'yes'}));
 const handle:Handle=createHandle(web,{switchRoute:{path:'/locale/{locale}'}});
 const reroute=createReroute(web);
 const load=createLoad<'en'|'fr'>();

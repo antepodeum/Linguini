@@ -36,6 +36,15 @@ runtime bodies. Rebuild owned output to remove old `web*`, `sveltekit*`, and Sve
 artifacts. Application controls use the npm adapters. npm runtime source is TypeScript; builds
 produce JavaScript, declarations, and source maps.
 
+## Runtime link and request snapshots
+
+Use `localizeLinkHref(href, locale, attributes, input)` for combined link validation/localization.
+`localizeHrefAttribute` delegates to it without additional attributes. These operations resolve
+one environment/URL snapshot, and exclusion predicates retain order and receive an isolated URL.
+Runtime DOM link handling uses this operation instead of separately checking and reparsing a link.
+Request contexts resolve direction once; `direction`, `textDirection`, and `htmlAttrs.dir` share
+that value. Direction callbacks are evaluated again for each new context, never cached globally.
+
 ## SvelteKit hydration locale and redirects
 
 Keep `lang="%linguini.lang%"` on the root HTML element, as shown in the web guide. The server

@@ -180,9 +180,7 @@ function localizeAnchorElement<LocaleName extends string>(web: LinguiniWebLocale
         ignored: anchor.hasAttribute("data-linguini-ignore") || anchor.hasAttribute("data-linguini-no-localize"),
         rel: anchor.getAttribute("rel"),
     };
-    if (!web.shouldLocalizeLink(href, attributes, input))
-        return;
-    const localized = web.localizeHref(href, locale, input);
+    const localized = web.localizeLinkHref(href, locale, attributes, input);
     if (localized !== href)
         anchor.setAttribute("href", localized);
 }
