@@ -42,17 +42,23 @@ pub fn date_field_symbols(
                     .collect::<Option<Vec<_>>>()?,
             );
         }
-        'E' => {
+        'E' | 'e' | 'c' if field == 'E' || width >= 3 => {
+            let context = if field == 'c' {
+                "stand-alone"
+            } else {
+                "format"
+            };
             symbols.names = Some(
                 ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
                     .iter()
                     .map(|day| {
                         calendar
-                            .symbol(&format!("days.format.{symbol_width}.{day}"))
+                            .symbol(&format!("days.{context}.{symbol_width}.{day}"))
                             .or_else(|| {
                                 (symbol_width == "short")
                                     .then(|| {
-                                        calendar.symbol(&format!("days.format.abbreviated.{day}"))
+                                        calendar
+                                            .symbol(&format!("days.{context}.abbreviated.{day}"))
                                     })
                                     .flatten()
                             })

@@ -305,7 +305,11 @@ fn date_parts(
         if let Some(values) = symbols.names {
             let proposed = format!(
                 "{name}_{}{}_{width}",
-                if character == 'L' { "standalone_" } else { "" },
+                if matches!(character, 'L' | 'c') {
+                    "standalone_"
+                } else {
+                    ""
+                },
                 if matches!(character, 'M' | 'L') {
                     "months"
                 } else {

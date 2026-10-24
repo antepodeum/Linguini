@@ -36,6 +36,13 @@ runtime bodies. Rebuild owned output to remove old `web*`, `sveltekit*`, and Sve
 artifacts. Application controls use the npm adapters. npm runtime source is TypeScript; builds
 produce JavaScript, declarations, and source maps.
 
+## Standalone weekdays in full dates
+
+Rebuild generated output to correct Finnish and Inari Sami full-date formatting. Their pinned
+CLDR patterns select standalone weekdays (`c`); these now use the appropriate weekday names
+instead of the old `UTC` placeholder. Named formatting/standalone contexts and short/narrow
+widths remain distinct. The public date request and JavaScript/declaration APIs are unchanged.
+
 ## Runtime link and request snapshots
 
 Use `localizeLinkHref(href, locale, attributes, input)` for combined link validation/localization.

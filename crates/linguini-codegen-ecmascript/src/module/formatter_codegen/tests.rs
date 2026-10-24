@@ -539,6 +539,20 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
         ("ru", "MMMM LLLL", "2024-01-02T01:00:00Z", "января январь"),
         ("en", "MMMM LLLL", "2024-01-02T01:00:00Z", "January January"),
         ("en", "MMMMM EEEEE EEEEEE", "2024-01-02T01:00:00Z", "J T Tu"),
+        (
+            "fi",
+            "EEEE cccc eeee",
+            "2026-05-19T01:00:00Z",
+            "tiistaina tiistai tiistaina",
+        ),
+        ("fi", "ccccc cccccc", "2026-05-19T01:00:00Z", "T ti"),
+        (
+            "smn",
+            "EEEE cccc eeee",
+            "2026-05-19T01:00:00Z",
+            "majebaargâ majebargâ majebaargâ",
+        ),
+        ("smn", "ccccc cccccc", "2026-05-19T01:00:00Z", "T ma"),
         ("en", "aaa aaaa aaaaa", "2024-01-02T13:00:00Z", "PM PM p"),
         ("ar", "a", "2024-01-02T13:00:00Z", "م"),
         ("zh", "a", "2024-01-02T01:00:00Z", "上午"),
@@ -820,4 +834,27 @@ fn generated_date_runtime_rejects_invalid_values() {
             .count(),
         1
     );
+}
+
+#[test]
+fn public_full_date_requests_render_standalone_weekdays_instead_of_a_zone_placeholder() {
+    for (locale, expected) in [
+        ("fi", "tiistai 19. toukokuuta 2026"),
+        ("smn", "majebargâ, vyesimáánu 19. 2026"),
+    ] {
+        let formatter = request(IrFormatterKind::Date, &[("style", "full")]);
+        let binding = formatter_binding(&formatter);
+        let emitted = formatter_data_declaration(locale, &[formatter], false);
+        assert!(
+            !emitted.contains("\"UTC\""),
+            "weekday compiled as UTC: {emitted}"
+        );
+        assert!(!emitted.contains("Intl."));
+        assert_eq!(
+            execute(&format!(
+                "{emitted}console.log({binding}('2026-05-19T01:00:00Z'));"
+            )),
+            expected
+        );
+    }
 }

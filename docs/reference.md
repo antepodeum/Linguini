@@ -255,7 +255,9 @@ static CLDR choices are validated during generation.
 Date symbol selection distinguishes formatting `M` from standalone `L`, narrow month/weekday
 names, short weekday names, and locale/width-specific AM/PM and Gregorian era labels. Identical
 name tables within a formatter share one binding. These choices follow the
-[CLDR date-field rules](https://unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table).
+[pinned CLDR date-field rules](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Date_Field_Symbol_Table).
+Formatting `E`/named `e` weekday symbols and standalone `c` symbols retain their own contexts.
+Full Finnish and Inari Sami dates therefore use their standalone weekday names.
 Extended calendar, zone, and skeleton compilation remains under remediation;
 the public date request currently selects `style` and `time_style`.
 Numeric grouping uses a direct string loop compiled for the selected primary/secondary widths,
