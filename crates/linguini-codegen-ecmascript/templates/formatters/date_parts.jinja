@@ -8,7 +8,7 @@
 {%- elif part.period is not none %}{{ part.period.binding }}
 {%- elif part.field in ["a", "b", "B"] %}({{ "hours" if clock.hours else "date.getUTCHours()" }} < 12 ? {{ part.am|js }} : {{ part.pm|js }})
 {%- elif part.field == "G" %}({{ "extendedYear" if clock.year else "date.getUTCFullYear()" }} > 0 ? {{ part.ad|js }} : {{ part.bc|js }})
-{%- else %}"UTC"{% endif %}
+{%- else %}{{ unsupported_date_field }}{% endif %}
 {%- endmacro %}
 {% macro expression(parts, digits, clock) -%}
 {% for part in parts %}{% if part.kind == "literal" %}{{ part.value|js }}{% else %}{% if digits != "0123456789" and part.numeric %}localizeGeneratedDigits({% endif %}{{ field(part, clock) }}{% if digits != "0123456789" and part.numeric %}, {{ digits|js }}){% endif %}{% endif %}{{ " + " if not loop.last }}{% else %}""{% endfor %}

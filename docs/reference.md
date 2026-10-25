@@ -22,6 +22,11 @@ field letters do not change that precision. Midnight refers to the start of the 
 Gregorian `y` uses the year within its era (1 BCE is year 1), shares the original year with `G`,
 and pads to the requested minimum width. Only `yy` truncates to the last two digits. Year-only
 padding requests select their padding helper during generation.
+`date_request_pattern` selects/composes the requested widths, and `compile_date_pattern`
+parses CLDR quoting and validates supported field widths before target emission. UTC zone
+fields become selected localized name/GMT-zero literals or the specified ISO-zero literals;
+adjacent literals merge. Unsupported fields and unclosed quotes return structured errors with
+UTF-8 byte offsets. Generated formatters receive no raw pattern or zone-name catalog.
 See [UTS #35 v48.2 day-period rules](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Day_Period_Rules).
 
 Web and framework integrations have separate runtime owners.
@@ -301,8 +306,10 @@ surface. Current guarantees are:
   the time, while supplying both combines them with the matching CLDR
   date-time pattern. Rendering uses pinned Gregorian patterns plus
   context/width-specific month and weekday names, eras, and localized fixed/flexible
-  day periods. Time fields are evaluated in UTC; zone-bearing widths currently render
-  a deterministic `UTC` marker. Selectable time zones, non-Gregorian calendars, and
+  day periods. Time fields are evaluated in UTC; zone-bearing widths use pinned localized
+  UTC names, falling back to the localized GMT-zero label when the selected name is absent.
+  These labels are compiled literals. Unsupported CLDR fields fail generation. Selectable
+  time zones, non-Gregorian calendars, and
   skeleton selection remain under remediation.
 
 ```lgl

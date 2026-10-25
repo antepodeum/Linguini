@@ -258,7 +258,13 @@ pub(crate) fn generate_supplemental_tables(source: &CldrSource) -> Result<TokenS
             .as_str()
             .ok_or("missing gmtZeroFormat")?;
         let hour = data["hourFormat"].as_str().ok_or("missing hourFormat")?;
-        zones.push(quote! { #locale => Some(TimeZoneFormatData { gmt_format: #gmt, gmt_zero_format: #zero, hour_format: #hour }), });
+        let utc_name = |width: &str| match data["zone"]["Etc"]["UTC"][width]["standard"].as_str() {
+            Some(value) => quote! { Some(#value) },
+            None => quote! { None },
+        };
+        let utc_long = utc_name("long");
+        let utc_short = utc_name("short");
+        zones.push(quote! { #locale => Some(TimeZoneFormatData { gmt_format: #gmt, gmt_zero_format: #zero, hour_format: #hour, utc_standard_long: #utc_long, utc_standard_short: #utc_short }), });
     }
     Ok(quote! {
         fn generated_day_period_rules(locale: &str) -> Option<&'static [DayPeriodRule]> { match locale { #(#period_arms)* _ => None } }

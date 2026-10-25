@@ -36,6 +36,19 @@ runtime bodies. Rebuild owned output to remove old `web*`, `sveltekit*`, and Sve
 artifacts. Application controls use the npm adapters. npm runtime source is TypeScript; builds
 produce JavaScript, declarations, and source maps.
 
+## Compiled UTC names and date-pattern validation
+
+Rebuild generated output to use pinned localized long UTC names in full time styles. Short
+styles retain the pinned short name; missing names fall back to the locale's GMT-zero label.
+Chinese patterns retain their zone-before-time order. Zone labels are compiled string literals,
+with no runtime CLDR lookup or host `Intl` dependency. Unsupported date fields or unclosed CLDR
+quotes now fail generation instead of emitting a fabricated `UTC` value.
+
+Rust consumers constructing `TimeZoneFormatData` must provide `utc_standard_long` and
+`utc_standard_short` (`Option<&'static str>`). `None` selects the GMT-zero fallback. The shared
+`linguini-codegen` crate exposes `date_request_pattern` and `compile_date_pattern` for other
+backends. Selectable non-UTC zones, calendars, and skeletons remain under remediation.
+
 ## Standalone weekdays in full dates
 
 Rebuild generated output to correct Finnish and Inari Sami full-date formatting. Their pinned

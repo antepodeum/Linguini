@@ -579,7 +579,7 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
         ),
     ] {
         let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
-        let compiled = date_parts(pattern, &dates, "formatTest");
+        let compiled = date_parts(pattern, &dates, "formatTest", locale);
         let formatter = crate::templates::render(
             "formatters/date",
             minijinja::context! { name => "formatTest", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
@@ -606,7 +606,7 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
 fn gregorian_years_preserve_era_boundaries_and_minimum_widths() {
     let dates = linguini_cldr::compiled_date_formatting("en").unwrap();
     let pattern = "y yy yyy yyyy yyyyy yyyyyy yyyyyyy yyyyyyyy G";
-    let compiled = date_parts(pattern, &dates, "formatYear");
+    let compiled = date_parts(pattern, &dates, "formatYear", dates.locale);
     assert!(compiled.helpers.padding);
     let formatter = crate::templates::render(
         "formatters/date",
@@ -636,6 +636,7 @@ fn gregorian_years_preserve_era_boundaries_and_minimum_widths() {
     let mut dates = dates;
     dates.date_formats.medium = "yyyy";
     let (padded, requirements) = generated_date_request(
+        dates.locale,
         &dates,
         &request(IrFormatterKind::Date, &[]),
         "formatPaddedYear",
@@ -669,7 +670,7 @@ fn compiled_day_periods_match_pinned_rules_across_every_minute_and_precision() {
                 let name = format!("period{count}");
                 count += 1;
                 let pattern = format!("{}'|'m'|'s'|'SSS", field.to_string().repeat(width));
-                let compiled = date_parts(&pattern, &dates, &name);
+                let compiled = date_parts(&pattern, &dates, &name, dates.locale);
                 let formatter = crate::templates::render(
                     "formatters/date",
                     minijinja::context! { name, exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
@@ -763,7 +764,7 @@ fn exact_periods_follow_displayed_fields_and_omit_unused_clock_reads() {
         ),
     ] {
         let dates = linguini_cldr::compiled_date_formatting("en").unwrap();
-        let compiled = date_parts(pattern, &dates, "formatPeriod");
+        let compiled = date_parts(pattern, &dates, "formatPeriod", dates.locale);
         let formatter = crate::templates::render(
             "formatters/date",
             minijinja::context! { name => "formatPeriod", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
@@ -800,7 +801,7 @@ fn compiled_day_period_fixture_preserves_readable_checked_javascript() {
         ("formatYear", "en", "y yy yyyy G"),
     ] {
         let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
-        let compiled = date_parts(pattern, &dates, name);
+        let compiled = date_parts(pattern, &dates, name, dates.locale);
         output.push_str(&crate::templates::render(
             "formatters/date",
             minijinja::context! { name, exported => true, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
@@ -856,5 +857,55 @@ fn public_full_date_requests_render_standalone_weekdays_instead_of_a_zone_placeh
             )),
             expected
         );
+    }
+}
+
+#[test]
+fn utc_zone_names_are_selected_from_pinned_cldr_and_folded_into_generated_literals() {
+    for (locale, long) in [
+        ("en", "Coordinated Universal Time"),
+        ("fr", "temps universel coordonné"),
+        ("ru", "Всемирное координированное время"),
+        ("ar", "التوقيت العالمي المنسق"),
+        ("hi", "समन्वित वैश्विक समय"),
+        ("ja", "協定世界時"),
+        ("zh", "协调世界时"),
+        ("aa", "GMT"),
+    ] {
+        let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
+        let compiled = date_parts("z zz zzz zzzz", &dates, "formatZone", locale);
+        assert!(compiled.tables.is_empty());
+        assert!(!compiled.helpers.padding);
+        assert!(!compiled.helpers.digits);
+        let formatter = crate::templates::render(
+            "formatters/date",
+            minijinja::context! {
+                name => "formatZone", exported => false, parts => compiled.parts,
+                tables => compiled.tables, periods => compiled.periods, clock => compiled.clock,
+                digits => dates.digits,
+            },
+        );
+        assert!(
+            !formatter.contains("getUTC"),
+            "a constant UTC zone must not read date fields"
+        );
+        for unused in ["zzzz", "gmtFormat", "hourFormat", "timeZoneNames", "Intl."] {
+            assert!(!formatter.contains(unused), "{locale}: {unused}");
+        }
+        let source = format!("{formatter}{}", date_formatter_helpers(false));
+        assert_eq!(execute(&format!("{source}Intl.DateTimeFormat = () => {{ throw Error('host formatting used'); }}; console.log(formatZone('2026-05-19T01:00:00Z'));")), format!("UTC UTC UTC {long}"));
+        let requests = [
+            request(IrFormatterKind::Date, &[("time_style", "full")]),
+            request(IrFormatterKind::Date, &[("time_style", "long")]),
+        ];
+        let full = formatter_binding(&requests[0]);
+        let short = formatter_binding(&requests[1]);
+        let source = formatter_data_declaration(locale, &requests, false);
+        let position = if locale == "zh" {
+            "startsWith"
+        } else {
+            "endsWith"
+        };
+        assert_eq!(execute(&format!("{source}console.log(JSON.stringify([{full}('2026-05-19T01:00:00Z').{position}({}), {short}('2026-05-19T01:00:00Z').{position}('UTC')]));", crate::ecmascript::string_literal(long))), "[true,true]", "{locale}");
     }
 }

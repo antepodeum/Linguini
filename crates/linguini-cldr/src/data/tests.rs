@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "3fc9b909a1e173dca9da7b9317a0e43afaf4c4f507508a603b05a27c85683f28"
+        "aa502896c1e0d7a4d5890e08e18c9c43ad359acd572d683e594f08cd135624e4"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);

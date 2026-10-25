@@ -132,6 +132,9 @@ pub struct TimeZoneFormatData {
     pub gmt_format: &'static str,
     pub gmt_zero_format: &'static str,
     pub hour_format: &'static str,
+    /// Explicit localized UTC standard names; absent names use localized GMT fallback.
+    pub utc_standard_long: Option<&'static str>,
+    pub utc_standard_short: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

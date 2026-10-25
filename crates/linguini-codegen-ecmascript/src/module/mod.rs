@@ -165,6 +165,11 @@ pub enum EcmaCodegenError {
     MissingDateFormatting {
         locale: String,
     },
+    InvalidDatePattern {
+        locale: String,
+        pattern: String,
+        error: linguini_codegen::DatePatternError,
+    },
     MissingMessageSource {
         source_id: linguini_syntax::SourceId,
     },
@@ -290,6 +295,10 @@ impl fmt::Display for EcmaCodegenError {
             Self::MissingDateFormatting { locale } => write!(
                 formatter,
                 "missing required CLDR date formatting data for configured locale `{locale}`"
+            ),
+            Self::InvalidDatePattern { locale, pattern, error } => write!(
+                formatter,
+                "invalid CLDR date pattern {pattern:?} for configured locale `{locale}`: {error}"
             ),
             Self::MissingMessageSource { source_id } => write!(
                 formatter,
@@ -493,10 +502,24 @@ fn validate_formatter_data(
             locale: locale_name.to_owned(),
         });
     }
-    if requirements.date && compiled_date_formatting(locale_name).is_none() {
-        return Err(EcmaCodegenError::MissingDateFormatting {
-            locale: locale_name.to_owned(),
-        });
+    if requirements.date {
+        let dates = compiled_date_formatting(locale_name).ok_or_else(|| {
+            EcmaCodegenError::MissingDateFormatting {
+                locale: locale_name.to_owned(),
+            }
+        })?;
+        for request in linguini_codegen::formatter_requests(schema, locale) {
+            if request.formatter.kind == linguini_ir::IrFormatterKind::Date {
+                let pattern = linguini_codegen::date_request_pattern(&dates, &request);
+                linguini_codegen::compile_date_pattern(locale_name, &pattern).map_err(|error| {
+                    EcmaCodegenError::InvalidDatePattern {
+                        locale: locale_name.to_owned(),
+                        pattern,
+                        error,
+                    }
+                })?;
+            }
+        }
     }
     Ok(())
 }

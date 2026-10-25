@@ -68,7 +68,7 @@ pub(super) fn formatter_data_declaration(
             linguini_ir::IrFormatterKind::Date => {
                 let dates = compiled_date_formatting(locale).expect("validated date locale");
                 let (source, helpers) =
-                    generated_date_request(&dates, request, &name, export_helpers);
+                    generated_date_request(locale, &dates, request, &name, export_helpers);
                 output.push_str(&source);
                 date_helpers.padding |= helpers.padding;
                 date_helpers.digits |= helpers.digits;
@@ -184,30 +184,14 @@ struct DateHelperRequirements {
 }
 
 fn generated_date_request(
+    locale: &str,
     dates: &linguini_cldr::DateFormatData,
     request: &super::formatters::FormatterRequest,
     name: &str,
     exported: bool,
 ) -> (String, DateHelperRequirements) {
-    let select = |widths: linguini_cldr::FormatWidths, style: &str| match style {
-        "full" => widths.full,
-        "long" => widths.long,
-        "short" => widths.short,
-        _ => widths.medium,
-    };
-    let style = request.argument("style");
-    let time_style = request.argument("time_style");
-    let date = (style.is_some() || time_style.is_none())
-        .then(|| select(dates.date_formats, style.unwrap_or("medium")));
-    let time = time_style.map(|style| select(dates.time_formats, style));
-    let pattern = match (date, time) {
-        (Some(date), Some(time)) => select(dates.date_time_formats, style.unwrap_or("medium"))
-            .replace("{1}", date)
-            .replace("{0}", time),
-        (Some(part), None) | (None, Some(part)) => part.to_owned(),
-        (None, None) => unreachable!("at least a date or time pattern"),
-    };
-    let pattern = date_parts(&pattern, dates, name);
+    let pattern = linguini_codegen::date_request_pattern(dates, request);
+    let pattern = date_parts(&pattern, dates, name, locale);
     (
         crate::templates::render(
             "formatters/date",
@@ -229,6 +213,7 @@ fn date_parts(
     pattern: &str,
     dates: &linguini_cldr::DateFormatData,
     name: &str,
+    requested_locale: &str,
 ) -> CompiledDatePattern {
     use minijinja::context;
     let mut helpers = DateHelperRequirements::default();
@@ -236,9 +221,6 @@ fn date_parts(
         .expect("validated locale has pinned Gregorian symbols");
     let mut parts = Vec::new();
     let mut tables = std::collections::BTreeMap::<String, Vec<&str>>::new();
-    let mut chars = pattern.chars().peekable();
-    let mut literal = String::new();
-    let mut quoted = false;
     let mut fields = std::collections::BTreeSet::new();
     let mut has_periods = false;
     let mut exact_periods = false;
@@ -252,28 +234,16 @@ fn date_parts(
             format!("dayPeriod{}", index + 1)
         }
     };
-    while let Some(character) = chars.next() {
-        if character == '\'' {
-            if chars.peek() == Some(&'\'') {
-                chars.next();
-                literal.push('\'');
-            } else {
-                quoted = !quoted;
+    for part in linguini_codegen::compile_date_pattern(requested_locale, pattern)
+        .expect("validated date pattern")
+    {
+        let (character, width) = match part {
+            linguini_codegen::DatePatternPart::Literal(value) => {
+                parts.push(context! { kind => "literal", value });
+                continue;
             }
-            continue;
-        }
-        if quoted || !character.is_ascii_alphabetic() {
-            literal.push(character);
-            continue;
-        }
-        if !literal.is_empty() {
-            parts.push(context! { kind => "literal", value => std::mem::take(&mut literal) });
-        }
-        let mut width = 1;
-        while chars.peek() == Some(&character) {
-            chars.next();
-            width += 1;
-        }
+            linguini_codegen::DatePatternPart::Field { symbol, width } => (symbol, width),
+        };
         fields.insert(character);
         let period = linguini_codegen::day_period_plan(&calendar, character, width).map(|plan| {
             if let Some(index) = periods.iter().position(|(existing, _)| existing == &plan) {
@@ -332,10 +302,6 @@ fn date_parts(
             character == 'S' || (numeric && width == 2) || (character == 'y' && width > 2);
         helpers.digits |= numeric && dates.digits != "0123456789";
         parts.push(context! { kind => "field", field => character.to_string(), width, table, numeric, period, am => symbols.am, pm => symbols.pm, ad => symbols.ad, bc => symbols.bc });
-    }
-    assert!(!quoted, "validated CLDR pattern has balanced quoting");
-    if !literal.is_empty() {
-        parts.push(context! { kind => "literal", value => literal });
     }
     CompiledDatePattern {
         parts,

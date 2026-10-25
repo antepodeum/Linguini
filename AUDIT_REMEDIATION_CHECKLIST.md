@@ -1126,6 +1126,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       against raw pinned rules, plus display precision and missing-label/merged-span cases.
       Named weekday fields preserve formatting versus standalone contexts and selected widths;
       executed Finnish/Inari Sami full requests replace the erroneous `UTC` weekday placeholder.
+      Shared date-pattern compilation validates CLDR quoting/field widths before output emission;
+      unsupported fields produce structured errors instead of a fabricated UTC value. Selected
+      UTC names, missing-name GMT-zero fallback, and ISO-zero forms fold into merged literals.
+      Eight-locale generated execution and the 508-record resolution-graph style/composition
+      scan verify this boundary; selectable non-UTC zones/calendars/skeletons remain open.
       Gregorian year-of-era conversion and width padding now cover 18 BCE/CE year samples and
       eight widths, sharing the UTC year read and selecting year-only padding helpers.
       Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
@@ -1164,13 +1169,13 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       and re-export-only barrels omit them. Project and physical-leaf execution covers captured
       globals, alias-typed callable forms, simultaneous inline-input scope, named/positional calls,
       and sparse regional fallback. Transitive dependency selection remains a separate shared plan.
-      Switch routes compile their marker and suffix bounds in Rust; runtime requests retain only
-      host base-path composition and locale extraction. Executed comparisons retain encoded-locale,
-      suffix, redirect, same-origin return-target, and cookie/path transport behavior.
-      Svelte effects select browser/locale imports, capability readers, and HMR ownership from
-      enabled sources/link mode; no-source initialization uses the base locale. Controls omit
-      unused switch-option objects/defaults. Executed effect/control matrices preserve SSR,
-      denied capabilities/persistence, preloading, navigation/state, callable arity, and cleanup.
+      Reusable TypeScript web handlers compile switch-route marker/suffix bounds when the
+      application constructs its handler; native code no longer generates routing policy.
+      Executed comparisons retain encoded-locale, suffix, redirect, same-origin return-target,
+      and cookie/path transport behavior. Reusable TypeScript Svelte state, controls, and effects
+      own their lifecycle and capabilities. Real Svelte compilation, runtime matrices, and site
+      execution cover SSR, denied capabilities/persistence, preloading, navigation/state,
+      callable arity, and cleanup. Initial tree-shaken runtime demand remains open.
       Accept-Language uses direct preference selection and scalar winner state, without per-locale
       filter/sort arrays or candidate objects. Explicit cases and 512 frozen-runtime comparisons
       retain specificity exclusions, quality, input/base/locale order, and navigator fallback.
@@ -1180,7 +1185,7 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Shared date-symbol planning now resolves Gregorian format/standalone contexts, name widths,
       locale AM/PM, and era labels before emission; identical per-formatter tables share a binding.
       Executed context/width/locale cases correct Arabic/Hindi output rather than preserving the
-      previous English labels. Extended calendars, year/period/zone/skeleton semantics stay open.
+      previous English labels. Extended calendars, selectable non-UTC zones, and skeletons stay open.
       Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page
