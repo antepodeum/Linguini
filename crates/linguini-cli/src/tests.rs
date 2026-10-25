@@ -453,7 +453,7 @@ declaration = true
 
 #[test]
 fn build_generates_javascript_and_declarations_without_cldr_cache() {
-    let project = temp_project_dir("build_generates_typescript").expect("create temporary project");
+    let project = temp_project_dir("build_generates_javascript").expect("create temporary project");
     init_project(project.path()).expect("init project");
 
     let schema_dir = project.path().join("schema/shop");
@@ -501,7 +501,13 @@ fn build_generates_javascript_and_declarations_without_cldr_cache() {
     assert!(generated_shop.contains(
         "    delivery: /** @type {((count: number | bigint | string) => string) & ((args: { count: number | bigint | string }) => string)} */ ((...__lgl_args) =>"
     ));
-    assert!(generated_shop.contains("normalizeMessageArgs(__lgl_args, [\"count\"])"));
+    let keys_binding = generated_shop
+        .lines()
+        .find_map(|line| line.strip_prefix("const ")?.strip_suffix(" = [\"count\"];"))
+        .expect("static argument keys are declared at module scope");
+    assert_eq!(generated_shop.matches(" = [\"count\"];").count(), 1);
+    assert!(generated_shop.contains(&format!("normalizeMessageArgs(__lgl_args, {keys_binding})")));
+    assert!(!generated_shop.contains("normalizeMessageArgs(__lgl_args, ["));
     assert!(project
         .path()
         .join("src/generated/linguini/.linguini-generated-manifest")
