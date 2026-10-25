@@ -271,7 +271,11 @@ width boundaries, padding, Unicode separators, negative zero, and the decimal in
 Plural predicates also compile during builds: only required scalar operands are produced at their
 first use, common guards are shared, and modulo results are calculated once. Comparisons use
 direct conditions without per-call operand objects or range arrays. Fraction-digit counts do not
-construct decimal strings or bigints; exact integer/fraction values retain bigint arithmetic.
+construct decimal strings or bigints. When all integer relations inspect decimal moduli, the shared
+plan selects only the needed suffix digits. Suffixes up to 15 digits use exact number arithmetic;
+wider suffixes and full integer/fraction values use bigint arithmetic. The largest selected modulus
+is omitted because the suffix is already its remainder. Input bounds and visible-fraction semantics
+are preserved, and discarded leading digits or large zero suffixes are never expanded into bigints.
 
 The formatter list is canonical:
 

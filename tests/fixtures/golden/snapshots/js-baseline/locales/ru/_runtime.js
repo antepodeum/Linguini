@@ -252,15 +252,13 @@ export function pluralRu(value) {
   const visibleFractionDigits = Math.max(0, digitCount - decimalPosition);
   if (visibleFractionDigits !== 0) return "other";
   const digits = `${whole}${sourceFraction}`;
-  const integer = decimalPosition <= 0 ? "0"
-    : decimalPosition >= digitCount ? `${digits}${"0".repeat(decimalPosition - digitCount)}`
-    : digits.slice(0, decimalPosition);
-  const integerValue = BigInt(integer);
-  const integerValueModulo10 = integerValue % 10n;
-  const integerValueModulo100 = integerValue % 100n;
-  if (integerValueModulo10 === 1n && integerValueModulo100 !== 11n) return "one";
-  if ((integerValueModulo10 >= 2n && integerValueModulo10 <= 4n) && (integerValueModulo100 < 12n || integerValueModulo100 > 14n)) return "few";
-  if (integerValueModulo10 === 0n || (integerValueModulo10 >= 5n && integerValueModulo10 <= 9n) || (integerValueModulo100 >= 11n && integerValueModulo100 <= 14n)) return "many";
+  const integerTail = decimalPosition <= 0 || decimalPosition - digitCount >= 2 ? 0
+    : Number(digits.slice(Math.max(0, decimalPosition - 2), decimalPosition)
+      + (decimalPosition > digitCount ? "0".repeat(decimalPosition - digitCount) : ""));
+  const integerTailModulo10 = integerTail % 10;
+  if (integerTailModulo10 === 1 && integerTail !== 11) return "one";
+  if ((integerTailModulo10 >= 2 && integerTailModulo10 <= 4) && (integerTail < 12 || integerTail > 14)) return "few";
+  if (integerTailModulo10 === 0 || (integerTailModulo10 >= 5 && integerTailModulo10 <= 9) || (integerTail >= 11 && integerTail <= 14)) return "many";
   return "other";
 }
 

@@ -84,6 +84,16 @@ inline-function, callable-form, and plural results. Raw input coercion and publi
 are unchanged. Generated form objects use multiline formatting; runtime behavior and the
 canonical JavaScript/declaration boundary are unchanged.
 
+## Bounded plural integer operands
+
+Rebuild output to obtain build-selected decimal integer suffixes for plural rules such as Russian.
+These rules now read only the needed final digits, use exact number arithmetic up to 15 digits,
+and omit a redundant largest-modulus operation. Wider suffixes retain bigint arithmetic. Direct
+integer comparisons and non-decimal moduli retain the full integer path; numeric input validation,
+visible fractions, compact exponents, category strings, and public call signatures are unchanged.
+The backend-independent `PluralRequirements::integer_tail_digits` exposes the static proof to
+other generators. It does not cache plural results across message/function calls.
+
 ## Generated argument normalization
 
 Static message parameter names are initialized once per generated module. Positional calls reuse

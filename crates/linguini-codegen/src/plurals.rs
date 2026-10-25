@@ -52,6 +52,7 @@ impl PluralDecisionPlan {
 pub struct PluralRequirements {
     operands: Vec<Operand>,
     moduli: Vec<OperandExpression>,
+    integer_tail_digits: Option<usize>,
 }
 
 impl PluralRequirements {
@@ -68,8 +69,15 @@ impl PluralRequirements {
 
     pub fn for_relations<'a>(relations: impl IntoIterator<Item = &'a Relation>) -> Self {
         let mut requirements = Self::default();
+        let mut integer_tail_digits = Some(0);
         for relation in relations {
             let operand = relation.expression.operand;
+            if matches!(operand, Operand::N | Operand::I) {
+                integer_tail_digits = integer_tail_digits.and_then(|digits| {
+                    decimal_modulo_digits(relation.expression.modulo)
+                        .map(|needed| digits.max(needed))
+                });
+            }
             if !requirements.operands.contains(&operand) {
                 requirements.operands.push(operand);
             }
@@ -79,6 +87,7 @@ impl PluralRequirements {
                 requirements.moduli.push(relation.expression.clone());
             }
         }
+        requirements.integer_tail_digits = integer_tail_digits.filter(|digits| *digits > 0);
         requirements
     }
 
@@ -91,6 +100,22 @@ impl PluralRequirements {
     pub fn needs(&self, operand: Operand) -> bool {
         self.operands.contains(&operand)
     }
+
+    /// A bounded decimal integer suffix is sufficient only when every `n`/`i` relation
+    /// uses a power-of-ten modulus. Fraction conditions on `n` remain independently required.
+    pub fn integer_tail_digits(&self) -> Option<usize> {
+        self.integer_tail_digits
+    }
+}
+
+fn decimal_modulo_digits(modulo: Option<u64>) -> Option<usize> {
+    let mut modulo = modulo?;
+    let mut digits = 0;
+    while modulo > 1 && modulo % 10 == 0 {
+        modulo /= 10;
+        digits += 1;
+    }
+    (modulo == 1 && digits > 0).then_some(digits)
 }
 
 #[cfg(test)]
@@ -117,6 +142,7 @@ mod tests {
             .is_empty());
         }
         let requirements = PluralRequirements::for_rules(&rules);
+        assert_eq!(requirements.integer_tail_digits(), Some(2));
         assert_eq!(requirements.operands(), [Operand::V, Operand::I]);
         assert_eq!(
             requirements.moduli(),
@@ -136,5 +162,32 @@ mod tests {
             PluralRequirements::for_rules(&linguini_cldr::built_in_plural_rules("ja").unwrap()),
             PluralRequirements::default()
         );
+    }
+
+    #[test]
+    fn integer_suffix_requires_only_decimal_moduli_across_all_integer_relations() {
+        use linguini_cldr::parse_plural_rule;
+        for (source, digits) in [
+            ("i % 10 = 1", Some(1)),
+            ("n % 100 within 1..2 and i % 10 = 1", Some(2)),
+            ("i % 10000000000000000000 = 1", Some(19)),
+            ("i % 100 = 1 and v = 0", Some(2)),
+            ("i % 100 = 1 or n = 1", None),
+            ("i = 1 or n % 100 = 1", None),
+            ("i % 10 = 1 and n % 3 = 1", None),
+            ("i % 0 = 1", None),
+            ("i % 1 = 0", None),
+            ("n % 20 = 1", None),
+            ("f % 100 = 1 or v = 2", None),
+            ("", None),
+        ] {
+            let rule = parse_plural_rule(source).unwrap();
+            let requirements = PluralRequirements::for_relations(
+                rule.conditions
+                    .iter()
+                    .flat_map(|condition| &condition.relations),
+            );
+            assert_eq!(requirements.integer_tail_digits(), digits, "{source}");
+        }
     }
 }

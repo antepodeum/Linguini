@@ -249,8 +249,9 @@ fn compiled_predicates_match_cldr_across_locales_operators_and_operand_demand() 
         );
     }
     let russian = generate_plural_function("pluralRu", &built_in_plural_rules("ru").unwrap());
-    assert_eq!(russian.matches("const integerValueModulo10 =").count(), 1);
-    assert_eq!(russian.matches("const integerValueModulo100 =").count(), 1);
+    assert_eq!(russian.matches("const integerTailModulo10 =").count(), 1);
+    assert!(!russian.contains("% 100"));
+    assert!(!russian.contains("BigInt("));
     execute(&format!(
         r#"{russian}
 const originalBigInt = globalThis.BigInt;
@@ -310,6 +311,105 @@ if (pluralProbe(1000000000000000000001n) !== pluralProbe("1000000000000000000001
 if ({modulo} && pluralProbe(1000000000000000000001n) !== "one") throw new Error("bigint remainder lost precision: {expression}");
 }}
 "#, modulo = expression.contains("%")));
+    }
+    execute(&script);
+}
+
+#[test]
+fn decimal_moduli_compile_bounded_integer_suffixes_without_expanding_large_integers() {
+    use linguini_cldr::{parse_plural_rule, PluralCategoryRule, PluralRules};
+    let samples = [
+        "0",
+        "0001",
+        "-00101",
+        "+0002",
+        "3.01",
+        "0.0001",
+        "1.20c2",
+        "1.2005c3",
+        "0.0001c3",
+        "9007199254740991",
+        "9007199254740992",
+        "9007199254740993",
+        "999999999999999",
+        "9999999999999999",
+        "9999999999999999999",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    let mut script = String::new();
+    for digits in 1..=19_u32 {
+        let modulo = 10_u64.pow(digits);
+        for operand in ["i", "n"] {
+            for mixed in [false, true] {
+                let mut source = format!("{operand} % {modulo} within 1..3");
+                if mixed {
+                    source.push_str(" or i % 10 = 1");
+                }
+                let rules = PluralRules {
+                    locale: "probe".to_owned(),
+                    categories: vec![PluralCategoryRule {
+                        category: "one".to_owned(),
+                        rule: parse_plural_rule(&source).unwrap(),
+                        source,
+                    }],
+                };
+                let generated = generate_plural_function_with_visibility("plural", &rules, false);
+                assert!(generated.contains("const integerTail ="));
+                assert!(!generated.contains("const integerValue ="));
+                assert!(!generated.contains("const integer ="));
+                let mut cases = samples
+                    .iter()
+                    .map(|sample| {
+                        format!("[{sample:?}, {:?}]", rules.category_for(sample).unwrap())
+                    })
+                    .collect::<Vec<_>>();
+                // The canonical Rust evaluator bounds its full integer to u128. These
+                // larger generated-runtime inputs have explicit independent expectations.
+                for (sample, expected) in [
+                    ("1c8191".to_owned(), "other"),
+                    ("12c8189".to_owned(), "other"),
+                    ("0".repeat(8192), "other"),
+                    ("9".repeat(8192), "other"),
+                    (
+                        format!("{}01", "9".repeat(8190)),
+                        if mixed || digits <= 2 { "one" } else { "other" },
+                    ),
+                    (format!("{}{}1", "9".repeat(8173), "0".repeat(18)), "one"),
+                    (
+                        format!("{}03.01", "0".repeat(8187)),
+                        if operand == "i" { "one" } else { "other" },
+                    ),
+                ] {
+                    cases.push(format!("[{sample:?}, {expected:?}]"));
+                }
+                let cases = cases.join(",");
+                script.push_str(&format!(r#"{{
+{generated}
+const bigint = globalThis.BigInt;
+const repeat = String.prototype.repeat;
+globalThis.BigInt = value => {{
+  if ({digits} <= 15) throw Error('small integer suffix must use exact Number arithmetic');
+  if (String(value).length > {digits}) throw Error('unbounded integer construction');
+  return bigint(value);
+}};
+String.prototype.repeat = function(count) {{
+  if ({integer_only} && count >= {digits}) throw Error('unneeded integer zero expansion');
+  return repeat.call(this, count);
+}};
+try {{
+  for (const [sample, expected] of [{cases}]) {{
+    const actual = plural(sample);
+    if (actual !== expected) throw Error(JSON.stringify([{operand:?}, {digits}, sample.slice(-40), sample.length, expected, actual]));
+  }}
+  for (const [value, expanded] of [[1e21, '1000000000000000000000'], [1e-7, '0.0000001'], [-1e21, '1000000000000000000000'], [100000000000000000001n, '100000000000000000001']]) {{
+    if (plural(value) !== plural(expanded)) throw Error('native input suffix differs');
+  }}
+}} finally {{ globalThis.BigInt = bigint; String.prototype.repeat = repeat; }}
+}}
+"#, integer_only = operand == "i"));
+            }
+        }
     }
     execute(&script);
 }

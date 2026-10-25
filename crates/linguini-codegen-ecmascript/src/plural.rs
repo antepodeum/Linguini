@@ -13,13 +13,16 @@ pub(crate) fn generate_plural_function_with_visibility(
     exported: bool,
 ) -> String {
     let plan = linguini_codegen::PluralDecisionPlan::for_rules(rules);
+    let integer_tail_digits =
+        linguini_codegen::PluralRequirements::for_rules(rules).integer_tail_digits();
+    let integer_tail = integer_tail_digits.is_some();
     let mut defined_moduli = Vec::new();
     let mut defined_operations = Vec::new();
     let mut take_operations = |requirements: &linguini_codegen::PluralRequirements| {
         requirements
             .operands()
             .iter()
-            .flat_map(|operand| operand_operations(*operand))
+            .flat_map(|operand| operand_operations(*operand, integer_tail))
             .copied()
             .filter(|operation| {
                 if defined_operations.contains(operation) {
@@ -36,15 +39,15 @@ pub(crate) fn generate_plural_function_with_visibility(
             .moduli()
             .iter()
             .filter_map(|expression| {
-                let name = modulo_name(expression.operand, expression.modulo)?;
+                let name = modulo_name(expression.operand, expression.modulo, integer_tail_digits)?;
                 if defined_moduli.contains(&name) {
                     return None;
                 }
                 defined_moduli.push(name.clone());
                 Some(context! {
-                    name, binding => operand_binding(expression.operand),
+                    name, binding => operand_binding(expression.operand, integer_tail),
                     modulo => expression.modulo,
-                    bigint => is_bigint(expression.operand),
+                    bigint => is_bigint(expression.operand, integer_tail_digits),
                 })
             })
             .collect::<Vec<_>>()
@@ -56,7 +59,7 @@ pub(crate) fn generate_plural_function_with_visibility(
             let requirements = linguini_codegen::PluralRequirements::for_relations([relation]);
             let operations = take_operations(&requirements);
             let moduli = take_moduli(&requirements);
-            context! { relation => relation_context(relation), operations, moduli }
+            context! { relation => relation_context(relation, integer_tail_digits), operations, moduli }
         })
         .collect::<Vec<_>>();
     let categories = plan
@@ -80,7 +83,7 @@ pub(crate) fn generate_plural_function_with_visibility(
                     condition
                         .relations
                         .iter()
-                        .map(relation_context)
+                        .map(|relation| relation_context(relation, integer_tail_digits))
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>();
@@ -90,12 +93,12 @@ pub(crate) fn generate_plural_function_with_visibility(
     crate::templates::render(
         "plural",
         context! {
-            name => function_name, exported, categories, guards,
+            name => function_name, exported, categories, guards, integer_tail_digits,
         },
     )
 }
 
-fn relation_context(relation: &Relation) -> minijinja::Value {
+fn relation_context(relation: &Relation, integer_tail_digits: Option<usize>) -> minijinja::Value {
     let ranges = relation
         .ranges
         .ranges
@@ -106,27 +109,47 @@ fn relation_context(relation: &Relation) -> minijinja::Value {
         .collect::<Vec<_>>();
     context! {
         operand => operand_name(relation.expression.operand),
-        binding => operand_binding(relation.expression.operand),
-        modulo_name => modulo_name(relation.expression.operand, relation.expression.modulo),
-        bigint => is_bigint(relation.expression.operand),
+        binding => operand_binding(relation.expression.operand, integer_tail_digits.is_some()),
+        modulo_name => modulo_name(relation.expression.operand, relation.expression.modulo, integer_tail_digits),
+        bigint => is_bigint(relation.expression.operand, integer_tail_digits),
         allow_fraction => matches!(relation.operator, RelationOperator::Within | RelationOperator::NotWithin),
         negated => matches!(relation.operator, RelationOperator::NotEqual | RelationOperator::NotIn | RelationOperator::NotWithin),
         ranges,
     }
 }
 
-fn is_bigint(operand: Operand) -> bool {
-    matches!(operand, Operand::N | Operand::I | Operand::F | Operand::T)
+fn is_bigint(operand: Operand, integer_tail_digits: Option<usize>) -> bool {
+    match operand {
+        Operand::N | Operand::I => !integer_tail_digits.is_some_and(|digits| digits <= 15),
+        Operand::F | Operand::T => true,
+        _ => false,
+    }
 }
 
-fn modulo_name(operand: Operand, modulo: Option<u64>) -> Option<String> {
+fn modulo_name(
+    operand: Operand,
+    modulo: Option<u64>,
+    integer_tail_digits: Option<usize>,
+) -> Option<String> {
     modulo
         .filter(|value| *value != 0)
-        .map(|value| format!("{}Modulo{value}", operand_binding(operand)))
+        .filter(|value| {
+            // The selected decimal suffix is already smaller than its largest modulus.
+            !(matches!(operand, Operand::N | Operand::I)
+                && integer_tail_digits.is_some_and(|digits| *value == 10_u64.pow(digits as u32)))
+        })
+        .map(|value| {
+            format!(
+                "{}Modulo{value}",
+                operand_binding(operand, integer_tail_digits.is_some())
+            )
+        })
 }
 
-fn operand_operations(operand: Operand) -> &'static [&'static str] {
+fn operand_operations(operand: Operand, integer_tail: bool) -> &'static [&'static str] {
     match operand {
+        Operand::N if integer_tail => &["digits", "integer_tail", "fraction", "has_fraction"],
+        Operand::I if integer_tail => &["digits", "integer_tail"],
         Operand::N => &[
             "digits",
             "integer",
@@ -153,8 +176,9 @@ fn operand_operations(operand: Operand) -> &'static [&'static str] {
     }
 }
 
-fn operand_binding(operand: Operand) -> &'static str {
+fn operand_binding(operand: Operand, integer_tail: bool) -> &'static str {
     match operand {
+        Operand::N | Operand::I if integer_tail => "integerTail",
         Operand::N | Operand::I => "integerValue",
         Operand::V => "visibleFractionDigits",
         Operand::W => "significantFractionDigits",

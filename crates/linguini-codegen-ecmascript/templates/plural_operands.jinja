@@ -1,8 +1,11 @@
-{% macro emit_operands(operations) -%}
+{% macro emit_operands(operations, integer_tail_digits) -%}
 {% if "digits" in operations %}  const digits = `${whole}${sourceFraction}`;
 {% endif %}{% if "integer" in operations %}  const integer = decimalPosition <= 0 ? "0"
     : decimalPosition >= digitCount ? `${digits}${"0".repeat(decimalPosition - digitCount)}`
     : digits.slice(0, decimalPosition);
+{% endif %}{% if "integer_tail" in operations %}  const integerTail = decimalPosition <= 0 || decimalPosition - digitCount >= {{ integer_tail_digits }} ? 0{{ "n" if integer_tail_digits > 15 }}
+    : {{ "BigInt" if integer_tail_digits > 15 else "Number" }}(digits.slice(Math.max(0, decimalPosition - {{ integer_tail_digits }}), decimalPosition)
+      + (decimalPosition > digitCount ? "0".repeat(decimalPosition - digitCount) : ""));
 {% endif %}{% if "fraction" in operations %}  const fraction = decimalPosition <= 0 ? `${"0".repeat(-decimalPosition)}${digits}`
     : decimalPosition >= digitCount ? "" : digits.slice(decimalPosition);
 {% endif %}{% if "trimmed_fraction" in operations %}  const trimmedFraction = fraction.replace(/0+$/, "");

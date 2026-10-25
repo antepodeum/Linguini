@@ -1164,6 +1164,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       unknown-key errors, Proxy/getter order, and frozen positional inputs.
       Fraction-digit counts avoid constructing fractional strings or bigints; Russian fractions
       return before bigint construction, verified by executing with bigint construction disabled.
+      Decimal-modulus-only integer rules now compile a bounded suffix instead of a full integer.
+      Suffixes of at most 15 digits use exact number arithmetic; wider suffixes use bounded bigint
+      arithmetic, and the largest suffix modulus is omitted. Shared demand analysis rejects this
+      optimization when any integer relation requires a full value or non-decimal modulus.
+      Generated execution covers widths 1–19, mixed moduli around the safe-integer boundary,
+      8,192-digit values, compact/native exponents, and bounded bigint/zero-expansion checks.
       Executed corpora cover 24 locales, fractional operators, compact exponents, and invalid inputs.
       Namespace/barrel global imports now follow shared direct semantic edges; static namespaces
       and re-export-only barrels omit them. Project and physical-leaf execution covers captured
