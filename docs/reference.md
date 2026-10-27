@@ -268,6 +268,9 @@ the public date request currently selects `style` and `time_style`.
 Numeric grouping uses a direct string loop compiled for the selected primary/secondary widths,
 with separate output for equal widths and no group array, reversal, or join. Executed cases cover
 width boundaries, padding, Unicode separators, negative zero, and the decimal input-size limit.
+Known mandatory fractions concatenate directly. Non-scientific integer-only plans omit the
+fraction and formatted-value bindings, retaining grouping, digit localization, signs, and padding.
+Optional and significant-digit plans retain their required runtime decisions.
 Plural predicates also compile during builds: only required scalar operands are produced at their
 first use, common guards are shared, and modulo results are calculated once. Comparisons use
 direct conditions without per-call operand objects or range arrays. Fraction-digit counts do not

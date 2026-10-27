@@ -991,6 +991,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       provenance; the extracted native VSIX passes activation, restart, and nonempty hover with
       exact schema documentation. Canonical-root regressions and portable fixture construction
       resolve the platform failures without weakening source-map or symlink safety assertions.
+      Source `ee5a575` passes all 67 currently registered full-profile checks locally, including
+      real Chromium hydration/concurrent SSR and packaged documentation. This receipt covers
+      the local checks only; the final architecture/platform matrix and open acceptance criteria
+      still require completion.
 
 - [-] ESM-M12 — Move executable output syntax out of inline Rust strings into canonical
       JavaScript templates, with separate declaration templates driven by shared semantic models.
@@ -1154,6 +1158,9 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       compiled into deduplicated helpers; no static option validation or discarded-digit power
       expansion remains. Unit rounding skips bigint construction unless a carry is needed.
       Fixed-width currency fractions omit trimming; date helpers follow actual field demand.
+      Known mandatory fractions now omit empty-fraction tests; non-scientific integer-only plans
+      omit fraction/formatted bindings. Executed currency precision, optional/significant fraction,
+      negative-zero, digit-localization, equal-prefix, grouping, and padding cases verify this.
       A 45-plan exact rational oracle covers precision/increment combinations, carries, huge
       values, and 8,000-digit fractions alongside the locale, currency, and scientific corpora.
       Plural decision/operand demand is shared through `linguini-codegen`; generated predicates use
@@ -1206,6 +1213,15 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       performance, payload size, exact dependency delivery, evaluation semantics, source maps,
       type safety, or compatibility. Verify representative generated functions, forms, and
       formatters alongside the execution and output-size checks in OPT-A5.
+
+- [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
+      The [cost audit](docs/generated-code-cost-audit.md) records category-name versus numeric
+      classifier measurements and GEN-A15–A18. Numeric literals alone show no useful memory gain
+      in that local experiment. Compile selector outcomes from the actual branches, merge equivalent
+      categories, and omit irrelevant rules/operands; use numeric codes where complete-consumer
+      measurements justify them. Preserve public plural names and distinguish raw numeric operands
+      from already classified internal results. Remove successful-path validation arrays and
+      discarded date-validation allocations with executed semantic and allocation evidence.
 
 The canonical JS migration now resolves actual formatter requests (including schema alias
 inheritance and explicit overrides), compiles number/currency choices and selected Gregorian

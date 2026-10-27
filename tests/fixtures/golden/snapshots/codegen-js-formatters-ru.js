@@ -41,7 +41,7 @@ export function formatCurrency(value) {
     }
     integer = grouped;
   }
-  const formatted = fraction ? integer + "," + fraction : integer;
+  const formatted = integer + "," + fraction;
   const prefix = decimal.negative ? "-" : "";
   const suffix = " $";
   return prefix + formatted + suffix;

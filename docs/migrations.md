@@ -84,6 +84,14 @@ inline-function, callable-form, and plural results. Raw input coercion and publi
 are unchanged. Generated form objects use multiline formatting; runtime behavior and the
 canonical JavaScript/declaration boundary are unchanged.
 
+## Compiled number fraction presence
+
+Rebuild output to remove impossible empty-fraction branches in fixed-fraction currency/number
+requests. Non-scientific integer-only requests omit unused fraction/formatted bindings; mandatory
+fractions concatenate directly, and identical positive/negative prefixes are selected during
+generation. Optional/significant fractions, negative zero, grouping, localized digits, padding,
+and public formatter signatures are unchanged.
+
 ## Bounded plural integer operands
 
 Rebuild output to obtain build-selected decimal integer suffixes for plural rules such as Russian.

@@ -189,6 +189,85 @@ fn currency_increment_is_specialized_before_runtime_execution() {
 }
 
 #[test]
+fn known_fraction_presence_removes_branches_without_changing_optional_or_significant_output() {
+    for (code, expected) in [("USD", "$1.23"), ("JPY", "¥1"), ("KWD", "KWD1.235")] {
+        let formatter = request(IrFormatterKind::Currency, &[("code", code)]);
+        let binding = formatter_binding(&formatter);
+        let emitted = formatter_data_declaration("en", &[formatter], false);
+        assert!(!emitted.contains("fraction ? integer"), "{code}");
+        if code == "JPY" {
+            assert!(!emitted.contains("const fraction = rounded.fraction;"));
+            assert!(!emitted.contains("const formatted ="));
+        }
+        assert_eq!(
+            execute(&format!("{emitted}console.log({binding}('1.2345'));")),
+            expected,
+            "{code}"
+        );
+    }
+
+    let mut numbers = compiled_number_formatting("en").unwrap();
+    let mut pattern = numbers.decimal_pattern;
+    for (min, max, significant, expected) in [
+        (0, 0, None, r#"["1","-0","-0","1,235"]"#),
+        (1, 3, None, r#"["1.0","-0.0","-0.0","1,234.5"]"#),
+        (0, 3, None, r#"["1","-0","-0","1,234.5"]"#),
+        (1, 3, Some(3), r#"["1.0","-0","-0.0001","1,230"]"#),
+    ] {
+        pattern.positive.min_fraction_digits = min;
+        pattern.positive.max_fraction_digits = max;
+        pattern.positive.max_significant_digits = significant;
+        let plan = number_plan(&pattern, None, &numbers, None);
+        let source = crate::templates::render(
+            "formatters/number",
+            minijinja::context! {name => "formatValue", plan => plan.clone(), exported => false},
+        );
+        assert_eq!(
+            source.contains("fraction ? integer"),
+            min == 0 && max != 0 || significant.is_some()
+        );
+        assert_eq!(execute(&format!("{source}{}console.log(JSON.stringify(['1', '-0', '-0.0001', '1234.5'].map(formatValue)));", number_helpers(&[plan]))), expected);
+    }
+
+    pattern.positive.min_fraction_digits = 0;
+    pattern.positive.max_fraction_digits = 0;
+    pattern.positive.max_significant_digits = None;
+    numbers.digits = "٠١٢٣٤٥٦٧٨٩";
+    let plan = number_plan(&pattern, None, &numbers, None);
+    let source = crate::templates::render(
+        "formatters/number",
+        minijinja::context! {name => "formatInteger", plan => plan.clone(), exported => false},
+    );
+    assert!(source.contains("const localized = integer.replace"));
+    assert!(!source.contains("const fraction ="));
+    assert_eq!(
+        execute(&format!(
+            "{source}{}console.log(formatInteger('-1234.5'));",
+            number_helpers(&[plan])
+        )),
+        "-١,٢٣٥"
+    );
+
+    pattern.positive.prefix = "prefix";
+    pattern.positive.suffix = "tail";
+    pattern.negative = Some(pattern.positive);
+    let plan = number_plan(&pattern, None, &numbers, None);
+    let source = crate::templates::render(
+        "formatters/number",
+        minijinja::context! {name => "formatInteger", plan => plan.clone(), exported => false},
+    );
+    assert!(source.contains("const prefix = \"prefix\";"));
+    assert!(!source.contains("decimal.negative ?"));
+    assert_eq!(
+        execute(&format!(
+            "{source}{}console.log(formatInteger('-1234.5'));",
+            number_helpers(&[plan])
+        )),
+        "prefix١,٢٣٥tail"
+    );
+}
+
+#[test]
 fn compiled_rounding_matches_exact_rational_oracle_without_static_runtime_parsing() {
     let numbers = compiled_number_formatting("en").unwrap();
     let mut plans = Vec::new();

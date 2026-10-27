@@ -45,6 +45,14 @@ selection have since been implemented and tested. Date-semantic substitutions an
 open findings still need work. Historical TypeScript and oldest JavaScript comparison fixtures retain `Intl`, generic formatter forwarding, branch maps, and the retired
 plural matcher. Their existence must not be mistaken for current generator acceptance.
 
+## Representation and allocation follow-up
+
+The [cost audit](./generated-code-cost-audit.md) records the measured category-name/numeric
+prototype, remaining selector-outcome demand, named-validation arrays, fixed fraction presence,
+and the discarded ISO date-time validation allocation (GEN-A15–A18). Numeric category literals
+alone showed no useful memory reduction in that experiment; branch-specific compilation and
+removing proven unnecessary work remain the acceptance criteria.
+
 ## Syntax follow-up
 
 The unquoted-quote failure was reproduced and corrected by selecting the lexer mode at the
