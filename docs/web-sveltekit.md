@@ -146,7 +146,10 @@ export const load = createLoad<Locale>();
 The hook stores request-local metadata in `locals.linguini`, handles canonical redirects and
 optional switch endpoints, and replaces Linguini HTML placeholders while streaming. Split
 placeholders retain only their unfinished suffix. Hooks do not import message catalogs.
-The root load serializes locale metadata for matching SSR and hydration.
+The root load serializes locale metadata for matching SSR and hydration and tracks the original
+request URL so SvelteKit refreshes shared metadata on URL changes. When composing another load,
+forward the original event to `linguiniLoad(event)`; forwarding only `locals` omits URL tracking.
+This follows [SvelteKit's load dependency rules](https://svelte.dev/docs/kit/load#Rerunning-load-functions).
 
 ```ts
 // src/app.d.ts

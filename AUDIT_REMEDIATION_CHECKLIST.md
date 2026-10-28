@@ -997,10 +997,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       provenance; the extracted native VSIX passes activation, restart, and nonempty hover with
       exact schema documentation. Canonical-root regressions and portable fixture construction
       resolve the platform failures without weakening source-map or symlink safety assertions.
-      Source `ee5a575` passes all 67 currently registered full-profile checks locally, including
-      real Chromium hydration/concurrent SSR and packaged documentation. This receipt covers
-      the local checks only; the final architecture/platform matrix and open acceptance criteria
-      still require completion.
+      Numeric follow-up source `52bb7e3` passes 66 of 67 full-profile checks on stable 1.99.1,
+      including real Chromium hydration/concurrent SSR and packaged documentation. Migration
+      notes in `03a5c2c` resolve the remaining contract gate against the complete numeric change
+      range, giving passing receipts for all 67 registered tasks. Rust minimum verification uses
+      the independently discovered 1.87 toolchain. These are local receipts; the final architecture/
+      platform matrix and open acceptance criteria still require completion.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1091,7 +1093,10 @@ and the composed payload/SSR requirements below.
       browser requests, not just isolated application entries or the existence of lazy chunks. The production
       browser gate now proves French SSR bootstrap fetches only the exact French route payload,
       then one English payload on an explicit switch; JavaScript-disabled rendering needs neither.
-      Component/layout composition and cross-page navigation remain open.
+      The shared SvelteKit root load also tracks the original URL, preventing reuse of stale
+      locale metadata. Real built-server data responses declare that dependency; packed strict
+      consumers retain locals-only compatibility. Component/layout composition and page-message
+      preparation during cross-page navigation remain open.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching

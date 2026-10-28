@@ -12,6 +12,17 @@ once in `[workspace.package].rust-version`; CI reads it and verifies the whole w
 ignoring the previous declaration. Native npm/VSIX binaries do not require an installed Rust
 toolchain. See [contributing](../CONTRIBUTING.md) for the discovery command.
 
+## SvelteKit shared locale metadata
+
+`createLoad()` now tracks `event.url.pathname` so SvelteKit refreshes shared root-layout locale
+metadata when a localized URL changes. Direct `export const load = createLoad()` usage needs
+no changes. Custom load composition should pass the original event to the helper, including
+its `url`, instead of constructing a locals-only object. Locals-only calls remain accepted for
+metadata extraction outside SvelteKit's dependency-tracking lifecycle.
+
+This fixes metadata invalidation; exact composed-page payloads and preparation during ordinary
+cross-page/cross-locale client navigation remain open remediation requirements.
+
 ## Generated numeric implementations
 
 Rebuild generated output to receive the formatter/plural specialization changes. Message call

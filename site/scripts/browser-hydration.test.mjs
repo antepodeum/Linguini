@@ -77,11 +77,28 @@ test('French prerender hydrates its selected locale and loads only its page payl
   assert.deepEqual(staticRequests.filter(file => files.has(file)), []);
 });
 
-test('built SvelteKit SSR isolates concurrent locales and renders values, calls, forms, and formatters', async () => {
+async function createSsrServer() {
   const {Server} = await import('../.svelte-kit/output/server/index.js');
   const {manifest} = await import('../.svelte-kit/output/server/manifest-full.js');
   const server = new Server(manifest);
   await server.init({env:process.env});
+  return server;
+}
+
+test('shared locale metadata declares its original URL dependency to SvelteKit navigation', async () => {
+  const server = await createSsrServer();
+  for (const locale of ['fr','ru']) {
+    const response = await server.respond(new Request(`http://localhost/${locale}/chunk-lab/__data.json`), {getClientAddress:() => '127.0.0.1'});
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.type, 'data');
+    assert.ok(data.nodes[0].data, 'the shared root must serialize locale metadata');
+    assert.equal(data.nodes[0].uses.url, 1, 'the root load must rerun when the localized URL changes');
+  }
+});
+
+test('built SvelteKit SSR isolates concurrent locales and renders values, calls, forms, and formatters', async () => {
+  const server = await createSsrServer();
   const locales = ['fr', 'ru', 'en', 'ru', 'en', 'fr'];
   await Promise.all(locales.map(async locale => {
     const response = await server.respond(new Request(`http://localhost/${locale}/`), {getClientAddress:() => '127.0.0.1'});

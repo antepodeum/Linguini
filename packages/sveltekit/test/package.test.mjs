@@ -49,6 +49,9 @@ const handle:Handle=createHandle(web,{switchRoute:{path:'/locale/{locale}'}});
 const reroute=createReroute(web);
 const load=createLoad<'en'|'fr'>();
 const locale:'en'|'fr'|undefined=load({locals:{}}).linguini?.locale;
+void load({locals:{},url:new URL('https://example.test/fr/page')});
+// @ts-expect-error Forward the original URL object, not a pathname string.
+void (()=>load({locals:{},url:'/fr/page'}));
 // @ts-expect-error Locale types stay finite in installed declarations.
 void (()=>web.localizeHref('/','ar'));
 // @ts-expect-error Runtime resolver capabilities replace generator strings.

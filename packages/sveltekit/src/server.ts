@@ -48,7 +48,9 @@ export function createHandle<Locale extends string>(web: LinguiniWebLocale<Local
 }
 
 export function createLoad<Locale extends string = string>() {
-  return ({locals}: Pick<RequestEvent, 'locals'>): {linguini:SerializedLinguiniContext<Locale> | undefined} => {
+  return ({locals,url}: Pick<RequestEvent, 'locals'> & Partial<Pick<RequestEvent, 'url'>>): {linguini:SerializedLinguiniContext<Locale> | undefined} => {
+    // SvelteKit otherwise reuses shared layout metadata when only the localized URL changes.
+    void url?.pathname;
     const context = (locals as {linguini?:LinguiniLocaleRequestContext<Locale>}).linguini;
     return {linguini: context ? {
       locale: context.locale,
