@@ -413,3 +413,56 @@ try {{
     }
     execute(&script);
 }
+
+#[test]
+fn exhaustive_plural_tails_become_returns_and_drop_unused_moduli() {
+    use linguini_cldr::{parse_plural_rule, PluralCategoryRule, PluralRules};
+    let rules = PluralRules {
+        locale: "test".to_owned(),
+        categories: [
+            ("one", "i % 6 = 0"),
+            ("few", "i % 10 = 0"),
+            ("many", "i % 30 not in 0,6,10,12,18,20,24"),
+        ]
+        .into_iter()
+        .map(|(category, source)| PluralCategoryRule {
+            category: category.to_owned(),
+            source: source.to_owned(),
+            rule: parse_plural_rule(source).unwrap(),
+        })
+        .collect(),
+    };
+    let generated = generate_plural_function_with_visibility("plural", &rules, false);
+    assert!(!generated.contains("% 30n"));
+    assert!(generated.contains("return \"many\";\n}"));
+    let cases = (0..=1000)
+        .map(|value| {
+            format!(
+                "[{value}, {:?}]",
+                rules.category_for(&value.to_string()).unwrap()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    execute(&format!(
+        r#"{generated}
+for (const [value, expected] of [{cases}]) {{
+  for (const sample of [value, -value, String(value), BigInt(value), String(value) + '.5']) {{
+    if (plural(sample) !== expected) throw Error(JSON.stringify([sample, expected]));
+  }}
+}}
+for (const category of ['zero', 'one', 'two', 'few', 'many', 'other']) {{
+  if (plural(category) !== category) throw Error('category passthrough changed');
+}}
+for (const invalid of ['invalid', NaN, Infinity, '1'.repeat(8193)]) {{
+  let rejected = false;
+  try {{ plural(invalid); }} catch (error) {{ rejected = error instanceof RangeError; }}
+  if (!rejected) throw Error('exhaustiveness must retain input validation');
+}}
+"#
+    ));
+    let russian = generate_plural_function("pluralRu", &built_in_plural_rules("ru").unwrap());
+    assert_eq!(russian.matches("return \"many\";").count(), 1);
+    assert!(russian.contains("if (visibleFractionDigits !== 0) return \"other\";"));
+    assert!(russian.contains("return \"many\";\n}"));
+}

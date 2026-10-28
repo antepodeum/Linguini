@@ -9,7 +9,7 @@
 {% include "plural_input" %}
 {% for guard in guards %}{{ emit_operands(guard.operations, integer_tail_digits) }}{{ moduli(guard.moduli) }}  if ({{ predicate(guard.relation, true) }}) return "other";
 {% endfor %}{% for category in categories %}{{ emit_operands(category.operations, integer_tail_digits) }}{{ moduli(category.moduli) }}  if ({% for condition in category.conditions %}{% for relation in condition %}{{ predicate(relation) }}{{ " && " if not loop.last }}{% else %}true{% endfor %}{{ " || " if not loop.last }}{% else %}false{% endfor %}) return {{ category.name|js }};
-{% endfor %}  return "other";
+{% endfor %}  return {{ fallback|js }};
 }
 
 const MAX_PLURAL_DECIMAL_DIGITS = 8192;

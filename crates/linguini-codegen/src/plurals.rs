@@ -10,6 +10,22 @@ pub struct PluralDecisionPlan {
 }
 
 impl PluralDecisionPlan {
+    /// Prove that the categories cover every integer residue after the guards.
+    /// Only integer operands with nonzero moduli form the finite domain used here.
+    /// Large periods and other operands conservatively retain the fallback test.
+    pub fn has_exhaustive_integer_categories(&self) -> bool {
+        let Some(period) = integer_category_period(&self.categories) else {
+            return false;
+        };
+        let mut operands = linguini_cldr::PluralOperands::parse("0").expect("valid zero operand");
+        (0..period).all(|integer| {
+            operands.i = integer;
+            self.categories
+                .iter()
+                .any(|category| category.rule.matches(&operands))
+        })
+    }
+
     pub fn for_rules(rules: &PluralRules) -> Self {
         let mut categories = rules
             .categories
@@ -45,6 +61,29 @@ impl PluralDecisionPlan {
         }
         Self { guards, categories }
     }
+}
+
+fn integer_category_period(categories: &[PluralCategoryRule]) -> Option<u64> {
+    let mut period = 1_u64;
+    for relation in categories
+        .iter()
+        .flat_map(|category| &category.rule.conditions)
+        .flat_map(|condition| &condition.relations)
+    {
+        if relation.expression.operand != Operand::I {
+            return None;
+        }
+        let modulo = relation.expression.modulo.filter(|&modulo| modulo != 0)?;
+        let (mut a, mut b) = (period, modulo);
+        while b != 0 {
+            (a, b) = (b, a % b);
+        }
+        period = (period / a).checked_mul(modulo)?;
+        if period > 4096 {
+            return None;
+        }
+    }
+    Some(period)
 }
 
 /// Operands and reusable modulo operations needed by the non-fallback rules.
@@ -121,6 +160,56 @@ fn decimal_modulo_digits(modulo: Option<u64>) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn proves_full_integer_periods_without_inferring_other_operand_domains() {
+        use linguini_cldr::parse_plural_rule;
+        let plan = |sources: &[&str]| {
+            PluralDecisionPlan::for_rules(&PluralRules {
+                locale: "test".to_owned(),
+                categories: sources
+                    .iter()
+                    .enumerate()
+                    .map(|(index, source)| PluralCategoryRule {
+                        category: index.to_string(),
+                        source: (*source).to_owned(),
+                        rule: parse_plural_rule(source).unwrap(),
+                    })
+                    .collect(),
+            })
+        };
+        for locale in ["ru", "uk"] {
+            assert!(PluralDecisionPlan::for_rules(
+                &linguini_cldr::built_in_plural_rules(locale).unwrap()
+            )
+            .has_exhaustive_integer_categories());
+        }
+        for sources in [
+            vec!["i % 1 = 0"],
+            vec!["v = 0 and i % 2 = 0", "v = 0 and i % 2 != 0"],
+            vec![
+                "i % 6 = 0",
+                "i % 10 = 0",
+                "i % 30 not in 0,6,10,12,18,20,24",
+            ],
+        ] {
+            assert!(plan(&sources).has_exhaustive_integer_categories());
+        }
+        for sources in [
+            vec![],
+            vec![""],
+            vec!["i % 2 = 0"],
+            vec!["n % 2 = 0", "n % 2 != 0"],
+            vec!["i = 1", "i != 1"],
+            vec!["i % 0 = 0", "i % 0 != 0"],
+            vec!["v = 0", "v != 0"],
+            vec!["i % 4097 = 0", "i % 4097 != 0"],
+            vec!["i % 4096 = 0", "i % 4095 != 0"],
+            vec!["i % 18446744073709551615 = 0"],
+        ] {
+            assert!(!plan(&sources).has_exhaustive_integer_categories());
+        }
+    }
 
     #[test]
     fn discovers_only_used_operands_and_deduplicates_moduli() {

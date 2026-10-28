@@ -43,8 +43,7 @@ export function pluralRu(value) {
   const integerTailModulo10 = integerTail % 10;
   if (integerTailModulo10 === 1 && integerTail !== 11) return "one";
   if ((integerTailModulo10 >= 2 && integerTailModulo10 <= 4) && (integerTail < 12 || integerTail > 14)) return "few";
-  if (integerTailModulo10 === 0 || (integerTailModulo10 >= 5 && integerTailModulo10 <= 9) || (integerTail >= 11 && integerTail <= 14)) return "many";
-  return "other";
+  return "many";
 }
 
 const MAX_PLURAL_DECIMAL_DIGITS = 8192;

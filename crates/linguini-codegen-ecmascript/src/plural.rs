@@ -12,9 +12,24 @@ pub(crate) fn generate_plural_function_with_visibility(
     rules: &PluralRules,
     exported: bool,
 ) -> String {
-    let plan = linguini_codegen::PluralDecisionPlan::for_rules(rules);
-    let integer_tail_digits =
-        linguini_codegen::PluralRequirements::for_rules(rules).integer_tail_digits();
+    let mut plan = linguini_codegen::PluralDecisionPlan::for_rules(rules);
+    let fallback = if plan.has_exhaustive_integer_categories() {
+        plan.categories
+            .pop()
+            .expect("exhaustive categories")
+            .category
+    } else {
+        "other".to_owned()
+    };
+    let integer_tail_digits = linguini_codegen::PluralRequirements::for_relations(
+        plan.guards.iter().chain(
+            plan.categories
+                .iter()
+                .flat_map(|category| &category.rule.conditions)
+                .flat_map(|condition| &condition.relations),
+        ),
+    )
+    .integer_tail_digits();
     let integer_tail = integer_tail_digits.is_some();
     let mut defined_moduli = Vec::new();
     let mut defined_operations = Vec::new();
@@ -93,7 +108,7 @@ pub(crate) fn generate_plural_function_with_visibility(
     crate::templates::render(
         "plural",
         context! {
-            name => function_name, exported, categories, guards, integer_tail_digits,
+            name => function_name, exported, categories, guards, integer_tail_digits, fallback,
         },
     )
 }
