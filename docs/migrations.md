@@ -37,6 +37,14 @@ stateful dynamic adapters require top-level await and the default ES2022 target;
 `lgl` imports keep the application’s normal target. Svelte and SvelteKit adapters retain
 their stateful behavior. This does not complete composed-page locale delivery.
 
+## Svelte request identity
+
+`createLocaleState` accepts an optional `getRequestIdentity` callback. A client override
+belongs to the request identity present when it was selected; a new identity makes the
+authoritative request locale take effect. Selecting the same client locale again remains
+reactive. Consumers without this callback retain their existing override behavior. SSR does
+not read client request identities or publish client overrides.
+
 ## Captured message functions
 
 Parameterized leaves can now be used as function values through native bundler manifests

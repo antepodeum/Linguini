@@ -10,8 +10,8 @@ import {createLinguiniRune} from '../dist/index.js';
 const require=createRequire(import.meta.url);
 const runtime={locales:['en','fr'],baseLocale:'en',normalizeLocale(value){const locale=typeof value==='string'?value.toLowerCase():'';return this.locales.includes(locale)?locale:undefined;},getTextDirection:()=> 'ltr'};
 let nonce=0;
-async function compiledState(generate) {
-  const source=readFileSync(new URL('../dist/state.svelte.js',import.meta.url),'utf8');
+async function compiledState(generate, fixture = '') {
+  const source=readFileSync(new URL('../dist/state.svelte.js',import.meta.url),'utf8') + '\n' + fixture;
   const result=compileModule(source,{filename:'state.svelte.js',generate,dev:false});
   assert.deepEqual(result.warnings,[]);
   const code=result.js.code.replace(/from (["'])svelte\/internal\/(client|server)\1/g,(_all,_quote,target)=>`from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/'+target)).href)}`);
@@ -21,7 +21,7 @@ async function compiledState(generate) {
 test('real Svelte server compilation reads each request and never publishes client overrides', async()=>{
   const {createLocaleState}=await compiledState('server');
   const requests=new AsyncLocalStorage();
-  const state=createLocaleState(runtime,{getRequestLocale:()=>requests.getStore()});
+  const state=createLocaleState(runtime,{getRequestLocale:()=>requests.getStore(),getRequestIdentity(){throw Error('request identity is client-only');}});
   const values=await Promise.all(['fr','en'].map(locale=>requests.run(locale,async()=>{
     state.setCurrentLocale(locale==='fr'?'en':'fr');
     await new Promise(resolve=>setTimeout(resolve,locale==='fr'?5:1));
@@ -74,4 +74,44 @@ test('message providers retain callable messages and wait before publishing loca
   assert.equal(await switching,'fr');
   assert.equal(provider.l.title,'FR');
   assert.equal(provider.messages.greet('Ada'),'Bonjour Ada');
+});
+
+test('request publication invalidates overrides reactively and the same client locale can be selected again', async context => {
+  const {createLocaleState,requestState,observe} = await compiledState('client', `
+export function requestState(initial) {
+  let value = $state.raw(initial);
+  return {get:() => value,set(next) {value=next;}};
+}
+export function observe(read,report) {
+  return $effect.root(() => {$effect(() => report(read()));});
+}
+`);
+  const previous = Object.getOwnPropertyDescriptor(globalThis,'window');
+  Object.defineProperty(globalThis,'window',{configurable:true,value:{}});
+  context.after(() => {if (previous) Object.defineProperty(globalThis,'window',previous); else delete globalThis.window;});
+  const {flush} = await import(pathToFileURL(require.resolve('svelte/internal/client')).href);
+  const request = requestState({locale:'fr'});
+  let identityReads = 0;
+  const state = createLocaleState(runtime,{getRequestLocale:() => request.get().locale,getRequestIdentity:() => {identityReads++;return request.get();}});
+  const seen = [];
+  let stop;
+  flush(() => {stop = observe(state.getCurrentLocale,value => seen.push(value));});
+  context.after(() => stop());
+  assert.deepEqual(seen,['fr']);
+  assert.equal(identityReads,0,'inactive overrides must not read request identity');
+  flush(() => state.setCurrentLocale('en'));
+  assert.deepEqual(seen,['fr','en']);
+  flush(() => request.set({locale:'fr'}));
+  assert.deepEqual(seen,['fr','en','fr']);
+  flush(() => state.setCurrentLocale('en'));
+  assert.deepEqual(seen,['fr','en','fr','en']);
+  flush(() => request.set({locale:'en'}));
+  assert.equal(state.getCurrentLocale(),'en');
+  flush(() => request.set({locale:'fr'}));
+  assert.equal(seen.at(-1),'fr');
+  flush(() => state.setCurrentLocale('en'));
+  const beforeClear = identityReads;
+  flush(() => state.clearCurrentLocaleOverride());
+  assert.equal(seen.at(-1),'fr');
+  assert.equal(identityReads,beforeClear);
 });

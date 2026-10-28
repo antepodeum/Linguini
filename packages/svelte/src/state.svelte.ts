@@ -1,19 +1,23 @@
-import type {LocaleRuntime,LocaleState} from './types.js';
+import type {LocaleRuntime,LocaleState,LocaleStateOptions} from './types.js';
 
-export function createLocaleState<Locale extends string>(runtime: LocaleRuntime<Locale>, options: {getRequestLocale?: () => unknown} = {}): LocaleState<Locale> {
+export function createLocaleState<Locale extends string>(runtime: LocaleRuntime<Locale>, options: LocaleStateOptions = {}): LocaleState<Locale> {
   let clientLocale = $state(runtime.baseLocale);
   let hasClientOverride = $state(false);
+  let overrideRequest = $state.raw<unknown>(undefined);
   const loaders = new Set<(locale:Locale) => void|Promise<void>>();
   const normalize = (value:unknown) => runtime.normalizeLocale(value) ?? runtime.baseLocale;
   function getCurrentLocale(): Locale {
     const requestLocale = options.getRequestLocale?.();
     // Server rendering always reads request context; a client override cannot leak between requests.
     if (typeof window === 'undefined') return normalize(requestLocale);
-    return hasClientOverride ? clientLocale : runtime.normalizeLocale(requestLocale) ?? clientLocale;
+    const currentOverride = hasClientOverride
+      && (!options.getRequestIdentity || options.getRequestIdentity() === overrideRequest);
+    return currentOverride ? clientLocale : runtime.normalizeLocale(requestLocale) ?? clientLocale;
   }
   function setCurrentLocale(value:unknown): Locale {
     const locale = normalize(value);
     if (typeof window !== 'undefined') {
+      overrideRequest = options.getRequestIdentity?.();
       clientLocale = locale;
       hasClientOverride = true;
     }
@@ -24,6 +28,7 @@ export function createLocaleState<Locale extends string>(runtime: LocaleRuntime<
     if (typeof window !== 'undefined') {
       clientLocale = locale;
       hasClientOverride = false;
+      overrideRequest = undefined;
     }
     return locale;
   }
@@ -42,6 +47,6 @@ export function createLocaleState<Locale extends string>(runtime: LocaleRuntime<
     return locale;
   }
   return {getCurrentLocale,setCurrentLocale,initializeCurrentLocale,registerLocaleLoader,prepareLocale,
-    clearCurrentLocaleOverride() {hasClientOverride=false;},
+    clearCurrentLocaleOverride() {hasClientOverride=false;overrideRequest=undefined;},
   };
 }

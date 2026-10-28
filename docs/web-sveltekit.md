@@ -175,6 +175,12 @@ export {};
 </html>
 ```
 
+The shared Svelte `createLocaleState` also accepts `getRequestIdentity`. Use a stable request
+context object as its identity when a new authoritative request should invalidate a client
+locale override. The callback is read only for active client overrides; SSR uses request-local
+locale resolution. A later override can select the same locale again and still update reactive
+consumers. Omitting the callback retains the existing override behavior.
+
 SvelteKit owns the base path, request origin, and matched route's trailing-slash policy.
 Linguini preserves the input slash shape; no generated policy rewrite is needed.
 

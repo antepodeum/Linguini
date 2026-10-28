@@ -1,3 +1,8 @@
+export interface LocaleStateOptions {
+  getRequestLocale?: () => unknown;
+  /** Identity of the authoritative request context; changing it invalidates a client override. */
+  getRequestIdentity?: () => unknown;
+}
 export interface LocaleRuntime<Locale extends string> {
   readonly baseLocale: Locale;
   readonly locales: readonly Locale[];
