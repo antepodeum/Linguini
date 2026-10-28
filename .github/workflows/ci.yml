@@ -164,17 +164,17 @@ jobs:
           cargo mutants --no-shuffle --in-diff git.diff
           --timeout 300
   msrv:
-    name: Rust 1.76 MSRV
+    name: Rust 1.97 MSRV
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.76.0
+          toolchain: 1.97.0
       - name: Verify selected MSRV toolchain
-        run: rustc +1.76.0 --version
+        run: rustc +1.97.0 --version
       - name: Check workspace on MSRV
-        run: cargo +1.76.0 check --locked --workspace --all-targets
+        run: cargo +1.97.0 check --locked --workspace --all-targets
 
   platforms:
     name: Rust (${{ matrix.os }})

@@ -23,7 +23,7 @@ members = [
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/antepodeum/Linguini"
-rust-version = "1.76"
+rust-version = "1.97"
 
 [workspace.metadata.linguini.planned_dependencies]
 cli = ["clap"]

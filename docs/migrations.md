@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Rust 1.97 minimum
+
+Building Linguini from Rust sources now requires Rust 1.97 or newer. The repository's pinned
+development toolchain remains 1.97.1; CI checks the minimum on 1.97.0. Published native npm/VSIX
+binaries do not require an installed Rust toolchain. This raises the compiler floor independently
+of the ECMAScript backend evaluation; it does not add Oxc or SWC or change generated APIs.
+
 ## npm packages and runtime adapters
 
 Install the CLI as `@antepodeum/linguini`; supporting npm packages use

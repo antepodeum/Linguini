@@ -1171,10 +1171,7 @@ fn assert_codegen_source_maps(directory: &Path) {
             assert_codegen_source_maps(&path);
             continue;
         }
-        if path
-            .extension()
-            .map_or(true, |extension| extension != "map")
-        {
+        if path.extension().is_none_or(|extension| extension != "map") {
             continue;
         }
         let map: Value = serde_json::from_str(&fs::read_to_string(&path).expect("source map"))

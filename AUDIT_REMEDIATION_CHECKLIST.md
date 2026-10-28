@@ -660,7 +660,9 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 
 ### CI, release, and supply chain
 
-- [x] #356 — Make the declared Rust 1.76 MSRV pass as a dedicated CI job.
+- [x] #356 — Check the declared Rust minimum in a dedicated CI job. The minimum is now 1.97;
+      the development toolchain remains pinned to 1.97.1. Packaged documentation inherits the
+      workspace package metadata instead of maintaining a separate compiler floor.
 - [x] #357 — Compile from packaged, offline, read-only CLDR data.
 - [x] #358 — Land and execute Linux, Windows, and macOS CI. Complete workspace suites pass on
       all three hosts for the shared-backend source verified in ESM-M11.

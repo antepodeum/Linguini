@@ -195,7 +195,7 @@ npm install --save-dev @antepodeum/linguini@0.1.0-alpha.4
 npx linguini check
 ```
 
-Rust users may instead install the same CLI through Cargo:
+Rust users may instead install the same CLI through Cargo with Rust 1.97 or newer:
 
 ```bash
 cargo install linguini-cli --version 0.1.0-alpha.4

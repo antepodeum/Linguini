@@ -241,7 +241,7 @@ impl ApplicationUsage {
                     let (segments, dynamic, next) = member_path(&tokens, after_call);
                     if segments.is_empty() && !dynamic {
                         if declaration_binding(&tokens, source, index)
-                            .map_or(true, |(_, exported)| exported)
+                            .is_none_or(|(_, exported)| exported)
                         {
                             self.dynamic_prefixes.insert(UsagePath::root());
                             self.record_factory_escape(

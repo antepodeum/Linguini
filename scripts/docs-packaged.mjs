@@ -3,6 +3,7 @@ import {
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -76,14 +77,21 @@ function stageCratePackage(root, stageRoot, crateName) {
   }
 }
 
+export function workspacePackageMetadata(manifest) {
+  const section = /^\[workspace\.package\][\s\S]*?(?=^\[|$(?![\s\S]))/m.exec(manifest)?.[0];
+  if (!section) throw new Error("workspace package metadata is required for packaged documentation");
+  return section.trimEnd();
+}
+
 export function stagePackagedWorkspace(root, stageRoot) {
   for (const crateName of PACKAGED_RUNTIME_CRATES) {
     stageCratePackage(root, stageRoot, crateName);
   }
   const members = PACKAGED_RUNTIME_CRATES.map((name) => `  "crates/${name}",`).join("\n");
+  const metadata = workspacePackageMetadata(readFileSync(join(root, "Cargo.toml"), "utf8"));
   writeFileSync(
     join(stageRoot, "Cargo.toml"),
-    `[workspace]\nresolver = "2"\nmembers = [\n${members}\n]\n\n[workspace.package]\nedition = "2021"\nlicense = "Apache-2.0"\nrepository = "https://github.com/antepodeum/Linguini"\nrust-version = "1.76"\n`,
+    `[workspace]\nresolver = "2"\nmembers = [\n${members}\n]\n\n${metadata}\n`,
   );
   copyFileSync(join(root, "Cargo.lock"), join(stageRoot, "Cargo.lock"));
 }

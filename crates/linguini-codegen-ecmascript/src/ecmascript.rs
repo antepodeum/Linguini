@@ -207,7 +207,7 @@ impl EcmaModuleOutput {
         assert!(
             declaration_path
                 .as_deref()
-                .map_or(true, |path| path.ends_with(".d.ts")),
+                .is_none_or(|path| path.ends_with(".d.ts")),
             "ECMAScript declaration companion must end in .d.ts"
         );
         Self {

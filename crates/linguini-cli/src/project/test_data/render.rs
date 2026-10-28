@@ -406,7 +406,7 @@ impl<'a> Renderer<'a> {
                 args.first().map(String::as_str),
                 parameters
                     .first()
-                    .map_or(true, |parameter| parameter.ty == "Plural"),
+                    .is_none_or(|parameter| parameter.ty == "Plural"),
                 &value_context,
                 &value_inputs,
                 depth + 1,
@@ -472,7 +472,7 @@ impl<'a> Renderer<'a> {
             None,
             parameters
                 .first()
-                .map_or(true, |parameter| parameter.ty == "Plural"),
+                .is_none_or(|parameter| parameter.ty == "Plural"),
             &value_context,
             &value_inputs,
             depth + 1,
@@ -999,8 +999,10 @@ impl ExactPluralOperands {
 
         let consumed_fraction_digits = exponent.min(fraction.len());
         let mut shifted_integer = format!("{integer}{}", &fraction[..consumed_fraction_digits]);
-        shifted_integer
-            .extend(std::iter::repeat('0').take(exponent.saturating_sub(consumed_fraction_digits)));
+        shifted_integer.extend(std::iter::repeat_n(
+            '0',
+            exponent.saturating_sub(consumed_fraction_digits),
+        ));
         let shifted_integer = normalize_decimal(&shifted_integer).to_owned();
         let shifted_fraction = fraction[consumed_fraction_digits..].to_owned();
         let trimmed_fraction = shifted_fraction.trim_end_matches('0').to_owned();
@@ -1360,8 +1362,10 @@ fn round_fraction(
         .get(..max_digits.min(source_fraction.len()))
         .unwrap_or_default()
         .to_owned();
-    kept_fraction
-        .extend(std::iter::repeat('0').take(max_digits.saturating_sub(kept_fraction.len())));
+    kept_fraction.extend(std::iter::repeat_n(
+        '0',
+        max_digits.saturating_sub(kept_fraction.len()),
+    ));
     let discarded = source_fraction
         .get(max_digits.min(source_fraction.len())..)
         .unwrap_or_default();
@@ -1555,7 +1559,7 @@ fn parse_date(value: &str) -> Result<DateParts, RenderError> {
 }
 
 const fn is_leap_year(year: u32) -> bool {
-    year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+    year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))
 }
 
 fn weekday(year: u32, month: u32, day: u32) -> usize {

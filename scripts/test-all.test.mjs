@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { PACKAGED_RUNTIME_CRATES } from "./docs-packaged.mjs";
+import { PACKAGED_RUNTIME_CRATES, workspacePackageMetadata } from "./docs-packaged.mjs";
 import test from "node:test";
 
 import {
@@ -22,6 +22,16 @@ import {
   standaloneJavaScriptTypeContract,
 } from "./docs-examples.mjs";
 import { contractEvidence, validateContractEvidence } from "./check-public-contract.mjs";
+
+test("packaged documentation inherits workspace metadata instead of a separate Rust floor", () => {
+  const metadata = '[workspace.package]\nedition = "2024"\nrust-version = "1.99"\nlicense = "Apache-2.0"';
+  assert.equal(workspacePackageMetadata(`[workspace]\nmembers = []\n\n${metadata}\n\n[workspace.metadata.tools]\ncommand = "cargo"\n`), metadata);
+  assert.equal(workspacePackageMetadata(metadata + "\n"), metadata);
+  assert.throws(() => workspacePackageMetadata('[workspace]\nmembers = []\n'), /metadata is required/);
+  const current = workspacePackageMetadata(readFileSync(resolve(REPOSITORY_ROOT, "Cargo.toml"), "utf8"));
+  assert.match(current, /rust-version = "1\.97"/);
+  assert.doesNotMatch(current, /planned_dependencies/);
+});
 
 test("public contract policy requires docs, migrations, and tests together", () => {
   const complete = [

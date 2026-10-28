@@ -207,8 +207,8 @@ fn split_keyword<'a>(source: &'a str, keyword: &str) -> Vec<&'a str> {
         let absolute = index + relative;
         let before = source[..absolute].chars().last();
         let after = source[absolute + keyword.len()..].chars().next();
-        let bounded_before = before.map_or(true, char::is_whitespace);
-        let bounded_after = after.map_or(true, char::is_whitespace);
+        let bounded_before = before.is_none_or(char::is_whitespace);
+        let bounded_after = after.is_none_or(char::is_whitespace);
 
         if bounded_before && bounded_after {
             parts.push(source[start..absolute].trim());
