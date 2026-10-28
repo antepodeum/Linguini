@@ -11,7 +11,8 @@ export interface LinguiniStaticLink {
 export interface LinguiniFrameworkAdapter {
   readonly entry: string;
   readonly messageExports: readonly string[];
-  readonly localeHelper: string;
+  /** Select a stateful locale runtime; omission binds messages to the project's base locale. */
+  readonly localeHelper?: string;
   readonly effectsHelper?: string;
   readonly extensions?: readonly string[];
   applicationScope?(code: string, insertion: number, sourceName: string):

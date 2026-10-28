@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use linguini_analyzer::{
     ApplicationBindingProvenance, ApplicationDynamicReferenceKind, ApplicationImportBinding,
     ApplicationImportBindingId, ApplicationReferenceKind, ApplicationUsage, DiagnosticSeverity,
+    MESSAGE_NAMESPACE_EXPORTS,
 };
 use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ecmascript::{
@@ -758,12 +759,10 @@ fn application_dynamic_references(
             continue;
         };
         let imported_message_root = matches!(
-            (&reference.binding.provenance, binding.imported.as_str()),
-            (
-                ApplicationBindingProvenance::Imported { .. },
-                "l" | "messages"
-            )
-        );
+            &reference.binding.provenance,
+            ApplicationBindingProvenance::Imported { .. }
+        ) && MESSAGE_NAMESPACE_EXPORTS
+            .contains(&binding.imported.as_str());
         if !imported_message_root
             || reference.binding.local != binding.local
             || reference.import_binding != Some(binding.id)
@@ -772,7 +771,8 @@ fn application_dynamic_references(
                 path,
                 reference.span.start,
                 reference.span.end,
-                "dynamic reference must use a unique imported `l` or `messages` binding".to_owned(),
+                "dynamic reference must use a unique imported `l`, `lgl`, or `messages` binding"
+                    .to_owned(),
             ));
             continue;
         }

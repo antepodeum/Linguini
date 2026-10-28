@@ -2,7 +2,6 @@
 const ecmascript = Object.freeze({
   entry: "index.js",
   messageExports: Object.freeze(["lgl"]),
-  localeHelper: "locale",
   extensions: Object.freeze([]),
 });
 
@@ -19,7 +18,7 @@ export function frameworkAdapter(value = ecmascript) {
     throw new TypeError("Linguini adapter.messageExports must be a non-empty string array");
   }
   for (const key of ["localeHelper", "effectsHelper"]) {
-    if (key === "effectsHelper" && value[key] === undefined) continue;
+    if (value[key] === undefined) continue;
     if (typeof value[key] !== "string" || !value[key]) {
       throw new TypeError(`Linguini adapter.${key} must be a non-empty string`);
     }

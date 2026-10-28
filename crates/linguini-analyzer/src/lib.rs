@@ -10,6 +10,7 @@ pub use application::{
     analyze_unused_messages, ApplicationBinding, ApplicationBindingProvenance,
     ApplicationDynamicReference, ApplicationDynamicReferenceKind, ApplicationImportBinding,
     ApplicationImportBindingId, ApplicationReference, ApplicationReferenceKind, ApplicationUsage,
+    MESSAGE_NAMESPACE_EXPORTS,
 };
 pub use branch_coverage::{
     analyze_branch_coverage, require_other_branch, BranchCoverage, NamedSpan,

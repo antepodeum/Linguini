@@ -1015,38 +1015,43 @@ fn import_like_regex_text_is_not_parsed_as_an_import() {
 #[test]
 fn exposes_exact_sole_and_mixed_import_removal_contracts() {
     let source_id = SourceId(91);
-    let source = concat!(
-        "import { messages as msg } from \"generated-a\";\r\n",
-        "const unicode = \"Привет\";\r\n",
-        "import {\r\n  helper,\r\n  l as tr,\r\n  other\r\n} from \"generated-b\";\r\n",
-        "msg.main.title;\r\n",
-        "tr.main.items(2);\r\n",
-    );
-    let usage = ApplicationUsage::from_source_in(source, source_id);
-    let imports = usage.imports().collect::<Vec<_>>();
-    assert_eq!(imports.len(), 2);
-    assert_eq!(imports[0].id.source, source_id);
-    assert_eq!(imports[0].module_specifier, "generated-a");
-    assert_eq!(imports[0].imported, "messages");
-    assert_eq!(imports[0].local, "msg");
-    assert_eq!(
-        &source[imports[0].declaration_span.start..imports[0].declaration_span.end],
-        "import { messages as msg } from \"generated-a\";"
-    );
-    assert_eq!(imports[0].removal_span, imports[0].declaration_span);
-    assert!(imports[0].exact_uses_only);
-    assert_eq!(
-        &source[imports[1].item_span.start..imports[1].item_span.end],
-        "l as tr"
-    );
-    assert_eq!(
-        &source[imports[1].removal_span.start..imports[1].removal_span.end],
-        "l as tr,"
-    );
-    assert!(imports[1].exact_uses_only);
-    let references = usage.references().collect::<Vec<_>>();
-    assert_eq!(references[0].import_binding, Some(imports[0].id));
-    assert_eq!(references[1].import_binding, Some(imports[1].id));
+    for namespace in ["l", "lgl", "messages"] {
+        let first_import = format!("import {{ {namespace} as msg }} from \"generated-a\";");
+        let source = format!(
+            "{first_import}\r\n{}",
+            concat!(
+                "const unicode = \"Привет\";\r\n",
+                "import {\r\n  helper,\r\n  l as tr,\r\n  other\r\n} from \"generated-b\";\r\n",
+                "msg.main.title;\r\n",
+                "tr.main.items(2);\r\n",
+            )
+        );
+        let usage = ApplicationUsage::from_source_in(&source, source_id);
+        let imports = usage.imports().collect::<Vec<_>>();
+        assert_eq!(imports.len(), 2);
+        assert_eq!(imports[0].id.source, source_id);
+        assert_eq!(imports[0].module_specifier, "generated-a");
+        assert_eq!(imports[0].imported, namespace);
+        assert_eq!(imports[0].local, "msg");
+        assert_eq!(
+            &source[imports[0].declaration_span.start..imports[0].declaration_span.end],
+            first_import
+        );
+        assert_eq!(imports[0].removal_span, imports[0].declaration_span);
+        assert!(imports[0].exact_uses_only);
+        assert_eq!(
+            &source[imports[1].item_span.start..imports[1].item_span.end],
+            "l as tr"
+        );
+        assert_eq!(
+            &source[imports[1].removal_span.start..imports[1].removal_span.end],
+            "l as tr,"
+        );
+        assert!(imports[1].exact_uses_only);
+        let references = usage.references().collect::<Vec<_>>();
+        assert_eq!(references[0].import_binding, Some(imports[0].id));
+        assert_eq!(references[1].import_binding, Some(imports[1].id));
+    }
 }
 
 #[test]

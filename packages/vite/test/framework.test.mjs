@@ -13,6 +13,8 @@ test("published framework boundary is explicit and validates complete adapter co
   const adapter = {
     entry: "catalog.js", messageExports: ["catalog"], localeHelper: "state",
   };
+  assert.equal(linguini({ adapter }).name, "vite-plugin-linguini");
+  assert.equal(linguini({ adapter: { entry: "catalog.js", messageExports: ["catalog"] } }).name, "vite-plugin-linguini");
   for (const invalid of [
     null,
     { ...adapter, entry: "../escape.js" },

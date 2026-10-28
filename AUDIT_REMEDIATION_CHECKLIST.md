@@ -841,7 +841,7 @@ TypeScript, and application/bundler imports select their capabilities.
       Where client localization code is required, coalesce its page/locale closure into one
       self-contained payload; avoid per-message requests and extra payloads for composed components
       or layouts. Emit no localization runtime/payload when server-rendered static content suffices.
-      Apply OPT-A1–A6: fold known conditions, specialize used formatter/CLDR patterns, and remove every unneeded
+      Apply OPT-A1–A8: fold known conditions, specialize used formatter/CLDR patterns, and remove every unneeded
       branch, binding, data entry, or loader from the delivered localization graph.
       Prove these constraints on real multi-page builds and served prerendered/SSR pages: inspect
       emitted module ownership, sentinel content, initial HTML/preload/response payloads, and
@@ -1112,7 +1112,11 @@ and the composed payload/SSR requirements below.
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.
       The same core now passes real Vite multi-entry graph and executed-output checks with ECMAScript and custom non-Svelte entry/runtime descriptors.
-      Native configuration is framework-neutral; additional framework integrations remain open.
+      The native `lgl` manifest now works without runtime helpers; direct and aliased bindings
+      survive cold/warm native builds, and eager/dynamic Vite builds execute values, functions,
+      and finite computed access with zero rendered facade bytes and no inactive-locale imports.
+      A native compiler-to-Vite build executes in one chunk. Native configuration is framework-neutral;
+      representative Vue/React integrations and composed-page delivery remain open.
 - [-] MOD-A7 — Share common lowering, dependency planning, and type semantics through
       `linguini-codegen`; keep ECMAScript syntax, web platform behavior, and framework dependencies
       within their owning backend/modules. Future language backends must not depend on web policy.
@@ -1247,6 +1251,19 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Shared integer-modulo exhaustiveness proofs also replace redundant final category tests
       with direct returns and remove operands/moduli no longer demanded. Complete finite periods
       establish the result during generation; no residue table or CLDR evaluator is shipped.
+
+- [-] OPT-A8 — Minimize localization requests, transferred bytes, and runtime work. SSR must
+      return final translated text in initial HTML without fetching messages in the browser;
+      JavaScript-disabled pages need no locale payload. For hydration, place only the selected
+      page/locale dependency closure in existing page JavaScript where possible; otherwise use
+      one preloaded, self-contained page/locale artifact. Do not add per-message, per-component,
+      or per-layout request fan-out, inactive locales, extra base catalogs, duplicate helpers,
+      raw CLDR patterns, or a general interpreter. Load additional messages/locales only for
+      actual client actions, and reuse prepared/cached payloads without redundant requests.
+      Known bindings should compile to direct values/calls without locale lookups, wrappers,
+      dispatch, or allocations unless their runtime behavior requires them. Verify initial
+      and transition request counts, compressed/uncompressed bytes, dependency duplication,
+      and executed operations on real composed pages. Keep this open until MOD-A4 is proven.
 
 The canonical JS migration now resolves actual formatter requests (including schema alias
 inheritance and explicit overrides), compiles number/currency choices and selected Gregorian

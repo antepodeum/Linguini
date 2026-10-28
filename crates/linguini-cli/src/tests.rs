@@ -1605,3 +1605,46 @@ fn highlight_command_matches_editor_tokens_without_a_project_config() {
     )
     .is_err());
 }
+
+#[test]
+fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
+    for (name, import, local) in [
+        ("direct", "lgl", "lgl"),
+        ("aliased", "lgl as catalog", "catalog"),
+    ] {
+        let project = dynamic_bundler_project(
+            &format!("base-namespace-{name}"),
+            "[targets.ts.bundler.dynamic]\nmode = \"bundle\"\nallow = [\"main.title\", \"main.items\"]",
+            &format!("import {{ {import} }} from '../build/generated/index.js';\nexport const title = {local}.main.title;\nexport function choose(key) {{ return {local}.main[key]; }}\n"),
+        );
+        assert!(!project.path().join("build/generated").exists());
+        build_project(project.path()).expect("cold native build");
+        let path = project.path().join("build/generated/bundler/manifest.json");
+        let first = fs::read(&path).expect("manifest");
+        let manifest: serde_json::Value = serde_json::from_slice(&first).unwrap();
+        assert_eq!(manifest["runtime_helpers"], serde_json::json!({}));
+        let application = &manifest["applications"]["src/page.ts"];
+        assert_eq!(application["imports"].as_array().unwrap().len(), 1);
+        let binding = &application["imports"][0];
+        assert_eq!(binding["imported"], "lgl");
+        assert_eq!(binding["local"], local);
+        assert_eq!(binding["analyzer_tracked_uses_only"], true);
+        assert_eq!(binding["transformable"], true);
+        assert_eq!(application["references"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            application["dynamic_references"].as_array().unwrap().len(),
+            1
+        );
+        assert!(!binding["binding_id"].is_null());
+        assert_eq!(
+            application["references"][0]["binding_id"],
+            binding["binding_id"]
+        );
+        assert_eq!(
+            application["dynamic_references"][0]["binding_id"],
+            binding["binding_id"]
+        );
+        build_project(project.path()).expect("warm native build");
+        assert_eq!(fs::read(path).unwrap(), first);
+    }
+}

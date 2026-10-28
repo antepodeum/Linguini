@@ -2,6 +2,9 @@ use crate::{Diagnostic, PublicMessage};
 use linguini_syntax::{SourceId, Span};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Built-in ECMAScript message namespace exports tracked by application analysis.
+pub const MESSAGE_NAMESPACE_EXPORTS: &[&str] = &["l", "lgl", "messages"];
+
 /// The syntactic form of a statically resolved application message reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ApplicationReferenceKind {
@@ -320,7 +323,7 @@ impl ApplicationUsage {
             if !roots.contains_key(root)
                 || (!bracket_property
                     && is_member_property(&tokens, index)
-                    && !matches!(root, "l" | "lgl" | "messages"))
+                    && !MESSAGE_NAMESPACE_EXPORTS.contains(&root))
             {
                 index += 1;
                 continue;
@@ -2312,9 +2315,9 @@ fn imported_symbols(
 ) -> ImportedSymbols {
     let mut imported = BTreeSet::new();
     let mut bindings = Vec::new();
-    let mut roots = ["l", "lgl", "messages"]
-        .into_iter()
-        .map(|local| {
+    let mut roots = MESSAGE_NAMESPACE_EXPORTS
+        .iter()
+        .map(|&local| {
             (
                 local.to_owned(),
                 ApplicationBinding {
@@ -2402,7 +2405,7 @@ fn imported_symbols(
             ) {
                 if let TokenKind::Identifier(alias) = &tokens[alias_index + 2].kind {
                     if roots.contains_key(imported_name)
-                        && (!matches!(imported_name.as_str(), "l" | "messages")
+                        && (!MESSAGE_NAMESPACE_EXPORTS.contains(&imported_name.as_str())
                             || bindings.iter().any(|binding| {
                                 binding.id.declaration_start == tokens[index].start
                                     && binding.imported == *imported_name
@@ -2463,7 +2466,7 @@ fn imported_symbols(
                         continue;
                     }
                     if roots.contains_key(name)
-                        && (!matches!(name.as_str(), "l" | "messages")
+                        && (!MESSAGE_NAMESPACE_EXPORTS.contains(&name.as_str())
                             || bindings.iter().any(|binding| {
                                 binding.id.declaration_start == tokens[index].start
                                     && binding.imported == *name
@@ -2621,7 +2624,7 @@ fn named_application_import_bindings(
         let TokenKind::Identifier(imported) = &tokens[imported_index].kind else {
             continue;
         };
-        if !matches!(imported.as_str(), "l" | "messages") {
+        if !MESSAGE_NAMESPACE_EXPORTS.contains(&imported.as_str()) {
             continue;
         }
         let TokenKind::Identifier(local) = &tokens[local_index].kind else {

@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import {
   discoverLinguiniFiles,
   isLinguiniSource,
+  linguini as viteLinguini,
   readProjectLayout
 } from "../src/index.js";
 import { linguini } from "../src/svelte.js";
@@ -733,11 +734,15 @@ test("defaults dynamic builds to top-level-await support and preserves explicit 
     context.after(() => rm(root, { recursive: true, force: true }));
     for (const target of [undefined, "esnext", "modules", ["chrome100", "safari15"]]) {
       const build = target === undefined ? undefined : { target };
-      const config = await linguini().config({ root, build });
-      assert.deepEqual(
-        config.build,
-        localeLoading === "dynamic" && target === undefined ? { target: "es2022" } : undefined
-      );
+      for (const [stateful, createPlugin] of [[true, linguini], [false, viteLinguini]]) {
+        const config = await createPlugin().config({ root, build });
+        assert.deepEqual(
+          config.build,
+          stateful && localeLoading === "dynamic" && target === undefined
+            ? { target: "es2022" }
+            : undefined
+        );
+      }
       assert.deepEqual(build, target === undefined ? undefined : { target });
     }
   }

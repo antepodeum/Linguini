@@ -979,10 +979,14 @@ mode = "bundle"
 allow = ["main.title", "admin.notice"]
 ```
 
-Dynamic locale registries require top-level await. With `locale_loading = "dynamic"`,
-the Vite plugin defaults an unset `build.target` to `es2022` on all supported Vite
-versions (5–8). Explicit application targets are preserved and must support top-level
-await. Eager locale loading retains Vite's default target.
+Stateful dynamic locale registries require top-level await. When an adapter selects a
+`localeHelper` and `locale_loading = "dynamic"`, the Vite plugin defaults an unset
+`build.target` to `es2022` on all supported Vite versions (5–8). Explicit application
+targets are preserved and must support top-level await. Eager loading and the default
+framework-neutral `lgl` binding retain Vite’s default target. That binding selects the
+base locale statically and imports only the referenced compiled message leaves; it
+requires no locale helper, lookup, wrapper, or loader. Finite computed access retains
+a bounded dispatch object for its explicitly allowed messages.
 
 Generated TypeScript and checked JavaScript use the same dispatch and message-argument
 normalization bodies. Dispatch checks own branches before `_` and `other` fallbacks;

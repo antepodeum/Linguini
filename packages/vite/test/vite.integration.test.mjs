@@ -43,8 +43,14 @@ test("runs through a real Vite build", async (context) => {
   assert.deepEqual(reasons, ["build-start"]);
 });
 
-for (const kind of ["svelte", "ecmascript", "custom"]) {
-  test(`real multi-entry ${kind} build owns exact messages in shared and route chunks`, async (context) => {
+for (const [kind, localeLoading] of [
+  ["svelte", "eager"],
+  ["ecmascript", "eager"],
+  ["ecmascript", "dynamic"],
+  ["custom", "eager"]
+]) {
+  test(`real multi-entry ${kind} ${localeLoading} build owns exact messages in shared and route chunks`, async (context) => {
+    const locales = kind === "ecmascript" ? ["en", "fr"] : ["en"];
     const entry = kind === "svelte" ? "svelte.js" : kind === "ecmascript" ? "index.js" : "catalog.js";
     const importedNames = kind === "svelte" ? ["l", "messages"] : kind === "ecmascript" ? ["lgl", "lgl"] : ["catalog", "catalog"];
     const localeKey = kind === "svelte" ? "svelte_locale" : "locale";
@@ -67,12 +73,13 @@ for (const kind of ["svelte", "ecmascript", "custom"]) {
         "[project]",
         'name = "bundler-integration"',
         'default_locale = "en"',
-        'locales = ["en"]',
+        `locales = ${JSON.stringify(locales)}`,
         "[targets.ts]",
         'out = "generated/linguini"',
 
         "[targets.ts.bundler]",
         'sources = ["entry-one.js", "entry-two.js"]',
+        `locale_loading = "${localeLoading}"`,
         ""
       ].join("\n")
     );
@@ -93,6 +100,10 @@ for (const kind of ["svelte", "ecmascript", "custom"]) {
     const itemsModule = path.join(generated, "bundler/messages/main/items/en.js");
     await writeFile(titleModule, 'export const message = "EXACT_TITLE";\n');
     await writeFile(itemsModule, 'export function message(count) { return `EXACT_ITEMS:${count}`; }\n');
+    if (kind === "ecmascript") {
+      await writeFile(path.join(generated, "bundler/messages/main/title/fr.js"), 'export const message = "FORBIDDEN_FR_TITLE";\n');
+      await writeFile(path.join(generated, "bundler/messages/main/items/fr.js"), 'export function message(count) { return `FORBIDDEN_FR_ITEMS:${count}`; }\n');
+    }
     const sources = {
       "entry-one.js": [
         `import { ${importedNames[0]} as l } from "./generated/linguini/${entry}";`,
@@ -173,12 +184,12 @@ for (const kind of ["svelte", "ecmascript", "custom"]) {
     }
     const manifest = {
       version: 1,
-      locale_loading: "eager",
+      locale_loading: localeLoading,
       base_locale: "en",
-      configured_locales: ["en"],
-      effective_locales: ["en"],
+      configured_locales: locales,
+      effective_locales: locales,
       sources: [{ id: 1, path: "linguini/schema/main.lgs" }],
-      runtime_helpers: {
+      runtime_helpers: kind === "ecmascript" ? {} : {
         [localeKey]: { import: `./${localeFile}`, file: localeFile },
         [effectsKey]: { import: `./${effectsFile}`, file: effectsFile }
       },
@@ -186,18 +197,21 @@ for (const kind of ["svelte", "ecmascript", "custom"]) {
         "main.title": {
           arity: 0,
           locales: {
-            en: { module: "bundler/messages/main/title/en.js", source_ids: [1] }
+            en: { module: "bundler/messages/main/title/en.js", source_ids: [1] },
+            ...(kind === "ecmascript" ? { fr: { module: "bundler/messages/main/title/fr.js", source_ids: [1] } } : {})
           }
         },
         "main.items": {
           arity: 1,
           locales: {
-            en: { module: "bundler/messages/main/items/en.js", source_ids: [1] }
+            en: { module: "bundler/messages/main/items/en.js", source_ids: [1] },
+            ...(kind === "ecmascript" ? { fr: { module: "bundler/messages/main/items/fr.js", source_ids: [1] } } : {})
           }
         }
       },
       message_runtimes: {
-        en: { module: "locales/en/_runtime.js", source_ids: [1] }
+        en: { module: "locales/en/_runtime.js", source_ids: [1] },
+        ...(kind === "ecmascript" ? { fr: { module: "locales/fr/_runtime.js", source_ids: [1] } } : {})
       },
       message_semantics: [],
       applications
@@ -229,11 +243,23 @@ for (const kind of ["svelte", "ecmascript", "custom"]) {
     const itemsOwner = chunks.find((chunk) => Object.keys(chunk.modules).includes(itemsModule));
     assert.ok(titleOwner && !titleOwner.isEntry, "shared title message must own a shared chunk");
     assert.ok(itemsOwner?.isEntry, "route-only items message must stay with one entry");
-    assert.ok(
-      chunks.some((chunk) =>
-        Object.keys(chunk.modules).some((id) => id.includes("\0virtual:linguini/message/"))
-      )
-    );
+    if (kind === "ecmascript") {
+      assert.doesNotMatch(combined, /FORBIDDEN_FR_|__linguiniEffects|getCurrentLocale|registerLocaleLoader|\bawait\b/);
+      assert.ok(chunks.every(chunk => chunk.dynamicImports.length === 0));
+      for (const chunk of chunks) {
+        for (const [id, details] of Object.entries(chunk.modules)) {
+          if (id.includes("\0virtual:linguini/message/")) {
+            assert.equal(details.renderedLength, 0, "base-locale facades must compile away");
+          }
+        }
+      }
+    } else {
+      assert.ok(
+        chunks.some((chunk) =>
+          Object.keys(chunk.modules).some((id) => id.includes("\0virtual:linguini/message/"))
+        )
+      );
+    }
     const outputRoot = path.join(root, "output");
     await mkdir(outputRoot);
     await writeFile(path.join(outputRoot, "package.json"), '{"type":"module"}');
@@ -249,203 +275,232 @@ for (const kind of ["svelte", "ecmascript", "custom"]) {
   });
 }
 
-test("real Vite build bundles finite dynamic refs without eager barrel", async (context) => {
-  const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-dynamic-"));
-  context.after(() => rm(root, { recursive: true, force: true }));
-  const generated = path.join(root, "generated/linguini");
-  const entry = path.join(root, "entry.js");
-  const source = [
-    'import { l } from "./generated/linguini/svelte.js";',
-    "export const fixed = l.main.title;",
-    "export const selected = l.main[key];",
-    "export const called = l.main[action](2);",
-    ""
-  ].join("\n");
-  await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
-  await mkdir(path.join(generated, "bundler/messages/main/items"), { recursive: true });
-  await writeFile(
-    path.join(root, "linguini.toml"),
-    [
-      "[targets.ts]",
-      'out = "generated/linguini"',
-
-      "[targets.ts.bundler]",
-      'sources = ["entry.js"]',
-      "[targets.ts.bundler.dynamic]",
-      'mode = "bundle"',
-      'allow = ["main.items", "main.title"]',
+for (const stateless of [false, true]) {
+  test(`real Vite ${stateless ? "stateless" : "stateful"} build executes finite dynamic refs without eager barrel`, async (context) => {
+    const imported = stateless ? "lgl" : "l";
+    const moduleSpecifier = `./generated/linguini/${stateless ? "index.js" : "svelte.js"}`;
+    const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-dynamic-"));
+    context.after(() => rm(root, { recursive: true, force: true }));
+    const generated = path.join(root, "generated/linguini");
+    const entry = path.join(root, "entry.js");
+    const source = [
+      `import { ${imported} as l } from "${moduleSpecifier}";`,
+      "export const fixed = l.main.title;",
+      "export function select(key) { return l.main[key]; }",
+      "export function invoke(action) { return l.main[action](2); }",
       ""
-    ].join("\n")
-  );
-  await writeFile(entry, source);
-  await writeFile(
-    path.join(generated, "svelte.js"),
-    'import "./index.js"; throw new Error("FORBIDDEN_DYNAMIC_SVELTE");\n'
-  );
-  await writeFile(
-    path.join(generated, "index.js"),
-    'throw new Error("FORBIDDEN_DYNAMIC_INDEX");\n'
-  );
-  await writeFile(
-    path.join(generated, "svelte-locale.svelte.js"),
-    'export function getCurrentLocale() { return "en"; }\n'
-  );
-  const titleModule = path.join(generated, "bundler/messages/main/title/en.js");
-  const itemsModule = path.join(generated, "bundler/messages/main/items/en.js");
-  await writeFile(
-    titleModule,
-    'export function message() { return "EXACT_DYNAMIC_TITLE"; }\n'
-  );
-  await writeFile(
-    itemsModule,
-    'export function message(count) { return `EXACT_DYNAMIC_ITEMS:${count}`; }\n'
-  );
-  const declarationText = 'import { l } from "./generated/linguini/svelte.js";';
-  const declarationStart = 0;
-  const declarationEnd = Buffer.byteLength(declarationText);
-  const itemStart = Buffer.from(source).indexOf(Buffer.from("l"));
-  const bindingId = "entry:binding";
-  const reference = (needle, message, kind, arity) => {
-    const start = Buffer.from(source).indexOf(Buffer.from(needle));
-    return {
-      message,
-      start,
-      end: start + Buffer.byteLength(needle),
-      kind,
-      local: "l",
-      provenance: {
-        kind: "imported",
-        module_specifier: "./generated/linguini/svelte.js",
-        symbol: "l"
-      },
-      arity,
-      binding_id: bindingId
-    };
-  };
-  const dynamicReference = (needle, key, referenceKind) => {
-    const bytes = Buffer.from(source);
-    const start = bytes.indexOf(Buffer.from(needle));
-    const end = start + Buffer.byteLength(needle);
-    const receiverEnd = start + Buffer.byteLength("l.main");
-    const keyStart = bytes.indexOf(Buffer.from(key), receiverEnd);
-    return {
-      kind: "computed",
-      prefix: "main",
-      span: { start, end },
-      receiver_span: { start, end: receiverEnd },
-      key_span: { start: keyStart, end: keyStart + Buffer.byteLength(key) },
-      reference_kind: referenceKind,
-      local: "l",
-      provenance: {
-        kind: "imported",
-        module_specifier: "./generated/linguini/svelte.js",
-        symbol: "l"
-      },
-      binding_id: bindingId,
-      messages: [
-        { message: "main.items", key: "items", arity: 1 },
-        { message: "main.title", key: "title", arity: 0 }
-      ]
-    };
-  };
-  const manifest = {
-    version: 1,
-    locale_loading: "eager",
-    base_locale: "en",
-    configured_locales: ["en"],
-    effective_locales: ["en"],
-    sources: [{ id: 1, path: "linguini/schema/main.lgs" }],
-    runtime_helpers: {
-      svelte_locale: {
-        import: "./svelte-locale.svelte.js",
-        file: "svelte-locale.svelte.js"
-      }
-    },
-    messages: {
-      "main.items": {
-        arity: 1,
-        locales: {
-          en: { module: "bundler/messages/main/items/en.js", source_ids: [1] }
-        }
-      },
-      "main.title": {
-        arity: 0,
-        locales: {
-          en: { module: "bundler/messages/main/title/en.js", source_ids: [1] }
-        }
-      }
-    },
-    message_runtimes: {
-      en: { module: "locales/en/_runtime.js", source_ids: [1] }
-    },
-    message_semantics: [],
-    applications: {
-      "entry.js": {
-        source_id: 2147483648,
-        sha256: createHash("sha256").update(Buffer.from(source)).digest("hex"),
-        byte_length: Buffer.byteLength(source),
-        unresolved: [],
-        analysis_dynamic_prefixes: ["main"],
-        references: [reference("l.main.title", "main.title", "value", 0)],
-        dynamic_references: [
-          dynamicReference("l.main[key]", "key", "value"),
-          dynamicReference("l.main[action]", "action", "call")
-        ],
-        imports: [
-          {
-            binding_id: bindingId,
-            module_specifier: "./generated/linguini/svelte.js",
-            imported: "l",
-            local: "l",
-            declaration_start: declarationStart,
-            declaration_end: declarationEnd,
-            item_start: itemStart,
-            item_end: itemStart + 1,
-            removal_start: declarationStart,
-            removal_end: declarationEnd,
-            module_specifier_start: declarationStart,
-            module_specifier_end: declarationEnd,
-            imported_start: itemStart,
-            imported_end: itemStart + 1,
-            local_start: itemStart,
-            local_end: itemStart + 1,
-            analyzer_exact_uses_only: false,
-            analyzer_tracked_uses_only: true,
-            transformable: true
-          }
-        ]
-      }
-    }
-  };
-  await mkdir(path.join(generated, "bundler"), { recursive: true });
-  await writeFile(
-    path.join(generated, "bundler/manifest.json"),
-    JSON.stringify(manifest)
-  );
+    ].join("\n");
+    await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
+    await mkdir(path.join(generated, "bundler/messages/main/items"), { recursive: true });
+    await writeFile(
+      path.join(root, "linguini.toml"),
+      [
+        "[targets.ts]",
+        'out = "generated/linguini"',
 
-  const result = await build({
-    root,
-    logLevel: "silent",
-    plugins: [linguini({ root, buildOnStart: false })],
-    build: {
-      write: false,
-      rollupOptions: { input: entry }
+        "[targets.ts.bundler]",
+        'sources = ["entry.js"]',
+        "[targets.ts.bundler.dynamic]",
+        'mode = "bundle"',
+        'allow = ["main.items", "main.title"]',
+        ""
+      ].join("\n")
+    );
+    await writeFile(entry, source);
+    await writeFile(
+      path.join(generated, "svelte.js"),
+      'import "./index.js"; throw new Error("FORBIDDEN_DYNAMIC_SVELTE");\n'
+    );
+    await writeFile(
+      path.join(generated, "index.js"),
+      'throw new Error("FORBIDDEN_DYNAMIC_INDEX");\n'
+    );
+    await writeFile(
+      path.join(generated, "svelte-locale.svelte.js"),
+      'export function getCurrentLocale() { return "en"; }\n'
+    );
+    const titleModule = path.join(generated, "bundler/messages/main/title/en.js");
+    const itemsModule = path.join(generated, "bundler/messages/main/items/en.js");
+    await writeFile(
+      titleModule,
+      'export const message = "EXACT_DYNAMIC_TITLE";\n'
+    );
+    await writeFile(
+      itemsModule,
+      'export function message(count) { return `EXACT_DYNAMIC_ITEMS:${count}`; }\n'
+    );
+    const declarationText = source.slice(0, source.indexOf("\n"));
+    const declarationStart = 0;
+    const declarationEnd = Buffer.byteLength(declarationText);
+    const itemStart = Buffer.from(source).indexOf(Buffer.from(imported));
+    const bindingId = "entry:binding";
+    const reference = (needle, message, kind, arity) => {
+      const start = Buffer.from(source).indexOf(Buffer.from(needle));
+      return {
+        message,
+        start,
+        end: start + Buffer.byteLength(needle),
+        kind,
+        local: "l",
+        provenance: {
+          kind: "imported",
+          module_specifier: moduleSpecifier,
+          symbol: imported
+        },
+        arity,
+        binding_id: bindingId
+      };
+    };
+    const dynamicReference = (needle, key, referenceKind) => {
+      const bytes = Buffer.from(source);
+      const start = bytes.indexOf(Buffer.from(needle));
+      const end = start + Buffer.byteLength(needle);
+      const receiverEnd = start + Buffer.byteLength("l.main");
+      const keyStart = bytes.indexOf(Buffer.from(key), receiverEnd);
+      return {
+        kind: "computed",
+        prefix: "main",
+        span: { start, end },
+        receiver_span: { start, end: receiverEnd },
+        key_span: { start: keyStart, end: keyStart + Buffer.byteLength(key) },
+        reference_kind: referenceKind,
+        local: "l",
+        provenance: {
+          kind: "imported",
+          module_specifier: moduleSpecifier,
+          symbol: imported
+        },
+        binding_id: bindingId,
+        messages: [
+          { message: "main.items", key: "items", arity: 1 },
+          { message: "main.title", key: "title", arity: 0 }
+        ]
+      };
+    };
+    const manifest = {
+      version: 1,
+      locale_loading: "eager",
+      base_locale: "en",
+      configured_locales: ["en"],
+      effective_locales: ["en"],
+      sources: [{ id: 1, path: "linguini/schema/main.lgs" }],
+      runtime_helpers: stateless ? {} : {
+        svelte_locale: {
+          import: "./svelte-locale.svelte.js",
+          file: "svelte-locale.svelte.js"
+        }
+      },
+      messages: {
+        "main.items": {
+          arity: 1,
+          locales: {
+            en: { module: "bundler/messages/main/items/en.js", source_ids: [1] }
+          }
+        },
+        "main.title": {
+          arity: 0,
+          locales: {
+            en: { module: "bundler/messages/main/title/en.js", source_ids: [1] }
+          }
+        }
+      },
+      message_runtimes: {
+        en: { module: "locales/en/_runtime.js", source_ids: [1] }
+      },
+      message_semantics: [],
+      applications: {
+        "entry.js": {
+          source_id: 2147483648,
+          sha256: createHash("sha256").update(Buffer.from(source)).digest("hex"),
+          byte_length: Buffer.byteLength(source),
+          unresolved: [],
+          analysis_dynamic_prefixes: ["main"],
+          references: [reference("l.main.title", "main.title", "value", 0)],
+          dynamic_references: [
+            dynamicReference("l.main[key]", "key", "value"),
+            dynamicReference("l.main[action]", "action", "call")
+          ],
+          imports: [
+            {
+              binding_id: bindingId,
+              module_specifier: moduleSpecifier,
+              imported,
+              local: "l",
+              declaration_start: declarationStart,
+              declaration_end: declarationEnd,
+              item_start: itemStart,
+              item_end: itemStart + imported.length + " as l".length,
+              removal_start: declarationStart,
+              removal_end: declarationEnd,
+              module_specifier_start: declarationStart,
+              module_specifier_end: declarationEnd,
+              imported_start: itemStart,
+              imported_end: itemStart + imported.length,
+              local_start: itemStart + imported.length + " as ".length,
+              local_end: itemStart + imported.length + " as l".length,
+              analyzer_exact_uses_only: false,
+              analyzer_tracked_uses_only: true,
+              transformable: true
+            }
+          ]
+        }
+      }
+    };
+    await mkdir(path.join(generated, "bundler"), { recursive: true });
+    await writeFile(
+      path.join(generated, "bundler/manifest.json"),
+      JSON.stringify(manifest)
+    );
+
+    const result = await build({
+      root,
+      logLevel: "silent",
+      plugins: [(stateless ? viteLinguini : linguini)({ root, buildOnStart: false })],
+      build: {
+        write: false,
+        rollupOptions: { input: entry, preserveEntrySignatures: "strict" }
+      }
+    });
+    const chunks = result.output.filter((output) => output.type === "chunk");
+    const combined = chunks.map((chunk) => chunk.code).join("\n");
+    assert.match(combined, /EXACT_DYNAMIC_TITLE/);
+    assert.match(combined, /EXACT_DYNAMIC_ITEMS/);
+    assert.match(combined, /Object\.create\(null\)/);
+    assert.doesNotMatch(
+      combined,
+      /FORBIDDEN_DYNAMIC_SVELTE|FORBIDDEN_DYNAMIC_INDEX|virtual:linguini/
+    );
+    const modules = chunks.flatMap((chunk) => Object.keys(chunk.modules));
+    assert.ok(modules.includes(titleModule));
+    assert.ok(modules.includes(itemsModule));
+    if (stateless) {
+      assert.doesNotMatch(combined, /getCurrentLocale|registerLocaleLoader/);
+      for (const chunk of chunks) {
+        for (const [id, details] of Object.entries(chunk.modules)) {
+          if (id.includes("\0virtual:linguini/message/")) assert.equal(details.renderedLength, 0);
+        }
+      }
+    } else {
+      assert.ok(modules.filter((id) => id.includes("\0virtual:linguini/message/")).length >= 2);
     }
+    const output = path.join(root, "output");
+    await mkdir(output);
+    await writeFile(path.join(output, "package.json"), '{"type":"module"}');
+    for (const chunk of chunks) {
+      const destination = path.join(output, chunk.fileName);
+      await mkdir(path.dirname(destination), { recursive: true });
+      await writeFile(destination, chunk.code);
+    }
+    const entryChunk = chunks.find(chunk => chunk.isEntry);
+    const evaluated = await import(pathToFileURL(path.join(output, entryChunk.fileName)).href);
+    assert.equal(evaluated.fixed, "EXACT_DYNAMIC_TITLE");
+    assert.equal(evaluated.select("title"), "EXACT_DYNAMIC_TITLE");
+    assert.equal(evaluated.select("items")(3), "EXACT_DYNAMIC_ITEMS:3");
+    assert.equal(evaluated.invoke("items"), "EXACT_DYNAMIC_ITEMS:2");
+    assert.equal(evaluated.select("missing"), undefined);
+    assert.throws(() => evaluated.invoke("title"), TypeError);
   });
-  const chunks = result.output.filter((output) => output.type === "chunk");
-  const combined = chunks.map((chunk) => chunk.code).join("\n");
-  assert.match(combined, /EXACT_DYNAMIC_TITLE/);
-  assert.match(combined, /EXACT_DYNAMIC_ITEMS/);
-  assert.match(combined, /Object\.create\(null\)/);
-  assert.doesNotMatch(
-    combined,
-    /FORBIDDEN_DYNAMIC_SVELTE|FORBIDDEN_DYNAMIC_INDEX|virtual:linguini/
-  );
-  const modules = chunks.flatMap((chunk) => Object.keys(chunk.modules));
-  assert.ok(modules.includes(titleModule));
-  assert.ok(modules.includes(itemsModule));
-  assert.ok(modules.filter((id) => id.includes("\0virtual:linguini/message/")).length >= 2);
-});
+}
 
 test("real dynamic client boundaries keep inactive locales out of entry and SSR stays static", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-dynamic-"));
@@ -919,7 +974,7 @@ export function unusedHelper() { return 'FORBIDDEN_HELPER'; }
   const output = path.join(root, "dist");
   for (const chunk of chunks) {
     const file = path.join(output, chunk.fileName);
-    await mkdir(path.dirname(file), {recursive:true});
+    await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, chunk.code);
   }
   const entries = {};

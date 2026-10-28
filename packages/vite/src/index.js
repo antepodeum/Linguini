@@ -277,7 +277,9 @@ export function linguini(options = {}) {
       const generatedRoot = projectLayout.generatedRoot;
       const manifestPath = path.join(generatedRoot, MANIFEST_RELATIVE_PATH);
       return {
-        ...localeBuildConfig(projectLayout.localeLoading, config.build),
+        ...(adapter.localeHelper === undefined
+          ? {}
+          : localeBuildConfig(projectLayout.localeLoading, config.build)),
         server: {
           watch: {
             // Keep this as an array so Vite's normal config merge composes it
@@ -715,12 +717,14 @@ function validateManifest(raw, layout, manifestPath, adapter) {
   if (!isRecord(raw.runtime_helpers)) {
     throw new Error(`${context}.runtime_helpers must be an object`);
   }
-  const localeHelper = validateRuntimeHelper(
-    raw.runtime_helpers[adapter.localeHelper],
-    `runtime_helpers.${adapter.localeHelper}`,
-    layout.generatedRoot,
-    context
-  );
+  const localeHelper = adapter.localeHelper === undefined
+    ? undefined
+    : validateRuntimeHelper(
+        raw.runtime_helpers[adapter.localeHelper],
+        `runtime_helpers.${adapter.localeHelper}`,
+        layout.generatedRoot,
+        context
+      );
   const effectsHelper =
     adapter.effectsHelper === undefined || raw.runtime_helpers[adapter.effectsHelper] === undefined
       ? undefined
@@ -1713,7 +1717,7 @@ async function transformApplication(
       magic.overwrite(
         start,
         end,
-        operation.reference.kind === "value" ? `${alias}()` : alias
+        operation.reference.kind === "value" && manifest.localeHelper ? `${alias}()` : alias
       );
     } else {
       const signature = JSON.stringify(
@@ -1782,14 +1786,14 @@ async function transformApplication(
       )
       .join("");
     const dispatches = [...scope.dispatches.values()]
-      .map((dispatch) => renderDynamicDispatch(dispatch.alias, dispatch.entries))
+      .map((dispatch) => renderDynamicDispatch(dispatch.alias, dispatch.entries, !manifest.localeHelper))
       .join("");
     magic.prependLeft(insertion, `${imports}${dispatches}`);
   }
   if (linkOperations.length > 0) {
     adapter.applyStaticLinks(magic, code, application.relative, generatedRoot, linkOperations, linkModule);
   }
-  if (dynamicClient && manifest.localeLoading === "dynamic") {
+  if (dynamicClient && manifest.localeLoading === "dynamic" && manifest.localeHelper) {
     injectLocaleLoaderLifecycle(magic, code, application, scopeId, allocateAlias, adapter);
   }
   return {
@@ -1814,11 +1818,11 @@ function transformStaticLinks(code, id, generatedRoot, adapter, linkModule) {
   };
 }
 
-function renderDynamicDispatch(alias, entries) {
+function renderDynamicDispatch(alias, entries, directValues = false) {
   const descriptors = entries
     .map(({ key, arity, alias: messageAlias }) => {
       const value =
-        arity === 0
+        arity === 0 && !directValues
           ? `{ enumerable: true, get: () => ${messageAlias}() }`
           : `{ enumerable: true, value: ${messageAlias} }`;
       return `[${JSON.stringify(key)}]: ${value}`;
@@ -1894,6 +1898,14 @@ function renderVirtualMessageModule(manifest, canonical, dynamicClient = false, 
   const message = manifest.messages.get(canonical);
   if (!message) {
     throw new Error(`unknown Linguini message ${canonical}`);
+  }
+  if (!manifest.localeHelper) {
+    const entry = message.locales.get(manifest.baseLocale);
+    if (!entry) throw new Error(`Linguini message ${canonical} has no base-locale implementation`);
+    const effects = manifest.effectsHelper
+      ? `import ${JSON.stringify(toVitePath(manifest.effectsHelper.file))};\n`
+      : "";
+    return `${effects}export { message } from ${JSON.stringify(toVitePath(entry.module))};\n`;
   }
   if (dynamicClient && manifest.localeLoading === "dynamic") {
     return renderDynamicVirtualMessageModule(manifest, canonical, message, scope);
