@@ -208,6 +208,32 @@ Object.defineProperty(invalid,'hidden',{value:3});
 invalid[Symbol('extra')] = 4;
 assert.throws(()=>greeting(invalid), {name:'TypeError',message:'Linguini message arguments contain unknown keys: Symbol(extra), a, hidden, z'});
 assert.equal(reads,0);
+// Count temporary collection operations only while normalizing, before assertions run.
+const nativeOperations = Object.fromEntries(['filter','map','sort'].map(name => [name, Array.prototype[name]]));
+const operations = {filter:0,map:0,sort:0};
+function observeNormalization(values, keys) {
+  for (const name of Object.keys(operations)) {
+    operations[name] = 0;
+    Array.prototype[name] = function(...args) { operations[name]++; return Reflect.apply(nativeOperations[name], this, args); };
+  }
+  try { return normalizeMessageArgs(values, keys); }
+  finally { for (const name of Object.keys(operations)) Array.prototype[name] = nativeOperations[name]; }
+}
+for (const arity of [0,1,2,8,32,128]) {
+  const keys = Array.from({length:arity}, (_, index) => 'key'+index);
+  const record = Object.fromEntries(keys.map(key => [key,key]));
+  assert.deepEqual(observeNormalization([record], keys), keys);
+  assert.deepEqual(operations, {filter:0,map:1,sort:0}, 'valid named arguments only allocate the result map');
+}
+const classifications = [];
+const checkedKeys = ['first','second'];
+checkedKeys.includes = function(key) { classifications.push(key); return Array.prototype.includes.call(this,key); };
+const observedString = globalThis.String;
+globalThis.String = function(value) { classifications.push('string:'+observedString(value)); return observedString(value); };
+try {
+  assert.throws(() => normalizeMessageArgs([{first:'A',second:'B',z:0,a:0}], checkedKeys), TypeError);
+} finally { globalThis.String = observedString; }
+assert.deepEqual(classifications, ['first','second','z','a','string:z','string:a']);
 const frozen = Object.freeze(['Ada']);
 assert.equal(normalizeMessageArgs(frozen,['first']),frozen);
 console.log('ok');

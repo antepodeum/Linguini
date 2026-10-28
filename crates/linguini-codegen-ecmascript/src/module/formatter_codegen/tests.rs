@@ -896,6 +896,93 @@ fn compiled_day_period_fixture_preserves_readable_checked_javascript() {
 }
 
 #[test]
+fn date_validation_allocates_only_returned_dates_and_preserves_calendar_and_zone_semantics() {
+    let helpers = date_formatter_helpers(false);
+    let script = r#"
+import assert from 'node:assert/strict';
+const NativeDate = Date;
+let constructions = 0;
+globalThis.Date = new Proxy(NativeDate, {
+  construct(target, args, receiver) {
+    constructions++;
+    return Reflect.construct(target, args, receiver);
+  },
+});
+const invalid = {name: 'RangeError', message: 'Linguini: invalid date value'};
+function check(input, expected, count = 1) {
+  constructions = 0;
+  assert.equal(coerceDate(input).toISOString(), expected, String(input));
+  assert.equal(constructions, count, String(input));
+}
+for (const zone of ['UTC', 'America/Los_Angeles', 'Asia/Kolkata']) {
+  process.env.TZ = zone;
+  for (const [input, expected] of [
+    ['0000-02-29', '0000-02-29T00:00:00.000Z'],
+    ['0099-01-02T13:04:05', '0099-01-02T13:04:05.000Z'],
+    ['1900-02-28', '1900-02-28T00:00:00.000Z'],
+    ['2000-02-29T24:00:00', '2000-03-01T00:00:00.000Z'],
+    ['2024-02-29T13:04:05.6789Z', '2024-02-29T13:04:05.678Z'],
+    ['2024-01-01T00:30+01:00', '2023-12-31T23:30:00.000Z'],
+    ['2024-12-31T23:30-01:00', '2025-01-01T00:30:00.000Z'],
+    ['9999-12-31', '9999-12-31T00:00:00.000Z'],
+  ]) check(input, expected);
+  for (const date of ['0001-02-29', '1900-02-29', '2100-02-29', '2024-02-30', '2024-04-31', '2024-00-01', '2024-13-01', '2024-01-00', '2024-01-32']) {
+    for (const suffix of ['', 'T12:00:00Z', 'T12:00+01:00', 'T12:00']) {
+      constructions = 0;
+      assert.throws(() => coerceDate(date + suffix), invalid, date + suffix);
+      assert.equal(constructions, 0, 'invalid calendar fields need no Date');
+    }
+  }
+}
+for (let year = 0; year <= 9999; year++) {
+  const text = String(year).padStart(4, '0') + '-02-29';
+  const oracle = new NativeDate(0);
+  oracle.setUTCFullYear(year, 1, 29);
+  constructions = 0;
+  if (oracle.getUTCMonth() === 1) {
+    assert.equal(coerceDate(text).getTime(), oracle.getTime(), text);
+    assert.equal(constructions, 1);
+  } else {
+    assert.throws(() => coerceDate(text), invalid, text);
+    assert.equal(constructions, 0);
+  }
+}
+for (const input of ['2024-01-01T25:00Z', '2024-01-01T12:60Z', '2024-01-01T12:00:60Z', '2024-01-01T24:01Z', '2024-01-01T12:00+24:00']) {
+  constructions = 0;
+  assert.throws(() => coerceDate(input), invalid, input);
+  assert.equal(constructions, 1);
+}
+for (const input of ['', 'invalid', '2024-1-01', '2024-01-01junk', ' 2024-01-01', '2024-01-01 ']) {
+  constructions = 0;
+  assert.throws(() => coerceDate(input), invalid, input);
+  assert.equal(constructions, 0);
+}
+check(0, '1970-01-01T00:00:00.000Z');
+check(-1, '1969-12-31T23:59:59.999Z');
+for (const input of [NaN, Infinity, -Infinity]) {
+  constructions = 0;
+  assert.throws(() => coerceDate(input), invalid);
+  assert.equal(constructions, 1);
+}
+const supplied = new NativeDate('2024-01-02T03:04:05Z');
+const observations = [];
+supplied.getTime = () => { observations.push('getTime'); return NativeDate.prototype.getTime.call(supplied); };
+for (const getter of ['getUTCFullYear', 'getUTCMonth', 'getUTCDate']) {
+  supplied[getter] = () => { throw Error('supplied Date must not be calendar-validated'); };
+}
+constructions = 0;
+assert.equal(coerceDate(supplied), supplied);
+assert.deepEqual(observations, ['getTime']);
+assert.equal(constructions, 0);
+const failure = new Error('custom date failure');
+supplied.getTime = () => { throw failure; };
+assert.throws(() => coerceDate(supplied), error => error === failure);
+console.log('ok');
+"#;
+    assert_eq!(execute(&format!("{helpers}{script}")), "ok");
+}
+
+#[test]
 fn generated_date_runtime_rejects_invalid_values() {
     let emitted = formatter_data_declaration("en", &[request(IrFormatterKind::Date, &[])], false);
 
@@ -904,9 +991,8 @@ fn generated_date_runtime_rejects_invalid_values() {
     assert!(emitted.contains("date = new Date(hasTimeZone ? value : `${value}Z`);"));
     assert!(emitted.contains("function createUTCDate(year, month, day)"));
     assert!(emitted.contains("date.setUTCFullYear(year, month - 1, day);"));
-    assert!(emitted.contains("date.getUTCFullYear() !== year"));
-    assert!(emitted.contains("date.getUTCMonth() !== month - 1"));
-    assert!(emitted.contains("date.getUTCDate() !== day"));
+    assert!(emitted.contains("function validateDateFields(year, month, day)"));
+    assert!(!emitted.contains("date.getUTCFullYear() !== year"));
     assert!(emitted.contains("if (!Number.isFinite(date.getTime()))"));
     assert_eq!(
         emitted

@@ -53,13 +53,16 @@ export function normalizeMessageArgs(values, keys) {
   if (!keys.every((key) => Object.prototype.hasOwnProperty.call(record, key))) {
     return values;
   }
-  const unknown = Reflect.ownKeys(record)
-    .filter((key) => typeof key !== "string" || !keys.includes(key))
-    .map(String)
-    .sort();
-  if (unknown.length > 0) {
+  /** @type {(string | symbol)[] | undefined} */
+  let unknown;
+  Reflect.ownKeys(record).forEach((key) => {
+    if (typeof key !== "string" || !keys.includes(key)) {
+      (unknown ??= []).push(key);
+    }
+  });
+  if (unknown) {
     throw new TypeError(
-      `Linguini message arguments contain unknown keys: ${unknown.join(", ")}`,
+      `Linguini message arguments contain unknown keys: ${unknown.map(String).sort().join(", ")}`,
     );
   }
   return keys.map((key) => record[key]);

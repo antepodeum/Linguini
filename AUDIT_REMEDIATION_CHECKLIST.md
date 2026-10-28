@@ -660,9 +660,10 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 
 ### CI, release, and supply chain
 
-- [x] #356 — Check the declared Rust minimum in a dedicated CI job. The minimum is now 1.97;
-      the development toolchain remains pinned to 1.97.1. Packaged documentation inherits the
-      workspace package metadata instead of maintaining a separate compiler floor.
+- [x] #356 — Check the declared Rust minimum in a dedicated CI job. `cargo-msrv` discovery across
+      all workspace targets measures 1.87; CI reads the workspace declaration and verifies it
+      with `cargo-msrv`. Development and normal CI follow `stable`. Packaged documentation
+      inherits workspace package metadata instead of maintaining a separate compiler floor.
 - [x] #357 — Compile from packaged, offline, read-only CLDR data.
 - [x] #358 — Land and execute Linux, Windows, and macOS CI. Complete workspace suites pass on
       all three hosts for the shared-backend source verified in ESM-M11.
@@ -677,7 +678,8 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [-] #362 — Complete real Vite, native VSIX, npm CLI, and WASM LSP integration CI.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
-- [x] #365 — Land the pinned `rust-toolchain.toml`.
+- [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;
+      normal CI follows the same channel. The independently measured minimum stays in Cargo metadata.
 - [x] #366 — Standardize and reproducibly verify JavaScript package-manager boundaries. Every
   dependency-bearing project pins pnpm 11.1.0 and lockfile v9; VS Code migrated from npm with an
   explicit dependency-build allowlist, and root/CI policy rejects mixed lockfiles or npm installs.
@@ -821,7 +823,9 @@ TypeScript, and application/bundler imports select their capabilities.
       locale helpers/globals, namespace modules/barrels, project entries, and thin Svelte bindings
       in their owning codegen crates; reusable web/Svelte/SvelteKit behavior belongs in npm runtime adapters. Common semantic/type/dependency planning belongs in
       `linguini-codegen`; ECMAScript rendering belongs in `linguini-codegen-ecmascript`. Executable
-      syntax belongs in canonical JS templates, with source identity and mappings preserved.
+      syntax belongs in canonical JS templates or ergonomic, compile-checked typed AST quotation
+      macros in Rust, with source identity and mappings preserved. Ad hoc JavaScript string
+      assembly is not an alternative to either structured authoring path.
       At compile/build time, determine the exact messages used by each page, including its
       components, layouts, imported functions, bounded dynamic references, and all transitive
       message/function/form/formatter/plural dependencies. Emit only that dependency closure:
@@ -998,8 +1002,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       the local checks only; the final architecture/platform matrix and open acceptance criteria
       still require completion.
 
-- [-] ESM-M12 — Move executable output syntax out of inline Rust strings into canonical
-      JavaScript templates, with separate declaration templates driven by shared semantic models.
+- [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
+      JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
+      Declarations must use the same shared semantic/type models; no duplicate JS/TS runtime
+      implementations. Macro-authored source is allowed; checked-in generated runtime is not.
       Rust must resolve used CLDR patterns and semantic requirements during builds;
       templates emit specialized functions and only required helpers, with no runtime CLDR
       pattern interpreter or checked-in generated runtime sources. Schema dispatch, numeric,
@@ -1222,8 +1228,13 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       in that local experiment. Compile selector outcomes from the actual branches, merge equivalent
       categories, and omit irrelevant rules/operands; use numeric codes where complete-consumer
       measurements justify them. Preserve public plural names and distinguish raw numeric operands
-      from already classified internal results. Remove successful-path validation arrays and
-      discarded date-validation allocations with executed semantic and allocation evidence.
+      from already classified internal results. Successful named validation now creates no
+      unknown-key collection or conversion arrays and performs no sort; executed arities 0–128
+      preserve classification/conversion phases and observable inputs. Date validation now uses
+      Gregorian arithmetic: valid text constructs only its returned Date, invalid calendar fields
+      construct none, and supplied Dates retain identity. All four-digit years, three host zones,
+      leap centuries/year zero, offsets, malformed/time-invalid inputs, and overridden methods
+      execute against explicit expectations and native calendar rollover.
 
 The canonical JS migration now resolves actual formatter requests (including schema alias
 inheritance and explicit overrides), compiles number/currency choices and selected Gregorian
@@ -1426,7 +1437,7 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 
 ### P3
 
-- [-] P3-1 — Rust 1.76/stable and Linux/Windows/macOS/offline/package CI.
+- [-] P3-1 — Declared Rust minimum/stable and Linux/Windows/macOS/offline/package CI.
 - [x] P3-2 — Parser, formatter, plural, and path property/fuzz coverage. Seeded generated cases
   cover Unicode/recovery/nesting/size parser invariants, formatter no-panic/idempotence/semantic
   preservation, plural modulo arithmetic, and portable locale ancestor chains.
@@ -1446,7 +1457,8 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 - [x] Run the complete Rust workspace test suite on Linux, Windows, and macOS. Verified against
   source `1cbc4c6` in CI run 39110695824.
 - [x] Run strict Clippy for all targets and features.
-- [x] Run Rust 1.76 MSRV checks and stable checks.
+- [x] Run declared Rust minimum and stable checks. Current discovery measures 1.87;
+  older Rust 1.76 receipts describe their historical source revisions.
 - [x] Run offline/package/source-archive verification.
 - [x] Run dependency, license, advisory, and public-API compatibility checks. Local verification
   passed with cargo-deny 0.20.2, cargo-audit 0.22.2, and cargo-semver-checks 0.50.0 against
