@@ -1224,7 +1224,7 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       The [cost audit](docs/generated-code-cost-audit.md) records category-name versus numeric
-      classifier measurements and GEN-A15–A18. Numeric literals alone show no useful memory gain
+      classifier measurements and GEN-A15–A19. Numeric literals alone show no useful memory gain
       in that local experiment. Compile selector outcomes from the actual branches, merge equivalent
       categories, and omit irrelevant rules/operands; use numeric codes where complete-consumer
       measurements justify them. Preserve public plural names and distinguish raw numeric operands
@@ -1235,6 +1235,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       construct none, and supplied Dates retain identity. All four-digit years, three host zones,
       leap centuries/year zero, offsets, malformed/time-invalid inputs, and overridden methods
       execute against explicit expectations and native calendar rollover.
+      Scientific rounding carries now use shared build-time proofs and compiled literal digits
+      when the result is known. Fixed/optional/minimum/significant/increment precision, signed
+      exponents, and numeric input representations execute with exact expectations; unproven
+      increments retain the general path, and full engineering notation remains outside this receipt.
 
 The canonical JS migration now resolves actual formatter requests (including schema alias
 inheritance and explicit overrides), compiles number/currency choices and selected Gregorian

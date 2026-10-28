@@ -164,6 +164,9 @@ fn number_plan(
         1000 => 3,
         _ => unreachable!("validated CLDR scale"),
     };
+    let carry_fraction = positive
+        .exponent_digits
+        .and_then(|_| rounding.scientific_carry_fraction(positive.max_significant_digits));
     context! {
         prefix, suffix, negative_prefix, negative_suffix,
         min_integer => positive.min_integer_digits, min_fraction => positive.min_fraction_digits,
@@ -173,7 +176,8 @@ fn number_plan(
         scale => positive.scale, min_significant => positive.min_significant_digits, max_significant => positive.max_significant_digits,
         rounding_helper, rounding => rounding.increment, rounding_half => rounding.half_integer,
         rounding_half_fraction => rounding.half_fraction, scale_shift,
-        exponent_digits => positive.exponent_digits, exponent_sign => positive.exponent_sign_always, padding,
+        exponent_digits => positive.exponent_digits, exponent_sign => positive.exponent_sign_always,
+        carry_fraction, padding,
     }
 }
 
