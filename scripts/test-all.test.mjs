@@ -29,7 +29,7 @@ test("packaged documentation inherits workspace metadata instead of a separate R
   assert.equal(workspacePackageMetadata(metadata + "\n"), metadata);
   assert.throws(() => workspacePackageMetadata('[workspace]\nmembers = []\n'), /metadata is required/);
   const current = workspacePackageMetadata(readFileSync(resolve(REPOSITORY_ROOT, "Cargo.toml"), "utf8"));
-  assert.match(current, /rust-version = "1\.97"/);
+  assert.match(current, /rust-version = "\d+\.\d+(?:\.\d+)?"/);
   assert.doesNotMatch(current, /planned_dependencies/);
 });
 

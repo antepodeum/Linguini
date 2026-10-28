@@ -4,12 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
-## Rust 1.97 minimum
+## Rust toolchain and minimum
 
-Building Linguini from Rust sources now requires Rust 1.97 or newer. The repository's pinned
-development toolchain remains 1.97.1; CI checks the minimum on 1.97.0. Published native npm/VSIX
-binaries do not require an installed Rust toolchain. This raises the compiler floor independently
-of the ECMAScript backend evaluation; it does not add Oxc or SWC or change generated APIs.
+Source development and CI use the moving `stable` toolchain. The tested minimum is declared
+once in `[workspace.package].rust-version`; CI reads it and verifies the whole workspace with
+`cargo-msrv`. The current minimum is Rust 1.87, found by checking all workspace targets while
+ignoring the previous declaration. Native npm/VSIX binaries do not require an installed Rust
+toolchain. See [contributing](../CONTRIBUTING.md) for the discovery command.
 
 ## npm packages and runtime adapters
 

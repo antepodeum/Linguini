@@ -33,10 +33,22 @@ pnpm check
 Bug fixes should include a focused regression test at the layer where the bug
 appears: parser, analyzer, codegen, CLI, or site.
 
+## Rust toolchain
+
+Development and normal CI jobs follow `stable`; run `rustup update stable` to update your local
+installation. `[workspace.package].rust-version` declares the tested minimum rather than
+selecting the development compiler. CI reads that value instead of repeating a version literal.
+
+Install `cargo-msrv` with `cargo install cargo-msrv --locked`, then run `cargo msrv-find` to
+rediscover the minimum. The alias runs `cargo msrv find -- cargo check --locked --workspace
+--all-targets --ignore-rust-version`: discovery must ignore the existing declaration, or Cargo
+will reject older compilers before checking whether the code actually works. Copy the measured
+result to the workspace declaration and verify it with `cargo msrv verify --rust-version
+<version> -- cargo check --locked --workspace --all-targets`. CI performs this verification too.
+Do not use `--write-toolchain-file`; development should continue to follow stable.
+
 ## CLDR data
 
-`linguini-cldr` is generated from pinned Unicode CLDR JSON data. Preview builds
-can fetch that source during compilation when the local checkout is missing, so
-building from a source archive may require `git` and network access. Release
-builds should prefer checked-in generated CLDR data so downstream installs are
-fully offline and deterministic.
+`linguini-cldr` consumes checked-in data generated from pinned Unicode CLDR JSON sources.
+Normal compilation does not fetch CLDR or require a source checkout. Updating the pinned data
+is an explicit offline-generation workflow; source archives include the compiled artifact.

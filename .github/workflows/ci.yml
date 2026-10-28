@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.97.1
+          toolchain: stable
           components: clippy, rustfmt
       - name: Check formatting
         run: cargo fmt --all --check
@@ -118,7 +118,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.97.1
+          toolchain: stable
           components: llvm-tools-preview
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
@@ -136,7 +136,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.97.1
+          toolchain: stable
       - name: Run deterministic property suites
         run: >-
           cargo test --locked
@@ -152,7 +152,7 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.97.1
+          toolchain: stable
       - name: Install cargo-mutants
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
@@ -164,17 +164,30 @@ jobs:
           cargo mutants --no-shuffle --in-diff git.diff
           --timeout 300
   msrv:
-    name: Rust 1.97 MSRV
+    name: Rust minimum
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Read workspace Rust minimum
+        id: minimum
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          import tomllib
+          with open("Cargo.toml", "rb") as manifest:
+              version = tomllib.load(manifest)["workspace"]["package"]["rust-version"]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={version}\n")
+          PYTHON
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.97.0
-      - name: Verify selected MSRV toolchain
-        run: rustc +1.97.0 --version
-      - name: Check workspace on MSRV
-        run: cargo +1.97.0 check --locked --workspace --all-targets
+          toolchain: stable
+      - name: Install minimum-version verifier
+        run: cargo +stable install cargo-msrv --version 0.19.6 --locked
+      - name: Verify workspace on declared minimum
+        run: >-
+          cargo +stable msrv verify --rust-version "${{ steps.minimum.outputs.version }}"
+          -- cargo check --locked --workspace --all-targets
 
   platforms:
     name: Rust (${{ matrix.os }})
@@ -187,7 +200,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.97.1
+          toolchain: stable
       - run: cargo test --locked --workspace
 
   security:
@@ -222,7 +235,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.97.1
+          toolchain: stable
       - name: Dry-package every publishable crate
         run: >-
           cargo package --locked --workspace --no-verify
@@ -271,7 +284,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
-          toolchain: 1.97.1
+          toolchain: stable
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
         with:
           version: 11.1.0

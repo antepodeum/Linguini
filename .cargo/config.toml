@@ -1,2 +1,5 @@
 [resolver]
 incompatible-rust-versions = "fallback"
+
+[alias]
+msrv-find = ["msrv", "find", "--", "cargo", "check", "--locked", "--workspace", "--all-targets", "--ignore-rust-version"]
