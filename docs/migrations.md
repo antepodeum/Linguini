@@ -12,6 +12,20 @@ once in `[workspace.package].rust-version`; CI reads it and verifies the whole w
 ignoring the previous declaration. Native npm/VSIX binaries do not require an installed Rust
 toolchain. See [contributing](../CONTRIBUTING.md) for the discovery command.
 
+## Generated numeric implementations
+
+Rebuild generated output to receive the formatter/plural specialization changes. Message call
+signatures, accepted plural category names, validation errors, and locale payload interfaces
+remain compatible. Proven scientific rounding carries now retain the requested precision
+(for example, zero-fraction `9.9` produces `1E01`). Shared Rust rounding/plural plans expose
+build-time carry and finite integer-modulo exhaustiveness proofs for backend reuse.
+
+Plural output can return a proven final category directly; rejected fractions and malformed
+inputs keep their original behavior. Date validation constructs only the returned date and
+checks calendar fields before allocation. Successful named-argument calls avoid unknown-key
+collection/conversion arrays and sorting, while preserving validation before value reads.
+These implementation changes require no application call-site migration.
+
 ## npm packages and runtime adapters
 
 Install the CLI as `@antepodeum/linguini`; supporting npm packages use
