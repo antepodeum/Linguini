@@ -8,7 +8,7 @@ pub const MESSAGE_NAMESPACE_EXPORTS: &[&str] = &["l", "lgl", "messages"];
 /// The syntactic form of a statically resolved application message reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ApplicationReferenceKind {
-    /// A parameterless message value (for example, `l.main.title`).
+    /// A message value or callable leaf (for example, `l.main.title` or `l.main.items`).
     Value,
     /// A message invocation (for example, `l.main.items(count)`).
     Call,

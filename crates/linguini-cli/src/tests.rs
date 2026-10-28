@@ -1615,7 +1615,7 @@ fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
         let project = dynamic_bundler_project(
             &format!("base-namespace-{name}"),
             "[targets.ts.bundler.dynamic]\nmode = \"bundle\"\nallow = [\"main.title\", \"main.items\"]",
-            &format!("import {{ {import} }} from '../build/generated/index.js';\nexport const title = {local}.main.title;\nexport function choose(key) {{ return {local}.main[key]; }}\n"),
+            &format!("import {{ {import} }} from '../build/generated/index.js';\nexport const title = {local}.main.title;\nexport const formatter = {local}.main.items;\nexport function choose(key) {{ return {local}.main[key]; }}\n"),
         );
         assert!(!project.path().join("build/generated").exists());
         build_project(project.path()).expect("cold native build");
@@ -1630,7 +1630,10 @@ fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
         assert_eq!(binding["local"], local);
         assert_eq!(binding["analyzer_tracked_uses_only"], true);
         assert_eq!(binding["transformable"], true);
-        assert_eq!(application["references"].as_array().unwrap().len(), 1);
+        assert_eq!(application["references"].as_array().unwrap().len(), 2);
+        assert_eq!(application["references"][1]["kind"], "value");
+        assert_eq!(application["references"][1]["arity"], 1);
+        assert_eq!(application["unresolved"], serde_json::json!([]));
         assert_eq!(
             application["dynamic_references"].as_array().unwrap().len(),
             1

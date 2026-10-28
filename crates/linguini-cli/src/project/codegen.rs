@@ -534,7 +534,7 @@ fn application_entry(
             ApplicationReferenceKind::Value => "value",
             ApplicationReferenceKind::Call => "call",
         };
-        let compatible = matches!(reference.kind, ApplicationReferenceKind::Value) && arity == 0
+        let compatible = matches!(reference.kind, ApplicationReferenceKind::Value)
             || matches!(reference.kind, ApplicationReferenceKind::Call) && arity > 0;
         if !compatible {
             poisoned_imports.extend(reference.import_binding);

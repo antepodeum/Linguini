@@ -37,6 +37,14 @@ stateful dynamic adapters require top-level await and the default ES2022 target;
 `lgl` imports keep the application’s normal target. Svelte and SvelteKit adapters retain
 their stateful behavior. This does not complete composed-page locale delivery.
 
+## Captured message functions
+
+Parameterized leaves can now be used as function values through native bundler manifests
+and Vite transforms. `const format = l.main.items` retains the callable instead of being
+reported as an arity mismatch or invoked during assignment. Direct calls and parameterless
+values retain their existing forms. Rebuild generated manifests after upgrading; calling a
+parameterless string as a function still remains an arity error.
+
 ## Generated numeric implementations
 
 Rebuild generated output to receive the formatter/plural specialization changes. Message call

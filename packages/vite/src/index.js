@@ -1033,7 +1033,7 @@ function validateApplication(raw, relative, context, messages, adapter) {
     if (
       !declared ||
       item.arity !== declared.arity ||
-      (item.kind === "value" ? item.arity !== 0 : item.arity === 0) ||
+      (item.kind === "call" && item.arity === 0) ||
       (item.kind !== "call" && item.kind !== "value") ||
       typeof item.local !== "string" ||
       !isRecord(provenance)
@@ -1066,7 +1066,7 @@ function validateApplication(raw, relative, context, messages, adapter) {
     if (start >= end || end > raw.byte_length) {
       throw new Error(`${itemField} span is outside application bytes`);
     }
-    return { message, bindingId, kind: item.kind, start, end };
+    return { message, bindingId, kind: item.kind, arity: declared.arity, start, end };
   });
   const ordered = [...references].sort((left, right) => left.start - right.start || left.end - right.end);
   let previousEnd = 0;
@@ -1717,7 +1717,7 @@ async function transformApplication(
       magic.overwrite(
         start,
         end,
-        operation.reference.kind === "value" && manifest.localeHelper ? `${alias}()` : alias
+        operation.reference.kind === "value" && operation.reference.arity === 0 && manifest.localeHelper ? `${alias}()` : alias
       );
     } else {
       const signature = JSON.stringify(

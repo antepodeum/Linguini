@@ -968,6 +968,9 @@ Generated message access is nested by canonical path. Parameterless leaves are
 values (`l.main.title`); parameterized leaves remain callable with their schema
 signature (`l.main.greeting("Artemy")`). The Svelte/Vite transform rewrites
 static `l` paths to imports of the exact per-message modules used by the source.
+A parameterized leaf can also be captured as a function, for example
+`const format = l.main.items; format(2)`. Capturing it does not invoke it;
+stateful bindings select the current locale when the captured function is called.
 
 Bundler dynamic access is strict by default. To permit a finite computed access,
 use the bounded escape below; `allow` entries are exact canonical message paths,
