@@ -1,5 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths';
+  import { codegenIntroduction } from '$lib/chunk-lab-copy.js';
   import {
     ArrowRight,
     Code2,
@@ -103,10 +104,12 @@
     { value: 'big' as const, label: l.main.playground.size_big_label }
   ]);
 
+  const numberFormatter = l.main.playground.number_format;
+
   const playgroundLines = $derived([
     l.main.playground.sentence({ fruit, size, count, amount, date: dateValue }),
     l.main.playground.cart_summary(count, fruit),
-    l.main.playground.number_format({ value: amount }),
+    numberFormatter({ value: amount }),
     l.main.playground.currency_format(amount),
     l.main.playground.date_format({ date: dateValue }),
     l.main.playground.override_format({ date: dateValue, amount }),
@@ -277,7 +280,7 @@
     <div class="mb-10">
       <p class="text-sm font-semibold uppercase tracking-wide text-primary">{l.main.codegen.kicker}</p>
       <h3 class="mt-3 max-w-3xl font-serif text-4xl font-semibold leading-tight sm:text-5xl">{l.main.codegen.title}</h3>
-      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{l.main.codegen.intro}</p>
+      <p class="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">{codegenIntroduction()}</p>
     </div>
 
     <div class="pipeline">

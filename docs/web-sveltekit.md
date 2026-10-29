@@ -50,10 +50,20 @@ source maps, watch, and HMR in the shared Vite core. Direct native builds use
 Standalone Svelte installs `@antepodeum/linguini-svelte` and uses
 `@antepodeum/linguini-vite/svelte`; framework-independent consumers use the main Vite entry.
 
-With dynamic locale loading, client messages load before the active locale changes. SSR evaluates
-messages synchronously using the request locale. Sparse translation fallback is folded per message
-into the selected locale payload. Composed page delivery and browser-request verification are
-tracked separately in the remediation checklist.
+The build adapter re-shakes each page's components, layouts, and imported functions independently.
+It compiles the surviving message/function/formatter closure into one self-contained file per
+page and locale, folding sparse fallback per message. Internal numeric binding keys avoid
+shipping canonical message paths or a client route/locale loader table. The maintained TypeScript
+runtime owns preparation and locale state; generated assets contain compiled messages and their
+selected dependencies. SSR still evaluates messages synchronously using its request locale.
+
+The root server load supplies only the selected payload URL alongside request metadata. The
+universal root load prepares that payload before SvelteKit publishes the incoming page, including
+cross-page/cross-locale navigation. Explicit locale changes prepare the same page's new locale
+before publishing the client override. Browser module caching reuses already loaded payloads.
+The hook adds a preload beside SvelteKit's hydration preloads, guarded by `(scripting: enabled)`.
+Deferred localization boundaries and the complete framework/configuration matrix remain open
+remediation work; this initial composed-page receipt does not close those requirements.
 
 Finite dynamic message access requires an exact allow list. Unbounded access is diagnosed
 instead of widening a page to the whole catalog:
@@ -119,10 +129,11 @@ switch endpoint. Read sources and write transports are separate runtime choices.
 
 ```ts
 // src/hooks.server.ts
-import { createHandle } from "@antepodeum/linguini-sveltekit/server";
+import { createHandle, getPagePayload } from "@antepodeum/linguini-sveltekit/server";
 import { createRequestWeb } from "$lib/linguini-web";
 
 export const handle = createHandle(createRequestWeb(), {
+  getPagePayload,
   switchRoute: { path: "/_linguini/locale/{locale}", returnQuery: "return", status: 303 },
 });
 ```
@@ -137,18 +148,21 @@ export const reroute = createReroute(web);
 
 ```ts
 // src/routes/+layout.server.ts
-import { createLoad } from "@antepodeum/linguini-sveltekit/server";
+import { createLoad, getPagePayload } from "@antepodeum/linguini-sveltekit/server";
 import type { Locale } from "$lib/generated/linguini/locale.js";
 
-export const load = createLoad<Locale>();
+export const load = createLoad<Locale>({ getPagePayload });
 ```
 
 The hook stores request-local metadata in `locals.linguini`, handles canonical redirects and
 optional switch endpoints, and replaces Linguini HTML placeholders while streaming. Split
 placeholders retain only their unfinished suffix. Hooks do not import message catalogs.
-The root load serializes locale metadata for matching SSR and hydration and tracks the original
+The root server load serializes locale metadata and its selected compiled payload URL for matching
+SSR and hydration. Both hooks share one payload selection per request. The load tracks the original
 request URL so SvelteKit refreshes shared metadata on URL changes. When composing another load,
-forward the original event to `linguiniLoad(event)`; forwarding only `locals` omits URL tracking.
+forward the original event to `await linguiniLoad(event)`; forwarding only `locals` omits URL tracking.
+Keep `createClientLoad` in the universal root layout so incoming page code does not read the
+previous page’s messages. Metadata-only projects without the Vite adapter can omit `getPagePayload`.
 This follows [SvelteKit's load dependency rules](https://svelte.dev/docs/kit/load#Rerunning-load-functions).
 
 ```ts
@@ -186,6 +200,10 @@ Linguini preserves the input slash shape; no generated policy rewrite is needed.
 
 ```ts
 // src/routes/+layout.ts
+import { createClientLoad } from "@antepodeum/linguini-sveltekit/load";
+import type { Locale } from "$lib/generated/linguini/locale.js";
+
+export const load = createClientLoad<Locale>();
 export const trailingSlash = "never";
 ```
 
@@ -305,11 +323,12 @@ Compose hooks through SvelteKit's standard interfaces:
 ```ts
 // src/hooks.server.ts
 import { sequence } from "@sveltejs/kit/hooks";
-import { createHandle } from "@antepodeum/linguini-sveltekit/server";
+import { createHandle, getPagePayload } from "@antepodeum/linguini-sveltekit/server";
 import { createRequestWeb } from "$lib/linguini-web";
 import { appHandle } from "$lib/server/app-handle";
 
 const linguiniHandle = createHandle(createRequestWeb(), {
+  getPagePayload,
   switchRoute: { path: "/_linguini/locale/{locale}" },
 });
 export const handle = sequence(linguiniHandle, appHandle);
@@ -331,12 +350,12 @@ export const reroute: Reroute = async event =>
 // src/routes/+layout.server.ts
 import type { LayoutServerLoad } from "./$types";
 import type { Locale } from "$lib/generated/linguini/locale.js";
-import { createLoad } from "@antepodeum/linguini-sveltekit/server";
+import { createLoad, getPagePayload } from "@antepodeum/linguini-sveltekit/server";
 import { appLoad } from "$lib/server/app-load";
 
-const linguiniLoad = createLoad<Locale>();
+const linguiniLoad = createLoad<Locale>({ getPagePayload });
 export const load: LayoutServerLoad = async event => ({
   ...(await appLoad(event)),
-  ...linguiniLoad(event),
+  ...(await linguiniLoad(event)),
 });
 ```

@@ -36,6 +36,10 @@
     "./vite": {
       "types": "./dist/vite.d.ts",
       "default": "./dist/vite.js"
+    },
+    "./load": {
+      "types": "./dist/load.d.ts",
+      "default": "./dist/load.js"
     }
   },
   "scripts": {
@@ -45,23 +49,29 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
+    "@antepodeum/linguini-svelte": "0.1.0-alpha.4",
     "@antepodeum/linguini-web": "0.1.0-alpha.4",
-    "@antepodeum/linguini-svelte": "0.1.0-alpha.4"
+    "magic-string": "0.30.21"
   },
   "peerDependencies": {
+    "@antepodeum/linguini-vite": "0.1.0-alpha.4",
     "@sveltejs/kit": "^2.57.0",
     "svelte": "^5.55.0",
-    "@antepodeum/linguini-vite": "0.1.0-alpha.4"
+    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0"
   },
   "devDependencies": {
+    "@antepodeum/linguini-vite": "0.1.0-alpha.4",
     "@sveltejs/kit": "2.60.1",
+    "@types/node": "24.12.4",
     "svelte": "5.55.8",
     "typescript": "6.0.3",
-    "@types/node": "24.12.4",
-    "@antepodeum/linguini-vite": "0.1.0-alpha.4"
+    "vite": "8.0.13"
   },
   "peerDependenciesMeta": {
     "@antepodeum/linguini-vite": {
+      "optional": true
+    },
+    "vite": {
       "optional": true
     }
   }

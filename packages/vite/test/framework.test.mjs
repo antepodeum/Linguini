@@ -14,6 +14,7 @@ test("published framework boundary is explicit and validates complete adapter co
     entry: "catalog.js", messageExports: ["catalog"], localeHelper: "state",
   };
   assert.equal(linguini({ adapter }).name, "vite-plugin-linguini");
+  assert.equal(linguini({ adapter: {...adapter,pageMessages:{module:"host",export:"getMessage"}} }).name, "vite-plugin-linguini");
   assert.equal(linguini({ adapter: { entry: "catalog.js", messageExports: ["catalog"] } }).name, "vite-plugin-linguini");
   for (const invalid of [
     null,
@@ -24,6 +25,9 @@ test("published framework boundary is explicit and validates complete adapter co
     { ...adapter, extensions: ["vue"] },
     { ...adapter, applicationScope: true },
     { ...adapter, findStaticLinks: () => [] },
+    { ...adapter, pageMessages: {} },
+    { ...adapter, pageMessages: {module:"host",export:"not-a-function"} },
+    { ...adapter, localeHelper:undefined,pageMessages:{module:"host",export:"getMessage"} },
   ]) {
     assert.throws(() => linguini({ adapter: invalid }), /Linguini adapter/);
   }

@@ -21,6 +21,17 @@ declaration = true
 sources = ["src"]
 ```
 
+Use the SvelteKit build adapter:
+
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import { sveltekit } from "@sveltejs/kit/vite";
+import linguini from "@antepodeum/linguini-sveltekit/vite";
+
+export default defineConfig({ plugins: [linguini({ buildOnStart: true }), sveltekit()] });
+```
+
 Configure the runtime in an ordinary application module:
 
 ```ts
@@ -86,9 +97,10 @@ Create the request hooks and root data loader:
 
 ```ts
 // src/hooks.server.ts
-import { createHandle } from "@antepodeum/linguini-sveltekit/server";
+import { createHandle, getPagePayload } from "@antepodeum/linguini-sveltekit/server";
 import { createRequestWeb } from "$lib/linguini-web";
 export const handle = createHandle(createRequestWeb(), {
+  getPagePayload,
   switchRoute: { path: "/_linguini/locale/{locale}", returnQuery: "return", status: 303 },
 });
 ```
@@ -102,9 +114,9 @@ export const reroute = createReroute(web);
 
 ```ts
 // src/routes/+layout.server.ts
-import { createLoad } from "@antepodeum/linguini-sveltekit/server";
+import { createLoad, getPagePayload } from "@antepodeum/linguini-sveltekit/server";
 import type { Locale } from "$lib/generated/linguini/locale.js";
-export const load = createLoad<Locale>();
+export const load = createLoad<Locale>({ getPagePayload });
 ```
 
 ```ts
@@ -138,6 +150,16 @@ declare global {
   }
 }
 export {};
+```
+
+Prepare the selected page/locale file during universal loading:
+
+```ts
+// src/routes/+layout.ts
+import { createClientLoad } from "@antepodeum/linguini-sveltekit/load";
+import type { Locale } from "$lib/generated/linguini/locale.js";
+
+export const load = createClientLoad<Locale>();
 ```
 
 The Svelte runtime consumes that request data and owns the reactive

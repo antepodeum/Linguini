@@ -82,3 +82,29 @@ test('localized canonical URLs leave trailing-slash normalization to SvelteKit',
   assert.equal(response.status, 307);
   assert.equal(response.headers.get('location'), '/app/en/shop?q=1');
 });
+
+test('page payload selection is request-local metadata and navigation data does not add HTML preloads', async () => {
+  const web = createWebLocaleI18n(runtime,{routing:{localePrefix:'always'},locale:{sources:[pathLocale()]}},environment);
+  const selected = [];
+  const getPagePayload = async input => {
+    selected.push(input);
+    return {url:`/app/_app/immutable/assets/linguini/page/${input.locale}.js`};
+  };
+  const handle = createHandle(web,{getPagePayload});
+  for (const isDataRequest of [false,true]) {
+    const request = {...event('/app/fr/page'),route:{id:'/page'},isDataRequest};
+    const response = await handle({event:request,resolve:async (event,{transformPageChunk}) => {
+      const load = createLoad({getPagePayload});
+      const data = await load(event);
+      assert.deepEqual(data.linguini.payload,{url:'/app/_app/immutable/assets/linguini/page/fr.js'});
+      return new Response(transformPageChunk({html:'<head><link rel="modulepreload" href="/app/_app/immutable/entry/start.js"></head>',done:true}));
+    }});
+    const html = await response.text();
+    assert.equal(html.includes('/linguini/page/fr.js'),!isDataRequest);
+    assert.doesNotMatch(html,/\/en\.js|\/ar\.js/);
+  }
+  assert.deepEqual(selected,[
+    {routeId:'/page',locale:'fr'},
+    {routeId:'/page',locale:'fr'},
+  ], 'handle and load share one selection per request');
+});

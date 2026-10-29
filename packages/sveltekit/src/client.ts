@@ -31,5 +31,18 @@ export function createControls<Locale extends string>(web: LinguiniWebLocale<Loc
   });
 }
 
-export {createLocaleState,createLinguiniRune} from '@antepodeum/linguini-svelte';
+import {createLocaleState as createSvelteLocaleState} from '@antepodeum/linguini-svelte';
+import type {LocaleRuntime,LocaleStateOptions} from '@antepodeum/linguini-svelte';
+import {prepareCurrentPageMessages} from './page.svelte.js';
+export {getPageMessage} from './page.svelte.js';
+export {createClientLoad} from './load.js';
+export {createLinguiniRune} from '@antepodeum/linguini-svelte';
+export function createLocaleState<Locale extends string>(runtime: LocaleRuntime<Locale>, options: LocaleStateOptions = {}) {
+  const state = createSvelteLocaleState(runtime, {
+    ...options,
+    getRequestIdentity: options.getRequestIdentity ?? (() => page.data.linguini),
+  });
+  if (browser) state.registerLocaleLoader(prepareCurrentPageMessages);
+  return state;
+}
 export type {LocaleState,LinguiniRune} from '@antepodeum/linguini-svelte';

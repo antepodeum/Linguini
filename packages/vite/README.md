@@ -53,3 +53,9 @@ base-locale `lgl` imports retain Vite’s default target.
 Use `@antepodeum/linguini-sveltekit/vite` for SvelteKit and this package’s `/svelte` entry for
 standalone Svelte. Runtime routing and persistence are configured through their npm adapters.
 An optional `linkModule` selects a project helper for static-link transforms.
+
+Framework adapters can select `pageMessages` and call `plugin.api.compilePages` during
+`generateBundle`. The compiler re-shakes each supplied page independently, accepts selected
+nested export paths, and bundles only the surviving messages and their transitive compiled
+dependencies. The host adapter owns route discovery, request locale selection, and page
+publication. Normal, hidden, inline, and disabled source maps follow the Vite build setting.

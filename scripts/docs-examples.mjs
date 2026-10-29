@@ -80,6 +80,8 @@ function writeDocumentedSvelteKitExample(blocks, root, projectRoot) {
     ["src/lib/linguini-web.ts", "ts", ["// src/lib/linguini-web.ts", "createRequestWeb"]],
     ["src/lib/linguini.ts", "ts", ["// src/lib/linguini.ts", "createControls"]],
     ["src/app.d.ts", "ts", ["// src/app.d.ts", "SerializedLinguiniContext"]],
+    ["vite.config.ts", "ts", ["// vite.config.ts", "buildOnStart: true"]],
+    ["src/routes/+layout.ts", "ts", ["// src/routes/+layout.ts", "createClientLoad"]],
     ["src/hooks.server.ts", "ts", ["// src/hooks.server.ts", "export const handle"]],
     ["src/hooks.ts", "ts", ["// src/hooks.ts", "export const reroute"]],
     ["src/routes/+layout.server.ts", "ts", ["// src/routes/+layout.server.ts", "export const load"]],

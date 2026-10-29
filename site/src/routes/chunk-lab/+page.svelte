@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import ChunkLabCopy from '$lib/components/ChunkLabCopy.svelte';
   import { localizeHref, linguini, setLocale } from '$lib/linguini';
   import { l } from '$lib/generated/linguini/svelte';
 
@@ -37,10 +38,7 @@
 <main class="mx-auto min-h-screen max-w-3xl px-5 py-12 sm:px-8">
   <div class="rounded-2xl border border-border/70 bg-muted/40 p-6 shadow-soft sm:p-10">
     <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">Chunk lab</p>
-    <h1 class="mt-4 font-serif text-4xl tracking-tight text-foreground sm:text-5xl">
-      {l.main.hero.title}
-    </h1>
-    <p class="mt-4 max-w-2xl text-lg leading-8 text-muted-foreground">{l.main.hero.tagline}</p>
+    <ChunkLabCopy />
 
     <section class="mt-10 border-t border-border/70 pt-6" aria-labelledby="locale-heading">
       <div class="flex flex-wrap items-center justify-between gap-4">

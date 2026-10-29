@@ -8,6 +8,7 @@ import { DEFAULT_CONFIG_FILE, DEFAULT_PATHS, resolveProjectPath as resolveWithin
 import { readEcmascriptProject, validateLocaleLoading, isDynamicMessagePath } from "@antepodeum/linguini-project/ecmascript";
 import { localeBuildConfig } from "./build-target.js";
 import { frameworkAdapter } from "./framework.js";
+import { compilePagePayloads, pageMessageIndex } from "./page-payloads.js";
 import { toVitePath, scopedPhysicalModuleId, resolvePayloadDependency } from "./paths.js";
 
 const DEFAULT_SCHEMA_DIR = DEFAULT_PATHS.schema;
@@ -270,6 +271,13 @@ export function linguini(options = {}) {
 
   return {
     name: "vite-plugin-linguini",
+    api: {
+      compilePages(context, pages, output = {}) {
+        return compilePagePayloads(context, pages, bundlerManifest, {
+          ...viteConfig, build: { ...viteConfig.build, ...output }
+        });
+      }
+    },
     enforce: "pre",
     async config(config) {
       const root = path.resolve(options.root ?? config.root ?? process.cwd());
@@ -277,7 +285,7 @@ export function linguini(options = {}) {
       const generatedRoot = projectLayout.generatedRoot;
       const manifestPath = path.join(generatedRoot, MANIFEST_RELATIVE_PATH);
       return {
-        ...(adapter.localeHelper === undefined
+        ...(adapter.localeHelper === undefined || adapter.pageMessages
           ? {}
           : localeBuildConfig(projectLayout.localeLoading, config.build)),
         server: {
@@ -402,7 +410,8 @@ export function linguini(options = {}) {
         bundlerManifest,
         message,
         shouldUseDynamicLocaleLoading(this, options),
-        scope
+        scope,
+        viteConfig?.command === "build" ? adapter.pageMessages : undefined
       );
     },
     async transform(code, id, transformOptions) {
@@ -425,7 +434,8 @@ export function linguini(options = {}) {
         layout.generatedRoot,
         shouldUseDynamicLocaleLoading(this, transformOptions),
         linkModule,
-        adapter
+        adapter,
+        viteConfig?.command === "build" && Boolean(adapter.pageMessages)
       );
     }
   };
@@ -1523,7 +1533,8 @@ async function transformApplication(
   generatedRoot,
   dynamicClient = false,
   linkModule,
-  adapter
+  adapter,
+  pageMessages = false
 ) {
   const bytes = Buffer.from(code, "utf8");
   const digest = createHash("sha256").update(bytes).digest("hex");
@@ -1793,7 +1804,7 @@ async function transformApplication(
   if (linkOperations.length > 0) {
     adapter.applyStaticLinks(magic, code, application.relative, generatedRoot, linkOperations, linkModule);
   }
-  if (dynamicClient && manifest.localeLoading === "dynamic" && manifest.localeHelper) {
+  if (dynamicClient && manifest.localeLoading === "dynamic" && manifest.localeHelper && !pageMessages) {
     injectLocaleLoaderLifecycle(magic, code, application, scopeId, allocateAlias, adapter);
   }
   return {
@@ -1894,7 +1905,7 @@ function shouldUseDynamicLocaleLoading(context, options) {
   return options?.ssr !== true;
 }
 
-function renderVirtualMessageModule(manifest, canonical, dynamicClient = false, scope) {
+function renderVirtualMessageModule(manifest, canonical, dynamicClient = false, scope, pageMessages) {
   const message = manifest.messages.get(canonical);
   if (!message) {
     throw new Error(`unknown Linguini message ${canonical}`);
@@ -1906,6 +1917,17 @@ function renderVirtualMessageModule(manifest, canonical, dynamicClient = false, 
       ? `import ${JSON.stringify(toVitePath(manifest.effectsHelper.file))};\n`
       : "";
     return `${effects}export { message } from ${JSON.stringify(toVitePath(entry.module))};\n`;
+  }
+  if (dynamicClient && pageMessages) {
+    return [
+      ...(manifest.effectsHelper ? [`import ${JSON.stringify(toVitePath(manifest.effectsHelper.file))};`] : []),
+      `import { ${pageMessages.export} as getPageMessage } from ${JSON.stringify(pageMessages.module)};`,
+      `import { getCurrentLocale } from ${JSON.stringify(toVitePath(manifest.localeHelper.file))};`,
+      message.arity === 0 ? "export function message() {" : "export function message(...args) {",
+      `  const selected = getPageMessage(${pageMessageIndex(manifest, canonical)}, getCurrentLocale());`,
+      message.arity === 0 ? "  return selected;" : "  return selected(...args);",
+      "}", ""
+    ].join("\n");
   }
   if (dynamicClient && manifest.localeLoading === "dynamic") {
     return renderDynamicVirtualMessageModule(manifest, canonical, message, scope);

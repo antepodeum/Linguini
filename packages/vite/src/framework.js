@@ -23,6 +23,14 @@ export function frameworkAdapter(value = ecmascript) {
       throw new TypeError(`Linguini adapter.${key} must be a non-empty string`);
     }
   }
+  if (value.pageMessages !== undefined && (!value.pageMessages
+    || typeof value.pageMessages.module !== "string" || !value.pageMessages.module
+    || typeof value.pageMessages.export !== "string" || !/^[A-Za-z_$][\w$]*$/.test(value.pageMessages.export))) {
+    throw new TypeError("Linguini adapter.pageMessages must select a module and an exported function");
+  }
+  if (value.pageMessages !== undefined && value.localeHelper === undefined) {
+    throw new TypeError("Linguini adapter.pageMessages requires a localeHelper");
+  }
   const extensions = value.extensions ?? [];
   if (!Array.isArray(extensions) || !extensions.every((extension) => typeof extension === "string" && /^\.[a-z][a-z0-9]*$/.test(extension))) {
     throw new TypeError("Linguini adapter.extensions must contain lowercase file extensions");

@@ -37,6 +37,26 @@ stateful dynamic adapters require top-level await and the default ES2022 target;
 `lgl` imports keep the application’s normal target. Svelte and SvelteKit adapters retain
 their stateful behavior. This does not complete composed-page locale delivery.
 
+## SvelteKit composed-page payloads
+
+With the SvelteKit Vite adapter, import `getPagePayload` from
+`@antepodeum/linguini-sveltekit/server` and pass it to both `createHandle` and `createLoad`.
+Add `createClientLoad<Locale>()` from `@antepodeum/linguini-sveltekit/load` as the universal
+root layout load. Await the server helper when composing its result with another load.
+Metadata-only hook consumers can keep their existing synchronous `createLoad()` calls.
+
+The adapter returns a Vite plugin array, still used as `plugins: [linguini(), sveltekit()]`.
+It now selects one composed-page/locale payload instead of independent source-file registries.
+The root load awaits incoming messages without changing the currently rendered page. Client
+controls prepare alternate locales before publishing an override; a new request context
+invalidates an old override. The server hook preloads the selected payload for script-enabled
+clients. No route/locale loader table or message implementation is serialized into server data.
+
+The shared Vite build API accepts page roots and selected nested export paths, preserving tree
+shaking of unused shared functions. Payload source maps follow the application’s normal,
+hidden, inline, or disabled setting. Deferred localization boundaries and the remaining
+framework/configuration matrix are still open remediation requirements.
+
 ## Svelte request identity
 
 `createLocaleState` accepts an optional `getRequestIdentity` callback. A client override

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 const siteRoot = join(fileURLToPath(new URL('..', import.meta.url)));
 const buildRoot = join(siteRoot, 'build');
@@ -148,24 +149,14 @@ const chunkLabExpectedMessages = [
   'main.hero.tagline',
   'main.nav.locale_label'
 ];
-const chunkLabReferences = chunkLabApplication.references.map((reference) => reference.message);
-assert.equal(
-  chunkLabReferences.length,
-  chunkLabExpectedMessages.length,
-  'chunk-lab message references are not the exact tiny subset'
-);
-assert.deepEqual(
-  [...new Set(chunkLabReferences)].sort(),
-  [...chunkLabExpectedMessages].sort(),
-  'chunk-lab references include an unexpected message'
-);
-for (const message of chunkLabExpectedMessages) {
-  assert.equal(
-    chunkLabReferences.filter((reference) => reference === message).length,
-    1,
-    `chunk-lab references ${message} more than once`
-  );
-}
+const chunkLabReferences = chunkLabApplication.references.map(reference => reference.message);
+assert.deepEqual(chunkLabReferences, ['main.nav.locale_label']);
+const childApplication = generatedManifest.applications['src/lib/components/ChunkLabCopy.svelte'];
+assert.deepEqual(childApplication.references.map(reference => reference.message), ['main.hero.title']);
+const sharedApplication = generatedManifest.applications['src/lib/chunk-lab-copy.ts'];
+assert.deepEqual(sharedApplication.references.map(reference => reference.message), ['main.hero.tagline','main.codegen.intro']);
+const labLayout = generatedManifest.applications['src/routes/chunk-lab/+layout.svelte'];
+assert.deepEqual(labLayout.references.map(reference => reference.message), ['main.nav.locale_label']);
 
 const localeModuleIds = new Set();
 let runtimeImportCount = 0;
@@ -217,23 +208,10 @@ const clientManifest = readJson(
 );
 const clientEntries = Object.entries(clientManifest);
 const clientEntryById = new Map(clientEntries);
-const applicationScope = (applicationId) =>
-  Buffer.from(applicationId.normalize('NFC'), 'utf8').toString('hex');
-const scopedLocaleModuleIds = (applicationId) =>
-  new Set(
-    [...effectiveLocales].map(
-      (locale) =>
-        `virtual:linguini/locale/${applicationScope(applicationId)}/${Buffer.from(locale, 'utf8').toString('hex')}`
-    )
-  );
-const mainApplicationId = 'src/routes/+page.svelte';
-const mainVirtualLocaleModuleIds = scopedLocaleModuleIds(mainApplicationId);
-const chunkLabVirtualLocaleModuleIds = scopedLocaleModuleIds(chunkLabApplicationId);
-const virtualLocaleModuleIds = new Set([
-  ...mainVirtualLocaleModuleIds,
-  ...chunkLabVirtualLocaleModuleIds
-]);
-
+const {payloads} = await import(pathToFileURL(join(serverOutputRoot,'linguini-page-manifest.js')).href);
+assert.deepEqual(Object.keys(payloads).sort(), ['/','/chunk-lab']);
+const virtualLocaleModuleIds = new Set(Object.keys(clientManifest).filter(id => id.startsWith('virtual:linguini/locale/')));
+assert.equal(virtualLocaleModuleIds.size, 0, 'source-scoped locale registries must not survive composed-page delivery');
 // SvelteKit emits route components through generated client-optimized nodes.
 // Resolve the lab node back to its source import so this check stays stable
 // across route-node numbering changes.
@@ -256,44 +234,20 @@ for (const moduleId of localeModuleIds) {
 }
 
 const localeChunkFiles = new Set();
-for (const moduleId of virtualLocaleModuleIds) {
-  const entry = clientManifest[moduleId];
-  assert.ok(entry, `virtual locale entry ${moduleId} is absent from the Vite client manifest`);
-  assert.equal(entry.isDynamicEntry, true, `virtual locale entry ${moduleId} is not dynamic`);
-  assert.equal(typeof entry.file, 'string');
-  assert.equal(
-    statSync(join(clientOutputRoot, entry.file)).isFile(),
-    true,
-    `virtual locale entry ${moduleId} has no physical output chunk`
-  );
-  localeChunkFiles.add(entry.file);
+for (const [route,locales] of Object.entries(payloads)) {
+  assert.deepEqual(Object.keys(locales).sort(), [...effectiveLocales].sort(), `${route} has incomplete locale coverage`);
+  for (const file of Object.values(locales)) {
+    assert.equal(statSync(join(clientOutputRoot,file)).isFile(), true);
+    localeChunkFiles.add(file);
+  }
 }
-assert.equal(
-  localeChunkFiles.size,
-  effectiveLocales.size * 2,
-  'route scopes and effective locales do not map one-to-one to emitted locale chunks'
-);
-
-// Each SvelteKit route node must own one scoped dynamic entry per locale,
-// never one global payload or one dynamic entry per message and locale.
+assert.equal(localeChunkFiles.size, effectiveLocales.size * 2, 'each composed page must have exactly one file per locale');
 const mainRouteNodeFile = filesUnder(clientOptimizedNodeRoot)
-  .filter((file) => file.endsWith('.js'))
-  .find((file) => readFileSync(file, 'utf8').includes('src/routes/+page.svelte'));
+  .filter(file => file.endsWith('.js'))
+  .find(file => readFileSync(file, 'utf8').includes('src/routes/+page.svelte'));
 assert.ok(mainRouteNodeFile, 'main route has no generated client route node');
 const mainRouteNodeId = siteRelative(mainRouteNodeFile);
-const initialEntry = clientManifest[mainRouteNodeId];
-assert.ok(initialEntry?.isEntry, 'main route client entry is missing');
-assert.deepEqual(
-  new Set(initialEntry.dynamicImports),
-  mainVirtualLocaleModuleIds,
-  'main route does not own its exact scoped locale entries'
-);
-assert.deepEqual(
-  new Set(chunkLabRouteEntry.dynamicImports),
-  chunkLabVirtualLocaleModuleIds,
-  'chunk-lab route does not own its exact scoped locale entries'
-);
-
+assert.ok(clientManifest[mainRouteNodeId]?.isEntry, 'main route client entry is missing');
 // Follow only static imports from that initial route entry. Every locale chunk
 // must remain outside this closure; it is fetched through a dynamic loader.
 function resolveStaticImport(specifier) {
@@ -325,132 +279,57 @@ function collectStaticReachable(entryId) {
   }
   return staticReachable;
 }
-const staticReachable = collectStaticReachable(mainRouteNodeId);
-for (const moduleId of mainVirtualLocaleModuleIds) {
-  assert.equal(
-    staticReachable.has(moduleId),
-    false,
-    `virtual locale entry ${moduleId} is reachable through main route static imports`
-  );
+for (const root of [mainRouteNodeId,chunkLabRouteNodeId]) {
+  for (const moduleId of collectStaticReachable(root)) {
+    assert.equal(localeChunkFiles.has(clientManifest[moduleId].file), false, 'an initial route imported a locale catalog eagerly');
+  }
 }
-const chunkLabStaticReachable = collectStaticReachable(chunkLabRouteNodeId);
-const chunkLabDynamicLocaleEdges = new Set();
-for (const moduleId of chunkLabStaticReachable) {
-  for (const dynamicImport of clientEntryById.get(moduleId).dynamicImports ?? []) {
-    if (chunkLabVirtualLocaleModuleIds.has(dynamicImport)) {
-      chunkLabDynamicLocaleEdges.add(dynamicImport);
+
+const clientJavaScriptFiles = filesUnder(clientOutputRoot).filter(file => file.endsWith('.js'));
+assert.ok(clientJavaScriptFiles.length <= effectiveLocales.size * 2 + 24,
+  `client emitted ${clientJavaScriptFiles.length} JavaScript files for ${effectiveLocales.size} locales`);
+const clientText = clientJavaScriptFiles.filter(file => !localeChunkFiles.has(siteRelative(file).replace('.svelte-kit/output/client/','')))
+  .map(file => readFileSync(file,'utf8')).join('\n');
+assert.doesNotMatch(clientText, /createLinguiniProvider|localeLoaders|__linguini_loaders|does not export messages/);
+assert.equal(countMatches(clientText, /Invalid Linguini page payload/g), 1, 'the maintained page loader must be shared');
+assert.match(clientText, /import\(/);
+
+const messageIds = new Map(Object.keys(generatedManifest.messages).sort().map((name,index) => [name,index]));
+const mainExpectedMessages = [...new Set([
+  ...generatedManifest.applications['src/routes/+page.svelte'].references.map(reference => reference.message),
+  'main.codegen.intro'
+])];
+for (const [route,expected] of [['/chunk-lab',chunkLabExpectedMessages],['/',mainExpectedMessages]]) {
+  for (const [locale,file] of Object.entries(payloads[route])) {
+    const source = readFileSync(join(clientOutputRoot,file),'utf8');
+    assert.doesNotMatch(source, /(?:^|[;\n}])\s*import\b|main\.[a-z_]+/,
+      `${route}/${locale} must be self-contained and omit canonical message paths`);
+    const {messages} = await import(pathToFileURL(join(clientOutputRoot,file)).href);
+    assert.deepEqual(Object.keys(messages).sort(), expected.map(name => String(messageIds.get(name))).sort(),
+      `${route}/${locale} is not its exact surviving message closure`);
+    if (route === '/chunk-lab') {
+      const native = (await import(pathToFileURL(join(generatedRoot,`locales/${locale}/main.js`)).href)).main;
+      for (const name of expected) {
+        const value = name.split('.').slice(1).reduce((value,key) => value[key], native);
+        assert.equal(messages[messageIds.get(name)], value);
+      }
+      assert.doesNotMatch(source, /\bfunction\b|=>/, 'constant-only lab payload must omit formatter/plural/helper bodies');
+      assert.equal(Object.hasOwn(messages,messageIds.get('main.codegen.intro')), false, 'unused shared export leaked another page’s message');
     }
   }
 }
-assert.deepEqual(
-  chunkLabDynamicLocaleEdges,
-  chunkLabVirtualLocaleModuleIds,
-  'chunk-lab client graph does not expose one dynamic edge per locale'
-);
-for (const moduleId of chunkLabVirtualLocaleModuleIds) {
-  assert.equal(
-    chunkLabStaticReachable.has(moduleId),
-    false,
-    `virtual locale entry ${moduleId} is reachable through chunk-lab static imports`
-  );
+console.log(`[production-graph] composed-pages=${Object.keys(payloads).length} locales=${effectiveLocales.size} lab-messages=${chunkLabExpectedMessages.length} payloads=${localeChunkFiles.size}`);
+for (const route of ['/', '/chunk-lab']) {
+  const source = readFileSync(join(clientOutputRoot,payloads[route].fr));
+  console.log(`[production-graph] ${route}/fr payload bytes=${source.length} gzip=${gzipSync(source).length}`);
 }
-
-const clientJavaScriptFiles = filesUnder(clientOutputRoot).filter((file) => file.endsWith('.js'));
-assert.ok(
-  clientJavaScriptFiles.length <= effectiveLocales.size * 2 + 24,
-  `client emitted ${clientJavaScriptFiles.length} JavaScript files for ${effectiveLocales.size} locales`
-);
-const clientText = clientJavaScriptFiles
-  .map((file) => readFileSync(file, 'utf8'))
-  .join('\n');
-const registryJavaScriptFiles = clientJavaScriptFiles.filter((file) =>
-  readFileSync(file, 'utf8').includes('does not export messages')
-);
-assert.equal(
-  registryJavaScriptFiles.length,
-  2,
-  'client graph must contain exactly one locale registry per message-bearing route scope'
-);
-assert.equal(
-  countMatches(clientText, /does not export messages/g),
-  2,
-  'each scoped locale registry must validate its payload exactly once'
-);
-// The client must not pull the eager generated index/provider into the initial
-// graph. The SSR route is checked separately below.
-assert.doesNotMatch(clientText, /createLinguiniProvider|localeLoaders/);
-assert.doesNotMatch(clientText, /not prepared/);
-assert.doesNotMatch(clientText, /does not export message\b/);
-assert.doesNotMatch(clientText, /__linguini_loaders/);
-assert.match(clientText, /import\(/);
-
-function assertScopedDynamicImports(routeEntry, moduleIds, label) {
-  const routeText = readFileSync(join(clientOutputRoot, routeEntry.file), 'utf8');
-  const dynamicImportTargets = [
-    ...routeText.matchAll(/import\((["'`])([^"'`]+)\1\)/g)
-  ].map((match) => match[2].split('/').pop());
-  assert.equal(
-    dynamicImportTargets.length,
-    effectiveLocales.size,
-    `${label} must contain exactly one literal dynamic import per locale`
-  );
-  for (const moduleId of moduleIds) {
-    const entry = clientManifest[moduleId];
-    const chunkText = readFileSync(join(clientOutputRoot, entry.file), 'utf8');
-    assert.match(chunkText, /\bas messages\b/, `locale chunk ${moduleId} has no messages export`);
-    assert.doesNotMatch(
-      chunkText,
-      /main\.[a-z0-9_.]+/,
-      `locale chunk ${moduleId} leaks canonical message paths`
-    );
-    assert.equal(
-      dynamicImportTargets.filter((target) => target === entry.file.split('/').pop()).length,
-      1,
-      `${label} must import locale chunk ${moduleId} exactly once`
-    );
-  }
-}
-assertScopedDynamicImports(initialEntry, mainVirtualLocaleModuleIds, 'main route');
-assertScopedDynamicImports(chunkLabRouteEntry, chunkLabVirtualLocaleModuleIds, 'chunk-lab route');
-
-const chunkLabLocalePayloads = await Promise.all(
-  [...chunkLabVirtualLocaleModuleIds].map(async (moduleId) => {
-    const entry = clientManifest[moduleId];
-    assert.deepEqual(entry.imports ?? [], [], `${moduleId} is not a self-contained locale payload`);
-    return import(pathToFileURL(join(clientOutputRoot, entry.file)).href);
-  })
-);
-for (const payload of chunkLabLocalePayloads) {
-  assert.equal(Array.isArray(payload.messages), true, 'chunk-lab locale payload is not indexed');
-  assert.equal(
-    payload.messages.length,
-    chunkLabExpectedMessages.length,
-    'chunk-lab locale payload does not contain its exact indexed message set'
-  );
-  assert.equal(
-    payload.messages.every((message) => typeof message === 'string'),
-    true,
-    'chunk-lab constant messages are not emitted as direct indexed values'
-  );
-}
-console.log(
-  `[production-graph] chunk-lab refs=${chunkLabReferences.length} `
-    + `client-entry=${chunkLabRouteNodeId} `
-    + `dynamic-locale-edges=${chunkLabDynamicLocaleEdges.size} `
-    + 'locale-payload=route-subset'
-);
 
 const serverManifest = readJson(
   join(serverOutputRoot, '.vite/manifest.json'),
   'Vite SSR manifest'
 );
-for (const moduleId of virtualLocaleModuleIds) {
-  assert.equal(
-    serverManifest[moduleId],
-    undefined,
-    `SSR emitted virtual locale module ${moduleId} as a client-style dynamic entry`
-  );
-}
+assert.deepEqual(Object.keys(serverManifest).filter(id => id.startsWith('virtual:linguini/locale/')), [],
+  'SSR must not emit client-style dynamic locale entries');
 const serverPage = serverManifest['src/routes/+page.svelte'];
 assert.ok(serverPage?.isEntry, 'SSR page entry is missing');
 const serverPagePath = join(serverOutputRoot, serverPage.file);

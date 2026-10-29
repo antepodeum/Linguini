@@ -9,4 +9,4 @@ export function createReroute<Locale extends string>(web: LinguiniWebLocale<Loca
   };
 }
 
-export type { SerializedLinguiniContext } from './types.js';
+export type { PagePayload, SerializedLinguiniContext } from './types.js';

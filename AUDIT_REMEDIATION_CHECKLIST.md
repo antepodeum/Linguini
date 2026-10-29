@@ -1095,8 +1095,13 @@ and the composed payload/SSR requirements below.
       then one English payload on an explicit switch; JavaScript-disabled rendering needs neither.
       The shared SvelteKit root load also tracks the original URL, preventing reuse of stale
       locale metadata. Real built-server data responses declare that dependency; packed strict
-      consumers retain locals-only compatibility. Component/layout composition and page-message
-      preparation during cross-page navigation remain open.
+      consumers retain locals-only compatibility. A composed fixture now proves exact layout,
+      child-component, and imported-function demand, including removal of a shared function used
+      only by another page. Production output has one self-contained payload per page/locale;
+      Chromium verifies preparation before cross-page/cross-locale publication, cached revisits,
+      and no locale requests with scripting disabled. All four source-map modes pass. Deferred
+      boundaries needing new messages fail explicitly; their preparation protocol and the full
+      framework/configuration matrix remain open.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching
@@ -1106,7 +1111,8 @@ and the composed payload/SSR requirements below.
       The built SvelteKit server now renders concurrent French/Russian/English requests with values,
       recursive namespaces, named/positional calls, forms/plurals, and number/currency/date formatters.
       Chromium verifies French hydration text and locale switching. Finite dynamic calls, the full
-      sparse-fallback matrix, and composed-page hydration remain open. Live SSR also covers the
+      sparse-fallback matrix remain open. Composed-page hydration and cross-page/cross-locale
+      navigation now execute in Chromium. Live SSR also covers the
       trailing-slash redirect-loop fix; prerendering alone did not expose that failure.
 - [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
@@ -1264,6 +1270,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       dispatch, or allocations unless their runtime behavior requires them. Verify initial
       and transition request counts, compressed/uncompressed bytes, dependency duplication,
       and executed operations on real composed pages. Keep this open until MOD-A4 is proven.
+      The composed-page production gate checks exact message identities for two pages across
+      nine locales and reports raw/gzip payload sizes. Chromium verifies one selected preload
+      before framework execution, no requests without scripting, and cache reuse on revisit.
+      Deferred payload preparation and removal of unnecessary stateful facade work remain open.
 
 The canonical JS migration now resolves actual formatter requests (including schema alias
 inheritance and explicit overrides), compiles number/currency choices and selected Gregorian

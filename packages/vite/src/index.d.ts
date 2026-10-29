@@ -1,4 +1,4 @@
-import type { Plugin, ViteDevServer } from "vite";
+import type { Plugin, Rollup, ViteDevServer } from "vite";
 import type MagicString from "magic-string";
 
 export interface LinguiniStaticLink {
@@ -14,6 +14,8 @@ export interface LinguiniFrameworkAdapter {
   /** Select a stateful locale runtime; omission binds messages to the project's base locale. */
   readonly localeHelper?: string;
   readonly effectsHelper?: string;
+  /** A host that prepares the complete page catalog before publishing its state. */
+  readonly pageMessages?: { readonly module: string; readonly export: string };
   readonly extensions?: readonly string[];
   applicationScope?(code: string, insertion: number, sourceName: string):
     { key: string; insertionByte: number } | undefined;
@@ -46,7 +48,25 @@ export interface LinguiniViteOptions {
   build?: (context: LinguiniBuildContext) => void | Promise<void>;
 }
 
-export declare function linguini(options?: LinguiniViteOptions): Plugin;
+export interface LinguiniPageEntry {
+  readonly id: string;
+  readonly exports: readonly (readonly string[])[];
+}
+export interface LinguiniPage {
+  readonly id: string;
+  readonly entries: readonly (string | LinguiniPageEntry)[];
+}
+export interface LinguiniPagePayload {
+  readonly file: string;
+  readonly messages: readonly string[];
+}
+export interface LinguiniVitePlugin extends Plugin {
+  api: {
+    compilePages(context: Pick<Rollup.PluginContext, 'getModuleInfo'|'resolve'|'emitFile'|'parse'>,
+      pages: readonly LinguiniPage[], output?: { assetsDir?: string }): Promise<Record<string, Record<string, LinguiniPagePayload>>>;
+  };
+}
+export declare function linguini(options?: LinguiniViteOptions): LinguiniVitePlugin;
 export default linguini;
 
 export declare function discoverLinguiniFiles(

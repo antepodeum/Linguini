@@ -22,7 +22,7 @@ importers:
     dependencies:
       '@antepodeum/linguini-sveltekit':
         specifier: file:../packages/sveltekit
-        version: file:../packages/sveltekit(@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)
+        version: file:../packages/sveltekit(@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
       '@antepodeum/linguini-vite':
         specifier: file:../packages/vite
         version: file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
@@ -134,8 +134,11 @@ packages:
       '@antepodeum/linguini-vite': 0.1.0-alpha.4
       '@sveltejs/kit': ^2.57.0
       svelte: ^5.55.0
+      vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@antepodeum/linguini-vite':
+        optional: true
+      vite:
         optional: true
 
   '@antepodeum/linguini-vite@file:../packages/vite':
@@ -1127,14 +1130,16 @@ snapshots:
     dependencies:
       svelte: 5.55.8
 
-  '@antepodeum/linguini-sveltekit@file:../packages/sveltekit(@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)':
+  '@antepodeum/linguini-sveltekit@file:../packages/sveltekit(@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
     dependencies:
       '@antepodeum/linguini-svelte': file:../packages/svelte(svelte@5.55.8)
       '@antepodeum/linguini-web': file:../packages/web
       '@sveltejs/kit': 2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.8)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7)))(svelte@5.55.8)(typescript@6.0.3)(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
+      magic-string: 0.30.21
       svelte: 5.55.8
     optionalDependencies:
       '@antepodeum/linguini-vite': file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))
+      vite: 8.0.13(@types/node@24.12.4)(jiti@1.21.7)
 
   '@antepodeum/linguini-vite@file:../packages/vite(vite@8.0.13(@types/node@24.12.4)(jiti@1.21.7))':
     dependencies:

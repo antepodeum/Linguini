@@ -3,10 +3,12 @@ import type { LinguiniLocaleRequestContext, LinguiniWebLocale } from '@antepodeu
 import { createLocaleRequestContext } from '@antepodeum/linguini-web';
 import { createLocaleSwitchHandler } from '@antepodeum/linguini-web/server';
 import type { LocaleSwitchRouteOptions } from '@antepodeum/linguini-web/server';
-import type { SerializedLinguiniContext } from './types.js';
+import {createPagePreload} from './page-preload.js';
+import type { PagePayload, SerializedLinguiniContext } from './types.js';
 
 export interface HandleOptions {
   persistCookie?: boolean;
+  getPagePayload?: LoadOptions['getPagePayload'];
   switchRoute?: LocaleSwitchRouteOptions;
 }
 
@@ -38,7 +40,15 @@ export function createHandle<Locale extends string>(web: LinguiniWebLocale<Local
       if (persistCookie) web.setLocaleCookie(response, locale, {origin:event.url.origin});
       return response;
     }
-    const response = await resolve(event, {transformPageChunk:createHtmlTransform(context)});
+    const payload = !event.isDataRequest && event.route?.id && options.getPagePayload
+      ? await selectPagePayload(event.locals,options.getPagePayload,event.route.id,locale)
+      : undefined;
+    const transform = createHtmlTransform(context);
+    const preload = payload ? createPagePreload(payload) : undefined;
+    const response = await resolve(event, {transformPageChunk:chunk => {
+      const html = transform(chunk);
+      return preload ? preload({html,done:chunk.done}) : html;
+    }});
     if (!persistCookie) return response;
     // Fetch responses may have immutable headers; preserve their streaming body.
     const persisted = new Response(response.body, {status:response.status, statusText:response.statusText, headers:response.headers});
@@ -47,12 +57,32 @@ export function createHandle<Locale extends string>(web: LinguiniWebLocale<Local
   };
 }
 
-export function createLoad<Locale extends string = string>() {
-  return ({locals,url}: Pick<RequestEvent, 'locals'> & Partial<Pick<RequestEvent, 'url'>>): {linguini:SerializedLinguiniContext<Locale> | undefined} => {
+export interface LoadOptions {
+  getPagePayload?: (input: {routeId: string; locale: string}) => Promise<PagePayload | undefined>;
+}
+
+let pageManifest: Promise<typeof import('virtual:linguini/page-manifest')> | undefined;
+let pathContext: Promise<typeof import('$app/paths')> | undefined;
+
+export async function getPagePayload({routeId,locale}: {routeId: string; locale: string}): Promise<PagePayload | undefined> {
+  const {payloads} = await (pageManifest ??= import('virtual:linguini/page-manifest'));
+  const file = payloads[routeId]?.[locale];
+  if (!file) return;
+  const paths = await (pathContext ??= import('$app/paths'));
+  return {url:(paths.assets || paths.base) + '/' + file};
+}
+
+type LoadEvent = Pick<RequestEvent, 'locals'> & Partial<Pick<RequestEvent, 'url'|'route'>>;
+type LoadResult<Locale extends string> = {linguini: SerializedLinguiniContext<Locale> | undefined};
+
+export function createLoad<Locale extends string = string>(): (event: LoadEvent) => LoadResult<Locale>;
+export function createLoad<Locale extends string = string>(options: LoadOptions): (event: LoadEvent) => LoadResult<Locale> | Promise<LoadResult<Locale>>;
+export function createLoad<Locale extends string = string>(options: LoadOptions = {}) {
+  return ({locals,url,route}: Pick<RequestEvent, 'locals'> & Partial<Pick<RequestEvent, 'url'|'route'>>) => {
     // SvelteKit otherwise reuses shared layout metadata when only the localized URL changes.
     void url?.pathname;
     const context = (locals as {linguini?:LinguiniLocaleRequestContext<Locale>}).linguini;
-    return {linguini: context ? {
+    const result = {linguini: context ? {
       locale: context.locale,
       baseLocale: context.baseLocale,
       locales: context.locales,
@@ -60,6 +90,12 @@ export function createLoad<Locale extends string = string>() {
       lang: context.lang,
       htmlAttrs: context.htmlAttrs,
     } : undefined};
+    if (context && route?.id && options.getPagePayload) {
+      return selectPagePayload(locals,options.getPagePayload,route.id,context.locale).then(payload => ({
+        linguini: {...result.linguini!,payload},
+      }));
+    }
+    return result;
   };
 }
 
@@ -86,4 +122,20 @@ function createHtmlTransform<Locale extends string>(context: LinguiniLocaleReque
     }
     return output;
   };
+}
+
+const pagePayloadSelection = Symbol('linguini.page-payload');
+interface PayloadSelection {
+  resolver: NonNullable<LoadOptions['getPagePayload']>;
+  routeId: string;
+  locale: string;
+  task: Promise<PagePayload | undefined>;
+}
+function selectPagePayload(locals: RequestEvent['locals'], resolver: PayloadSelection['resolver'], routeId: string, locale: string) {
+  const storage = locals as {[pagePayloadSelection]?: PayloadSelection};
+  const previous = storage[pagePayloadSelection];
+  if (previous?.resolver === resolver && previous.routeId === routeId && previous.locale === locale) return previous.task;
+  const task = resolver({routeId,locale});
+  storage[pagePayloadSelection] = {resolver,routeId,locale,task};
+  return task;
 }
