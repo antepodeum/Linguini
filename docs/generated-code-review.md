@@ -41,6 +41,12 @@ the composed-page graph and request checks specified in ESM-A3/MOD-A4.
 | GEN-A21 | Fixed metadata invalidation | Maintained `packages/sveltekit/src/server.ts::createLoad` only read `locals`; real SvelteKit data responses declared no URL dependency, permitting stale shared-layout locale metadata on navigation. | The helper now reads the tracked original URL pathname. A built-server regression verifies French and Russian data responses declare `uses.url`; packed strict TypeScript consumers cover optional URL forwarding and reject pathname strings. Hooks stay metadata-only, locals-only extraction remains compatible, and the eight site gates plus executable documentation pass. Exact page-payload preparation remains GEN-A10/MOD-A4. |
 | GEN-A22 | Fixed native base-locale linking | The Vite default required a nonexistent locale helper, and native `lgl` imports lacked tracked import identities. | The analyzer and CLI share the built-in namespace vocabulary. The default Vite adapter links base-locale leaves directly; virtual re-exports contribute zero rendered bytes. Real eager/dynamic builds execute values, functions, and bounded computed access, excluding inactive French messages and locale state/loaders. Cold/warm native manifests retain exact direct/aliased bindings; a native compiler-to-Vite build executes in one chunk. Stateful adapters retain their separate locale behavior; composed-page delivery remains open. |
 
+Named generated imports with unresolved uses now fail explicitly rather than retaining
+their catalog barrel. Native token analysis resolves a static property/method tail to its
+known message prefix, including quoted members and Unicode comments. Cold/warm manifests
+and executed stateful/stateless Vite builds cover string operations and callable `.call(...)`.
+This receipt does not complete namespace/default-import handling or deferred preparation.
+
 Canonical number/date fixtures already contain build-selected symbols and direct date getter
 expressions rather than raw CLDR patterns. Rounding/scale helper specialization and date-helper
 selection have since been implemented and tested. Date-semantic substitutions and the other

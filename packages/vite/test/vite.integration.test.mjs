@@ -287,6 +287,9 @@ for (const stateless of [false, true]) {
       `import { ${imported} as l } from "${moduleSpecifier}";`,
       "export const fixed = l.main.title;",
       "export const formatter = l.main.items;",
+      'export const upper = () => l.main["title"] /* Привет */ .toLowerCase();',
+      'export const length = () => l["main"].title.length;',
+      'export const boundCall = () => l["main"].items.call(undefined,3);',
       "export function select(key) { return l.main[key]; }",
       "export function invoke(action) { return l.main[action](2); }",
       ""
@@ -419,6 +422,9 @@ for (const stateless of [false, true]) {
           references: [
             reference("l.main.title", "main.title", "value", 0),
             reference("l.main.items", "main.items", "value", 1),
+            reference('l.main["title"]', "main.title", "value", 0),
+            reference('l["main"].title', "main.title", "value", 0),
+            reference('l["main"].items', "main.items", "value", 1),
           ],
           dynamic_references: [
             dynamicReference("l.main[key]", "key", "value"),
@@ -499,6 +505,9 @@ for (const stateless of [false, true]) {
     const evaluated = await import(pathToFileURL(path.join(output, entryChunk.fileName)).href);
     assert.equal(evaluated.fixed, "EXACT_DYNAMIC_TITLE");
     assert.equal(evaluated.formatter(4), "EXACT_DYNAMIC_ITEMS:4");
+    assert.equal(evaluated.upper(), "exact_dynamic_title");
+    assert.equal(evaluated.length(), "EXACT_DYNAMIC_TITLE".length);
+    assert.equal(evaluated.boundCall(), "EXACT_DYNAMIC_ITEMS:3");
     assert.equal(evaluated.select("title"), "EXACT_DYNAMIC_TITLE");
     assert.equal(evaluated.select("items")(3), "EXACT_DYNAMIC_ITEMS:3");
     assert.equal(evaluated.invoke("items"), "EXACT_DYNAMIC_ITEMS:2");

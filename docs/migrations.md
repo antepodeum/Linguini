@@ -37,6 +37,15 @@ stateful dynamic adapters require top-level await and the default ES2022 target;
 `lgl` imports keep the application’s normal target. Svelte and SvelteKit adapters retain
 their stateful behavior. This does not complete composed-page locale delivery.
 
+## Exact message leaves before JavaScript operations
+
+Static property and method tails now resolve their known message prefix. For example,
+`l.main.title.toUpperCase()` imports `main.title` and preserves `.toUpperCase()`;
+captured callable leaves also preserve `.call(...)` and other static operations.
+Unresolved uses of a named generated message namespace now fail the Vite build instead
+of retaining its catalog import. Resolve the message leaf or configure a finite dynamic
+allow list. Unrelated imports with the same local name remain unaffected.
+
 ## SvelteKit composed-page payloads
 
 With the SvelteKit Vite adapter, import `getPagePayload` from

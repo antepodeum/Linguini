@@ -116,6 +116,7 @@ pub struct ApplicationReference {
     pub binding: ApplicationBinding,
     /// Exact import identity when this reference originates from a removable named import.
     pub import_binding: Option<ApplicationImportBindingId>,
+    prefixes: Vec<(String, usize)>,
 }
 
 impl ApplicationReference {
@@ -125,6 +126,7 @@ impl ApplicationReference {
         kind: ApplicationReferenceKind,
         binding: ApplicationBinding,
         import_binding: Option<ApplicationImportBindingId>,
+        prefixes: Vec<(String, usize)>,
     ) -> Self {
         Self {
             canonical_path,
@@ -132,7 +134,22 @@ impl ApplicationReference {
             kind,
             binding,
             import_binding,
+            prefixes,
         }
+    }
+
+    /// Resolve a static message leaf before ordinary JavaScript property/method access.
+    /// Prefix ends come from the original token stream, including quoted members and comments.
+    pub fn message_leaf(&self, exists: impl Fn(&str) -> bool) -> Option<Self> {
+        if exists(&self.canonical_path) {
+            return Some(self.clone());
+        }
+        let (path, end) = self.prefixes.iter().rev().find(|(path, _)| exists(path))?;
+        let mut leaf = self.clone();
+        leaf.canonical_path.clone_from(path);
+        leaf.span.end = *end;
+        leaf.kind = ApplicationReferenceKind::Value;
+        Some(leaf)
     }
 }
 
@@ -462,6 +479,10 @@ impl ApplicationUsage {
             };
             if context.emit_reference {
                 let import_binding = self.import_binding_id(&context.binding, context.source_id);
+                let mut prefixes = Vec::new();
+                scan_member_path(context.tokens, context.member_start, |segments, end| {
+                    prefixes.push((UsagePath::new(segments.to_vec()).display, end));
+                });
                 self.references.push(ApplicationReference::new(
                     path.display,
                     Span::in_source(context.source_id, root_token.start, end),
@@ -475,6 +496,7 @@ impl ApplicationUsage {
                         }
                     },
                     import_binding,
+                    prefixes,
                 ));
             }
         }
@@ -2947,7 +2969,15 @@ fn is_member_property(tokens: &[Token], index: usize) -> bool {
     )
 }
 
-fn member_path(tokens: &[Token], mut index: usize) -> (Vec<UsageSegment>, bool, usize) {
+fn member_path(tokens: &[Token], index: usize) -> (Vec<UsageSegment>, bool, usize) {
+    scan_member_path(tokens, index, |_, _| {})
+}
+
+fn scan_member_path(
+    tokens: &[Token],
+    mut index: usize,
+    mut on_member: impl FnMut(&[UsageSegment], usize),
+) -> (Vec<UsageSegment>, bool, usize) {
     let mut segments = Vec::new();
     loop {
         let member_start = if matches!(
@@ -2984,6 +3014,7 @@ fn member_path(tokens: &[Token], mut index: usize) -> (Vec<UsageSegment>, bool, 
             }) = tokens.get(member)
             {
                 segments.push(UsageSegment::new(name.clone()));
+                on_member(&segments, tokens[member].end);
                 index = member + 1;
                 continue;
             } else {
@@ -3005,6 +3036,7 @@ fn member_path(tokens: &[Token], mut index: usize) -> (Vec<UsageSegment>, bool, 
                 ) =>
             {
                 segments.push(UsageSegment::new(name.clone()));
+                on_member(&segments, tokens[index + 2].end);
                 index += 3;
             }
             _ => return (segments, true, index + 1),

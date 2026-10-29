@@ -1113,7 +1113,7 @@ allow = ["main.title", "main.items"]
         .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
     assert!(!first_text.contains("Привет"));
     let references = application["references"].as_array().expect("references");
-    assert_eq!(references.len(), 2);
+    assert_eq!(references.len(), 3);
     assert_eq!(references[0]["message"], "main.title");
     assert_eq!(references[0]["kind"], "value");
     assert_eq!(references[0]["arity"], 0);
@@ -1200,9 +1200,14 @@ allow = ["main.title", "main.items"]
     let end = references[0]["end"].as_u64().expect("end") as usize;
     assert_eq!(&app_source.as_bytes()[start..end], b"tr.main.title");
     let unresolved = application["unresolved"].as_array().expect("unresolved");
-    assert!(unresolved.iter().any(|entry| {
-        entry["message"] == "main.title.extra" && entry["reason"] == "non_exact_message_path"
-    }));
+    assert_eq!(references[2]["message"], "main.title");
+    assert_eq!(references[2]["kind"], "value");
+    let property_start = app_source.find("tr.main.title.extra").unwrap();
+    assert_eq!(references[2]["start"], property_start);
+    assert_eq!(references[2]["end"], property_start + "tr.main.title".len());
+    assert!(!unresolved
+        .iter()
+        .any(|entry| entry["message"] == "main.title.extra"));
     assert!(unresolved
         .iter()
         .any(|entry| entry["message"] == "main.title" && entry["reason"] == "optional_chain"));
@@ -1615,7 +1620,7 @@ fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
         let project = dynamic_bundler_project(
             &format!("base-namespace-{name}"),
             "[targets.ts.bundler.dynamic]\nmode = \"bundle\"\nallow = [\"main.title\", \"main.items\"]",
-            &format!("import {{ {import} }} from '../build/generated/index.js';\nexport const title = {local}.main.title;\nexport const formatter = {local}.main.items;\nexport function choose(key) {{ return {local}.main[key]; }}\n"),
+            &format!("import {{ {import} }} from '../build/generated/index.js';\nexport const title = {local}.main.title;\nexport const formatter = {local}.main.items;\nexport const upper = () => {local}.main[\"title\"] /* Привет */ .toUpperCase();\nexport const length = () => {local}[\"main\"].title.length;\nexport const boundCall = () => {local}.main.items.call(undefined, 3);\nexport function choose(key) {{ return {local}.main[key]; }}\n"),
         );
         assert!(!project.path().join("build/generated").exists());
         build_project(project.path()).expect("cold native build");
@@ -1630,9 +1635,24 @@ fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
         assert_eq!(binding["local"], local);
         assert_eq!(binding["analyzer_tracked_uses_only"], true);
         assert_eq!(binding["transformable"], true);
-        assert_eq!(application["references"].as_array().unwrap().len(), 2);
+        assert_eq!(application["references"].as_array().unwrap().len(), 5);
         assert_eq!(application["references"][1]["kind"], "value");
         assert_eq!(application["references"][1]["arity"], 1);
+        for (index, suffix, arity) in [
+            (2, ".main[\"title\"]", 0),
+            (3, "[\"main\"].title", 0),
+            (4, ".main.items", 1),
+        ] {
+            let reference = &application["references"][index];
+            assert_eq!(reference["kind"], "value");
+            assert_eq!(reference["arity"], arity);
+            let source = fs::read_to_string(project.path().join("src/page.ts")).unwrap();
+            assert_eq!(
+                &source[reference["start"].as_u64().unwrap() as usize
+                    ..reference["end"].as_u64().unwrap() as usize],
+                format!("{local}{suffix}")
+            );
+        }
         assert_eq!(application["unresolved"], serde_json::json!([]));
         assert_eq!(
             application["dynamic_references"].as_array().unwrap().len(),

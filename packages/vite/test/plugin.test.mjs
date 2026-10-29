@@ -1350,6 +1350,25 @@ test("rejects stale bytes and skips unsafe bindings", async (context) => {
   }
 });
 
+test("unresolved generated imports fail without rejecting unrelated namespace imports", async context => {
+  const data = await bundlerFixture({applicationName:'unresolved.ts'});
+  context.after(() => rm(data.root,{recursive:true,force:true}));
+  const application = data.manifest.applications[data.applicationKey];
+  application.imports[0].transformable = false;
+  application.references = [];
+  application.unresolved = [{message:'main.missing',reason:'non_exact_message_path',binding_id:'binding'}];
+  await writeFile(path.join(data.generated,'bundler/manifest.json'),JSON.stringify(data.manifest));
+  const plugin = linguini({root:data.root,buildOnStart:false});
+  await plugin.configResolved({root:data.root});
+  await plugin.buildStart.call({addWatchFile(){}});
+  await assert.rejects(plugin.transform.call(
+    {resolve:async()=>({id:path.join(data.generated,'svelte.js')})},data.code,data.application
+  ),/cannot bundle unresolved uses of tr/);
+  assert.equal(await plugin.transform.call(
+    {resolve:async()=>({id:path.join(data.root,'unrelated.js')})},data.code,data.application
+  ),undefined);
+});
+
 test("transforms static and dynamic refs with finite frozen dispatches", async (context) => {
   const data = await dynamicBundlerFixture();
   context.after(() => rm(data.root, { recursive: true, force: true }));

@@ -968,6 +968,12 @@ Generated message access is nested by canonical path. Parameterless leaves are
 values (`l.main.title`); parameterized leaves remain callable with their schema
 signature (`l.main.greeting("Artemy")`). The Svelte/Vite transform rewrites
 static `l` paths to imports of the exact per-message modules used by the source.
+Static property or method access after a known message leaf preserves the JavaScript
+operation: `l.main.title.length`, `l.main["title"].toUpperCase()`, and
+`l.main.items.call(undefined, 3)` still import only their message leaf. Prefix spans come
+from native token analysis, preserving quoted members, comments, and UTF-8 source maps.
+Unresolved named namespace imports that resolve to the generated entry are diagnosed
+instead of retaining a catalog barrel. Imports resolving to unrelated modules are unaffected.
 A parameterized leaf can also be captured as a function, for example
 `const format = l.main.items; format(2)`. Capturing it does not invoke it;
 stateful bindings select the current locale when the captured function is called.

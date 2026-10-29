@@ -1589,27 +1589,17 @@ async function transformApplication(
   const dynamicBindingIds = new Set(
     application.dynamicReferences.map((reference) => reference.bindingId)
   );
-  const referencedBindingIds = new Set([
-    ...application.references.flatMap((reference) =>
-      reference.bindingId === null ? [] : [reference.bindingId]
-    ),
-    ...dynamicBindingIds
-  ]);
   const generatedEntry = normalizeResolvedFileId(path.resolve(generatedRoot, adapter.entry));
   const acceptedBindings = new Map();
-  for (const bindingId of referencedBindingIds) {
-    const binding = application.imports.get(bindingId);
-    if (
-      !binding?.transformable ||
-      !binding.analyzerTrackedUsesOnly ||
-      !adapter.messageExports.includes(binding.imported)
-    ) {
+  for (const [bindingId, binding] of application.imports) {
+    if (!adapter.messageExports.includes(binding.imported)) continue;
+    const tracked = binding.transformable && binding.analyzerTrackedUsesOnly;
+    if (!tracked) {
       if (dynamicBindingIds.has(bindingId)) {
         throw new Error(
           `Linguini dynamic binding ${bindingId} is not tracked and transformable in ${application.relative}`
         );
       }
-      continue;
     }
     let resolved;
     try {
@@ -1633,6 +1623,11 @@ async function transformApplication(
         );
       }
       continue;
+    }
+    if (!tracked) {
+      throw new Error(
+        `Linguini cannot bundle unresolved uses of ${binding.local} in ${application.relative}; resolve each message leaf or configure a finite dynamic allow list`
+      );
     }
     acceptedBindings.set(bindingId, binding);
   }

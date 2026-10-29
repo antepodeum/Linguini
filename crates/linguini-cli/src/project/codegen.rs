@@ -514,6 +514,8 @@ fn application_entry(
             ));
             continue;
         }
+        let leaf = reference.message_leaf(|path| messages.contains_key(path));
+        let reference = leaf.as_ref().unwrap_or(reference);
         let Some(&arity) = messages.get(&reference.canonical_path) else {
             poisoned_imports.extend(reference.import_binding);
             unresolved.push((
