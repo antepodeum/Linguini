@@ -11,9 +11,9 @@ import { examplesHash, renderHighlight } from '../src/lib/server/highlight-rende
 const siteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = join(siteRoot, '.svelte-kit/linguini');
 mkdirSync(output, { recursive: true });
-const native = JSON.parse(readFileSync(join(siteRoot, 'generated/highlights.json'), 'utf8'));
+const native = JSON.parse(readFileSync(join(output, 'native-highlights.json'), 'utf8'));
 if (native.version !== 1 || native.sourceHash !== examplesHash(examples)) {
-  throw new Error('Native highlight artifacts are stale. Run pnpm highlight:refresh.');
+  throw new Error('Native highlight artifacts are stale. Run pnpm highlight:build.');
 }
 const shiki = await createHighlighterCore({
   engine: createJavaScriptRegexEngine(), themes: [darkPlusTheme], langs: [svelteGrammar]

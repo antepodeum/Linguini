@@ -1135,7 +1135,7 @@ and the composed payload/SSR requirements below.
       the temporary native policy transport and SDK entries are removed. All npm
       packages use `@antepodeum/linguini` / `@antepodeum/linguini-*`; release tooling packs the
       shared frontend package and platform packages before the launcher. Local Vite, strict tsc/packed APIs,
-      site production, and exact archive parity pass. Cross-version/platform and composed-page
+      site production, and fresh native generation pass. Cross-version/platform and composed-page
       delivery/SSR verification remain open.
 
 ### Specialized generated code
@@ -1361,8 +1361,10 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 - [x] LOCAL-A1 — Provide one root runner with ordered quick, full, and real-site profiles across
       every project/package in this repository.
 - [x] LOCAL-A2 — Generate, type-check, build, and inspect the real site production graph locally.
-      The canonical JS archive is refreshed; runtime/round-trip tests, Svelte checking, production
-      build, and scoped graph assertions pass locally. This application-scope baseline does not
+      Site builds generate current native messages and highlight tokens into ignored directories;
+      archived output and its restore/package workflow are removed. A repository gate rejects
+      committed application build output. Runtime tests, source-hash freshness checks, Svelte
+      checking, production builds, and scoped graph assertions pass locally. This baseline does not
       close the composed-page, request/network, or hydration requirements in MOD-A4/A5.
 - [x] LOCAL-A3 — Start the real site development server without generated-output watcher storms,
       rebuild after locale edits, and verify English and localized routes in a browser.

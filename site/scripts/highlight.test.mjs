@@ -25,12 +25,14 @@ test('native UTF-16 highlights preserve source text and escape all HTML', () => 
   ] }), /Overlapping/);
 });
 
-test('normal site highlighting renders packaged native tokens without external tools', async () => {
+test('site highlighting generates fresh tokens and renders ignored build output without external tools', async () => {
   const { spawnSync } = await import('node:child_process');
   const { readFileSync } = await import('node:fs');
   const { fileURLToPath } = await import('node:url');
   const { examples } = await import('../src/lib/server/examples.mjs');
   const siteRoot = fileURLToPath(new URL('../', import.meta.url));
+  const generated = spawnSync(process.execPath,['scripts/generate-highlights.mjs'],{cwd:siteRoot,encoding:'utf8'});
+  assert.equal(generated.status,0,generated.stderr + generated.stdout);
   const result = spawnSync(process.execPath, ['scripts/highlight-examples.mjs'], {
     cwd: siteRoot, encoding: 'utf8', env: { ...process.env, PATH: '' }
   });

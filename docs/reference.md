@@ -1091,7 +1091,7 @@ zero-based UTF-16 `line`, `start`, and `length` values and named token `type` fi
 `source` strings and returns the same response. LF, CRLF, and CR line endings use the same
 coordinates. Both paths enforce document safety limits.
 
-Site Linguini examples consume checked native token artifacts; normal development and builds
-render escaped HTML into `.svelte-kit` without running Rust. `pnpm --dir site highlight:refresh`
-updates the packaged tokens after changing an example or the highlighter. The full test profile
-and Rust CI compare those artifacts with native output. Shiki handles the Svelte example only.
+Site builds run the native highlighter and render escaped HTML into the ignored `.svelte-kit`
+directory. Neither native token output nor generated message bundles are committed.
+`pnpm --dir site highlight:build` generates current tokens and rendered examples together.
+Shiki handles the Svelte example only.

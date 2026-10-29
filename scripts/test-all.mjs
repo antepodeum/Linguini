@@ -35,6 +35,16 @@ const nodeTask = (task) => ({ ...task, tools: ["node", ...task.tools] });
  */
 export const TASKS = Object.freeze([
   nodeTask({
+    id: "repo:build-artifacts",
+    project: "rust",
+    label: "Application build output stays out of Git",
+    command: "node",
+    args: ["scripts/check-build-artifacts.mjs"],
+    profiles: ["quick", "full", "site"],
+    tools: ["git"],
+    requiresNodeModules: false,
+  }),
+  nodeTask({
     id: "repo:versions",
     project: "rust",
     label: "Release version synchronization",
@@ -486,9 +496,9 @@ export const TASKS = Object.freeze([
   nodeTask({
     id: "codegen:highlight",
     project: "rust",
-    label: "Native site highlight artifact parity",
+    label: "Native site highlight generation",
     command: "node",
-    args: ["site/scripts/refresh-highlights.mjs", "--check"],
+    args: ["site/scripts/generate-highlights.mjs"],
     profiles: ["full"],
     tools: ["cargo"],
     requiresNodeModules: false,

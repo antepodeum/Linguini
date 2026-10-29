@@ -27,6 +27,8 @@ jobs:
         run: node packages/scripts/check-versions.mjs
       - name: Verify JavaScript package-manager boundaries
         run: node scripts/check-js-boundaries.mjs
+      - name: Reject committed application build output
+        run: node scripts/check-build-artifacts.mjs
       - name: Test repository runner
         run: node --test scripts/test-all.test.mjs
       - name: Enforce public contract companion evidence
@@ -103,13 +105,11 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --locked --workspace
-      - name: Verify packaged site output is current
+      - name: Generate site output from source
         working-directory: site
         run: |
-          node scripts/refresh-linguini.mjs
-          node scripts/package-linguini-output.mjs
-          node scripts/refresh-highlights.mjs --check
-          git diff --exit-code -- generated
+          node scripts/generate-linguini.mjs
+          node scripts/generate-highlights.mjs
 
   coverage:
     name: Rust coverage threshold
@@ -308,6 +308,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: stable
+      - name: Build site compiler
+        run: cargo build --locked -p linguini-cli
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
         with:
           version: 11.1.0

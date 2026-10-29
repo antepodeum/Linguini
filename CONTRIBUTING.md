@@ -27,8 +27,15 @@ For the website:
 ```sh
 cd site
 pnpm install --offline
+pnpm linguini:build
 pnpm check
 ```
+
+The source-checkout site builds messages with the workspace Rust compiler. Build it once with
+`cargo build --locked -p linguini-cli` to populate dependencies; subsequent site generation runs
+offline. `LINGUINI_COMMAND` can select a supplied compiler executable instead. Generated messages,
+native highlight tokens, and rendered examples stay in ignored output directories. The site does
+not restore or commit compiled archives. `pnpm build` generates current messages and highlights.
 
 Bug fixes should include a focused regression test at the layer where the bug
 appears: parser, analyzer, codegen, CLI, or site.

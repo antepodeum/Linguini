@@ -4,6 +4,20 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Site output is generated during builds
+
+The site no longer commits a compressed message archive, its manifest, or native highlight
+tokens. Archive restoration and packaging commands are removed. `pnpm --dir site build`
+generates current messages and examples; development watching runs the real compiler.
+`pnpm --dir site linguini:build` prepares generated declarations before a standalone check.
+Outputs remain ignored under `site/src/lib/generated` and `site/.svelte-kit`.
+
+Source-checkout builds use the stable workspace Rust compiler. Run
+`cargo build --locked -p linguini-cli` once to populate dependencies; subsequent generation
+runs offline. `LINGUINI_COMMAND` can select a supplied compiler executable instead.
+CI and Pages build the compiler before generating the site. The repository gate rejects
+tracked application build output; golden test expectations remain reviewable fixtures.
+
 ## Rust toolchain and minimum
 
 Source development and CI use the moving `stable` toolchain. The tested minimum is declared

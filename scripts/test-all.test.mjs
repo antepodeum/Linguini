@@ -22,6 +22,16 @@ import {
   standaloneJavaScriptTypeContract,
 } from "./docs-examples.mjs";
 import { contractEvidence, validateContractEvidence } from "./check-public-contract.mjs";
+import {isBuildArtifact} from './check-build-artifacts.mjs';
+
+test('application build output is forbidden while source and golden expectations remain tracked', () => {
+  for (const path of ['site/generated/output.br','site/src/lib/generated/linguini/index.js','site/.svelte-kit/output/client/app.js','packages/sveltekit/dist/client.js','packages/cli-linux-x64/bin/linguini']) {
+    assert.equal(isBuildArtifact(path),true,path);
+  }
+  for (const path of ['site/src/lib/components/button.svelte','packages/sveltekit/src/client.ts','tests/fixtures/golden/snapshots/codegen-js-plural-ru.js']) {
+    assert.equal(isBuildArtifact(path),false,path);
+  }
+});
 
 test("packaged documentation inherits workspace metadata instead of a separate Rust floor", () => {
   const metadata = '[workspace.package]\nedition = "2024"\nrust-version = "1.99"\nlicense = "Apache-2.0"';
@@ -135,6 +145,7 @@ test("registry is explicit and ordered across repository projects", () => {
   assert.deepEqual(
     TASKS.map((task) => task.id),
     [
+      "repo:build-artifacts",
       "repo:versions",
       "repo:contracts",
       "repo:js-boundaries",
@@ -209,6 +220,7 @@ test("registry is explicit and ordered across repository projects", () => {
 
 test("profiles select the expected ordered task groups", () => {
   assert.deepEqual(selectTasks({ profile: "quick" }).map((task) => task.id), [
+    "repo:build-artifacts",
     "repo:versions",
     "repo:contracts",
     "repo:js-boundaries",
@@ -263,6 +275,7 @@ test("profiles select the expected ordered task groups", () => {
     "cli:test",
   ]);
   assert.deepEqual(selectTasks({ profile: "site" }).map((task) => task.id), [
+    "repo:build-artifacts",
     "repo:versions",
     "repo:js-boundaries",
     "site:generate",
@@ -334,6 +347,7 @@ test("task execution continues after a failure and aggregates exit status", () =
     now: () => (tick += 12),
   });
   assert.deepEqual(calls, [
+    "repo:build-artifacts",
     "repo:versions",
     "repo:contracts",
     "repo:js-boundaries",
