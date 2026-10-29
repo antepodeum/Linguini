@@ -103,12 +103,13 @@ test('deferred boundaries cannot silently omit new messages or widen the initial
   const virtual = name => 'virtual:linguini/message/' + Buffer.from(name).toString('hex');
   await writeFile(path.join(root,'first.js'), 'export const message = "FIRST";');
   await writeFile(path.join(root,'later.js'), 'export const message = "LATER";');
-  await writeFile(path.join(root,'deferred.js'), `export {message as render} from ${JSON.stringify(virtual('later'))};`);
-  const messages = new Map(['first','later'].map(name => [name,{locales:new Map([
+  await writeFile(path.join(root,'unused.js'), 'export const message = "UNUSED_DEFERRED";');
+  await writeFile(path.join(root,'deferred.js'), `export {message as render} from ${JSON.stringify(virtual('later'))}; export {message as unused} from ${JSON.stringify(virtual('unused'))};`);
+  const messages = new Map(['first','later','unused'].map(name => [name,{locales:new Map([
     ['en',{module:path.join(root,name + '.js')}]]
   )}]));
   for (const sameMessage of [false,true]) {
-    await writeFile(path.join(root,'entry.js'), `export {message as render} from ${JSON.stringify(virtual(sameMessage ? 'later' : 'first'))}; export const action = () => import('./deferred.js');`);
+    await writeFile(path.join(root,'entry.js'), `export {message as render} from ${JSON.stringify(virtual(sameMessage ? 'later' : 'first'))}; export async function action() { const {render} = await import('./deferred.js'); return render; }`);
     let receipt;
     const run = () => build({
       configFile:false,root,logLevel:'silent',

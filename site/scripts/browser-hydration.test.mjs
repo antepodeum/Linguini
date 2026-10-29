@@ -70,11 +70,17 @@ test('French prerender hydrates its selected locale and loads only its page payl
   await page.goto(origin + '/fr/chunk-lab/', {waitUntil:'networkidle'});
   assert.deepEqual(requestedPayloads(), [payload('fr')]);
   assert.equal(await page.locator('main p').nth(1).textContent(), fr);
+  await page.getByRole('button',{name:'Read deferred copy'}).click();
+  await page.getByRole('status',{name:'Deferred copy'}).filter({hasText:fr}).waitFor();
+  assert.deepEqual(requestedPayloads(), [payload('fr')], 'a deferred read of prepared messages must not fetch another payload');
   assert.deepEqual(errors, []);
 
   await page.getByRole('link', {name:'EN', exact:true}).click();
   await page.waitForURL('**/en/chunk-lab/');
   await page.waitForFunction(expected => document.querySelectorAll('main p')[1]?.textContent === expected, en);
+  assert.deepEqual(requestedPayloads(), [payload('fr'), payload('en')]);
+  await page.getByRole('button',{name:'Read deferred copy'}).click();
+  await page.getByRole('status',{name:'Deferred copy'}).filter({hasText:en}).waitFor();
   assert.deepEqual(requestedPayloads(), [payload('fr'), payload('en')]);
   assert.deepEqual(errors, []);
 

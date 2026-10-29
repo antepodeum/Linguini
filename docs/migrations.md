@@ -37,6 +37,16 @@ stateful dynamic adapters require top-level await and the default ES2022 target;
 `lgl` imports keep the application’s normal target. Svelte and SvelteKit adapters retain
 their stateful behavior. This does not complete composed-page locale delivery.
 
+## Deferred page demand
+
+The composed-page guard now checks the page's actual deferred import consumption instead
+of retaining every public export of a lazy module. Deferred reads that reuse prepared page
+messages work without another message request. Unused shared exports remain excluded even
+when another page uses them. The analysis preserves dynamic boundaries to avoid Vite 8's
+namespace retention during import inlining; each compiled message payload is still one file.
+Deferred boundaries needing new messages continue to fail explicitly until their preparation
+protocol is implemented.
+
 ## Exact message leaves before JavaScript operations
 
 Static property and method tails now resolve their known message prefix. For example,

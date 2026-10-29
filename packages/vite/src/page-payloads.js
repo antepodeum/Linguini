@@ -25,7 +25,7 @@ const DEFERRED = "linguini-page-deferred:";
 const VIRTUAL_MESSAGE = "\0virtual:linguini/message/";
 
 /** Re-shake each page independently, including shared modules with multiple exported functions. */
-export async function pageMessageUsage(context, entries, config) {
+export async function pageMessageUsage(context, entries, config, followDeferred = false) {
   const root = entries.map((entry, index) => {
     if (typeof entry === 'string') return `export * as node${index} from ${JSON.stringify(entry)};`;
     const selected = entry.exports.map((parts, binding) =>
@@ -59,6 +59,7 @@ export async function pageMessageUsage(context, entries, config) {
         const parent = importer?.startsWith(GRAPH) ? importer.slice(GRAPH.length) : undefined;
         const resolved = await context.resolve(source,parent,{skipSelf:false});
         if (!resolved || resolved.external) return {id:source,external:true};
+        if (followDeferred) return GRAPH + resolved.id;
         return {id:DEFERRED + Buffer.from(resolved.id).toString('base64url'),external:true};
       },
       load(id) {
@@ -88,7 +89,9 @@ export async function pageMessageUsage(context, entries, config) {
       rollupOptions: {
         input: ENTRY,
         preserveEntrySignatures: "strict",
-        output: { format: "es", ...singleChunk }
+        // Inlining dynamic imports can retain their entire namespace on some hosts.
+        // Keep those boundaries for demand analysis; compiled payloads remain one chunk.
+        output: { format: "es", ...(followDeferred ? {} : singleChunk) }
       }
     }
   });
@@ -149,18 +152,14 @@ export async function compilePagePayloads(context, pages, manifest, config) {
   for (const page of pages) {
     const usage = await pageMessageUsage(context,page.entries,config);
     const names = usage.messages;
-    const deferred = [...usage.deferred];
-    const visited = new Set();
-    while (deferred.length) {
-      const id = deferred.pop();
-      if (visited.has(id) || !graphHasMessages(context,id)) continue;
-      visited.add(id);
-      const child = await pageMessageUsage(context,[id],config);
-      const missing = child.messages.filter(name => !names.includes(name));
+    if (usage.deferred.some(id => graphHasMessages(context,id))) {
+      // Analyze consumption from the page, rather than treating every lazy module export
+      // as live. An unused export can belong to another page without widening this one.
+      const complete = await pageMessageUsage(context,page.entries,config,true);
+      const missing = complete.messages.filter(name => !names.includes(name));
       if (missing.length) {
-        throw new Error(`Linguini cannot yet prepare deferred messages ${missing.join(', ')} in ${id} for page ${page.id}`);
+        throw new Error(`Linguini cannot yet prepare deferred messages ${missing.join(', ')} for page ${page.id}`);
       }
-      deferred.push(...child.deferred);
     }
     if (names.length === 0) continue;
     const locales = Object.create(null);

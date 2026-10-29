@@ -8,6 +8,12 @@
   type LabLocale = (typeof labLocales)[number];
 
   let resourceScripts = $state<string[]>([]);
+  let deferredCopy = $state('');
+
+  async function readDeferredCopy() {
+    const { labTagline } = await import('$lib/chunk-lab-copy.js');
+    deferredCopy = labTagline();
+  }
 
   onMount(() => {
     resourceScripts = [
@@ -69,6 +75,15 @@
           {/each}
         </nav>
       </div>
+    </section>
+
+    <section class="mt-10 border-t border-border/70 pt-6" aria-label="Deferred message probe">
+      <button
+        type="button"
+        class="rounded-md border border-border/70 px-3 py-1.5 text-sm text-foreground hover:border-primary"
+        onclick={readDeferredCopy}
+      >Read deferred copy</button>
+      <output aria-label="Deferred copy" class="mt-3 block text-sm text-muted-foreground">{deferredCopy}</output>
     </section>
 
     <section class="mt-10 border-t border-border/70 pt-6" aria-labelledby="resources-heading">

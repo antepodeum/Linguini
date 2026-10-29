@@ -1101,7 +1101,9 @@ and the composed payload/SSR requirements below.
       Chromium verifies preparation before cross-page/cross-locale publication, cached revisits,
       and no locale requests with scripting disabled. All four source-map modes pass. Deferred
       boundaries needing new messages fail explicitly; their preparation protocol and the full
-      framework/configuration matrix remain open.
+      framework/configuration matrix remain open. Deferred reads of already prepared messages
+      now execute in Chromium without another message request. Demand analysis drops unused lazy
+      exports, including a shared export used by another page, on both local Vite 7 and Vite 8.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching

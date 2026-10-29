@@ -62,8 +62,10 @@ universal root load prepares that payload before SvelteKit publishes the incomin
 cross-page/cross-locale navigation. Explicit locale changes prepare the same page's new locale
 before publishing the client override. Browser module caching reuses already loaded payloads.
 The hook adds a preload beside SvelteKit's hydration preloads, guarded by `(scripting: enabled)`.
-Deferred localization boundaries and the complete framework/configuration matrix remain open
-remediation work; this initial composed-page receipt does not close those requirements.
+Deferred reads of messages already in the page payload reuse that preparation. Their unused
+module exports do not widen the page: the build checks what the page consumes across dynamic
+boundaries. Deferred boundaries needing new messages currently produce an explicit build error;
+their preparation protocol and the complete framework/configuration matrix remain open.
 
 Finite dynamic message access requires an exact allow list. Unbounded access is diagnosed
 instead of widening a page to the whole catalog:
