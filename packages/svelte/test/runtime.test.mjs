@@ -65,7 +65,9 @@ test('message providers retain callable messages and wait before publishing loca
   const gate=new Promise(resolve=>{release=resolve;});
   const messages={en:{title:'EN',greet:name=>'Hello '+name},fr:{title:'FR',greet:name=>'Bonjour '+name}};
   const state={getCurrentLocale:()=>locale,async prepareLocale(value){await gate;return runtime.normalizeLocale(value)??'en';},setCurrentLocale(value){locale=value;return locale;}};
-  const provider=createLinguiniRune({...runtime,createLinguiniProvider({getLocale}){return new Proxy({},{get(_target,key){return messages[getLocale()][key];}});}},state);
+  const provider=createLinguiniRune({...runtime,createLinguiniProvider({getLocale}){return new Proxy({},{get(_target,key){return messages[getLocale()][key];}});}},state,{
+    getRequestIdentity() {throw Error('server providers must not read client request identity');},
+  });
   assert.equal(provider.l,provider.messages);
   assert.equal(provider.l.greet('Ada'),'Hello Ada');
   const switching=provider.setLocale('FR');
@@ -74,6 +76,32 @@ test('message providers retain callable messages and wait before publishing loca
   assert.equal(await switching,'fr');
   assert.equal(provider.l.title,'FR');
   assert.equal(provider.messages.greet('Ada'),'Bonjour Ada');
+});
+
+test('direct message providers ignore superseded choices and replaced client requests', async context => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis,'window');
+  Object.defineProperty(globalThis,'window',{configurable:true,value:{}});
+  context.after(() => {if (previous) Object.defineProperty(globalThis,'window',previous); else delete globalThis.window;});
+  let locale = 'en',request = {};
+  const gates = new Map(),published = [];
+  const state = {
+    getCurrentLocale:() => locale,
+    prepareLocale:value => new Promise(resolve => {gates.set(value,() => resolve(value));}),
+    setCurrentLocale(value) {published.push(value);locale=value;return value;},
+  };
+  const provider = createLinguiniRune({...runtime,createLinguiniProvider:()=>({})},state,{getRequestIdentity:()=>request});
+  const first = provider.setLocale('fr');
+  const second = provider.setLocale('en');
+  gates.get('en')();
+  assert.equal(await second,'en');
+  gates.get('fr')();
+  assert.equal(await first,'en');
+  assert.deepEqual(published,['en']);
+  const navigated = provider.setLocale('fr');
+  request = {};
+  gates.get('fr')();
+  assert.equal(await navigated,'en');
+  assert.deepEqual(published,['en']);
 });
 
 test('request publication invalidates overrides reactively and the same client locale can be selected again', async context => {

@@ -1125,6 +1125,10 @@ and the composed payload/SSR requirements below.
       preparation/persistence/navigation waits. Runtime tests prove older navigation completions
       cannot clear a newer override. Chromium holds an English preload across navigation to a
       Russian page, then completes it without another navigation, locale publication, or payload.
+      Direct message-provider setters also avoid publication from superseded or request-replaced preparation.
+      The Kit wrapper supplies identity automatically; an executed Vite consumer verifies that
+      a same-locale request replacement still invalidates the older operation. Server provider
+      tests forbid reading the client identity callback.
 - [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.

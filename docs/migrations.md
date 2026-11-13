@@ -17,6 +17,11 @@ invalidates pending preparation. SvelteKit controls supply their page metadata i
 No SvelteKit application change is required. SSR retains preparation-only behavior and never reads
 the client identity callback.
 
+Direct `createLinguiniRune` setters now apply the same latest-choice rule. Its optional third
+argument accepts `getRequestIdentity`; SvelteKit supplies the page identity automatically,
+including for the generated `setLocale` export. Existing two-argument calls remain valid,
+and server providers never read the client identity callback.
+
 ## Live SSR page preloads
 
 The SvelteKit hook now recognizes live hydration hints in HTTP `Link` headers as well as

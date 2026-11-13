@@ -32,12 +32,17 @@ export function createControls<Locale extends string>(web: LinguiniWebLocale<Loc
   });
 }
 
-import {createLocaleState as createSvelteLocaleState} from '@antepodeum/linguini-svelte';
-import type {LocaleRuntime,LocaleStateOptions} from '@antepodeum/linguini-svelte';
+import {createLocaleState as createSvelteLocaleState,createLinguiniRune as createSvelteLinguiniRune} from '@antepodeum/linguini-svelte';
+import type {LocaleRuntime,LocaleStateOptions,MessageRuntime,LinguiniRune,LocaleState as SvelteLocaleState} from '@antepodeum/linguini-svelte';
 import {prepareCurrentPageMessages} from './page.svelte.js';
 export {getPageMessage} from './page.svelte.js';
 export {createClientLoad} from './load.js';
-export {createLinguiniRune} from '@antepodeum/linguini-svelte';
+export function createLinguiniRune<Locale extends string,Messages>(runtime: MessageRuntime<Locale,Messages>, state: SvelteLocaleState<Locale>, options: Pick<LocaleStateOptions,'getRequestIdentity'> = {}): LinguiniRune<Locale,Messages> {
+  return createSvelteLinguiniRune(runtime,state,{
+    ...options,
+    getRequestIdentity:options.getRequestIdentity ?? (() => page.data.linguini),
+  });
+}
 export function createLocaleState<Locale extends string>(runtime: LocaleRuntime<Locale>, options: LocaleStateOptions = {}) {
   const state = createSvelteLocaleState(runtime, {
     ...options,

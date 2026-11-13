@@ -1,9 +1,10 @@
-import type {MessageRuntime,LocaleState,LinguiniRune} from './types.js';
+import type {MessageRuntime,LocaleState,LinguiniRune,LocaleStateOptions} from './types.js';
 export type * from './types.js';
 export {createLocaleState} from './state.svelte.js';
 
-export function createLinguiniRune<Locale extends string, Messages>(runtime: MessageRuntime<Locale, Messages>, state: LocaleState<Locale>): LinguiniRune<Locale, Messages> {
+export function createLinguiniRune<Locale extends string, Messages>(runtime: MessageRuntime<Locale, Messages>, state: LocaleState<Locale>, options: Pick<LocaleStateOptions,'getRequestIdentity'> = {}): LinguiniRune<Locale, Messages> {
   const messages = runtime.createLinguiniProvider({getLocale:()=>state.getCurrentLocale()});
+  let latestChange = 0;
   return {
     messages,
     l: messages,
@@ -15,6 +16,16 @@ export function createLinguiniRune<Locale extends string, Messages>(runtime: Mes
       const locale=state.getCurrentLocale();
       return {lang:locale,dir:runtime.getTextDirection(locale)};
     },
-    async setLocale(value:unknown) {return state.setCurrentLocale(await state.prepareLocale(value));},
+    async setLocale(value:unknown) {
+      const browser = typeof window !== 'undefined';
+      const change = browser ? ++latestChange : 0;
+      const request = browser ? options.getRequestIdentity?.() : undefined;
+      const locale = await state.prepareLocale(value);
+      if (browser && (change !== latestChange
+        || (options.getRequestIdentity && options.getRequestIdentity() !== request))) {
+        return state.getCurrentLocale();
+      }
+      return state.setCurrentLocale(locale);
+    },
   };
 }

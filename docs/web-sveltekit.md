@@ -220,6 +220,9 @@ finishes after navigation cannot publish into the incoming page. Superseded chan
 to the current locale after preparation; destroying controls invalidates their pending changes.
 The framework-neutral `createLocaleControl` accepts an optional `getRequestIdentity` callback
 for other integrations. SvelteKit supplies it automatically, and SSR does not read it.
+Direct message providers and their generated `setLocale` binding also ignore superseded
+choices. Standalone `createLinguiniRune` accepts request identity in its optional third
+argument; the SvelteKit wrapper supplies the current page metadata automatically.
 
 ```ts
 // src/lib/linguini.ts
