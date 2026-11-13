@@ -123,12 +123,18 @@ const usedMessages = new Set();
 let referenceCount = 0;
 for (const [applicationId, application] of Object.entries(generatedManifest.applications)) {
   assert.deepEqual(application.unresolved, [], `${applicationId} has unresolved references`);
-  assert.deepEqual(
-    application.dynamic_references,
-    [],
-    `${applicationId} has dynamic message references`
-  );
+  if (applicationId === 'src/routes/message-lab/+page.svelte') {
+    assert.deepEqual(application.dynamic_references.map(reference => [reference.prefix,reference.reference_kind]),
+      [['main.playground','value'],['main.hero','value'],['main.playground','call']]);
+  } else {
+    assert.deepEqual(application.dynamic_references, [], `${applicationId} has unexpected dynamic message references`);
+  }
   const bindings = new Set(application.imports.map((binding) => binding.binding_id));
+  for (const reference of application.dynamic_references) {
+    assert.ok(bindings.has(reference.binding_id));
+    assert.equal(reference.messages.length,2,'a finite reference must have only its two allowed immediate leaves');
+    for (const entry of reference.messages) usedMessages.add(entry.message);
+  }
   for (const reference of application.references) {
     referenceCount += 1;
     usedMessages.add(reference.message);
@@ -209,7 +215,7 @@ const clientManifest = readJson(
 const clientEntries = Object.entries(clientManifest);
 const clientEntryById = new Map(clientEntries);
 const {payloads} = await import(pathToFileURL(join(serverOutputRoot,'linguini-page-manifest.js')).href);
-assert.deepEqual(Object.keys(payloads).sort(), ['/','/chunk-lab']);
+assert.deepEqual(Object.keys(payloads).sort(), ['/','/chunk-lab','/message-lab']);
 const virtualLocaleModuleIds = new Set(Object.keys(clientManifest).filter(id => id.startsWith('virtual:linguini/locale/')));
 assert.equal(virtualLocaleModuleIds.size, 0, 'source-scoped locale registries must not survive composed-page delivery');
 // SvelteKit emits route components through generated client-optimized nodes.
@@ -241,13 +247,19 @@ for (const [route,locales] of Object.entries(payloads)) {
     localeChunkFiles.add(file);
   }
 }
-assert.equal(localeChunkFiles.size, effectiveLocales.size * 2, 'each composed page must have exactly one file per locale');
+assert.equal(localeChunkFiles.size, effectiveLocales.size * 3, 'each composed page must have exactly one file per locale');
 const mainRouteNodeFile = filesUnder(clientOptimizedNodeRoot)
   .filter(file => file.endsWith('.js'))
   .find(file => readFileSync(file, 'utf8').includes('src/routes/+page.svelte'));
 assert.ok(mainRouteNodeFile, 'main route has no generated client route node');
 const mainRouteNodeId = siteRelative(mainRouteNodeFile);
 assert.ok(clientManifest[mainRouteNodeId]?.isEntry, 'main route client entry is missing');
+const messageLabNodeFile = filesUnder(clientOptimizedNodeRoot)
+  .filter(file => file.endsWith('.js'))
+  .find(file => readFileSync(file,'utf8').includes('src/routes/message-lab/+page.svelte'));
+assert.ok(messageLabNodeFile, 'message-lab route has no generated client node');
+const messageLabRouteNodeId = siteRelative(messageLabNodeFile);
+assert.ok(clientManifest[messageLabRouteNodeId]?.isEntry, 'message-lab client route entry is missing');
 // Follow only static imports from that initial route entry. Every locale chunk
 // must remain outside this closure; it is fetched through a dynamic loader.
 function resolveStaticImport(specifier) {
@@ -279,14 +291,14 @@ function collectStaticReachable(entryId) {
   }
   return staticReachable;
 }
-for (const root of [mainRouteNodeId,chunkLabRouteNodeId]) {
+for (const root of [mainRouteNodeId,chunkLabRouteNodeId,messageLabRouteNodeId]) {
   for (const moduleId of collectStaticReachable(root)) {
     assert.equal(localeChunkFiles.has(clientManifest[moduleId].file), false, 'an initial route imported a locale catalog eagerly');
   }
 }
 
 const clientJavaScriptFiles = filesUnder(clientOutputRoot).filter(file => file.endsWith('.js'));
-assert.ok(clientJavaScriptFiles.length <= effectiveLocales.size * 2 + 24,
+assert.ok(clientJavaScriptFiles.length <= effectiveLocales.size * 3 + 24,
   `client emitted ${clientJavaScriptFiles.length} JavaScript files for ${effectiveLocales.size} locales`);
 const clientText = clientJavaScriptFiles.filter(file => !localeChunkFiles.has(siteRelative(file).replace('.svelte-kit/output/client/','')))
   .map(file => readFileSync(file,'utf8')).join('\n');
@@ -299,7 +311,13 @@ const mainExpectedMessages = [...new Set([
   ...generatedManifest.applications['src/routes/+page.svelte'].references.map(reference => reference.message),
   'main.codegen.intro'
 ])];
-for (const [route,expected] of [['/chunk-lab',chunkLabExpectedMessages],['/',mainExpectedMessages]]) {
+const messageLabExpectedMessages = ['main.hero.title','main.hero.tagline','main.playground.number_format','main.playground.currency_format','message_lab.fallback'];
+const fallbackEntries = Object.values(generatedManifest.messages['message_lab.fallback'].locales);
+assert.equal(new Set(fallbackEntries.map(entry => JSON.stringify(entry.source_ids))).size,1,
+  'all fallback leaves must retain the same base-locale source provenance');
+assert.equal(filesUnder(join(siteRoot,'linguini/locale/message_lab')).length,1,
+  'the fallback fixture must have only a base-locale source');
+for (const [route,expected] of [['/chunk-lab',chunkLabExpectedMessages],['/',mainExpectedMessages],['/message-lab',messageLabExpectedMessages]]) {
   for (const [locale,file] of Object.entries(payloads[route])) {
     const source = readFileSync(join(clientOutputRoot,file),'utf8');
     assert.doesNotMatch(source, /(?:^|[;\n}])\s*import\b|main\.[a-z_]+/,
@@ -315,6 +333,14 @@ for (const [route,expected] of [['/chunk-lab',chunkLabExpectedMessages],['/',mai
       }
       assert.doesNotMatch(source, /\bfunction\b|=>/, 'constant-only lab payload must omit formatter/plural/helper bodies');
       assert.equal(Object.hasOwn(messages,messageIds.get('main.codegen.intro')), false, 'unused shared export leaked another page’s message');
+    }
+    if (route === '/message-lab') {
+      const native = (await import(pathToFileURL(join(generatedRoot,`locales/${locale}/main.js`)).href)).main;
+      assert.equal(messages[messageIds.get('main.hero.title')],native.hero.title);
+      assert.equal(messages[messageIds.get('main.hero.tagline')],native.hero.tagline);
+      assert.equal(messages[messageIds.get('main.playground.number_format')]({value:1299.5}),native.playground.number_format({value:1299.5}));
+      assert.equal(messages[messageIds.get('main.playground.currency_format')](1299.5),native.playground.currency_format(1299.5));
+      assert.equal(messages[messageIds.get('message_lab.fallback')],'Base-only message fallback');
     }
   }
 }

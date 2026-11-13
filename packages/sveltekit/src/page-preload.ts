@@ -1,5 +1,15 @@
 import type {PagePayload} from './types.js';
 
+/** Live Kit responses put hydration preloads in HTTP headers rather than HTML. */
+export function pagePreloadHeader(payload: PagePayload, existing: string | null, requestUrl: URL): string | undefined {
+  if (!existing || !/<[^>]*\/immutable\/entry\/[^>]+>[^,]*\brel\s*=\s*(?:"modulepreload"|modulepreload)/i.test(existing)) return;
+  const resolved = new URL(payload.url,requestUrl);
+  const href = resolved.origin === requestUrl.origin
+    ? resolved.pathname + resolved.search + resolved.hash
+    : resolved.href;
+  return `<${href}>; rel="modulepreload"; media="(scripting: enabled)"`;
+}
+
 /** Add the selected catalog beside Kit's own hydration preload, preserving streamed HTML. */
 export function createPagePreload(payload: PagePayload) {
   const href = payload.url.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');

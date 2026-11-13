@@ -4,6 +4,16 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Live SSR page preloads
+
+The SvelteKit hook now recognizes live hydration hints in HTTP `Link` headers as well as
+prerendered HTML tags. It prepends only the selected page/locale payload, with
+`media="(scripting: enabled)"`, preserving existing hints, streaming bodies, and optional
+cookie persistence. Payload URLs follow browser URL resolution, including relative paths,
+Unicode, existing percent escapes, and external asset origins. No application API change
+is required. Chromium verifies that the payload arrives before framework entry execution
+and that scripting-disabled clients request none.
+
 ## Site output is generated during builds
 
 The site no longer commits a compressed message archive, its manifest, or native highlight

@@ -15,3 +15,12 @@ gitignore = false
 [targets.ts.bundler]
 sources = ["src"]
 locale_loading = "dynamic"
+
+[targets.ts.bundler.dynamic]
+mode = "bundle"
+allow = [
+  "main.hero.title",
+  "main.hero.tagline",
+  "main.playground.number_format",
+  "main.playground.currency_format",
+]

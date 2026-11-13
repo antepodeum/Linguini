@@ -1112,9 +1112,14 @@ and the composed payload/SSR requirements below.
       both direct SSR evaluation and real framework rendering/hydration across the message matrix.
       The built SvelteKit server now renders concurrent French/Russian/English requests with values,
       recursive namespaces, named/positional calls, forms/plurals, and number/currency/date formatters.
-      Chromium verifies French hydration text and locale switching. Finite dynamic calls, the full
-      sparse-fallback matrix remain open. Composed-page hydration and cross-page/cross-locale
-      navigation now execute in Chromium. Live SSR also covers the
+      Chromium verifies French hydration text and locale switching. The production message lab
+      executes finite computed values, captured computed functions, named calls, and base-only
+      message fallback in concurrent French/Russian/English SSR and French/English hydration.
+      Its exact five-message closure is checked across all nine locales, without an extra base
+      payload. Live SSR preloads through HTTP Link hints; Chromium verifies preparation before
+      framework entry execution and no message requests with scripting disabled. The full
+      sparse-fallback and framework/configuration matrices remain open. Composed-page hydration
+      and cross-page/cross-locale navigation execute in Chromium. Live SSR also covers the
       trailing-slash redirect-loop fix; prerendering alone did not expose that failure.
 - [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters

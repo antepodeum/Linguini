@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createPagePreload} from '../dist/page-preload.js';
+import {createPagePreload,pagePreloadHeader} from '../dist/page-preload.js';
 
 test('selected page preload follows Kit hydration, preserves streaming bytes, and omits CSR-disabled pages', () => {
   const url = '/app/_app/immutable/assets/linguini/page/fr.js?quote="&value=<test>';
@@ -25,4 +25,21 @@ test('selected page preload follows Kit hydration, preserves streaming bytes, an
     const transform = createPagePreload({url});
     assert.equal(transform({html:input,done:false}) + transform({html:'',done:true}),input);
   }
+});
+
+test('live SSR preload headers require a Kit hydration hint and escape URL delimiters', () => {
+  const request = new URL('https://site.example/app/fr/');
+  const payload = {url:'/assets/fr.js?test=<probe>"'};
+  assert.equal(pagePreloadHeader(payload,'</_app/immutable/entry/start.js>; rel="modulepreload"; nopush',request),
+    '</assets/fr.js?test=%3Cprobe%3E%22>; rel="modulepreload"; media="(scripting: enabled)"');
+  assert.equal(pagePreloadHeader(payload,'</app.css>; rel="preload"; as="style", </_app/immutable/entry/app.js>; rel=modulepreload',request),
+    '</assets/fr.js?test=%3Cprobe%3E%22>; rel="modulepreload"; media="(scripting: enabled)"');
+  for (const header of [null,'','</app.css>; rel="preload"; as="style"','</_app/immutable/chunks/shared.js>; rel="modulepreload"']) {
+    assert.equal(pagePreloadHeader(payload,header,request),undefined);
+  }
+  const hint = '</_app/immutable/entry/start.js>; rel="modulepreload"';
+  assert.match(pagePreloadHeader({url:'../перевод/%E2%82%AC.js'},hint,request),
+    /^<\/app\/%D0%BF%D0%B5%D1%80%D0%B5%D0%B2%D0%BE%D0%B4\/%E2%82%AC\.js>;/);
+  assert.match(pagePreloadHeader({url:'https://cdn.example/assets/fr.js'},hint,request),
+    /^<https:\/\/cdn\.example\/assets\/fr\.js>;/);
 });

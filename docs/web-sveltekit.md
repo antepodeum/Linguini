@@ -62,6 +62,9 @@ universal root load prepares that payload before SvelteKit publishes the incomin
 cross-page/cross-locale navigation. Explicit locale changes prepare the same page's new locale
 before publishing the client override. Browser module caching reuses already loaded payloads.
 The hook adds a preload beside SvelteKit's hydration preloads, guarded by `(scripting: enabled)`.
+For live SSR it adds the selected file to SvelteKit's HTTP `Link` hints; prerendered HTML
+receives the matching link tag. Both paths preserve streaming and avoid a message request
+when scripting is disabled.
 Deferred reads of messages already in the page payload reuse that preparation. Their unused
 module exports do not widen the page: the build checks what the page consumes across dynamic
 boundaries. Deferred boundaries needing new messages currently produce an explicit build error;

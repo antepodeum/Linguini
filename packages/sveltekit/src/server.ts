@@ -3,7 +3,7 @@ import type { LinguiniLocaleRequestContext, LinguiniWebLocale } from '@antepodeu
 import { createLocaleRequestContext } from '@antepodeum/linguini-web';
 import { createLocaleSwitchHandler } from '@antepodeum/linguini-web/server';
 import type { LocaleSwitchRouteOptions } from '@antepodeum/linguini-web/server';
-import {createPagePreload} from './page-preload.js';
+import {createPagePreload,pagePreloadHeader} from './page-preload.js';
 import type { PagePayload, SerializedLinguiniContext } from './types.js';
 
 export interface HandleOptions {
@@ -49,10 +49,12 @@ export function createHandle<Locale extends string>(web: LinguiniWebLocale<Local
       const html = transform(chunk);
       return preload ? preload({html,done:chunk.done}) : html;
     }});
-    if (!persistCookie) return response;
+    const header = payload ? pagePreloadHeader(payload,response.headers.get('link'),event.url) : undefined;
+    if (!persistCookie && !header) return response;
     // Fetch responses may have immutable headers; preserve their streaming body.
     const persisted = new Response(response.body, {status:response.status, statusText:response.statusText, headers:response.headers});
-    web.setLocaleCookie(persisted, locale, {origin:event.url.origin});
+    if (header) persisted.headers.set('link',header + ', ' + response.headers.get('link'));
+    if (persistCookie) web.setLocaleCookie(persisted, locale, {origin:event.url.origin});
     return persisted;
   };
 }

@@ -4,12 +4,13 @@ import {readFile, stat} from 'node:fs/promises';
 import {basename, extname, join, resolve, sep} from 'node:path';
 import test from 'node:test';
 import {fileURLToPath} from 'node:url';
+import {Readable} from 'node:stream';
 import {chromium} from 'playwright';
 
 const site = fileURLToPath(new URL('../', import.meta.url));
 const output = join(site, 'build');
 
-async function serve(context, {preload} = {}) {
+async function serve(context, {preload,ssr} = {}) {
   let releaseScripts;
   const scriptsReady = new Promise(resolve => {releaseScripts=resolve;});
   if (!preload) releaseScripts();
@@ -18,7 +19,18 @@ async function serve(context, {preload} = {}) {
     try {
       const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
       if (pathname === preload) releaseScripts();
-      else if (pathname.endsWith('.js')) await scriptsReady;
+      else if (pathname.includes('/immutable/entry/') && pathname.endsWith('.js')) await scriptsReady;
+      if (ssr && (pathname.endsWith('/') || pathname.endsWith('/__data.json'))) {
+        const headers = new Headers();
+        for (const [name,value] of Object.entries(request.headers)) {
+          if (value !== undefined) headers.set(name,Array.isArray(value) ? value.join(', ') : value);
+        }
+        const rendered = await ssr.respond(new Request(`http://${request.headers.host}${request.url}`,{headers}),{getClientAddress:()=> '127.0.0.1'});
+        response.writeHead(rendered.status,Object.fromEntries(rendered.headers));
+        if (rendered.body) Readable.fromWeb(rendered.body).pipe(response);
+        else response.end();
+        return;
+      }
       let file = resolve(output, '.' + pathname);
       if (file !== output && !file.startsWith(output + sep)) throw Error('outside output');
       if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
@@ -42,7 +54,8 @@ async function serve(context, {preload} = {}) {
 test('French prerender hydrates its selected locale and loads only its page payload before explicit switching', {timeout:30_000}, async context => {
   const {payloads} = await import('../.svelte-kit/output/server/linguini-page-manifest.js');
   const payload = (locale, route = '/chunk-lab') => '/' + payloads[route][locale];
-  // Hold every framework module until the SSR-declared locale preload arrives.
+  // Hold both framework entry modules until the SSR-declared locale preload arrives.
+  // Other preload responses can finish, avoiding HTTP/1 connection starvation.
   // An import discovered by client execution cannot satisfy this gate.
   const origin = await serve(context,{preload:payload('fr')});
   const browser = await chromium.launch();
@@ -107,13 +120,44 @@ test('French prerender hydrates its selected locale and loads only its page payl
   assert.deepEqual(requestedPayloads(), [payload('fr'), payload('en'), payload('ru', '/'), payload('ru')], 'a prepared page/locale must not be requested again');
   assert.deepEqual(errors, []);
 
+  for (const locale of ['fr','en']) {
+    const native = (await import(`../src/lib/generated/linguini/locales/${locale}/main.js`)).main;
+    await navigate(`/${locale}/message-lab/`,native.hero.tagline);
+    await page.getByRole('heading',{name:'Message lab',exact:true}).waitFor();
+    const formatting = page.getByRole('region',{name:'Computed message functions'});
+    assert.deepEqual(await formatting.locator('p').allTextContents(),[
+      native.playground.number_format(1299.5),native.playground.currency_format(1299.5),native.playground.number_format({value:1299.5}),
+    ]);
+    assert.equal(await page.locator('[data-fallback]').textContent(),'Base-only message fallback');
+  }
+  assert.deepEqual(requestedPayloads(), [payload('fr'),payload('en'),payload('ru','/'),payload('ru'),payload('fr','/message-lab'),payload('en','/message-lab')]);
+  assert.deepEqual(errors, []);
+
   const noJavaScript = await browser.newContext({javaScriptEnabled:false});
   const staticPage = await noJavaScript.newPage();
   const staticRequests = [];
   staticPage.on('request', request => staticRequests.push(new URL(request.url()).pathname));
   await staticPage.goto(origin + '/fr/chunk-lab/');
   assert.equal(await staticPage.locator('main p').nth(1).textContent(), fr);
+  await staticPage.goto(origin + '/fr/message-lab/');
+  assert.equal(await staticPage.locator('[data-fallback]').textContent(),'Base-only message fallback');
   assert.deepEqual(staticRequests.filter(file => files.has(file)), []);
+});
+
+test('finite computed values, callable references, named calls, and sparse fallback render in concurrent SSR', async () => {
+  const server = await createSsrServer();
+  await Promise.all(['fr','ru','en','fr','en','ru'].map(async locale => {
+    const response = await server.respond(new Request(`http://localhost/${locale}/message-lab/`),{getClientAddress:()=>'127.0.0.1'});
+    assert.equal(response.status,200);
+    const html = await response.text();
+    const native = (await import(`../src/lib/generated/linguini/locales/${locale}/main.js`)).main;
+    for (const value of [native.hero.title,native.hero.tagline,native.playground.number_format(1299.5),native.playground.currency_format(1299.5),'Base-only message fallback']) {
+      assert.ok(html.includes(value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')), `${locale} finite SSR omitted ${JSON.stringify(value)}`);
+    }
+    const header = response.headers.get('link');
+    const {payloads} = await import('../.svelte-kit/output/server/linguini-page-manifest.js');
+    assert.ok(header?.includes(`</${payloads['/message-lab'][locale]}>; rel="modulepreload"; media="(scripting: enabled)"`));
+  }));
 });
 
 async function createSsrServer() {
@@ -123,6 +167,34 @@ async function createSsrServer() {
   await server.init({env:process.env});
   return server;
 }
+
+test('live SSR preloads one selected payload through headers and scripting-disabled clients fetch none', {timeout:30_000}, async context => {
+  const {payloads} = await import('../.svelte-kit/output/server/linguini-page-manifest.js');
+  const files = new Set(Object.values(payloads).flatMap(locales => Object.values(locales).map(file => '/' + file)));
+  const selected = '/' + payloads['/message-lab'].fr;
+  const origin = await serve(context,{preload:selected,ssr:await createSsrServer()});
+  const browser = await chromium.launch();
+  context.after(() => browser.close());
+  for (const enabled of [true,false]) {
+    const session = await browser.newContext({javaScriptEnabled:enabled});
+    const page = await session.newPage();
+    const requests = [], errors = [];
+    page.on('request',request => requests.push(new URL(request.url()).pathname));
+    page.on('pageerror',error => errors.push(error.message));
+    page.on('console',message => {if (/hydration_/i.test(message.text())) errors.push(message.text());});
+    await page.goto(origin + '/fr/message-lab/',{waitUntil:'networkidle',timeout:5000}).catch(error => {
+      throw new Error(`${error.message}; scripting=${enabled}; requests=${JSON.stringify(requests)}; errors=${JSON.stringify(errors)}`,{cause:error});
+    });
+    assert.equal(await page.locator('[data-fallback]').textContent(),'Base-only message fallback');
+    const native = (await import('../src/lib/generated/linguini/locales/fr/main.js')).main;
+    assert.deepEqual(await page.getByRole('region',{name:'Computed message functions'}).locator('p').allTextContents(),[
+      native.playground.number_format(1299.5),native.playground.currency_format(1299.5),native.playground.number_format({value:1299.5}),
+    ]);
+    assert.deepEqual(requests.filter(file => files.has(file)),enabled ? [selected] : []);
+    assert.deepEqual(errors,[]);
+    await session.close();
+  }
+});
 
 test('shared locale metadata declares its original URL dependency to SvelteKit navigation', async () => {
   const server = await createSsrServer();
