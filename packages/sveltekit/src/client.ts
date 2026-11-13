@@ -21,6 +21,7 @@ export function createControls<Locale extends string>(web: LinguiniWebLocale<Loc
   return createLocaleControl(web,state,{
     ...options,
     browser,
+    getRequestIdentity: options.getRequestIdentity ?? (() => page.data.linguini),
     navigate: (href, input) => navigate(href,{
       replaceState: input.replaceState ?? false,
       invalidateAll: input.invalidateAll ?? true,

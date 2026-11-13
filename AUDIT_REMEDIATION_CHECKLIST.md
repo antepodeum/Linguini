@@ -1121,6 +1121,10 @@ and the composed payload/SSR requirements below.
       sparse-fallback and framework/configuration matrices remain open. Composed-page hydration
       and cross-page/cross-locale navigation execute in Chromium. Live SSR also covers the
       trailing-slash redirect-loop fix; prerendering alone did not expose that failure.
+      Client controls now invalidate superseded, request-replaced, and disposed changes across
+      preparation/persistence/navigation waits. Runtime tests prove older navigation completions
+      cannot clear a newer override. Chromium holds an English preload across navigation to a
+      Russian page, then completes it without another navigation, locale publication, or payload.
 - [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.

@@ -4,6 +4,19 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Superseded locale changes
+
+Client controls now let the latest pending locale choice take precedence within its request
+context. A change superseded during preparation resolves to the current locale without publishing
+state or starting persistence/navigation. Checks after asynchronous persistence and navigation
+also prevent stale publication or cleanup from overwriting a newer change. Destroyed controls
+invalidate their pending changes.
+
+`createLocaleControl` accepts an optional `getRequestIdentity` callback; replacing that identity
+invalidates pending preparation. SvelteKit controls supply their page metadata identity by default.
+No SvelteKit application change is required. SSR retains preparation-only behavior and never reads
+the client identity callback.
+
 ## Live SSR page preloads
 
 The SvelteKit hook now recognizes live hydration hints in HTTP `Link` headers as well as

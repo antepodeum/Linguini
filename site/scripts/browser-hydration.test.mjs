@@ -208,6 +208,52 @@ test('shared locale metadata declares its original URL dependency to SvelteKit n
   }
 });
 
+test('a locale preload completed after cross-page navigation cannot overwrite the incoming page', {timeout:30_000}, async context => {
+  const {payloads} = await import('../.svelte-kit/output/server/linguini-page-manifest.js');
+  const files = new Set(Object.values(payloads).flatMap(locales => Object.values(locales).map(file => '/' + file)));
+  const initial = '/' + payloads['/chunk-lab'].fr;
+  const delayed = '/' + payloads['/chunk-lab'].en;
+  const incoming = '/' + payloads['/'].ru;
+  const origin = await serve(context);
+  const browser = await chromium.launch();
+  let release,started;
+  const gate = new Promise(resolve => {release=resolve;});
+  const requested = new Promise(resolve => {started=resolve;});
+  context.after(async () => {release();await browser.close();});
+  const session = await browser.newContext();
+  const requests = [],errors = [];
+  const page = await session.newPage();
+  page.on('request',request => requests.push(new URL(request.url()).pathname));
+  page.on('pageerror',error => errors.push(error.message));
+  await session.route('**' + delayed,async route => {
+    started();await gate;await route.continue();
+  });
+  await page.goto(origin + '/fr/chunk-lab/',{waitUntil:'networkidle'});
+  const completed = page.waitForResponse(response => new URL(response.url()).pathname === delayed).then(response => response.finished());
+  await page.getByRole('link',{name:'EN',exact:true}).click();
+  await requested;
+  await page.evaluate(() => {
+    const anchor = document.createElement('a');
+    anchor.href = '/ru/';anchor.id = 'pending-locale-navigation';
+    anchor.setAttribute('data-linguini-no-localize','');
+    anchor.textContent = 'Continue navigation';document.body.append(anchor);
+  });
+  await page.locator('#pending-locale-navigation').click();
+  await page.waitForURL('**/ru/');
+  const native = (await import('../src/lib/generated/linguini/locales/ru/main.js')).main;
+  await page.getByText(native.hero.tagline,{exact:true}).first().waitFor();
+  release();await completed;
+  // Join the existing module evaluation and let its preparation continuations finish.
+  await page.evaluate(async url => {
+    await import(url);
+    await new Promise(resolve => requestAnimationFrame(() => resolve()));
+  },origin + delayed);
+  await page.waitForLoadState('networkidle');
+  assert.equal(new URL(page.url()).pathname,'/ru/');
+  assert.deepEqual(requests.filter(file => files.has(file)),[initial,delayed,incoming]);
+  assert.deepEqual(errors,[]);
+});
+
 test('built SvelteKit SSR isolates concurrent locales and renders values, calls, forms, and formatters', async () => {
   const server = await createSsrServer();
   const locales = ['fr', 'ru', 'en', 'ru', 'en', 'fr'];

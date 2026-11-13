@@ -62,6 +62,7 @@
   "devDependencies": {
     "@antepodeum/linguini-vite": "0.1.0-alpha.4",
     "@sveltejs/kit": "2.60.1",
+    "@sveltejs/vite-plugin-svelte": "7.1.2",
     "@types/node": "24.12.4",
     "svelte": "5.55.8",
     "typescript": "6.0.3",

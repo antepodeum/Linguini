@@ -9,7 +9,7 @@ const runtime = {
   getTextDirection: locale => locale === 'ar' ? 'rtl' : 'ltr',
 };
 
-function fixture(context, {browser = true, httpOnly = false, persistLocale, rejectPrepare = false, denied = false} = {}) {
+function fixture(context, {browser = true, httpOnly = false, persistLocale, rejectPrepare = false, denied = false, getRequestIdentity} = {}) {
   const events = [];
   let locale = 'en';
   let release;
@@ -57,6 +57,7 @@ function fixture(context, {browser = true, httpOnly = false, persistLocale, reje
   }, {base: '/app', origin: 'https://example.test'});
   const controls = createLocaleControl(web, state, {
     browser,
+    getRequestIdentity,
     persistLocale: persistLocale && (value => persistLocale(value, events)),
     navigate: async (href, options) => { events.push(['navigate', href, options]); },
     refresh: () => events.push(['refresh']),
@@ -85,12 +86,98 @@ test('client controls preload before publishing, persist, navigate, and forward 
 });
 
 test('server controls prepare without publishing, persistence, navigation, or effects', async context => {
-  const {events, release, controls} = fixture(context, {browser: false, httpOnly: true});
+  const {events, release, controls} = fixture(context, {browser: false, httpOnly: true,
+    getRequestIdentity() {throw Error('request identity must not be read on the server');},
+  });
   const switching = controls.setLocale('fr');
   release();
   assert.equal(await switching, 'fr');
   assert.equal(controls.locale, 'en');
   assert.deepEqual(events, [['prepare', 'fr']]);
+});
+
+test('superseded, navigated, and destroyed locale changes cannot publish stale browser state', async context => {
+  const {events,web,state} = fixture(context);
+  const gates = new Map();
+  state.prepareLocale = locale => new Promise(resolve => {gates.set(locale,() => resolve(locale));});
+  let request = {};
+  const controls = createLocaleControl(web,state,{
+    browser:true,getRequestIdentity:() => request,
+    navigate:async href => {events.push(['navigate',href]);},
+    refresh:() => events.push(['refresh']),destroy:() => events.push(['destroy']),
+  });
+  const first = controls.setLocale('fr');
+  const second = controls.setLocale('ar');
+  gates.get('ar')();
+  assert.equal(await second,'ar');
+  const checkpoint = events.length;
+  gates.get('fr')();
+  assert.equal(await first,'ar');
+  assert.equal(controls.locale,'ar');
+  assert.deepEqual(events.slice(checkpoint),[],'a slower earlier choice must have no browser side effects');
+  const navigated = controls.setLocale('fr');
+  request = {};
+  state.setCurrentLocale('en');
+  const navigationCheckpoint = events.length;
+  gates.get('fr')();
+  assert.equal(await navigated,'en');
+  assert.deepEqual(events.slice(navigationCheckpoint),[],'a new request context must invalidate pending changes');
+  const destroyed = controls.setLocale('fr');
+  controls.destroy();
+  const destroyCheckpoint = events.length;
+  gates.get('fr')();
+  assert.equal(await destroyed,'en');
+  assert.deepEqual(events.slice(destroyCheckpoint),[],'disposed controls must not publish or navigate');
+});
+
+test('request replacement during asynchronous persistence prevents stale publication and navigation', async context => {
+  const {events,web,state,release} = fixture(context,{httpOnly:true});
+  let request = {},releasePersistence,started;
+  const persistenceStarted = new Promise(resolve => {started=resolve;});
+  const persistence = new Promise(resolve => {releasePersistence=resolve;});
+  const controls = createLocaleControl(web,state,{
+    browser:true,getRequestIdentity:() => request,
+    async persistLocale(locale) {events.push(['persist',locale]);started();await persistence;},
+    navigate:async href => {events.push(['navigate',href]);},
+  });
+  const switching = controls.setLocale('fr');
+  release();
+  await persistenceStarted;
+  assert.deepEqual(events,[['prepare','fr'],['persist','fr']]);
+  request = {};
+  state.setCurrentLocale('ar');
+  const checkpoint = events.length;
+  releasePersistence();
+  assert.equal(await switching,'ar');
+  assert.deepEqual(events.slice(checkpoint),[]);
+});
+
+test('an earlier navigation completion cannot clear or refresh a newer locale change', async context => {
+  const {events,web,state,release} = fixture(context);
+  const completions = [];
+  let firstStarted,secondStarted;
+  const enteredFirst = new Promise(resolve => {firstStarted=resolve;});
+  const enteredSecond = new Promise(resolve => {secondStarted=resolve;});
+  const controls = createLocaleControl(web,state,{
+    browser:true,
+    navigate:() => new Promise(resolve => {
+      completions.push(resolve);
+      if (completions.length === 1) firstStarted(); else secondStarted();
+    }),
+    refresh:() => events.push(['refresh']),
+  });
+  const first = controls.setLocale('fr');
+  release();
+  await enteredFirst;
+  const second = controls.setLocale('ar');
+  await enteredSecond;
+  const checkpoint = events.length;
+  completions[0]();
+  assert.equal(await first,'ar');
+  assert.deepEqual(events.slice(checkpoint),[]);
+  completions[1]();
+  assert.equal(await second,'ar');
+  assert.deepEqual(events.slice(checkpoint),[['clear'],['refresh']]);
 });
 
 test('failed preload leaves locale and browser side effects untouched', async context => {

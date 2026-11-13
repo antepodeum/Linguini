@@ -214,6 +214,13 @@ export const trailingSlash = "never";
 
 ## Controls and message calls
 
+Within one request context, a newer `setLocale` choice supersedes an earlier pending change.
+SvelteKit controls also bind preparation to the current request metadata, so a preload that
+finishes after navigation cannot publish into the incoming page. Superseded changes resolve
+to the current locale after preparation; destroying controls invalidates their pending changes.
+The framework-neutral `createLocaleControl` accepts an optional `getRequestIdentity` callback
+for other integrations. SvelteKit supplies it automatically, and SSR does not read it.
+
 ```ts
 // src/lib/linguini.ts
 import { createControls } from "@antepodeum/linguini-sveltekit/client";

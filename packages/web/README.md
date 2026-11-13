@@ -4,3 +4,7 @@ TypeScript runtime adapters for locale resolution, URL routing, and cookie persi
 The package is independent of native codegen and does not import a generated message catalog.
 Applications configure resolver capabilities in their own modules and hooks. Source is maintained
 in TypeScript; npm contains compiled ESM JavaScript, declarations, and source maps.
+
+Client controls ignore superseded changes and invalidate pending changes on destruction.
+An optional `getRequestIdentity` callback also invalidates changes prepared for an older
+request; the SvelteKit adapter supplies this capability automatically.
