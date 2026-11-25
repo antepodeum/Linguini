@@ -40,6 +40,21 @@ argument: code `3` and count `3` are different concepts. Lowered inline selector
 custom imported plural functions, named functions, and string interpolation all need explicit
 representation/provenance handling. Simply changing the return literals would break them.
 
+A follow-up against `3051bdb` compared complete tree-shaken Russian consumers on Vite 7.3.3
+and Node 24.13.1. The prototype compiled branch-specific classifiers and shared a proven scalar
+integer suffix; it introduced no operand objects. Both consumers executed their expected outputs.
+
+| Consumer | Existing minified / gzip / Brotli bytes | Prototype minified / gzip / Brotli bytes |
+| --- | ---: | ---: |
+| `Delivered` only | 1,296 / 665 / 603 | 1,286 / 645 / 576 |
+| `Delivered` plus callable fruit forms | 3,312 / 1,019 / 910 | 3,489 / 1,046 / 934 |
+
+The mixed consumer still grew by 177 minified bytes and 24 Brotli bytes. Seven timing batches
+of 500,000 calls showed only small differences; they do not establish a useful speed gain.
+The implementation was discarded. GEN-A15 remains open: specialization must account for
+coexisting selector shapes and whole-consumer costs, including normalization sharing, before
+it replaces the current classifier. A smaller isolated classifier is insufficient evidence.
+
 ## Findings and owners
 
 | ID | Status | Verified evidence | Required remediation |
