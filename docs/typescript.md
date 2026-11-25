@@ -19,6 +19,8 @@ using the native compiler's `--emit-dir` support and rebased source maps. There 
 implementation with adjacent `.d.ts` files; TypeScript source generation is unnecessary.
 The adapter passes project-relative output arguments with `/` separators on every host,
 including Windows; native output containment and traversal checks still apply.
+Input file names are normalized for TypeScript's emit planner as well, including explicit
+`rootDir` source-file builds.
 
 Use an ESM TypeScript project. For example:
 
@@ -50,6 +52,8 @@ rules. `--build --clean` and `--dry` delegate to TypeScript without generating m
 cleaning removes its own outputs. Native owned output can be rebuilt independently.
 
 Watch mode observes schema/locale files and configuration separately from TypeScript inputs.
+It resolves directory notifications using the host's path rules, so new and removed namespaces
+are discovered when TypeScript reports `/` separators on Windows.
 Message text edits refresh runtime output even when declarations stay unchanged and incremental
 TypeScript projects remain up to date. Native failures retain the last valid generated output;
 later edits can recover without restarting watch mode.

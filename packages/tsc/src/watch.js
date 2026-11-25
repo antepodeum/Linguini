@@ -2,6 +2,7 @@ import path from "node:path";
 import { readdirSync } from "node:fs";
 import ts from "typescript";
 import { declarationFingerprint, prepareNative } from "./native.js";
+import {isWithin} from './paths.js';
 
 /** Own every compiler/native watcher and timer, including solution-builder resources. */
 export function watchSystem(cwd) {
@@ -59,8 +60,8 @@ export function watchNative(graph, builds, changed, system) {
   for (let directory of directories) {
     while (!system.directoryExists(directory) && path.dirname(directory) !== directory) directory = path.dirname(directory);
     watchers.push(system.watchDirectory(directory, (file) => {
-      const absolute = path.isAbsolute(file) ? file : path.resolve(directory, file);
-      if ([...directories].some((source) => absolute === source || absolute.startsWith(source + path.sep) || source.startsWith(absolute + path.sep))) changed();
+      const absolute = path.resolve(directory, file);
+      if ([...directories].some(source => isWithin(source,absolute) || isWithin(absolute,source))) changed();
     }, true));
   }
   return () => { for (const watcher of watchers) watcher.close(); };

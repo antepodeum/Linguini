@@ -104,9 +104,11 @@ test("noEmit and emitDeclarationOnly prepare source types without runtime output
 });
 
 test("source-file command lines retain TypeScript's inferred output layout", () => {
-  const root = fixture();
-  compile(root, ["src/app.ts", "--strict", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2022", "--outDir", "dist"]);
-  assert.equal(execute(root), "Bonjour Ada");
+  for (const explicitRoot of [false,true]) {
+    const root = fixture();
+    compile(root, ["src/app.ts", "--strict", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2022", "--outDir", "dist", ...(explicitRoot ? ["--rootDir","src"] : [])]);
+    assert.equal(execute(root), "Bonjour Ada");
+  }
 });
 
 test("type errors prevent runtime delivery and preserve diagnostic failure", () => {

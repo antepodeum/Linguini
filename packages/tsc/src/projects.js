@@ -2,6 +2,7 @@ import { realpathSync } from "node:fs";
 import path from "node:path";
 import { readEcmascriptProjectSync } from "@antepodeum/linguini-project/ecmascript";
 import ts from "typescript";
+import {isWithin} from './paths.js';
 
 export function readProjects(roots, overrides, cwd, solution = false) {
   const projects = new Map();
@@ -74,6 +75,8 @@ export function runtimeOutput(parsed, layout, declarations = false) {
     const program = ts.createProgram({ rootNames: parsed.fileNames, options, projectReferences: parsed.projectReferences });
     files = program.getSourceFiles().filter((file) => !file.isDeclarationFile && !program.isSourceFileFromExternalLibrary(file)).map((file) => file.fileName);
   }
+  // TypeScript normalizes the anchor itself, but requires that exact spelling in fileNames.
+  files = files.map(file => file.replaceAll('\\','/'));
   const anchor = files.find((file) => /\.[cm]?[jt]sx?$/.test(file));
   if (!anchor) return undefined;
   let emissionOptions = declarations ? { ...options, declaration: true, emitDeclarationOnly: true } : options;
@@ -91,11 +94,6 @@ export function runtimeOutput(parsed, layout, declarations = false) {
     throw new Error(`Linguini output ${destination} must remain inside its project root ${layout.root}`);
   }
   return destination === layout.generated ? undefined : path.relative(layout.root, destination).split(path.sep).join('/');
-}
-
-function isWithin(root, file) {
-  const relative = path.relative(root, file);
-  return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
 
 function commonDirectory(files) {

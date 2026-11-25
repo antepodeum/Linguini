@@ -288,7 +288,7 @@ jobs:
           - { os: ubuntu-24.04, node: 20, typescript: 5.8.3 }
           - { os: ubuntu-24.04, node: 24, typescript: 6.0.3 }
           - { os: windows-latest, node: 24, typescript: 6.0.3 }
-          - { os: macos-14, node: 24, typescript: 6.0.3 }
+          - { os: macos-latest, node: 24, typescript: 6.0.3 }
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master

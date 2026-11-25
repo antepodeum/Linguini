@@ -684,6 +684,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       missing cache data through prefer-offline installs. Windows TypeScript output arguments
       now use portable separators; the existing platform matrix remains enabled. Confirmation
       of the workflow repair on GitHub-hosted runners remains required after pushing.
+      Push run 45689095669 confirms 22 successful jobs. Its remaining Windows failures exposed
+      emit-input spelling and namespace-watch filtering errors, reproduced by local regression
+      cases covering both separator styles, path components, drive/case rules, and cleanup.
+      The macOS job never obtained a runner: GitHub rejected its older configuration. It now
+      uses `macos-latest`; confirmation of these remaining repairs on hosted runners is pending.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;

@@ -4,6 +4,16 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## TypeScript compiler paths and source discovery
+
+No application change is required. Emit planning normalizes input file names to TypeScript's
+`/` spelling, including source-file command lines with an explicit `rootDir`. Directory-watch
+events are resolved and compared by path components using the host's separator and case rules.
+This restores discovery of added or removed schema/locale namespaces on Windows, where
+TypeScript reports `/` paths alongside native `\` paths. Watch deadlines and output-validation
+rules are unchanged. The macOS TypeScript job uses `macos-latest` after GitHub rejected the
+older runner configuration; mutation testing remains limited to pull requests.
+
 ## Conditional deferred loaders
 
 The public `@antepodeum/linguini-sveltekit/load` import and `createClientLoad` calls stay unchanged.
