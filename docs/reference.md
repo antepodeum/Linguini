@@ -265,6 +265,10 @@ contexts with different values retain separate tables. These choices follow the
 [pinned CLDR date-field rules](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Date_Field_Symbol_Table).
 Formatting `E`/named `e` weekday symbols and standalone `c` symbols retain their own contexts.
 Full Finnish and Inari Sami dates therefore use their standalone weekday names.
+Quarter fields `Q` and standalone `q` compile to UTC month arithmetic for numeric widths
+and the selected four-name vector for abbreviated, wide, or narrow widths. Numeric widths
+use the locale's selected digits; narrow names remain pinned symbols. Equal vectors share
+one binding. Quarter skeletons such as `yQQQ` and `yQQQQ` need no month or weekday name data.
 Exact Gregorian `availableFormats` IDs such as `yMMMd` and `Hm` are selectable with
 `skeleton`. The ID is resolved during generation; emitted formatters contain its selected
 fields and literals. Closest-match skeletons, field-width adjustment, combined date/time
@@ -316,13 +320,15 @@ surface. Current guarantees are:
   `"long"`, `"medium"`, or `"short"`. Supplying only `time_style` emits only
   the time, while supplying both combines them with the matching CLDR
   date-time pattern. Rendering uses pinned Gregorian patterns plus
-  context/width-specific month and weekday names, eras, and localized fixed/flexible
+  context/width-specific month, weekday, and quarter names, eras, and localized fixed/flexible
   day periods. Time fields are evaluated in UTC; zone-bearing widths use pinned localized
   UTC names, falling back to the localized GMT-zero label when the selected name is absent.
   These labels are compiled literals. Alternatively, `skeleton = "yMMMd"` or `skeleton = "Hm"`
   selects an exact ID from that locale's pinned Gregorian `availableFormats`. Skeleton IDs
   cannot be combined with `style` or `time_style`. An unavailable ID or unsupported field
   fails generation before output changes; no closest-match or host-formatting fallback runs.
+  Week-based fields remain unsupported, including the `Y` in the pinned Scottish Gaelic
+  `yMMM` pattern. Such patterns fail explicitly rather than substituting calendar-year semantics.
   Selectable time zones, non-Gregorian calendars, closest-match skeletons, and synthesized
   date/time combinations remain under remediation.
 

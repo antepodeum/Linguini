@@ -30,6 +30,18 @@ export function formatDate_skeleton_yMMMd(value) {
   return formatDate_skeleton_GyMMMd_months_3[date.getUTCMonth()] + " " + String(date.getUTCDate()) + ", " + String(year);
 }
 
+const formatDate_skeleton_yQQQ_quarters_3 = ["Q1", "Q2", "Q3", "Q4"];
+/**
+ * @param {Date | number | string} value
+ * @returns {string}
+ */
+export function formatDate_skeleton_yQQQ(value) {
+  const date = coerceDate(value);
+  let year = date.getUTCFullYear();
+  if (year <= 0) year = 1 - year;
+  return formatDate_skeleton_yQQQ_quarters_3[Math.floor(date.getUTCMonth() / 3)] + " " + String(year);
+}
+
 /**
  * @param {number} value
  * @param {number} length

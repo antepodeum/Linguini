@@ -412,6 +412,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       generated English/Russian/French/Chinese requests execute with host formatting disabled.
       The nine-locale site also verifies the exact owning-page payload, absence of time-field
       operations, concurrent SSR, hydration, locale navigation, and no-JS requests.
+      Gregorian quarter fields `Q`/`q` now compile numeric arithmetic or four-name vectors for
+      all widths and contexts. Pinned quarter skeletons/symbols are checked across 508 locale
+      records; generated requests execute in four locales, with UTC boundaries, Arabic digits,
+      supplied-Date getter observations, strict JS typing, and unused quarter removal covered.
+      The unsupported week-based `Y` in Scottish Gaelic `yMMM` still fails before output changes.
       Closest-match skeletons, combined date/time synthesis, other calendars, and selectable
       non-UTC zones remain open.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.

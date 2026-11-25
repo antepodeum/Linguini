@@ -34,6 +34,7 @@ test("shared generated date tables retain only the selected formatter in a real 
     assert.equal(chunks.length, 1);
     const code = chunks[0].code;
     assert.doesNotMatch(code, /["']AD["']|["']BC["']/, "sharing must not retain the unused era formatter");
+    assert.doesNotMatch(code, /Math\.floor|["']Q1["']/, "unused quarter formatters must be absent");
     if (skeleton === "yMMMd") {
       assert.doesNotMatch(code, /getUTCHours|getUTCMinutes/);
       assert.equal([...code.matchAll(/["']Jan["']\s*,\s*["']Feb["']/g)].length, 1);

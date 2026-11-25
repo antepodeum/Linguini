@@ -167,7 +167,7 @@ pub fn compile_date_pattern(
         }
         let supported = match symbol {
             'y' | 'S' => true,
-            'M' | 'L' | 'a' | 'b' | 'B' | 'G' => width <= 5,
+            'M' | 'L' | 'Q' | 'q' | 'a' | 'b' | 'B' | 'G' => width <= 5,
             'E' => width <= 6,
             'e' | 'c' => (3..=6).contains(&width),
             'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' => width <= 2,
@@ -206,6 +206,7 @@ mod tests {
             })
         };
         let mut checked = 0;
+        let mut quarters = 0;
         let mut locales = std::collections::BTreeSet::new();
         for locale in linguini_cldr::locale_resolution_candidates() {
             let Some(dates) = linguini_cldr::compiled_date_formatting(locale) else {
@@ -224,6 +225,11 @@ mod tests {
                     dates.locale
                 );
                 checked += 1;
+                if skeleton.contains('Q') {
+                    compile_date_pattern(dates.locale, expected)
+                        .unwrap_or_else(|error| panic!("{}: {skeleton}: {error}", dates.locale));
+                }
+                quarters += usize::from(skeleton.contains('Q'));
             }
             assert!(matches!(
                 date_request_pattern(&dates, &request("notASkeleton")),
@@ -231,6 +237,10 @@ mod tests {
             ));
         }
         assert_eq!(locales.len(), 508);
+        assert!(
+            quarters > 900,
+            "insufficient quarter skeleton coverage: {quarters}"
+        );
         assert!(
             checked > 10_000,
             "insufficient pinned skeleton coverage: {checked}"
@@ -298,10 +308,10 @@ mod tests {
             ])
         );
         assert_eq!(
-            compile_date_pattern("en", "é QQQ"),
+            compile_date_pattern("en", "é QQQQQQ"),
             Err(DatePatternError::UnsupportedField {
                 symbol: 'Q',
-                width: 3,
+                width: 6,
                 offset: 3
             })
         );

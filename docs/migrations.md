@@ -4,6 +4,16 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Gregorian quarter fields
+
+Regenerate to use exact quarter skeletons such as `@date(skeleton = "yQQQ")` or `yQQQQ`.
+Selected `Q`/`q` fields compile in Rust: widths one/two emit UTC quarter arithmetic with
+localized digits and optional padding; widths three/four/five select abbreviated/wide/narrow
+quarter symbols in the matching format or standalone context. Equal name vectors share data.
+Message signatures and the Date input contract are unchanged. Unused quarter formatters and
+tables are removed by bundlers. Week-based fields, other calendars, and selectable non-UTC
+zones remain under remediation; unsupported selected patterns still fail before output writes.
+
 ## Shared date name tables
 
 Regenerate output to share identical month/weekday vectors across the locale runtime's selected

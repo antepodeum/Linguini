@@ -35,7 +35,8 @@ selector type produced from numeric values, not a host-language primitive. Forma
 are `@number`, `@currency(code = "AAA")`, and `@date(...)`. Date formatting accepts
 `style = "full|long|medium|short"` and/or `time_style = "full|long|medium|short"`, or an exclusive
 `skeleton = "yMMMd"` selecting an exact pinned Gregorian `availableFormats` ID. Unknown IDs
-and unsupported fields fail generation. Type restrictions and the remaining skeleton-matching
+and unsupported fields fail generation. Exact quarter IDs such as `yQQQ` and `yQQQQ` are supported.
+Type restrictions and the remaining skeleton-matching
 limits are documented in the reference.
 
 Sibling message and group names share one namespace. Duplicate declarations, duplicate enum

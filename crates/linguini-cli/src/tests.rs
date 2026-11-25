@@ -38,12 +38,18 @@ fn date_skeleton_builds_validate_before_changing_owned_output() {
     let runtime = project.path().join("generated/locales/en/_runtime.js");
     let baseline = fs::read(&runtime).unwrap();
     assert!(String::from_utf8_lossy(&baseline).contains("formatDate_skeleton_yMMMd"));
+    fs::write(&locale, "date = {value @date(skeleton = \"yQQQ\")}\n").unwrap();
+    build_project(project.path()).unwrap();
+    assert!(fs::read_to_string(&runtime)
+        .unwrap()
+        .contains("formatDate_skeleton_yQQQ"));
+    let baseline = fs::read(&runtime).unwrap();
     for (arguments, diagnostic) in [
         (
             "skeleton = \"notASkeleton\"",
             "no pinned Gregorian date pattern",
         ),
-        ("skeleton = \"yQQQ\"", "unsupported date field `Q`"),
+        ("skeleton = \"yw-count-one\"", "ASCII field letters"),
         ("skeleton = \"Hm\", style = \"short\"", "cannot be combined"),
     ] {
         fs::write(&locale, format!("date = {{value @date({arguments})}}\n")).unwrap();
@@ -58,6 +64,29 @@ fn date_skeleton_builds_validate_before_changing_owned_output() {
             "invalid request changed output"
         );
     }
+    // This pinned Gregorian pattern uses the unsupported week-based year, even though its
+    // skeleton ID is otherwise valid. Reject it before touching either locale's output.
+    fs::write(&locale, "date = {value @date(skeleton = \"yQQQ\")}\n").unwrap();
+    let config = project.path().join("linguini.toml");
+    fs::write(
+        &config,
+        fs::read_to_string(&config)
+            .unwrap()
+            .replace("locales = [\"en\"]", "locales = [\"en\", \"gd\"]"),
+    )
+    .unwrap();
+    fs::write(
+        project.path().join("locales/main/gd.lgl"),
+        "date = {value @date(skeleton = \"yMMM\")}\n",
+    )
+    .unwrap();
+    let error = build_project(project.path()).unwrap_err();
+    assert!(
+        error.to_string().contains("unsupported date field `Y`"),
+        "{error}"
+    );
+    assert_eq!(fs::read(&runtime).unwrap(), baseline);
+    assert!(!project.path().join("generated/locales/gd").exists());
 }
 
 #[test]

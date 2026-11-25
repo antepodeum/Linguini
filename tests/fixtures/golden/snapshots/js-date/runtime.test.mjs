@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { formatFlexible, formatFixed, formatNarrow, formatYear } from "./date.js";
+import { formatDate_skeleton_yQQQ } from "./skeletons.js";
 
 test("compiled periods follow displayed precision and localized rules", () => {
   assert.equal(formatFlexible("2024-01-02T09:30:00Z"), "9:30:00.000 in the morning");
@@ -20,4 +21,24 @@ test("Gregorian years use the era and requested minimum widths", () => {
   const before = new Date(0);
   before.setUTCFullYear(-1, 0, 2);
   assert.equal(formatYear(before), "2 02 0002 BC");
+});
+
+test("quarter skeletons follow UTC boundaries and the Date input contract", () => {
+  for (const [value, expected] of [
+    ["2024-03-31T23:59:59.999Z", "Q1 2024"],
+    ["2024-04-01T00:00:00Z", "Q2 2024"],
+    ["2024-07-01", "Q3 2024"],
+    ["2024-10-01", "Q4 2024"],
+    ["2024-04-01T00:30:00+01:00", "Q1 2024"],
+    ["0000-04-01", "Q2 1"],
+  ]) {
+    assert.equal(formatDate_skeleton_yQQQ(value), expected);
+  }
+  const value = new Date(0);
+  let reads = 0;
+  value.getUTCMonth = () => { reads++; return 6; };
+  assert.equal(formatDate_skeleton_yQQQ(value), "Q3 1970");
+  assert.equal(reads, 1);
+  assert.equal(formatDate_skeleton_yQQQ(0), "Q1 1970");
+  assert.throws(() => formatDate_skeleton_yQQQ("2024-02-30"), RangeError);
 });

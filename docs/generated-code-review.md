@@ -98,7 +98,12 @@ tests check every pinned skeleton entry across 508 resolved locale records; gene
 execute in English/Russian/French/Chinese with host date formatting disabled, including BCE/CE.
 The real nine-locale site keeps the skeleton message in its owning page's one payload and omits
 time-field operations; concurrent SSR, hydration, no-JS rendering, and locale navigation pass.
-Unknown IDs, style conflicts, and unsupported selected fields preserve existing owned output.
+Quarter skeletons `yQQQ`/`yQQQQ` now compile `Q`/`q` arithmetic or selected four-name vectors.
+Both contexts and all widths are checked against all 508 pinned Gregorian locale records;
+execution covers every month, UTC offset boundaries, Arabic digits, BCE, and supplied-Date
+getter observations. Actual bundles omit unused quarter work. Unknown IDs, style conflicts,
+and unsupported selected fields preserve existing owned output, including the week-based `Y`
+in Scottish Gaelic `yMMM`.
 Closest-match/width-adjusted skeletons, combined date/time synthesis, other calendars, and
 selectable non-UTC zones remain open under GEN-A13/#158.
 

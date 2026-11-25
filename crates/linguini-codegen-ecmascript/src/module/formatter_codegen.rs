@@ -291,15 +291,15 @@ fn date_parts(
         if let Some(values) = symbols.names {
             let proposed = format!(
                 "{name}_{}{}_{width}",
-                if matches!(character, 'L' | 'c') {
+                if matches!(character, 'L' | 'c' | 'q') {
                     "standalone_"
                 } else {
                     ""
                 },
-                if matches!(character, 'M' | 'L') {
-                    "months"
-                } else {
-                    "weekdays"
+                match character {
+                    'M' | 'L' => "months",
+                    'Q' | 'q' => "quarters",
+                    _ => "weekdays",
                 }
             );
             let binding = shared_tables
@@ -316,7 +316,7 @@ fn date_parts(
         let numeric = matches!(
             character,
             'y' | 'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' | 'S'
-        ) || matches!(character, 'M' | 'L') && width <= 2;
+        ) || matches!(character, 'M' | 'L' | 'Q' | 'q') && width <= 2;
         helpers.padding |=
             character == 'S' || (numeric && width == 2) || (character == 'y' && width > 2);
         helpers.digits |= numeric && dates.digits != "0123456789";

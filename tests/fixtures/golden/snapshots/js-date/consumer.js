@@ -1,5 +1,5 @@
 import { formatFlexible, formatFixed, formatNarrow, formatYear } from "./date.js";
-import { formatDate_skeleton_yMMMd, formatDate_skeleton_Hm, formatDate_skeleton_GyMMMd } from "./skeletons.js";
+import { formatDate_skeleton_yMMMd, formatDate_skeleton_Hm, formatDate_skeleton_GyMMMd, formatDate_skeleton_yQQQ } from "./skeletons.js";
 
 /** @type {string[]} */
 const results = [
@@ -10,6 +10,7 @@ const results = [
   formatDate_skeleton_yMMMd("2024-01-02"),
   formatDate_skeleton_Hm(new Date(0)),
   formatDate_skeleton_GyMMMd(0),
+  formatDate_skeleton_yQQQ("2024-04-01"),
 ];
 // @ts-expect-error formatter inputs retain their public date contract
 formatFlexible(false);
@@ -17,4 +18,6 @@ formatFlexible(false);
 formatNarrow();
 // @ts-expect-error skeleton-selected formatters preserve the same input contract
 formatDate_skeleton_yMMMd(false);
+// @ts-expect-error quarter skeletons preserve the Date input contract
+formatDate_skeleton_yQQQ(false);
 void results;

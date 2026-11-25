@@ -783,6 +783,107 @@ fn generated_date_runtime_composes_cldr_date_and_time_widths() {
 }
 
 #[test]
+fn quarter_fields_compile_widths_contexts_digits_and_utc_boundaries() {
+    let mut dates = linguini_cldr::compiled_date_formatting("en").unwrap();
+    dates.date_formats.medium = "Q QQ QQQ QQQQ QQQQQ q qq qqq qqqq qqqqq";
+    let (source, helpers) = generated_date_request(
+        "en",
+        &dates,
+        &request(IrFormatterKind::Date, &[]),
+        "formatQuarter",
+        false,
+    );
+    assert!(helpers.padding);
+    assert!(!helpers.digits);
+    assert_eq!(
+        source.matches(" = [").count(),
+        3,
+        "equal contexts must share tables"
+    );
+    for forbidden in [
+        "getMonth(",
+        "getUTCFullYear",
+        "getUTCDay",
+        "getUTCHours",
+        "quarters.",
+        "Intl.",
+    ] {
+        assert!(
+            !source.contains(forbidden),
+            "unexpected quarter work: {forbidden}"
+        );
+    }
+    let mut script = format!("{source}{}", date_formatter_helpers(helpers.padding));
+    script.push_str(
+        "globalThis.Intl.DateTimeFormat = class {constructor(){throw Error('host formatter');}};\n",
+    );
+    for month in 0..12 {
+        let quarter = month / 3 + 1;
+        let ordinal = ["1st", "2nd", "3rd", "4th"][quarter - 1];
+        let half = format!("{quarter} 0{quarter} Q{quarter} {ordinal} quarter {quarter}");
+        let expected = format!("{half} {half}");
+        script.push_str(&format!(
+            r#"
+{{ const value = new Date(Date.UTC(2024, {month}, 1));
+let reads = 0;
+value.getUTCMonth = () => {{reads++; return {month};}};
+if (formatQuarter(value) !== {expected:?}) throw Error('month {month}');
+if (reads !== 10) throw Error('quarter getter observations'); }}
+"#
+        ));
+    }
+    for (value, quarter, ordinal) in [
+        ("2024-04-01T00:30:00+01:00", 1, "1st"),
+        ("2024-09-30T23:30:00-01:00", 4, "4th"),
+        ("0000-04-01", 2, "2nd"),
+    ] {
+        let half = format!("{quarter} 0{quarter} Q{quarter} {ordinal} quarter {quarter}");
+        script.push_str(&format!(
+            "if (formatQuarter({value:?}) !== {:?}) throw Error('UTC boundary');\n",
+            format!("{half} {half}")
+        ));
+    }
+    script.push_str("console.log('ok');");
+    assert_eq!(execute(&script), "ok");
+
+    dates = linguini_cldr::compiled_date_formatting("ar-EG").unwrap();
+    dates.date_formats.medium = "Q QQ QQQQQ";
+    let (source, helpers) = generated_date_request(
+        "ar-EG",
+        &dates,
+        &request(IrFormatterKind::Date, &[]),
+        "formatQuarter",
+        false,
+    );
+    assert!(helpers.digits && helpers.padding);
+    assert_eq!(
+        execute(&format!(
+            "{source}{}{}console.log(formatQuarter('2024-04-01'));",
+            date_formatter_helpers(helpers.padding),
+            digit_formatter_helper()
+        )),
+        "٢ ٠٢ ٢"
+    );
+
+    dates = linguini_cldr::compiled_date_formatting("en").unwrap();
+    for pattern in ["Q", "q"] {
+        dates.date_formats.medium = pattern;
+        let (source, helpers) = generated_date_request(
+            "en",
+            &dates,
+            &request(IrFormatterKind::Date, &[]),
+            "formatQuarter",
+            false,
+        );
+        assert!(!helpers.digits && !helpers.padding);
+        assert!(
+            !source.contains(" = ["),
+            "numeric quarter must not carry names"
+        );
+    }
+}
+
+#[test]
 fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
     for (locale, pattern, value, expected) in [
         ("ru", "MMMM LLLL", "2024-01-02T01:00:00Z", "января январь"),

@@ -28,16 +28,21 @@ pub fn date_field_symbols(
     };
     let mut symbols = DateFieldSymbols::default();
     match field {
-        'M' | 'L' if width >= 3 => {
-            let context = if field == 'L' {
+        'M' | 'L' | 'Q' | 'q' if width >= 3 => {
+            let (group, count) = if matches!(field, 'Q' | 'q') {
+                ("quarters", 4)
+            } else {
+                ("months", 12)
+            };
+            let context = if matches!(field, 'L' | 'q') {
                 "stand-alone"
             } else {
                 "format"
             };
             symbols.names = Some(
-                (1..=12)
-                    .map(|month| {
-                        calendar.symbol(&format!("months.{context}.{symbol_width}.{month}"))
+                (1..=count)
+                    .map(|index| {
+                        calendar.symbol(&format!("{group}.{context}.{symbol_width}.{index}"))
                     })
                     .collect::<Option<Vec<_>>>()?,
             );
@@ -82,4 +87,52 @@ pub fn date_field_symbols(
         _ => {}
     }
     Some(symbols)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quarter_symbols_cover_both_contexts_and_all_widths_in_pinned_locales() {
+        let mut locales = std::collections::BTreeSet::new();
+        for locale in linguini_cldr::locale_resolution_candidates() {
+            let Some(calendar) = linguini_cldr::compiled_calendar_formatting(locale, "gregory")
+            else {
+                continue;
+            };
+            if !locales.insert(calendar.locale) {
+                continue;
+            }
+            for (field, context) in [('Q', "format"), ('q', "stand-alone")] {
+                for width in 1..=5 {
+                    let symbols =
+                        date_field_symbols(&calendar, field, width).unwrap_or_else(|| {
+                            panic!(
+                                "{}: {field}/{width} has missing quarter symbols",
+                                calendar.locale
+                            )
+                        });
+                    if width <= 2 {
+                        assert_eq!(symbols, DateFieldSymbols::default());
+                        continue;
+                    }
+                    let names = symbols.names.unwrap();
+                    assert_eq!(names.len(), 4);
+                    let width = match width {
+                        3 => "abbreviated",
+                        4 => "wide",
+                        _ => "narrow",
+                    };
+                    for (index, name) in names.into_iter().enumerate() {
+                        assert_eq!(
+                            Some(name),
+                            calendar.symbol(&format!("quarters.{context}.{width}.{}", index + 1))
+                        );
+                    }
+                }
+            }
+        }
+        assert_eq!(locales.len(), 508);
+    }
 }

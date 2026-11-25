@@ -25,8 +25,8 @@ fn project_options(base_locale: &str) -> EcmaProjectOptions {
 
 #[test]
 fn exact_date_skeletons_compile_defaults_names_and_time_without_runtime_patterns() {
-    let schema = lower_schema(&parse_schema("type ReceiptDate = Date @date(skeleton = \"yMMMd\")\nreceipt(value: ReceiptDate)\nclock(value: Date)\nera(value: Date)\n").unwrap());
-    let text = "receipt = {value}\nclock = {value @date(skeleton = \"Hm\")}\nera = {value @date(skeleton = \"GyMMMd\")}\n";
+    let schema = lower_schema(&parse_schema("type ReceiptDate = Date @date(skeleton = \"yMMMd\")\nreceipt(value: ReceiptDate)\nclock(value: Date)\nera(value: Date)\nquarter(value: Date)\n").unwrap());
+    let text = "receipt = {value}\nclock = {value @date(skeleton = \"Hm\")}\nera = {value @date(skeleton = \"GyMMMd\")}\nquarter = {value @date(skeleton = \"yQQQ\")}\n";
     let locales = ["en", "ru", "fr", "zh"].map(|locale| EcmaLocaleModule {
         locale: locale.to_owned(),
         module: lower_locale(&parse_locale(text).unwrap()),
@@ -65,8 +65,8 @@ fn exact_date_skeletons_compile_defaults_names_and_time_without_runtime_patterns
 globalThis.Intl.DateTimeFormat = class {constructor(){throw Error('host date formatting must not run');}};
 const values=[];
 for (const locale of ['en','ru','fr','zh']) {
-  const {receipt,clock,era}=await import(`./locales/${locale}.js`);
-  values.push([receipt({value:'2024-01-02T13:04:05Z'}),clock('2024-01-02T13:04:05Z')]);
+  const {receipt,clock,era,quarter}=await import(`./locales/${locale}.js`);
+  values.push([receipt({value:'2024-01-02T13:04:05Z'}),clock('2024-01-02T13:04:05Z'),quarter('2024-01-02T13:04:05Z')]);
   if(locale==='en') {
     if(era('2024-01-02')!=='Jan 2, 2024 AD') throw Error(era('2024-01-02'));
     if(era('0000-01-02')!=='Jan 2, 1 BC') throw Error(era('0000-01-02'));
@@ -77,14 +77,14 @@ console.log(JSON.stringify(values));
     );
     assert_eq!(
         output,
-        r#"[["Jan 2, 2024","13:04"],["2 янв. 2024 г.","13:04"],["2 janv. 2024","13:04"],["2024年1月2日","13:04"]]"#
+        r#"[["Jan 2, 2024","13:04","Q1 2024"],["2 янв. 2024 г.","13:04","1-й кв. 2024 г."],["2 janv. 2024","13:04","T1 2024"],["2024年1月2日","13:04","2024年第1季度"]]"#
     );
 }
 
 #[test]
 fn unknown_skeletons_and_unsupported_selected_fields_fail_validation() {
     let schema = lower_schema(&parse_schema("message(value: Date)\n").unwrap());
-    for (skeleton, unknown) in [("notASkeleton", true), ("yQQQ", false)] {
+    for (locale_name, skeleton, unknown) in [("en", "notASkeleton", true), ("gd", "yMMM", false)] {
         let locale = lower_locale(
             &parse_locale(&format!(
                 "message = {{value @date(skeleton = {skeleton:?})}}\n"
@@ -94,10 +94,10 @@ fn unknown_skeletons_and_unsupported_selected_fields_fail_validation() {
         let error = generate_project_files(
             &schema,
             &[EcmaLocaleModule {
-                locale: "en".to_owned(),
+                locale: locale_name.to_owned(),
                 module: locale,
             }],
-            &project_options("en"),
+            &project_options(locale_name),
         )
         .unwrap_err();
         match error {
@@ -106,7 +106,7 @@ fn unknown_skeletons_and_unsupported_selected_fields_fail_validation() {
                 ..
             } if unknown => {}
             EcmaCodegenError::InvalidDatePattern {
-                error: linguini_codegen::DatePatternError::UnsupportedField { symbol: 'Q', .. },
+                error: linguini_codegen::DatePatternError::UnsupportedField { symbol: 'Y', .. },
                 ..
             } if !unknown => {}
             error => panic!("{skeleton}: {error:?}"),
