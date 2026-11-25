@@ -1031,6 +1031,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       range, giving passing receipts for all 67 registered tasks. Rust minimum verification uses
       the independently discovered 1.87 toolchain. These are local receipts; the final architecture/
       platform matrix and open acceptance criteria still require completion.
+      Adapter-ownership source `fcd6cd9` passes all 69 local full-profile gates, including locked
+      workspace tests, strict Clippy, strict generated JS/TS corpora, packaged documentation,
+      native CLI/tsc consumers, editor tests, and all nine real-site checks. Core, Svelte, and Vue
+      packages also pass 80 tests per Vite major (5–8), plus the same 80 tests on Node 20.
+      These local receipts do not close the final cross-platform or universal-WASM criteria.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
