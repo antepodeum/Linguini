@@ -11,8 +11,8 @@ import {
   isLinguiniSource,
   linguini as viteLinguini,
   readProjectLayout
-} from "../src/index.js";
-import { linguini } from "../src/svelte.js";
+} from "@antepodeum/linguini-vite";
+import { linguini } from "../dist/vite.js";
 
 async function fixture({ bundler = false } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-"));

@@ -10,8 +10,9 @@
   generic state, controls, effects, web, or SvelteKit runtime implementation.
 - `crates/linguini-codegen-vite`: framework-independent physical message/semantic leaves and
   manifest planning, accepting explicit runtime-helper descriptors from the host compiler.
-- `packages/vite`: Vite lifecycle and application usage integration, with Svelte-specific syntax
-  handling isolated behind the `/svelte` adapter.
+- `packages/vite`: framework-neutral Vite lifecycle, exact linking, and dependency planning.
+- `packages/svelte`: Svelte runtime and the `/vite` adapter's script, link, and cleanup behavior.
+- `packages/vue`: TypeScript `/vite` adapter using Vue's compiler for SFC script boundaries.
 
 - `packages/project`: shared JavaScript project-configuration reading and path resolution, with
   an ECMAScript layout entry used by the Vite and TypeScript adapters. Owns synchronous and
@@ -31,7 +32,8 @@ their JavaScript, declarations, and maps are emitted only into ignored `dist/` d
 The site remains an application under `site/`, and the editor extension stays under `editors/`.
 
 `packages/web` owns locale-source capabilities, URLs, persistence, and framework-independent
-client controls. `packages/svelte` owns rune state and message providers. `packages/sveltekit`
+client controls. `packages/svelte` owns rune state, message providers, and the Svelte `/vite` adapter.
+`packages/vue` owns the Vue `/vite` adapter; generic React consumers use `packages/vite`. `packages/sveltekit`
 composes those runtimes with request hooks, metadata serialization, and navigation, and exposes
 `/vite` by composing the shared Svelte/Vite integration. Runtime policy is ordinary application
 TypeScript; the native CLI reads neutral TOML and never evaluates an npm policy configuration.

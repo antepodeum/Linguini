@@ -9,10 +9,6 @@
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
-    },
-    "./svelte": {
-      "types": "./src/svelte.d.ts",
-      "default": "./src/svelte.js"
     }
   },
   "files": [
@@ -25,10 +21,15 @@
     "test": "node --test"
   },
   "dependencies": {
-    "magic-string": "0.30.21",
-    "@antepodeum/linguini-project": "0.1.0-alpha.4"
+    "@antepodeum/linguini-project": "0.1.0-alpha.4",
+    "magic-string": "0.30.21"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "5.2.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }

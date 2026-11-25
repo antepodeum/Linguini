@@ -6,8 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { build } from "vite";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { linguini as viteLinguini } from "../src/index.js";
-import { linguini } from "../src/svelte.js";
+import { linguini as viteLinguini } from "@antepodeum/linguini-vite";
+import { linguini } from "../dist/vite.js";
 
 test("shared generated date tables retain only the selected formatter in a real bundle", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-date-tables-"));

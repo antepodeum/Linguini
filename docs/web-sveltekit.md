@@ -48,7 +48,7 @@ The adapter prepares the native Svelte import/type bindings and keeps exact mess
 source maps, watch, and HMR in the shared Vite core. Direct native builds use
 `linguini build --svelte --svelte-host-module @antepodeum/linguini-sveltekit/client`.
 Standalone Svelte installs `@antepodeum/linguini-svelte` and uses
-`@antepodeum/linguini-vite/svelte`; framework-independent consumers use the main Vite entry.
+`@antepodeum/linguini-svelte/vite`; framework-independent consumers use the main Vite entry.
 
 The build adapter re-shakes each page's components, layouts, and imported functions independently.
 It compiles the surviving message/function/formatter closure into one self-contained file per

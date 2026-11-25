@@ -1,9 +1,11 @@
 import path from "node:path";
-import { linguini as viteLinguini } from "./index.js";
-import { openingTags, instanceScript } from "./svelte-source.js";
+import type MagicString from "magic-string";
+import type { LinguiniFrameworkAdapter, LinguiniViteOptions, LinguiniVitePlugin, LinguiniStaticLink } from "@antepodeum/linguini-vite";
+import { linguini as viteLinguini } from "@antepodeum/linguini-vite";
+import { openingTags, instanceScript } from "./vite/source.js";
 
 /** Svelte syntax and component lifecycle, composed with the framework-neutral Vite core. */
-export const svelteAdapter = Object.freeze({
+export const svelteAdapter: Readonly<LinguiniFrameworkAdapter> = Object.freeze({
   entry: "svelte.js",
   entrySideEffects: false,
   messageExports: Object.freeze(["l", "messages"]),
@@ -16,16 +18,19 @@ export const svelteAdapter = Object.freeze({
   injectLocaleLoaderLifecycle,
 });
 
-export function linguini(options = {}) {
+export function linguini(options: Omit<LinguiniViteOptions, "adapter"> = {}): LinguiniVitePlugin {
   const args = [...(options.args ?? ["build"])];
   if (args.includes("build") && !args.includes("--svelte")) args.push("--svelte");
   return viteLinguini({ ...options, args, adapter: svelteAdapter });
 }
 export default linguini;
 
-function applyStaticLinks(magic, code, sourceName, generatedRoot, operations, linkModule) {
+function applyStaticLinks(
+  magic: MagicString, code: string, sourceName: string, generatedRoot: string,
+  operations: readonly LinguiniStaticLink[], linkModule?: string,
+): void {
   let aliasIndex = 0;
-  let alias;
+  let alias: string;
   do {
     alias = `__linguini_localize_href_${aliasIndex++}`;
   } while (code.includes(alias));
@@ -47,9 +52,9 @@ function applyStaticLinks(magic, code, sourceName, generatedRoot, operations, li
   }
 }
 
-function findStaticLinks(code, sourceName) {
+function findStaticLinks(code: string, sourceName: string): LinguiniStaticLink[] {
   if (path.extname(sourceName).toLowerCase() !== ".svelte") return [];
-  const operations = [];
+  const operations: LinguiniStaticLink[] = [];
   for (const { start, end, name } of openingTags(code)) {
     if (name === "a") {
       const opening = code.slice(start, end + 1);
@@ -67,14 +72,16 @@ function findStaticLinks(code, sourceName) {
   return operations;
 }
 
-function shouldSkipStaticAnchor(opening) {
+function shouldSkipStaticAnchor(opening: string): boolean {
   if (/\sdownload(?:\s|=|\/?>)/i.test(opening)) return true;
   if (/\sdata-linguini-(?:ignore|no-localize)(?:\s|=|\/?>)/i.test(opening)) return true;
   const rel = /\srel\s*=\s*(["'])(.*?)\1/is.exec(opening)?.[2] ?? "";
   return rel.split(/\s+/).some((token) => token.toLowerCase() === "external");
 }
 
-function applicationScope(code, insertion, sourceName) {
+function applicationScope(
+  code: string, insertion: number, sourceName: string,
+): { key: string; insertionByte: number } | undefined {
   if (path.extname(sourceName).toLowerCase() !== ".svelte") {
     return undefined;
   }
@@ -89,7 +96,10 @@ function applicationScope(code, insertion, sourceName) {
   throw new Error(`Linguini import binding is outside a Svelte script in ${sourceName}`);
 }
 
-function injectLocaleLoaderLifecycle(magic, code, application, { prelude, release, allocateAlias }) {
+function injectLocaleLoaderLifecycle(
+  magic: MagicString, code: string, application: { readonly relative: string },
+  { prelude, release, allocateAlias }: Parameters<NonNullable<LinguiniFrameworkAdapter["injectLocaleLoaderLifecycle"]>>[3],
+): boolean {
   if (path.extname(application.relative).toLowerCase() !== ".svelte") return false;
   const onDestroy = allocateAlias("__linguini_on_destroy_");
   const lifecycle =

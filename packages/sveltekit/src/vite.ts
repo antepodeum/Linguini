@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import MagicString from 'magic-string';
 import viteLinguini from '@antepodeum/linguini-vite';
-import { svelteAdapter } from '@antepodeum/linguini-vite/svelte';
+import { svelteAdapter } from '@antepodeum/linguini-svelte/vite';
 import type { LinguiniViteOptions,LinguiniPageBundles,LinguiniPage } from '@antepodeum/linguini-vite';
 import type { Plugin, ResolvedConfig } from 'vite';
 import { clientPages } from './build/routes.js';

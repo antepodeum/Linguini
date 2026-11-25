@@ -1091,15 +1091,20 @@ and the composed payload/SSR requirements below.
       imports/types. Remove the Rust web/SvelteKit generators and generic runtime templates.
       TypeScript npm packages `@antepodeum/linguini-web`, `@antepodeum/linguini-svelte`, and
       `@antepodeum/linguini-sveltekit` own reusable platform/framework behavior. SvelteKit composes
-      Svelte and web; its `/vite` entry composes the shared Svelte/Vite adapter. Native ownership
+      Svelte and web; its `/vite` entry composes `@antepodeum/linguini-svelte/vite`.
+      Framework adapters are TypeScript in their owning npm packages; Vue owns its SFC adapter
+      and React uses the shared core directly. Native ownership
       tests enforce the boundary; real rune compilation, packed strict consumers, and the site
       production build exercise the composition. Exact page delivery remains MOD-A4–A5.
-- [-] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
+- [x] MOD-A2 — Keep Vite's build, watch, module graph, exact-message selection, locale loading,
       and source-map infrastructure framework-independent. Isolate Svelte syntax/link transforms
       and SvelteKit route/SSR behavior behind adapters that reuse this infrastructure. The JS Vite
-      core now accepts an explicit framework adapter; `/svelte` owns script scopes, static links, and component cleanup.
+      core accepts explicit framework capabilities. `@antepodeum/linguini-svelte/vite` owns script
+      scopes, static links, and component cleanup; SvelteKit owns route/SSR behavior, and Vue owns
+      SFC scope discovery through Vue's compiler. The core has no framework exports or production dependencies.
       Native helper descriptors cover thin Svelte bindings; application modules configure runtime
-      policy and the optional static-link helper import explicitly. Composed-page ownership remains open.
+      policy and static-link helpers explicitly. Core/framework/packed tests pass Vite 5–8.
+      Exact composed-page delivery and broader request-selected hosts remain MOD-A4–A5.
 - [x] MOD-A3 — Keep runtime web policy in application code, configured where hooks and runtime
       adapters are created. Publish reusable `@antepodeum/linguini-web` and
       `@antepodeum/linguini-sveltekit` npm packages. URL/routing policy, locale-source ordering,
@@ -1202,15 +1207,22 @@ and the composed payload/SSR requirements below.
       Concurrent nested server loads now read parent values, a named number formatter, and a new
       child message in French/Russian/English. Hydration preserves their server-rendered strings,
       and neither script-enabled nor no-JS rendering requests a deferred locale file for that data.
-- [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
+- [x] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.
       The same core now passes real Vite multi-entry graph and executed-output checks with ECMAScript and custom non-Svelte entry/runtime descriptors.
       The native `lgl` manifest now works without runtime helpers; direct and aliased bindings
       survive cold/warm native builds, and eager/dynamic Vite builds execute values, functions,
       and finite computed access with zero rendered facade bytes and no inactive-locale imports.
-      A native compiler-to-Vite build executes in one chunk. Native configuration is framework-neutral;
-      representative Vue/React integrations and composed-page delivery remain open.
+      Native configuration is framework-neutral. Real React TSX and Vue normal/setup scripts,
+      interpolations, and bound attributes now execute client/SSR parent-child builds against
+      cold/warm native manifests. Each composed page retains its two used messages and function
+      dependency in one chunk, with no unused message, inactive French data, or locale requests.
+      `@antepodeum/linguini-vue/vite` uses Vue's parser; React needs no additional adapter.
+      Fresh packed consumers preserve strict TypeScript without `allowJs`, source maps, and the
+      removal of the old Vite `/svelte` export. All 80 core/framework tests pass on Vite 5–8.
+      These representative base-locale boundaries do not close request-selected Vue/React hosts
+      or the broader page/locale acceptance in MOD-A4–A5.
 - [-] MOD-A7 — Share common lowering, dependency planning, and type semantics through
       `linguini-codegen`; keep ECMAScript syntax, web platform behavior, and framework dependencies
       within their owning backend/modules. Future language backends must not depend on web policy.

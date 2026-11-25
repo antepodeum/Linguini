@@ -267,16 +267,20 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: packages/vite/pnpm-lock.yaml
-      - name: Install plugin dependencies
-        working-directory: packages/vite
-        run: pnpm install --frozen-lockfile
-      - name: Select tested Vite major
-        working-directory: packages/vite
-        run: pnpm add --save-dev --lockfile=false "vite@^${{ matrix.vite }}.0.0"
-      - name: Test plugin against real Vite
-        working-directory: packages/vite
-        run: pnpm test
+          cache-dependency-path: |
+            packages/vite/pnpm-lock.yaml
+            packages/svelte/pnpm-lock.yaml
+            packages/vue/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: stable
+      - name: Test core and framework adapters against real Vite
+        run: |
+          for package in vite svelte vue; do
+            pnpm --dir "packages/$package" install --frozen-lockfile
+            pnpm --dir "packages/$package" add --save-dev --lockfile=false "vite@^${{ matrix.vite }}.0.0"
+            pnpm --dir "packages/$package" test
+          done
 
   typescript:
     name: TypeScript (${{ matrix.os }}, ${{ matrix.typescript }})

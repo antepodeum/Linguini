@@ -4,6 +4,21 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Framework-owned Vite adapters
+
+Replace `@antepodeum/linguini-vite/svelte` imports with
+`@antepodeum/linguini-svelte/vite` and rebuild. The former subpath is removed.
+SvelteKit's existing `@antepodeum/linguini-sveltekit/vite` entry keeps its public name
+and composes the Svelte package's adapter. Install the shared Vite package alongside the
+Svelte package when using its build integration; runtime-only use keeps Vite optional.
+
+Vue uses `@antepodeum/linguini-vue/vite` with the official Vue Vite plugin; React uses
+`@antepodeum/linguini-vite` directly with its compiler. These representative integrations
+link the compiled base-locale `lgl` leaves. Request-selected Vue/React locale hosts remain
+under remediation. The framework adapters are TypeScript sources in their owning packages;
+only builds emit their JavaScript, declarations, and maps. The Vite core owns shared planning,
+watching, and exact linking and has no framework exports or production dependencies.
+
 ## Gregorian quarter fields
 
 Regenerate to use exact quarter skeletons such as `@date(skeleton = "yQQQ")` or `yQQQQ`.
@@ -317,7 +332,7 @@ SDK entries have been removed. Native generation does not evaluate runtime confi
 See [Web and SvelteKit](./web-sveltekit.md) for the current application setup.
 
 SvelteKit projects import the build adapter from `@antepodeum/linguini-sveltekit/vite`.
-Standalone Svelte uses `@antepodeum/linguini-vite/svelte`. These adapters share the Vite core;
+Standalone Svelte uses `@antepodeum/linguini-svelte/vite`. These adapters share the Vite core;
 web/server handling remains in the runtime packages. Direct native builds can request thin
 Svelte bindings with `--svelte`; `--svelte-host-module MODULE` selects an integration runtime
 exporting the state/provider factories and request-locale getter. This selects imports and
@@ -423,7 +438,7 @@ See the [TypeScript build integration guide](./typescript.md) for setup and outp
 ## Explicit Vite framework adapter
 
 Standalone Svelte projects import the Vite plugin from
-`@antepodeum/linguini-vite/svelte`; SvelteKit projects use
+`@antepodeum/linguini-svelte/vite`; SvelteKit projects use
 `@antepodeum/linguini-sveltekit/vite`. The main package entry is framework-neutral. It accepts an
 explicit `LinguiniFrameworkAdapter` for generated entry/export names, runtime descriptors,
 source extensions, script scopes, static links, and locale-loader cleanup. Other integrations

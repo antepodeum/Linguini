@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@antepodeum/linguini": "file:../packages/cli",
+    "@antepodeum/linguini-svelte": "file:../packages/svelte",
     "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/kit": "^2.57.0",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",

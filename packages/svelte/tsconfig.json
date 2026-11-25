@@ -16,7 +16,8 @@
     ],
     "inlineSources": true,
     "types": [
-      "svelte"
+      "svelte",
+      "node"
     ]
   },
   "include": [

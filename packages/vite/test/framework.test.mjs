@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
-import MagicString from "magic-string";
 import { linguini } from "@antepodeum/linguini-vite";
-import { linguini as svelte, svelteAdapter } from "@antepodeum/linguini-vite/svelte";
 
 test("published framework boundary is explicit and validates complete adapter contracts", async () => {
   assert.equal(linguini().name, "vite-plugin-linguini");
-  assert.equal(svelte().name, "vite-plugin-linguini");
-  assert.ok(Object.isFrozen(svelteAdapter));
+  const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.deepEqual(Object.keys(manifest.exports), ["."]);
+  assert.deepEqual(Object.keys(manifest.peerDependencies), ["vite"]);
+  const sources = await readdir(new URL("../src/", import.meta.url));
+  assert.ok(!sources.some(name => /svelte|vue|react/.test(name)));
   const core = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
-  assert.doesNotMatch(core, /svelte/i, "the Vite core must not import or encode a framework");
+  assert.doesNotMatch(core, /svelte|from ["'](?:vue|react)(?:\/|["'])/);
   const adapter = {
     entry: "catalog.js", messageExports: ["catalog"], localeHelper: "state",
   };
@@ -35,28 +36,4 @@ test("published framework boundary is explicit and validates complete adapter co
   ]) {
     assert.throws(() => linguini({ adapter: invalid }), /Linguini adapter/);
   }
-});
-
-test("Svelte insertions respect quoted generics and ignore commented script tags", async () => {
-  const source = await readFile(new URL('./fixtures/generic-component.svelte',import.meta.url),'utf8');
-  const name = 'Generic.svelte';
-  const opening = `<script lang="ts" generics="T extends { text: string; nested: Array<' module '> }">`;
-  const insertion = source.indexOf(opening) + opening.length;
-  const scope = svelteAdapter.applicationScope(source,source.indexOf("import { l }"),name);
-  assert.equal(scope.insertionByte,Buffer.byteLength(source.slice(0,insertion)));
-  const magic = new MagicString(source);
-  const operations = svelteAdapter.findStaticLinks(source,name);
-  assert.deepEqual(operations.map(item => item.href),['/account']);
-  svelteAdapter.applyStaticLinks(magic,source,name,'generated',operations,'./links.js');
-  svelteAdapter.injectLocaleLoaderLifecycle(magic,source,{relative:name},{
-    prelude:'const release = () => {};\n',release:'release',allocateAlias:prefix => prefix + '0',
-  });
-  const result = magic.toString();
-  const inserted = result.slice(insertion,result.indexOf("import { l }"));
-  assert.match(inserted,/import \{ localizeTransformedHref/);
-  assert.match(inserted,/import \{ onDestroy/);
-  assert.ok(result.includes(opening));
-  assert.equal(result.match(/import \{ onDestroy/g)?.length,1);
-  assert.ok(result.indexOf('import { onDestroy') > result.indexOf(opening));
-  assert.match(result,/<!-- 😀 <script>not a script scope<\/script> -->/);
 });

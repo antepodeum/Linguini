@@ -18,6 +18,7 @@ const manifests = [
   "packages/svelte/package.json",
   "packages/sveltekit/package.json",
   "packages/vite/package.json",
+  "packages/vue/package.json",
   "packages/tsc/package.json",
   "editors/vscode/package.json",
   "site/package.json"

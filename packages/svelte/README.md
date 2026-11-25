@@ -12,3 +12,9 @@ a request replacement; the SvelteKit wrapper supplies this automatically.
 message provider. Generated bindings create it once in the locale helper and re-export
 it directly; the message provider receives that same function through its `setLocale`
 option. With the Svelte Vite adapter, importing only this setter retains no catalogs.
+
+The `@antepodeum/linguini-svelte/vite` entry composes the shared Vite plugin with Svelte
+script scopes, static-link rewriting, and component cleanup. Install
+`@antepodeum/linguini-vite` when using this entry. Vite remains an optional peer for
+applications that only consume the locale runtime. SvelteKit composes this same adapter
+through `@antepodeum/linguini-sveltekit/vite`.

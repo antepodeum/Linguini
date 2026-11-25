@@ -25,7 +25,7 @@ import { contractEvidence, validateContractEvidence } from "./check-public-contr
 import {isBuildArtifact} from './check-build-artifacts.mjs';
 
 test('application build output is forbidden while source and golden expectations remain tracked', () => {
-  for (const path of ['site/generated/output.br','site/src/lib/generated/linguini/index.js','site/.svelte-kit/output/client/app.js','packages/sveltekit/dist/client.js','packages/cli-linux-x64/bin/linguini']) {
+  for (const path of ['site/generated/output.br','site/src/lib/generated/linguini/index.js','site/.svelte-kit/output/client/app.js','packages/sveltekit/dist/client.js','packages/vue/dist/vite.js','packages/cli-linux-x64/bin/linguini']) {
     assert.equal(isBuildArtifact(path),true,path);
   }
   for (const path of ['site/src/lib/components/button.svelte','packages/sveltekit/src/client.ts','tests/fixtures/golden/snapshots/codegen-js-plural-ru.js']) {
@@ -58,6 +58,7 @@ test("public contract policy requires docs, migrations, and tests together", () 
   assert.throws(() => validateContractEvidence(["packages/project/src/ecmascript.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   assert.deepEqual(contractEvidence(["crates/linguini-ir/src/lower.rs"]).contracts, []);
   assert.throws(() => validateContractEvidence(["crates/linguini-schema/src/highlight.rs"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
+  assert.throws(() => validateContractEvidence(["packages/vue/src/vite.ts"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   assert.throws(() => validateContractEvidence(["packages/tsc/src/index.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   for (const name of ["linguini-codegen", "linguini-codegen-ecmascript", "linguini-codegen-ecmascript-web", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) {
     assert.throws(
@@ -152,6 +153,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "project:test",
     "web:test",
     "svelte:test",
+    "vue:test",
       "sveltekit:test",
       "rust:fmt",
       "codegen:schema-js",
@@ -215,7 +217,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "site:browser",
     ],
   );
-  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "web", "svelte", "sveltekit", "tsc", "vite", "cli", "vscode", "site"]);
+  assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "web", "svelte", "vue", "sveltekit", "tsc", "vite", "cli", "vscode", "site"]);
 });
 
 test("profiles select the expected ordered task groups", () => {
@@ -227,6 +229,7 @@ test("profiles select the expected ordered task groups", () => {
     "project:test",
     "web:test",
     "svelte:test",
+    "vue:test",
       "sveltekit:test",
     "rust:fmt",
     "codegen:schema-js",
@@ -354,6 +357,7 @@ test("task execution continues after a failure and aggregates exit status", () =
     "project:test",
     "web:test",
     "svelte:test",
+    "vue:test",
       "sveltekit:test",
     "rust:fmt",
     "codegen:schema-js",
@@ -428,7 +432,7 @@ test("message codegen and typed runtime adapters retain independent ownership", 
   for (const owner of [ecma,vite,svelte]) assert.doesNotMatch(owner,/linguini-codegen-(?:ecmascript-web|sveltekit)\s*=/);
   for (const owner of [ecma,vite]) assert.doesNotMatch(owner,/linguini-codegen-svelte\s*=/);
   for (const retired of ["linguini-codegen-ecmascript-web","linguini-codegen-sveltekit"]) assert(!PACKAGED_RUNTIME_CRATES.includes(retired));
-  for (const name of ["web","svelte","sveltekit"]) {
+  for (const name of ["web","svelte","sveltekit","vue"]) {
     const manifest=JSON.parse(readFileSync(resolve(REPOSITORY_ROOT,"packages",name,"package.json"),"utf8"));
     assert.equal(manifest.name,"@antepodeum/linguini-"+name);
     assert.match(manifest.scripts.build,/tsc/);

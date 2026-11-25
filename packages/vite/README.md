@@ -1,9 +1,13 @@
 # @antepodeum/linguini-vite
 
 Vite plugin for Linguini projects. Use `@antepodeum/linguini-sveltekit/vite` for SvelteKit
-and `@antepodeum/linguini-vite/svelte` for standalone Svelte. These adapters compose the
+and `@antepodeum/linguini-svelte/vite` for standalone Svelte. These adapters compose the
 framework-neutral core with Svelte script scopes, component cleanup, and static-link
 transforms. Maintained TypeScript npm packages own request and navigation behavior.
+
+Vue uses `@antepodeum/linguini-vue/vite`; React uses this package directly alongside
+its official Vite plugin. Framework syntax and lifecycle implementations live in their
+owning packages.
 
 The main package entry exports the Vite core without framework imports or syntax. Its
 `adapter` option selects generated entry/export names, runtime-helper descriptors, additional
@@ -35,7 +39,7 @@ Vite's error overlay.
 
 ```js
 import { defineConfig } from "vite";
-import linguini from "@antepodeum/linguini-vite/svelte";
+import linguini from "@antepodeum/linguini-vite";
 
 export default defineConfig({
   plugins: [linguini()]
@@ -63,7 +67,7 @@ message calls. When an adapter selects `localeHelper`, `locale_loading = "dynami
 targets are preserved and must support top-level await. Eager locale loading and direct
 base-locale `lgl` imports retain Vite’s default target.
 
-Use `@antepodeum/linguini-sveltekit/vite` for SvelteKit and this package’s `/svelte` entry for
+Use `@antepodeum/linguini-sveltekit/vite` for SvelteKit and `@antepodeum/linguini-svelte/vite` for
 standalone Svelte. Runtime routing and persistence are configured through their npm adapters.
 An optional `linkModule` selects a project helper for static-link transforms.
 

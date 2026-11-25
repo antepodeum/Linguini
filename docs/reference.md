@@ -46,6 +46,15 @@ and compiler APIs remain in their adapters. The language-neutral entry has no fr
 It reads neutral project paths and target settings. Runtime adapter configuration is loaded by
 the application and its ordinary frontend module graph.
 
+Framework build adapters live with their owning npm packages: Svelte uses
+`@antepodeum/linguini-svelte/vite`, SvelteKit uses `@antepodeum/linguini-sveltekit/vite`,
+and Vue uses `@antepodeum/linguini-vue/vite`. React's TSX compiler composes the generic
+`@antepodeum/linguini-vite` entry directly. The Vite core has no framework production dependency or
+framework export. The Vue adapter uses Vue's compiler to locate script scopes; its initial
+integration and generic React output use compiled base-locale `lgl` leaves. Request-selected
+Vue/React locale hosts remain under remediation. Real parent/child compiler boundaries and
+client/SSR builds are covered separately from the existing SvelteKit page-runtime guarantees.
+
 `linguini-codegen-vite::VitePlan` owns physical message/semantic leaves and manifest generation.
 The host compiler supplies validated application usage and explicit runtime-helper descriptors;
 Vite planning has no Svelte or SvelteKit dependency. A plan can emit into multiple output roots,

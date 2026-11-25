@@ -9,3 +9,4 @@ crates/linguini-cldr-macros/vendor/
 /packages/web/dist/
 /packages/sveltekit/dist/
 /packages/svelte/dist/
+/packages/vue/dist/

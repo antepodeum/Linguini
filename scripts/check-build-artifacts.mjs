@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 export function isBuildArtifact(path) {
-  return /^(?:site\/(?:generated|build|\.svelte-kit|src\/lib\/generated)|packages\/(?:web|svelte|sveltekit)\/dist|packages\/cli-[^/]+\/bin|editors\/vscode\/dist|target|release)\//.test(path);
+  return /^(?:site\/(?:generated|build|\.svelte-kit|src\/lib\/generated)|packages\/(?:web|svelte|sveltekit|vue)\/dist|packages\/cli-[^/]+\/bin|editors\/vscode\/dist|target|release)\//.test(path);
 }
 
 export function main(root = fileURLToPath(new URL('../',import.meta.url))) {

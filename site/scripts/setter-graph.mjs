@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {build,normalizePath} from 'vite';
 import {compileModule} from 'svelte/compiler';
-import linguini from '@antepodeum/linguini-vite/svelte';
+import linguini from '@antepodeum/linguini-svelte/vite';
 
 /** Test the shared Svelte adapter separately from the full Kit route graph below. */
 export async function verifySetterGraph(root) {

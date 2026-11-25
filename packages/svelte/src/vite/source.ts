@@ -1,5 +1,12 @@
+interface OpeningTag {
+  start: number;
+  end: number;
+  name: string;
+  bodyEnd: number;
+}
+
 /** Locate tag boundaries while leaving script/style/preprocessor contents untouched. */
-export function* openingTags(code) {
+export function* openingTags(code: string): Generator<OpeningTag> {
   let cursor = 0;
   while (cursor < code.length) {
     const start = code.indexOf("<", cursor);
@@ -30,8 +37,8 @@ export function* openingTags(code) {
   }
 }
 
-function openingTagEnd(code, start) {
-  let quote;
+function openingTagEnd(code: string, start: number): number {
+  let quote: string | undefined;
   let braces = 0;
   for (let cursor = start; cursor < code.length; cursor += 1) {
     const character = code[cursor];
@@ -53,7 +60,7 @@ function openingTagEnd(code, start) {
   return -1;
 }
 
-export function instanceScript(code) {
+export function instanceScript(code: string): { insertion: number } | undefined {
   for (const { start, end, name } of openingTags(code)) {
     if (name === "script" && !isSvelteModuleScript(code.slice(start, end + 1))) {
       return { insertion: end + 1 };
@@ -62,7 +69,7 @@ export function instanceScript(code) {
   return undefined;
 }
 
-function isSvelteModuleScript(openingTag) {
+function isSvelteModuleScript(openingTag: string): boolean {
   const attributes = /([^\s=<>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
   for (const match of openingTag.matchAll(attributes)) {
     const name = match[1].toLowerCase();

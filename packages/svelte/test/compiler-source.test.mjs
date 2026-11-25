@@ -3,10 +3,10 @@ import {readFile} from 'node:fs/promises';
 import test from 'node:test';
 import MagicString from 'magic-string';
 import {compile,parse} from 'svelte/compiler';
-import {svelteAdapter} from '@antepodeum/linguini-vite/svelte';
+import {svelteAdapter} from '../dist/vite.js';
 
 test('generic Svelte source accepts scoped messages, links, and cleanup in both compiler targets', async () => {
-  const source = await readFile(new URL('../../vite/test/fixtures/generic-component.svelte',import.meta.url),'utf8');
+  const source = await readFile(new URL('./fixtures/generic-component.svelte',import.meta.url),'utf8');
   const filename = 'Generic.svelte';
   const ast = parse(source,{modern:true});
   const original = ast.instance.content.body.find(node => node.type === 'ImportDeclaration');

@@ -14,8 +14,9 @@ No more JSON archaeology, string-key roulette, and runtime localization surprise
 > Linguini is in a very early stage of development. APIs, generated output, and package boundaries can change quickly while the core model is still being hardened. [Check repository state](./REPOSITORY_STATE.md)
 
 The current web release is SvelteKit-first and ESM-only. It also emits a
-framework-agnostic JavaScript runtime with TypeScript declarations and a Svelte adapter; other framework
-adapters and CommonJS output are outside the current release scope.
+framework-agnostic JavaScript runtime with TypeScript declarations. Svelte/SvelteKit adapters
+own their framework behavior; Vue and React have base-locale Vite integration. Request-selected
+Vue/React locale hosts and CommonJS output remain outside the current release scope.
 
 **[Why Linguini](./docs/why.md)** · **[v0.1 Specification](./docs/language-v0.1.md)** · **[Language Reference](./docs/reference.md)** · **[Getting Started](./docs/getting-started.md)** · **[Web/SvelteKit](./docs/web-sveltekit.md)**
 
@@ -132,7 +133,7 @@ modules that can be used from app code.
 | Analyzer  | missing implementations, invalid references, resolved branch coverage and locale-call types                        |
 | Formatter | `.lgs` / `.lgl` formatting and `--check` mode                                                                      |
 | LSP       | diagnostics, completion, hover, definition, references, symbols, semantic tokens, formatting, rename, code actions |
-| Codegen   | JavaScript with TypeScript declarations and generated Svelte 5/SvelteKit adapters; other targets are not part of the current release |
+| Codegen   | ESM JavaScript with TypeScript declarations, thin Svelte bindings, and separate framework integration packages |
 | Editor    | VS Code extension                                                                                                  |
 
 ---
@@ -232,6 +233,7 @@ site dependencies (published packages already contain their compiled output):
 
 ```bash
 node packages/scripts/prepare-runtime-packages.mjs
+pnpm --dir packages/vue install --frozen-lockfile
 pnpm --dir site install --frozen-lockfile
 pnpm --dir site exec playwright install chromium  # production browser tests
 ```

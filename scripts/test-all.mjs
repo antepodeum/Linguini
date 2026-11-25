@@ -11,6 +11,7 @@ export const PROJECTS = Object.freeze([
   Object.freeze({ id: "project", path: "packages/project", manager: "pnpm", aliases: ["packages/project"] }),
   Object.freeze({ id: "web", path: "packages/web", manager: "pnpm", aliases: ["packages/web"] }),
   Object.freeze({ id: "svelte", path: "packages/svelte", manager: "pnpm", aliases: ["packages/svelte"] }),
+  Object.freeze({ id: "vue", path: "packages/vue", manager: "pnpm", aliases: ["packages/vue"] }),
   Object.freeze({ id: "sveltekit", path: "packages/sveltekit", manager: "pnpm", aliases: ["packages/sveltekit"] }),
   Object.freeze({ id: "tsc", path: "packages/tsc", manager: "pnpm", aliases: ["packages/tsc"] }),
   Object.freeze({ id: "vite", path: "packages/vite", manager: "pnpm", aliases: ["packages/vite"] }),
@@ -97,6 +98,10 @@ export const TASKS = Object.freeze([
   nodeTask({
     id: "svelte:test", project: "svelte", label: "TypeScript Svelte runtime and real rune compilation",
     command: "pnpm", args: ["test"], profiles: ["quick", "full"], tools: ["pnpm"], requiresNodeModules: true,
+  }),
+  nodeTask({
+    id: "vue:test", project: "vue", label: "Vue adapter and native compiler boundaries",
+    command: "pnpm", args: ["test"], profiles: ["quick", "full"], tools: ["pnpm", "cargo"], requiresNodeModules: true,
   }),
   nodeTask({
     id: "sveltekit:test",

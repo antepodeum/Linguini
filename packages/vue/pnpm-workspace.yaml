@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+overrides:
+  '@antepodeum/linguini-vite': file:../vite
+  '@antepodeum/linguini-project': file:../project
