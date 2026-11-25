@@ -1156,6 +1156,83 @@ fn duplicate_local_imports_are_ambiguous_across_modules_and_symbols() {
 }
 
 #[test]
+fn namespace_imports_track_message_roots_and_preserve_other_exports() {
+    let source = concat!(
+        "import * as catalog from \"generated\";\n",
+        "catalog.l.main.title;\n",
+        "catalog[\"messages\"].main.items(2);\n",
+        "catalog.lgl.main[key];\n",
+        "catalog.setLocale(\"fr\");\n",
+        "function other(catalog) { return catalog.l.main.shadowed; }\n",
+    );
+    let usage = ApplicationUsage::from_source(source);
+    let binding = usage.imports().next().expect("namespace import");
+    assert_eq!(binding.imported, "*");
+    assert!(binding.tracked_uses_only);
+    assert!(!binding.exact_uses_only);
+    assert!(binding.retain_import);
+    let references = usage.references().collect::<Vec<_>>();
+    assert_eq!(references.len(), 2);
+    for (reference, (path, text)) in references.iter().zip([
+        ("main.title", "catalog.l.main.title"),
+        ("main.items", "catalog[\"messages\"].main.items"),
+    ]) {
+        assert_eq!(reference.canonical_path, path);
+        assert_eq!(&source[reference.span.start..reference.span.end], text);
+        assert_eq!(reference.import_binding, Some(binding.id));
+    }
+    let dynamic = usage.dynamic_references().next().unwrap();
+    assert_eq!(dynamic.canonical_prefix, "main");
+    assert_eq!(dynamic.import_binding, Some(binding.id));
+    assert_eq!(dynamic.kind, ApplicationDynamicReferenceKind::Computed);
+    assert_eq!(
+        &source[dynamic.receiver_span.start..dynamic.receiver_span.end],
+        "catalog.lgl.main"
+    );
+}
+
+#[test]
+fn namespace_import_safety_rejects_escapes_and_keeps_exact_reads_removable() {
+    for tail in [
+        "register(catalog);",
+        "catalog[key].main.title;",
+        "const { l } = catalog;",
+        "catalog.createLinguini(\"en\");",
+        "catalog.linguini.l.main.title;",
+        "catalog.localeModules.en;",
+        "catalog.localeLoaders.en();",
+        "catalog.prepareLinguini(\"en\");",
+        "catalog?.l.main.title;",
+    ] {
+        let source =
+            format!("import * as catalog from \"generated\";\ncatalog.l.main.title;\n{tail}");
+        let usage = ApplicationUsage::from_source(&source);
+        let binding = usage.imports().next().expect("namespace import");
+        assert!(!binding.tracked_uses_only, "{tail}");
+        assert!(usage.dynamic_prefixes().any(|prefix| prefix.is_empty()));
+    }
+    for local in ["catalog", "l", "lgl", "messages", "createLinguini", "消息"] {
+        let source = format!("import * as {local} from \"generated\"\n{local}[\"l\"].main.title;");
+        let usage = ApplicationUsage::from_source(&source);
+        let binding = usage.imports().next().unwrap();
+        assert!(binding.exact_uses_only, "{local}");
+        assert!(binding.tracked_uses_only, "{local}");
+        assert!(!binding.retain_import, "{local}");
+        assert_eq!(binding.removal_span, binding.declaration_span);
+        let references = usage.references().collect::<Vec<_>>();
+        assert_eq!(references.len(), 1, "{local}");
+        assert_eq!(references[0].import_binding, Some(binding.id));
+    }
+    for declaration in [
+        "import /* keep */ * as catalog from \"generated\";",
+        "import * as catalog from \"generated\"; // keep",
+    ] {
+        let usage = ApplicationUsage::from_source(&format!("{declaration}\ncatalog.l.main.title;"));
+        assert!(!usage.imports().next().unwrap().tracked_uses_only);
+    }
+}
+
+#[test]
 fn named_import_list_rejects_empty_chunks_but_accepts_one_trailing_comma() {
     for source in [
         "import { , l } from \"generated\";\nl.main.title;",
@@ -1167,7 +1244,6 @@ fn named_import_list_rejects_empty_chunks_but_accepts_one_trailing_comma() {
         "import { l + helper } from \"generated\";\nl.main.title;",
         "import { l } from \"generated\" with { type: \"json\" };\nl.main.title;",
         "import defaultThing, { l } from \"generated\";\nl.main.title;",
-        "import * as l from \"generated\";\nl.main.title;",
         "import { l } from \"\";\nl.main.title;",
     ] {
         let usage = ApplicationUsage::from_source(source);

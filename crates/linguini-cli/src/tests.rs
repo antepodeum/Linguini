@@ -1613,14 +1613,30 @@ fn highlight_command_matches_editor_tokens_without_a_project_config() {
 
 #[test]
 fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
-    for (name, import, local) in [
-        ("direct", "lgl", "lgl"),
-        ("aliased", "lgl as catalog", "catalog"),
+    for (name, import, local, receiver, imported, tail) in [
+        ("direct", "{ lgl }", "lgl", "lgl", "lgl", ""),
+        (
+            "aliased",
+            "{ lgl as catalog }",
+            "catalog",
+            "catalog",
+            "lgl",
+            "",
+        ),
+        ("module", "* as catalog", "catalog", "catalog.lgl", "*", ""),
+        (
+            "module-metadata",
+            "* as catalog",
+            "catalog",
+            "catalog.lgl",
+            "*",
+            "catalog.normalizeLocale(\"FR\");",
+        ),
     ] {
         let project = dynamic_bundler_project(
             &format!("base-namespace-{name}"),
             "[targets.ts.bundler.dynamic]\nmode = \"bundle\"\nallow = [\"main.title\", \"main.items\"]",
-            &format!("import {{ {import} }} from '../build/generated/index.js';\nexport const title = {local}.main.title;\nexport const formatter = {local}.main.items;\nexport const upper = () => {local}.main[\"title\"] /* Привет */ .toUpperCase();\nexport const length = () => {local}[\"main\"].title.length;\nexport const boundCall = () => {local}.main.items.call(undefined, 3);\nexport function choose(key) {{ return {local}.main[key]; }}\n"),
+            &format!("import {import} from '../build/generated/index.js';\nexport const title = {receiver}.main.title;\nexport const formatter = {receiver}.main.items;\nexport const upper = () => {receiver}.main[\"title\"] /* Привет */ .toUpperCase();\nexport const length = () => {receiver}[\"main\"].title.length;\nexport const boundCall = () => {receiver}.main.items.call(undefined, 3);\nexport function choose(key) {{ return {receiver}.main[key]; }}\n{tail}\n"),
         );
         assert!(!project.path().join("build/generated").exists());
         build_project(project.path()).expect("cold native build");
@@ -1631,7 +1647,8 @@ fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
         let application = &manifest["applications"]["src/page.ts"];
         assert_eq!(application["imports"].as_array().unwrap().len(), 1);
         let binding = &application["imports"][0];
-        assert_eq!(binding["imported"], "lgl");
+        assert_eq!(binding["imported"], imported);
+        assert_eq!(binding["retain_import"], !tail.is_empty());
         assert_eq!(binding["local"], local);
         assert_eq!(binding["analyzer_tracked_uses_only"], true);
         assert_eq!(binding["transformable"], true);
@@ -1650,7 +1667,7 @@ fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
             assert_eq!(
                 &source[reference["start"].as_u64().unwrap() as usize
                     ..reference["end"].as_u64().unwrap() as usize],
-                format!("{local}{suffix}")
+                format!("{receiver}{suffix}")
             );
         }
         assert_eq!(application["unresolved"], serde_json::json!([]));

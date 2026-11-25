@@ -46,7 +46,13 @@ Named generated imports with unresolved uses now fail explicitly rather than ret
 their catalog barrel. Native token analysis resolves a static property/method tail to its
 known message prefix, including quoted members and Unicode comments. Cold/warm manifests
 and executed stateful/stateless Vite builds cover string operations and callable `.call(...)`.
-This receipt does not complete namespace/default-import handling or every deferred import shape.
+Namespace imports now also carry exact import identities and spans through static message roots.
+Executed stateful/stateless Vite builds cover named and namespace values, callable leaves, method
+tails, and finite computed access. Separate metadata/control exports survive without retaining the
+catalog; escaped namespaces and provider/catalog exports fail closed. Cold/warm native manifests
+retain the same selected leaves. Default/mixed declarations and unsupported deferred shapes remain open.
+The real site's nested lazy module uses a namespace import; exact child records, browser request
+counts, locale changes, concurrent server loads, and hydration pass through the same production gates.
 
 Deferred demand now has a separate planning boundary in `packages/vite/src/page-demand.js`.
 It reads consumed exports from the emitted caller and re-shakes each lazy entry independently,

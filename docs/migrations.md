@@ -4,6 +4,23 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Exact namespace message imports
+
+Rebuild with matching native compiler and Vite adapter versions. ECMAScript namespace imports
+now track static message roots, including `catalog.lgl` for the base entry and `catalog.l` or
+`catalog.messages` for Svelte. Message values, function references/calls, property/method tails,
+and finite computed access use the same exact leaf bindings as named imports. Separately used
+locale metadata and `setLocale` exports preserve their original namespace import. Escaped
+namespaces, unknown exports/computed roots, and provider/catalog exports fail explicitly;
+they cannot fall back to a whole catalog. Default and mixed import declarations remain outside
+this receipt.
+
+Custom manifest producers represent a namespace binding with `imported: "*"`; each reference's
+provenance still names its actual message export. Namespace bindings require boolean
+`retain_import`, set only for separately used metadata/control exports. Named bindings retain
+the existing contract and may omit that field. This is build metadata, with no client table
+or namespace wrapper added to the generated application.
+
 ## Nested deferred message closures
 
 Rebuild with matching Vite and SvelteKit adapters; application imports and configuration stay

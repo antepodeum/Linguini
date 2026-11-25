@@ -1144,6 +1144,12 @@ and the composed payload/SSR requirements below.
       Executed Vite 7/8 linker cases cover both parent shapes and preserve native binding identity.
       The real site checks exact parent/child record sets across nine locales; Chromium proves
       one child-code request plus one additional locale file, cached repetition, and locale changes.
+      Namespace message roots now retain exact native import identities and leaf spans, including
+      callable/method tails and finite computed access. Separate metadata/control exports preserve
+      their import without retaining unused catalog values; unknown roots, catalog/provider exports,
+      and namespace escapes fail explicitly. The site's nested lazy module uses a namespace import
+      while retaining its one-record child payload, cached action requests, and concurrent SSR.
+      Default/mixed declarations remain outside this receipt.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching

@@ -648,6 +648,7 @@ fn application_entry(
                 "analyzer_exact_uses_only": binding.exact_uses_only,
                 "analyzer_tracked_uses_only": binding.tracked_uses_only,
                 "transformable": binding.tracked_uses_only && !poisoned_imports.contains(&binding.id),
+                "retain_import": binding.retain_import,
             }))
         })
         .collect::<CliResult<Vec<_>>>()?;
@@ -762,9 +763,10 @@ fn application_dynamic_references(
         };
         let imported_message_root = matches!(
             &reference.binding.provenance,
-            ApplicationBindingProvenance::Imported { .. }
-        ) && MESSAGE_NAMESPACE_EXPORTS
-            .contains(&binding.imported.as_str());
+            ApplicationBindingProvenance::Imported { imported, .. }
+                if MESSAGE_NAMESPACE_EXPORTS.contains(&imported.as_str())
+                    && (binding.imported == *imported || binding.imported == "*")
+        );
         if !imported_message_root
             || reference.binding.local != binding.local
             || reference.import_binding != Some(binding.id)

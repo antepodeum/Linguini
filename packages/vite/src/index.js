@@ -975,6 +975,11 @@ function validateMessageSemantics(raw, effectiveLocales, sourceIds, layout, cont
   return semantics;
 }
 
+function matchesImportedSymbol(binding, symbol) {
+  return typeof symbol === "string" && symbol.length > 0 && symbol !== "*" &&
+    (binding.imported === "*" || symbol === binding.imported);
+}
+
 function validateApplication(raw, relative, context, messages, adapter) {
   const field = `${context}.applications.${relative}`;
   if (
@@ -1012,6 +1017,9 @@ function validateApplication(raw, relative, context, messages, adapter) {
       ),
       imported: requireString(item.imported, `${field}.imports.${bindingId}.imported`),
       local: requireString(item.local, `${field}.imports.${bindingId}.local`),
+      retainImport: item.retain_import === undefined && item.imported !== "*"
+        ? false
+        : requireBoolean(item.retain_import, `${field}.imports.${bindingId}.retain_import`),
       declarationStart: requireOffset(item.declaration_start, `${field}.imports.declaration_start`),
       declarationEnd: requireOffset(item.declaration_end, `${field}.imports.declaration_end`),
       itemStart: requireOffset(item.item_start, `${field}.imports.item_start`),
@@ -1072,7 +1080,7 @@ function validateApplication(raw, relative, context, messages, adapter) {
         !binding ||
         provenance.kind !== "imported" ||
         provenance.module_specifier !== binding.moduleSpecifier ||
-        provenance.symbol !== binding.imported ||
+        !matchesImportedSymbol(binding, provenance.symbol) ||
         item.local !== binding.local
       ) {
         throw new Error(`${itemField} does not match imported binding ${bindingId}`);
@@ -1092,7 +1100,10 @@ function validateApplication(raw, relative, context, messages, adapter) {
     if (start >= end || end > raw.byte_length) {
       throw new Error(`${itemField} span is outside application bytes`);
     }
-    return { message, bindingId, kind: item.kind, arity: declared.arity, start, end };
+    return {
+      message, bindingId, imported: provenance.symbol,
+      kind: item.kind, arity: declared.arity, start, end
+    };
   });
   const ordered = [...references].sort((left, right) => left.start - right.start || left.end - right.end);
   let previousEnd = 0;
@@ -1177,13 +1188,13 @@ function validateDynamicReferences(raw, field, byteLength, messages, imports, ad
       !binding ||
       !binding.transformable ||
       !binding.analyzerTrackedUsesOnly ||
-      !adapter.messageExports.includes(binding.imported) ||
       typeof item.local !== "string" ||
       item.local !== binding.local ||
       !isRecord(provenance) ||
       provenance.kind !== "imported" ||
       provenance.module_specifier !== binding.moduleSpecifier ||
-      provenance.symbol !== binding.imported
+      !matchesImportedSymbol(binding, provenance.symbol) ||
+      !adapter.messageExports.includes(provenance.symbol)
     ) {
       throw new Error(`${itemField} does not match a tracked transformable import binding`);
     }
@@ -1608,7 +1619,7 @@ async function transformApplication(
   const generatedEntry = normalizeResolvedFileId(path.resolve(generatedRoot, adapter.entry));
   const acceptedBindings = new Map();
   for (const [bindingId, binding] of application.imports) {
-    if (!adapter.messageExports.includes(binding.imported)) continue;
+    if (!adapter.messageExports.includes(binding.imported) && binding.imported !== "*") continue;
     const tracked = binding.transformable && binding.analyzerTrackedUsesOnly;
     if (!tracked) {
       if (dynamicBindingIds.has(bindingId)) {
@@ -1644,6 +1655,11 @@ async function transformApplication(
       throw new Error(
         `Linguini cannot bundle unresolved uses of ${binding.local} in ${application.relative}; resolve each message leaf or configure a finite dynamic allow list`
       );
+    }
+    if (binding.imported === "*" && application.references.some(reference =>
+      reference.bindingId === bindingId && !adapter.messageExports.includes(reference.imported)
+    )) {
+      throw new Error(`Linguini namespace ${binding.local} uses an unsupported message export in ${application.relative}`);
     }
     acceptedBindings.set(bindingId, binding);
   }
@@ -1793,6 +1809,7 @@ async function transformApplication(
   const activeBindings = [...acceptedBindings.values()].filter(
     (binding) =>
       (transformedCounts.get(binding.bindingId) ?? 0) > 0 &&
+      !binding.retainImport &&
       transformedCounts.get(binding.bindingId) === manifestUseCounts.get(binding.bindingId)
   );
   const deletions = importDeletions(code, activeBindings, byteToUtf16, application.relative);

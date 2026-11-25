@@ -1560,6 +1560,24 @@ test("strictly validates dynamic manifest contracts", async (context) => {
     /analyzer_tracked_uses_only must be boolean/
   );
   await reject(
+    (application) => application.imports[0].retain_import = "true",
+    /retain_import must be boolean/
+  );
+  await reject(
+    (application) => application.imports[0].imported = "*",
+    /retain_import must be boolean/
+  );
+  for (const symbol of ["localeModules", "*"]) {
+    await reject(
+      (application) => {
+        application.imports[0].imported = "*";
+        application.imports[0].retain_import = false;
+        application.dynamic_references[0].provenance.symbol = symbol;
+      },
+      /does not match a tracked transformable import binding/
+    );
+  }
+  await reject(
     (application) => application.dynamic_references[0].messages.reverse(),
     /messages must be sorted and unique/
   );

@@ -2,6 +2,9 @@ use crate::{Diagnostic, PublicMessage};
 use linguini_syntax::{SourceId, Span};
 use std::collections::{BTreeMap, BTreeSet};
 
+mod namespace;
+use namespace::{is_metadata_export, namespace_application_import_binding, namespace_member};
+
 /// Built-in ECMAScript message namespace exports tracked by application analysis.
 pub const MESSAGE_NAMESPACE_EXPORTS: &[&str] = &["l", "lgl", "messages"];
 
@@ -44,7 +47,7 @@ pub struct ApplicationDynamicReference {
     pub kind: ApplicationDynamicReferenceKind,
     /// Root/local binding metadata for this expression.
     pub binding: ApplicationBinding,
-    /// Exact import identity when this use originates from a removable named import.
+    /// Exact import identity when this use originates from a tracked application import.
     pub import_binding: Option<ApplicationImportBindingId>,
     /// Whether the dynamic member is read as a value or invoked.
     pub reference_kind: ApplicationReferenceKind,
@@ -62,7 +65,7 @@ pub struct ApplicationBinding {
 /// Provenance for an application root binding.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ApplicationBindingProvenance {
-    /// A named import, preserving both the exact module specifier and imported symbol.
+    /// An imported message root, preserving its module specifier and exported symbol.
     Imported {
         module_specifier: String,
         imported: String,
@@ -73,7 +76,7 @@ pub enum ApplicationBindingProvenance {
     Implicit,
 }
 
-/// Stable identity for one removable named application import binding.
+/// Stable identity for one tracked named or namespace application import binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ApplicationImportBindingId {
     pub source: SourceId,
@@ -101,6 +104,8 @@ pub struct ApplicationImportBinding {
     /// Dynamic metadata keeps this flag true while making `exact_uses_only` false;
     /// malformed/ambiguous syntax and unrepresented uses make both flags false.
     pub tracked_uses_only: bool,
+    /// Keep the original namespace import for separately used non-message exports.
+    pub retain_import: bool,
 }
 
 /// A deterministic, source-aware static application message reference.
@@ -114,7 +119,7 @@ pub struct ApplicationReference {
     pub kind: ApplicationReferenceKind,
     /// Root/local binding metadata for the expression.
     pub binding: ApplicationBinding,
-    /// Exact import identity when this reference originates from a removable named import.
+    /// Exact import identity when this reference originates from a tracked application import.
     pub import_binding: Option<ApplicationImportBindingId>,
     prefixes: Vec<(String, usize)>,
 }
@@ -346,14 +351,30 @@ impl ApplicationUsage {
                 continue;
             }
 
-            let (segments, dynamic, next) = member_path(&tokens, after_symbol);
-            let binding = roots
-                .get(root)
-                .cloned()
-                .unwrap_or_else(|| ApplicationBinding {
-                    local: root.to_owned(),
-                    provenance: ApplicationBindingProvenance::Implicit,
-                });
+            let mut binding = roots.get(root).cloned().expect("known application root");
+            let mut member_start = after_symbol;
+            if matches!(&binding.provenance, ApplicationBindingProvenance::Imported { imported, .. } if imported == "*")
+            {
+                if is_member_property(&tokens, index)
+                    || is_shadowed_import_binding(&tokens, source, index, root)
+                {
+                    index = member_path(&tokens, after_symbol).2.max(index + 1);
+                    continue;
+                }
+                let Some((export, after_export)) = namespace_member(&tokens, after_symbol)
+                    .filter(|(export, _)| MESSAGE_NAMESPACE_EXPORTS.contains(export))
+                else {
+                    index += 1;
+                    continue;
+                };
+                if let ApplicationBindingProvenance::Imported { imported, .. } =
+                    &mut binding.provenance
+                {
+                    *imported = export.to_owned();
+                }
+                member_start = after_export;
+            }
+            let (segments, dynamic, next) = member_path(&tokens, member_start);
             let member_property = is_member_property(&tokens, index)
                 || (bracket_property && is_bracket_member_property(&tokens, source, index));
             let imported = matches!(
@@ -369,7 +390,7 @@ impl ApplicationUsage {
                     source_id,
                     root_index: index,
                     root,
-                    member_start: after_symbol,
+                    member_start,
                     binding,
                     emit_reference,
                 },
@@ -708,6 +729,11 @@ impl ApplicationUsage {
                 });
                 if dynamic_reference.is_some() {
                     safe = false;
+                } else if self.imports[binding_index].imported == "*"
+                    && namespace_member(tokens, token_index + 1)
+                        .is_some_and(|(name, _)| is_metadata_export(name))
+                {
+                    self.imports[binding_index].retain_import = true;
                 } else {
                     tracked = false;
                     safe = false;
@@ -715,6 +741,10 @@ impl ApplicationUsage {
             }
             self.imports[binding_index].exact_uses_only = safe;
             self.imports[binding_index].tracked_uses_only = tracked;
+            if !tracked && self.imports[binding_index].imported == "*" {
+                // Escaped or unknown namespace exports cannot prove any message unused.
+                self.dynamic_prefixes.insert(UsagePath::root());
+            }
         }
     }
 
@@ -785,7 +815,7 @@ impl ApplicationUsage {
         self.dynamic_references.iter()
     }
 
-    /// Imported `l`/`messages` bindings in deterministic source/declaration order.
+    /// Tracked named and namespace imports in deterministic source/declaration order.
     pub fn imports(&self) -> impl Iterator<Item = &ApplicationImportBinding> {
         self.imports.iter()
     }
@@ -2417,6 +2447,27 @@ fn imported_symbols(
             end,
             uncertain_syntax,
         ));
+        if let Some(binding) = namespace_application_import_binding(
+            tokens,
+            source,
+            source_id,
+            index,
+            end,
+            uncertain_syntax,
+        ) {
+            factories.remove(&binding.local);
+            roots.insert(
+                binding.local.clone(),
+                ApplicationBinding {
+                    local: binding.local.clone(),
+                    provenance: ApplicationBindingProvenance::Imported {
+                        module_specifier: binding.module_specifier.clone(),
+                        imported: "*".to_owned(),
+                    },
+                },
+            );
+            bindings.push(binding);
+        }
         for alias_index in index..end.saturating_sub(2) {
             let TokenKind::Identifier(imported_name) = &tokens[alias_index].kind else {
                 continue;
@@ -2692,6 +2743,7 @@ fn named_application_import_bindings(
             ),
             exact_uses_only: structurally_safe,
             tracked_uses_only: structurally_safe,
+            retain_import: false,
         });
     }
     bindings

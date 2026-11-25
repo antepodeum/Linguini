@@ -275,23 +275,30 @@ for (const [kind, localeLoading] of [
   });
 }
 
-for (const stateless of [false, true]) {
-  test(`real Vite ${stateless ? "stateless" : "stateful"} build executes finite dynamic refs without eager barrel`, async (context) => {
+for (const [stateless, style] of [false, true].flatMap(stateless =>
+  ["named", "namespace", "namespace-with-control"].map(style => [stateless, style])
+)) {
+  test(`real Vite ${stateless ? "stateless" : "stateful"} ${style} build executes finite dynamic refs without eager barrel`, async (context) => {
     const imported = stateless ? "lgl" : "l";
+    const namespace = style !== "named";
+    const retain = style === "namespace-with-control";
+    const local = namespace ? "catalog" : "l";
+    const receiver = namespace ? `${local}.${imported}` : local;
     const moduleSpecifier = `./generated/linguini/${stateless ? "index.js" : "svelte.js"}`;
     const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-dynamic-"));
     context.after(() => rm(root, { recursive: true, force: true }));
     const generated = path.join(root, "generated/linguini");
     const entry = path.join(root, "entry.js");
     const source = [
-      `import { ${imported} as l } from "${moduleSpecifier}";`,
-      "export const fixed = l.main.title;",
-      "export const formatter = l.main.items;",
-      'export const upper = () => l.main["title"] /* Привет */ .toLowerCase();',
-      'export const length = () => l["main"].title.length;',
-      'export const boundCall = () => l["main"].items.call(undefined,3);',
-      "export function select(key) { return l.main[key]; }",
-      "export function invoke(action) { return l.main[action](2); }",
+      `import ${namespace ? `* as ${local}` : `{ ${imported} as ${local} }`} from "${moduleSpecifier}";`,
+      ...(retain ? [`export const changed = ${local}.setLocale("fr");`] : []),
+      `export const fixed = ${receiver}.main.title;`,
+      `export const formatter = ${receiver}.main.items;`,
+      `export const upper = () => ${receiver}.main["title"] /* Привет */ .toLowerCase();`,
+      `export const length = () => ${receiver}["main"].title.length;`,
+      `export const boundCall = () => ${receiver}["main"].items.call(undefined,3);`,
+      `export function select(key) { return ${receiver}.main[key]; }`,
+      `export function invoke(action) { return ${receiver}.main[action](2); }`,
       ""
     ].join("\n");
     await mkdir(path.join(generated, "bundler/messages/main/title"), { recursive: true });
@@ -323,6 +330,10 @@ for (const stateless of [false, true]) {
       path.join(generated, "svelte-locale.svelte.js"),
       'export function getCurrentLocale() { return "en"; }\n'
     );
+    if (retain) await writeFile(path.join(generated, stateless ? "index.js" : "svelte.js"), [
+      `export const ${imported} = {main:{title:"FORBIDDEN_WHOLE_CATALOG"}};`,
+      'export function setLocale(locale) { return locale; }',
+    ].join("\n"));
     const titleModule = path.join(generated, "bundler/messages/main/title/en.js");
     const itemsModule = path.join(generated, "bundler/messages/main/items/en.js");
     await writeFile(
@@ -336,7 +347,7 @@ for (const stateless of [false, true]) {
     const declarationText = source.slice(0, source.indexOf("\n"));
     const declarationStart = 0;
     const declarationEnd = Buffer.byteLength(declarationText);
-    const itemStart = Buffer.from(source).indexOf(Buffer.from(imported));
+    const itemStart = Buffer.from(source).indexOf(Buffer.from(namespace ? "*" : imported));
     const bindingId = "entry:binding";
     const reference = (needle, message, kind, arity) => {
       const start = Buffer.from(source).indexOf(Buffer.from(needle));
@@ -345,7 +356,7 @@ for (const stateless of [false, true]) {
         start,
         end: start + Buffer.byteLength(needle),
         kind,
-        local: "l",
+        local,
         provenance: {
           kind: "imported",
           module_specifier: moduleSpecifier,
@@ -359,7 +370,7 @@ for (const stateless of [false, true]) {
       const bytes = Buffer.from(source);
       const start = bytes.indexOf(Buffer.from(needle));
       const end = start + Buffer.byteLength(needle);
-      const receiverEnd = start + Buffer.byteLength("l.main");
+      const receiverEnd = start + Buffer.byteLength(`${receiver}.main`);
       const keyStart = bytes.indexOf(Buffer.from(key), receiverEnd);
       return {
         kind: "computed",
@@ -368,7 +379,7 @@ for (const stateless of [false, true]) {
         receiver_span: { start, end: receiverEnd },
         key_span: { start: keyStart, end: keyStart + Buffer.byteLength(key) },
         reference_kind: referenceKind,
-        local: "l",
+        local,
         provenance: {
           kind: "imported",
           module_specifier: moduleSpecifier,
@@ -420,34 +431,35 @@ for (const stateless of [false, true]) {
           unresolved: [],
           analysis_dynamic_prefixes: ["main"],
           references: [
-            reference("l.main.title", "main.title", "value", 0),
-            reference("l.main.items", "main.items", "value", 1),
-            reference('l.main["title"]', "main.title", "value", 0),
-            reference('l["main"].title', "main.title", "value", 0),
-            reference('l["main"].items', "main.items", "value", 1),
+            reference(`${receiver}.main.title`, "main.title", "value", 0),
+            reference(`${receiver}.main.items`, "main.items", "value", 1),
+            reference(`${receiver}.main["title"]`, "main.title", "value", 0),
+            reference(`${receiver}["main"].title`, "main.title", "value", 0),
+            reference(`${receiver}["main"].items`, "main.items", "value", 1),
           ],
           dynamic_references: [
-            dynamicReference("l.main[key]", "key", "value"),
-            dynamicReference("l.main[action]", "action", "call")
+            dynamicReference(`${receiver}.main[key]`, "key", "value"),
+            dynamicReference(`${receiver}.main[action]`, "action", "call")
           ],
           imports: [
             {
               binding_id: bindingId,
               module_specifier: moduleSpecifier,
-              imported,
-              local: "l",
+              imported: namespace ? "*" : imported,
+              retain_import: retain,
+              local,
               declaration_start: declarationStart,
               declaration_end: declarationEnd,
               item_start: itemStart,
-              item_end: itemStart + imported.length + " as l".length,
+              item_end: itemStart + (namespace ? 1 : imported.length) + " as ".length + local.length,
               removal_start: declarationStart,
               removal_end: declarationEnd,
               module_specifier_start: declarationStart,
               module_specifier_end: declarationEnd,
               imported_start: itemStart,
-              imported_end: itemStart + imported.length,
-              local_start: itemStart + imported.length + " as ".length,
-              local_end: itemStart + imported.length + " as l".length,
+              imported_end: itemStart + (namespace ? 1 : imported.length),
+              local_start: itemStart + (namespace ? 1 : imported.length) + " as ".length,
+              local_end: itemStart + (namespace ? 1 : imported.length) + " as ".length + local.length,
               analyzer_exact_uses_only: false,
               analyzer_tracked_uses_only: true,
               transformable: true
@@ -478,7 +490,7 @@ for (const stateless of [false, true]) {
     assert.match(combined, /Object\.create\(null\)/);
     assert.doesNotMatch(
       combined,
-      /FORBIDDEN_DYNAMIC_SVELTE|FORBIDDEN_DYNAMIC_INDEX|virtual:linguini/
+      /FORBIDDEN_DYNAMIC_SVELTE|FORBIDDEN_DYNAMIC_INDEX|FORBIDDEN_WHOLE_CATALOG|virtual:linguini/
     );
     const modules = chunks.flatMap((chunk) => Object.keys(chunk.modules));
     assert.ok(modules.includes(titleModule));
@@ -503,6 +515,7 @@ for (const stateless of [false, true]) {
     }
     const entryChunk = chunks.find(chunk => chunk.isEntry);
     const evaluated = await import(pathToFileURL(path.join(output, entryChunk.fileName)).href);
+    if (retain) assert.equal(evaluated.changed, "fr");
     assert.equal(evaluated.fixed, "EXACT_DYNAMIC_TITLE");
     assert.equal(evaluated.formatter(4), "EXACT_DYNAMIC_ITEMS:4");
     assert.equal(evaluated.upper(), "exact_dynamic_title");

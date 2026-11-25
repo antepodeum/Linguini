@@ -15,6 +15,13 @@ facades disappear during bundling. A stateful adapter selects a `localeHelper` d
 for its runtime. The native Svelte manifest uses the Svelte adapter; the core does not
 infer an adapter from TOML.
 
+Namespace imports use the same exact selection: `catalog.lgl.main.title` for the base-locale
+entry, or `catalog.l.main.title` and `catalog.messages.main.title` for Svelte. Quoted members,
+callable leaves, and finite computed access follow the same rules as named imports. Separate
+metadata/control exports such as `catalog.setLocale` remain usable. Escaping the namespace,
+unknown computed roots, and provider/catalog exports are rejected instead of retaining all
+messages. Use matching native compiler and Vite adapter versions when rebuilding.
+
 An adapter may declare `entrySideEffects: false` when its generated entry has no required
 initialization effects. This allows direct re-exports to bypass unused entry code. The
 Svelte adapter uses this contract so a setter-only import drops the message provider and
