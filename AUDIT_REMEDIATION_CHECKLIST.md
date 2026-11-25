@@ -1104,6 +1104,10 @@ and the composed payload/SSR requirements below.
       framework/configuration matrix remain open. Deferred reads of already prepared messages
       now execute in Chromium without another message request. Demand analysis drops unused lazy
       exports, including a shared export used by another page, on both local Vite 7 and Vite 8.
+      A setter-only native-output/SDK/Vite regression now emits one chunk with no message
+      catalog modules or dynamic catalog imports, replacing a ten-chunk nine-locale graph.
+      Generated locale helpers own the shared setter independently of message providers;
+      execution and request-identity tests retain normalization and stale-change guards.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching

@@ -23,6 +23,9 @@ export function frameworkAdapter(value = ecmascript) {
       throw new TypeError(`Linguini adapter.${key} must be a non-empty string`);
     }
   }
+  if (value.entrySideEffects !== undefined && typeof value.entrySideEffects !== 'boolean') {
+    throw new TypeError('Linguini adapter.entrySideEffects must be boolean');
+  }
   if (value.pageMessages !== undefined && (!value.pageMessages
     || typeof value.pageMessages.module !== "string" || !value.pageMessages.module
     || typeof value.pageMessages.export !== "string" || !/^[A-Za-z_$][\w$]*$/.test(value.pageMessages.export))) {

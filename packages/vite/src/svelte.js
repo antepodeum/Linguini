@@ -4,6 +4,7 @@ import { linguini as viteLinguini } from "./index.js";
 /** Svelte syntax and component lifecycle, composed with the framework-neutral Vite core. */
 export const svelteAdapter = Object.freeze({
   entry: "svelte.js",
+  entrySideEffects: false,
   messageExports: Object.freeze(["l", "messages"]),
   localeHelper: "svelte_locale",
   effectsHelper: "svelte_effects",

@@ -12,7 +12,7 @@ test('the Kit message provider automatically scopes direct locale changes to its
       name:'kit-provider-host',enforce:'pre',
       resolveId(id) {if (id === entry || id.startsWith('$app/')) return id;},
       load(id) {
-        if (id === entry) return `export {createLinguiniRune} from ${JSON.stringify(client)}; export {page} from '$app/state';`;
+        if (id === entry) return `export {createLinguiniRune,createLocaleSetter} from ${JSON.stringify(client)}; export {page} from '$app/state';`;
         if (id === '$app/state') return 'export const page = {data:{linguini:{locale:"en"}}};';
         if (id === '$app/environment') return 'export const browser = true;';
         if (id === '$app/navigation') return 'export async function goto() {}';
@@ -40,4 +40,12 @@ test('the Kit message provider automatically scopes direct locale changes to its
   release();
   assert.equal(await change,'en');
   assert.deepEqual(published,[],'even a same-locale request replacement must invalidate older preparation');
+  const setter = module.createLocaleSetter(state);
+  const bound = module.createLinguiniRune(runtime,state,{setLocale:setter});
+  assert.equal(bound.setLocale,setter);
+  const sharedChange = setter('fr');
+  module.page.data.linguini = {locale:'en'};
+  release();
+  assert.equal(await sharedChange,'en');
+  assert.deepEqual(published,[]);
 });

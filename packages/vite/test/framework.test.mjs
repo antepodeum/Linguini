@@ -22,6 +22,7 @@ test("published framework boundary is explicit and validates complete adapter co
     { ...adapter, entry: "C:/escape.js" },
     { ...adapter, messageExports: [] },
     { ...adapter, localeHelper: "" },
+    { ...adapter, entrySideEffects: 'false' },
     { ...adapter, extensions: ["vue"] },
     { ...adapter, applicationScope: true },
     { ...adapter, findStaticLinks: () => [] },

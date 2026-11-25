@@ -20,6 +20,10 @@ export interface LocaleState<Locale extends string> {
 export interface MessageRuntime<Locale extends string, Messages> extends LocaleRuntime<Locale> {
   createLinguiniProvider(options: {getLocale: () => Locale}): Messages;
 }
+export type LocaleSetter<Locale extends string> = (value:unknown) => Promise<Locale>;
+export interface LinguiniRuneOptions<Locale extends string> extends Pick<LocaleStateOptions,'getRequestIdentity'> {
+  setLocale?: LocaleSetter<Locale>;
+}
 export interface LinguiniRune<Locale extends string, Messages> {
   readonly messages: Messages;
   readonly l: Messages;
@@ -28,5 +32,5 @@ export interface LinguiniRune<Locale extends string, Messages> {
   readonly direction: 'ltr'|'rtl';
   readonly textDirection: 'ltr'|'rtl';
   readonly htmlAttrs: {lang:Locale;dir:'ltr'|'rtl'};
-  setLocale(value: unknown): Promise<Locale>;
+  setLocale: LocaleSetter<Locale>;
 }

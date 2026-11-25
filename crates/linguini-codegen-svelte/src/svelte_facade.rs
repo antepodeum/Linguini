@@ -1,6 +1,6 @@
 use linguini_codegen_ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport,
-    EcmaStatement, RenderedEcmaModule,
+    EcmaReExport, EcmaStatement, RenderedEcmaModule,
 };
 pub fn compile_svelte_module(host: Option<&str>) -> RenderedEcmaModule {
     let mut module = EcmaModule::new(EcmaModuleOutput::new(
@@ -14,7 +14,14 @@ pub fn compile_svelte_module(host: Option<&str>) -> RenderedEcmaModule {
     });
     module.push_import(EcmaImport::named(
         "./svelte-locale.svelte.js",
-        vec![EcmaNamedImport::new("localeState", "localeState")],
+        vec![
+            EcmaNamedImport::new("localeState", "localeState"),
+            EcmaNamedImport::new("setLocale", "setLocale"),
+        ],
+    ));
+    module.push_re_export(EcmaReExport::named(
+        "./svelte-locale.svelte.js",
+        vec![EcmaNamedImport::new("setLocale", "setLocale")],
     ));
     module.push_import(EcmaImport::named(
         crate::runtime_module(host),

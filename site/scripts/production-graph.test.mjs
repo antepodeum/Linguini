@@ -3,8 +3,10 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import {verifySetterGraph} from './setter-graph.mjs';
 
 const siteRoot = join(fileURLToPath(new URL('..', import.meta.url)));
+await verifySetterGraph(siteRoot);
 const buildRoot = join(siteRoot, 'build');
 const generatedRoot = join(siteRoot, 'src/lib/generated/linguini');
 const clientOutputRoot = join(siteRoot, '.svelte-kit/output/client');

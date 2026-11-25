@@ -4,6 +4,21 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Catalog-independent Svelte setters
+
+Regenerate Svelte bindings with the matching runtime SDK. The locale helper now imports
+`createLocaleSetter` and its declarations use `LocaleSetter`; custom `--svelte-host-module`
+implementations must export both alongside `createLocaleState`. The generated facade directly
+re-exports the helper's setter and passes the same function to `createLinguiniRune` through
+its optional `setLocale` option. Existing calls remain compatible, including setter identity.
+Latest-choice and request-identity guards share one implementation.
+
+The Svelte Vite adapter declares generated entry initialization discardable using the new
+optional boolean `entrySideEffects`. Custom host factories must not depend on construction
+effects surviving an unused entry. Required effects belong in explicit application lifecycle
+registration. A real native-output/SDK/Vite regression now builds and executes a setter-only
+entry in one chunk with no message catalog modules, replacing its previous ten-chunk graph.
+
 ## Superseded locale changes
 
 Client controls now let the latest pending locale choice take precedence within its request

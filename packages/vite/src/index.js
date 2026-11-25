@@ -419,6 +419,10 @@ export function linguini(options = {}) {
         return undefined;
       }
       const file = path.resolve(stripQueryAndHash(id));
+      if (adapter.entrySideEffects === false
+        && normalizeResolvedFileId(file) === normalizeResolvedFileId(path.resolve(layout.generatedRoot,adapter.entry))) {
+        return {code,moduleSideEffects:false};
+      }
       const application = bundlerManifest.applicationsByFile.get(file);
       if (!application) {
         return linkModule !== undefined

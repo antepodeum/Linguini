@@ -12,10 +12,10 @@ pub fn compile_svelte_locale_module(host: Option<&str>) -> RenderedEcmaModule {
         specifier: "./locale.js".into(),
         bindings: EcmaImportBindings::Namespace("locale".into()),
     });
-    let mut names = vec![EcmaNamedImport::new(
-        "createLocaleState",
-        "createLocaleState",
-    )];
+    let mut names = vec![
+        EcmaNamedImport::new("createLocaleState", "createLocaleState"),
+        EcmaNamedImport::new("createLocaleSetter", "createLocaleSetter"),
+    ];
     if host.is_some() {
         names.push(EcmaNamedImport::new("getRequestLocale", "getRequestLocale"));
     }

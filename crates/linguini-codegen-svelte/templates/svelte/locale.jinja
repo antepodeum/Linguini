@@ -1,3 +1,4 @@
 export const localeState = createLocaleState(locale{% if request_locale %}, { getRequestLocale }{% endif %});
+export const setLocale = /* @__PURE__ */ createLocaleSetter(localeState);
 {% for name in ["getCurrentLocale", "setCurrentLocale", "initializeCurrentLocale", "clearCurrentLocaleOverride", "prepareLocale", "registerLocaleLoader"] %}export const {{ name }} = localeState.{{ name }};
 {% endfor %}

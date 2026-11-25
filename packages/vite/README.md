@@ -15,6 +15,12 @@ facades disappear during bundling. A stateful adapter selects a `localeHelper` d
 for its runtime. The native Svelte manifest uses the Svelte adapter; the core does not
 infer an adapter from TOML.
 
+An adapter may declare `entrySideEffects: false` when its generated entry has no required
+initialization effects. This allows direct re-exports to bypass unused entry code. The
+Svelte adapter uses this contract so a setter-only import drops the message provider and
+all catalog loaders. Custom host factories must keep construction free of required effects;
+register application effects explicitly in their owning lifecycle.
+
 It watches `linguini.toml`, `.lgs`/`.lgl` files below the configured source roots, and
 configured application sources. Changes are debounced and serialized, including changes
 that arrive during a build. Additions and deletions refresh the watch set. Build failures use

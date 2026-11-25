@@ -5,7 +5,7 @@ import {createRequire} from 'node:module';
 import {pathToFileURL} from 'node:url';
 import test from 'node:test';
 import {compileModule} from 'svelte/compiler';
-import {createLinguiniRune} from '../dist/index.js';
+import {createLinguiniRune,createLocaleSetter} from '../dist/index.js';
 
 const require=createRequire(import.meta.url);
 const runtime={locales:['en','fr'],baseLocale:'en',normalizeLocale(value){const locale=typeof value==='string'?value.toLowerCase():'';return this.locales.includes(locale)?locale:undefined;},getTextDirection:()=> 'ltr'};
@@ -76,6 +76,10 @@ test('message providers retain callable messages and wait before publishing loca
   assert.equal(await switching,'fr');
   assert.equal(provider.l.title,'FR');
   assert.equal(provider.messages.greet('Ada'),'Bonjour Ada');
+  const setter = createLocaleSetter(state);
+  const bound = createLinguiniRune({...runtime,createLinguiniProvider:()=>messages.fr},state,{setLocale:setter});
+  assert.equal(bound.setLocale,setter,'generated facade and provider must share one setter function');
+  assert.equal(await bound.setLocale('en'),'en');
 });
 
 test('direct message providers ignore superseded choices and replaced client requests', async context => {

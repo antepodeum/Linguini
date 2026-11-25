@@ -10,6 +10,8 @@ export interface LinguiniStaticLink {
 /** Build-time syntax and lifecycle hooks; no framework is imported by the Vite core. */
 export interface LinguiniFrameworkAdapter {
   readonly entry: string;
+  /** False permits direct re-exports to bypass unused entry initialization. */
+  readonly entrySideEffects?: boolean;
   readonly messageExports: readonly string[];
   /** Select a stateful locale runtime; omission binds messages to the project's base locale. */
   readonly localeHelper?: string;

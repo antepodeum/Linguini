@@ -1,5 +1,6 @@
 import type { Locale } from "./locale.js";
-import type { LocaleState } from {{ runtime|js }};
+import type { LocaleState, LocaleSetter } from {{ runtime|js }};
 export declare const localeState: LocaleState<Locale>;
+export declare const setLocale: LocaleSetter<Locale>;
 {% for name in ["getCurrentLocale", "setCurrentLocale", "initializeCurrentLocale", "clearCurrentLocaleOverride", "prepareLocale", "registerLocaleLoader"] %}export declare const {{ name }}: LocaleState<Locale>["{{ name }}"];
 {% endfor %}
