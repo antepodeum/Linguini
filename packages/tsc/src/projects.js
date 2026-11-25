@@ -90,7 +90,7 @@ export function runtimeOutput(parsed, layout, declarations = false) {
   if (!isWithin(layout.root, destination)) {
     throw new Error(`Linguini output ${destination} must remain inside its project root ${layout.root}`);
   }
-  return destination === layout.generated ? undefined : path.relative(layout.root, destination);
+  return destination === layout.generated ? undefined : path.relative(layout.root, destination).split(path.sep).join('/');
 }
 
 function isWithin(root, file) {

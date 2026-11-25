@@ -4,6 +4,19 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## TypeScript output paths and clean CI installations
+
+No application change is required. The TypeScript adapter now serializes derived native output
+arguments with `/` separators on Windows as well as Unix hosts. Output ownership, containment,
+and traversal validation remain unchanged. Existing build, declaration-only, reference, and
+watch tests continue exercising actual native output on the platform matrix.
+
+CI retains Node 20 compatibility tests while running pnpm 11 as a standalone executable there.
+Packed-consumer tests accept both script and native package-manager launchers and use
+`--prefer-offline`, allowing missing registry metadata to be fetched on clean runners.
+The dependency policy runs on the installed stable host toolchain; Tokio and URL dependencies
+are updated for RUSTSEC-2026-0386 and RUSTSEC-2026-0592 without advisory suppressions.
+
 ## Deferred dependency planning
 
 Application imports and configuration are unchanged. Build analysis now separates initial

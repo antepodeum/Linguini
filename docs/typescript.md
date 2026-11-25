@@ -17,6 +17,8 @@ It generates source-adjacent JavaScript and declarations before type checking. A
 application build also generates the same runtime into the corresponding `outDir` location,
 using the native compiler's `--emit-dir` support and rebased source maps. There is one JavaScript
 implementation with adjacent `.d.ts` files; TypeScript source generation is unnecessary.
+The adapter passes project-relative output arguments with `/` separators on every host,
+including Windows; native output containment and traversal checks still apply.
 
 Use an ESM TypeScript project. For example:
 

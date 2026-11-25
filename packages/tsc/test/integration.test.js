@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, test } from "node:test";
 import { runTypeScript } from "../src/index.js";
+import {runPnpm} from '../../scripts/pnpm-command.mjs';
 
 const repository = fileURLToPath(new URL("../../../", import.meta.url));
 const command = process.env.LINGUINI_COMMAND ?? path.join(repository, "target/debug", process.platform === "win32" ? "linguini.exe" : "linguini");
@@ -60,9 +61,7 @@ function compile(root, args = [], options = {}) {
 }
 
 function pnpm(args, cwd) {
-  return process.env.npm_execpath
-    ? spawnSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, encoding: "utf8" })
-    : spawnSync("pnpm", args, { cwd, encoding: "utf8" });
+  return runPnpm(args,cwd);
 }
 
 function execute(root, file = "dist/app.js") {
@@ -168,7 +167,7 @@ test("a packed installation provides its executable, public types, and runnable 
   const projectPackage = pnpm(["pack", "--out", projectArchive], fileURLToPath(new URL("../../../packages/project/", import.meta.url)));
   assert.equal(projectPackage.status, 0, projectPackage.stderr);
   write(root, "pnpm-workspace.yaml", `overrides:\n  '@antepodeum/linguini-project': ${JSON.stringify(`file:${projectArchive.replaceAll("\\", "/")}`)}\n`);
-  const installed = pnpm(["install", "--offline", "--ignore-scripts"], root);
+  const installed = pnpm(["install", "--prefer-offline", "--ignore-scripts"], root);
   assert.equal(installed.status, 0, installed.stderr + installed.stdout);
   write(root, "src/api.ts", `import type { LinguiniTypeScriptOptions } from "@antepodeum/linguini-tsc";
 const options: LinguiniTypeScriptOptions = { cwd: ".", command: "linguini", reportError: (error) => error.message };

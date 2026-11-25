@@ -5,11 +5,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import {runPnpm} from '../../scripts/pnpm-command.mjs';
 
 function pnpm(args, cwd) {
-  const result = process.env.npm_execpath
-    ? spawnSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, encoding: "utf8" })
-    : spawnSync("pnpm", args, { cwd, encoding: "utf8" });
+  const result = runPnpm(args,cwd);
   assert.equal(result.status, 0, result.stderr + result.stdout);
   return result;
 }
@@ -25,7 +24,7 @@ test("packed project APIs execute and preserve strict TypeScript contracts", (co
     "@antepodeum/linguini-project": `file:${archive.replaceAll("\\", "/")}`,
     typescript: "6.0.3",
   } }));
-  pnpm(["install", "--offline", "--ignore-scripts", "--store-dir", store], root);
+  pnpm(["install", "--prefer-offline", "--ignore-scripts", "--store-dir", store], root);
   writeFileSync(path.join(root, "linguini.toml"), '[targets.ts]\nout = "generated/messages"');
   writeFileSync(path.join(root, "consumer.ts"), `
 import { readProjectConfig, readProjectConfigSync } from "@antepodeum/linguini-project";

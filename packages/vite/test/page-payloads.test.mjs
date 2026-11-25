@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import {stripVTControlCharacters} from 'node:util';
 import { build } from "vite";
 import {verifyDeferredDemand} from '../test-support/deferred-demand.mjs';
 import { compilePagePayloads, compilePageBundles, pageMessageUsage, pageMessagePlan } from "../src/page-payloads.js";
@@ -131,7 +132,10 @@ test('deferred boundaries cannot silently omit new messages or widen the initial
       await run();
       assert.deepEqual(receipt['/'].en.messages,['later']);
     } else {
-      await assert.rejects(run,/cannot yet prepare deferred messages later.*for page \/$/m);
+      await assert.rejects(run,error => {
+        assert.match(stripVTControlCharacters(error.message),/cannot yet prepare deferred messages later for page \/$/m);
+        return true;
+      });
     }
     const output = await run(true);
     assert.deepEqual(receipt.pages['/'].en.messages,[sameMessage ? 'later' : 'first']);

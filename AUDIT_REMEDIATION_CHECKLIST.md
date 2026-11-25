@@ -667,7 +667,9 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #357 — Compile from packaged, offline, read-only CLDR data.
 - [x] #358 — Land and execute Linux, Windows, and macOS CI. Complete workspace suites pass on
       all three hosts for the shared-backend source verified in ESM-M11.
-- [x] #359 — Land dependency, license, and advisory checks.
+- [x] #359 — Land dependency, license, and advisory checks. Tokio 1.54.1 and URL 2.5.9
+      resolve the advisories reported by push run 45669523927 without suppressions; host-toolchain
+      cargo-deny and cargo-audit pass, and the locked workspace still checks on Rust 1.87.
 - [x] #360 — Add enforceable coverage plus parser/formatter property jobs. CI rejects workspace
   line coverage below 80%, runs seeded parser/formatter/plural/path property suites separately,
   and rejects surviving mutants in pull-request diffs.
@@ -676,6 +678,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
   documented JavaScript/TypeScript calls and separately verifies JSDoc wrappers, positional/named
   success, missing parameters/properties, excess properties, and invalid JSDoc argument types.
 - [-] #362 — Complete real Vite, native VSIX, npm CLI, and WASM LSP integration CI.
+      Real Vite 5/6/7/8 tests pass with ANSI colors enabled; diagnostic assertions strip control
+      codes while retaining exact message checks. Project and web/Svelte/Kit package tests pass
+      on Node 20 with standalone pnpm 11 and a fresh metadata cache. Packed consumers fetch only
+      missing cache data through prefer-offline installs. Windows TypeScript output arguments
+      now use portable separators; the existing platform matrix remains enabled. Confirmation
+      of the workflow repair on GitHub-hosted runners remains required after pushing.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;

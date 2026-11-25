@@ -6,11 +6,10 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {fileURLToPath} from 'node:url';
+import {runPnpm} from '../../scripts/pnpm-command.mjs';
 
 function pnpm(args,cwd) {
-  const result=process.env.npm_execpath
-    ?spawnSync(process.execPath,[process.env.npm_execpath,...args],{cwd,encoding:'utf8'})
-    :spawnSync('pnpm',args,{cwd,encoding:'utf8'});
+  const result=runPnpm(args,cwd);
   assert.equal(result.status,0,result.stderr+result.stdout);
   return result.stdout;
 }
@@ -35,7 +34,7 @@ test('published runtime packages preserve strict TypeScript, declarations/maps, 
     vite:'8.0.13','@sveltejs/vite-plugin-svelte':'7.1.2','@sveltejs/kit':'2.60.1',svelte:'5.55.8',typescript:'6.0.3','@types/node':'24.12.4',
   }}));
   writeFileSync(path.join(consumer,'pnpm-workspace.yaml'),`overrides:\n  postcss: ${postcssVersion}\n  '@antepodeum/linguini-web': ${JSON.stringify(`file:${web.replaceAll('\\','/')}`)}\n  '@antepodeum/linguini-svelte': ${JSON.stringify(`file:${svelte.replaceAll('\\','/')}`)}\n`);
-  pnpm(['install','--offline','--ignore-scripts','--store-dir',store],consumer);
+  pnpm(['install','--prefer-offline','--ignore-scripts','--store-dir',store],consumer);
   writeFileSync(path.join(consumer,'tsconfig.json'),JSON.stringify({compilerOptions:{strict:true,allowJs:false,skipLibCheck:false,module:'NodeNext',moduleResolution:'NodeNext',target:'ES2022',outDir:'output',types:['node','@sveltejs/kit']},include:['consumer.ts']}));
   writeFileSync(path.join(consumer,'consumer.ts'),`
 import {createWebLocaleI18n,pathLocale,cookieLocale} from '@antepodeum/linguini-web';
