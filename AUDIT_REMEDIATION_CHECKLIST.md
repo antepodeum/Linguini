@@ -1260,6 +1260,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       inactive locale, or scaffolding in initial page delivery; integrate with ESM-A3/MOD-A4.
       Numeric scale/scientific/significant/padding helpers now have independent demand flags,
       verified by isolated generated/executed plans and absence checks for unselected helpers.
+      Identical date-name vectors also share one binding across selected formatter requests.
+      Different widths and Russian formatting/standalone values remain distinct; executed Date
+      getter counts are unchanged. Real bundles keep shared tables without retaining the unused
+      era formatter and drop every month table for a time-only consumer.
       Precision, rounding quantum/halfway threshold, scale shifts, and significant widths are
       compiled into deduplicated helpers; no static option validation or discarded-digit power
       expansion remains. Unit rounding skips bigint construction unless a carry is needed.

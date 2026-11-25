@@ -25,6 +25,7 @@ pub(super) fn formatter_data_declaration(
     let mut output = crate::templates::render("formatters/types", context! { needs_number });
     let mut plans = Vec::new();
     let mut date_helpers = DateHelperRequirements::default();
+    let mut date_tables = DateTables::new();
     for request in requests {
         let name = super::formatters::formatter_binding(request);
         match request.formatter.kind {
@@ -67,8 +68,14 @@ pub(super) fn formatter_data_declaration(
             }
             linguini_ir::IrFormatterKind::Date => {
                 let dates = compiled_date_formatting(locale).expect("validated date locale");
-                let (source, helpers) =
-                    generated_date_request(locale, &dates, request, &name, export_helpers);
+                let (source, helpers) = generated_date_request(
+                    locale,
+                    &dates,
+                    request,
+                    &name,
+                    export_helpers,
+                    &mut date_tables,
+                );
                 output.push_str(&source);
                 date_helpers.padding |= helpers.padding;
                 date_helpers.digits |= helpers.digits;
@@ -187,16 +194,19 @@ struct DateHelperRequirements {
     digits: bool,
 }
 
+type DateTables = std::collections::BTreeMap<String, Vec<&'static str>>;
+
 fn generated_date_request(
     locale: &str,
     dates: &linguini_cldr::DateFormatData,
     request: &super::formatters::FormatterRequest,
     name: &str,
     exported: bool,
+    shared_tables: &mut DateTables,
 ) -> (String, DateHelperRequirements) {
     let pattern = linguini_codegen::date_request_pattern(dates, request)
         .expect("validated CLDR date request");
-    let pattern = date_parts(&pattern, dates, name, locale);
+    let pattern = date_parts(&pattern, dates, name, locale, shared_tables);
     (
         crate::templates::render(
             "formatters/date",
@@ -219,6 +229,7 @@ fn date_parts(
     dates: &linguini_cldr::DateFormatData,
     name: &str,
     requested_locale: &str,
+    shared_tables: &mut DateTables,
 ) -> CompiledDatePattern {
     use minijinja::context;
     let mut helpers = DateHelperRequirements::default();
@@ -291,12 +302,15 @@ fn date_parts(
                     "weekdays"
                 }
             );
-            let binding = tables
+            let binding = shared_tables
                 .iter()
                 .find(|(_, existing)| **existing == values)
                 .map(|(binding, _)| binding.clone())
                 .unwrap_or(proposed);
-            tables.entry(binding.clone()).or_insert(values);
+            if !shared_tables.contains_key(&binding) {
+                shared_tables.insert(binding.clone(), values.clone());
+                tables.insert(binding.clone(), values);
+            }
             table = Some(binding);
         }
         let numeric = matches!(

@@ -3,6 +3,32 @@ use super::*;
 use linguini_cldr::{NumberFormatData, NumberPadding, NumberPatternPart};
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFormatterKind};
 
+fn date_parts(
+    pattern: &str,
+    dates: &linguini_cldr::DateFormatData,
+    name: &str,
+    locale: &str,
+) -> CompiledDatePattern {
+    super::date_parts(pattern, dates, name, locale, &mut DateTables::new())
+}
+
+fn generated_date_request(
+    locale: &str,
+    dates: &linguini_cldr::DateFormatData,
+    request: &FormatterRequest,
+    name: &str,
+    exported: bool,
+) -> (String, DateHelperRequirements) {
+    super::generated_date_request(
+        locale,
+        dates,
+        request,
+        name,
+        exported,
+        &mut DateTables::new(),
+    )
+}
+
 fn request(kind: IrFormatterKind, arguments: &[(&str, &str)]) -> FormatterRequest {
     FormatterRequest::new(&IrFormatter {
         kind,
@@ -14,6 +40,67 @@ fn request(kind: IrFormatterKind, arguments: &[(&str, &str)]) -> FormatterReques
             })
             .collect(),
     })
+}
+
+#[test]
+fn date_requests_share_equal_name_tables_without_merging_different_widths() {
+    let requests = ["GyMMMd", "yMMMd", "MMMd", "MMMMd"]
+        .map(|skeleton| request(IrFormatterKind::Date, &[("skeleton", skeleton)]));
+    let emitted = formatter_data_declaration("en", &requests, true);
+    assert_eq!(
+        emitted.matches(" = [").count(),
+        2,
+        "abbreviated and wide month tables must each be emitted once"
+    );
+    assert!(!emitted.contains("const formatDate_skeleton_yMMMd_months"));
+    let output = execute(&format!(
+        r#"{emitted}
+const value = new Date('2024-01-02T13:04:05Z');
+let reads = 0;
+value.getUTCMonth = () => {{reads++; return 0;}};
+const results=[formatDate_skeleton_GyMMMd(value),formatDate_skeleton_yMMMd(value),formatDate_skeleton_MMMd(value),formatDate_skeleton_MMMMd(value)];
+if(reads!==4) throw Error('sharing changed supplied Date getter observations');
+console.log(JSON.stringify(results));
+"#
+    ));
+    assert_eq!(
+        output,
+        r#"["Jan 2, 2024 AD","Jan 2, 2024","Jan 2","January 2"]"#
+    );
+
+    let dates = linguini_cldr::compiled_date_formatting("ru").unwrap();
+    let mut pool = DateTables::new();
+    let formatting = super::date_parts("MMMM", &dates, "formatMonth", "ru", &mut pool);
+    let standalone = super::date_parts("LLLL", &dates, "standaloneMonth", "ru", &mut pool);
+    assert_eq!(formatting.tables.len(), 1);
+    assert_eq!(
+        standalone.tables.len(),
+        1,
+        "different Russian month contexts must retain distinct values"
+    );
+    assert_eq!(pool.len(), 2);
+
+    let weekdays =
+        ["yMMMEd", "MEd"].map(|skeleton| request(IrFormatterKind::Date, &[("skeleton", skeleton)]));
+    let emitted = formatter_data_declaration("en", &weekdays, true);
+    assert_eq!(
+        emitted
+            .lines()
+            .filter(|line| line.starts_with("const ") && line.contains("_weekdays_"))
+            .count(),
+        1
+    );
+    let output = execute(&format!(
+        r#"{emitted}
+const value = new Date('2024-01-02T13:04:05Z');
+let reads=0;
+value.getUTCDay=()=>{{reads++;return 2;}};
+const results=[formatDate_skeleton_yMMMEd(value),formatDate_skeleton_MEd(value)];
+if(reads!==2) throw Error('sharing changed weekday getter observations');
+console.log(JSON.stringify(results));
+"#
+    ));
+    assert_eq!(output, r#"["Tue, Jan 2, 2024","Tue, 1/2"]"#);
 }
 fn execute(script: &str) -> String {
     let mut child = Command::new("node")

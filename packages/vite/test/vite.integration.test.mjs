@@ -5,9 +5,48 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { build } from "vite";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { linguini as viteLinguini } from "../src/index.js";
 import { linguini } from "../src/svelte.js";
+
+test("shared generated date tables retain only the selected formatter in a real bundle", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "linguini-date-tables-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, "package.json"), '{"type":"module"}');
+  const fixture = fileURLToPath(new URL("../../../tests/fixtures/golden/snapshots/js-date/skeletons.js", import.meta.url));
+  const entry = "\0date-table-consumer";
+  for (const [index, skeleton, expected] of [[0, "yMMMd", "Jan 2, 2024"], [1, "Hm", "13:04"]]) {
+    const result = await build({
+      root, configFile: false, logLevel: "silent",
+      plugins: [{
+        name: "date-table-consumer",
+        resolveId(id) { if (id === entry) return id; },
+        load(id) {
+          if (id === entry) return `export {formatDate_skeleton_${skeleton} as formatDate} from ${JSON.stringify(fixture)};`;
+        },
+      }],
+      build: {
+        write: false, minify: false, target: "es2022",
+        rollupOptions: { input: entry, preserveEntrySignatures: "strict" },
+      },
+    });
+    const chunks = result.output.filter((item) => item.type === "chunk");
+    assert.equal(chunks.length, 1);
+    const code = chunks[0].code;
+    assert.doesNotMatch(code, /["']AD["']|["']BC["']/, "sharing must not retain the unused era formatter");
+    if (skeleton === "yMMMd") {
+      assert.doesNotMatch(code, /getUTCHours|getUTCMinutes/);
+      assert.equal([...code.matchAll(/["']Jan["']\s*,\s*["']Feb["']/g)].length, 1);
+    } else {
+      assert.doesNotMatch(code, /["']Jan["']|getUTCMonth/, "time-only consumers must drop all month tables");
+    }
+    const output = path.join(root, `consumer-${index}.js`);
+    await writeFile(output, code);
+    const module = await import(pathToFileURL(output).href);
+    assert.deepEqual(Object.keys(module), ["formatDate"]);
+    assert.equal(module.formatDate("2024-01-02T13:04:05Z"), expected);
+  }
+});
 
 test("runs through a real Vite build", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "linguini-vite-integration-"));

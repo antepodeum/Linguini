@@ -55,6 +55,19 @@ The implementation was discarded. GEN-A15 remains open: specialization must acco
 coexisting selector shapes and whole-consumer costs, including normalization sharing, before
 it replaces the current classifier. A smaller isolated classifier is insufficient evidence.
 
+## Shared date name tables
+
+The `f5052c8` skeleton fixture repeated the same abbreviated month array for `GyMMMd` and
+`yMMMd`. Sharing the complete equal vector across the locale runtime removes that duplicate
+array initialization. Distinct widths and Russian grammatical contexts retain their own values;
+supplied `Date` month and weekday getter counts are unchanged.
+
+A Vite 7.3.3 bundle exporting both date formatters shrinks from 1,598 to 1,502 minified bytes,
+694 to 684 gzip bytes, and 651 to 634 Brotli bytes. Both versions execute the expected CE/BCE
+dates. This is a two-formatter fixture measurement. Separate real bundles prove that retaining
+the table does not retain the unused era formatter and that time-only output contains no month
+tables. No runtime table registry, option dispatcher, or CLDR pattern parser is introduced.
+
 ## Findings and owners
 
 | ID | Status | Verified evidence | Required remediation |

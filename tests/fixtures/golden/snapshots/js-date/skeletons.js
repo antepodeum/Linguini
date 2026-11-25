@@ -19,7 +19,6 @@ export function formatDate_skeleton_Hm(value) {
   return padNumber(date.getUTCHours(), 2) + ":" + padNumber(date.getUTCMinutes(), 2);
 }
 
-const formatDate_skeleton_yMMMd_months_3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /**
  * @param {Date | number | string} value
  * @returns {string}
@@ -28,7 +27,7 @@ export function formatDate_skeleton_yMMMd(value) {
   const date = coerceDate(value);
   let year = date.getUTCFullYear();
   if (year <= 0) year = 1 - year;
-  return formatDate_skeleton_yMMMd_months_3[date.getUTCMonth()] + " " + String(date.getUTCDate()) + ", " + String(year);
+  return formatDate_skeleton_GyMMMd_months_3[date.getUTCMonth()] + " " + String(date.getUTCDate()) + ", " + String(year);
 }
 
 /**

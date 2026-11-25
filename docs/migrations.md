@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared date name tables
+
+Regenerate output to share identical month/weekday vectors across the locale runtime's selected
+formatter requests. Message APIs and input evaluation are unchanged. Different widths or contexts
+retain their own data when their values differ. A formatter can reference a table first declared
+beside another formatter; bundlers retain that table independently of the unused formatter body.
+Executed supplied-Date getter counts and real Vite consumer graphs verify this separation.
+
 ## Exact Gregorian date skeletons
 
 `@date(skeleton = "yMMMd")` and `@date(skeleton = "Hm")` select exact IDs from the locale's
