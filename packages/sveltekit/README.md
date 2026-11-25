@@ -10,5 +10,11 @@ The Vite adapter compiles one initial payload per composed page and locale. Pass
 messages before page publication. The hook preloads only the selected payload for
 script-enabled clients. Server rendering does not fetch browser message files.
 
+Lazy application imports prepare one additional selected-locale closure before evaluation,
+then reuse cached files. Unused exports and messages already present in the initial closure
+are excluded. Preparation follows the current page and locale; its runtime is linked only
+through page nodes exposing these actions. Unsupported import shapes fail explicitly.
+Server message calls use SvelteKit's request event, including in server loads.
+
 See [the integration guide](../../docs/web-sveltekit.md) for complete application setup
-and the remediation checklist for deferred boundaries and remaining verification.
+and remaining import-shape and platform limitations.

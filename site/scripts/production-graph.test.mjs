@@ -304,17 +304,38 @@ for (const root of [mainRouteNodeId,chunkLabRouteNodeId,messageLabRouteNodeId]) 
     assert.equal(localeChunkFiles.has(clientManifest[moduleId].file), false, 'an initial route imported a locale catalog eagerly');
   }
 }
+for (const root of [mainRouteNodeId]) {
+  const sources = [...collectStaticReachable(root)].map(id => readFileSync(join(clientOutputRoot,clientManifest[id].file),'utf8')).join('\n');
+  assert.equal(/Linguini deferred import no longer belongs/.test(sources),false,
+    `${root}: a page without a lazy message action must not retain the deferred runtime`);
+}
 
 const clientJavaScriptFiles = filesUnder(clientOutputRoot).filter(file => file.endsWith('.js'));
-assert.ok(clientJavaScriptFiles.length <= effectiveLocales.size * 3 + 24,
+const messagePayloadFiles = new Set(clientJavaScriptFiles.filter(file => file.replaceAll('\\','/').includes('/assets/linguini/')));
+const deferredPayloadFiles = [...messagePayloadFiles].filter(file => !localeChunkFiles.has(siteRelative(file).replace('.svelte-kit/output/client/','')));
+assert.equal(deferredPayloadFiles.length,effectiveLocales.size,'one lazy message set must emit one file per locale');
+assert.ok(clientJavaScriptFiles.length <= effectiveLocales.size * 4 + 24,
   `client emitted ${clientJavaScriptFiles.length} JavaScript files for ${effectiveLocales.size} locales`);
-const clientText = clientJavaScriptFiles.filter(file => !localeChunkFiles.has(siteRelative(file).replace('.svelte-kit/output/client/','')))
+const clientText = clientJavaScriptFiles.filter(file => !messagePayloadFiles.has(file))
   .map(file => readFileSync(file,'utf8')).join('\n');
 assert.doesNotMatch(clientText, /createLinguiniProvider|localeLoaders|__linguini_loaders|does not export messages/);
 assert.equal(countMatches(clientText, /Invalid Linguini page payload/g), 1, 'the maintained page loader must be shared');
 assert.match(clientText, /import\(/);
+assert.doesNotMatch(clientText,/DEFERRED_FORBIDDEN/);
 
 const messageIds = new Map(Object.keys(generatedManifest.messages).sort().map((name,index) => [name,index]));
+const deferredIds = ['deferred_lab.summary','deferred_lab.title'].map(name => String(messageIds.get(name))).sort();
+for (const locale of effectiveLocales) {
+  const files = deferredPayloadFiles.filter(file => file.replaceAll('\\','/').endsWith('/' + encodeURIComponent(locale) + '.js'));
+  assert.equal(files.length,1,`missing deferred payload for ${locale}`);
+  const source = readFileSync(files[0],'utf8');
+  assert.doesNotMatch(source,/DEFERRED_FORBIDDEN|(?:^|[;\n}])\s*import\b/);
+  const {messages} = await import(pathToFileURL(files[0]).href);
+  assert.deepEqual(Object.keys(messages).sort(),deferredIds,'the lazy payload must exclude initial messages and unused exports');
+  const native = (await import(pathToFileURL(join(generatedRoot,`locales/${locale}/deferred_lab.js`)).href)).deferred_lab;
+  assert.equal(messages[messageIds.get('deferred_lab.title')],native.title);
+  assert.equal(messages[messageIds.get('deferred_lab.summary')]({value:1299.5}),native.summary({value:1299.5}));
+}
 const mainExpectedMessages = [...new Set([
   ...generatedManifest.applications['src/routes/+page.svelte'].references.map(reference => reference.message),
   'main.codegen.intro'

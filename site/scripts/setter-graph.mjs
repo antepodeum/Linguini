@@ -24,6 +24,7 @@ async function verifySetterTarget(root,generate) {
         if (id === '$app/state') return 'export const page = {data:{linguini:{locale:"en"}}};';
         if (id === '$app/environment') return 'export const browser = true;';
         if (id === '$app/navigation') return 'export async function goto() {}';
+        if (id === '$app/server') return 'export function getRequestEvent(){throw new Error("SSR setters must not read a request locale");}';
       },
       transform(code,id) {
         if (id.endsWith('/state.svelte.js')) return compileModule(code,{generate,filename:id}).js.code;

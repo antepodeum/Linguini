@@ -11,7 +11,25 @@ messages from each lazy entry's consumed exports, then re-shakes those exports i
 This preserves exact demand through shared eager/lazy modules, pure re-exports, default exports,
 and nested boundaries. Async facades exist only in the in-memory analysis build; they are not
 application artifacts and do not impose top-level await on the configured browser target.
-New deferred messages still fail explicitly until their runtime preparation protocol is supplied.
+The SvelteKit adapter now prepares new deferred messages before evaluating the application
+import. Use matching Vite/SvelteKit SDK versions and rebuild; no application configuration or
+manual preload call is required. Initial and additional closures remain separate, and identical
+additional closures share cached assets across pages. Activated closures follow locale changes
+on the same page; another page does not inherit them. Inlined imports, callers shared with
+unrelated pages, and distinct additional message sets from the same lazy module on one page
+fail explicitly until those shapes can be lowered exactly.
+
+Framework authors can use `compilePageBundles`, `pageMessages.resolve`, and
+`pageMessages.analysisModule` to implement preparation. `compilePages` retains its strict
+initial-only contract. The SvelteKit build links its internal deferred entry only through
+owning page nodes. Applications should continue importing the public `/load` helper;
+`/internal/deferred` is SDK implementation plumbing.
+
+The SvelteKit client's private package import now selects separate browser and server locale
+readers. Server message calls use `getRequestEvent().locals.linguini`, supporting loads/actions
+without component context. Hook setup remains required. Access after `await` depends on the
+platform's `AsyncLocalStorage` support; explicit locale providers remain available otherwise.
+Browser hydration still uses serialized page metadata or the server's HTML language marker.
 
 ## Catalog-independent Svelte setters
 

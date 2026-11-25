@@ -28,8 +28,20 @@ export async function pageMessagePlan(context,entries,config) {
   const deferred = [];
   for (const boundary of complete.boundaries) {
     if (!graphHasMessages(context,boundary.id)) continue;
-    const usage = await analyzePage(context,[boundary],config,false);
-    deferred.push({...boundary,messages:usage.messages,deferred:usage.deferred});
+    const messages = new Set();
+    const children = new Set();
+    let expected;
+    for (const variant of boundary.variants) {
+      const usage = await analyzePage(context,[{id:boundary.id,exports:variant.map(name => [name])}],config,false);
+      const additional = JSON.stringify(usage.messages.filter(name => !initial.messages.includes(name)));
+      if (expected !== undefined && expected !== additional) {
+        throw new Error(`Linguini deferred imports of ${boundary.id} require different message sets; call-site preparation is not supported yet`);
+      }
+      expected = additional;
+      for (const name of usage.messages) messages.add(name);
+      for (const id of usage.deferred) children.add(id);
+    }
+    deferred.push({id:boundary.id,exports:boundary.exports,messages:[...messages].sort(),deferred:[...children].sort()});
   }
   const planned = new Set(deferred.map(boundary => boundary.id));
   const unmapped = initial.deferred.filter(id => graphHasMessages(context,id) && !planned.has(id));
@@ -89,6 +101,11 @@ async function analyzePage(context, entries, config, followDeferred) {
         }
         if (!id.startsWith(GRAPH)) return;
         const original = id.slice(GRAPH.length);
+        const model = config.analysisModule?.(original);
+        if (model !== undefined) {
+          if (typeof model !== 'string') throw new TypeError(`Linguini analysis module ${original} must contain JavaScript source`);
+          return model;
+        }
         if (original.startsWith("\0virtual:linguini/locale-registry")) {
           return "export function acquireLocaleLoader() { return () => {}; }";
         }
@@ -140,13 +157,16 @@ async function analyzePage(context, entries, config, followDeferred) {
           throw new Error('Linguini deferred analysis requires a module facade for each lazy entry');
         }
         const id = target.facadeModuleId.slice(BOUNDARY.length);
-        const previous = boundaries.get(id)?.exports.flat();
-        const exports = [...new Set([...(previous ?? []),...(imported.exports ?? target.exports)])].sort();
+        const previous = boundaries.get(id);
+        const requested = [...new Set(imported.exports ?? target.exports)].sort();
+        const exports = [...new Set([...(previous?.exports.flat() ?? []),...requested])].sort();
         const known = context.getModuleInfo(id)?.exports;
         if (!known || exports.some(name => !known.includes(name))) {
           throw new Error(`Linguini deferred analysis cannot resolve consumed exports of ${id}`);
         }
-        boundaries.set(id,{id,exports:exports.map(name => [name])});
+        const variants = previous?.variants ?? [];
+        if (!variants.some(variant => JSON.stringify(variant) === JSON.stringify(requested))) variants.push(requested);
+        boundaries.set(id,{id,exports:exports.map(name => [name]),variants});
       }
     }
   }

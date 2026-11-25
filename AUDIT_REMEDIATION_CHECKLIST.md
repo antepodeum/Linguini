@@ -1099,9 +1099,9 @@ and the composed payload/SSR requirements below.
       child-component, and imported-function demand, including removal of a shared function used
       only by another page. Production output has one self-contained payload per page/locale;
       Chromium verifies preparation before cross-page/cross-locale publication, cached revisits,
-      and no locale requests with scripting disabled. All four source-map modes pass. Deferred
-      boundaries needing new messages fail explicitly; their preparation protocol and the full
-      framework/configuration matrix remain open. Deferred reads of already prepared messages
+      and no locale requests with scripting disabled. All four source-map modes pass. Lazy
+      actions now prepare one additional selected-locale closure before module evaluation. The full
+      framework/configuration matrix remains open. Deferred reads of already prepared messages
       now execute in Chromium without another message request. Demand analysis drops unused lazy
       exports, including a shared export used by another page, on both local Vite 7 and Vite 8.
       A setter-only native-output/SDK/Vite regression now emits one chunk with no message
@@ -1112,7 +1112,14 @@ and the composed payload/SSR requirements below.
       One shared contract runs against Vite 7 and the site's Vite 8, covering nested boundaries,
       pure/default re-exports, eager/lazy shared helpers, required module effects, escaping
       namespaces, dead lazy exports, and ES2018 output targets. Analysis-only async facades
-      are not emitted into application output. Runtime preparation remains open.
+      are not emitted into application output. Additional payloads exclude initial messages and
+      unused exports; identical closures share assets across pages. Chromium proves one lazy JS
+      request plus one locale file on first action, zero on repetition and cross-page reuse, and
+      no additional payload before the action. Preparation lives in owning page nodes or one
+      shared runtime, outside unrelated initial page graphs. Late lowering preserves native
+      namespace identity, live exports, and prepare-before-evaluation. Inlined imports, callers
+      shared with unrelated pages, and distinct additional demands from one lazy module on a
+      page fail explicitly; exact lowering for those cases remains open.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching
@@ -1138,6 +1145,12 @@ and the composed payload/SSR requirements below.
       The Kit wrapper supplies identity automatically; an executed Vite consumer verifies that
       a same-locale request replacement still invalidates the older operation. Server provider
       tests forbid reading the client identity callback.
+      Server calls now read request-local locale metadata through Kit request events rather than
+      component context. Concurrent built-server loads execute lazy values and named number
+      functions in French/Russian/English; Chromium verifies matching hydration and no-JS HTML
+      without a deferred locale request. Async request access is verified on the Node platform;
+      other runtime capabilities remain part of the platform matrix. Deferred runtime tests cover
+      retries, overlapping locale changes, request replacement, and private incoming preparation.
 - [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.
@@ -1294,10 +1307,15 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       dispatch, or allocations unless their runtime behavior requires them. Verify initial
       and transition request counts, compressed/uncompressed bytes, dependency duplication,
       and executed operations on real composed pages. Keep this open until MOD-A4 is proven.
-      The composed-page production gate checks exact message identities for two pages across
+      The composed-page production gate checks exact initial identities for three pages across
       nine locales and reports raw/gzip payload sizes. Chromium verifies one selected preload
       before framework execution, no requests without scripting, and cache reuse on revisit.
-      Deferred payload preparation and removal of unnecessary stateful facade work remain open.
+      Additional closures have exact title/function identities across nine locales, no initial
+      messages or unused exports, and no imports. The browser gate checks lazy action requests,
+      same-page locale preparation, canceled requests, and cross-page module/data reuse. Setter-only
+      builds retain no catalogs. Remaining work includes unsupported deferred shapes, broader
+      configuration coverage, residual optional loader-hook branches when unused, and unnecessary
+      stateful facade work. These receipts do not establish zero runtime overhead.
 
 The canonical JS migration now resolves actual formatter requests (including schema alias
 inheritance and explicit overrides), compiles number/currency choices and selected Gregorian

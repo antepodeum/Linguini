@@ -28,6 +28,8 @@ test("published framework boundary is explicit and validates complete adapter co
     { ...adapter, findStaticLinks: () => [] },
     { ...adapter, pageMessages: {} },
     { ...adapter, pageMessages: {module:"host",export:"not-a-function"} },
+    { ...adapter, pageMessages: {module:"host",export:"getMessage",resolve:true} },
+    { ...adapter, pageMessages: {module:"host",export:"getMessage",analysisModule:true} },
     { ...adapter, localeHelper:undefined,pageMessages:{module:"host",export:"getMessage"} },
   ]) {
     assert.throws(() => linguini({ adapter: invalid }), /Linguini adapter/);

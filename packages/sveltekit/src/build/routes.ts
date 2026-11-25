@@ -5,6 +5,9 @@ import type { Rollup } from 'vite';
 import type { LinguiniPage } from '@antepodeum/linguini-vite';
 
 type Node = { type: string; [key: string]: unknown };
+export function isMessageModule(id: string): boolean {
+  return id.startsWith('\0virtual:linguini/message/');
+}
 function node(value: unknown): Node {
   if (!value || typeof value !== 'object' || !('type' in value) || typeof value.type !== 'string') {
     throw new Error('Unsupported SvelteKit client route manifest syntax');
@@ -54,7 +57,7 @@ export function clientPages(context: Rollup.PluginContext): LinguiniPage[] {
     throw new Error('Unsupported SvelteKit client routing manifest; Linguini cannot determine exact page roots');
   }
   if (array(dictionary.properties).length === 0
-    && [...context.getModuleIds()].some(id => id.startsWith('\0virtual:linguini/message/'))) {
+    && [...context.getModuleIds()].some(isMessageModule)) {
     throw new Error('Linguini page payloads require SvelteKit client route descriptors; server-only route resolution is not supported yet');
   }
   const entries = array(nodes.elements).map(value => {

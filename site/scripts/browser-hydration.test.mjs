@@ -1,55 +1,7 @@
 import assert from 'node:assert/strict';
-import {createServer} from 'node:http';
-import {readFile, stat} from 'node:fs/promises';
-import {basename, extname, join, resolve, sep} from 'node:path';
 import test from 'node:test';
-import {fileURLToPath} from 'node:url';
-import {Readable} from 'node:stream';
 import {chromium} from 'playwright';
-
-const site = fileURLToPath(new URL('../', import.meta.url));
-const output = join(site, 'build');
-
-async function serve(context, {preload,ssr} = {}) {
-  let releaseScripts;
-  const scriptsReady = new Promise(resolve => {releaseScripts=resolve;});
-  if (!preload) releaseScripts();
-  const types = {'.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.css':'text/css', '.svg':'image/svg+xml', '.woff2':'font/woff2'};
-  const server = createServer(async (request, response) => {
-    try {
-      const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
-      if (pathname === preload) releaseScripts();
-      else if (pathname.includes('/immutable/entry/') && pathname.endsWith('.js')) await scriptsReady;
-      if (ssr && (pathname.endsWith('/') || pathname.endsWith('/__data.json'))) {
-        const headers = new Headers();
-        for (const [name,value] of Object.entries(request.headers)) {
-          if (value !== undefined) headers.set(name,Array.isArray(value) ? value.join(', ') : value);
-        }
-        const rendered = await ssr.respond(new Request(`http://${request.headers.host}${request.url}`,{headers}),{getClientAddress:()=> '127.0.0.1'});
-        response.writeHead(rendered.status,Object.fromEntries(rendered.headers));
-        if (rendered.body) Readable.fromWeb(rendered.body).pipe(response);
-        else response.end();
-        return;
-      }
-      let file = resolve(output, '.' + pathname);
-      if (file !== output && !file.startsWith(output + sep)) throw Error('outside output');
-      if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
-      const body = await readFile(file);
-      response.writeHead(200, {'content-type':types[extname(file)] ?? 'application/octet-stream'});
-      response.end(body);
-    } catch {
-      response.writeHead(404);
-      response.end('Not found');
-    }
-  });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  context.after(() => new Promise((resolve, reject) => {
-    releaseScripts();
-    server.close(error => error ? reject(error) : resolve());
-    server.closeAllConnections();
-  }));
-  return `http://127.0.0.1:${server.address().port}`;
-}
+import {serve,createSsrServer} from './browser-host.mjs';
 
 test('French prerender hydrates its selected locale and loads only its page payload before explicit switching', {timeout:30_000}, async context => {
   const {payloads} = await import('../.svelte-kit/output/server/linguini-page-manifest.js');
@@ -159,14 +111,6 @@ test('finite computed values, callable references, named calls, and sparse fallb
     assert.ok(header?.includes(`</${payloads['/message-lab'][locale]}>; rel="modulepreload"; media="(scripting: enabled)"`));
   }));
 });
-
-async function createSsrServer() {
-  const {Server} = await import('../.svelte-kit/output/server/index.js');
-  const {manifest} = await import('../.svelte-kit/output/server/manifest-full.js');
-  const server = new Server(manifest);
-  await server.init({env:process.env});
-  return server;
-}
 
 test('live SSR preloads one selected payload through headers and scripting-disabled clients fetch none', {timeout:30_000}, async context => {
   const {payloads} = await import('../.svelte-kit/output/server/linguini-page-manifest.js');

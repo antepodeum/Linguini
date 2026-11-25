@@ -18,6 +18,12 @@
     "dist",
     "src"
   ],
+  "imports": {
+    "#linguini-request-locale": {
+      "browser": "./dist/request-client.js",
+      "default": "./dist/request-server.js"
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -40,6 +46,11 @@
     "./load": {
       "types": "./dist/load.d.ts",
       "default": "./dist/load.js"
+    },
+    "./internal/deferred": {
+      "types": "./dist/deferred-page.svelte.d.ts",
+      "svelte": "./dist/deferred-page.svelte.js",
+      "default": "./dist/deferred-page.svelte.js"
     }
   },
   "scripts": {

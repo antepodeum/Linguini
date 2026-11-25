@@ -7,8 +7,8 @@ import MagicString from "magic-string";
 import { DEFAULT_CONFIG_FILE, DEFAULT_PATHS, resolveProjectPath as resolveWithin } from "@antepodeum/linguini-project";
 import { readEcmascriptProject, validateLocaleLoading, isDynamicMessagePath } from "@antepodeum/linguini-project/ecmascript";
 import { localeBuildConfig } from "./build-target.js";
-import { frameworkAdapter } from "./framework.js";
-import { compilePagePayloads, pageMessageIndex } from "./page-payloads.js";
+import { frameworkAdapter,validatePageRuntime } from "./framework.js";
+import { compilePagePayloads, compilePageBundles, pageMessageIndex } from "./page-payloads.js";
 import { toVitePath, scopedPhysicalModuleId, resolvePayloadDependency } from "./paths.js";
 
 const DEFAULT_SCHEMA_DIR = DEFAULT_PATHS.schema;
@@ -274,7 +274,12 @@ export function linguini(options = {}) {
     api: {
       compilePages(context, pages, output = {}) {
         return compilePagePayloads(context, pages, bundlerManifest, {
-          ...viteConfig, build: { ...viteConfig.build, ...output }
+          ...viteConfig, analysisModule:adapter.pageMessages?.analysisModule, build: { ...viteConfig.build, ...output }
+        });
+      },
+      compilePageBundles(context,pages,output = {}) {
+        return compilePageBundles(context,pages,bundlerManifest,{
+          ...viteConfig,analysisModule:adapter.pageMessages?.analysisModule,build:{...viteConfig.build,...output}
         });
       }
     },
@@ -406,12 +411,19 @@ export function linguini(options = {}) {
       ) {
         throw new Error(`Linguini application scope ${scope} does not use message ${message}`);
       }
+      const dynamicClient = shouldUseDynamicLocaleLoading(this,options);
+      const pageMessages = viteConfig?.command === 'build' ? adapter.pageMessages : undefined;
+      if (dynamicClient && pageMessages?.resolve) {
+        return Promise.resolve(pageMessages.resolve(message)).then(runtime => renderVirtualMessageModule(
+          bundlerManifest,message,dynamicClient,scope,validatePageRuntime(runtime)
+        ));
+      }
       return renderVirtualMessageModule(
         bundlerManifest,
         message,
-        shouldUseDynamicLocaleLoading(this, options),
+        dynamicClient,
         scope,
-        viteConfig?.command === "build" ? adapter.pageMessages : undefined
+        pageMessages
       );
     },
     async transform(code, id, transformOptions) {

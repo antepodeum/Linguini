@@ -24,9 +24,9 @@ export async function verifyDeferredDemand({build,pageMessagePlan}) {
         export async function escape(){ return import('./two.js'); }`,
     };
     for (const [name,source] of Object.entries(files)) await writeFile(path.join(root,name),source);
-    for (const [escape,target] of [[false,'es2018'],[false,'es2022'],[true,'es2022']]) {
+    for (const [escape,target] of [[false,'es2018'],[false,'es2022'],[true,'es2022'],['mixed','es2022']]) {
       let receipt;
-      await build({
+      const run = () => build({
         configFile:false,root,logLevel:'silent',
         plugins:[{
           name:'deferred-plan-fixture',
@@ -34,12 +34,17 @@ export async function verifyDeferredDemand({build,pageMessagePlan}) {
           load(id) {if (id.startsWith('\0virtual:')) return 'export function message(){ return globalThis.message(); }';},
           async generateBundle() {
             receipt = await pageMessagePlan(this,[{id:path.join(root,'entry.js'),
-              exports:(escape ? ['render','one','two','escape'] : ['render','one','two']).map(name => [name])}],
+              exports:(escape === 'mixed' ? ['render','one','two','escape'] : escape ? ['render','one','escape'] : ['render','one','two']).map(name => [name])}],
             {root,build:{target}});
           },
         }],
         build:{write:false,rollupOptions:{input:path.join(root,'entry.js'),preserveEntrySignatures:'strict'}},
       });
+      if (escape === 'mixed') {
+        await assert.rejects(run,/require different message sets; call-site preparation is not supported yet/);
+        continue;
+      }
+      await run();
       assert.deepEqual(receipt.messages,['first']);
       assert.deepEqual(receipt.deferred.map(boundary => ({
         id:path.basename(boundary.id),exports:boundary.exports,messages:boundary.messages,deferred:boundary.deferred.map(id => path.basename(id)),

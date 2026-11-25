@@ -1,8 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import ChunkLabCopy from '$lib/components/ChunkLabCopy.svelte';
+  import AdditionalCopyProbe from '$lib/components/AdditionalCopyProbe.svelte';
   import { localizeHref, linguini, setLocale } from '$lib/linguini';
   import { l } from '$lib/generated/linguini/svelte';
+  import type {PageData} from './$types';
+
+  let {data}: {data:PageData} = $props();
 
   const labLocales = ['en', 'ru', 'fr'] as const;
   type LabLocale = (typeof labLocales)[number];
@@ -84,7 +88,15 @@
         onclick={readDeferredCopy}
       >Read deferred copy</button>
       <output aria-label="Deferred copy" class="mt-3 block text-sm text-muted-foreground">{deferredCopy}</output>
+      <AdditionalCopyProbe />
     </section>
+
+    {#if data.deferredSsr}
+      <section aria-label="Deferred SSR copy" class="mt-8 text-sm text-muted-foreground">
+        <p>{data.deferredSsr.title}</p>
+        <p>{data.deferredSsr.summary}</p>
+      </section>
+    {/if}
 
     <section class="mt-10 border-t border-border/70 pt-6" aria-labelledby="resources-heading">
       <div class="flex items-baseline justify-between gap-4">

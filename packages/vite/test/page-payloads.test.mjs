@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { build } from "vite";
 import {verifyDeferredDemand} from '../test-support/deferred-demand.mjs';
-import { compilePagePayloads, pageMessageUsage, pageMessagePlan } from "../src/page-payloads.js";
+import { compilePagePayloads, compilePageBundles, pageMessageUsage, pageMessagePlan } from "../src/page-payloads.js";
 
 for (const sourcemap of [false,true,"hidden","inline"]) {
 test(`page payloads shake composed roots, preserve fallback/helpers, and support ${sourcemap} maps`, async context => {
@@ -112,14 +112,15 @@ test('deferred boundaries cannot silently omit new messages or widen the initial
   for (const sameMessage of [false,true]) {
     await writeFile(path.join(root,'entry.js'), `export {message as render} from ${JSON.stringify(virtual(sameMessage ? 'later' : 'first'))}; export async function action() { const {render} = await import('./deferred.js'); return render; }`);
     let receipt;
-    const run = () => build({
+    const run = (prepareDeferred = false) => build({
       configFile:false,root,logLevel:'silent',
       plugins:[{
         name:'deferred-fixture',
         resolveId(id) {if (id.startsWith('virtual:')) return '\0' + id;},
         load(id) {if (id.startsWith('\0virtual:')) return 'export const message = globalThis.unknown;';},
         async generateBundle() {
-          receipt = await compilePagePayloads(this,[{id:'/',entries:[path.join(root,'entry.js')]}],
+          const pages = (prepareDeferred ? ['/','/copy'] : ['/']).map(id => ({id,entries:[path.join(root,'entry.js')]}));
+          receipt = await (prepareDeferred ? compilePageBundles : compilePagePayloads)(this,pages,
             {messages,baseLocale:'en',effectiveLocales:['en']},
             {root,build:{target:'es2022',minify:true,assetsDir:'assets'}});
         },
@@ -132,6 +133,24 @@ test('deferred boundaries cannot silently omit new messages or widen the initial
     } else {
       await assert.rejects(run,/cannot yet prepare deferred messages later.*for page \/$/m);
     }
+    const output = await run(true);
+    assert.deepEqual(receipt.pages['/'].en.messages,[sameMessage ? 'later' : 'first']);
+    assert.equal(receipt.pages['/'].en.file,receipt.pages['/copy'].en.file);
+    const boundaries = Object.values(receipt.deferred);
+    assert.equal(boundaries.length,sameMessage ? 0 : 1);
+    if (!sameMessage) {
+      assert.deepEqual(boundaries[0]['/'].en.messages,['later']);
+      assert.equal(boundaries[0]['/'].en.file,boundaries[0]['/copy'].en.file);
+    }
+    const assets = output.output.filter(item => item.type === 'asset');
+    assert.equal(assets.length,sameMessage ? 1 : 2,'identical closures must share one compiled artifact');
+    const values = [];
+    for (const asset of assets) {
+      assert.doesNotMatch(asset.source,/UNUSED_DEFERRED/);
+      const module = await import('data:text/javascript;base64,' + Buffer.from(asset.source).toString('base64'));
+      values.push(...Object.values(module.messages));
+    }
+    assert.deepEqual(values.sort(),sameMessage ? ['LATER'] : ['FIRST','LATER']);
   }
 });
 

@@ -1,0 +1,5 @@
+type Quantity = Number @number
+
+title
+summary(value: Quantity)
+unused

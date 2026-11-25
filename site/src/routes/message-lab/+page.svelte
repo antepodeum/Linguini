@@ -2,6 +2,7 @@
   import { l } from '$lib/generated/linguini/svelte';
   import { locales } from '$lib/generated/linguini/locale.js';
   import { localizeHref } from '$lib/linguini.js';
+  import AdditionalCopyProbe from '$lib/components/AdditionalCopyProbe.svelte';
 
   const headingKeys = ['title', 'tagline'] as const;
   const formatterKeys = ['number_format', 'currency_format'] as const;
@@ -29,4 +30,5 @@
     <p>{named}</p>
   </section>
   <p class="mt-6" data-fallback>{l.message_lab.fallback}</p>
+  <section class="mt-8" aria-label="Additional message probe"><AdditionalCopyProbe /></section>
 </main>

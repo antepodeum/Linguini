@@ -26,10 +26,14 @@ export function frameworkAdapter(value = ecmascript) {
   if (value.entrySideEffects !== undefined && typeof value.entrySideEffects !== 'boolean') {
     throw new TypeError('Linguini adapter.entrySideEffects must be boolean');
   }
-  if (value.pageMessages !== undefined && (!value.pageMessages
-    || typeof value.pageMessages.module !== "string" || !value.pageMessages.module
-    || typeof value.pageMessages.export !== "string" || !/^[A-Za-z_$][\w$]*$/.test(value.pageMessages.export))) {
-    throw new TypeError("Linguini adapter.pageMessages must select a module and an exported function");
+  if (value.pageMessages !== undefined) {
+    validatePageRuntime(value.pageMessages);
+    if (value.pageMessages.resolve !== undefined && typeof value.pageMessages.resolve !== 'function') {
+      throw new TypeError('Linguini adapter.pageMessages.resolve must be a function');
+    }
+    if (value.pageMessages.analysisModule !== undefined && typeof value.pageMessages.analysisModule !== 'function') {
+      throw new TypeError('Linguini adapter.pageMessages.analysisModule must be a function');
+    }
   }
   if (value.pageMessages !== undefined && value.localeHelper === undefined) {
     throw new TypeError("Linguini adapter.pageMessages requires a localeHelper");
@@ -51,4 +55,12 @@ export function frameworkAdapter(value = ecmascript) {
     messageExports: Object.freeze([...value.messageExports]),
     extensions: Object.freeze([...extensions]),
   });
+}
+
+export function validatePageRuntime(value) {
+  if (!value || typeof value.module !== 'string' || !value.module
+    || typeof value.export !== 'string' || !/^[A-Za-z_$][\w$]*$/.test(value.export)) {
+    throw new TypeError('Linguini adapter.pageMessages must select a module and an exported function');
+  }
+  return value;
 }

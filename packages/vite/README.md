@@ -60,8 +60,22 @@ Use `@antepodeum/linguini-sveltekit/vite` for SvelteKit and this package’s `/s
 standalone Svelte. Runtime routing and persistence are configured through their npm adapters.
 An optional `linkModule` selects a project helper for static-link transforms.
 
-Framework adapters can select `pageMessages` and call `plugin.api.compilePages` during
-`generateBundle`. The compiler re-shakes each supplied page independently, accepts selected
+Framework adapters can select `pageMessages` and call `plugin.api.compilePages` once their
+transformed graph is available. The compiler re-shakes each supplied page independently, accepts selected
 nested export paths, and bundles only the surviving messages and their transitive compiled
 dependencies. The host adapter owns route discovery, request locale selection, and page
 publication. Normal, hidden, inline, and disabled source maps follow the Vite build setting.
+
+Adapters implementing deferred preparation can instead call `plugin.api.compilePageBundles`.
+It returns initial `pages`, additional `deferred` closures keyed by lazy module and page, and
+the optional generated `localeModule` import specifier. Equal closures share emitted assets;
+additional payloads exclude messages already in the initial page. `compilePages` continues
+to reject new deferred messages for hosts without this protocol. Distinct additional export
+demands from the same lazy module on one page are rejected until call-site preparation exists.
+
+The optional `pageMessages.resolve(canonical)` asynchronously selects the client getter module
+and export for a message. SSR retains direct compiled message bindings. Build-only integration
+capabilities can provide an `analysisModule(id)` source model while their real implementation
+awaits demand planning. Models must preserve application message demand; the Kit adapter models
+only its own pending capability modules. The host must prepare each additional closure before
+executing its application import and must reject boundaries it cannot lower exactly.

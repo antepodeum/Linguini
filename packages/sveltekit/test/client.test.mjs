@@ -7,7 +7,7 @@ test('the Kit message provider automatically scopes direct locale changes to its
   const entry = '\0kit-provider-test';
   const client = fileURLToPath(new URL('../dist/client.js',import.meta.url));
   const result = await build({
-    configFile:false,logLevel:'silent',ssr:{noExternal:true},
+    configFile:false,logLevel:'silent',ssr:{noExternal:true,resolve:{conditions:['browser']}},
     plugins:[{
       name:'kit-provider-host',enforce:'pre',
       resolveId(id) {if (id === entry || id.startsWith('$app/')) return id;},

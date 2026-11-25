@@ -67,8 +67,19 @@ receives the matching link tag. Both paths preserve streaming and avoid a messag
 when scripting is disabled.
 Deferred reads of messages already in the page payload reuse that preparation. Their unused
 module exports do not widen the page: the build checks what the page consumes across dynamic
-boundaries. Deferred boundaries needing new messages currently produce an explicit build error;
-their preparation protocol and the complete framework/configuration matrix remain open.
+boundaries. When a lazy module needs additional messages, the adapter compiles only that
+additional closure into one file per locale. Calling the dynamic import prepares the selected
+file before evaluating the module, preserving native namespace identity and live exports.
+No additional locale file is requested before the action. Repeated actions and other pages
+using the same closure reuse the browser cache. Locale changes prepare already activated
+closures before publication; navigating to another page starts with its own initial closure.
+Preparation code belongs to the owning page nodes, shared when several pages need it.
+
+The adapter currently rejects message-bearing imports that the bundler inlines, callers shared
+with pages requiring different preparation, and distinct additional message sets consumed from
+the same lazy module on one page. It also rejects boundaries it cannot identify in the final
+chunks. These errors prevent a fallback to extra messages; those import shapes and the complete
+framework/configuration matrix remain remediation work.
 
 Finite dynamic message access requires an exact allow list. Unbounded access is diagnosed
 instead of widening a page to the whole catalog:
@@ -316,6 +327,13 @@ hydration modules, before `page.data` is available. Keep the marker synchronized
 hook; client startup uses this explicit value rather than resolving cookies or language preferences.
 
 ## Server messages and hook composition
+
+Generated Svelte message calls read the server locale through SvelteKit's `getRequestEvent()`
+and `locals.linguini`. They can run in server loads as well as components, including in lazily
+imported functions. Browser preparation is not involved in SSR. Across `await`, request-event
+access requires an environment supporting `AsyncLocalStorage`; otherwise read the request locale
+synchronously and pass it to an explicit message provider, as below. See
+[SvelteKit's request-event API](https://svelte.dev/docs/kit/$app-server#getRequestEvent).
 
 Server load functions can explicitly prepare and select generated messages. Request locale is
 passed as a value; it is never stored in shared mutable server state.

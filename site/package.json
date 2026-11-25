@@ -17,7 +17,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "highlight:build": "node scripts/generate-highlights.mjs && node scripts/highlight-examples.mjs",
-    "test:browser": "node --test scripts/browser-hydration.test.mjs"
+    "test:browser": "node --test scripts/browser-hydration.test.mjs scripts/deferred-browser.test.mjs"
   },
   "dependencies": {
     "@antepodeum/linguini-sveltekit": "file:../packages/sveltekit",
