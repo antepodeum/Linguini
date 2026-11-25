@@ -187,3 +187,71 @@ test('page analysis preserves the host module side-effect decisions', async cont
 test('deferred plans retain caller-selected exports across shared eager/lazy modules and pure re-exports', async () => {
   await verifyDeferredDemand({build,pageMessagePlan});
 });
+
+test('nested payloads exclude guaranteed parent messages but retain them for a direct import path', async context => {
+  const root = await mkdtemp(path.join(tmpdir(),'linguini-nested-payloads-'));
+  context.after(() => rm(root,{recursive:true,force:true}));
+  const virtual = name => 'virtual:linguini/message/' + Buffer.from(name).toString('hex');
+  const files = {
+    'entry.js':`export {message as render} from ${JSON.stringify(virtual('initial'))};
+      export function parent(){return import('./parent.js');}
+      export async function direct(){const {render} = await import('./child.js');return render();}`,
+    'parent.js':`import {message} from ${JSON.stringify(virtual('parent'))};
+      export const render = () => message();
+      export async function next(){const {next} = await import('./transit.js');return next();}`,
+    'transit.js':`export async function next(){const {render} = await import('./child.js');return render();}`,
+    'child.js':['parent','child'].map(name => `import {message as ${name}} from ${JSON.stringify(virtual(name))};`).join('\n')
+      + 'export const render = () => parent() + child();',
+  };
+  const messages = new Map();
+  for (const name of ['initial','parent','child','unused']) {
+    const locales = new Map();
+    for (const locale of ['en','fr']) {
+      const file = path.join(root,name + '-' + locale + '.js');
+      files[path.basename(file)] = `export const message = ${JSON.stringify(name.toUpperCase() + '_' + locale)};`;
+      locales.set(locale,{module:file});
+    }
+    messages.set(name,{locales});
+  }
+  for (const [name,source] of Object.entries(files)) await writeFile(path.join(root,name),source);
+  let receipt;
+  const output = await build({
+    configFile:false,root,logLevel:'silent',
+    plugins:[{
+      name:'nested-payload-fixture',
+      resolveId(id) {if (id.startsWith('virtual:')) return '\0' + id;},
+      load(id) {if (id.startsWith('\0virtual:')) return 'export function message(){return globalThis.unknown();}';},
+      async generateBundle() {
+        receipt = await compilePageBundles(this,[
+          {id:'/nested',entries:[{id:path.join(root,'entry.js'),exports:[['render'],['parent']]}]},
+          {id:'/direct',entries:[path.join(root,'entry.js')]},
+        ],{messages,baseLocale:'en',effectiveLocales:['en','fr']},
+        {root,build:{target:'es2022',minify:true,assetsDir:'assets'}});
+      },
+    }],
+    build:{write:false,rollupOptions:{input:path.join(root,'entry.js'),preserveEntrySignatures:'strict'}},
+  });
+  const parent = receipt.deferred[path.join(root,'parent.js')];
+  const child = receipt.deferred[path.join(root,'child.js')];
+  assert.equal(receipt.deferred[path.join(root,'transit.js')],undefined,'transit-only imports must not emit empty payloads');
+  for (const route of ['/nested','/direct']) {
+    assert.deepEqual(receipt.deferredImports[route].map(id => path.basename(id)),['child.js','parent.js','transit.js']);
+  }
+  const assets = new Map(output.output.filter(item => item.type === 'asset').map(item => [item.fileName,item.source]));
+  assert.equal(assets.size,8,'four distinct closures across two locales, without transit payloads');
+  const ids = {child:0,initial:1,parent:2};
+  for (const locale of ['en','fr']) {
+    assert.equal(receipt.pages['/nested'][locale].file,receipt.pages['/direct'][locale].file);
+    assert.equal(parent['/nested'][locale].file,parent['/direct'][locale].file);
+    for (const [payload,names] of [[receipt.pages['/nested'][locale],['initial']],
+      [parent['/nested'][locale],['parent']],[child['/nested'][locale],['child']],
+      [child['/direct'][locale],['child','parent']]]) {
+      assert.deepEqual(payload.messages,names);
+      const source = assets.get(payload.file);
+      assert.doesNotMatch(source,/UNUSED|\bimport\b/);
+      const module = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+      assert.deepEqual(Object.keys(module.messages).sort(),names.map(name => String(ids[name])).sort());
+      for (const name of names) assert.equal(module.messages[ids[name]],name.toUpperCase() + '_' + locale);
+    }
+  }
+});

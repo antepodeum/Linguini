@@ -1,3 +1,4 @@
 title = Deferred English copy
 summary = Deferred amount: {value}
+detail = Nested English copy
 unused = DEFERRED_FORBIDDEN_EN

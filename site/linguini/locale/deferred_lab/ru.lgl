@@ -1,3 +1,4 @@
 title = Отложенный русский текст
 summary = Отложенная сумма: {value}
+detail = Вложенный русский текст
 unused = DEFERRED_FORBIDDEN_RU

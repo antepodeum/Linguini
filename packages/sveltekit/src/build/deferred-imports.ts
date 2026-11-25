@@ -32,7 +32,7 @@ export function deferredImports(bundles: () => LinguiniPageBundles | undefined,h
       const directories = new Map<string,string>();
       const descriptors = new Map<string,string>();
       const roots = pages();
-      const scopes = pageScopes(roots,chunk.fileName,meta.chunks);
+      const scopes = pageScopes(roots,chunk.fileName,meta.chunks,plan.deferredImports);
       const pending: unknown[] = [this.parse(code)];
       let changed = false;
       while (pending.length) {
@@ -87,6 +87,15 @@ export function deferredImports(bundles: () => LinguiniPageBundles | undefined,h
       if (imports.size !== 1) throw new Error('Linguini deferred callers require one preparation owner');
       const [file] = imports;
       magic.prepend(`import {${PREPARE_EXPORT} as ${prepare},${LOCALE_EXPORT} as ${locale}} from ${JSON.stringify(relative(chunk.fileName,file))};\n${declarations.join('\n')}\n`);
+      // Rollup supports mutable import metadata; Rolldown's render metadata is read-only.
+      const metadata = chunk as typeof chunk & {importedBindings?:Record<string,string[]>};
+      if (metadata.importedBindings && Object.getOwnPropertyDescriptor(chunk,'imports')?.writable
+        && Object.getOwnPropertyDescriptor(chunk,'importedBindings')?.writable) {
+        chunk.imports = [...new Set([...chunk.imports,file])];
+        metadata.importedBindings = {...metadata.importedBindings,[file]:[...new Set([
+          ...(metadata.importedBindings[file] ?? []),PREPARE_EXPORT,LOCALE_EXPORT,
+        ])]};
+      }
       return {code:magic.toString(),map:magic.generateMap({hires:true})};
     },
     generateBundle() {
@@ -113,12 +122,13 @@ function relative(importer: string,target: string): string {
   return value.startsWith('.') ? value : './' + value;
 }
 
-function pageScopes(pages:readonly LinguiniPage[],file:string,chunks:Record<string,Rollup.RenderedChunk>): Set<string> {
+function pageScopes(pages:readonly LinguiniPage[],file:string,chunks:Record<string,Rollup.RenderedChunk>,planned?:Record<string,readonly string[]>): Set<string> {
   const scopes = new Set<string>();
   for (const page of pages) {
     const roots = new Set(page.entries.map(entry => typeof entry === 'string' ? entry : entry.id));
     const pending = Object.values(chunks).filter(chunk => chunk.facadeModuleId && roots.has(chunk.facadeModuleId)).map(chunk => chunk.fileName);
     const visited = new Set<string>();
+    const allowed = new Set(planned?.[page.id] ?? []);
     while (pending.length) {
       const current = pending.pop()!;
       if (visited.has(current)) continue;
@@ -127,6 +137,11 @@ function pageScopes(pages:readonly LinguiniPage[],file:string,chunks:Record<stri
       for (const imported of chunks[current]?.imports ?? []) {
         const dependency = chunks[imported] ? imported : path.posix.normalize(path.posix.join(path.posix.dirname(current),imported));
         if (chunks[dependency]) pending.push(dependency);
+      }
+      for (const imported of chunks[current]?.dynamicImports ?? []) {
+        const dependency = chunks[imported] ? imported : path.posix.normalize(path.posix.join(path.posix.dirname(current),imported));
+        const target = chunks[dependency]?.facadeModuleId;
+        if (target && allowed.has(target)) pending.push(dependency);
       }
     }
   }

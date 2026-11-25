@@ -313,8 +313,8 @@ for (const root of [mainRouteNodeId]) {
 const clientJavaScriptFiles = filesUnder(clientOutputRoot).filter(file => file.endsWith('.js'));
 const messagePayloadFiles = new Set(clientJavaScriptFiles.filter(file => file.replaceAll('\\','/').includes('/assets/linguini/')));
 const deferredPayloadFiles = [...messagePayloadFiles].filter(file => !localeChunkFiles.has(siteRelative(file).replace('.svelte-kit/output/client/','')));
-assert.equal(deferredPayloadFiles.length,effectiveLocales.size,'one lazy message set must emit one file per locale');
-assert.ok(clientJavaScriptFiles.length <= effectiveLocales.size * 4 + 24,
+assert.equal(deferredPayloadFiles.length,effectiveLocales.size * 2,'parent and nested message sets each emit one file per locale');
+assert.ok(clientJavaScriptFiles.length <= effectiveLocales.size * 5 + 24,
   `client emitted ${clientJavaScriptFiles.length} JavaScript files for ${effectiveLocales.size} locales`);
 const clientText = clientJavaScriptFiles.filter(file => !messagePayloadFiles.has(file))
   .map(file => readFileSync(file,'utf8')).join('\n');
@@ -325,16 +325,27 @@ assert.doesNotMatch(clientText,/DEFERRED_FORBIDDEN/);
 
 const messageIds = new Map(Object.keys(generatedManifest.messages).sort().map((name,index) => [name,index]));
 const deferredIds = ['deferred_lab.summary','deferred_lab.title'].map(name => String(messageIds.get(name))).sort();
+const nestedIds = [String(messageIds.get('deferred_lab.detail'))];
 for (const locale of effectiveLocales) {
   const files = deferredPayloadFiles.filter(file => file.replaceAll('\\','/').endsWith('/' + encodeURIComponent(locale) + '.js'));
-  assert.equal(files.length,1,`missing deferred payload for ${locale}`);
-  const source = readFileSync(files[0],'utf8');
-  assert.doesNotMatch(source,/DEFERRED_FORBIDDEN|(?:^|[;\n}])\s*import\b/);
-  const {messages} = await import(pathToFileURL(files[0]).href);
-  assert.deepEqual(Object.keys(messages).sort(),deferredIds,'the lazy payload must exclude initial messages and unused exports');
+  assert.equal(files.length,2,`missing parent or nested payload for ${locale}`);
   const native = (await import(pathToFileURL(join(generatedRoot,`locales/${locale}/deferred_lab.js`)).href)).deferred_lab;
-  assert.equal(messages[messageIds.get('deferred_lab.title')],native.title);
-  assert.equal(messages[messageIds.get('deferred_lab.summary')]({value:1299.5}),native.summary({value:1299.5}));
+  const groups = [];
+  for (const file of files) {
+    const source = readFileSync(file,'utf8');
+    assert.doesNotMatch(source,/DEFERRED_FORBIDDEN|(?:^|[;\n}])\s*import\b/);
+    const {messages} = await import(pathToFileURL(file).href);
+    const nested = Object.hasOwn(messages,messageIds.get('deferred_lab.detail'));
+    groups.push(nested);
+    assert.deepEqual(Object.keys(messages).sort(),nested ? nestedIds : deferredIds,
+      'each lazy payload must exclude initial, guaranteed-parent, and unused messages');
+    if (nested) assert.equal(messages[messageIds.get('deferred_lab.detail')],native.detail);
+    else {
+      assert.equal(messages[messageIds.get('deferred_lab.title')],native.title);
+      assert.equal(messages[messageIds.get('deferred_lab.summary')]({value:1299.5}),native.summary({value:1299.5}));
+    }
+  }
+  assert.deepEqual(groups.sort(),[false,true]);
 }
 const mainExpectedMessages = [...new Set([
   ...generatedManifest.applications['src/routes/+page.svelte'].references.map(reference => reference.message),

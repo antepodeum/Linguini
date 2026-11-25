@@ -1,3 +1,4 @@
 title = Texte français différé
 summary = Montant différé : {value}
+detail = Texte français imbriqué
 unused = DEFERRED_FORBIDDEN_FR

@@ -36,6 +36,7 @@ async function compileBundles(context,pages,manifest,config,allowDeferred) {
   if (!manifest) throw new Error("Linguini page payloads require a native bundler manifest");
   const initial = Object.create(null);
   const deferred = Object.create(null);
+  const deferredImports = Object.create(null);
   const cache = new Map();
   async function compile(names,label) {
     const key = JSON.stringify(names);
@@ -44,6 +45,7 @@ async function compileBundles(context,pages,manifest,config,allowDeferred) {
   }
   for (const page of pages) {
     const usage = await pageMessagePlan(context,page.entries,config);
+    deferredImports[page.id] = usage.deferred.map(boundary => boundary.id);
     const missing = [...new Set(usage.deferred.flatMap(boundary => boundary.messages))]
       .filter(name => !usage.messages.includes(name)).sort();
     if (missing.length && !allowDeferred) {
@@ -51,13 +53,13 @@ async function compileBundles(context,pages,manifest,config,allowDeferred) {
     }
     if (usage.messages.length) initial[page.id] = await compile(usage.messages,page.id);
     for (const boundary of usage.deferred) {
-      const names = boundary.messages.filter(name => !usage.messages.includes(name));
+      const names = boundary.messages.filter(name => !boundary.available.includes(name));
       if (!names.length) continue;
       const entries = deferred[boundary.id] ??= Object.create(null);
       entries[page.id] = await compile(names,`${page.id} deferred ${boundary.id}`);
     }
   }
-  return {pages:initial,deferred,localeModule:manifest.localeHelper && toVitePath(manifest.localeHelper.file)};
+  return {pages:initial,deferred,deferredImports,localeModule:manifest.localeHelper && toVitePath(manifest.localeHelper.file)};
 }
 
 async function compileClosure(context,names,manifest,config,label) {

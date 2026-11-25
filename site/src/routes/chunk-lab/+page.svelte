@@ -98,6 +98,14 @@
       </section>
     {/if}
 
+    {#if data.nestedSsr}
+      <section aria-label="Nested SSR copy" class="mt-8 text-sm text-muted-foreground">
+        <p>{data.nestedSsr.detail}</p>
+        <p>{data.nestedSsr.parent}</p>
+        <p>{data.nestedSsr.summary}</p>
+      </section>
+    {/if}
+
     <section class="mt-10 border-t border-border/70 pt-6" aria-labelledby="resources-heading">
       <div class="flex items-baseline justify-between gap-4">
         <h2 id="resources-heading" class="text-sm font-semibold text-foreground">

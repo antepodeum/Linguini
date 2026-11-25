@@ -67,9 +67,13 @@ dependencies. The host adapter owns route discovery, request locale selection, a
 publication. Normal, hidden, inline, and disabled source maps follow the Vite build setting.
 
 Adapters implementing deferred preparation can instead call `plugin.api.compilePageBundles`.
-It returns initial `pages`, additional `deferred` closures keyed by lazy module and page, and
-the optional generated `localeModule` import specifier. Equal closures share emitted assets;
-additional payloads exclude messages already in the initial page. `compilePages` continues
+It returns initial `pages`, additional `deferred` closures keyed by lazy module and page, build-only
+`deferredImports` targets per page (including transit-only modules), and the optional generated
+`localeModule` import specifier. Equal closures share emitted assets; additional payloads exclude
+messages guaranteed in the initial page or on every parent import path. Shared entries intersect
+their parent availability; cycles cannot justify preparation from future imports. Transit-only
+modules emit no locale files. Hosts must prepare boundaries in application import order, since
+child record sets can rely on prepared ancestors. `compilePages` continues
 to reject new deferred messages for hosts without this protocol. Distinct additional export
 demands from the same lazy module on one page are rejected until call-site preparation exists.
 

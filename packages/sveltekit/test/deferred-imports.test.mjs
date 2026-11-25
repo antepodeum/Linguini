@@ -75,6 +75,67 @@ test('late deferred preparation preserves shaking, evaluation order, cached impo
   }
 });
 
+test('nested imports prepare before evaluation through message-bearing or transit-only parents without crossing framework routes', async context => {
+  const root = await mkdtemp(path.join(tmpdir(),'linguini-kit-nested-'));
+  context.after(() => rm(root,{recursive:true,force:true}));
+  context.after(() => {delete globalThis.__linguiniNestedTest;});
+  const directory = path.join(root,'generated/client-optimized');
+  await mkdir(directory,{recursive:true});
+  await writeFile(path.join(root,'package.json'),'{"type":"module"}');
+  const application = path.join(directory,'app.js');
+  const owner = path.join(directory,'owner.js');
+  const unrelated = path.join(directory,'unrelated.js');
+  const parent = path.join(directory,'parent.js');
+  const child = path.join(directory,'child.js');
+  await writeFile(application,'export {route} from "./router.js";');
+  await writeFile(path.join(directory,'router.js'),`export const tag = () => globalThis.__linguiniNestedTest.locale;
+    export const route = () => import('./owner.js');`);
+  await writeFile(owner,`import {tag} from './router.js';
+    export async function action(){tag();const {next}=await import('./parent.js');return next;}`);
+  await writeFile(unrelated,'export {tag} from "./router.js";');
+  await writeFile(parent,`globalThis.__linguiniNestedTest.events.push('evaluate-parent:' + globalThis.__linguiniNestedTest.parent);
+    export async function next(){const {render}=await import('./child.js');return render();}`);
+  await writeFile(child,`globalThis.__linguiniNestedTest.events.push('evaluate-child:' + globalThis.__linguiniNestedTest.child);
+    export const render = () => globalThis.__linguiniNestedTest.parent + '/' + globalThis.__linguiniNestedTest.child;`);
+  for (const hasParentMessages of [false,true]) {
+    const outDir = `dist/${hasParentMessages ? 1 : 0}`;
+    const state = {locale:'fr',events:[],parent:hasParentMessages ? undefined : 'INITIAL',child:undefined};
+    globalThis.__linguiniNestedTest = state;
+    const payload = group => ({'/owner':{fr:{file:`assets/messages/${group}/fr.js`,messages:[group]}}});
+    const plan = {pages:{},deferred:{[child]:payload('child'),...(hasParentMessages ? {[parent]:payload('parent')} : {})},
+      deferredImports:{'/owner':[parent,child],'/unrelated':[]}};
+    const result = await build({
+      configFile:false,root,logLevel:'silent',
+      plugins:[clientEntry(async () => `export const __linguiniLocale = () => globalThis.__linguiniNestedTest.locale;
+        export async function __linguiniPrepare(routes,getLocale){
+          const state=globalThis.__linguiniNestedTest;
+          const group=routes['/owner'].includes('/parent/') ? 'parent' : 'child';
+          state.events.push('prepare-' + group + ':' + getLocale());
+          state[group]=(group + '_' + getLocale()).toUpperCase();
+        }`),deferredImports(() => plan,undefined,() => [
+          {id:'/owner',entries:[owner]},{id:'/unrelated',entries:[unrelated]},
+        ])],
+      build:{write:true,outDir,minify:true,manifest:true,sourcemap:true,modulePreload:false,
+        rollupOptions:{input:{app:application,owner,unrelated},preserveEntrySignatures:'strict'}},
+    });
+    const chunk = result.output.find(item => item.type === 'chunk' && item.name === 'owner');
+    assert.ok(chunk);
+    const module = await import(pathToFileURL(path.join(root,outDir,chunk.fileName)).href);
+    assert.deepEqual(state.events,[]);
+    const next = await module.action();
+    const prefix = hasParentMessages ? ['prepare-parent:fr','evaluate-parent:PARENT_FR'] : ['evaluate-parent:INITIAL'];
+    assert.deepEqual(state.events,prefix,'loading the parent must not prepare or evaluate the child');
+    assert.equal(await next(),(hasParentMessages ? 'PARENT_FR' : 'INITIAL') + '/CHILD_FR');
+    assert.deepEqual(state.events,[...prefix,'prepare-child:fr','evaluate-child:CHILD_FR']);
+    state.locale = 'en';
+    const again = await module.action();
+    assert.equal(again,next,'preparation must preserve the cached native function binding');
+    assert.equal(await again(),(hasParentMessages ? 'PARENT_EN' : 'INITIAL') + '/CHILD_EN');
+    assert.equal(state.events.filter(event => event.startsWith('evaluate-child')).length,1);
+    assert.equal(state.events.filter(event => event.startsWith('evaluate-parent')).length,1);
+  }
+});
+
 test('unsupported deferred ownership fails instead of widening page delivery', async context => {
   const root = await mkdtemp(path.join(tmpdir(),'linguini-kit-deferred-guard-'));
   context.after(() => rm(root,{recursive:true,force:true}));

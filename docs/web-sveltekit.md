@@ -78,6 +78,14 @@ The build also selects the root loader implementation: projects without addition
 closures retain the base loader, without deferred callbacks or their conditional branches.
 SSR always uses that base loader. Applications keep the same public `/load` import.
 
+Nested lazy imports receive their own additional closure. Messages guaranteed to be prepared
+by the initial page or every parent import are omitted from the child's payload. A direct
+path to that child retains the messages it needs independently. The build intersects all parent
+paths, including cycles; transit-only modules emit no empty locale files. Owning-page discovery
+follows planned application imports without traversing the framework's global route loaders.
+The browser prepares only activated closures during subsequent locale changes. Nested values
+and named function calls also work in server loads without browser payload preparation.
+
 The adapter currently rejects message-bearing imports that the bundler inlines, callers shared
 with pages requiring different preparation, and distinct additional message sets consumed from
 the same lazy module on one page. It also rejects boundaries it cannot identify in the final

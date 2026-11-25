@@ -15,6 +15,9 @@ then reuse cached files. Unused exports and messages already present in the init
 are excluded. Preparation follows the current page and locale; its runtime is linked only
 through page nodes exposing these actions. Unsupported import shapes fail explicitly.
 Server message calls use SvelteKit's request event, including in server loads.
+Nested actions load only their additional records, reusing guaranteed parent messages and
+functions. Transit-only modules add no locale requests. Shared and direct import paths keep
+the records they need independently; framework route loaders do not widen ownership.
 The build selects deferred navigation support only when additional lazy closures exist;
 the public root-load import stays the same. SSR and client builds without that demand use
 the base loader without optional callback branches.

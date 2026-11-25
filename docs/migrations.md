@@ -4,6 +4,22 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Nested deferred message closures
+
+Rebuild with matching Vite and SvelteKit adapters; application imports and configuration stay
+unchanged. Nested imports now prepare their additional messages before evaluation. Child payloads
+exclude messages guaranteed on every parent path; a direct child import still gets the full
+additional set for that path. Shared entries use the intersection of available messages, and
+the build handles cyclic parent relationships conservatively. Transit-only modules add no files.
+
+`compilePageBundles` also returns optional build-only `deferredImports`, mapping each page to
+its message-bearing lazy module targets, including transit modules. Framework adapters use it
+to identify nested callers without following global framework route registries. Hosts must
+prepare every message-bearing boundary along the application's import path before evaluating
+it; a child's record set can depend on already prepared ancestor records. This metadata is not
+shipped as a client catalog or route manifest. Existing inlined-import, distinct call-site, and
+unrelated shared-caller guards remain in place.
+
 ## TypeScript compiler paths and source discovery
 
 No application change is required. Emit planning normalizes input file names to TypeScript's

@@ -2,4 +2,5 @@ type Quantity = Number @number
 
 title
 summary(value: Quantity)
+detail
 unused

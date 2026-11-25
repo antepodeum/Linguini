@@ -65,6 +65,16 @@ share payload loading; enhanced navigation retains metadata-read counts and requ
 Broader platform/configuration
 coverage remains open.
 
+Nested deferred closures now subtract only messages guaranteed by every parent path. Shared
+entries intersect availability, direct paths retain their required records, cycles remain
+anchored to initial preparation, and transit-only modules emit no empty files. The generic
+compiler tests execute exact records for nested and direct paths. The Kit linker follows only
+planned lazy targets when identifying owning pages; real Vite 7/8 output tests cover both kinds
+of parent and exclude traversal through a shared framework route registry. The site verifies
+two additional closures across nine locales: the child contains only its new message, while
+parent values and named formatter calls remain usable. Chromium checks first-action requests,
+cached repetition, locale changes, nested concurrent SSR, and hydration without deferred files.
+
 Canonical number/date fixtures already contain build-selected symbols and direct date getter
 expressions rather than raw CLDR patterns. Rounding/scale helper specialization and date-helper
 selection have since been implemented and tested. Date-semantic substitutions and the other

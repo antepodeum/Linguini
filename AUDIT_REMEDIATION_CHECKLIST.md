@@ -1137,6 +1137,13 @@ and the composed payload/SSR requirements below.
       emitted-program regression matches the direct base loader byte-for-byte and excludes
       deferred callbacks and branches. SSR always selects the base loader; enhanced navigation
       shares payload loading and retains metadata-read counts without an extra async wrapper.
+      Nested import preparation now follows build-only page-specific targets, including transit
+      modules, without traversing global framework route loaders. Parent availability intersects
+      all incoming paths, handles cycles conservatively, and leaves direct paths independent.
+      Compiled child payloads omit guaranteed ancestor records; transit-only modules emit none.
+      Executed Vite 7/8 linker cases cover both parent shapes and preserve native binding identity.
+      The real site checks exact parent/child record sets across nine locales; Chromium proves
+      one child-code request plus one additional locale file, cached repetition, and locale changes.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching
@@ -1168,6 +1175,9 @@ and the composed payload/SSR requirements below.
       without a deferred locale request. Async request access is verified on the Node platform;
       other runtime capabilities remain part of the platform matrix. Deferred runtime tests cover
       retries, overlapping locale changes, request replacement, and private incoming preparation.
+      Concurrent nested server loads now read parent values, a named number formatter, and a new
+      child message in French/Russian/English. Hydration preserves their server-rendered strings,
+      and neither script-enabled nor no-JS rendering requests a deferred locale file for that data.
 - [-] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.
@@ -1334,6 +1344,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       configuration coverage and unnecessary stateful facade work. Optional loader-hook branches
       are now absent when no additional closures exist, through build-selected implementations
       rather than mutable-registry shaking. These receipts do not establish zero runtime overhead.
+      Nested payloads also omit messages guaranteed by their ancestors. Production checks require
+      exactly one parent and one child file per locale, with no empty transit files or unused
+      records; browser checks retain the existing one-file initial delivery and defer the child
+      payload until its own action.
 
 The canonical JS migration now resolves actual formatter requests (including schema alias
 inheritance and explicit overrides), compiles number/currency choices and selected Gregorian

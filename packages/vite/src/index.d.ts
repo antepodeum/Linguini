@@ -72,6 +72,8 @@ export interface LinguiniPagePayload {
 export interface LinguiniPageBundles {
   readonly pages: Record<string,Record<string,LinguiniPagePayload>>;
   readonly deferred: Record<string,Record<string,Record<string,LinguiniPagePayload>>>;
+  /** Build-only message-bearing lazy targets per page, including transit-only modules. */
+  readonly deferredImports?: Record<string,readonly string[]>;
   readonly localeModule?: string;
 }
 export interface LinguiniVitePlugin extends Plugin {

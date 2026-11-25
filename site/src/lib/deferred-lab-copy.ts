@@ -10,3 +10,8 @@ export function additionalCopy() {
 export function unusedDeferredCopy() {
   return l.deferred_lab.unused;
 }
+
+export async function loadDetails() {
+  const {additionalDetails} = await import('./deferred-lab-detail.js');
+  return additionalDetails;
+}

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { build, version as viteVersion } from "vite";
+import {withPreparedMessages} from './deferred-plan.js';
 
 const singleChunk = Number(viteVersion.split(".")[0]) >= 8
   ? { codeSplitting: false }
@@ -48,7 +49,7 @@ export async function pageMessagePlan(context,entries,config) {
   if (unmapped.length) {
     throw new Error(`Linguini cannot determine deferred boundaries for ${unmapped.join(', ')}`);
   }
-  return {messages:initial.messages,deferred};
+  return {messages:initial.messages,deferred:withPreparedMessages(initial,deferred)};
 }
 
 async function analyzePage(context, entries, config, followDeferred) {
