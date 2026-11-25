@@ -104,6 +104,10 @@ allow = ["home.title", "home.greeting"]
 The default `mode = "error"` rejects computed accesses. Wildcards and namespace patterns are
 not accepted in the allow list.
 
+Message imports, transformed links, and loader cleanup stay in their owning component scripts,
+including TypeScript components with quoted `generics` constraints. Script-like text in HTML/CSS
+comments does not create a script scope; module and instance scripts remain separate.
+
 ## Application runtime configuration
 
 Share URL and persistence settings in an ordinary application module. Resolver functions are

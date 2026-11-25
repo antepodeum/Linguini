@@ -53,6 +53,10 @@ catalog; escaped namespaces and provider/catalog exports fail closed. Cold/warm 
 retain the same selected leaves. Default/mixed declarations and unsupported deferred shapes remain open.
 The real site's nested lazy module uses a namespace import; exact child records, browser request
 counts, locale changes, concurrent server loads, and hydration pass through the same production gates.
+The Svelte adapter also shares tag boundaries across message, link, and cleanup insertion. A
+regression fixture preserves quoted generic constraints and ignores fake script tags in HTML/CSS
+comments; the resulting source compiles with both client and server Svelte targets. Module words
+inside quoted attributes cannot redirect instance cleanup into a module or extra script.
 
 Deferred demand now has a separate planning boundary in `packages/vite/src/page-demand.js`.
 It reads consumed exports from the emitted caller and re-shakes each lazy entry independently,

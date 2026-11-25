@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Svelte script insertion boundaries
+
+Update the Vite adapter and rebuild; application syntax and configuration are unchanged. Message
+imports, static-link helpers, and loader cleanup now share quote-aware tag boundaries, preserving
+`>` inside TypeScript `generics` attributes. HTML/CSS comments containing script-like text cannot
+receive injected code. Script module attributes are read outside quoted values, so a generic
+constraint containing the word `module` remains an instance script. Both Svelte compiler targets
+verify the resulting source. Raw script/style bodies remain the host compiler/preprocessor's input.
+
 ## Exact namespace message imports
 
 Rebuild with matching native compiler and Vite adapter versions. ECMAScript namespace imports

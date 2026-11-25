@@ -1150,6 +1150,9 @@ and the composed payload/SSR requirements below.
       and namespace escapes fail explicitly. The site's nested lazy module uses a namespace import
       while retaining its one-record child payload, cached action requests, and concurrent SSR.
       Default/mixed declarations remain outside this receipt.
+      Message/link/lifecycle insertions also share quote-aware component tag boundaries. Real
+      Svelte client/server compilation covers generic constraints containing `>` and `module`,
+      script-like HTML/CSS comments, and separate module/instance scripts without extra scripts.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching
