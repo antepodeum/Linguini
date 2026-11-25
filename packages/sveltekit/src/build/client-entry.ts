@@ -3,6 +3,7 @@ import {normalizePath} from 'vite';
 import type {Plugin,ResolvedConfig,Rollup} from 'vite';
 import {isMessageModule} from './routes.js';
 import {isNodeCapability} from './client-nodes.js';
+import {CLIENT_LOAD} from './client-load.js';
 
 export const CLIENT_ENTRY = '\0linguini-kit-client-entry.js';
 const CAPABILITIES = '\0linguini-kit-client-capabilities.js';
@@ -69,9 +70,10 @@ export function clientEntry(prepare: (context: Rollup.PluginContext) => Promise<
 
 async function loadGraph(context: Rollup.PluginContext,entry: string): Promise<void> {
   const visited = new Set([CLIENT_ENTRY,CAPABILITIES]);
+  const pending = (id:string) => isMessageModule(id) || isNodeCapability(id) || id === CLIENT_LOAD;
   let frontier = [entry];
   while (frontier.length) {
-    const batch = [...new Set(frontier.filter(id => !visited.has(id) && !isMessageModule(id) && !isNodeCapability(id)))];
+    const batch = [...new Set(frontier.filter(id => !visited.has(id) && !pending(id)))];
     frontier = [];
     for (const id of batch) visited.add(id);
     await Promise.all(batch.map(id => context.load({id,resolveDependencies:true})));
@@ -80,7 +82,7 @@ async function loadGraph(context: Rollup.PluginContext,entry: string): Promise<v
       if (!info) throw new Error(`Missing SvelteKit client module ${id}`);
       for (const dependency of [...info.importedIds,...info.dynamicallyImportedIds]) {
         if (visited.has(dependency)) continue;
-        if (isMessageModule(dependency) || isNodeCapability(dependency)) continue;
+        if (pending(dependency)) continue;
         const module = context.getModuleInfo(dependency);
         if (module && 'isExternal' in module && module.isExternal) continue;
         if (typeof module?.code !== 'string') {

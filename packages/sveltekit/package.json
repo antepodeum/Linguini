@@ -51,6 +51,10 @@
       "types": "./dist/deferred-page.svelte.d.ts",
       "svelte": "./dist/deferred-page.svelte.js",
       "default": "./dist/deferred-page.svelte.js"
+    },
+    "./internal/deferred-load": {
+      "types": "./dist/deferred-load.d.ts",
+      "default": "./dist/deferred-load.js"
     }
   },
   "scripts": {

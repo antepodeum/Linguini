@@ -15,6 +15,9 @@ then reuse cached files. Unused exports and messages already present in the init
 are excluded. Preparation follows the current page and locale; its runtime is linked only
 through page nodes exposing these actions. Unsupported import shapes fail explicitly.
 Server message calls use SvelteKit's request event, including in server loads.
+The build selects deferred navigation support only when additional lazy closures exist;
+the public root-load import stays the same. SSR and client builds without that demand use
+the base loader without optional callback branches.
 
 See [the integration guide](../../docs/web-sveltekit.md) for complete application setup
 and remaining import-shape and platform limitations.

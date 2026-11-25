@@ -12,7 +12,7 @@ test('deferred records deduplicate preparation, follow locale changes, and stay 
   context.after(() => {delete globalThis.__linguiniPayloadTest;});
   await writeFile(path.join(root,'package.json'),'{"type":"module"}');
   const source = fileURLToPath(new URL('../dist/deferred-page.svelte.js',import.meta.url));
-  const loaderSource = fileURLToPath(new URL('../dist/load.js',import.meta.url));
+  const loaderSource = fileURLToPath(new URL('../dist/deferred-load.js',import.meta.url));
   const entry = '\0deferred-page-test';
   const result = await build({
     configFile:false,logLevel:'silent',ssr:{noExternal:true},

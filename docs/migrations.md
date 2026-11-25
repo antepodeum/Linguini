@@ -4,6 +4,17 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Conditional deferred loaders
+
+The public `@antepodeum/linguini-sveltekit/load` import and `createClientLoad` calls stay unchanged.
+Rebuild with the matching SDK to select the base loader when no additional lazy messages exist.
+Deferred navigation preparation and its registration now live in the internal deferred-loader
+module, linked only for client builds that need it. SSR retains the base implementation.
+This removes unused callback branches without relying on the bundler to prove that a mutable
+registration is never assigned. Both implementations share payload loading. The enhanced
+loader preserves parallel preparation and request-scoped publication without an extra async
+wrapper or a repeated metadata lookup.
+
 ## TypeScript output paths and clean CI installations
 
 No application change is required. The TypeScript adapter now serializes derived native output

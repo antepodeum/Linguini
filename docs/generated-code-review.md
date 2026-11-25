@@ -58,8 +58,12 @@ module evaluation. Executed late-linker tests preserve live namespaces; Chromium
 requests, activated locale changes, cancellation, and reuse across two pages. Concurrent server
 loads execute the same lazy values and functions through request-local locale lookup. Inlined
 imports, callers shared with unrelated pages, and differing additional demands from the same
-lazy module on one page fail explicitly and remain open. Optional loader-hook branch removal
-and broader platform/configuration coverage also remain open.
+lazy module on one page fail explicitly and remain open. The Kit adapter now selects its root
+loader after demand planning: a controlled Vite 8 build without additional closures emits the
+same bytes as the direct base loader, with no deferred callback branches. Both implementations
+share payload loading; enhanced navigation retains metadata-read counts and request isolation.
+Broader platform/configuration
+coverage remains open.
 
 Canonical number/date fixtures already contain build-selected symbols and direct date getter
 expressions rather than raw CLDR patterns. Rounding/scale helper specialization and date-helper

@@ -1128,6 +1128,10 @@ and the composed payload/SSR requirements below.
       namespace identity, live exports, and prepare-before-evaluation. Inlined imports, callers
       shared with unrelated pages, and distinct additional demands from one lazy module on a
       page fail explicitly; exact lowering for those cases remains open.
+      Root loader selection also follows build demand. Without additional closures, a Vite 8
+      emitted-program regression matches the direct base loader byte-for-byte and excludes
+      deferred callbacks and branches. SSR always selects the base loader; enhanced navigation
+      shares payload loading and retains metadata-read counts without an extra async wrapper.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching
@@ -1322,8 +1326,9 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       messages or unused exports, and no imports. The browser gate checks lazy action requests,
       same-page locale preparation, canceled requests, and cross-page module/data reuse. Setter-only
       builds retain no catalogs. Remaining work includes unsupported deferred shapes, broader
-      configuration coverage, residual optional loader-hook branches when unused, and unnecessary
-      stateful facade work. These receipts do not establish zero runtime overhead.
+      configuration coverage and unnecessary stateful facade work. Optional loader-hook branches
+      are now absent when no additional closures exist, through build-selected implementations
+      rather than mutable-registry shaking. These receipts do not establish zero runtime overhead.
 
 The canonical JS migration now resolves actual formatter requests (including schema alias
 inheritance and explicit overrides), compiles number/currency choices and selected Gregorian

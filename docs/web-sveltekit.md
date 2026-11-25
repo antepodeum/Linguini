@@ -74,6 +74,9 @@ No additional locale file is requested before the action. Repeated actions and o
 using the same closure reuse the browser cache. Locale changes prepare already activated
 closures before publication; navigating to another page starts with its own initial closure.
 Preparation code belongs to the owning page nodes, shared when several pages need it.
+The build also selects the root loader implementation: projects without additional lazy
+closures retain the base loader, without deferred callbacks or their conditional branches.
+SSR always uses that base loader. Applications keep the same public `/load` import.
 
 The adapter currently rejects message-bearing imports that the bundler inlines, callers shared
 with pages requiring different preparation, and distinct additional message sets consumed from

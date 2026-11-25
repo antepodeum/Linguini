@@ -9,6 +9,7 @@ import { clientPages } from './build/routes.js';
 import {clientEntry} from './build/client-entry.js';
 import {deferredImports,PREPARE_EXPORT,LOCALE_EXPORT} from './build/deferred-imports.js';
 import {clientNodes,isNodeCapability,SHARED_RUNTIME} from './build/client-nodes.js';
+import {clientLoad,CLIENT_LOAD,CLIENT_LOAD_MODEL} from './build/client-load.js';
 
 const PAGE_MANIFEST = 'virtual:linguini/page-manifest';
 
@@ -44,7 +45,10 @@ export default function linguini(options: LinguiniSvelteKitOptions = {}): Plugin
           ? {module:'@antepodeum/linguini-sveltekit/internal/deferred',export:'getDeferredPageMessage'}
           : {module:'@antepodeum/linguini-sveltekit/client',export:'getPageMessage'};
       },
-      analysisModule(id) {if (isNodeCapability(id)) return 'export {};';},
+      analysisModule(id) {
+        if (isNodeCapability(id)) return 'export {};';
+        if (id === CLIENT_LOAD) return CLIENT_LOAD_MODEL;
+      },
     },
   }});
   let config: ResolvedConfig;
@@ -88,7 +92,7 @@ export default function linguini(options: LinguiniSvelteKitOptions = {}): Plugin
     if (!compilation?.localeModule) throw new Error('Deferred messages require a locale runtime');
     return [
         'import {prepareDeferredPageMessages,prepareDeferredCurrentPageMessages,prepareDeferredNavigation} from "@antepodeum/linguini-sveltekit/internal/deferred";',
-        'import {registerPagePreparation} from "@antepodeum/linguini-sveltekit/load";',
+        'import {registerPagePreparation} from "@antepodeum/linguini-sveltekit/internal/deferred-load";',
         `import {getCurrentLocale,registerLocaleLoader} from ${JSON.stringify(compilation.localeModule)};`,
         'registerLocaleLoader(prepareDeferredCurrentPageMessages);',
         'registerPagePreparation(prepareDeferredNavigation);',
@@ -100,7 +104,8 @@ export default function linguini(options: LinguiniSvelteKitOptions = {}): Plugin
     if (!owners.has(owner)) return 'export {};';
     return owners.size > 1 ? `import ${JSON.stringify(SHARED_RUNTIME)};` : runtimeSource();
   },runtimeSource);
-  return [core,entry,nodes,deferredImports(() => compilation,target => hosts.get(target) ?? '',() => pageRoots), {
+  const loader = clientLoad(async () => (await demand).size > 0);
+  return [core,loader,entry,nodes,deferredImports(() => compilation,target => hosts.get(target) ?? '',() => pageRoots), {
     name: 'linguini-sveltekit-pages',
     configResolved(value) { config = value; },
     buildStart() {resetDemand();},
