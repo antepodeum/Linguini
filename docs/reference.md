@@ -22,7 +22,8 @@ field letters do not change that precision. Midnight refers to the start of the 
 Gregorian `y` uses the year within its era (1 BCE is year 1), shares the original year with `G`,
 and pads to the requested minimum width. Only `yy` truncates to the last two digits. Year-only
 padding requests select their padding helper during generation.
-`date_request_pattern` selects/composes the requested widths, and `compile_date_pattern`
+`date_request_pattern` selects/composes the requested widths or resolves an exact pinned skeleton
+ID and returns a structured result; `compile_date_pattern`
 parses CLDR quoting and validates supported field widths before target emission. UTC zone
 fields become selected localized name/GMT-zero literals or the specified ISO-zero literals;
 adjacent literals merge. Unsupported fields and unclosed quotes return structured errors with
@@ -263,8 +264,10 @@ name tables within a formatter share one binding. These choices follow the
 [pinned CLDR date-field rules](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Date_Field_Symbol_Table).
 Formatting `E`/named `e` weekday symbols and standalone `c` symbols retain their own contexts.
 Full Finnish and Inari Sami dates therefore use their standalone weekday names.
-Extended calendar, zone, and skeleton compilation remains under remediation;
-the public date request currently selects `style` and `time_style`.
+Exact Gregorian `availableFormats` IDs such as `yMMMd` and `Hm` are selectable with
+`skeleton`. The ID is resolved during generation; emitted formatters contain its selected
+fields and literals. Closest-match skeletons, field-width adjustment, combined date/time
+skeleton synthesis, extended calendars, and selectable zones remain under remediation.
 Numeric grouping uses a direct string loop compiled for the selected primary/secondary widths,
 with separate output for equal widths and no group array, reversal, or join. Executed cases cover
 width boundaries, padding, Unicode separators, negative zero, and the decimal input-size limit.
@@ -315,9 +318,12 @@ surface. Current guarantees are:
   context/width-specific month and weekday names, eras, and localized fixed/flexible
   day periods. Time fields are evaluated in UTC; zone-bearing widths use pinned localized
   UTC names, falling back to the localized GMT-zero label when the selected name is absent.
-  These labels are compiled literals. Unsupported CLDR fields fail generation. Selectable
-  time zones, non-Gregorian calendars, and
-  skeleton selection remain under remediation.
+  These labels are compiled literals. Alternatively, `skeleton = "yMMMd"` or `skeleton = "Hm"`
+  selects an exact ID from that locale's pinned Gregorian `availableFormats`. Skeleton IDs
+  cannot be combined with `style` or `time_style`. An unavailable ID or unsupported field
+  fails generation before output changes; no closest-match or host-formatting fallback runs.
+  Selectable time zones, non-Gregorian calendars, closest-match skeletons, and synthesized
+  date/time combinations remain under remediation.
 
 ```lgl
 created_at = {created @date(style = "long", time_style = "short")}

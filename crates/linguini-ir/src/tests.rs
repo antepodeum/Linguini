@@ -700,6 +700,36 @@ fn validated_ir_accepts_date_time_styles_and_rejects_unknown_widths() {
 }
 
 #[test]
+fn date_skeletons_are_static_field_ids_and_exclude_style_options() {
+    let schema = lower_schema(&parse_schema("message(value: Date)\n").unwrap());
+    let locale = |arguments: &str| {
+        lower_locale(&parse_locale(&format!("message = {{value @date({arguments})}}\n")).unwrap())
+    };
+    validate_ir(&schema, &locale("skeleton = \"yMMMd\"")).unwrap();
+    for (arguments, expected) in [
+        ("skeleton = \"\"", "nonempty sequence"),
+        ("skeleton = \"y-MM-dd\"", "ASCII field letters"),
+        ("skeleton = \"год\"", "ASCII field letters"),
+        (
+            "skeleton = \"yMMMd\", style = \"long\"",
+            "cannot be combined",
+        ),
+        (
+            "time_style = \"short\", skeleton = \"Hm\"",
+            "cannot be combined",
+        ),
+    ] {
+        let errors = validate_ir(&schema, &locale(arguments)).unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.code == "IR031" && error.message.contains(expected)),
+            "{arguments}: {errors:?}"
+        );
+    }
+}
+
+#[test]
 fn validated_ir_rejects_non_exhaustive_plural_dispatch() {
     let schema = lower_schema(&parse_schema("").expect("schema parses"));
     let locale = lower_locale(

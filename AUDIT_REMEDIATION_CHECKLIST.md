@@ -195,7 +195,9 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       references, and provenance through one IR pass; schema and locale tooling resolve the same
       canonical paths while LSP workspace operations enforce document namespace identity.
 - [x] #8 — Use one CLDR-aware locale canonicalization and fallback algorithm everywhere.
-- [ ] #9 — Expand CLDR formatting to the documented production contract.
+- [-] #9 — Expand CLDR formatting to the documented production contract. Exact pinned Gregorian
+      skeleton IDs now compile to selected fields/literals; closest matching, other calendars,
+      and selectable zones remain open.
 - [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in CLDR artifacts, while the
   site restores a deterministic checksummed 1,380-file canonical JS/declaration output bundle using Node.js only; CI
   independently regenerates the bundle and rejects stale bytes.
@@ -403,7 +405,15 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #155 — Return structured plural parse errors with offsets.
 - [x] #156 — Implement canonical aliases, parent locales, and likely subtags.
 - [x] #157 — Support CLDR numbering systems beyond `latn`.
-- [ ] #158 — Expand date/calendar/context/time-zone/skeleton support.
+- [-] #158 — Expand date/calendar/context/time-zone/skeleton support. Exact Gregorian
+      `availableFormats` IDs are resolved during Rust compilation, including schema defaults.
+      Source validation rejects style conflicts; unknown IDs and unsupported fields fail before
+      output mutation. Every pinned entry across 508 resolved locale records is checked, and
+      generated English/Russian/French/Chinese requests execute with host formatting disabled.
+      The nine-locale site also verifies the exact owning-page payload, absence of time-field
+      operations, concurrent SSR, hydration, locale navigation, and no-JS requests.
+      Closest-match skeletons, combined date/time synthesis, other calendars, and selectable
+      non-UTC zones remain open.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [x] #160 — Share one plural grammar implementation across all targets. `linguini-cldr` owns the
   sole rule parser; the offline generator imports it and TypeScript codegen lowers its typed AST.

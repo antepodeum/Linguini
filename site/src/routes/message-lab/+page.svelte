@@ -30,5 +30,6 @@
     <p>{named}</p>
   </section>
   <p class="mt-6" data-fallback>{l.message_lab.fallback}</p>
+  <p class="mt-4" data-skeleton>{l.message_lab.skeleton_date('2024-01-02T13:04:05Z')}</p>
   <section class="mt-8" aria-label="Additional message probe"><AdditionalCopyProbe /></section>
 </main>

@@ -1,1 +1,2 @@
 fallback = Base-only message fallback
+skeleton_date = {value @date(skeleton = "yMMMd")}

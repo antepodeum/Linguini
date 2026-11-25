@@ -81,6 +81,7 @@ test('French prerender hydrates its selected locale and loads only its page payl
       native.playground.number_format(1299.5),native.playground.currency_format(1299.5),native.playground.number_format({value:1299.5}),
     ]);
     assert.equal(await page.locator('[data-fallback]').textContent(),'Base-only message fallback');
+    assert.equal(await page.locator('[data-skeleton]').textContent(),locale === 'fr' ? '2 janv. 2024' : 'Jan 2, 2024');
   }
   assert.deepEqual(requestedPayloads(), [payload('fr'),payload('en'),payload('ru','/'),payload('ru'),payload('fr','/message-lab'),payload('en','/message-lab')]);
   assert.deepEqual(errors, []);
@@ -93,6 +94,7 @@ test('French prerender hydrates its selected locale and loads only its page payl
   assert.equal(await staticPage.locator('main p').nth(1).textContent(), fr);
   await staticPage.goto(origin + '/fr/message-lab/');
   assert.equal(await staticPage.locator('[data-fallback]').textContent(),'Base-only message fallback');
+  assert.equal(await staticPage.locator('[data-skeleton]').textContent(),'2 janv. 2024');
   assert.deepEqual(staticRequests.filter(file => files.has(file)), []);
 });
 
@@ -102,6 +104,8 @@ test('finite computed values, callable references, named calls, and sparse fallb
     const response = await server.respond(new Request(`http://localhost/${locale}/message-lab/`),{getClientAddress:()=>'127.0.0.1'});
     assert.equal(response.status,200);
     const html = await response.text();
+    const skeletonDates = {fr:'2 janv. 2024',ru:'2 янв. 2024 г.',en:'Jan 2, 2024'};
+    assert.ok(html.includes(skeletonDates[locale]),`${locale} omitted its compiled skeleton date`);
     const native = (await import(`../src/lib/generated/linguini/locales/${locale}/main.js`)).main;
     for (const value of [native.hero.title,native.hero.tagline,native.playground.number_format(1299.5),native.playground.currency_format(1299.5),'Base-only message fallback']) {
       assert.ok(html.includes(value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')), `${locale} finite SSR omitted ${JSON.stringify(value)}`);
@@ -130,6 +134,7 @@ test('live SSR preloads one selected payload through headers and scripting-disab
       throw new Error(`${error.message}; scripting=${enabled}; requests=${JSON.stringify(requests)}; errors=${JSON.stringify(errors)}`,{cause:error});
     });
     assert.equal(await page.locator('[data-fallback]').textContent(),'Base-only message fallback');
+    assert.equal(await page.locator('[data-skeleton]').textContent(),'2 janv. 2024');
     const native = (await import('../src/lib/generated/linguini/locales/fr/main.js')).main;
     assert.deepEqual(await page.getByRole('region',{name:'Computed message functions'}).locator('p').allTextContents(),[
       native.playground.number_format(1299.5),native.playground.currency_format(1299.5),native.playground.number_format({value:1299.5}),

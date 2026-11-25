@@ -4,6 +4,20 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Exact Gregorian date skeletons
+
+`@date(skeleton = "yMMMd")` and `@date(skeleton = "Hm")` select exact IDs from the locale's
+pinned Gregorian `availableFormats`, including annotations on schema aliases. They cannot be
+combined with `style` or `time_style`; those existing options retain their output. Skeleton
+lookup and pattern compilation run in Rust. Generated functions receive only the date input,
+with selected getters, literals, and name tables; no skeleton catalog or pattern parser ships.
+Missing IDs and unsupported fields fail before the native build changes owned output.
+
+This adds exact-ID selection. Closest-match/width-adjusted skeletons, combined date/time
+synthesis, other calendars, and selectable non-UTC zones remain under remediation. Rust users
+of `linguini_codegen::date_request_pattern` must now handle its `Result<String, DatePatternError>`;
+the shared planner reports missing IDs and conflicting request forms instead of selecting a default.
+
 ## Svelte script insertion boundaries
 
 Update the Vite adapter and rebuild; application syntax and configuration are unchanged. Message

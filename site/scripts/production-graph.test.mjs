@@ -351,7 +351,7 @@ const mainExpectedMessages = [...new Set([
   ...generatedManifest.applications['src/routes/+page.svelte'].references.map(reference => reference.message),
   'main.codegen.intro'
 ])];
-const messageLabExpectedMessages = ['main.hero.title','main.hero.tagline','main.playground.number_format','main.playground.currency_format','message_lab.fallback'];
+const messageLabExpectedMessages = ['main.hero.title','main.hero.tagline','main.playground.number_format','main.playground.currency_format','message_lab.fallback','message_lab.skeleton_date'];
 const fallbackEntries = Object.values(generatedManifest.messages['message_lab.fallback'].locales);
 assert.equal(new Set(fallbackEntries.map(entry => JSON.stringify(entry.source_ids))).size,1,
   'all fallback leaves must retain the same base-locale source provenance');
@@ -381,6 +381,10 @@ for (const [route,expected] of [['/chunk-lab',chunkLabExpectedMessages],['/',mai
       assert.equal(messages[messageIds.get('main.playground.number_format')]({value:1299.5}),native.playground.number_format({value:1299.5}));
       assert.equal(messages[messageIds.get('main.playground.currency_format')](1299.5),native.playground.currency_format(1299.5));
       assert.equal(messages[messageIds.get('message_lab.fallback')],'Base-only message fallback');
+      const lab = (await import(pathToFileURL(join(generatedRoot,`locales/${locale}/message_lab.js`)).href)).message_lab;
+      assert.equal(messages[messageIds.get('message_lab.skeleton_date')]('2024-01-02T13:04:05Z'),lab.skeleton_date({value:'2024-01-02T13:04:05Z'}));
+      assert.doesNotMatch(source,/getUTCHours|getUTCMinutes|getUTCSeconds|availableFormats|Intl\.DateTimeFormat/,
+        'date-only skeleton payload must omit time-field operations and runtime pattern lookup');
     }
   }
 }

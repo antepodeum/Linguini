@@ -22,6 +22,45 @@ fn build_svelte_project(root: &std::path::Path) -> super::CliResult<String> {
 }
 
 #[test]
+fn date_skeleton_builds_validate_before_changing_owned_output() {
+    let project = temp_project_dir("date-skeleton").unwrap();
+    fs::create_dir_all(project.path().join("schema")).unwrap();
+    fs::create_dir_all(project.path().join("locales/main")).unwrap();
+    fs::write(project.path().join("linguini.toml"), "[project]\nname = \"skeleton\"\ndefault_locale = \"en\"\nlocales = [\"en\"]\n[paths]\nschema = \"schema\"\nlocale = \"locales\"\n[targets.ts]\nout = \"generated\"\n").unwrap();
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "date(value: Date)\n",
+    )
+    .unwrap();
+    let locale = project.path().join("locales/main/en.lgl");
+    fs::write(&locale, "date = {value @date(skeleton = \"yMMMd\")}\n").unwrap();
+    build_project(project.path()).unwrap();
+    let runtime = project.path().join("generated/locales/en/_runtime.js");
+    let baseline = fs::read(&runtime).unwrap();
+    assert!(String::from_utf8_lossy(&baseline).contains("formatDate_skeleton_yMMMd"));
+    for (arguments, diagnostic) in [
+        (
+            "skeleton = \"notASkeleton\"",
+            "no pinned Gregorian date pattern",
+        ),
+        ("skeleton = \"yQQQ\"", "unsupported date field `Q`"),
+        ("skeleton = \"Hm\", style = \"short\"", "cannot be combined"),
+    ] {
+        fs::write(&locale, format!("date = {{value @date({arguments})}}\n")).unwrap();
+        let error = build_project(project.path()).unwrap_err();
+        assert!(
+            error.to_string().contains(diagnostic),
+            "{arguments}: {error}"
+        );
+        assert_eq!(
+            fs::read(&runtime).unwrap(),
+            baseline,
+            "invalid request changed output"
+        );
+    }
+}
+
+#[test]
 fn cli_argument_parser_is_clap_backed() {
     let command = Cli::command();
     let subcommands: Vec<_> = command

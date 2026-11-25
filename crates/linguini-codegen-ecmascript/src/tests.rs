@@ -24,6 +24,97 @@ fn project_options(base_locale: &str) -> EcmaProjectOptions {
 }
 
 #[test]
+fn exact_date_skeletons_compile_defaults_names_and_time_without_runtime_patterns() {
+    let schema = lower_schema(&parse_schema("type ReceiptDate = Date @date(skeleton = \"yMMMd\")\nreceipt(value: ReceiptDate)\nclock(value: Date)\nera(value: Date)\n").unwrap());
+    let text = "receipt = {value}\nclock = {value @date(skeleton = \"Hm\")}\nera = {value @date(skeleton = \"GyMMMd\")}\n";
+    let locales = ["en", "ru", "fr", "zh"].map(|locale| EcmaLocaleModule {
+        locale: locale.to_owned(),
+        module: lower_locale(&parse_locale(text).unwrap()),
+    });
+    let files = generate_project_files(&schema, &locales, &project_options("en")).unwrap();
+    assert_snapshot(
+        "tests/fixtures/golden/snapshots/js-date/skeletons.js",
+        &files
+            .iter()
+            .find(|file| file.path == "locales/en/_runtime.js")
+            .unwrap()
+            .contents,
+    );
+    for file in files
+        .iter()
+        .filter(|file| file.path.ends_with("/_runtime.js"))
+    {
+        assert!(file.contents.contains("formatDate_skeleton_yMMMd"));
+        for forbidden in [
+            "Intl.",
+            "availableFormats",
+            "\"yMMMd\"",
+            "\"GyMMMd\"",
+            "skeletons",
+        ] {
+            assert!(
+                !file.contents.contains(forbidden),
+                "{} contains {forbidden}",
+                file.path
+            );
+        }
+    }
+    let output = execute_project(
+        &files,
+        r#"
+globalThis.Intl.DateTimeFormat = class {constructor(){throw Error('host date formatting must not run');}};
+const values=[];
+for (const locale of ['en','ru','fr','zh']) {
+  const {receipt,clock,era}=await import(`./locales/${locale}.js`);
+  values.push([receipt({value:'2024-01-02T13:04:05Z'}),clock('2024-01-02T13:04:05Z')]);
+  if(locale==='en') {
+    if(era('2024-01-02')!=='Jan 2, 2024 AD') throw Error(era('2024-01-02'));
+    if(era('0000-01-02')!=='Jan 2, 1 BC') throw Error(era('0000-01-02'));
+  }
+}
+console.log(JSON.stringify(values));
+"#,
+    );
+    assert_eq!(
+        output,
+        r#"[["Jan 2, 2024","13:04"],["2 янв. 2024 г.","13:04"],["2 janv. 2024","13:04"],["2024年1月2日","13:04"]]"#
+    );
+}
+
+#[test]
+fn unknown_skeletons_and_unsupported_selected_fields_fail_validation() {
+    let schema = lower_schema(&parse_schema("message(value: Date)\n").unwrap());
+    for (skeleton, unknown) in [("notASkeleton", true), ("yQQQ", false)] {
+        let locale = lower_locale(
+            &parse_locale(&format!(
+                "message = {{value @date(skeleton = {skeleton:?})}}\n"
+            ))
+            .unwrap(),
+        );
+        let error = generate_project_files(
+            &schema,
+            &[EcmaLocaleModule {
+                locale: "en".to_owned(),
+                module: locale,
+            }],
+            &project_options("en"),
+        )
+        .unwrap_err();
+        match error {
+            EcmaCodegenError::InvalidDatePattern {
+                error: linguini_codegen::DatePatternError::MissingSkeleton { .. },
+                ..
+            } if unknown => {}
+            EcmaCodegenError::InvalidDatePattern {
+                error: linguini_codegen::DatePatternError::UnsupportedField { symbol: 'Q', .. },
+                ..
+            } if !unknown => {}
+            error => panic!("{skeleton}: {error:?}"),
+        }
+    }
+}
+
+#[test]
 fn generated_module_snapshot_is_stable() {
     let schema = parse_schema(include_str!(
         "../../../tests/fixtures/golden/schema/shop.lgs"

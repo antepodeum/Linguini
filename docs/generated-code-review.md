@@ -91,6 +91,16 @@ selection have since been implemented and tested. Date-semantic substitutions an
 open findings still need work. Historical TypeScript and oldest JavaScript comparison fixtures retain `Intl`, generic formatter forwarding, branch maps, and the retired
 plural matcher. Their existence must not be mistaken for current generator acceptance.
 
+Exact Gregorian `availableFormats` IDs can now be selected through `@date(skeleton = "yMMMd")`
+and schema defaults. Rust resolves and validates the selected pattern before emission. Shared
+tests check every pinned skeleton entry across 508 resolved locale records; generated requests
+execute in English/Russian/French/Chinese with host date formatting disabled, including BCE/CE.
+The real nine-locale site keeps the skeleton message in its owning page's one payload and omits
+time-field operations; concurrent SSR, hydration, no-JS rendering, and locale navigation pass.
+Unknown IDs, style conflicts, and unsupported selected fields preserve existing owned output.
+Closest-match/width-adjusted skeletons, combined date/time synthesis, other calendars, and
+selectable non-UTC zones remain open under GEN-A13/#158.
+
 ## Representation and allocation follow-up
 
 The [cost audit](./generated-code-cost-audit.md) records the measured category-name/numeric

@@ -12,6 +12,11 @@ pub enum DatePatternPart {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DatePatternError {
+    ConflictingSkeletonStyles,
+    MissingSkeleton {
+        locale: String,
+        skeleton: String,
+    },
     UnclosedQuote {
         offset: usize,
     },
@@ -28,6 +33,14 @@ pub enum DatePatternError {
 impl fmt::Display for DatePatternError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ConflictingSkeletonStyles => write!(
+                f,
+                "date skeleton cannot be combined with style or time_style"
+            ),
+            Self::MissingSkeleton { locale, skeleton } => write!(
+                f,
+                "no pinned Gregorian date pattern for skeleton {skeleton:?} in {locale:?}"
+            ),
             Self::UnclosedQuote { offset } => {
                 write!(f, "unclosed date-pattern quote at byte {offset}")
             }
@@ -49,7 +62,27 @@ impl fmt::Display for DatePatternError {
 impl std::error::Error for DatePatternError {}
 
 /// Select and compose the exact statically requested CLDR widths.
-pub fn date_request_pattern(dates: &DateFormatData, request: &FormatterRequest) -> String {
+pub fn date_request_pattern(
+    dates: &DateFormatData,
+    request: &FormatterRequest,
+) -> Result<String, DatePatternError> {
+    if let Some(skeleton) = request.argument("skeleton") {
+        if request.argument("style").is_some() || request.argument("time_style").is_some() {
+            return Err(DatePatternError::ConflictingSkeletonStyles);
+        }
+        return linguini_cldr::compiled_calendar_formatting(dates.locale, "gregory")
+            .and_then(|calendar| {
+                calendar
+                    .skeletons
+                    .iter()
+                    .find(|(name, _)| *name == skeleton)
+                    .map(|(_, pattern)| (*pattern).to_owned())
+            })
+            .ok_or_else(|| DatePatternError::MissingSkeleton {
+                locale: dates.locale.to_owned(),
+                skeleton: skeleton.to_owned(),
+            });
+    }
     let select = |widths: FormatWidths, style: &str| match style {
         "full" => widths.full,
         "long" => widths.long,
@@ -61,13 +94,13 @@ pub fn date_request_pattern(dates: &DateFormatData, request: &FormatterRequest) 
     let date = (style.is_some() || time_style.is_none())
         .then(|| select(dates.date_formats, style.unwrap_or("medium")));
     let time = time_style.map(|style| select(dates.time_formats, style));
-    match (date, time) {
+    Ok(match (date, time) {
         (Some(date), Some(time)) => select(dates.date_time_formats, style.unwrap_or("medium"))
             .replace("{1}", date)
             .replace("{0}", time),
         (Some(part), None) | (None, Some(part)) => part.to_owned(),
         (None, None) => unreachable!("at least a date or time pattern is selected"),
-    }
+    })
 }
 
 /// Parse CLDR quoting and specialize UTC zones to literals before target emission.
@@ -160,6 +193,62 @@ pub fn compile_date_pattern(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exact_skeleton_selection_keeps_locale_patterns_and_rejects_missing_ids() {
+        let request = |skeleton: &str| {
+            FormatterRequest::new(&linguini_ir::IrFormatter {
+                kind: linguini_ir::IrFormatterKind::Date,
+                arguments: vec![linguini_ir::IrFormatterArgument {
+                    name: "skeleton".to_owned(),
+                    value: skeleton.to_owned(),
+                }],
+            })
+        };
+        let mut checked = 0;
+        let mut locales = std::collections::BTreeSet::new();
+        for locale in linguini_cldr::locale_resolution_candidates() {
+            let Some(dates) = linguini_cldr::compiled_date_formatting(locale) else {
+                continue;
+            };
+            if !locales.insert(dates.locale) {
+                continue;
+            }
+            let calendar =
+                linguini_cldr::compiled_calendar_formatting(dates.locale, "gregory").unwrap();
+            for &(skeleton, expected) in calendar.skeletons {
+                assert_eq!(
+                    date_request_pattern(&dates, &request(skeleton)).unwrap(),
+                    expected,
+                    "{}: {skeleton}",
+                    dates.locale
+                );
+                checked += 1;
+            }
+            assert!(matches!(
+                date_request_pattern(&dates, &request("notASkeleton")),
+                Err(DatePatternError::MissingSkeleton { .. })
+            ));
+        }
+        assert_eq!(locales.len(), 508);
+        assert!(
+            checked > 10_000,
+            "insufficient pinned skeleton coverage: {checked}"
+        );
+        let dates = linguini_cldr::compiled_date_formatting("en").unwrap();
+        let mut conflicting = request("yMMMd");
+        conflicting
+            .formatter
+            .arguments
+            .push(linguini_ir::IrFormatterArgument {
+                name: "style".to_owned(),
+                value: "long".to_owned(),
+            });
+        assert_eq!(
+            date_request_pattern(&dates, &conflicting),
+            Err(DatePatternError::ConflictingSkeletonStyles)
+        );
+    }
 
     #[test]
     fn gregorian_styles_reachable_from_the_pinned_resolution_graph_compile() {

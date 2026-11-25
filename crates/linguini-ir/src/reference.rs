@@ -1758,7 +1758,7 @@ fn validate_formatters(
         let (allowed, expected_type): (&[&str], Option<&str>) = match &formatter.kind {
             FormatterKind::Number => (&[], Some("numeric")),
             FormatterKind::Currency => (&["code", "accounting"], Some("numeric")),
-            FormatterKind::Date => (&["style", "time_style"], Some("Date")),
+            FormatterKind::Date => (&["style", "time_style", "skeleton"], Some("Date")),
             FormatterKind::Unknown(name) => {
                 errors.push(IrReferenceError::new(
                     "IR028",
@@ -1790,6 +1790,15 @@ fn validate_formatters(
                 ));
             }
             match (formatter.kind.as_str(), argument.name.as_str()) {
+                ("date", "skeleton")
+                    if argument.value.is_empty()
+                        || !argument
+                            .value
+                            .bytes()
+                            .all(|byte| byte.is_ascii_alphabetic()) =>
+                {
+                    errors.push(IrReferenceError::new("IR031", "date formatter option `skeleton` must be a nonempty sequence of ASCII field letters", span));
+                }
                 ("currency", "code")
                     if argument.value.len() != 3
                         || !argument
@@ -1840,6 +1849,16 @@ fn validate_formatters(
             }
         }
 
+        if formatter.kind == FormatterKind::Date
+            && names.contains("skeleton")
+            && (names.contains("style") || names.contains("time_style"))
+        {
+            errors.push(IrReferenceError::new(
+                "IR031",
+                "date formatter option `skeleton` cannot be combined with `style` or `time_style`",
+                span,
+            ));
+        }
         if let (Some(expected), Some(actual)) = (expected_type, value_type) {
             let valid = if expected == "numeric" {
                 is_numeric(actual, context)

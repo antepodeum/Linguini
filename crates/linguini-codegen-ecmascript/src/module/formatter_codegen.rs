@@ -194,7 +194,8 @@ fn generated_date_request(
     name: &str,
     exported: bool,
 ) -> (String, DateHelperRequirements) {
-    let pattern = linguini_codegen::date_request_pattern(dates, request);
+    let pattern = linguini_codegen::date_request_pattern(dates, request)
+        .expect("validated CLDR date request");
     let pattern = date_parts(&pattern, dates, name, locale);
     (
         crate::templates::render(

@@ -510,7 +510,14 @@ fn validate_formatter_data(
         })?;
         for request in linguini_codegen::formatter_requests(schema, locale) {
             if request.formatter.kind == linguini_ir::IrFormatterKind::Date {
-                let pattern = linguini_codegen::date_request_pattern(&dates, &request);
+                let pattern =
+                    linguini_codegen::date_request_pattern(&dates, &request).map_err(|error| {
+                        EcmaCodegenError::InvalidDatePattern {
+                            locale: locale_name.to_owned(),
+                            pattern: request.argument("skeleton").unwrap_or_default().to_owned(),
+                            error,
+                        }
+                    })?;
                 linguini_codegen::compile_date_pattern(locale_name, &pattern).map_err(|error| {
                     EcmaCodegenError::InvalidDatePattern {
                         locale: locale_name.to_owned(),
