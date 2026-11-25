@@ -18,148 +18,21 @@ export function pageMessageIndex(manifest, canonical) {
   return known.get(canonical);
 }
 
-const ENTRY = "\0linguini-page-analysis";
-const GRAPH = "\0linguini-page-module/";
-const MESSAGE = "linguini-page-message:";
-const DEFERRED = "linguini-page-deferred:";
-const VIRTUAL_MESSAGE = "\0virtual:linguini/message/";
-
-/** Re-shake each page independently, including shared modules with multiple exported functions. */
-export async function pageMessageUsage(context, entries, config, followDeferred = false) {
-  const root = entries.map((entry, index) => {
-    if (typeof entry === 'string') return `export * as node${index} from ${JSON.stringify(entry)};`;
-    const selected = entry.exports.map((parts, binding) =>
-      `export const binding${index}_${binding} = node${index}${parts.map(part => `[${JSON.stringify(part)}]`).join('')};`).join('\n');
-    return `import * as node${index} from ${JSON.stringify(entry.id)};\n${selected}`;
-  }).join("\n");
-  const result = await build({
-    configFile: false,
-    root: config.root,
-    logLevel: "silent",
-    plugins: [{
-      name: "linguini-page-analysis",
-      enforce: "pre",
-      async resolveId(source, importer) {
-        if (source === ENTRY || source.startsWith(GRAPH)) return source;
-        const parent = importer?.startsWith(GRAPH) ? importer.slice(GRAPH.length) : undefined;
-        const resolved = source.startsWith("\0") || context.getModuleInfo(source)
-          ? { id: source }
-          : await context.resolve(source, parent, { skipSelf: false });
-        if (!resolved) throw new Error(`Linguini page analysis cannot resolve ${source} from ${parent}`);
-        if (resolved.id.startsWith(VIRTUAL_MESSAGE)) {
-          const canonical = resolved.id.slice(VIRTUAL_MESSAGE.length).split("/").at(-1);
-          return { id: MESSAGE + canonical, external: true, moduleSideEffects: false };
-        }
-        if (resolved.external) return resolved;
-        return GRAPH + resolved.id;
-      },
-      async resolveDynamicImport(source, importer) {
-        // A lazy application boundary is not part of its parent's initial message closure.
-        if (typeof source !== 'string') return false;
-        const parent = importer?.startsWith(GRAPH) ? importer.slice(GRAPH.length) : undefined;
-        const resolved = await context.resolve(source,parent,{skipSelf:false});
-        if (!resolved || resolved.external) return {id:source,external:true};
-        if (followDeferred) return GRAPH + resolved.id;
-        return {id:DEFERRED + Buffer.from(resolved.id).toString('base64url'),external:true};
-      },
-      load(id) {
-        if (id === ENTRY) return root;
-        if (!id.startsWith(GRAPH)) return;
-        const original = id.slice(GRAPH.length);
-        if (original.startsWith("\0virtual:linguini/locale-registry")) {
-          return "export function acquireLocaleLoader() { return () => {}; }";
-        }
-        const info = context.getModuleInfo(original);
-        if (!info || typeof info.code !== "string") {
-          throw new Error(`Linguini page analysis needs transformed module ${original}`);
-        }
-        return {
-          code: info.code,
-          moduleSideEffects: info.moduleSideEffects,
-          syntheticNamedExports: info.syntheticNamedExports,
-        };
-      }
-    }],
-    build: {
-      write: false,
-      lib: { entry: ENTRY, formats: ["es"] },
-      minify: false,
-      target: config.build.target,
-      modulePreload: false,
-      rollupOptions: {
-        input: ENTRY,
-        preserveEntrySignatures: "strict",
-        // Inlining dynamic imports can retain their entire namespace on some hosts.
-        // Keep those boundaries for demand analysis; compiled payloads remain one chunk.
-        output: { format: "es", ...(followDeferred ? {} : singleChunk) }
-      }
-    }
-  });
-  const used = new Set();
-  const deferred = new Set();
-  for (const chunk of (Array.isArray(result) ? result : [result]).flatMap(bundle => bundle.output)) {
-    if (chunk.type !== "chunk") continue;
-    // Some hosts retain removed dependencies in metadata; the emitted program is authoritative.
-    for (const imported of emittedImports(context,chunk.code)) {
-      const source = imported.source?.value;
-      if (typeof source !== 'string') continue;
-      if (!imported.dynamic && source.startsWith(MESSAGE)) {
-        used.add(Buffer.from(source.slice(MESSAGE.length),"hex").toString("utf8"));
-      } else if (imported.dynamic && source.startsWith(DEFERRED)) {
-        deferred.add(Buffer.from(source.slice(DEFERRED.length),'base64url').toString('utf8'));
-      }
-    }
-  }
-  return {messages:[...used].sort(),deferred:[...deferred].sort()};
-}
-
-function emittedImports(context,code) {
-  const pending = [context.parse(code)];
-  const imports = [];
-  while (pending.length) {
-    const node = pending.pop();
-    if (!node || typeof node !== 'object' || typeof node.type !== 'string') continue;
-    if (node.type === 'ImportExpression') imports.push({source:node.source,dynamic:true});
-    else if (['ImportDeclaration','ExportAllDeclaration','ExportNamedDeclaration'].includes(node.type) && node.source) {
-      imports.push({source:node.source,dynamic:false});
-    }
-    for (const child of Object.values(node)) {
-      if (Array.isArray(child)) pending.push(...child);
-      else if (child && typeof child === 'object') pending.push(child);
-    }
-  }
-  return imports;
-}
-
-function graphHasMessages(context,entry) {
-  const pending = [entry];
-  const visited = new Set();
-  while (pending.length) {
-    const id = pending.pop();
-    if (visited.has(id)) continue;
-    visited.add(id);
-    if (id.startsWith(VIRTUAL_MESSAGE)) return true;
-    const info = context.getModuleInfo(id);
-    if (info) pending.push(...info.importedIds,...info.dynamicallyImportedIds);
-  }
-  return false;
-}
+export {pageMessageUsage, pageMessagePlan} from "./page-demand.js";
+import {pageMessagePlan,emittedImports} from "./page-demand.js";
+const ENTRY = "\0linguini-page-payload";
 
 /** Bundle selected compiled leaves once per page/locale, letting the host Vite shake their dependencies. */
 export async function compilePagePayloads(context, pages, manifest, config) {
   const payloads = Object.create(null);
   if (!manifest) throw new Error("Linguini page payloads require a native bundler manifest");
   for (const page of pages) {
-    const usage = await pageMessageUsage(context,page.entries,config);
+    const usage = await pageMessagePlan(context,page.entries,config);
     const names = usage.messages;
-    if (usage.deferred.some(id => graphHasMessages(context,id))) {
-      // Analyze consumption from the page, rather than treating every lazy module export
-      // as live. An unused export can belong to another page without widening this one.
-      const complete = await pageMessageUsage(context,page.entries,config,true);
-      const missing = complete.messages.filter(name => !names.includes(name));
-      if (missing.length) {
-        throw new Error(`Linguini cannot yet prepare deferred messages ${missing.join(', ')} for page ${page.id}`);
-      }
+    const missing = [...new Set(usage.deferred.flatMap(boundary => boundary.messages))]
+      .filter(name => !names.includes(name)).sort();
+    if (missing.length) {
+      throw new Error(`Linguini cannot yet prepare deferred messages ${missing.join(', ')} for page ${page.id}`);
     }
     if (names.length === 0) continue;
     const locales = Object.create(null);

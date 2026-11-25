@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Deferred dependency planning
+
+Application imports and configuration are unchanged. Build analysis now separates initial
+messages from each lazy entry's consumed exports, then re-shakes those exports independently.
+This preserves exact demand through shared eager/lazy modules, pure re-exports, default exports,
+and nested boundaries. Async facades exist only in the in-memory analysis build; they are not
+application artifacts and do not impose top-level await on the configured browser target.
+New deferred messages still fail explicitly until their runtime preparation protocol is supplied.
+
 ## Catalog-independent Svelte setters
 
 Regenerate Svelte bindings with the matching runtime SDK. The locale helper now imports

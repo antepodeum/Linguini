@@ -48,6 +48,13 @@ known message prefix, including quoted members and Unicode comments. Cold/warm m
 and executed stateful/stateless Vite builds cover string operations and callable `.call(...)`.
 This receipt does not complete namespace/default-import handling or deferred preparation.
 
+Deferred demand now has a separate planning boundary in `packages/vite/src/page-demand.js`.
+It reads consumed exports from the emitted caller and re-shakes each lazy entry independently,
+so a shared eager/lazy helper does not merge unrelated message demands. Shared contract cases
+cover nested imports, required module effects, pure re-exports, default exports, an escaping
+namespace, dead lazy exports, and an ES2018 target. These analysis-only async facades never
+enter the application output. Runtime preparation for new deferred messages remains open.
+
 Canonical number/date fixtures already contain build-selected symbols and direct date getter
 expressions rather than raw CLDR patterns. Rounding/scale helper specialization and date-helper
 selection have since been implemented and tested. Date-semantic substitutions and the other

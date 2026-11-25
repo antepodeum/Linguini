@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { build } from "vite";
-import { compilePagePayloads, pageMessageUsage } from "../src/page-payloads.js";
+import {verifyDeferredDemand} from '../test-support/deferred-demand.mjs';
+import { compilePagePayloads, pageMessageUsage, pageMessagePlan } from "../src/page-payloads.js";
 
 for (const sourcemap of [false,true,"hidden","inline"]) {
 test(`page payloads shake composed roots, preserve fallback/helpers, and support ${sourcemap} maps`, async context => {
@@ -129,7 +130,7 @@ test('deferred boundaries cannot silently omit new messages or widen the initial
       await run();
       assert.deepEqual(receipt['/'].en.messages,['later']);
     } else {
-      await assert.rejects(run,/cannot yet prepare deferred messages later.*for page \/$/);
+      await assert.rejects(run,/cannot yet prepare deferred messages later.*for page \/$/m);
     }
   }
 });
@@ -158,4 +159,8 @@ test('page analysis preserves the host module side-effect decisions', async cont
     });
     assert.deepEqual(receipt,{messages:moduleSideEffects ? ['effect'] : [],deferred:[]});
   }
+});
+
+test('deferred plans retain caller-selected exports across shared eager/lazy modules and pure re-exports', async () => {
+  await verifyDeferredDemand({build,pageMessagePlan});
 });

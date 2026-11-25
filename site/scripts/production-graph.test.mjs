@@ -3,10 +3,16 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import {createRequire} from 'node:module';
+import {build} from 'vite';
 import {verifySetterGraph} from './setter-graph.mjs';
+import {verifyDeferredDemand} from '../../packages/vite/test-support/deferred-demand.mjs';
 
 const siteRoot = join(fileURLToPath(new URL('..', import.meta.url)));
 await verifySetterGraph(siteRoot);
+const viteEntry = pathToFileURL(createRequire(import.meta.url).resolve('@antepodeum/linguini-vite'));
+const {pageMessagePlan} = await import(new URL('./page-demand.js',viteEntry));
+await verifyDeferredDemand({build,pageMessagePlan});
 const buildRoot = join(siteRoot, 'build');
 const generatedRoot = join(siteRoot, 'src/lib/generated/linguini');
 const clientOutputRoot = join(siteRoot, '.svelte-kit/output/client');

@@ -1108,6 +1108,11 @@ and the composed payload/SSR requirements below.
       catalog modules or dynamic catalog imports, replacing a ten-chunk nine-locale graph.
       Generated locale helpers own the shared setter independently of message providers;
       execution and request-identity tests retain normalization and stale-change guards.
+      Deferred planning now re-shakes each lazy entry's consumed exports independently.
+      One shared contract runs against Vite 7 and the site's Vite 8, covering nested boundaries,
+      pure/default re-exports, eager/lazy shared helpers, required module effects, escaping
+      namespaces, dead lazy exports, and ES2018 output targets. Analysis-only async facades
+      are not emitted into application output. Runtime preparation remains open.
 - [-] MOD-A5 — Support SSR for every message form listed in ESM-A3, including finite dynamic
       references and sparse fallback. Resolve each request's messages/locale on the server without
       browser APIs or client-only preparation; isolate concurrent requests and prove matching
