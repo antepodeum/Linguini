@@ -1214,6 +1214,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       and production SSR/browser checks. Rust 1.87, Node 20, workspace Clippy, and complete-consumer
       measurements separately cover the shared plan. Attribute-level page delivery, conservative
       callable/eager forms, hosted verification, and the remaining architecture criteria stay open.
+      Independent form-export source `23271e5` passes all 71 local full-profile gates, including
+      the shared Vite 7/8 native page contract and strict physical-JS/application-TS consumers.
+      Separate Node 20, Rust 1.87, workspace Clippy, and patch-level API checks against `ea82945`
+      cover the changed compiler boundaries (223 compatibility checks pass per changed crate).
+      Named-function binding collisions (GEN-A42), opaque forms, mixed-table coalescing, hosted
+      verification, and remaining architecture/release work stay open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
