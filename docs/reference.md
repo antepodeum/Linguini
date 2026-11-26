@@ -344,6 +344,10 @@ inline payloads are still evaluated. Automatic display defaults do not format a 
 because it is forwarded. Invalid nested formatter names, options, and input types are diagnosed
 before code emission.
 
+Native sample rendering reuses the generator's default-formatting and inline-capture lowering.
+Schema display defaults survive inline bindings and captures; named function payloads retain raw
+text unless their body requests formatting. Each locale is prepared once for all sample cases.
+
 #### Formatter scope and fallback
 
 The generated formatter is intentionally smaller than the full ICU/ECMA-402

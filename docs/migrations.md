@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native preview formatting scopes
+
+Native `generate` output now uses the same default-formatting and inline-capture lowering as
+code generation. Plain numeric, currency-alias, and Date payloads inside named functions no
+longer receive unintended display formatting. Schema defaults still apply at message display
+sites and survive inline bindings/captures. Alias cycles remain errors. Generated JavaScript,
+declarations, and maps are unchanged.
+
 ## Formatted function inputs
 
 Regenerate output to preserve explicit formatters inside call arguments and inline payloads.

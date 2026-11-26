@@ -3,7 +3,7 @@ mod date;
 #[cfg(test)]
 mod parity;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt;
 
 use linguini_cldr::{
@@ -14,7 +14,7 @@ use linguini_cldr::{
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrForm, IrFormEntry,
     IrFormatter, IrFormatterArgument, IrFormatterKind, IrFunctionBranch, IrFunctionBranchValue,
-    IrFunctionParameter, IrInlineFunctionInput, IrModule, IrText, IrTextPart, IrValue,
+    IrFunctionParameter, IrModule, IrText, IrTextPart, IrValue,
 };
 
 use super::SampleValue;
@@ -125,15 +125,16 @@ impl fmt::Display for RenderError {
 
 pub(super) struct Renderer<'a> {
     schema: &'a IrModule,
-    module: &'a IrModule,
+    module: IrModule,
     locale: &'a str,
 }
 
 impl<'a> Renderer<'a> {
-    pub(super) fn new(schema: &'a IrModule, module: &'a IrModule, locale: &'a str) -> Self {
+    /// Prepare display defaults and lifted captures once, before rendering a locale's cases.
+    pub(super) fn new(schema: &'a IrModule, module: &IrModule, locale: &'a str) -> Self {
         Self {
             schema,
-            module,
+            module: linguini_codegen::lower_inline_functions(schema, module),
             locale,
         }
     }
@@ -174,26 +175,12 @@ impl<'a> Renderer<'a> {
         for part in &text.parts {
             match part {
                 IrTextPart::Text(value) => output.push_str(value),
-                IrTextPart::Placeholder(expression) => output.push_str(&self.eval_expression(
-                    expression,
-                    context,
-                    inputs,
-                    depth + 1,
-                )?),
+                IrTextPart::Placeholder(expression) => output.push_str(
+                    &self.eval_expression_value(expression, context, inputs, depth + 1)?,
+                ),
             }
         }
         Ok(output)
-    }
-
-    fn eval_expression(
-        &self,
-        expression: &IrExpression,
-        context: &BTreeMap<String, String>,
-        inputs: &BTreeMap<String, SampleValue>,
-        depth: usize,
-    ) -> Result<String, RenderError> {
-        let value = self.eval_unformatted_expression(expression, context, inputs, depth)?;
-        self.apply_formatters(value, expression, context)
     }
 
     fn eval_expression_value(
@@ -220,13 +207,6 @@ impl<'a> Renderer<'a> {
         depth: usize,
     ) -> Result<String, RenderError> {
         ensure_depth(depth)?;
-        if let IrExpressionKind::InlineFunction {
-            inputs: inline_inputs,
-            branches,
-        } = &expression.kind
-        {
-            return self.eval_inline_function(inline_inputs, branches, context, inputs, depth + 1);
-        }
         let args = expression
             .arguments
             .iter()
@@ -298,93 +278,6 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    fn eval_inline_function(
-        &self,
-        inline_inputs: &[IrInlineFunctionInput],
-        branches: &[IrFunctionBranch],
-        context: &BTreeMap<String, String>,
-        inputs: &BTreeMap<String, SampleValue>,
-        depth: usize,
-    ) -> Result<String, RenderError> {
-        ensure_depth(depth)?;
-        let mut selector_values = Vec::new();
-        let mut binding_values = Vec::new();
-
-        // Evaluate every input against the same enclosing lexical scope. This
-        // gives inline inputs ordinary call semantics: sibling bindings are
-        // not visible from another binding RHS.
-        for input in inline_inputs {
-            let value_expression = match input {
-                IrInlineFunctionInput::Binding { value, .. }
-                | IrInlineFunctionInput::Selector { value, .. } => value,
-            };
-            let mut value =
-                self.eval_expression_value(value_expression, context, inputs, depth + 1)?;
-            match input {
-                IrInlineFunctionInput::Selector { .. } => {
-                    if inferred_inline_value_type(value_expression, context) == "Plural" {
-                        value = plural_key(self.locale, &value)?;
-                    }
-                    selector_values.push(value);
-                }
-                IrInlineFunctionInput::Binding {
-                    name, value: rhs, ..
-                } => {
-                    let ty = inferred_inline_value_type(rhs, context);
-                    binding_values.push((name.clone(), ty, value));
-                }
-            }
-        }
-
-        let mut branch_context = context.clone();
-        let mut branch_inputs = inputs.clone();
-        for (name, ty, value) in binding_values {
-            branch_context.insert(name.clone(), ty.clone());
-            branch_inputs.insert(name, sample_value_for_type(&ty, value));
-        }
-
-        self.eval_inline_dispatch(
-            branches,
-            0,
-            &selector_values,
-            &branch_context,
-            &branch_inputs,
-            depth + 1,
-        )
-    }
-
-    fn eval_inline_dispatch(
-        &self,
-        branches: &[IrFunctionBranch],
-        dispatch_depth: usize,
-        selectors: &[String],
-        context: &BTreeMap<String, String>,
-        inputs: &BTreeMap<String, SampleValue>,
-        depth: usize,
-    ) -> Result<String, RenderError> {
-        ensure_depth(depth)?;
-        let selector = selectors
-            .get(dispatch_depth)
-            .map_or("undefined", String::as_str);
-        let branch = matching_function_branch(branches, selector).ok_or_else(|| {
-            RenderError::MissingBranch {
-                owner: "inline fn".to_owned(),
-                selector: selector.to_owned(),
-            }
-        })?;
-        match &branch.value {
-            IrFunctionBranchValue::Text(text) => self.render_text(text, context, inputs, depth + 1),
-            IrFunctionBranchValue::Dispatch(children) => self.eval_inline_dispatch(
-                children,
-                dispatch_depth + 1,
-                selectors,
-                context,
-                inputs,
-                depth + 1,
-            ),
-        }
-    }
-
     fn eval_form_call(
         &self,
         root: &str,
@@ -421,7 +314,8 @@ impl<'a> Renderer<'a> {
                     }
                 })?;
             let callable = format!("{}.{}", form.name, property);
-            let (value_context, value_inputs) = parameter_scope(&callable, parameters, args)?;
+            let (value_context, value_inputs) =
+                self.parameter_scope(&callable, parameters, args)?;
             return self.eval_ir_value(
                 value,
                 args.first().map(String::as_str),
@@ -487,7 +381,7 @@ impl<'a> Renderer<'a> {
             }
         })?;
         let callable = format!("{}.{}", form.name, path.join("."));
-        let (value_context, value_inputs) = parameter_scope(&callable, parameters, &[])?;
+        let (value_context, value_inputs) = self.parameter_scope(&callable, parameters, &[])?;
         self.eval_ir_value(
             value,
             None,
@@ -548,7 +442,7 @@ impl<'a> Renderer<'a> {
                 name: name.to_owned(),
             })?;
         let (function_context, function_inputs) =
-            parameter_scope(name, &function.parameters, args)?;
+            self.parameter_scope(name, &function.parameters, args)?;
         self.eval_dispatch(
             name,
             &function.parameters,
@@ -597,7 +491,7 @@ impl<'a> Renderer<'a> {
         };
         let branch =
             matching_function_branch(branches, &key).ok_or_else(|| RenderError::MissingBranch {
-                owner: dispatch_owner(callable),
+                owner: format!("function `{callable}`"),
                 selector: key,
             })?;
         match &branch.value {
@@ -619,7 +513,7 @@ impl<'a> Renderer<'a> {
         &self,
         root: &str,
         context: &BTreeMap<String, String>,
-    ) -> Result<&'a IrForm, RenderError> {
+    ) -> Result<&IrForm, RenderError> {
         let ty = context
             .get(root)
             .ok_or_else(|| RenderError::MissingSymbol {
@@ -637,87 +531,57 @@ impl<'a> Renderer<'a> {
     }
 
     fn context(&self, message_name: &str) -> Result<BTreeMap<String, String>, RenderError> {
-        self.schema
+        let message = self
+            .schema
             .messages()
             .iter()
             .find(|message| message.name == message_name)
-            .map(|message| {
-                message
-                    .parameters
-                    .iter()
-                    .map(|parameter| (parameter.name.clone(), parameter.ty.clone()))
-                    .collect()
-            })
             .ok_or_else(|| RenderError::MissingSymbol {
                 kind: "schema message",
                 name: message_name.to_owned(),
+            })?;
+        message
+            .parameters
+            .iter()
+            .map(|parameter| {
+                self.validate_alias_chain(&parameter.ty)?;
+                Ok((parameter.name.clone(), parameter.ty.clone()))
             })
+            .collect()
     }
 
-    fn apply_formatters(
+    fn parameter_scope(
         &self,
-        value: String,
-        expression: &IrExpression,
-        context: &BTreeMap<String, String>,
-    ) -> Result<String, RenderError> {
-        let default_formatters;
-        let formatters = if expression.formatters.is_empty() {
-            default_formatters = expression
-                .path
-                .first()
-                .and_then(|name| context.get(name))
-                .map(|ty| self.default_type_formatters(ty))
-                .transpose()?
-                .unwrap_or_default();
-            default_formatters.as_slice()
-        } else {
-            expression.formatters.as_slice()
-        };
-
-        formatters.iter().try_fold(value, |current, formatter| {
-            self.apply_formatter(&current, formatter)
-        })
+        callable: &str,
+        parameters: &[IrFunctionParameter],
+        args: &[String],
+    ) -> Result<ParameterScope, RenderError> {
+        let scope = parameter_scope(callable, parameters, args)?;
+        for ty in scope.0.values() {
+            self.validate_alias_chain(ty)?;
+        }
+        Ok(scope)
     }
 
-    fn default_type_formatters(&self, ty: &str) -> Result<Vec<IrFormatter>, RenderError> {
-        let mut current = ty;
-        let mut visited = BTreeSet::new();
+    fn validate_alias_chain(&self, ty: &str) -> Result<(), RenderError> {
+        let aliases = self.schema.type_aliases();
+        let resolved = linguini_codegen::resolve_type_name(self.schema, ty);
+        if !aliases.iter().any(|alias| alias.name == resolved) {
+            return Ok(());
+        }
         let mut chain = Vec::new();
-
+        let mut current = ty;
         loop {
-            if !visited.insert(current.to_owned()) {
-                chain.push(current.to_owned());
+            let repeated = chain.iter().any(|name| name == current);
+            chain.push(current.to_owned());
+            if repeated {
                 return Err(RenderError::AliasCycle { chain });
             }
-            chain.push(current.to_owned());
-
-            if let Some(alias) = self
-                .schema
-                .type_aliases()
+            current = &aliases
                 .iter()
                 .find(|alias| alias.name == current)
-            {
-                if !alias.formatters.is_empty() {
-                    return Ok(alias.formatters.clone());
-                }
-                current = &alias.target;
-                continue;
-            }
-
-            let kind = match current {
-                "Number" | "Decimal" => Some(IrFormatterKind::Number),
-                "Date" => Some(IrFormatterKind::Date),
-                "String" | "Boolean" => None,
-                _ => None,
-            };
-            return Ok(kind
-                .map(|kind| {
-                    vec![IrFormatter {
-                        kind,
-                        arguments: Vec::new(),
-                    }]
-                })
-                .unwrap_or_default());
+                .expect("bounded alias resolution established a cycle")
+                .target;
         }
     }
 
@@ -851,24 +715,6 @@ fn dispatch_parameter_indices(
         .filter_map(|(index, parameter)| parameter.name.is_none().then_some(index))
 }
 
-fn inferred_inline_value_type(
-    expression: &IrExpression,
-    context: &BTreeMap<String, String>,
-) -> String {
-    linguini_codegen::expression_value_type(expression, context)
-        .unwrap_or_else(|| "String".to_owned())
-}
-
-fn sample_value_for_type(ty: &str, value: String) -> SampleValue {
-    match ty {
-        "Number" | "Decimal" => SampleValue::Number(value),
-        "Boolean" => value
-            .parse::<bool>()
-            .map_or_else(|_| SampleValue::String(value), SampleValue::Boolean),
-        _ => SampleValue::String(value),
-    }
-}
-
 fn parameter_scope(
     callable: &str,
     parameters: &[IrFunctionParameter],
@@ -891,14 +737,6 @@ fn parameter_scope(
         }
     }
     Ok((context, inputs))
-}
-
-fn dispatch_owner(callable: &str) -> String {
-    if callable == "inline fn" {
-        callable.to_owned()
-    } else {
-        format!("function `{callable}`")
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1537,6 +1375,61 @@ mod tests {
     }
 
     #[test]
+    fn preview_default_scopes_match_generated_functions_inline_bindings_and_captures() {
+        let schema_source = concat!(
+            "type Price = Decimal @currency(code = \"USD\")\n",
+            "sample0(value: Number)\nsample1(value: Price)\nsample2(value: Date)\n",
+            "sample3(value: Price)\nsample4(value: Price)\nsample5(value: Number)\nsample6(value: Number)\n",
+        );
+        let source = concat!(
+            "fn Unformatted(input: Number) { _ => {input} }\n",
+            "fn PriceText(input: Price) { _ => {input} }\n",
+            "fn DateText(input: Date) { _ => {input} }\n",
+            "fn Nested(input: Number) { _ => {fn(copy: input) { _ => {copy} }} }\n",
+            "sample0 = {Unformatted(value)}\nsample1 = {PriceText(value)}\nsample2 = {DateText(value)}\n",
+            "sample3 = {fn(copy: value) { _ => {copy} }}\n",
+            "sample4 = {fn() { _ => {value} }}\n",
+            "sample5 = {Nested(value)}\nsample6 = {value}\n",
+        );
+        let schema = lower_schema(&parse_schema(schema_source).unwrap());
+        let module = lower_locale(&parse_locale(source).unwrap());
+        let mut cases = Vec::new();
+        for locale in ["en", "ru"] {
+            let renderer = renderer(&schema, &module, locale);
+            for (index, expected_en) in [
+                "1234.5",
+                "1234.5",
+                "2024-01-02",
+                "$1,234.50",
+                "$1,234.50",
+                "1234.5",
+                "1,234.5",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let value = if index == 2 { "2024-01-02" } else { "1234.5" };
+                let sample = if index == 2 {
+                    SampleValue::String(value.into())
+                } else {
+                    SampleValue::Number(value.into())
+                };
+                let expected = renderer
+                    .render_message(
+                        &format!("sample{index}"),
+                        &BTreeMap::from([("value".into(), sample)]),
+                    )
+                    .unwrap();
+                if locale == "en" {
+                    assert_eq!(expected, expected_en, "sample{index}");
+                }
+                cases.push(serde_json::json!({"locale":locale,"index":index,"value":value,"expected":expected}));
+            }
+        }
+        super::parity::assert_generated_samples(schema_source, source, &["en", "ru"], &cases);
+    }
+
+    #[test]
     fn nested_explicit_formatters_match_generated_calls_and_inline_payloads() {
         let schema_source =
             "sample0(value: Number)\nsample1(value: Number)\nsample2(value: Date)\n";
@@ -1623,6 +1516,19 @@ mod tests {
             .expect_err("alias cycle must fail");
 
         assert!(matches!(error, RenderError::AliasCycle { .. }));
+        let schema =
+            lower_schema(&parse_schema("type A = B\ntype B = A\nhello(value: String)\n").unwrap());
+        let locale = lower_locale(
+            &parse_locale("fn Broken(input: A) { _ => {input} }\nhello = {Broken(value)}\n")
+                .unwrap(),
+        );
+        let error = renderer(&schema, &locale, "en")
+            .render_message("hello", &inputs)
+            .unwrap_err();
+        assert!(
+            matches!(error, RenderError::AliasCycle { .. }),
+            "callable payload aliases still reject cycles"
+        );
     }
 
     #[test]

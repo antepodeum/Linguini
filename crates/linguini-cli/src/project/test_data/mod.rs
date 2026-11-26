@@ -178,8 +178,9 @@ fn render_generated_data(
             color("locale", Style::Blue, style),
             color(locale, Style::BoldWhite, style)
         ));
+        let renderer = render::Renderer::new(schema, module, locale);
         for message in schema.messages() {
-            render_message_cases(schema, module, locale, message, style, &mut output)?;
+            render_message_cases(schema, &renderer, locale, message, style, &mut output)?;
         }
     }
 
@@ -188,7 +189,7 @@ fn render_generated_data(
 
 fn render_message_cases(
     schema: &IrModule,
-    module: &IrModule,
+    renderer: &render::Renderer<'_>,
     locale: &str,
     message: &IrMessage,
     style: OutputStyle,
@@ -200,7 +201,6 @@ fn render_message_cases(
         color(&message.name, Style::BoldWhite, style)
     ));
     let cases = message_cases(schema, message)?;
-    let renderer = render::Renderer::new(schema, module, locale);
 
     for inputs in &cases {
         output.push_str("    ");

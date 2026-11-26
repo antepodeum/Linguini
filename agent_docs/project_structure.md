@@ -8,6 +8,9 @@
   Dependency slices and semantic artifacts share source-provenance traversal, including nested
   inline inputs, call arguments, dispatch branches, and form values. Scoped expression-value
   inference distinguishes explicit formatted strings from unformatted forwarded values.
+- `crates/linguini-cli/src/project/test_data`: bounded native sample matrices and previews.
+  Each locale is prepared through common default/inline lowering once before its cases;
+  the evaluator executes the planned formatter operations rather than deriving display defaults.
 - `crates/linguini-codegen-ecmascript`: canonical JavaScript runtime syntax, adjacent
   declarations, identifier escaping, module artifacts, and source maps. It consumes shared
   semantic plans without depending on web or framework integrations.

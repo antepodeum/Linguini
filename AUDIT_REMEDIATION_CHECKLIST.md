@@ -632,7 +632,13 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       focused coverage. Explicitly formatted call arguments and inline payloads now retain their
       string results in previews; twelve native/generated comparisons across English/Russian
       number, currency, and date requests cover the correction. The broader generated Date
-      input domain remains open.
+      input domain remains open. Native previews now prepare each locale through shared default/
+      inline lowering, removing their separate inline evaluator and default planner. Fourteen
+      additional English/Russian comparisons preserve unformatted Number/currency-alias/Date
+      function payloads, nested calls, schema defaults, inline bindings, and captured defaults;
+      message and callable alias-cycle errors remain covered. Generated artifacts stay unchanged.
+      CLI unit/integration tests pass on Node 20, with the final preview suite, strict Clippy,
+      Rust 1.87, and executable documentation checks also passing.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.
