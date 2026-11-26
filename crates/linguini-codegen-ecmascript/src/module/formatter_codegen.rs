@@ -191,7 +191,9 @@ fn number_plan(
         scale => positive.scale, min_significant => positive.min_significant_digits, max_significant => positive.max_significant_digits,
         rounding_helper, rounding => rounding.increment, rounding_half => rounding.half_integer,
         rounding_half_fraction => rounding.half_fraction, scale_shift,
-        exponent_digits => positive.exponent_digits, exponent_sign => positive.exponent_sign_always,
+        exponent_digits => positive.exponent_digits,
+        exponential_symbol => numbers.exponential_symbol, minus_sign => numbers.minus_sign,
+        exponent_plus => if positive.exponent_sign_always { numbers.plus_sign } else { "" },
         carry_fraction, padding,
     }
 }

@@ -461,7 +461,8 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       group widths, fixed/significant digits, rounding increments, exponent widths/sign flags,
       scaling, and padding. Decimal/currency generation now honors localized numeric affixes
       and minimum grouping thresholds after rounding; native previews use the same thresholds.
-      The internal scientific emitter still hardcodes `E` and exponent signs; broader scientific
+      Internal scientific lowering also compiles localized exponent separators and signs,
+      preserving bidirectional marks and literal digits within those symbols. Broader scientific
       and engineering patterns remain part of OPT-A1/A2 rather than a completed surface.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates

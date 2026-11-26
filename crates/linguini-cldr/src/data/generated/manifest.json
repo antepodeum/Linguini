@@ -1,8 +1,8 @@
 {
   "artifact": {
-    "bytes": 16039938,
+    "bytes": 16075253,
     "path": "cldr_tables.rs",
-    "sha256": "c8debaedef270943af3f75149ebfd61df76c3d6fba85b42b929f11584db5399f"
+    "sha256": "70fe892aa39c48cb23edc0dc7493fb62767f2b0a27a83538baa53a24c427a32b"
   },
   "coverage": {
     "calendar_locale_pairs": 3060,

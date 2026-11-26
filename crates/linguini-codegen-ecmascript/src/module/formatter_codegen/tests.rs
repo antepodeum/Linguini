@@ -1,4 +1,5 @@
 mod number_inputs;
+mod scientific;
 mod week_year;
 
 use super::super::formatters::{formatter_binding, FormatterRequest};
@@ -336,6 +337,8 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         decimal_symbol: ".",
         group_symbol: ",",
         minus_sign: "-",
+        plus_sign: "+",
+        exponential_symbol: "E",
         minimum_grouping_digits: 1,
         decimal_pattern: pattern,
         percent_pattern: pattern,

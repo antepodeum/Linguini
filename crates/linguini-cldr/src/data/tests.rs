@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "c8debaedef270943af3f75149ebfd61df76c3d6fba85b42b929f11584db5399f"
+        "70fe892aa39c48cb23edc0dc7493fb62767f2b0a27a83538baa53a24c427a32b"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -175,6 +175,8 @@ fn compiled_formatting_data_is_typed_not_json() {
         3
     );
     assert_eq!(numbers.digits, "0123456789");
+    assert_eq!(numbers.plus_sign, "+");
+    assert_eq!(numbers.exponential_symbol, "E");
     assert_eq!(numbers.decimal_pattern.positive.primary_group_size, Some(3));
     assert_eq!(numbers.decimal_pattern.positive.max_fraction_digits, 3);
     let accounting = currency.accounting_pattern.expect("accounting pattern");
@@ -191,6 +193,8 @@ fn compiled_formatting_data_is_typed_not_json() {
     assert_eq!(persian.numbering_system, "arabext");
     assert_eq!(persian.digits, "۰۱۲۳۴۵۶۷۸۹");
     assert_eq!(persian.minus_sign, "\u{200e}−");
+    assert_eq!(persian.plus_sign, "\u{200e}+");
+    assert_eq!(persian.exponential_symbol, "×۱۰^");
     assert_eq!(persian.decimal_symbol, "٫");
     assert_eq!(
         compiled_date_formatting("fa")

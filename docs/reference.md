@@ -324,6 +324,9 @@ surface. Current guarantees are:
   applies the same digit symbols to number and currency bodies, preserving literal affixes.
   Percent, compact, scientific, significant-digit, and caller-selected numbering-system
   styles are not exposed.
+  Internal scientific lowering compiles the locale's `exponential`, `plusSign`, and `minusSign`
+  symbols as literals. Digit substitution applies separately to mantissa and exponent digits,
+  preserving digits embedded in those symbols. This does not add a public scientific style.
 - `@currency` requires a three-letter code. It applies CLDR standard or
   accounting affixes, currency fraction digits, rounding increments, spacing,
   and locale separators. Display symbols also come from pinned CLDR data during

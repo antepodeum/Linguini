@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Compiled scientific symbols
+
+Rust callers constructing `NumberFormatData` must now provide `plus_sign` and
+`exponential_symbol` from the selected numbering system. Compiled locale lookups supply these
+automatically. Internal scientific lowering uses those symbols and the existing `minus_sign`,
+including bidirectional marks. Numeric digit substitution preserves literal separator/sign text.
+Scientific and engineering styles remain outside the public formatter configuration.
+
 ## Native integer number formatting
 
 Regenerate number and currency output to bypass decimal-text parsing for safe integer numbers

@@ -199,6 +199,8 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
     let decimal_symbol = numbers.decimal_symbol;
     let group_symbol = numbers.group_symbol;
     let minus_sign = numbers.minus_sign;
+    let plus_sign = numbers.plus_sign;
+    let exponential_symbol = numbers.exponential_symbol;
     let minimum_grouping_digits = numbers.minimum_grouping_digits;
     let decimal_pattern = number_pattern_tokens(&numbers.decimal_pattern);
     let percent_pattern = number_pattern_tokens(&numbers.percent_pattern);
@@ -210,6 +212,8 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
             decimal_symbol: #decimal_symbol,
             group_symbol: #group_symbol,
             minus_sign: #minus_sign,
+            plus_sign: #plus_sign,
+            exponential_symbol: #exponential_symbol,
             minimum_grouping_digits: #minimum_grouping_digits,
             decimal_pattern: #decimal_pattern,
             percent_pattern: #percent_pattern,
@@ -260,6 +264,8 @@ struct NumberData {
     decimal_symbol: String,
     group_symbol: String,
     minus_sign: String,
+    plus_sign: String,
+    exponential_symbol: String,
     minimum_grouping_digits: u8,
     decimal_pattern: NumberPattern,
     percent_pattern: NumberPattern,
@@ -373,6 +379,8 @@ fn extract_numbers(
         decimal_symbol: string_field(symbols, "decimal", "number symbols")?,
         group_symbol: string_field(symbols, "group", "number symbols")?,
         minus_sign: affix_symbols.minus.clone(),
+        plus_sign: affix_symbols.plus.clone(),
+        exponential_symbol: string_field(symbols, "exponential", "number symbols")?,
         minimum_grouping_digits,
         decimal_pattern: parse_number_pattern(&decimal_pattern, &affix_symbols)?,
         percent_pattern: parse_number_pattern(&percent_pattern, &affix_symbols)?,
@@ -1249,11 +1257,20 @@ mod tests {
     fn number_extraction_requires_a_positive_minimum_grouping_digit_count() {
         let mut input = json!({"main": {"en": {"numbers": {
             "defaultNumberingSystem": "latn", "minimumGroupingDigits": "2",
-            "symbols-numberSystem-latn": {"decimal": ".", "group": ",", "minusSign": "-", "plusSign": "+", "percentSign": "%", "perMille": "‰"},
+            "symbols-numberSystem-latn": {"decimal": ".", "group": ",", "minusSign": "-", "plusSign": "+", "exponential": "E", "percentSign": "%", "perMille": "‰"},
             "decimalFormats-numberSystem-latn": {"standard": "#,##0.###"},
             "percentFormats-numberSystem-latn": {"standard": "#,##0%"}
         }}}});
         let systems = std::collections::BTreeMap::from([("latn".into(), "0123456789".into())]);
+        let mut missing_exponent = input.clone();
+        missing_exponent["main"]["en"]["numbers"]["symbols-numberSystem-latn"]
+            .as_object_mut()
+            .unwrap()
+            .remove("exponential");
+        assert!(super::extract_numbers(&missing_exponent, "en", &systems)
+            .err()
+            .unwrap()
+            .contains("exponential"));
         assert_eq!(
             super::extract_numbers(&input, "en", &systems)
                 .unwrap()
