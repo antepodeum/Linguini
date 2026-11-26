@@ -22,9 +22,7 @@
     rounded = { integer: rounded.integer[0], fraction: `${rounded.integer.slice(1)}${rounded.fraction}` };
 {% endif %}  }
 {% endif %}  {% if plan.primary_group is not none %}let{% else %}const{% endif %} integer = rounded.integer{% if plan.min_integer > 1 %}.padStart({{ plan.min_integer }}, "0"){% endif %};
-{% if not fraction_empty %}  {% if plan.min_significant is not none %}let{% else %}const{% endif %} fraction = {% if plan.max_significant is none and plan.min_fraction == plan.max_fraction %}rounded.fraction{% elif plan.min_fraction == 0 %}rounded.fraction.replace(/0+$/, ""){% else %}rounded.fraction.slice(0, {{ plan.min_fraction }}) + rounded.fraction.slice({{ plan.min_fraction }}).replace(/0+$/, ""){% endif %};
-{% if plan.min_significant is not none %}  fraction = padTo{{ plan.min_significant }}SignificantDigits(integer, fraction);
-{% endif %}{% endif %}{% if plan.primary_group is not none %}  if (integer.length > {{ plan.grouping_threshold }}) {
+{% if not fraction_empty %}{% include "formatters/number_fraction" %}{% endif %}{% if plan.primary_group is not none %}  if (integer.length > {{ plan.grouping_threshold }}) {
 {% if plan.primary_group != plan.secondary_group %}    const primaryStart = integer.length - {{ plan.primary_group }};
 {% endif %}    const firstGroup = {% if plan.secondary_group == 1 %}1{% else %}{{ 'integer.length' if plan.primary_group == plan.secondary_group else 'primaryStart' }} % {{ plan.secondary_group }} || {{ plan.secondary_group }}{% endif %};
     let grouped = integer.slice(0, firstGroup);

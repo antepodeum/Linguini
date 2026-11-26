@@ -9,7 +9,7 @@ export function formatCurrency_code_RUB(value) {
   if (!decimal) return String(value);
   const rounded = roundTo2FractionDigits(decimal);
   let integer = rounded.integer;
-  const fraction = rounded.fraction;
+  const fraction = rounded.fraction.padEnd(2, "0");
   if (integer.length > 3) {
     const firstGroup = integer.length % 3 || 3;
     let grouped = integer.slice(0, firstGroup);
@@ -44,7 +44,7 @@ export function formatNumber(value) {
   if (!decimal) return String(value);
   const rounded = roundTo3FractionDigits(decimal);
   let integer = rounded.integer;
-  const fraction = rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   if (integer.length > 3) {
     const firstGroup = integer.length % 3 || 3;
     let grouped = integer.slice(0, firstGroup);
@@ -129,8 +129,9 @@ function parseGeneratedDecimal(value) {
  * @returns {{ integer: string, fraction: string }}
  */
 function roundTo2FractionDigits(decimal) {
-  const fraction = decimal.fraction.slice(0, 2).padEnd(2, "0");
-  if (decimal.fraction.length <= 2 || decimal.fraction[2] < "5") return { integer: decimal.integer, fraction };
+  if (decimal.fraction.length <= 2) return decimal;
+  const fraction = decimal.fraction.slice(0, 2);
+  if (decimal.fraction[2] < "5") return { integer: decimal.integer, fraction };
   const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(3, "0");
   return { integer: digits.slice(0, -2), fraction: digits.slice(-2) };
 }
@@ -140,8 +141,9 @@ function roundTo2FractionDigits(decimal) {
  * @returns {{ integer: string, fraction: string }}
  */
 function roundTo3FractionDigits(decimal) {
-  const fraction = decimal.fraction.slice(0, 3).padEnd(3, "0");
-  if (decimal.fraction.length <= 3 || decimal.fraction[3] < "5") return { integer: decimal.integer, fraction };
+  if (decimal.fraction.length <= 3) return decimal;
+  const fraction = decimal.fraction.slice(0, 3);
+  if (decimal.fraction[3] < "5") return { integer: decimal.integer, fraction };
   const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(4, "0");
   return { integer: digits.slice(0, -3), fraction: digits.slice(-3) };
 }

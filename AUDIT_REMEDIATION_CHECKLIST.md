@@ -1543,6 +1543,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Brotli bytes; local integer/bigint calls take roughly half the previous time and mixed
       inputs improve by about 23%, while fractional/string handling shows no material gain.
       Full consumer measurements and their limits are recorded in the generated-code cost audit.
+      Unit fraction rounding now reuses unchanged canonical records, omitting duplicate records,
+      slices, padding, and optional trimming on that path. Required visible minima remain in the
+      formatter; executed identity/immutability checks complement the unchanged rational-arithmetic
+      oracle and numeric/scientific/increment corpora. A two-message consumer adds 16 Brotli bytes;
+      local number integer calls roughly halve and mixed inputs improve about 23%. Currency
+      timing shows no comparable gain. The broader representation/page-demand audit stays open.
 
 - [-] OPT-A8 — Minimize localization requests, transferred bytes, and runtime work. SSR must
       return final translated text in initial HTML without fetching messages in the browser;

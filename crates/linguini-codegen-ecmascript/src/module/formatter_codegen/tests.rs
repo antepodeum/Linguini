@@ -1,5 +1,6 @@
 mod currency_symbols;
 mod number_inputs;
+mod rounding;
 mod scientific;
 mod week_year;
 
@@ -717,7 +718,11 @@ for (const [round, precision, increment] of [{cases}]) {{
     const decimal = {{ negative: false, integer, fraction }};
     const actual = round(decimal);
     const wanted = expected(decimal, precision, increment);
-    if (JSON.stringify(actual) !== JSON.stringify(wanted)) throw new Error(JSON.stringify([round.name, sample, actual, wanted]));
+    // Padding belongs to the formatter; compare the exact result at its requested precision.
+    const formatted = increment === "1" && actual === decimal
+      ? {{ integer: actual.integer, fraction: actual.fraction.padEnd(precision, "0") }}
+      : actual;
+    if (JSON.stringify(formatted) !== JSON.stringify(wanted)) throw new Error(JSON.stringify([round.name, sample, actual, wanted]));
   }}
 }}
 const originalBigInt = globalThis.BigInt;

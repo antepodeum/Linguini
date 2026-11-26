@@ -15,7 +15,7 @@ export function scientificLatin(value) {
     rounded = { integer: "1", fraction: "000" };
   }
   const integer = rounded.integer;
-  const fraction = rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "." + fraction : integer;
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
   const scientific = formatted + "E" + (exponent < 0 ? "-" : "+") + exponentDigits;
@@ -38,7 +38,7 @@ export function scientificPersian(value) {
     rounded = { integer: "1", fraction: "000" };
   }
   const integer = rounded.integer;
-  const fraction = rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "٫" + fraction : integer;
   const localized = formatted.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[digit.charCodeAt(0) - 48]);
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
@@ -62,7 +62,7 @@ export function scientificAdlam(value) {
     rounded = { integer: "1", fraction: "000" };
   }
   const integer = rounded.integer;
-  const fraction = rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "." + fraction : integer;
   const localized = formatted.replace(/\d/g, (digit) => String.fromCodePoint(digit.charCodeAt(0) + 125216));
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
@@ -86,7 +86,7 @@ export function scientificMixed(value) {
     rounded = { integer: "1", fraction: "000" };
   }
   const integer = rounded.integer;
-  const fraction = rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "." + fraction : integer;
   const localized = formatted.replace(/\d/g, (digit) => {
     switch (digit.charCodeAt(0)) {
@@ -222,8 +222,9 @@ function scientificGeneratedDecimal(decimal) {
  * @returns {{ integer: string, fraction: string }}
  */
 function roundTo3FractionDigits(decimal) {
-  const fraction = decimal.fraction.slice(0, 3).padEnd(3, "0");
-  if (decimal.fraction.length <= 3 || decimal.fraction[3] < "5") return { integer: decimal.integer, fraction };
+  if (decimal.fraction.length <= 3) return decimal;
+  const fraction = decimal.fraction.slice(0, 3);
+  if (decimal.fraction[3] < "5") return { integer: decimal.integer, fraction };
   const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(4, "0");
   return { integer: digits.slice(0, -3), fraction: digits.slice(-3) };
 }

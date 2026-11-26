@@ -331,6 +331,8 @@ surface. Current guarantees are:
   the [pinned CLDR threshold](https://www.unicode.org/reports/tr35/tr35-78/tr35-numbers.html#Number_Patterns):
   Spanish `1000` remains ungrouped, while `10000` becomes `10.000`. The native preview
   applies the same digit symbols to number and currency bodies, preserving literal affixes.
+  When unit rounding leaves the canonical digits unchanged, it reuses that record and skips
+  optional trimming. The formatter still supplies its required minimum fraction digits.
   Percent, compact, scientific, significant-digit, and caller-selected numbering-system
   styles are not exposed.
   Internal scientific lowering compiles the locale's `exponential`, `plusSign`, and `minusSign`

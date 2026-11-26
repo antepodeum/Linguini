@@ -108,6 +108,35 @@ native integer limits, fractional/exponent inputs, non-finite values, and 8,192-
 both versions reject oversized or malformed input. Optional fraction display can still trim
 its formatted result, and broader repeated normalization remains open under OPT-A7.
 
+## Unchanged fraction rounding
+
+Unit rounding now returns its canonical input when its fraction already fits the selected
+precision. The formatter supplies required visible padding, and unchanged digits bypass optional
+trimming. No second decimal record, slice, padding, or trimming regex is needed on that number
+path. Truncated/rounded results and non-unit increments retain their exact arithmetic. Fixed
+currency output still applies its required padding. Fraction display has one focused canonical
+template shared by all number/currency requests.
+
+An English two-message consumer compared with the formatter output at `0f041d5` grows from
+3,732 / 1,325 / 1,196 to 3,768 / 1,334 / 1,212 minified / gzip / Brotli bytes. On Vite 7.3.3
+and Node 24.13.1, seven alternating 200,000-call batches after warmup give:
+
+| Number message input | Before / after µs |
+| --- | ---: |
+| Safe integer | 0.1438 / 0.0659 |
+| Bigint | 0.1605 / 0.0780 |
+| Fractional number | 0.3741 / 0.3544 |
+| Decimal string | 0.3142 / 0.2508 |
+| Mixed representations | 0.2617 / 0.2017 |
+
+The extra 16 Brotli bytes accompany a roughly halved local integer-call time and about 23%
+lower mixed-input time. Currency timing shows no comparable gain: integer calls take
+0.0945 / 0.0940 µs, and fractional calls 0.3897 / 0.3998 µs. These are local consumer
+measurements, without an application-wide speed or memory claim. A 9,038-result differential
+corpus preserves complete message output. The independent rational oracle still compares every
+result at its requested precision; separate execution checks record identity, input immutability,
+visible minima, ties/carries, increments, and native integer formatting with regexes disabled.
+
 ## Routing-only web persistence demand
 
 `createWebLocaleI18n` previously attached cookie serialization and server writes to every

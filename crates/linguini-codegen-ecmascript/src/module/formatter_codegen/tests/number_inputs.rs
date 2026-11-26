@@ -30,6 +30,9 @@ try {{
   assert.equal(formatCurrency(1234),'$1,234.00');
   assert.equal(formatCurrency(-0),'-$0.00');
   assert.equal(formatCurrency(1234n),'$1,234.00');
+  assert.equal(formatNumber(1234),'1,234');
+  assert.equal(formatNumber(-0),'-0');
+  assert.equal(formatNumber(1234n),'1,234');
   assert.throws(()=>parseGeneratedDecimal(tooLarge),RangeError);
   assert.throws(()=>parseGeneratedDecimal(-tooLarge),RangeError);
 }} finally {{RegExp.prototype.exec=original;}}

@@ -1,0 +1,21 @@
+{# Parsing, scaling, and scientific normalization strip trailing fraction zeros.
+   Only unchanged unit-rounding results can reuse those canonical digits directly.
+#}{% set unpadded_rounding = plan.rounding == "1" and plan.max_significant is none -%}
+{% if plan.max_significant is none and plan.min_fraction == plan.max_fraction -%}
+{% set fraction_value -%}
+rounded.fraction{% if unpadded_rounding and plan.min_fraction > 0 %}.padEnd({{ plan.min_fraction }}, "0"){% endif %}
+{%- endset -%}
+{% elif plan.min_fraction == 0 -%}
+{% set fraction_value -%}
+{% if unpadded_rounding %}rounded === decimal ? rounded.fraction : {% endif -%}
+rounded.fraction.replace(/0+$/, "")
+{%- endset -%}
+{% else -%}
+{% set fraction_value -%}
+{% if unpadded_rounding %}rounded === decimal ? rounded.fraction.padEnd({{ plan.min_fraction }}, "0") : {% endif -%}
+rounded.fraction.slice(0, {{ plan.min_fraction }}) + rounded.fraction.slice({{ plan.min_fraction }}).replace(/0+$/, "")
+{%- endset -%}
+{% endif -%}
+{% if plan.min_significant is not none %}  let{% else %}  const{% endif %} fraction = {{ fraction_value }};
+{% if plan.min_significant is not none %}  fraction = padTo{{ plan.min_significant }}SignificantDigits(integer, fraction);
+{% endif -%}

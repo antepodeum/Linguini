@@ -3,8 +3,9 @@
  * @returns {{ "{{" }} integer: string, fraction: string }}
  */
 function {{ name }}(decimal) {
-{% if fraction_digits > 0 %}  const fraction = decimal.fraction.slice(0, {{ fraction_digits }}).padEnd({{ fraction_digits }}, "0");
-{% endif %}{% if increment == "1" %}  if (decimal.fraction.length <= {{ fraction_digits }} || decimal.fraction[{{ fraction_digits }}] < "5") return { integer: decimal.integer, {% if fraction_digits > 0 %}fraction{% else %}fraction: ""{% endif %} };
+{% if increment == "1" %}  if (decimal.fraction.length <= {{ fraction_digits }}) return decimal;
+{% endif %}{% if fraction_digits > 0 %}  const fraction = decimal.fraction.slice(0, {{ fraction_digits }}){% if increment != "1" %}.padEnd({{ fraction_digits }}, "0"){% endif %};
+{% endif %}{% if increment == "1" %}  if (decimal.fraction[{{ fraction_digits }}] < "5") return { integer: decimal.integer, {% if fraction_digits > 0 %}fraction{% else %}fraction: ""{% endif %} };
   const digits = (BigInt({% if fraction_digits > 0 %}`${decimal.integer}${fraction}`{% else %}decimal.integer{% endif %}) + 1n).toString(){% if fraction_digits > 0 %}.padStart({{ fraction_digits + 1 }}, "0"){% endif %};
 {% else %}  const scaled = BigInt({% if fraction_digits > 0 %}`${decimal.integer}${fraction}`{% else %}decimal.integer{% endif %});
   const remainder = scaled % {{ increment }}n;

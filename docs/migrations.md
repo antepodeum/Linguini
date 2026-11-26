@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Unchanged fraction rounding
+
+Regenerate number/currency output to reuse canonical decimal digits when unit rounding leaves
+them unchanged. Required fraction padding now belongs to the formatter; optional fraction
+trimming is skipped for unchanged canonical input. Visible precision, ties, carries, rounding
+increments, significant/scientific behavior, negative zero, and input limits remain unchanged.
+Message and formatter APIs require no application changes.
+
 ## Shared locale fallback composition
 
 Backend authors can use `linguini_codegen::compose_locale_modules` with locale modules ordered
