@@ -1152,6 +1152,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       documentation, native CLI/tsc integration, editor/shared-WASM hosts, and all nine site gates.
       Separate Rust 1.87 and Node 20 checks cover both common-layer extractions. This receipt
       leaves the open architecture, installed-VSIX, remote-platform, and release criteria intact.
+      Formatted-input/preview follow-up source `3429c97` also passes all 70 local full-profile
+      gates in one clean run, including native tsc integration, packaged sources, editor/WASM,
+      and all production site checks. Separate Node 20 and Rust 1.87 verification covers the
+      changed paths. This source receipt does not close the remaining architecture/platform work.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
