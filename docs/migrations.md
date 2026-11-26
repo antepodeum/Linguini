@@ -4,6 +4,16 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native date preview planning
+
+The native `generate` preview now uses the shared date-request selector, pattern compiler,
+calendar symbols, day-period plans, and Gregorian week rules. `skeleton`, `time_style`, and
+combined date/time requests previously fell back to a date style. They now render the selected
+fields, UTC zone labels, contextual names, localized digits, and year-of-era/week-year values.
+Invalid requests report the shared structured diagnostic. Date samples use `YYYY-MM-DD` at UTC
+midnight, including year zero; generated application formatter inputs retain their existing
+Date/epoch/ISO contract.
+
 ## Preview currency symbols
 
 The native `generate` preview now resolves currency symbols from the same pinned locale lookup

@@ -17,6 +17,25 @@ impl GregorianWeekYearPlan {
         Self::for_week_data(compiled_week_data(locale)?)
     }
 
+    /// Offset from calendar year for validated Gregorian fields. Month and weekday are
+    /// zero-based (January and Sunday); day is one-based.
+    pub fn year_offset(self, month: u8, day: u8, weekday: u8) -> i8 {
+        let january = month == 0 && self.previous_last_day.is_some_and(|last| day <= last);
+        let december = month == 11 && self.next_first_day.is_some_and(|first| day >= first);
+        if !january && !december {
+            return 0;
+        }
+        let local_weekday = (u16::from(weekday) + u16::from(self.weekday_shift)) % 7;
+        let anchor = i32::from(day) + i32::from(self.anchor_offset) - i32::from(local_weekday);
+        if january && anchor < 1 {
+            -1
+        } else if december && anchor > 31 {
+            1
+        } else {
+            0
+        }
+    }
+
     pub fn for_week_data(week: WeekData) -> Option<Self> {
         if week.first_day > 6 || !(1..=7).contains(&week.min_days) {
             return None;
@@ -75,25 +94,8 @@ mod tests {
                             (5, ordinal - 151 - (days - 365))
                         };
                         let weekday = (january_weekday + ordinal - 1).rem_euclid(7);
-                        let local = (weekday + i64::from(plan.weekday_shift)) % 7;
-                        let anchor = day + i64::from(plan.anchor_offset) - local;
-                        let actual = if month == 0
-                            && plan
-                                .previous_last_day
-                                .is_some_and(|last| day <= i64::from(last))
-                            && anchor < 1
-                        {
-                            year - 1
-                        } else if month == 11
-                            && plan
-                                .next_first_day
-                                .is_some_and(|first| day >= i64::from(first))
-                            && anchor > 31
-                        {
-                            year + 1
-                        } else {
-                            year
-                        };
+                        let actual =
+                            year + i64::from(plan.year_offset(month, day as u8, weekday as u8));
                         let expected = if ordinal < start {
                             year - 1
                         } else if ordinal >= next_start {

@@ -1,11 +1,12 @@
+mod date;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use linguini_cldr::{
     built_in_plural_rules, compiled_currency_formatting, compiled_currency_fraction,
-    compiled_currency_symbol, compiled_date_formatting, compiled_number_formatting, DateFormatData,
-    NumberFormatData, NumberPattern, Operand, PluralRule, PluralRules, Range, Relation,
-    RelationOperator,
+    compiled_currency_symbol, compiled_number_formatting, NumberFormatData, NumberPattern, Operand,
+    PluralRule, PluralRules, Range, Relation, RelationOperator,
 };
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrForm, IrFormEntry,
@@ -763,16 +764,7 @@ impl<'a> Renderer<'a> {
         value: &str,
         arguments: &[IrFormatterArgument],
     ) -> Result<String, RenderError> {
-        let Some(dates) = compiled_date_formatting(self.locale) else {
-            return Err(missing_cldr_data("date formatting", self.locale));
-        };
-        let pattern = match formatter_argument(arguments, "style").unwrap_or("medium") {
-            "full" => dates.date_formats.full,
-            "long" => dates.date_formats.long,
-            "short" => dates.date_formats.short,
-            _ => dates.date_formats.medium,
-        };
-        format_date_pattern(value, pattern, &dates)
+        date::format_date(self.locale, value, arguments)
     }
 }
 
@@ -1498,126 +1490,6 @@ fn render_affix(value: &str, currency_symbol: Option<&str>) -> String {
     )
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct DateParts {
-    year: u32,
-    month: u32,
-    day: u32,
-    weekday: usize,
-}
-
-fn parse_date(value: &str) -> Result<DateParts, RenderError> {
-    let bytes = value.as_bytes();
-    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
-        return Err(RenderError::InvalidDate {
-            value: value.to_owned(),
-        });
-    }
-    let year = value[0..4]
-        .parse::<u32>()
-        .map_err(|_| RenderError::InvalidDate {
-            value: value.to_owned(),
-        })?;
-    let month = value[5..7]
-        .parse::<u32>()
-        .map_err(|_| RenderError::InvalidDate {
-            value: value.to_owned(),
-        })?;
-    let day = value[8..10]
-        .parse::<u32>()
-        .map_err(|_| RenderError::InvalidDate {
-            value: value.to_owned(),
-        })?;
-    let max_day = match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if is_leap_year(year) => 29,
-        2 => 28,
-        _ => 0,
-    };
-    if year == 0 || day == 0 || day > max_day {
-        return Err(RenderError::InvalidDate {
-            value: value.to_owned(),
-        });
-    }
-
-    Ok(DateParts {
-        year,
-        month,
-        day,
-        weekday: weekday(year, month, day),
-    })
-}
-
-const fn is_leap_year(year: u32) -> bool {
-    year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))
-}
-
-fn weekday(year: u32, month: u32, day: u32) -> usize {
-    const OFFSETS: [i64; 12] = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
-    let mut year = i64::from(year);
-    if month < 3 {
-        year -= 1;
-    }
-    let value = year + year / 4 - year / 100
-        + year / 400
-        + OFFSETS[usize::try_from(month - 1).expect("validated month")]
-        + i64::from(day);
-    usize::try_from(value.rem_euclid(7)).expect("weekday is non-negative")
-}
-
-fn format_date_pattern(
-    value: &str,
-    pattern: &str,
-    dates: &DateFormatData,
-) -> Result<String, RenderError> {
-    let date = parse_date(value)?;
-    let mut output = String::new();
-    let mut chars = pattern.chars().peekable();
-    while let Some(character) = chars.next() {
-        if character == '\'' {
-            for next in chars.by_ref() {
-                if next == '\'' {
-                    break;
-                }
-                output.push(next);
-            }
-            continue;
-        }
-        if matches!(character, 'y' | 'M' | 'L' | 'd' | 'E') {
-            let mut width = 1;
-            while chars.peek() == Some(&character) {
-                chars.next();
-                width += 1;
-            }
-            output.push_str(&date_field(character, width, date, dates));
-            continue;
-        }
-        output.push(character);
-    }
-    Ok(output)
-}
-
-fn date_field(field: char, width: usize, date: DateParts, dates: &DateFormatData) -> String {
-    match field {
-        'y' if width == 2 => format!("{:02}", date.year % 100),
-        'y' => date.year.to_string(),
-        'M' | 'L' if width >= 4 => {
-            dates.months.wide[usize::try_from(date.month - 1).expect("validated month")].to_owned()
-        }
-        'M' | 'L' if width == 3 => dates.months.abbreviated
-            [usize::try_from(date.month - 1).expect("validated month")]
-        .to_owned(),
-        'M' | 'L' if width == 2 => format!("{:02}", date.month),
-        'M' | 'L' => date.month.to_string(),
-        'd' if width == 2 => format!("{:02}", date.day),
-        'd' => date.day.to_string(),
-        'E' if width >= 4 => dates.weekdays.wide[date.weekday].to_owned(),
-        'E' => dates.weekdays.abbreviated[date.weekday].to_owned(),
-        _ => unreachable!("date pattern dispatch only accepts supported date fields"),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2151,9 +2023,15 @@ mod tests {
 
     #[test]
     fn date_formatter_uses_compiled_locale_pattern() {
-        let dates = compiled_date_formatting("en").expect("date data");
-        let rendered = format_date_pattern("2026-05-13", dates.date_formats.full, &dates)
-            .expect("format date");
+        let rendered = date::format_date(
+            "en",
+            "2026-05-13",
+            &[IrFormatterArgument {
+                name: "style".into(),
+                value: "full".into(),
+            }],
+        )
+        .expect("format date");
 
         assert!(rendered.contains("2026"));
         assert!(rendered.contains("May"));

@@ -15,6 +15,7 @@ path = "src/main.rs"
 clap = { version = "=4.5.61", features = ["derive"] }
 linguini-analyzer = { path = "../linguini-analyzer", version = "0.1.0-alpha.4" }
 linguini-cldr = { path = "../linguini-cldr", version = "0.1.0-alpha.4" }
+linguini-codegen = { path = "../linguini-codegen", version = "0.1.0-alpha.4" }
 linguini-codegen-ecmascript = { path = "../linguini-codegen-ecmascript", version = "0.1.0-alpha.4" }
 linguini-codegen-svelte = { path = "../linguini-codegen-svelte", version = "0.1.0-alpha.4" }
 linguini-codegen-vite = { path = "../linguini-codegen-vite", version = "0.1.0-alpha.4" }
@@ -30,4 +31,5 @@ tempfile = "=3.10.1"
 
 [dev-dependencies]
 assert_cmd = "=2.1.2"
+linguini-test-support = { path = "../linguini-test-support" }
 predicates = "3.1.4"

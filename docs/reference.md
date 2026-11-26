@@ -346,7 +346,8 @@ surface. Current guarantees are:
   years, while `y` renders the year of era. `YY` keeps the last two absolute digits and the sign;
   other widths set the minimum digit count. Week-number fields `w`/`W` remain unsupported.
   Selectable time zones, non-Gregorian calendars, closest-match skeletons, and synthesized
-  date/time combinations remain under remediation.
+  date/time combinations remain under remediation. Native `generate` date samples use
+  `YYYY-MM-DD` at UTC midnight and the same request, pattern, symbol, and week-rule planners.
 
 ```lgl
 created_at = {created @date(style = "long", time_style = "short")}

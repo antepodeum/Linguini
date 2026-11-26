@@ -617,8 +617,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #304 — Enforce document, project, file, recursion, and nesting limits.
 - [-] #305 — Share preview semantics with the production evaluator. Native numeric previews
       now honor localized negative affixes, minimum grouping thresholds, and pinned currency
-      symbols. Date previews still select only a date `style`; exact skeleton and `time_style`
-      request selection remains separate from the shared production planner and must be fixed.
+      symbols. Date-only previews now reuse production request/pattern/symbol/day-period/week
+      plans for exact skeletons, time-only output, and composed styles. All source-selectable
+      skeletons across 508 resolved locales render; 2,880 comparisons across 12 locales and 30
+      requests execute real generated modules, covering year zero, week boundaries, contextual
+      labels, and BMP/supplementary digits. Native numeric digit substitution and the broader
+      generated Date input domain remain open.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.
