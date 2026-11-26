@@ -1126,6 +1126,13 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Separate Rust 1.87 and Node 20 checks cover the formatter/preview changes. This source
       receipt preserves the open architecture, fresh installed-VSIX, remote-platform, and
       signing/publication requirements above.
+      Follow-up source `ef880d8` passes 68 of 70 full-profile gates in one run, including locked
+      workspace/Clippy, packaged documentation, strict JS/TS/tsc, npm/editor/shared-WASM, and
+      production graph/browser checks. Two test consumers still called the retired `selectBranch`
+      export. Updating those consumers preserves named-argument parity and executes prototype-key
+      rejection through the site's generated dispatch; both repaired gates pass on Node 24 and
+      Node 20. Together these receipts cover all 70 gates without claiming a fresh single clean
+      full run, installed VSIX smoke, remote-platform run, or final architecture completion.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.

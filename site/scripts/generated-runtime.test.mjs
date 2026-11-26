@@ -92,9 +92,13 @@ test('executes generated JavaScript messages, lazy forms, exact numbers, currenc
   );
   assert.equal(en.main.playground.size_line('small'), 'Size form: compact');
   assert.throws(() => en.main.playground.size_line('big'), /unselected form branch ran/);
-  const protoBranches = { ['__proto__']: () => 'safe', _: () => 'fallback' };
-  assert.equal(shared.selectBranch('__proto__', protoBranches)(), 'safe');
-  assert.equal(shared.selectBranch('missing', protoBranches)(), 'fallback');
+  assert.equal(Object.hasOwn(shared, 'selectBranch'), false);
+  for (const key of ['__proto__', 'constructor', 'missing']) {
+    assert.throws(
+      () => en.main.playground.size_line(key),
+      { message: `Linguini dispatch has no branch for key ${JSON.stringify(key)}` }
+    );
+  }
 
   assert.equal(
     enRuntime.formatNumber(900719925474099312345n),

@@ -57,17 +57,13 @@ test("Kit navigation bridge forwards options and preserves completion and reject
   });
 });
 
-test("shared helpers preserve dispatch precedence and named-argument validation across targets", async () => {
+test("shared helpers preserve named-argument validation across targets", async () => {
   for (const target of ["javascript/shared.js", "typescript/shared.ts"]) {
-    const { selectBranch, normalizeMessageArgs } = await import(`./plain/${target}`);
-    expect(selectBranch("key", { key: undefined, _: "fallback" })).toBeUndefined();
-    expect(selectBranch("missing", { _: "default", other: "other" })).toBe("default");
-    expect(selectBranch("missing", { other: "other" })).toBe("other");
-    const branches = Object.assign(Object.create({ key: "inherited" }), { _: "own" });
-    expect(selectBranch("key", branches)).toBe("own");
-    expect(() => selectBranch("missing", Object.create({ _: "inherited" }))).toThrow(
-      'Linguini dispatch has no branch for key "missing"'
-    );
+    const shared = await import(`./plain/${target}`);
+    const { normalizeMessageArgs } = shared;
+    if (target.startsWith("javascript/")) {
+      expect(Object.hasOwn(shared, "selectBranch")).toBe(false);
+    }
 
     const named = Object.assign(Object.create(null), { name: "Ada" });
     expect(normalizeMessageArgs([named], ["name"])).toEqual(["Ada"]);
