@@ -144,6 +144,11 @@ they would shadow a required function, formatter, or runtime helper; private bin
 readable numeric suffixes. Named-object keys and declaration signatures keep the source names.
 Named function calls retain precedence over same-named parameters, and a call does not inherit
 that parameter's implicit display formatter.
+Native filesystem qualification uses the same lexical rules for message, function, form, and
+inline parameters. Rust project loaders use `linguini_ir::qualify_locale_module` with the
+corresponding freshly lowered schema before merging namespaced locales; the schema retains
+ownership of message signatures. `qualify_module` remains available for schema and self-contained
+module qualification.
 
 JavaScript output with declaration companions can be consumed by strict TypeScript projects
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and

@@ -12,8 +12,8 @@ use linguini_analyzer::DiagnosticSeverity;
 use linguini_codegen::ProjectLocalePlan;
 use linguini_config::LinguiniConfig;
 use linguini_ir::{
-    ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, IrModule,
-    IrModuleBuilder, IrSymbolKind, LocaleIr, SchemaIr,
+    ensure_no_unresolved_references, lower_locale, lower_schema, qualify_locale_module,
+    qualify_module, IrModule, IrModuleBuilder, IrSymbolKind, LocaleIr, SchemaIr,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -65,6 +65,12 @@ fn build_locale_ir(
 
     for schema_file in schema_files {
         let namespace = &schema_file.file.namespace;
+        let schema = lower_schema(&schema_file.ast);
+        let qualify_locale = |file: &ParsedLocaleSource| {
+            let mut module = lower_locale(&file.ast);
+            qualify_locale_module(&mut module, &schema, namespace);
+            module
+        };
         let locale_key = (namespace.clone(), locale.to_owned());
         let locale_file = locale_index.get(&locale_key);
 
@@ -78,19 +84,13 @@ fn build_locale_ir(
 
         if let Some(locale_file) = locale_file {
             ensure_locale_has_required_messages(root, config, schema_file, locale_file, locale)?;
-            merge_module(
-                &mut locale_ir,
-                namespaced_module(lower_locale(&locale_file.ast), namespace),
-            )?;
+            merge_module(&mut locale_ir, qualify_locale(locale_file))?;
         }
 
         for fallback_locale in &fallbacks {
             let fallback_key = (namespace.clone(), fallback_locale.to_owned());
             if let Some(default_locale_file) = locale_index.get(&fallback_key) {
-                merge_module_fallback(
-                    &mut locale_ir,
-                    namespaced_module(lower_locale(&default_locale_file.ast), namespace),
-                )?;
+                merge_module_fallback(&mut locale_ir, qualify_locale(default_locale_file))?;
             }
         }
     }

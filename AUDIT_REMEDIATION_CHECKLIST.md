@@ -1704,7 +1704,13 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       named-object keys and declaration signatures. Executed enum/currency/date aliases, direct and
       forwarded/inline calls, classifier/form selectors, getter order, coercion, and error identity
       cover GEN-A42. Strict JS and TypeScript consumers preserve the public argument contract;
-      affected Node 20/24 suites, workspace Clippy, and Rust 1.87 checks pass. Current snapshots
+      affected Node 20/24 suites, workspace Clippy, and Rust 1.87 checks pass. Native qualification
+      also preserves schema-owned message parameters and named calls through nested filesystem,
+      group, function, inline, and form scopes. Real check/build/preview and executed positional/
+      named calls cover getter/coercion order and error identity; signature ownership stays in
+      the schema. IR/CLI suites pass on Node 20/24, with common/backend tests on Node 20, strict
+      Clippy, Rust 1.87, patch API compatibility, and three documentation gates passing. These are
+      focused follow-up checks, not a replacement full-run receipt. Current snapshots
       remain unchanged. Shared scope-aware string facts also emit locale text variable references
       directly across ordinary and physical modules, including aliases and imported globals.
       Executed conversion traces retain raw parameters, numeric plural inputs, coercion hints,

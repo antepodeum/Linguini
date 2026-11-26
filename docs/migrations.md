@@ -12,6 +12,11 @@ in dependency selection and emission. Private parameter bindings use readable nu
 when needed to avoid shadowing; named-object keys and public declaration signatures are unchanged.
 Function calls no longer acquire implicit currency/date defaults from a same-named parameter.
 Ordinary, standalone, and physical outputs share this resolution. No application changes are required.
+Native build/preview qualification now also preserves schema message parameters and same-named
+function calls in forwarded, inline, and form scopes. Rust loaders that qualify locale files
+separately should use the additive `linguini_ir::qualify_locale_module(locale, schema, namespace)`
+with both freshly lowered relative modules, then merge the qualified result. No syntax or
+application-call changes are needed.
 
 ## Unnamed form receiver validation
 

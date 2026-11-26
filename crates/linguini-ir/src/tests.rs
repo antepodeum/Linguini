@@ -1005,6 +1005,58 @@ fn project_namespace_qualifies_inline_input_calls_but_keeps_bindings_local() {
 }
 
 #[test]
+fn locale_qualification_preserves_schema_and_nested_lexical_scopes() {
+    let mut schema = lower_schema(
+        &parse_schema("enum Item { apple }\nsection { root(helper: Item, count: Number) }\n")
+            .unwrap(),
+    );
+    let mut locale = lower_locale(
+        &parse_locale(concat!(
+            "fn helper(count: Number) { _ => {count} }\n",
+            "fn Forward(helper: Item, count: Number) { _ => {helper} / {helper(count)} }\n",
+            "fn pick(item: Item) { _ => {item} }\n",
+            "impl Item { apple { form label(pick: Item) { apple => {pick} / {pick(pick)} } } }\n",
+            "section { root = {helper} / {helper(count)} / {Forward(helper,count)} / ",
+            "{fn(helper: helper) { _ => {helper} / {helper(count)} }} / {helper.label(helper)}\n}\n",
+        )).unwrap(),
+    );
+    crate::qualify_locale_module(&mut locale, &schema, "shop.checkout");
+    qualify_module(&mut schema, "shop.checkout");
+    ensure_no_unresolved_references(&schema, &locale).unwrap();
+    let message = &locale.messages[0];
+    assert_eq!(message.name, "shop.checkout.section.root");
+    assert!(
+        message.parameters.is_empty(),
+        "schema keeps ownership of signatures"
+    );
+    let paths = message
+        .body
+        .as_ref()
+        .unwrap()
+        .parts
+        .iter()
+        .filter_map(|part| match part {
+            IrTextPart::Placeholder(expression) => Some(expression.path.join(".")),
+            IrTextPart::Text(_) => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        paths,
+        [
+            "helper",
+            "shop.checkout.helper",
+            "shop.checkout.Forward",
+            "",
+            "helper.label"
+        ]
+    );
+    assert!(locale
+        .origins
+        .iter()
+        .all(|origin| origin.name.starts_with("shop.checkout.")));
+}
+
+#[test]
 fn reference_validation_resolves_qualified_functions_and_variables() {
     let mut schema = lower_schema(
         &parse_schema(

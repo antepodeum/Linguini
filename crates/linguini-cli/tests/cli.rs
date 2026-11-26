@@ -1354,3 +1354,93 @@ fn callable_receivers_pass_check_build_and_preview() {
         );
     }
 }
+
+#[test]
+fn namespace_qualification_preserves_parameters_and_same_named_function_calls() {
+    let project = TempDir::new().unwrap();
+    fs::write(
+        project.path().join("linguini.toml"),
+        "[project]\nname=\"scope\"\ndefault_locale=\"en\"\nlocales=[\"en\"]\n\
+         [paths]\nschema=\"schema\"\nlocale=\"locales\"\n\
+         [targets.ts]\nout=\"generated\"\n",
+    )
+    .unwrap();
+    fs::write(project.path().join("package.json"), "{\"type\":\"module\"}").unwrap();
+    fs::create_dir_all(project.path().join("schema/shop")).unwrap();
+    fs::create_dir_all(project.path().join("locales/shop/checkout")).unwrap();
+    fs::write(
+        project.path().join("schema/shop/checkout.lgs"),
+        "enum Fruit { apple }\ntype Item = Fruit\n\
+         direct(helper: Item, count: Number)\n\
+         forwarded(helper: Item, count: Number)\n\
+         inline(helper: Item, count: Number)\n\
+         mapped(fruit: Item)\n",
+    )
+    .unwrap();
+    fs::write(
+        project.path().join("locales/shop/checkout/en.lgl"),
+        "impl Fruit { apple {\n\
+           tag = Apple\n\
+           form label(selected: Fruit) {\n\
+             apple => {selected} / {selected(selected)}\n\
+             _ => {selected} / {selected(selected)}\n\
+           }\n\
+         } }\n\
+         fn helper(count: Number) { _ => {count} }\n\
+         fn selected(value: Fruit) { _ => {value} }\n\
+         fn Forward(helper: Item, count: Number) { _ => {helper} / {helper.tag} / {helper(count)} }\n\
+         direct = {helper} / {helper.tag} / {helper(count)}\n\
+         forwarded = {Forward(helper,count)}\n\
+         inline = {fn(helper: helper) { _ => {helper} / {helper.tag} / {helper(count)} }}\n\
+         mapped = {fruit.label(fruit)}\n",
+    ).unwrap();
+    for command in ["check", "build"] {
+        linguini()
+            .current_dir(project.path())
+            .args([command, "--format", "json"])
+            .assert()
+            .success()
+            .stderr("");
+    }
+    let execution = std::process::Command::new("node")
+        .current_dir(project.path())
+        .args(["--input-type=module", "--eval", r#"
+import assert from 'node:assert/strict';
+const {lgl}=await import('./generated/index.js');
+for (const message of [lgl.shop.checkout.direct,lgl.shop.checkout.forwarded,lgl.shop.checkout.inline]) {
+  assert.equal(message('apple',2),'apple / Apple / 2');
+  assert.equal(message({helper:'apple',count:1}),'apple / Apple / 1');
+  const seen=[];
+  const item={ [Symbol.toPrimitive](hint) { seen.push('item:'+hint); return 'apple'; } };
+  const count={ [Symbol.toPrimitive](hint) { seen.push('count:'+hint); return '2'; } };
+  const args=Object.defineProperties({}, {
+    count:{enumerable:true,get() {seen.push('get count');return count;}},
+    helper:{enumerable:true,get() {seen.push('get helper');return item;}}
+  });
+  assert.equal(message(args),'apple / Apple / 2');
+  assert.deepEqual(seen,['get helper','get count','item:string','item:string','count:string']);
+  const failure=new Error('conversion failed');
+  assert.throws(()=>message({helper:{[Symbol.toPrimitive]() {throw failure;}},count:1}),error=>error===failure);
+}
+assert.equal(lgl.shop.checkout.mapped('apple'),'apple / apple');
+assert.equal(lgl.shop.checkout.mapped({fruit:'apple'}),'apple / apple');
+console.log('verified');
+"#]).output().unwrap();
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(execution.stdout).unwrap().trim(),
+        "verified"
+    );
+    linguini()
+        .current_dir(project.path())
+        .arg("generate")
+        .assert()
+        .success()
+        .stdout(contains("apple / Apple / 1"))
+        .stdout(contains("apple / Apple / 2"))
+        .stdout(contains("=> apple / apple"));
+}
