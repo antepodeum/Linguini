@@ -1357,6 +1357,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       performance, payload size, exact dependency delivery, evaluation semantics, source maps,
       type safety, or compatibility. Verify representative generated functions, forms, and
       formatters alongside the execution and output-size checks in OPT-A5.
+      Unnamed form maps now share function selectors' reference walker and allocator, preserving
+      ordinary `value` bindings while avoiding locale-variable and custom-plural-helper collisions.
+      Executed legacy and physical semantic/message graphs verify `value`/`value2` references,
+      both branch outcomes, and positional/named calls. Other readability/optimization criteria
+      above remain open.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       The [cost audit](docs/generated-code-cost-audit.md) records category-name versus numeric

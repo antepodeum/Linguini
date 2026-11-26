@@ -80,6 +80,9 @@ rendering with per-message and group provenance.
 Generated internal bindings retain readable source names and qualified components when safe.
 Reserved compiler prefixes and ambiguous identifier spellings are encoded deterministically to
 prevent collisions with source declarations. These internal names are not a public import API.
+Unnamed form selectors keep `value` when it is safe, with deterministic numeric suffixes when
+branch references or the configured plural helper use that binding. Function and form selectors
+share reference discovery and allocation; explicitly named source parameters remain intact.
 
 JavaScript output with declaration companions can be consumed by strict TypeScript projects
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and

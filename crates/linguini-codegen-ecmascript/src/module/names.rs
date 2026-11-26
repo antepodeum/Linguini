@@ -1,3 +1,9 @@
+use std::collections::BTreeSet;
+
+use linguini_ir::{
+    IrExpression, IrExpressionKind, IrFunctionBranchValue, IrInlineFunctionInput, IrTextPart,
+};
+
 use crate::ecmascript::EcmaModuleKind;
 
 pub fn function_name(name: &str) -> String {
@@ -10,45 +16,6 @@ pub(super) fn function_parameter_names(
     branches: &[linguini_ir::IrFunctionBranch],
     plural_function: &str,
 ) -> Vec<String> {
-    use linguini_ir::{
-        IrExpression, IrExpressionKind, IrFunctionBranchValue, IrInlineFunctionInput, IrTextPart,
-    };
-    use std::collections::BTreeSet;
-    fn expression_names(expression: &IrExpression, used: &mut BTreeSet<String>) {
-        if let Some(root) = expression.path.first() {
-            used.insert(safe_identifier(root));
-        }
-        for argument in &expression.arguments {
-            expression_names(argument, used);
-        }
-        if let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
-            for input in inputs {
-                let value = match input {
-                    IrInlineFunctionInput::Binding { name, value, .. } => {
-                        used.insert(safe_identifier(name));
-                        value
-                    }
-                    IrInlineFunctionInput::Selector { value, .. } => value,
-                };
-                expression_names(value, used);
-            }
-            branch_names(branches, used);
-        }
-    }
-    fn branch_names(branches: &[linguini_ir::IrFunctionBranch], used: &mut BTreeSet<String>) {
-        for branch in branches {
-            match &branch.value {
-                IrFunctionBranchValue::Text(text) => {
-                    for part in &text.parts {
-                        if let IrTextPart::Placeholder(expression) = part {
-                            expression_names(expression, used);
-                        }
-                    }
-                }
-                IrFunctionBranchValue::Dispatch(children) => branch_names(children, used),
-            }
-        }
-    }
     let mut used = parameters
         .iter()
         .filter_map(|parameter| parameter.name.as_deref().map(safe_identifier))
@@ -69,15 +36,74 @@ pub(super) fn function_parameter_names(
                     .map(|first| first.to_lowercase().collect::<String>() + chars.as_str())
                     .unwrap_or_else(|| "value".to_owned()),
             );
-            let mut name = base.clone();
-            let mut suffix = 2;
-            while !used.insert(name.clone()) {
-                name = format!("{base}{suffix}");
-                suffix += 1;
-            }
-            name
+            allocate_parameter_name(&base, &mut used)
         })
         .collect()
+}
+
+/// Keep the usual map selector readable while avoiding referenced globals and the classifier.
+pub(super) fn form_parameter_name(
+    parameter: &linguini_ir::IrFunctionParameter,
+    branches: &[linguini_ir::IrBranch],
+    plural_function: &str,
+) -> String {
+    if let Some(name) = &parameter.name {
+        return safe_identifier(name);
+    }
+    let mut used = BTreeSet::from([plural_function.to_owned()]);
+    for branch in branches {
+        text_names(&branch.value, &mut used);
+    }
+    allocate_parameter_name("value", &mut used)
+}
+
+fn allocate_parameter_name(base: &str, used: &mut BTreeSet<String>) -> String {
+    let mut name = base.to_owned();
+    let mut suffix = 2;
+    while !used.insert(name.clone()) {
+        name = format!("{base}{suffix}");
+        suffix += 1;
+    }
+    name
+}
+
+fn expression_names(expression: &IrExpression, used: &mut BTreeSet<String>) {
+    if let Some(root) = expression.path.first() {
+        used.insert(safe_identifier(root));
+    }
+    for argument in &expression.arguments {
+        expression_names(argument, used);
+    }
+    if let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
+        for input in inputs {
+            let value = match input {
+                IrInlineFunctionInput::Binding { name, value, .. } => {
+                    used.insert(safe_identifier(name));
+                    value
+                }
+                IrInlineFunctionInput::Selector { value, .. } => value,
+            };
+            expression_names(value, used);
+        }
+        branch_names(branches, used);
+    }
+}
+
+fn text_names(text: &linguini_ir::IrText, used: &mut BTreeSet<String>) {
+    for part in &text.parts {
+        if let IrTextPart::Placeholder(expression) = part {
+            expression_names(expression, used);
+        }
+    }
+}
+
+fn branch_names(branches: &[linguini_ir::IrFunctionBranch], used: &mut BTreeSet<String>) {
+    for branch in branches {
+        match &branch.value {
+            IrFunctionBranchValue::Text(text) => text_names(text, used),
+            IrFunctionBranchValue::Dispatch(children) => branch_names(children, used),
+        }
+    }
 }
 
 pub fn safe_identifier(name: &str) -> String {

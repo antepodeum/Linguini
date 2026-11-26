@@ -115,11 +115,7 @@ pub fn map_expression(
     let dispatch = parameters
         .first()
         .expect("validated form maps have one dispatch parameter");
-    let parameter = dispatch
-        .name
-        .as_deref()
-        .map(safe_identifier)
-        .unwrap_or_else(|| "value".to_owned());
+    let parameter = super::names::form_parameter_name(dispatch, branches, &options.plural_function);
     let selector = selector_expression(&parameter, dispatch.ty == "Plural", true, options);
     let decision = linguini_codegen::Decision::branch(
         selector,
@@ -552,6 +548,39 @@ mod tests {
                 &options
             ),
             "__lgl_form_Item[item].label"
+        );
+    }
+
+    #[test]
+    fn unnamed_form_selector_does_not_shadow_custom_plural_helper() {
+        let locale = lower_locale(
+            &parse_locale(
+                "impl Fruit { apple { form label(Plural) {\none => One\n_ => Other\n} } }\n",
+            )
+            .unwrap(),
+        );
+        let code = form_object(
+            &linguini_ir::IrModule::default(),
+            &locale.forms()[0].variants[0].entries,
+            &EcmaOptions {
+                plural_function: "value".into(),
+                plural_import: None,
+                ..EcmaOptions::default()
+            },
+        );
+        let files = [crate::EcmaGeneratedFile {path: "form.js".into(), contents: format!("const value = input => input === 1 ? 'one' : 'other';\nexport const form = {code};")}];
+        assert_eq!(
+            crate::test_runtime::execute_project(
+                &files,
+                r#"
+import assert from 'node:assert/strict';
+const {form} = await import('./form.js');
+assert.equal(form.label(1), 'One');
+assert.equal(form.label(2), 'Other');
+console.log('ok');
+"#
+            ),
+            "ok"
         );
     }
 

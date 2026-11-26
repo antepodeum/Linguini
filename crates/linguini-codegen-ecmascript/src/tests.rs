@@ -24,6 +24,69 @@ fn project_options(base_locale: &str) -> EcmaProjectOptions {
 }
 
 #[test]
+fn unnamed_form_selectors_do_not_shadow_text_variables() {
+    use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
+    let schema_source = "enum Fruit { apple }\nroot(count: Number, fruit: Fruit)\n";
+    let locale_source = concat!(
+        "let value = Global label\n",
+        "let value2 = Second label\n",
+        "impl Fruit { apple { form label(Plural) {\n",
+        "one => {value} / {value2}\n_ => {value2} / {value}\n} } }\n",
+        "root = {fruit.label(count)}\n"
+    );
+    let schema = lower_schema(&parse_schema_in(schema_source, SourceId(1)).unwrap());
+    let locales = [EcmaLocaleModule {
+        locale: "en".into(),
+        module: lower_locale(&parse_locale_in(locale_source, SourceId(2)).unwrap()),
+    }];
+    let options = project_options("en");
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).unwrap();
+    let mut files = crate::generate_project_files(&project).unwrap();
+    let sources = [
+        crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
+        crate::EcmaSource::new(SourceId(2), "en.lgl", locale_source),
+    ];
+    for artifact in project.semantic_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    let artifact = project.message_artifacts().unwrap().remove(0);
+    let physical =
+        crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+    files.push(EcmaGeneratedFile {
+        path: artifact.module_path.clone(),
+        contents: physical.code,
+    });
+    files.push(EcmaGeneratedFile {
+        path: "physical.js".into(),
+        contents: format!(
+            "export {{message}} from {:?};",
+            format!("./{}", artifact.module_path)
+        ),
+    });
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"
+import assert from 'node:assert/strict';
+const {root} = await import('./locales/en.js');
+const {message} = await import('./physical.js');
+for (const render of [root,message]) {
+  assert.equal(render(1, 'apple'), 'Global label / Second label');
+  assert.equal(render({count:2,fruit:'apple'}), 'Second label / Global label');
+}
+console.log('ok');
+"#
+        ),
+        "ok"
+    );
+}
+
+#[test]
 fn exact_date_skeletons_compile_defaults_names_and_time_without_runtime_patterns() {
     let schema = lower_schema(&parse_schema("type ReceiptDate = Date @date(skeleton = \"yMMMd\")\nreceipt(value: ReceiptDate)\nclock(value: Date)\nera(value: Date)\nquarter(value: Date)\n").unwrap());
     let text = "receipt = {value}\nclock = {value @date(skeleton = \"Hm\")}\nera = {value @date(skeleton = \"GyMMMd\")}\nquarter = {value @date(skeleton = \"yQQQ\")}\n";

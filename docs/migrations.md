@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Form selector bindings
+
+Regenerate forms that reference a locale variable named `value`, or use a custom plural helper
+with that name. The unnamed selector previously shadowed that binding and could render the
+numeric selector instead of the locale text, or call the selector as a function. It now selects
+a free name such as `value2` or `value3`. Non-colliding output and explicit source parameter names
+remain unchanged; positional and named message calls keep their API.
+
 ## Locale metadata boundaries
 
 `createWebLocaleI18n` now copies only the declared locale metadata fields from its runtime input.
