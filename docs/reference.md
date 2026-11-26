@@ -411,8 +411,13 @@ surface. Current guarantees are:
   years, while `y` renders the year of era. `YY` keeps the last two absolute digits and the sign;
   other widths set the minimum digit count. Week-number fields `w`/`W` remain unsupported.
   Selectable time zones, non-Gregorian calendars, closest-match skeletons, and synthesized
-  date/time combinations remain under remediation. Native `generate` date samples use
-  `YYYY-MM-DD` at UTC midnight and the same request, pattern, symbol, and week-rule planners.
+  date/time combinations remain under remediation. Native `generate` date samples include
+  `YYYY-MM-DD` at UTC midnight, a zone-less noon, and a date-time with an explicit offset.
+  They reuse the same request, pattern, symbol, day-period, and week-rule planners. The preview
+  parser normalizes explicit offsets to UTC, preserves millisecond precision, and handles
+  `24:00` and calendar/year rollover. Date-only and zone-less samples remain host-zone independent.
+  Invalid calendar/time/offset fields are rejected; numeric strings are not epoch values.
+  Native typed epoch-number and Date-object parity remains under remediation.
 
 ```lgl
 created_at = {created @date(style = "long", time_style = "short")}

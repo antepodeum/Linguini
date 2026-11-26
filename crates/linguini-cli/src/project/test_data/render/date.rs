@@ -1,4 +1,4 @@
-//! Native previews of date-only sample values through the shared CLDR request planner.
+//! Native previews of ISO date sample values through the shared CLDR request planner.
 
 use linguini_cldr::{compiled_calendar_formatting, compiled_date_formatting};
 use linguini_codegen::{
@@ -25,6 +25,15 @@ pub(super) fn format_date(
     let pattern = date_request_pattern(&dates, &request).map_err(pattern_error)?;
     let parts = compile_date_pattern(locale, &pattern).map_err(pattern_error)?;
     let date = parse_date(value)?;
+    let displayed = |field| {
+        parts
+            .iter()
+            .any(|part| matches!(part, DatePatternPart::Field { symbol, .. } if *symbol == field))
+    };
+    let displayed_minutes = if displayed('m') { date.minute } else { 0 };
+    let exact_period =
+        (!displayed('s') || date.second == 0) && (!displayed('S') || date.millisecond == 0);
+    let period_minute = u16::from(date.hour) * 60 + u16::from(displayed_minutes);
     let digits = decimal_digit_symbols(dates.digits)
         .ok_or_else(|| super::missing_cldr_data("numeric date symbols", locale))?;
     let mut output = String::new();
@@ -45,7 +54,11 @@ pub(super) fn format_date(
                 }
                 let numeric = match symbol {
                     'y' => {
-                        let year = if date.year == 0 { 1 } else { date.year };
+                        let year = if date.year <= 0 {
+                            1 - date.year
+                        } else {
+                            date.year
+                        };
                         pad(if width == 2 { year % 100 } else { year }, width)
                     }
                     'Y' => {
@@ -74,14 +87,30 @@ pub(super) fn format_date(
                     'M' | 'L' => pad(date.month, width),
                     'Q' | 'q' => pad((date.month - 1) / 3 + 1, width),
                     'd' => pad(date.day, width),
-                    // Date-only sample inputs are UTC midnight, including time-only requests.
-                    'H' | 'K' | 'm' | 's' => pad(0, width),
-                    'h' => pad(12, width),
-                    'k' => pad(24, width),
-                    'S' => "0".repeat(width),
+                    'H' => pad(date.hour, width),
+                    'K' => pad(date.hour % 12, width),
+                    'h' => pad(
+                        if date.hour % 12 == 0 {
+                            12
+                        } else {
+                            date.hour % 12
+                        },
+                        width,
+                    ),
+                    'k' => pad(if date.hour == 0 { 24 } else { date.hour }, width),
+                    'm' => pad(date.minute, width),
+                    's' => pad(date.second, width),
+                    'S' => {
+                        let mut fraction = pad(date.millisecond, 3);
+                        fraction.truncate(width);
+                        if width > 3 {
+                            fraction.push_str(&"0".repeat(width - 3));
+                        }
+                        fraction
+                    }
                     'G' => {
                         output.push_str(
-                            if date.year == 0 {
+                            if date.year <= 0 {
                                 symbols.bc
                             } else {
                                 symbols.ad
@@ -95,11 +124,20 @@ pub(super) fn format_date(
                             .and_then(|plan| {
                                 plan.exact
                                     .iter()
-                                    .find(|period| period.at == 0)
+                                    .find(|period| exact_period && period.at == period_minute)
                                     .map(|period| period.value)
-                                    .or_else(|| plan.spans.first().map(|span| span.value))
+                                    .or_else(|| {
+                                        plan.spans
+                                            .iter()
+                                            .find(|span| period_minute < span.before)
+                                            .map(|span| span.value)
+                                    })
                             })
-                            .or(symbols.am)
+                            .or(if date.hour < 12 {
+                                symbols.am
+                            } else {
+                                symbols.pm
+                            })
                             .ok_or_else(|| {
                                 super::missing_cldr_data("day-period symbols", locale)
                             })?;
@@ -129,59 +167,8 @@ fn pad(value: impl std::fmt::Display, width: usize) -> String {
     format!("{value:0>width$}")
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct DateParts {
-    year: u32,
-    month: u8,
-    day: u8,
-    weekday: u8,
-}
-
-fn parse_date(value: &str) -> Result<DateParts, RenderError> {
-    let invalid = || RenderError::InvalidDate {
-        value: value.to_owned(),
-    };
-    let bytes = value.as_bytes();
-    if bytes.len() != 10
-        || bytes[4] != b'-'
-        || bytes[7] != b'-'
-        || !bytes[..4]
-            .iter()
-            .chain(&bytes[5..7])
-            .chain(&bytes[8..])
-            .all(u8::is_ascii_digit)
-    {
-        return Err(invalid());
-    }
-    let year = value[..4].parse::<u32>().map_err(|_| invalid())?;
-    let month = value[5..7].parse::<u8>().map_err(|_| invalid())?;
-    let day = value[8..].parse::<u8>().map_err(|_| invalid())?;
-    let max_day = match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400)) => {
-            29
-        }
-        2 => 28,
-        _ => 0,
-    };
-    if day == 0 || day > max_day {
-        return Err(invalid());
-    }
-    const OFFSETS: [i64; 12] = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
-    let adjusted_year = i64::from(year) - i64::from(month < 3);
-    let weekday = (adjusted_year + adjusted_year.div_euclid(4) - adjusted_year.div_euclid(100)
-        + adjusted_year.div_euclid(400)
-        + OFFSETS[usize::from(month - 1)]
-        + i64::from(day))
-    .rem_euclid(7) as u8;
-    Ok(DateParts {
-        year,
-        month,
-        day,
-        weekday,
-    })
-}
+mod input;
+use input::parse_date;
 
 #[cfg(test)]
 mod tests;

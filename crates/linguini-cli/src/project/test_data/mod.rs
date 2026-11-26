@@ -262,7 +262,14 @@ fn sample_values(schema: &IrModule, ty: &str) -> Result<Vec<SampleValue>, Sample
             .into_iter()
             .map(|value| SampleValue::Number(value.to_owned()))
             .collect()),
-        "Date" => Ok(vec![SampleValue::String("2026-05-13".to_owned())]),
+        "Date" => Ok([
+            "2026-05-13",
+            "2026-05-13T12:00",
+            "2026-05-13T23:45:56.789+05:30",
+        ]
+        .into_iter()
+        .map(|value| SampleValue::String(value.to_owned()))
+        .collect()),
         "Boolean" => Ok(vec![
             SampleValue::Boolean(false),
             SampleValue::Boolean(true),
@@ -515,6 +522,33 @@ console.log(JSON.stringify(main));
         assert!(plain.contains("count=5"));
         assert!(plain.contains("=> 1 apple"));
         assert!(plain.contains("=> 5 apples"));
+    }
+
+    #[test]
+    fn generated_date_samples_cover_midnight_noon_and_offset_inputs() {
+        let schema = schema("seen(value: Date)\n");
+        let locale = lower_locale(
+            &parse_locale(
+                "seen = {value @date(skeleton = \"Bhm\")} / {value @date(skeleton = \"Hm\")}\n",
+            )
+            .unwrap(),
+        );
+        let output = render_generated_data(
+            &schema,
+            &BTreeMap::from([("en".into(), locale)]),
+            OutputStyle::plain(),
+        )
+        .unwrap();
+        for expected in [
+            "=> 12:00 midnight / 00:00",
+            "=> 12:00 noon / 12:00",
+            "=> 6:15 in the evening / 18:15",
+        ] {
+            assert!(output.contains(expected), "{output}");
+        }
+        for sample in sample_values(&schema, "Date").unwrap() {
+            assert!(output.contains(&sample.as_text()), "{output}");
+        }
     }
 
     #[test]

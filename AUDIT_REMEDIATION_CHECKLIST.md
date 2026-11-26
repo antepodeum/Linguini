@@ -649,6 +649,14 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       CLDR parents before the base, and exact alias spellings do not inherit a canonical sibling.
       Native build/execution and preview cases verify both corrections and exact parent source IDs;
       invalid nested formatter options now fail preview preparation too.
+      ISO date-time previews now normalize signed offsets, valid `24:00`, fractions, and calendar/
+      year rollover to UTC; clock fields and fixed/flexible periods follow displayed precision.
+      Twelve locales × thirty requests × twenty-four valid inputs execute against generated
+      modules in three host zones, alongside invalid calendar/time/offset rejection. Native
+      Date samples add noon and offset cases after the preserved date-only baseline. Typed
+      epoch-number and Date-object parity remains open. CLI unit/integration suites pass on
+      Node 20 and Node 24, with workspace Clippy, Rust 1.87, executable documentation, and
+      packaged-source checks passing. Generated code/declaration/map expectations are unchanged.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.

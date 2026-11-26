@@ -11,6 +11,43 @@ fn arguments(values: &[(&str, &str)]) -> Vec<IrFormatterArgument> {
 }
 
 #[test]
+fn utc_date_inputs_preserve_clock_precision_and_cross_calendar_boundaries() {
+    for (value, expected) in [
+        (
+            "2024-01-02T23:45:56.789+05:30",
+            (2024, 1, 2, 2, 18, 15, 56, 789),
+        ),
+        (
+            "2024-01-02T01:23:45.12-03:30",
+            (2024, 1, 2, 2, 4, 53, 45, 120),
+        ),
+        (
+            "2024-02-29T23:59:59.123456Z",
+            (2024, 2, 29, 4, 23, 59, 59, 123),
+        ),
+        ("2024-01-02T12:34:56.0009Z", (2024, 1, 2, 2, 12, 34, 56, 0)),
+        ("0000-01-01T00:00+00:01", (-1, 12, 31, 5, 23, 59, 0, 0)),
+        ("9999-12-31T24:00-23:59", (10000, 1, 1, 6, 23, 59, 0, 0)),
+    ] {
+        let date = parse_date(value).unwrap();
+        assert_eq!(
+            (
+                date.year,
+                date.month,
+                date.day,
+                date.weekday,
+                date.hour,
+                date.minute,
+                date.second,
+                date.millisecond
+            ),
+            expected,
+            "{value}"
+        );
+    }
+}
+
+#[test]
 fn date_samples_use_selected_requests_and_preserve_input_validation() {
     for (locale, value, options, expected) in [
         ("en", "2024-01-02", vec![], "Jan 2, 2024"),
@@ -29,6 +66,18 @@ fn date_samples_use_selected_requests_and_preserve_input_validation() {
             "12:00 midnight",
         ),
         ("en", "0000-02-29", vec![("skeleton", "yQQQ")], "Q1 1"),
+        (
+            "en",
+            "2024-01-02T23:45:56.789+05:30",
+            vec![("skeleton", "Hm")],
+            "18:15",
+        ),
+        (
+            "en",
+            "2024-01-02T12:00:30.123Z",
+            vec![("skeleton", "Bhm")],
+            "12:00 noon",
+        ),
     ] {
         assert_eq!(
             format_date(locale, value, &arguments(&options)).unwrap(),
@@ -46,7 +95,7 @@ fn date_samples_use_selected_requests_and_preserve_input_validation() {
         "2024-é-01",
         "2024-01-2",
         "2024-01-020",
-        "2024-01-02T00:00:00Z",
+        "2024-01-02T24:00:00.0009Z",
     ] {
         assert!(
             matches!(
@@ -119,6 +168,22 @@ fn native_date_samples_match_real_generated_modules_across_requests_and_locales(
         "2024-01-02",
         "2026-05-13",
         "9999-12-31",
+        "2024-01-02T00:00",
+        "2024-01-02T00:00Z",
+        "2024-01-02T12:00:30.123Z",
+        "2024-01-02T12:01:00Z",
+        "2024-01-02T23:45:56.789+05:30",
+        "2024-01-02T01:23:45.12-03:30",
+        "2024-02-29T23:59:59.123456Z",
+        "2024-02-29T24:00:00.000Z",
+        "2023-12-31T24:00",
+        "2024-01-01T00:00+23:59",
+        "2024-12-31T23:59-23:59",
+        "0000-01-01T00:00+00:01",
+        "0000-02-29T00:00+23:59",
+        "0001-01-01T00:00+23:59",
+        "0099-12-31T23:59-00:01",
+        "9999-12-31T24:00-23:59",
     ];
     let mut requests = vec![Vec::new()];
     for style in ["full", "long", "medium", "short"] {
@@ -157,5 +222,46 @@ fn native_date_samples_match_real_generated_modules_across_requests_and_locales(
             }
         }
     }
-    super::super::parity::assert_generated_samples(&schema, &source, &locales, &cases);
+    for value in [
+        "2023-02-29T12:00Z",
+        "2024-02-30T12:00Z",
+        "2024-00-01T12:00Z",
+        "2024-01-02T25:00Z",
+        "2024-01-02T24:01Z",
+        "2024-01-02T24:00:01Z",
+        "2024-01-02T24:00:00.0009Z",
+        "2024-01-02T12:60Z",
+        "2024-01-02T12:00:60Z",
+        "2024-01-02T12:00:00.Z",
+        "2024-01-02T12:00:00.1.2Z",
+        "2024-01-02T12:00.1Z",
+        "2024-01-02T12:00+24:00",
+        "2024-01-02T12:00+01:60",
+        "2024-01-02T12:00+0100",
+        "2024-01-02T12:00Zx",
+        "2024-01-02t12:00Z",
+        "2024-01-02T12:00z",
+        "2024-01-02T1:00Z",
+        "2024-01-02T12:0Z",
+        "2024-01-02T12:00:0Z",
+        "2024-01-02Té:00Z",
+        "2024-01-02Z",
+        "0",
+    ] {
+        assert!(
+            matches!(
+                format_date("en", value, &[]),
+                Err(RenderError::InvalidDate { .. })
+            ),
+            "{value}"
+        );
+        cases.push(serde_json::json!({ "locale":"en", "index":0, "value":value, "invalid":true }));
+    }
+    super::super::parity::assert_generated_samples_in_time_zones(
+        &schema,
+        &source,
+        &locales,
+        &cases,
+        &["UTC", "America/Los_Angeles", "Asia/Kolkata"],
+    );
 }

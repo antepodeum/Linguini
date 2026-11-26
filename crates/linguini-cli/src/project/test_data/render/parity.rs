@@ -9,6 +9,16 @@ pub(super) fn assert_generated_samples(
     locales: &[&str],
     cases: &[serde_json::Value],
 ) {
+    assert_generated_samples_in_time_zones(schema, source, locales, cases, &[]);
+}
+
+pub(super) fn assert_generated_samples_in_time_zones(
+    schema: &str,
+    source: &str,
+    locales: &[&str],
+    cases: &[serde_json::Value],
+    time_zones: &[&str],
+) {
     let project = linguini_test_support::temp_project_dir("preview-parity").unwrap();
     let root = project.path();
     std::fs::create_dir_all(root.join("schema")).unwrap();
@@ -38,31 +48,46 @@ for(const entry of {cases}) {{
     modules.set(entry.locale,main);
   }}
   const args=entry.args ?? [entry.value];
+  if(entry.invalid) {{
+    assert.throws(()=>main['sample'+entry.index](...args),RangeError,JSON.stringify(entry));
+    continue;
+  }}
   assert.equal(main['sample'+entry.index](...args),entry.expected,`${{entry.locale}}/${{entry.index}}/${{JSON.stringify(args)}}`);
 }}
 console.log('ok');
 "#,
         cases = serde_json::to_string(cases).unwrap()
     );
-    let mut child = Command::new("node")
-        .args(["--input-type=module", "-"])
-        .arg(root.join("generated"))
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(script.as_bytes())
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "ok");
+    let zones = if time_zones.is_empty() {
+        vec![None]
+    } else {
+        time_zones.iter().copied().map(Some).collect()
+    };
+    for zone in zones {
+        let mut command = Command::new("node");
+        if let Some(zone) = zone {
+            command.env("TZ", zone);
+        }
+        let mut child = command
+            .args(["--input-type=module", "-"])
+            .arg(root.join("generated"))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(script.as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "ok");
+    }
 }

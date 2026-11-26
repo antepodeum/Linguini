@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native date-time previews
+
+Native `generate` adds noon and offset-bearing date-time cases after the existing date-only Date
+sample. Previews normalize the same explicit ISO date-time strings accepted by generated messages
+to UTC instead of rejecting them or assuming midnight. Clock fields, display-precision day
+periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
+JavaScript, declaration, configuration, or application API changes are required.
+
 ## Constant plural classifiers
 
 Regeneration specializes classifiers whose compiled numeric result is constant, such as Japanese
