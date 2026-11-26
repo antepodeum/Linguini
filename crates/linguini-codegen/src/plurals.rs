@@ -10,6 +10,41 @@ pub struct PluralDecisionPlan {
 }
 
 impl PluralDecisionPlan {
+    /// A native integer with zero fractional/compact operands can use this suffix directly.
+    /// Backends must bound their input representation and supported modulus precision.
+    pub fn integer_input_suffix_modulus(&self) -> Option<u64> {
+        if self
+            .guards
+            .iter()
+            .any(|relation| matches!(relation.expression.operand, Operand::N | Operand::I))
+        {
+            return None;
+        }
+        let zero = linguini_cldr::PluralOperands::parse("0").expect("valid zero operands");
+        let guard = linguini_cldr::PluralRule {
+            conditions: vec![linguini_cldr::Condition {
+                relations: self.guards.clone(),
+            }],
+        };
+        if !guard.matches(&zero) {
+            return None;
+        }
+        let relations = self
+            .categories
+            .iter()
+            .flat_map(|category| &category.rule.conditions)
+            .flat_map(|condition| &condition.relations)
+            .collect::<Vec<_>>();
+        if relations
+            .iter()
+            .any(|relation| relation.expression.operand != Operand::I)
+        {
+            return None;
+        }
+        let digits = PluralRequirements::for_relations(relations).integer_tail_digits()?;
+        10_u64.checked_pow(digits as u32)
+    }
+
     /// Prove that the categories cover every integer residue after the guards.
     /// Only integer operands with nonzero moduli form the finite domain used here.
     /// Large periods and other operands conservatively retain the fallback test.
@@ -160,6 +195,58 @@ fn decimal_modulo_digits(modulo: Option<u64>) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn proves_native_integer_suffixes_only_when_zero_fractional_guards_hold() {
+        use linguini_cldr::parse_plural_rule;
+        for locale in ["ru", "uk"] {
+            let plan = PluralDecisionPlan::for_rules(
+                &linguini_cldr::built_in_plural_rules(locale).unwrap(),
+            );
+            assert_eq!(plan.integer_input_suffix_modulus(), Some(100), "{locale}");
+        }
+        for (guards, source, expected) in [
+            ("", "i % 100 = 1", Some(100)),
+            (
+                "v = 0 and w = 0 and f = 0 and t = 0 and c = 0 and e = 0",
+                "i % 10 = 1 or i % 100 = 2",
+                Some(100),
+            ),
+            ("v within 0..1 and e != 1", "i % 10 = 1", Some(10)),
+            ("v = 1", "i % 10 = 1", None),
+            ("c != 0", "i % 10 = 1", None),
+            ("i = 0", "i % 10 = 1", None),
+            ("n % 10 = 0", "i % 10 = 1", None),
+            ("", "n % 10 = 1", None),
+            ("", "i % 10 = 1 and v = 0", None),
+            ("", "i % 10 = 1 or f = 0", None),
+            ("", "i = 1", None),
+            ("", "i % 20 = 1", None),
+            ("", "i % 0 = 1", None),
+            ("", "i % 1 = 0", None),
+            ("", "", None),
+            ("", "i % 10000000000000000000 = 1", Some(10_u64.pow(19))),
+        ] {
+            let plan = PluralDecisionPlan {
+                guards: parse_plural_rule(guards)
+                    .unwrap()
+                    .conditions
+                    .into_iter()
+                    .flat_map(|condition| condition.relations)
+                    .collect(),
+                categories: vec![PluralCategoryRule {
+                    category: "one".to_owned(),
+                    source: source.to_owned(),
+                    rule: parse_plural_rule(source).unwrap(),
+                }],
+            };
+            assert_eq!(
+                plan.integer_input_suffix_modulus(),
+                expected,
+                "{guards}; {source}"
+            );
+        }
+    }
 
     #[test]
     fn proves_full_integer_periods_without_inferring_other_operand_domains() {

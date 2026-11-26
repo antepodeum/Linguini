@@ -281,6 +281,10 @@ plan selects only the needed suffix digits. Suffixes up to 15 digits use exact n
 wider suffixes and full integer/fraction values use bigint arithmetic. The largest selected modulus
 is omitted because the suffix is already its remainder. Input bounds and visible-fraction semantics
 are preserved, and discarded leading digits or large zero suffixes are never expanded into bigints.
+When shared planning also proves that native integers satisfy the fractional/compact guards and
+only integer suffix relations remain, safe integer `number` inputs calculate that suffix directly.
+They perform no string conversion or regex matching. Strings, bigints, fractional/unsafe numbers,
+category names, and caller objects retain their existing validation and coercion behavior.
 
 The formatter list is canonical:
 
@@ -1009,13 +1013,13 @@ base locale statically and imports only the referenced compiled message leaves; 
 requires no locale helper, lookup, wrapper, or loader. Finite computed access retains
 a bounded dispatch object for its explicitly allowed messages.
 
-Generated TypeScript and checked JavaScript use the same dispatch and message-argument
-normalization bodies. Dispatch checks own branches before `_` and `other` fallbacks;
+Generated JavaScript and its declaration companion describe one implementation. Dispatch and
+message-argument normalization check own branches before `_` and `other` fallbacks;
 named arguments reject unknown own keys, including symbols.
-Numeric, currency, date, and digit formatting also share runtime bodies across targets;
+Numeric, currency, date, and digit formatting use canonical runtime templates;
 each locale artifact includes only its required helpers and pinned CLDR data.
-Project locale resolution and lazy message providers likewise share runtime bodies,
-with target-specific type annotations and native ESM import paths.
+Project locale resolution and lazy message providers likewise use shared semantic plans,
+checked JSDoc, declaration types, and native ESM import paths.
 Plural operand extraction uses the same model, retaining decimal precision and CLDR
 compact-exponent semantics without separate TypeScript and JavaScript implementations.
 

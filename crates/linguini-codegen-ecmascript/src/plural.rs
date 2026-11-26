@@ -31,6 +31,9 @@ pub(crate) fn generate_plural_function_with_visibility(
     )
     .integer_tail_digits();
     let integer_tail = integer_tail_digits.is_some();
+    let native_integer_modulus = plan
+        .integer_input_suffix_modulus()
+        .filter(|_| integer_tail_digits.is_some_and(|digits| digits <= 15));
     let mut defined_moduli = Vec::new();
     let mut defined_operations = Vec::new();
     let mut take_operations = |requirements: &linguini_codegen::PluralRequirements| {
@@ -77,6 +80,16 @@ pub(crate) fn generate_plural_function_with_visibility(
             context! { relation => relation_context(relation, integer_tail_digits), operations, moduli }
         })
         .collect::<Vec<_>>();
+    let integer_input_operations = if native_integer_modulus.is_some() {
+        take_operations(&linguini_codegen::PluralRequirements::for_relations(
+            plan.categories
+                .iter()
+                .flat_map(|category| &category.rule.conditions)
+                .flat_map(|condition| &condition.relations),
+        ))
+    } else {
+        Vec::new()
+    };
     let categories = plan
         .categories
         .iter()
@@ -108,7 +121,7 @@ pub(crate) fn generate_plural_function_with_visibility(
     crate::templates::render(
         "plural",
         context! {
-            name => function_name, exported, categories, guards, integer_tail_digits, fallback,
+            name => function_name, exported, categories, guards, integer_tail_digits, fallback, native_integer_modulus, integer_input_operations,
         },
     )
 }

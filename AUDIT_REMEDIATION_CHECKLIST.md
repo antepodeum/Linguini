@@ -1048,6 +1048,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       native CLI/tsc consumers, editor tests, and all nine real-site checks. Core, Svelte, and Vue
       packages also pass 80 tests per Vite major (5–8), plus the same 80 tests on Node 20.
       These local receipts do not close the final cross-platform or universal-WASM criteria.
+      Follow-up source `a8fa133` passes all 70 local full-profile gates, including locked workspace
+      tests/strict Clippy, generated JS/TS consumers, native CLI/tsc integration, packaged docs,
+      editor tests and real shared-WASM Node/browser protocol checks, and all nine site gates.
+      This run does not establish a fresh installed VSIX smoke, remote CI, signing/publication,
+      or the final Windows/macOS matrix.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1284,7 +1289,8 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       unsupported fields produce structured errors instead of a fabricated UTC value. Selected
       UTC names, missing-name GMT-zero fallback, and ISO-zero forms fold into merged literals.
       Eight-locale generated execution and the 508-record resolution-graph style/composition
-      scan verify this boundary; selectable non-UTC zones/calendars/skeletons remain open.
+      scan verify this boundary; selectable non-UTC zones, extended calendars, and non-exact
+      skeleton matching remain open.
       Gregorian year-of-era conversion and width padding now cover 18 BCE/CE year samples and
       eight widths, sharing the UTC year read and selecting year-only padding helpers.
       Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
@@ -1331,6 +1337,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       optimization when any integer relation requires a full value or non-decimal modulus.
       Generated execution covers widths 1–19, mixed moduli around the safe-integer boundary,
       8,192-digit values, compact/native exponents, and bounded bigint/zero-expansion checks.
+      A shared guard/operand proof now permits direct safe-number integer suffix calculation,
+      avoiding string conversion and regex matching while sharing the category predicates.
+      Russian/Ukrainian boundary and coercion tests preserve all other input paths and limits;
+      the complete-consumer cost tradeoff is recorded under OPT-A7.
       Executed corpora cover 24 locales, fractional operators, compact exponents, and invalid inputs.
       Namespace/barrel global imports now follow shared direct semantic edges; static namespaces
       and re-export-only barrels omit them. Project and physical-leaf execution covers captured
@@ -1410,6 +1420,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Shared integer-modulo exhaustiveness proofs also replace redundant final category tests
       with direct returns and remove operands/moduli no longer demanded. Complete finite periods
       establish the result during generation; no residue table or CLDR evaluator is shipped.
+      Proven native integer suffixes also bypass parsing: executed spies observe zero String
+      conversions and regex matches for safe integer counts. The measured complete Russian
+      message grows by 22 Brotli bytes; local integer-call time changes from 0.409 to 0.071 µs.
+      String and mixed inputs retain output parity. These local results do not close repeated
+      normalization, selector-specific outcomes, or the broader page-delivery criteria.
 
 - [-] OPT-A8 — Minimize localization requests, transferred bytes, and runtime work. SSR must
       return final translated text in initial HTML without fetching messages in the browser;

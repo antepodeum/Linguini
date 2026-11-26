@@ -125,6 +125,72 @@ for (const value of [NaN, Infinity, -Infinity]) {{
     execute(&script);
 }
 
+#[test]
+fn safe_native_integer_suffixes_skip_parsing_and_preserve_other_input_semantics() {
+    let samples = (-200_i64..=200)
+        .chain(9_007_199_254_740_980..=9_007_199_254_740_991)
+        .chain(-9_007_199_254_740_991..=-9_007_199_254_740_980)
+        .collect::<Vec<_>>();
+    for locale in ["ru", "uk"] {
+        let rules = built_in_plural_rules(locale).unwrap();
+        let generated = generate_plural_function("plural", &rules);
+        let cases = samples
+            .iter()
+            .map(|value| {
+                format!(
+                    "[{value}, {:?}]",
+                    rules.category_for(&value.to_string()).unwrap()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        execute(&format!(
+            r#"{generated}
+const cases = [{cases}, [-0, "many"]];
+const originalString = globalThis.String;
+const originalExec = RegExp.prototype.exec;
+let conversions = 0, matches = 0;
+let actual;
+try {{
+  globalThis.String = value => {{ conversions++; return originalString(value); }};
+  RegExp.prototype.exec = function(value) {{ matches++; return originalExec.call(this, value); }};
+  actual = cases.map(([value]) => plural(value));
+}} finally {{
+  globalThis.String = originalString;
+  RegExp.prototype.exec = originalExec;
+}}
+if (conversions || matches) throw new Error("safe integer inputs parsed text");
+for (let index = 0; index < cases.length; index++) {{
+  if (actual[index] !== cases[index][1]) throw new Error(JSON.stringify([cases[index], actual[index]]));
+}}
+for (const category of ["zero", "one", "two", "few", "many", "other"]) {{
+  if (plural(category) !== category) throw new Error("lost category passthrough");
+}}
+for (const [value, expected] of [
+  ["1.0", "other"], ["1.00", "other"], ["1c3", "many"], [1.5, "other"],
+  [1e-7, "other"], [1e21, "many"], [9007199254740992, "few"],
+  ["0".repeat(8191) + "1", "one"], [BigInt("1" + "0".repeat(8189) + "21"), "one"],
+]) {{
+  if (plural(value) !== expected) throw new Error("non-safe-integer input changed");
+}}
+let hints = [];
+const boxed = {{ [Symbol.toPrimitive](hint) {{ hints.push(hint); return "21"; }} }};
+if (plural(boxed) !== "one" || JSON.stringify(hints) !== '["string"]') throw new Error("coercion changed");
+const sentinel = new Error("sentinel");
+try {{
+  plural({{ [Symbol.toPrimitive]() {{ throw sentinel; }} }});
+  throw new Error("coercion error swallowed");
+}} catch (error) {{ if (error !== sentinel) throw error; }}
+for (const value of ["1".repeat(8193), BigInt("1".repeat(8193)), "1c8193", "invalid", NaN, Infinity, -Infinity]) {{
+  let rejected = false;
+  try {{ plural(value); }} catch (error) {{ rejected = error instanceof RangeError; }}
+  if (!rejected) throw new Error("input validation bypassed");
+}}
+"#
+        ));
+    }
+}
+
 fn execute(script: &str) {
     let mut child = Command::new("node")
         .args(["--input-type=module", "-"])
@@ -250,7 +316,8 @@ fn compiled_predicates_match_cldr_across_locales_operators_and_operand_demand() 
     }
     let russian = generate_plural_function("pluralRu", &built_in_plural_rules("ru").unwrap());
     assert_eq!(russian.matches("const integerTailModulo10 =").count(), 1);
-    assert!(!russian.contains("% 100"));
+    assert!(!russian.contains("integerTail % 100"));
+    assert_eq!(russian.matches("Math.abs(value) % 100").count(), 1);
     assert!(!russian.contains("BigInt("));
     execute(&format!(
         r#"{russian}
@@ -355,7 +422,15 @@ fn decimal_moduli_compile_bounded_integer_suffixes_without_expanding_large_integ
                     }],
                 };
                 let generated = generate_plural_function_with_visibility("plural", &rules, false);
-                assert!(generated.contains("const integerTail ="));
+                let native_integer = operand == "i" && digits <= 15;
+                assert_eq!(
+                    generated.matches("let integerTail;").count(),
+                    usize::from(native_integer)
+                );
+                assert_eq!(
+                    generated.matches("const integerTail =").count(),
+                    usize::from(!native_integer)
+                );
                 assert!(!generated.contains("const integerValue ="));
                 assert!(!generated.contains("const integer ="));
                 let mut cases = samples

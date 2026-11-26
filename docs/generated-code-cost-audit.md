@@ -55,6 +55,31 @@ The implementation was discarded. GEN-A15 remains open: specialization must acco
 coexisting selector shapes and whole-consumer costs, including normalization sharing, before
 it replaces the current classifier. A smaller isolated classifier is insufficient evidence.
 
+## Native integer plural inputs
+
+Shared planning now proves when zero fractional/compact operands satisfy every common guard
+and the remaining rules need only a decimal integer suffix. For suffixes of at most 15 digits,
+safe native integer numbers use `Math.abs(value) % modulus` before the shared category decisions.
+They allocate no source string or regex match array. Other inputs retain the original parser,
+including category passthrough, caller coercion, visible fractions, and bounded huge inputs.
+No CLDR rules or patterns are interpreted at runtime.
+
+The following local comparison uses the `a8fa133` baseline and its regenerated output, Vite
+7.3.3, and Node 24.13.1. All 200 integer outputs match for each complete consumer. Timings are
+medians of seven interleaved 500,000-call batches after 100,000 warmup calls, cycling 0–199.
+
+| Consumer | Before minified / gzip / Brotli bytes | After minified / gzip / Brotli bytes | Before / after integer-call µs |
+| --- | ---: | ---: | ---: |
+| Classifier | 1,034 / 560 / 515 | 1,168 / 597 / 545 | 0.117 / 0.008 |
+| `Delivered` | 1,324 / 673 / 620 | 1,458 / 714 / 642 | 0.119 / 0.012 |
+| Complete `delivery` message | 4,793 / 1,505 / 1,306 | 4,927 / 1,536 / 1,328 | 0.409 / 0.071 |
+
+The page consumer trades 22 Brotli bytes for removing parsing from normal integer calls. String
+input timing was 0.429 / 0.417 µs; mixed number/string/bigint input was 0.499 / 0.373 µs. These
+measurements justify this bounded fast path, without establishing a general application speed
+or memory claim. Executed coercion/resource-limit tests and strict JSDoc checks cover the shared
+fallback path. Branch-specific category specialization and repeated normalization remain open.
+
 ## Shared date name tables
 
 The `f5052c8` skeleton fixture repeated the same abbreviated month array for `GyMMMd` and

@@ -4,6 +4,17 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native integer plural inputs
+
+Regenerate plural output to avoid string conversion and regex parsing of safe integer numbers
+when the selected CLDR rules can use a bounded integer suffix. Public category-name results,
+visible fractional digits, non-safe-integer input validation, caller coercion, and resource limits
+are unchanged. Other inputs still use the original parser. The shared Rust
+`PluralDecisionPlan::integer_input_suffix_modulus` proves guard and operand eligibility;
+each backend must also bound its native input precision. ECMAScript enables this path only for
+suffixes of at most 15 digits. This adds a small input branch; complete-consumer size and local
+timing measurements are recorded in the generated-code cost audit.
+
 ## Plural data follows operation demand
 
 Numeric and literal projects can use known locales such as `ccp` without an unused plural rule
