@@ -56,3 +56,8 @@ state, message providers, and the Svelte `/vite` adapter.
 composes those runtimes with request hooks, metadata serialization, and navigation, and exposes
 `/vite` by composing the shared Svelte/Vite integration. Runtime policy is ordinary application
 TypeScript; the native CLI reads neutral TOML and never evaluates an npm policy configuration.
+
+Repository setup helpers live in `packages/scripts`. The dependency installer performs a frozen
+install followed by an offline refresh of declared repository package directories. It preserves
+manifest, workspace-policy, and lockfile bytes, failing on dependency-graph changes. Runtime
+preparation and CI reuse that installer; published runtime packages do not invoke it.

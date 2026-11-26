@@ -1832,6 +1832,14 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
       A regression rejects bare filters and missing registered files. All eighteen runner tests
       pass on Node 20/24, and the nine corrected tasks each execute their one intended fixture
       with archived semver-check copies still present under `target/`.
+      Repository installation now refreshes local directory packages after a frozen install,
+      selecting explicit source paths without changing manifest, workspace-policy, or lockfile
+      bytes. Cold/warm offline fixtures verify added/replaced/deleted files, graph-drift rollback,
+      and failure propagation; registry-only declarations receive no update. The fixture and
+      runner suites pass twenty-two tests on Node 20/24. Runtime preparation and every changed
+      CI install path pass locally, including alias invocation, and `actionlint` accepts the
+      workflow. Quick/full profiles include the installer regression; hosted verification of
+      the changed workflow remains required after pushing.
 - [x] LOCAL-A2 — Generate, type-check, build, and inspect the real site production graph locally.
       Site builds generate current native messages and highlight tokens into ignored directories;
       archived output and its restore/package workflow are removed. A repository gate rejects

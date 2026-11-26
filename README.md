@@ -234,10 +234,13 @@ site dependencies (published packages already contain their compiled output):
 
 ```bash
 node packages/scripts/prepare-runtime-packages.mjs
-pnpm --dir packages/vue install --frozen-lockfile
-pnpm --dir site install --frozen-lockfile
+node packages/scripts/install-project-dependencies.mjs packages/vue
+node packages/scripts/install-project-dependencies.mjs site
 pnpm --dir site exec playwright install chromium  # production browser tests
 ```
+
+The repository installer refreshes added or removed local package files while preserving
+declared and locked dependency versions.
 
 The root runner provides repository-wide local verification:
 

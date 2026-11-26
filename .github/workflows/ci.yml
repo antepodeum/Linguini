@@ -84,15 +84,17 @@ jobs:
             packages/svelte/pnpm-lock.yaml
             packages/web/pnpm-lock.yaml
             packages/sveltekit/pnpm-lock.yaml
+      - name: Test locked local dependency refresh
+        run: node --test packages/scripts/install-project-dependencies.test.mjs
       - name: Install and test TypeScript web runtime
         working-directory: packages/web
-        run: pnpm install --frozen-lockfile && pnpm test
+        run: node ../scripts/install-project-dependencies.mjs && pnpm test
       - name: Install and test TypeScript Svelte runtime
         working-directory: packages/svelte
-        run: pnpm install --frozen-lockfile && pnpm test
+        run: node ../scripts/install-project-dependencies.mjs && pnpm test
       - name: Install and test TypeScript SvelteKit hooks and packages
         working-directory: packages/sveltekit
-        run: pnpm install --frozen-lockfile && pnpm test
+        run: node ../scripts/install-project-dependencies.mjs && pnpm test
 
   rust:
     name: Rust workspace
@@ -282,7 +284,7 @@ jobs:
       - name: Test core and framework adapters against real Vite
         run: |
           for package in vite svelte vue; do
-            pnpm --dir "packages/$package" install --frozen-lockfile
+            node packages/scripts/install-project-dependencies.mjs "packages/$package"
             pnpm --dir "packages/$package" add --save-dev --lockfile=false "vite@^${{ matrix.vite }}.0.0"
             pnpm --dir "packages/$package" test
           done
@@ -315,7 +317,7 @@ jobs:
           cache-dependency-path: packages/tsc/pnpm-lock.yaml
       - name: Install compiler integration dependencies
         working-directory: packages/tsc
-        run: pnpm install --frozen-lockfile
+        run: node ../scripts/install-project-dependencies.mjs
       - name: Select tested TypeScript version
         working-directory: packages/tsc
         run: pnpm add --save-dev --lockfile=false "typescript@${{ matrix.typescript }}"
@@ -345,7 +347,7 @@ jobs:
         run: node packages/scripts/prepare-runtime-packages.mjs
       - name: Install site dependencies
         working-directory: site
-        run: pnpm install --frozen-lockfile
+        run: node ../packages/scripts/install-project-dependencies.mjs
       - name: Generate site
         working-directory: site
         run: pnpm linguini:build
@@ -387,7 +389,7 @@ jobs:
           cache-dependency-path: editors/vscode/pnpm-lock.yaml
       - name: Install, test, and compile extension
         working-directory: editors/vscode
-        run: pnpm install --frozen-lockfile && pnpm test && pnpm run compile
+        run: node ../../packages/scripts/install-project-dependencies.mjs && pnpm test && pnpm run compile
       - name: Install browser for WASM worker tests
         working-directory: editors/vscode
         run: pnpm exec playwright install --with-deps chromium

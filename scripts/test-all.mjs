@@ -76,6 +76,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: false,
   }),
   nodeTask({
+    id: "repo:local-dependencies",
+    project: "rust",
+    label: "Locked local dependency refresh",
+    command: "node",
+    args: ["--test", "packages/scripts/install-project-dependencies.test.mjs"],
+    profiles: ["quick", "full"],
+    tools: ["pnpm"],
+    requiresNodeModules: false,
+  }),
+  nodeTask({
     id: "project:test",
     project: "project",
     label: "Shared project configuration and packaged API",
