@@ -91,7 +91,7 @@ hero {
   eyebrow = Localizzazione tipizzata per team di prodotto
   title = Linguini
   tagline = Internazionalizzazione per tutti noi
-  copy = Un linguaggio di localizzazione compilato dove schemi, grammatica, formattazione CLDR, hook SvelteKit, cookie e route localizzate vengono da una sola fonte.
+  copy = Localizzazione tipizzata con messaggi e formattazione CLDR compilati, più adapter web e framework riutilizzabili.
   term = /lɪŋˈɡwiːni/
   term_kind = NOME
   term_hint = pasta lunga e stretta a nastri
@@ -105,12 +105,12 @@ hero {
 
 codegen {
   kicker = Generazione codice
-  title = Uno schema, output TypeScript tipizzato
-  intro = Linguini analizza contratti .lgs e logica .lgl una volta, poi emette moduli specifici con formattatori CLDR, selettori plurali e adapter framework a build time.
-  ts_title = TypeScript / ESM
-  ts_desc = Funzioni messaggio tipizzate, runtime condiviso, declaration file e tree shaking opzionale per locale.
+  title = Uno schema, JavaScript con tipi TypeScript
+  intro = Linguini analizza i contratti .lgs e la logica .lgl, poi compila moduli di messaggi con formattatori CLDR specializzati e selettori plurali.
+  ts_title = JavaScript + .d.ts
+  ts_desc = ESM e .d.ts generati per TypeScript strict; Vite seleziona messaggi e dipendenze usati da ogni pagina.
   svelte_title = Svelte 5 + SvelteKit
-  svelte_desc = Rune l generato, cambio locale, helper localizeHref ed export handle / reroute / load.
+  svelte_desc = Stato Svelte riutilizzabile e hook delle richieste SvelteKit; routing e persistenza si configurano nel codice dell'applicazione.
   planned_title = Target pianificati
   planned_intro = La roadmap è volutamente ampia: Linguini punta a supportare ogni runtime, linguaggio e framework web pratico.
   rust = Rust
@@ -127,10 +127,10 @@ web {
   kicker = SvelteKit
   title = SvelteKit localizzato senza cablaggio i18n manuale
   intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale and updates messages reactively. Generated message signatures let TypeScript report invalid arguments when the app runs type checking.
-  routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
-  cookie = Locale changes persist through cookies and browser storage without app-level state.
-  fallback = I dati della locale base vengono integrati nei moduli generati durante la build.
-  reactivity = The l rune updates UI text immediately after setLocale.
+  routing = Usa normali link interni; l'adapter runtime SvelteKit gestisce gli URL localizzati.
+  cookie = Configura cookie e storage del browser tramite la policy runtime dell'applicazione.
+  fallback = Le traduzioni mancanti vengono risolte per messaggio durante il build.
+  reactivity = Il cambio di locale prepara i messaggi necessari prima di aggiornare l'interfaccia reattiva.
   links = Alcuni link possono mantenere l'URL originale quando non vanno localizzati.
 }
 

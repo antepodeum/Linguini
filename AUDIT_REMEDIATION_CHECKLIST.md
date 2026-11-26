@@ -1370,6 +1370,10 @@ and the composed payload/SSR requirements below.
       shared frontend package and platform packages before the launcher. Local Vite, strict tsc/packed APIs,
       site production, and fresh native generation pass. Cross-version/platform and composed-page
       delivery/SSR verification remain open.
+      Site descriptions across all nine locales now distinguish generated JavaScript plus
+      declarations from reusable web/Svelte/SvelteKit adapters and application-owned policy.
+      They describe message-level fallback and preparation before reactive publication;
+      all nine site gates pass, including production graphs and browser/no-JS checks.
 
 ### Specialized generated code
 

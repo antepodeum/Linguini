@@ -44,7 +44,7 @@ hero {
   eyebrow = 面向产品团队的类型化本地化
   title = Linguini
   tagline = 为每个人而做的国际化
-  copy = 一种编译型本地化语言，把 schema、locale 语法、CLDR 格式化、SvelteKit hooks、cookie 和本地化路由放在同一个生成流程里。
+  copy = 类型安全的本地化：编译消息与 CLDR 格式化，并提供可复用的 Web 和框架适配器。
   term = /lɪŋˈɡwiːni/
   term_kind = 名词
   term_hint = 细长扁平的意式面
@@ -58,12 +58,12 @@ hero {
 
 codegen {
   kicker = 代码生成
-  title = 一份 schema，生成类型化 TypeScript 输出
-  intro = Linguini 一次性分析 .lgs 契约与 .lgl 语言逻辑，然后在构建期生成目标模块，内置 CLDR 格式化、复数选择器与框架适配器。
-  ts_title = TypeScript / ESM
-  ts_desc = 类型化消息函数、共享 runtime、声明文件，以及按 locale 的可选 tree shaking。
+  title = 一个 schema，JavaScript 与 TypeScript 类型
+  intro = Linguini 分析 .lgs 契约与 .lgl 语言逻辑，再编译消息模块，包含专用的 CLDR 格式化代码和复数选择器。
+  ts_title = JavaScript + .d.ts
+  ts_desc = 生成适用于严格 TypeScript 的 ESM 和 .d.ts；Vite 为每个页面选择其使用的消息及依赖。
   svelte_title = Svelte 5 + SvelteKit
-  svelte_desc = 生成 l rune、切换 locale、localizeHref 辅助函数，以及 handle / reroute / load 导出。
+  svelte_desc = 可复用的 Svelte 状态与 SvelteKit 请求钩子；路由和持久化策略在应用代码中配置。
   planned_title = 计划中的目标
   planned_intro = 路线图刻意保持宽广：Linguini 计划支持所有实用的 runtime、语言和 Web 框架。
   rust = Rust
@@ -80,10 +80,10 @@ web {
   kicker = SvelteKit
   title = 无需手写 i18n 粘合代码的本地化 SvelteKit
   intro = Write normal SvelteKit routes and generated message calls. Linguini keeps the active locale and updates messages reactively. Generated message signatures let TypeScript report invalid arguments when the app runs type checking.
-  routing = Use ordinary internal links; the generated reroute hook handles localized URLs.
-  cookie = Locale changes persist through cookies and browser storage without app-level state.
-  fallback = 基础 locale 数据会在构建时写入生成的 locale 模块。
-  reactivity = The l rune updates UI text immediately after setLocale.
+  routing = 使用普通站内链接；SvelteKit 运行时适配器负责处理本地化 URL。
+  cookie = 通过应用代码中的运行时策略配置 cookie 和浏览器存储。
+  fallback = 构建时按消息解析缺失翻译的回退。
+  reactivity = 切换语言时，先准备所需消息，再更新响应式界面。
   links = 不需要本地化的链接可以保留原始 URL。
 }
 
