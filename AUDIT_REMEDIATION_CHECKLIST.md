@@ -1133,6 +1133,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       rejection through the site's generated dispatch; both repaired gates pass on Node 24 and
       Node 20. Together these receipts cover all 70 gates without claiming a fresh single clean
       full run, installed VSIX smoke, remote-platform run, or final architecture completion.
+      Shared-planning/provenance source `8b5c107` passes all 70 local full-profile gates in
+      one clean run: locked workspace tests/Clippy, strict generated JS/TS corpora, packaged
+      documentation, native CLI/tsc integration, editor/shared-WASM hosts, and all nine site gates.
+      Separate Rust 1.87 and Node 20 checks cover both common-layer extractions. This receipt
+      leaves the open architecture, installed-VSIX, remote-platform, and release criteria intact.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
