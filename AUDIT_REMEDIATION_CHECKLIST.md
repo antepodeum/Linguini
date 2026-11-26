@@ -1347,6 +1347,10 @@ and the composed payload/SSR requirements below.
       planning in the common crate. Exact names, aliases, CLDR parents/likely scripts, and base
       precedence have shared tests; current generated code/declaration/map snapshots are unchanged.
       ECMAScript owns only the locale artifact projection and syntax for this boundary.
+      Locale declaration overlays also use common `compose_locale_modules`: all six locale
+      declaration families retain whole-declaration precedence, stable order, source identities,
+      and complete override history. The backend retains schema validation after composition;
+      current code/declaration/map snapshots remain unchanged.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.

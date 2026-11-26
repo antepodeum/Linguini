@@ -36,8 +36,7 @@ use linguini_cldr::{
     compiled_number_formatting,
 };
 use linguini_ir::{
-    validate_typed_ir, IrEnum, IrForm, IrFunction, IrGroup, IrMessage, IrModule, IrModuleBuilder,
-    IrOrigin, IrReferenceError, IrSymbolConflict, IrTypeAlias, IrVariable, LocaleIr, SchemaIr,
+    validate_typed_ir, IrModule, IrModuleBuilder, IrReferenceError, LocaleIr, SchemaIr,
 };
 
 use self::formatters::{formatter_requirements, plural_required};
@@ -976,106 +975,13 @@ fn fallback_locale_module(
     locale: &str,
     base_locale: Option<&str>,
 ) -> LocaleIr {
-    let mut chain = locale_fallback_chain(locales, locale, base_locale);
-    chain.reverse();
-
-    let mut merged = FallbackDeclarations::default();
-    for fallback_locale in chain {
-        if let Some(source) = locales.iter().find(|entry| entry.locale == fallback_locale) {
-            merged.absorb(&source.module);
-        }
-    }
-    LocaleIr::try_from_module(
-        merged
-            .into_module()
-            .expect("fallback chain composition preserves unique declaration names"),
-    )
-    .expect("fallback composition emits only locale declaration kinds")
-}
-
-/// Accumulates locale-fallback precedence: the first chain entry supplying a
-/// name wins its vector position, and later duplicates replace that entry in
-/// place instead of appending.
-#[derive(Default)]
-struct FallbackDeclarations {
-    enums: Vec<IrEnum>,
-    type_aliases: Vec<IrTypeAlias>,
-    groups: Vec<IrGroup>,
-    messages: Vec<IrMessage>,
-    variables: Vec<IrVariable>,
-    forms: Vec<IrForm>,
-    functions: Vec<IrFunction>,
-    origins: Vec<IrOrigin>,
-}
-
-impl FallbackDeclarations {
-    fn absorb(&mut self, source: &IrModule) {
-        macro_rules! upsert_kind {
-            ($field:ident, $accessor:ident) => {
-                for item in source.$accessor() {
-                    match self
-                        .$field
-                        .iter_mut()
-                        .find(|existing| existing.name == item.name)
-                    {
-                        Some(existing) => *existing = item.clone(),
-                        None => self.$field.push(item.clone()),
-                    }
-                }
-            };
-        }
-
-        upsert_kind!(enums, enums);
-        upsert_kind!(type_aliases, type_aliases);
-        upsert_kind!(groups, groups);
-        upsert_kind!(messages, messages);
-        upsert_kind!(variables, variables);
-        upsert_kind!(forms, forms);
-        upsert_kind!(functions, functions);
-
-        for source_origin in source.origins() {
-            let mut origin = source_origin.clone();
-            if self
-                .origins
-                .iter()
-                .any(|existing| existing.kind == origin.kind && existing.name == origin.name)
-            {
-                // Locale fallback precedence is an explicit semantic replacement. Retain both
-                // provenance records while making that replacement visible to IR validation.
-                origin.is_override = true;
-            }
-            self.origins.push(origin);
-        }
-    }
-
-    fn into_module(self) -> Result<IrModule, IrSymbolConflict> {
-        let mut builder = IrModuleBuilder::new();
-        for item in self.enums {
-            builder = builder.push_enum(item);
-        }
-        for item in self.type_aliases {
-            builder = builder.push_type_alias(item);
-        }
-        for item in self.groups {
-            builder = builder.push_group(item);
-        }
-        for item in self.messages {
-            builder = builder.push_message(item);
-        }
-        for item in self.variables {
-            builder = builder.push_variable(item);
-        }
-        for item in self.forms {
-            builder = builder.push_form(item);
-        }
-        for item in self.functions {
-            builder = builder.push_function(item);
-        }
-        for origin in self.origins {
-            builder = builder.push_origin(origin);
-        }
-        builder.build()
-    }
+    let chain = locale_fallback_chain(locales, locale, base_locale);
+    linguini_codegen::compose_locale_modules(chain.into_iter().rev().filter_map(|fallback| {
+        locales
+            .iter()
+            .find(|entry| entry.locale == fallback)
+            .map(|entry| &entry.module)
+    }))
 }
 
 pub(crate) fn locale_fallback_chain(

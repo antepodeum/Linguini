@@ -44,7 +44,7 @@ pub use formatters::{
 };
 
 pub use inline::lower_inline_functions;
-pub use locales::ProjectLocalePlan;
+pub use locales::{compose_locale_modules, ProjectLocalePlan};
 
 pub use paths::lexical_relative_path;
 pub use plurals::{PluralDecisionPlan, PluralRequirements};

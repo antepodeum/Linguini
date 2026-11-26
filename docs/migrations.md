@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared locale fallback composition
+
+Backend authors can use `linguini_codegen::compose_locale_modules` with locale modules ordered
+from base to highest priority. It preserves whole-declaration replacement, declaration order,
+source identities, and override history; the caller validates the composed locale against its
+schema. ECMAScript generation now reuses this implementation. Application configuration,
+generated output, declarations, and source maps are unchanged.
+
 ## Removed branch-table helper
 
 Regenerate output: generated `shared.js` and its declarations no longer export `selectBranch`.

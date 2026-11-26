@@ -1,5 +1,9 @@
 //! Backend-independent project locale matching and fallback planning.
 
+mod composition;
+
+pub use composition::compose_locale_modules;
+
 use std::collections::BTreeMap;
 
 use linguini_cldr::{
