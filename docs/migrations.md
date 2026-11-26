@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared source provenance
+
+Backend authors can use `linguini_codegen::semantic_symbol_span` and
+`semantic_symbol_source_ids` for effective locale declarations and their nested source identities.
+Dependency slices and ECMAScript semantic artifacts now reuse one traversal. Generated code,
+declarations, source maps, and application APIs remain unchanged.
+
 ## Shared dispatch planning
 
 Backend authors can reuse `linguini_codegen::form_dispatch_plan` and `function_dispatch_plan`

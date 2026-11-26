@@ -106,6 +106,11 @@ Named payloads do not add dispatch dimensions; missing dimensions preserve `unde
 `other` precedence. A selected runtime dimension remains observable even when its bodies merge.
 The ECMAScript backend supplies selector syntax and renders direct branches through templates.
 
+`semantic_symbol_span` and `semantic_symbol_source_ids` provide effective declaration provenance
+for individual locale symbols. Dependency slices and semantic artifacts share recursive source
+collection for text, call arguments, inline inputs, nested dispatch, and form values. Source IDs
+are sorted and deduplicated; replaced declarations do not contribute stale origins.
+
 Structured imports and re-exports share one module-edge template, including aliases, namespace
 imports, and declaration-only type edges. JavaScript output excludes type dependencies before
 rendering; module order, literal escaping, and source-map line positions remain stable.

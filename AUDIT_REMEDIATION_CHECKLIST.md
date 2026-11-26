@@ -1366,6 +1366,11 @@ and the composed payload/SSR requirements below.
       precedence, multi-key/default forms, projected-result merging, and retained selector
       evaluation. Existing backend eager/lazy/capture/error cases and byte-identical snapshots
       pass, alongside strict consumers, runtime parity, Rust 1.87, Clippy, and source packaging.
+      Semantic artifacts and transitive dependency slices now share recursive source-provenance
+      collection. Mixed-source tests cover calls, both inline input kinds, nested dispatch,
+      map/object/direct form branches, deduplication, and effective override origins. Current
+      generated code/declaration/map snapshots, native CLI tests, strict consumers, runtime parity,
+      Rust 1.87, Clippy, and packaged-source documentation checks pass.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.

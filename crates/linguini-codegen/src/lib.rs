@@ -18,6 +18,7 @@ mod numbers;
 mod paths;
 mod plurals;
 mod projections;
+mod provenance;
 mod requirements;
 mod rounding;
 mod types;
@@ -61,3 +62,5 @@ pub use projections::{
     locale_module_for_schema, namespace_module, root_module, select_schema_paths,
     top_level_message_namespaces,
 };
+
+pub use provenance::{semantic_symbol_source_ids, semantic_symbol_span};

@@ -2,8 +2,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::provenance::{
+    collect_form_source_ids, collect_function_source_ids as collect_function_branch_sources,
+    collect_text_source_ids as collect_text_sources,
+};
 use linguini_ir::{
-    IrBranch, IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFunction, IrFunctionBranch,
+    IrExpression, IrExpressionKind, IrForm, IrFormEntry, IrFunction, IrFunctionBranch,
     IrFunctionBranchValue, IrInlineFunctionInput, IrModule, IrModuleBuilder, IrSymbolKind, IrText,
     IrTextPart, IrValue,
 };
@@ -546,9 +550,7 @@ fn metadata_for(
     for form in locale.forms() {
         if selected.contains(&MessageDependencySymbol::LocaleForm(form.name.clone())) {
             for variant in &form.variants {
-                for entry in &variant.entries {
-                    _collect_form_sources(entry, &mut source_ids);
-                }
+                collect_form_source_ids(&variant.entries, &mut source_ids);
             }
         }
     }
@@ -572,67 +574,6 @@ fn collect_origin_source_ids(
             && selector(origin, selected)
         {
             output.insert(origin.span.source);
-        }
-    }
-}
-
-fn collect_text_sources(text: &IrText, output: &mut BTreeSet<SourceId>) {
-    output.insert(text.span.source);
-    for part in &text.parts {
-        if let IrTextPart::Placeholder(expression) = part {
-            collect_expression_sources(expression, output);
-        }
-    }
-}
-
-fn collect_expression_sources(expression: &IrExpression, output: &mut BTreeSet<SourceId>) {
-    output.insert(expression.span.source);
-    for argument in &expression.arguments {
-        collect_expression_sources(argument, output);
-    }
-    if let IrExpressionKind::InlineFunction { inputs, branches } = &expression.kind {
-        for input in inputs {
-            match input {
-                IrInlineFunctionInput::Binding { value, span, .. }
-                | IrInlineFunctionInput::Selector { value, span } => {
-                    output.insert(span.source);
-                    collect_expression_sources(value, output);
-                }
-            }
-        }
-        for branch in branches {
-            collect_function_branch_sources(branch, output);
-        }
-    }
-}
-
-fn collect_function_branch_sources(branch: &IrFunctionBranch, output: &mut BTreeSet<SourceId>) {
-    output.insert(branch.span.source);
-    match &branch.value {
-        IrFunctionBranchValue::Text(text) => collect_text_sources(text, output),
-        IrFunctionBranchValue::Dispatch(branches) => {
-            for branch in branches {
-                collect_function_branch_sources(branch, output);
-            }
-        }
-    }
-}
-
-fn _collect_form_sources(entry: &IrFormEntry, output: &mut BTreeSet<SourceId>) {
-    match entry {
-        IrFormEntry::Attribute { value, .. } => match value {
-            IrValue::Text(text) => collect_text_sources(text, output),
-            IrValue::Map(branches) => branches.iter().for_each(|branch| {
-                output.insert(branch.span.source);
-                collect_text_sources(&branch.value, output);
-            }),
-            IrValue::Object(entries) => entries
-                .iter()
-                .for_each(|entry| _collect_form_sources(entry, output)),
-        },
-        IrFormEntry::Branch(IrBranch { value, span, .. }) => {
-            output.insert(span.source);
-            collect_text_sources(value, output);
         }
     }
 }
