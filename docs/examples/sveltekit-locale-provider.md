@@ -122,6 +122,7 @@ export const load = createLoad<Locale>({ getPagePayload });
 ```ts
 // src/lib/linguini.ts
 import { createControls } from "@antepodeum/linguini-sveltekit/client";
+import { alternateLinks as localeAlternates } from "@antepodeum/linguini-web";
 import * as state from "$lib/generated/linguini/svelte-locale.svelte.js";
 import { web } from "./linguini-web";
 
@@ -133,7 +134,7 @@ export const shouldLocalizeHref = linguini.shouldLocalizeHref;
 export const shouldLocalizeLink = linguini.shouldLocalizeLink;
 export const localizeHrefAttribute = linguini.localizeHrefAttribute;
 export const delocalizeUrl = linguini.delocalizeUrl;
-export const alternateLinks = linguini.alternateLinks;
+export const alternateLinks = (url: string | URL, input: Record<string, unknown> = {}) => localeAlternates(web, url, input);
 ```
 
 ```ts

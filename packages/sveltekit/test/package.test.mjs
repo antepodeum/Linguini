@@ -37,8 +37,10 @@ test('published runtime packages preserve strict TypeScript, declarations/maps, 
   pnpm(['install','--prefer-offline','--ignore-scripts','--store-dir',store],consumer);
   writeFileSync(path.join(consumer,'tsconfig.json'),JSON.stringify({compilerOptions:{strict:true,allowJs:false,skipLibCheck:false,module:'NodeNext',moduleResolution:'NodeNext',target:'ES2022',outDir:'output',types:['node','@sveltejs/kit']},include:['consumer.ts']}));
   writeFileSync(path.join(consumer,'consumer.ts'),`
-import {createWebLocaleI18n,pathLocale,cookieLocale,serializeLocaleCookie} from '@antepodeum/linguini-web';
+import {createWebLocaleI18n,pathLocale,cookieLocale,serializeLocaleCookie,alternateLinks,createLocaleRequestContext} from '@antepodeum/linguini-web';
 import {persistLocaleCookie} from '@antepodeum/linguini-web/server';
+import {createLocaleControl} from '@antepodeum/linguini-web/client';
+import type {createControls} from '@antepodeum/linguini-sveltekit/client';
 import {createReroute} from '@antepodeum/linguini-sveltekit';
 import {createHandle,createLoad} from '@antepodeum/linguini-sveltekit/server';
 import type {Handle} from '@sveltejs/kit';
@@ -46,6 +48,25 @@ const metadata={locales:['en','fr'] as const,baseLocale:'en' as const,
   get createLinguini():never {throw Error('metadata read a catalog factory');},
   get prepareLinguini():never {throw Error('metadata read message preparation');}};
 const web=createWebLocaleI18n(metadata,{locale:{sources:[pathLocale(),cookieLocale({name:'LANG'})]}});
+const alternates=alternateLinks(web,'/en/shop',{url:'https://example.test/en/shop'});
+if (alternates[1].href!=='https://example.test/fr/shop') throw Error('alternate links failed');
+// @ts-expect-error SEO is an explicit helper, not a metadata method.
+void (()=>web.alternateLinks('/'));
+const controls=createLocaleControl(web,{
+  getCurrentLocale:()=>'en' as const,
+  prepareLocale:async(locale:'en'|'fr')=>locale,
+  setCurrentLocale:(locale:'en'|'fr')=>locale,
+},{browser:false});
+// @ts-expect-error Browser controls omit unused SEO operations.
+void (()=>controls.alternateLinks('/'));
+function checkKitControls(controls:ReturnType<typeof createControls<'en'|'fr'>>) {
+  // @ts-expect-error Framework controls inherit the explicit SEO boundary.
+  void (()=>controls.alternateLinks('/'));
+}
+void checkKitControls;
+const context=createLocaleRequestContext(web,'fr');
+// @ts-expect-error Request contexts omit unused SEO operations.
+void (()=>context.alternateLinks('/'));
 if (!serializeLocaleCookie(web,'fr').startsWith('LANG=fr;')) throw Error('cookie serialization failed');
 const response=new Response();
 persistLocaleCookie(web,response,'fr');

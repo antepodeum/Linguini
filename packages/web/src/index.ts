@@ -1,6 +1,7 @@
 export type * from "./types.js";
 export { createWebLocaleI18n } from './locale.js';
 export { createWebI18n } from './messages.js';
+export { alternateLinks } from './alternate-links.js';
 export { serializeLocaleCookie } from './cookie.js';
 export { pathLocale } from './sources/path.js';
 export { cookieLocale } from './sources/cookie.js';

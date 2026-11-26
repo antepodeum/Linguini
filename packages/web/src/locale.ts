@@ -1,4 +1,4 @@
-import type { AlternateLink, LinguiniLocaleRuntime, LinguiniWebEnvironment, LinguiniWebLocale, LinguiniWebOptions, LinkLocalizationAttributes, TextDirection } from "./types.js";
+import type { LinguiniLocaleRuntime, LinguiniWebEnvironment, LinguiniWebLocale, LinguiniWebOptions, LinkLocalizationAttributes, TextDirection } from "./types.js";
 import { normalizeOptions } from "./options.js";
 import { matchesRoute } from "./routes.js";
 import { matchLocaleValue, resolveBaseUrl, parseUrl, isInternalHttpUrl, stripBasePath, stripLeadingLocale, joinPath, shouldPrefixLocale, parseRuntimeUrl } from "./url.js";
@@ -137,18 +137,6 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         return delocalizeUrl(pathname, input).pathname;
     }
 
-    function alternateLinks(url: string | URL, input: Record<string, unknown> = {}): AlternateLink[] {
-        const parsed = parseRuntimeUrl(url, normalized, input);
-
-        const links: AlternateLink[] = runtime.locales.map((locale) => ({
-            rel: "alternate",
-            hreflang: locale,
-            href: localizeUrl(parsed, locale, input).toString(),
-        }));
-        links.push({ rel: "alternate", hreflang: "x-default", href: localizeUrl(parsed, runtime.baseLocale, input).toString() });
-        return links;
-    }
-
     function htmlAttrs(locale: Locale): {
         lang: Locale;
         dir: TextDirection;
@@ -188,7 +176,6 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         localizeLinkHref,
         delocalizeUrl,
         delocalizePathname,
-        alternateLinks,
         htmlAttrs,
         getCanonicalRedirect,
         shouldExclude,

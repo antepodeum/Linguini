@@ -23,6 +23,5 @@ export function createLocaleRequestContext<Locale extends string>(
     localizeHrefAttribute: (href, next = locale, context = input) => web.localizeHrefAttribute(href, next, context),
     localizeLinkHref: (href, next = locale, attributes = {}, context = input) => web.localizeLinkHref(href, next, attributes, context),
     delocalizeUrl: (url, context = input) => web.delocalizeUrl(url, context),
-    alternateLinks: (url, context = input) => web.alternateLinks(url, context),
   };
 }

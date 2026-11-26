@@ -81,7 +81,6 @@ export function createLocaleControl<Locale extends string>(web: LinguiniWebLocal
     localizeHrefAttribute: (href:string, locale = state.getCurrentLocale(), input?:Record<string,unknown>) => web.localizeHrefAttribute(href,locale,input),
     localizeLinkHref: (href:string, locale = state.getCurrentLocale(), attributes?:LinkLocalizationAttributes, input?:Record<string,unknown>) => web.localizeLinkHref(href,locale,attributes,input),
     delocalizeUrl: web.delocalizeUrl,
-    alternateLinks: web.alternateLinks,
     destroy() {destroyed=true;latestChange++;options.destroy?.();},
   };
 }

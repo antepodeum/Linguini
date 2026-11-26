@@ -269,6 +269,7 @@ argument; the SvelteKit wrapper supplies the current page metadata automatically
 ```ts
 // src/lib/linguini.ts
 import { createControls } from "@antepodeum/linguini-sveltekit/client";
+import { alternateLinks as localeAlternates } from "@antepodeum/linguini-web";
 import * as state from "$lib/generated/linguini/svelte-locale.svelte.js";
 import { web } from "./linguini-web";
 
@@ -281,8 +282,12 @@ export const shouldLocalizeLink = linguini.shouldLocalizeLink;
 export const localizeHrefAttribute = linguini.localizeHrefAttribute;
 export const localizeLinkHref = linguini.localizeLinkHref;
 export const delocalizeUrl = linguini.delocalizeUrl;
-export const alternateLinks = linguini.alternateLinks;
+export const alternateLinks = (url: string | URL, input: Record<string, unknown> = {}) => localeAlternates(web, url, input);
 ```
+
+Alternate-language metadata is an explicit helper, so routing-only and control consumers can
+omit SEO work. During SSR, forward request input such as `{ url: event.url }` to the helper when
+the application uses request-local origins. The helper preserves locale order and adds `x-default`.
 
 ```svelte
 <script lang="ts">

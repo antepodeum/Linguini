@@ -876,9 +876,13 @@ TypeScript, and application/bundler imports select their capabilities.
       TypeScript consumers preserve flags, appended headers, cookie-sink precedence, and finite
       locale arguments. Browser controls also omit server cookie sinks while retaining browser
       serialization, saving 107 Brotli bytes in the complete control consumer; executed Vite 8
-      controls preserve preparation/publication/persistence/navigation order. Generic framework
-      controls still retain optional operations; keep this
-      criterion open until their platform and page-demand acceptance passes.
+      controls preserve preparation/publication/persistence/navigation order.
+      Alternate-language link generation now has an explicit shared helper rather than methods
+      on metadata, request contexts, or controls. Executed routing/control/SSR graphs omit the
+      unselected SEO module; selected helpers preserve URL snapshots, request-origin reads,
+      locale order, and `x-default`. Complete Vite 7 routing/control consumers save another
+      83/94 Brotli bytes respectively. Generic framework controls still retain optional operations;
+      keep this criterion open until their platform and page-demand acceptance passes.
 - [x] WEB-A14 — Normalize one `LocaleSwitchPlan` shared by browser and server transports.
 - [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [x] WEB-A16 — Create an optional runtime switch handler with validated same-origin return targets.

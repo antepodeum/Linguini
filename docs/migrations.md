@@ -4,6 +4,17 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Explicit alternate-link helper
+
+`LinguiniWebLocale`, message-enabled web adapters, request contexts, and browser/framework
+controls no longer attach `alternateLinks`. Import `alternateLinks` from
+`@antepodeum/linguini-web` and call `alternateLinks(web, url, input)` where alternate-language
+metadata is needed. For request-local origins, forward the same input previously captured by the
+request context, for example `alternateLinks(web, event.url, { url: event.url })`. Browser callers
+can use their configured origin or current location. The SvelteKit examples keep an explicit
+project-level wrapper. Locale order, `x-default`, prefix policies, external URLs, and error handling
+are preserved. Unused SEO code can now be removed from routing and browser-control bundles.
+
 ## Native numeric preview digits
 
 The native `generate` preview now applies the locale's pinned decimal digit symbols to number

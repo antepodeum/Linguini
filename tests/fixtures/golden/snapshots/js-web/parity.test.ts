@@ -55,7 +55,7 @@ for (const [name, sources] of cases) {
         for (const href of ["/app/en/shop?x=1#part", "/app/en-products", "/shop", "#anchor", "//external.test/a", "mailto:a@example.test", "https://external.test/app/en/shop", "https://example.test/app/fr/shop"]) {
           expect(actual.localizeHref(href, "fr")).toBe(expected.localizeHref(href, "fr"));
           expect(actual.delocalizeUrl(href).href).toBe(expected.delocalizeUrl(href).href);
-          expect(actual.alternateLinks(href)).toEqual(expected.alternateLinks(href));
+          expect(compiler === npm ? webPackage.alternateLinks(actual,href) : actual.alternateLinks(href)).toEqual(expected.alternateLinks(href));
           expect(actual.getCanonicalRedirect(href, "fr")).toBe(expected.getCanonicalRedirect(href, "fr"));
           for (const attributes of [{}, { download: true }, { ignored: true }, { rel: "help EXTERNAL" }]) {
             expect(actual.shouldLocalizeLink(href, attributes)).toBe(expected.shouldLocalizeLink(href, attributes));

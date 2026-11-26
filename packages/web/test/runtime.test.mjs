@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createWebLocaleI18n, createWebI18n, createLocaleRequestContext, pathLocale, cookieLocale, requestLanguage, localStorageLocale, serializeLocaleCookie} from '../dist/index.js';
+import {createWebLocaleI18n, createWebI18n, createLocaleRequestContext, pathLocale, cookieLocale, requestLanguage, localStorageLocale, serializeLocaleCookie, alternateLinks} from '../dist/index.js';
 import {createLocaleSwitchHandler, persistLocaleCookie} from '../dist/server.js';
 
 const runtime = {locales:['en','fr','ar'],baseLocale:'en',getTextDirection:locale => locale === 'ar' ? 'rtl' : 'ltr'};
@@ -204,4 +204,38 @@ test('request metadata snapshots direction once per context without caching acro
   assert.deepEqual([second.direction, second.textDirection, second.htmlAttrs.dir], ['rtl', 'rtl', 'rtl']);
   assert.equal(first.localizeLinkHref('/app/en/cart'), '/app/fr/cart');
   assert.equal(second.localizeLinkHref('/app/en/cart'), '/app/ar/cart');
+});
+
+
+test('alternate links are explicit and preserve URL, request, and prefix semantics', () => {
+  const expectedPaths={
+    always:['/app/en/fr/shop','/app/fr/fr/shop','/app/ar/fr/shop','/app/en/fr/shop'],
+    'except-default':['/app/fr/shop','/app/fr/fr/shop','/app/ar/fr/shop','/app/fr/shop'],
+    never:Array(4).fill('/app/en/fr/shop'),
+  };
+  for(const prefix of ['always','except-default','never']) {
+    const web=createWebLocaleI18n(runtime,{routing:{localePrefix:prefix}},environment);
+    const url=new URL('https://example.test/app/en/fr/shop?q=1#part');
+    const original=url.href;
+    let reads=0,originReads=0;
+    url.toString=()=>{reads++;return original;};
+    const input={get origin(){originReads++;return 'https://example.test';}};
+    assert.deepEqual(alternateLinks(web,url,input),['en','fr','ar','x-default'].map((hreflang,index)=>({
+      rel:'alternate',hreflang,href:'https://example.test'+expectedPaths[prefix][index]+'?q=1#part',
+    })));
+    assert.equal(url.href,original);
+    assert.equal(reads,1,'snapshot the supplied URL once');
+    assert.equal(originReads,runtime.locales.length+2,'preserve input observations for each URL operation');
+    assert.equal('alternateLinks' in web,false);
+    assert.equal('alternateLinks' in createLocaleRequestContext(web,'fr',input),false);
+    for(const href of ['https://external.test/fr/shop','mailto:help@example.test']) {
+      assert.ok(alternateLinks(web,href).every(link=>link.href===href));
+    }
+    assert.throws(()=>alternateLinks(web,'http://['),{name:'TypeError',message:'Linguini: invalid URL'});
+  }
+  const web=createWebLocaleI18n(runtime,{},{base:'/app'});
+  const input={url:'https://request.test/app/en/shop'};
+  assert.deepEqual(alternateLinks(web,'/app/en/shop',input).map(link=>link.href),[
+    'https://request.test/app/shop','https://request.test/app/fr/shop','https://request.test/app/ar/shop','https://request.test/app/shop',
+  ]);
 });
