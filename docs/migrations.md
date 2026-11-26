@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared module-edge rendering
+
+Structured imports and re-exports now render through one canonical template instead of repeated
+Rust string assembly. Public Rust module models and generated JavaScript/declaration/source-map
+bytes are unchanged; no application migration is required. The schema alias test now exercises
+production declaration generation, and the obsolete test-only re-export emitter is removed.
+
 ## Native integer plural inputs
 
 Regenerate plural output to avoid string conversion and regex parsing of safe integer numbers

@@ -1023,6 +1023,9 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       no TS/JS runtime files or template includes, and an integration guard rejects their return
       alongside retired emitter names. All 151 codegen tests and strict Clippy pass; final broad
       non-regression and cross-platform gates are recorded in ESM-M11.
+      The obsolete test-only schema type re-export emitter is removed; its alias test now calls
+      production declaration generation. Structured import/re-export syntax shares one canonical
+      module-edge template, preserving existing artifact and source-map snapshots.
 - [-] ESM-M11 — Rerun final non-regression gates for the completed architecture: full locked Rust
       workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
@@ -1072,6 +1075,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       named types plus enum literal unions now share one type-expression template; schema and
       locale JSDoc, declarations, and selector annotations reuse its escaping and type semantics.
       Current runtime/declaration/map snapshots remain byte-identical.
+      Structured imports/re-exports now use one module-edge template and one named-binding
+      renderer for value, type, and mixed lists. Executed native ESM checks cover side-effect,
+      default, namespace, named/aliased and empty imports, escaped Unicode specifiers, re-exports,
+      dependency initialization count, and omitted missing type-only modules. Declaration tests
+      retain type-only/mixed edges; production schema alias coverage replaces its retired emitter.
       Static CLDR parameters must specialize the emitted implementation itself; passing a long
       vector of constants/undefined options to a generic formatter does not satisfy this criterion.
       Validated named/inline function, callable-form, and plural results omit outer coercion too;

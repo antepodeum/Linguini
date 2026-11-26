@@ -1,4 +1,6 @@
+mod edges;
 mod literals;
+use edges::{render_import, render_re_export};
 #[cfg(test)]
 pub(crate) use literals::escape_string;
 use literals::string_literal as json_string;
@@ -405,116 +407,6 @@ fn render_module_body(
     }
 }
 
-fn render_import(item: &EcmaImport, target: EcmaModuleKind, output: &mut String) -> bool {
-    if !target.is_declaration() && matches!(item.bindings, EcmaImportBindings::TypeNamed(_)) {
-        return false;
-    }
-    output.push_str("import ");
-    match &item.bindings {
-        EcmaImportBindings::SideEffect => {
-            output.push_str(&json_string(&item.specifier));
-            output.push_str(";\n");
-            return true;
-        }
-        EcmaImportBindings::Default(local) => output.push_str(local),
-        EcmaImportBindings::Namespace(local) => {
-            output.push_str("* as ");
-            output.push_str(local);
-        }
-        EcmaImportBindings::Named(bindings) => {
-            output.push_str("{ ");
-            for (index, binding) in bindings.iter().enumerate() {
-                if index > 0 {
-                    output.push_str(", ");
-                }
-                output.push_str(&binding.imported);
-                if binding.local != binding.imported {
-                    output.push_str(" as ");
-                    output.push_str(&binding.local);
-                }
-            }
-            output.push_str(" }");
-        }
-        EcmaImportBindings::TypeNamed(bindings) => {
-            output.push_str("type { ");
-            for (index, binding) in bindings.iter().enumerate() {
-                if index > 0 {
-                    output.push_str(", ");
-                }
-                output.push_str(&binding.imported);
-                if binding.local != binding.imported {
-                    output.push_str(" as ");
-                    output.push_str(&binding.local);
-                }
-            }
-            output.push_str(" }");
-        }
-        EcmaImportBindings::NamedWithTypes { values, types } => {
-            output.push_str("{ ");
-            for (index, (binding, type_only)) in values
-                .iter()
-                .map(|binding| (binding, false))
-                .chain(types.iter().map(|binding| (binding, true)))
-                .enumerate()
-            {
-                if index > 0 {
-                    output.push_str(", ");
-                }
-                if type_only {
-                    output.push_str("type ");
-                }
-                output.push_str(&binding.imported);
-                if binding.local != binding.imported {
-                    output.push_str(" as ");
-                    output.push_str(&binding.local);
-                }
-            }
-            output.push_str(" }");
-        }
-    }
-    output.push_str(" from ");
-    output.push_str(&json_string(&item.specifier));
-    output.push_str(";\n");
-    true
-}
-
-fn render_re_export(item: &EcmaReExport, target: EcmaModuleKind, output: &mut String) -> bool {
-    if !target.is_declaration()
-        && matches!(
-            item.bindings,
-            EcmaReExportBindings::TypeAll | EcmaReExportBindings::TypeNamed(_)
-        )
-    {
-        return false;
-    }
-    output.push_str("export ");
-    match &item.bindings {
-        EcmaReExportBindings::All => output.push('*'),
-        EcmaReExportBindings::TypeAll => output.push_str("type *"),
-        EcmaReExportBindings::Named(bindings) | EcmaReExportBindings::TypeNamed(bindings) => {
-            if matches!(item.bindings, EcmaReExportBindings::TypeNamed(_)) {
-                output.push_str("type ");
-            }
-            output.push_str("{ ");
-            for (index, binding) in bindings.iter().enumerate() {
-                if index > 0 {
-                    output.push_str(", ");
-                }
-                output.push_str(&binding.imported);
-                if binding.local != binding.imported {
-                    output.push_str(" as ");
-                    output.push_str(&binding.local);
-                }
-            }
-            output.push_str(" }");
-        }
-    }
-    output.push_str(" from ");
-    output.push_str(&json_string(&item.specifier));
-    output.push_str(";\n");
-    true
-}
-
 fn render_source_map(
     file_name: &str,
     sources: &[EcmaSource],
@@ -629,6 +521,101 @@ mod tests {
         EcmaNamedImport, EcmaReExport, EcmaSource, EcmaStatement,
     };
     use linguini_syntax::{SourceId, Span};
+
+    #[test]
+    fn module_edges_link_values_and_erase_types_without_changing_initialization() {
+        let mut files = vec![crate::EcmaGeneratedFile {
+            path: "dependency.js".to_owned(),
+            contents: "globalThis.initializations = (globalThis.initializations ?? 0) + 1; export default 'default'; export const named = 'named', unchanged = 'unchanged';".to_owned(),
+        }];
+        for target in [EcmaModuleKind::Declaration, EcmaModuleKind::JavaScript] {
+            let path = if target.is_declaration() {
+                "entry.d.ts"
+            } else {
+                "entry.js"
+            };
+            let mut module = EcmaModule::new(EcmaModuleOutput::new(target, path, None));
+            for bindings in [
+                EcmaImportBindings::SideEffect,
+                EcmaImportBindings::Default("selected".to_owned()),
+                EcmaImportBindings::Namespace("namespace".to_owned()),
+                EcmaImportBindings::Named(vec![
+                    EcmaNamedImport::new("named", "alias"),
+                    EcmaNamedImport::new("unchanged", "unchanged"),
+                ]),
+                EcmaImportBindings::Named(vec![]),
+            ] {
+                module.push_import(EcmaImport {
+                    specifier: "./dependency.js".to_owned(),
+                    bindings,
+                });
+            }
+            module.push_import(EcmaImport {
+                specifier: "data:text/javascript,export default \"Café 😀\"".to_owned(),
+                bindings: EcmaImportBindings::Default("escaped".to_owned()),
+            });
+            module.push_import(EcmaImport::named_with_types(
+                "./dependency.js",
+                vec![EcmaNamedImport::new("named", "mixedAlias")],
+                vec![EcmaNamedImport::new("MissingType", "RenamedType")],
+            ));
+            module.push_import(EcmaImport {
+                specifier: "./missing.js".to_owned(),
+                bindings: EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
+                    "Missing",
+                    "TypeAlias",
+                )]),
+            });
+            module.push_re_export(EcmaReExport::all("./dependency.js"));
+            module.push_re_export(EcmaReExport::named(
+                "./dependency.js",
+                vec![
+                    EcmaNamedImport::new("default", "forwardedDefault"),
+                    EcmaNamedImport::new("named", "forwarded"),
+                    EcmaNamedImport::new("unchanged", "unchanged"),
+                ],
+            ));
+            module.push_re_export(EcmaReExport::type_all("./missing.js"));
+            module.push_re_export(EcmaReExport::type_named(
+                "./missing.js",
+                vec![EcmaNamedImport::new("Missing", "TypeAlias")],
+            ));
+            if target.is_declaration() {
+                let code = module.render_code();
+                assert!(
+                    code.contains("import type { Missing as TypeAlias } from \"./missing.js\";")
+                );
+                assert!(code.contains("import { named as mixedAlias, type MissingType as RenamedType } from \"./dependency.js\";"));
+                assert!(code.contains("export type * from \"./missing.js\";"));
+                assert!(
+                    code.contains("export type { Missing as TypeAlias } from \"./missing.js\";")
+                );
+            } else {
+                module.push_statement(EcmaStatement::generated("export const observed = [selected, namespace.named, alias, unchanged, mixedAlias, escaped];"));
+                let code = module.render_code();
+                assert!(!code.contains("Missing"));
+                assert!(!code.contains("./missing.js"));
+                assert!(code.contains("import {  } from \"./dependency.js\";"));
+                files.push(crate::EcmaGeneratedFile {
+                    path: path.to_owned(),
+                    contents: code,
+                });
+            }
+        }
+        crate::test_runtime::execute_project(
+            &files,
+            r#"
+import assert from 'node:assert/strict';
+const entry = await import('./entry.js');
+assert.deepEqual(entry.observed, ['default', 'named', 'named', 'unchanged', 'named', 'Café 😀']);
+assert.equal(entry.forwardedDefault, 'default');
+assert.equal(entry.forwarded, 'named');
+assert.equal(entry.named, 'named');
+assert.equal(entry.unchanged, 'unchanged');
+assert.equal(globalThis.initializations, 1);
+"#,
+        );
+    }
 
     #[test]
     fn mixed_imports_keep_values_and_drop_type_only_dependencies_in_javascript() {

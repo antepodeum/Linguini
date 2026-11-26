@@ -53,6 +53,22 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
             path.display()
         );
         let source = std::fs::read_to_string(&path).expect("read codegen source");
+        if ["src/ecmascript.rs", "src/ecmascript/edges.rs"]
+            .iter()
+            .any(|file| path == crates.join("linguini-codegen-ecmascript").join(file))
+        {
+            let production = source.split("#[cfg(test)]\nmod tests").next().unwrap();
+            for inline in [
+                "output.push_str(\"import ",
+                "output.push_str(\"export ",
+                "output.push_str(\" as ",
+            ] {
+                assert!(
+                    !production.contains(inline),
+                    "module edges belong in shared templates: {inline}"
+                );
+            }
+        }
         if path.starts_with(crates.join("linguini-codegen-ecmascript/src")) {
             let production = source.split("#[cfg(test)]").next().unwrap();
             for web_api in ["EcmaWebOptions", "compile_web_", "web_options", "web/"] {
@@ -133,6 +149,7 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
             "pub fn generate_typescript_",
             "fn implementation_rest_params_for_target(",
             "fn normalized_bindings_statement_for_target(",
+            "fn emit_schema_type_reexports(",
             "fn javascript_shared_runtime(",
             "fn typescript_index_runtime(",
             "fn javascript_index_runtime(",

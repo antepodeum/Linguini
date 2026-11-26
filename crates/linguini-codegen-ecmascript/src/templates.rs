@@ -10,6 +10,10 @@ fn environment() -> &'static EcmaTemplateEngine {
     ENVIRONMENT.get_or_init(|| {
         EcmaTemplateEngine::new([
             (
+                "module/edge",
+                include_str!("../templates/module/edge.jinja"),
+            ),
+            (
                 "types/expression",
                 include_str!("../templates/types/expression.jinja"),
             ),

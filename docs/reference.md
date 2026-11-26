@@ -71,6 +71,9 @@ Public parameter types lower into `linguini_codegen::TypeModel`, also re-exporte
 JSDoc rendering through `render_typescript_type` and `render_jsdoc_type`, templates, and module
 emission. Primitive types and enum literal unions use one canonical type-expression template
 for schema declarations, schema JSDoc, locale JSDoc, and selector annotations.
+Structured imports and re-exports share one module-edge template, including aliases, namespace
+imports, and declaration-only type edges. JavaScript output excludes type dependencies before
+rendering; module order, literal escaping, and source-map line positions remain stable.
 
 Rust codegen integrations can call `generate_schema_files` to obtain the schema-owned
 `shared.js` checked-JavaScript runtime and `messages.js` type boundary together with their `.d.ts`

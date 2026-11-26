@@ -79,28 +79,6 @@ pub fn module_imports(
     imports
 }
 
-#[cfg(test)]
-pub fn emit_schema_type_reexports(
-    schema: &IrModule,
-    shared_import_path: &str,
-    output: &mut String,
-) {
-    let type_names = schema_type_names(schema);
-    if !type_names.is_empty() {
-        output.push_str(&format!(
-            "export type {{ {} }} from \"{}\";\n\n",
-            type_names.join(", "),
-            shared_import_path
-        ));
-    }
-    for (public_name, generated_name) in schema_type_aliases(schema) {
-        output.push_str(&crate::templates::render(
-            "declarations/alias",
-            minijinja::context! { name => public_name, ty => generated_name },
-        ));
-    }
-}
-
 pub(super) fn emit_schema_jsdoc_types(
     schema: &IrModule,
     shared_import_path: &str,
@@ -510,7 +488,7 @@ fn message_implementation<'a>(module: &'a IrModule, name: &str) -> Option<&'a Ir
 
 #[cfg(test)]
 mod tests {
-    use super::emit_schema_type_reexports;
+    use super::super::decl::generate_locale_declaration_with_shared_import;
     use linguini_ir::{lower_schema, qualify_module};
     use linguini_syntax::parse_schema;
 
@@ -520,9 +498,12 @@ mod tests {
             &parse_schema("enum Fruit { apple }\ntype Money = Decimal\n").expect("schema"),
         );
         qualify_module(&mut schema, "shop");
-        let mut output = String::new();
-
-        emit_schema_type_reexports(&schema, "./shared", &mut output);
+        let output = generate_locale_declaration_with_shared_import(
+            &schema,
+            "locales/en.d.ts",
+            "./shared",
+            None,
+        );
 
         assert!(output.contains("export type Fruit = __lgl_name_shop$Fruit;"));
         assert!(output.contains("export type Money = __lgl_name_shop$Money;"));
