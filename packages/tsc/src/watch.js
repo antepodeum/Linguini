@@ -36,7 +36,6 @@ export function watchSystem(cwd) {
 export function watchNative(graph, builds, changed, system) {
   const watchers = [];
   const files = new Set([...graph.configFiles, ...builds.map((build) => build.configFile)]);
-  for (const file of files) watchers.push(system.watchFile(file, changed, 250));
   const directories = new Set(builds.flatMap((build) => build.sources));
   let count = 0;
   function visit(directory, depth = 0) {
@@ -52,10 +51,11 @@ export function watchNative(graph, builds, changed, system) {
     }
   }
   for (const directory of directories) visit(directory);
-  // Directory watches discover additions/removals; content edits need file
-  // watches because TypeScript can intentionally filter directory change events.
+  // Directory events discover additions/removals. Poll known files independently:
+  // native event watchers can open successfully yet silently lose content edits.
+  // TypeScript ages unchanged files into slower queues to limit idle stat work.
   for (const file of files) {
-    if (/\.(?:lgs|lgl)$/.test(file)) watchers.push(system.watchFile(file, changed, 250));
+    watchers.push(system.watchFile(file, changed, 250, {watchFile:ts.WatchFileKind.DynamicPriorityPolling}));
   }
   for (let directory of directories) {
     while (!system.directoryExists(directory) && path.dirname(directory) !== directory) directory = path.dirname(directory);

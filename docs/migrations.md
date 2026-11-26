@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## TypeScript watch delivery
+
+`linguini-tsc` now polls known schema, locale, and configuration files through TypeScript's
+adaptive priority queues. This removes reliance on delivery from successfully opened filesystem
+event watchers; a macOS integration run timed out waiting for a locale text edit. Directory
+events still discover source additions/removals. Watch and solution-watch keep declaration-aware runtime delivery, last valid
+output on native errors, and explicit disposal. There are no CLI, configuration, generated
+artifact, or application API changes, and no application-runtime polling is introduced.
+
 ## Native LSP path identity and CI
 
 Native workspace paths now use the same file-URI representation as editor buffers. Windows

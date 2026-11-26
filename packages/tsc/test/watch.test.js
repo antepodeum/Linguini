@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {EventEmitter} from 'node:events';
 import {existsSync,mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import ts from 'typescript';
 import {watchNative} from '../src/watch.js';
 
 test('native watches accept normalized, relative, and ancestor events while excluding sibling sources and disposing resources', context => {
@@ -44,4 +47,43 @@ test('native watches accept normalized, relative, and ancestor events while excl
   assert.equal(changes,4,'unrelated siblings must not trigger a native rebuild');
   close();
   assert.equal(closed,files.size + directories.size);
+});
+
+test('native source edits are observed when filesystem event watchers silently drop changes', async context => {
+  const root = mkdtempSync(path.join(tmpdir(),'linguini-polling-watch-'));
+  context.after(() => rmSync(root,{recursive:true,force:true}));
+  const source = path.join(root,'locale');
+  mkdirSync(source);
+  const file = path.join(source,'en.lgl');
+  writeFileSync(file,'title = Before\n');
+  const configFile = path.join(root,'linguini.toml');
+  writeFileSync(configFile,'');
+  // A successfully opened event watcher can still report no events. Polling
+  // must observe the real file without relying on an error-triggered fallback.
+  context.mock.method(fs,'watch',() => {
+    const watcher = new EventEmitter();
+    watcher.close = () => {};
+    return watcher;
+  });
+  let observe;
+  const changed = new Promise(resolve => {observe = resolve;});
+  const close = watchNative({configFiles:new Set()},[{configFile,sources:[source]}],observe,{
+    ...ts.sys,
+    watchDirectory() {return {close(){}};},
+  });
+  let timer;
+  try {
+    writeFileSync(file,'title = After\n');
+    const modified = new Date(Date.now() + 1000);
+    fs.utimesSync(file,modified,modified);
+    const observed = await Promise.race([
+      changed,
+      new Promise((_,reject) => {timer = setTimeout(() => reject(new Error('Source edit was lost without filesystem events')),3000);}),
+    ]);
+    assert.equal(observed,file);
+    assert.equal(fs.readFileSync(file,'utf8'),'title = After\n');
+  } finally {
+    clearTimeout(timer);
+    close();
+  }
 });

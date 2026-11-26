@@ -52,8 +52,11 @@ rules. `--build --clean` and `--dry` delegate to TypeScript without generating m
 cleaning removes its own outputs. Native owned output can be rebuilt independently.
 
 Watch mode observes schema/locale files and configuration separately from TypeScript inputs.
-It resolves directory notifications using the host's path rules, so new and removed namespaces
-are discovered when TypeScript reports `/` separators on Windows.
+Known source and configuration files use TypeScript's adaptive priority polling, so content
+edits do not depend on operating-system filesystem events being delivered. Unchanged files
+move into slower polling queues to limit idle filesystem work. Directory notifications use the
+host's path rules to discover added and removed namespaces, including `/` separators on Windows.
+Polling runs only in the build tool.
 Message text edits refresh runtime output even when declarations stay unchanged and incremental
 TypeScript projects remain up to date. Native failures retain the last valid generated output;
 later edits can recover without restarting watch mode.

@@ -1437,6 +1437,15 @@ and the composed payload/SSR requirements below.
       shared frontend package and platform packages before the launcher. Local Vite, strict tsc/packed APIs,
       site production, and fresh native generation pass. Cross-version/platform and composed-page
       delivery/SSR verification remain open.
+      A newer macOS [run 45866332671](https://github.com/antepodeum/Linguini/actions/runs/45866332671)
+      on `93a8d78` timed out waiting for a TypeScript watch locale edit. Known source/configuration
+      files now use adaptive priority polling independently of OS event delivery; directories
+      retain namespace rediscovery. A regression that opens event watchers but drops every event
+      fails before the change and passes after it on Node 20/24 with TypeScript 5.8.3 and 6.0.3.
+      The full native TypeScript suite, including packed installation, references, watch/error
+      recovery, namespace changes, and disposal, passes locally. The real watch/solution-watch
+      lifecycle also passes on Node 20. Fresh macOS verification remains required; generated
+      application code has no added watcher or polling runtime.
       Site descriptions across all nine locales now distinguish generated JavaScript plus
       declarations from reusable web/Svelte/SvelteKit adapters and application-owned policy.
       They describe message-level fallback and preparation before reactive publication;
