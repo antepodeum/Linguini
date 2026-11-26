@@ -53,6 +53,8 @@ pub struct NumberFormatData {
     pub group_symbol: &'static str,
     /// Localized minus symbol, including CLDR bidirectional marks.
     pub minus_sign: &'static str,
+    /// Digits required beyond the primary group before separators are shown.
+    pub minimum_grouping_digits: u8,
     pub decimal_pattern: NumberPattern,
     pub percent_pattern: NumberPattern,
 }

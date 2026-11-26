@@ -335,6 +335,7 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         decimal_symbol: ".",
         group_symbol: ",",
         minus_sign: "-",
+        minimum_grouping_digits: 1,
         decimal_pattern: pattern,
         percent_pattern: pattern,
     };
@@ -727,6 +728,49 @@ console.log("ok");
 }
 
 #[test]
+fn pinned_minimum_grouping_digits_apply_after_rounding_for_numbers_and_currency() {
+    for (locale, expected, money) in [
+        ("es", ["1000", "10.000", "100.000"], "1000,00\u{a0}US$"),
+        (
+            "pl",
+            ["1000", "10\u{a0}000", "100\u{a0}000"],
+            "1000,00\u{a0}USD",
+        ),
+        ("ee", ["1000", "10000", "100,000"], "US$1000.00"),
+        ("en", ["1,000", "10,000", "100,000"], "$1,000.00"),
+    ] {
+        let runtime = formatter_data_declaration(
+            locale,
+            &[
+                request(IrFormatterKind::Number, &[]),
+                request(IrFormatterKind::Currency, &[]),
+            ],
+            false,
+        );
+        assert!(!runtime.contains("minimumGroupingDigits"));
+        let actual = execute(&format!(
+            r#"{runtime}
+Intl.NumberFormat=class{{constructor(){{throw Error('no host formatting');}}}};
+console.log([formatNumber(1000),formatNumber(10000n),formatNumber('100000'),formatNumber('999.9995'),formatNumber('9999.9995'),formatCurrency('999.995')].join('|'));
+"#
+        ));
+        assert_eq!(
+            actual,
+            [
+                expected[0],
+                expected[1],
+                expected[2],
+                expected[0],
+                expected[1],
+                money
+            ]
+            .join("|"),
+            "{locale}"
+        );
+    }
+}
+
+#[test]
 fn compiled_grouping_covers_width_boundaries_padding_and_long_exact_values() {
     let mut numbers = compiled_number_formatting("en").unwrap();
     let mut plans = Vec::new();
@@ -735,24 +779,27 @@ fn compiled_grouping_covers_width_boundaries_padding_and_long_exact_values() {
     for primary in 1..=4 {
         for secondary in 1..=4 {
             for minimum in [1, 6] {
-                let mut pattern = numbers.decimal_pattern;
-                pattern.positive.primary_group_size = Some(primary);
-                pattern.positive.secondary_group_size = Some(secondary);
-                pattern.positive.min_integer_digits = minimum;
-                pattern.positive.min_fraction_digits = 0;
-                pattern.positive.max_fraction_digits = 0;
-                numbers.group_symbol = if minimum == 1 { "," } else { "🍎" };
-                let plan = number_plan(&pattern, None, &numbers, None);
-                let name = format!("group{primary}_{secondary}_{minimum}");
-                generated.push_str(&crate::templates::render(
-                    "formatters/number",
-                    minijinja::context! { name => &name, plan => plan.clone(), exported => false },
-                ));
-                cases.push_str(&format!(
-                    "[{name}, {primary}, {secondary}, {minimum}, {:?}],",
-                    numbers.group_symbol
-                ));
-                plans.push(plan);
+                for grouping in 1..=3 {
+                    let mut pattern = numbers.decimal_pattern;
+                    pattern.positive.primary_group_size = Some(primary);
+                    pattern.positive.secondary_group_size = Some(secondary);
+                    pattern.positive.min_integer_digits = minimum;
+                    pattern.positive.min_fraction_digits = 0;
+                    pattern.positive.max_fraction_digits = 0;
+                    numbers.group_symbol = if minimum == 1 { "," } else { "🍎" };
+                    numbers.minimum_grouping_digits = grouping;
+                    let plan = number_plan(&pattern, None, &numbers, None);
+                    let name = format!("group{primary}_{secondary}_{minimum}_g{grouping}");
+                    generated.push_str(&crate::templates::render(
+                        "formatters/number",
+                        minijinja::context! { name => &name, plan => plan.clone(), exported => false },
+                    ));
+                    cases.push_str(&format!(
+                        "[{name}, {primary}, {secondary}, {minimum}, {:?}, {grouping}],",
+                        numbers.group_symbol
+                    ));
+                    plans.push(plan);
+                }
             }
         }
     }
@@ -762,9 +809,10 @@ fn compiled_grouping_covers_width_boundaries_padding_and_long_exact_values() {
     assert_eq!(
         execute(&format!(
             r#"{generated}{helpers}
-function expected(value, primary, secondary, minimum, separator) {{
+function expected(value, primary, secondary, minimum, separator, grouping) {{
   const negative = value.startsWith("-");
   let digits = (negative ? value.slice(1) : value).padStart(minimum, "0");
+  if (digits.length < primary + grouping) return (negative ? "-" : "") + digits;
   const groups = [];
   let width = primary;
   while (digits.length > width) {{
@@ -777,16 +825,16 @@ function expected(value, primary, secondary, minimum, separator) {{
 }}
 const values = ["0", "-0", "12345678", "9".repeat(8192)];
 for (let length = 1; length <= 36; length++) values.push("123456789".repeat(4).slice(0, length));
-for (const [format, primary, secondary, minimum, separator] of [{cases}]) {{
+for (const [format, primary, secondary, minimum, separator, grouping] of [{cases}]) {{
   for (const digits of values) {{
     for (const value of [digits, digits === "0" || digits === "-0" ? digits : "-" + digits]) {{
       const actual = format(value);
-      const wanted = expected(value, primary, secondary, minimum, separator);
+      const wanted = expected(value, primary, secondary, minimum, separator, grouping);
       if (actual !== wanted) throw new Error(JSON.stringify([format.name, value, actual, wanted]));
     }}
   }}
 }}
-if (group3_3_1("12345678") !== "12,345,678" || group3_2_1("12345678") !== "1,23,45,678") throw new Error("standard and Indian grouping drifted");
+if (group3_3_1_g1("12345678") !== "12,345,678" || group3_2_1_g1("12345678") !== "1,23,45,678") throw new Error("standard and Indian grouping drifted");
 console.log("ok");
 "#,
             helpers = number_helpers(&plans),

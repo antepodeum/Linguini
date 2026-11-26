@@ -1316,6 +1316,7 @@ fn format_number_pattern(
         &decimal.integer,
         pattern.positive.primary_group_size,
         pattern.positive.secondary_group_size,
+        numbers.minimum_grouping_digits,
         numbers.group_symbol,
     );
     let formatted = if decimal.fraction.is_empty() {
@@ -1463,12 +1464,13 @@ fn group_integer_digits(
     integer: &str,
     primary_group_size: Option<u8>,
     secondary_group_size: Option<u8>,
+    minimum_grouping_digits: u8,
     group_symbol: &str,
 ) -> String {
     let Some(primary) = primary_group_size.map(usize::from) else {
         return integer.to_owned();
     };
-    if primary == 0 || integer.len() <= primary {
+    if primary == 0 || integer.len() < primary + usize::from(minimum_grouping_digits) {
         return integer.to_owned();
     }
 
@@ -1702,6 +1704,30 @@ mod tests {
         .expect("format number");
 
         assert_eq!(rendered, "1,234,567,890.123");
+    }
+
+    #[test]
+    fn preview_applies_minimum_grouping_thresholds_after_rounding() {
+        let schema = lower_schema(&parse_schema("").unwrap());
+        let module = lower_locale(&parse_locale("").unwrap());
+        let usd = [IrFormatterArgument {
+            name: "code".into(),
+            value: "USD".into(),
+        }];
+        for (locale, expected, decimal) in [
+            ("es", "10.000", ","),
+            ("pl", "10\u{a0}000", ","),
+            ("ee", "10000", "."),
+        ] {
+            let renderer = Renderer::new(&schema, &module, locale);
+            assert_eq!(renderer.format_number("999.9995").unwrap(), "1000");
+            assert_eq!(renderer.format_number("9999.9995").unwrap(), expected);
+            let money = renderer.format_currency("999.995", &usd).unwrap();
+            assert!(
+                money.contains(&format!("1000{decimal}00")),
+                "{locale}: {money}"
+            );
+        }
     }
 
     #[test]

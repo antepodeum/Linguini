@@ -314,9 +314,11 @@ surface. Current guarantees are:
 - `@number` formats finite `number`, `bigint`, or decimal/exponent strings. It
   preserves decimal precision up to 8,192 expanded digits and applies the
   locale's CLDR decimal affixes, minimum/maximum fraction digits, primary and
-  secondary grouping, decimal separator, group separator, and the locale's
+  secondary grouping, the minimum grouping threshold, decimal separator, group separator, and the locale's
   default numeric numbering-system digits from pinned CLDR data. Negative affixes retain
-  localized minus signs and bidirectional marks, including for negative zero. Percent,
+  localized minus signs and bidirectional marks, including for negative zero. Grouping follows
+  the [pinned CLDR threshold](https://www.unicode.org/reports/tr35/tr35-78/tr35-numbers.html#Number_Patterns):
+  Spanish `1000` remains ungrouped, while `10000` becomes `10.000`. Percent,
   compact, scientific, significant-digit, and caller-selected numbering-system
   styles are not exposed.
 - `@currency` requires a three-letter code. It applies CLDR standard or

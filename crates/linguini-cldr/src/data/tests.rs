@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "72ffb3d8c76189cd5f3859466728f31ffefc67509fd8ae071745495141a31ed2"
+        "c8debaedef270943af3f75149ebfd61df76c3d6fba85b42b929f11584db5399f"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -161,6 +161,19 @@ fn compiled_formatting_data_is_typed_not_json() {
 
     assert_eq!(numbers.decimal_symbol, ".");
     assert_eq!(numbers.numbering_system, "latn");
+    assert_eq!(numbers.minimum_grouping_digits, 1);
+    assert_eq!(
+        compiled_number_formatting("es")
+            .unwrap()
+            .minimum_grouping_digits,
+        2
+    );
+    assert_eq!(
+        compiled_number_formatting("ee")
+            .unwrap()
+            .minimum_grouping_digits,
+        3
+    );
     assert_eq!(numbers.digits, "0123456789");
     assert_eq!(numbers.decimal_pattern.positive.primary_group_size, Some(3));
     assert_eq!(numbers.decimal_pattern.positive.max_fraction_digits, 3);

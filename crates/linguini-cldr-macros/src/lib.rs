@@ -135,9 +135,9 @@ mod tests {
     const CHECKED_MANIFEST: &[u8] =
         include_bytes!("../../linguini-cldr/src/data/generated/manifest.json");
     const GOLDEN_ARTIFACT_SHA256: &str =
-        "72ffb3d8c76189cd5f3859466728f31ffefc67509fd8ae071745495141a31ed2";
+        "c8debaedef270943af3f75149ebfd61df76c3d6fba85b42b929f11584db5399f";
     const GOLDEN_MANIFEST_SHA256: &str =
-        "5afaa000bf3b219dd743cb34f533ed178b978beb6353c8a87f770a6f1359c548";
+        "adca40afc6ebc3a530de8f602d3e6b2044e0f079343556a18a590cf110317814";
 
     #[test]
     fn checked_artifact_matches_full_pinned_manifest_and_golden_hash() {

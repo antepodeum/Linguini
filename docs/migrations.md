@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Locale minimum grouping thresholds
+
+Regenerate number and currency output to honor CLDR `minimumGroupingDigits` after rounding.
+Spanish and Polish keep four-digit integers ungrouped; Ewe also keeps five-digit integers
+ungrouped. The selected threshold compiles into a numeric constant. Group widths, digit
+mapping, public formatter options, and precision are unchanged. The native preview applies the
+same threshold. Direct Rust `NumberFormatData` construction must now supply
+`minimum_grouping_digits` as well as `minus_sign`; compiled lookups provide both automatically.
+
 ## Gregorian week-year fields
 
 Regenerate to use pinned Gregorian patterns containing `Y`, including Scottish Gaelic `yMMM`.

@@ -185,6 +185,7 @@ fn number_plan(
         prefix, suffix, negative_prefix, negative_suffix,
         min_integer => positive.min_integer_digits, min_fraction => positive.min_fraction_digits,
         max_fraction => positive.max_fraction_digits, primary_group => positive.primary_group_size,
+        grouping_threshold => positive.primary_group_size.map(|primary| u16::from(primary) + u16::from(numbers.minimum_grouping_digits) - 1),
         secondary_group => positive.secondary_group_size.or(positive.primary_group_size),
         decimal_symbol => numbers.decimal_symbol, group_symbol => numbers.group_symbol, digits => numbers.digits, digit_lookup => digit_lookup(numbers.digits),
         scale => positive.scale, min_significant => positive.min_significant_digits, max_significant => positive.max_significant_digits,

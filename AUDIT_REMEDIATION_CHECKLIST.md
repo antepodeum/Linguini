@@ -457,10 +457,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       78 numbering systems and 3,060 locale/calendar pairs across Gregorian, Buddhist, ROC, and
       Japanese calendars, with contextual symbols, eras, skeletons, day periods, and week rules.
 - [x] #177 — Parse text-direction JSON structurally.
-- [x] #178 — Implement complete CLDR number-pattern semantics. Quoted positive/negative
-      affixes, primary/secondary grouping, fixed and significant digits, rounding increments,
-      scientific exponent signs/widths, percent/per-mille scaling, and all four padding
-      positions are typed in checked-in CLDR data and consumed by generated runtime code.
+- [-] #178 — Complete CLDR number-pattern semantics. The typed model covers quoted affixes,
+      group widths, fixed/significant digits, rounding increments, exponent widths/sign flags,
+      scaling, and padding. Decimal/currency generation now honors localized numeric affixes
+      and minimum grouping thresholds after rounding; native previews use the same thresholds.
+      The internal scientific emitter still hardcodes `E` and exponent signs; broader scientific
+      and engineering patterns remain part of OPT-A1/A2 rather than a completed surface.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.
@@ -1347,6 +1349,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       retain minus signs and bidi marks; quoted scaling symbols remain literals. Executed decimal,
       negative-zero, percent-pattern, standard-currency, and accounting regressions cover this
       correction without adding a runtime CLDR parser or changing the exposed style options.
+      Minimum grouping digits now compile into an integer-length threshold, covering the 35
+      pinned two-digit-threshold locales and two three-digit-threshold Ewe locales. Executed
+      numeric/currency rounding boundaries and 96 width/padding/threshold plans include Unicode
+      separators, negative zero, and 8,192-digit inputs. Existing default-threshold snapshots stay
+      byte-identical; native previews apply the same threshold after rounding.
       Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
       field widths, and other known choices into code. Remove unused options/branches/data; prohibit
       the current `formatNumber(value) -> formatGeneratedNumber(value, ...21 constants...)` design.

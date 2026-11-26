@@ -199,6 +199,7 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
     let decimal_symbol = numbers.decimal_symbol;
     let group_symbol = numbers.group_symbol;
     let minus_sign = numbers.minus_sign;
+    let minimum_grouping_digits = numbers.minimum_grouping_digits;
     let decimal_pattern = number_pattern_tokens(&numbers.decimal_pattern);
     let percent_pattern = number_pattern_tokens(&numbers.percent_pattern);
     quote! {
@@ -209,6 +210,7 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
             decimal_symbol: #decimal_symbol,
             group_symbol: #group_symbol,
             minus_sign: #minus_sign,
+            minimum_grouping_digits: #minimum_grouping_digits,
             decimal_pattern: #decimal_pattern,
             percent_pattern: #percent_pattern,
         }),
@@ -258,6 +260,7 @@ struct NumberData {
     decimal_symbol: String,
     group_symbol: String,
     minus_sign: String,
+    minimum_grouping_digits: u8,
     decimal_pattern: NumberPattern,
     percent_pattern: NumberPattern,
 }
@@ -360,12 +363,17 @@ fn extract_numbers(
     let decimal_pattern = string_field(decimal_formats, "standard", "decimal formats")?;
     let percent_pattern = string_field(percent_formats, "standard", "percent formats")?;
     let affix_symbols = NumberAffixSymbols::extract(symbols)?;
+    let minimum_grouping_digits = string_field(numbers, "minimumGroupingDigits", "numbers")?
+        .parse::<std::num::NonZeroU8>()
+        .map_err(|_| "numbers.minimumGroupingDigits must be an integer in 1..=255".to_owned())?
+        .get();
     Ok(NumberData {
         numbering_system,
         digits: digits.clone(),
         decimal_symbol: string_field(symbols, "decimal", "number symbols")?,
         group_symbol: string_field(symbols, "group", "number symbols")?,
         minus_sign: affix_symbols.minus.clone(),
+        minimum_grouping_digits,
         decimal_pattern: parse_number_pattern(&decimal_pattern, &affix_symbols)?,
         percent_pattern: parse_number_pattern(&percent_pattern, &affix_symbols)?,
     })
@@ -1235,6 +1243,30 @@ mod tests {
                 per_mille: "‰".into(),
             },
         )
+    }
+
+    #[test]
+    fn number_extraction_requires_a_positive_minimum_grouping_digit_count() {
+        let mut input = json!({"main": {"en": {"numbers": {
+            "defaultNumberingSystem": "latn", "minimumGroupingDigits": "2",
+            "symbols-numberSystem-latn": {"decimal": ".", "group": ",", "minusSign": "-", "plusSign": "+", "percentSign": "%", "perMille": "‰"},
+            "decimalFormats-numberSystem-latn": {"standard": "#,##0.###"},
+            "percentFormats-numberSystem-latn": {"standard": "#,##0%"}
+        }}}});
+        let systems = std::collections::BTreeMap::from([("latn".into(), "0123456789".into())]);
+        assert_eq!(
+            super::extract_numbers(&input, "en", &systems)
+                .unwrap()
+                .minimum_grouping_digits,
+            2
+        );
+        for value in ["0", "256", "-1", "auto", ""] {
+            input["main"]["en"]["numbers"]["minimumGroupingDigits"] = json!(value);
+            assert!(
+                super::extract_numbers(&input, "en", &systems).is_err(),
+                "{value}"
+            );
+        }
     }
 
     #[test]
