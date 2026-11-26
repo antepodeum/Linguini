@@ -1199,6 +1199,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       checks. Runtime fixture selection no longer includes archived copies under `target/`.
       Separate Node 20 and Rust 1.87 checks cover the changed compiler/preview boundaries.
       This receipt does not close the remaining architecture or release criteria.
+      Explicit link-helper and locked local-package refresh source `1dcecc1` passes all 71 local
+      full-profile gates, including its new cold/warm installer regression, native watch/build,
+      packaged documentation, editor/WASM, and production graph/browser checks. Separate
+      Node 20 runtime/hook/graph and installer tests plus `actionlint` cover the changed paths.
+      Hosted verification and the remaining architecture/release criteria remain open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
