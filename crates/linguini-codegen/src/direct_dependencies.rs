@@ -1,9 +1,9 @@
 //! Direct semantic dependency edges shared by target backends.
 
 use linguini_ir::{
-    is_plural_intrinsic, IrExpression, IrExpressionKind, IrFormEntry, IrFunctionBranch,
-    IrFunctionBranchValue, IrFunctionParameter, IrInlineFunctionInput, IrModule, IrSymbolKind,
-    IrText, IrTextPart, IrValue,
+    IrExpression, IrExpressionKind, IrFormEntry, IrFunctionBranch, IrFunctionBranchValue,
+    IrFunctionParameter, IrInlineFunctionInput, IrModule, IrSymbolKind, IrText, IrTextPart,
+    IrValue,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -240,18 +240,7 @@ fn inferred_expression_type(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
 ) -> String {
-    match &expression.kind {
-        IrExpressionKind::Reference if expression.path.len() == 1 => context
-            .get(&expression.path[0])
-            .cloned()
-            .unwrap_or_else(|| "String".to_owned()),
-        IrExpressionKind::Call
-            if expression.path.len() == 1 && is_plural_intrinsic(&expression.path[0]) =>
-        {
-            "Plural".to_owned()
-        }
-        _ => "String".to_owned(),
-    }
+    crate::expression_value_type(expression, context).unwrap_or_else(|| "String".to_owned())
 }
 
 #[cfg(test)]

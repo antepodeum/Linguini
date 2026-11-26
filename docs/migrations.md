@@ -4,6 +4,16 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Formatted function inputs
+
+Regenerate output to preserve explicit formatters inside call arguments and inline payloads.
+Previously those annotations could be silently ignored, rendering `1234.5` instead of English
+`1,234.5`. Formatted inputs have type `String`; payload signatures must accept that result.
+Native validation now checks nested names/options/input types before output changes, and preview
+rendering follows the same explicit formatting. Inputs retain left-to-right, eager, single
+execution, including unused inline payloads. Forwarding a value without an explicit formatter
+retains its existing behavior. Backend planning reuses `expression_value_type` for scoped results.
+
 ## Shared source provenance
 
 Backend authors can use `linguini_codegen::semantic_symbol_span` and

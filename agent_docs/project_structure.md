@@ -6,7 +6,8 @@
   retain declaration metadata without depending on a target renderer. Form/function dispatch
   planning owns IR traversal and result merging; backends project selectors/text and render syntax.
   Dependency slices and semantic artifacts share source-provenance traversal, including nested
-  inline inputs, call arguments, dispatch branches, and form values.
+  inline inputs, call arguments, dispatch branches, and form values. Scoped expression-value
+  inference distinguishes explicit formatted strings from unformatted forwarded values.
 - `crates/linguini-codegen-ecmascript`: canonical JavaScript runtime syntax, adjacent
   declarations, identifier escaping, module artifacts, and source maps. It consumes shared
   semantic plans without depending on web or framework integrations.

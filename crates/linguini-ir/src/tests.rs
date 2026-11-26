@@ -1298,3 +1298,39 @@ fn validation_accepts_callable_variants_and_checks_every_variant_and_argument() 
         );
     }
 }
+
+#[test]
+fn nested_formatter_results_are_strings_and_all_annotations_are_validated() {
+    let schema = lower_schema(&parse_schema("message(value: Number)\n").unwrap());
+    let source = |body: &str| {
+        lower_locale(
+            &parse_locale(&format!(
+                "fn Echo(text: String) {{ _ => {{text}} }}\nmessage = {body}\n"
+            ))
+            .unwrap(),
+        )
+    };
+    for body in [
+        "{Echo(value @number)}",
+        "{Echo(Echo(value @number))}",
+        "{fn(copy: value @number) { _ => {Echo(copy)} }}",
+    ] {
+        validate_ir(&schema, &source(body)).unwrap();
+    }
+    for (body, code) in [
+        ("{Echo(value @missing)}", "IR028"),
+        ("{Echo(value @number(extra = \"x\"))}", "IR030"),
+        ("{fn(copy: value @date) { _ => {copy} }}", "IR032"),
+        (
+            "{fn(copy: Echo(value @number) @missing) { _ => {copy} }}",
+            "IR028",
+        ),
+    ] {
+        let errors = validate_ir(&schema, &source(body)).unwrap_err();
+        assert_eq!(
+            errors.iter().filter(|error| error.code == code).count(),
+            1,
+            "{body}: {errors:?}"
+        );
+    }
+}

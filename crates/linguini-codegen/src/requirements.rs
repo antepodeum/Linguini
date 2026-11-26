@@ -275,15 +275,7 @@ fn expression_type(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
 ) -> Option<String> {
-    match &expression.kind {
-        IrExpressionKind::InlineFunction { .. } => Some("String".to_owned()),
-        IrExpressionKind::Call if is_plural_intrinsic_call(expression) => Some("Plural".to_owned()),
-        IrExpressionKind::Call => Some("String".to_owned()),
-        IrExpressionKind::Reference if expression.path.len() == 1 => {
-            context.get(&expression.path[0]).cloned()
-        }
-        IrExpressionKind::Reference => None,
-    }
+    crate::expression_value_type(expression, context)
 }
 
 fn form_entry_uses_inline(entry: &IrFormEntry) -> bool {

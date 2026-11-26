@@ -1985,3 +1985,67 @@ fn native_bundler_tracks_base_namespaces_on_cold_and_warm_builds() {
         assert_eq!(fs::read(path).unwrap(), first);
     }
 }
+
+#[test]
+fn nested_formatters_check_build_and_reject_invalid_annotations_before_output_mutation() {
+    let project = temp_project_dir("nested-formatters").unwrap();
+    let root = project.path();
+    fs::create_dir_all(root.join("schema")).unwrap();
+    fs::create_dir_all(root.join("locales/main")).unwrap();
+    fs::write(root.join("package.json"), "{\"type\":\"module\"}").unwrap();
+    fs::write(root.join("linguini.toml"), "[project]\nname = \"inputs\"\ndefault_locale = \"en\"\nlocales = [\"en\"]\n[paths]\nschema = \"schema\"\nlocale = \"locales\"\n[targets.ts]\nout = \"generated\"\n").unwrap();
+    fs::write(
+        root.join("schema/main.lgs"),
+        "inline(value: Number)\nnamed(value: Number)\n",
+    )
+    .unwrap();
+    let source = concat!(
+        "fn Echo(text: String) { _ => {text} }\n",
+        "inline = {fn(copy: value @number) { _ => {Echo(copy)} }}\n",
+        "named = {Echo(value @number)}\n",
+    );
+    let locale = root.join("locales/main/en.lgl");
+    fs::write(&locale, source).unwrap();
+    check_project(root).unwrap();
+    build_project(root).unwrap();
+    let message_path = root.join("generated/locales/en/main.js");
+    let baseline = fs::read(&message_path).unwrap();
+    build_project(root).unwrap();
+    assert_eq!(fs::read(&message_path).unwrap(), baseline);
+    let execution = std::process::Command::new("node")
+        .args([
+            "--input-type=module",
+            "-e",
+            r#"
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const {lgl}=await import(pathToFileURL(process.argv[1]).href);
+for (const name of ['inline','named']) {
+  assert.equal(lgl.main[name](1234.5),'1,234.5');
+  assert.equal(lgl.main[name]({value:1234.5}),'1,234.5');
+}
+console.log('ok');
+"#,
+        ])
+        .arg(root.join("generated/index.js"))
+        .output()
+        .unwrap();
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    for (annotation, diagnostic) in [
+        ("@missing", "unknown formatter"),
+        ("@number(extra = \"x\")", "does not support option"),
+        ("@date", "requires Date"),
+    ] {
+        fs::write(&locale, source.replace("@number", annotation)).unwrap();
+        let error = build_project(root).unwrap_err();
+        assert!(
+            error.to_string().contains(diagnostic),
+            "{annotation}: {error}"
+        );
+        assert_eq!(fs::read(&message_path).unwrap(), baseline);
+    }
+}

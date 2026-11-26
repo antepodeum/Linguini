@@ -1198,6 +1198,7 @@ fn analyze_call(
                     );
                 }
             }
+            analyze_formatters(expression, Some(PLURAL_TYPE_NAME), diagnostics);
             return;
         }
 
@@ -1251,6 +1252,7 @@ fn analyze_call(
                 );
             }
         }
+        analyze_formatters(expression, Some("String"), diagnostics);
         return;
     }
 
@@ -1368,6 +1370,13 @@ fn expression_type(
     variables: &BTreeMap<&str, &Variable>,
     forms: &BTreeMap<&str, &FormSignature>,
 ) -> Option<String> {
+    if expression
+        .annotations
+        .iter()
+        .any(|formatter| !matches!(formatter.kind, FormatterKind::Unknown(_)))
+    {
+        return Some("String".to_owned());
+    }
     if matches!(&expression.kind, ExpressionKind::InlineFunction { .. }) {
         return Some("String".to_owned());
     }

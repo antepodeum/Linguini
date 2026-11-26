@@ -192,11 +192,27 @@ impl<'a> Renderer<'a> {
         inputs: &BTreeMap<String, SampleValue>,
         depth: usize,
     ) -> Result<String, RenderError> {
-        let value = self.eval_expression_value(expression, context, inputs, depth)?;
+        let value = self.eval_unformatted_expression(expression, context, inputs, depth)?;
         self.apply_formatters(value, expression, context)
     }
 
     fn eval_expression_value(
+        &self,
+        expression: &IrExpression,
+        context: &BTreeMap<String, String>,
+        inputs: &BTreeMap<String, SampleValue>,
+        depth: usize,
+    ) -> Result<String, RenderError> {
+        let value = self.eval_unformatted_expression(expression, context, inputs, depth)?;
+        expression
+            .formatters
+            .iter()
+            .try_fold(value, |current, formatter| {
+                self.apply_formatter(&current, formatter)
+            })
+    }
+
+    fn eval_unformatted_expression(
         &self,
         expression: &IrExpression,
         context: &BTreeMap<String, String>,
@@ -839,20 +855,8 @@ fn inferred_inline_value_type(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
 ) -> String {
-    match &expression.kind {
-        IrExpressionKind::InlineFunction { .. } => "String".to_owned(),
-        IrExpressionKind::Call
-            if expression.path.len() == 1 && is_plural_intrinsic(&expression.path[0]) =>
-        {
-            "Plural".to_owned()
-        }
-        IrExpressionKind::Call => "String".to_owned(),
-        IrExpressionKind::Reference if expression.path.len() == 1 => context
-            .get(&expression.path[0])
-            .cloned()
-            .unwrap_or_else(|| "String".to_owned()),
-        IrExpressionKind::Reference => "String".to_owned(),
-    }
+    linguini_codegen::expression_value_type(expression, context)
+        .unwrap_or_else(|| "String".to_owned())
 }
 
 fn sample_value_for_type(ty: &str, value: String) -> SampleValue {
@@ -1530,6 +1534,48 @@ mod tests {
         locale_name: &'a str,
     ) -> Renderer<'a> {
         Renderer::new(schema, locale, locale_name)
+    }
+
+    #[test]
+    fn nested_explicit_formatters_match_generated_calls_and_inline_payloads() {
+        let schema_source =
+            "sample0(value: Number)\nsample1(value: Number)\nsample2(value: Date)\n";
+        let source = concat!(
+            "fn Echo(text: String) { _ => {text} }\n",
+            "sample0 = {Echo(Echo(value @number))}\n",
+            "sample1 = {fn(copy: value @currency(code = \"USD\")) { _ => {Echo(copy)} }}\n",
+            "sample2 = {Echo(value @date(skeleton = \"yMMMd\"))}\n",
+        );
+        let schema = lower_schema(&parse_schema(schema_source).unwrap());
+        let module = lower_locale(&parse_locale(source).unwrap());
+        let mut cases = Vec::new();
+        for locale in ["en", "ru"] {
+            let renderer = renderer(&schema, &module, locale);
+            for (index, values) in [
+                (0, ["0", "1234.5"]),
+                (1, ["0", "1234.5"]),
+                (2, ["2024-01-02", "2026-05-13"]),
+            ] {
+                for value in values {
+                    let sample = if index == 2 {
+                        SampleValue::String(value.into())
+                    } else {
+                        SampleValue::Number(value.into())
+                    };
+                    let expected = renderer
+                        .render_message(
+                            &format!("sample{index}"),
+                            &BTreeMap::from([("value".into(), sample)]),
+                        )
+                        .unwrap();
+                    if locale == "en" && index == 0 && value == "1234.5" {
+                        assert_eq!(expected, "1,234.5");
+                    }
+                    cases.push(serde_json::json!({"locale":locale,"index":index,"value":value,"expected":expected}));
+                }
+            }
+        }
+        super::parity::assert_generated_samples(schema_source, source, &["en", "ru"], &cases);
     }
 
     #[test]

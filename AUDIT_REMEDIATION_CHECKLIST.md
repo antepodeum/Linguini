@@ -626,10 +626,13 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       skeletons across 508 resolved locales render; 2,880 comparisons across 12 locales and 30
       requests execute real generated modules, covering year zero, week boundaries, contextual
       labels, and BMP/supplementary digits. Numeric previews share the Unicode-scalar digit
-      writer with dates; 396 generated-module comparisons across twelve locales check decimal,
+      writer with dates; 462 generated-module comparisons across fourteen locales check decimal,
       standard currency, and accounting output, including exact large/exponent strings, rounding,
       grouping, and negative zero. Affix-literal digits and mixed supplementary symbols have
-      focused coverage. The broader generated Date input domain remains open.
+      focused coverage. Explicitly formatted call arguments and inline payloads now retain their
+      string results in previews; twelve native/generated comparisons across English/Russian
+      number, currency, and date requests cover the correction. The broader generated Date
+      input domain remains open.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.
@@ -1376,6 +1379,9 @@ and the composed payload/SSR requirements below.
       map/object/direct form branches, deduplication, and effective override origins. Current
       generated code/declaration/map snapshots, native CLI tests, strict consumers, runtime parity,
       Rust 1.87, Clippy, and packaged-source documentation checks pass.
+      Scoped `expression_value_type` now also unifies argument/inline result inference across
+      dependency walkers, plural demand, inline lowering, and native previews. Explicit
+      formatters produce strings; forwarding without an annotation retains its source type.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.
@@ -1524,6 +1530,16 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       graphs, and execute numeric/date/CLDR, function/form, sparse fallback, and SSR/hydration corpora.
       Preserve all meaningful coverage while replacing snapshots of the superseded generated shape.
       Keep optimization and SSR acceptance open until production generation and real consumers pass.
+      Explicitly formatted call arguments and inline payloads now validate and execute instead
+      of silently losing annotations. Ordinary/physical graph regressions cover nested number,
+      currency/date, and formatter chains, named calls, eager input order/coercion/errors, and
+      unformatted forwarding. A selected numeric-only graph emits no currency/date helpers;
+      native invalid annotations preserve existing output. Current snapshots stay unchanged.
+      The correction passes affected Rust/editor tests, workspace Clippy, Rust 1.87, and Node 20;
+      fourteen actual generated native modules pass strict checked-JavaScript validation, and
+      their positive/negative TypeScript consumer passes without `allowJs`. Seventeen registered
+      consumer/documentation/site gates pass, including source packaging and production SSR/browser
+      checks. This follow-up does not replace the earlier full-run source receipt.
 - [-] OPT-A6 — Generate readable code wherever the compiler has enough semantic information:
       use meaningful parameter/local/helper names, clear formatting, and direct control flow.
       Preserve explicit source parameter names; derive readable names for unnamed selectors from

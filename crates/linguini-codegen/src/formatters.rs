@@ -129,26 +129,27 @@ impl Collector {
     fn text(&mut self, text: &IrText, defaults: &BTreeMap<String, Vec<IrFormatter>>) {
         for part in &text.parts {
             if let IrTextPart::Placeholder(expression) = part {
-                let formatters = if expression.formatters.is_empty() {
-                    expression
-                        .path
-                        .first()
-                        .and_then(|name| defaults.get(name))
-                        .map_or(expression.formatters.as_slice(), Vec::as_slice)
-                } else {
-                    &expression.formatters
-                };
-                for formatter in formatters {
-                    if !matches!(formatter.kind, IrFormatterKind::Unknown(_)) {
-                        let request = FormatterRequest::new(formatter);
-                        self.requests.insert(request.key(), request);
+                if expression.formatters.is_empty() {
+                    if let Some(formatters) =
+                        expression.path.first().and_then(|name| defaults.get(name))
+                    {
+                        self.record(formatters);
                     }
                 }
                 self.value(expression, defaults);
             }
         }
     }
+    fn record(&mut self, formatters: &[IrFormatter]) {
+        for formatter in formatters {
+            if !matches!(formatter.kind, IrFormatterKind::Unknown(_)) {
+                let request = FormatterRequest::new(formatter);
+                self.requests.insert(request.key(), request);
+            }
+        }
+    }
     fn value(&mut self, expression: &IrExpression, defaults: &BTreeMap<String, Vec<IrFormatter>>) {
+        self.record(&expression.formatters);
         for argument in &expression.arguments {
             self.value(argument, defaults);
         }

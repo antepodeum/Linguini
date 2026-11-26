@@ -1075,19 +1075,39 @@ fn check_text(
 ) {
     for part in &text.parts {
         if let IrTextPart::Placeholder(expression) = part {
-            let ty = infer_expression(expression, variables, capture_candidates, context, errors);
-            validate_formatters(
-                &expression.formatters,
-                ty.as_deref(),
-                Some(expression.span),
-                context,
-                errors,
-            );
+            infer_expression(expression, variables, capture_candidates, context, errors);
         }
     }
 }
 
 fn infer_expression(
+    expression: &IrExpression,
+    variables: &BTreeMap<String, String>,
+    capture_candidates: &BTreeMap<String, String>,
+    context: &ReferenceContext<'_>,
+    errors: &mut Vec<IrReferenceError>,
+) -> Option<String> {
+    let ty =
+        infer_unformatted_expression(expression, variables, capture_candidates, context, errors);
+    validate_formatters(
+        &expression.formatters,
+        ty.as_deref(),
+        Some(expression.span),
+        context,
+        errors,
+    );
+    if expression
+        .formatters
+        .iter()
+        .any(|formatter| !matches!(formatter.kind, FormatterKind::Unknown(_)))
+    {
+        Some("String".to_owned())
+    } else {
+        ty
+    }
+}
+
+fn infer_unformatted_expression(
     expression: &IrExpression,
     variables: &BTreeMap<String, String>,
     capture_candidates: &BTreeMap<String, String>,

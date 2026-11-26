@@ -1199,3 +1199,32 @@ fn message_value(locale: &linguini_syntax::LocaleFile, name: &str) -> linguini_s
         })
         .expect("message exists")
 }
+
+#[test]
+fn formatted_call_arguments_and_inline_payloads_have_string_results() {
+    let schema = parse_schema("message(value: Number)\n").unwrap();
+    for body in [
+        "{Echo(value @number)}",
+        "{Echo(Echo(value @number))}",
+        "{fn(copy: value @number) { _ => {Echo(copy)} }}",
+    ] {
+        let locale = parse_locale(&format!(
+            "fn Echo(text: String) {{ _ => {{text}} }}\nmessage = {body}\n"
+        ))
+        .unwrap();
+        let diagnostics = analyze_project_expressions(&schema, &locale);
+        assert!(
+            !diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error),
+            "{body}: {diagnostics:?}"
+        );
+    }
+    let locale = parse_locale(
+        "fn Echo(text: String) { _ => {text} }\nmessage = {Echo(value @number) @missing}\n",
+    )
+    .unwrap();
+    assert!(analyze_project_expressions(&schema, &locale)
+        .iter()
+        .any(|diagnostic| diagnostic.code == "linguini.unknown_formatter"));
+}

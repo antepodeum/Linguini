@@ -260,15 +260,7 @@ fn plural_call(expression: &IrExpression) -> bool {
         && is_plural_intrinsic(&expression.path[0])
 }
 fn expression_type(expression: &IrExpression, context: &Types) -> String {
-    if plural_call(expression) {
-        return "Plural".to_owned();
-    }
-    if expression.kind == IrExpressionKind::Reference && expression.path.len() == 1 {
-        if let Some(ty) = context.get(&expression.path[0]) {
-            return ty.clone();
-        }
-    }
-    "String".to_owned()
+    crate::expression_value_type(expression, context).unwrap_or_else(|| "String".to_owned())
 }
 fn free_branch_names(
     branches: &[IrFunctionBranch],

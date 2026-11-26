@@ -337,6 +337,13 @@ The formatter list is canonical:
 | `@currency` | `Number`, `Decimal` alias |
 | `@date`     | `Date`                    |
 
+Explicit formatters also apply to function arguments and inline payload inputs:
+`Echo(value @number)` and `fn(copy: value @number) { _ => {copy} }` pass a formatted
+`String`. Formatting runs once, in input order, before the callee or branch executes; unused
+inline payloads are still evaluated. Automatic display defaults do not format a value merely
+because it is forwarded. Invalid nested formatter names, options, and input types are diagnosed
+before code emission.
+
 #### Formatter scope and fallback
 
 The generated formatter is intentionally smaller than the full ICU/ECMA-402

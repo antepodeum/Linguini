@@ -42,7 +42,7 @@ pub use requirements::{
     expression_has_string_result, formatter_requirements, module_uses_inline_functions,
     plural_required, FormatterRequirements, StringResultFacts,
 };
-pub use types::{resolve_type_name, TypeModel};
+pub use types::{expression_value_type, resolve_type_name, TypeModel};
 pub use week_year::GregorianWeekYearPlan;
 
 pub use formatters::{

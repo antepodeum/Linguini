@@ -183,7 +183,7 @@ fn expression_string(
     options: &EcmaOptions,
     facts: &StringResultFacts,
 ) -> String {
-    let value = expression_value(expression, context, options);
+    let value = unformatted_expression_value(expression, context, options);
     let formatters = if expression.formatters.is_empty() {
         expression
             .path
@@ -206,6 +206,15 @@ fn expression_string(
 }
 
 pub(super) fn expression_value(
+    expression: &IrExpression,
+    context: &BTreeMap<String, String>,
+    options: &EcmaOptions,
+) -> String {
+    let value = unformatted_expression_value(expression, context, options);
+    apply_formatters(value, &expression.formatters).0
+}
+
+fn unformatted_expression_value(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
     options: &EcmaOptions,

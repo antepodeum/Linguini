@@ -429,16 +429,7 @@ impl<'a> ClosureWalker<'a> {
 }
 
 fn inferred_type(expression: &IrExpression, context: &BTreeMap<String, String>) -> String {
-    match &expression.kind {
-        IrExpressionKind::Reference if expression.path.len() == 1 => context
-            .get(&expression.path[0])
-            .cloned()
-            .unwrap_or_else(|| "String".to_owned()),
-        IrExpressionKind::Call if expression.path.len() == 1 && expression.path[0] == "plural" => {
-            "Plural".to_owned()
-        }
-        _ => "String".to_owned(),
-    }
+    crate::expression_value_type(expression, context).unwrap_or_else(|| "String".to_owned())
 }
 
 fn slice_schema(module: &IrModule, selected: &BTreeSet<MessageDependencySymbol>) -> IrModule {
