@@ -332,6 +332,7 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         digits: "0123456789",
         decimal_symbol: ".",
         group_symbol: ",",
+        minus_sign: "-",
         decimal_pattern: pattern,
         percent_pattern: pattern,
     };
@@ -364,6 +365,46 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         assert!(!runtime.contains(unused), "unused operation {unused}");
     }
     assert_eq!(execute(&format!("{runtime}console.log(JSON.stringify([formatNumber('-0'), formatNumber(1234.56789), formatNumber(12345678901234567890n)]));")), "[\"-0\",\"1,234.568\",\"12,345,678,901,234,567,890\"]");
+}
+
+#[test]
+fn number_affixes_use_pinned_localized_signs_and_scaling_symbols() {
+    for (locale, expected) in [
+        (
+            "fa",
+            ["\u{200e}−۱٬۲۳۴٫۵", "\u{200e}−۰", "۱۲٪", "\u{200e}−۱۲٪"],
+        ),
+        (
+            "ar",
+            [
+                "\u{200e}-1,234.5",
+                "\u{200e}-0",
+                "12\u{200e}%\u{200e}",
+                "\u{200e}-12\u{200e}%\u{200e}",
+            ],
+        ),
+        ("sv", ["−1\u{a0}234,5", "−0", "12\u{a0}%", "−12\u{a0}%"]),
+        ("en", ["-1,234.5", "-0", "12%", "-12%"]),
+    ] {
+        let numbers = compiled_number_formatting(locale).unwrap();
+        let plans = [numbers.decimal_pattern, numbers.percent_pattern]
+            .map(|pattern| number_plan(&pattern, None, &numbers, None));
+        let mut runtime = String::new();
+        for (name, plan) in ["decimal", "percent"].into_iter().zip(&plans) {
+            runtime.push_str(&crate::templates::render(
+                "formatters/number",
+                minijinja::context! { name, plan, exported => false },
+            ));
+        }
+        runtime.push_str(&number_helpers(&plans));
+        let script = format!(
+            r#"{runtime}
+Intl.NumberFormat = class {{constructor(){{throw Error('no host formatter');}}}};
+const actual=[decimal('-1234.5'),decimal(-0),percent('0.12'),percent('-0.12')];
+console.log(actual.join('|'));"#
+        );
+        assert_eq!(execute(&script), expected.join("|"), "{locale}");
+    }
 }
 
 #[test]

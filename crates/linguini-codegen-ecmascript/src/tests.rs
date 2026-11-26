@@ -1640,6 +1640,43 @@ fn project_codegen_emits_locale_default_numbering_digits() {
 }
 
 #[test]
+fn project_codegen_preserves_localized_negative_decimal_and_currency_affixes() {
+    let schema = lower_schema(
+        &parse_schema(
+            "decimal(value: Number)\ncurrency(value: Decimal)\naccounting(value: Decimal)\n",
+        )
+        .unwrap(),
+    );
+    let locale = lower_locale(&parse_locale("decimal = {value}\ncurrency = {value @currency(code = \"USD\")}\naccounting = {value @currency(code = \"USD\", accounting = \"true\")}\n").unwrap());
+    let files = generate_project_files(
+        &schema,
+        &[EcmaLocaleModule {
+            locale: "fa".into(),
+            module: locale,
+        }],
+        &project_options("fa"),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"
+Intl.NumberFormat = class {constructor(){throw Error('no host formatter');}};
+const {decimal,currency,accounting}=await import('./locales/fa.js');
+console.log([decimal('-1234.5'),decimal(-0),currency('-1234.5'),accounting('-1234.5')].join('|'));
+"#
+        ),
+        [
+            "\u{200e}−۱٬۲۳۴٫۵",
+            "\u{200e}−۰",
+            "\u{200e}−\u{200e}$۱٬۲۳۴٫۵۰",
+            "\u{200e}($\u{a0}۱٬۲۳۴٫۵۰)"
+        ]
+        .join("|")
+    );
+}
+
+#[test]
 fn project_codegen_emits_inline_function_dispatch_with_captured_values() {
     let schema = lower_schema(
         &parse_schema(

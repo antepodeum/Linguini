@@ -1338,6 +1338,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       skeleton matching remain open.
       Gregorian year-of-era conversion and width padding now cover 18 BCE/CE year samples and
       eight widths, sharing the UTC year read and selecting year-only padding helpers.
+      Numeric affix lowering now resolves unquoted sign/percent/per-mille placeholders from
+      pinned symbols before discarding quote provenance. Localized implicit negative patterns
+      retain minus signs and bidi marks; quoted scaling symbols remain literals. Executed decimal,
+      negative-zero, percent-pattern, standard-currency, and accounting regressions cover this
+      correction without adding a runtime CLDR parser or changing the exposed style options.
       Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
       field widths, and other known choices into code. Remove unused options/branches/data; prohibit
       the current `formatNumber(value) -> formatGeneratedNumber(value, ...21 constants...)` design.

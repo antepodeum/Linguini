@@ -1329,7 +1329,8 @@ fn format_number_pattern(
             || {
                 (
                     format!(
-                        "-{}",
+                        "{}{}",
+                        numbers.minus_sign,
                         render_affix(pattern.positive.prefix, currency_symbol)
                     ),
                     render_affix(pattern.positive.suffix, currency_symbol),
@@ -1741,6 +1742,22 @@ mod tests {
         )
         .expect("format cash increment");
         assert_eq!(numeric_part(cash_rounded), "1.25");
+
+        let swedish = Renderer::new(&schema, &locale, "sv");
+        assert_eq!(swedish.format_number("-1234.5").unwrap(), "−1\u{a0}234,5");
+        assert_eq!(swedish.format_number("-0").unwrap(), "−0");
+        assert_eq!(
+            swedish
+                .format_currency(
+                    "-1.5",
+                    &[IrFormatterArgument {
+                        name: "code".into(),
+                        value: "USD".into(),
+                    }]
+                )
+                .unwrap(),
+            "−1,50\u{a0}$"
+        );
     }
 
     #[test]

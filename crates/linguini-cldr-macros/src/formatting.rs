@@ -198,6 +198,7 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
     let digits = numbers.digits;
     let decimal_symbol = numbers.decimal_symbol;
     let group_symbol = numbers.group_symbol;
+    let minus_sign = numbers.minus_sign;
     let decimal_pattern = number_pattern_tokens(&numbers.decimal_pattern);
     let percent_pattern = number_pattern_tokens(&numbers.percent_pattern);
     quote! {
@@ -207,6 +208,7 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
             digits: #digits,
             decimal_symbol: #decimal_symbol,
             group_symbol: #group_symbol,
+            minus_sign: #minus_sign,
             decimal_pattern: #decimal_pattern,
             percent_pattern: #percent_pattern,
         }),
@@ -255,6 +257,7 @@ struct NumberData {
     digits: String,
     decimal_symbol: String,
     group_symbol: String,
+    minus_sign: String,
     decimal_pattern: NumberPattern,
     percent_pattern: NumberPattern,
 }
@@ -356,13 +359,15 @@ fn extract_numbers(
     )?;
     let decimal_pattern = string_field(decimal_formats, "standard", "decimal formats")?;
     let percent_pattern = string_field(percent_formats, "standard", "percent formats")?;
+    let affix_symbols = NumberAffixSymbols::extract(symbols)?;
     Ok(NumberData {
         numbering_system,
         digits: digits.clone(),
         decimal_symbol: string_field(symbols, "decimal", "number symbols")?,
         group_symbol: string_field(symbols, "group", "number symbols")?,
-        decimal_pattern: parse_number_pattern(&decimal_pattern)?,
-        percent_pattern: parse_number_pattern(&percent_pattern)?,
+        minus_sign: affix_symbols.minus.clone(),
+        decimal_pattern: parse_number_pattern(&decimal_pattern, &affix_symbols)?,
+        percent_pattern: parse_number_pattern(&percent_pattern, &affix_symbols)?,
     })
 }
 
@@ -377,17 +382,23 @@ fn extract_currency(value: &Value, locale: &str) -> Result<CurrencyData, String>
         "numbers",
     )?;
     let standard = string_field(currency_formats, "standard", "currency formats")?;
+    let symbols = required_field(
+        numbers,
+        &format!("symbols-numberSystem-{numbering_system}"),
+        "numbers",
+    )?;
+    let affix_symbols = NumberAffixSymbols::extract(symbols)?;
     let accounting_pattern = currency_formats
         .get("accounting")
         .map(|value| {
             let pattern = value
                 .as_str()
                 .ok_or_else(|| "currency formats.accounting is not a string".to_owned())?;
-            parse_number_pattern(pattern)
+            parse_number_pattern(pattern, &affix_symbols)
         })
         .transpose()?;
     Ok(CurrencyData {
-        standard_pattern: parse_number_pattern(&standard)?,
+        standard_pattern: parse_number_pattern(&standard, &affix_symbols)?,
         accounting_pattern,
     })
 }
@@ -782,27 +793,51 @@ enum NumberPaddingPosition {
     AfterSuffix,
 }
 
-fn parse_number_pattern(pattern: &str) -> Result<NumberPattern, String> {
+struct NumberAffixSymbols {
+    minus: String,
+    plus: String,
+    percent: String,
+    per_mille: String,
+}
+
+impl NumberAffixSymbols {
+    fn extract(symbols: &Value) -> Result<Self, String> {
+        Ok(Self {
+            minus: string_field(symbols, "minusSign", "number symbols")?,
+            plus: string_field(symbols, "plusSign", "number symbols")?,
+            percent: string_field(symbols, "percentSign", "number symbols")?,
+            per_mille: string_field(symbols, "perMille", "number symbols")?,
+        })
+    }
+}
+
+fn parse_number_pattern(
+    pattern: &str,
+    symbols: &NumberAffixSymbols,
+) -> Result<NumberPattern, String> {
     let parts = split_unquoted(pattern, ';')?;
     if parts.is_empty() || parts.len() > 2 {
         return Err(format!("invalid number pattern `{pattern}`"));
     }
-    let positive = parse_number_pattern_part(parts[0])?;
+    let positive = parse_number_pattern_part(parts[0], symbols)?;
     let negative = parts
         .get(1)
-        .map(|part| parse_number_pattern_part(part))
+        .map(|part| parse_number_pattern_part(part, symbols))
         .transpose()?;
     Ok(NumberPattern { positive, negative })
 }
 
-fn parse_number_pattern_part(pattern: &str) -> Result<NumberPatternPart, String> {
+fn parse_number_pattern_part(
+    pattern: &str,
+    symbols: &NumberAffixSymbols,
+) -> Result<NumberPatternPart, String> {
     let original = pattern;
     let (pattern, padding_marker) = extract_padding(pattern)?;
     let number_start = find_unquoted_digit(&pattern)
         .ok_or_else(|| format!("number pattern has no digit placeholder: `{pattern}`"))?;
     let number_end = number_skeleton_end(&pattern, number_start);
-    let prefix = unquote_affix(&pattern[..number_start])?;
-    let suffix = unquote_affix(&pattern[number_end..])?;
+    let (prefix, prefix_scale) = compile_affix(&pattern[..number_start], symbols)?;
+    let (suffix, suffix_scale) = compile_affix(&pattern[number_end..], symbols)?;
     let number = &pattern[number_start..number_end];
     let padding = padding_marker
         .map(|marker| classify_padding(marker, number_start, number_end, original))
@@ -883,17 +918,11 @@ fn parse_number_pattern_part(pattern: &str) -> Result<NumberPatternPart, String>
         })
         .transpose()?;
     let rounding_increment = parse_rounding_increment(integer, fraction, significant);
-    let affixes = format!("{prefix}{suffix}");
-    let scale = match (
-        affixes.matches('%').count(),
-        affixes.matches('\u{2030}').count(),
-    ) {
-        (0, 0) => 1,
-        (1, 0) => 100,
-        (0, 1) => 1000,
+    let scale = match (prefix_scale, suffix_scale) {
+        (1, scale) | (scale, 1) => scale,
         _ => {
             return Err(format!(
-                "number pattern has invalid percent/per-mille scaling: `{original}`"
+                "number pattern has multiple scaling symbols: `{original}`"
             ))
         }
     };
@@ -1134,13 +1163,31 @@ fn number_skeleton_end(pattern: &str, start: usize) -> usize {
     pattern.len()
 }
 
-fn unquote_affix(affix: &str) -> Result<String, String> {
+fn compile_affix(affix: &str, symbols: &NumberAffixSymbols) -> Result<(String, u16), String> {
     let mut result = String::with_capacity(affix.len());
+    let mut scale = 1;
     let mut quoted = false;
     let mut chars = affix.chars().peekable();
     while let Some(character) = chars.next() {
         if character != '\'' {
-            result.push(character);
+            match character {
+                '-' if !quoted => result.push_str(&symbols.minus),
+                '+' if !quoted => result.push_str(&symbols.plus),
+                '%' | '\u{2030}' if !quoted => {
+                    if scale != 1 {
+                        return Err(format!(
+                            "number affix has multiple scaling symbols: `{affix}`"
+                        ));
+                    }
+                    scale = if character == '%' { 100 } else { 1000 };
+                    result.push_str(if character == '%' {
+                        &symbols.percent
+                    } else {
+                        &symbols.per_mille
+                    });
+                }
+                _ => result.push(character),
+            }
             continue;
         }
         if chars.peek() == Some(&'\'') {
@@ -1153,7 +1200,7 @@ fn unquote_affix(affix: &str) -> Result<String, String> {
     if quoted {
         Err(format!("unterminated quote in number affix `{affix}`"))
     } else {
-        Ok(result)
+        Ok((result, scale))
     }
 }
 
@@ -1174,10 +1221,48 @@ fn extract_text_direction<'a>(value: &'a Value, locale: &str) -> Result<&'a str,
 #[cfg(test)]
 mod tests {
     use super::{
-        extract_dates, extract_text_direction, parse_number_pattern, require_exact_exclusions,
-        NumberPaddingPosition,
+        extract_dates, extract_text_direction, require_exact_exclusions, NumberPaddingPosition,
     };
     use serde_json::json;
+
+    fn parse_number_pattern(pattern: &str) -> Result<super::NumberPattern, String> {
+        super::parse_number_pattern(
+            pattern,
+            &super::NumberAffixSymbols {
+                minus: "-".into(),
+                plus: "+".into(),
+                percent: "%".into(),
+                per_mille: "‰".into(),
+            },
+        )
+    }
+
+    #[test]
+    fn affix_symbols_are_compiled_with_quote_provenance_and_scaling() {
+        let symbols = super::NumberAffixSymbols {
+            minus: "\u{200e}−".into(),
+            plus: "\u{200e}+".into(),
+            percent: "٪".into(),
+            per_mille: "؉".into(),
+        };
+        let parse = |pattern| super::parse_number_pattern(pattern, &symbols).unwrap();
+        let implicit = parse("0%");
+        assert_eq!(implicit.positive.suffix, "٪");
+        assert_eq!(implicit.positive.scale, 100);
+        assert!(implicit.negative.is_none());
+        let explicit = parse("+0‰;-0‰");
+        assert_eq!(explicit.positive.prefix, "\u{200e}+");
+        assert_eq!(explicit.positive.suffix, "؉");
+        assert_eq!(explicit.positive.scale, 1000);
+        assert_eq!(explicit.negative.unwrap().prefix, "\u{200e}−");
+        let quoted = parse("'-+%'0'‰''';'minus'0'%' ");
+        assert_eq!(quoted.positive.prefix, "-+%");
+        assert_eq!(quoted.positive.suffix, "‰'");
+        assert_eq!(quoted.positive.scale, 1);
+        assert_eq!(quoted.negative.unwrap().suffix, "% ");
+        assert!(super::parse_number_pattern("%0‰", &symbols).is_err());
+        assert!(super::parse_number_pattern("0%%", &symbols).is_err());
+    }
 
     #[test]
     fn number_pattern_parser_honors_quoted_affixes_and_subpatterns() {

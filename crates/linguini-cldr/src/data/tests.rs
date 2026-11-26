@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "aa502896c1e0d7a4d5890e08e18c9c43ad359acd572d683e594f08cd135624e4"
+        "72ffb3d8c76189cd5f3859466728f31ffefc67509fd8ae071745495141a31ed2"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -177,6 +177,7 @@ fn compiled_formatting_data_is_typed_not_json() {
     let persian = compiled_number_formatting("fa").expect("Persian numbers");
     assert_eq!(persian.numbering_system, "arabext");
     assert_eq!(persian.digits, "۰۱۲۳۴۵۶۷۸۹");
+    assert_eq!(persian.minus_sign, "\u{200e}−");
     assert_eq!(persian.decimal_symbol, "٫");
     assert_eq!(
         compiled_date_formatting("fa")

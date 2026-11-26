@@ -4,6 +4,17 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Localized numeric affixes
+
+Regenerate output to receive pinned CLDR minus signs and bidirectional marks in decimal and
+currency negative affixes, including negative zero. Implicit negative patterns previously used
+ASCII `-` for every locale; explicit sign placeholders also remained unlocalized. Affix symbols
+and percent/per-mille scaling now compile before CLDR quote information is discarded, so quoted
+symbols stay literal. Public formatter options and inputs are unchanged; percent styles remain
+internal pattern support rather than an exposed formatter option. Rust callers constructing
+`NumberFormatData` directly must supply `minus_sign`, including the locale's bidi marks. Callers
+using `compiled_number_formatting` receive it from the pinned artifact automatically.
+
 ## Application origin validation
 
 Web adapter construction now rejects malformed or relative `environment.origin` values,

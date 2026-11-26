@@ -51,6 +51,8 @@ pub struct NumberFormatData {
     pub digits: &'static str,
     pub decimal_symbol: &'static str,
     pub group_symbol: &'static str,
+    /// Localized minus symbol, including CLDR bidirectional marks.
+    pub minus_sign: &'static str,
     pub decimal_pattern: NumberPattern,
     pub percent_pattern: NumberPattern,
 }

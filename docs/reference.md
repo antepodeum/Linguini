@@ -315,7 +315,8 @@ surface. Current guarantees are:
   preserves decimal precision up to 8,192 expanded digits and applies the
   locale's CLDR decimal affixes, minimum/maximum fraction digits, primary and
   secondary grouping, decimal separator, group separator, and the locale's
-  default numeric numbering-system digits from pinned CLDR data. Percent,
+  default numeric numbering-system digits from pinned CLDR data. Negative affixes retain
+  localized minus signs and bidirectional marks, including for negative zero. Percent,
   compact, scientific, significant-digit, and caller-selected numbering-system
   styles are not exposed.
 - `@currency` requires a three-letter code. It applies CLDR standard or

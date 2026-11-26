@@ -141,10 +141,10 @@ fn number_plan(
     };
     let prefix = affix(positive.prefix);
     let suffix = affix(positive.suffix);
-    let negative_prefix = pattern
-        .negative
-        .as_ref()
-        .map_or_else(|| format!("-{prefix}"), |negative| affix(negative.prefix));
+    let negative_prefix = pattern.negative.as_ref().map_or_else(
+        || format!("{}{prefix}", numbers.minus_sign),
+        |negative| affix(negative.prefix),
+    );
     let negative_suffix = pattern
         .negative
         .as_ref()
