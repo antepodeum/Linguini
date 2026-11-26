@@ -139,7 +139,11 @@ Argument-key tables use the same scoped naming rules as form bindings: for examp
 `__lgl_keys_shop$label` retains the qualified source name without nested compiler prefixes.
 Unnamed form selectors keep `value` when it is safe, with deterministic numeric suffixes when
 branch references or the configured plural helper use that binding. Function and form selectors
-share reference discovery and allocation; explicitly named source parameters remain intact.
+share reference discovery and allocation. Explicit source parameter names remain intact unless
+they would shadow a required function, formatter, or runtime helper; private bindings then use
+readable numeric suffixes. Named-object keys and declaration signatures keep the source names.
+Named function calls retain precedence over same-named parameters, and a call does not inherit
+that parameter's implicit display formatter.
 
 JavaScript output with declaration companions can be consumed by strict TypeScript projects
 without `allowJs`. Declaration imports use explicit runtime `.js` paths for NodeNext and

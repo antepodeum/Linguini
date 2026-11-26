@@ -7,6 +7,7 @@ use linguini_syntax::{parse_locale, parse_schema};
 use std::fs;
 use std::path::Path;
 
+mod bindings;
 mod form_demand;
 
 fn generate_project_files(

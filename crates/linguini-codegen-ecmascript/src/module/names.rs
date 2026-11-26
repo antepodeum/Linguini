@@ -15,18 +15,25 @@ pub(super) fn function_parameter_names(
     parameters: &[linguini_ir::IrFunctionParameter],
     branches: &[linguini_ir::IrFunctionBranch],
     plural_function: &str,
+    reserved: &BTreeSet<String>,
 ) -> Vec<String> {
     let mut used = parameters
         .iter()
         .filter_map(|parameter| parameter.name.as_deref().map(safe_identifier))
         .collect::<BTreeSet<_>>();
     used.insert(plural_function.to_owned());
+    used.extend(reserved.iter().cloned());
     branch_names(branches, &mut used);
     parameters
         .iter()
         .map(|parameter| {
             if let Some(name) = &parameter.name {
-                return safe_identifier(name);
+                let base = safe_identifier(name);
+                return if reserved.contains(&base) || base == plural_function {
+                    allocate_parameter_name(&base, &mut used)
+                } else {
+                    base
+                };
             }
             let ty = parameter.ty.rsplit('.').next().unwrap_or(&parameter.ty);
             let mut chars = ty.chars();
@@ -46,18 +53,25 @@ pub(super) fn form_parameter_name(
     parameter: &linguini_ir::IrFunctionParameter,
     branches: &[linguini_ir::IrBranch],
     plural_function: &str,
+    reserved: &BTreeSet<String>,
 ) -> String {
-    if let Some(name) = &parameter.name {
-        return safe_identifier(name);
-    }
     let mut used = BTreeSet::from([plural_function.to_owned()]);
+    used.extend(reserved.iter().cloned());
     for branch in branches {
         text_names(&branch.value, &mut used);
     }
-    allocate_parameter_name("value", &mut used)
+    if let Some(name) = &parameter.name {
+        let base = safe_identifier(name);
+        if !reserved.contains(&base) && base != plural_function {
+            return base;
+        }
+        allocate_parameter_name(&base, &mut used)
+    } else {
+        allocate_parameter_name("value", &mut used)
+    }
 }
 
-fn allocate_parameter_name(base: &str, used: &mut BTreeSet<String>) -> String {
+pub(super) fn allocate_parameter_name(base: &str, used: &mut BTreeSet<String>) -> String {
     let mut name = base.to_owned();
     let mut suffix = 2;
     while !used.insert(name.clone()) {

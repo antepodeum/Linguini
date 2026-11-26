@@ -16,6 +16,7 @@ mod names;
 mod project_output;
 mod provenance;
 mod runtime;
+mod scope;
 mod semantic;
 mod shared;
 mod shared_runtime;

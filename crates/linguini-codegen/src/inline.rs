@@ -104,7 +104,9 @@ impl Lowering {
     fn text(&mut self, text: &mut IrText, context: &Types, defaults: &Defaults) {
         for part in &mut text.parts {
             if let IrTextPart::Placeholder(expression) = part {
-                if expression.formatters.is_empty() {
+                if expression.formatters.is_empty()
+                    && expression.kind == IrExpressionKind::Reference
+                {
                     if let Some(formatters) =
                         expression.path.first().and_then(|name| defaults.get(name))
                     {

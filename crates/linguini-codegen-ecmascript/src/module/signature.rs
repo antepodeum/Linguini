@@ -6,6 +6,7 @@
 //! contract.
 
 use linguini_ir::IrMessage;
+use std::collections::BTreeSet;
 
 use super::names::{
     argument_keys_binding_name, emit_docs_with_tags, property_key, safe_identifier, JsDocTag,
@@ -52,6 +53,27 @@ impl MessageCallSignature {
         }
     }
 
+    pub(crate) fn avoid_reserved_bindings(
+        mut self,
+        reserved: &BTreeSet<String>,
+        plural_function: &str,
+    ) -> Self {
+        let mut used = reserved.clone();
+        used.insert(plural_function.to_owned());
+        used.extend(
+            self.parameters
+                .iter()
+                .map(|parameter| parameter.binding.clone()),
+        );
+        for parameter in &mut self.parameters {
+            if reserved.contains(&parameter.binding) || parameter.binding == plural_function {
+                parameter.binding =
+                    super::names::allocate_parameter_name(&parameter.binding, &mut used);
+            }
+        }
+        self
+    }
+
     pub(crate) fn is_parameterized(&self) -> bool {
         !self.parameters.is_empty()
     }
@@ -78,7 +100,6 @@ impl MessageCallSignature {
         )
     }
 
-    #[cfg(test)]
     pub(crate) fn parameter_bindings(&self) -> Vec<String> {
         self.parameters
             .iter()

@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Function-call and parameter scope
+
+Regenerate output when using the backend API with unqualified named functions whose names also
+appear as message or function parameters. Calls now follow validation's named-function precedence
+in dependency selection and emission. Private parameter bindings use readable numeric suffixes
+when needed to avoid shadowing; named-object keys and public declaration signatures are unchanged.
+Function calls no longer acquire implicit currency/date defaults from a same-named parameter.
+Ordinary, standalone, and physical outputs share this resolution. No application changes are required.
+
 ## Unnamed form receiver validation
 
 Native `check` and `build` now accept existing unnamed form syntax such as `fruit(count)`.

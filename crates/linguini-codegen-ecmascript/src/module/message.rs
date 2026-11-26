@@ -17,7 +17,6 @@ use super::emit::{self, emit_formatter_data, emit_forms, emit_local_functions, e
 use super::formatters::{formatter_helper_names, plural_required};
 use super::names::{emit_docs, import_path_for_target};
 use super::semantic::EcmaSemanticImport;
-use super::signature::MessageCallSignature;
 use super::{
     EcmaCodegenError, EcmaMessageArtifact, EcmaModuleKind, EcmaOptions, ValidatedEcmaProject,
 };
@@ -266,9 +265,9 @@ fn emit_message_module(
     let schema = closure.schema();
     let complete_locale = closure.locale_module();
     let facts = if runtime_import_path.is_some() {
-        super::facts::ExpressionFacts::for_bundler_module(complete_locale, None)
+        super::facts::ExpressionFacts::for_bundler_module(schema, complete_locale, None)
     } else {
-        super::facts::ExpressionFacts::for_module(complete_locale)
+        super::facts::ExpressionFacts::for_module(schema, complete_locale)
     };
     let physical_locale;
     let locale = if runtime_import_path.is_some() {
@@ -353,8 +352,15 @@ fn emit_message_module(
             .iter()
             .find(|item| item.name == closure.message()),
     ) {
-        let call_signature = MessageCallSignature::from_message(signature);
-        let body = emit::message_body(schema, signature, implementation, options, &facts);
+        let call_signature = emit::implementation_signature(signature, options, &facts);
+        let body = emit::message_body(
+            schema,
+            signature,
+            implementation,
+            options,
+            &facts,
+            &call_signature,
+        );
         let mut output = String::new();
         if !call_signature.is_parameterized() {
             emit_docs(&signature.docs, "", &mut output);

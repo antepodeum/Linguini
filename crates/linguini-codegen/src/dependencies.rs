@@ -320,13 +320,20 @@ impl<'a> ClosureWalker<'a> {
         if path.is_empty() {
             return;
         }
+        let full = path.join(".");
+        if called && linguini_ir::is_plural_intrinsic(&full) {
+            return;
+        }
+        if called && self.functions.contains_key(full.as_str()) {
+            self.visit_function(&full);
+            return;
+        }
         if let Some(root_type) = context.get(&path[0]) {
             if path.len() > 1 || called {
                 self.visit_form_path(root_type, &path[1..]);
             }
             return;
         }
-        let full = path.join(".");
         if self.functions.contains_key(full.as_str()) {
             self.visit_function(full.as_str());
         } else if self.forms.contains_key(full.as_str()) {

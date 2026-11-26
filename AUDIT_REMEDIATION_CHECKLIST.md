@@ -1218,7 +1218,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       the shared Vite 7/8 native page contract and strict physical-JS/application-TS consumers.
       Separate Node 20, Rust 1.87, workspace Clippy, and patch-level API checks against `ea82945`
       cover the changed compiler boundaries (223 compatibility checks pass per changed crate).
-      Named-function binding collisions (GEN-A42), opaque forms, mixed-table coalescing, hosted
+      Opaque forms, mixed-table coalescing, hosted
       verification, and remaining architecture/release work stay open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
@@ -1684,7 +1684,14 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       ordinary `value` bindings while avoiding locale-variable and custom-plural-helper collisions.
       Executed legacy and physical semantic/message graphs verify `value`/`value2` references,
       both branch outcomes, and positional/named calls. Other readability/optimization criteria
-      above remain open. Shared scope-aware string facts also emit locale text variable references
+      above remain open. Named-function calls now keep validation's precedence over same-named
+      parameters in shared dependency planning and every output mode. Private binding scopes use
+      readable numeric suffixes only for collisions with global functions/helpers, retaining source
+      named-object keys and declaration signatures. Executed enum/currency/date aliases, direct and
+      forwarded/inline calls, classifier/form selectors, getter order, coercion, and error identity
+      cover GEN-A42. Strict JS and TypeScript consumers preserve the public argument contract;
+      affected Node 20/24 suites, workspace Clippy, and Rust 1.87 checks pass. Current snapshots
+      remain unchanged. Shared scope-aware string facts also emit locale text variable references
       directly across ordinary and physical modules, including aliases and imported globals.
       Executed conversion traces retain raw parameters, numeric plural inputs, coercion hints,
       and thrown errors; unproven member references still coerce.

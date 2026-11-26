@@ -3,9 +3,11 @@
 use std::collections::BTreeSet;
 
 use linguini_codegen::{independent_form_attribute_names, StringResultFacts};
-use linguini_ir::{IrExpression, IrModule};
+use linguini_ir::{IrExpression, IrExpressionKind, IrModule};
 
-use super::names::{form_attribute_binding_name, form_binding_name, property_access};
+use super::names::{
+    form_attribute_binding_name, form_binding_name, property_access, safe_identifier,
+};
 
 const FORM_VALUE_BINDING: &str = "__lgl_value";
 
@@ -15,21 +17,39 @@ pub(super) struct ExpressionFacts {
     bundler: bool,
     independent_forms: BTreeSet<String>,
     local_form: Option<String>,
+    functions: BTreeSet<String>,
+    reserved: BTreeSet<String>,
 }
 
 impl ExpressionFacts {
-    pub(super) fn for_module(module: &IrModule) -> Self {
+    pub(super) fn for_module(schema: &IrModule, module: &IrModule) -> Self {
+        let functions = module
+            .functions()
+            .iter()
+            .map(|item| item.name.clone())
+            .collect::<BTreeSet<_>>();
+        let reserved = functions
+            .iter()
+            .map(|name| safe_identifier(name))
+            .chain(super::formatters::formatter_helper_names(schema, module))
+            .chain(["String", "undefined", "normalizeMessageArgs"].map(str::to_owned))
+            .collect();
         Self {
             strings: StringResultFacts::for_module(module),
             bundler: false,
             independent_forms: BTreeSet::new(),
             local_form: None,
+            functions,
+            reserved,
         }
     }
 
-    pub(super) fn for_bundler_module(module: &IrModule, local_form: Option<&str>) -> Self {
+    pub(super) fn for_bundler_module(
+        schema: &IrModule,
+        module: &IrModule,
+        local_form: Option<&str>,
+    ) -> Self {
         Self {
-            strings: StringResultFacts::for_module(module),
             bundler: true,
             independent_forms: module
                 .forms()
@@ -38,7 +58,18 @@ impl ExpressionFacts {
                 .map(|form| form.name.clone())
                 .collect(),
             local_form: local_form.map(str::to_owned),
+            ..Self::for_module(schema, module)
         }
+    }
+
+    pub(super) fn reserved_bindings(&self) -> &BTreeSet<String> {
+        &self.reserved
+    }
+
+    pub(super) fn is_global_call(&self, expression: &IrExpression) -> bool {
+        expression.kind == IrExpressionKind::Call
+            && (linguini_ir::is_plural_intrinsic(&expression.path.join("."))
+                || self.functions.contains(&expression.path.join(".")))
     }
 
     pub(super) fn expression_has_string_result<'a>(

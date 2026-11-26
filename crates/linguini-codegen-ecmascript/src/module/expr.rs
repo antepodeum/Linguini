@@ -1,14 +1,13 @@
 use std::collections::BTreeMap;
 
 use super::facts::ExpressionFacts;
+use super::scope::ExpressionScope;
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter,
     IrFormatterKind, IrFunctionBranch, IrFunctionParameter, IrModule, IrText, IrTextPart, IrValue,
 };
 
-use super::names::{
-    path_expression, property_access, property_key, safe_identifier, string_literal,
-};
+use super::names::{property_access, property_key, safe_identifier, string_literal};
 use super::{render_jsdoc_type, EcmaOptions, TypeModel};
 
 pub(super) fn form_object(
@@ -105,21 +104,24 @@ pub fn map_expression(
     options: &EcmaOptions,
     facts: &ExpressionFacts,
 ) -> String {
-    let context = parameters
-        .iter()
-        .filter_map(|parameter| {
-            parameter.name.as_ref().map(|name| {
-                (
-                    name.clone(),
-                    linguini_codegen::resolve_type_name(schema, &parameter.ty).to_owned(),
-                )
-            })
-        })
-        .collect::<BTreeMap<_, _>>();
     let dispatch = parameters
         .first()
         .expect("validated form maps have one dispatch parameter");
-    let parameter = super::names::form_parameter_name(dispatch, branches, &options.plural_function);
+    let parameter = super::names::form_parameter_name(
+        dispatch,
+        branches,
+        &options.plural_function,
+        facts.reserved_bindings(),
+    );
+    let context = ExpressionScope::new(parameters.iter().filter_map(|input| {
+        input.name.as_ref().map(|name| {
+            (
+                name.clone(),
+                linguini_codegen::resolve_type_name(schema, &input.ty).to_owned(),
+                parameter.clone(),
+            )
+        })
+    }));
     let selector = selector_expression(&parameter, dispatch.ty == "Plural", true, options);
     let decision = linguini_codegen::form_dispatch_plan(branches, selector, |text| {
         text_expression_with_context(text, &context, &BTreeMap::new(), options, facts)
@@ -148,12 +150,18 @@ pub(super) fn text_expression(
     options: &EcmaOptions,
     facts: &ExpressionFacts,
 ) -> String {
-    text_expression_with_context(text, &BTreeMap::new(), &BTreeMap::new(), options, facts)
+    text_expression_with_context(
+        text,
+        &ExpressionScope::default(),
+        &BTreeMap::new(),
+        options,
+        facts,
+    )
 }
 
 pub(super) fn text_expression_with_context(
     text: &IrText,
-    context: &BTreeMap<String, String>,
+    context: &ExpressionScope,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
     facts: &ExpressionFacts,
@@ -177,21 +185,22 @@ pub(super) fn text_expression_with_context(
 
 fn expression_string(
     expression: &IrExpression,
-    context: &BTreeMap<String, String>,
+    context: &ExpressionScope,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
     facts: &ExpressionFacts,
 ) -> String {
     let value = unformatted_expression_value(expression, context, options, facts);
-    let formatters = if expression.formatters.is_empty() {
-        expression
-            .path
-            .first()
-            .and_then(|name| default_formatters.get(name))
-            .map_or(expression.formatters.as_slice(), Vec::as_slice)
-    } else {
-        expression.formatters.as_slice()
-    };
+    let formatters =
+        if expression.formatters.is_empty() && expression.kind == IrExpressionKind::Reference {
+            expression
+                .path
+                .first()
+                .and_then(|name| default_formatters.get(name))
+                .map_or(expression.formatters.as_slice(), Vec::as_slice)
+        } else {
+            expression.formatters.as_slice()
+        };
     let (formatted, produces_string) = apply_formatters(value, formatters);
     if produces_string
         || facts.expression_has_string_result(expression, context.keys().map(String::as_str))
@@ -206,7 +215,7 @@ fn expression_string(
 
 pub(super) fn expression_value(
     expression: &IrExpression,
-    context: &BTreeMap<String, String>,
+    context: &ExpressionScope,
     options: &EcmaOptions,
     facts: &ExpressionFacts,
 ) -> String {
@@ -216,7 +225,7 @@ pub(super) fn expression_value(
 
 fn unformatted_expression_value(
     expression: &IrExpression,
-    context: &BTreeMap<String, String>,
+    context: &ExpressionScope,
     options: &EcmaOptions,
     facts: &ExpressionFacts,
 ) -> String {
@@ -225,11 +234,11 @@ fn unformatted_expression_value(
         "inline dispatch must be lowered before rendering"
     );
     let called = expression.kind == IrExpressionKind::Call;
-    let root = expression.path.first().map(|root| safe_identifier(root));
+    let root = expression.path.first().map(|root| context.binding(root));
     let form = expression
         .path
         .first()
-        .filter(|_| called || expression.path.len() > 1)
+        .filter(|_| (called || expression.path.len() > 1) && !facts.is_global_call(expression))
         .and_then(|root| context.get(root))
         .map(|ty| facts.form_lookup(ty, &expression.path[1..]));
     let suffix = expression
@@ -240,8 +249,10 @@ fn unformatted_expression_value(
         .collect::<String>();
     let path = if called && expression.path.len() == 1 && is_plural_intrinsic(&expression.path[0]) {
         options.plural_function.clone()
+    } else if facts.is_global_call(expression) {
+        safe_identifier(&expression.path.join("."))
     } else {
-        path_expression(&expression.path)
+        context.path(&expression.path)
     };
     let arguments = expression
         .arguments
@@ -259,13 +270,17 @@ fn unformatted_expression_value(
 pub(super) fn function_dispatch_body(
     parameters: &[IrFunctionParameter],
     branches: &[IrFunctionBranch],
-    context: &BTreeMap<String, String>,
+    context: &ExpressionScope,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
     facts: &ExpressionFacts,
 ) -> String {
-    let parameter_names =
-        super::names::function_parameter_names(parameters, branches, &options.plural_function);
+    let parameter_names = super::names::function_parameter_names(
+        parameters,
+        branches,
+        &options.plural_function,
+        facts.reserved_bindings(),
+    );
     let decision = linguini_codegen::function_dispatch_plan(
         parameters,
         branches,
@@ -347,7 +362,7 @@ fn apply_formatters(value: String, formatters: &[IrFormatter]) -> (String, bool)
 
 #[cfg(test)]
 mod tests {
-    use super::{expression_string, expression_value, form_object, EcmaOptions};
+    use super::{expression_string, expression_value, form_object, EcmaOptions, ExpressionScope};
     use linguini_ir::{lower_locale, IrExpression, IrExpressionKind, IrFormatter, IrFormatterKind};
     use linguini_syntax::{parse_locale, Span};
     use std::collections::BTreeMap;
@@ -364,7 +379,7 @@ mod tests {
 
     #[test]
     fn only_applied_string_formatters_remove_expression_coercion() {
-        let context = BTreeMap::new();
+        let context = ExpressionScope::default();
         let options = EcmaOptions::default();
         let unknown = IrFormatter {
             kind: IrFormatterKind::Unknown("custom".to_owned()),
@@ -400,7 +415,7 @@ mod tests {
 
     #[test]
     fn zero_argument_global_call_differs_from_reference() {
-        let context = BTreeMap::new();
+        let context = ExpressionScope::default();
         let options = EcmaOptions::default();
 
         assert_eq!(
@@ -425,7 +440,7 @@ mod tests {
 
     #[test]
     fn canonical_plural_call_uses_configured_function() {
-        let context = BTreeMap::new();
+        let context = ExpressionScope::default();
         let options = EcmaOptions {
             plural_function: "selectPlural".to_owned(),
             ..EcmaOptions::default()
@@ -453,7 +468,8 @@ mod tests {
 
     #[test]
     fn zero_argument_form_calls_differ_from_form_references() {
-        let context = BTreeMap::from([("item".to_owned(), "Item".to_owned())]);
+        let context =
+            ExpressionScope::from(BTreeMap::from([("item".to_owned(), "Item".to_owned())]));
         let options = EcmaOptions::default();
 
         assert_eq!(
@@ -549,5 +565,79 @@ console.log('ok');
         assert!(emitted.contains("if (String(gender) === \"male\") return \"He\";"));
         assert!(!emitted.contains("selectBranch("));
         assert!(!emitted.contains("pluralEn(gender)"));
+    }
+    #[test]
+    fn intrinsic_call_does_not_resolve_a_same_named_parameter_as_a_form() {
+        let context = ExpressionScope::new([
+            ("Plural".to_owned(), "Item".to_owned(), "operand".to_owned()),
+            ("count".to_owned(), "Number".to_owned(), "count2".to_owned()),
+        ]);
+        let mut call = expression(IrExpressionKind::Call, &["Plural"]);
+        call.arguments
+            .push(expression(IrExpressionKind::Reference, &["count"]));
+        let options = EcmaOptions {
+            plural_function: "selectPlural".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            expression_value(&call, &context, &options, &Default::default()),
+            "selectPlural(count2)"
+        );
+        assert_eq!(
+            expression_value(
+                &expression(IrExpressionKind::Reference, &["Plural"]),
+                &context,
+                &options,
+                &Default::default()
+            ),
+            "operand"
+        );
+    }
+
+    #[test]
+    fn named_form_selector_avoids_the_classifier_and_preserves_parameter_references() {
+        let locale = lower_locale(
+            &parse_locale(
+                "impl Fruit { apple { form label(value: Plural) {\n\
+                 one => {value} / {value2}\n\
+                 _ => {value} / {value2}\n\
+                 } } }\n",
+            )
+            .unwrap(),
+        );
+        let code = form_object(
+            &linguini_ir::IrModule::default(),
+            &locale.forms()[0].variants[0].entries,
+            &EcmaOptions {
+                plural_function: "value".into(),
+                plural_import: None,
+                ..Default::default()
+            },
+            &Default::default(),
+        );
+        let files = [crate::EcmaGeneratedFile {
+            path: "form.js".into(),
+            contents: format!(
+                "const value2='Second';\n\
+                 const calls=[];\n\
+                 const value=input=>{{calls.push(input);return input===1?'one':'other';}};\n\
+                 export const form={code};\n\
+                 export {{calls}};"
+            ),
+        }];
+        assert_eq!(
+            crate::test_runtime::execute_project(
+                &files,
+                r#"
+import assert from 'node:assert/strict';
+const {form,calls}=await import('./form.js');
+assert.equal(form.label(1),'1 / Second');
+assert.equal(form.label(2),'2 / Second');
+assert.deepEqual(calls,[1,2]);
+console.log('verified');
+"#
+            ),
+            "verified"
+        );
     }
 }

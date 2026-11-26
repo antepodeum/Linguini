@@ -160,6 +160,17 @@ impl<'a> ReferenceCollector<'a> {
         if expr.path.is_empty() {
             return;
         }
+        let full = expr.path.join(".");
+        if expr.kind == IrExpressionKind::Call && linguini_ir::is_plural_intrinsic(&full) {
+            return;
+        }
+        if expr.kind == IrExpressionKind::Call
+            && self.locale.functions().iter().any(|item| item.name == full)
+        {
+            self.dependencies
+                .insert((SemanticSymbolKind::LocaleFunction, full));
+            return;
+        }
         if let Some(ty) = context.get(&expr.path[0]) {
             if expr.path.len() > 1 || expr.kind == IrExpressionKind::Call {
                 let resolved = self.resolve_type(ty);
@@ -170,7 +181,6 @@ impl<'a> ReferenceCollector<'a> {
             }
             return;
         }
-        let full = expr.path.join(".");
         if self.locale.functions().iter().any(|item| item.name == full) {
             self.dependencies
                 .insert((SemanticSymbolKind::LocaleFunction, full));

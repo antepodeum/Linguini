@@ -221,6 +221,7 @@ fn compile_bundler_semantic_module_impl(
         .module;
     let options = project_locale_options(&artifact.locale, &project.options);
     let facts = super::facts::ExpressionFacts::for_bundler_module(
+        project.schema,
         locale,
         (artifact.kind == EcmaSemanticSymbolKind::LocaleForm).then_some(artifact.name.as_str()),
     );

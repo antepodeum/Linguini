@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::facts::ExpressionFacts;
+use super::scope::ExpressionScope;
 use linguini_codegen::parameter_formatters;
 use linguini_ir::{IrMessage, IrModule};
 
@@ -292,6 +293,7 @@ pub(super) fn emit_local_functions(
             &function.parameters,
             &function.branches,
             &options.plural_function,
+            facts.reserved_bindings(),
         );
         {
             let tags = parameter_names
@@ -311,18 +313,18 @@ pub(super) fn emit_local_functions(
                 .collect::<Vec<_>>();
             emit_docs_with_tags(&function.docs, &tags, "", output);
         }
-        let context = function
-            .parameters
-            .iter()
-            .filter_map(|parameter| {
-                parameter.name.as_ref().map(|name| {
-                    (
-                        name.clone(),
-                        linguini_codegen::resolve_type_name(schema, &parameter.ty).to_owned(),
-                    )
-                })
-            })
-            .collect::<BTreeMap<_, _>>();
+        let context =
+            ExpressionScope::new(function.parameters.iter().zip(&parameter_names).filter_map(
+                |(parameter, binding)| {
+                    parameter.name.as_ref().map(|name| {
+                        (
+                            name.clone(),
+                            linguini_codegen::resolve_type_name(schema, &parameter.ty).to_owned(),
+                            binding.clone(),
+                        )
+                    })
+                },
+            ));
         let body = function_dispatch_body(
             &function.parameters,
             &function.branches,
@@ -387,8 +389,15 @@ fn emit_message_function(
     let Some(implementation) = message_implementation(locale, &signature.name) else {
         return false;
     };
-    let call_signature = MessageCallSignature::from_message(signature);
-    let body = message_body(schema, signature, implementation, options, facts);
+    let call_signature = implementation_signature(signature, options, facts);
+    let body = message_body(
+        schema,
+        signature,
+        implementation,
+        options,
+        facts,
+        &call_signature,
+    );
     let name = function_name(&signature.name);
     if !call_signature.is_parameterized() {
         emit_docs(&signature.docs, "", output);
@@ -468,9 +477,16 @@ fn group_property_value(
     options: &EcmaOptions,
     facts: &ExpressionFacts,
 ) -> String {
-    let call_signature = MessageCallSignature::from_message(signature);
+    let call_signature = implementation_signature(signature, options, facts);
     if !call_signature.is_parameterized() {
-        message_body(schema, signature, implementation, options, facts)
+        message_body(
+            schema,
+            signature,
+            implementation,
+            options,
+            facts,
+            &call_signature,
+        )
     } else {
         crate::templates::render(
             "module/message_property",
@@ -478,12 +494,21 @@ fn group_property_value(
                 callable_type => call_signature.javascript_callable_type(),
                 parameters => call_signature.implementation_rest_params(),
                 normalization => call_signature.normalized_bindings_statement(),
-                body => message_body(schema, signature, implementation, options, facts),
+                body => message_body(schema, signature, implementation, options, facts, &call_signature),
             },
         )
         .trim_end()
         .to_owned()
     }
+}
+
+pub(crate) fn implementation_signature(
+    signature: &IrMessage,
+    options: &EcmaOptions,
+    facts: &ExpressionFacts,
+) -> MessageCallSignature {
+    MessageCallSignature::from_message(signature)
+        .avoid_reserved_bindings(facts.reserved_bindings(), &options.plural_function)
 }
 
 pub(crate) fn message_body(
@@ -492,17 +517,21 @@ pub(crate) fn message_body(
     implementation: &IrMessage,
     options: &EcmaOptions,
     facts: &ExpressionFacts,
+    call_signature: &MessageCallSignature,
 ) -> String {
-    let context = signature
-        .parameters
-        .iter()
-        .map(|parameter| {
-            (
-                parameter.name.clone(),
-                linguini_codegen::resolve_type_name(schema, &parameter.ty).to_owned(),
-            )
-        })
-        .collect::<BTreeMap<_, _>>();
+    let context = ExpressionScope::new(
+        signature
+            .parameters
+            .iter()
+            .zip(call_signature.parameter_bindings())
+            .map(|(parameter, binding)| {
+                (
+                    parameter.name.clone(),
+                    linguini_codegen::resolve_type_name(schema, &parameter.ty).to_owned(),
+                    binding,
+                )
+            }),
+    );
     let default_formatters = parameter_formatters(schema, signature);
     implementation
         .body
