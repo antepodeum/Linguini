@@ -1109,6 +1109,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       native archive's binary matches the fresh release build; the universal archive has none.
       These local integration receipts leave remote CI, signing/publication, final architecture,
       and the Windows/macOS completion matrix open.
+      CLDR/preview follow-up source `9e91a66` passes all 70 local full-profile gates in one run:
+      locked workspace tests, strict Clippy, generated JS/TS corpora, both documentation build
+      modes, native CLI/tsc integration, editor and shared-WASM hosts, and all nine site gates.
+      Separate Rust 1.87 and Node 20 checks cover the formatter/preview changes. This source
+      receipt preserves the open architecture, fresh installed-VSIX, remote-platform, and
+      signing/publication requirements above.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
