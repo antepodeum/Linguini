@@ -222,6 +222,8 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
 }
 
 fn currency_arm(locale: &str, currency: CurrencyData) -> TokenStream {
+    let decimal_symbol = currency.decimal_symbol;
+    let group_symbol = currency.group_symbol;
     let standard_pattern = number_pattern_tokens(&currency.standard_pattern);
     let accounting_pattern = currency.accounting_pattern.as_ref().map_or_else(
         || quote! { None },
@@ -233,6 +235,8 @@ fn currency_arm(locale: &str, currency: CurrencyData) -> TokenStream {
     quote! {
         #locale => Some(CurrencyFormatData {
             locale: #locale,
+            decimal_symbol: #decimal_symbol,
+            group_symbol: #group_symbol,
             standard_pattern: #standard_pattern,
             accounting_pattern: #accounting_pattern,
         }),
@@ -272,6 +276,8 @@ struct NumberData {
 }
 
 struct CurrencyData {
+    decimal_symbol: String,
+    group_symbol: String,
     standard_pattern: NumberPattern,
     accounting_pattern: Option<NumberPattern>,
 }
@@ -414,6 +420,24 @@ fn extract_currency(value: &Value, locale: &str) -> Result<CurrencyData, String>
         })
         .transpose()?;
     Ok(CurrencyData {
+        decimal_symbol: string_field(
+            symbols,
+            if symbols.get("currencyDecimal").is_some() {
+                "currencyDecimal"
+            } else {
+                "decimal"
+            },
+            "number symbols",
+        )?,
+        group_symbol: string_field(
+            symbols,
+            if symbols.get("currencyGroup").is_some() {
+                "currencyGroup"
+            } else {
+                "group"
+            },
+            "number symbols",
+        )?,
         standard_pattern: parse_number_pattern(&standard, &affix_symbols)?,
         accounting_pattern,
     })
@@ -1251,6 +1275,33 @@ mod tests {
                 per_mille: "‰".into(),
             },
         )
+    }
+
+    #[test]
+    fn currency_symbols_resolve_overrides_and_validate_present_values() {
+        let mut input = json!({"main": {"en": {"numbers": {
+            "defaultNumberingSystem": "latn",
+            "symbols-numberSystem-latn": {"decimal": ".", "group": ",", "minusSign": "-", "plusSign": "+", "percentSign": "%", "perMille": "‰"},
+            "currencyFormats-numberSystem-latn": {"standard": "¤#,##0.00"}
+        }}}});
+        let ordinary = super::extract_currency(&input, "en").unwrap();
+        assert_eq!(ordinary.decimal_symbol, ".");
+        assert_eq!(ordinary.group_symbol, ",");
+        input["main"]["en"]["numbers"]["symbols-numberSystem-latn"]["currencyDecimal"] = json!(":");
+        input["main"]["en"]["numbers"]["symbols-numberSystem-latn"]["currencyGroup"] = json!(";");
+        let currency = super::extract_currency(&input, "en").unwrap();
+        assert_eq!(currency.decimal_symbol, ":");
+        assert_eq!(currency.group_symbol, ";");
+        for key in ["currencyDecimal", "currencyGroup"] {
+            for invalid in [json!(null), json!(1), json!(false), json!([]), json!({})] {
+                let mut malformed = input.clone();
+                malformed["main"]["en"]["numbers"]["symbols-numberSystem-latn"][key] = invalid;
+                assert!(super::extract_currency(&malformed, "en")
+                    .err()
+                    .unwrap()
+                    .contains(key));
+            }
+        }
     }
 
     #[test]

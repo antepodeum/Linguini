@@ -753,6 +753,11 @@ impl<'a> Renderer<'a> {
         let normalized_code = code.to_ascii_uppercase();
         let symbol =
             compiled_currency_symbol(self.locale, &normalized_code).unwrap_or(&normalized_code);
+        let numbers = NumberFormatData {
+            decimal_symbol: currency.decimal_symbol,
+            group_symbol: currency.group_symbol,
+            ..numbers
+        };
         format_number_pattern(
             value,
             pattern,
@@ -1620,6 +1625,7 @@ mod tests {
     fn native_numeric_samples_match_real_generated_modules_across_digit_systems() {
         let locales = [
             "en", "es", "pl", "ee", "hi", "fa", "ar-EG", "bn", "my", "ne", "ff-Adlm", "ccp",
+            "de-AT", "fr-CH",
         ];
         let mut values = [
             "0",

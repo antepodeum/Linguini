@@ -461,6 +461,9 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       group widths, fixed/significant digits, rounding increments, exponent widths/sign flags,
       scaling, and padding. Decimal/currency generation now honors localized numeric affixes
       and minimum grouping thresholds after rounding; native previews use the same thresholds.
+      Currency separators also resolve pinned `currencyDecimal`/`currencyGroup` overrides during
+      compilation, independently of ordinary number symbols. Generated/native comparisons cover
+      Austrian German and Swiss French alongside the existing digit-system corpus.
       Internal scientific lowering also compiles localized exponent separators and signs,
       preserving bidirectional marks and literal digits within those symbols. Broader scientific
       and engineering patterns remain part of OPT-A1/A2 rather than a completed surface.

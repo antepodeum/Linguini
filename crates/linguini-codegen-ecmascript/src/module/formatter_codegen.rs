@@ -37,6 +37,11 @@ pub(super) fn formatter_data_declaration(
                 if request.formatter.kind == linguini_ir::IrFormatterKind::Currency {
                     let currency =
                         compiled_currency_formatting(locale).expect("validated currency locale");
+                    let numbers = linguini_cldr::NumberFormatData {
+                        decimal_symbol: currency.decimal_symbol,
+                        group_symbol: currency.group_symbol,
+                        ..numbers
+                    };
                     pattern = if request.argument("accounting") == Some("true") {
                         currency
                             .accounting_pattern

@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "70fe892aa39c48cb23edc0dc7493fb62767f2b0a27a83538baa53a24c427a32b"
+        "1922d26db5a9368a454b0b2211d8ebfb463f498899427c21b8e547ec84cec500"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -179,6 +179,14 @@ fn compiled_formatting_data_is_typed_not_json() {
     assert_eq!(numbers.exponential_symbol, "E");
     assert_eq!(numbers.decimal_pattern.positive.primary_group_size, Some(3));
     assert_eq!(numbers.decimal_pattern.positive.max_fraction_digits, 3);
+    assert_eq!(currency.decimal_symbol, numbers.decimal_symbol);
+    assert_eq!(currency.group_symbol, numbers.group_symbol);
+    let austrian = compiled_currency_formatting("de-AT").unwrap();
+    assert_eq!(austrian.decimal_symbol, ",");
+    assert_eq!(austrian.group_symbol, ".");
+    let swiss_french = compiled_currency_formatting("fr-CH").unwrap();
+    assert_eq!(swiss_french.decimal_symbol, ".");
+    assert_eq!(swiss_french.group_symbol, "'");
     let accounting = currency.accounting_pattern.expect("accounting pattern");
     assert_eq!(accounting.positive.prefix, "\u{a4}");
     assert_eq!(accounting.positive.min_fraction_digits, 2);

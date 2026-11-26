@@ -4,6 +4,17 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Currency-specific separators
+
+Regenerate currency output to honor the selected numbering system's `currencyDecimal` and
+`currencyGroup` overrides. Austrian German currency now groups with `.`, and Swiss French
+currency uses `.` for decimals; ordinary number formatting retains its own symbols. The native
+preview follows the same selection. Missing overrides resolve to ordinary decimal/group symbols
+during CLDR compilation, without runtime option handling.
+
+Rust callers constructing `CurrencyFormatData` must supply its resolved `decimal_symbol` and
+`group_symbol`. Compiled currency lookups supply both automatically.
+
 ## Compiled scientific symbols
 
 Rust callers constructing `NumberFormatData` must now provide `plus_sign` and

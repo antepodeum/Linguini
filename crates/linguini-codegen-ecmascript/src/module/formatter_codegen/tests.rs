@@ -1,3 +1,4 @@
+mod currency_symbols;
 mod number_inputs;
 mod scientific;
 mod week_year;

@@ -66,6 +66,10 @@ pub struct NumberFormatData {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CurrencyFormatData {
     pub locale: &'static str,
+    /// Currency decimal separator, resolved against the default number symbols.
+    pub decimal_symbol: &'static str,
+    /// Currency grouping separator, resolved against the default number symbols.
+    pub group_symbol: &'static str,
     pub standard_pattern: NumberPattern,
     pub accounting_pattern: Option<NumberPattern>,
 }
