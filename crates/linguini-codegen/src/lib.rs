@@ -3,6 +3,7 @@
 //! Target backends own syntax, identifier escaping, runtime templates, and file emission.
 
 mod date_pattern;
+mod date_plan;
 mod date_symbols;
 mod day_periods;
 mod decision;
@@ -27,6 +28,7 @@ mod week_year;
 pub use date_pattern::{
     compile_date_pattern, date_request_pattern, DatePatternError, DatePatternPart,
 };
+pub use date_plan::{DateFieldPlan, DateFormatPart, DatePatternPlan, DatePlanError};
 pub use date_symbols::{date_field_symbols, DateFieldSymbols};
 pub use day_periods::{day_period_plan, DayPeriodPlan, DayPeriodSpan, ExactDayPeriod};
 pub use decision::{Decision, DecisionArm};

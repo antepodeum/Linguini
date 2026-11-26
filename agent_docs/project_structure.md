@@ -7,7 +7,9 @@
   planning owns IR traversal and result merging; backends project selectors/text and render syntax.
   Dependency slices and semantic artifacts share source-provenance traversal, including nested
   inline inputs, call arguments, dispatch branches, and form values. Scoped expression-value
-  inference distinguishes explicit formatted strings from unformatted forwarded values.
+  inference distinguishes explicit formatted strings from unformatted forwarded values. The shared
+  `DatePatternPlan` resolves selected field symbols, deduplicated day periods, literal/field demand,
+  and the whole-result digit-localization proof for both ECMAScript and native previews.
 - `crates/linguini-cli/src/project/ir`: shared native project loading and semantic validation,
   schema/locale qualification, guarded fallback composition, and source provenance. Build and
   preview consume the same typed IR; locale chains use the common cached `ProjectLocalePlan`.

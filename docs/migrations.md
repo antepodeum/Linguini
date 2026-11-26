@@ -4,13 +4,22 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared date-pattern planning
+
+Code generation and native previews now consume the same resolved date-field/symbol and
+shared day-period plan from `linguini-codegen`. Missing required symbols are checked alongside
+pattern validity. The new `DatePlanError` retains structured symbol errors without changing
+existing `DatePatternError` matches. The ECMAScript backend owns target bindings and rendering; native
+previews own input evaluation. Source/configuration syntax and generated code, declarations,
+and source maps remain unchanged.
+
 ## TypeScript watch delivery
 
 `linguini-tsc` now polls known schema, locale, and configuration files through TypeScript's
 adaptive priority queues. This removes reliance on delivery from successfully opened filesystem
 event watchers; a macOS integration run timed out waiting for a locale text edit. Directory
-events still discover source additions/removals. Watch and solution-watch keep declaration-aware runtime delivery, last valid
-output on native errors, and explicit disposal. There are no CLI, configuration, generated
+events still discover source additions/removals. Watch and solution-watch keep declaration-aware
+runtime delivery, last valid output on native errors, and explicit disposal. There are no CLI, configuration, generated
 artifact, or application API changes, and no application-runtime polling is introduced.
 
 ## Native LSP path identity and CI

@@ -2,8 +2,8 @@
 
 use linguini_cldr::{compiled_calendar_formatting, compiled_date_formatting};
 use linguini_codegen::{
-    compile_date_pattern, date_field_symbols, date_request_pattern, day_period_plan,
-    decimal_digit_symbols, DatePatternPart, FormatterRequest, GregorianWeekYearPlan,
+    date_request_pattern, decimal_digit_symbols, DateFormatPart, DatePatternPlan, FormatterRequest,
+    GregorianWeekYearPlan,
 };
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFormatterKind};
 
@@ -23,27 +23,27 @@ pub(super) fn format_date(
         arguments: arguments.to_owned(),
     });
     let pattern = date_request_pattern(&dates, &request).map_err(pattern_error)?;
-    let parts = compile_date_pattern(locale, &pattern).map_err(pattern_error)?;
+    let plan = DatePatternPlan::new(locale, &pattern, &calendar).map_err(pattern_error)?;
     let date = parse_date(value)?;
-    let displayed = |field| {
-        parts
-            .iter()
-            .any(|part| matches!(part, DatePatternPart::Field { symbol, .. } if *symbol == field))
+    let displayed_minutes = if plan.fields.contains(&'m') {
+        date.minute
+    } else {
+        0
     };
-    let displayed_minutes = if displayed('m') { date.minute } else { 0 };
-    let exact_period =
-        (!displayed('s') || date.second == 0) && (!displayed('S') || date.millisecond == 0);
+    let exact_period = (!plan.fields.contains(&'s') || date.second == 0)
+        && (!plan.fields.contains(&'S') || date.millisecond == 0);
     let period_minute = u16::from(date.hour) * 60 + u16::from(displayed_minutes);
     let digits = decimal_digit_symbols(dates.digits)
         .ok_or_else(|| super::missing_cldr_data("numeric date symbols", locale))?;
     let mut output = String::new();
-    for part in parts {
+    for part in &plan.parts {
         match part {
-            DatePatternPart::Literal(value) => output.push_str(&value),
-            DatePatternPart::Field { symbol, width } => {
-                let symbols = date_field_symbols(&calendar, symbol, width)
-                    .ok_or_else(|| super::missing_cldr_data("date symbols", locale))?;
-                if let Some(names) = symbols.names {
+            DateFormatPart::Literal(value) => output.push_str(value),
+            DateFormatPart::Field(field) => {
+                let symbol = field.symbol;
+                let width = field.width;
+                let symbols = &field.symbols;
+                if let Some(names) = &symbols.names {
                     let index = match symbol {
                         'M' | 'L' => date.month - 1,
                         'Q' | 'q' => (date.month - 1) / 3,
@@ -120,7 +120,9 @@ pub(super) fn format_date(
                         continue;
                     }
                     'a' | 'b' | 'B' => {
-                        let period = day_period_plan(&calendar, symbol, width)
+                        let period = field
+                            .period
+                            .and_then(|index| plan.periods.get(index))
                             .and_then(|plan| {
                                 plan.exact
                                     .iter()
@@ -157,7 +159,7 @@ pub(super) fn format_date(
     Ok(output)
 }
 
-fn pattern_error(error: linguini_codegen::DatePatternError) -> RenderError {
+fn pattern_error(error: impl std::fmt::Display) -> RenderError {
     RenderError::Unsupported {
         detail: error.to_string(),
     }

@@ -1428,6 +1428,16 @@ and the composed payload/SSR requirements below.
       and workspace Clippy plus Rust 1.87 pass. Eighteen consumer/documentation/site gates pass,
       including packaged sources, native tsc build/watch integration, and production SSR/browser
       checks. This follow-up preserves the earlier full-run source receipt separately.
+      Shared `DatePatternPlan` now resolves selected field symbols, deduplicated day periods,
+      semantic field demand, and whole-result digit-localization proofs for both ECMAScript
+      emission and native previews. Codegen validation checks missing symbols before emission.
+      Context, repeated-plan, quoted-field, literal/symbol-digit, and structured-error tests cover
+      the common model, including over 10,000 selectable skeletons across all 508 resolved
+      Gregorian records. Existing target bindings, byte/map snapshots, and date/preview semantics
+      stay unchanged; extended calendars/zones/skeleton matching remain open. Common/backend/CLI
+      suites pass on Node 20/24, with workspace Clippy, Rust 1.87, nineteen consumer/documentation/
+      production-site gates, and final packaged-source checks passing. Explicit patch-level API
+      checks pass 223 checks per affected public crate; existing error enums remain compatible.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.
@@ -1444,8 +1454,10 @@ and the composed payload/SSR requirements below.
       fails before the change and passes after it on Node 20/24 with TypeScript 5.8.3 and 6.0.3.
       The full native TypeScript suite, including packed installation, references, watch/error
       recovery, namespace changes, and disposal, passes locally. The real watch/solution-watch
-      lifecycle also passes on Node 20. Fresh macOS verification remains required; generated
-      application code has no added watcher or polling runtime.
+      lifecycle also passes on Node 20. Run 45868820891 on `3ec4923` now passes the complete
+      remote matrix, including macOS/Windows TypeScript watch integration and Rust tests.
+      Generated application code has no added watcher or polling runtime; exact composed-page
+      delivery and final architecture-wide verification remain open.
       Site descriptions across all nine locales now distinguish generated JavaScript plus
       declarations from reusable web/Svelte/SvelteKit adapters and application-owned policy.
       They describe message-level fallback and preparation before reactive publication;
@@ -1906,15 +1918,14 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 
 ### P3
 
-- [-] P3-1 — Declared Rust minimum/stable and Linux/Windows/macOS/offline/package CI.
-  Remote [run 45857013908](https://github.com/antepodeum/Linguini/actions/runs/45857013908)
-  on `3429c97` passed Linux Rust/coverage/MSRV, TypeScript on all three platforms, Vite 5–8,
-  adapters on Node 20/24, packaged crates, the editor, and the production site. Its macOS host
-  test hit a fixed-sleep race; Windows contexts retained canonical verbatim prefixes that did
-  not match decoded buffer URIs. The host normalizes those identities through file URIs, and
-  protocol parity now waits for each versioned diagnostic with a bounded timeout, including
-  a deliberately delayed memory scheduler. LSP/CLI tests, workspace Clippy, and Rust 1.87
-  pass locally. Fresh remote Windows/macOS verification remains required.
+- [x] P3-1 — Declared Rust minimum/stable and Linux/Windows/macOS/offline/package CI.
+  [Run 45868820891](https://github.com/antepodeum/Linguini/actions/runs/45868820891) on
+  `3ec4923` passes the full CI matrix: stable workspace tests on all three operating systems,
+  Rust 1.87 native/WASM minimum checks, dependency policy, packaged crates, editor/WASM,
+  TypeScript 5.8/6 and platform integrations, Vite 5–8, adapters, and the production site.
+  Native Windows contexts now match file-URI buffer identities, and host parity waits for
+  versioned diagnostic events under delayed scheduling. Offline package/source checks also
+  pass locally. Final architecture-wide verification remains ESM-M11.
 - [x] P3-2 — Parser, formatter, plural, and path property/fuzz coverage. Seeded generated cases
   cover Unicode/recovery/nesting/size parser invariants, formatter no-panic/idempotence/semantic
   preservation, plural modulo arithmetic, and portable locale ancestor chains.

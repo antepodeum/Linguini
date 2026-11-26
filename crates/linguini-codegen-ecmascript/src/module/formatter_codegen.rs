@@ -233,13 +233,13 @@ fn date_parts(
         .expect("validated locale has pinned Gregorian symbols");
     let mut parts = Vec::new();
     let mut tables = std::collections::BTreeMap::<String, Vec<&str>>::new();
-    let mut fields = std::collections::BTreeSet::new();
+    let plan = linguini_codegen::DatePatternPlan::new(requested_locale, pattern, &calendar)
+        .expect("validated date pattern and symbols");
+    let fields = &plan.fields;
     let mut has_periods = false;
     let mut exact_periods = false;
     let mut total_minutes = false;
-    let mut periods = Vec::<(linguini_codegen::DayPeriodPlan, minijinja::Value)>::new();
     let mut exact_count = 0;
-    let mut textual_symbols = Vec::new();
     let period_binding = |index| {
         if index == 0 {
             "dayPeriod".to_owned()
@@ -247,53 +247,37 @@ fn date_parts(
             format!("dayPeriod{}", index + 1)
         }
     };
-    let parsed = linguini_codegen::compile_date_pattern(requested_locale, pattern)
-        .expect("validated date pattern");
-    for part in &parsed {
-        let (character, width) = match part {
-            linguini_codegen::DatePatternPart::Literal(value) => {
+    let periods = plan.periods.iter().enumerate().map(|(index, plan)| {
+        let binding = period_binding(index);
+        has_periods |= !plan.exact.is_empty() || plan.spans.len() > 1;
+        exact_periods |= !plan.exact.is_empty();
+        exact_count += plan.exact.len();
+        let minute_clock = plan.spans.iter().any(|span| span.before % 60 != 0);
+        total_minutes |= minute_clock;
+        let spans: Vec<_> = plan.spans.iter().map(|span| context! {
+            before => if minute_clock { span.before } else { span.before / 60 }, value => span.value,
+        }).collect();
+        let exact: Vec<_> = plan.exact.iter().map(|period| context! {
+            hour => period.at / 60, minute => period.at % 60, value => period.value,
+        }).collect();
+        context! { binding, spans, exact, minute_clock }
+    }).collect();
+    for part in &plan.parts {
+        let field = match part {
+            linguini_codegen::DateFormatPart::Literal(value) => {
                 parts.push(context! { kind => "literal", value });
                 continue;
             }
-            linguini_codegen::DatePatternPart::Field { symbol, width } => (*symbol, *width),
+            linguini_codegen::DateFormatPart::Field(field) => field,
         };
-        fields.insert(character);
-        let period = linguini_codegen::day_period_plan(&calendar, character, width).map(|plan| {
-            textual_symbols.extend(plan.spans.iter().map(|span| span.value));
-            textual_symbols.extend(plan.exact.iter().map(|period| period.value));
-            if let Some(index) = periods.iter().position(|(existing, _)| existing == &plan) {
-                return context! { binding => period_binding(index) };
-            }
-            let binding = period_binding(periods.len());
-            has_periods |= !plan.exact.is_empty() || plan.spans.len() > 1;
-            exact_periods |= !plan.exact.is_empty();
-            exact_count += plan.exact.len();
-            let minute_clock = plan.spans.iter().any(|span| span.before % 60 != 0);
-            total_minutes |= minute_clock;
-            let spans: Vec<_> = plan.spans.iter().map(|span| context! {
-                before => if minute_clock { span.before } else { span.before / 60 }, value => span.value,
-            }).collect();
-            let exact: Vec<_> = plan.exact.iter().map(|period| context! {
-                hour => period.at / 60, minute => period.at % 60, value => period.value,
-            }).collect();
-            periods.push((plan, context! { binding, spans, exact, minute_clock }));
-            context! { binding }
-        });
+        let character = field.symbol;
+        let width = field.width;
+        let period = field
+            .period
+            .map(|index| context! { binding => period_binding(index) });
         let mut table = None;
-        let symbols = linguini_codegen::date_field_symbols(&calendar, character, width)
-            .unwrap_or_else(|| {
-                panic!(
-                    "missing pinned CLDR symbols: {} {character}/{width}",
-                    dates.locale
-                )
-            });
-        textual_symbols.extend(
-            [symbols.am, symbols.pm, symbols.ad, symbols.bc]
-                .into_iter()
-                .flatten(),
-        );
-        if let Some(values) = symbols.names {
-            textual_symbols.extend(values.iter().copied());
+        let symbols = &field.symbols;
+        if let Some(values) = &symbols.names {
             let proposed = format!(
                 "{name}_{}{}_{width}",
                 if matches!(character, 'L' | 'c' | 'q') {
@@ -309,12 +293,12 @@ fn date_parts(
             );
             let binding = shared_tables
                 .iter()
-                .find(|(_, existing)| **existing == values)
+                .find(|(_, existing)| existing.as_slice() == values.as_slice())
                 .map(|(binding, _)| binding.clone())
                 .unwrap_or(proposed);
             if !shared_tables.contains_key(&binding) {
                 shared_tables.insert(binding.clone(), values.clone());
-                tables.insert(binding.clone(), values);
+                tables.insert(binding.clone(), values.clone());
             }
             table = Some(binding);
         }
@@ -335,16 +319,15 @@ fn date_parts(
             .minus_sign
     });
     let signed_week_year = minus_sign.is_some_and(|sign| sign != "-")
-        || parsed.iter().any(|part| matches!(part, linguini_codegen::DatePatternPart::Field { symbol: 'Y', width } if *width > 1));
+        || plan.parts.iter().any(|part| matches!(part, linguini_codegen::DateFormatPart::Field(field) if field.symbol == 'Y' && field.width > 1));
     CompiledDatePattern {
-        localize_result: helpers.digits
-            && linguini_codegen::can_localize_date_result(&parsed, textual_symbols),
+        localize_result: helpers.digits && plan.can_localize_whole_result,
         parts,
         tables: tables
             .into_iter()
             .map(|(name, values)| context! { name, values })
             .collect(),
-        periods: periods.into_iter().map(|(_, value)| value).collect(),
+        periods,
         helpers,
         clock: context! {
             exact_time => exact_count > 1 && (fields.contains(&'m') || fields.contains(&'s') || fields.contains(&'S')),

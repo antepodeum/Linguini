@@ -402,7 +402,10 @@ surface. Current guarantees are:
   context/width-specific month, weekday, and quarter names, eras, and localized fixed/flexible
   day periods. Time fields are evaluated in UTC; zone-bearing widths use pinned localized
   UTC names, falling back to the localized GMT-zero label when the selected name is absent.
-  These labels are compiled literals. Alternatively, `skeleton = "yMMMd"` or `skeleton = "Hm"`
+  These labels are compiled literals. Code generation and native previews share a build-time
+  `DatePatternPlan` for selected fields/symbols, equal day-period plans, and safe digit substitution.
+  Missing required symbols produce structured validation errors. Target emitters retain their
+  bindings and syntax; neither consumes raw CLDR pattern data at runtime. Alternatively, `skeleton = "yMMMd"` or `skeleton = "Hm"`
   selects an exact ID from that locale's pinned Gregorian `availableFormats`. Skeleton IDs
   cannot be combined with `style` or `time_style`. An unavailable ID or unsupported field
   fails generation before output changes; no closest-match or host-formatting fallback runs.

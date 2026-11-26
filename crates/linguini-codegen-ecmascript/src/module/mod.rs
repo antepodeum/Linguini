@@ -516,6 +516,10 @@ fn validate_formatter_data(
                 locale: locale_name.to_owned(),
             }
         })?;
+        let calendar = linguini_cldr::compiled_calendar_formatting(dates.locale, "gregory")
+            .ok_or_else(|| EcmaCodegenError::MissingDateFormatting {
+                locale: locale_name.to_owned(),
+            })?;
         for request in linguini_codegen::formatter_requests(schema, locale) {
             if request.formatter.kind == linguini_ir::IrFormatterKind::Date {
                 let pattern =
@@ -526,13 +530,22 @@ fn validate_formatter_data(
                             error,
                         }
                     })?;
-                linguini_codegen::compile_date_pattern(locale_name, &pattern).map_err(|error| {
-                    EcmaCodegenError::InvalidDatePattern {
-                        locale: locale_name.to_owned(),
-                        pattern,
-                        error,
-                    }
-                })?;
+                linguini_codegen::DatePatternPlan::new(locale_name, &pattern, &calendar).map_err(
+                    |error| match error {
+                        linguini_codegen::DatePlanError::Pattern(error) => {
+                            EcmaCodegenError::InvalidDatePattern {
+                                locale: locale_name.to_owned(),
+                                pattern,
+                                error,
+                            }
+                        }
+                        linguini_codegen::DatePlanError::MissingFieldSymbols { .. } => {
+                            EcmaCodegenError::MissingDateFormatting {
+                                locale: locale_name.to_owned(),
+                            }
+                        }
+                    },
+                )?;
             }
         }
     }
