@@ -421,9 +421,14 @@ impl<'a> ValidatedEcmaProject<'a> {
                     linguini_codegen::lower_inline_functions(schema, &locale.module),
                 )
                 .expect("inline lowering preserves locale IR ownership");
-                locale
+                if plural_required(schema, &locale.module)
+                    && built_in_plural_rules(&locale.locale).is_none()
+                {
+                    return Err(EcmaCodegenError::missing_plural_rules(&locale.locale));
+                }
+                Ok(locale)
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self {
             schema,
@@ -856,24 +861,18 @@ fn validate_typed_codegen_ir(
         .map_err(|errors| EcmaCodegenError::invalid_ir(scope, errors))
 }
 
-fn project_locale_options(
-    locale: &str,
-    project_options: &EcmaProjectOptions,
-) -> Result<EcmaOptions, EcmaCodegenError> {
-    let plural_function = plural_function_name(locale);
-    let plural_rules = built_in_plural_rules(locale)
-        .ok_or_else(|| EcmaCodegenError::missing_plural_rules(locale))?;
-    Ok(EcmaOptions {
+fn project_locale_options(locale: &str, project_options: &EcmaProjectOptions) -> EcmaOptions {
+    EcmaOptions {
         locale: locale.to_owned(),
-        plural_function: plural_function.clone(),
+        plural_function: plural_function_name(locale),
         plural_import: None,
-        plural_rules: Some(plural_rules),
+        plural_rules: built_in_plural_rules(locale),
         included_messages: if project_options.tree_shaking {
             project_options.included_messages.clone()
         } else {
             Vec::new()
         },
-    })
+    }
 }
 
 pub(super) fn visible_schema(schema: &IrModule, options: &EcmaOptions) -> IrModule {

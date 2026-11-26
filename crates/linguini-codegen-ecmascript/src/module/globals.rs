@@ -86,7 +86,7 @@ pub(super) fn locale_globals_artifact_module(
         .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: artifact.locale.clone(),
         })?;
-    let options = project_locale_options(&locale.locale, &project.options)?;
+    let options = project_locale_options(&locale.locale, &project.options);
     let schema = visible_schema(project.schema, &options);
     let locale_module = locale_module_for_schema(&locale.module, &schema);
     let output_path = artifact

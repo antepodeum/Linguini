@@ -202,7 +202,7 @@ fn compile_bundler_semantic_module_impl(
             locale: artifact.locale.clone(),
         })?
         .module;
-    let options = project_locale_options(&artifact.locale, &project.options)?;
+    let options = project_locale_options(&artifact.locale, &project.options);
     let facts = linguini_codegen::StringResultFacts::for_module(locale);
     let one = one_symbol_module(locale, artifact.kind, &artifact.name);
     if !module_has_symbol(&one, artifact.kind) {

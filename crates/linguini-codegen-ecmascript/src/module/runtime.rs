@@ -87,7 +87,7 @@ pub(super) fn locale_runtime_artifact_module(
         .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: artifact.locale.clone(),
         })?;
-    let options = project_locale_options(&locale.locale, &project.options)?;
+    let options = project_locale_options(&locale.locale, &project.options);
     let schema = visible_schema(project.schema, &options);
     let locale_module = locale_module_for_schema(&locale.module, &schema);
     let output_path = artifact
@@ -122,7 +122,7 @@ pub(super) fn locale_runtime_module(
         let rules = options
             .plural_rules
             .as_ref()
-            .expect("project locale options always include plural rules");
+            .expect("validated plural demand includes built-in rule data");
         let source =
             generate_plural_function_with_visibility(&options.plural_function, rules, true);
         module.push_statement(EcmaStatement::generated(if requirements.any() {

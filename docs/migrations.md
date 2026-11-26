@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Plural data follows operation demand
+
+Numeric and literal projects can use known locales such as `ccp` without an unused plural rule
+set. Project construction checks the lowered locale and rejects `MissingPluralRules` only when
+a plural operation requires absent data. Such failures now occur during validation, before
+artifact generation; existing valid output remains intact. Formatter and direction requirements
+retain their checks. Public message calls and runtime configuration are unchanged.
+
 ## Supplementary Unicode digits
 
 Regenerate number and currency output for locales such as `ff-Adlm`. The old renderer indexed

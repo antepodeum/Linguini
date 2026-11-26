@@ -191,7 +191,7 @@ fn compile_message_module_impl(
     let closure = project.message_dependency_closure(project_locale, canonical_message)?;
     let source_ids = closure.source_ids().to_vec();
     let source_records = ordered_sources(&source_ids, sources)?;
-    let options = super::project_locale_options(&canonical_locale, &project.options)?;
+    let options = super::project_locale_options(&canonical_locale, &project.options);
     let semantic_imports = if runtime_import_path.is_some() {
         match semantic_imports {
             Some(imports) => imports.to_vec(),

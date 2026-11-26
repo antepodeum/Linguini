@@ -235,7 +235,7 @@ pub(super) fn locale_runtime_artifacts(
         .collect::<BTreeSet<_>>();
     let mut artifacts = Vec::with_capacity(project.locales.len());
     for locale in &project.locales {
-        let options = project_locale_options(&locale.locale, &project.options)?;
+        let options = project_locale_options(&locale.locale, &project.options);
         let mut source_ids = BTreeSet::new();
         for message in &selected_messages {
             let closure = project.message_dependency_closure(&locale.locale, message)?;

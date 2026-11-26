@@ -1356,6 +1356,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Date digit substitution now resolves its ten Unicode symbols during generation. Numeric
       fields share a compiled callback; BMP symbols use literal indexing and consecutive
       supplementary symbols use code-point arithmetic. Other mappings compile direct branches.
+      Project plural-data validation also follows lowered operation demand: numeric/literal
+      Chakma output builds without unused rules, while required missing data fails before emission.
+      Ordinary, standalone, and physical graphs execute; native check/sample/cold/warm builds
+      preserve valid output on required-data errors.
       The shared lookup template also fixes UTF-16 indexing of default Adlam number/currency
       digits; native cold/warm, three input representations, mixed-width mappings, and strict
       JSDoc consumers execute without changing existing BMP snapshots. Executed traces replace eleven per-field symbol arrays/callbacks with

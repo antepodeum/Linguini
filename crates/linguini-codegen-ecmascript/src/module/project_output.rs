@@ -231,7 +231,7 @@ fn append_locales(
                 artifact.source_ids.clone(),
             );
             if options.declaration {
-                let locale_options = super::project_locale_options(&locale.locale, options)?;
+                let locale_options = super::project_locale_options(&locale.locale, options);
                 let schema = super::visible_schema(schema, &locale_options);
                 let (path, declaration) = match &artifact.kind {
                     EcmaLocaleArtifactKind::Namespace { namespace } => {

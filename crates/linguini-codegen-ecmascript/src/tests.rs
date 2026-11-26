@@ -24,6 +24,106 @@ fn project_options(base_locale: &str) -> EcmaProjectOptions {
 }
 
 #[test]
+fn locale_generation_requires_plural_data_only_for_plural_operations() {
+    use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
+    let schema_source = "number(value: Number)\nplain\n";
+    let locale_source = "let prefix = Total\nnumber = {prefix} {value @number}\nplain = Ready\n";
+    let schema = lower_schema(&parse_schema_in(schema_source, SourceId(1)).unwrap());
+    let locales = [EcmaLocaleModule {
+        locale: "ccp".into(),
+        module: lower_locale(&parse_locale_in(locale_source, SourceId(2)).unwrap()),
+    }];
+    let options = project_options("ccp");
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).unwrap();
+    let mut files = crate::generate_project_files(&project).unwrap();
+    let sources = [
+        crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
+        crate::EcmaSource::new(SourceId(2), "ccp.lgl", locale_source),
+    ];
+    for artifact in project.semantic_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    let artifact = project
+        .message_artifacts()
+        .unwrap()
+        .into_iter()
+        .find(|artifact| artifact.message == "number")
+        .unwrap();
+    let physical =
+        crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+    files.push(EcmaGeneratedFile {
+        path: artifact.module_path.clone(),
+        contents: physical.code,
+    });
+    files.push(EcmaGeneratedFile {
+        path: "physical.js".into(),
+        contents: format!(
+            "export {{message}} from {:?};",
+            format!("./{}", artifact.module_path)
+        ),
+    });
+    let standalone = crate::compile_message_module(
+        &project,
+        "ccp",
+        "number",
+        "standalone.js",
+        "./shared.js",
+        &sources,
+    )
+    .unwrap();
+    files.push(EcmaGeneratedFile {
+        path: "standalone.js".into(),
+        contents: standalone.code,
+    });
+    assert!(files
+        .iter()
+        .filter(|file| file.path.ends_with(".js"))
+        .all(|file| !file.contents.contains("pluralCcp")));
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"
+import assert from 'node:assert/strict';
+const ordinary = await import('./locales/ccp.js');
+const physical = await import('./physical.js');
+const standalone = await import('./standalone.js');
+assert.equal(ordinary.plain, 'Ready');
+for (const number of [ordinary.number,physical.message,standalone.message]) {
+  for (let digit = 0; digit < 10; digit++) {
+    assert.equal(number(digit), 'Total ' + String.fromCodePoint(0x11136 + digit));
+    assert.equal(number({value: BigInt(digit)}), 'Total ' + String.fromCodePoint(0x11136 + digit));
+  }
+}
+console.log('ok');
+"#
+        ),
+        "ok"
+    );
+
+    for source in [
+        "number = {Plural(value)}\nplain = Ready\n",
+        "number = {fn(Plural(value)) {\none => One\n_ => Other\n}}\nplain = Ready\n",
+        "fn Label(Plural) {\none => One\n_ => Other\n}\nnumber = {Label(value)}\nplain = Ready\n",
+    ] {
+        let plural_locales = [EcmaLocaleModule {
+            locale: "ccp".into(),
+            module: lower_locale(&parse_locale(source).unwrap()),
+        }];
+        assert_eq!(
+            ValidatedEcmaProject::try_new(&schema, &plural_locales, &options).unwrap_err(),
+            EcmaCodegenError::MissingPluralRules {
+                locale: "ccp".into()
+            },
+        );
+    }
+}
+
+#[test]
 fn generated_text_references_skip_coercion_in_project_and_physical_modules() {
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
     let schema_source = concat!(

@@ -61,6 +61,11 @@ Vite planning has no Svelte or SvelteKit dependency. A plan can emit into multip
 with source-map paths rebased through the shared portable-path calculation. Integration templates
 use `EcmaTemplateEngine` for the same strict context and literal-escaping policy as the backend.
 
+`ValidatedEcmaProject::try_new` checks plural data against the lowered locale's actual plural
+operations. Known locales with available direction/formatter data can build numeric or literal
+messages without a plural rule set, as with `ccp`. A required missing rule set produces
+`MissingPluralRules` during construction, before artifact emission.
+
 Public parameter types lower into `linguini_codegen::TypeModel`, also re-exported by
 `linguini-codegen-ecmascript`. The ECMAScript backend owns identifier escaping, TypeScript and
 JSDoc rendering through `render_typescript_type` and `render_jsdoc_type`, templates, and module

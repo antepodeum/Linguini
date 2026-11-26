@@ -22,6 +22,66 @@ fn build_svelte_project(root: &std::path::Path) -> super::CliResult<String> {
 }
 
 #[test]
+fn numeric_only_locales_build_without_unused_plural_data() {
+    let project = temp_project_dir("plural-data-demand").unwrap();
+    fs::create_dir_all(project.path().join("schema")).unwrap();
+    fs::create_dir_all(project.path().join("locales/main")).unwrap();
+    fs::write(project.path().join("package.json"), "{\"type\":\"module\"}").unwrap();
+    fs::write(project.path().join("linguini.toml"), "[project]\nname = \"digits\"\ndefault_locale = \"ccp\"\nlocales = [\"ccp\"]\n[paths]\nschema = \"schema\"\nlocale = \"locales\"\n[targets.ts]\nout = \"generated\"\n").unwrap();
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "number(value: Number)\n",
+    )
+    .unwrap();
+    let locale = project.path().join("locales/main/ccp.lgl");
+    fs::write(&locale, "number = {value @number}\n").unwrap();
+    check_project(project.path()).unwrap();
+    assert!(generate_project_data(project.path())
+        .unwrap()
+        .contains("locale ccp"));
+    build_project(project.path()).unwrap();
+    let runtime = project.path().join("generated/locales/ccp/_runtime.js");
+    let message = project.path().join("generated/locales/ccp/main.js");
+    let cold = fs::read(&runtime).unwrap();
+    let cold_message = fs::read(&message).unwrap();
+    assert!(!String::from_utf8_lossy(&cold).contains("pluralCcp"));
+    build_project(project.path()).unwrap();
+    assert_eq!(fs::read(&runtime).unwrap(), cold);
+    let execution = std::process::Command::new("node")
+        .args([
+            "--input-type=module",
+            "-e",
+            r#"
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const {main} = await import(pathToFileURL(process.argv[1]).href);
+for (let digit = 0; digit < 10; digit++) {
+  const expected = String.fromCodePoint(0x11136 + digit);
+  assert.equal(main.number(digit), expected);
+  assert.equal(main.number({value: String(digit)}), expected);
+}
+console.log('ok');
+"#,
+        ])
+        .arg(project.path().join("generated/locales/ccp.js"))
+        .output()
+        .unwrap();
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    assert_eq!(String::from_utf8(execution.stdout).unwrap().trim(), "ok");
+    fs::write(locale, "number = {Plural(value)}\n").unwrap();
+    let error = build_project(project.path()).unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("missing built-in CLDR plural rules"));
+    assert_eq!(fs::read(runtime).unwrap(), cold);
+    assert_eq!(fs::read(message).unwrap(), cold_message);
+}
+
+#[test]
 fn supplementary_digits_check_build_and_execute_through_native_output() {
     let project = temp_project_dir("supplementary-digits").unwrap();
     fs::create_dir_all(project.path().join("schema")).unwrap();

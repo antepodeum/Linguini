@@ -76,7 +76,7 @@ pub(super) fn locale_artifact_module(
         .ok_or_else(|| EcmaCodegenError::UnknownLocale {
             locale: artifact.locale.clone(),
         })?;
-    let options = project_locale_options(&configured_locale.locale, &project.options)?;
+    let options = project_locale_options(&configured_locale.locale, &project.options);
     let schema = visible_schema(project.schema, &options);
     let visible_locale = locale_module_for_schema(&configured_locale.module, &schema);
     let namespaces = top_level_namespaces(&schema);
