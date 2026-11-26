@@ -4,6 +4,16 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native LSP path identity and CI
+
+Native workspace paths now use the same file-URI representation as editor buffers. Windows
+canonical verbatim prefixes no longer prevent unsaved buffers from finding their project context.
+No client protocol or configuration changes are required. Host parity tests wait for each
+versioned diagnostic event with a bounded timeout, preserving invalid-buffer/recovery assertions
+under delayed scheduling. Dependency policy allows path-only private/development dependencies,
+so unpublished test helpers stay out of registry package manifests. Registry wildcards and
+public production path wildcards remain forbidden.
+
 ## Native date-time previews
 
 Native `generate` adds noon and offset-bearing date-time cases after the existing date-only Date

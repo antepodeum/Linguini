@@ -1,5 +1,5 @@
 use super::*;
-use futures::{future::poll_fn, SinkExt, StreamExt};
+use futures::{channel::mpsc, future::poll_fn, SinkExt, StreamExt};
 use serde_json::{json, Value};
 use std::{fs, sync::Arc};
 use tower_lsp_server::{
@@ -45,13 +45,41 @@ async fn notify<S: LanguageServer>(service: &mut LspService<S>, method: &str, pa
     assert!(service.call(request).await.unwrap().is_none());
 }
 
+async fn next_diagnostics(
+    notifications: &mut mpsc::UnboundedReceiver<Value>,
+    uri: &str,
+    version: i32,
+) -> Value {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while let Some(event) = notifications.next().await {
+            if event["method"] == "textDocument/publishDiagnostics"
+                && event["params"]["uri"] == uri
+                && event["params"]["version"] == version
+            {
+                return event;
+            }
+        }
+        panic!("notification stream closed before diagnostics for {uri} version {version}");
+    })
+    .await
+    .unwrap_or_else(|_| panic!("timed out waiting for diagnostics for {uri} version {version}"))
+}
+
+#[derive(Debug)]
+struct DelayedScheduler;
+
+impl LspScheduler for DelayedScheduler {
+    fn spawn_after(&self, delay: Duration, task: LspTask) {
+        NativeScheduler.spawn_after(delay + Duration::from_millis(150), task);
+    }
+}
+
 async fn exercise<S: LanguageServer>(
     mut service: LspService<S>,
     socket: tower_lsp_server::ClientSocket,
     root: &Path,
 ) -> Vec<Value> {
-    let notifications = Arc::new(std::sync::Mutex::new(Vec::<Value>::new()));
-    let captured = notifications.clone();
+    let (captured, mut notifications) = mpsc::unbounded();
     let pump = tokio::spawn(async move {
         let (mut stream, mut sink) = socket.split();
         while let Some(message) = stream.next().await {
@@ -61,9 +89,8 @@ async fn exercise<S: LanguageServer>(
                     .unwrap();
             } else {
                 captured
-                    .lock()
-                    .unwrap()
-                    .push(serde_json::to_value(message).unwrap());
+                    .unbounded_send(serde_json::to_value(message).unwrap())
+                    .unwrap();
             }
         }
     });
@@ -81,6 +108,8 @@ async fn exercise<S: LanguageServer>(
     notify(&mut service, "initialized", json!({})).await;
     results.push(request(&mut service, "linguini/protocolVersion", json!(null)).await);
     notify(&mut service, "textDocument/didOpen", json!({"textDocument":{"uri":locale_uri,"languageId":"linguini-locale", "version":1,"text":LOCALE}})).await;
+    let initial = next_diagnostics(&mut notifications, locale_uri.as_str(), 1).await;
+    assert_eq!(initial["params"]["diagnostics"], json!([]));
     let document = json!({"uri":locale_uri});
     let at = json!({"textDocument":document,"position":{"line":1,"character":2}});
     for method in [
@@ -142,7 +171,14 @@ async fn exercise<S: LanguageServer>(
     );
     // Keep one broken open buffer while the saved workspace is valid, then recover it.
     notify(&mut service, "textDocument/didChange", json!({"textDocument":{"uri":locale_uri,"version":2},"contentChanges":[{"text":"delivery = {unknown}\n"}]})).await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    let broken = next_diagnostics(&mut notifications, locale_uri.as_str(), 2).await;
+    assert!(
+        !broken["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "{broken:#?}"
+    );
     results.push(request(&mut service, "textDocument/codeAction", json!({"textDocument":document,"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":20}},"context":{"diagnostics":[]}})).await);
     notify(
         &mut service,
@@ -150,30 +186,9 @@ async fn exercise<S: LanguageServer>(
         json!({"textDocument":{"uri":locale_uri,"version":3},"contentChanges":[{"text":LOCALE}]}),
     )
     .await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    let diagnostics: Vec<_> = notifications
-        .lock()
-        .unwrap()
-        .iter()
-        .filter(|event| event["method"] == "textDocument/publishDiagnostics")
-        .cloned()
-        .collect();
-    assert!(
-        diagnostics
-            .iter()
-            .any(|event| event["params"]["version"] == 2
-                && !event["params"]["diagnostics"]
-                    .as_array()
-                    .unwrap()
-                    .is_empty()),
-        "{diagnostics:#?}"
-    );
-    assert_eq!(diagnostics.last().unwrap()["params"]["version"], 3);
-    assert_eq!(
-        diagnostics.last().unwrap()["params"]["diagnostics"],
-        json!([])
-    );
-    results.push(json!(diagnostics));
+    let recovered = next_diagnostics(&mut notifications, locale_uri.as_str(), 3).await;
+    assert_eq!(recovered["params"]["diagnostics"], json!([]));
+    results.push(json!([initial, broken, recovered]));
     assert!(results[2].to_string().contains("Delivery label"));
     assert!(results[3].to_string().contains(schema_uri.as_str()));
     request(&mut service, "shutdown", json!(null)).await;
@@ -202,6 +217,17 @@ async fn native_and_memory_hosts_share_protocol_results_and_source_identity() {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, &file.text).unwrap();
     }
+    let index = NativeHost
+        .workspace_index(vec![root.clone()])
+        .await
+        .unwrap();
+    assert!(index.errors.is_empty(), "{:?}", index.errors);
+    assert_eq!(index.projects.len(), 1);
+    let context = &index.projects[0].context;
+    let wire_path = |path: &Path| uri_to_file_path(&path_to_uri(path).unwrap()).unwrap();
+    assert_eq!(context.root, wire_path(&root));
+    assert_eq!(context.schema_root, wire_path(&root.join("build/schema")));
+    assert_eq!(context.locale_root, wire_path(&root.join("locale")));
     let memory = MemoryWorkspace::default();
     memory.replace(files).unwrap();
     assert_eq!(
@@ -213,7 +239,7 @@ async fn native_and_memory_hosts_share_protocol_results_and_source_identity() {
     );
     let (native_service, native_socket) = crate::server::native_service();
     let native = exercise(native_service, native_socket, &root).await;
-    let (memory_service, memory_socket) = memory.service(Arc::new(NativeScheduler));
+    let (memory_service, memory_socket) = memory.service(Arc::new(DelayedScheduler));
     let memory_results = exercise(memory_service, memory_socket, &root).await;
     assert_eq!(native, memory_results);
 }

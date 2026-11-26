@@ -1201,6 +1201,9 @@ after updating saved files, send `workspace/didChangeWatchedFiles` to refresh th
 `MemoryWorkspace::source_roots` parses configured roots before an embedding host reads sources,
 including custom source paths inside otherwise ignored build directories. Host workspace URIs
 must be mapped consistently to absolute local `file:` URIs for files and protocol messages.
+Native filesystem contexts normalize canonical paths through the same file-URI representation,
+so Windows drive/UNC paths match open buffers despite canonical verbatim prefixes. Unsaved
+buffers retain their source identities and replace saved source text during workspace analysis.
 The config crate's `schema_files_from_paths` and `locale_files_from_paths` share native discovery's
 namespace derivation, ordering, locale validation, and collision checks without reading files.
 Filesystem metadata, link checks, and reading remain the filesystem host's responsibility.

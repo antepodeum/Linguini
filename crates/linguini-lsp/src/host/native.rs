@@ -282,5 +282,10 @@ impl super::snapshot::WorkspaceSources for NativeSources {
 }
 
 fn normalize_existing_path(path: impl AsRef<Path>) -> PathBuf {
-    fs::canonicalize(path.as_ref()).unwrap_or_else(|_| path.as_ref().to_path_buf())
+    let path = fs::canonicalize(path.as_ref()).unwrap_or_else(|_| path.as_ref().to_path_buf());
+    // Canonical Windows paths carry a verbatim prefix, but LSP file URIs decode
+    // to ordinary drive/UNC paths. Contexts must use the same identity as buffers.
+    path_to_uri(&path)
+        .and_then(|uri| uri_to_file_path(&uri))
+        .unwrap_or(path)
 }

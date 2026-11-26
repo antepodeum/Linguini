@@ -1892,6 +1892,14 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 ### P3
 
 - [-] P3-1 — Declared Rust minimum/stable and Linux/Windows/macOS/offline/package CI.
+  Remote [run 45857013908](https://github.com/antepodeum/Linguini/actions/runs/45857013908)
+  on `3429c97` passed Linux Rust/coverage/MSRV, TypeScript on all three platforms, Vite 5–8,
+  adapters on Node 20/24, packaged crates, the editor, and the production site. Its macOS host
+  test hit a fixed-sleep race; Windows contexts retained canonical verbatim prefixes that did
+  not match decoded buffer URIs. The host normalizes those identities through file URIs, and
+  protocol parity now waits for each versioned diagnostic with a bounded timeout, including
+  a deliberately delayed memory scheduler. LSP/CLI tests, workspace Clippy, and Rust 1.87
+  pass locally. Fresh remote Windows/macOS verification remains required.
 - [x] P3-2 — Parser, formatter, plural, and path property/fuzz coverage. Seeded generated cases
   cover Unicode/recovery/nesting/size parser invariants, formatter no-panic/idempotence/semantic
   preservation, plural modulo arithmetic, and portable locale ancestor chains.
@@ -1905,6 +1913,11 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 - [x] P3-6 — Dependency policy, pinned actions, reproducible JS packaging, synced versions.
   Cargo policy/advisory jobs, immutable action SHAs, enforced pnpm boundaries and reviewed build
   scripts, exact native optional versions, and repository-wide version checks are all active.
+  The same remote run exposed path-only private test helpers as wildcard dependencies. The
+  scoped private/development-path allowance now preserves Cargo's omission of unpublished test
+  helpers from registry manifests. All dependency/advisory/license/source checks and offline
+  dry-packaging of publishable crates pass locally. Four isolated policy probes accept private
+  and development paths while still rejecting registry and public-production path wildcards.
 
 ## Final verification
 
