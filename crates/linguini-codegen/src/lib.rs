@@ -16,6 +16,7 @@ mod plurals;
 mod requirements;
 mod rounding;
 mod types;
+mod week_year;
 
 pub use date_pattern::{
     compile_date_pattern, date_request_pattern, DatePatternError, DatePatternPart,
@@ -35,6 +36,7 @@ pub use requirements::{
     plural_required, FormatterRequirements, StringResultFacts,
 };
 pub use types::{resolve_type_name, TypeModel};
+pub use week_year::GregorianWeekYearPlan;
 
 pub use formatters::{
     default_type_formatters, formatter_requests, parameter_formatters, FormatterRequest,

@@ -256,8 +256,8 @@ fn date_skeleton_builds_validate_before_changing_owned_output() {
             "invalid request changed output"
         );
     }
-    // This pinned Gregorian pattern uses the unsupported week-based year, even though its
-    // skeleton ID is otherwise valid. Reject it before touching either locale's output.
+    // Scottish Gaelic's pinned yMMM uses Y; build it with week-year semantics while
+    // preserving the existing calendar-only locale and failure-atomic output updates.
     fs::write(&locale, "date = {value @date(skeleton = \"yQQQ\")}\n").unwrap();
     let config = project.path().join("linguini.toml");
     fs::write(
@@ -272,13 +272,50 @@ fn date_skeleton_builds_validate_before_changing_owned_output() {
         "date = {value @date(skeleton = \"yMMM\")}\n",
     )
     .unwrap();
-    let error = build_project(project.path()).unwrap_err();
-    assert!(
-        error.to_string().contains("unsupported date field `Y`"),
-        "{error}"
-    );
+    fs::write(project.path().join("package.json"), "{\"type\":\"module\"}").unwrap();
+    build_project(project.path()).unwrap();
+    let gaelic_runtime = project.path().join("generated/locales/gd/_runtime.js");
+    let gaelic = fs::read(&gaelic_runtime).unwrap();
+    assert!(String::from_utf8_lossy(&gaelic).contains("getWeekYear"));
+    assert!(!String::from_utf8_lossy(&gaelic).contains("weekYearMagnitude"));
     assert_eq!(fs::read(&runtime).unwrap(), baseline);
-    assert!(!project.path().join("generated/locales/gd").exists());
+    build_project(project.path()).unwrap();
+    assert_eq!(fs::read(&gaelic_runtime).unwrap(), gaelic);
+    let execution = std::process::Command::new("node")
+        .args([
+            "--input-type=module",
+            "-e",
+            r#"
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+Intl.DateTimeFormat=class{constructor(){throw Error('no host date formatter');}};
+const {main}=await import(pathToFileURL(process.argv[1]).href);
+assert.equal(main.date('2021-01-01'),'Faoi 2020');
+assert.equal(main.date({value:'2021-01-04'}),'Faoi 2021');
+assert.equal(main.date('0000-01-01'),'Faoi -1');
+console.log('ok');
+"#,
+        ])
+        .arg(project.path().join("generated/locales/gd.js"))
+        .output()
+        .unwrap();
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    assert_eq!(String::from_utf8(execution.stdout).unwrap().trim(), "ok");
+    fs::write(
+        project.path().join("locales/main/gd.lgl"),
+        "date = {value @date(skeleton = \"notASkeleton\")}\n",
+    )
+    .unwrap();
+    assert!(build_project(project.path())
+        .unwrap_err()
+        .to_string()
+        .contains("no pinned Gregorian date pattern"));
+    assert_eq!(fs::read(&runtime).unwrap(), baseline);
+    assert_eq!(fs::read(&gaelic_runtime).unwrap(), gaelic);
 }
 
 #[test]

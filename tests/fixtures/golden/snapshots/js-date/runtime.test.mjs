@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { formatFlexible, formatFixed, formatNarrow, formatYear, formatLocalized } from "./date.js";
 import { formatDate_skeleton_yQQQ } from "./skeletons.js";
+import { formatWeekYear } from "./week-year.js";
 
 test("compiled periods follow displayed precision and localized rules", () => {
   assert.equal(formatFlexible("2024-01-02T09:30:00Z"), "9:30:00.000 in the morning");
@@ -64,4 +65,17 @@ test("quarter skeletons follow UTC boundaries and the Date input contract", () =
   assert.equal(reads, 1);
   assert.equal(formatDate_skeleton_yQQQ(0), "Q1 1970");
   assert.throws(() => formatDate_skeleton_yQQQ("2024-02-30"), RangeError);
+});
+
+
+test("compiled week years keep signed widths separate from calendar years", () => {
+  assert.equal(formatWeekYear("2021-01-01"), "2020|20|2020|2021|AD|Jan|01");
+  assert.equal(formatWeekYear("2021-01-04"), "2021|21|2021|2021|AD|Jan|01");
+  assert.equal(formatWeekYear("2020-12-31T23:30:00-01:00"), "2020|20|2020|2021|AD|Jan|01");
+  assert.equal(formatWeekYear("0000-01-01"), "-1|-01|-0001|1|BC|Jan|01");
+  const value = new Date(0);
+  value.setUTCFullYear(-100, 0, 4);
+  assert.equal(formatWeekYear(value), "-100|-00|-0100|101|BC|Jan|01");
+  assert.equal(formatWeekYear(0), "1970|70|1970|1970|AD|Jan|01");
+  assert.throws(() => formatWeekYear("2021-02-29"), RangeError);
 });

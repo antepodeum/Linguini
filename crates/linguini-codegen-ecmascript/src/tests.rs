@@ -338,9 +338,44 @@ console.log(JSON.stringify(values));
 }
 
 #[test]
-fn unknown_skeletons_and_unsupported_selected_fields_fail_validation() {
+fn pinned_scottish_gaelic_skeleton_compiles_week_year_semantics() {
+    let schema = lower_schema(&parse_schema("week(value: Date)\ncalendar(value: Date)\n").unwrap());
+    let locale = lower_locale(
+        &parse_locale(
+            r#"week = {value @date(skeleton = "yMMM")}
+calendar = {value @date(skeleton = "yMMMd")}
+"#,
+        )
+        .unwrap(),
+    );
+    let files = generate_project_files(
+        &schema,
+        &[EcmaLocaleModule {
+            locale: "gd".into(),
+            module: locale,
+        }],
+        &project_options("gd"),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"
+Intl.DateTimeFormat = class {constructor(){throw Error('no host date formatting');}};
+const {week,calendar}=await import('./locales/gd.js');
+console.log([week('2021-01-01'),week('2021-01-04'),week('0000-01-01'),calendar('2021-01-01')].join('|'));
+"#
+        ),
+        "Faoi 2020|Faoi 2021|Faoi -1|1 Faoi 2021"
+    );
+}
+
+#[test]
+fn unknown_and_invalid_skeleton_requests_fail_validation() {
     let schema = lower_schema(&parse_schema("message(value: Date)\n").unwrap());
-    for (locale_name, skeleton, unknown) in [("en", "notASkeleton", true), ("gd", "yMMM", false)] {
+    for (locale_name, skeleton, unknown) in
+        [("en", "notASkeleton", true), ("en", "yw-count-one", false)]
+    {
         let locale = lower_locale(
             &parse_locale(&format!(
                 "message = {{value @date(skeleton = {skeleton:?})}}\n"
@@ -361,10 +396,11 @@ fn unknown_skeletons_and_unsupported_selected_fields_fail_validation() {
                 error: linguini_codegen::DatePatternError::MissingSkeleton { .. },
                 ..
             } if unknown => {}
-            EcmaCodegenError::InvalidDatePattern {
-                error: linguini_codegen::DatePatternError::UnsupportedField { symbol: 'Y', .. },
-                ..
-            } if !unknown => {}
+            EcmaCodegenError::InvalidIr { errors, .. } if !unknown => {
+                assert_eq!(errors.len(), 1);
+                assert_eq!(errors[0].code, "IR031");
+                assert!(errors[0].message.contains("ASCII field letters"));
+            }
             error => panic!("{skeleton}: {error:?}"),
         }
     }

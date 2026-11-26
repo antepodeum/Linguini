@@ -21,3 +21,15 @@ pub(super) fn digit_formatter_helper(digits: &str) -> String {
 pub(super) fn date_formatter_helpers(padding: bool) -> String {
     templates::render("date_helpers", context! { padding })
 }
+
+pub(super) fn week_year_formatter_helper(locale: &str) -> String {
+    let plan = linguini_codegen::GregorianWeekYearPlan::for_locale(locale)
+        .expect("validated Gregorian week-year data");
+    templates::render(
+        "week_year_helpers",
+        context! {
+            weekday_shift => plan.weekday_shift, anchor_offset => plan.anchor_offset,
+            previous_last_day => plan.previous_last_day, next_first_day => plan.next_first_day,
+        },
+    )
+}

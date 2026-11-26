@@ -424,7 +424,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       all widths and contexts. Pinned quarter skeletons/symbols are checked across 508 locale
       records; generated requests execute in four locales, with UTC boundaries, Arabic digits,
       supplied-Date getter observations, strict JS typing, and unused quarter removal covered.
-      The unsupported week-based `Y` in Scottish Gaelic `yMMM` still fails before output changes.
+      Week-based year `Y` now compiles territory week conventions into bounded January/December
+      arithmetic, including Scottish Gaelic `yMMM`, signed extended years, localized digits/signs,
+      and independent calendar-year/era fields. A full Gregorian cycle checks all 49 week-rule
+      combinations; executed eight-locale coverage checks eight widths and BCE/CE boundaries.
+      Impossible boundary branches and unused helpers/padding/sign bindings are omitted.
       Closest-match skeletons, combined date/time synthesis, other calendars, and selectable
       non-UTC zones remain open.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.

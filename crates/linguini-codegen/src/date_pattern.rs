@@ -28,6 +28,9 @@ pub enum DatePatternError {
     MissingTimeZoneData {
         locale: String,
     },
+    MissingWeekData {
+        locale: String,
+    },
 }
 
 impl fmt::Display for DatePatternError {
@@ -54,6 +57,9 @@ impl fmt::Display for DatePatternError {
             ),
             Self::MissingTimeZoneData { locale } => {
                 write!(f, "missing pinned time-zone data for `{locale}`")
+            }
+            Self::MissingWeekData { locale } => {
+                write!(f, "missing pinned week data for `{locale}`")
             }
         }
     }
@@ -166,7 +172,7 @@ pub fn compile_date_pattern(
             continue;
         }
         let supported = match symbol {
-            'y' | 'S' => true,
+            'y' | 'Y' | 'S' => true,
             'M' | 'L' | 'Q' | 'q' | 'a' | 'b' | 'B' | 'G' => width <= 5,
             'E' => width <= 6,
             'e' | 'c' => (3..=6).contains(&width),
@@ -175,6 +181,11 @@ pub fn compile_date_pattern(
         };
         if !supported {
             return Err(unsupported());
+        }
+        if symbol == 'Y' && crate::GregorianWeekYearPlan::for_locale(locale).is_none() {
+            return Err(DatePatternError::MissingWeekData {
+                locale: locale.to_owned(),
+            });
         }
         if !literal.is_empty() {
             parts.push(DatePatternPart::Literal(std::mem::take(&mut literal)));
@@ -225,7 +236,7 @@ mod tests {
                     dates.locale
                 );
                 checked += 1;
-                if skeleton.contains('Q') {
+                if skeleton.bytes().all(|byte| byte.is_ascii_alphabetic()) {
                     compile_date_pattern(dates.locale, expected)
                         .unwrap_or_else(|error| panic!("{}: {skeleton}: {error}", dates.locale));
                 }
@@ -308,6 +319,11 @@ mod tests {
             ])
         );
         assert_eq!(
+            compile_date_pattern("!", "Y"),
+            Err(DatePatternError::MissingWeekData { locale: "!".into() })
+        );
+        assert!(compile_date_pattern("en-GB", "Y YY YYYY").is_ok());
+        assert_eq!(
             compile_date_pattern("en", "é QQQQQQ"),
             Err(DatePatternError::UnsupportedField {
                 symbol: 'Q',
@@ -319,7 +335,9 @@ mod tests {
             compile_date_pattern("en", "é 'open"),
             Err(DatePatternError::UnclosedQuote { offset: 3 })
         );
-        for pattern in ["cc", "eeeeeee", "MMMMMM", "zzzzz", "OO", "vv", "XXXXXX"] {
+        for pattern in [
+            "w", "W", "cc", "eeeeeee", "MMMMMM", "zzzzz", "OO", "vv", "XXXXXX",
+        ] {
             assert!(
                 matches!(
                     compile_date_pattern("en", pattern),

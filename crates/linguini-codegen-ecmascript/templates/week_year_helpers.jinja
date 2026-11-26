@@ -1,0 +1,17 @@
+/**
+ * @param {Date} date
+ * @param {number} year
+ * @param {number} month
+ * @returns {number}
+ */
+function getWeekYear(date, year, month) {
+{% if previous_last_day is not none %}  if (month === 0) {
+    const day = date.getUTCDate();
+    if (day <= {{ previous_last_day }} && day + {{ anchor_offset }} - {% if weekday_shift %}((date.getUTCDay() + {{ weekday_shift }}) % 7){% else %}date.getUTCDay(){% endif %} < 1) return year - 1;
+  }
+{% endif %}{% if next_first_day is not none %}  if (month === 11) {
+    const day = date.getUTCDate();
+    if (day >= {{ next_first_day }} && day + {{ anchor_offset }} - {% if weekday_shift %}((date.getUTCDay() + {{ weekday_shift }}) % 7){% else %}date.getUTCDay(){% endif %} > 31) return year + 1;
+  }
+{% endif %}  return year;
+}

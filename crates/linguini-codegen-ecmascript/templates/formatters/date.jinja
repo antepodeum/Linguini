@@ -5,7 +5,13 @@
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {
   const date = coerceDate(value);
-{% if clock.year %}{% if clock.era %}  const extendedYear = date.getUTCFullYear();
+{% if clock.week_year %}  const extendedYear = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const weekYear = getWeekYear(date, extendedYear, month);
+{% if clock.signed_week_year %}  const weekYearMagnitude = Math.abs(weekYear);
+  const weekYearSign = weekYear < 0 ? {{ clock.minus_sign|js }} : "";
+{% endif %}{% if clock.year %}  const year = extendedYear > 0 ? extendedYear : 1 - extendedYear;
+{% endif %}{% elif clock.year %}{% if clock.era %}  const extendedYear = date.getUTCFullYear();
   const year = extendedYear > 0 ? extendedYear : 1 - extendedYear;
 {% else %}  let year = date.getUTCFullYear();
   if (year <= 0) year = 1 - year;

@@ -110,8 +110,16 @@ Quarter skeletons `yQQQ`/`yQQQQ` now compile `Q`/`q` arithmetic or selected four
 Both contexts and all widths are checked against all 508 pinned Gregorian locale records;
 execution covers every month, UTC offset boundaries, Arabic digits, BCE, and supplied-Date
 getter observations. Actual bundles omit unused quarter work. Unknown IDs, style conflicts,
-and unsupported selected fields preserve existing owned output, including the week-based `Y`
-in Scottish Gaelic `yMMM`.
+and malformed skeleton IDs preserve existing owned output. Every source-selectable exact ID
+across 508 resolved locale records now compiles; unsupported fields such as week-number `w`
+still produce structured shared-compiler errors. Plural-suffixed internal IDs such as
+`yw-count-one` remain outside the source request grammar.
+Week-year `Y` compiles the requested territory's first weekday/minimum-days rules into bounded
+January/December arithmetic. The shared plan is checked for all 49 rule combinations across a
+Gregorian cycle. Eight-locale execution checks eight signed widths, BCE/CE boundaries, localized
+signs/digits, and independent calendar-year/era fields. Only selected requests emit the helper;
+impossible boundary branches and unused sign/padding bindings are absent. Native cold/warm
+builds execute Scottish Gaelic `yMMM` and preserve both locales' output after an invalid request.
 Closest-match/width-adjusted skeletons, combined date/time synthesis, other calendars, and
 selectable non-UTC zones remain open under GEN-A13/#158.
 

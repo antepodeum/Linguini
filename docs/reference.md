@@ -338,8 +338,10 @@ surface. Current guarantees are:
   selects an exact ID from that locale's pinned Gregorian `availableFormats`. Skeleton IDs
   cannot be combined with `style` or `time_style`. An unavailable ID or unsupported field
   fails generation before output changes; no closest-match or host-formatting fallback runs.
-  Week-based fields remain unsupported, including the `Y` in the pinned Scottish Gaelic
-  `yMMM` pattern. Such patterns fail explicitly rather than substituting calendar-year semantics.
+  Week-based year `Y` follows the locale territory's first weekday and minimum days in the
+  first week, including the pinned Scottish Gaelic `yMMM` pattern. It retains signed extended
+  years, while `y` renders the year of era. `YY` keeps the last two absolute digits and the sign;
+  other widths set the minimum digit count. Week-number fields `w`/`W` remain unsupported.
   Selectable time zones, non-Gregorian calendars, closest-match skeletons, and synthesized
   date/time combinations remain under remediation.
 

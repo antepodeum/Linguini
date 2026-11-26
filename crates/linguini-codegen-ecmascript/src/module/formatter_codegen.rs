@@ -5,7 +5,9 @@ use linguini_cldr::{
     NumberPaddingPosition, NumberPattern,
 };
 
-use super::formatter_helpers::{date_formatter_helpers, digit_formatter_helper, digit_lookup};
+use super::formatter_helpers::{
+    date_formatter_helpers, digit_formatter_helper, digit_lookup, week_year_formatter_helper,
+};
 
 pub(super) fn formatter_data_declaration(
     locale: &str,
@@ -79,6 +81,7 @@ pub(super) fn formatter_data_declaration(
                 output.push_str(&source);
                 date_helpers.padding |= helpers.padding;
                 date_helpers.digits |= helpers.digits;
+                date_helpers.week_year |= helpers.week_year;
             }
             linguini_ir::IrFormatterKind::Unknown(_) => unreachable!("validated formatter request"),
         }
@@ -88,6 +91,9 @@ pub(super) fn formatter_data_declaration(
     }
     if needs_date {
         output.push_str(&date_formatter_helpers(date_helpers.padding));
+    }
+    if date_helpers.week_year {
+        output.push_str(&week_year_formatter_helper(locale));
     }
     if date_helpers.digits {
         let dates = compiled_date_formatting(locale).expect("validated date locale");
@@ -191,6 +197,7 @@ fn number_plan(
 
 #[derive(Default)]
 struct DateHelperRequirements {
+    week_year: bool,
     padding: bool,
     digits: bool,
 }
@@ -326,13 +333,22 @@ fn date_parts(
         }
         let numeric = matches!(
             character,
-            'y' | 'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' | 'S'
+            'y' | 'Y' | 'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' | 'S'
         ) || matches!(character, 'M' | 'L' | 'Q' | 'q') && width <= 2;
-        helpers.padding |=
-            character == 'S' || (numeric && width == 2) || (character == 'y' && width > 2);
+        helpers.padding |= character == 'S'
+            || (numeric && width == 2)
+            || (matches!(character, 'y' | 'Y') && width > 2);
         helpers.digits |= numeric && dates.digits != "0123456789";
         parts.push(context! { kind => "field", field => character.to_string(), width, table, numeric, period, am => symbols.am, pm => symbols.pm, ad => symbols.ad, bc => symbols.bc });
     }
+    helpers.week_year = fields.contains(&'Y');
+    let minus_sign = helpers.week_year.then(|| {
+        compiled_number_formatting(requested_locale)
+            .expect("validated numeric date symbols")
+            .minus_sign
+    });
+    let signed_week_year = minus_sign.is_some_and(|sign| sign != "-")
+        || parsed.iter().any(|part| matches!(part, linguini_codegen::DatePatternPart::Field { symbol: 'Y', width } if *width > 1));
     CompiledDatePattern {
         localize_result: helpers.digits
             && linguini_codegen::can_localize_date_result(&parsed, textual_symbols),
@@ -346,6 +362,9 @@ fn date_parts(
         clock: context! {
             exact_time => exact_count > 1 && (fields.contains(&'m') || fields.contains(&'s') || fields.contains(&'S')),
             year => fields.contains(&'y'),
+            week_year => fields.contains(&'Y'),
+            minus_sign,
+            signed_week_year,
             era => fields.contains(&'G'),
             hours => has_periods,
             minutes => (exact_periods || total_minutes) && fields.contains(&'m'),

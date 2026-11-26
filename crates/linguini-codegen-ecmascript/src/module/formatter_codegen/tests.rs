@@ -1,3 +1,5 @@
+mod week_year;
+
 use super::super::formatters::{formatter_binding, FormatterRequest};
 use super::*;
 use linguini_cldr::{NumberFormatData, NumberPadding, NumberPatternPart};

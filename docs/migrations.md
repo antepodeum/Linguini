@@ -4,6 +4,16 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Gregorian week-year fields
+
+Regenerate to use pinned Gregorian patterns containing `Y`, including Scottish Gaelic `yMMM`.
+Week-year boundaries follow the requested locale territory's week conventions in UTC. They can
+fall in the previous or next calendar year. `Y` keeps a signed extended year (including year zero
+and BCE); `y` continues to render the year of era. `YY` keeps two absolute digits with the sign,
+while other widths set minimum digit counts. Numeric symbols come from pinned locale data.
+Only selected patterns emit boundary helpers; no CLDR week table or pattern parser is shipped.
+Other week-number fields, other calendars, and selectable non-UTC zones remain under remediation.
+
 ## Localized numeric affixes
 
 Regenerate output to receive pinned CLDR minus signs and bidirectional marks in decimal and
@@ -183,7 +193,7 @@ Selected `Q`/`q` fields compile in Rust: widths one/two emit UTC quarter arithme
 localized digits and optional padding; widths three/four/five select abbreviated/wide/narrow
 quarter symbols in the matching format or standalone context. Equal name vectors share data.
 Message signatures and the Date input contract are unchanged. Unused quarter formatters and
-tables are removed by bundlers. Week-based fields, other calendars, and selectable non-UTC
+tables are removed by bundlers. Week-number fields, other calendars, and selectable non-UTC
 zones remain under remediation; unsupported selected patterns still fail before output writes.
 
 ## Shared date name tables
