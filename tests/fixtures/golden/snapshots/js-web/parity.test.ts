@@ -80,12 +80,14 @@ for (const [name, sources] of cases) {
       }
       for (const input of [{}, { origin: "https://example.test", httpOnly: true }, { origin: "http://example.test", secure: true, maxAge: 5 }]) {
         const serialized = compiler === npm ? webPackage.serializeLocaleCookie(web,"fr",input) : web.serializeLocaleCookie("fr",input);
-        expect(serialized).toBe(oracle.serializeLocaleCookie("fr", input));
+        // Current persistence honors the configured origin when no per-call origin is supplied.
+        const cookieInput = compiler === npm ? {...input,origin:input.origin ?? environment.origin} : input;
+        expect(serialized).toBe(oracle.serializeLocaleCookie("fr", cookieInput));
         const headers = new Headers({ "set-cookie": "theme=dark" });
         if (compiler === npm) persistLocaleCookie(web,{headers},"fr",input);
         else web.setLocaleCookie({ headers }, "fr", input);
         expect(headers.get("set-cookie")).toContain("theme=dark");
-        expect(headers.get("set-cookie")).toContain(oracle.serializeLocaleCookie("fr", input));
+        expect(headers.get("set-cookie")).toContain(oracle.serializeLocaleCookie("fr", cookieInput));
       }
       const context = web.createRequestContext("fr", { origin: "https://request.test", currentUrl: "https://request.test/app/shop" });
       expect(context.messages).toEqual({ locale: "fr" });

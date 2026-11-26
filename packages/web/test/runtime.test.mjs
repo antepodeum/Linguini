@@ -61,6 +61,41 @@ test('explicit cookie transports preserve serialization, append headers, and pre
   assert.equal(serializeLocaleCookie(web,'fr',{...input,secure:false,httpOnly:false}), 'LANG=fr; Max-Age=60; Path=/app; Domain=example.test; SameSite=strict');
 });
 
+test('automatic secure cookies use request, configured, and browser origins in order', context => {
+  const descriptor=Object.getOwnPropertyDescriptor(globalThis,'location');
+  context.after(()=>{if(descriptor) Object.defineProperty(globalThis,'location',descriptor);else delete globalThis.location;});
+  Object.defineProperty(globalThis,'location',{configurable:true,value:{href:'https://browser.test/page'}});
+  for (const [origin,policy,input,expected] of [
+    ['https://configured.test','auto',{},true],
+    [new URL('https://configured.test'),'auto',{},true],
+    ['http://configured.test','auto',{},false],
+    [undefined,'auto',{},true],
+    ['https://configured.test','auto',{origin:'http://request.test'},false],
+    ['http://configured.test','auto',{origin:new URL('https://request.test')},true],
+    ['https://configured.test','auto',{origin:'http://['},false],
+    ['https://configured.test','auto',{secure:false},false],
+    ['http://configured.test','auto',{secure:true},true],
+    ['https://configured.test',false,{},false],
+    ['http://configured.test',true,{},true],
+    ['https://configured.test',true,{secure:false},false],
+    ['http://configured.test',false,{secure:true},true],
+  ]) {
+    const web=createWebLocaleI18n(runtime,{cookie:{secure:policy}},{origin});
+    assert.equal(/; Secure(?:;|$)/.test(serializeLocaleCookie(web,'fr',input)),expected,`${origin}; ${JSON.stringify(input)}`);
+    let actual;
+    persistLocaleCookie(web,{cookies:{set(_name,_value,options){actual=options.secure;}}},'fr',input);
+    assert.equal(actual,expected,'cookie and header transports must agree');
+  }
+  Object.defineProperty(globalThis,'location',{configurable:true,value:{href:'http://browser.test/page'}});
+  const web=createWebLocaleI18n(runtime);
+  assert.doesNotMatch(serializeLocaleCookie(web,'fr'),/; Secure(?:;|$)/);
+  const configured=createWebLocaleI18n(runtime,{}, {origin:'https://configured.test'});
+  assert.match(serializeLocaleCookie(configured,'fr'),/; Secure(?:;|$)/);
+  delete globalThis.location;
+  assert.doesNotMatch(serializeLocaleCookie(web,'fr'),/; Secure(?:;|$)/);
+  assert.match(serializeLocaleCookie(configured,'fr'),/; Secure(?:;|$)/);
+});
+
 test('cookie and switch endpoint policy runs at application startup and rejects unsafe returns', () => {
   const web = createWebLocaleI18n(runtime, {routing:{localePrefix:'never'},locale:{sources:[cookieLocale({name:'LANG',httpOnly:true,secure:true})]}}, environment);
   const handle = createLocaleSwitchHandler(web,{path:'/locale/{locale}/set',returnQuery:'next',status:307});

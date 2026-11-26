@@ -38,6 +38,8 @@ Cookie serialization is an explicit `serializeLocaleCookie(web, locale, input)` 
 `@antepodeum/linguini-web`; server writes use `persistLocaleCookie(web, target, locale, input)`
 from `@antepodeum/linguini-web/server`. The metadata/routing object holds normalized policy,
 without owning those implementations. Client controls and framework hooks compose them.
+For `secure: "auto"`, cookie helpers select the per-call origin, configured environment origin,
+then browser location. Explicit per-call secure flags and fixed cookie policies retain priority.
 
 `linguini-codegen-svelte` emits project imports and types backed by the reusable
 `@antepodeum/linguini-svelte` runtime. The ECMAScript backend remains independent of framework

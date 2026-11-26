@@ -22,7 +22,7 @@ export function persistLocaleCookie<Locale extends string>(web: import('./index.
             domain: policy.domain,
             maxAge: input.maxAge ?? policy.maxAge,
             sameSite: policy.sameSite,
-            secure: resolveCookieSecure(policy.secure, input),
+            secure: resolveCookieSecure(policy.secure, input, web.options.environment.origin),
             httpOnly: input.httpOnly ?? policy.httpOnly,
         });
     }

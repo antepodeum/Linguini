@@ -87,7 +87,7 @@ metadata/routing object, even when the application used only path resolution. Se
 lives in one shared helper, used by browser controls and server persistence. Server sinks are owned
 by the existing `persistLocaleCookie` export; the metadata object retains normalized policy.
 
-A complete consumer exporting path resolution and link localization on Vite 7.3.3 shrinks from
+A complete consumer exporting path resolution and link localization on Vite 7.3.3 at `51a7daa` shrinks from
 12,260 to 11,196 minified bytes, 3,882 to 3,585 gzip bytes, and 3,436 to 3,186 Brotli bytes.
 Both versions execute the same path/fallback/link results. A separate Vite 8 graph gate proves
 zero rendered bytes from persistence, browser/server transports, and unselected resolver modules,

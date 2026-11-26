@@ -4,6 +4,16 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Automatic cookie security honors application origins
+
+For `secure: "auto"`, cookie serialization and server writes now use the configured environment
+origin when the call does not supply an origin. Previously that configuration was ignored, so a
+server-side HTTPS application could serialize a cookie without `Secure`; a browser location could
+also override an explicit application origin. Per-call origins still take precedence, browser
+location remains the next fallback, and explicit secure flags/fixed policies retain their priority.
+No configuration migration is required. The frozen parity oracle receives the effective origin
+explicitly for this intentional behavior correction.
+
 ## Explicit cookie persistence helpers
 
 `LinguiniWebLocale` and `LinguiniWeb` no longer expose `serializeLocaleCookie` or `setLocaleCookie`

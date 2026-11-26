@@ -833,6 +833,11 @@ TypeScript, and application/bundler imports select their capabilities.
 - [x] WEB-A12 — Normalize and validate runtime options when creating application adapters.
       Preserve source order and a common browser/server transition policy; keep this policy out
       of native configuration, compiler semantics, and generated message artifacts.
+      Automatic cookie security also honors the normalized application origin after per-call
+      origins and before browser location. Executed header/cookie-sink cases cover both protocols,
+      URL objects, absent browser state, invalid origins, and explicit policy/secure overrides.
+      Four web/Kit/package/parity gates, 25 Node 20 web/hook/graph tests, and all nine site-profile
+      gates pass this follow-up; the frozen comparison implementations are unchanged.
 - [-] WEB-A13 — Import resolver implementations as explicit capabilities and keep metadata-only
       request hooks independent of message catalogs. Verify tree-shaken page graphs for unused
       platform operations and libraries; exact delivery remains GEN-A9/MOD-A4.

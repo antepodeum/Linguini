@@ -167,6 +167,9 @@ canonical handling. Cookie options include `name`, `path`, `domain`, positive `m
 `sameSite`, `secure`, and `httpOnly`. `auto` cookie paths follow SvelteKit's base. `SameSite=None`
 requires a secure cookie. HttpOnly browser switching needs a server persistence callback or the
 switch endpoint. Read sources and write transports are separate runtime choices.
+With `secure: "auto"`, persistence uses the per-call origin, then the configured environment
+origin, then browser location. An explicit secure flag overrides protocol detection. Header and
+cookie-sink transports use the same decision.
 
 ```ts
 // src/hooks.server.ts

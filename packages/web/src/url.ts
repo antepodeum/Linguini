@@ -82,12 +82,12 @@ export function resolveEnvironmentProtocol(origin: string | URL | undefined): st
     }
 }
 
-export function resolveCookieSecure(policy: boolean | "auto", input: Record<string, unknown>): boolean {
+export function resolveCookieSecure(policy: boolean | "auto", input: Record<string, unknown>, origin?: string | URL): boolean {
     if (typeof input.secure === "boolean")
         return input.secure;
     if (policy !== "auto")
         return policy;
-    return resolveEnvironmentProtocol(input.origin as string | URL | undefined) === "https:";
+    return resolveEnvironmentProtocol((input.origin as string | URL | undefined) ?? origin) === "https:";
 }
 
 export function parseRuntimeUrl(url: string | URL, options: LinguiniWebLocale<string>["options"], input: Record<string, unknown> = {}): URL {

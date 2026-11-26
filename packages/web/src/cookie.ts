@@ -10,7 +10,7 @@ export function serializeLocaleCookie<Locale extends string>(web: LinguiniWebLoc
     if (cookie.domain)
         parts.push(`Domain=${cookie.domain}`);
     parts.push(`SameSite=${cookie.sameSite}`);
-    if (resolveCookieSecure(cookie.secure, input))
+    if (resolveCookieSecure(cookie.secure, input, web.options.environment.origin))
         parts.push('Secure');
     if (input.httpOnly ?? cookie.httpOnly)
         parts.push('HttpOnly');
