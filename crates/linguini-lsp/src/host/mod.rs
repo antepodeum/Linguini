@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::time::Duration;
 mod memory;
 mod snapshot;
-pub use memory::{MemoryWorkspace, WorkspaceFile, WorkspaceSourceRoots};
+pub use memory::{MemoryWorkspace, WorkspaceFile, WorkspaceSourcePlan, WorkspaceSourceRoots};
 
 use tower_lsp_server::lsp_types::Url as Uri;
 
@@ -48,6 +48,23 @@ pub(crate) const MAX_INDEXED_BYTES: u64 = 128 * 1024 * 1024;
 pub(crate) const MAX_PROJECT_FILES: usize = 20_000;
 pub(crate) const MAX_PROJECT_BYTES: u64 = 64 * 1024 * 1024;
 pub(crate) const MAX_DOCUMENT_BYTES: u64 = 4 * 1024 * 1024;
+
+/// Bounds shared with hosts that enumerate and read saved workspace files.
+#[derive(Debug, Clone, Copy)]
+pub struct WorkspaceLimits {
+    pub max_entries: usize,
+    pub max_depth: usize,
+    pub max_roots: usize,
+    pub max_file_bytes: u64,
+    pub max_bytes: u64,
+}
+pub const WORKSPACE_LIMITS: WorkspaceLimits = WorkspaceLimits {
+    max_entries: MAX_WORKSPACE_ENTRIES,
+    max_depth: MAX_WORKSPACE_DEPTH,
+    max_roots: MAX_WORKSPACE_ROOTS,
+    max_file_bytes: MAX_DOCUMENT_BYTES,
+    max_bytes: MAX_INDEXED_BYTES,
+};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct ProjectContext {

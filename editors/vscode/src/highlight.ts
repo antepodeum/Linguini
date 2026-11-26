@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import type { BaseLanguageClient } from 'vscode-languageclient';
 import { linguiniFences } from './markdown';
 
 interface HighlightResult {
@@ -9,7 +9,7 @@ interface HighlightResult {
 }
 
 export async function registerMarkdownHighlighting(
-  client: LanguageClient,
+  client: BaseLanguageClient,
   enabled: () => boolean
 ): Promise<vscode.Disposable> {
   const highlight = await client.sendRequest<HighlightResult>('linguini/highlight', {
@@ -18,7 +18,7 @@ export async function registerMarkdownHighlighting(
   if (highlight.version !== 1) throw new Error('Unsupported native highlight version');
   const legend = new vscode.SemanticTokensLegend(highlight.legend);
   return vscode.languages.registerDocumentSemanticTokensProvider(
-    [{ language: 'markdown', scheme: 'file' }, { language: 'markdown', scheme: 'untitled' }],
+    [{ language: 'markdown' }],
     {
       async provideDocumentSemanticTokens(document, cancellation) {
         if (!enabled()) return null;

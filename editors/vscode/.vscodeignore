@@ -11,3 +11,8 @@ tsconfig.json
 node_modules/**
 out/**
 package-lock.json
+
+dist/*.sha256
+dist/wasm/*.d.ts
+pnpm-lock.yaml
+pnpm-workspace.yaml

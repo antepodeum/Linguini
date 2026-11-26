@@ -6,12 +6,21 @@ editor boundaries to update this file, public documentation, and executable test
 
 ## Shared LSP host services
 
+The editor includes a WASM worker fallback and a browser entry. Existing desktop native settings
+keep their resolution order and LSP handshake, including explicit command/argument launchers.
+`linguini.server.runtime` defaults to auto; native and wasm select a runtime explicitly. Auto uses
+WASM for browser/virtual workspaces and when an automatic native candidate cannot be used.
+The universal VSIX contains the worker; native VSIX packages include it alongside their binary.
+No first-activation executable download is needed. Extension builds require the WASM Rust target;
+`pnpm bundle` generates the worker and bindings in ignored build output.
+
 Native CLI and editor protocol behavior are unchanged. The Rust LSP crate now also exposes
 `MemoryWorkspace`, saved-file/source-root types, and a scheduler interface for embedding the
 same server without native filesystem access. Host-provided paths use the config crate's
 shared namespace classification. Updating saved files requires the normal watched-files
 notification; it does not replace open-buffer synchronization. No editor setting or application
-source migration is required. A WASM compile alone does not provide an installed worker fallback.
+source migration is required. `source_plan` returns valid roots together with invalid-project
+errors; `source_roots` retains its strict all-valid result for existing embedding callers.
 
 ## Functions without selectors
 

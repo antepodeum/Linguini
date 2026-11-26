@@ -27,9 +27,9 @@
   ],
   "main": "./dist/extension.js",
   "scripts": {
-    "compile": "tsc -p ./",
-    "test": "pnpm run compile && node --test out/highlight.test.js out/restart.test.js out/server-resolution.test.js",
-    "bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=dist/extension.js --sourcemap --sources-content=false",
+    "compile": "node -e \"require('node:fs').rmSync('out', {recursive:true,force:true})\" && tsc -p ./",
+    "test": "pnpm run compile && node --test out/*.test.js out/wasm/*.test.js",
+    "bundle": "node ./scripts/bundle.js",
     "test:integration": "pnpm run bundle && node ./scripts/run-integration-tests.js",
     "package:vsix": "node ./scripts/package-vsix.js",
     "watch": "tsc -watch -p ./",
@@ -37,7 +37,9 @@
     "audit:prod": "pnpm audit --prod",
     "vscode:prepublish": "pnpm run compile && pnpm test",
     "check": "pnpm run compile && pnpm audit --audit-level=moderate",
-    "dev:host": "pnpm run compile && node ./scripts/open-extension-host.js"
+    "dev:host": "pnpm run compile && node ./scripts/open-extension-host.js",
+    "build:wasm": "node ./scripts/build-wasm.js",
+    "test:wasm": "pnpm run compile && pnpm run build:wasm && node --test test/wasm-worker.test.mjs"
   },
   "contributes": {
     "languages": [
@@ -101,6 +103,16 @@
           "type": "boolean",
           "default": true,
           "description": "Enable semantic highlighting from `linguini lsp`."
+        },
+        "linguini.server.runtime": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "native",
+            "wasm"
+          ],
+          "default": "auto",
+          "description": "Language server runtime. Auto prefers a compatible native server on desktop and uses the bundled WASM worker when native execution is unavailable. Browser and virtual workspaces use WASM."
         }
       }
     },
@@ -203,6 +215,11 @@
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.1",
     "ovsx": "1.0.2",
+    "playwright": "1.64.1",
     "typescript": "5.9.3"
+  },
+  "browser": "./dist/extension-browser.js",
+  "capabilities": {
+    "virtualWorkspaces": true
   }
 }

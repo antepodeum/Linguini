@@ -16,6 +16,10 @@ export interface ResolvedServer {
   cwd?: string;
 }
 
+export function canFallbackToWasm(runtime: string, source: ResolvedServer['source']): boolean {
+  return runtime === 'auto' && (source === 'path' || source === 'bundled');
+}
+
 export function resolveServer(options: ServerResolutionOptions): ResolvedServer {
   const cwd = workspaceCwd(options.workspaceFolders, options.workspaceFile);
   const explicit = options.explicitPath?.trim();

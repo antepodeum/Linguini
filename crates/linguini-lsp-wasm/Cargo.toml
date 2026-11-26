@@ -1,0 +1,22 @@
+[package]
+name = "linguini-lsp-wasm"
+version = "0.1.0-alpha.4"
+description = "Web worker transport for the shared Linguini language server"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+linguini-lsp = { path = "../linguini-lsp", version = "0.1.0-alpha.4" }
+futures = { version = "=0.3.32", default-features = false, features = ["std", "async-await"] }
+js-sys = "=0.3.107"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+tower-service = "=0.3.3"
+tower-lsp-server = { package = "tower-lsp", version = "=0.20.0", default-features = false, features = ["runtime-agnostic"] }
+wasm-bindgen = "=0.2.130"
+wasm-bindgen-futures = "=0.4.80"

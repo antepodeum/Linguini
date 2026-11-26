@@ -192,6 +192,11 @@ jobs:
         run: >-
           cargo +stable msrv verify --rust-version "${{ steps.minimum.outputs.version }}"
           -- cargo check --locked --workspace --all-targets
+      - name: Verify WASM server on declared minimum
+        run: >-
+          cargo +stable msrv verify --rust-version "${{ steps.minimum.outputs.version }}"
+          --target wasm32-unknown-unknown
+          -- cargo check --locked -p linguini-lsp-wasm --target wasm32-unknown-unknown
 
   platforms:
     name: Rust (${{ matrix.os }})
@@ -368,6 +373,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
         with:
           version: 11.1.0
@@ -379,3 +388,11 @@ jobs:
       - name: Install, test, and compile extension
         working-directory: editors/vscode
         run: pnpm install --frozen-lockfile && pnpm test && pnpm run compile
+      - name: Install browser for WASM worker tests
+        working-directory: editors/vscode
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Verify shared WASM protocol and extension bundles
+        working-directory: editors/vscode
+        run: pnpm test:wasm && pnpm bundle
+      - name: Verify WASM target with strict Clippy
+        run: cargo clippy --locked -p linguini-lsp-wasm --target wasm32-unknown-unknown -- -D warnings

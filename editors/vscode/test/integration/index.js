@@ -1,7 +1,14 @@
 const assert = require('node:assert/strict');
 const vscode = require('vscode');
 
-async function run() {
+async function exercise() {
+  const config = vscode.workspace.getConfiguration('linguini.server');
+  await config.update('path', '', vscode.ConfigurationTarget.Global);
+  await config.update('useWorkspaceCli', false, vscode.ConfigurationTarget.Global);
+  await config.update('args', ['lsp'], vscode.ConfigurationTarget.Global);
+  await config.update(
+    'runtime', process.env.LINGUINI_TEST_RUNTIME || 'native', vscode.ConfigurationTarget.Global
+  );
   const extension = vscode.extensions.getExtension('antepod.linguini-vscode');
   assert.ok(extension, 'development extension must be installed');
   await extension.activate();
@@ -25,6 +32,14 @@ async function run() {
     .map((content) => (typeof content === 'string' ? content : content.value))
     .join('\n');
   assert.match(hoverText, /Product delivery sentence shown after checkout\./);
+  const savedLocale = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, 'linguini', 'locale', 'shop', 'en.lgl')
+  );
+  const savedPosition = savedLocale.positionAt(savedLocale.getText().indexOf('delivery ='));
+  const savedHover = await vscode.commands.executeCommand('vscode.executeHoverProvider', savedLocale.uri, savedPosition);
+  assert.match(savedHover.flatMap((item) => item.contents).map((item) => typeof item === 'string' ? item : item.value).join('\n'), /Product delivery sentence shown after checkout\./);
+  const definitions = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', savedLocale.uri, savedPosition);
+  assert.ok(definitions.some((item) => (item.targetUri || item.uri).toString() === document.uri.toString()), 'saved schemas must be indexed and their URIs mapped back to the workspace');
   const locale = await vscode.workspace.openTextDocument({ language: 'linguini-locale', content:
     'plain = 🍎 He said "hello" {name}\r\nblock = """\r\n  text {name}\r\n"""\r\n' });
   await assertHighlight(locale, '"hello"', 'string');
@@ -38,6 +53,19 @@ async function run() {
   await assertHighlight(locale, '"hello"', 'string');
   await vscode.commands.executeCommand('linguini.restartServer');
   await assertHighlight(markdown, '"hello"', 'string');
+
+  if ((process.env.LINGUINI_TEST_RUNTIME || 'native') === 'native') {
+    const binary = vscode.Uri.joinPath(extension.extensionUri, 'dist/server', process.platform === 'win32' ? 'linguini.exe' : 'linguini').fsPath;
+    await config.update('path', process.env.LINGUINI_TEST_NODE, vscode.ConfigurationTarget.Global);
+    await config.update('args', [process.env.LINGUINI_TEST_LAUNCHER, binary], vscode.ConfigurationTarget.Global);
+    try {
+      await vscode.commands.executeCommand('linguini.restartServer');
+      await assertHighlight(markdown, '"hello"', 'string');
+    } finally {
+      await config.update('path', '', vscode.ConfigurationTarget.Global);
+      await config.update('args', ['lsp'], vscode.ConfigurationTarget.Global);
+    }
+  }
 
 }
 
@@ -59,4 +87,14 @@ async function assertHighlight(document, text, expectedType) {
   assert.fail(`${document.languageId}: no semantic highlight for ${text}`);
 }
 
+async function run() {
+  const previous = process.env.PATH;
+  // Universal-package auto mode must work with neither a bundled binary nor a PATH executable.
+  if (process.env.LINGUINI_TEST_RUNTIME === 'auto') process.env.PATH = '';
+  try { await exercise(); }
+  finally {
+    if (previous === undefined) delete process.env.PATH;
+    else process.env.PATH = previous;
+  }
+}
 module.exports = { run };

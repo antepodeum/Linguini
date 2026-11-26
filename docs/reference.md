@@ -1113,8 +1113,14 @@ must be mapped consistently to absolute local `file:` URIs for files and protoco
 The config crate's `schema_files_from_paths` and `locale_files_from_paths` share native discovery's
 namespace derivation, ordering, locale validation, and collision checks without reading files.
 Filesystem metadata, link checks, and reading remain the filesystem host's responsibility.
-The shared server builds for `wasm32-unknown-unknown`; the released editor still uses native
-stdio until worker transport and browser packaging are integrated and verified.
+`MemoryWorkspace::source_plan` retains valid projects alongside configuration errors so one
+invalid config cannot hide other workspace projects. The `linguini-lsp-wasm` crate supplies a
+worker transport around this same service. The editor reads saved files through `workspace.fs`,
+maps file/remote/virtual roots consistently, and leaves parsing and language features in Rust.
+Native and universal VSIX packages include the worker; `linguini.server.runtime` selects auto,
+native, or WASM. Auto uses WASM in browser/virtual workspaces and when an automatic desktop
+native candidate is unusable. Explicit/workspace native launchers retain the protocol handshake.
+Bindings and WASM binaries are generated during builds and remain outside Git.
 
 Linguini files are highlighted by the recoverable Rust lexer and the shared schema/locale
 semantic walk. `linguini-schema::highlight_tokens` classifies those tokens and occurrences;

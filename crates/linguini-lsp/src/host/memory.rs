@@ -21,6 +21,13 @@ pub struct WorkspaceSourceRoots {
     pub locale_uri: String,
 }
 
+/// Valid projects can be indexed even when another configuration is invalid.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WorkspaceSourcePlan {
+    pub roots: Vec<WorkspaceSourceRoots>,
+    pub errors: Vec<String>,
+}
+
 /// A bounded, saved-file snapshot owned by the embedding host.
 ///
 /// The host resolves its workspace URIs to absolute local `file:` URIs before supplying files
@@ -72,16 +79,37 @@ impl MemoryWorkspace {
     /// Resolve configured schema/locale roots before the host reads their source files.
     /// Configuration parsing, validation, and namespace policy remain entirely in Rust.
     pub fn source_roots(&self, roots: &[String]) -> Result<Vec<WorkspaceSourceRoots>, String> {
+        let plan = self.source_plan(roots)?;
+        if !plan.errors.is_empty() {
+            return Err(plan.errors.join("\n"));
+        }
+        Ok(plan.roots)
+    }
+
+    /// Plan valid source roots and retain configuration errors for host reporting.
+    pub fn source_plan(&self, roots: &[String]) -> Result<WorkspaceSourcePlan, String> {
         let roots = roots
             .iter()
             .map(|uri| file_path(uri))
             .collect::<Result<Vec<_>, _>>()?;
         let files = self.0.read().map_err(|_| "workspace lock poisoned")?;
-        let (contexts, errors) = contexts(&files, &roots);
-        if !errors.is_empty() {
-            return Err(errors.join("\n"));
+        let (mut contexts, mut errors) = contexts(&files, &roots);
+        if contexts.len() > MAX_WORKSPACE_PROJECTS {
+            push_index_error(
+                &mut errors,
+                format!("workspace exceeds {MAX_WORKSPACE_PROJECTS} projects"),
+            );
+            contexts.sort_by(|left, right| {
+                right
+                    .root
+                    .components()
+                    .count()
+                    .cmp(&left.root.components().count())
+                    .then_with(|| left.root.cmp(&right.root))
+            });
+            contexts.truncate(MAX_WORKSPACE_PROJECTS);
         }
-        contexts
+        let roots = contexts
             .into_iter()
             .map(|context| {
                 Ok(WorkspaceSourceRoots {
@@ -90,7 +118,8 @@ impl MemoryWorkspace {
                     locale_uri: uri(&context.locale_root)?,
                 })
             })
-            .collect()
+            .collect::<Result<_, String>>()?;
+        Ok(WorkspaceSourcePlan { roots, errors })
     }
 
     /// Create the same protocol/semantic service used by the native stdio server.

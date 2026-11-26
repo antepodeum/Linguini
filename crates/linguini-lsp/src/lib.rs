@@ -16,8 +16,8 @@ pub use highlight::highlight_source;
 #[cfg(not(target_arch = "wasm32"))]
 pub use host::{run_stdio, run_stdio_blocking, try_run_stdio_blocking, NativeScheduler};
 pub use host::{
-    LspScheduler, LspTask, MemoryWorkspace, WorkspaceFile, WorkspaceSourceRoots,
-    WORKSPACE_IGNORED_DIRECTORIES,
+    LspScheduler, LspTask, MemoryWorkspace, WorkspaceFile, WorkspaceLimits, WorkspaceSourcePlan,
+    WorkspaceSourceRoots, WORKSPACE_IGNORED_DIRECTORIES, WORKSPACE_LIMITS,
 };
 
 #[cfg(test)]

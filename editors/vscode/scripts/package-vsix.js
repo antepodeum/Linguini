@@ -2,14 +2,15 @@ const cp = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const esbuild = require('esbuild');
 
 const extensionRoot = path.resolve(__dirname, '..');
 const repositoryRoot = path.resolve(extensionRoot, '..', '..');
 const outDir = path.join(extensionRoot, 'dist');
+const packageDir = process.env.LINGUINI_VSIX_OUT_DIR ? path.resolve(process.env.LINGUINI_VSIX_OUT_DIR) : outDir;
 const serverDir = path.join(outDir, 'server');
 const packageJson = require(path.join(extensionRoot, 'package.json'));
-const target = process.env.VSCE_TARGET?.trim();
+const requestedTarget = process.env.VSCE_TARGET?.trim();
+const target = requestedTarget === 'universal' ? undefined : requestedTarget;
 const executableName = target?.startsWith('win32') ? 'linguini.exe' : 'linguini';
 const configuredBinary = process.env.LINGUINI_SERVER_BINARY?.trim();
 const defaultBinary = path.join(
@@ -20,26 +21,12 @@ const defaultBinary = path.join(
 );
 const sourceBinary = path.resolve(configuredBinary || defaultBinary);
 
-fs.rmSync(outDir, { recursive: true, force: true });
+fs.rmSync(serverDir, { recursive: true, force: true });
 fs.mkdirSync(serverDir, { recursive: true });
 run('pnpm', ['run', 'compile']);
-bundleExtension();
-vendorServer();
+run(process.execPath, [path.join(__dirname, 'bundle.js')]);
+if (target) vendorServer();
 packageVsix();
-
-function bundleExtension() {
-  esbuild.buildSync({
-    entryPoints: [path.join(extensionRoot, 'src', 'extension.ts')],
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node20',
-    external: ['vscode'],
-    outfile: path.join(outDir, 'extension.js'),
-    sourcemap: true,
-    sourcesContent: false
-  });
-}
 
 function vendorServer() {
   if (!fs.statSync(sourceBinary, { throwIfNoEntry: false })?.isFile()) {
@@ -84,17 +71,20 @@ function vendorServer() {
 }
 
 function packageVsix() {
-  const suffix = target ? `-${target}` : '';
+  const suffix = target ? `-${target}` : '-universal';
+  fs.mkdirSync(packageDir, { recursive: true });
+  const vsix = path.join(packageDir, `linguini-vscode${suffix}.vsix`);
   const args = [
     'package',
     '--no-dependencies',
     '--out',
-    path.join('dist', `linguini-vscode${suffix}.vsix`)
+    vsix
   ];
   if (target) {
     args.push('--target', target);
   }
   run(localExecutable('vsce'), args);
+  fs.writeFileSync(`${vsix}.sha256`, `${crypto.createHash('sha256').update(fs.readFileSync(vsix)).digest('hex')}  ${path.basename(vsix)}\n`);
 }
 
 function localExecutable(name) {

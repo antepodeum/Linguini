@@ -202,7 +202,8 @@ Rust users may instead install the same CLI through Cargo with Rust 1.87 or newe
 cargo install linguini-cli --version 0.1.0-alpha.4
 ```
 
-Published desktop VS Code packages bundle a matching native language server.
+Desktop VS Code packages bundle a matching native language server and a WASM worker fallback.
+The universal VSIX uses that same worker on desktop and in the browser.
 Generated tooling uses the `linguini` command by default.
 
 Builds consume checked-in, hash-verified CLDR artifacts only. Compilation never

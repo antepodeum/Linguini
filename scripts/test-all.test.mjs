@@ -60,6 +60,9 @@ test("public contract policy requires docs, migrations, and tests together", () 
   assert.throws(() => validateContractEvidence(["crates/linguini-schema/src/highlight.rs"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   assert.throws(() => validateContractEvidence(["packages/vue/src/vite.ts"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
   assert.throws(() => validateContractEvidence(["packages/tsc/src/index.js"]), /public documentation, docs\/migrations\.md, tests or fixtures/);
+  for (const path of ["crates/linguini-lsp-wasm/src/worker.rs", "crates/linguini-lsp/src/host/memory.rs"]) {
+    assert.throws(() => validateContractEvidence([path]), /public documentation, docs\/migrations\.md, tests or fixtures/);
+  }
   for (const name of ["linguini-codegen", "linguini-codegen-ecmascript", "linguini-codegen-ecmascript-web", "linguini-codegen-svelte", "linguini-codegen-sveltekit", "linguini-codegen-vite"]) {
     assert.throws(
       () => validateContractEvidence([`crates/${name}/src/lib.rs`]),
@@ -209,6 +212,7 @@ test("registry is explicit and ordered across repository projects", () => {
       "tsc:test",
       "cli:test",
       "vscode:test",
+      "vscode:wasm",
       "site:generate",
       "site:test",
       "site:check",

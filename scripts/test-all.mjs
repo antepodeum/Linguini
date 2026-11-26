@@ -619,6 +619,16 @@ export const TASKS = Object.freeze([
     requiresNodeModules: true,
   }),
   nodeTask({
+    id: "vscode:wasm",
+    project: "vscode",
+    label: "Shared WASM protocol in Node and browser workers",
+    command: "pnpm",
+    args: ["test:wasm"],
+    profiles: ["full"],
+    tools: ["pnpm", "cargo"],
+    requiresNodeModules: true,
+  }),
+  nodeTask({
     id: "site:generate",
     project: "site",
     label: "Site Linguini generation",

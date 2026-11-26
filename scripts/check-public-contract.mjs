@@ -12,7 +12,7 @@ const PUBLIC_CONTRACT_PATTERNS = [
   /^crates\/linguini-config\/src\/(?:lib|model|parser)\.rs$/,
   /^crates\/linguini-schema\/src\/(?:lib|highlight)\.rs$/,
   /^crates\/linguini-core\/src\/lib\.rs$/,
-  /^crates\/linguini-lsp\/src\/(?:lib|server)\.rs$/,
+  /^crates\/linguini-lsp(?:-wasm)?\/src\/(?:lib|server|worker|host\/(?:mod|memory))\.rs$/,
   /^crates\/linguini-syntax\/src\/(?:ast|lib|parser)\.rs$/,
   /^editors\/vscode\/src\//,
   /^packages\/cli\/(?:bin|lib)\//,

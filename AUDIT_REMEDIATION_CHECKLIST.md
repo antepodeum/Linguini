@@ -1433,18 +1433,30 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 
 - [x] DIST-A1 — Publish a launcher plus six version-locked native optional packages.
 - [x] DIST-A2 — Stage one native binary into each target-specific VSIX.
-- [ ] DIST-A3 — Build a universal browser-worker/WASM LSP fallback.
+- [x] DIST-A3 — Build a universal browser-worker/WASM LSP fallback. The universal VSIX contains
+      the shared Rust server plus browser/Node workers; native VSIX packages reuse that same
+      checksummed runtime. Installed Linux native and universal packages pass real Extension Host
+      hover/navigation/highlighting/restart checks, including explicit launcher wrappers and auto
+      fallback with an empty `PATH`. Actual WASM protocol tests pass in Node 20/24 and Chromium.
 - [x] DIST-A4 — Resolve explicit, project, bundled, then PATH server candidates.
 - [x] DIST-A5 — Perform a compiler/LSP protocol handshake.
 - [x] DIST-A6 — Avoid first-activation executable downloads.
-- [-] DIST-A7 — Share compiler semantics with WASM and vary only host services.
+- [x] DIST-A7 — Share compiler semantics with WASM and vary only host services.
       The native and memory hosts share the full Tower LSP backend, configuration/namespace
       logic, bounded snapshots, source IDs, and diagnostics/version guards. A serialized-protocol
       parity test covers navigation, rename, completion, symbols, tokens, formatting, highlighting,
       diagnostics, and edit recovery; custom source roots under build directories remain indexed.
-      The shared server compiles for `wasm32-unknown-unknown`. Worker transport, browser execution,
-      and editor integration remain required before this criterion or DIST-A3 can close.
+      The transport-only `linguini-lsp-wasm` crate runs that same service in browser and Node
+      workers, with host-provided saved files and scheduling. Rust plans valid configured roots
+      alongside invalid-project errors; TypeScript owns filesystem access and URI mapping.
+      The worker corpus verifies saved-file refresh, namespace isolation, Unicode coordinates,
+      stale-edit rejection, and error recovery. Native and WASM strict Clippy and the WASM
+      dependency tree's Rust 1.87 `cargo-msrv verify` check pass locally.
 - [-] DIST-A8 — Complete signed/checksummed release and marketplace CI.
+      Release jobs now build/test one WASM artifact, reuse it across six native VSIX jobs, package
+      a universal VSIX, and verify archive SHA-256 sidecars before Open VSX publication. Local
+      package/installed-host checks and workflow lint pass; current remote cross-platform jobs,
+      signing/provenance, and actual marketplace publication remain unverified.
 
 ### Bundler-native nested message API
 

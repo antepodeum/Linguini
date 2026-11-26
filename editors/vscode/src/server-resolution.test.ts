@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import * as path from 'node:path';
 import test from 'node:test';
 import {
+  canFallbackToWasm,
   expandServerArgument,
   resolveServer,
   workspaceCwd
@@ -47,4 +48,12 @@ test('does not silently select the first multi-root folder', () => {
 test('rejects document-only launch variables', () => {
   assert.throws(() => expandServerArgument('${file}', ['/workspace']), /cannot be used/);
   assert.throws(() => expandServerArgument('${languageId}', ['/workspace']), /cannot be used/);
+});
+
+test('automatic fallback respects runtime and user-selected launchers', () => {
+  for (const source of ['path', 'bundled'] as const) {
+    assert.equal(canFallbackToWasm('auto', source), true);
+    assert.equal(canFallbackToWasm('native', source), false);
+  }
+  for (const source of ['explicit', 'workspace'] as const) assert.equal(canFallbackToWasm('auto', source), false);
 });

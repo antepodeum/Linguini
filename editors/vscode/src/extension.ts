@@ -1,97 +1,49 @@
 import * as fs from 'node:fs';
+import { execFile } from 'node:child_process';
 import * as vscode from 'vscode';
-import {
-  DocumentSelector,
-  LanguageClient,
-  LanguageClientOptions,
-  ServerOptions
-} from 'vscode-languageclient/node';
-import { registerMarkdownHighlighting } from './highlight';
-import { DebouncedSerialTask } from './restart';
-import {
-  expandServerArgument,
-  resolveServer,
-  ResolvedServer
-} from './server-resolution';
-
-const RESTART_DEBOUNCE_MS = 200;
-const PROTOCOL_VERSION = '1';
-const EXTENSION_VERSION = '0.1.0-alpha.4';
-
-interface ProtocolVersion {
-  protocolVersion: string;
-  compilerVersion: string;
-}
-
-let client: LanguageClient | undefined;
-let markdownHighlighting: vscode.Disposable | undefined;
-let restarter: DebouncedSerialTask | undefined;
-let traceOutputChannel: vscode.LogOutputChannel | undefined;
-
-const documentSelector: DocumentSelector = [
-  { language: 'linguini-schema', scheme: 'file' },
-  { language: 'linguini-locale', scheme: 'file' },
-  { language: 'linguini-schema', scheme: 'untitled' },
-  { language: 'linguini-locale', scheme: 'untitled' }
-];
+import { LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
+import { activateWith, deactivate, EXTENSION_VERSION, type ClientInstance } from './activation';
+import { canFallbackToWasm, expandServerArgument, resolveServer, type ResolvedServer } from './server-resolution';
+import { wasmClient } from './wasm/client';
+import { nodeEndpoint } from './wasm/node-endpoint';
+export { deactivate };
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  traceOutputChannel = vscode.window.createOutputChannel('Linguini Language Server Trace', {
-    log: true
-  });
-  restarter = new DebouncedSerialTask(() => replaceClient(context));
-  const configWatcher = vscode.workspace.createFileSystemWatcher('**/linguini.toml');
-  const scheduleRestart = () => {
-    void restarter?.schedule(RESTART_DEBOUNCE_MS).catch(showStartError);
-  };
-
-  context.subscriptions.push(
-    traceOutputChannel,
-    configWatcher,
-    configWatcher.onDidCreate(scheduleRestart),
-    configWatcher.onDidChange(scheduleRestart),
-    configWatcher.onDidDelete(scheduleRestart),
-    vscode.commands.registerCommand('linguini.restartServer', async () => {
-      await restarter?.runNow();
-    }),
-    vscode.workspace.onDidChangeConfiguration((event) => {
-      if (
-        event.affectsConfiguration('linguini.server') ||
-        event.affectsConfiguration('linguini.semanticHighlighting')
-      ) {
-        scheduleRestart();
-      }
-    }),
-    vscode.workspace.onDidChangeWorkspaceFolders(scheduleRestart),
-    {
-      dispose() {
-        restarter?.dispose();
+  await activateWith(context, async (context, options) => {
+    const runtime = vscode.workspace.getConfiguration('linguini.server').get<string>('runtime', 'auto');
+    const virtual = vscode.workspace.workspaceFolders?.some((folder) => folder.uri.scheme !== 'file');
+    if (runtime !== 'wasm' && !(runtime === 'auto' && virtual)) {
+      const native = createNativeClient(context, options);
+      try {
+        if (native.server.source === 'path' || native.server.source === 'bundled') await probeNative(native.server);
+        return { client: native.client, source: native.server.source };
+      } catch (error) {
+        await native.client.dispose();
+        if (!canFallbackToWasm(runtime, native.server.source)) throw error;
+        options.traceOutputChannel?.info('Native language server unavailable; using bundled WASM.');
       }
     }
-  );
-
-  try {
-    await restarter.runNow();
-  } catch (error) {
-    showStartError(error);
-  }
+    return createWasmClient(context, options);
+  });
 }
 
-export async function deactivate(): Promise<void> {
-  await restarter?.flush();
-  restarter?.dispose();
-  restarter = undefined;
-  markdownHighlighting?.dispose();
-  markdownHighlighting = undefined;
-  const active = client;
-  client = undefined;
-  await active?.stop();
+function probeNative(server: ResolvedServer): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(server.command, ['--version'], { cwd: server.cwd, timeout: 10_000 }, (error, stdout) => {
+      if (error) { reject(error); return; }
+      if (stdout.trim() !== `linguini ${EXTENSION_VERSION}`) { reject(new Error(`Incompatible native server: ${stdout.trim()}`)); return; }
+      resolve();
+    });
+  });
 }
 
-function createClient(context: vscode.ExtensionContext): {
-  client: LanguageClient;
-  server: ResolvedServer;
-} {
+function createWasmClient(context: vscode.ExtensionContext, options: LanguageClientOptions): Promise<ClientInstance> {
+  return wasmClient(context, () => nodeEndpoint(vscode.Uri.joinPath(context.extensionUri, 'dist/wasm/worker-node.cjs').fsPath),
+    vscode.Uri.joinPath(context.extensionUri, 'dist/wasm/linguini_lsp.js').toString(), options,
+    (server, options) => new LanguageClient('linguiniLanguageServer', 'Linguini Language Server', server, options));
+}
+
+function createNativeClient(context: vscode.ExtensionContext, clientOptions: LanguageClientOptions): { client: LanguageClient; server: ResolvedServer } {
   const config = vscode.workspace.getConfiguration('linguini.server');
   const workspaceFolders =
     vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? [];
@@ -118,20 +70,6 @@ function createClient(context: vscode.ExtensionContext): {
       cwd: server.cwd
     }
   };
-  const clientOptions: LanguageClientOptions = {
-    documentSelector,
-    synchronize: {
-      configurationSection: 'linguini'
-    },
-    initializationOptions: {
-      extensionVersion: EXTENSION_VERSION,
-      protocolVersion: PROTOCOL_VERSION,
-      serverSource: server.source
-    },
-    outputChannelName: 'Linguini Language Server',
-    traceOutputChannel,
-    middleware: createClientMiddleware()
-  };
 
   return {
     client: new LanguageClient(
@@ -142,66 +80,4 @@ function createClient(context: vscode.ExtensionContext): {
     ),
     server
   };
-}
-
-async function replaceClient(context: vscode.ExtensionContext): Promise<void> {
-  markdownHighlighting?.dispose();
-  markdownHighlighting = undefined;
-  const previous = client;
-  client = undefined;
-  await previous?.stop();
-
-  const next = createClient(context);
-  try {
-    await next.client.start();
-    const version = await next.client.sendRequest<ProtocolVersion>('linguini/protocolVersion');
-    validateProtocol(version, next.server);
-    markdownHighlighting = await registerMarkdownHighlighting(next.client, isSemanticHighlightingEnabled);
-    client = next.client;
-  } catch (error) {
-    await next.client.stop().catch(() => undefined);
-    throw error;
-  }
-}
-
-function validateProtocol(version: ProtocolVersion, server: ResolvedServer): void {
-  if (version.protocolVersion !== PROTOCOL_VERSION) {
-    throw new Error(
-      `language-server protocol ${version.protocolVersion} is incompatible with extension protocol ${PROTOCOL_VERSION}`
-    );
-  }
-  if (version.compilerVersion !== EXTENSION_VERSION) {
-    throw new Error(
-      `Linguini server ${version.compilerVersion} is incompatible with extension ${EXTENSION_VERSION} (${server.source} server)`
-    );
-  }
-}
-
-function showStartError(error: unknown): void {
-  const message = error instanceof Error ? error.message : String(error);
-  void vscode.window.showErrorMessage(
-    `Linguini language server failed to start: ${message}. Set linguini.server.path to a compatible Linguini ${EXTENSION_VERSION} binary.`
-  );
-}
-
-function createClientMiddleware(): NonNullable<LanguageClientOptions['middleware']> {
-  return {
-    provideDocumentSemanticTokens: (document, token, next) => {
-      return isSemanticHighlightingEnabled() ? next(document, token) : null;
-    },
-    provideDocumentSemanticTokensEdits: (document, previousResultId, token, next) => {
-      return isSemanticHighlightingEnabled()
-        ? next(document, previousResultId, token)
-        : null;
-    },
-    provideDocumentRangeSemanticTokens: (document, range, token, next) => {
-      return isSemanticHighlightingEnabled() ? next(document, range, token) : null;
-    }
-  };
-}
-
-function isSemanticHighlightingEnabled(): boolean {
-  return vscode.workspace
-    .getConfiguration('linguini.semanticHighlighting')
-    .get<boolean>('enabled', true);
 }
