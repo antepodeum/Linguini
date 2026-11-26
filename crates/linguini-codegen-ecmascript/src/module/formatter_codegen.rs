@@ -90,7 +90,8 @@ pub(super) fn formatter_data_declaration(
         output.push_str(&date_formatter_helpers(date_helpers.padding));
     }
     if date_helpers.digits {
-        output.push_str(&digit_formatter_helper());
+        let dates = compiled_date_formatting(locale).expect("validated date locale");
+        output.push_str(&digit_formatter_helper(dates.digits));
     }
     output
 }
@@ -210,7 +211,7 @@ fn generated_date_request(
     (
         crate::templates::render(
             "formatters/date",
-            minijinja::context! { name, exported, parts => pattern.parts, tables => pattern.tables, periods => pattern.periods, clock => pattern.clock, digits => dates.digits },
+            minijinja::context! { name, exported, parts => pattern.parts, tables => pattern.tables, periods => pattern.periods, clock => pattern.clock, digits => dates.digits, localize_result => pattern.localize_result },
         ),
         pattern.helpers,
     )
@@ -222,6 +223,7 @@ struct CompiledDatePattern {
     periods: Vec<minijinja::Value>,
     helpers: DateHelperRequirements,
     clock: minijinja::Value,
+    localize_result: bool,
 }
 
 fn date_parts(
@@ -243,6 +245,7 @@ fn date_parts(
     let mut total_minutes = false;
     let mut periods = Vec::<(linguini_codegen::DayPeriodPlan, minijinja::Value)>::new();
     let mut exact_count = 0;
+    let mut textual_symbols = Vec::new();
     let period_binding = |index| {
         if index == 0 {
             "dayPeriod".to_owned()
@@ -250,18 +253,20 @@ fn date_parts(
             format!("dayPeriod{}", index + 1)
         }
     };
-    for part in linguini_codegen::compile_date_pattern(requested_locale, pattern)
-        .expect("validated date pattern")
-    {
+    let parsed = linguini_codegen::compile_date_pattern(requested_locale, pattern)
+        .expect("validated date pattern");
+    for part in &parsed {
         let (character, width) = match part {
             linguini_codegen::DatePatternPart::Literal(value) => {
                 parts.push(context! { kind => "literal", value });
                 continue;
             }
-            linguini_codegen::DatePatternPart::Field { symbol, width } => (symbol, width),
+            linguini_codegen::DatePatternPart::Field { symbol, width } => (*symbol, *width),
         };
         fields.insert(character);
         let period = linguini_codegen::day_period_plan(&calendar, character, width).map(|plan| {
+            textual_symbols.extend(plan.spans.iter().map(|span| span.value));
+            textual_symbols.extend(plan.exact.iter().map(|period| period.value));
             if let Some(index) = periods.iter().position(|(existing, _)| existing == &plan) {
                 return context! { binding => period_binding(index) };
             }
@@ -288,7 +293,13 @@ fn date_parts(
                     dates.locale
                 )
             });
+        textual_symbols.extend(
+            [symbols.am, symbols.pm, symbols.ad, symbols.bc]
+                .into_iter()
+                .flatten(),
+        );
         if let Some(values) = symbols.names {
+            textual_symbols.extend(values.iter().copied());
             let proposed = format!(
                 "{name}_{}{}_{width}",
                 if matches!(character, 'L' | 'c' | 'q') {
@@ -323,6 +334,8 @@ fn date_parts(
         parts.push(context! { kind => "field", field => character.to_string(), width, table, numeric, period, am => symbols.am, pm => symbols.pm, ad => symbols.ad, bc => symbols.bc });
     }
     CompiledDatePattern {
+        localize_result: helpers.digits
+            && linguini_codegen::can_localize_date_result(&parsed, textual_symbols),
         parts,
         tables: tables
             .into_iter()

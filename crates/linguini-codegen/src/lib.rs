@@ -7,6 +7,7 @@ mod date_symbols;
 mod day_periods;
 mod decision;
 mod dependencies;
+mod digits;
 mod direct_dependencies;
 mod formatters;
 mod inline;
@@ -25,6 +26,7 @@ pub use decision::{Decision, DecisionArm};
 pub use dependencies::{
     message_dependency_closure, MessageDependencyClosure, MessageDependencyError,
 };
+pub use digits::{can_localize_date_result, decimal_digit_symbols};
 pub use direct_dependencies::{
     direct_message_dependencies, direct_symbol_dependencies, SemanticSymbolKind,
 };

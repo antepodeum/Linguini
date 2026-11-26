@@ -127,6 +127,106 @@ fn execute(script: &str) -> String {
         .trim()
         .to_owned()
 }
+
+#[test]
+fn date_digit_substitution_does_not_parse_static_symbols_at_runtime() {
+    for digits in ["٠١٢٣٤٥٦٧٨٩", "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫"] {
+        let mut dates = linguini_cldr::compiled_date_formatting("en").unwrap();
+        dates.digits = digits;
+        dates.date_formats.medium = "yyyy MM dd H m s SSS";
+        let (source, helpers) = generated_date_request(
+            "en",
+            &dates,
+            &request(IrFormatterKind::Date, &[]),
+            "formatDigits",
+            false,
+        );
+        assert!(helpers.digits);
+        assert!(
+            !source.contains(digits),
+            "CLDR symbols must not be forwarded per field"
+        );
+        let expected = "2024 01 02 13 4 5 006"
+            .chars()
+            .map(|value| {
+                value
+                    .to_digit(10)
+                    .map_or(value, |index| digits.chars().nth(index as usize).unwrap())
+            })
+            .collect::<String>();
+        let script = format!(
+            r#"
+import assert from 'node:assert/strict';
+{source}
+{}{}
+Array.from = () => {{ throw Error('static digit symbols must be compiled'); }};
+const date = new Date('2024-01-02T13:04:05.006Z');
+const getters = ['getUTCFullYear','getUTCMonth','getUTCDate','getUTCHours','getUTCMinutes','getUTCSeconds','getUTCMilliseconds'];
+const reads = Object.fromEntries(getters.map(name => [name,0]));
+for (const name of getters) {{
+  const original = date[name];
+  date[name] = function() {{reads[name]++;return original.call(this);}};
+}}
+for (const input of [date,date.getTime(),'2024-01-02T13:04:05.006Z']) {{
+  assert.equal(formatDigits(input), {expected:?});
+}}
+assert.deepEqual(Object.values(reads), [1,1,1,1,1,1,1]);
+console.log('ok');
+"#,
+            date_formatter_helpers(helpers.padding),
+            digit_formatter_helper(dates.digits)
+        );
+        assert_eq!(execute(&script), "ok");
+        // Literal digits and CLDR quarter labels are text, rather than numeric fields.
+        let localize = |value: &str| {
+            value
+                .chars()
+                .map(|value| {
+                    value
+                        .to_digit(10)
+                        .map_or(value, |index| digits.chars().nth(index as usize).unwrap())
+                })
+                .collect::<String>()
+        };
+        for (pattern, expected, substitutions) in [
+            (
+                "yyyy '123' MM",
+                format!("{} 123 {}", localize("2024"), localize("01")),
+                2,
+            ),
+            ("yyyy QQQ", format!("{} Q1", localize("2024")), 1),
+        ] {
+            dates.date_formats.medium = pattern;
+            let (source, helpers) = generated_date_request(
+                "en",
+                &dates,
+                &request(IrFormatterKind::Date, &[]),
+                "formatProtected",
+                false,
+            );
+            assert_eq!(
+                execute(&format!(
+                    r#"
+import assert from 'node:assert/strict';
+{source}{}{}
+const original = String.prototype.replace;
+let calls = 0;
+String.prototype.replace = function(pattern, replacement) {{
+  if (pattern instanceof RegExp && pattern.source === '\\d') calls++;
+  return original.call(this, pattern, replacement);
+}};
+assert.equal(formatProtected('2024-01-02'), {expected:?});
+assert.equal(calls, {substitutions});
+console.log('ok');
+"#,
+                    date_formatter_helpers(helpers.padding),
+                    digit_formatter_helper(dates.digits)
+                )),
+                "ok"
+            );
+        }
+    }
+}
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -190,7 +290,7 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         "scientificGeneratedDecimal",
         "padGeneratedNumber",
         "formatGeneratedNumber",
-        "localizeGeneratedDigits",
+        "localizeDigit",
     ] {
         assert!(!runtime.contains(unused), "unused operation {unused}");
     }
@@ -860,7 +960,7 @@ if (reads !== 10) throw Error('quarter getter observations'); }}
         execute(&format!(
             "{source}{}{}console.log(formatQuarter('2024-04-01'));",
             date_formatter_helpers(helpers.padding),
-            digit_formatter_helper()
+            digit_formatter_helper(dates.digits)
         )),
         "٢ ٠٢ ٢"
     );
@@ -932,7 +1032,7 @@ fn generated_date_symbols_preserve_cldr_context_width_and_locale() {
         let compiled = date_parts(pattern, &dates, "formatTest", locale);
         let formatter = crate::templates::render(
             "formatters/date",
-            minijinja::context! { name => "formatTest", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+            minijinja::context! { name => "formatTest", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits, localize_result => compiled.localize_result },
         );
         if locale == "en" && pattern == "MMMM LLLL" {
             assert_eq!(formatter.matches("const formatTest_").count(), 1);
@@ -960,7 +1060,7 @@ fn gregorian_years_preserve_era_boundaries_and_minimum_widths() {
     assert!(compiled.helpers.padding);
     let formatter = crate::templates::render(
         "formatters/date",
-        minijinja::context! { name => "formatYear", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+        minijinja::context! { name => "formatYear", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits, localize_result => compiled.localize_result },
     );
     assert_eq!(formatter.matches("date.getUTCFullYear()").count(), 1);
     assert!(!formatter.contains("Intl."));
@@ -1007,12 +1107,15 @@ fn gregorian_years_preserve_era_boundaries_and_minimum_widths() {
 fn compiled_day_periods_match_pinned_rules_across_every_minute_and_precision() {
     let mut script = String::from("import assert from 'node:assert/strict';\n");
     script.push_str(&date_formatter_helpers(true));
-    script.push_str(&digit_formatter_helper());
     let mut count = 0;
     for locale in [
         "en", "en-GB", "ru", "zh", "ar", "fr", "de", "es", "hi", "ja", "ko", "pt", "fi", "bn",
     ] {
         let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
+        script.push_str("{\n");
+        if dates.digits != "0123456789" {
+            script.push_str(&digit_formatter_helper(dates.digits));
+        }
         let calendar = linguini_cldr::compiled_calendar_formatting(locale, "gregory").unwrap();
         let rules = linguini_cldr::compiled_day_period_rules(locale).unwrap_or_default();
         for field in ['b', 'B'] {
@@ -1023,7 +1126,7 @@ fn compiled_day_periods_match_pinned_rules_across_every_minute_and_precision() {
                 let compiled = date_parts(&pattern, &dates, &name, dates.locale);
                 let formatter = crate::templates::render(
                     "formatters/date",
-                    minijinja::context! { name, exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+                    minijinja::context! { name, exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits, localize_result => compiled.localize_result },
                 );
                 for forbidden in [
                     "dayPeriods",
@@ -1091,6 +1194,7 @@ fn compiled_day_periods_match_pinned_rules_across_every_minute_and_precision() {
 "#));
             }
         }
+        script.push_str("}\n");
     }
     script.push_str("console.log('ok');\n");
     assert_eq!(execute(&script), "ok");
@@ -1117,7 +1221,7 @@ fn exact_periods_follow_displayed_fields_and_omit_unused_clock_reads() {
         let compiled = date_parts(pattern, &dates, "formatPeriod", dates.locale);
         let formatter = crate::templates::render(
             "formatters/date",
-            minijinja::context! { name => "formatPeriod", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+            minijinja::context! { name => "formatPeriod", exported => false, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits, localize_result => compiled.localize_result },
         );
         if pattern == "B BBB'|'m" {
             assert_eq!(formatter.matches("let dayPeriod").count(), 1);
@@ -1149,15 +1253,21 @@ fn compiled_day_period_fixture_preserves_readable_checked_javascript() {
         ("formatFixed", "ru", "HH:mm bbbb"),
         ("formatNarrow", "ar", "BBBBB"),
         ("formatYear", "en", "y yy yyyy G"),
+        ("formatLocalized", "ar-EG", "yyyy MM dd HH:mm:ss.SSS"),
     ] {
         let dates = linguini_cldr::compiled_date_formatting(locale).unwrap();
         let compiled = date_parts(pattern, &dates, name, dates.locale);
         output.push_str(&crate::templates::render(
             "formatters/date",
-            minijinja::context! { name, exported => true, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits },
+            minijinja::context! { name, exported => true, parts => compiled.parts, tables => compiled.tables, periods => compiled.periods, clock => compiled.clock, digits => dates.digits, localize_result => compiled.localize_result },
         ));
     }
     output.push_str(&date_formatter_helpers(true));
+    output.push_str(&digit_formatter_helper(
+        linguini_cldr::compiled_date_formatting("ar-EG")
+            .unwrap()
+            .digits,
+    ));
     let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/golden/snapshots/js-date/date.js");
     if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
@@ -1318,7 +1428,7 @@ fn utc_zone_names_are_selected_from_pinned_cldr_and_folded_into_generated_litera
             minijinja::context! {
                 name => "formatZone", exported => false, parts => compiled.parts,
                 tables => compiled.tables, periods => compiled.periods, clock => compiled.clock,
-                digits => dates.digits,
+                digits => dates.digits, localize_result => compiled.localize_result,
             },
         );
         assert!(

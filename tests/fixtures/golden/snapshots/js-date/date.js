@@ -66,6 +66,17 @@ export function formatYear(value) {
 }
 
 /**
+ * @param {Date | number | string} value
+ * @returns {string}
+ */
+export function formatLocalized(value) {
+  const date = coerceDate(value);
+  let year = date.getUTCFullYear();
+  if (year <= 0) year = 1 - year;
+  return (padNumber(year, 4) + " " + padNumber(date.getUTCMonth() + 1, 2) + " " + padNumber(date.getUTCDate(), 2) + " " + padNumber(date.getUTCHours(), 2) + ":" + padNumber(date.getUTCMinutes(), 2) + ":" + padNumber(date.getUTCSeconds(), 2) + "." + padNumber(date.getUTCMilliseconds(), 3)).replace(/\d/g, localizeDigit);
+}
+
+/**
  * @param {number} value
  * @param {number} length
  * @returns {string}
@@ -140,4 +151,11 @@ function validateDateFields(year, month, day) {
 /** @returns {never} */
 function throwInvalidDate() {
   throw new RangeError("Linguini: invalid date value");
+}
+/**
+ * @param {string} digit
+ * @returns {string}
+ */
+function localizeDigit(digit) {
+  return "٠١٢٣٤٥٦٧٨٩"[digit.charCodeAt(0) - 48];
 }

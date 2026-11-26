@@ -81,6 +81,25 @@ A Vite 7.3.3 consumer exporting the baseline Russian `counted` message shrinks f
 execute the same expected text. This one-consumer measurement supports removing its redundant
 conversion; it does not establish a general speed improvement or close GEN-A11.
 
+## Compiled date digit substitution
+
+The former date helper constructed and checked a symbol array from a fixed CLDR alphabet on
+every numeric field, then allocated a capturing replacement callback. Shared Rust planning now
+validates the ten Unicode scalars. The emitter uses direct BMP string indexing or one static
+supplementary-symbol table, and each field passes the same compiled callback to replacement.
+A shared proof coalesces substitution into one pass when literals and all possible textual
+symbols are free of ASCII digits. Literal digits and quarter names such as `Q1` retain numeric-
+field substitution, with executed BMP and supplementary-symbol cases. ASCII-only date demand
+emits no digit helper.
+
+A native-generated Arabic consumer retaining short date, long date, and date-time messages
+shrinks on Vite 7.3.3 from 3,911 to 3,557 minified bytes, 1,345 to 1,298 gzip bytes, and 1,166 to
+1,127 Brotli bytes. Both versions execute identical pinned output. Instrumented execution of the
+three messages records zero symbol arrays and one callback identity, replacing eleven arrays
+and eleven callback identities. Three whole-result substitutions replace eleven field substitutions.
+Supplementary digits, Date/string/timestamp inputs, and supplied
+Date getter counts also execute explicitly. This does not establish a general timing improvement.
+
 ## Findings and owners
 
 | ID | Status | Verified evidence | Required remediation |

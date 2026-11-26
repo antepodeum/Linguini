@@ -19,6 +19,6 @@
 {% for exact in period.exact %}  {{ "else " if not loop.first }}if (hours === {{ exact.hour }}{% if clock.exact_time %} && exactTime{% else %}{% if clock.minutes %} && minutes === {{ exact.minute }}{% endif %}{% if clock.seconds %} && seconds === 0{% endif %}{% if clock.milliseconds %} && milliseconds === 0{% endif %}{% endif %}) {{ period.binding }} = {{ exact.value|js }};
 {% endfor %}{% for span in period.spans %}  {% if not loop.first or period.exact %}else {% endif %}{% if not loop.last %}if ({{ "totalMinutes" if period.minute_clock else "hours" }} < {{ span.before }}) {% endif %}{{ period.binding }} = {{ span.value|js }};
 {% endfor %}{% else %}  const {{ period.binding }} = {{ period.spans[0].value|js }};
-{% endif %}{% endfor %}  return {{ expression(parts, digits, clock) }};
+{% endif %}{% endfor %}  return {% if localize_result %}({{ expression(parts, "0123456789", clock) }}).replace(/\d/g, localizeDigit){% else %}{{ expression(parts, digits, clock) }}{% endif %};
 }
 {{ "\n" -}}

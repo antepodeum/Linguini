@@ -12,5 +12,5 @@
 {%- else %}{{ unsupported_date_field }}{% endif %}
 {%- endmacro %}
 {% macro expression(parts, digits, clock) -%}
-{% for part in parts %}{% if part.kind == "literal" %}{{ part.value|js }}{% else %}{% if digits != "0123456789" and part.numeric %}localizeGeneratedDigits({% endif %}{{ field(part, clock) }}{% if digits != "0123456789" and part.numeric %}, {{ digits|js }}){% endif %}{% endif %}{{ " + " if not loop.last }}{% else %}""{% endfor %}
+{% for part in parts %}{% if part.kind == "literal" %}{{ part.value|js }}{% else %}{{ field(part, clock) }}{% if digits != "0123456789" and part.numeric %}.replace(/\d/g, localizeDigit){% endif %}{% endif %}{{ " + " if not loop.last }}{% else %}""{% endfor %}
 {%- endmacro %}

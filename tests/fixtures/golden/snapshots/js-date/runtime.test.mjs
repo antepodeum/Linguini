@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatFlexible, formatFixed, formatNarrow, formatYear } from "./date.js";
+import { formatFlexible, formatFixed, formatNarrow, formatYear, formatLocalized } from "./date.js";
 import { formatDate_skeleton_yQQQ } from "./skeletons.js";
 
 test("compiled periods follow displayed precision and localized rules", () => {
@@ -21,6 +21,29 @@ test("Gregorian years use the era and requested minimum widths", () => {
   const before = new Date(0);
   before.setUTCFullYear(-1, 0, 2);
   assert.equal(formatYear(before), "2 02 0002 BC");
+});
+
+test("localized date fields reuse one compiled digit callback", () => {
+  const original = String.prototype.replace;
+  const callbacks = new Set();
+  let fields = 0;
+  String.prototype.replace = function(pattern, replacement) {
+    if (pattern instanceof RegExp && pattern.source === '\\d' && pattern.flags === 'g') {
+      fields++;
+      callbacks.add(replacement);
+    }
+    return original.call(this, pattern, replacement);
+  };
+  try {
+    const text = '2024-01-02T13:04:05.006Z';
+    for (const input of [text, new Date(text), Date.parse(text)]) {
+      assert.equal(formatLocalized(input), '٢٠٢٤ ٠١ ٠٢ ١٣:٠٤:٠٥.٠٠٦');
+    }
+  } finally {
+    String.prototype.replace = original;
+  }
+  assert.equal(fields, 3);
+  assert.equal(callbacks.size, 1);
 });
 
 test("quarter skeletons follow UTC boundaries and the Date input contract", () => {
