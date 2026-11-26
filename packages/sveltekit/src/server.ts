@@ -1,7 +1,7 @@
 import type { Handle, RequestEvent } from '@sveltejs/kit';
 import type { LinguiniLocaleRequestContext, LinguiniWebLocale } from '@antepodeum/linguini-web';
 import { createLocaleRequestContext } from '@antepodeum/linguini-web';
-import { createLocaleSwitchHandler } from '@antepodeum/linguini-web/server';
+import { createLocaleSwitchHandler, persistLocaleCookie } from '@antepodeum/linguini-web/server';
 import type { LocaleSwitchRouteOptions } from '@antepodeum/linguini-web/server';
 import {createPagePreload,pagePreloadHeader} from './page-preload.js';
 import type { PagePayload, SerializedLinguiniContext } from './types.js';
@@ -37,7 +37,7 @@ export function createHandle<Locale extends string>(web: LinguiniWebLocale<Local
     // would alternate with SvelteKit's own canonical redirect indefinitely.
     if (location && new URL(location, event.url).pathname.replace(/\/+$/, '') !== event.url.pathname.replace(/\/+$/, '')) {
       const response = new Response(null, {status:307, headers:{location}});
-      if (persistCookie) web.setLocaleCookie(response, locale, {origin:event.url.origin});
+      if (persistCookie) persistLocaleCookie(web, response, locale, {origin:event.url.origin});
       return response;
     }
     const payload = !event.isDataRequest && event.route?.id && options.getPagePayload
@@ -54,7 +54,7 @@ export function createHandle<Locale extends string>(web: LinguiniWebLocale<Local
     // Fetch responses may have immutable headers; preserve their streaming body.
     const persisted = new Response(response.body, {status:response.status, statusText:response.statusText, headers:response.headers});
     if (header) persisted.headers.set('link',header + ', ' + response.headers.get('link'));
-    if (persistCookie) web.setLocaleCookie(persisted, locale, {origin:event.url.origin});
+    if (persistCookie) persistLocaleCookie(web, persisted, locale, {origin:event.url.origin});
     return persisted;
   };
 }

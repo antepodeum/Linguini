@@ -34,6 +34,10 @@ Web and framework integrations have separate runtime owners.
 `@antepodeum/linguini-web` owns reusable URL, resolver, cookie, and request operations.
 `@antepodeum/linguini-sveltekit` supplies runtime hooks and request context. These TypeScript
 packages are configured in application code.
+Cookie serialization is an explicit `serializeLocaleCookie(web, locale, input)` import from
+`@antepodeum/linguini-web`; server writes use `persistLocaleCookie(web, target, locale, input)`
+from `@antepodeum/linguini-web/server`. The metadata/routing object holds normalized policy,
+without owning those implementations. Client controls and framework hooks compose them.
 
 `linguini-codegen-svelte` emits project imports and types backed by the reusable
 `@antepodeum/linguini-svelte` runtime. The ECMAScript backend remains independent of framework

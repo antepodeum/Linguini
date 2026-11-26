@@ -6,6 +6,79 @@ import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import {build} from 'vite';
 
+async function compileWebConsumer(context,source) {
+  const root = await mkdtemp(path.join(tmpdir(),'linguini-web-graph-'));
+  context.after(() => rm(root,{recursive:true,force:true}));
+  const entry = path.join(root,'entry.js');
+  await writeFile(entry,source);
+  const result = await build({configFile:false,root,logLevel:'silent',
+    build:{write:false,minify:true,lib:{entry,formats:['es']},rollupOptions:{preserveEntrySignatures:'strict'}},
+  });
+  const chunks=(Array.isArray(result)?result:[result]).flatMap(bundle=>bundle.output).filter(item=>item.type==='chunk');
+  assert.equal(chunks.length,1);
+  assert.deepEqual(chunks[0].imports,[]);
+  assert.deepEqual(chunks[0].dynamicImports,[]);
+  return chunks[0];
+}
+
+test('routing-only web metadata drops cookie persistence and browser/server transports', async context => {
+  const web = fileURLToPath(new URL('../../web/dist/index.js',import.meta.url));
+  const chunk = await compileWebConsumer(context, `
+import {createWebLocaleI18n,pathLocale} from ${JSON.stringify(web)};
+const web=createWebLocaleI18n({baseLocale:'en',locales:['en','fr']},{routing:{localePrefix:'always'},locale:{sources:[pathLocale()]}},{origin:'https://example.test'});
+export function resolve(url){return web.resolveLocaleSync({url});}
+export function localize(href,locale){return web.localizeHref(href,locale);}
+`);
+  assert.doesNotMatch(chunk.code,/Max-Age=|HttpOnly|set-cookie|serializeLocaleCookie|setLocaleCookie|document\.cookie|localStorage\.setItem/);
+  for (const [id,module] of Object.entries(chunk.modules)) {
+    if (/(?:\/(?:cookie|client|server)\.js|\/sources\/(?:cookie|local-storage|accept-language)\.js)$/.test(id)) {
+      assert.equal(module.renderedLength,0,`unexpected routing-only dependency: ${id}`);
+    }
+  }
+  const output=await import('data:text/javascript;base64,'+Buffer.from(chunk.code).toString('base64'));
+  assert.equal(output.resolve('https://example.test/fr/page'),'fr');
+  assert.equal(output.resolve('https://example.test/unknown/page'),'en');
+  assert.equal(output.localize('https://example.test/en/cart?q=1#part','fr'),'https://example.test/fr/cart?q=1#part');
+});
+
+test('browser controls retain browser persistence without server cookie sinks', async context => {
+  const directory=fileURLToPath(new URL('../../web/dist/',import.meta.url));
+  const chunk=await compileWebConsumer(context, `
+import {createWebLocaleI18n} from ${JSON.stringify(path.join(directory,'index.js'))};
+import {createLocaleControl} from ${JSON.stringify(path.join(directory,'client.js'))};
+const web=createWebLocaleI18n({baseLocale:'en',locales:['en','fr']},{routing:{localePrefix:'always'},cookie:{secure:true},locale:{switch:{writesPath:true,writesCookie:true,writesLocalStorage:true}}},{origin:'https://example.test'});
+export function controls(state,options){return createLocaleControl(web,state,options);}
+`);
+  assert.match(chunk.code,/Max-Age=/);
+  assert.doesNotMatch(chunk.code,/set-cookie|setLocaleCookie/);
+  for (const [id,module] of Object.entries(chunk.modules)) {
+    if (id.endsWith('/server.js')) assert.equal(module.renderedLength,0,`unexpected browser dependency: ${id}`);
+  }
+  const output=await import('data:text/javascript;base64,'+Buffer.from(chunk.code).toString('base64'));
+  const descriptors=['window','document'].map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]);
+  context.after(()=>{for(const [key,descriptor] of descriptors) {
+    if(descriptor) Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];
+  }});
+  const events=[];
+  Object.defineProperty(globalThis,'window',{configurable:true,value:{
+    location:{href:'https://example.test/en/page'},
+    localStorage:{setItem(key,value){events.push(['storage',key,value]);}},
+  }});
+  Object.defineProperty(globalThis,'document',{configurable:true,value:{set cookie(value){events.push(['cookie',value]);}}});
+  let locale='en';
+  const controls=output.controls({
+    getCurrentLocale:()=>locale,
+    async prepareLocale(value){events.push(['prepare',value]);return value;},
+    setCurrentLocale(value){events.push(['publish',value]);locale=value;return value;},
+    clearCurrentLocaleOverride(){events.push(['clear']);},
+  },{browser:true,navigate:href=>{events.push(['navigate',href]);}});
+  assert.equal(await controls.setLocale('fr'),'fr');
+  assert.deepEqual(events.map(event=>event[0]),['prepare','publish','storage','cookie','navigate','clear']);
+  assert.deepEqual(events[2],['storage','LINGUINI_LOCALE','fr']);
+  assert.match(events[3][1],/^LINGUINI_LOCALE=fr;.*; Secure$/);
+  assert.deepEqual(events[4],['navigate','https://example.test/fr/page']);
+});
+
 test('metadata-only request hooks shake catalog barrels and unselected resolver modules', async context => {
   const root = await mkdtemp(path.join(tmpdir(),'linguini-metadata-graph-'));
   context.after(() => rm(root,{recursive:true,force:true}));

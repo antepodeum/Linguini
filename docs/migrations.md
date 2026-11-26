@@ -4,6 +4,21 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Explicit cookie persistence helpers
+
+`LinguiniWebLocale` and `LinguiniWeb` no longer expose `serializeLocaleCookie` or `setLocaleCookie`
+methods. Replace `web.serializeLocaleCookie(locale, input)` with
+`serializeLocaleCookie(web, locale, input)`, imported from `@antepodeum/linguini-web`. Replace
+`web.setLocaleCookie(target, locale, input)` with `persistLocaleCookie(web, target, locale, input)`
+from `@antepodeum/linguini-web/server`. The existing server helper now owns persistence directly.
+Both helpers infer the allowed locale from `web`; the locale argument cannot widen that type.
+
+SvelteKit hooks, switch handlers, and browser controls use these helpers internally. Their normal
+configuration is unchanged. Serialization, cookie-sink precedence, append-only response headers,
+HttpOnly/secure policy, and browser cancellation remain covered. Routing-only web consumers can
+now shake the persistence implementation; normalized application policy still belongs to the web
+object. Generic framework controls and exact page delivery retain their separate audit criteria.
+
 ## Shared module-edge rendering
 
 Structured imports and re-exports now render through one canonical template instead of repeated

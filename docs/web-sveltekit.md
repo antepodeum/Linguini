@@ -153,6 +153,12 @@ Locale matching uses the generated metadata's pinned CLDR canonicalization and p
 forwarding message factories, preparation functions, catalogs, or unrelated symbol properties.
 Keep hook imports pointed at the generated locale metadata module; `createWebI18n` is the
 explicit message-enabled API.
+Persistence is a separate operation: import `serializeLocaleCookie` from
+`@antepodeum/linguini-web` for `serializeLocaleCookie(web, locale, input)`, or
+`persistLocaleCookie` from `@antepodeum/linguini-web/server` for
+`persistLocaleCookie(web, target, locale, input)`. These are not methods on `web`.
+The client and SvelteKit adapters compose them internally; a routing-only web consumer can
+omit both transports. Cookie policy remains part of the application's normalized options.
 Unsupported values continue to the next resolver and finally to the base locale. Runtime adapters
 parse actual URLs, headers, and cookies; they do not interpret CLDR formatting patterns.
 

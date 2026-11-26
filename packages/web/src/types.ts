@@ -124,8 +124,6 @@ export interface LinguiniWebLocale<Locale extends string = string> extends Lingu
   getTextDirection(locale: Locale): TextDirection;
   getCanonicalRedirect(url: string | URL, locale: Locale, input?: Record<string, unknown>): string | undefined;
   shouldExclude(url: string | URL, input?: Record<string, unknown>): boolean;
-  setLocaleCookie(target: unknown, locale: Locale, input?: Record<string, unknown>): void;
-  serializeLocaleCookie(locale: Locale, input?: Record<string, unknown>): string;
 }
 
 export interface LinguiniWeb<Locale extends string = string, Linguini = unknown> extends LinguiniWebLocale<Locale> {

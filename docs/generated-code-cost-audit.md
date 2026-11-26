@@ -80,6 +80,27 @@ measurements justify this bounded fast path, without establishing a general appl
 or memory claim. Executed coercion/resource-limit tests and strict JSDoc checks cover the shared
 fallback path. Branch-specific category specialization and repeated normalization remain open.
 
+## Routing-only web persistence demand
+
+`createWebLocaleI18n` previously attached cookie serialization and server writes to every
+metadata/routing object, even when the application used only path resolution. Serialization now
+lives in one shared helper, used by browser controls and server persistence. Server sinks are owned
+by the existing `persistLocaleCookie` export; the metadata object retains normalized policy.
+
+A complete consumer exporting path resolution and link localization on Vite 7.3.3 shrinks from
+12,260 to 11,196 minified bytes, 3,882 to 3,585 gzip bytes, and 3,436 to 3,186 Brotli bytes.
+Both versions execute the same path/fallback/link results. A separate Vite 8 graph gate proves
+zero rendered bytes from persistence, browser/server transports, and unselected resolver modules,
+with one chunk and no imports. Cookie writes preserve append-only headers and cookie-sink
+precedence; installed strict TypeScript consumers exercise the explicit helpers and finite locales.
+The complete browser-control consumer also drops server cookie sinks while retaining browser
+cookie serialization: 14,165 to 13,665 minified bytes, 4,298 to 4,189 gzip bytes, and 3,813 to
+3,706 Brotli bytes on the same Vite version. Executed Vite 8 controls retain preparation,
+publication, storage/cookie writes, navigation, and override cleanup in order, without server
+cookie code in their graph.
+Generic SvelteKit hooks/browser controls can still retain their optional transports; broader
+platform pruning and exact composed-page delivery remain open under WEB-A13 and MOD-A4.
+
 ## Shared date name tables
 
 The `f5052c8` skeleton fixture repeated the same abbreviated month array for `GyMMMd` and

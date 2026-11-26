@@ -841,6 +841,16 @@ TypeScript, and application/bundler imports select their capabilities.
       consumers use throwing catalog getters. An executed production SSR graph shakes catalog
       barrel exports and unselected cookie/storage/request-language resolver modules. Broader
       platform-operation pruning and exact page delivery remain open.
+      Cookie serialization and server writes now have explicit shared helper owners, composed by
+      browser controls and Kit hooks instead of attached to every metadata/routing object.
+      An executed Vite 8 routing-only graph excludes both transports and unselected resolver
+      modules; the complete Vite 7 consumer saves 250 Brotli bytes. Runtime and installed strict
+      TypeScript consumers preserve flags, appended headers, cookie-sink precedence, and finite
+      locale arguments. Browser controls also omit server cookie sinks while retaining browser
+      serialization, saving 107 Brotli bytes in the complete control consumer; executed Vite 8
+      controls preserve preparation/publication/persistence/navigation order. Generic framework
+      controls still retain optional operations; keep this
+      criterion open until their platform and page-demand acceptance passes.
 - [x] WEB-A14 — Normalize one `LocaleSwitchPlan` shared by browser and server transports.
 - [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [x] WEB-A16 — Create an optional runtime switch handler with validated same-origin return targets.
@@ -1056,6 +1066,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       editor tests and real shared-WASM Node/browser protocol checks, and all nine site gates.
       This run does not establish a fresh installed VSIX smoke, remote CI, signing/publication,
       or the final Windows/macOS matrix.
+      Plural/module-edge/cookie-ownership follow-up passes 69 of 70 local full-profile gates,
+      including workspace tests/Clippy, packaged docs, native consumers, shared WASM hosts,
+      and all nine site gates. Updating the current npm parity consumer to the explicit cookie
+      helpers repairs the remaining gate: all 6,270 assertions pass with frozen oracles unchanged.
+      The strengthened 23-test Kit gate and Node 20 web/hook/graph tests pass separately, giving
+      passing receipts for all 70 registered gates. Final architecture/platform criteria remain open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.

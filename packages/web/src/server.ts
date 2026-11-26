@@ -1,11 +1,34 @@
+import { serializeLocaleCookie } from './cookie.js';
+import { resolveCookieSecure } from './url.js';
+
 export interface LocaleSwitchRouteOptions {
   path?: string;
   returnQuery?: string;
   status?: 301 | 302 | 303 | 307 | 308;
 }
 
-export function persistLocaleCookie<Locale extends string>(web: import('./index.js').LinguiniWebLocale<Locale>, target: unknown, locale: Locale, input: Record<string, unknown> = {}) {
-    web.setLocaleCookie(target, locale, input);
+export function persistLocaleCookie<Locale extends string>(web: import('./index.js').LinguiniWebLocale<Locale>, target: unknown, locale: NoInfer<Locale>, input: Record<string, unknown> = {}) {
+    const cookie = serializeLocaleCookie(web, locale, input);
+    const policy = web.options.cookie;
+    const sink = target as {
+        headers?: Pick<Headers, 'append'>;
+        cookies?: {
+            set(name: string, value: string, options?: Record<string, unknown>): void;
+        };
+    };
+    if (sink.cookies?.set) {
+        sink.cookies.set(policy.name, locale, {
+            path: policy.path,
+            domain: policy.domain,
+            maxAge: input.maxAge ?? policy.maxAge,
+            sameSite: policy.sameSite,
+            secure: resolveCookieSecure(policy.secure, input),
+            httpOnly: input.httpOnly ?? policy.httpOnly,
+        });
+    }
+    else {
+        sink.headers?.append?.('set-cookie', cookie);
+    }
 }
 
 export function createLocaleSwitchHandler<Locale extends string>(web: import('./index.js').LinguiniWebLocale<Locale>, options: import('./server.js').LocaleSwitchRouteOptions = {}): (event: {

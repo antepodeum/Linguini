@@ -1,4 +1,5 @@
 import type { LinguiniWebLocale, LinkLocalizationAttributes } from './types.js';
+import { serializeLocaleCookie } from './cookie.js';
 
 export interface LocaleState<Locale extends string> {
   getCurrentLocale(): Locale;
@@ -52,7 +53,7 @@ export function createLocaleControl<Locale extends string>(web: LinguiniWebLocal
       try { window.localStorage.setItem(web.options.localStorage.key, locale); } catch { /* Storage can be denied. */ }
     }
     if (input.cookie !== false && web.options.locale.switch.writesCookie && !options.persistLocale) {
-      try { document.cookie = web.serializeLocaleCookie(locale, {httpOnly:false}); } catch { /* Cookies can be denied. */ }
+      try { document.cookie = serializeLocaleCookie(web, locale, {httpOnly:false}); } catch { /* Cookies can be denied. */ }
     }
     if (input.navigate !== false && web.options.locale.switch.writesPath) {
       const href = web.localizeHref(window.location.href, locale);

@@ -2,6 +2,7 @@ import { test, expect } from "bun:test";
 import { createWebI18n as legacy, createWebLocaleI18n as legacyLocale } from "./legacy/web.runtime";
 
 import * as webPackage from "../../../../../packages/web/src/index.ts";
+import { persistLocaleCookie } from "../../../../../packages/web/src/server.ts";
 
 const resolverFactories = {
   path: webPackage.pathLocale,
@@ -78,9 +79,11 @@ for (const [name, sources] of cases) {
         }
       }
       for (const input of [{}, { origin: "https://example.test", httpOnly: true }, { origin: "http://example.test", secure: true, maxAge: 5 }]) {
-        expect(web.serializeLocaleCookie("fr", input)).toBe(oracle.serializeLocaleCookie("fr", input));
+        const serialized = compiler === npm ? webPackage.serializeLocaleCookie(web,"fr",input) : web.serializeLocaleCookie("fr",input);
+        expect(serialized).toBe(oracle.serializeLocaleCookie("fr", input));
         const headers = new Headers({ "set-cookie": "theme=dark" });
-        web.setLocaleCookie({ headers }, "fr", input);
+        if (compiler === npm) persistLocaleCookie(web,{headers},"fr",input);
+        else web.setLocaleCookie({ headers }, "fr", input);
         expect(headers.get("set-cookie")).toContain("theme=dark");
         expect(headers.get("set-cookie")).toContain(oracle.serializeLocaleCookie("fr", input));
       }

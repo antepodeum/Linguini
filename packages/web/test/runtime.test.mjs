@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createWebLocaleI18n, createWebI18n, createLocaleRequestContext, pathLocale, cookieLocale, requestLanguage, localStorageLocale} from '../dist/index.js';
-import {createLocaleSwitchHandler} from '../dist/server.js';
+import {createWebLocaleI18n, createWebI18n, createLocaleRequestContext, pathLocale, cookieLocale, requestLanguage, localStorageLocale, serializeLocaleCookie} from '../dist/index.js';
+import {createLocaleSwitchHandler, persistLocaleCookie} from '../dist/server.js';
 
 const runtime = {locales:['en','fr','ar'],baseLocale:'en',getTextDirection:locale => locale === 'ar' ? 'rtl' : 'ltr'};
 const environment = {base:'/app',origin:'https://example.test'};
@@ -20,8 +20,8 @@ test('runtime sources are explicit, ordered capabilities independent of message 
   assert.equal(web.htmlAttrs('ar').dir, 'rtl');
   const globalCookie=createWebLocaleI18n(runtime,{cookie:{name:'GLOBAL',httpOnly:true},locale:{sources:[cookieLocale({secure:true})]}});
   assert.equal(globalCookie.resolveLocaleSync({cookie:'GLOBAL=fr'}),'fr');
-  assert.match(globalCookie.serializeLocaleCookie('fr'),/HttpOnly/);
-  assert.match(globalCookie.serializeLocaleCookie('fr'),/Secure/);
+  assert.match(serializeLocaleCookie(globalCookie,'fr'),/HttpOnly/);
+  assert.match(serializeLocaleCookie(globalCookie,'fr'),/Secure/);
   assert.throws(() => createWebLocaleI18n(runtime,{locale:{sources:['path']}}), /capabilities/);
   assert.throws(() => createWebLocaleI18n(runtime,{locale:{sources:[pathLocale(),pathLocale()]}}), /Duplicate/);
   assert.throws(() => createWebLocaleI18n(runtime,{locale:{sources:[cookieLocale({name:'bad;name'})]}}), /cookie name/);
@@ -43,6 +43,22 @@ test('locale metadata never enumerates or forwards message-runtime capabilities'
   assert.equal(context.localizeHref('/app/en/cart'), '/app/fr/cart');
   for (const key of ['messages', 'l', 'createLinguini', 'prepareLinguini']) assert.equal(Object.hasOwn(web,key),false);
   assert.equal(Object.getOwnPropertySymbols(web).length,0);
+  assert.equal('serializeLocaleCookie' in web,false);
+  assert.equal('setLocaleCookie' in web,false);
+});
+
+test('explicit cookie transports preserve serialization, append headers, and prefer cookie sinks', () => {
+  const web = createWebLocaleI18n(runtime, {cookie:{name:'LANG',path:'/app',domain:'example.test',sameSite:'strict',httpOnly:true}}, environment);
+  const input={origin:'https://example.test',maxAge:60};
+  const serialized=serializeLocaleCookie(web,'fr',input);
+  assert.equal(serialized,'LANG=fr; Max-Age=60; Path=/app; Domain=example.test; SameSite=strict; Secure; HttpOnly');
+  const response=new Response('stream',{headers:{'set-cookie':'theme=dark; Path=/'}});
+  persistLocaleCookie(web,response,'fr',input);
+  assert.deepEqual(response.headers.getSetCookie(),['theme=dark; Path=/',serialized]);
+  const calls=[];
+  persistLocaleCookie(web,{cookies:{set(...args){calls.push(args);}},headers:{append(){assert.fail('cookie sink must take precedence');}}},'fr',input);
+  assert.deepEqual(calls,[['LANG','fr',{path:'/app',domain:'example.test',maxAge:60,sameSite:'strict',secure:true,httpOnly:true}]]);
+  assert.equal(serializeLocaleCookie(web,'fr',{...input,secure:false,httpOnly:false}), 'LANG=fr; Max-Age=60; Path=/app; Domain=example.test; SameSite=strict');
 });
 
 test('cookie and switch endpoint policy runs at application startup and rejects unsafe returns', () => {

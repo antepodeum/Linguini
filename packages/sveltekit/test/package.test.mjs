@@ -37,7 +37,8 @@ test('published runtime packages preserve strict TypeScript, declarations/maps, 
   pnpm(['install','--prefer-offline','--ignore-scripts','--store-dir',store],consumer);
   writeFileSync(path.join(consumer,'tsconfig.json'),JSON.stringify({compilerOptions:{strict:true,allowJs:false,skipLibCheck:false,module:'NodeNext',moduleResolution:'NodeNext',target:'ES2022',outDir:'output',types:['node','@sveltejs/kit']},include:['consumer.ts']}));
   writeFileSync(path.join(consumer,'consumer.ts'),`
-import {createWebLocaleI18n,pathLocale,cookieLocale} from '@antepodeum/linguini-web';
+import {createWebLocaleI18n,pathLocale,cookieLocale,serializeLocaleCookie} from '@antepodeum/linguini-web';
+import {persistLocaleCookie} from '@antepodeum/linguini-web/server';
 import {createReroute} from '@antepodeum/linguini-sveltekit';
 import {createHandle,createLoad} from '@antepodeum/linguini-sveltekit/server';
 import type {Handle} from '@sveltejs/kit';
@@ -45,6 +46,16 @@ const metadata={locales:['en','fr'] as const,baseLocale:'en' as const,
   get createLinguini():never {throw Error('metadata read a catalog factory');},
   get prepareLinguini():never {throw Error('metadata read message preparation');}};
 const web=createWebLocaleI18n(metadata,{locale:{sources:[pathLocale(),cookieLocale({name:'LANG'})]}});
+if (!serializeLocaleCookie(web,'fr').startsWith('LANG=fr;')) throw Error('cookie serialization failed');
+const response=new Response();
+persistLocaleCookie(web,response,'fr');
+if (!response.headers.get('set-cookie')?.startsWith('LANG=fr;')) throw Error('cookie persistence failed');
+// @ts-expect-error Cookie serialization preserves finite locale typing.
+void (()=>serializeLocaleCookie(web,'ar'));
+// @ts-expect-error Cookie persistence preserves finite locale typing.
+void (()=>persistLocaleCookie(web,response,'ar'));
+// @ts-expect-error Persistence implementations are explicit helpers, not metadata methods.
+void (()=>web.setLocaleCookie(response,'fr'));
 if (web.localizeLinkHref('/en/shop','fr',{download:false}) !== '/fr/shop') throw Error('combined link localization failed');
 // @ts-expect-error Combined links preserve finite locale typing.
 void (()=>web.localizeLinkHref('/','ar'));

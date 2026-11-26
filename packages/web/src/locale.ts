@@ -1,7 +1,7 @@
 import type { AlternateLink, LinguiniLocaleRuntime, LinguiniWebEnvironment, LinguiniWebLocale, LinguiniWebOptions, LinkLocalizationAttributes, TextDirection } from "./types.js";
 import { normalizeOptions } from "./options.js";
 import { matchesRoute } from "./routes.js";
-import { matchLocaleValue, resolveBaseUrl, parseUrl, isInternalHttpUrl, stripBasePath, stripLeadingLocale, joinPath, shouldPrefixLocale, parseRuntimeUrl, resolveCookieSecure } from "./url.js";
+import { matchLocaleValue, resolveBaseUrl, parseUrl, isInternalHttpUrl, stripBasePath, stripLeadingLocale, joinPath, shouldPrefixLocale, parseRuntimeUrl } from "./url.js";
 
 export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options: LinguiniWebOptions = {}, environment: LinguiniWebEnvironment = {}): LinguiniWebLocale<Locale> {
     const sources = options.locale?.sources ?? [];
@@ -171,42 +171,6 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         return normalized.routes.exclude.some((matcher) => matchesRoute(matcher, parsed));
     }
 
-    function serializeLocaleCookie(locale: Locale, input: Record<string, unknown> = {}): string {
-        const parts = [`${normalized.cookie.name}=${encodeURIComponent(locale)}`];
-        parts.push(`Max-Age=${input.maxAge ?? normalized.cookie.maxAge}`);
-        parts.push(`Path=${normalized.cookie.path}`);
-        if (normalized.cookie.domain)
-            parts.push(`Domain=${normalized.cookie.domain}`);
-        parts.push(`SameSite=${normalized.cookie.sameSite}`);
-        if (resolveCookieSecure(normalized.cookie.secure, input))
-            parts.push("Secure");
-        if (input.httpOnly ?? normalized.cookie.httpOnly)
-            parts.push("HttpOnly");
-        return parts.join("; ");
-    }
-
-    function setLocaleCookie(target: unknown, locale: Locale, input: Record<string, unknown> = {}): void {
-        const cookie = serializeLocaleCookie(locale, input);
-        const sink =  target as {
-            headers?: Pick<Headers, "append">;
-            cookies?: {
-                set(name: string, value: string, options?: Record<string, unknown>): void;
-            };
-        };
-        if (sink.cookies?.set) {
-            sink.cookies.set(normalized.cookie.name, locale, {
-                path: normalized.cookie.path,
-                domain: normalized.cookie.domain,
-                maxAge: input.maxAge ?? normalized.cookie.maxAge,
-                sameSite: normalized.cookie.sameSite,
-                secure: resolveCookieSecure(normalized.cookie.secure, input),
-                httpOnly: input.httpOnly ?? normalized.cookie.httpOnly,
-            });
-        }
-        else {
-            sink.headers?.append?.("set-cookie", cookie);
-        }
-    }
     return {
         locales: runtime.locales,
         baseLocale: runtime.baseLocale,
@@ -228,8 +192,6 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         htmlAttrs,
         getCanonicalRedirect,
         shouldExclude,
-        setLocaleCookie,
-        serializeLocaleCookie,
         getTextDirection,
     };
 }
