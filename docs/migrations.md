@@ -4,6 +4,19 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Form attribute demand
+
+Regenerate output to omit unused pure form attributes and their dependencies automatically.
+The `tree_shaking` option continues to control message selection. Selection runs before inline
+lowering, so excluded messages no longer create unused lifted helpers. The common backend plan
+is available through `linguini_codegen::prune_unused_form_attributes`; direct message dependency
+closures also contain projected forms and source identities from the retained content.
+
+Public message signatures, property lookup/coercion, callable rows, and eager initializers retain
+their behavior. Current form snapshots omit unused fields; historical comparison oracles remain
+unchanged. Physical pages still share attributes needed elsewhere in the selected project; this change
+does not complete attribute-level page delivery or remove optional request/runtime overhead.
+
 ## Native numeric preview plans
 
 Native decimal/currency previews now use `linguini-codegen::NumberFormatPlan` for literal

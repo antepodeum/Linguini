@@ -1674,6 +1674,14 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       and thrown errors; unproven member references still coerce.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
+      Shared form demand now projects standalone closures and generated projects to used
+      attributes and their transitive dependencies before inline lowering. Ordinary, physical,
+      and standalone execution preserves lookup/prototype/coercion errors, eager initialization,
+      callable rows, and named calls. Native cold/warm builds execute exact locale payloads and
+      a fallback message. Complete gender-only, mixed-form, and Russian delivery consumers save
+      408, 39, and 76 Brotli bytes respectively (GEN-A40). Different pages still share attributes
+      selected elsewhere in the project; callable/eager forms
+      remain conservative. Attribute-level page delivery and the criteria below remain open.
       The [cost audit](docs/generated-code-cost-audit.md) records category-name versus numeric
       classifier measurements and GEN-A15–A20. Numeric literals alone show no useful memory gain
       in that local experiment. Compile selector outcomes from the actual branches, merge equivalent

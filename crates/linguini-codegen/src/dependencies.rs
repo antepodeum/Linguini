@@ -105,6 +105,47 @@ pub fn message_dependency_closure(
     Ok(walker.finish(locale.to_owned(), message.to_owned()))
 }
 
+/// Project forms to paths used by the supplied validated messages and exported globals.
+///
+/// Keeps all other declarations, callable rows, and forms with eager initializers. Pure
+/// unreachable forms are omitted. The caller supplies its selected message schema.
+pub fn prune_unused_form_attributes(schema: &IrModule, locale: &IrModule) -> IrModule {
+    let mut walker = ClosureWalker::new(schema, locale);
+    for signature in schema.messages() {
+        let Some(implementation) = locale
+            .messages()
+            .iter()
+            .find(|message| message.name == signature.name)
+        else {
+            continue;
+        };
+        if let Some(body) = &implementation.body {
+            walker.visit_text(body, &walker.message_context(signature));
+        }
+    }
+    for variable in locale.variables() {
+        walker.visit_variable(&variable.name);
+    }
+    for function in locale.functions() {
+        walker.visit_function(&function.name);
+    }
+    for form in locale.forms() {
+        if crate::form_demand::form_has_observable_initialization(form) {
+            walker.visit_form(&form.name);
+        }
+    }
+    let projected = IrModuleBuilder::seeded(locale)
+        .retain_symbols(|kind, name| {
+            kind != IrSymbolKind::Form
+                || walker
+                    .selected
+                    .contains(&MessageDependencySymbol::LocaleForm(name.to_owned()))
+        })
+        .build()
+        .expect("form reachability preserves declaration identities");
+    walker.form_demand.project(&projected)
+}
+
 /// A requested message cannot be selected from the supplied semantic modules.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MessageDependencyError {
@@ -139,7 +180,7 @@ struct ClosureWalker<'a> {
     functions: BTreeMap<&'a str, &'a IrFunction>,
     selected: BTreeSet<MessageDependencySymbol>,
     visiting_variables: BTreeSet<String>,
-    visiting_forms: BTreeSet<String>,
+    form_demand: crate::form_demand::FormDemand,
     visiting_functions: BTreeSet<String>,
     visiting_types: BTreeSet<String>,
 }
@@ -181,7 +222,7 @@ impl<'a> ClosureWalker<'a> {
                 .collect(),
             selected: BTreeSet::new(),
             visiting_variables: BTreeSet::new(),
-            visiting_forms: BTreeSet::new(),
+            form_demand: crate::form_demand::FormDemand::default(),
             visiting_functions: BTreeSet::new(),
             visiting_types: BTreeSet::new(),
         }
@@ -281,7 +322,7 @@ impl<'a> ClosureWalker<'a> {
         }
         if let Some(root_type) = context.get(&path[0]) {
             if path.len() > 1 || called {
-                self.visit_form(root_type);
+                self.visit_form_path(root_type, &path[1..]);
             }
             return;
         }
@@ -347,20 +388,23 @@ impl<'a> ClosureWalker<'a> {
     }
 
     fn visit_form(&mut self, ty: &str) {
+        self.visit_form_path(ty, &[]);
+    }
+
+    fn visit_form_path(&mut self, ty: &str, path: &[String]) {
         let resolved = self.resolve_type_name(ty);
         let Some(form) = self.forms.get(resolved.as_str()).copied() else {
             return;
         };
         self.selected
             .insert(MessageDependencySymbol::LocaleForm(form.name.clone()));
-        if !self.visiting_forms.insert(form.name.clone()) {
+        let Some(form) = self.form_demand.request(form, path) else {
             return;
-        }
+        };
         let context = BTreeMap::new();
         for variant in &form.variants {
             self.visit_form_entries(&variant.entries, &context);
         }
-        self.visiting_forms.remove(&form.name);
     }
 
     fn resolve_type_name(&self, ty: &str) -> String {
@@ -416,8 +460,10 @@ impl<'a> ClosureWalker<'a> {
     fn finish(self, locale: String, message: String) -> MessageDependencyClosure {
         let selected = self.selected;
         let schema = slice_schema(self.schema, &selected);
-        let locale_module = slice_locale(self.locale, &selected);
-        let metadata = metadata_for(self.schema, self.locale, &selected);
+        let locale_module = self
+            .form_demand
+            .project(&slice_locale(self.locale, &selected));
+        let metadata = metadata_for(self.schema, &locale_module, &selected);
         MessageDependencyClosure {
             locale,
             message,
@@ -574,6 +620,94 @@ mod tests {
     use super::{message_dependency_closure, MessageDependencyError, MessageDependencySymbol};
     use linguini_ir::{lower_locale, lower_schema};
     use linguini_syntax::{parse_locale, parse_locale_in, parse_schema, parse_schema_in, SourceId};
+
+    #[test]
+    fn form_paths_select_attributes_and_their_transitive_requirements() {
+        use linguini_ir::{IrFormEntry, IrModuleBuilder, IrValue};
+        let schema = lower_schema(&parse_schema_in(
+            "enum Fruit { apple }\ntype Item = Fruit\ngender(fruit: Item)\nnom(fruit: Fruit, count: Number)\nshort(fruit: Fruit)\n",
+            SourceId(7),
+        ).unwrap());
+        let locale = lower_locale(&parse_locale_in(
+            "fn Unused() { _ => UNUSED }\nimpl Fruit { apple {\nGender = neuter\nemoji = UNUSED_EMOJI\nform nom(Plural) { one => apple\n_ => apples }\nform gen(Plural) { _ => {Unused()} }\ndisplay { short = apple\nlong = UNUSED_LONG }\n} }\ngender = {fruit.Gender}\nnom = {fruit.nom(count)}\nshort = {fruit.display}\n",
+            SourceId(8),
+        ).unwrap());
+        let locale = IrModuleBuilder::seeded(&locale)
+            .update_forms(|form| {
+                for entry in &mut form.variants[0].entries {
+                    if let IrFormEntry::Attribute {
+                        name,
+                        value: IrValue::Map(branches),
+                        ..
+                    } = entry
+                    {
+                        if name == "gen" {
+                            branches[0].value.span.source = SourceId(99);
+                        }
+                    }
+                }
+            })
+            .build()
+            .unwrap();
+        for (message, attribute, plural) in [
+            ("gender", "Gender", false),
+            ("nom", "nom", true),
+            ("short", "display", false),
+        ] {
+            let closure = message_dependency_closure(&schema, "en", &locale, message).unwrap();
+            let entries = &closure.locale_module().forms()[0].variants[0].entries;
+            assert_eq!(entries.len(), 1, "{message}");
+            assert!(matches!(&entries[0], IrFormEntry::Attribute {name, ..} if name == attribute));
+            assert!(closure.locale_module().functions().is_empty());
+            assert_eq!(
+                crate::plural_required(closure.schema(), closure.locale_module()),
+                plural
+            );
+            assert_eq!(closure.source_ids(), &[SourceId(7), SourceId(8)]);
+            if message == "short" {
+                let IrFormEntry::Attribute {
+                    value: IrValue::Object(children),
+                    ..
+                } = &entries[0]
+                else {
+                    panic!("display object")
+                };
+                assert_eq!(children.len(), 2);
+                assert!(
+                    matches!(&children[0], IrFormEntry::Attribute {name, ..} if name == "short")
+                );
+            }
+        }
+        let projected = super::prune_unused_form_attributes(&schema, &locale);
+        let entries = &projected.forms()[0].variants[0].entries;
+        assert_eq!(entries.len(), 3, "union of selected paths");
+        assert_eq!(
+            projected.functions(),
+            locale.functions(),
+            "exported globals remain intact"
+        );
+    }
+
+    #[test]
+    fn recursive_form_demands_keep_new_paths_and_eager_initializers() {
+        let schema = lower_schema(
+            &parse_schema("enum Fruit { apple }\nroot(fruit: Fruit, count: Number)\n").unwrap(),
+        );
+        let locale = lower_locale(&parse_locale(
+            "let marker = EAGER\nfn Read(fruit: Fruit) { _ => {fruit.label} }\nimpl Fruit { apple {\nlabel = Apple\neager = {marker}\nform nom(fruit: Fruit) { _ => {Read(fruit)} }\nunused = UNUSED\n} }\nroot = {fruit.nom(fruit)}\n",
+        ).unwrap());
+        let closure = message_dependency_closure(&schema, "en", &locale, "root").unwrap();
+        let entries = &closure.locale_module().forms()[0].variants[0].entries;
+        assert_eq!(entries.len(), 3);
+        assert_eq!(closure.locale_module().functions()[0].name, "Read");
+        assert_eq!(closure.locale_module().variables()[0].name, "marker");
+        let projected = super::prune_unused_form_attributes(&schema, &locale);
+        assert_eq!(
+            projected.forms(),
+            locale.forms(),
+            "whole eager form is retained at project scope"
+        );
+    }
 
     #[test]
     fn closure_selects_transitive_ir_and_preserves_source_identity() {

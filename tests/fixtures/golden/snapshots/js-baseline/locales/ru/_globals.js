@@ -11,7 +11,6 @@ const cart_label = "В корзине";
 const __lgl_form_Fruit = {
   apple: {
     Gender: /** @type {const} */ ("neuter"),
-    emoji: /** @type {const} */ ("🍎"),
     nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
       switch (pluralRu(value)) {
         case "one":
@@ -22,18 +21,9 @@ const __lgl_form_Fruit = {
           return "яблок";
       }
     }),
-    gen: /** @type {(value: number | bigint | string) => string} */ ((value) => {
-      if (pluralRu(value) === "one") return "яблока";
-      return "яблок";
-    }),
-    display: {
-      short: /** @type {const} */ ("ябл."),
-      long: /** @type {const} */ ("спелое яблоко"),
-    },
   },
   pear: {
     Gender: /** @type {const} */ ("female"),
-    emoji: /** @type {const} */ ("🍐"),
     nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
       switch (pluralRu(value)) {
         case "one":
@@ -44,14 +34,9 @@ const __lgl_form_Fruit = {
           return "груш";
       }
     }),
-    gen: /** @type {(value: number | bigint | string) => string} */ ((value) => {
-      if (pluralRu(value) === "one") return "груши";
-      return "груш";
-    }),
   },
   orange: {
     Gender: /** @type {const} */ ("male"),
-    emoji: /** @type {const} */ ("🍊"),
     nom: /** @type {(value: number | bigint | string) => string} */ ((value) => {
       switch (pluralRu(value)) {
         case "one":
@@ -61,10 +46,6 @@ const __lgl_form_Fruit = {
         default:
           return "апельсинов";
       }
-    }),
-    gen: /** @type {(value: number | bigint | string) => string} */ ((value) => {
-      if (pluralRu(value) === "one") return "апельсина";
-      return "апельсинов";
     }),
   },
 };

@@ -287,6 +287,36 @@ digits as number, bigint, and string inputs, plus native cold/warm builds and st
 consumers. Existing BMP snapshots remain byte-identical. This is a correctness repair, without
 a timing claim.
 
+## Form attribute demand
+
+Whole-form dependency selection kept `emoji`, `gen`, and their functions in native output even
+when no selected message used them. Shared planning now projects requested form paths. Standalone
+messages use that projection directly; projects apply it automatically after message selection.
+Pure unused maps and literals disappear before emission. Row objects and ordinary indexed
+property access remain; eager initializers and callable rows retain their behavior.
+
+Controlled complete-consumer builds compare the same native inputs with only the project
+projection pass disabled/enabled. Vite 7.3.3 application minification on Node 24.13.1 gives:
+
+| Selected messages | Minified before / after | gzip before / after | Brotli before / after |
+| --- | ---: | ---: | ---: |
+| English gender attribute only | 1,451 / 546 | 817 / 384 | 726 / 318 |
+| English gender and nominative form | 1,539 / 1,439 | 845 / 807 | 759 / 720 |
+| Russian delivery, counted, and price | 5,858 / 5,598 | 2,309 / 2,226 | 2,075 / 1,999 |
+
+Every consumer executes matching results before/after and has one chunk without imports.
+The native regression fails with the pass disabled. Enabled builds also execute cold/warm
+manifests, strict message-record selection, and English/French payloads with a missing French
+message resolved at build time. Separate ordinary/physical/standalone execution covers own
+attributes, prototype keys, missing and Symbol keys, coercion hints, thrown error identity,
+named/positional calls, eager String conversions, and exact callable-row `Object.assign` observations. Current form snapshots omit unused fields;
+historical comparison oracles are unchanged.
+
+This establishes byte savings for the selected project shapes, without a speed or allocation
+claim. Different pages still share attributes required by the selected project.
+Callable and eager forms are conservative.
+Per-page attribute artifacts and remaining normalization/request overhead stay open (GEN-A40).
+
 ## Findings and owners
 
 | ID | Status | Verified evidence | Required remediation |

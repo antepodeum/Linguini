@@ -11,6 +11,7 @@ mod dependencies;
 mod digits;
 mod direct_dependencies;
 mod dispatch;
+mod form_demand;
 mod formatters;
 mod inline;
 mod locales;
@@ -33,7 +34,8 @@ pub use date_symbols::{date_field_symbols, DateFieldSymbols};
 pub use day_periods::{day_period_plan, DayPeriodPlan, DayPeriodSpan, ExactDayPeriod};
 pub use decision::{Decision, DecisionArm};
 pub use dependencies::{
-    message_dependency_closure, MessageDependencyClosure, MessageDependencyError,
+    message_dependency_closure, prune_unused_form_attributes, MessageDependencyClosure,
+    MessageDependencyError,
 };
 pub use digits::{can_localize_date_result, contiguous_decimal_digit_zero, decimal_digit_symbols};
 pub use direct_dependencies::{

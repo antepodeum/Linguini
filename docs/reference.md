@@ -1074,6 +1074,15 @@ scope before physical artifact projection; local parameter bindings mask those n
 Raw user inputs retain runtime coercion, including inputs whose public schema type is `String`.
 Form objects and nested dispatch bodies use multiline indentation in generated source.
 
+Standalone message compilation selects only the form attributes it uses and their dependencies.
+Project and physical bundler artifacts also omit pure attributes unused by the selected messages
+and retained locale globals. This is automatic; `tree_shaking` controls message selection.
+Reading `fruit.Gender`
+alone therefore does not require the unused `nom`/`gen` functions or their plural classifier.
+Variant lookup and row objects remain intact; callable rows and eager initializers are preserved.
+Separate pages using different attributes of the same form still share the project's selected
+form table. Attribute-level page splitting remains under remediation.
+
 Message argument keys are initialized once per module. Positional normalization reuses the
 existing argument array; named-object normalization validates all own keys before reading values
 in schema parameter order. Inherited properties do not satisfy required named parameters.

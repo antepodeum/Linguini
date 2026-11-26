@@ -420,6 +420,12 @@ impl<'a> ValidatedEcmaProject<'a> {
         let locales = locales
             .into_iter()
             .map(|mut locale| {
+                locale.module =
+                    LocaleIr::try_from_module(linguini_codegen::prune_unused_form_attributes(
+                        &visible_schema,
+                        &locale_module_for_schema(&locale.module, &visible_schema),
+                    ))
+                    .expect("form attribute projection preserves locale IR ownership");
                 locale.module = LocaleIr::try_from_module(
                     linguini_codegen::lower_inline_functions(schema, &locale.module),
                 )
