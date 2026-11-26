@@ -1,17 +1,29 @@
 # Repository State
 
-This file tracks the current repository surface and the remaining desloppifying work.
+This file records the current architecture and an earlier crate audit. The
+[remediation checklist](./AUDIT_REMEDIATION_CHECKLIST.md) tracks active requirements,
+verification evidence, and remaining work.
 
 ## Current State
 
-- Rust workspace with compiler, analyzer, formatter, CLDR, codegen, CLI, and LSP crates.
-- TypeScript codegen currently targets plain TypeScript plus Svelte 5 and SvelteKit runtimes.
-- Website lives in `site/` and is prerendered with locale-aware SvelteKit routing.
-- VS Code extension lives in `editors/vscode/`.
-- Vite plugin lives in `packages/vite/`.
-- CLDR plural and formatting data is generated at Rust compile time from pinned CLDR JSON.
+- Rust compiler, analyzer, formatter, CLI, and shared native/WASM LSP service.
+- `linguini-codegen` owns shared semantic planning. `linguini-codegen-ecmascript` emits ESM
+  JavaScript with JSDoc and adjacent TypeScript declarations; `linguini-codegen-svelte` owns
+  thin project bindings.
+- `packages/web`, `packages/svelte`, and `packages/sveltekit` own maintained TypeScript runtime
+  adapters and application-configured routing/persistence policy.
+- Framework-independent Vite integration lives in `packages/vite`. Svelte, SvelteKit, and Vue
+  packages own their respective `/vite` adapters and compose the shared integration.
+- `packages/tsc` integrates native generation with TypeScript build, watch, and project references.
+- The website and production integration fixtures live in `site/`.
+- `editors/vscode` ships native language-server integration plus a shared WASM worker fallback
+  and browser entry. Highlighting uses the shared Rust language service.
+- Consumer builds use pinned, hash-verified CLDR Rust artifacts. The offline maintainer tool in
+  `linguini-cldr-macros` regenerates those inputs from the pinned CLDR checkout.
+- Application and editor build output stays ignored. Curated golden expectations and pinned
+  CLDR artifacts remain versioned.
 
-## Desloppifying Progress
+## Earlier crate audit
 
 - [x] 1. `crates/linguini-core`
   - [x] Audit public types for minimal, stable ownership and naming.
