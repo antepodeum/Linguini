@@ -1209,6 +1209,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       graph/browser checks. Separate Node 20 tests cover the changed planner/linker boundary;
       all 45 existing production locale payloads retain identical paths and bytes. Differing
       unprepared demands, unsupported ownership shapes, and final architecture gates remain open.
+      Automatic form-demand source `ea82945` passes all 71 local full-profile gates, including
+      the new native cold/warm form-payload regression, strict generated consumers, editor/WASM,
+      and production SSR/browser checks. Rust 1.87, Node 20, workspace Clippy, and complete-consumer
+      measurements separately cover the shared plan. Attribute-level page delivery, conservative
+      callable/eager forms, hosted verification, and the remaining architecture criteria stay open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
