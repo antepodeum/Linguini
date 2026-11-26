@@ -1183,6 +1183,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       production-site graph/browser checks. Separate dependency-policy probes, offline crate
       packaging, Node 20, and Rust 1.87 receipts cover the changed boundaries. Remote
       Windows/macOS verification of the CI fixes and the broader architecture remain open.
+      Shared date/number-plan, readable-binding, and exact test-selection follow-up source
+      `557d66b` passes all 70 local full-profile gates in one clean run, including native
+      build/watch integrations, packaged sources, editor/WASM, and production graph/browser
+      checks. Runtime fixture selection no longer includes archived copies under `target/`.
+      Separate Node 20 and Rust 1.87 checks cover the changed compiler/preview boundaries.
+      This receipt does not close the remaining architecture or release criteria.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
