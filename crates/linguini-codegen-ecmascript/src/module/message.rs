@@ -381,9 +381,6 @@ fn emit_message_module(
     }
 
     let uses_plural = plural_required(schema, locale);
-    let uses_select_branch = statements
-        .iter()
-        .any(|(code, _)| code.contains("selectBranch("));
     let uses_named_message_args = schema
         .messages()
         .iter()
@@ -394,7 +391,6 @@ fn emit_message_module(
         shared_import_path,
         runtime_import_path,
         plural_function: &options.plural_function,
-        uses_select_branch,
         uses_named_message_args,
         uses_plural,
         runtime_helpers: runtime_helpers.as_deref().unwrap_or_default(),
@@ -434,7 +430,6 @@ struct MessageImportRequest<'a> {
     shared_import_path: &'a str,
     runtime_import_path: Option<&'a str>,
     plural_function: &'a str,
-    uses_select_branch: bool,
     uses_named_message_args: bool,
     uses_plural: bool,
     runtime_helpers: &'a [String],
@@ -443,20 +438,13 @@ struct MessageImportRequest<'a> {
 
 fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
     let mut imports = Vec::new();
-    let mut shared_helpers = Vec::new();
-    if request.uses_select_branch {
-        shared_helpers.push("selectBranch");
-    }
     if request.uses_named_message_args {
-        shared_helpers.push("normalizeMessageArgs");
-    }
-    if !shared_helpers.is_empty() {
         imports.push(EcmaImport::named(
             import_path_for_target(request.shared_import_path, request.target),
-            shared_helpers
-                .into_iter()
-                .map(|name| EcmaNamedImport::new(name, name))
-                .collect(),
+            vec![EcmaNamedImport::new(
+                "normalizeMessageArgs",
+                "normalizeMessageArgs",
+            )],
         ));
     }
     if let Some(runtime_import_path) = request.runtime_import_path {

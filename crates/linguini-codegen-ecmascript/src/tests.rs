@@ -846,7 +846,8 @@ fn javascript_schema_codegen_owns_jsdoc_and_declaration_companions() {
             .contents
             .contains(&format!("export type {name} = {ty};")));
     }
-    assert!(shared.contents.contains("@template T"));
+    assert!(!shared.contents.contains("selectBranch"));
+    assert!(!declarations.contents.contains("selectBranch"));
     assert!(!shared.contents.contains("export type"));
     assert!(!shared.contents.contains(" as Record"));
 
@@ -1490,29 +1491,89 @@ fn project_global_imports_follow_direct_edges_and_lexical_scope() {
 
 #[test]
 fn project_literal_helper_names_do_not_require_runtime_exports() {
-    let schema = lower_schema(&parse_schema("literal\n").expect("schema"));
-    let locale =
-        lower_locale(&parse_locale("literal = formatNumber( pluralEn(\n").expect("locale"));
-    let files = generate_project_files(
-        &schema,
-        &[EcmaLocaleModule {
-            locale: "en".to_owned(),
-            module: locale,
-        }],
-        &project_options("en"),
-    )
-    .expect("project codegen");
-    let barrel = files
-        .iter()
-        .find(|file| file.path == "locales/en.js")
-        .expect("locale barrel");
-    assert!(barrel.contents.contains("formatNumber( pluralEn("));
-    assert!(!barrel.contents.contains("from \"./en/_runtime.js\""));
+    use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
+    let schema_source = "literal\nglobal\ncalled\n";
+    let locale_source = concat!(
+        "let label = selectBranch( formatNumber( pluralEn(\n",
+        "fn Ready() {\n _ => selectBranch( formatNumber( pluralEn(\n}\n",
+        "literal = selectBranch( formatNumber( pluralEn(\n",
+        "global = {label}\ncalled = {Ready()}\n",
+    );
+    let schema = lower_schema(&parse_schema_in(schema_source, SourceId(1)).unwrap());
+    let locales = [EcmaLocaleModule {
+        locale: "en".into(),
+        module: lower_locale(&parse_locale_in(locale_source, SourceId(2)).unwrap()),
+    }];
+    let options = project_options("en");
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).unwrap();
+    let mut files = crate::generate_project_files(&project).unwrap();
+    let sources = [
+        crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
+        crate::EcmaSource::new(SourceId(2), "en.lgl", locale_source),
+    ];
+    for artifact in project.semantic_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        assert!(
+            !compiled
+                .code
+                .lines()
+                .any(|line| line.starts_with("import ")),
+            "{}",
+            compiled.code
+        );
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    let mut facade = String::new();
+    for artifact in project.message_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+        assert!(
+            !compiled
+                .code
+                .lines()
+                .any(|line| line.starts_with("import ") && line.contains("selectBranch")),
+            "{}",
+            compiled.code
+        );
+        facade.push_str(&format!(
+            "export {{message as {}}} from \"./{}\";\n",
+            artifact.message, artifact.module_path
+        ));
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    files.push(EcmaGeneratedFile {
+        path: "physical.js".into(),
+        contents: facade,
+    });
     let runtime = files
         .iter()
         .find(|file| file.path == "locales/en/_runtime.js")
-        .expect("locale runtime");
+        .unwrap();
     assert!(runtime.contents.is_empty());
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"
+import assert from 'node:assert/strict';
+const ordinary=await import('./locales/en.js');
+const physical=await import('./physical.js');
+for(const messages of [ordinary,physical]) {
+  for(const name of ['literal','global','called']) {
+    assert.equal(messages[name],'selectBranch( formatNumber( pluralEn(');
+  }
+}
+console.log('ok');
+"#
+        ),
+        "ok"
+    );
 }
 
 #[test]

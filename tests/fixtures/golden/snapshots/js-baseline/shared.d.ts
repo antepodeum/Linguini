@@ -6,11 +6,6 @@ export type Money = number | bigint | string;
 
 export type ShortDate = Date | number | string;
 
-export declare function selectBranch<T>(
-  key: string,
-  branches: Record<string, T>,
-): T;
-
 export declare function normalizeMessageArgs(
   values: unknown[],
   keys: readonly string[],

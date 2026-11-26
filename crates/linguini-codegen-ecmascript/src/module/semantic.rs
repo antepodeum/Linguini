@@ -283,13 +283,6 @@ fn compile_bundler_semantic_module_impl(
         }
     }
 
-    let uses_select_branch = output.contains("selectBranch(");
-    if uses_select_branch {
-        imports.push(EcmaImport::named(
-            import_path_for_target(&artifact.shared_import_path, target),
-            vec![EcmaNamedImport::new("selectBranch", "selectBranch")],
-        ));
-    }
     let mut helpers = formatter_helper_names(&IrModule::default(), &one);
     if plural_required(&IrModule::default(), &one) {
         helpers.push(options.plural_function.clone());

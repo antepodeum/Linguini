@@ -1,4 +1,4 @@
-import { normalizeMessageArgs, selectBranch } from "./shared.js";
+import { normalizeMessageArgs } from "./shared.js";
 
 /** @type {import("./shared.js").Tone} */
 const tone = "warm";
@@ -7,7 +7,6 @@ const amount = 42n;
 /** @type {import("./messages.js").LinguiniMessages} */
 const messages = /** @type {any} */ ({});
 
-const selected = selectBranch(tone, { warm: amount, cool: 0 });
 const normalized = normalizeMessageArgs([{ tone }], ["tone"]);
 messages.hello(tone);
 messages.hello({ tone: "cool" });
@@ -20,4 +19,4 @@ messages.hello({ tone: "cold" });
 // @ts-expect-error positional message arguments preserve the schema enum
 messages.hello("cold");
 
-void [selected, normalized, invalidTone];
+void [amount, normalized, invalidTone];

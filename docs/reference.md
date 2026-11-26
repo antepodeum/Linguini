@@ -1050,6 +1050,9 @@ a bounded dispatch object for its explicitly allowed messages.
 Generated JavaScript and its declaration companion describe one implementation. Dispatch and
 message-argument normalization check own branches before `_` and `other` fallbacks;
 named arguments reject unknown own keys, including symbols.
+Static form/function dispatch uses direct decisions with merged equal results. Generated shared
+modules contain argument normalization; the obsolete `selectBranch` implementation/export is
+removed. Literal message text cannot select a dispatch runtime dependency.
 Numeric, currency, date, and digit formatting use canonical runtime templates;
 each locale artifact includes only its required helpers and pinned CLDR data.
 Project locale resolution and lazy message providers likewise use shared semantic plans,

@@ -1,23 +1,4 @@
 /**
- * @template T
- * @param {string} key
- * @param {Record<string, T>} branches
- * @returns {T}
- */
-export function selectBranch(key, branches) {
-  if (Object.prototype.hasOwnProperty.call(branches, key)) {
-    return branches[key];
-  }
-  if (Object.prototype.hasOwnProperty.call(branches, "_")) {
-    return branches._;
-  }
-  if (Object.prototype.hasOwnProperty.call(branches, "other")) {
-    return branches.other;
-  }
-  throw new Error(`Linguini dispatch has no branch for key ${JSON.stringify(key)}`);
-}
-
-/**
  * @overload
  * @param {unknown[]} values
  * @param {readonly string[]} keys

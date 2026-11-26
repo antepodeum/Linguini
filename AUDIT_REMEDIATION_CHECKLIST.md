@@ -1072,6 +1072,9 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       The obsolete test-only schema type re-export emitter is removed; its alias test now calls
       production declaration generation. Structured import/re-export syntax shares one canonical
       module-edge template, preserving existing artifact and source-map snapshots.
+      The unused `selectBranch` implementation, declarations, generic helper annotation path,
+      and text-based import detection are removed. Literal helper spellings execute identically
+      through ordinary and physical message/semantic modules without false runtime imports.
 - [-] ESM-M11 — Rerun final non-regression gates for the completed architecture: full locked Rust
       workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and
@@ -1390,12 +1393,18 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       the current `formatNumber(value) -> formatGeneratedNumber(value, ...21 constants...)` design.
       Keep semantic plans reusable and syntax in canonical templates; avoid recreating a generic
       formatter interpreter under a different name or moving the same parameter vector elsewhere.
-- [-] OPT-A3 — Lower forms and local/inline function dispatch into direct control flow (`if`/`switch`
+- [x] OPT-A3 — Lower forms and local/inline function dispatch into direct control flow (`if`/`switch`
       and returns) from the validated semantic tree. No per-call branch-map objects, closure tables,
       `selectBranch` callbacks, nested dispatch IIFEs, or wrapper casts solely to support that design.
       Merge identical branches/defaults, remove known redundant coercions, and preserve exact
       evaluation count/order, captured values, callable attributes, plural semantics, and fallback.
       A `Delivered(Plural, Gender)` function must select its plural branch and gender result directly.
+      Current form maps, named functions, and lifted inline functions all lower through the shared
+      `Decision` model and canonical dispatch template. Equal results/fallbacks merge while
+      preserving selector evaluation. Executed cases cover eager captures, lazy results, callable
+      attributes, multi-key/nested branches, `__proto__`, fallback errors, coercions, and source maps.
+      No branch-table helper remains in current runtime generation; frozen comparison fixtures
+      retain their historical implementation. Exact page/helper demand remains open under OPT-A4.
 - [-] OPT-A4 — Specialize helpers to the transitive operations/categories used by the page's exact
       message closure. Deduplicate genuinely shared operations without importing whole formatter,
       plural, locale, or message runtimes. Emit no unused helper, data entry, option dispatcher,

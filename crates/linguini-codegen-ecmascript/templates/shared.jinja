@@ -1,16 +1,4 @@
 {% import 'functions' as code -%}
-{{ code.function('selectBranch', [{'name':'key','type':'string'}, {'name':'branches','type':'Record<string, T>'}], 'T', exported=true, generic='T') }}  if (Object.prototype.hasOwnProperty.call(branches, key)) {
-    return branches[key];
-  }
-  if (Object.prototype.hasOwnProperty.call(branches, "_")) {
-    return branches._;
-  }
-  if (Object.prototype.hasOwnProperty.call(branches, "other")) {
-    return branches.other;
-  }
-  throw new Error(`Linguini dispatch has no branch for key ${JSON.stringify(key)}`);
-}
-
 /**
  * @overload
  * @param {unknown[]} values

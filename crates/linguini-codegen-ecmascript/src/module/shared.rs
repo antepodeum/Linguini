@@ -153,7 +153,7 @@ mod tests {
 
         assert!(output.contains("@typedef {\"warm\" | \"cool\"} Tone"));
         assert!(output.contains("@typedef {number | bigint | string} Amount"));
-        assert!(output.contains("@template T"));
+        assert!(!output.contains("selectBranch"));
         assert!(output.contains("export function normalizeMessageArgs(values, keys)"));
         assert!(!output.contains("export type"));
         assert!(!output.contains(" as Record"));

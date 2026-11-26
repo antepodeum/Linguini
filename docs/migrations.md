@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Removed branch-table helper
+
+Regenerate output: generated `shared.js` and its declarations no longer export `selectBranch`.
+Static form and function dispatch already compiles to direct branches and returns. Applications
+should call generated messages/forms/functions instead of importing this obsolete implementation
+helper. Literal translation text containing `selectBranch(` no longer creates a false shared
+runtime import in physical message or semantic modules. Named-argument normalization is unchanged.
+
 ## Shared project locale planning
 
 Backend authors can reuse `linguini_codegen::ProjectLocalePlan` for project locale fallback

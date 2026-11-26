@@ -1,7 +1,6 @@
-{% macro function(name, params, returns, exported=false, generic=none) -%}
+{% macro function(name, params, returns, exported=false) -%}
 /**
-{% if generic %} * @template {{ generic }}
-{% endif %}{% for param in params %} * @param { {{- param.type -}} } {{ param.name }}
+{% for param in params %} * @param { {{- param.type -}} } {{ param.name }}
 {% endfor %} * @returns { {{- returns -}} }
  */
 {% if exported %}export {% endif %}function {{ name }}({% for param in params %}{{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
