@@ -1379,6 +1379,11 @@ and the composed payload/SSR requirements below.
       hydration text. Preserve preload-before-switch, loader cleanup on navigation, HMR, source
       maps, typed calls, and browser/server cookie/routing policy through the migration. Verify
       both direct SSR evaluation and real framework rendering/hydration across the message matrix.
+      Native unnamed form calls now pass shared analyzer validation instead of failing as unknown
+      functions (GEN-A41). Alias and named/inline receiver scopes, explicit plural inputs, bad
+      arity/types, incomplete variant implementations, and named-function precedence are covered.
+      Native check/build, executed named/positional calls, previews, and failed-build output
+      preservation verify the actual CLI path. Broader SSR and delivery criteria remain open.
       The built SvelteKit server now renders concurrent French/Russian/English requests with values,
       recursive namespaces, named/positional calls, forms/plurals, and number/currency/date formatters.
       Chromium verifies French hydration text and locale switching. The production message lab

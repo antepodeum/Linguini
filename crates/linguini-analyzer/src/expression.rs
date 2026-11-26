@@ -72,6 +72,11 @@ impl Variable {
 }
 
 impl FormProperty {
+    /// The unnamed plural call has no source property identifier.
+    pub fn callable(span: linguini_syntax::Span) -> Self {
+        Self::plural("", span)
+    }
+
     pub fn new(name: impl Into<String>, span: linguini_syntax::Span) -> Self {
         Self {
             name: name.into(),
@@ -454,6 +459,16 @@ fn collect_locale_expression_inputs(
         }
         LocaleDeclaration::Form(form) => {
             let mut properties = BTreeMap::new();
+            if !form.variants.is_empty()
+                && form.variants.iter().all(|variant| {
+                    variant
+                        .entries
+                        .iter()
+                        .any(|entry| matches!(entry, FormEntry::Branch(_)))
+                })
+            {
+                properties.insert(String::new(), FormProperty::callable(form.span));
+            }
             for variant in &form.variants {
                 collect_form_properties(
                     &variant.entries,
@@ -1202,6 +1217,13 @@ fn analyze_call(
             return;
         }
 
+        if !functions.contains_key(name.value.as_str())
+            && variables.contains_key(name.value.as_str())
+        {
+            analyze_form_call(expression, variables, forms, diagnostics);
+            return;
+        }
+
         let Some(function) = functions.get(name.value.as_str()) else {
             diagnostics.push(Diagnostic::error(
                 format!("unknown function `{}`", name.value),
@@ -1273,32 +1295,35 @@ fn analyze_form_call(
         ));
         return;
     };
-    let Some(property_name) = expression.path.get(1) else {
-        diagnostics.push(Diagnostic::error(
-            format!("type `{}` has no unnamed form", variable.ty),
-            expression.span,
-        ));
-        return;
-    };
+    let property_name = expression.path.get(1);
     let Some(form) = forms.get(variable.ty.as_str()) else {
         diagnostics.push(Diagnostic::error(
-            format!("unknown form target type `{}`", variable.ty),
-            property_name.span,
+            if property_name.is_some() {
+                format!("unknown form target type `{}`", variable.ty)
+            } else {
+                format!("type `{}` has no unnamed form", variable.ty)
+            },
+            property_name.map_or(expression.span, |name| name.span),
         ));
         return;
     };
     let Some(property) = form
         .properties
         .iter()
-        .find(|candidate| candidate.name == property_name.value)
+        .find(|candidate| candidate.name == property_name.map_or("", |name| name.value.as_str()))
     else {
         diagnostics.push(
             Diagnostic::error(
-                format!(
-                    "unknown form property `{}` on type `{}`",
-                    property_name.value, variable.ty
+                property_name.map_or_else(
+                    || format!("type `{}` has no unnamed form", variable.ty),
+                    |name| {
+                        format!(
+                            "unknown form property `{}` on type `{}`",
+                            name.value, variable.ty
+                        )
+                    },
                 ),
-                property_name.span,
+                property_name.map_or(expression.span, |name| name.span),
             )
             .with_related(form.span, "form is declared here"),
         );
@@ -1318,13 +1343,15 @@ fn analyze_form_call(
         ));
     }
     let expected = property.parameter_types.len();
+    let subject = property_name.map_or_else(
+        || format!("unnamed form `{}`", variable.ty),
+        |_| format!("form property `{}.{}`", variable.ty, property.name),
+    );
     if expression.arguments.len() != expected {
         diagnostics.push(
             Diagnostic::error(
                 format!(
-                    "form property `{}.{}` expects {expected} argument(s), got {}",
-                    variable.ty,
-                    property.name,
+                    "{subject} expects {expected} argument(s), got {}",
                     expression.arguments.len()
                 ),
                 expression.span,
@@ -1344,10 +1371,8 @@ fn analyze_form_call(
                 diagnostics.push(
                     Diagnostic::error(
                         format!(
-                            "argument {} to form property `{}.{}` expects `{expected}`, got `{actual}`",
+                            "argument {} to {subject} expects `{expected}`, got `{actual}`",
                             index + 1,
-                            variable.ty,
-                            property.name,
                         ),
                         argument.span,
                     )

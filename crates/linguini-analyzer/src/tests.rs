@@ -1228,3 +1228,50 @@ fn formatted_call_arguments_and_inline_payloads_have_string_results() {
         .iter()
         .any(|diagnostic| diagnostic.code == "linguini.unknown_formatter"));
 }
+
+#[test]
+fn unnamed_form_calls_resolve_typed_receivers_and_validate_arguments() {
+    let schema = parse_schema("enum Fruit { apple, pear }\ntype Item = Fruit\nroot(fruit: Item, count: Number, text: String)\n").unwrap();
+    let forms = "impl Fruit { apple { one => apple\n_ => apples\nlabel = Apple\nform display(Plural) { one => apple\n_ => apples } }\npear { one => pear\n_ => pears\nlabel = Pear\nform display(Plural) { one => pear\n_ => pears } } }\n";
+    let valid = format!(
+        "{forms}{}",
+        r#"fn Echo(value: String) { _ => {value} }
+fn Forward(fruit: Item, count: Number) { _ => {fruit(count)} }
+root = {fruit(count)} {fruit.display(count)} {fruit(Plural(count))} {Echo(fruit(count))} {Forward(fruit, count)} {fn(item: fruit) { _ => {item(count)} }}
+"#
+    );
+    assert!(analyze_project_expressions(&schema, &parse_locale(&valid).unwrap()).is_empty());
+    for (call, expected) in [
+        (
+            "fruit()",
+            "unnamed form `Fruit` expects 1 argument(s), got 0",
+        ),
+        (
+            "fruit(count, count)",
+            "unnamed form `Fruit` expects 1 argument(s), got 2",
+        ),
+        (
+            "fruit(text)",
+            "argument 1 to unnamed form `Fruit` expects `Plural`, got `String`",
+        ),
+        (
+            "fruit.display(text)",
+            "argument 1 to form property `Fruit.display` expects `Plural`, got `String`",
+        ),
+        (
+            "fruit.display()",
+            "form property `Fruit.display` expects 1 argument(s), got 0",
+        ),
+        ("text(count)", "type `String` has no unnamed form"),
+        ("missing(count)", "unknown function `missing`"),
+    ] {
+        let locale = parse_locale(&format!("{forms}root = {{{call}}}\n")).unwrap();
+        let diagnostics = analyze_project_expressions(&schema, &locale);
+        assert_eq!(diagnostics.len(), 1, "{call}: {diagnostics:#?}");
+        assert_eq!(diagnostics[0].message, expected);
+    }
+    let incomplete = parse_locale("impl Fruit { apple { one => apple\n_ => apples }\npear { label = Pear\nform display(Plural) { one => pear\n_ => pears } } }\nroot = {fruit(count)}\n").unwrap();
+    assert!(analyze_project_expressions(&schema, &incomplete)
+        .iter()
+        .any(|diagnostic| diagnostic.message == "type `Fruit` has no unnamed form"));
+}

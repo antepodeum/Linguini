@@ -4,6 +4,18 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Unnamed form receiver validation
+
+Native `check` and `build` now accept existing unnamed form syntax such as `fruit(count)`.
+The analyzer previously looked only for a named function and reported `unknown function`.
+It now resolves typed enum receivers, including aliases and named/inline function scopes,
+requires a callable implementation for every variant, and checks its one plural argument.
+Named functions retain their existing precedence over same-named value bindings.
+
+Tooling that constructs expression metadata can use `FormProperty::callable(span)` to describe
+the unnamed plural operation. Invalid calls still fail before generated output changes.
+Public message signatures and already accepted generated behavior are unchanged.
+
 ## Form attribute demand
 
 Regenerate output to omit unused pure form attributes and their dependencies automatically.

@@ -1294,3 +1294,63 @@ fn runtime_policy_does_not_select_native_output_and_bindings_have_no_web_runtime
         assert_eq!(fs::read(&manifest).unwrap(), baseline);
     }
 }
+
+#[test]
+fn callable_receivers_pass_check_build_and_preview() {
+    let project = TempDir::new().unwrap();
+    fs::write(project.path().join("linguini.toml"), "[project]\nname=\"callable\"\ndefault_locale=\"en\"\nlocales=[\"en\"]\n[paths]\nschema=\"schema\"\nlocale=\"locales\"\n[targets.ts]\nout=\"generated\"\n").unwrap();
+    fs::write(project.path().join("package.json"), "{\"type\":\"module\"}").unwrap();
+    fs::create_dir_all(project.path().join("schema")).unwrap();
+    fs::create_dir_all(project.path().join("locales/main")).unwrap();
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "enum Fruit { apple }\ntype Item = Fruit\nroot(fruit: Item, count: Number)\n",
+    )
+    .unwrap();
+    let locale = "impl Fruit { apple { one => apple\n_ => apples\nlabel = Apple } }\nfn Forward(item: Item, count: Number) { _ => {item(count)} }\nroot = {fruit(count)}|{Forward(fruit,count)}|{fn(item: fruit) { _ => {item(count)} }}|{fruit.label}\n";
+    let locale_path = project.path().join("locales/main/en.lgl");
+    fs::write(&locale_path, locale).unwrap();
+    for command in ["check", "build"] {
+        linguini()
+            .current_dir(project.path())
+            .args([command, "--format", "json"])
+            .assert()
+            .success()
+            .stderr("");
+    }
+    let execution = std::process::Command::new("node").current_dir(project.path()).args(["--input-type=module","--eval", "const {lgl}=await import('./generated/index.js'); console.log(JSON.stringify([lgl.main.root('apple',1),lgl.main.root({fruit:'apple',count:2})]));"]).output().unwrap();
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(execution.stdout).unwrap().trim(),
+        r#"["apple|apple|apple|Apple","apples|apples|apples|Apple"]"#
+    );
+    linguini()
+        .current_dir(project.path())
+        .arg("generate")
+        .assert()
+        .success()
+        .stdout(contains("=> apple|apple|apple|Apple"))
+        .stdout(contains("=> apples|apples|apples|Apple"));
+    let baseline = fs::read(project.path().join("generated/index.js")).unwrap();
+    for (invalid, expected) in [
+        ("fruit()", "linguini.call_arity"),
+        ("fruit(fruit.label)", "linguini.type_mismatch"),
+    ] {
+        fs::write(&locale_path, locale.replacen("fruit(count)", invalid, 1)).unwrap();
+        linguini()
+            .current_dir(project.path())
+            .args(["build", "--format", "json"])
+            .assert()
+            .failure()
+            .stdout(contains(expected))
+            .stderr("");
+        assert_eq!(
+            fs::read(project.path().join("generated/index.js")).unwrap(),
+            baseline
+        );
+    }
+}

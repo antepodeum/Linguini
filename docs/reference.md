@@ -822,6 +822,12 @@ fruit.Gender      // inferred enum-valued property access
 fruit.nom(count)  // form call — count auto-converts to Plural
 ```
 
+An `impl` variant can also contain unnamed `one => ...` / `_ => ...` branches.
+Call that form as `fruit(count)`; every variant must provide an unnamed form, and the call
+requires one numeric or `Plural` argument. Enum aliases and calls inside named/inline functions
+resolve the same receiver type. A named locale function keeps precedence when its name matches
+a value binding. Missing forms, wrong arity, and nonnumeric arguments remain errors.
+
 An `impl` branch-map attribute always uses `form name(Type)`. The `form`
 keyword and its single dispatch type are required; implicit plural maps and
 bare `name(Type)` spellings are invalid.
