@@ -1228,6 +1228,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       cover the changed compiler boundaries (223 compatibility checks pass per changed crate).
       Opaque forms, mixed-table coalescing, hosted
       verification, and remaining architecture/release work stay open.
+      Function-scope source `1de150f` passes all 71 local full-profile gates, including runtime
+      ownership, strict generated JSDoc/TypeScript, installed/native tsc build/watch, editor/WASM,
+      packaged documentation, and production SSR/browser checks. Separate Node 20, Rust 1.87,
+      workspace Clippy, and patch API checks pass; six complete consumers retain the same output
+      and minified/gzip/Brotli sizes on Vite 7/8. This verifies ESM-A7's single-runtime completion;
+      native qualification scopes and the remaining architecture/platform requirements are separate.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
