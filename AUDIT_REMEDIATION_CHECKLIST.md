@@ -198,9 +198,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [-] #9 — Expand CLDR formatting to the documented production contract. Exact pinned Gregorian
       skeleton IDs now compile to selected fields/literals; closest matching, other calendars,
       and selectable zones remain open.
-- [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in CLDR artifacts, while the
-  site restores a deterministic checksummed 1,380-file canonical JS/declaration output bundle using Node.js only; CI
-  independently regenerates the bundle and rejects stale bytes.
+- [x] #10 — Keep builds hermetic. Rust compilation consumes checked-in, hash-verified CLDR
+      artifacts. The site regenerates localization output through the workspace compiler during
+      builds; CI uses the same source build. Application-generated JavaScript, declarations,
+      source maps, compressed bundles, and editor runtime output remain ignored, and the tracked
+      build-artifact gate rejects configured output trees. Curated golden expectations and pinned
+      CLDR build inputs remain versioned.
 - [x] #11 — Make accepted web strategies exactly match generated runtime capabilities.
 - [x] #12 — Hide invalid mutable public model states behind validated constructors. `IrModule`
       declarations use the duplicate-rejecting builder and atomic composition boundary;
@@ -208,7 +211,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       parsed configuration plus its nested policy models expose immutable accessors instead of
       public fields. Compile-fail contracts reject external mutation.
 - [x] #13 — Provide stable diagnostic codes, categories, severities, and source IDs.
-- [x] #14 — Execute normative documentation as conformance fixtures. All 91 code blocks are
+- [x] #14 — Execute normative documentation as conformance fixtures. All 103 code blocks are
   registered; Linguini syntax and TOML config fences are enforced; extracted JavaScript,
   TypeScript, HTML, and Svelte examples build, typecheck, and execute where runtime-capable.
 - [x] #15 — Add property, platform, generated-code, and real integration coverage. Seeded parser,
@@ -714,7 +717,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #367 — Land automatic release-version synchronization checks.
 - [x] #368 — Add public API/semantic-version compatibility checks.
 - [x] #369 — Make documentation and examples an executable conformance suite. The root full
-  profile registers all 91 code blocks, enforces Linguini syntax plus TOML config fences, and
+  profile registers all 103 code blocks, enforces Linguini syntax plus TOML config fences, and
   builds, typechecks, and executes the Getting Started JavaScript/TypeScript example from both the
   workspace and Cargo package file sets. The complete SvelteKit provider and every alternative
   web-guide hook/component/client/server variant compile and pass strict Svelte checking.
