@@ -114,6 +114,7 @@ pub(super) fn locale_globals_module(
         .build()
         .expect("globals schema projection preserves unique declaration names");
     let globals = locale_globals(locale);
+    let facts = linguini_codegen::StringResultFacts::for_module(locale);
     let shared_import_path = import_path_for_target("../../shared", target);
     let mut imports = module_imports(&globals_schema, &globals, options, &shared_import_path);
     let runtime_import_path = import_path_for_target("./_runtime", target);
@@ -128,9 +129,9 @@ pub(super) fn locale_globals_module(
     {
         emit_locale_enum_jsdoc_types(&globals_schema, &globals, &mut body);
     }
-    emit_variables(&globals, options, false, &mut body);
-    emit_forms(schema, &globals, options, false, &mut body);
-    emit_local_functions(schema, &globals, options, false, &mut body);
+    emit_variables(&globals, options, false, &mut body, &facts);
+    emit_forms(schema, &globals, options, false, &mut body, &facts);
+    emit_local_functions(schema, &globals, options, false, &mut body, &facts);
 
     let value_names = locale_global_value_names(&globals);
     if !value_names.is_empty() {

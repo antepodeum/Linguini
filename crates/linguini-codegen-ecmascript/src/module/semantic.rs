@@ -203,6 +203,7 @@ fn compile_bundler_semantic_module_impl(
         })?
         .module;
     let options = project_locale_options(&artifact.locale, &project.options)?;
+    let facts = linguini_codegen::StringResultFacts::for_module(locale);
     let one = one_symbol_module(locale, artifact.kind, &artifact.name);
     if !module_has_symbol(&one, artifact.kind) {
         return Err(EcmaCodegenError::UnknownSemanticArtifact {
@@ -242,13 +243,13 @@ fn compile_bundler_semantic_module_impl(
             ));
         }
         EcmaSemanticSymbolKind::LocaleVariable => {
-            emit_variables(&one, &options, true, &mut output);
+            emit_variables(&one, &options, true, &mut output, &facts);
         }
         EcmaSemanticSymbolKind::LocaleForm => {
-            emit_forms(project.schema, &one, &options, true, &mut output);
+            emit_forms(project.schema, &one, &options, true, &mut output, &facts);
         }
         EcmaSemanticSymbolKind::LocaleFunction => {
-            emit_local_functions(project.schema, &one, &options, true, &mut output);
+            emit_local_functions(project.schema, &one, &options, true, &mut output, &facts);
         }
     }
 

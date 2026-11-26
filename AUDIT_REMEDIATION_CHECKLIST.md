@@ -1361,7 +1361,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       ordinary `value` bindings while avoiding locale-variable and custom-plural-helper collisions.
       Executed legacy and physical semantic/message graphs verify `value`/`value2` references,
       both branch outcomes, and positional/named calls. Other readability/optimization criteria
-      above remain open.
+      above remain open. Shared scope-aware string facts also emit locale text variable references
+      directly across ordinary and physical modules, including aliases and imported globals.
+      Executed conversion traces retain raw parameters, numeric plural inputs, coercion hints,
+      and thrown errors; unproven member references still coerce.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       The [cost audit](docs/generated-code-cost-audit.md) records category-name versus numeric

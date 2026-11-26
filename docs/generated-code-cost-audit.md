@@ -68,6 +68,19 @@ dates. This is a two-formatter fixture measurement. Separate real bundles prove 
 the table does not retain the unused era formatter and that time-only output contains no month
 tables. No runtime table registry, option dispatcher, or CLDR pattern parser is introduced.
 
+## Generated locale text references
+
+Shared build-time `StringResultFacts` identifies locale text variables before artifact projection.
+Initializers, imported globals, form branches, functions, and messages can use those strings
+directly; caller parameters and unproven member references retain coercion. Executed ordinary
+and physical modules record the required raw conversions, string coercion hints, and thrown
+errors. No runtime fact table or lookup is emitted.
+
+A Vite 7.3.3 consumer exporting the baseline Russian `counted` message shrinks from 5,445 to
+5,437 minified bytes, 1,829 to 1,826 gzip bytes, and 1,636 to 1,633 Brotli bytes. Both bundles
+execute the same expected text. This one-consumer measurement supports removing its redundant
+conversion; it does not establish a general speed improvement or close GEN-A11.
+
 ## Findings and owners
 
 | ID | Status | Verified evidence | Required remediation |

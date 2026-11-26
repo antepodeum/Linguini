@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use linguini_codegen::StringResultFacts;
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter,
     IrFormatterKind, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter, IrModule,
@@ -16,6 +17,7 @@ pub(super) fn form_object(
     schema: &IrModule,
     entries: &[IrFormEntry],
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     let fields = entries
         .iter()
@@ -24,7 +26,7 @@ pub(super) fn form_object(
                 name,
                 parameters,
                 value,
-            } => Some(minijinja::context! { key => property_key(name), value => attribute_expression(schema, value, parameters, options) }),
+            } => Some(minijinja::context! { key => property_key(name), value => attribute_expression(schema, value, parameters, options, facts) }),
             IrFormEntry::Branch(_) => None,
         })
         .collect::<Vec<_>>();
@@ -45,6 +47,7 @@ pub(super) fn form_object(
                 ty: "Plural".to_owned(),
             }],
             options,
+            facts,
         )
     });
     crate::templates::render(
@@ -58,6 +61,7 @@ fn attribute_expression(
     value: &IrValue,
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     if let IrValue::Text(text) = value {
         let literal = text
@@ -79,7 +83,7 @@ fn attribute_expression(
             );
         }
     }
-    value_expression_with_parameters(schema, value, parameters, options)
+    value_expression_with_parameters(schema, value, parameters, options, facts)
 }
 
 fn value_expression_with_parameters(
@@ -87,11 +91,12 @@ fn value_expression_with_parameters(
     value: &IrValue,
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     match value {
-        IrValue::Text(text) => text_expression(text, options),
-        IrValue::Map(branches) => map_expression(schema, branches, parameters, options),
-        IrValue::Object(entries) => form_object(schema, entries, options),
+        IrValue::Text(text) => text_expression(text, options, facts),
+        IrValue::Map(branches) => map_expression(schema, branches, parameters, options, facts),
+        IrValue::Object(entries) => form_object(schema, entries, options, facts),
     }
 }
 
@@ -100,6 +105,7 @@ pub fn map_expression(
     branches: &[IrBranch],
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     let context = parameters
         .iter()
@@ -127,6 +133,7 @@ pub fn map_expression(
                     &context,
                     &BTreeMap::new(),
                     options,
+                    facts,
                 ));
                 let keys = if branch.keys.is_empty() {
                     vec!["_".to_owned()]
@@ -156,8 +163,12 @@ pub fn map_expression(
     .to_owned()
 }
 
-pub(super) fn text_expression(text: &IrText, options: &EcmaOptions) -> String {
-    text_expression_with_context(text, &BTreeMap::new(), &BTreeMap::new(), options)
+pub(super) fn text_expression(
+    text: &IrText,
+    options: &EcmaOptions,
+    facts: &StringResultFacts,
+) -> String {
+    text_expression_with_context(text, &BTreeMap::new(), &BTreeMap::new(), options, facts)
 }
 
 pub(super) fn text_expression_with_context(
@@ -165,6 +176,7 @@ pub(super) fn text_expression_with_context(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     let parts = text
         .parts
@@ -172,7 +184,7 @@ pub(super) fn text_expression_with_context(
         .map(|part| match part {
             IrTextPart::Text(raw) => string_literal(raw),
             IrTextPart::Placeholder(expression) => {
-                expression_string(expression, context, default_formatters, options)
+                expression_string(expression, context, default_formatters, options, facts)
             }
         })
         .collect::<Vec<_>>();
@@ -188,6 +200,7 @@ fn expression_string(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     let value = expression_value(expression, context, options);
     let formatters = if expression.formatters.is_empty() {
@@ -200,7 +213,9 @@ fn expression_string(
         expression.formatters.as_slice()
     };
     let (formatted, produces_string) = apply_formatters(value, formatters);
-    if produces_string || linguini_codegen::expression_has_string_result(expression) {
+    if produces_string
+        || facts.expression_has_string_result(expression, context.keys().map(String::as_str))
+    {
         return formatted;
     }
     crate::templates::render(
@@ -256,6 +271,7 @@ pub(super) fn function_dispatch_body(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     let parameter_names =
         super::names::function_parameter_names(parameters, branches, &options.plural_function);
@@ -276,6 +292,7 @@ pub(super) fn function_dispatch_body(
         context,
         default_formatters,
         options,
+        facts,
     );
     crate::templates::render(
         "dispatch",
@@ -297,6 +314,7 @@ fn dispatch_decision(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> linguini_codegen::Decision<String, String> {
     use linguini_codegen::Decision;
     if selectors.get(depth).is_none() {
@@ -308,7 +326,7 @@ fn dispatch_decision(
         {
             return match &branch.value {
                 IrFunctionBranchValue::Text(text) => Decision::Return(
-                    text_expression_with_context(text, context, default_formatters, options),
+                    text_expression_with_context(text, context, default_formatters, options, facts),
                 ),
                 IrFunctionBranchValue::Dispatch(children) => dispatch_decision(
                     selectors,
@@ -317,6 +335,7 @@ fn dispatch_decision(
                     context,
                     default_formatters,
                     options,
+                    facts,
                 ),
             };
         }
@@ -338,9 +357,15 @@ fn dispatch_decision(
             .iter()
             .map(|branch| {
                 let result = match &branch.value {
-                    IrFunctionBranchValue::Text(text) => Decision::Return(
-                        text_expression_with_context(text, context, default_formatters, options),
-                    ),
+                    IrFunctionBranchValue::Text(text) => {
+                        Decision::Return(text_expression_with_context(
+                            text,
+                            context,
+                            default_formatters,
+                            options,
+                            facts,
+                        ))
+                    }
                     IrFunctionBranchValue::Dispatch(children) => dispatch_decision(
                         selectors,
                         children,
@@ -348,6 +373,7 @@ fn dispatch_decision(
                         context,
                         default_formatters,
                         options,
+                        facts,
                     ),
                 };
                 (branch.key.clone(), result)
@@ -447,17 +473,17 @@ mod tests {
             let mut value = expression(IrExpressionKind::Reference, &["value"]);
             let defaults = BTreeMap::from([("value".to_owned(), vec![formatter.clone()])]);
             assert_eq!(
-                expression_string(&value, &context, &defaults, &options),
+                expression_string(&value, &context, &defaults, &options, &Default::default()),
                 expected
             );
             value.formatters = vec![unknown.clone()];
             assert_eq!(
-                expression_string(&value, &context, &defaults, &options),
+                expression_string(&value, &context, &defaults, &options, &Default::default()),
                 "String(value)"
             );
             value.formatters = vec![unknown.clone(), formatter, unknown.clone()];
             assert_eq!(
-                expression_string(&value, &context, &defaults, &options),
+                expression_string(&value, &context, &defaults, &options, &Default::default()),
                 expected
             );
         }
@@ -567,6 +593,7 @@ mod tests {
                 plural_import: None,
                 ..EcmaOptions::default()
             },
+            &Default::default(),
         );
         let files = [crate::EcmaGeneratedFile {path: "form.js".into(), contents: format!("const value = input => input === 1 ? 'one' : 'other';\nexport const form = {code};")}];
         assert_eq!(
@@ -598,6 +625,7 @@ console.log('ok');
             &linguini_ir::IrModule::default(),
             entries,
             &EcmaOptions::default(),
+            &Default::default(),
         );
 
         assert!(emitted.contains("label: /** @type {(gender: Gender) => string} */ ((gender) => {"));

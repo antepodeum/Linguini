@@ -30,7 +30,7 @@ pub use direct_dependencies::{
 };
 pub use requirements::{
     expression_has_string_result, formatter_requirements, module_uses_inline_functions,
-    plural_required, FormatterRequirements,
+    plural_required, FormatterRequirements, StringResultFacts,
 };
 pub use types::{resolve_type_name, TypeModel};
 

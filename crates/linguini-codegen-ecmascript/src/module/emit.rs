@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use linguini_codegen::parameter_formatters;
+use linguini_codegen::{parameter_formatters, StringResultFacts};
 use linguini_ir::{IrMessage, IrModule};
 
 use crate::ecmascript::{EcmaImport, EcmaImportBindings, EcmaNamedImport};
@@ -248,11 +248,12 @@ pub(super) fn emit_forms(
     options: &EcmaOptions,
     exported: bool,
     output: &mut String,
+    facts: &StringResultFacts,
 ) {
     for form in module.forms() {
         emit_docs(&form.docs, "", output);
         let variants = form.variants.iter().map(|variant| minijinja::context! {
-            key => property_key(&variant.name), value => form_object(schema, &variant.entries, options),
+            key => property_key(&variant.name), value => form_object(schema, &variant.entries, options, facts),
         }).collect::<Vec<_>>();
         output.push_str(&crate::templates::render(
             "module/form",
@@ -266,11 +267,12 @@ pub(super) fn emit_variables(
     options: &EcmaOptions,
     exported: bool,
     output: &mut String,
+    facts: &StringResultFacts,
 ) {
     for variable in module.variables() {
         emit_docs(&variable.docs, "", output);
         output.push_str(&crate::templates::render("module/constant", minijinja::context! {
-            exported, name => safe_identifier(&variable.name), value => text_expression(&variable.value, options),
+            exported, name => safe_identifier(&variable.name), value => text_expression(&variable.value, options, facts),
         }));
     }
 }
@@ -281,6 +283,7 @@ pub(super) fn emit_local_functions(
     options: &EcmaOptions,
     exported: bool,
     output: &mut String,
+    facts: &StringResultFacts,
 ) {
     for function in module.functions() {
         let parameter_names = super::names::function_parameter_names(
@@ -324,6 +327,7 @@ pub(super) fn emit_local_functions(
             &context,
             &BTreeMap::new(),
             options,
+            facts,
         );
         output.push_str(&crate::templates::render("local_function", minijinja::context! {
             docs => "", name => safe_identifier(&function.name), parameters => parameter_names, body, exported,
@@ -336,6 +340,7 @@ pub(super) fn emit_messages(
     locale: &IrModule,
     options: &EcmaOptions,
     output: &mut String,
+    facts: &StringResultFacts,
 ) -> ModuleExports {
     for signature in schema.messages() {
         if !signature.parameters.is_empty()
@@ -356,13 +361,13 @@ pub(super) fn emit_messages(
         if signature.name.contains('.') {
             continue;
         }
-        if emit_message_function(schema, signature, locale, options, output) {
+        if emit_message_function(schema, signature, locale, options, output, facts) {
             exports.top_level.push(function_name(&signature.name));
         }
     }
 
     for (group, messages) in nested.children {
-        emit_message_object(schema, &group, &messages, locale, options, output);
+        emit_message_object(schema, &group, &messages, locale, options, output, facts);
         exports.groups.push(safe_identifier(&group));
     }
 
@@ -375,12 +380,13 @@ fn emit_message_function(
     locale: &IrModule,
     options: &EcmaOptions,
     output: &mut String,
+    facts: &StringResultFacts,
 ) -> bool {
     let Some(implementation) = message_implementation(locale, &signature.name) else {
         return false;
     };
     let call_signature = MessageCallSignature::from_message(signature);
-    let body = message_body(schema, signature, implementation, options);
+    let body = message_body(schema, signature, implementation, options, facts);
     let name = function_name(&signature.name);
     if !call_signature.is_parameterized() {
         emit_docs(&signature.docs, "", output);
@@ -410,9 +416,10 @@ fn emit_message_object(
     locale: &IrModule,
     options: &EcmaOptions,
     output: &mut String,
+    facts: &StringResultFacts,
 ) {
     emit_docs(&tree.docs, "", output);
-    let value = object_literal(schema, tree, locale, options, 0);
+    let value = object_literal(schema, tree, locale, options, 0, facts);
     output.push_str(&crate::templates::render(
         "module/constant",
         minijinja::context! {
@@ -427,6 +434,7 @@ fn object_literal(
     locale: &IrModule,
     options: &EcmaOptions,
     depth: usize,
+    facts: &StringResultFacts,
 ) -> String {
     let indent = "  ".repeat(depth);
     let child_indent = "  ".repeat(depth + 1);
@@ -435,13 +443,13 @@ fn object_literal(
         if let Some(implementation) = message_implementation(locale, &entry.signature.name) {
             let mut docs = String::new();
             emit_docs(&entry.signature.docs, &child_indent, &mut docs);
-            fields.push(minijinja::context! { docs, key => property_key(&entry.property), value => group_property_value(schema, &entry.signature, implementation, options) });
+            fields.push(minijinja::context! { docs, key => property_key(&entry.property), value => group_property_value(schema, &entry.signature, implementation, options, facts) });
         }
     }
     for (name, child) in &tree.children {
         let mut docs = String::new();
         emit_docs(&child.docs, &child_indent, &mut docs);
-        fields.push(minijinja::context! { docs, key => property_key(name), value => object_literal(schema, child, locale, options, depth + 1) });
+        fields.push(minijinja::context! { docs, key => property_key(name), value => object_literal(schema, child, locale, options, depth + 1, facts) });
     }
     crate::templates::render(
         "module/object",
@@ -456,10 +464,11 @@ fn group_property_value(
     signature: &IrMessage,
     implementation: &IrMessage,
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     let call_signature = MessageCallSignature::from_message(signature);
     if !call_signature.is_parameterized() {
-        message_body(schema, signature, implementation, options)
+        message_body(schema, signature, implementation, options, facts)
     } else {
         crate::templates::render(
             "module/message_property",
@@ -467,7 +476,7 @@ fn group_property_value(
                 callable_type => call_signature.javascript_callable_type(),
                 parameters => call_signature.implementation_rest_params(),
                 normalization => call_signature.normalized_bindings_statement(),
-                body => message_body(schema, signature, implementation, options),
+                body => message_body(schema, signature, implementation, options, facts),
             },
         )
         .trim_end()
@@ -480,6 +489,7 @@ pub(crate) fn message_body(
     signature: &IrMessage,
     implementation: &IrMessage,
     options: &EcmaOptions,
+    facts: &StringResultFacts,
 ) -> String {
     let context = signature
         .parameters
@@ -495,7 +505,9 @@ pub(crate) fn message_body(
     implementation
         .body
         .as_ref()
-        .map(|body| text_expression_with_context(body, &context, &default_formatters, options))
+        .map(|body| {
+            text_expression_with_context(body, &context, &default_formatters, options, facts)
+        })
         .unwrap_or_else(|| "\"\"".to_owned())
 }
 

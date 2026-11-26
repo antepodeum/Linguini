@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Generated locale text references
+
+Regenerating output removes redundant `String(...)` wrappers around generated locale text
+variables, including imported variables and aliases. Message APIs and raw caller-input coercion
+are unchanged. The shared Rust codegen crate exposes `StringResultFacts` for emitters that need
+the same scope-aware proof; create it from the full visible locale before projecting individual
+artifacts, and supply local binding names when querying it.
+
 ## Form selector bindings
 
 Regenerate forms that reference a locale variable named `value`, or use a custom plural helper

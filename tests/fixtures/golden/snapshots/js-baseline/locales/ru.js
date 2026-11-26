@@ -59,7 +59,7 @@ export function delivery(...__lgl_args) {
  */
 export function counted(...__lgl_args) {
   const [count, fruit] = /** @type {[count: number | bigint | string, fruit: Fruit]} */ (normalizeMessageArgs(__lgl_args, __lgl_counted_keys));
-  return String(cart_label) + " " + formatNumber(count) + " " + __lgl_form_Fruit[fruit].nom(count);
+  return cart_label + " " + formatNumber(count) + " " + __lgl_form_Fruit[fruit].nom(count);
 }
 
 /**

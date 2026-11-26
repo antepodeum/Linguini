@@ -266,6 +266,7 @@ fn emit_message_module(
     let target = output.target();
     let schema = closure.schema();
     let complete_locale = closure.locale_module();
+    let facts = linguini_codegen::StringResultFacts::for_module(complete_locale);
     let physical_locale;
     let locale = if runtime_import_path.is_some() {
         physical_locale = IrModuleBuilder::seeded(complete_locale)
@@ -293,7 +294,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_variables(&one, options, false, &mut output);
+        emit_variables(&one, options, false, &mut output, &facts);
         push_chunk(
             &mut statements,
             output,
@@ -312,7 +313,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_forms(schema, &one, options, false, &mut output);
+        emit_forms(schema, &one, options, false, &mut output, &facts);
         push_chunk(
             &mut statements,
             output,
@@ -326,7 +327,7 @@ fn emit_message_module(
             .build()
             .expect("single-symbol module is unique by construction");
         let mut output = String::new();
-        emit_local_functions(schema, &one, options, false, &mut output);
+        emit_local_functions(schema, &one, options, false, &mut output, &facts);
         push_chunk(
             &mut statements,
             output,
@@ -350,7 +351,7 @@ fn emit_message_module(
             .find(|item| item.name == closure.message()),
     ) {
         let call_signature = MessageCallSignature::from_message(signature);
-        let body = emit::message_body(schema, signature, implementation, options);
+        let body = emit::message_body(schema, signature, implementation, options, &facts);
         let mut output = String::new();
         if !call_signature.is_parameterized() {
             emit_docs(&signature.docs, "", &mut output);
@@ -595,7 +596,13 @@ mod tests {
         assert!(result.code.contains("@param {string} name"));
         assert!(result.code.contains("@param {{ name: string }} args"));
         assert_eq!(result.code.matches("export function message").count(), 1);
-        assert_eq!(result.code.matches("return String(helper)").count(), 1);
+        assert_eq!(
+            result
+                .code
+                .matches("return helper + \", \" + String(name);")
+                .count(),
+            1
+        );
         assert!(result
             .code
             .contains("normalizeMessageArgs(__lgl_args, __lgl_root_keys)"));

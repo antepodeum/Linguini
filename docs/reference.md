@@ -949,6 +949,9 @@ see [Web and SvelteKit](./web-sveltekit.md).
 
 Generated named/inline function calls, callable form branches, plural intrinsic calls, and
 formatter results already produce strings, so interpolation does not wrap them in `String` again.
+Shared `StringResultFacts` also proves simple references to generated locale text variables,
+including imported variables and nonliteral aliases. Facts are taken from the complete locale
+scope before physical artifact projection; local parameter bindings mask those names.
 Raw user inputs retain runtime coercion, including inputs whose public schema type is `String`.
 Form objects and nested dispatch bodies use multiline indentation in generated source.
 

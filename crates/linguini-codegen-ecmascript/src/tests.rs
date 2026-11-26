@@ -24,6 +24,99 @@ fn project_options(base_locale: &str) -> EcmaProjectOptions {
 }
 
 #[test]
+fn generated_text_references_skip_coercion_in_project_and_physical_modules() {
+    use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
+    let schema_source = concat!(
+        "enum Item { entry }\nroot\npayload(value: String)\n",
+        "render(item: Item, count: Number)\nnested { label }\n"
+    );
+    let locale_source = concat!(
+        "let product = Brand\nlet alias = {product}\n",
+        "fn Echo(value: String) {\n_ => {alias} / {value}\n}\n",
+        "impl Item { entry { form title(Plural) {\none => {alias}\n_ => {product}\n} } }\n",
+        "root = {alias}: {Echo(alias)}\npayload = {value}\n",
+        "render = {item.title(count)}\nnested { label = {alias}\n}\n"
+    );
+    let schema = lower_schema(&parse_schema_in(schema_source, SourceId(1)).unwrap());
+    let locales = [EcmaLocaleModule {
+        locale: "en".into(),
+        module: lower_locale(&parse_locale_in(locale_source, SourceId(2)).unwrap()),
+    }];
+    let options = project_options("en");
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &options).unwrap();
+    let mut files = crate::generate_project_files(&project).unwrap();
+    let sources = [
+        crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
+        crate::EcmaSource::new(SourceId(2), "en.lgl", locale_source),
+    ];
+    for artifact in project.semantic_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    let mut physical_exports = String::new();
+    for artifact in project.message_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+        physical_exports.push_str(&format!(
+            "export {{message as {}}} from {:?};\n",
+            artifact.message.replace('.', "_"),
+            format!("./{}", artifact.module_path)
+        ));
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path.clone(),
+            contents: compiled.code,
+        });
+    }
+    files.push(EcmaGeneratedFile {
+        path: "physical.js".into(),
+        contents: physical_exports,
+    });
+    assert_eq!(
+        execute_project(
+            &files,
+            r#"
+import assert from 'node:assert/strict';
+const nativeString = globalThis.String;
+const conversions = [];
+globalThis.String = value => { conversions.push(value); return nativeString(value); };
+const ordinary = await import('./locales/en.js');
+const physical = await import('./physical.js');
+// Each root calls Echo(alias). Its raw parameter still requires one coercion.
+assert.deepEqual(conversions.splice(0), ['Brand', 'Brand']);
+const modules = [
+  {root: ordinary.root, label: ordinary.nested.label, payload: ordinary.payload, render: ordinary.render},
+  {root: physical.root, payload: physical.payload, render: physical.render, label: physical.nested_label},
+];
+for (const output of modules) {
+  assert.equal(output.root, 'Brand: Brand / Brand');
+  assert.equal(output.label, 'Brand');
+  assert.equal(output.render('entry', 1), 'Brand');
+  assert.equal(output.render({item: 'entry', count: 2}), 'Brand');
+  // Raw numeric plural operands still require their normal input conversion.
+  assert.deepEqual(conversions.splice(0), [1, 2]);
+  const hints = [];
+  const raw = {[Symbol.toPrimitive](hint) { hints.push(hint); return 'Caller'; }};
+  assert.equal(output.payload(raw), 'Caller');
+  assert.equal(output.payload({value: raw}), 'Caller');
+  assert.deepEqual(conversions.splice(0), [raw, raw]);
+  assert.deepEqual(hints, ['string', 'string']);
+  const failure = new Error('raw conversion failed');
+  const invalid = {[Symbol.toPrimitive]() { throw failure; }};
+  assert.throws(() => output.payload({value: invalid}), error => error === failure);
+  assert.deepEqual(conversions.splice(0), [invalid]);
+}
+console.log('ok');
+"#
+        ),
+        "ok"
+    );
+}
+
+#[test]
 fn unnamed_form_selectors_do_not_shadow_text_variables() {
     use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
     let schema_source = "enum Fruit { apple }\nroot(count: Number, fruit: Fruit)\n";
@@ -952,7 +1045,7 @@ account {
         .expect("locale module");
     assert!(locale_module
         .contents
-        .contains("export const title = \"Welcome to \" + String(product);"));
+        .contains("export const title = \"Welcome to \" + product;"));
     assert!(!locale_module.contents.contains("function title("));
 
     let account_module = files
@@ -961,7 +1054,7 @@ account {
         .expect("account locale module");
     assert!(account_module
         .contents
-        .contains("label: \"Your \" + String(product) + \" account\","));
+        .contains("label: \"Your \" + product + \" account\","));
     assert!(!account_module.contents.contains("label: () =>"));
     assert!(account_module
         .contents

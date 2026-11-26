@@ -154,6 +154,7 @@ pub(super) fn locale_artifact_module(
 }
 
 pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
+    let facts = linguini_codegen::StringResultFacts::for_module(request.import_locale);
     let target = request.output.target();
     let shared_import_path = import_path_for_target(request.shared_import_path, target);
     let runtime_import_path = import_path_for_target(request.runtime_import_path, target);
@@ -202,13 +203,14 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
             minijinja::context! { names => [safe_identifier(namespace)], blank_line => true },
         ));
     }
-    emit_variables(request.locale, request.options, false, &mut body);
+    emit_variables(request.locale, request.options, false, &mut body, &facts);
     emit_forms(
         request.schema,
         request.locale,
         request.options,
         false,
         &mut body,
+        &facts,
     );
     emit_local_functions(
         request.schema,
@@ -216,8 +218,15 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
         request.options,
         false,
         &mut body,
+        &facts,
     );
-    let exports = emit_messages(request.schema, request.locale, request.options, &mut body);
+    let exports = emit_messages(
+        request.schema,
+        request.locale,
+        request.options,
+        &mut body,
+        &facts,
+    );
     emit_locale_default(&exports, request.namespaces, &mut body);
     if let Some(namespace_alias) = request.namespace_alias {
         let identifier = safe_identifier(namespace_alias);

@@ -1,6 +1,6 @@
-//! IR analysis for demand-selected formatter, plural, and inline-function support.
+//! Shared IR requirements and generated-expression result facts.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use linguini_ir::{
     is_plural_intrinsic, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter, IrFormatterKind,
@@ -10,12 +10,50 @@ use linguini_ir::{
 
 /// String-valued operations in validated IR. Named/inline functions and callable form
 /// branches return text; the plural intrinsic returns a category string. Raw references
-/// retain runtime coercion even when their public schema type is String.
+/// are unproven here; use `StringResultFacts` for generated locale text variables.
 pub fn expression_has_string_result(expression: &IrExpression) -> bool {
     matches!(
         expression.kind,
         IrExpressionKind::Call | IrExpressionKind::InlineFunction { .. }
     )
+}
+
+/// String results established by generated text declarations in a locale scope.
+/// Raw parameters retain coercion, including parameters whose source type is `String`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StringResultFacts {
+    text_variables: BTreeSet<String>,
+}
+
+impl StringResultFacts {
+    /// Every locale variable is a generated text expression, even when it is not a literal.
+    pub fn for_module(module: &IrModule) -> Self {
+        Self {
+            text_variables: module
+                .variables()
+                .iter()
+                .map(|item| item.name.clone())
+                .collect(),
+        }
+    }
+
+    /// Query the resolved scope while conservatively respecting local binding shadowing.
+    pub fn expression_has_string_result<'a>(
+        &self,
+        expression: &IrExpression,
+        local_bindings: impl IntoIterator<Item = &'a str>,
+    ) -> bool {
+        if expression_has_string_result(expression) {
+            return true;
+        }
+        let [name] = expression.path.as_slice() else {
+            return false;
+        };
+        expression.kind == IrExpressionKind::Reference
+            && expression.arguments.is_empty()
+            && self.text_variables.contains(name)
+            && !local_bindings.into_iter().any(|local| local == name)
+    }
 }
 
 /// Semantic capabilities required by a schema and its effective locale implementation.
@@ -296,4 +334,36 @@ fn expression_uses_inline(expression: &IrExpression) -> bool {
             }
             IrExpressionKind::Reference | IrExpressionKind::Call => false,
         }
+}
+
+#[cfg(test)]
+mod string_result_tests {
+    use super::*;
+    use linguini_syntax::{parse_locale, Span};
+
+    #[test]
+    fn generated_text_facts_respect_scope_and_reference_shape() {
+        let module = linguini_ir::lower_locale(
+            &parse_locale("let product = Brand\nlet alias = {product}\n").unwrap(),
+        );
+        let facts = StringResultFacts::for_module(&module);
+        let mut expression = IrExpression {
+            kind: IrExpressionKind::Reference,
+            path: vec!["alias".into()],
+            arguments: Vec::new(),
+            formatters: Vec::new(),
+            span: Span::new(0, 0),
+        };
+        assert!(facts.expression_has_string_result(&expression, []));
+        assert!(!facts.expression_has_string_result(&expression, ["alias"]));
+        assert!(facts.expression_has_string_result(&expression, ["value"]));
+        expression.path = vec!["product".into()];
+        assert!(facts.expression_has_string_result(&expression, []));
+        expression.path.push("length".into());
+        assert!(!facts.expression_has_string_result(&expression, []));
+        expression.path = vec!["value".into()];
+        assert!(!facts.expression_has_string_result(&expression, []));
+        expression.kind = IrExpressionKind::Call;
+        assert!(facts.expression_has_string_result(&expression, []));
+    }
 }
