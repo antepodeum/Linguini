@@ -1342,7 +1342,7 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Shared date-symbol planning now resolves Gregorian format/standalone contexts, name widths,
       locale AM/PM, and era labels before emission; identical per-formatter tables share a binding.
       Executed context/width/locale cases correct Arabic/Hindi output rather than preserving the
-      previous English labels. Extended calendars, selectable non-UTC zones, and skeletons stay open.
+      previous English labels. Extended calendars, selectable non-UTC zones, non-exact skeleton matching, and additional fields stay open.
       Remaining helper specialization and exact composed-page delivery stay open.
 - [-] OPT-A5 — Verify generated structure and executed semantics together: forbid generic static-
       parameter formatter forwarding and allocating dispatch tables, inspect/minify real page

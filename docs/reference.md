@@ -145,60 +145,25 @@ Generated-only entry maps have no source records. `generate_project_files` rende
 artifact plan without map companions; `compile_ecmascript_project_files(project, sources)` adds
 owned source maps and validates all source identities before rendering.
 
-For selected web route exclusions, `compile_web_routes_module` renders `matchesRoute` behavior with owned
-source maps. The generated project keeps its existing `web/routes.js` and declaration paths.
-For selected path locale resolution, `compile_web_path_module` renders `resolvePathLocale` behavior with owned
-source maps. The generated project keeps its existing `web/path.js` and declaration paths.
-For selected cookie locale resolution, `compile_web_cookie_module` renders `resolveCookieLocale` behavior with
-owned source maps. The generated project keeps its existing `web/cookie.js` and declaration
-paths.
-For selected local-storage locale resolution, `compile_web_local_storage_module` renders `resolveLocalStorageLocale` behavior
-with owned source maps. The generated project keeps its existing `web/local-storage.js` and
-declaration paths.
-For selected Accept-Language resolution, `compile_web_accept_language_module` renders `resolveAcceptLanguageLocale`
-behavior with owned source maps. The generated project keeps its existing
-`web/accept-language.js` and declaration paths.
-Preference selection scans the parsed header directly, preserving highest-specificity exclusions,
-first matching input order, quality ranking, base-locale preference, and configured locale order.
-It normalizes ranges/locales once and allocates no filtered/sorted candidate arrays per locale.
-For transformed links, `compile_web_link_transform_module` renders `localizeTransformedHref` behavior
-with target-owned imports and source maps. The generated project keeps its existing
-`web/link-transform.js` and declaration paths.
-For browser runtime links, `compile_web_runtime_links_module` renders the owned observer and bounded traversal from
-the shared template. It returns owned source maps; generated project paths remain
-`web/runtime-links.js` and `web/runtime-links.d.ts`.
+Web routing, locale-source capabilities, cookie/storage persistence, links, and request handling
+belong to the maintained TypeScript npm adapters. Applications configure `createWebLocaleI18n`
+and explicit resolver capabilities from `@antepodeum/linguini-web`; `createWebI18n` adds
+message-enabled request contexts. Browser controls and server switch handlers live in the
+package's client/server entries. Accept-Language preference selection shares normalized ranges
+and scalar winner state, preserving quality, specificity, exclusions, and configured locale order.
+Application policy stays in TypeScript modules and hooks; it does not select message artifacts.
+See [web and SvelteKit integration](./web-sveltekit.md) for the runtime configuration and imports.
 
-Rust codegen callers can compile Svelte locale state with
-`linguini_codegen_svelte::compile_svelte_locale_module`, selecting
-`SvelteLocaleMode::{Context, Standalone, SvelteKit}`. JavaScript output retains framework-owned
-`.svelte.js` runes, checked JSDoc, and an adjacent source map. The locale-loader registry and state implementation have one canonical JS body.
+Svelte-specific state, message providers, controls, effects, and loader cleanup belong to
+`@antepodeum/linguini-svelte`. SvelteKit request handling and request-local locale integration
+belong to `@antepodeum/linguini-sveltekit`. Their Vite entries compose the framework-independent
+`@antepodeum/linguini-vite` integration.
 
-`compile_svelte_effects_module` accepts
-the closed `EcmaWebOptions` policy and explicit `SvelteHost` bindings. It emits selected, guarded browser
-reads, framework-owned base/browser imports, runtime-link lifecycle ownership, and HMR disposal
-from one implementation. With no locale sources, initialization uses the known base locale and
-omits capability readers. Browser imports/checks are selected independently for locale reads and
-runtime links. Manual/transform link modes retain no-op refresh/destroy exports while omitting
-the unused effects object, locale getter import, and HMR registration.
-
-`compile_svelte_control_module` compiles
-lightweight controls from the same closed policy and host bindings. Navigation, cookie writes,
-and storage writes are included only for selected capabilities. Controls prepare messages before
-mutating locale state, tolerate denied persistence, and do not import the eager message runtime.
-Controls without path/cookie capabilities omit switch-option construction; selected transports
-receive only their needed defaults. The optional options argument, callable arity, and navigation
-state forwarding remain available.
-
-`compile_svelte_module` selects context-only or
-web-enabled Svelte facades with a boolean flag. The template owns message providers, live locale getters, forwarded controls, and deterministic
-HMR loader disposal.
-
-`compile_web_server_cookie_module`
-compiles server cookie delegation. `compile_web_switch_route_module` accepts the closed web policy and returns `None` when
-no switch route is configured or its path has no locale marker. Project validation requires exactly
-one marker. The compiler splits the route into a static prefix and suffix; requests only prepend
-the host base path and extract the encoded locale. Empty suffixes omit suffix checks. These
-modules preserve same-origin return safety and selected path/cookie transports.
+Rust's `linguini_codegen_svelte::compile_svelte_locale_module(host)` and
+`compile_svelte_module(host)` emit thin project-specific imports and type bindings. The optional
+host module selects the runtime adapter import. `generate_project_files` combines these bindings
+with declaration/map companions through `SvelteProjectOptions` and the source-map setting.
+The runtime implementations remain in their owning npm packages.
 
 Linguini has two file types:
 
