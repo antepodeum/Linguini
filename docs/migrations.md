@@ -905,7 +905,11 @@ readable names derived from their types, with deterministic collision handling. 
 bindings now retain source names (`__lgl_form_Fruit`); safe qualified names retain their components
 (`__lgl_name_shop$Money`). Reserved internal prefixes and ambiguous names remain encoded. Rebuild
 all generated artifacts together; applications should use the public message/type API rather than
-importing private generated bindings. Argument normalization retains a JSDoc tuple assertion
+importing private generated bindings. Argument-key tables now use the same scoped naming rules
+as forms; a qualified table such as
+`__lgl___lgl_name_account$personalized_keys` becomes `__lgl_keys_account$personalized`.
+Only private binding names change; public exports, declarations, source maps, normalization,
+and call evaluation remain unchanged. Argument normalization retains a JSDoc tuple assertion
 from the same call signature, and locale globals import their schema typedefs. This preserves
 strict checking of implementation bodies as well as declaration-only consumer checking. Static
 form attributes retain literal types so their enum values can be passed directly to generated

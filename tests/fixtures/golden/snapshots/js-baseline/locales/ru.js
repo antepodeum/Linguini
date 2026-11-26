@@ -10,9 +10,9 @@ import { cart_label, __lgl_form_Fruit, Delivered, SizeAdj } from "./ru/_globals.
 
 export { email_input };
 
-const __lgl_delivery_keys = ["fruit", "size", "count"];
-const __lgl_counted_keys = ["count", "fruit"];
-const __lgl_price_keys = ["amount", "date"];
+const __lgl_keys_delivery = ["fruit", "size", "count"];
+const __lgl_keys_counted = ["count", "fruit"];
+const __lgl_keys_price = ["amount", "date"];
 /**
  * Displayed on the product delivery confirmation card.
  *
@@ -34,7 +34,7 @@ const __lgl_price_keys = ["amount", "date"];
  * @returns {string}
  */
 export function delivery(...__lgl_args) {
-  const [fruit, size, count] = /** @type {[fruit: Fruit, size: Size, count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, __lgl_delivery_keys));
+  const [fruit, size, count] = /** @type {[fruit: Fruit, size: Size, count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, __lgl_keys_delivery));
   return Delivered(count, __lgl_form_Fruit[fruit].Gender) + " " + SizeAdj(size, count, __lgl_form_Fruit[fruit].Gender) + " " + __lgl_form_Fruit[fruit].nom(count);
 }
 
@@ -58,7 +58,7 @@ export function delivery(...__lgl_args) {
  * @returns {string}
  */
 export function counted(...__lgl_args) {
-  const [count, fruit] = /** @type {[count: number | bigint | string, fruit: Fruit]} */ (normalizeMessageArgs(__lgl_args, __lgl_counted_keys));
+  const [count, fruit] = /** @type {[count: number | bigint | string, fruit: Fruit]} */ (normalizeMessageArgs(__lgl_args, __lgl_keys_counted));
   return cart_label + " " + formatNumber(count) + " " + __lgl_form_Fruit[fruit].nom(count);
 }
 
@@ -78,7 +78,7 @@ export function counted(...__lgl_args) {
  * @returns {string}
  */
 export function price(...__lgl_args) {
-  const [amount, date] = /** @type {[amount: Money, date: ShortDate]} */ (normalizeMessageArgs(__lgl_args, __lgl_price_keys));
+  const [amount, date] = /** @type {[amount: Money, date: ShortDate]} */ (normalizeMessageArgs(__lgl_args, __lgl_keys_price));
   return "Цена " + formatCurrency_code_RUB(amount) + " на " + formatDate_style_short(date);
 }
 

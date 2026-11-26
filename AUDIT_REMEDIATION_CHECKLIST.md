@@ -1623,6 +1623,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       performance, payload size, exact dependency delivery, evaluation semantics, source maps,
       type safety, or compatibility. Verify representative generated functions, forms, and
       formatters alongside the execution and output-size checks in OPT-A5.
+      Argument-key tables also reuse the scoped form-binding encoder, replacing repeated internal
+      prefixes with readable qualified names. Injectivity covers escaped names and compiler-like
+      source identifiers; three executed complete consumers retain exact minified/gzip/Brotli
+      sizes, with unchanged declaration and source-map snapshots (GEN-A39). The affected emitter
+      and CLI suites pass on Node 20/24, alongside workspace Clippy, Rust 1.87, and fourteen
+      strict-consumer, documentation/package, and production-site checks.
       Unnamed form maps now share function selectors' reference walker and allocator, preserving
       ordinary `value` bindings while avoiding locale-variable and custom-plural-helper collisions.
       Executed legacy and physical semantic/message graphs verify `value`/`value2` references,

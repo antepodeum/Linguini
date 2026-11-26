@@ -3,7 +3,7 @@ import { normalizeMessageArgs } from "../shared.js";
 
 export { account };
 
-const __lgl_root_keys = ["name"];
+const __lgl_keys_root = ["name"];
 /**
  * @overload
  * @param {string} name
@@ -19,7 +19,7 @@ const __lgl_root_keys = ["name"];
  * @returns {string}
  */
 export function root(...__lgl_args) {
-  const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, __lgl_root_keys));
+  const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, __lgl_keys_root));
   return "Howdy " + String(name);
 }
 

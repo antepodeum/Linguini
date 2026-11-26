@@ -593,7 +593,7 @@ mod tests {
         );
         assert!(result
             .code
-            .contains("normalizeMessageArgs(__lgl_args, __lgl_root_keys)"));
+            .contains("normalizeMessageArgs(__lgl_args, __lgl_keys_root)"));
         assert!(result.code.ends_with("//# sourceMappingURL=root.js.map\n"));
         assert!(result
             .source_map

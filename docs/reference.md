@@ -135,6 +135,8 @@ rendering with per-message and group provenance.
 Generated internal bindings retain readable source names and qualified components when safe.
 Reserved compiler prefixes and ambiguous identifier spellings are encoded deterministically to
 prevent collisions with source declarations. These internal names are not a public import API.
+Argument-key tables use the same scoped naming rules as form bindings: for example,
+`__lgl_keys_shop$label` retains the qualified source name without nested compiler prefixes.
 Unnamed form selectors keep `value` when it is safe, with deterministic numeric suffixes when
 branch references or the configured plural helper use that binding. Function and form selectors
 share reference discovery and allocation; explicitly named source parameters remain intact.

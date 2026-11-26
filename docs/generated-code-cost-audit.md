@@ -55,6 +55,29 @@ The implementation was discarded. GEN-A15 remains open: specialization must acco
 coexisting selector shapes and whole-consumer costs, including normalization sharing, before
 it replaces the current classifier. A smaller isolated classifier is insufficient evidence.
 
+## Readable argument-key bindings
+
+Argument-key tables reuse the form binding encoder instead of wrapping an already encoded
+function name. For example, `__lgl___lgl_name_account$personalized_keys` becomes
+`__lgl_keys_account$personalized`. Dotted components remain readable; a separate escaped-name
+marker prevents collisions with dollar signs, Unicode, reserved prefixes, and hex-looking names.
+The change adds no operations or allocations to generated code. Current declaration and map
+snapshots remain unchanged, and the historical TypeScript comparison oracles are untouched.
+
+Complete executed consumers compared with `4451a49`, using Vite 7.3.3 on Node 24.13.1, retain
+these exact minified / gzip / Brotli sizes:
+
+| Consumer | Before and after bytes |
+| --- | ---: |
+| Russian delivery, counted, and price messages with their dependencies | 5,860 / 2,317 / 2,082 |
+| Qualified account greeting | 528 / 374 / 309 |
+| English and French greetings | 584 / 381 / 334 |
+
+The Russian and bilingual bundles are byte-identical. The account bundle differs only in a
+minifier-selected local name and has identical sizes. This supports the naming change without
+a runtime speed or general application-size claim. Existing call observation tests also execute
+source message and parameter names resembling the compiler prefix.
+
 ## Native integer plural inputs
 
 Shared planning now proves when zero fractional/compact operands satisfy every common guard

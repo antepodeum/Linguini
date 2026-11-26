@@ -535,14 +535,18 @@ fn parsed_text_modes_execute_with_exact_quotes_escapes_and_whitespace() {
 #[test]
 fn message_argument_normalization_reuses_positional_arrays_and_preserves_named_observations() {
     let schema = lower_schema(
-        &parse_schema(
+        &parse_schema(concat!(
             "greeting(first: String, second: String)\naccount { greet(first: String) }\n",
-        )
+            "__lgl_keys_greeting(__lgl_keys_greeting: String)\n",
+        ))
         .expect("schema"),
     );
     let locale = lower_locale(
-        &parse_locale("greeting = {first}/{second}\naccount { greet = Hello {first} }\n")
-            .expect("locale"),
+        &parse_locale(concat!(
+            "greeting = {first}/{second}\naccount { greet = Hello {first} }\n",
+            "__lgl_keys_greeting = Safe {__lgl_keys_greeting}\n",
+        ))
+        .expect("locale"),
     );
     let files = generate_project_files(
         &schema,
@@ -565,7 +569,9 @@ fn message_argument_normalization_reuses_positional_arrays_and_preserves_named_o
         r#"
 import assert from 'node:assert/strict';
 import {normalizeMessageArgs} from './shared.js';
-import {greeting} from './locales/en.js';
+import {greeting, __lgl_name_5F5F6C676C5F6B6579735F6772656574696E67 as prefixMessage} from './locales/en.js';
+assert.equal(prefixMessage('prefix'), 'Safe prefix');
+assert.equal(prefixMessage({__lgl_keys_greeting:'named'}), 'Safe named');
 import {account} from './locales/en/account.js';
 for (const values of [[], ['Ada'], [null], [new Date(0)], [{other:'value'}], ['Ada','Lovelace'], [{first:'Ada'},'tail']]) {
   assert.equal(normalizeMessageArgs(values, ['first','second']), values);
@@ -1204,7 +1210,7 @@ account {
     assert!(!account_module.contents.contains("label: () =>"));
     assert!(account_module
         .contents
-        .contains("personalized: /** @type {((name: string) => string) & ((args: { name: string }) => string)} */ ((...__lgl_args) => { const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, __lgl___lgl_name_account$personalized_keys)); return \"Hello \" + String(name); }),"));
+        .contains("personalized: /** @type {((name: string) => string) & ((args: { name: string }) => string)} */ ((...__lgl_args) => { const [name] = /** @type {[name: string]} */ (normalizeMessageArgs(__lgl_args, __lgl_keys_account$personalized)); return \"Hello \" + String(name); }),"));
 
     let locale_declaration = files
         .iter()

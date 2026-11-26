@@ -203,14 +203,22 @@ fn encoded_name(prefix: &str, name: &str) -> String {
 }
 
 pub fn form_binding_name(name: &str) -> String {
+    scoped_binding_name("__lgl_form_", name)
+}
+
+pub(super) fn argument_keys_binding_name(name: &str) -> String {
+    scoped_binding_name("__lgl_keys_", name)
+}
+
+fn scoped_binding_name(prefix: &str, name: &str) -> String {
     if is_identifier_text(name) && !name.contains('$') {
-        return format!("__lgl_form_{name}");
+        return format!("{prefix}{name}");
     }
     if let Some(path) = readable_qualified_name(name) {
-        return format!("__lgl_form_{path}");
+        return format!("{prefix}{path}");
     }
     // A leading separator distinguishes escaped names from ordinary hex-looking names.
-    encoded_name("__lgl_form_$", name)
+    encoded_name(&format!("{prefix}$"), name)
 }
 
 pub fn property_access(name: &str) -> String {
@@ -404,9 +412,9 @@ fn is_reserved_word(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        emit_docs, escape_string, form_binding_name, function_name, path_expression,
-        portable_path_component_error, property_access, property_key, safe_file_stem,
-        safe_identifier, string_literal,
+        argument_keys_binding_name, emit_docs, escape_string, form_binding_name, function_name,
+        path_expression, portable_path_component_error, property_access, property_key,
+        safe_file_stem, safe_identifier, string_literal,
     };
 
     #[test]
@@ -478,6 +486,11 @@ mod tests {
     #[test]
     fn readable_internal_names_are_injective_across_namespaces_and_escaped_inputs() {
         assert_eq!(form_binding_name("Fruit"), "__lgl_form_Fruit");
+        assert_eq!(argument_keys_binding_name("Fruit"), "__lgl_keys_Fruit");
+        assert_eq!(
+            argument_keys_binding_name("shop.Fruit"),
+            "__lgl_keys_shop$Fruit"
+        );
         assert_eq!(form_binding_name("shop.Fruit"), "__lgl_form_shop$Fruit");
         assert_eq!(safe_identifier("shop.Money"), "__lgl_name_shop$Money");
         let names = [
@@ -496,6 +509,9 @@ mod tests {
             "Fruit-name",
             "Fruit_name",
             "__lgl_form_Fruit",
+            "__lgl_keys_Fruit",
+            "__lgl_keys_shop$Fruit",
+            "__lgl_keys_$E697A5",
             "__lgl_form_shop$Fruit",
             "__lgl_form_$E697A5",
             "__lgl_name_shop$Fruit",
@@ -511,7 +527,11 @@ mod tests {
         ];
         let mut identifiers = std::collections::BTreeSet::new();
         for source in names {
-            for identifier in [safe_identifier(source), form_binding_name(source)] {
+            for identifier in [
+                safe_identifier(source),
+                form_binding_name(source),
+                argument_keys_binding_name(source),
+            ] {
                 assert!(
                     super::is_safe_identifier(&identifier),
                     "invalid binding for {source:?}"

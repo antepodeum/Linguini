@@ -7,7 +7,9 @@
 
 use linguini_ir::IrMessage;
 
-use super::names::{emit_docs_with_tags, property_key, safe_identifier, JsDocTag};
+use super::names::{
+    argument_keys_binding_name, emit_docs_with_tags, property_key, safe_identifier, JsDocTag,
+};
 use super::type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 
 const IMPLEMENTATION_ARGS: &str = "__lgl_args";
@@ -37,7 +39,7 @@ pub(crate) struct MessageCallSignature {
 impl MessageCallSignature {
     pub(crate) fn from_message(message: &IrMessage) -> Self {
         Self {
-            keys_binding: format!("__lgl_{}_keys", super::names::function_name(&message.name)),
+            keys_binding: argument_keys_binding_name(&message.name),
             parameters: message
                 .parameters
                 .iter()
@@ -281,7 +283,7 @@ mod tests {
         assert_eq!(signature.implementation_rest_params(), "...__lgl_args");
         assert_eq!(
             signature.normalized_bindings_statement(),
-            "const [count] = /** @type {[count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, __lgl_message_keys));"
+            "const [count] = /** @type {[count: number | bigint | string]} */ (normalizeMessageArgs(__lgl_args, __lgl_keys_message));"
         );
         assert_eq!(
             signature.callable_type(),
