@@ -1169,6 +1169,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       gates in one clean run, including native tsc integration, packaged sources, editor/WASM,
       and all production site checks. Separate Node 20 and Rust 1.87 verification covers the
       changed paths. This source receipt does not close the remaining architecture/platform work.
+      Locale-identity, constant-plural, ISO date-time preview, and CI-host follow-up source
+      `abc80fc` passes all 70 local full-profile gates in one clean run. This includes native
+      TypeScript build/watch integration, packaged-source documentation, editor/WASM, and all
+      production-site graph/browser checks. Separate dependency-policy probes, offline crate
+      packaging, Node 20, and Rust 1.87 receipts cover the changed boundaries. Remote
+      Windows/macOS verification of the CI fixes and the broader architecture remain open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
