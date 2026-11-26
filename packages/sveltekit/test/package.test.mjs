@@ -41,7 +41,9 @@ import {createWebLocaleI18n,pathLocale,cookieLocale} from '@antepodeum/linguini-
 import {createReroute} from '@antepodeum/linguini-sveltekit';
 import {createHandle,createLoad} from '@antepodeum/linguini-sveltekit/server';
 import type {Handle} from '@sveltejs/kit';
-const metadata={locales:['en','fr'] as const,baseLocale:'en' as const};
+const metadata={locales:['en','fr'] as const,baseLocale:'en' as const,
+  get createLinguini():never {throw Error('metadata read a catalog factory');},
+  get prepareLinguini():never {throw Error('metadata read message preparation');}};
 const web=createWebLocaleI18n(metadata,{locale:{sources:[pathLocale(),cookieLocale({name:'LANG'})]}});
 if (web.localizeLinkHref('/en/shop','fr',{download:false}) !== '/fr/shop') throw Error('combined link localization failed');
 // @ts-expect-error Combined links preserve finite locale typing.

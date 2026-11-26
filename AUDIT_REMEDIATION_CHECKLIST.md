@@ -829,6 +829,11 @@ TypeScript, and application/bundler imports select their capabilities.
 - [-] WEB-A13 — Import resolver implementations as explicit capabilities and keep metadata-only
       request hooks independent of message catalogs. Verify tree-shaken page graphs for unused
       platform operations and libraries; exact delivery remains GEN-A9/MOD-A4.
+      Metadata construction now copies only declared locale fields, without enumerating or reading
+      unrelated string/symbol getters or forwarding message factories. Hook and packed strict-TS
+      consumers use throwing catalog getters. An executed production SSR graph shakes catalog
+      barrel exports and unselected cookie/storage/request-language resolver modules. Broader
+      platform-operation pruning and exact page delivery remain open.
 - [x] WEB-A14 — Normalize one `LocaleSwitchPlan` shared by browser and server transports.
 - [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [x] WEB-A16 — Create an optional runtime switch handler with validated same-origin return targets.

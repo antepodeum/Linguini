@@ -5,8 +5,8 @@ import {createReroute} from '../dist/index.js';
 import {createHandle,createLoad} from '../dist/server.js';
 
 const runtime = {locales:['en','fr','ar'],baseLocale:'en',getTextDirection:locale=>locale==='ar'?'rtl':'ltr',
-  createLinguini(){throw Error('Hooks must not load message catalogs');},
-  prepareLinguini(){throw Error('Hooks must not prepare message catalogs');},
+  get createLinguini(){throw Error('Hooks must not read message catalogs');},
+  get prepareLinguini(){throw Error('Hooks must not read message preparation');},
 };
 const environment = {base:'/app',origin:'https://example.test'};
 function event(path, headers={}) {

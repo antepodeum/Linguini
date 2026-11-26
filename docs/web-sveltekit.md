@@ -149,6 +149,10 @@ browser applications; SvelteKit rejects storage-only server resolution. Initial 
 uses the serialized SSR locale instead of negotiating it again.
 
 Locale matching uses the generated metadata's pinned CLDR canonicalization and parent lookup.
+`createWebLocaleI18n` reads only declared locale metadata, without enumerating the runtime or
+forwarding message factories, preparation functions, catalogs, or unrelated symbol properties.
+Keep hook imports pointed at the generated locale metadata module; `createWebI18n` is the
+explicit message-enabled API.
 Unsupported values continue to the next resolver and finally to the base locale. Runtime adapters
 parse actual URLs, headers, and cookies; they do not interpret CLDR formatting patterns.
 

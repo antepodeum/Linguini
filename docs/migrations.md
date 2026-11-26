@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Locale metadata boundaries
+
+`createWebLocaleI18n` now copies only the declared locale metadata fields from its runtime input.
+It no longer enumerates the full runtime, reads unrelated catalog getters, or forwards extra
+message APIs and symbol properties. Locale normalization/direction callbacks and the declared
+web API remain available. Use `createWebI18n` for message-enabled request contexts; import the
+generated locale metadata module when constructing catalog-independent hooks.
+
 ## Shared LSP host services
 
 The editor includes a WASM worker fallback and a browser entry. Existing desktop native settings

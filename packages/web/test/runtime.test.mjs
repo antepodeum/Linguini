@@ -29,6 +29,22 @@ test('runtime sources are explicit, ordered capabilities independent of message 
   assert.equal(createWebLocaleI18n(runtime,{locale:{sources:[localStorageLocale()]}}).resolveLocaleSync({localStorage:{getItem(){throw Error('denied');}}}), 'en');
 });
 
+test('locale metadata never enumerates or forwards message-runtime capabilities', () => {
+  const full = {...runtime};
+  for (const key of ['messages', 'l', 'createLinguini', 'prepareLinguini']) {
+    Object.defineProperty(full, key, {enumerable:true,get() {throw Error(`metadata read catalog ${key}`);}});
+  }
+  Object.defineProperty(full, Symbol('catalog'), {enumerable:true,get() {throw Error('metadata read symbol catalog');}});
+  const metadata = new Proxy(full, {ownKeys() {throw Error('metadata enumerated full runtime');}});
+  const web = createWebLocaleI18n(metadata, {locale:{sources:[pathLocale()]}}, environment);
+  assert.equal(web.resolveLocaleSync({url:'https://example.test/app/fr/shop'}), 'fr');
+  assert.deepEqual(web.htmlAttrs('ar'), {lang:'ar',dir:'rtl'});
+  const context = createLocaleRequestContext(web, 'fr');
+  assert.equal(context.localizeHref('/app/en/cart'), '/app/fr/cart');
+  for (const key of ['messages', 'l', 'createLinguini', 'prepareLinguini']) assert.equal(Object.hasOwn(web,key),false);
+  assert.equal(Object.getOwnPropertySymbols(web).length,0);
+});
+
 test('cookie and switch endpoint policy runs at application startup and rejects unsafe returns', () => {
   const web = createWebLocaleI18n(runtime, {routing:{localePrefix:'never'},locale:{sources:[cookieLocale({name:'LANG',httpOnly:true,secure:true})]}}, environment);
   const handle = createLocaleSwitchHandler(web,{path:'/locale/{locale}/set',returnQuery:'next',status:307});
@@ -108,7 +124,7 @@ test('request metadata snapshots direction once per context without caching acro
     reads++;
     return () => ++calls === 1 ? 'ltr' : 'rtl';
   }}, {}, environment);
-  // Factory construction spreads runtime metadata once; only context reads count here.
+  // Count only request-time direction reads.
   reads = 0;
   const first = createLocaleRequestContext(web, 'fr');
   const second = createLocaleRequestContext(web, 'ar');

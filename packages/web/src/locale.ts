@@ -208,7 +208,10 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         }
     }
     return {
-        ...runtime,
+        locales: runtime.locales,
+        baseLocale: runtime.baseLocale,
+        localeDirections: runtime.localeDirections,
+        normalizeLocale: runtime.normalizeLocale,
         options: normalized,
         matchLocale,
         resolveLocale: async (input = {}) => resolveLocaleSync(input),
