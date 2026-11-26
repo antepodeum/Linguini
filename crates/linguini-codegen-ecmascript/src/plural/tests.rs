@@ -191,6 +191,75 @@ for (const value of ["1".repeat(8193), BigInt("1".repeat(8193)), "1c8193", "inva
     }
 }
 
+#[test]
+fn constant_plural_results_skip_native_number_parsing_and_keep_validation() {
+    use linguini_cldr::{Condition, PluralCategoryRule, PluralRule, PluralRules};
+    let mut rules = ["ja", "zh", "ko", "th"]
+        .map(|locale| built_in_plural_rules(locale).unwrap())
+        .to_vec();
+    rules.push(PluralRules {
+        locale: "constant-one".to_owned(),
+        categories: vec![PluralCategoryRule {
+            category: "one".to_owned(),
+            source: String::new(),
+            rule: PluralRule {
+                conditions: vec![Condition { relations: vec![] }],
+            },
+        }],
+    });
+    for rules in rules {
+        let expected = rules.category_for("1.5").unwrap();
+        let generated = generate_plural_function("plural", &rules);
+        execute(&format!(
+            r#"{generated}
+const numbers = [0, -0, 1, -1, 0.5, -0.5, Number.MIN_VALUE, Number.MAX_VALUE,
+  Number.MAX_SAFE_INTEGER, 9007199254740992];
+for (let exponent = -324; exponent <= 308; exponent++) {{
+  for (const mantissa of [1, 1.2345678901234567, 9]) {{
+    const value = Number(`${{mantissa}}e${{exponent}}`);
+    if (Number.isFinite(value)) numbers.push(value, -value);
+  }}
+}}
+const originalString = globalThis.String;
+const originalExec = RegExp.prototype.exec;
+let conversions = 0, matches = 0;
+try {{
+  globalThis.String = value => {{ conversions++; return originalString(value); }};
+  RegExp.prototype.exec = function(value) {{ matches++; return originalExec.call(this, value); }};
+  for (const value of numbers) {{
+    if (plural(value) !== {expected:?}) throw Error("constant numeric category changed");
+  }}
+}} finally {{ globalThis.String = originalString; RegExp.prototype.exec = originalExec; }}
+if (conversions || matches) throw Error("constant numeric result parsed text");
+for (const value of ["0001.2500", "-0", " +1. ", "1c3", "1c8191",
+  "0".repeat(8191) + "1", "1." + "0".repeat(8191),
+  BigInt("9".repeat(8192)), -BigInt("9".repeat(8192))]) {{
+  if (plural(value) !== {expected:?}) throw Error("valid nonnumber category changed");
+}}
+for (const category of ["zero", "one", "two", "few", "many", "other"]) {{
+  if (plural(category) !== category) throw Error("category passthrough changed");
+}}
+let hints = [];
+const boxed = {{ [Symbol.toPrimitive](hint) {{ hints.push(hint); return "1.00c3"; }} }};
+if (plural(boxed) !== {expected:?} || JSON.stringify(hints) !== '["string"]') throw Error("coercion changed");
+const sentinel = new Error("sentinel");
+try {{
+  plural({{ [Symbol.toPrimitive]() {{ throw sentinel; }} }});
+  throw Error("coercion error swallowed");
+}} catch (error) {{ if (error !== sentinel) throw error; }}
+for (const value of [NaN, Infinity, -Infinity, "1c8192", "1c-1", "1c+1", "1e3", "1E3",
+  "invalid", ".5", "", "1".repeat(8193), "1." + "0".repeat(8192),
+  BigInt("9".repeat(8193)), -BigInt("9".repeat(8193)),
+  {{ [Symbol.toPrimitive]() {{ return "one"; }} }}, new Number(1e21)]) {{
+  let rejected = false;
+  try {{ plural(value); }} catch (error) {{ rejected = error instanceof RangeError; }}
+  if (!rejected) throw Error("constant result bypassed input validation");
+}}
+"#
+        ));
+    }
+}
+
 fn execute(script: &str) {
     let mut child = Command::new("node")
         .args(["--input-type=module", "-"])

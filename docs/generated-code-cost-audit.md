@@ -80,6 +80,34 @@ measurements justify this bounded fast path, without establishing a general appl
 or memory claim. Executed coercion/resource-limit tests and strict JSDoc checks cover the shared
 fallback path. Branch-specific category specialization and repeated normalization remain open.
 
+## Constant plural classifiers
+
+A Japanese `label(count: Number) = {Plural(count)}` consumer generated at `85b4c39` still
+converted every finite native number to text and matched a decimal regex before returning
+`other`. When the shared decision plan has no remaining guards or category predicates, the
+numeric result is known. Every finite ECMAScript Number fits the 8,192-digit expansion limit.
+The emitted classifier returns that result directly and omits the now unreachable native-number
+regex. Canonical string/bigint parsing, bounds, category passthrough, caller coercion, and errors
+remain. An unconditional non-`other` rule also uses its actual compiled result.
+
+The complete message consumer, including argument normalization and an exported classifier,
+changes from 1,669 / 817 / 736 to 1,607 / 805 / 714 minified / gzip / Brotli bytes with Vite 7.3.3
+and Node 24.13.1. Seven alternating 200,000-call batches after warmup produced:
+
+| Complete message input | Before / after µs |
+| --- | ---: |
+| Integer | 0.1123 / 0.0091 |
+| Fraction/exponent | 0.1797 / 0.0099 |
+| String | 0.0925 / 0.1017 |
+| Mixed number/string/bigint | 0.1315 / 0.0652 |
+
+The local numeric gain and 22-byte Brotli reduction justify this specialization; string timing
+shows no comparable gain. Executed tests cover Japanese, Chinese, Korean, Thai, a constant `one`
+model, signed/subnormal/maximal finite numbers, compact exponents, coercion hints/error identity,
+category passthrough, and both sides of the 8,192-digit boundary. Spies observe no String
+conversion or regex match for finite numbers. This does not establish general application speed,
+allocation measurements, selector-specific category demand, or repeated-normalization completion.
+
 ## Native integer number and currency inputs
 
 Safe integer numbers and bigint inputs already serialize to canonical integer digits. Their

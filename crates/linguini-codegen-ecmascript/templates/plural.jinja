@@ -2,7 +2,7 @@
 {% from "plural_operands" import emit_operands -%}
 {% macro passthrough() %}  if (value === "zero" || value === "one" || value === "two" || value === "few" || value === "many" || value === "other") return value;
 {% endmacro -%}
-{% macro parsed_input(guards, integer_tail_digits, integer_operations=[]) -%}
+{% macro parsed_input(guards, integer_tail_digits, constant_numeric_result, integer_operations=[]) -%}
 {{ passthrough() }}{% include "plural_input" %}
 {% for guard in guards %}{{ emit_operands(guard.operations, integer_tail_digits) }}{{ moduli(guard.moduli) }}  if ({{ predicate(guard.relation, true) }}) return "other";
 {% endfor %}{{ emit_operands(integer_operations, integer_tail_digits, true) }}
@@ -12,13 +12,14 @@
  * @returns {string}
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {
-{% if native_integer_modulus is not none %}  let integerTail;
+{% if constant_numeric_result %}  if (Number.isFinite(value)) return {{ fallback|js }};
+{% endif %}{% if native_integer_modulus is not none %}  let integerTail;
   if (typeof value === "number" && Number.isSafeInteger(value)) {
     integerTail = Math.abs(value) % {{ native_integer_modulus }};
   } else {
-{{ parsed_input(guards, integer_tail_digits, integer_input_operations)|indent(2, true) }}
+{{ parsed_input(guards, integer_tail_digits, constant_numeric_result, integer_input_operations)|indent(2, true) }}
   }
-{% else %}{{ parsed_input(guards, integer_tail_digits) }}{% endif %}{% for category in categories %}{{ emit_operands(category.operations, integer_tail_digits) }}{{ moduli(category.moduli) }}  if ({% for condition in category.conditions %}{% for relation in condition %}{{ predicate(relation) }}{{ " && " if not loop.last }}{% else %}true{% endfor %}{{ " || " if not loop.last }}{% else %}false{% endfor %}) return {{ category.name|js }};
+{% else %}{{ parsed_input(guards, integer_tail_digits, constant_numeric_result) }}{% endif %}{% for category in categories %}{{ emit_operands(category.operations, integer_tail_digits) }}{{ moduli(category.moduli) }}  if ({% for condition in category.conditions %}{% for relation in condition %}{{ predicate(relation) }}{{ " && " if not loop.last }}{% else %}true{% endfor %}{{ " || " if not loop.last }}{% else %}false{% endfor %}) return {{ category.name|js }};
 {% endfor %}  return {{ fallback|js }};
 }
 

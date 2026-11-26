@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Constant plural classifiers
+
+Regeneration specializes classifiers whose compiled numeric result is constant, such as Japanese
+and Chinese. Finite native numbers bypass decimal parsing; category-name inputs, canonical
+strings, bigints, caller coercion, and invalid-input errors retain their behavior. There are no
+source, configuration, or application API changes.
+
 ## Shared native project loading and locale fallback
 
 Native `build` and `generate` now share source loading, namespace qualification, guarded fallback

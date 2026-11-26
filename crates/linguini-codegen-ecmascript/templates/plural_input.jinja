@@ -1,13 +1,15 @@
-  if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
-  const source = String(value).trim();
-  // Canonical CLDR input uses lowercase c for a non-negative compact-decimal
+{% if constant_numeric_result %}  if (typeof value === "number") throwInvalidPluralNumber();
+{% else %}  if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
+{% endif %}  const source = String(value).trim();
+{% if constant_numeric_result %}  const match = /^([+-]?)(\d+)(?:\.(\d*))?(?:c(\d+))?$/.exec(source);
+{% else %}  // Canonical CLDR input uses lowercase c for a non-negative compact-decimal
   // exponent. Native numbers may stringify with JavaScript's signed e/E
   // scientific notation; that notation describes only their numeric value and
   // must not set the CLDR c/e operands.
   const match = typeof value === "number"
     ? /^([+-]?)(\d+)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(source)
     : /^([+-]?)(\d+)(?:\.(\d*))?(?:c(\d+))?$/.exec(source);
-  if (!match) throwInvalidPluralNumber();
+{% endif %}  if (!match) throwInvalidPluralNumber();
 
   const whole = match[2];
   const sourceFraction = match[3] ?? "";

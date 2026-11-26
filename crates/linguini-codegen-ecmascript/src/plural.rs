@@ -21,6 +21,8 @@ pub(crate) fn generate_plural_function_with_visibility(
     } else {
         "other".to_owned()
     };
+    // Every finite ECMAScript number fits the validated decimal expansion limit.
+    let constant_numeric_result = plan.guards.is_empty() && plan.categories.is_empty();
     let integer_tail_digits = linguini_codegen::PluralRequirements::for_relations(
         plan.guards.iter().chain(
             plan.categories
@@ -121,7 +123,7 @@ pub(crate) fn generate_plural_function_with_visibility(
     crate::templates::render(
         "plural",
         context! {
-            name => function_name, exported, categories, guards, integer_tail_digits, fallback, native_integer_modulus, integer_input_operations,
+            name => function_name, exported, categories, guards, integer_tail_digits, fallback, constant_numeric_result, native_integer_modulus, integer_input_operations,
         },
     )
 }

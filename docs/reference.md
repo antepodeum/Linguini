@@ -334,6 +334,10 @@ When shared planning also proves that native integers satisfy the fractional/com
 only integer suffix relations remain, safe integer `number` inputs calculate that suffix directly.
 They perform no string conversion or regex matching. Strings, bigints, fractional/unsafe numbers,
 category names, and caller objects retain their existing validation and coercion behavior.
+If the compiled decisions have no remaining guards or category tests, every finite native number
+returns the known category directly, including fractions and unsafe integers. Its decimal expansion
+fits the input bound. The unreachable native-number parser is omitted; other representations keep
+canonical syntax validation, coercion, and the 8,192-digit limit.
 
 The formatter list is canonical:
 

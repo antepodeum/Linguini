@@ -1614,6 +1614,14 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       message grows by 22 Brotli bytes; local integer-call time changes from 0.409 to 0.071 µs.
       String and mixed inputs retain output parity. These local results do not close repeated
       normalization, selector-specific outcomes, or the broader page-delivery criteria.
+      Constant numeric plural decisions now bypass parsing for every finite native number and
+      omit the unreachable native-number regex. Japanese/Chinese/Korean/Thai and a constant-one
+      model retain coercion, category passthrough, compact syntax, invalid-input errors, and digit
+      bounds; conversion/regex spies verify the fast path. A complete consumer saves 22 Brotli
+      bytes and improves local numeric calls, without a comparable string-input gain. Backend
+      and CLI suites pass on Node 20 and Node 24 with unchanged snapshots; strict generated
+      Japanese JavaScript, workspace Clippy, Rust 1.87, source packaging, and seventeen consumer/
+      documentation/production-site gates pass. Selector-specific outcome demand stays open.
       Number/currency parsing also bypasses decimal regexes for safe native integers and
       bigints, preserving negative zero, caller coercion, and the 8,192-digit bound. Executed
       tests disable regex execution on that path. A complete two-message consumer adds 44
