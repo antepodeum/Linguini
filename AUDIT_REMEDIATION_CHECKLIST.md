@@ -1811,7 +1811,11 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 ### Local repository verification
 
 - [x] LOCAL-A1 — Provide one root runner with ordered quick, full, and real-site profiles across
-      every project/package in this repository.
+      every project/package in this repository. Runtime fixture tasks select explicit relative
+      file paths, following Bun's exact-file convention, rather than substring discovery filters.
+      A regression rejects bare filters and missing registered files. All eighteen runner tests
+      pass on Node 20/24, and the nine corrected tasks each execute their one intended fixture
+      with archived semver-check copies still present under `target/`.
 - [x] LOCAL-A2 — Generate, type-check, build, and inspect the real site production graph locally.
       Site builds generate current native messages and highlight tokens into ignored directories;
       archived output and its restore/package workflow are removed. A repository gate rejects

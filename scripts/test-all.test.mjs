@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PACKAGED_RUNTIME_CRATES, packagedWorkspaceCrates, verifyPackagedDependencies, workspacePackageMetadata } from "./docs-packaged.mjs";
 import test from "node:test";
@@ -241,6 +241,19 @@ test("registry is explicit and ordered across repository projects", () => {
     ],
   );
   assert.deepEqual(PROJECTS.map((project) => project.id), ["rust", "project", "web", "svelte", "vue", "sveltekit", "tsc", "vite", "cli", "vscode", "site"]);
+});
+
+test("runtime fixture tasks name existing exact files instead of discovery filters", () => {
+  const runtimeTasks = TASKS.filter(task => task.command === "bun");
+  assert.ok(runtimeTasks.length > 0);
+  for (const task of runtimeTasks) {
+    assert.equal(task.args[0], "test", task.id);
+    assert.equal(task.args.length, 2, task.id);
+    const file = task.args[1];
+    assert.match(file, /^\.\.?\//, `${task.id} must select a path, not a substring filter`);
+    const project = PROJECTS.find(project => project.id === task.project);
+    assert.ok(existsSync(resolve(REPOSITORY_ROOT, project.path, file)), `${task.id}: ${file}`);
+  }
 });
 
 test("profiles select the expected ordered task groups", () => {
