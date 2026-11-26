@@ -3,6 +3,7 @@ import {mkdtemp,writeFile,mkdir,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {createRequire} from 'node:module';
 import test from 'node:test';
 import {build} from 'vite';
 import {clientEntry} from '../dist/build/client-entry.js';
@@ -166,4 +167,110 @@ test('unsupported deferred ownership fails instead of widening page delivery', a
     ])],
     build:{write:false,rollupOptions:{input:{app:application,owner,unrelated},preserveEntrySignatures:'strict'}},
   }),/caller shared with an unrelated page/);
+});
+
+test('export variants share only their new payload after parent preparation', async context=>{
+  const root=await mkdtemp(path.join(tmpdir(),'linguini-kit-parent-variants-'));
+  context.after(()=>rm(root,{recursive:true,force:true}));
+  context.after(()=>{delete globalThis.__linguiniVariantsTest;});
+  await writeFile(path.join(root,'package.json'),'{"type":"module"}');
+  const directory=path.join(root,'generated/client-optimized');
+  await mkdir(directory,{recursive:true});
+  const application=path.join(directory,'app.js');
+  const owner=path.join(directory,'owner.js');
+  const parent=path.join(directory,'parent.js');
+  const child=path.join(directory,'child.js');
+  const virtual=name=>'virtual:linguini/message/'+Buffer.from(name).toString('hex');
+  await writeFile(application,"export const route=()=>import('./owner.js');");
+  await writeFile(owner,"export async function parent(){const {render,getOne,getTwo}=await import('./parent.js');return {render,getOne,getTwo};}");
+  await writeFile(parent,`import {message as a} from ${JSON.stringify(virtual('a'))}; import {message as b} from ${JSON.stringify(virtual('b'))};
+    globalThis.__linguiniVariantsTest.events.push('parent:'+a()+'/'+b());
+    export const render=()=>a()+'/'+b();
+    export async function getOne(){const {one}=await import('./child.js');return one;}
+    export async function getTwo(){const {two}=await import('./child.js');return two;}`);
+  await writeFile(child,`import {message as a} from ${JSON.stringify(virtual('a'))}; import {message as b} from ${JSON.stringify(virtual('b'))}; import {message as c} from ${JSON.stringify(virtual('c'))};
+    globalThis.__linguiniVariantsTest.events.push('child:'+c());
+    let calls=0;
+    export const one=()=>a()+'/'+c()+':'+(++calls);
+    export const two=()=>b()+'/'+c()+':'+(++calls);
+    export {message as debug} from ${JSON.stringify(virtual('unused'))};`);
+  const messages=new Map();
+  for (const name of ['a','b','c','unused']) {
+    const locales=new Map();
+    for (const locale of ['en','fr']) {
+      const file=path.join(root,`${name}-${locale}.js`);
+      await writeFile(file,`export const message=()=>${JSON.stringify(name==='unused'?'FORBIDDEN_PAYLOAD':name+':'+locale)};`);
+      locales.set(locale,{module:file});
+    }
+    messages.set(name,{locales});
+  }
+  const ids=new Map([...messages.keys()].sort().map((name,index)=>[name,index]));
+  const viteEntry=pathToFileURL(createRequire(import.meta.url).resolve('@antepodeum/linguini-vite'));
+  const {compilePageBundles}=await import(new URL('./page-payloads.js',viteEntry));
+  const pages=[{id:'/owner',entries:[owner]}];
+  let plan;
+  const result=await build({configFile:false,root,logLevel:'silent',plugins:[{
+    name:'variant-message-facades',
+    resolveId(id){if(id.startsWith('virtual:'))return '\0'+id;},
+    load(id){
+      if(!id.startsWith('\0virtual:linguini/message/'))return;
+      const name=Buffer.from(id.split('/').at(-1),'hex').toString('utf8');
+      if(name==='unused')return 'export function message(){throw Error("FORBIDDEN_FACADE");}';
+      return `export function message(){const state=globalThis.__linguiniVariantsTest;const value=state.messages.get(state.locale)?.[${ids.get(name)}];if(!value)throw Error('unprepared ${name}');return value();}`;
+    },
+  },clientEntry(async compiler=>{
+    plan=await compilePageBundles(compiler,pages,{messages,baseLocale:'en',effectiveLocales:['en','fr']},
+      {root,build:{target:'es2022',minify:true,assetsDir:'assets'}});
+    return `export const __linguiniLocale=()=>globalThis.__linguiniVariantsTest.locale;
+      const pending=new Map();
+      export async function __linguiniPrepare(routes,getLocale){
+        const locale=getLocale(),href=routes['/owner']+locale+'.js';
+        if(!pending.has(href)){
+          const state=globalThis.__linguiniVariantsTest;
+          state.requests.push(href);
+          pending.set(href,import(/* @vite-ignore */href).then(({messages})=>{
+            const current=state.messages.get(locale)??{};
+            Object.assign(current,messages);state.messages.set(locale,current);
+          }));
+        }
+        await pending.get(href);
+      }`;
+  }),deferredImports(()=>plan,undefined,()=>pages)],
+    build:{write:true,minify:true,manifest:true,sourcemap:true,modulePreload:false,
+      rollupOptions:{input:{app:application,owner},preserveEntrySignatures:'strict'}},
+  });
+  assert.deepEqual(Object.keys(plan.pages),[],'no initial message demand means no initial locale payload');
+  for(const locale of ['fr','en']){
+    assert.deepEqual(plan.deferred[parent]['/owner'][locale].messages,['a','b']);
+    assert.deepEqual(plan.deferred[child]['/owner'][locale].messages,['c']);
+  }
+  assert.equal(result.output.filter(item=>item.type==='asset'&&/^assets\/linguini\/.*\.js$/.test(item.fileName)).length,4);
+  for(const chunk of result.output.filter(item=>item.type==='chunk'))assert.doesNotMatch(chunk.code,/FORBIDDEN_FACADE|FORBIDDEN_PAYLOAD/);
+  const state={locale:'fr',events:[],requests:[],messages:new Map()};
+  globalThis.__linguiniVariantsTest=state;
+  const entry=result.output.find(item=>item.type==='chunk'&&item.facadeModuleId===owner);
+  const module=await import(pathToFileURL(path.join(root,'dist',entry.fileName)).href);
+  assert.deepEqual(state.requests,[]);
+  assert.deepEqual(state.events,[]);
+  const first=await module.parent();
+  assert.equal(first.render(),'a:fr/b:fr');
+  assert.deepEqual(state.events,['parent:a:fr/b:fr']);
+  assert.equal(state.messages.get('fr')[ids.get('c')],undefined,'parent preparation must not include the child demand');
+  const one=await first.getOne(),two=await first.getTwo();
+  assert.equal(one(),'a:fr/c:fr:1');
+  assert.equal(two(),'b:fr/c:fr:2');
+  assert.equal(await first.getOne(),one,'repeated imports retain the native binding');
+  state.locale='en';
+  const next=await module.parent();
+  assert.equal(next.render,first.render);
+  assert.equal(next.render(),'a:en/b:en');
+  assert.equal(state.messages.get('en')[ids.get('c')],undefined);
+  assert.equal(await next.getOne(),one);
+  assert.equal(one(),'a:en/c:en:3','export variants retain shared module state after locale changes');
+  assert.deepEqual(state.events,['parent:a:fr/b:fr','child:c:fr'],'module initialization runs once');
+  const expected=[];
+  for(const locale of ['fr','en'])for(const target of [parent,child]){
+    expected.push(pathToFileURL(path.join(root,'dist',plan.deferred[target]['/owner'][locale].file)).href);
+  }
+  assert.deepEqual(state.requests,expected,'one parent and one additional payload per selected locale, with cached repeated variants');
 });

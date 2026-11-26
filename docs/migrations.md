@@ -475,6 +475,10 @@ unchanged. Nested imports now prepare their additional messages before evaluatio
 exclude messages guaranteed on every parent path; a direct child import still gets the full
 additional set for that path. Shared entries use the intersection of available messages, and
 the build handles cyclic parent relationships conservatively. Transit-only modules add no files.
+Export variants are compared after those parent facts are applied. Different already prepared
+reads can share the same additional closure, including an empty closure with no extra file.
+Partial parents, independent direct paths, and self-justifying cycles cannot supply missing
+preparation; genuinely different remaining message sets still fail explicitly.
 
 `compilePageBundles` also returns optional build-only `deferredImports`, mapping each page to
 its message-bearing lazy module targets, including transit modules. Framework adapters use it

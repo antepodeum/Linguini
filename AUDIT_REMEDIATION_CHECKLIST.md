@@ -1350,6 +1350,15 @@ and the composed payload/SSR requirements below.
       their import without retaining unused catalog values; unknown roots, catalog/provider exports,
       and namespace escapes fail explicitly. The site's nested lazy module uses a namespace import
       while retaining its one-record child payload, cached action requests, and concurrent SSR.
+      Export-variant compatibility also uses those guaranteed-parent facts. Different already
+      prepared reads can share one remaining closure, or emit no extra file when none remains.
+      Shared Vite 7/8 execution checks exact initial/parent/additional record sets and sparse
+      fallback; partial parents, independent direct paths, and cyclic self-justification still
+      fail. A linked two-locale owning-page program verifies prepare-before-initialization,
+      one shared additional payload, repeated-import caching, native binding identity, and
+      shared module state across locale changes. Existing ownership guards remain intact.
+      Full Vite/Kit suites, thirteen focused Node 20 tests, and ten documentation/package/site
+      gates pass. All 45 existing production locale payloads retain identical paths and bytes.
       Default/mixed declarations remain outside this receipt.
       Message/link/lifecycle insertions also share quote-aware component tag boundaries. Real
       Svelte client/server compilation covers generic constraints containing `>` and `module`,

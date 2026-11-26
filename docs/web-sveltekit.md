@@ -83,6 +83,10 @@ by the initial page or every parent import are omitted from the child's payload.
 path to that child retains the messages it needs independently. The build intersects all parent
 paths, including cycles; transit-only modules emit no empty locale files. Owning-page discovery
 follows planned application imports without traversing the framework's global route loaders.
+Different exports of a lazy module may use different messages already supplied on every parent
+path. Their remaining message sets must agree: an empty set emits no additional payload, and a
+shared remaining set emits one payload per locale. A direct path cannot borrow preparation
+from another caller.
 The browser prepares only activated closures during subsequent locale changes. Nested values
 and named function calls also work in server loads without browser payload preparation.
 

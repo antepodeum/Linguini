@@ -185,7 +185,7 @@ test('page analysis preserves the host module side-effect decisions', async cont
 });
 
 test('deferred plans retain caller-selected exports across shared eager/lazy modules and pure re-exports', async () => {
-  await verifyDeferredDemand({build,pageMessagePlan});
+  await verifyDeferredDemand({build,pageMessagePlan,compilePageBundles});
 });
 
 test('nested payloads exclude guaranteed parent messages but retain them for a direct import path', async context => {

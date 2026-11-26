@@ -27,21 +27,19 @@ export async function pageMessagePlan(context,entries,config) {
   }
   const complete = await analyzePage(context,entries,config,true);
   const deferred = [];
+  const demands = new Map();
   for (const boundary of complete.boundaries) {
     if (!graphHasMessages(context,boundary.id)) continue;
     const messages = new Set();
     const children = new Set();
-    let expected;
+    const variants = [];
     for (const variant of boundary.variants) {
       const usage = await analyzePage(context,[{id:boundary.id,exports:variant.map(name => [name])}],config,false);
-      const additional = JSON.stringify(usage.messages.filter(name => !initial.messages.includes(name)));
-      if (expected !== undefined && expected !== additional) {
-        throw new Error(`Linguini deferred imports of ${boundary.id} require different message sets; call-site preparation is not supported yet`);
-      }
-      expected = additional;
+      variants.push(usage.messages);
       for (const name of usage.messages) messages.add(name);
       for (const id of usage.deferred) children.add(id);
     }
+    demands.set(boundary.id,variants);
     deferred.push({id:boundary.id,exports:boundary.exports,messages:[...messages].sort(),deferred:[...children].sort()});
   }
   const planned = new Set(deferred.map(boundary => boundary.id));
@@ -49,7 +47,21 @@ export async function pageMessagePlan(context,entries,config) {
   if (unmapped.length) {
     throw new Error(`Linguini cannot determine deferred boundaries for ${unmapped.join(', ')}`);
   }
-  return {messages:initial.messages,deferred:withPreparedMessages(initial,deferred)};
+  const prepared = withPreparedMessages(initial,deferred);
+  for (const boundary of prepared) {
+    // Export variants may read different messages already guaranteed by every
+    // parent path. Only their remaining payload demand must agree.
+    const available = new Set(boundary.available);
+    let expected;
+    for (const messages of demands.get(boundary.id)) {
+      const additional = JSON.stringify(messages.filter(name => !available.has(name)));
+      if (expected !== undefined && expected !== additional) {
+        throw new Error(`Linguini deferred imports of ${boundary.id} require different message sets; call-site preparation is not supported yet`);
+      }
+      expected = additional;
+    }
+  }
+  return {messages:initial.messages,deferred:prepared};
 }
 
 async function analyzePage(context, entries, config, followDeferred) {
