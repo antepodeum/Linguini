@@ -32,9 +32,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use linguini_cldr::{
-    built_in_plural_rules, canonicalize_locale, compiled_currency_formatting,
-    compiled_date_formatting, compiled_number_formatting,
-    locale_fallback_chain as cldr_locale_fallback_chain,
+    built_in_plural_rules, compiled_currency_formatting, compiled_date_formatting,
+    compiled_number_formatting,
 };
 use linguini_ir::{
     validate_typed_ir, IrEnum, IrForm, IrFunction, IrGroup, IrMessage, IrModule, IrModuleBuilder,
@@ -1084,39 +1083,8 @@ pub(crate) fn locale_fallback_chain(
     locale: &str,
     base_locale: Option<&str>,
 ) -> Vec<String> {
-    let mut chain = Vec::new();
-    let tags = cldr_locale_fallback_chain(locale).unwrap_or_else(|_| vec![locale.to_owned()]);
-    for (index, tag) in tags.into_iter().enumerate() {
-        let raw_match = locales.iter().find(|entry| {
-            if index == 0 {
-                entry.locale.eq_ignore_ascii_case(locale)
-            } else {
-                entry.locale.eq_ignore_ascii_case(&tag)
-            }
-        });
-        let canonical_match = || {
-            locales.iter().find(|entry| {
-                canonicalize_locale(&entry.locale).map_or_else(
-                    |_| entry.locale.eq_ignore_ascii_case(&tag),
-                    |canonical| canonical.eq_ignore_ascii_case(&tag),
-                )
-            })
-        };
-        if let Some(exact) = raw_match
-            .or_else(canonical_match)
-            .map(|entry| entry.locale.clone())
-        {
-            if !chain.contains(&exact) {
-                chain.push(exact);
-            }
-        }
-    }
-    if let Some(base) = base_locale {
-        if !chain.iter().any(|entry| entry == base) {
-            chain.push(base.to_owned());
-        }
-    }
-    chain
+    linguini_codegen::ProjectLocalePlan::new(locales.iter().map(|entry| entry.locale.as_str()))
+        .fallback_chain(locale, base_locale)
 }
 
 fn plural_function_name(locale: &str) -> String {

@@ -80,6 +80,12 @@ Public parameter types lower into `linguini_codegen::TypeModel`, also re-exporte
 JSDoc rendering through `render_typescript_type` and `render_jsdoc_type`, templates, and module
 emission. Primitive types and enum literal unions use one canonical type-expression template
 for schema declarations, schema JSDoc, locale JSDoc, and selector annotations.
+
+`linguini_codegen::ProjectLocalePlan` owns project fallback matching and the finite pinned
+locale-resolution table. It preserves declared spellings, exact-name precedence, CLDR parents,
+aliases, likely scripts, and the optional base fallback. Declared tags are canonicalized once
+per plan. The ECMAScript backend renders these results through its locale templates; this
+shared model contains no JavaScript syntax or web routing/persistence policy.
 Structured imports and re-exports share one module-edge template, including aliases, namespace
 imports, and declaration-only type edges. JavaScript output excludes type dependencies before
 rendering; module order, literal escaping, and source-map line positions remain stable.

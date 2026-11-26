@@ -1333,6 +1333,10 @@ and the composed payload/SSR requirements below.
 - [-] MOD-A7 — Share common lowering, dependency planning, and type semantics through
       `linguini-codegen`; keep ECMAScript syntax, web platform behavior, and framework dependencies
       within their owning backend/modules. Future language backends must not depend on web policy.
+      `ProjectLocalePlan` now owns project fallback matching and finite locale-resolution table
+      planning in the common crate. Exact names, aliases, CLDR parents/likely scripts, and base
+      precedence have shared tests; current generated code/declaration/map snapshots are unchanged.
+      ECMAScript owns only the locale artifact projection and syntax for this boundary.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.

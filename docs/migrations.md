@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared project locale planning
+
+Backend authors can reuse `linguini_codegen::ProjectLocalePlan` for project locale fallback
+matching and finite resolution-table construction. ECMAScript generation now consumes that
+shared model. Declared names, alias precedence, fallback order, generated code, declarations,
+and source maps retain their existing behavior; applications need no configuration changes.
+
 ## Currency-specific separators
 
 Regenerate currency output to honor the selected numbering system's `currencyDecimal` and
