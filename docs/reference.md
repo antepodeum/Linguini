@@ -804,7 +804,9 @@ whole-program exhaustiveness proof.
 interpolated or passed to other locale callables. Leading unnamed enum or
 `Plural` parameters are dispatch inputs; other primitive types are rejected as
 dispatch dimensions. Named parameters form one trailing payload group and
-never add dispatch levels, regardless of their type.
+never add dispatch levels, regardless of their type. A function with only payload parameters
+uses one `_` body and no nested dispatch, for example `fn Echo(value: String) { _ => {value} }`.
+The same body rule applies to an empty input list such as `fn Ready() { _ => ready }`.
 
 ```lgl
 fn delivery_note(Plural, Gender, item: String) {
@@ -819,7 +821,7 @@ delivery = {delivery_note(count, gender, item)}
 ```
 
 Use `form` when output depends only on grammatical categories.
-Use `fn` when output embeds a dynamic string value.
+Use `fn` when output interpolates or formats a named payload value.
 
 ### Inline functions
 
@@ -944,7 +946,7 @@ part of the current language.
 | `param_order`        | warning  | Order `form` params from fewest variants to most |
 | `unreachable_arm`    | warning  | Arm after `_` at the same level                  |
 | `collapsible_arms`   | warning  | Multiple arms with identical output              |
-| `fn_without_strings` | warning  | `fn` with no `String` params — use `form`        |
+| `fn_without_strings` | warning  | `fn` with no named payload params — use `form` |
 | `incomplete_impl`    | error    | `impl` missing variants declared in enum         |
 | `redundant_wildcard` | warning  | All variants covered, `_` is unreachable         |
 | `unused_message`     | warning  | Configured scan finds no reference to message     |

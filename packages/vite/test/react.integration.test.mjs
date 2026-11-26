@@ -20,7 +20,7 @@ import Child from './Child';
 export default function Page() { return <main><h1>{lgl.main.title}</h1><Child /></main>; }
 `,
     Child: `import { lgl } from '../generated/index.js';
-export default function Child() { return <p>{lgl.main.hello(1, 'Ada')}</p>; }
+export default function Child() { return <p>{lgl.main.hello('Ada')}</p>; }
 `,
     Other: `import { lgl } from '../generated/index.js';
 export default function Other() { return <h1>{lgl.main.unused}</h1>; }

@@ -38,11 +38,11 @@ out = "generated"
 sources = ["src"]
 locale_loading = "dynamic"
 `);
-  await writeFile(path.join(root, "schema/main.lgs"), "title\nhello(count: Number, name: String)\nunused\n");
+  await writeFile(path.join(root, "schema/main.lgs"), "title\nhello(name: String)\nunused\n");
   await writeFile(path.join(root, "locales/main/en.lgl"), `
-fn Greeting(Plural, name: String) { _ => Hello {name} }
+fn Greeting(name: String) { _ => Hello {name} }
 title = PAGE_TITLE_SENTINEL
-hello = {Greeting(count, name)}
+hello = {Greeting(name)}
 unused = UNUSED_PAGE_SENTINEL
 `);
   await writeFile(path.join(root, "locales/main/fr.lgl"), `

@@ -140,12 +140,12 @@ fn collect_branch_coverage_diagnostics(
                 && !function
                     .parameters
                     .iter()
-                    .any(|parameter| parameter.name.is_some() && parameter.ty.value == "String")
+                    .any(|parameter| parameter.name.is_some())
             {
                 diagnostics.push(
                     Diagnostic::warning(
                         format!(
-                            "fn `{}` has no named String parameter; use `form`",
+                            "fn `{}` has no named payload parameter; use `form`",
                             function.name.value
                         ),
                         function.name.span,

@@ -25,7 +25,7 @@ import Child from './Child.vue';
 `,
       Child: `<script setup lang="ts">
 import { lgl } from '../generated/index.js';
-const greeting: string = lgl.main.hello(1, 'Ada');
+const greeting: string = lgl.main.hello('Ada');
 </script>
 <template><p>{{ greeting }}</p></template>
 `,

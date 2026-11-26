@@ -53,7 +53,9 @@ A locale file is a sequence of these declarations:
 - `form Name(Type, ...) { branches }` declares a typed selector function without named string
   inputs.
 - `fn Name(Type, name: Type, ...) { branches }` declares a typed function. Unnamed leading inputs
-  dispatch; named trailing inputs are lexical string/value bindings.
+  dispatch; named trailing inputs are lexical string/value bindings. With no dispatch inputs,
+  one `_` branch supplies the body; empty input lists follow the same rule. Other keys and
+  nested dispatch are invalid in that case.
 - `impl Enum { variant { ... } }` associates properties and forms with enum variants.
 - `message = pattern` implements a schema message.
 - `group { ... }` recursively contains message implementations and groups. Locale groups may not

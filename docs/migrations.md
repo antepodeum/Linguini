@@ -4,6 +4,18 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Functions without selectors
+
+Native `check` and `build` now accept a single `_` body in functions with only named payload
+parameters, including `String`, numeric, Boolean, and Date payloads, and in zero-argument
+functions. This agrees with the existing validated-IR and codegen contract. Other keys and
+nested dispatch remain errors; failed builds preserve existing generated output.
+
+The existing `fn_without_strings` lint name is retained. It now suggests `form` only when
+there are no named payload parameters; a named Date or numeric payload requires `fn` too.
+LSP diagnostics use the same correction. Regenerate from the original sources; no application
+API or generated runtime implementation changes are required.
+
 ## Framework-owned Vite adapters
 
 Replace `@antepodeum/linguini-vite/svelte` imports with

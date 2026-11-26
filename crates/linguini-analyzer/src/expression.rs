@@ -1479,6 +1479,8 @@ fn validate_branch_depth(
     for branch in branches {
         match &branch.value {
             FunctionBranchValue::Text(_)
+                if dispatch_parameter_count == 0 && depth == 0 && branch.key.value == "_" => {}
+            FunctionBranchValue::Text(_)
                 if depth + 1 > dispatch_parameter_count
                     || (depth + 1 < dispatch_parameter_count && branch.key.value != "_") =>
             {

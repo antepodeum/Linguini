@@ -787,6 +787,31 @@ fn function_pattern_analysis_reports_dispatch_depth() {
 }
 
 #[test]
+fn function_pattern_analysis_accepts_selector_free_bodies_but_rejects_dispatch() {
+    for source in [
+        "fn Ready() { _ => ready }\n",
+        "form Ready() { _ => ready }\n",
+        "fn Echo(value: String) { _ => {value} }\n",
+        "fn Join(left: String, right: String) { _ => {left}{right} }\n",
+        "override fn Echo(value: String) { _ => {value} }\n",
+    ] {
+        let locale = parse_locale(source).unwrap();
+        let diagnostics = analyze_function_patterns(&locale);
+        assert!(diagnostics.is_empty(), "{source}: {diagnostics:?}");
+    }
+    for source in [
+        "fn Echo(value: String) { other => {value} }\n",
+        "fn Echo(value: String) { _ { _ => {value} } }\n",
+        "fn Echo(value: String) { other { _ => {value} } }\n",
+    ] {
+        let locale = parse_locale(source).unwrap();
+        let diagnostics = analyze_function_patterns(&locale);
+        assert_eq!(diagnostics.len(), 1, "{source}: {diagnostics:?}");
+        assert!(diagnostics[0].message.contains("expects 0 value(s)"));
+    }
+}
+
+#[test]
 fn expression_analysis_reports_ambiguous_implicit_plural_argument() {
     let locale = parse_locale("summary = {fruit.nom}\n").expect("locale parses");
     let diagnostics = analyze_expressions(ExpressionAnalysis {
@@ -1136,6 +1161,20 @@ fn function_style_lints_are_attached_by_name() {
 
     assert!(lint_names.contains("fn_without_strings"));
     assert!(lint_names.contains("collapsible_arms"));
+
+    for source in [
+        "fn Echo(value: String) { _ => {value} }\n",
+        "fn Numeric(value: Number) { _ => {value @number} }\n",
+        "fn Receipt(value: Date) { _ => {value @date} }\n",
+        "fn Flag(value: Boolean) { _ => {value} }\n",
+    ] {
+        let locale = parse_locale(source).unwrap();
+        let diagnostics = analyze_locale_file(&locale);
+        assert!(
+            diagnostics.is_empty(),
+            "named payloads require fn regardless of type: {source}: {diagnostics:?}"
+        );
+    }
 }
 
 #[test]

@@ -22,6 +22,91 @@ fn build_svelte_project(root: &std::path::Path) -> super::CliResult<String> {
 }
 
 #[test]
+fn selector_free_functions_check_build_and_execute_through_native_output() {
+    let project = temp_project_dir("selector-free-functions").unwrap();
+    fs::create_dir_all(project.path().join("schema")).unwrap();
+    fs::create_dir_all(project.path().join("locales/main")).unwrap();
+    fs::write(project.path().join("linguini.toml"), "[project]\nname = \"functions\"\ndefault_locale = \"en\"\nlocales = [\"en\"]\n[paths]\nschema = \"schema\"\nlocale = \"locales\"\n[targets.ts]\nout = \"generated\"\n").unwrap();
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "ready\nform_ready\necho(value: String)\njoined(left: String, right: String)\ncaptured(value: String)\ndate(value: Date)\nnumeric(value: Number)\nflag(value: Boolean)\n",
+    ).unwrap();
+    let source = concat!(
+        "fn Ready() { _ => ready }\n",
+        "form ReadyForm() { _ => ready form }\n",
+        "fn Echo(text: String) { _ => {text} }\n",
+        "fn Join(left: String, right: String) { _ => {Echo(left)} / {Echo(right)} }\n",
+        "fn Receipt(value: Date) { _ => {value @date(skeleton = \"yMMMd\")} }\n",
+        "fn Numeric(value: Number) { _ => {value @number} }\n",
+        "fn Flag(value: Boolean) { _ => {value} }\n",
+        "ready = {Ready()}\nform_ready = {ReadyForm()}\necho = {Echo(value)}\njoined = {Join(left, right)}\n",
+        "captured = {fn(copy: Echo(value)) { _ => {copy} }}\n",
+        "date = {Receipt(value)}\nnumeric = {Numeric(value)}\nflag = {Flag(value)}\n",
+    );
+    let locale = project.path().join("locales/main/en.lgl");
+    fs::write(&locale, source).unwrap();
+    check_project(project.path()).expect("selector-free functions pass native source validation");
+    build_project(project.path()).unwrap();
+    let output = project.path().join("generated/locales/en/main.js");
+    let baseline = fs::read(&output).unwrap();
+    build_project(project.path()).unwrap();
+    assert_eq!(fs::read(&output).unwrap(), baseline);
+    let execution = std::process::Command::new("node")
+        .args([
+            "--input-type=module",
+            "-e",
+            r#"
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const {lgl} = await import(pathToFileURL(process.argv[1]).href);
+const messages = lgl.main;
+assert.equal(messages.ready, 'ready');
+assert.equal(messages.form_ready, 'ready form');
+assert.equal(messages.echo('Ada'), 'Ada');
+assert.equal(messages.echo({value:'Ada'}), 'Ada');
+assert.equal(messages.joined('left','right'), 'left / right');
+assert.equal(messages.captured('captured'), 'captured');
+assert.equal(messages.date('2024-01-02'), 'Jan 2, 2024');
+assert.equal(messages.numeric(1234.5), '1,234.5');
+assert.equal(messages.flag(false), 'false');
+console.log('ok');
+"#,
+        ])
+        .arg(project.path().join("generated/index.js"))
+        .output()
+        .unwrap();
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&execution.stdout).trim(), "ok");
+    for (replacement, diagnostic) in [
+        (
+            "fn Echo(text: String) { other => {text} }",
+            "expects 0 value(s)",
+        ),
+        (
+            "fn Echo(text: String) { _ { _ => {text} } }",
+            "expects 0 value(s)",
+        ),
+        (
+            "fn Echo(text: String) { _ => {text}\n _ => duplicate }",
+            "duplicate branch `_`",
+        ),
+    ] {
+        fs::write(
+            &locale,
+            source.replace("fn Echo(text: String) { _ => {text} }", replacement),
+        )
+        .unwrap();
+        let error = build_project(project.path()).unwrap_err();
+        assert!(error.to_string().contains(diagnostic), "{error}");
+        assert_eq!(fs::read(&output).unwrap(), baseline);
+    }
+}
+
+#[test]
 fn date_skeleton_builds_validate_before_changing_owned_output() {
     let project = temp_project_dir("date-skeleton").unwrap();
     fs::create_dir_all(project.path().join("schema")).unwrap();

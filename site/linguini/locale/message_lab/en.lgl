@@ -1,2 +1,6 @@
+fn Receipt(value: Date) {
+  _ => {value @date(skeleton = "yMMMd")}
+}
+
 fallback = Base-only message fallback
-skeleton_date = {value @date(skeleton = "yMMMd")}
+skeleton_date = {Receipt(value)}

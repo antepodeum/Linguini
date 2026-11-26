@@ -1212,6 +1212,13 @@ and the composed payload/SSR requirements below.
       Concurrent nested server loads now read parent values, a named number formatter, and a new
       child message in French/Russian/English. Hydration preserves their server-rendered strings,
       and neither script-enabled nor no-JS rendering requests a deferred locale file for that data.
+      Native source validation now also accepts zero-selector functions with named payloads,
+      matching existing IR/codegen behavior. CLI execution covers zero arguments, positional/named
+      strings, nested calls, inline captures, Boolean/numeric/Date payloads, and rejected invalid
+      bodies without output mutation. LSP diagnostics agree, and non-String payloads retain no
+      misleading `fn_without_strings` warning. Native Vue/React SSR consumers use a String helper;
+      the real site's Date helper retains its existing exact payload and nine-locale SSR/browser
+      checks. This receipt does not close the remaining delivery/SSR acceptance above.
 - [x] MOD-A6 — Prove that Vite core can be reused outside Svelte/SvelteKit with framework-neutral
       JS/TS consumers and representative Vue/React integration boundaries. Add only the adapters
       needed for these boundaries; do not implement unrelated backends or speculative frameworks.

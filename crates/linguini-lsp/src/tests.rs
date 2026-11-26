@@ -581,6 +581,37 @@ fn formatting_returns_whole_document_edit() {
 }
 
 #[test]
+fn selector_free_payload_functions_have_consistent_workspace_diagnostics() {
+    let schema = LinguiniDocument::new(
+        "file:///schema/main.lgs",
+        "linguini-schema",
+        "echo(value: String)\ndate(value: Date)\n",
+    )
+    .with_source_identity("main", None)
+    .with_source_id(SourceId(1));
+    let source = "fn Echo(text: String) { _ => {text} }\nfn Receipt(value: Date) { _ => {value @date} }\necho = {Echo(value)}\ndate = {Receipt(value)}\n";
+    let locale = LinguiniDocument::new("file:///locales/main/en.lgl", "linguini-locale", source)
+        .with_source_identity("main", Some("en".to_owned()))
+        .with_source_id(SourceId(2));
+    let result = diagnostics_with_workspace(&locale, [schema.clone()]);
+    assert!(result.is_empty(), "{result:?}");
+    let invalid = LinguiniDocument::new(
+        locale.uri.clone(),
+        "linguini-locale",
+        source.replace("_ => {text}", "other => {text}"),
+    )
+    .with_source_identity("main", Some("en".to_owned()))
+    .with_source_id(SourceId(2));
+    let result = diagnostics_with_workspace(&invalid, [schema]);
+    assert!(
+        result
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("expects 0 value(s)")),
+        "{result:?}"
+    );
+}
+
+#[test]
 fn locale_diagnostics_use_only_matching_schema_namespace() {
     let shop_schema = LinguiniDocument::new(
         "file:///schema/shop.lgs",
