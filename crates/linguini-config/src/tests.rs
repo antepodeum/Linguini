@@ -1,6 +1,45 @@
 use super::{parse_config, CONFIG_SCHEMA_JSON, DEFAULT_CONFIG_FILE};
 
 #[test]
+fn supplied_paths_share_native_namespaces_ordering_and_validation() {
+    use super::{
+        discover_locale_files, discover_schema_files, locale_files_from_paths,
+        schema_files_from_paths,
+    };
+    use std::{fs, path::PathBuf};
+    let temp = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(temp.path()).unwrap();
+    let schema = [
+        root.join("z.lgs"),
+        root.join("café/a.lgs"),
+        root.join("A.lgs"),
+    ];
+    let locale = [
+        root.join("z/fr-CA.lgl"),
+        root.join("café/en.lgl"),
+        root.join("en.lgl"),
+    ];
+    for path in schema.iter().chain(&locale) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, "").unwrap();
+    }
+    assert_eq!(
+        schema_files_from_paths(&root, schema.clone()).unwrap(),
+        discover_schema_files(&root).unwrap()
+    );
+    assert_eq!(
+        locale_files_from_paths(&root, locale).unwrap(),
+        discover_locale_files(&root).unwrap()
+    );
+    assert!(schema_files_from_paths(&root, [root.join("a.lgs"), root.join("A.lgs")]).is_err());
+    assert!(locale_files_from_paths(&root, [root.join("en.lgl"), root.join("EN.lgl")]).is_err());
+    assert!(locale_files_from_paths(&root, [root.join("not_a_locale.lgl")]).is_err());
+    for path in [root.join("../outside.lgs"), PathBuf::from("relative.lgs")] {
+        assert!(schema_files_from_paths(&root, [path]).is_err());
+    }
+}
+
+#[test]
 fn crate_exports_config_parser_and_default_filename() {
     let config = parse_config(
         r#"

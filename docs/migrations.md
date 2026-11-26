@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared LSP host services
+
+Native CLI and editor protocol behavior are unchanged. The Rust LSP crate now also exposes
+`MemoryWorkspace`, saved-file/source-root types, and a scheduler interface for embedding the
+same server without native filesystem access. Host-provided paths use the config crate's
+shared namespace classification. Updating saved files requires the normal watched-files
+notification; it does not replace open-buffer synchronization. No editor setting or application
+source migration is required. A WASM compile alone does not provide an installed worker fallback.
+
 ## Functions without selectors
 
 Native `check` and `build` now accept a single `_` body in functions with only named payload

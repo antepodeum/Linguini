@@ -1,6 +1,10 @@
 #![allow(deprecated)]
 
-use crate::document::prime_semantic_cache;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::host::NativeHost;
+use crate::host::{
+    uri_to_file_path, ProjectContext, WorkspaceHost, WorkspaceIndex, MAX_DOCUMENT_BYTES,
+};
 use crate::{
     code_action::{analyzer_quick_fix_actions, to_lsp_diagnostic_with_workspace},
     completion_candidates_with_workspace, definition_at_with_workspace, diagnostics_with_workspace,
@@ -8,14 +12,8 @@ use crate::{
     references_at_with_workspace, rename_workspace_edits, semantic_tokens, LinguiniDocument,
     SemanticLegend,
 };
-use linguini_config::{
-    discover_locale_files, discover_schema_files, parse_config, DEFAULT_CONFIG_FILE,
-};
 use linguini_format::FormatOptions;
-use linguini_syntax::SourceId;
 use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -23,39 +21,9 @@ use std::time::Duration;
 use tower_lsp_server::{
     jsonrpc::{Error, Result},
     lsp_types::*,
-    Client, LanguageServer, LspService, Server,
+    Client, ClientSocket, LanguageServer, LspService,
 };
-
-const MAX_WORKSPACE_DEPTH: usize = 64;
-const MAX_WORKSPACE_ENTRIES: usize = 50_000;
-const MAX_WORKSPACE_ROOTS: usize = 32;
-const MAX_WORKSPACE_PROJECTS: usize = 256;
-const MAX_INDEXED_FILES: usize = 50_000;
-const MAX_INDEXED_BYTES: u64 = 128 * 1024 * 1024;
-const MAX_PROJECT_FILES: usize = 20_000;
-const MAX_PROJECT_BYTES: u64 = 64 * 1024 * 1024;
-const MAX_DOCUMENT_BYTES: u64 = 4 * 1024 * 1024;
-
 type Uri = Url;
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-struct ProjectContext {
-    root: PathBuf,
-    schema_root: PathBuf,
-    locale_root: PathBuf,
-}
-
-#[derive(Debug, Clone, Default)]
-struct WorkspaceIndex {
-    projects: Vec<ProjectSnapshot>,
-    errors: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-struct ProjectSnapshot {
-    context: ProjectContext,
-    documents: Vec<LinguiniDocument>,
-}
 
 #[derive(Debug, Clone)]
 struct CachedDiagnostics {
@@ -65,7 +33,8 @@ struct CachedDiagnostics {
 }
 
 #[derive(Debug, Clone)]
-struct Backend {
+pub(crate) struct Backend {
+    host: Arc<dyn WorkspaceHost>,
     client: Client,
     documents: Arc<RwLock<HashMap<Uri, LinguiniDocument>>>,
     workspace_roots: Arc<RwLock<Vec<PathBuf>>>,
@@ -75,9 +44,10 @@ struct Backend {
 }
 
 impl Backend {
-    fn new(client: Client) -> Self {
+    fn with_host(client: Client, host: Arc<dyn WorkspaceHost>) -> Self {
         Self {
             client,
+            host,
             documents: Arc::new(RwLock::new(HashMap::new())),
             workspace_roots: Arc::new(RwLock::new(Vec::new())),
             workspace_index: Arc::new(RwLock::new(WorkspaceIndex::default())),
@@ -126,15 +96,17 @@ impl Backend {
 
     fn schedule_publish_related(&self, document: LinguiniDocument) {
         let backend = self.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(75)).await;
-            let Ok(uri) = document.uri.parse::<Uri>() else {
-                return;
-            };
-            if backend.document_is_current(&uri, &document) {
-                backend.publish_related(&document).await;
-            }
-        });
+        self.host.spawn_after(
+            Duration::from_millis(75),
+            Box::pin(async move {
+                let Ok(uri) = document.uri.parse::<Uri>() else {
+                    return;
+                };
+                if backend.document_is_current(&uri, &document) {
+                    backend.publish_related(&document).await;
+                }
+            }),
+        );
     }
 
     fn cached_diagnostics_for(
@@ -285,7 +257,7 @@ impl Backend {
     fn workspace_roots(&self) -> Vec<PathBuf> {
         let roots = read_lock(&self.workspace_roots);
         if roots.is_empty() {
-            std::env::current_dir().into_iter().collect()
+            self.host.default_roots()
         } else {
             roots.clone()
         }
@@ -324,7 +296,7 @@ impl Backend {
             .fetch_add(1, Ordering::SeqCst)
             .saturating_add(1);
         let roots = self.workspace_roots();
-        let index = match tokio::task::spawn_blocking(move || build_workspace_index(roots)).await {
+        let index = match self.host.workspace_index(roots).await {
             Ok(index) => index,
             Err(error) => {
                 self.client
@@ -465,24 +437,26 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        let watch_options = DidChangeWatchedFilesRegistrationOptions {
-            watchers: vec![FileSystemWatcher {
-                glob_pattern: GlobPattern::String("**/{linguini.toml,*.lgs,*.lgl}".to_owned()),
-                kind: None,
-            }],
-        };
-        let registration = Registration {
-            id: "linguini.workspace.sources".to_owned(),
-            method: "workspace/didChangeWatchedFiles".to_owned(),
-            register_options: serde_json::to_value(watch_options).ok(),
-        };
-        if let Err(error) = self.client.register_capability(vec![registration]).await {
-            self.client
-                .log_message(
-                    MessageType::WARNING,
-                    format!("client rejected Linguini file watcher registration: {error}"),
-                )
-                .await;
+        if self.host.dynamic_watching() {
+            let watch_options = DidChangeWatchedFilesRegistrationOptions {
+                watchers: vec![FileSystemWatcher {
+                    glob_pattern: GlobPattern::String("**/{linguini.toml,*.lgs,*.lgl}".to_owned()),
+                    kind: None,
+                }],
+            };
+            let registration = Registration {
+                id: "linguini.workspace.sources".to_owned(),
+                method: "workspace/didChangeWatchedFiles".to_owned(),
+                register_options: serde_json::to_value(watch_options).ok(),
+            };
+            if let Err(error) = self.client.register_capability(vec![registration]).await {
+                self.client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("client rejected Linguini file watcher registration: {error}"),
+                    )
+                    .await;
+            }
         }
         self.client
             .log_message(MessageType::INFO, "Linguini language server initialized")
@@ -923,25 +897,16 @@ impl LanguageServer for Backend {
     }
 }
 
-pub async fn run_stdio() {
-    let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
-    let (service, socket) = LspService::build(Backend::new)
+pub(crate) fn service(host: Arc<dyn WorkspaceHost>) -> (LspService<Backend>, ClientSocket) {
+    LspService::build(move |client| Backend::with_host(client, host))
         .custom_method("linguini/protocolVersion", Backend::protocol_version)
         .custom_method("linguini/highlight", Backend::highlight)
-        .finish();
-    Server::new(stdin, stdout, socket).serve(service).await;
+        .finish()
 }
 
-pub fn run_stdio_blocking() {
-    if let Err(error) = try_run_stdio_blocking() {
-        eprintln!("failed to start Linguini language server: {error}");
-    }
-}
-
-pub fn try_run_stdio_blocking() -> io::Result<()> {
-    let runtime = tokio::runtime::Runtime::new()?;
-    runtime.block_on(run_stdio());
-    Ok(())
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn native_service() -> (LspService<Backend>, ClientSocket) {
+    service(Arc::new(NativeHost))
 }
 
 fn workspace_roots_from_initialize(params: &InitializeParams) -> Vec<PathBuf> {
@@ -969,457 +934,9 @@ fn workspace_roots_from_initialize(params: &InitializeParams) -> Vec<PathBuf> {
         }
     }
 
-    if roots.is_empty() {
-        roots.extend(std::env::current_dir().ok());
-    }
-
     roots.sort();
     roots.dedup();
     roots
-}
-
-fn build_workspace_index(mut roots: Vec<PathBuf>) -> WorkspaceIndex {
-    let mut index = WorkspaceIndex::default();
-    let mut contexts = Vec::new();
-    let mut seen_contexts = HashSet::new();
-    let mut remaining_entries = MAX_WORKSPACE_ENTRIES;
-
-    roots.sort();
-    roots.dedup();
-    if roots.len() > MAX_WORKSPACE_ROOTS {
-        push_index_error(
-            &mut index.errors,
-            format!(
-                "workspace exposes {} roots; indexing first {MAX_WORKSPACE_ROOTS}",
-                roots.len()
-            ),
-        );
-        roots.truncate(MAX_WORKSPACE_ROOTS);
-    }
-    for root in roots {
-        if remaining_entries == 0 || contexts.len() >= MAX_WORKSPACE_PROJECTS {
-            break;
-        }
-        let root = match fs::canonicalize(&root) {
-            Ok(root) => root,
-            Err(error) => {
-                push_index_error(
-                    &mut index.errors,
-                    format!("cannot index workspace root {}: {error}", root.display()),
-                );
-                continue;
-            }
-        };
-        let mut state = WorkspaceDiscovery {
-            root: root.clone(),
-            visited: HashSet::new(),
-            entries: 0,
-            entry_limit: remaining_entries,
-        };
-        discover_project_contexts_recursively(
-            &root,
-            0,
-            &mut state,
-            &mut seen_contexts,
-            &mut contexts,
-            &mut index.errors,
-        );
-        remaining_entries = remaining_entries.saturating_sub(state.entries);
-    }
-
-    contexts.sort_by(|left, right| {
-        right
-            .root
-            .components()
-            .count()
-            .cmp(&left.root.components().count())
-            .then_with(|| left.root.cmp(&right.root))
-    });
-    if contexts.len() > MAX_WORKSPACE_PROJECTS {
-        push_index_error(
-            &mut index.errors,
-            format!(
-                "workspace exposes {} Linguini projects; indexing first {MAX_WORKSPACE_PROJECTS}",
-                contexts.len()
-            ),
-        );
-        contexts.truncate(MAX_WORKSPACE_PROJECTS);
-    }
-    let mut next_source_id = 1u32;
-    let mut remaining_files = MAX_INDEXED_FILES;
-    let mut remaining_bytes = MAX_INDEXED_BYTES;
-    let mut seen_sources = HashSet::new();
-    for context in contexts {
-        if remaining_files == 0 || remaining_bytes == 0 {
-            push_index_error(
-                &mut index.errors,
-                format!(
-                    "workspace index reached its global limit of {MAX_INDEXED_FILES} files or {MAX_INDEXED_BYTES} bytes"
-                ),
-            );
-            break;
-        }
-        index.projects.push(load_project_snapshot(
-            context,
-            &mut index.errors,
-            &mut next_source_id,
-            &mut remaining_files,
-            &mut remaining_bytes,
-            &mut seen_sources,
-        ));
-    }
-    index
-        .projects
-        .sort_by(|left, right| left.context.root.cmp(&right.context.root));
-    index
-}
-
-struct WorkspaceDiscovery {
-    root: PathBuf,
-    visited: HashSet<PathBuf>,
-    entries: usize,
-    entry_limit: usize,
-}
-
-fn discover_project_contexts_recursively(
-    directory: &Path,
-    depth: usize,
-    state: &mut WorkspaceDiscovery,
-    seen_contexts: &mut HashSet<PathBuf>,
-    contexts: &mut Vec<ProjectContext>,
-    errors: &mut Vec<String>,
-) {
-    if depth > MAX_WORKSPACE_DEPTH {
-        push_index_error(
-            errors,
-            format!(
-                "workspace discovery depth exceeds {MAX_WORKSPACE_DEPTH} under {}",
-                state.root.display()
-            ),
-        );
-        return;
-    }
-    let metadata = match fs::symlink_metadata(directory) {
-        Ok(metadata) => metadata,
-        Err(error) => {
-            push_index_error(
-                errors,
-                format!("cannot inspect {}: {error}", directory.display()),
-            );
-            return;
-        }
-    };
-    if metadata.file_type().is_symlink() {
-        push_index_error(
-            errors,
-            format!(
-                "workspace discovery skipped symlink {}",
-                directory.display()
-            ),
-        );
-        return;
-    }
-    let canonical = match fs::canonicalize(directory) {
-        Ok(canonical) => canonical,
-        Err(error) => {
-            push_index_error(
-                errors,
-                format!("cannot canonicalize {}: {error}", directory.display()),
-            );
-            return;
-        }
-    };
-    if !canonical.starts_with(&state.root) || !state.visited.insert(canonical) {
-        return;
-    }
-    let entries = match fs::read_dir(directory) {
-        Ok(entries) => entries,
-        Err(error) => {
-            push_index_error(
-                errors,
-                format!("cannot read directory {}: {error}", directory.display()),
-            );
-            return;
-        }
-    };
-
-    for entry in entries {
-        if state.entries >= state.entry_limit {
-            push_index_error(
-                errors,
-                format!(
-                    "workspace discovery reached its global limit of {MAX_WORKSPACE_ENTRIES} entries"
-                ),
-            );
-            return;
-        }
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(error) => {
-                push_index_error(errors, format!("workspace directory entry failed: {error}"));
-                continue;
-            }
-        };
-        state.entries += 1;
-        let path = entry.path();
-        let file_type = match entry.file_type() {
-            Ok(file_type) => file_type,
-            Err(error) => {
-                push_index_error(
-                    errors,
-                    format!("cannot inspect workspace entry {}: {error}", path.display()),
-                );
-                continue;
-            }
-        };
-        if file_type.is_symlink() {
-            push_index_error(
-                errors,
-                format!("workspace discovery skipped symlink {}", path.display()),
-            );
-            continue;
-        }
-        if file_type.is_dir() {
-            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-                push_index_error(
-                    errors,
-                    format!(
-                        "workspace discovery skipped non-UTF-8 directory {}",
-                        path.display()
-                    ),
-                );
-                continue;
-            };
-            if should_skip_discovery_directory(name) {
-                continue;
-            }
-            discover_project_contexts_recursively(
-                &path,
-                depth + 1,
-                state,
-                seen_contexts,
-                contexts,
-                errors,
-            );
-            continue;
-        }
-
-        if !file_type.is_file()
-            || path.file_name().and_then(|name| name.to_str()) != Some(DEFAULT_CONFIG_FILE)
-        {
-            continue;
-        }
-        let Some(root) = path.parent() else {
-            continue;
-        };
-        let root = normalize_existing_path(root);
-        if !seen_contexts.insert(root.clone()) {
-            continue;
-        }
-        if contexts.len() >= MAX_WORKSPACE_PROJECTS {
-            push_index_error(
-                errors,
-                format!(
-                    "workspace discovery reached its global limit of {MAX_WORKSPACE_PROJECTS} projects"
-                ),
-            );
-            return;
-        }
-        match load_project_context(&root) {
-            Ok(context) => contexts.push(context),
-            Err(error) => push_index_error(errors, error),
-        }
-    }
-}
-
-fn should_skip_discovery_directory(name: &str) -> bool {
-    matches!(
-        name,
-        ".git"
-            | ".hg"
-            | ".svn"
-            | ".svelte-kit"
-            | ".next"
-            | ".nuxt"
-            | ".turbo"
-            | "node_modules"
-            | "target"
-            | "dist"
-            | "build"
-            | "coverage"
-            | "vendor"
-    )
-}
-
-fn load_project_context(root: &Path) -> std::result::Result<ProjectContext, String> {
-    let config_path = root.join(DEFAULT_CONFIG_FILE);
-    let source = fs::read_to_string(&config_path)
-        .map_err(|error| format!("cannot read {}: {error}", config_path.display()))?;
-    let config = parse_config(&source)
-        .map_err(|error| format!("invalid {}: {error}", config_path.display()))?;
-    Ok(ProjectContext {
-        root: normalize_existing_path(root),
-        schema_root: normalize_existing_path(root.join(config.paths().schema())),
-        locale_root: normalize_existing_path(root.join(config.paths().locale())),
-    })
-}
-
-fn load_project_snapshot(
-    context: ProjectContext,
-    errors: &mut Vec<String>,
-    next_source_id: &mut u32,
-    remaining_files: &mut usize,
-    remaining_bytes: &mut u64,
-    seen_sources: &mut HashSet<PathBuf>,
-) -> ProjectSnapshot {
-    let mut sources = Vec::new();
-    match discover_schema_files(&context.schema_root) {
-        Ok(files) => {
-            sources.extend(
-                files
-                    .into_iter()
-                    .map(|file| (file.path, file.namespace, None, "linguini-schema")),
-            );
-        }
-        Err(error) => push_index_error(
-            errors,
-            format!(
-                "cannot discover schema sources for {}: {error}",
-                context.root.display()
-            ),
-        ),
-    }
-    match discover_locale_files(&context.locale_root) {
-        Ok(files) => {
-            sources.extend(files.into_iter().map(|file| {
-                (
-                    file.path,
-                    file.namespace,
-                    Some(file.locale),
-                    "linguini-locale",
-                )
-            }));
-        }
-        Err(error) => push_index_error(
-            errors,
-            format!(
-                "cannot discover locale sources for {}: {error}",
-                context.root.display()
-            ),
-        ),
-    }
-    sources.sort_by(|left, right| left.0.cmp(&right.0));
-    sources.dedup_by(|left, right| left.0 == right.0);
-    let file_limit = MAX_PROJECT_FILES.min(*remaining_files);
-    if sources.len() > file_limit {
-        push_index_error(
-            errors,
-            format!(
-                "project {} exceeds its remaining index budget of {file_limit} source files",
-                context.root.display(),
-            ),
-        );
-        sources.truncate(file_limit);
-    }
-
-    let mut bytes = 0u64;
-    let mut documents = Vec::new();
-    for (path, namespace, locale, language_id) in sources {
-        let normalized_path = normalize_existing_path(&path);
-        if !seen_sources.insert(normalized_path) {
-            continue;
-        }
-        let metadata = match fs::metadata(&path) {
-            Ok(metadata) => metadata,
-            Err(error) => {
-                push_index_error(
-                    errors,
-                    format!("cannot inspect source {}: {error}", path.display()),
-                );
-                continue;
-            }
-        };
-        if metadata.len() > MAX_DOCUMENT_BYTES {
-            push_index_error(
-                errors,
-                format!(
-                    "source {} exceeds {} bytes",
-                    path.display(),
-                    MAX_DOCUMENT_BYTES
-                ),
-            );
-            continue;
-        }
-        let mut source = String::new();
-        let source_result = fs::File::open(&path).and_then(|file| {
-            file.take(MAX_DOCUMENT_BYTES + 1)
-                .read_to_string(&mut source)
-        });
-        match source_result {
-            Ok(_) => {}
-            Err(error) => {
-                push_index_error(
-                    errors,
-                    format!("cannot read source {}: {error}", path.display()),
-                );
-                continue;
-            }
-        }
-        if source.len() as u64 > MAX_DOCUMENT_BYTES {
-            push_index_error(
-                errors,
-                format!(
-                    "source {} grew beyond {} bytes while indexing",
-                    path.display(),
-                    MAX_DOCUMENT_BYTES
-                ),
-            );
-            continue;
-        }
-        let source_bytes = source.len() as u64;
-        if source_bytes > MAX_PROJECT_BYTES.saturating_sub(bytes) {
-            push_index_error(
-                errors,
-                format!(
-                    "project {} exceeds {} indexed source bytes",
-                    context.root.display(),
-                    MAX_PROJECT_BYTES
-                ),
-            );
-            break;
-        }
-        if source_bytes > *remaining_bytes {
-            push_index_error(
-                errors,
-                format!(
-                    "workspace exceeds {MAX_INDEXED_BYTES} indexed source bytes while loading {}",
-                    path.display()
-                ),
-            );
-            break;
-        }
-        let Some(uri) = path_to_uri(&path) else {
-            push_index_error(
-                errors,
-                format!("cannot convert source path to URI: {}", path.display()),
-            );
-            continue;
-        };
-        let source_id = SourceId(*next_source_id);
-        *next_source_id = next_source_id.saturating_add(1);
-        let document = LinguiniDocument::new(uri.to_string(), language_id, source)
-            .with_source_identity(namespace, locale)
-            .with_source_id(source_id);
-        if document.is_within_safety_limits() {
-            prime_semantic_cache(&document);
-        }
-        bytes += source_bytes;
-        *remaining_bytes -= source_bytes;
-        *remaining_files -= 1;
-        documents.push(document);
-    }
-
-    ProjectSnapshot { context, documents }
 }
 
 fn path_matches_context(path: &Path, context: &ProjectContext) -> bool {
@@ -1429,27 +946,6 @@ fn path_matches_context(path: &Path, context: &ProjectContext) -> bool {
 fn document_file_path(document: &LinguiniDocument) -> Option<PathBuf> {
     let uri = document.uri.parse::<Uri>().ok()?;
     uri_to_file_path(&uri)
-}
-
-fn normalize_existing_path(path: impl AsRef<Path>) -> PathBuf {
-    fs::canonicalize(path.as_ref()).unwrap_or_else(|_| path.as_ref().to_path_buf())
-}
-
-fn uri_to_file_path(uri: &Uri) -> Option<PathBuf> {
-    if uri.scheme() != "file" || uri.query().is_some() || uri.fragment().is_some() {
-        return None;
-    }
-    uri.to_file_path().ok()
-}
-
-fn path_to_uri(path: &Path) -> Option<Uri> {
-    Uri::from_file_path(path).ok()
-}
-
-fn push_index_error(errors: &mut Vec<String>, error: String) {
-    if errors.len() < 100 {
-        errors.push(error);
-    }
 }
 
 fn workspace_file_operation_capabilities() -> WorkspaceFileOperationsServerCapabilities {
@@ -1616,9 +1112,10 @@ fn symbol_kind(detail: &str) -> SymbolKind {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_client_formatting_options, minimal_formatting_edit, path_to_uri,
-        protocol_version_response, uri_to_file_path,
+        apply_client_formatting_options, minimal_formatting_edit, protocol_version_response,
+        uri_to_file_path,
     };
+    use crate::host::path_to_uri;
     use std::path::Path;
     use tower_lsp_server::lsp_types::{FormattingOptions, Url as Uri};
 

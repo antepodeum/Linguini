@@ -1,6 +1,7 @@
 mod code_action;
 mod document;
 mod highlight;
+mod host;
 mod server;
 
 pub use document::{
@@ -12,7 +13,12 @@ pub use document::{
     LinguiniSemanticToken, SemanticLegend, WorkspaceReference, WorkspaceTextEdit,
 };
 pub use highlight::highlight_source;
-pub use server::{run_stdio, run_stdio_blocking, try_run_stdio_blocking};
+#[cfg(not(target_arch = "wasm32"))]
+pub use host::{run_stdio, run_stdio_blocking, try_run_stdio_blocking, NativeScheduler};
+pub use host::{
+    LspScheduler, LspTask, MemoryWorkspace, WorkspaceFile, WorkspaceSourceRoots,
+    WORKSPACE_IGNORED_DIRECTORIES,
+};
 
 #[cfg(test)]
 mod tests;

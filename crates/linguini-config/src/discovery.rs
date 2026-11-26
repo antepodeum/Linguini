@@ -31,17 +31,7 @@ pub fn discover_schema_files(root: impl AsRef<Path>) -> ConfigResult<Vec<SchemaF
     let root = prepare_root(root.as_ref())?;
     let mut state = DiscoveryState::new(&root);
     collect_schema_files(&root, &root, 0, &mut state)?;
-    state.schema_files.sort_by(|left, right| {
-        portable_sort_key(&root, &left.path).cmp(&portable_sort_key(&root, &right.path))
-    });
-    ensure_case_distinct(
-        state
-            .schema_files
-            .iter()
-            .map(|file| (&file.path, file.namespace.as_str())),
-        "schema namespace",
-    )?;
-    Ok(state.schema_files)
+    finish_schema_files(&root, state.schema_files)
 }
 
 /// Discovers `.lgl` files, using each parent path as its namespace and stem as its locale.
@@ -49,17 +39,79 @@ pub fn discover_locale_files(root: impl AsRef<Path>) -> ConfigResult<Vec<LocaleF
     let root = prepare_root(root.as_ref())?;
     let mut state = DiscoveryState::new(&root);
     collect_locale_files(&root, &root, 0, &mut state)?;
-    state.locale_files.sort_by(|left, right| {
-        portable_sort_key(&root, &left.path).cmp(&portable_sort_key(&root, &right.path))
+    finish_locale_files(&root, state.locale_files)
+}
+
+/// Classify host-provided schema paths without filesystem access.
+/// Namespace derivation, portable sorting, and collision checks match native discovery.
+pub fn schema_files_from_paths(
+    root: &Path,
+    paths: impl IntoIterator<Item = PathBuf>,
+) -> ConfigResult<Vec<SchemaFile>> {
+    let files = paths
+        .into_iter()
+        .map(|path| schema_file(root, path))
+        .collect::<ConfigResult<Vec<_>>>()?;
+    finish_schema_files(root, files)
+}
+
+/// Classify host-provided locale paths without filesystem access.
+/// Locale tags, namespaces, sorting, and collision checks match native discovery.
+pub fn locale_files_from_paths(
+    root: &Path,
+    paths: impl IntoIterator<Item = PathBuf>,
+) -> ConfigResult<Vec<LocaleFile>> {
+    let files = paths
+        .into_iter()
+        .map(|path| locale_file(root, path))
+        .collect::<ConfigResult<Vec<_>>>()?;
+    finish_locale_files(root, files)
+}
+
+fn finish_schema_files(root: &Path, mut files: Vec<SchemaFile>) -> ConfigResult<Vec<SchemaFile>> {
+    files.sort_by(|left, right| {
+        portable_sort_key(root, &left.path).cmp(&portable_sort_key(root, &right.path))
     });
     ensure_case_distinct(
-        state
-            .locale_files
+        files
+            .iter()
+            .map(|file| (&file.path, file.namespace.as_str())),
+        "schema namespace",
+    )?;
+    Ok(files)
+}
+
+fn finish_locale_files(root: &Path, mut files: Vec<LocaleFile>) -> ConfigResult<Vec<LocaleFile>> {
+    files.sort_by(|left, right| {
+        portable_sort_key(root, &left.path).cmp(&portable_sort_key(root, &right.path))
+    });
+    ensure_case_distinct(
+        files
             .iter()
             .map(|file| (&file.path, format!("{}:{}", file.namespace, file.locale))),
         "locale namespace and tag",
     )?;
-    Ok(state.locale_files)
+    Ok(files)
+}
+
+fn schema_file(root: &Path, path: PathBuf) -> ConfigResult<SchemaFile> {
+    Ok(SchemaFile {
+        namespace: namespace_from_path(root, &path, true)?,
+        path,
+    })
+}
+
+fn locale_file(root: &Path, path: PathBuf) -> ConfigResult<LocaleFile> {
+    let stem = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .ok_or_else(|| ConfigError::NonUtf8Path(path.clone()))?;
+    validate_locale_tag(stem)?;
+    Ok(LocaleFile {
+        locale: stem.to_owned(),
+        namespace: namespace_from_path(root, &path, false)?,
+        path,
+    })
 }
 
 /// Discovers configured JavaScript, TypeScript, and component application sources.
@@ -268,10 +320,7 @@ fn collect_schema_files(
         } else if file_type.is_file()
             && path.extension().and_then(|extension| extension.to_str()) == Some("lgs")
         {
-            state.schema_files.push(SchemaFile {
-                namespace: namespace_from_path(root, &path, true)?,
-                path,
-            });
+            state.schema_files.push(schema_file(root, path)?);
         }
     }
     Ok(())
@@ -297,16 +346,7 @@ fn collect_locale_files(
         } else if file_type.is_file()
             && path.extension().and_then(|extension| extension.to_str()) == Some("lgl")
         {
-            let stem = path
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .ok_or_else(|| ConfigError::NonUtf8Path(path.clone()))?;
-            validate_locale_tag(stem)?;
-            state.locale_files.push(LocaleFile {
-                locale: stem.to_owned(),
-                namespace: namespace_from_path(root, &path, false)?,
-                path,
-            });
+            state.locale_files.push(locale_file(root, path)?);
         }
     }
     Ok(())

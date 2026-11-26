@@ -1101,6 +1101,21 @@ self-referential namespace type; the public export names and value types remain 
 
 ### Editor and build-time highlighting
 
+The `linguini-lsp` crate separates protocol handlers and compiler semantics from host services.
+Native stdio uses filesystem discovery and Tokio scheduling. Embedders can supply saved files
+through `MemoryWorkspace`, then call its `service` method with an `LspScheduler`. Both hosts use
+the same configuration parser, namespace checks, source identities, index budgets, document
+version guards, and language features. Open buffers still use standard LSP synchronization;
+after updating saved files, send `workspace/didChangeWatchedFiles` to refresh the index.
+`MemoryWorkspace::source_roots` parses configured roots before an embedding host reads sources,
+including custom source paths inside otherwise ignored build directories. Host workspace URIs
+must be mapped consistently to absolute local `file:` URIs for files and protocol messages.
+The config crate's `schema_files_from_paths` and `locale_files_from_paths` share native discovery's
+namespace derivation, ordering, locale validation, and collision checks without reading files.
+Filesystem metadata, link checks, and reading remain the filesystem host's responsibility.
+The shared server builds for `wasm32-unknown-unknown`; the released editor still uses native
+stdio until worker transport and browser packaging are integrated and verified.
+
 Linguini files are highlighted by the recoverable Rust lexer and the shared schema/locale
 semantic walk. `linguini-schema::highlight_tokens` classifies those tokens and occurrences;
 LSP converts their source spans to UTF-16 positions. VS Code uses these semantic tokens,

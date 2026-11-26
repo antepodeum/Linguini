@@ -1437,7 +1437,13 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 - [x] DIST-A4 — Resolve explicit, project, bundled, then PATH server candidates.
 - [x] DIST-A5 — Perform a compiler/LSP protocol handshake.
 - [x] DIST-A6 — Avoid first-activation executable downloads.
-- [ ] DIST-A7 — Share compiler semantics with WASM and vary only host services.
+- [-] DIST-A7 — Share compiler semantics with WASM and vary only host services.
+      The native and memory hosts share the full Tower LSP backend, configuration/namespace
+      logic, bounded snapshots, source IDs, and diagnostics/version guards. A serialized-protocol
+      parity test covers navigation, rename, completion, symbols, tokens, formatting, highlighting,
+      diagnostics, and edit recovery; custom source roots under build directories remain indexed.
+      The shared server compiles for `wasm32-unknown-unknown`. Worker transport, browser execution,
+      and editor integration remain required before this criterion or DIST-A3 can close.
 - [-] DIST-A8 — Complete signed/checksummed release and marketplace CI.
 
 ### Bundler-native nested message API
