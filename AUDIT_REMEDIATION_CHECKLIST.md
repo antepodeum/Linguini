@@ -712,6 +712,8 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       cases covering both separator styles, path components, drive/case rules, and cleanup.
       The macOS job never obtained a runner: GitHub rejected its older configuration. It now
       uses `macos-latest`; confirmation of these remaining repairs on hosted runners is pending.
+      Current Linux Vite/installed native and universal VSIX receipts are recorded under ESM-M11;
+      they do not establish the pending hosted Windows/macOS results or release signing.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;
@@ -1082,6 +1084,15 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       helpers repairs the remaining gate: all 6,270 assertions pass with frozen oracles unchanged.
       The strengthened 23-test Kit gate and Node 20 web/hook/graph tests pass separately, giving
       passing receipts for all 70 registered gates. Final architecture/platform criteria remain open.
+      Source `0143d99` also passes 80 core/Svelte/Vue adapter tests per Vite version 5.4.21,
+      6.4.6, 7.3.8, and 8.3.8. Dependency manifests/locks and pinned installs are restored afterward.
+      Fresh optimized Linux native and universal VSIX archives pass installed VS Code 1.120
+      Extension Host checks in native, explicit WASM, and automatic fallback modes. Automatic
+      fallback runs with an empty `PATH`; hover, indexed definitions, Unicode/Markdown highlighting,
+      edits, restart, and native launcher arguments pass. Archive/WASM checksums verify, and the
+      native archive's binary matches the fresh release build; the universal archive has none.
+      These local integration receipts leave remote CI, signing/publication, final architecture,
+      and the Windows/macOS completion matrix open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1735,7 +1746,10 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
   passed with cargo-deny 0.20.2, cargo-audit 0.22.2, and cargo-semver-checks 0.50.0 against
   `origin/dev`; the workspace crates remain prerelease `0.1.0-alpha.4`, so semver-checks correctly
   treated the unchanged prerelease versions as major-compatible and skipped stable-release lints.
-- [ ] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests.
+- [x] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests. Local Linux
+  receipts cover the full-profile npm/site/WASM checks, 80 adapter tests per major on `0143d99`,
+  and fresh installed native/universal VSIX packages in native, explicit WASM, and empty-PATH
+  automatic modes. The final migrated-source cross-platform matrix remains the separate gate below.
 - [x] Parse, analyze, generate, typecheck, and execute every normative documentation fixture.
 - [ ] Rerun the full locked Rust/Clippy/MSRV, package/offline, documentation, strict TS/JSDoc,
   `tsc`, Vite 5–8, SvelteKit, and cross-platform CI matrix against the final migrated source.
