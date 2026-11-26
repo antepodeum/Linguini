@@ -107,9 +107,6 @@ fn date_samples_render_every_source_selectable_pinned_skeleton() {
 
 #[test]
 fn native_date_samples_match_real_generated_modules_across_requests_and_locales() {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
-
     let locales = [
         "en", "en-GB", "gd", "ru", "fa", "ar-EG", "fi", "sms", "zh", "ja", "ff-Adlm", "ccp",
     ];
@@ -134,15 +131,6 @@ fn native_date_samples_match_real_generated_modules_across_requests_and_locales(
     for skeleton in ["yMMM", "yMMMd", "yQQQ", "Hm", "Bhm"] {
         requests.push(arguments(&[("skeleton", skeleton)]));
     }
-    let project = linguini_test_support::temp_project_dir("preview-date-parity").unwrap();
-    let root = project.path();
-    std::fs::create_dir_all(root.join("schema")).unwrap();
-    std::fs::create_dir_all(root.join("locales/main")).unwrap();
-    std::fs::write(root.join("package.json"), "{\"type\":\"module\"}").unwrap();
-    std::fs::write(root.join("linguini.toml"), format!(
-        "[project]\nname = \"date-preview\"\ndefault_locale = \"en\"\nlocales = {}\n[paths]\nschema = \"schema\"\nlocale = \"locales\"\n[targets.ts]\nout = \"generated\"\n",
-        serde_json::to_string(&locales).unwrap()
-    )).unwrap();
     let mut schema = String::new();
     let mut source = String::new();
     for (index, options) in requests.iter().enumerate() {
@@ -159,10 +147,8 @@ fn native_date_samples_match_real_generated_modules_across_requests_and_locales(
         };
         source.push_str(&format!("sample{index} = {{value @date{options}}}\n"));
     }
-    std::fs::write(root.join("schema/main.lgs"), schema).unwrap();
     let mut cases = Vec::new();
     for locale in locales {
-        std::fs::write(root.join(format!("locales/main/{locale}.lgl")), &source).unwrap();
         for (index, options) in requests.iter().enumerate() {
             for value in dates {
                 let expected = format_date(locale, value, options)
@@ -171,45 +157,5 @@ fn native_date_samples_match_real_generated_modules_across_requests_and_locales(
             }
         }
     }
-    crate::build_project(root).unwrap();
-    let script = format!(
-        r#"
-import assert from 'node:assert/strict';
-import {{join}} from 'node:path';
-import {{pathToFileURL}} from 'node:url';
-Intl.DateTimeFormat=class{{constructor(){{throw Error('no host date formatter');}}}};
-const modules=new Map();
-for(const entry of {cases}) {{
-  let main=modules.get(entry.locale);
-  if(!main) {{
-    ({{main}}=await import(pathToFileURL(join(process.argv[2],'locales',entry.locale+'.js')).href));
-    modules.set(entry.locale,main);
-  }}
-  assert.equal(main['sample'+entry.index](entry.value),entry.expected,`${{entry.locale}}/${{entry.index}}/${{entry.value}}`);
-}}
-console.log('ok');
-"#,
-        cases = serde_json::to_string(&cases).unwrap()
-    );
-    let mut child = Command::new("node")
-        .args(["--input-type=module", "-"])
-        .arg(root.join("generated"))
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(script.as_bytes())
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "ok");
+    super::super::parity::assert_generated_samples(&schema, &source, &locales, &cases);
 }

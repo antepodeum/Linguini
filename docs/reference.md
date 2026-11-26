@@ -318,8 +318,9 @@ surface. Current guarantees are:
   default numeric numbering-system digits from pinned CLDR data. Negative affixes retain
   localized minus signs and bidirectional marks, including for negative zero. Grouping follows
   the [pinned CLDR threshold](https://www.unicode.org/reports/tr35/tr35-78/tr35-numbers.html#Number_Patterns):
-  Spanish `1000` remains ungrouped, while `10000` becomes `10.000`. Percent,
-  compact, scientific, significant-digit, and caller-selected numbering-system
+  Spanish `1000` remains ungrouped, while `10000` becomes `10.000`. The native preview
+  applies the same digit symbols to number and currency bodies, preserving literal affixes.
+  Percent, compact, scientific, significant-digit, and caller-selected numbering-system
   styles are not exposed.
 - `@currency` requires a three-letter code. It applies CLDR standard or
   accounting affixes, currency fraction digits, rounding increments, spacing,

@@ -7,7 +7,7 @@ use linguini_codegen::{
 };
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFormatterKind};
 
-use super::RenderError;
+use super::{append_localized_digits, RenderError};
 
 pub(super) fn format_date(
     locale: &str,
@@ -112,13 +112,7 @@ pub(super) fn format_date(
                         })
                     }
                 };
-                for character in numeric.chars() {
-                    output.push(if character.is_ascii_digit() {
-                        digits[usize::from(character as u8 - b'0')]
-                    } else {
-                        character
-                    });
-                }
+                append_localized_digits(&mut output, &numeric, &digits);
             }
         }
     }

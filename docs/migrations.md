@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native numeric preview digits
+
+The native `generate` preview now applies the locale's pinned decimal digit symbols to number
+and currency bodies. Persian, Arabic, Adlam, Chakma, and other selected numbering systems no
+longer print ASCII digits in these previews. The shared substitution handles Unicode scalars,
+including supplementary and non-contiguous symbols. Literal digits in affixes stay unchanged;
+negative zero, grouping, separators, rounding, and accounting affixes retain their semantics.
+Generated application code and its formatter inputs are unchanged.
+
 ## Native date preview planning
 
 The native `generate` preview now uses the shared date-request selector, pattern compiler,

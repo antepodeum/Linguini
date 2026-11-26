@@ -1,5 +1,8 @@
 mod date;
 
+#[cfg(test)]
+mod parity;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
@@ -1345,7 +1348,27 @@ fn format_number_pattern(
             render_affix(pattern.positive.suffix, currency_symbol),
         )
     };
-    Ok(format!("{prefix}{formatted}{suffix}"))
+    let mut output = String::with_capacity(prefix.len() + formatted.len() + suffix.len());
+    output.push_str(&prefix);
+    if numbers.digits == "0123456789" {
+        output.push_str(&formatted);
+    } else {
+        let digits = linguini_codegen::decimal_digit_symbols(numbers.digits)
+            .ok_or_else(|| missing_cldr_data("numeric symbols", numbers.locale))?;
+        append_localized_digits(&mut output, &formatted, &digits);
+    }
+    output.push_str(&suffix);
+    Ok(output)
+}
+
+fn append_localized_digits(output: &mut String, value: &str, digits: &[char; 10]) {
+    output.extend(value.chars().map(|character| {
+        if character.is_ascii_digit() {
+            digits[usize::from(character as u8 - b'0')]
+        } else {
+            character
+        }
+    }));
 }
 
 fn round_fraction(
@@ -1564,6 +1587,91 @@ mod tests {
         .expect("format number");
 
         assert_eq!(rendered, "1,234,567,890.123");
+    }
+
+    #[test]
+    fn numeric_preview_digits_preserve_affixes_and_unicode_scalars() {
+        let mut numbers = compiled_number_formatting("fa").unwrap();
+        let mut pattern = numbers.decimal_pattern;
+        pattern.positive.prefix = "v12:";
+        pattern.positive.suffix = ":v34";
+        assert_eq!(
+            format_number_pattern("123", &pattern, &numbers, None, None).unwrap(),
+            "v12:۱۲۳:v34"
+        );
+        assert_eq!(
+            format_number_pattern("-0", &pattern, &numbers, None, None).unwrap(),
+            "\u{200e}−v12:۰:v34"
+        );
+        numbers.digits = "0𝟙2𝟛4𝟝6𝟟8𝟡";
+        pattern.positive.primary_group_size = None;
+        assert_eq!(
+            format_number_pattern("1023456789", &pattern, &numbers, None, None).unwrap(),
+            "v12:𝟙02𝟛4𝟝6𝟟8𝟡:v34"
+        );
+        numbers.digits = "012345678";
+        assert!(matches!(
+            format_number_pattern("123", &pattern, &numbers, None, None),
+            Err(RenderError::Unsupported { .. })
+        ));
+    }
+
+    #[test]
+    fn native_numeric_samples_match_real_generated_modules_across_digit_systems() {
+        let locales = [
+            "en", "es", "pl", "ee", "hi", "fa", "ar-EG", "bn", "my", "ne", "ff-Adlm", "ccp",
+        ];
+        let mut values = [
+            "0",
+            "-0",
+            "1",
+            "1.5",
+            "-12.5",
+            "1234.56789",
+            "999.995",
+            "9999.9995",
+            "9007199254740993.125",
+            "1e-3",
+        ]
+        .map(String::from)
+        .to_vec();
+        values.push(format!("{}.1234", "1234567890".repeat(50)));
+        let schema = lower_schema(&parse_schema("").unwrap());
+        let module = lower_locale(&parse_locale("").unwrap());
+        let usd = vec![IrFormatterArgument {
+            name: "code".into(),
+            value: "USD".into(),
+        }];
+        let mut accounting = usd.clone();
+        accounting.push(IrFormatterArgument {
+            name: "accounting".into(),
+            value: "true".into(),
+        });
+        let mut cases = Vec::new();
+        for locale in locales {
+            let renderer = Renderer::new(&schema, &module, locale);
+            for value in &values {
+                for (index, expected) in [
+                    renderer.format_number(value),
+                    renderer.format_currency(value, &usd),
+                    renderer.format_currency(value, &accounting),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    cases.push(serde_json::json!({ "locale":locale,"index":index,"value":value,"expected":expected.unwrap() }));
+                }
+            }
+        }
+        super::parity::assert_generated_samples(
+            "sample0(value: Number)\nsample1(value: Decimal)\nsample2(value: Decimal)\n",
+            r#"sample0 = {value @number}
+sample1 = {value @currency(code = "USD")}
+sample2 = {value @currency(code = "USD", accounting = "true")}
+"#,
+            &locales,
+            &cases,
+        );
     }
 
     #[test]

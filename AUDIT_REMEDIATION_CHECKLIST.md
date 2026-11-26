@@ -621,8 +621,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       plans for exact skeletons, time-only output, and composed styles. All source-selectable
       skeletons across 508 resolved locales render; 2,880 comparisons across 12 locales and 30
       requests execute real generated modules, covering year zero, week boundaries, contextual
-      labels, and BMP/supplementary digits. Native numeric digit substitution and the broader
-      generated Date input domain remain open.
+      labels, and BMP/supplementary digits. Numeric previews share the Unicode-scalar digit
+      writer with dates; 396 generated-module comparisons across twelve locales check decimal,
+      standard currency, and accounting output, including exact large/exponent strings, rounding,
+      grouping, and negative zero. Affix-literal digits and mixed supplementary symbols have
+      focused coverage. The broader generated Date input domain remains open.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.
