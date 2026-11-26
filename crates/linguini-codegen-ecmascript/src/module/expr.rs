@@ -149,7 +149,7 @@ pub fn map_expression(
         minijinja::context! { node => decision_context(&decision, 0) },
     );
     let parameter_type = if dispatch.ty == "Plural" {
-        "number | bigint | string".to_owned()
+        render_jsdoc_type(&TypeModel::NumberInput)
     } else {
         render_jsdoc_type(&TypeModel::from_source_name(&dispatch.ty))
     };

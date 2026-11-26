@@ -1,6 +1,8 @@
 mod literals;
+#[cfg(test)]
+pub(crate) use literals::escape_string;
 use literals::string_literal as json_string;
-pub(crate) use literals::{escape_string, string_literal};
+pub(crate) use literals::string_literal;
 
 use linguini_syntax::{SourceId, Span};
 use std::collections::BTreeMap;

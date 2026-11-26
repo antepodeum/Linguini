@@ -695,12 +695,21 @@ fn javascript_schema_codegen_owns_jsdoc_and_declaration_companions() {
         .find(|file| file.path == "shared.js")
         .expect("shared JavaScript");
     assert!(shared.contents.contains("Tone docs"));
-    assert!(shared
-        .contents
-        .contains("@typedef {\"warm\" | \"cool\"} Tone"));
-    assert!(shared
-        .contents
-        .contains("@typedef {number | bigint | string} Amount"));
+    let declarations = files
+        .iter()
+        .find(|file| file.path == "shared.d.ts")
+        .unwrap();
+    for (name, ty) in [
+        ("Tone", "\"warm\" | \"cool\""),
+        ("Amount", "number | bigint | string"),
+    ] {
+        assert!(shared
+            .contents
+            .contains(&format!("@typedef {{{ty}}} {name}")));
+        assert!(declarations
+            .contents
+            .contains(&format!("export type {name} = {ty};")));
+    }
     assert!(shared.contents.contains("@template T"));
     assert!(!shared.contents.contains("export type"));
     assert!(!shared.contents.contains(" as Record"));

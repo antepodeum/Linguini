@@ -3,17 +3,27 @@ pub use linguini_codegen::TypeModel;
 use super::names::safe_identifier;
 
 pub fn render_typescript_type(model: &TypeModel) -> String {
-    match model {
-        TypeModel::String => "string".to_owned(),
-        TypeModel::Boolean => "boolean".to_owned(),
-        TypeModel::NumberInput => "number | bigint | string".to_owned(),
-        TypeModel::DateInput => "Date | number | string".to_owned(),
-        TypeModel::Named(name) => safe_identifier(name),
-    }
+    let value = match model {
+        TypeModel::String => minijinja::context! { kind => "string" },
+        TypeModel::Boolean => minijinja::context! { kind => "boolean" },
+        TypeModel::NumberInput => minijinja::context! { kind => "number_input" },
+        TypeModel::DateInput => minijinja::context! { kind => "date_input" },
+        TypeModel::Named(name) => {
+            minijinja::context! { kind => "named", name => safe_identifier(name) }
+        }
+    };
+    crate::templates::render("types/expression", value)
 }
 
 pub fn render_jsdoc_type(model: &TypeModel) -> String {
     render_typescript_type(model)
+}
+
+pub(super) fn render_string_union(variants: &[String]) -> String {
+    crate::templates::render(
+        "types/expression",
+        minijinja::context! { kind => "string_union", variants },
+    )
 }
 
 #[cfg(test)]

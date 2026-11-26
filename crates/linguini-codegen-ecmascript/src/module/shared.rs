@@ -4,10 +4,10 @@ use linguini_syntax::Span;
 use crate::ecmascript::{EcmaModule, EcmaModuleOutput, EcmaStatement};
 
 use super::emit::{emit_enum, emit_type_alias};
-use super::names::{emit_docs_with_tags, escape_string, safe_identifier, JsDocTag};
+use super::names::{emit_docs_with_tags, safe_identifier, JsDocTag};
 use super::provenance::map_symbol_lines;
 use super::shared_runtime::{shared_declarations, shared_runtime};
-use super::type_model::{render_jsdoc_type, TypeModel};
+use super::type_model::{render_jsdoc_type, render_string_union, TypeModel};
 
 pub fn generate_shared_module(
     schema: &IrModule,
@@ -85,12 +85,7 @@ fn emit_jsdoc_schema_types(
 ) {
     for item in schema.enums() {
         let start = output.len();
-        let ty = item
-            .variants
-            .iter()
-            .map(|variant| format!("\"{}\"", escape_string(variant)))
-            .collect::<Vec<_>>()
-            .join(" | ");
+        let ty = render_string_union(&item.variants);
         emit_docs_with_tags(
             &item.docs,
             &[JsDocTag::Typedef {

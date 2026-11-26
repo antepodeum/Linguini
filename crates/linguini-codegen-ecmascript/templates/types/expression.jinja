@@ -1,0 +1,13 @@
+{%- if kind == "string" -%}
+string
+{%- elif kind == "boolean" -%}
+boolean
+{%- elif kind == "number_input" -%}
+number | bigint | string
+{%- elif kind == "date_input" -%}
+Date | number | string
+{%- elif kind == "named" -%}
+{{ name }}
+{%- elif kind == "string_union" -%}
+{% for variant in variants %}{{ variant|js }}{{ " | " if not loop.last }}{% endfor %}
+{%- endif -%}

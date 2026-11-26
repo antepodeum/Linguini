@@ -12,12 +12,12 @@ use super::expr::{
 use super::formatter_codegen::formatter_data_declaration;
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
-    emit_docs, emit_docs_with_tags, escape_string, form_binding_name, function_name, property_key,
+    emit_docs, emit_docs_with_tags, form_binding_name, function_name, property_key,
     safe_identifier, ts_type, JsDocTag,
 };
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
-use super::type_model::{render_jsdoc_type, TypeModel};
+use super::type_model::{render_jsdoc_type, render_string_union, TypeModel};
 use super::EcmaOptions;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -189,12 +189,7 @@ pub fn emit_formatter_data(
 
 pub(super) fn emit_enum(item: &linguini_ir::IrEnum, output: &mut String) {
     emit_docs(&item.docs, "", output);
-    let variants = item
-        .variants
-        .iter()
-        .map(|variant| format!("\"{}\"", escape_string(variant)))
-        .collect::<Vec<_>>()
-        .join(" | ");
+    let variants = render_string_union(&item.variants);
     output.push_str(&crate::templates::render(
         "declarations/alias",
         minijinja::context! { name => safe_identifier(&item.name), ty => variants },
@@ -216,12 +211,7 @@ pub(super) fn emit_locale_enum_jsdoc_types(
             continue;
         }
         emit_docs(&item.docs, "", output);
-        let variants = item
-            .variants
-            .iter()
-            .map(|variant| format!("\"{}\"", escape_string(variant)))
-            .collect::<Vec<_>>()
-            .join(" | ");
+        let variants = render_string_union(&item.variants);
         emit_docs_with_tags(
             &[],
             &[JsDocTag::Typedef {
@@ -298,7 +288,7 @@ pub(super) fn emit_local_functions(
                 .map(|(name, parameter)| JsDocTag::Param {
                     name: name.clone(),
                     ty: if parameter.ty == "Plural" {
-                        "number | bigint | string".to_owned()
+                        render_jsdoc_type(&TypeModel::NumberInput)
                     } else {
                         render_jsdoc_type(&TypeModel::from_source_name(&parameter.ty))
                     },

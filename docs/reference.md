@@ -64,7 +64,8 @@ use `EcmaTemplateEngine` for the same strict context and literal-escaping policy
 Public parameter types lower into `linguini_codegen::TypeModel`, also re-exported by
 `linguini-codegen-ecmascript`. The ECMAScript backend owns identifier escaping, TypeScript and
 JSDoc rendering through `render_typescript_type` and `render_jsdoc_type`, templates, and module
-emission.
+emission. Primitive types and enum literal unions use one canonical type-expression template
+for schema declarations, schema JSDoc, locale JSDoc, and selector annotations.
 
 Rust codegen integrations can call `generate_schema_files` to obtain the schema-owned
 `shared.js` checked-JavaScript runtime and `messages.js` type boundary together with their `.d.ts`

@@ -242,7 +242,9 @@ pub fn property_key(name: &str) -> String {
     }
 }
 
-pub(crate) use crate::ecmascript::{escape_string, string_literal};
+#[cfg(test)]
+pub(crate) use crate::ecmascript::escape_string;
+pub(crate) use crate::ecmascript::string_literal;
 
 pub fn escape_comment(value: &str) -> String {
     value.replace("*/", "* /")
