@@ -324,7 +324,8 @@ surface. Current guarantees are:
 - `@currency` requires a three-letter code. It applies CLDR standard or
   accounting affixes, currency fraction digits, rounding increments, spacing,
   and locale separators. Display symbols also come from pinned CLDR data during
-  generation, so the output does not query host `Intl.NumberFormat`. Currency
+  generation, so the output does not query host `Intl.NumberFormat`. The native preview
+  resolves symbols through that same pinned locale lookup. Currency
   display-name/plural forms and cash-rounding selection are not exposed.
 - `@date` accepts a valid `Date`, epoch-millisecond number, ISO `YYYY-MM-DD`, or
   ISO date-time string. Date-only and zone-less date-time input is interpreted

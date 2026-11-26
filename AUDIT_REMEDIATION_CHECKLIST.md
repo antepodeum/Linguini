@@ -615,7 +615,10 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #302 — Surface incomplete discovery/read results.
 - [x] #303 — Reject unrelated nearest-config associations.
 - [x] #304 — Enforce document, project, file, recursion, and nesting limits.
-- [x] #305 — Share preview semantics with the production evaluator.
+- [-] #305 — Share preview semantics with the production evaluator. Native numeric previews
+      now honor localized negative affixes, minimum grouping thresholds, and pinned currency
+      symbols. Date previews still select only a date `style`; exact skeleton and `time_style`
+      request selection remains separate from the shared production planner and must be fixed.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.
@@ -1354,6 +1357,9 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       numeric/currency rounding boundaries and 96 width/padding/threshold plans include Unicode
       separators, negative zero, and 8,192-digit inputs. Existing default-threshold snapshots stay
       byte-identical; native previews apply the same threshold after rounding.
+      Native preview currency symbols now use the existing pinned locale lookup rather than
+      a fixed nine-code map. Eleven locale/code cases cover positive/negative values, local
+      symbol variants, lowercase codes, and uppercase unknown-code fallback.
       Fold grouping sizes, symbols, precision, rounding, digit mapping, affixes, signs, calendar,
       field widths, and other known choices into code. Remove unused options/branches/data; prohibit
       the current `formatNumber(value) -> formatGeneratedNumber(value, ...21 constants...)` design.

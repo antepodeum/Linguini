@@ -3,8 +3,9 @@ use std::fmt;
 
 use linguini_cldr::{
     built_in_plural_rules, compiled_currency_formatting, compiled_currency_fraction,
-    compiled_date_formatting, compiled_number_formatting, DateFormatData, NumberFormatData,
-    NumberPattern, Operand, PluralRule, PluralRules, Range, Relation, RelationOperator,
+    compiled_currency_symbol, compiled_date_formatting, compiled_number_formatting, DateFormatData,
+    NumberFormatData, NumberPattern, Operand, PluralRule, PluralRules, Range, Relation,
+    RelationOperator,
 };
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrForm, IrFormEntry,
@@ -745,12 +746,14 @@ impl<'a> Renderer<'a> {
         } else {
             &currency.standard_pattern
         };
-        let symbol = currency_symbol(code);
+        let normalized_code = code.to_ascii_uppercase();
+        let symbol =
+            compiled_currency_symbol(self.locale, &normalized_code).unwrap_or(&normalized_code);
         format_number_pattern(
             value,
             pattern,
             &numbers,
-            Some(&symbol),
+            Some(symbol),
             Some((fraction.digits, fraction.rounding)),
         )
     }
@@ -1495,21 +1498,6 @@ fn render_affix(value: &str, currency_symbol: Option<&str>) -> String {
     )
 }
 
-fn currency_symbol(code: &str) -> String {
-    let normalized = code.to_ascii_uppercase();
-    match normalized.as_str() {
-        "USD" => "$",
-        "EUR" => "€",
-        "GBP" => "£",
-        "JPY" | "CNY" => "¥",
-        "RUB" => "₽",
-        "INR" => "₹",
-        "KRW" => "₩",
-        _ => &normalized,
-    }
-    .to_owned()
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct DateParts {
     year: u32,
@@ -1782,8 +1770,37 @@ mod tests {
                     }]
                 )
                 .unwrap(),
-            "−1,50\u{a0}$"
+            "−1,50\u{a0}US$"
         );
+    }
+
+    #[test]
+    fn preview_currency_symbols_use_the_pinned_locale_lookup() {
+        let schema = lower_schema(&parse_schema("").unwrap());
+        let module = lower_locale(&parse_locale("").unwrap());
+        for (locale, code, symbol) in [
+            ("en", "USD", "$"),
+            ("es", "USD", "US$"),
+            ("pl", "USD", "USD"),
+            ("ee", "USD", "US$"),
+            ("ja", "JPY", "￥"),
+            ("en", "CNY", "CN¥"),
+            ("zh", "JPY", "JP¥"),
+            ("en", "RUB", "RUB"),
+            ("ru", "RUB", "₽"),
+            ("en", "zzz", "ZZZ"),
+            ("ja", "jpy", "￥"),
+        ] {
+            let renderer = Renderer::new(&schema, &module, locale);
+            let arguments = [IrFormatterArgument {
+                name: "code".into(),
+                value: code.into(),
+            }];
+            for value in ["12", "-12"] {
+                let actual = renderer.format_currency(value, &arguments).unwrap();
+                assert!(actual.contains(symbol), "{locale}/{code}/{value}: {actual}");
+            }
+        }
     }
 
     #[test]

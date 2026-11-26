@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Preview currency symbols
+
+The native `generate` preview now resolves currency symbols from the same pinned locale lookup
+as ECMAScript generation. Its fixed symbol map previously printed `$` for Polish USD and `¥`
+for Japanese JPY, for example; those locales now use `USD` and `￥`. Lowercase codes still resolve
+case-insensitively and unknown three-letter codes retain their uppercase fallback. Message source,
+formatter options, fraction digits, and rounding are unchanged.
+
 ## Locale minimum grouping thresholds
 
 Regenerate number and currency output to honor CLDR `minimumGroupingDigits` after rounding.
