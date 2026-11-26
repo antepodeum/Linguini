@@ -1204,6 +1204,11 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       packaged documentation, editor/WASM, and production graph/browser checks. Separate
       Node 20 runtime/hook/graph and installer tests plus `actionlint` cover the changed paths.
       Hosted verification and the remaining architecture/release criteria remain open.
+      Parent-aware deferred-demand source `55de518` passes all 71 local full-profile gates,
+      including installed TypeScript consumers, native build/watch, editor/WASM, and production
+      graph/browser checks. Separate Node 20 tests cover the changed planner/linker boundary;
+      all 45 existing production locale payloads retain identical paths and bytes. Differing
+      unprepared demands, unsupported ownership shapes, and final architecture gates remain open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
