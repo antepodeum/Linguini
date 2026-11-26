@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native integer number formatting
+
+Regenerate number and currency output to bypass decimal-text parsing for safe integer numbers
+and bigint inputs. Input types, rounding, localized output, negative zero, caller coercion, and
+the 8,192-digit bound retain their semantics. Fractional numbers and decimal/exponent strings
+keep the validating parser. No application API changes are required.
+
 ## Explicit alternate-link helper
 
 `LinguiniWebLocale`, message-enabled web adapters, request contexts, and browser/framework

@@ -312,7 +312,9 @@ The generated formatter is intentionally smaller than the full ICU/ECMA-402
 surface. Current guarantees are:
 
 - `@number` formats finite `number`, `bigint`, or decimal/exponent strings. It
-  preserves decimal precision up to 8,192 expanded digits and applies the
+  preserves decimal precision up to 8,192 expanded digits. Safe integer numbers and
+  bigint inputs bypass decimal-text parsing; other inputs retain decimal/exponent
+  validation and the same size limit. Negative zero remains signed. It applies the
   locale's CLDR decimal affixes, minimum/maximum fraction digits, primary and
   secondary grouping, the minimum grouping threshold, decimal separator, group separator, and the locale's
   default numeric numbering-system digits from pinned CLDR data. Negative affixes retain

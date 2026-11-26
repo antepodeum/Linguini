@@ -1509,6 +1509,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       message grows by 22 Brotli bytes; local integer-call time changes from 0.409 to 0.071 µs.
       String and mixed inputs retain output parity. These local results do not close repeated
       normalization, selector-specific outcomes, or the broader page-delivery criteria.
+      Number/currency parsing also bypasses decimal regexes for safe native integers and
+      bigints, preserving negative zero, caller coercion, and the 8,192-digit bound. Executed
+      tests disable regex execution on that path. A complete two-message consumer adds 44
+      Brotli bytes; local integer/bigint calls take roughly half the previous time and mixed
+      inputs improve by about 23%, while fractional/string handling shows no material gain.
+      Full consumer measurements and their limits are recorded in the generated-code cost audit.
 
 - [-] OPT-A8 — Minimize localization requests, transferred bytes, and runtime work. SSR must
       return final translated text in initial HTML without fetching messages in the browser;

@@ -1,3 +1,4 @@
+mod number_inputs;
 mod week_year;
 
 use super::super::formatters::{formatter_binding, FormatterRequest};

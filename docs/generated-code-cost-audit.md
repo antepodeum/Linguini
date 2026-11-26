@@ -80,6 +80,34 @@ measurements justify this bounded fast path, without establishing a general appl
 or memory claim. Executed coercion/resource-limit tests and strict JSDoc checks cover the shared
 fallback path. Branch-specific category specialization and repeated normalization remain open.
 
+## Native integer number and currency inputs
+
+Safe integer numbers and bigint inputs already serialize to canonical integer digits. Their
+shared decimal parser now returns those digits directly, retaining the negative-zero sign and
+8,192-digit bound. It skips the decimal/exponent match array, expansion, and trimming regexes.
+Fractional numbers, unsafe numbers, strings, and custom objects keep the validating parser.
+Executed tests disable regex execution for native integer parsing and fixed-precision currency
+formatting, check both signed bounds, and preserve caller coercion and thrown error identity.
+
+A complete English number/currency consumer compared with `d69b81c` grows from 3,556 / 1,272 /
+1,152 to 3,732 / 1,325 / 1,196 minified / gzip / Brotli bytes on Vite 7.3.3 and Node 24.13.1.
+The extra 44 Brotli bytes remove repeated parsing on native integer calls without duplicating
+the formatter implementation. Seven alternating 200,000-call batches after warmup produced:
+
+| Complete message input | Number before / after µs | Currency before / after µs |
+| --- | ---: | ---: |
+| Safe integer | 0.2933 / 0.1402 | 0.2479 / 0.0973 |
+| Bigint | 0.3124 / 0.1529 | 0.2682 / 0.1059 |
+| Fractional number | 0.3731 / 0.3769 | 0.3852 / 0.3886 |
+| Decimal string | 0.3047 / 0.3042 | 0.2772 / 0.2738 |
+| Mixed representations | 0.3333 / 0.2577 | 0.3250 / 0.2540 |
+
+These local results support the integer path; they do not establish faster fractional/string
+handling or an application-wide speed gain. Before/after execution matches for negative zero,
+native integer limits, fractional/exponent inputs, non-finite values, and 8,192-digit bigints;
+both versions reject oversized or malformed input. Optional fraction display can still trim
+its formatted result, and broader repeated normalization remains open under OPT-A7.
+
 ## Routing-only web persistence demand
 
 `createWebLocaleI18n` previously attached cookie serialization and server writes to every

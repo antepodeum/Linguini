@@ -12,8 +12,13 @@ const MAX_GENERATED_DECIMAL_DIGITS = 8192;
  */
 function parseGeneratedDecimal(value) {
   if (typeof value === "number" && !Number.isFinite(value)) return undefined;
-  const negativeZero = typeof value === "number" && Object.is(value, -0);
   const source = String(value);
+  if (typeof value === "bigint" || Number.isSafeInteger(value)) {
+    const hasSign = source[0] === "-";
+    const integer = hasSign ? source.slice(1) : source;
+    if (integer.length > MAX_GENERATED_DECIMAL_DIGITS) throwInvalidNumber();
+    return { negative: hasSign || (value === 0 && Object.is(value, -0)), integer, fraction: "" };
+  }
   const match = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(source);
   if (!match || (match[2] === "" && (match[3] ?? "") === "")) throwInvalidNumber();
 
@@ -53,7 +58,7 @@ function parseGeneratedDecimal(value) {
   integer = integer.replace(/^0+(?=\d)/, "");
   fraction = fraction.replace(/0+$/, "");
   return {
-    negative: match[1] === "-" || negativeZero,
+    negative: match[1] === "-",
     integer,
     fraction,
   };
