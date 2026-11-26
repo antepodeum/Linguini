@@ -220,3 +220,20 @@ is JavaScript only, with adjacent declarations for TypeScript consumers. See
 [migration notes](./migrations.md#canonical-javascript-generation) for the current Rust API names
 and generated artifact paths. Earlier TS implementations remain historical parity evidence,
 not production runtime backends.
+
+
+## Single-runtime completion audit
+
+The production-source audit at `1de150f` verifies ESM-A7 independently of the remaining template
+extraction and page-delivery work. Public runtime compilers emit JavaScript; `EcmaModuleKind`
+contains only `JavaScript` and `Declaration`. ECMAScript, Vite, and thin Svelte bindings expose
+no paired TypeScript runtime API or per-template TS implementation branch. Type rendering and
+`.d.ts` generation remain part of the common semantic contract. Reusable npm runtime adapters
+maintain one TypeScript implementation and emit JavaScript/types during their package build.
+
+The `runtime_ownership` regression guards retired compiler APIs, runtime sources under Rust
+`src/`, and paired template branches. Executed generated modules, strict JSDoc and TypeScript
+consumers without `allowJs`, native `tsc` build/watch, and packed-package consumers verify the
+boundary. Frozen TypeScript fixtures above remain historical comparison oracles. This completion
+does not close CLDR specialization, remaining inline syntax extraction, exact composed-page
+payloads, or final cross-platform architecture verification.

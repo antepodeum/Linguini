@@ -1007,9 +1007,17 @@ TypeScript, and application/bundler imports select their capabilities.
       plain `tsc`, and real SvelteKit integration after the module/configuration migration.
 - [x] ESM-A6 — Render `.d.ts` from the same `TypeModel`. Message overloads, object leaves, enum and
   alias declarations, and runtime annotations now share the sole source-type lowering function.
-- [-] ESM-A7 — Maintain one JavaScript implementation per runtime family. Remove public TS
+- [x] ESM-A7 — Maintain one JavaScript implementation per runtime family. Remove public TS
       runtime emission APIs, target switches, typed implementation fragments, and paired runtime
       templates. Keep `.d.ts` emission from the common semantic model and verify strict TS consumers.
+      The source audit on `1de150f` confirms JS-only runtime compiler APIs and only JavaScript/
+      declaration module kinds across the ECMAScript, Vite, and thin Svelte generators. The
+      executable ownership regression rejects retired paired APIs and per-template TS branches;
+      historical comparison fixtures are not production emitters. Maintained npm adapters use
+      one TypeScript source implementation with build-produced JS/types. Executed generated
+      output, strict JSDoc, declaration-only TS consumers without `allowJs`, native tsc build/watch,
+      and installed-package consumers verify the canonical boundary. Remaining syntax extraction,
+      exact page delivery, and final architecture/platform gates stay in ESM-M10–M13 and MOD-A4–A8.
 - [x] ESM-A8 — Emit source maps and shared runtime helpers from the common backend; exact message
       modules plus semantic, locale-runtime, locale-global, namespace, and locale-barrel artifacts
       now have target-owned source maps, ordered source identity, and demand-selected helpers.
