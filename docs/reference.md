@@ -100,6 +100,12 @@ Schema path selection, locale-to-schema projection, root/nested namespace projec
 documented nested message tree also live in `linguini-codegen`. Declaration order and source
 identity survive projection; target backends render the resulting messages/types themselves.
 
+`form_dispatch_plan` and `function_dispatch_plan` lower IR branches into the common `Decision`
+model. Backends project selectors and text at build time, before equivalent results are merged.
+Named payloads do not add dispatch dimensions; missing dimensions preserve `undefined`, `_`, then
+`other` precedence. A selected runtime dimension remains observable even when its bodies merge.
+The ECMAScript backend supplies selector syntax and renders direct branches through templates.
+
 Structured imports and re-exports share one module-edge template, including aliases, namespace
 imports, and declaration-only type edges. JavaScript output excludes type dependencies before
 rendering; module order, literal escaping, and source-map line positions remain stable.

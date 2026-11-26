@@ -9,6 +9,7 @@ mod decision;
 mod dependencies;
 mod digits;
 mod direct_dependencies;
+mod dispatch;
 mod formatters;
 mod inline;
 mod locales;
@@ -35,6 +36,7 @@ pub use digits::{can_localize_date_result, contiguous_decimal_digit_zero, decima
 pub use direct_dependencies::{
     direct_message_dependencies, direct_symbol_dependencies, SemanticSymbolKind,
 };
+pub use dispatch::{form_dispatch_plan, function_dispatch_plan};
 pub use requirements::{
     expression_has_string_result, formatter_requirements, module_uses_inline_functions,
     plural_required, FormatterRequirements, StringResultFacts,

@@ -1361,6 +1361,11 @@ and the composed payload/SSR requirements below.
       source identities, and globals. Executed ordinary imports and project factories prove that
       empty namespace reservations create neither values nor declaration leaves/transit modules,
       with declarations and tree shaking enabled or disabled. Current snapshots stay unchanged.
+      Form/function dispatch traversal now also uses common plans with build-time selector/text
+      projections. Shared tests cover full selector indices, named payloads, missing-dimension
+      precedence, multi-key/default forms, projected-result merging, and retained selector
+      evaluation. Existing backend eager/lazy/capture/error cases and byte-identical snapshots
+      pass, alongside strict consumers, runtime parity, Rust 1.87, Clippy, and source packaging.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.

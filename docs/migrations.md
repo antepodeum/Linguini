@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared dispatch planning
+
+Backend authors can reuse `linguini_codegen::form_dispatch_plan` and `function_dispatch_plan`
+with build-time selector/text projections. The common crate owns branch traversal, fallback
+precedence, and grouping projected results; ECMAScript retains syntax and rendering. Function
+selector indices refer to the complete parameter list, excluding named payloads from dispatch
+depth. Generated code, declarations, maps, and application APIs are unchanged.
+
 ## Shared namespace planning
 
 Backend authors can reuse `select_schema_paths`, `locale_module_for_schema`, `namespace_module`,

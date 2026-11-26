@@ -3,8 +3,7 @@ use std::collections::BTreeMap;
 use linguini_codegen::StringResultFacts;
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter,
-    IrFormatterKind, IrFunctionBranch, IrFunctionBranchValue, IrFunctionParameter, IrModule,
-    IrText, IrTextPart, IrValue,
+    IrFormatterKind, IrFunctionBranch, IrFunctionParameter, IrModule, IrText, IrTextPart, IrValue,
 };
 
 use super::names::{
@@ -123,27 +122,9 @@ pub fn map_expression(
         .expect("validated form maps have one dispatch parameter");
     let parameter = super::names::form_parameter_name(dispatch, branches, &options.plural_function);
     let selector = selector_expression(&parameter, dispatch.ty == "Plural", true, options);
-    let decision = linguini_codegen::Decision::branch(
-        selector,
-        branches
-            .iter()
-            .flat_map(|branch| {
-                let value = linguini_codegen::Decision::Return(text_expression_with_context(
-                    &branch.value,
-                    &context,
-                    &BTreeMap::new(),
-                    options,
-                    facts,
-                ));
-                let keys = if branch.keys.is_empty() {
-                    vec!["_".to_owned()]
-                } else {
-                    branch.keys.clone()
-                };
-                keys.into_iter().map(move |key| (key, value.clone()))
-            })
-            .collect(),
-    );
+    let decision = linguini_codegen::form_dispatch_plan(branches, selector, |text| {
+        text_expression_with_context(text, &context, &BTreeMap::new(), options, facts)
+    });
     let body = crate::templates::render(
         "dispatch",
         minijinja::context! { node => decision_context(&decision, 0) },
@@ -275,110 +256,28 @@ pub(super) fn function_dispatch_body(
 ) -> String {
     let parameter_names =
         super::names::function_parameter_names(parameters, branches, &options.plural_function);
-    let selectors = parameters
-        .iter()
-        .enumerate()
-        .filter(|(_, parameter)| parameter.name.is_none())
-        .map(|(index, parameter)| DispatchSelector {
-            value: parameter_names[index].clone(),
-            normalize_plural: parameter.ty == "Plural",
-            coerce: parameter.ty != "String",
-        })
-        .collect::<Vec<_>>();
-    let decision = dispatch_decision(
-        &selectors,
+    let decision = linguini_codegen::function_dispatch_plan(
+        parameters,
         branches,
-        0,
-        context,
-        default_formatters,
-        options,
-        facts,
+        |index| {
+            index.map_or_else(
+                || "undefined".to_owned(),
+                |index| {
+                    let parameter = &parameters[index];
+                    selector_expression(
+                        &parameter_names[index],
+                        parameter.ty == "Plural",
+                        parameter.ty != "String",
+                        options,
+                    )
+                },
+            )
+        },
+        |text| text_expression_with_context(text, context, default_formatters, options, facts),
     );
     crate::templates::render(
         "dispatch",
         minijinja::context! { node => decision_context(&decision, 0) },
-    )
-}
-
-#[derive(Debug)]
-struct DispatchSelector {
-    value: String,
-    normalize_plural: bool,
-    coerce: bool,
-}
-
-fn dispatch_decision(
-    selectors: &[DispatchSelector],
-    branches: &[IrFunctionBranch],
-    depth: usize,
-    context: &BTreeMap<String, String>,
-    default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
-    options: &EcmaOptions,
-    facts: &StringResultFacts,
-) -> linguini_codegen::Decision<String, String> {
-    use linguini_codegen::Decision;
-    if selectors.get(depth).is_none() {
-        if let Some(branch) = branches
-            .iter()
-            .find(|branch| branch.key == "undefined")
-            .or_else(|| branches.iter().find(|branch| branch.key == "_"))
-            .or_else(|| branches.iter().find(|branch| branch.key == "other"))
-        {
-            return match &branch.value {
-                IrFunctionBranchValue::Text(text) => Decision::Return(
-                    text_expression_with_context(text, context, default_formatters, options, facts),
-                ),
-                IrFunctionBranchValue::Dispatch(children) => dispatch_decision(
-                    selectors,
-                    children,
-                    depth + 1,
-                    context,
-                    default_formatters,
-                    options,
-                    facts,
-                ),
-            };
-        }
-    }
-    let selector = selectors.get(depth).map_or_else(
-        || "undefined".to_owned(),
-        |selector| {
-            selector_expression(
-                &selector.value,
-                selector.normalize_plural,
-                selector.coerce,
-                options,
-            )
-        },
-    );
-    Decision::branch(
-        selector,
-        branches
-            .iter()
-            .map(|branch| {
-                let result = match &branch.value {
-                    IrFunctionBranchValue::Text(text) => {
-                        Decision::Return(text_expression_with_context(
-                            text,
-                            context,
-                            default_formatters,
-                            options,
-                            facts,
-                        ))
-                    }
-                    IrFunctionBranchValue::Dispatch(children) => dispatch_decision(
-                        selectors,
-                        children,
-                        depth + 1,
-                        context,
-                        default_formatters,
-                        options,
-                        facts,
-                    ),
-                };
-                (branch.key.clone(), result)
-            })
-            .collect(),
     )
 }
 

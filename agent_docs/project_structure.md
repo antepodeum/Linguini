@@ -3,7 +3,8 @@
 - `crates/linguini-codegen`: backend-independent type/numeric plans, formatter/plural/inline-function
   requirement analysis, project locale matching/fallback composition, and transitive message
   dependency slicing with source provenance. Namespace projection and the shared message tree
-  retain declaration metadata without depending on a target renderer.
+  retain declaration metadata without depending on a target renderer. Form/function dispatch
+  planning owns IR traversal and result merging; backends project selectors/text and render syntax.
 - `crates/linguini-codegen-ecmascript`: canonical JavaScript runtime syntax, adjacent
   declarations, identifier escaping, module artifacts, and source maps. It consumes shared
   semantic plans without depending on web or framework integrations.
