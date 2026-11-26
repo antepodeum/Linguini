@@ -3150,3 +3150,61 @@ console.log('ok');
         "ok"
     );
 }
+
+#[test]
+fn empty_namespace_reservations_create_no_runtime_values_or_transit_modules() {
+    let schema = lower_schema(
+        &parse_schema("used { title }\nempty { nested {} }\nroot_empty {}\n").unwrap(),
+    );
+    let locales = [EcmaLocaleModule {
+        locale: "en".into(),
+        module: lower_locale(&parse_locale("used { title = Ready }\n").unwrap()),
+    }];
+    for declaration in [false, true] {
+        for tree_shaking in [false, true] {
+            let options = EcmaProjectOptions {
+                declaration,
+                tree_shaking,
+                included_messages: if tree_shaking {
+                    vec!["used".into(), "empty".into(), "root_empty".into()]
+                } else {
+                    Vec::new()
+                },
+                ..project_options("en")
+            };
+            let files = generate_project_files(&schema, &locales, &options).unwrap();
+            for file in &files {
+                assert!(
+                    !["locales/en/empty.js", "locales/en/root_empty.js"]
+                        .contains(&file.path.as_str()),
+                    "empty schema objects do not need separate namespace modules"
+                );
+            }
+            if declaration {
+                for file in files.iter().filter(|file| file.path.ends_with(".d.ts")) {
+                    assert!(!file.contents.contains("root_empty"), "{}", file.path);
+                    assert!(!file.contents.contains("nested:"), "{}", file.path);
+                }
+            }
+            assert_eq!(
+                execute_project(
+                    &files,
+                    r#"
+import assert from 'node:assert/strict';
+const en=await import('./locales/en.js');
+assert.equal(en.used.title,'Ready');
+assert.equal(Object.hasOwn(en,'empty'),false);
+assert.equal(Object.hasOwn(en,'root_empty'),false);
+const {createLinguini}=await import('./index.js');
+const messages=createLinguini('en');
+assert.equal(Object.hasOwn(messages,'empty'),false);
+assert.equal(Object.hasOwn(messages,'root_empty'),false);
+console.log('ok');
+"#
+                ),
+                "ok",
+                "declaration={declaration}, tree_shaking={tree_shaking}"
+            );
+        }
+    }
+}

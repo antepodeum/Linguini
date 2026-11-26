@@ -31,6 +31,11 @@ pub use type_model::{render_jsdoc_type, render_typescript_type, TypeModel};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+pub(super) use linguini_codegen::{
+    locale_module_for_schema, namespace_module, root_module,
+    top_level_message_namespaces as top_level_namespaces,
+};
+
 use linguini_cldr::{
     built_in_plural_rules, compiled_currency_formatting, compiled_date_formatting,
     compiled_number_formatting,
@@ -874,83 +879,7 @@ fn project_locale_options(locale: &str, project_options: &EcmaProjectOptions) ->
 }
 
 pub(super) fn visible_schema(schema: &IrModule, options: &EcmaOptions) -> IrModule {
-    if options.included_messages.is_empty() {
-        return schema.clone();
-    }
-
-    let is_selected = |name: &str| {
-        options.included_messages.iter().any(|selected| {
-            selected == name
-                || name
-                    .strip_prefix(selected.as_str())
-                    .is_some_and(|rest| rest.starts_with('.'))
-        })
-    };
-    let retained_message_names = schema
-        .messages()
-        .iter()
-        .map(|message| message.name.as_str())
-        .filter(|name| is_selected(name))
-        .collect::<Vec<_>>();
-    IrModuleBuilder::seeded(schema)
-        .retain_messages(|message| is_selected(&message.name))
-        .retain_groups(|group| {
-            options.included_messages.iter().any(|selected| {
-                is_path_or_descendant(&group.name, selected)
-                    || is_path_or_descendant(selected, &group.name)
-            }) || retained_message_names
-                .iter()
-                .any(|message| is_path_or_descendant(message, &group.name))
-        })
-        .build()
-        .expect("tree-shaken schema projection preserves unique declaration names")
-}
-
-pub(super) fn locale_module_for_schema(locale: &IrModule, schema: &IrModule) -> IrModule {
-    let schema_groups = schema
-        .groups()
-        .iter()
-        .map(|group| group.name.as_str())
-        .collect::<BTreeSet<_>>();
-    IrModuleBuilder::seeded(locale)
-        .retain_messages(|message| {
-            schema
-                .messages()
-                .iter()
-                .any(|schema_message| schema_message.name == message.name)
-        })
-        .retain_groups(|group| schema_groups.contains(group.name.as_str()))
-        .build()
-        .expect("schema-projected locale preserves unique declaration names")
-}
-
-pub(super) fn top_level_namespaces(module: &IrModule) -> Vec<String> {
-    let mut namespaces = module
-        .messages()
-        .iter()
-        .filter_map(|message| message.name.split_once('.').map(|(namespace, _)| namespace))
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
-    namespaces.sort();
-    namespaces.dedup();
-    namespaces
-}
-
-pub(super) fn namespace_module(module: &IrModule, namespace: &str) -> IrModule {
-    let prefix = format!("{namespace}.");
-    IrModuleBuilder::seeded(module)
-        .retain_messages(|message| message.name.starts_with(&prefix))
-        .retain_groups(|group| group.name == namespace || group.name.starts_with(&prefix))
-        .build()
-        .expect("namespace projection preserves unique declaration names")
-}
-
-pub(super) fn root_module(module: &IrModule) -> IrModule {
-    IrModuleBuilder::seeded(module)
-        .retain_messages(|message| !message.name.contains('.'))
-        .retain_groups(|group| !group.name.contains('.'))
-        .build()
-        .expect("root projection preserves unique declaration names")
+    linguini_codegen::select_schema_paths(schema, &options.included_messages)
 }
 
 pub(super) fn root_module_with_locale_items(module: &IrModule) -> IrModule {
@@ -1012,13 +941,6 @@ fn pascal_identifier(value: &str) -> String {
             output
         })
         .collect::<String>()
-}
-
-fn is_path_or_descendant(path: &str, parent: &str) -> bool {
-    path == parent
-        || path
-            .strip_prefix(parent)
-            .is_some_and(|suffix| suffix.starts_with('.'))
 }
 
 #[cfg(test)]

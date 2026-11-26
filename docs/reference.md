@@ -95,6 +95,11 @@ thresholds, decimal scale, precision/rounding, scientific symbols/carry result, 
 Its nested affix/grouping/scientific models contain semantic values; target backends own helper
 names, identifier escaping, and template projection. Currency callers supply their resolved
 separators and fraction quantum. No ECMAScript syntax or template engine belongs to this plan.
+
+Schema path selection, locale-to-schema projection, root/nested namespace projection, and the
+documented nested message tree also live in `linguini-codegen`. Declaration order and source
+identity survive projection; target backends render the resulting messages/types themselves.
+
 Structured imports and re-exports share one module-edge template, including aliases, namespace
 imports, and declaration-only type edges. JavaScript output excludes type dependencies before
 rendering; module order, literal escaping, and source-map line positions remain stable.
@@ -530,6 +535,7 @@ BCP 47 tags and use the canonical spelling configured in `project.locales`.
 Groups are recursive. Schema groups may be empty to reserve a namespace; locale
 groups must contain a message or child group. The language-wide brace nesting
 limit is 64.
+An empty reservation creates no runtime value, declaration leaf, or separate namespace module.
 
 Sibling messages and child groups share one member namespace. Reusing a member
 name for two messages, two groups, or one message and one group is invalid:

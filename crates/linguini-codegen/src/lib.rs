@@ -12,9 +12,11 @@ mod direct_dependencies;
 mod formatters;
 mod inline;
 mod locales;
+mod message_tree;
 mod numbers;
 mod paths;
 mod plurals;
+mod projections;
 mod requirements;
 mod rounding;
 mod types;
@@ -51,3 +53,9 @@ pub use numbers::{NumberAffixPlan, NumberFormatPlan, NumberGroupingPlan, NumberS
 pub use paths::lexical_relative_path;
 pub use plurals::{PluralDecisionPlan, PluralRequirements};
 pub use rounding::NumberRoundingPlan;
+
+pub use message_tree::{nested_message_tree, MessageTree, MessageTreeMessage};
+pub use projections::{
+    locale_module_for_schema, namespace_module, root_module, select_schema_paths,
+    top_level_message_namespaces,
+};

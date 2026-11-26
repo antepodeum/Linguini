@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared namespace planning
+
+Backend authors can reuse `select_schema_paths`, `locale_module_for_schema`, `namespace_module`,
+`root_module`, `top_level_message_namespaces`, and the nested `MessageTree` from
+`linguini-codegen`. ECMAScript generation delegates those semantic operations to the common
+crate. Generated code, declarations, maps, and application configuration remain unchanged.
+Empty schema groups continue reserving namespaces without creating runtime values or extra modules.
+
 ## Shared number-format planning
 
 Backend authors can reuse `linguini_codegen::NumberFormatPlan` and its affix/grouping/scientific

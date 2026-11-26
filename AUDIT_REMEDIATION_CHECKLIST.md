@@ -1356,6 +1356,11 @@ and the composed payload/SSR requirements below.
       The backend retains helper naming, escaping, and template projection. Shared tests cover
       reachable pinned number/percent/currency patterns and explicit boundary plans; generated
       code, declarations, and maps remain byte-identical.
+      Schema/locale selection, namespace projection, and nested message-tree semantics now also
+      live in the common crate. Shared tests retain path boundaries, declaration order, group docs,
+      source identities, and globals. Executed ordinary imports and project factories prove that
+      empty namespace reservations create neither values nor declaration leaves/transit modules,
+      with declarations and tree shaking enabled or disabled. Current snapshots stay unchanged.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.
