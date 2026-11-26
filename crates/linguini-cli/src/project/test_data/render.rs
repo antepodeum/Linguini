@@ -520,10 +520,11 @@ impl<'a> Renderer<'a> {
                 kind: "message parameter",
                 name: root.to_owned(),
             })?;
+        let resolved = linguini_codegen::resolve_type_name(self.schema, ty);
         self.module
             .forms()
             .iter()
-            .find(|form| form.name == *ty)
+            .find(|form| form.name == resolved)
             .ok_or_else(|| RenderError::MissingForm {
                 parameter: root.to_owned(),
                 ty: ty.clone(),
@@ -1372,6 +1373,60 @@ mod tests {
         locale_name: &'a str,
     ) -> Renderer<'a> {
         Renderer::new(schema, locale, locale_name)
+    }
+
+    #[test]
+    fn preview_enum_aliases_resolve_properties_forms_and_forwarded_payloads() {
+        let schema_source = concat!(
+            "enum Fruit { apple }\ntype Item = Fruit\n",
+            "sample0(item: Item)\nsample1(item: Item, count: Number)\n",
+            "sample2(item: Fruit, count: Number)\nsample3(item: Item)\n",
+        );
+        let source = concat!(
+            "impl Fruit { apple {\n label = Apple\n",
+            "form nom(Plural) {\n one => apple\n other => apples\n}\n",
+            "} }\nfn Label(item: Item) { _ => {item.label} }\n",
+            "sample0 = {item.label}\nsample1 = {item.nom(count)}\n",
+            "sample2 = {item.nom(count)}\nsample3 = {Label(item)}\n",
+        );
+        let schema = crate::project::codegen::namespaced_module(
+            lower_schema(&parse_schema(schema_source).unwrap()),
+            "main",
+        );
+        let module = crate::project::codegen::namespaced_module(
+            lower_locale(&parse_locale(source).unwrap()),
+            "main",
+        );
+        let mut cases = Vec::new();
+        for locale in ["en", "ru"] {
+            let renderer = renderer(&schema, &module, locale);
+            for (index, text) in [(0, "Apple"), (3, "Apple")] {
+                let result = renderer
+                    .render_message(
+                        &format!("main.sample{index}"),
+                        &BTreeMap::from([("item".into(), SampleValue::String("apple".into()))]),
+                    )
+                    .unwrap();
+                assert_eq!(result, text);
+                cases.push(serde_json::json!({"locale":locale,"index":index,"value":"apple","expected":text}));
+            }
+            for index in [1, 2] {
+                for (count, text) in [("1", "apple"), ("2", "apples")] {
+                    let result = renderer
+                        .render_message(
+                            &format!("main.sample{index}"),
+                            &BTreeMap::from([
+                                ("item".into(), SampleValue::String("apple".into())),
+                                ("count".into(), SampleValue::Number(count.into())),
+                            ]),
+                        )
+                        .unwrap();
+                    assert_eq!(result, text);
+                    cases.push(serde_json::json!({"locale":locale,"index":index,"args":["apple",count],"expected":text}));
+                }
+            }
+        }
+        super::parity::assert_generated_samples(schema_source, source, &["en", "ru"], &cases);
     }
 
     #[test]

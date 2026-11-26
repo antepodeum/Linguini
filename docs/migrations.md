@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native preview enum aliases
+
+Native `generate` previews resolve enum aliases before selecting a form implementation, matching
+generated code. Properties, callable plural forms, and named payload forwarding through an alias
+no longer report a missing alias-named implementation. Source syntax and generated artifacts are
+unchanged.
+
 ## Native preview formatting scopes
 
 Native `generate` output now uses the same default-formatting and inline-capture lowering as

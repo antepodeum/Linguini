@@ -37,7 +37,8 @@ for(const entry of {cases}) {{
     ({{main}}=await import(pathToFileURL(join(process.argv[2],'locales',entry.locale+'.js')).href));
     modules.set(entry.locale,main);
   }}
-  assert.equal(main['sample'+entry.index](entry.value),entry.expected,`${{entry.locale}}/${{entry.index}}/${{entry.value}}`);
+  const args=entry.args ?? [entry.value];
+  assert.equal(main['sample'+entry.index](...args),entry.expected,`${{entry.locale}}/${{entry.index}}/${{JSON.stringify(args)}}`);
 }}
 console.log('ok');
 "#,

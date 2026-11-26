@@ -639,6 +639,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       message and callable alias-cycle errors remain covered. Generated artifacts stay unchanged.
       CLI unit/integration tests pass on Node 20, with the final preview suite, strict Clippy,
       Rust 1.87, and executable documentation checks also passing.
+      Form lookup also resolves enum aliases through the common bounded resolver. Twelve
+      English/Russian native/generated comparisons cover properties, callable plural forms,
+      alias-typed forwarded payloads, and direct-enum controls, without changing source syntax
+      or generated artifacts. Qualified namespace coverage passes on Node 20 and Node 24;
+      CLI unit/integration tests, Clippy, Rust 1.87, and documentation registration pass.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.

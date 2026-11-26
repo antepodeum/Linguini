@@ -347,6 +347,8 @@ before code emission.
 Native sample rendering reuses the generator's default-formatting and inline-capture lowering.
 Schema display defaults survive inline bindings and captures; named function payloads retain raw
 text unless their body requests formatting. Each locale is prepared once for all sample cases.
+Enum aliases resolve to their underlying form implementation for property access, callable forms,
+and forwarded payloads.
 
 #### Formatter scope and fallback
 
