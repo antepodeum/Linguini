@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { startRuntimeLinkLocalization as javascript } from "./web/runtime-links.js";
 import { startRuntimeLinkLocalization as typescript } from "./typescript/web/runtime-links.ts";
 import { startRuntimeLinkLocalization as runtime } from "../../../../../packages/web/src/runtime-links.ts";
+import { createWebLocaleI18n } from "../../../../../packages/web/src/index.ts";
 import { withLinkBrowser } from "./browser-harness.ts";
 
 const web = {
@@ -13,7 +14,10 @@ const web = {
   },
 };
 
-const maintained = runtime as unknown as typeof javascript;
+const maintained: typeof javascript = (_web, getLocale) => runtime(
+  createWebLocaleI18n({baseLocale: "en", locales: ["en", "de"]}, {routing: {localePrefix: "always"}}),
+  getLocale,
+);
 
 describe("owned runtime-link target parity", () => {
   test("server initialization has no browser effects", () => {

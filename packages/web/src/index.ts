@@ -8,3 +8,4 @@ export { cookieLocale } from './sources/cookie.js';
 export { localStorageLocale } from './sources/local-storage.js';
 export { requestLanguage } from './sources/accept-language.js';
 export {createLocaleRequestContext} from "./context.js";
+export { shouldLocalizeHref, shouldLocalizeLink, localizeHrefAttribute, localizeLinkHref } from './links.js';

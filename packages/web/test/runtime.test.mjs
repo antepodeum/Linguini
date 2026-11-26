@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createWebLocaleI18n, createWebI18n, createLocaleRequestContext, pathLocale, cookieLocale, requestLanguage, localStorageLocale, serializeLocaleCookie, alternateLinks} from '../dist/index.js';
+import {createWebLocaleI18n, createWebI18n, createLocaleRequestContext, pathLocale, cookieLocale, requestLanguage, localStorageLocale, serializeLocaleCookie, alternateLinks, shouldLocalizeHref, shouldLocalizeLink, localizeHrefAttribute, localizeLinkHref} from '../dist/index.js';
 import {createLocaleSwitchHandler, persistLocaleCookie} from '../dist/server.js';
 
 const runtime = {locales:['en','fr','ar'],baseLocale:'en',getTextDirection:locale => locale === 'ar' ? 'rtl' : 'ltr'};
@@ -16,7 +16,7 @@ test('application origins validate at construction without changing per-request 
   assert.equal(originReads,1,'capture configured origins once');
   const base=createWebLocaleI18n(runtime,{}, {origin:'https://example.test/base/'});
   assert.equal(base.localizeUrl('page','fr').href,'https://example.test/fr/base/page');
-  assert.equal(web.shouldLocalizeHref('/page',{origin:'http://['}),false);
+  assert.equal(shouldLocalizeHref(web, '/page',{origin:'http://['}),false);
   assert.throws(()=>web.localizeUrl('/page','fr',{origin:'http://['}),/Linguini: invalid URL/);
   for (const origin of ['', 'relative.example', '/app', '//example.test', 'http://[', 'ftp://example.test', 'file:///tmp/app', 'data:text/plain,locale', 'javascript:alert(1)', 'https://user@example.test', 'https://user:password@example.test', new URL('ftp://example.test'), null, 42]) {
     for (const create of [createWebLocaleI18n,createWebI18n]) {
@@ -34,7 +34,7 @@ test('runtime sources are explicit, ordered capabilities independent of message 
   assert.equal(web.resolveLocaleSync({headers:new Headers({'accept-language':'fr;q=0.8,en;q=0.2'})}), 'fr');
   assert.equal(web.localizeHref('/app/en/shop?q=1#part','fr'), '/app/fr/shop?q=1#part');
   assert.equal(web.localizeHref('https://external.test/shop','fr'), 'https://external.test/shop');
-  assert.equal(web.localizeHrefAttribute('javascript:alert(1)','fr'), 'javascript:alert(1)');
+  assert.equal(localizeHrefAttribute(web, 'javascript:alert(1)','fr'), 'javascript:alert(1)');
   assert.equal(web.shouldExclude('http://['), false);
   assert.equal(web.htmlAttrs('ar').dir, 'rtl');
   const globalCookie=createWebLocaleI18n(runtime,{cookie:{name:'GLOBAL',httpOnly:true},locale:{sources:[cookieLocale({secure:true})]}});
@@ -162,29 +162,29 @@ test('combined link localization parses one environment snapshot and isolates ex
     get origin() { originReads++; return environment.origin; },
     get currentUrl() { currentReads++; return environment.origin + '/app/en/shop'; },
   };
-  assert.equal(web.localizeLinkHref('/app/en/cart?q=1#part', 'fr', {}, input), '/app/fr/cart?q=1#part');
+  assert.equal(localizeLinkHref(web, '/app/en/cart?q=1#part', 'fr', {}, input), '/app/fr/cart?q=1#part');
   assert.equal(parses, 3, 'resolve origin/current URL once, then parse the href once');
   assert.equal(originReads, 1);
   assert.equal(currentReads, 1);
   for (const attributes of [{download:true}, {ignored:true}, {rel:'nofollow EXTERNAL'}]) {
-    assert.equal(web.localizeLinkHref('/cart', 'fr', attributes, input), '/cart');
+    assert.equal(localizeLinkHref(web, '/cart', 'fr', attributes, input), '/cart');
   }
   assert.equal(parses, 3, 'ignored link attributes must short-circuit URL parsing');
   for (const href of ['#part', '//external.test/path', 'mailto:a@example.test', 'http://[', 'https://external.test/cart']) {
-    assert.equal(web.localizeLinkHref(href, 'fr', {}, input), href);
+    assert.equal(localizeLinkHref(web, href, 'fr', {}, input), href);
   }
   const observations = [];
   const changing = createWebLocaleI18n(runtime, {routes:{exclude:[
     url => { observations.push(url.pathname); url.pathname = '/mutated'; return false; },
     url => { observations.push(url.pathname); return false; },
   ]}}, environment);
-  assert.equal(changing.localizeLinkHref('/app/en/cart', 'fr'), '/app/fr/cart');
+  assert.equal(localizeLinkHref(changing, '/app/en/cart', 'fr'), '/app/fr/cart');
   assert.deepEqual(observations, ['/app/en/cart', '/mutated']);
   const failure = new Error('predicate failed');
   const throwing = createWebLocaleI18n(runtime, {routes:{exclude:[() => {throw failure;}]}}, environment);
-  assert.throws(() => throwing.localizeLinkHref('/cart', 'fr'), error => error === failure);
+  assert.throws(() => localizeLinkHref(throwing, '/cart', 'fr'), error => error === failure);
   const manual = createWebLocaleI18n(runtime, {links:{mode:'manual'}}, environment);
-  assert.equal(manual.localizeLinkHref('/cart', 'fr'), '/cart');
+  assert.equal(localizeLinkHref(manual, '/cart', 'fr'), '/cart');
 });
 
 test('request metadata snapshots direction once per context without caching across requests', () => {
@@ -202,8 +202,13 @@ test('request metadata snapshots direction once per context without caching acro
   assert.equal(reads, 2);
   assert.deepEqual([first.direction, first.textDirection, first.htmlAttrs.dir], ['ltr', 'ltr', 'ltr']);
   assert.deepEqual([second.direction, second.textDirection, second.htmlAttrs.dir], ['rtl', 'rtl', 'rtl']);
-  assert.equal(first.localizeLinkHref('/app/en/cart'), '/app/fr/cart');
-  assert.equal(second.localizeLinkHref('/app/en/cart'), '/app/ar/cart');
+  assert.equal(localizeLinkHref(web, '/app/en/cart', first.locale), '/app/fr/cart');
+  assert.equal(localizeLinkHref(web, '/app/en/cart', second.locale), '/app/ar/cart');
+  for (const context of [web,first,second]) {
+    for (const name of ['shouldLocalizeHref','shouldLocalizeLink','localizeHrefAttribute','localizeLinkHref']) {
+      assert.equal(Object.hasOwn(context,name),false,name);
+    }
+  }
 });
 
 

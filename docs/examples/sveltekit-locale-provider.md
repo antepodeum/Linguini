@@ -122,7 +122,14 @@ export const load = createLoad<Locale>({ getPagePayload });
 ```ts
 // src/lib/linguini.ts
 import { createControls } from "@antepodeum/linguini-sveltekit/client";
-import { alternateLinks as localeAlternates } from "@antepodeum/linguini-web";
+import {
+  alternateLinks as localeAlternates,
+  shouldLocalizeHref as canLocalizeHref,
+  shouldLocalizeLink as canLocalizeLink,
+  localizeHrefAttribute as localizeAttribute,
+  localizeLinkHref as localizeSafeLink,
+  type LinkLocalizationAttributes,
+} from "@antepodeum/linguini-web";
 import * as state from "$lib/generated/linguini/svelte-locale.svelte.js";
 import { web } from "./linguini-web";
 
@@ -130,9 +137,10 @@ export const linguini = createControls(web, state);
 export const setLocale = linguini.setLocale;
 export const localizeHref = linguini.localizeHref;
 export const localizeUrl = linguini.localizeUrl;
-export const shouldLocalizeHref = linguini.shouldLocalizeHref;
-export const shouldLocalizeLink = linguini.shouldLocalizeLink;
-export const localizeHrefAttribute = linguini.localizeHrefAttribute;
+export const shouldLocalizeHref = (href: string, input?: Record<string, unknown>) => canLocalizeHref(web, href, input);
+export const shouldLocalizeLink = (href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>) => canLocalizeLink(web, href, attributes, input);
+export const localizeHrefAttribute = (href: string, locale = linguini.locale, input?: Record<string, unknown>) => localizeAttribute(web, href, locale, input);
+export const localizeLinkHref = (href: string, locale = linguini.locale, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>) => localizeSafeLink(web, href, locale, attributes, input);
 export const delocalizeUrl = linguini.delocalizeUrl;
 export const alternateLinks = (url: string | URL, input: Record<string, unknown> = {}) => localeAlternates(web, url, input);
 ```

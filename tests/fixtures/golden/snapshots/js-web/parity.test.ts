@@ -58,16 +58,16 @@ for (const [name, sources] of cases) {
           expect(compiler === npm ? webPackage.alternateLinks(actual,href) : actual.alternateLinks(href)).toEqual(expected.alternateLinks(href));
           expect(actual.getCanonicalRedirect(href, "fr")).toBe(expected.getCanonicalRedirect(href, "fr"));
           for (const attributes of [{}, { download: true }, { ignored: true }, { rel: "help EXTERNAL" }]) {
-            expect(actual.shouldLocalizeLink(href, attributes)).toBe(expected.shouldLocalizeLink(href, attributes));
+            expect(compiler === npm ? webPackage.shouldLocalizeLink(actual, href, attributes) : actual.shouldLocalizeLink(href, attributes)).toBe(expected.shouldLocalizeLink(href, attributes));
             if (compiler === npm) {
-              expect(actual.localizeLinkHref(href, 'fr', attributes)).toBe(
+              expect(webPackage.localizeLinkHref(actual, href, 'fr', attributes)).toBe(
                 expected.shouldLocalizeLink(href, attributes) ? expected.localizeHref(href, 'fr') : href,
               );
             }
           }
         }
       }
-      expect(web.shouldLocalizeHref("http://[")).toBe(false);
+      expect(compiler === npm ? webPackage.shouldLocalizeHref(web, "http://[") : web.shouldLocalizeHref("http://[")).toBe(false);
       expect(() => web.localizeUrl("http://[", "fr")).toThrow("Linguini: invalid URL");
       // Closed generation omits the parser when no exclusion capability exists.
       if (name !== "all") expect(web.shouldExclude("http://[")).toBe(false);

@@ -1,7 +1,7 @@
-import type { LinguiniLocaleRuntime, LinguiniWebEnvironment, LinguiniWebLocale, LinguiniWebOptions, LinkLocalizationAttributes, TextDirection } from "./types.js";
+import type { LinguiniLocaleRuntime, LinguiniWebEnvironment, LinguiniWebLocale, LinguiniWebOptions, TextDirection } from "./types.js";
 import { normalizeOptions } from "./options.js";
 import { matchesRoute } from "./routes.js";
-import { matchLocaleValue, resolveBaseUrl, parseUrl, isInternalHttpUrl, stripBasePath, stripLeadingLocale, joinPath, shouldPrefixLocale, parseRuntimeUrl } from "./url.js";
+import { matchLocaleValue, resolveBaseUrl, parseUrl, isInternalHttpUrl, stripBasePath, stripLeadingLocale, joinPath, localizeParsedUrl, parseRuntimeUrl } from "./url.js";
 
 export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLocaleRuntime<Locale>, options: LinguiniWebOptions = {}, environment: LinguiniWebEnvironment = {}): LinguiniWebLocale<Locale> {
     const sources = options.locale?.sources ?? [];
@@ -26,18 +26,7 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         const copy = parseUrl(url, base);
         if (!isInternalHttpUrl(copy, base.origin))
             return copy;
-        return localizeParsedUrl(copy, resolved);
-    }
-
-    function localizeParsedUrl(copy: URL, locale: Locale): URL {
-        const path = stripBasePath(copy.pathname, normalized.environment.base);
-        // In `never` mode locale-looking segments are ordinary application paths.
-        // Do not strip them while normalizing a URL that should remain unprefixed.
-        const withoutLocale = normalized.routing.localePrefix === "never"
-            ? path
-            : stripLeadingLocale(path, runtime.locales);
-        copy.pathname = joinPath(normalized.environment.base, shouldPrefixLocale(normalized, locale) ? joinPath("/", locale, withoutLocale) : withoutLocale);
-        return copy;
+        return localizeParsedUrl(copy, resolved, normalized, runtime);
     }
 
     function localizeHref(href: string, locale: Locale, input: Record<string, unknown> = {}): string {
@@ -53,73 +42,10 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         if (!isInternalHttpUrl(url, base.origin))
             return value;
         const resolved = matchLocale(locale) ?? runtime.baseLocale;
-        localizeParsedUrl(url, resolved);
+        localizeParsedUrl(url, resolved, normalized, runtime);
         if (scheme)
             return url.toString();
         return `${url.pathname}${url.search}${url.hash}`;
-    }
-
-    function shouldLocalizeHref(href: string, input: Record<string, unknown> = {}): boolean {
-        if (normalized.links.mode === "manual")
-            return false;
-        const value = String(href ?? "").trim();
-        if (!value || value.startsWith("#") || value.startsWith("//"))
-            return false;
-        const scheme = value.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
-        if (scheme && !["http", "https"].includes(scheme[1].toLowerCase()))
-            return false;
-
-        let parsed: URL;
-
-        let base: URL;
-        try {
-            base = resolveBaseUrl(normalized, input);
-            parsed = parseUrl(value, base);
-        }
-        catch {
-            return false;
-        }
-        if (!isInternalHttpUrl(parsed, base.origin))
-            return false;
-        return !shouldExclude(parsed, input);
-    }
-
-    function localizeHrefAttribute(href: string, locale: Locale, input: Record<string, unknown> = {}): string {
-        return localizeLinkHref(href, locale, {}, input);
-    }
-
-    function localizeLinkHref(href: string, locale: Locale, attributes: LinkLocalizationAttributes = {}, input: Record<string, unknown> = {}): string {
-        if (normalized.links.mode === 'manual' || !localizableAttributes(attributes)) return href;
-        const value = String(href ?? '').trim();
-        if (!value || value.startsWith('#') || value.startsWith('//')) return href;
-        const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(value);
-        if (scheme && !['http', 'https'].includes(scheme[1].toLowerCase())) return href;
-        let url: URL;
-        try {
-            const base = resolveBaseUrl(normalized, input);
-            url = parseUrl(value, base);
-            if (!isInternalHttpUrl(url, base.origin)) return href;
-        } catch {
-            return href;
-        }
-        // Predicates receive an isolated URL. Their mutations must not change the
-        // URL being localized, but later predicates still observe earlier mutations.
-        const exclusions = normalized.routes.exclude;
-        const checked = exclusions.some(matcher => typeof matcher === 'function') ? new URL(url) : url;
-        if (exclusions.some(matcher => matchesRoute(matcher, checked))) return href;
-        localizeParsedUrl(url, matchLocale(locale) ?? runtime.baseLocale);
-        return scheme ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
-    }
-
-    function shouldLocalizeLink(href: string, attributes: LinkLocalizationAttributes = {}, input: Record<string, unknown> = {}): boolean {
-        return localizableAttributes(attributes) && shouldLocalizeHref(href, input);
-    }
-
-    function localizableAttributes(attributes: LinkLocalizationAttributes): boolean {
-        if (attributes.download || attributes.ignored)
-            return false;
-        const relations = String(attributes.rel ?? "").toLowerCase().split(/\s+/);
-        return !relations.includes("external");
     }
 
     function delocalizeUrl(url: string | URL, input: Record<string, unknown> = {}): URL {
@@ -170,10 +96,6 @@ export function createWebLocaleI18n<Locale extends string>(runtime: LinguiniLoca
         resolveLocaleSync,
         localizeUrl,
         localizeHref,
-        shouldLocalizeHref,
-        shouldLocalizeLink,
-        localizeHrefAttribute,
-        localizeLinkHref,
         delocalizeUrl,
         delocalizePathname,
         htmlAttrs,

@@ -1,4 +1,5 @@
 import type { LinguiniWebLocale } from "./types.js";
+import { localizeLinkHref } from "./links.js";
 type LinkTraversal = {
     root: Element | undefined;
     rootPending: boolean;
@@ -180,7 +181,7 @@ function localizeAnchorElement<LocaleName extends string>(web: LinguiniWebLocale
         ignored: anchor.hasAttribute("data-linguini-ignore") || anchor.hasAttribute("data-linguini-no-localize"),
         rel: anchor.getAttribute("rel"),
     };
-    const localized = web.localizeLinkHref(href, locale, attributes, input);
+    const localized = localizeLinkHref(web, href, locale, attributes, input);
     if (localized !== href)
         anchor.setAttribute("href", localized);
 }

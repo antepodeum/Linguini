@@ -76,11 +76,6 @@ export interface LinguiniLocaleRequestContext<Locale extends string = string> {
   htmlAttrs: { lang: Locale; dir: TextDirection };
   localizeHref(href: string, locale?: Locale, input?: Record<string, unknown>): string;
   localizeUrl(url: string | URL, locale?: Locale, input?: Record<string, unknown>): URL;
-  shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
-  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
-  localizeHrefAttribute(href: string, locale?: Locale, input?: Record<string, unknown>): string;
-  /** Validate link attributes and localize using one URL/environment snapshot. */
-  localizeLinkHref(href: string, locale?: Locale, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
 }
 
@@ -111,11 +106,6 @@ export interface LinguiniWebLocale<Locale extends string = string> extends Lingu
   resolveLocaleSync(input?: Record<string, unknown>): Locale;
   localizeUrl(url: string | URL, locale: Locale, input?: Record<string, unknown>): URL;
   localizeHref(href: string, locale: Locale, input?: Record<string, unknown>): string;
-  shouldLocalizeHref(href: string, input?: Record<string, unknown>): boolean;
-  shouldLocalizeLink(href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): boolean;
-  localizeHrefAttribute(href: string, locale: Locale, input?: Record<string, unknown>): string;
-  /** Validate link attributes and localize using one URL/environment snapshot. */
-  localizeLinkHref(href: string, locale: Locale, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>): string;
   delocalizeUrl(url: string | URL, input?: Record<string, unknown>): URL;
   delocalizePathname(pathname: string, input?: Record<string, unknown>): string;
   htmlAttrs(locale: Locale): { lang: Locale; dir: TextDirection };

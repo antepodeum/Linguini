@@ -18,10 +18,6 @@ export function createLocaleRequestContext<Locale extends string>(
     htmlAttrs,
     localizeHref: (href, next = locale, context = input) => web.localizeHref(href, next, context),
     localizeUrl: (url, next = locale, context = input) => web.localizeUrl(url, next, context),
-    shouldLocalizeHref: (href, context = input) => web.shouldLocalizeHref(href, context),
-    shouldLocalizeLink: (href, attributes = {}, context = input) => web.shouldLocalizeLink(href, attributes, context),
-    localizeHrefAttribute: (href, next = locale, context = input) => web.localizeHrefAttribute(href, next, context),
-    localizeLinkHref: (href, next = locale, attributes = {}, context = input) => web.localizeLinkHref(href, next, attributes, context),
     delocalizeUrl: (url, context = input) => web.delocalizeUrl(url, context),
   };
 }

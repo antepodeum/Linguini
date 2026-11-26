@@ -1,4 +1,4 @@
-import type { LinguiniWebLocale } from "./types.js";
+import type { LinguiniLocaleRuntime, LinguiniWebLocale } from "./types.js";
 const FALLBACK_URL = "http://localhost";
 const INVALID_URL_MESSAGE = "Linguini: invalid URL";
 
@@ -113,4 +113,20 @@ export function browserLocationHref() {
         };
     }).location?.href;
     return typeof href === "string" ? href : undefined;
+}
+
+/** Mutate one already parsed internal URL without resolving the environment again. */
+export function localizeParsedUrl<Locale extends string>(
+    copy: URL,
+    locale: Locale,
+    options: LinguiniWebLocale<Locale>["options"],
+    runtime: Pick<LinguiniLocaleRuntime<Locale>, "locales">,
+): URL {
+    const path = stripBasePath(copy.pathname, options.environment.base);
+    // Locale-looking segments remain ordinary application paths in never mode.
+    const withoutLocale = options.routing.localePrefix === "never"
+        ? path
+        : stripLeadingLocale(path, runtime.locales);
+    copy.pathname = joinPath(options.environment.base, shouldPrefixLocale(options, locale) ? joinPath("/", locale, withoutLocale) : withoutLocale);
+    return copy;
 }

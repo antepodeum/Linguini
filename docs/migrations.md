@@ -758,7 +758,14 @@ widths remain distinct. The public date request and JavaScript/declaration APIs 
 
 ## Runtime link and request snapshots
 
-Use `localizeLinkHref(href, locale, attributes, input)` for combined link validation/localization.
+Import `shouldLocalizeHref`, `shouldLocalizeLink`, `localizeHrefAttribute`, and `localizeLinkHref`
+from `@antepodeum/linguini-web` where needed. These optional helpers are no longer methods on
+routing metadata, request contexts, or browser/framework controls. Pass `web` first, for example
+`localizeLinkHref(web, href, locale, attributes, input)`. Existing application wrappers can retain
+their call shape by reading `linguini.locale` inside the wrapper at call time; see the web guide.
+For request-specific origins, forward input such as `{ url: event.url }` explicitly.
+
+Use `localizeLinkHref(web, href, locale, attributes, input)` for combined validation/localization.
 `localizeHrefAttribute` delegates to it without additional attributes. These operations resolve
 one environment/URL snapshot, and exclusion predicates retain order and receive an isolated URL.
 Runtime DOM link handling uses this operation instead of separately checking and reparsing a link.

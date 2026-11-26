@@ -37,7 +37,7 @@ test('published runtime packages preserve strict TypeScript, declarations/maps, 
   pnpm(['install','--prefer-offline','--ignore-scripts','--store-dir',store],consumer);
   writeFileSync(path.join(consumer,'tsconfig.json'),JSON.stringify({compilerOptions:{strict:true,allowJs:false,skipLibCheck:false,module:'NodeNext',moduleResolution:'NodeNext',target:'ES2022',outDir:'output',types:['node','@sveltejs/kit']},include:['consumer.ts']}));
   writeFileSync(path.join(consumer,'consumer.ts'),`
-import {createWebLocaleI18n,pathLocale,cookieLocale,serializeLocaleCookie,alternateLinks,createLocaleRequestContext} from '@antepodeum/linguini-web';
+import {createWebLocaleI18n,pathLocale,cookieLocale,serializeLocaleCookie,alternateLinks,createLocaleRequestContext,shouldLocalizeHref,shouldLocalizeLink,localizeHrefAttribute,localizeLinkHref} from '@antepodeum/linguini-web';
 import {persistLocaleCookie} from '@antepodeum/linguini-web/server';
 import {createLocaleControl} from '@antepodeum/linguini-web/client';
 import type {createControls} from '@antepodeum/linguini-sveltekit/client';
@@ -62,9 +62,20 @@ void (()=>controls.alternateLinks('/'));
 function checkKitControls(controls:ReturnType<typeof createControls<'en'|'fr'>>) {
   // @ts-expect-error Framework controls inherit the explicit SEO boundary.
   void (()=>controls.alternateLinks('/'));
+  // @ts-expect-error Framework controls omit optional link-safety methods.
+  void (()=>controls.localizeLinkHref('/'));
 }
 void checkKitControls;
 const context=createLocaleRequestContext(web,'fr');
+// @ts-expect-error Routing metadata omits optional link-safety methods.
+void (()=>web.localizeLinkHref('/','fr'));
+// @ts-expect-error Request metadata omits optional link-safety methods.
+void (()=>context.shouldLocalizeHref('/'));
+// @ts-expect-error Browser controls omit optional link-safety methods.
+void (()=>controls.localizeHrefAttribute('/'));
+if (!shouldLocalizeHref(web,'/shop') || !shouldLocalizeLink(web,'/shop',{})) throw Error('link safety failed');
+if (localizeHrefAttribute(web,'/en/shop','fr') !== '/fr/shop') throw Error('attribute localization failed');
+
 // @ts-expect-error Request contexts omit unused SEO operations.
 void (()=>context.alternateLinks('/'));
 if (!serializeLocaleCookie(web,'fr').startsWith('LANG=fr;')) throw Error('cookie serialization failed');
@@ -77,11 +88,13 @@ void (()=>serializeLocaleCookie(web,'ar'));
 void (()=>persistLocaleCookie(web,response,'ar'));
 // @ts-expect-error Persistence implementations are explicit helpers, not metadata methods.
 void (()=>web.setLocaleCookie(response,'fr'));
-if (web.localizeLinkHref('/en/shop','fr',{download:false}) !== '/fr/shop') throw Error('combined link localization failed');
+if (localizeLinkHref(web,'/en/shop','fr',{download:false}) !== '/fr/shop') throw Error('combined link localization failed');
 // @ts-expect-error Combined links preserve finite locale typing.
-void (()=>web.localizeLinkHref('/','ar'));
+void (()=>localizeLinkHref(web,'/','ar'));
+// @ts-expect-error Plain-attribute helpers also preserve the web locale union.
+void (()=>localizeHrefAttribute(web,'/','ar'));
 // @ts-expect-error Link attributes remain typed in installed declarations.
-void (()=>web.localizeLinkHref('/','fr',{download:'yes'}));
+void (()=>localizeLinkHref(web,'/','fr',{download:'yes'}));
 const handle:Handle=createHandle(web,{switchRoute:{path:'/locale/{locale}'}});
 const reroute=createReroute(web);
 const load=createLoad<'en'|'fr'>();

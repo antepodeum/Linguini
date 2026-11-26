@@ -269,7 +269,14 @@ argument; the SvelteKit wrapper supplies the current page metadata automatically
 ```ts
 // src/lib/linguini.ts
 import { createControls } from "@antepodeum/linguini-sveltekit/client";
-import { alternateLinks as localeAlternates } from "@antepodeum/linguini-web";
+import {
+  alternateLinks as localeAlternates,
+  shouldLocalizeHref as canLocalizeHref,
+  shouldLocalizeLink as canLocalizeLink,
+  localizeHrefAttribute as localizeAttribute,
+  localizeLinkHref as localizeSafeLink,
+  type LinkLocalizationAttributes,
+} from "@antepodeum/linguini-web";
 import * as state from "$lib/generated/linguini/svelte-locale.svelte.js";
 import { web } from "./linguini-web";
 
@@ -277,17 +284,20 @@ export const linguini = createControls(web, state);
 export const setLocale = linguini.setLocale;
 export const localizeHref = linguini.localizeHref;
 export const localizeUrl = linguini.localizeUrl;
-export const shouldLocalizeHref = linguini.shouldLocalizeHref;
-export const shouldLocalizeLink = linguini.shouldLocalizeLink;
-export const localizeHrefAttribute = linguini.localizeHrefAttribute;
-export const localizeLinkHref = linguini.localizeLinkHref;
+export const shouldLocalizeHref = (href: string, input?: Record<string, unknown>) => canLocalizeHref(web, href, input);
+export const shouldLocalizeLink = (href: string, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>) => canLocalizeLink(web, href, attributes, input);
+export const localizeHrefAttribute = (href: string, locale = linguini.locale, input?: Record<string, unknown>) => localizeAttribute(web, href, locale, input);
+export const localizeLinkHref = (href: string, locale = linguini.locale, attributes?: LinkLocalizationAttributes, input?: Record<string, unknown>) => localizeSafeLink(web, href, locale, attributes, input);
 export const delocalizeUrl = linguini.delocalizeUrl;
 export const alternateLinks = (url: string | URL, input: Record<string, unknown> = {}) => localeAlternates(web, url, input);
 ```
 
-Alternate-language metadata is an explicit helper, so routing-only and control consumers can
-omit SEO work. During SSR, forward request input such as `{ url: event.url }` to the helper when
-the application uses request-local origins. The helper preserves locale order and adds `x-default`.
+Link safety and alternate-language metadata use explicit imports, so routing-only metadata,
+request contexts, and controls omit these optional implementations. The wrappers above read the
+current locale when called; they keep request-local SSR and reactive client behavior. Select only
+the exports the application uses. During SSR, forward request input such as `{ url: event.url }`
+when the application uses request-local origins. Alternate links preserve locale order and add
+`x-default`.
 
 ```svelte
 <script lang="ts">

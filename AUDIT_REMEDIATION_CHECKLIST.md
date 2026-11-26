@@ -922,6 +922,16 @@ TypeScript, and application/bundler imports select their capabilities.
       locale order, and `x-default`. Complete Vite 7 routing/control consumers save another
       83/94 Brotli bytes respectively. Generic framework controls still retain optional operations;
       keep this criterion open until their platform and page-demand acceptance passes.
+      Link safety now has an explicit shared TypeScript helper owner too. Routing metadata,
+      request contexts, and controls omit its methods, while runtime DOM traversal imports the
+      same combined helper. Executed production routing/control/SSR graphs omit unselected
+      link operations; selected-helper execution retains attribute/exclusion behavior. Complete
+      Vite 7 routing/control consumers save 299/336 Brotli bytes. Single URL/environment reads,
+      ordered isolated predicates, short-circuiting, and thrown error identity remain covered.
+      Installed strict TypeScript consumers require explicit helper imports and retain finite
+      locale and attribute types. Fourteen runtime/parity, documentation/package, and production
+      site/browser gates pass; twenty-nine Node 20 runtime/hook/graph tests also pass. Broader
+      platform and page-demand acceptance remains open.
 - [x] WEB-A14 — Normalize one `LocaleSwitchPlan` shared by browser and server transports.
 - [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [x] WEB-A16 — Create an optional runtime switch handler with validated same-origin return targets.

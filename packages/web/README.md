@@ -11,6 +11,12 @@ Routing/metadata objects hold normalized policy without cookie-writing methods. 
 `persistLocaleCookie(web, target, locale, input)`. Client controls and framework adapters compose
 these operations; routing-only bundles can omit their implementations.
 
+Link-safety helpers are explicit imports too: `shouldLocalizeHref`, `shouldLocalizeLink`,
+`localizeHrefAttribute`, and `localizeLinkHref`. Pass the routing object first, for example
+`localizeLinkHref(web, href, locale, attributes, input)`. Routing objects, request contexts,
+and controls omit these optional methods. DOM link handling imports the same shared helper.
+Ordinary `localizeHref` and `localizeUrl` remain available on routing objects and controls.
+
 Client controls ignore superseded changes and invalidate pending changes on destruction.
 An optional `getRequestIdentity` callback also invalidates changes prepared for an older
 request; the SvelteKit adapter supplies this capability automatically.

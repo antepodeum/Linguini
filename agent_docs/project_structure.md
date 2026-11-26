@@ -48,7 +48,10 @@ their JavaScript, declarations, and maps are emitted only into ignored `dist/` d
 The site remains an application under `site/`, and the editor extension stays under `editors/`.
 
 `packages/web` owns locale-source capabilities, URLs, persistence, and framework-independent
-client controls. `packages/svelte` owns rune state, message providers, and the Svelte `/vite` adapter.
+client controls. Link-safety operations have an explicit `links.ts` owner and public helper
+imports; routing/request metadata and controls omit them. URL path mutation is shared with
+ordinary routing, and DOM traversal imports the same link helper. `packages/svelte` owns rune
+state, message providers, and the Svelte `/vite` adapter.
 `packages/vue` owns the Vue `/vite` adapter; generic React consumers use `packages/vite`. `packages/sveltekit`
 composes those runtimes with request hooks, metadata serialization, and navigation, and exposes
 `/vite` by composing the shared Svelte/Vite integration. Runtime policy is ordinary application

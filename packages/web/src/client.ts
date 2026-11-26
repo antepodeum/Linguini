@@ -1,4 +1,4 @@
-import type { LinguiniWebLocale, LinkLocalizationAttributes } from './types.js';
+import type { LinguiniWebLocale } from './types.js';
 import { serializeLocaleCookie } from './cookie.js';
 
 export interface LocaleState<Locale extends string> {
@@ -76,10 +76,6 @@ export function createLocaleControl<Locale extends string>(web: LinguiniWebLocal
     setLocale,
     localizeHref: (href:string, locale = state.getCurrentLocale(), input?:Record<string,unknown>) => web.localizeHref(href,locale,input),
     localizeUrl: (url:string|URL, locale = state.getCurrentLocale(), input?:Record<string,unknown>) => web.localizeUrl(url,locale,input),
-    shouldLocalizeHref: web.shouldLocalizeHref,
-    shouldLocalizeLink: web.shouldLocalizeLink,
-    localizeHrefAttribute: (href:string, locale = state.getCurrentLocale(), input?:Record<string,unknown>) => web.localizeHrefAttribute(href,locale,input),
-    localizeLinkHref: (href:string, locale = state.getCurrentLocale(), attributes?:LinkLocalizationAttributes, input?:Record<string,unknown>) => web.localizeLinkHref(href,locale,attributes,input),
     delocalizeUrl: web.delocalizeUrl,
     destroy() {destroyed=true;latestChange++;options.destroy?.();},
   };

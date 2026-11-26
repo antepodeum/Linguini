@@ -78,6 +78,27 @@ minifier-selected local name and has identical sizes. This supports the naming c
 a runtime speed or general application-size claim. Existing call observation tests also execute
 source message and parameter names resembling the compiler prefix.
 
+## Optional web link operations
+
+Link safety now has one shared TypeScript owner, selected through explicit helpers. Routing
+metadata, request contexts, and locale controls omit its four methods; the DOM link adapter
+imports the same combined helper. Ordinary href/URL localization shares already parsed path
+mutation without reading the environment twice. No runtime or native policy generation is added.
+
+Complete executed Vite 7.3.3 consumers compared with `99f25d4`, on Node 24.13.1, give:
+
+| Consumer | Before minified / gzip / Brotli bytes | After minified / gzip / Brotli bytes |
+| --- | ---: | ---: |
+| Path locale resolution and href localization | 11,190 / 3,576 / 3,178 | 9,661 / 3,232 / 2,879 |
+| Browser locale controls with persistence and navigation | 13,659 / 4,186 / 3,701 | 11,846 / 3,808 / 3,365 |
+
+Executed production Vite 8 graphs verify that routing, controls, and metadata-only SSR hooks
+omit `links.js`, while explicit combined link localization retains that owner without browser
+traversal. Runtime tests preserve the single environment/URL snapshot, exclusion order and
+mutation isolation, short-circuited attributes, error identity, and request direction snapshots.
+These are scoped byte and structural results, without a general application-size or speed claim.
+Broader platform specialization and exact composed-page delivery remain open.
+
 ## Native integer plural inputs
 
 Shared planning now proves when zero fractional/compact operands satisfy every common guard

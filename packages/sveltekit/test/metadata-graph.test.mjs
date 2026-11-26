@@ -21,7 +21,7 @@ async function compileWebConsumer(context,source) {
   return chunks[0];
 }
 
-test('routing-only web metadata drops SEO, cookie persistence and browser/server transports', async context => {
+test('routing-only web metadata drops optional links, SEO, persistence and transports', async context => {
   const web = fileURLToPath(new URL('../../web/dist/index.js',import.meta.url));
   const chunk = await compileWebConsumer(context, `
 import {createWebLocaleI18n,pathLocale} from ${JSON.stringify(web)};
@@ -31,7 +31,7 @@ export function localize(href,locale){return web.localizeHref(href,locale);}
 `);
   assert.doesNotMatch(chunk.code,/Max-Age=|HttpOnly|set-cookie|serializeLocaleCookie|setLocaleCookie|document\.cookie|localStorage\.setItem|hreflang/);
   for (const [id,module] of Object.entries(chunk.modules)) {
-    if (/(?:\/(?:cookie|client|server|alternate-links)\.js|\/sources\/(?:cookie|local-storage|accept-language)\.js)$/.test(id)) {
+    if (/(?:\/(?:cookie|client|server|alternate-links|links)\.js|\/sources\/(?:cookie|local-storage|accept-language)\.js)$/.test(id)) {
       assert.equal(module.renderedLength,0,`unexpected routing-only dependency: ${id}`);
     }
   }
@@ -52,7 +52,7 @@ export function controls(state,options){return createLocaleControl(web,state,opt
   assert.match(chunk.code,/Max-Age=/);
   assert.doesNotMatch(chunk.code,/set-cookie|setLocaleCookie|hreflang/);
   for (const [id,module] of Object.entries(chunk.modules)) {
-    if (/(?:server|alternate-links)\.js$/.test(id)) assert.equal(module.renderedLength,0,`unexpected browser dependency: ${id}`);
+    if (/(?:server|alternate-links|links)\.js$/.test(id)) assert.equal(module.renderedLength,0,`unexpected browser dependency: ${id}`);
   }
   const output=await import('data:text/javascript;base64,'+Buffer.from(chunk.code).toString('base64'));
   const descriptors=['window','document'].map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]);
@@ -73,6 +73,7 @@ export function controls(state,options){return createLocaleControl(web,state,opt
     clearCurrentLocaleOverride(){events.push(['clear']);},
   },{browser:true,navigate:href=>{events.push(['navigate',href]);}});
   assert.equal('alternateLinks' in controls,false);
+  for (const name of ['shouldLocalizeHref','shouldLocalizeLink','localizeHrefAttribute','localizeLinkHref']) assert.equal(name in controls,false,name);
   assert.equal(await controls.setLocale('fr'),'fr');
   assert.deepEqual(events.map(event=>event[0]),['prepare','publish','storage','cookie','navigate','clear']);
   assert.deepEqual(events[2],['storage','LINGUINI_LOCALE','fr']);
@@ -109,7 +110,7 @@ export const load=createLoad();
   assert.deepEqual(chunk.dynamicImports,[]);
   assert.doesNotMatch(chunk.code,/FORBIDDEN_CATALOG_DATA|createLinguini|prepareLinguini|hreflang/);
   for (const [id, module] of Object.entries(chunk.modules)) {
-    if (/(?:\/catalog\.js|\/alternate-links\.js|\/sources\/(?:cookie|local-storage|accept-language)\.js)$/.test(id)) {
+    if (/(?:\/catalog\.js|\/alternate-links\.js|\/links\.js|\/sources\/(?:cookie|local-storage|accept-language)\.js)$/.test(id)) {
       assert.equal(module.renderedLength,0,`unexpected metadata-hook dependency: ${id}`);
     }
   }
@@ -121,6 +122,7 @@ export const load=createLoad();
     assert.equal(output.load(event).linguini.locale,locale);
     assert.equal(Object.hasOwn(event.locals.linguini,'messages'),false);
     assert.equal(Object.hasOwn(event.locals.linguini,'alternateLinks'),false);
+    assert.equal(Object.hasOwn(event.locals.linguini,'localizeLinkHref'),false);
   }
 });
 
@@ -141,4 +143,22 @@ export function links(href){return alternateLinks(web,href);}
     {rel:'alternate',hreflang:'fr',href:'https://example.test/fr/shop?q=1#part'},
     {rel:'alternate',hreflang:'x-default',href:'https://example.test/shop?q=1#part'},
   ]);
+});
+
+test('selected link localization retains its shared helper without browser traversal', async context => {
+  const web=fileURLToPath(new URL('../../web/dist/index.js',import.meta.url));
+  const chunk=await compileWebConsumer(context, `
+import {createWebLocaleI18n,localizeLinkHref} from ${JSON.stringify(web)};
+const web=createWebLocaleI18n({baseLocale:'en',locales:['en','fr']},{routing:{localePrefix:'always'},routes:{exclude:['/private/**']}},{origin:'https://example.test'});
+export function localize(href,attributes){return localizeLinkHref(web,href,'fr',attributes);}
+`);
+  const owner=Object.entries(chunk.modules).find(([id])=>id.endsWith('/links.js'));
+  assert.ok(owner?.[1].renderedLength>0,'selected links must retain their shared implementation');
+  assert.doesNotMatch(chunk.code,/MutationObserver|document\.cookie|Max-Age=|hreflang/);
+  const output=await import('data:text/javascript;base64,'+Buffer.from(chunk.code).toString('base64'));
+  assert.equal(output.localize('/en/shop?q=1#part',{}),'/fr/shop?q=1#part');
+  for (const href of ['/private/page','https://external.test/page','mailto:a@example.test']) {
+    assert.equal(output.localize(href,{}),href);
+  }
+  assert.equal(output.localize('/en/shop',{download:true}),'/en/shop');
 });
