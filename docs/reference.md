@@ -89,6 +89,12 @@ shared model contains no JavaScript syntax or web routing/persistence policy.
 `compose_locale_modules` applies the resolved modules from base to highest priority. It replaces
 whole declarations while keeping their first position, retains every source origin, and marks
 overrides. The host validates the resulting locale against its schema before artifact emission.
+
+`linguini_codegen::NumberFormatPlan` resolves the selected number pattern's affixes, grouping
+thresholds, decimal scale, precision/rounding, scientific symbols/carry result, and padding.
+Its nested affix/grouping/scientific models contain semantic values; target backends own helper
+names, identifier escaping, and template projection. Currency callers supply their resolved
+separators and fraction quantum. No ECMAScript syntax or template engine belongs to this plan.
 Structured imports and re-exports share one module-edge template, including aliases, namespace
 imports, and declaration-only type edges. JavaScript output excludes type dependencies before
 rendering; module order, literal escaping, and source-map line positions remain stable.

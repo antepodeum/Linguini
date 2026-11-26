@@ -1351,6 +1351,11 @@ and the composed payload/SSR requirements below.
       declaration families retain whole-declaration precedence, stable order, source identities,
       and complete override history. The backend retains schema validation after composition;
       current code/declaration/map snapshots remain unchanged.
+      `NumberFormatPlan` also moves affix expansion, grouping thresholds, scale shifts,
+      precision/rounding, scientific symbols/carry proofs, and padding into typed common models.
+      The backend retains helper naming, escaping, and template projection. Shared tests cover
+      reachable pinned number/percent/currency patterns and explicit boundary plans; generated
+      code, declarations, and maps remain byte-identical.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.

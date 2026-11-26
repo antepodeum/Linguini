@@ -146,29 +146,15 @@ fn number_plan(
     rounding: Option<&str>,
 ) -> minijinja::Value {
     use minijinja::context;
-    let positive = &pattern.positive;
-    let affix = |text: &str| {
-        symbol.map_or_else(|| text.to_owned(), |symbol| text.replace('\u{a4}', symbol))
-    };
-    let prefix = affix(positive.prefix);
-    let suffix = affix(positive.suffix);
-    let negative_prefix = pattern.negative.as_ref().map_or_else(
-        || format!("{}{prefix}", numbers.minus_sign),
-        |negative| affix(negative.prefix),
-    );
-    let negative_suffix = pattern
-        .negative
-        .as_ref()
-        .map_or_else(|| suffix.clone(), |negative| affix(negative.suffix));
-    let padding = positive.padding.as_ref().map(|padding| context! {
+    let plan = linguini_codegen::NumberFormatPlan::new(pattern, symbol, numbers, rounding)
+        .expect("validated CLDR number formatting plan");
+    let rounding = &plan.rounding;
+    let grouping = plan.grouping;
+    let scientific = plan.scientific.as_ref();
+    let padding = plan.padding.as_ref().map(|padding| context! {
         character => padding.character.to_string(), width => padding.width,
         position => match padding.position { NumberPaddingPosition::BeforePrefix => 0, NumberPaddingPosition::AfterPrefix => 1, NumberPaddingPosition::BeforeSuffix => 2, NumberPaddingPosition::AfterSuffix => 3 },
     });
-    let rounding = linguini_codegen::NumberRoundingPlan::new(
-        positive.max_fraction_digits,
-        rounding.or(positive.rounding_increment).unwrap_or("1"),
-    )
-    .expect("validated CLDR rounding increment");
     let rounding_helper = if rounding.increment == "1" {
         format!("roundTo{}FractionDigits", rounding.fraction_digits)
     } else {
@@ -177,29 +163,22 @@ fn number_plan(
             rounding.fraction_digits, rounding.increment
         )
     };
-    let scale_shift = match positive.scale {
-        1 => 0,
-        100 => 2,
-        1000 => 3,
-        _ => unreachable!("validated CLDR scale"),
-    };
-    let carry_fraction = positive
-        .exponent_digits
-        .and_then(|_| rounding.scientific_carry_fraction(positive.max_significant_digits));
     context! {
-        prefix, suffix, negative_prefix, negative_suffix,
-        min_integer => positive.min_integer_digits, min_fraction => positive.min_fraction_digits,
-        max_fraction => positive.max_fraction_digits, primary_group => positive.primary_group_size,
-        grouping_threshold => positive.primary_group_size.map(|primary| u16::from(primary) + u16::from(numbers.minimum_grouping_digits) - 1),
-        secondary_group => positive.secondary_group_size.or(positive.primary_group_size),
-        decimal_symbol => numbers.decimal_symbol, group_symbol => numbers.group_symbol, digits => numbers.digits, digit_lookup => digit_lookup(numbers.digits),
-        scale => positive.scale, min_significant => positive.min_significant_digits, max_significant => positive.max_significant_digits,
-        rounding_helper, rounding => rounding.increment, rounding_half => rounding.half_integer,
-        rounding_half_fraction => rounding.half_fraction, scale_shift,
-        exponent_digits => positive.exponent_digits,
-        exponential_symbol => numbers.exponential_symbol, minus_sign => numbers.minus_sign,
-        exponent_plus => if positive.exponent_sign_always { numbers.plus_sign } else { "" },
-        carry_fraction, padding,
+        prefix => &plan.affixes.prefix, suffix => &plan.affixes.suffix,
+        negative_prefix => &plan.affixes.negative_prefix, negative_suffix => &plan.affixes.negative_suffix,
+        min_integer => plan.min_integer_digits, min_fraction => plan.min_fraction_digits,
+        max_fraction => plan.max_fraction_digits, primary_group => grouping.map(|group| group.primary_size),
+        grouping_threshold => grouping.map(|group| group.threshold), secondary_group => grouping.map(|group| group.secondary_size),
+        decimal_symbol => plan.decimal_symbol, group_symbol => plan.group_symbol, digits => plan.digits, digit_lookup => digit_lookup(plan.digits),
+        scale => plan.scale, scale_shift => plan.scale_shift,
+        min_significant => plan.min_significant_digits, max_significant => plan.max_significant_digits,
+        rounding_helper, rounding => &rounding.increment, rounding_half => &rounding.half_integer,
+        rounding_half_fraction => rounding.half_fraction,
+        exponent_digits => scientific.map(|scientific| scientific.exponent_digits),
+        exponential_symbol => scientific.map(|scientific| scientific.separator),
+        minus_sign => scientific.map(|scientific| scientific.negative_sign),
+        exponent_plus => scientific.map(|scientific| scientific.positive_sign),
+        carry_fraction => scientific.and_then(|scientific| scientific.carry_fraction.as_deref()), padding,
     }
 }
 

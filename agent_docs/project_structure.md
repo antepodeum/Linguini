@@ -1,6 +1,6 @@
 # Code generation
 
-- `crates/linguini-codegen`: backend-independent type models, formatter/plural/inline-function
+- `crates/linguini-codegen`: backend-independent type/numeric plans, formatter/plural/inline-function
   requirement analysis, project locale matching/fallback composition, and transitive message
   dependency slicing with source provenance.
 - `crates/linguini-codegen-ecmascript`: canonical JavaScript runtime syntax, adjacent

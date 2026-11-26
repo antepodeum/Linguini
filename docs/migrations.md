@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared number-format planning
+
+Backend authors can reuse `linguini_codegen::NumberFormatPlan` and its affix/grouping/scientific
+models to resolve selected CLDR number patterns. ECMAScript generation now projects this typed
+plan into its existing templates, keeping syntax and helper naming in the backend. Generated
+JavaScript, declarations, maps, and application configuration remain unchanged.
+
 ## Unchanged fraction rounding
 
 Regenerate number/currency output to reuse canonical decimal digits when unit rounding leaves

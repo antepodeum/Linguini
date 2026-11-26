@@ -12,6 +12,7 @@ mod direct_dependencies;
 mod formatters;
 mod inline;
 mod locales;
+mod numbers;
 mod paths;
 mod plurals;
 mod requirements;
@@ -45,6 +46,7 @@ pub use formatters::{
 
 pub use inline::lower_inline_functions;
 pub use locales::{compose_locale_modules, ProjectLocalePlan};
+pub use numbers::{NumberAffixPlan, NumberFormatPlan, NumberGroupingPlan, NumberScientificPlan};
 
 pub use paths::lexical_relative_path;
 pub use plurals::{PluralDecisionPlan, PluralRequirements};
