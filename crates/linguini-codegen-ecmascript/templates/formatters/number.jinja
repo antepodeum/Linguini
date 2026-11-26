@@ -1,3 +1,4 @@
+{% from "digit_lookup" import digit_expression, digit_body -%}
 {% set fraction_empty = plan.max_fraction == 0 and plan.max_significant is none and plan.min_significant is none and (plan.exponent_digits is none or plan.carry_fraction is not none) -%}
 {% set formatted_value = "integer" if fraction_empty and plan.exponent_digits is none else "formatted" -%}
 /**
@@ -32,7 +33,9 @@
   }
 {% endif %}{% if not fraction_empty or plan.exponent_digits is not none %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} formatted = {% if fraction_empty %}integer{% elif plan.max_significant is none and plan.min_fraction > 0 %}integer + {{ plan.decimal_symbol|js }} + fraction{% else %}fraction ? integer + {{ plan.decimal_symbol|js }} + fraction : integer{% endif %};
 {% endif %}{% if plan.exponent_digits is not none %}  formatted += `E${exponent < 0 ? "-" : {{ '"+"' if plan.exponent_sign else '""' }}}${String(Math.abs(exponent)).padStart({{ plan.exponent_digits }}, "0")}`;
-{% endif %}{% if plan.digits != "0123456789" %}  const localized = {{ formatted_value }}.replace(/\d/g, (digit) => {{ plan.digits|js }}[digit.charCodeAt(0) - 48]);
+{% endif %}{% if plan.digits != "0123456789" %}  const localized = {{ formatted_value }}.replace(/\d/g, (digit) => {% if plan.digit_lookup.single_unit or plan.digit_lookup.code_point_offset is not none %}{{ digit_expression(plan.digit_lookup) }}{% else %}{
+    {{ digit_body(plan.digit_lookup)|indent(4) }}
+  }{% endif %});
 {% endif %}  const prefix = {% if plan.negative_prefix == plan.prefix %}{{ plan.prefix|js }}{% else %}decimal.negative ? {{ plan.negative_prefix|js }} : {{ plan.prefix|js }}{% endif %};
 {% if plan.suffix == plan.negative_suffix %}{% if plan.suffix %}  const suffix = {{ plan.suffix|js }};
 {% endif %}{% else %}  const suffix = decimal.negative ? {{ plan.negative_suffix|js }} : {{ plan.suffix|js }};

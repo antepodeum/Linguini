@@ -26,7 +26,7 @@ pub use decision::{Decision, DecisionArm};
 pub use dependencies::{
     message_dependency_closure, MessageDependencyClosure, MessageDependencyError,
 };
-pub use digits::{can_localize_date_result, decimal_digit_symbols};
+pub use digits::{can_localize_date_result, contiguous_decimal_digit_zero, decimal_digit_symbols};
 pub use direct_dependencies::{
     direct_message_dependencies, direct_symbol_dependencies, SemanticSymbolKind,
 };

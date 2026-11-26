@@ -4,12 +4,20 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Supplementary Unicode digits
+
+Regenerate number and currency output for locales such as `ff-Adlm`. The old renderer indexed
+a supplementary digit alphabet by UTF-16 unit, producing isolated surrogates. Shared scalar
+planning now selects direct code-point arithmetic for consecutive alphabets and compiled
+branches for other mappings. Date and number lookups share one template; public input types
+and default-numbering-system selection remain unchanged.
+
 ## Compiled date digit substitution
 
 Regenerate localized date formatters to remove per-field digit-alphabet arguments, symbol-array
 construction, and numbering-system validation. Date inputs, output, and getter observations are
 unchanged. ASCII-only date output omits localization support; supplementary Unicode symbols
-use a static lookup. A build-time proof coalesces safe date output into one substitution pass;
+use compiled scalar lookup. A build-time proof coalesces safe date output into one substitution pass;
 literal digits and textual labels retain their original form. Rust backends can reuse
 `linguini_codegen::decimal_digit_symbols` and `can_localize_date_result` before rendering
 target syntax.

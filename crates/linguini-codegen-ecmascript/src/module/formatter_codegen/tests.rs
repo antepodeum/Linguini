@@ -129,6 +129,75 @@ fn execute(script: &str) -> String {
 }
 
 #[test]
+fn supplementary_number_digits_preserve_unicode_scalars() {
+    let output = formatter_data_declaration(
+        "ff-Adlm",
+        &[
+            request(IrFormatterKind::Number, &[]),
+            request(IrFormatterKind::Currency, &[]),
+        ],
+        true,
+    );
+    assert_eq!(
+        execute(&format!(
+            r#"
+import assert from 'node:assert/strict';
+{output}
+for (let digit = 0; digit < 10; digit++) {{
+  const expected = String.fromCodePoint(0x1E950 + digit);
+  for (const value of [digit, BigInt(digit), String(digit)]) {{
+    assert.equal(formatNumber(value), expected);
+    const actual = [...formatCurrency(value)].filter(symbol => {{
+      const code = symbol.codePointAt(0);return code >= 0x1E950 && code <= 0x1E959;
+    }});
+    assert.deepEqual(actual, [expected, String.fromCodePoint(0x1E950), String.fromCodePoint(0x1E950)]);
+  }}
+}}
+console.log('ok');
+"#
+        )),
+        "ok"
+    );
+    let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/golden/snapshots/js-runtime/unicode.js");
+    if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&snapshot, &output).unwrap();
+    }
+    assert_eq!(output, std::fs::read_to_string(snapshot).unwrap());
+
+    for digits in ["٠١٢٣٤٥٦٧٨٩", "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫", "0𝟙2𝟛4𝟝6𝟟8𝟡"]
+    {
+        let mut numbers = compiled_number_formatting("en").unwrap();
+        numbers.digits = digits;
+        let plan = number_plan(&numbers.decimal_pattern, None, &numbers, None);
+        let source = crate::templates::render(
+            "formatters/number",
+            minijinja::context! {
+                name => "formatDigits", plan => plan.clone(), exported => false,
+            },
+        );
+        let symbols = digits
+            .chars()
+            .map(|symbol| symbol.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            execute(&format!(
+                r#"
+import assert from 'node:assert/strict';
+{source}{}
+const symbols = {symbols:?};
+for (let value = 0; value < 10; value++) assert.equal(formatDigits(value), symbols[value]);
+assert.equal(formatDigits('-1203.45'), '-' + symbols[1] + ',' + symbols[2] + symbols[0] + symbols[3] + '.' + symbols[4] + symbols[5]);
+console.log('ok');
+"#,
+                number_helpers(&[plan])
+            )),
+            "ok"
+        );
+    }
+}
+
+#[test]
 fn date_digit_substitution_does_not_parse_static_symbols_at_runtime() {
     for digits in ["٠١٢٣٤٥٦٧٨٩", "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫"] {
         let mut dates = linguini_cldr::compiled_date_formatting("en").unwrap();

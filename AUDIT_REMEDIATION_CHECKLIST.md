@@ -1354,8 +1354,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Executed context/width/locale cases correct Arabic/Hindi output rather than preserving the
       previous English labels. Extended calendars, selectable non-UTC zones, non-exact skeleton matching, and additional fields stay open.
       Date digit substitution now resolves its ten Unicode symbols during generation. Numeric
-      fields share a compiled callback; BMP symbols use literal indexing and supplementary symbols
-      use one static lookup. Executed traces replace eleven per-field symbol arrays/callbacks with
+      fields share a compiled callback; BMP symbols use literal indexing and consecutive
+      supplementary symbols use code-point arithmetic. Other mappings compile direct branches.
+      The shared lookup template also fixes UTF-16 indexing of default Adlam number/currency
+      digits; native cold/warm, three input representations, mixed-width mappings, and strict
+      JSDoc consumers execute without changing existing BMP snapshots. Executed traces replace eleven per-field symbol arrays/callbacks with
       zero arrays and one callback identity in a three-message Arabic consumer. A shared proof
       permits three whole-result substitutions instead of eleven field substitutions, preserving
       ASCII digits in literals or textual names through the original field-only path. ASCII date output

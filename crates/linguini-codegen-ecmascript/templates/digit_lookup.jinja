@@ -1,0 +1,10 @@
+{% macro digit_expression(lookup) -%}
+{% if lookup.single_unit %}{{ lookup.digits|js }}[digit.charCodeAt(0) - 48]{% else %}String.fromCodePoint(digit.charCodeAt(0) + {{ lookup.code_point_offset }}){% endif %}
+{%- endmacro %}
+{% macro digit_body(lookup) -%}
+{% if lookup.single_unit or lookup.code_point_offset is not none %}return {{ digit_expression(lookup) }};
+{%- else %}switch (digit.charCodeAt(0)) {
+{% for symbol in lookup.symbols %}  {% if loop.last %}default{% else %}case {{ loop.index0 + 48 }}{% endif %}: return {{ symbol|js }};
+{% endfor %}}
+{%- endif %}
+{%- endmacro %}

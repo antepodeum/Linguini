@@ -249,12 +249,15 @@ use the locale's selected digits; narrow names remain pinned symbols. Equal vect
 one binding. Quarter skeletons such as `yQQQ` and `yQQQQ` need no month or weekday name data.
 
 Date digit substitution compiles the selected symbols into one shared callback. BMP symbols use
-direct string indexing; supplementary symbols use one static table. Generated calls do not
-parse/validate numbering-system data, allocate symbol arrays per field, or pass an alphabet on
-each call. `decimal_digit_symbols` validates ten Unicode scalars before emission. The shared
+direct string indexing; consecutive supplementary symbols use direct code-point arithmetic, and
+other mappings compile to direct branches. Number and date rendering share that lookup template.
+Generated calls do not parse/validate numbering-system data, allocate symbol arrays per field,
+or pass an alphabet on each call. `decimal_digit_symbols` validates ten Unicode scalars before emission;
+`contiguous_decimal_digit_zero` proves consecutive ranges. The shared
 `can_localize_date_result` proof selects one substitution pass when every literal and possible
 text label is free of ASCII digits. Patterns with literal digits or labels such as `Q1` retain
 substitution on numeric fields alone, preserving the text.
+
 Exact Gregorian `availableFormats` IDs such as `yMMMd` and `Hm` are selectable with
 `skeleton`. The ID is resolved during generation; emitted formatters contain its selected
 fields and literals. Closest-match skeletons, field-width adjustment, combined date/time

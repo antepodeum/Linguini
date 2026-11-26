@@ -151,6 +151,10 @@ fn environment() -> &'static EcmaTemplateEngine {
                 include_str!("../templates/number_helpers.jinja"),
             ),
             (
+                "digit_lookup",
+                include_str!("../templates/digit_lookup.jinja"),
+            ),
+            (
                 "digit_helpers",
                 include_str!("../templates/digit_helpers.jinja"),
             ),

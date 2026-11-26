@@ -22,6 +22,53 @@ fn build_svelte_project(root: &std::path::Path) -> super::CliResult<String> {
 }
 
 #[test]
+fn supplementary_digits_check_build_and_execute_through_native_output() {
+    let project = temp_project_dir("supplementary-digits").unwrap();
+    fs::create_dir_all(project.path().join("schema")).unwrap();
+    fs::create_dir_all(project.path().join("locales/main")).unwrap();
+    fs::write(project.path().join("package.json"), "{\"type\":\"module\"}").unwrap();
+    fs::write(project.path().join("linguini.toml"), "[project]\nname = \"digits\"\ndefault_locale = \"ff-Adlm\"\nlocales = [\"ff-Adlm\"]\n[paths]\nschema = \"schema\"\nlocale = \"locales\"\n[targets.ts]\nout = \"generated\"\n").unwrap();
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "number(value: Number)\nmoney(value: Number)\n",
+    )
+    .unwrap();
+    fs::write(
+        project.path().join("locales/main/ff-Adlm.lgl"),
+        "number = {value @number}\nmoney = {value @currency(code = \"USD\")}\n",
+    )
+    .unwrap();
+    check_project(project.path()).unwrap();
+    build_project(project.path()).unwrap();
+    let runtime = project.path().join("generated/locales/ff-Adlm/_runtime.js");
+    let cold = fs::read(&runtime).unwrap();
+    build_project(project.path()).unwrap();
+    assert_eq!(fs::read(runtime).unwrap(), cold);
+    let execution = std::process::Command::new("node").args([
+        "--input-type=module", "-e", r#"
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const {main} = await import(pathToFileURL(process.argv[1]).href);
+for (let digit = 0; digit < 10; digit++) {
+  const expected = String.fromCodePoint(0x1E950 + digit);
+  assert.equal(main.number(digit), expected);
+  assert.equal(main.number({value: BigInt(digit)}), expected);
+  const actual = [...main.money({value: String(digit)})].filter(symbol => {
+    const code = symbol.codePointAt(0);return code >= 0x1E950 && code <= 0x1E959;
+  });
+  assert.deepEqual(actual, [expected, String.fromCodePoint(0x1E950), String.fromCodePoint(0x1E950)]);
+}
+console.log('ok');
+"#]).arg(project.path().join("generated/locales/ff-Adlm.js")).output().unwrap();
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    assert_eq!(String::from_utf8(execution.stdout).unwrap().trim(), "ok");
+}
+
+#[test]
 fn selector_free_functions_check_build_and_execute_through_native_output() {
     let project = temp_project_dir("selector-free-functions").unwrap();
     fs::create_dir_all(project.path().join("schema")).unwrap();

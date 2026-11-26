@@ -1,8 +1,8 @@
-{% if not single_unit %}const __lgl_date_digit_symbols = [{% for symbol in symbols %}{{ symbol|js }}{{ ", " if not loop.last }}{% endfor %}];
-{% endif %}/**
+{% from "digit_lookup" import digit_body -%}
+/**
  * @param {string} digit
  * @returns {string}
  */
 function localizeDigit(digit) {
-  return {% if single_unit %}{{ digits|js }}{% else %}__lgl_date_digit_symbols{% endif %}[digit.charCodeAt(0) - 48];
+  {{ digit_body(lookup)|indent(2) }}
 }

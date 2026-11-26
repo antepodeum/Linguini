@@ -5,7 +5,7 @@ use linguini_cldr::{
     NumberPaddingPosition, NumberPattern,
 };
 
-use super::formatter_helpers::{date_formatter_helpers, digit_formatter_helper};
+use super::formatter_helpers::{date_formatter_helpers, digit_formatter_helper, digit_lookup};
 
 pub(super) fn formatter_data_declaration(
     locale: &str,
@@ -180,7 +180,7 @@ fn number_plan(
         min_integer => positive.min_integer_digits, min_fraction => positive.min_fraction_digits,
         max_fraction => positive.max_fraction_digits, primary_group => positive.primary_group_size,
         secondary_group => positive.secondary_group_size.or(positive.primary_group_size),
-        decimal_symbol => numbers.decimal_symbol, group_symbol => numbers.group_symbol, digits => numbers.digits,
+        decimal_symbol => numbers.decimal_symbol, group_symbol => numbers.group_symbol, digits => numbers.digits, digit_lookup => digit_lookup(numbers.digits),
         scale => positive.scale, min_significant => positive.min_significant_digits, max_significant => positive.max_significant_digits,
         rounding_helper, rounding => rounding.increment, rounding_half => rounding.half_integer,
         rounding_half_fraction => rounding.half_fraction, scale_shift,

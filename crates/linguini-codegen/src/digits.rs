@@ -11,6 +11,16 @@ pub fn decimal_digit_symbols(digits: &str) -> Option<[char; 10]> {
     input.next().is_none().then_some(symbols)
 }
 
+/// Prove whether the digit alphabet is one consecutive Unicode scalar range.
+pub fn contiguous_decimal_digit_zero(symbols: &[char; 10]) -> Option<char> {
+    let zero = symbols[0];
+    symbols
+        .iter()
+        .enumerate()
+        .all(|(index, symbol)| u32::from(*symbol) == u32::from(zero) + index as u32)
+        .then_some(zero)
+}
+
 /// Whether one substitution pass can preserve every literal and textual date symbol.
 /// ASCII digits in quoted text, month/quarter names, eras, or period labels must stay literal.
 pub fn can_localize_date_result<'a>(
@@ -25,17 +35,26 @@ pub fn can_localize_date_result<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::{can_localize_date_result, decimal_digit_symbols};
+    use super::{can_localize_date_result, contiguous_decimal_digit_zero, decimal_digit_symbols};
 
     #[test]
     fn decimal_symbols_count_unicode_scalars_instead_of_bytes_or_utf16_units() {
         for digits in ["0123456789", "٠١٢٣٤٥٦٧٨٩", "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫"]
         {
             let symbols = decimal_digit_symbols(digits).unwrap();
+            assert_eq!(
+                contiguous_decimal_digit_zero(&symbols),
+                digits.chars().next()
+            );
             assert_eq!(symbols.into_iter().collect::<String>(), digits);
         }
         for digits in ["", "012345678", "01234567890", "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪"] {
             assert!(decimal_digit_symbols(digits).is_none());
+        }
+        for digits in ["〇一二三四五六七八九", "0𝟙2𝟛4𝟝6𝟟8𝟡"] {
+            assert!(
+                contiguous_decimal_digit_zero(&decimal_digit_symbols(digits).unwrap()).is_none()
+            );
         }
         for locale in linguini_cldr::locale_resolution_candidates() {
             if let Some(dates) = linguini_cldr::compiled_date_formatting(locale) {
