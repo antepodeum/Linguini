@@ -657,6 +657,14 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       epoch-number and Date-object parity remains open. CLI unit/integration suites pass on
       Node 20 and Node 24, with workspace Clippy, Rust 1.87, executable documentation, and
       packaged-source checks passing. Generated code/declaration/map expectations are unchanged.
+      Decimal/currency previews now consume `NumberFormatPlan` for affixes, grouping thresholds,
+      fraction precision, and rounding quantum, removing their separate static-choice assembly.
+      Pattern-defined increments retain their quantum unless supplemental currency data overrides
+      it. Invalid or unsupported internal plan shapes fail explicitly. Grouping uses the compiled
+      widths/threshold rather than a per-call array/reversal/join; the existing fourteen-locale
+      generated-module corpus retains its exact numeric, separator, sign, and digit behavior.
+      CLI tests pass on Node 20/24, alongside workspace Clippy, Rust 1.87, executable syntax,
+      documentation registration, and packaged-source checks. Generated artifacts stay unchanged.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.

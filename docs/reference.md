@@ -390,8 +390,11 @@ surface. Current guarantees are:
   uses `.` decimals, independently of ordinary number formatting. Display symbols also come
   from pinned CLDR data during generation, so the output does not query host
   `Intl.NumberFormat`. The native preview
-  resolves symbols through that same pinned locale lookup. Currency
-  display-name/plural forms and cash-rounding selection are not exposed.
+  resolves symbols through that same pinned locale lookup. Decimal/currency previews consume
+  the shared `NumberFormatPlan` for affixes, grouping thresholds, fraction precision, and
+  rounding increments, including the effective supplemental currency override. Invalid or
+  unsupported internal plan shapes fail explicitly. Currency display-name/plural forms and
+  cash-rounding selection are not exposed.
 - `@date` accepts a valid `Date`, epoch-millisecond number, ISO `YYYY-MM-DD`, or
   ISO date-time string. Date-only and zone-less date-time input is interpreted
   in UTC, and output is host-time-zone independent. `style` selects a CLDR date

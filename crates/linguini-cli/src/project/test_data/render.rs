@@ -11,6 +11,7 @@ use linguini_cldr::{
     compiled_currency_symbol, compiled_number_formatting, NumberFormatData, NumberPattern, Operand,
     PluralRule, PluralRules, Range, Relation, RelationOperator,
 };
+use linguini_codegen::{NumberFormatPlan, NumberGroupingPlan};
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrForm, IrFormEntry,
     IrFormatter, IrFormatterArgument, IrFormatterKind, IrFunctionBranch, IrFunctionBranchValue,
@@ -1133,15 +1134,37 @@ fn format_number_pattern(
     currency_symbol: Option<&str>,
     currency_fraction: Option<(u8, u16)>,
 ) -> Result<String, RenderError> {
+    let mut pattern = *pattern;
+    let rounding = currency_fraction.map(|(digits, rounding)| {
+        pattern.positive.min_fraction_digits = digits;
+        pattern.positive.max_fraction_digits = digits;
+        rounding.to_string()
+    });
+    let plan = NumberFormatPlan::new(&pattern, currency_symbol, numbers, rounding.as_deref())
+        .ok_or_else(|| RenderError::Unsupported {
+            detail: "invalid compiled numeric preview plan".to_owned(),
+        })?;
+    if plan.scale != 1
+        || plan.scientific.is_some()
+        || plan.padding.is_some()
+        || plan.min_significant_digits.is_some()
+        || plan.max_significant_digits.is_some()
+    {
+        return Err(RenderError::Unsupported {
+            detail: "numeric preview supports decimal/currency fraction plans only".to_owned(),
+        });
+    }
+    let rounding_increment =
+        plan.rounding
+            .increment
+            .parse::<u16>()
+            .map_err(|_| RenderError::Unsupported {
+                detail: "numeric preview rounding increment exceeds its arithmetic bound"
+                    .to_owned(),
+            })?;
     let mut decimal = parse_decimal(value)?;
-    let (min_fraction_digits, max_fraction_digits, rounding_increment) = currency_fraction.map_or(
-        (
-            usize::from(pattern.positive.min_fraction_digits),
-            usize::from(pattern.positive.max_fraction_digits),
-            0,
-        ),
-        |(digits, rounding)| (usize::from(digits), usize::from(digits), rounding),
-    );
+    let min_fraction_digits = usize::from(plan.min_fraction_digits);
+    let max_fraction_digits = usize::from(plan.max_fraction_digits);
     round_fraction(
         &mut decimal.integer,
         &mut decimal.fraction,
@@ -1154,58 +1177,31 @@ fn format_number_pattern(
     while decimal.fraction.len() < min_fraction_digits {
         decimal.fraction.push('0');
     }
-    while decimal.integer.len() < usize::from(pattern.positive.min_integer_digits) {
+    while decimal.integer.len() < usize::from(plan.min_integer_digits) {
         decimal.integer.insert(0, '0');
     }
 
-    let grouped = group_integer_digits(
-        &decimal.integer,
-        pattern.positive.primary_group_size,
-        pattern.positive.secondary_group_size,
-        numbers.minimum_grouping_digits,
-        numbers.group_symbol,
-    );
+    let grouped = group_integer_digits(&decimal.integer, plan.grouping, plan.group_symbol);
     let formatted = if decimal.fraction.is_empty() {
         grouped
     } else {
-        format!("{grouped}{}{}", numbers.decimal_symbol, decimal.fraction)
+        format!("{grouped}{}{}", plan.decimal_symbol, decimal.fraction)
     };
-
     let (prefix, suffix) = if decimal.negative {
-        pattern.negative.as_ref().map_or_else(
-            || {
-                (
-                    format!(
-                        "{}{}",
-                        numbers.minus_sign,
-                        render_affix(pattern.positive.prefix, currency_symbol)
-                    ),
-                    render_affix(pattern.positive.suffix, currency_symbol),
-                )
-            },
-            |part| {
-                (
-                    render_affix(part.prefix, currency_symbol),
-                    render_affix(part.suffix, currency_symbol),
-                )
-            },
-        )
+        (&plan.affixes.negative_prefix, &plan.affixes.negative_suffix)
     } else {
-        (
-            render_affix(pattern.positive.prefix, currency_symbol),
-            render_affix(pattern.positive.suffix, currency_symbol),
-        )
+        (&plan.affixes.prefix, &plan.affixes.suffix)
     };
     let mut output = String::with_capacity(prefix.len() + formatted.len() + suffix.len());
-    output.push_str(&prefix);
-    if numbers.digits == "0123456789" {
+    output.push_str(prefix);
+    if plan.digits == "0123456789" {
         output.push_str(&formatted);
     } else {
-        let digits = linguini_codegen::decimal_digit_symbols(numbers.digits)
+        let digits = linguini_codegen::decimal_digit_symbols(plan.digits)
             .ok_or_else(|| missing_cldr_data("numeric symbols", numbers.locale))?;
         append_localized_digits(&mut output, &formatted, &digits);
     }
-    output.push_str(&suffix);
+    output.push_str(suffix);
     Ok(output)
 }
 
@@ -1328,37 +1324,39 @@ fn increment_integer(integer: &mut String) {
 
 fn group_integer_digits(
     integer: &str,
-    primary_group_size: Option<u8>,
-    secondary_group_size: Option<u8>,
-    minimum_grouping_digits: u8,
-    group_symbol: &str,
+    grouping: Option<NumberGroupingPlan>,
+    symbol: &str,
 ) -> String {
-    let Some(primary) = primary_group_size.map(usize::from) else {
+    let Some(grouping) = grouping else {
         return integer.to_owned();
     };
-    if primary == 0 || integer.len() < primary + usize::from(minimum_grouping_digits) {
+    if integer.len() <= usize::from(grouping.threshold) {
         return integer.to_owned();
     }
-
-    let secondary = secondary_group_size.map(usize::from).unwrap_or(primary);
-    let mut groups = Vec::new();
-    let mut end = integer.len();
-    let mut size = primary;
-    while end > 0 {
-        let start = end.saturating_sub(size);
-        groups.push(&integer[start..end]);
-        end = start;
-        size = secondary;
+    let primary = usize::from(grouping.primary_size);
+    let secondary = usize::from(grouping.secondary_size);
+    let primary_start = integer.len() - primary;
+    let end = if primary == secondary {
+        integer.len()
+    } else {
+        primary_start
+    };
+    let first = match end % secondary {
+        0 => secondary,
+        length => length,
+    };
+    let mut output = integer[..first].to_owned();
+    let mut offset = first;
+    while offset < end {
+        output.push_str(symbol);
+        output.push_str(&integer[offset..offset + secondary]);
+        offset += secondary;
     }
-    groups.reverse();
-    groups.join(group_symbol)
-}
-
-fn render_affix(value: &str, currency_symbol: Option<&str>) -> String {
-    currency_symbol.map_or_else(
-        || value.to_owned(),
-        |symbol| value.replace('\u{a4}', symbol),
-    )
+    if primary != secondary {
+        output.push_str(symbol);
+        output.push_str(&integer[primary_start..]);
+    }
+    output
 }
 
 #[cfg(test)]
@@ -1599,6 +1597,48 @@ mod tests {
         .expect("format number");
 
         assert_eq!(rendered, "1,234,567,890.123");
+    }
+
+    #[test]
+    fn numeric_previews_use_compiled_fraction_grouping_and_affix_choices() {
+        let numbers = compiled_number_formatting("en").unwrap();
+        let mut pattern = numbers.decimal_pattern;
+        pattern.positive.min_fraction_digits = 2;
+        pattern.positive.max_fraction_digits = 2;
+        pattern.positive.rounding_increment = Some("5");
+        for (value, expected) in [("1.23", "1.25"), ("-1.23", "-1.25"), ("-0", "-0.00")] {
+            assert_eq!(
+                format_number_pattern(value, &pattern, &numbers, None, None).unwrap(),
+                expected
+            );
+        }
+        assert_eq!(
+            format_number_pattern("1.23", &pattern, &numbers, None, Some((2, 0))).unwrap(),
+            "1.23",
+            "supplemental currency rounding overrides the pattern quantum"
+        );
+        pattern = numbers.decimal_pattern;
+        pattern.positive.secondary_group_size = Some(2);
+        assert_eq!(
+            format_number_pattern("123456789.25", &pattern, &numbers, None, None).unwrap(),
+            "12,34,56,789.25"
+        );
+        for mutation in 0..4 {
+            let mut pattern = numbers.decimal_pattern;
+            match mutation {
+                0 => pattern.positive.primary_group_size = Some(0),
+                1 => pattern.positive.scale = 2,
+                2 => pattern.positive.exponent_digits = Some(2),
+                _ => pattern.positive.rounding_increment = Some("65536"),
+            }
+            assert!(
+                matches!(
+                    format_number_pattern("123", &pattern, &numbers, None, None),
+                    Err(RenderError::Unsupported { .. })
+                ),
+                "invalid or unsupported preview plans must fail explicitly"
+            );
+        }
     }
 
     #[test]

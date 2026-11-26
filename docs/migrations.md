@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native numeric preview plans
+
+Native decimal/currency previews now use `linguini-codegen::NumberFormatPlan` for literal
+affixes, grouping widths/thresholds, and fraction precision/quantum. Pattern-defined increments
+are no longer ignored, while supplemental currency rounding retains precedence. Unsupported
+internal plan families and invalid metadata report preview errors rather than producing an
+approximation. No formatter options or application APIs change, and generated artifacts remain
+unchanged.
+
 ## Shared date-pattern planning
 
 Code generation and native previews now consume the same resolved date-field/symbol and
