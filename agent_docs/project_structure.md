@@ -8,6 +8,9 @@
   Dependency slices and semantic artifacts share source-provenance traversal, including nested
   inline inputs, call arguments, dispatch branches, and form values. Scoped expression-value
   inference distinguishes explicit formatted strings from unformatted forwarded values.
+- `crates/linguini-cli/src/project/ir`: shared native project loading and semantic validation,
+  schema/locale qualification, guarded fallback composition, and source provenance. Build and
+  preview consume the same typed IR; locale chains use the common cached `ProjectLocalePlan`.
 - `crates/linguini-cli/src/project/test_data`: bounded native sample matrices and previews.
   Each locale is prepared through common default/inline lowering once before its cases;
   the evaluator executes the planned formatter operations rather than deriving display defaults.

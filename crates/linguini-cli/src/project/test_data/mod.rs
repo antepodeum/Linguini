@@ -6,14 +6,12 @@ use std::fmt;
 use std::io::{self, IsTerminal};
 use std::path::Path;
 
-use linguini_ir::{lower_locale, lower_schema, IrMessage, IrModule};
+use linguini_ir::{IrMessage, IrModule};
 
 use crate::{CliError, CliResult};
 
-use super::codegen::{merge_module, merge_module_fallback, namespaced_module};
 use super::io::read_project_config;
-use super::sources::{load_locale_sources, load_schema_sources, locale_index};
-use super::ParsedSchemaSource;
+use super::ir::load_project_ir;
 
 const MAX_SAMPLE_CASES_PER_MESSAGE: usize = 256;
 
@@ -111,52 +109,14 @@ pub(crate) fn generate_project_data(root: &Path) -> CliResult<String> {
 
 fn generate_project_data_with_style(root: &Path, style: OutputStyle) -> CliResult<String> {
     let config = read_project_config(root)?;
-    let schema_sources = load_schema_sources(root, &config)?;
-    let schema = load_merged_schema(&schema_sources)?;
-    let locales = load_locale_sources(root, &config)?;
-    let locale_index = locale_index(&locales)?;
-    let mut locale_modules = BTreeMap::new();
-
-    for locale in config.project().locales() {
-        let mut module = IrModule::default();
-        for source in &schema_sources {
-            let namespace = &source.file.namespace;
-            let locale_key = (namespace.clone(), locale.clone());
-            let default_key = (
-                namespace.clone(),
-                config.project().default_locale().to_owned(),
-            );
-            if let Some(locale_file) = locale_index.get(&locale_key) {
-                merge_module(
-                    &mut module,
-                    namespaced_module(lower_locale(&locale_file.ast), namespace),
-                )?;
-            }
-            if locale != config.project().default_locale() {
-                if let Some(default_file) = locale_index.get(&default_key) {
-                    merge_module_fallback(
-                        &mut module,
-                        namespaced_module(lower_locale(&default_file.ast), namespace),
-                    )?;
-                }
-            }
-        }
-        locale_modules.insert(locale.clone(), module);
-    }
-
-    render_generated_data(&schema, &locale_modules, style)
+    let project = load_project_ir(root, &config)?;
+    let locales = project
+        .locales
+        .into_iter()
+        .map(|(locale, module)| (locale, module.into_module()))
+        .collect();
+    render_generated_data(&project.schema, &locales, style)
         .map_err(|error| CliError::Diagnostics(format!("generate: {error}\n")))
-}
-
-fn load_merged_schema(schema_sources: &[ParsedSchemaSource]) -> CliResult<IrModule> {
-    let mut schema = IrModule::default();
-    for source in schema_sources {
-        merge_module(
-            &mut schema,
-            namespaced_module(lower_schema(&source.ast), &source.file.namespace),
-        )?;
-    }
-    Ok(schema)
 }
 
 fn render_generated_data(
@@ -404,11 +364,131 @@ fn strip_ansi(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::super::ir::namespaced_module;
     use super::*;
+    use linguini_ir::{lower_locale, lower_schema};
     use linguini_syntax::{parse_locale, parse_schema};
 
     fn schema(source: &str) -> IrModule {
         lower_schema(&parse_schema(source).expect("schema"))
+    }
+
+    #[test]
+    fn project_fallbacks_are_shared_by_native_build_and_preview() {
+        for (name, selected, sources) in [
+            (
+                "parents",
+                "en-AU",
+                vec![
+                    (
+                        "en",
+                        "hello = Base\nown = Base own\ncategory = {Plural(count)}\n",
+                    ),
+                    ("en-001", "hello = Parent\nown = Parent own\n"),
+                    ("en-AU", "own = Requested\n"),
+                ],
+            ),
+            (
+                "aliases",
+                "iw-IL",
+                vec![
+                    (
+                        "en",
+                        "hello = Base\nown = Base own\ncategory = {Plural(count)}\n",
+                    ),
+                    ("he", "hello = Parent\nown = Parent own\n"),
+                    ("he-IL", "hello = Canonical sibling\nown = Sibling own\n"),
+                    ("iw-IL", "own = Requested\n"),
+                ],
+            ),
+        ] {
+            let project =
+                linguini_test_support::temp_project_dir(&format!("preview-{name}")).unwrap();
+            let root = project.path();
+            std::fs::create_dir_all(root.join("schema")).unwrap();
+            std::fs::create_dir_all(root.join("locales/main")).unwrap();
+            std::fs::write(root.join("package.json"), "{\"type\":\"module\"}").unwrap();
+            std::fs::write(
+                root.join("schema/main.lgs"),
+                "hello\nown\ncategory(count: Number)\n",
+            )
+            .unwrap();
+            let locales = sources
+                .iter()
+                .map(|(locale, _)| *locale)
+                .collect::<Vec<_>>();
+            std::fs::write(root.join("linguini.toml"), format!(
+                "[project]\nname = \"fallbacks\"\ndefault_locale = \"en\"\nlocales = {}\n[paths]\nschema = \"schema\"\nlocale = \"locales\"\n[targets.ts]\nout = \"generated\"\n",
+                serde_json::to_string(&locales).unwrap()
+            )).unwrap();
+            for (locale, source) in sources {
+                std::fs::write(root.join(format!("locales/main/{locale}.lgl")), source).unwrap();
+            }
+            crate::build_project(root).unwrap();
+            let manifest: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(root.join("generated/bundler/manifest.json")).unwrap(),
+            )
+            .unwrap();
+            let ids = manifest["sources"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|source| (source["path"].as_str().unwrap(), &source["id"]))
+                .collect::<BTreeMap<_, _>>();
+            let parent = if name == "parents" { "en-001" } else { "he" };
+            assert_eq!(
+                manifest["messages"]["main.hello"]["locales"][selected]["source_ids"],
+                serde_json::json!([
+                    ids["schema/main.lgs"],
+                    ids[format!("locales/main/{parent}.lgl").as_str()],
+                ]),
+                "{name} fallback provenance"
+            );
+            let execution = std::process::Command::new("node")
+                .args([
+                    "--input-type=module",
+                    "-e",
+                    r#"
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const {default:{main}}=await import(pathToFileURL(process.argv[1]).href);
+const {message}=await import(pathToFileURL(process.argv[2]).href);
+for (const value of [1,2]) assert.equal(message(value),main.category(value));
+console.log(JSON.stringify(main));
+"#,
+                ])
+                .arg(root.join(format!("generated/locales/{selected}.js")))
+                .arg(
+                    root.join("generated").join(
+                        manifest["messages"]["main.category"]["locales"][selected]["module"]
+                            .as_str()
+                            .unwrap(),
+                    ),
+                )
+                .output()
+                .unwrap();
+            assert!(
+                execution.status.success(),
+                "{}",
+                String::from_utf8_lossy(&execution.stderr)
+            );
+            assert_eq!(
+                serde_json::from_slice::<serde_json::Value>(&execution.stdout).unwrap(),
+                serde_json::json!({"hello":"Parent","own":"Requested"}),
+                "{name} build"
+            );
+            let preview = generate_project_data_with_style(root, OutputStyle::plain()).unwrap();
+            let marker = format!("\nlocale {selected}\n");
+            let block = preview
+                .split(&marker)
+                .nth(1)
+                .unwrap()
+                .split("\nlocale ")
+                .next()
+                .unwrap();
+            assert!(block.contains("=> Parent\n"), "{name} preview: {block}");
+            assert!(block.contains("=> Requested\n"), "{name} preview: {block}");
+        }
     }
 
     #[test]

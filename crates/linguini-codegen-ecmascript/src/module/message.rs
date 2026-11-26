@@ -170,16 +170,16 @@ fn compile_message_module_impl(
         semantic_imports,
         target,
     } = request;
-    let requested_locale = canonicalize_locale(locale).unwrap_or_else(|_| locale.to_owned());
     let project_locale = project
         .locales
         .iter()
-        .find(|entry| {
-            entry.locale == locale
-                || entry.locale.eq_ignore_ascii_case(locale)
-                || canonicalize_locale(&entry.locale)
-                    .map(|canonical| canonical.eq_ignore_ascii_case(&requested_locale))
-                    .unwrap_or(false)
+        .find(|entry| entry.locale.eq_ignore_ascii_case(locale))
+        .or_else(|| {
+            let requested_locale = canonicalize_locale(locale).ok()?;
+            project.locales.iter().find(|entry| {
+                canonicalize_locale(&entry.locale)
+                    .is_ok_and(|canonical| canonical.eq_ignore_ascii_case(&requested_locale))
+            })
         })
         .map(|entry| entry.locale.as_str())
         .ok_or_else(|| EcmaCodegenError::UnknownLocale {
@@ -191,7 +191,7 @@ fn compile_message_module_impl(
     let closure = project.message_dependency_closure(project_locale, canonical_message)?;
     let source_ids = closure.source_ids().to_vec();
     let source_records = ordered_sources(&source_ids, sources)?;
-    let options = super::project_locale_options(&canonical_locale, &project.options);
+    let options = super::project_locale_options(project_locale, &project.options);
     let semantic_imports = if runtime_import_path.is_some() {
         match semantic_imports {
             Some(imports) => imports.to_vec(),

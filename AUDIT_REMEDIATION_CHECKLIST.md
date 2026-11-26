@@ -644,6 +644,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       alias-typed forwarded payloads, and direct-enum controls, without changing source syntax
       or generated artifacts. Qualified namespace coverage passes on Node 20 and Node 24;
       CLI unit/integration tests, Clippy, Rust 1.87, and documentation registration pass.
+      Native build and preview now share validated project-IR loading, namespace qualification,
+      guarded composition, and common locale planning. Preview inheritance follows declared
+      CLDR parents before the base, and exact alias spellings do not inherit a canonical sibling.
+      Native build/execution and preview cases verify both corrections and exact parent source IDs;
+      invalid nested formatter options now fail preview preparation too.
 - [x] #306 — Resolve preview locale from project layout.
 - [x] #307 — Return runtime-construction errors rather than panic.
 - [x] #308 — Reuse indexed diagnostics for code actions.
@@ -1397,6 +1402,18 @@ and the composed payload/SSR requirements below.
       Scoped `expression_value_type` now also unifies argument/inline result inference across
       dependency walkers, plural demand, inline lowering, and native previews. Explicit
       formatters produce strings; forwarding without an annotation retains its source type.
+      Native project-IR loading/validation is also separated from ECMAScript projection and
+      reused by build and previews. Existing merge/provenance/collision assertions move intact
+      with their IR owner. The common locale plan is cached once per load and each fallback
+      chain once per locale, rather than re-canonicalizing declared tags for every namespace.
+      Physical/standalone message lookup also prioritizes exact spellings and uses matching
+      locale-runtime plural bindings. Executed ordinary/physical/standalone alias cases retain
+      canonical metadata, case-insensitive and canonical-only requests, and source maps, while
+      rejecting undeclared locales. Native manifests retain the selected parent's source identities.
+      The affected common/backend/CLI/Vite tests pass on Node 20, existing snapshots stay unchanged,
+      and workspace Clippy plus Rust 1.87 pass. Eighteen consumer/documentation/site gates pass,
+      including packaged sources, native tsc build/watch integration, and production SSR/browser
+      checks. This follow-up preserves the earlier full-run source receipt separately.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.

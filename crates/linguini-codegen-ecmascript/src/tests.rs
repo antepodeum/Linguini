@@ -3209,4 +3209,5 @@ console.log('ok');
     }
 }
 
+mod locale_aliases;
 mod nested_formatters;

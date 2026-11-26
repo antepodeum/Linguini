@@ -3,6 +3,7 @@ mod codegen;
 mod diagnostics;
 mod fixes;
 mod io;
+mod ir;
 mod output;
 mod sources;
 mod test_data;

@@ -86,6 +86,12 @@ locale-resolution table. It preserves declared spellings, exact-name precedence,
 aliases, likely scripts, and the optional base fallback. Declared tags are canonicalized once
 per plan. The ECMAScript backend renders these results through its locale templates; this
 shared model contains no JavaScript syntax or web routing/persistence policy.
+Native build and `generate` previews share a validated project-IR loader and this locale plan.
+Declared CLDR parents precede the project base. An exact declared spelling retains its own
+source and parent chain when a canonical sibling is also declared; it does not inherit that
+sibling's missing messages. Both commands apply the same schema, namespace, and IR checks.
+Physical message compilation also prefers the declared spelling for contents, source provenance,
+and helper bindings. Canonical locale metadata remains normalized.
 `compose_locale_modules` applies the resolved modules from base to highest priority. It replaces
 whole declarations while keeping their first position, retains every source origin, and marks
 overrides. The host validates the resulting locale against its schema before artifact emission.

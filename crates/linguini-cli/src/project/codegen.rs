@@ -3,10 +3,9 @@ use std::path::{Component, Path, PathBuf};
 
 use linguini_analyzer::{
     ApplicationBindingProvenance, ApplicationDynamicReferenceKind, ApplicationImportBinding,
-    ApplicationImportBindingId, ApplicationReferenceKind, ApplicationUsage, DiagnosticSeverity,
+    ApplicationImportBindingId, ApplicationReferenceKind, ApplicationUsage,
     MESSAGE_NAMESPACE_EXPORTS,
 };
-use linguini_cldr::{canonicalize_locale, locale_fallback_chain};
 use linguini_codegen_ecmascript::{
     compile_ecmascript_project_files, rebase_map_sources, EcmaGeneratedFile, EcmaLocaleModule,
     EcmaProjectOptions, EcmaSource, ValidatedEcmaProject,
@@ -15,26 +14,16 @@ use linguini_config::{
     discover_application_source_files_with_fields, LinguiniConfig, TypeScriptBundlerConfig,
     TypeScriptTargetConfig,
 };
-use linguini_ir::{
-    ensure_no_unresolved_references, lower_locale, lower_schema, qualify_module, IrModule,
-    IrModuleBuilder, IrSymbolKind, LocaleIr, SchemaIr,
-};
 use linguini_syntax::SourceId;
 use sha2::{Digest, Sha256};
 
 use crate::{CliError, CliResult, DiagnosticFormat};
 
-use super::check::{check_project_with_options, reject_locale_files_without_schema_namespace};
-use super::io::{
-    canonical_project_root, path_for_output, read_file, read_project_config,
-    render_file_diagnostics,
-};
+use super::check::check_project_with_options;
+use super::io::{canonical_project_root, path_for_output, read_file, read_project_config};
+use super::ir::{load_project_ir, ProjectIr};
 use super::output::{
     replace_owned_files, replace_owned_files_in_scope, GeneratedFile, SafeOutputRoot,
-};
-use super::sources::{
-    coverage_options, expected_locale_path, load_locale_sources, load_schema_sources, locale_index,
-    schema_project_diagnostics,
 };
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 
@@ -123,27 +112,16 @@ fn generate_target(
         .iter()
         .map(|output| output.directory.clone())
         .collect::<Vec<_>>();
-    let schema_files = load_schema_sources(root, config)?;
-    let schema_namespaces: BTreeSet<_> = schema_files
-        .iter()
-        .map(|schema| schema.file.namespace.clone())
-        .collect();
-    ensure_schema_project_valid(root, &schema_files)?;
-    let schema = merge_schema_ir(&schema_files)?;
-    let locale_files = load_locale_sources(root, config)?;
-    let locale_index = locale_index(&locale_files)?;
-
-    reject_locale_files_without_schema_namespace(root, &schema_namespaces, &locale_files)?;
-
-    let mut locales = Vec::new();
-    for locale in config.project().locales() {
-        let locale_ir = build_locale_ir(root, config, &schema_files, &locale_index, locale)?;
-        ensure_locale_ir_resolves(&schema, &locale_ir, locale)?;
-        locales.push(EcmaLocaleModule {
-            locale: locale.to_owned(),
-            module: locale_ir,
-        });
-    }
+    let ProjectIr {
+        schema_files,
+        locale_files,
+        schema,
+        locales,
+    } = load_project_ir(root, config)?;
+    let locales = locales
+        .into_iter()
+        .map(|(locale, module)| EcmaLocaleModule { locale, module })
+        .collect::<Vec<_>>();
 
     let options = EcmaProjectOptions {
         declaration: target.declaration(),
@@ -1035,165 +1013,6 @@ fn strip_js_trivia(mut source: &str) -> &str {
     }
 }
 
-fn build_locale_ir(
-    root: &Path,
-    config: &LinguiniConfig,
-    schema_files: &[ParsedSchemaSource],
-    locale_index: &BTreeMap<(String, String), &ParsedLocaleSource>,
-    locale: &str,
-) -> CliResult<LocaleIr> {
-    let mut locale_ir = IrModule::default();
-
-    for schema_file in schema_files {
-        let namespace = &schema_file.file.namespace;
-        let locale_key = (namespace.clone(), locale.to_owned());
-        let locale_file = locale_index.get(&locale_key);
-
-        if locale == config.project().default_locale() && locale_file.is_none() {
-            let path = expected_locale_path(root, config, namespace, locale);
-            return Err(CliError::Diagnostics(format!(
-                "required locale file is missing for schema namespace `{namespace}`: `{locale}`\nexpected path: {}\n",
-                path_for_output(root, &path)
-            )));
-        }
-
-        if let Some(locale_file) = locale_file {
-            ensure_locale_has_required_messages(root, config, schema_file, locale_file, locale)?;
-            merge_module(
-                &mut locale_ir,
-                namespaced_module(lower_locale(&locale_file.ast), namespace),
-            )?;
-        }
-
-        for fallback_locale in project_locale_fallbacks(
-            config.project().locales(),
-            locale,
-            config.project().default_locale(),
-        ) {
-            let fallback_key = (namespace.clone(), fallback_locale.to_owned());
-            if let Some(default_locale_file) = locale_index.get(&fallback_key) {
-                merge_module_fallback(
-                    &mut locale_ir,
-                    namespaced_module(lower_locale(&default_locale_file.ast), namespace),
-                )?;
-            }
-        }
-    }
-
-    LocaleIr::try_from_module(locale_ir)
-        .map_err(|error| CliError::Diagnostics(format!("invalid locale IR: {error}\n")))
-}
-
-fn project_locale_fallbacks<'a>(
-    locales: &'a [String],
-    locale: &str,
-    default_locale: &'a str,
-) -> Vec<&'a str> {
-    let tags = locale_fallback_chain(locale).unwrap_or_else(|_| vec![locale.to_owned()]);
-    let mut fallbacks = Vec::new();
-    for tag in tags {
-        let Some(configured) = locales.iter().find(|candidate| {
-            canonicalize_locale(candidate)
-                .is_ok_and(|canonical| canonical.eq_ignore_ascii_case(&tag))
-        }) else {
-            continue;
-        };
-        if !configured.eq_ignore_ascii_case(locale)
-            && !fallbacks
-                .iter()
-                .any(|existing: &&str| existing.eq_ignore_ascii_case(configured))
-        {
-            fallbacks.push(configured.as_str());
-        }
-    }
-    if !default_locale.eq_ignore_ascii_case(locale)
-        && !fallbacks
-            .iter()
-            .any(|existing| existing.eq_ignore_ascii_case(default_locale))
-    {
-        fallbacks.push(default_locale);
-    }
-    fallbacks
-}
-
-fn ensure_locale_has_required_messages(
-    root: &Path,
-    config: &LinguiniConfig,
-    schema_file: &ParsedSchemaSource,
-    locale_file: &ParsedLocaleSource,
-    locale: &str,
-) -> CliResult<()> {
-    let diagnostics = linguini_schema::SchemaDatabase::build(&schema_file.ast)
-        .analyze_locale_with_options(
-            &locale_file.ast,
-            coverage_options(config, &schema_file.file.namespace, locale),
-        );
-    let blocking = diagnostics
-        .iter()
-        .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
-        .cloned()
-        .collect::<Vec<_>>();
-    if blocking.is_empty() {
-        return Ok(());
-    }
-
-    Err(CliError::Diagnostics(render_file_diagnostics(
-        root,
-        &locale_file.file.path,
-        &locale_file.source,
-        &blocking,
-    )))
-}
-
-fn ensure_schema_project_valid(root: &Path, schema_files: &[ParsedSchemaSource]) -> CliResult<()> {
-    let diagnostics = schema_project_diagnostics(schema_files)
-        .into_iter()
-        .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
-        .collect::<Vec<_>>();
-    if diagnostics.is_empty() {
-        return Ok(());
-    }
-
-    let mut rendered = String::new();
-    for source in schema_files {
-        let source_diagnostics = diagnostics
-            .iter()
-            .filter(|diagnostic| {
-                diagnostic
-                    .source_span
-                    .is_some_and(|span| span.source == source.ast.span().source)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        if !source_diagnostics.is_empty() {
-            rendered.push_str(&render_file_diagnostics(
-                root,
-                &source.file.path,
-                &source.source,
-                &source_diagnostics,
-            ));
-        }
-    }
-
-    Err(CliError::Diagnostics(rendered))
-}
-
-fn ensure_locale_ir_resolves(
-    schema: &IrModule,
-    locale_ir: &IrModule,
-    locale: &str,
-) -> CliResult<()> {
-    if let Err(errors) = ensure_no_unresolved_references(schema, locale_ir) {
-        let rendered = errors
-            .into_iter()
-            .map(|error| format!("{locale}: {}", error.message))
-            .collect::<Vec<_>>()
-            .join("\n");
-        return Err(CliError::Diagnostics(format!("{rendered}\n")));
-    }
-    Ok(())
-}
-
 fn write_codegen_tree(
     root: &Path,
     out_dir: &SafeOutputRoot,
@@ -1244,118 +1063,10 @@ fn relative_codegen_path(path: &str) -> CliResult<PathBuf> {
     Ok(path.to_path_buf())
 }
 
-fn merge_schema_ir(schema_files: &[ParsedSchemaSource]) -> CliResult<SchemaIr> {
-    let mut schema = IrModule::default();
-    for file in schema_files {
-        merge_module(
-            &mut schema,
-            namespaced_module(lower_schema(&file.ast), &file.file.namespace),
-        )?;
-    }
-    SchemaIr::try_from_module(schema)
-        .map_err(|error| CliError::Diagnostics(format!("invalid schema IR: {error}\n")))
-}
-
-pub(super) fn namespaced_module(mut module: IrModule, namespace: &str) -> IrModule {
-    qualify_module(&mut module, namespace);
-    module
-}
-
-pub(super) fn merge_module(target: &mut IrModule, source: IrModule) -> CliResult<()> {
-    target.try_append(source).map_err(|conflict| {
-        CliError::Diagnostics(format!("duplicate project symbol: {conflict}\n"))
-    })
-}
-
-pub(super) fn merge_module_fallback(target: &mut IrModule, source: IrModule) -> CliResult<()> {
-    // Fallback composition inserts only symbols the target lacks outright,
-    // including ancestor names that a non-group declaration already owns.
-    // Symbols queued earlier from this same source participate in both guards
-    // through `inserted`, mirroring sequential insertion into `target`.
-    let mut addition = IrModuleBuilder::new();
-    let mut inserted = BTreeSet::new();
-
-    macro_rules! insert_missing {
-        ($field:ident, $kind:expr, $push:ident) => {
-            for item in source.$field() {
-                let pending_ancestor_conflict = item
-                    .name
-                    .rsplit_once('.')
-                    .map(|(prefix, _)| prefix)
-                    .map(|ancestor| {
-                        walk_ancestors(ancestor).any(|candidate| {
-                            inserted.iter().any(|(kind, name)| {
-                                *kind != IrSymbolKind::Group && name == candidate
-                            })
-                        })
-                    })
-                    .unwrap_or(false);
-                if can_insert_fallback_symbol(target, &item.name)
-                    && !pending_ancestor_conflict
-                    && !inserted.contains(&($kind, item.name.clone()))
-                {
-                    inserted.insert(($kind, item.name.clone()));
-                    addition = addition.$push(item.clone());
-                }
-            }
-        };
-    }
-
-    insert_missing!(enums, IrSymbolKind::Enum, push_enum);
-    insert_missing!(type_aliases, IrSymbolKind::TypeAlias, push_type_alias);
-    insert_missing!(messages, IrSymbolKind::Message, push_message);
-    insert_missing!(groups, IrSymbolKind::Group, push_group);
-    insert_missing!(variables, IrSymbolKind::Variable, push_variable);
-    insert_missing!(forms, IrSymbolKind::Form, push_form);
-    insert_missing!(functions, IrSymbolKind::Function, push_function);
-
-    for origin in source.origins() {
-        if inserted.contains(&(origin.kind, origin.name.clone())) {
-            addition = addition.push_origin(origin.clone());
-        }
-    }
-
-    let composed = addition.build().map_err(|conflict| {
-        CliError::Diagnostics(format!("invalid fallback composition: {conflict}\n"))
-    })?;
-    target.try_append(composed).map_err(|conflict| {
-        CliError::Diagnostics(format!("invalid fallback composition: {conflict}\n"))
-    })?;
-    Ok(())
-}
-
-fn walk_ancestors(name: &str) -> impl Iterator<Item = &str> {
-    let mut next = Some(name);
-    std::iter::from_fn(move || {
-        let current = next?;
-        next = current.rsplit_once('.').map(|(prefix, _)| prefix);
-        Some(current)
-    })
-}
-
-fn can_insert_fallback_symbol(module: &IrModule, name: &str) -> bool {
-    let owned_exact = IrSymbolKind::non_group_kinds()
-        .into_iter()
-        .chain([IrSymbolKind::Group])
-        .any(|kind| module.contains_symbol(kind, name));
-    if owned_exact {
-        return false;
-    }
-
-    !walk_ancestors(name)
-        .skip(1)
-        .any(|ancestor| module.contains_non_group_symbol(ancestor))
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{
-        immediate_dynamic_messages, merge_module, merge_module_fallback, namespaced_module,
-        project_locale_fallbacks, project_relative_source_path,
-    };
+    use super::{immediate_dynamic_messages, project_relative_source_path};
     use linguini_config::{TypeScriptBundlerDynamicConfig, TypeScriptBundlerDynamicMode};
-    use linguini_ir::lower_locale;
-    use linguini_syntax::parse_locale;
     use std::collections::BTreeMap;
 
     #[test]
@@ -1383,238 +1094,5 @@ mod tests {
 
         assert!(error.to_string().contains("literal backslash"));
         assert!(error.to_string().contains("bad\\name.lgs"));
-    }
-
-    #[test]
-    fn module_merge_preserves_all_declaration_origins() {
-        let mut target = namespaced_module(
-            lower_locale(&parse_locale("section { first = First }\n").expect("first locale")),
-            "shop",
-        );
-        let source = namespaced_module(
-            lower_locale(&parse_locale("other { second = Second }\n").expect("second locale")),
-            "shop",
-        );
-
-        merge_module(&mut target, source).expect("disjoint fixture merge");
-
-        assert_eq!(
-            target
-                .origins()
-                .iter()
-                .map(|origin| origin.name.as_str())
-                .collect::<Vec<_>>(),
-            [
-                "shop.section",
-                "shop.section.first",
-                "shop.other",
-                "shop.other.second",
-            ]
-        );
-        assert_eq!(
-            target
-                .groups()
-                .iter()
-                .map(|group| group.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.section", "shop.other"]
-        );
-    }
-
-    #[test]
-    fn module_merge_rejects_duplicate_symbols_instead_of_duplicating_them() {
-        let target = namespaced_module(
-            lower_locale(&parse_locale("section { first = First }\n").expect("first locale")),
-            "shop",
-        );
-        let conflicting = namespaced_module(
-            lower_locale(&parse_locale("section { second = Second }\n").expect("second locale")),
-            "shop",
-        );
-
-        let mut merged = target;
-        let error = merge_module(&mut merged, conflicting)
-            .expect_err("duplicate group symbols must fail visibly");
-        assert!(error.to_string().contains("duplicate group symbol"));
-        assert!(error.to_string().contains("shop.section"));
-        // The rejected source contributes nothing to the target.
-        assert_eq!(merged.groups().len(), 1);
-        assert!(merged
-            .messages()
-            .iter()
-            .all(|message| message.name != "shop.section.second"));
-    }
-
-    #[test]
-    fn fallback_merge_keeps_only_inserted_symbol_provenance() {
-        let mut target = namespaced_module(
-            lower_locale(&parse_locale("present = Primary\n").expect("primary locale")),
-            "shop",
-        );
-        let fallback = namespaced_module(
-            lower_locale(
-                &parse_locale("present = Default\nextra { nested = Fallback }\n")
-                    .expect("fallback locale"),
-            ),
-            "shop",
-        );
-
-        merge_module_fallback(&mut target, fallback).expect("fallback fixture merge");
-
-        assert_eq!(
-            target
-                .origins()
-                .iter()
-                .map(|origin| origin.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.present", "shop.extra", "shop.extra.nested"]
-        );
-        assert_eq!(
-            target
-                .messages()
-                .iter()
-                .map(|message| message.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.present", "shop.extra.nested"]
-        );
-        assert_eq!(
-            target
-                .groups()
-                .iter()
-                .map(|group| group.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.extra"]
-        );
-    }
-
-    #[test]
-    fn fallback_merge_keeps_new_nested_groups_without_duplicate_parent_provenance() {
-        let mut target = namespaced_module(
-            lower_locale(&parse_locale("section { primary = Primary }\n").expect("primary")),
-            "shop",
-        );
-        let fallback = namespaced_module(
-            lower_locale(
-                &parse_locale("section { primary = Default\n secondary { item = Fallback } }\n")
-                    .expect("fallback"),
-            ),
-            "shop",
-        );
-
-        merge_module_fallback(&mut target, fallback).expect("fallback fixture merge");
-
-        assert_eq!(
-            target
-                .groups()
-                .iter()
-                .map(|group| group.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.section", "shop.section.secondary"]
-        );
-        assert_eq!(
-            target
-                .messages()
-                .iter()
-                .map(|message| message.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.section.primary", "shop.section.secondary.item"]
-        );
-        assert_eq!(
-            target
-                .origins()
-                .iter()
-                .map(|origin| origin.name.as_str())
-                .collect::<Vec<_>>(),
-            [
-                "shop.section",
-                "shop.section.primary",
-                "shop.section.secondary",
-                "shop.section.secondary.item",
-            ]
-        );
-    }
-
-    #[test]
-    fn fallback_merge_blocks_cross_kind_parent_collision() {
-        let mut target = namespaced_module(
-            lower_locale(&parse_locale("section { title = Primary }\n").expect("primary")),
-            "shop",
-        );
-        let fallback = namespaced_module(
-            lower_locale(&parse_locale("section = Fallback\n").expect("fallback")),
-            "shop",
-        );
-
-        merge_module_fallback(&mut target, fallback).expect("fallback fixture merge");
-
-        assert_eq!(target.groups().len(), 1);
-        assert_eq!(target.messages().len(), 1);
-        assert_eq!(target.messages()[0].name, "shop.section.title");
-        assert_eq!(
-            target
-                .origins()
-                .iter()
-                .map(|origin| origin.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.section", "shop.section.title"]
-        );
-    }
-
-    #[test]
-    fn fallback_merge_blocks_reverse_cross_kind_parent_collision() {
-        let mut target = namespaced_module(
-            lower_locale(&parse_locale("section = Primary\n").expect("primary")),
-            "shop",
-        );
-        let fallback = namespaced_module(
-            lower_locale(&parse_locale("section { child = Fallback }\n").expect("fallback")),
-            "shop",
-        );
-
-        merge_module_fallback(&mut target, fallback).expect("fallback fixture merge");
-
-        assert!(target.groups().is_empty());
-        assert_eq!(
-            target
-                .messages()
-                .iter()
-                .map(|message| message.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.section"]
-        );
-        assert_eq!(
-            target
-                .origins()
-                .iter()
-                .map(|origin| origin.name.as_str())
-                .collect::<Vec<_>>(),
-            ["shop.section"]
-        );
-    }
-
-    #[test]
-    fn project_fallbacks_follow_cldr_parents_and_likely_scripts() {
-        let locales = ["en", "en-001", "en-AU", "zh-Hant", "zh-TW"]
-            .map(str::to_owned)
-            .to_vec();
-
-        assert_eq!(
-            project_locale_fallbacks(&locales, "en-AU", "en"),
-            ["en-001", "en"]
-        );
-        assert_eq!(
-            project_locale_fallbacks(&locales, "zh-TW", "en"),
-            ["zh-Hant", "en"]
-        );
-    }
-
-    #[test]
-    fn project_fallbacks_match_canonical_aliases() {
-        let locales = ["en", "he", "iw-IL"].map(str::to_owned).to_vec();
-
-        assert_eq!(
-            project_locale_fallbacks(&locales, "iw-IL", "en"),
-            ["he", "en"]
-        );
     }
 }

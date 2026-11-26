@@ -4,6 +4,19 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared native project loading and locale fallback
+
+Native `build` and `generate` now share source loading, namespace qualification, guarded fallback
+composition, and semantic IR validation. Previews inherit declared CLDR parents before the
+project base: `en-AU` can use declared `en-001` messages. Invalid nested formatter options are
+rejected during preview preparation too.
+
+Regenerate projects declaring canonical siblings such as `he-IL` and `iw-IL`: each exact declared
+spelling follows its own parent chain before the base. A sibling spelling no longer fills missing
+messages ahead of that parent. Physical and standalone message compilation also prefer the
+exact declared spelling; physical plural imports use that locale runtime's helper bindings.
+Canonical metadata tags, application APIs, and configuration are unchanged.
+
 ## Native preview enum aliases
 
 Native `generate` previews resolve enum aliases before selecting a form implementation, matching

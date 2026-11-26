@@ -2046,6 +2046,11 @@ console.log('ok');
             error.to_string().contains(diagnostic),
             "{annotation}: {error}"
         );
+        let preview_error = generate_project_data(root).unwrap_err();
+        assert!(
+            preview_error.to_string().contains(diagnostic),
+            "{annotation} preview: {preview_error}"
+        );
         assert_eq!(fs::read(&message_path).unwrap(), baseline);
     }
 }

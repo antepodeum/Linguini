@@ -1389,11 +1389,11 @@ mod tests {
             "sample0 = {item.label}\nsample1 = {item.nom(count)}\n",
             "sample2 = {item.nom(count)}\nsample3 = {Label(item)}\n",
         );
-        let schema = crate::project::codegen::namespaced_module(
+        let schema = crate::project::ir::namespaced_module(
             lower_schema(&parse_schema(schema_source).unwrap()),
             "main",
         );
-        let module = crate::project::codegen::namespaced_module(
+        let module = crate::project::ir::namespaced_module(
             lower_locale(&parse_locale(source).unwrap()),
             "main",
         );
