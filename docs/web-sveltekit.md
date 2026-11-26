@@ -170,6 +170,9 @@ switch endpoint. Read sources and write transports are separate runtime choices.
 With `secure: "auto"`, persistence uses the per-call origin, then the configured environment
 origin, then browser location. An explicit secure flag overrides protocol detection. Header and
 cookie-sink transports use the same decision.
+An optional `environment.origin` must be an absolute HTTP(S) string or URL object without
+credentials. Both web factories reject invalid configured origins at construction. Leave it
+unset to use request/browser defaults; per-request URL inputs keep their existing handling.
 
 ```ts
 // src/hooks.server.ts

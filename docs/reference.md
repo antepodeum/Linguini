@@ -40,6 +40,9 @@ from `@antepodeum/linguini-web/server`. The metadata/routing object holds normal
 without owning those implementations. Client controls and framework hooks compose them.
 For `secure: "auto"`, cookie helpers select the per-call origin, configured environment origin,
 then browser location. Explicit per-call secure flags and fixed cookie policies retain priority.
+Configured environment origins must be absolute HTTP(S) strings or URL objects without
+credentials. Both web constructors validate them at startup; omitting the origin preserves
+request/browser defaults and per-request URL error handling.
 
 `linguini-codegen-svelte` emits project imports and types backed by the reusable
 `@antepodeum/linguini-svelte` runtime. The ECMAScript backend remains independent of framework

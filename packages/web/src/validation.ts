@@ -1,5 +1,16 @@
 import type { CookieOptions, StorageOptions, LinguiniWebOptions, LocaleResolver, LocaleSource } from './types.js';
 
+export function validateOrigin(origin: string | URL | undefined): void {
+    if (origin === undefined) return;
+    try {
+        const url = new URL(String(origin));
+        if ((url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password) return;
+    } catch {
+        // A configured origin must be absolute; request URLs keep their own handling.
+    }
+    throw new TypeError('Invalid web environment origin');
+}
+
 export function validateSources(sources: readonly LocaleResolver[]): LocaleSource[] {
     const ids = new Set<LocaleSource>();
     for (const source of sources) {

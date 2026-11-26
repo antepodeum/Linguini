@@ -1,6 +1,6 @@
 import type { LinguiniWebEnvironment, LinguiniWebLocale, LinguiniWebOptions, LocaleSwitchPlan } from "./types.js";
 import { normalizeBasePath } from "./url.js";
-import { validateOptions, validateSources } from "./validation.js";
+import { validateOptions, validateSources, validateOrigin } from "./validation.js";
 
 const DEFAULT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
@@ -12,6 +12,7 @@ export function normalizeOptions(baseLocale: string, options: LinguiniWebOptions
     validateOptions(options, cookie, storage);
     const base = normalizeBasePath(environment.base ?? "");
     const origin = environment.origin;
+    validateOrigin(origin);
     const cookiePath = cookie?.path === "auto" || cookie?.path === undefined
         ? base || "/"
         : cookie.path;

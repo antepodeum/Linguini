@@ -6,6 +6,25 @@ import {createLocaleSwitchHandler, persistLocaleCookie} from '../dist/server.js'
 const runtime = {locales:['en','fr','ar'],baseLocale:'en',getTextDirection:locale => locale === 'ar' ? 'rtl' : 'ltr'};
 const environment = {base:'/app',origin:'https://example.test'};
 
+test('application origins validate at construction without changing per-request URL handling', () => {
+  for (const origin of [undefined,'https://example.test','http://localhost:8080','https://example.test/base/',new URL('https://[::1]:443')]) {
+    const web=createWebLocaleI18n(runtime,{}, {origin});
+    assert.equal(web.options.environment.origin,origin);
+  }
+  let originReads=0;
+  const web=createWebLocaleI18n(runtime,{}, {get origin(){originReads++;return environment.origin;}});
+  assert.equal(originReads,1,'capture configured origins once');
+  const base=createWebLocaleI18n(runtime,{}, {origin:'https://example.test/base/'});
+  assert.equal(base.localizeUrl('page','fr').href,'https://example.test/fr/base/page');
+  assert.equal(web.shouldLocalizeHref('/page',{origin:'http://['}),false);
+  assert.throws(()=>web.localizeUrl('/page','fr',{origin:'http://['}),/Linguini: invalid URL/);
+  for (const origin of ['', 'relative.example', '/app', '//example.test', 'http://[', 'ftp://example.test', 'file:///tmp/app', 'data:text/plain,locale', 'javascript:alert(1)', 'https://user@example.test', 'https://user:password@example.test', new URL('ftp://example.test'), null, 42]) {
+    for (const create of [createWebLocaleI18n,createWebI18n]) {
+      assert.throws(()=>create(runtime,{}, {origin}),{name:'TypeError',message:'Invalid web environment origin'});
+    }
+  }
+});
+
 test('runtime sources are explicit, ordered capabilities independent of message generation', () => {
   const input = {url:'https://example.test/app/fr/shop',cookie:'LOCALE=ar',headers:new Headers({'accept-language':'en'})};
   assert.equal(createWebLocaleI18n(runtime, {}, environment).resolveLocaleSync(input), 'en');

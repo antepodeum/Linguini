@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Application origin validation
+
+Web adapter construction now rejects malformed or relative `environment.origin` values,
+non-HTTP(S) URLs, and embedded credentials with `TypeError("Invalid web environment origin")`.
+Use an absolute HTTP(S) string or URL object, or omit the field for request/browser defaults.
+Valid base URLs retain their existing path resolution and URL object identity. The origin getter
+is read once during construction. Per-request origin parsing, explicit URL errors, and link-safety
+helpers' false result for invalid links are unchanged; validation belongs to the application runtime.
+
 ## Automatic cookie security honors application origins
 
 For `secure: "auto"`, cookie serialization and server writes now use the configured environment

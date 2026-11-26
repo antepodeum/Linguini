@@ -241,6 +241,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #31 — Remove unsupported `globalVariable` configuration.
 - [x] #32 — Require `Secure` for `SameSite=None`.
 - [x] #33 — Validate web paths, patterns, cookie settings, origins, and durations.
+      Web runtime constructors now reject malformed/relative/non-HTTP(S) origins and credentials
+      at startup, capturing the origin getter once. Executed cases preserve valid URL objects,
+      base-URL path resolution, absent defaults, and per-request URL/link error behavior.
+      Six runtime/package/parity/documentation gates, 26 Node 20 web/hook/graph tests, and all
+      nine site-profile gates pass the runtime-origin follow-up.
 - [x] #34 — Reject non-UTF-8 namespace components rather than silently dropping them.
 - [x] #35 — Reject files outside the configured namespace root.
 - [x] #36 — Reject locale files outside the configured locale root.
