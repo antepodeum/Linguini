@@ -138,3 +138,28 @@ pub(crate) fn form_has_observable_initialization(form: &IrForm) -> bool {
         .iter()
         .any(|variant| entries_have_observable_initialization(&variant.entries))
 }
+
+/// Pure named attributes that can be emitted independently while preserving row lookup.
+/// Callable rows and eager initializers retain a single owning form instead.
+pub fn independent_form_attribute_names(form: &IrForm) -> Option<BTreeSet<&str>> {
+    if form_has_observable_initialization(form)
+        || form.variants.iter().any(|variant| {
+            variant
+                .entries
+                .iter()
+                .any(|entry| matches!(entry, IrFormEntry::Branch(_)))
+        })
+    {
+        return None;
+    }
+    let names = form
+        .variants
+        .iter()
+        .flat_map(|variant| &variant.entries)
+        .filter_map(|entry| match entry {
+            IrFormEntry::Attribute { name, .. } => Some(name.as_str()),
+            IrFormEntry::Branch(_) => None,
+        })
+        .collect::<BTreeSet<_>>();
+    (!names.is_empty()).then_some(names)
+}

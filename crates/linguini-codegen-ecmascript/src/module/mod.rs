@@ -4,6 +4,7 @@ mod deps;
 mod emit;
 mod entry;
 mod expr;
+mod facts;
 mod formatter_codegen;
 mod formatter_helpers;
 mod formatters;

@@ -1684,14 +1684,16 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       and thrown errors; unproven member references still coerce.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
-      Shared form demand now projects standalone closures and generated projects to used
-      attributes and their transitive dependencies before inline lowering. Ordinary, physical,
-      and standalone execution preserves lookup/prototype/coercion errors, eager initialization,
-      callable rows, and named calls. Native cold/warm builds execute exact locale payloads and
-      a fallback message. Complete gender-only, mixed-form, and Russian delivery consumers save
-      408, 39, and 76 Brotli bytes respectively (GEN-A40). Different pages still share attributes
-      selected elsewhere in the project; callable/eager forms
-      remain conservative. Attribute-level page delivery and the criteria below remain open.
+      Shared form demand projects standalone closures and generated projects to used attributes
+      and their transitive dependencies before inline lowering. Physical form modules expose
+      independent attributes as named exports through namespace imports, so each page retains
+      its own tables/functions. Ordinary, physical, and standalone execution preserves lookup,
+      prototype/coercion errors, eager initialization, callable rows, and named calls. Shared native
+      Vite 7/8 contracts execute six page shapes and two locales, including self-attribute calls,
+      opaque callable/eager forms, sparse message fallback, and strict JS/TS consumers. Gender-only
+      pages save 370/363 Brotli bytes; mixed pages add 3/6 bytes and their table/row literals grow
+      from three to six (GEN-A40). Callable/eager forms and mixed-table coalescing remain
+      conservative/open, alongside the broader page-delivery and allocation criteria below.
       The [cost audit](docs/generated-code-cost-audit.md) records category-name versus numeric
       classifier measurements and GEN-A15–A20. Numeric literals alone show no useful memory gain
       in that local experiment. Compile selector outcomes from the actual branches, merge equivalent

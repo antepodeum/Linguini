@@ -206,6 +206,10 @@ pub fn form_binding_name(name: &str) -> String {
     scoped_binding_name("__lgl_form_", name)
 }
 
+pub(super) fn form_attribute_binding_name(name: &str) -> String {
+    scoped_binding_name("__lgl_attr_", name)
+}
+
 pub(super) fn argument_keys_binding_name(name: &str) -> String {
     scoped_binding_name("__lgl_keys_", name)
 }
@@ -412,9 +416,9 @@ fn is_reserved_word(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        argument_keys_binding_name, emit_docs, escape_string, form_binding_name, function_name,
-        path_expression, portable_path_component_error, property_access, property_key,
-        safe_file_stem, safe_identifier, string_literal,
+        argument_keys_binding_name, emit_docs, escape_string, form_attribute_binding_name,
+        form_binding_name, function_name, path_expression, portable_path_component_error,
+        property_access, property_key, safe_file_stem, safe_identifier, string_literal,
     };
 
     #[test]
@@ -486,6 +490,7 @@ mod tests {
     #[test]
     fn readable_internal_names_are_injective_across_namespaces_and_escaped_inputs() {
         assert_eq!(form_binding_name("Fruit"), "__lgl_form_Fruit");
+        assert_eq!(form_attribute_binding_name("Gender"), "__lgl_attr_Gender");
         assert_eq!(argument_keys_binding_name("Fruit"), "__lgl_keys_Fruit");
         assert_eq!(
             argument_keys_binding_name("shop.Fruit"),
@@ -510,6 +515,8 @@ mod tests {
             "Fruit_name",
             "__lgl_form_Fruit",
             "__lgl_keys_Fruit",
+            "__lgl_attr_Gender",
+            "__lgl_attr_shop$Fruit",
             "__lgl_keys_shop$Fruit",
             "__lgl_keys_$E697A5",
             "__lgl_form_shop$Fruit",
@@ -531,6 +538,7 @@ mod tests {
                 safe_identifier(source),
                 form_binding_name(source),
                 argument_keys_binding_name(source),
+                form_attribute_binding_name(source),
             ] {
                 assert!(
                     super::is_safe_identifier(&identifier),

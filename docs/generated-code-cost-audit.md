@@ -295,8 +295,8 @@ messages use that projection directly; projects apply it automatically after mes
 Pure unused maps and literals disappear before emission. Row objects and ordinary indexed
 property access remain; eager initializers and callable rows retain their behavior.
 
-Controlled complete-consumer builds compare the same native inputs with only the project
-projection pass disabled/enabled. Vite 7.3.3 application minification on Node 24.13.1 gives:
+For source `ea82945`, controlled complete-consumer builds compare the same native inputs with
+only the shared project projection pass disabled/enabled. Vite 7.3.3 application minification on Node 24.13.1 gives:
 
 | Selected messages | Minified before / after | gzip before / after | Brotli before / after |
 | --- | ---: | ---: | ---: |
@@ -312,10 +312,54 @@ attributes, prototype keys, missing and Symbol keys, coercion hints, thrown erro
 named/positional calls, eager String conversions, and exact callable-row `Object.assign` observations. Current form snapshots omit unused fields;
 historical comparison oracles are unchanged.
 
-This establishes byte savings for the selected project shapes, without a speed or allocation
-claim. Different pages still share attributes required by the selected project.
-Callable and eager forms are conservative.
-Per-page attribute artifacts and remaining normalization/request overhead stay open (GEN-A40).
+This initial projection establishes byte savings for the selected project shapes, without a
+speed or allocation claim. The physical per-page follow-up below addresses independent
+attributes shared across the project. Callable/eager forms remain conservative.
+
+
+## Independent attributes in composed pages
+
+Physical form modules now emit independent attribute tables as separate named exports, imported
+through the existing structured ESM namespace binding. Ordinary and standalone form layouts stay
+unchanged. Attribute tables retain indexed variant rows and their own property, preserving lookup,
+prototype, coercion, and missing-key behavior. Function bodies use the existing form template;
+there is no extra runtime dispatcher or CLDR interpreter.
+
+The same native cold/warm fixture compiles gender-only, nominative-only, self-attribute, callable,
+eager, and mixed pages for English/French. Each page/locale has exactly one import-free asset with
+only its message records. The gender page omits plural parsing and nominative strings despite
+other pages using them; the nominative page omits gender strings. Sparse messages resolve inside
+the effective locale payload. Actual Vite 7/8 execution, strict checked physical JavaScript, and
+an application TypeScript consumer without `allowJs` preserve finite enum and plural arguments.
+Opaque forms retain eager conversions and callable initialization observations. Self references
+use local attribute bindings; dependencies on another form use its namespace.
+
+Controlled fresh native builds compare the same inputs with physical attribute splitting
+disabled/enabled, retaining shared project pruning in both. Node 24.13.1, Vite 7.3.3 and Vite
+8.0.13 application minification give these complete-consumer minified / gzip / Brotli bytes:
+
+| Consumer | Vite 7 before | Vite 7 after | Vite 8 before | Vite 8 after |
+| --- | ---: | ---: | ---: | ---: |
+| Gender page in a project also using nominative forms | 1,351 / 777 / 688 | 546 / 384 / 318 | 1,318 / 754 / 669 | 527 / 367 / 306 |
+| Mixed gender/nominative page | 1,439 / 807 / 720 | 1,458 / 813 / 723 | 1,402 / 782 / 697 | 1,421 / 790 / 703 |
+| Russian delivery | 2,487 / 1,148 / 1,002 | 2,515 / 1,161 / 1,010 | 2,450 / 1,129 / 978 | 2,478 / 1,141 / 989 |
+| Russian counted | 3,266 / 1,511 / 1,361 | 3,220 / 1,491 / 1,342 | 3,191 / 1,460 / 1,311 | 3,145 / 1,439 / 1,294 |
+| Russian delivery/count/price | 5,598 / 2,226 / 1,999 | 5,626 / 2,238 / 2,010 | 5,449 / 2,128 / 1,909 | 5,477 / 2,140 / 1,926 |
+| Russian price | 2,850 / 1,421 / 1,291 | 2,850 / 1,421 / 1,291 | 2,751 / 1,357 / 1,227 | 2,751 / 1,357 / 1,227 |
+
+All consumers execute matching results and have one chunk without imports. The native page
+regression fails when splitting is disabled. A transposed outer object was discarded: Vite 7
+removed its unused field, but Vite 8 retained the unrelated plural code and added eight Brotli
+bytes to the gender consumer. Named exports remove that dependency on both backends.
+
+Splitting adds 3/6 Brotli bytes to the mixed English page and increases its table/variant-row
+object literals from three to six; it does not duplicate form functions. These are module
+initialization structures, with no new lookup helper or per-render allocation. Coalescing tables
+for composed uses remains open, as do eager/callable projection, repeated normalization, and
+broader request overhead. No application speed or measured heap-allocation gain is claimed.
+Property-read side-effect assumptions remain at backend defaults; the
+[Rollup option documentation](https://rollupjs.org/configuration-options/#treeshake-propertyreadsideeffects)
+explains why disabling them can remove getters and invalid-access errors.
 
 ## Findings and owners
 

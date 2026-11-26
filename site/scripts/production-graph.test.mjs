@@ -4,16 +4,24 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import {createRequire} from 'node:module';
+import {execFileSync} from 'node:child_process';
 import {build} from 'vite';
 import {verifySetterGraph} from './setter-graph.mjs';
 import {verifyDeferredDemand} from '../../packages/vite/test-support/deferred-demand.mjs';
+import {verifyFormDemand} from '../../packages/vite/test-support/form-demand.mjs';
 
 const siteRoot = join(fileURLToPath(new URL('..', import.meta.url)));
 await verifySetterGraph(siteRoot);
-const viteEntry = pathToFileURL(createRequire(import.meta.url).resolve('@antepodeum/linguini-vite'));
+const require = createRequire(import.meta.url);
+const viteEntry = pathToFileURL(require.resolve('@antepodeum/linguini-vite'));
 const {pageMessagePlan} = await import(new URL('./page-demand.js',viteEntry));
 const {compilePageBundles} = await import(new URL('./page-payloads.js',viteEntry));
 await verifyDeferredDemand({build,pageMessagePlan,compilePageBundles});
+await verifyFormDemand({
+  build,compilePageBundles,
+  compiler:join(siteRoot,'../target/debug',process.platform === 'win32' ? 'linguini.exe' : 'linguini'),
+  typecheck:config => execFileSync(process.execPath,[require.resolve('typescript/bin/tsc'),'--project',config],{stdio:'inherit'})
+});
 const buildRoot = join(siteRoot, 'build');
 const generatedRoot = join(siteRoot, 'src/lib/generated/linguini');
 const clientOutputRoot = join(siteRoot, '.svelte-kit/output/client');

@@ -26,8 +26,14 @@ closures also contain projected forms and source identities from the retained co
 
 Public message signatures, property lookup/coercion, callable rows, and eager initializers retain
 their behavior. Current form snapshots omit unused fields; historical comparison oracles remain
-unchanged. Physical pages still share attributes needed elsewhere in the selected project; this change
-does not complete attribute-level page delivery or remove optional request/runtime overhead.
+unchanged. Physical form modules now export independent attribute tables separately, so pages
+using different attributes retain their own closures. Callable/eager forms remain whole.
+
+Backend integrators should render semantic edges with `EcmaSemanticImport::ecmascript_bindings()`.
+For form artifacts, `binding` denotes the consumer-local namespace; value functions/variables
+retain named imports and locale enums remain type-only. No artifact struct fields or manifest
+versions change. Ordinary and standalone form lookup shapes remain unchanged. This does not
+complete mixed-table initialization or optional request/runtime-overhead remediation.
 
 ## Native numeric preview plans
 

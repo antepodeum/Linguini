@@ -1,14 +1,13 @@
 use std::collections::BTreeMap;
 
-use linguini_codegen::StringResultFacts;
+use super::facts::ExpressionFacts;
 use linguini_ir::{
     is_plural_intrinsic, IrBranch, IrExpression, IrExpressionKind, IrFormEntry, IrFormatter,
     IrFormatterKind, IrFunctionBranch, IrFunctionParameter, IrModule, IrText, IrTextPart, IrValue,
 };
 
 use super::names::{
-    form_binding_name, path_expression, property_access, property_key, safe_identifier,
-    string_literal,
+    path_expression, property_access, property_key, safe_identifier, string_literal,
 };
 use super::{render_jsdoc_type, EcmaOptions, TypeModel};
 
@@ -16,7 +15,7 @@ pub(super) fn form_object(
     schema: &IrModule,
     entries: &[IrFormEntry],
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     let fields = entries
         .iter()
@@ -60,7 +59,7 @@ fn attribute_expression(
     value: &IrValue,
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     if let IrValue::Text(text) = value {
         let literal = text
@@ -90,7 +89,7 @@ fn value_expression_with_parameters(
     value: &IrValue,
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     match value {
         IrValue::Text(text) => text_expression(text, options, facts),
@@ -104,7 +103,7 @@ pub fn map_expression(
     branches: &[IrBranch],
     parameters: &[IrFunctionParameter],
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     let context = parameters
         .iter()
@@ -147,7 +146,7 @@ pub fn map_expression(
 pub(super) fn text_expression(
     text: &IrText,
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     text_expression_with_context(text, &BTreeMap::new(), &BTreeMap::new(), options, facts)
 }
@@ -157,7 +156,7 @@ pub(super) fn text_expression_with_context(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     let parts = text
         .parts
@@ -181,9 +180,9 @@ fn expression_string(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
-    let value = unformatted_expression_value(expression, context, options);
+    let value = unformatted_expression_value(expression, context, options, facts);
     let formatters = if expression.formatters.is_empty() {
         expression
             .path
@@ -209,8 +208,9 @@ pub(super) fn expression_value(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
     options: &EcmaOptions,
+    facts: &ExpressionFacts,
 ) -> String {
-    let value = unformatted_expression_value(expression, context, options);
+    let value = unformatted_expression_value(expression, context, options, facts);
     apply_formatters(value, &expression.formatters).0
 }
 
@@ -218,6 +218,7 @@ fn unformatted_expression_value(
     expression: &IrExpression,
     context: &BTreeMap<String, String>,
     options: &EcmaOptions,
+    facts: &ExpressionFacts,
 ) -> String {
     assert!(
         !matches!(expression.kind, IrExpressionKind::InlineFunction { .. }),
@@ -230,7 +231,7 @@ fn unformatted_expression_value(
         .first()
         .filter(|_| called || expression.path.len() > 1)
         .and_then(|root| context.get(root))
-        .map(|ty| form_binding_name(ty));
+        .map(|ty| facts.form_lookup(ty, &expression.path[1..]));
     let suffix = expression
         .path
         .iter()
@@ -245,7 +246,7 @@ fn unformatted_expression_value(
     let arguments = expression
         .arguments
         .iter()
-        .map(|argument| expression_value(argument, context, options))
+        .map(|argument| expression_value(argument, context, options, facts))
         .collect::<Vec<_>>();
     crate::templates::render(
         "expression",
@@ -261,7 +262,7 @@ pub(super) fn function_dispatch_body(
     context: &BTreeMap<String, String>,
     default_formatters: &BTreeMap<String, Vec<IrFormatter>>,
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     let parameter_names =
         super::names::function_parameter_names(parameters, branches, &options.plural_function);
@@ -406,7 +407,8 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Call, &["ready"]),
                 &context,
-                &options
+                &options,
+                &Default::default(),
             ),
             "ready()"
         );
@@ -414,7 +416,8 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Reference, &["ready"]),
                 &context,
-                &options
+                &options,
+                &Default::default(),
             ),
             "ready"
         );
@@ -432,7 +435,8 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Call, &["Plural"]),
                 &context,
-                &options
+                &options,
+                &Default::default(),
             ),
             "selectPlural()"
         );
@@ -440,7 +444,8 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Call, &["plural"]),
                 &context,
-                &options
+                &options,
+                &Default::default(),
             ),
             "plural()"
         );
@@ -455,7 +460,8 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Call, &["item"]),
                 &context,
-                &options
+                &options,
+                &Default::default(),
             ),
             "__lgl_form_Item[item]()"
         );
@@ -463,7 +469,8 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Reference, &["item"]),
                 &context,
-                &options
+                &options,
+                &Default::default(),
             ),
             "item"
         );
@@ -471,7 +478,8 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Call, &["item", "label"]),
                 &context,
-                &options
+                &options,
+                &Default::default(),
             ),
             "__lgl_form_Item[item].label()"
         );
@@ -479,7 +487,8 @@ mod tests {
             expression_value(
                 &expression(IrExpressionKind::Reference, &["item", "label"]),
                 &context,
-                &options
+                &options,
+                &Default::default(),
             ),
             "__lgl_form_Item[item].label"
         );

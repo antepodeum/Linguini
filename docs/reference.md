@@ -1083,11 +1083,13 @@ Form objects and nested dispatch bodies use multiline indentation in generated s
 Standalone message compilation selects only the form attributes it uses and their dependencies.
 Project and physical bundler artifacts also omit pure attributes unused by the selected messages
 and retained locale globals. This is automatic; `tree_shaking` controls message selection.
-Reading `fruit.Gender`
-alone therefore does not require the unused `nom`/`gen` functions or their plural classifier.
+Reading `fruit.Gender` alone therefore does not require the unused `nom`/`gen` functions or
+their plural classifier, including when another page uses those attributes.
 Variant lookup and row objects remain intact; callable rows and eager initializers are preserved.
-Separate pages using different attributes of the same form still share the project's selected
-form table. Attribute-level page splitting remains under remediation.
+Physical form modules expose independent attributes as separate ESM exports, allowing each page
+to retain its own tables and dependencies. Named/positional calls, aliases, and SSR keep their
+existing contracts. Callable/eager forms remain whole; mixed-table initialization and other
+request/runtime overhead remain under remediation.
 
 Message argument keys are initialized once per module. Positional normalization reuses the
 existing argument array; named-object normalization validates all own keys before reading values

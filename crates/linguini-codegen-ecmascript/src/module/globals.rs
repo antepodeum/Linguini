@@ -114,7 +114,7 @@ pub(super) fn locale_globals_module(
         .build()
         .expect("globals schema projection preserves unique declaration names");
     let globals = locale_globals(locale);
-    let facts = linguini_codegen::StringResultFacts::for_module(locale);
+    let facts = super::facts::ExpressionFacts::for_module(locale);
     let shared_import_path = import_path_for_target("../../shared", target);
     let mut imports = module_imports(&globals_schema, &globals, options, &shared_import_path);
     let runtime_import_path = import_path_for_target("./_runtime", target);

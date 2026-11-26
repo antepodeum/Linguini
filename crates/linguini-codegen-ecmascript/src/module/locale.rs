@@ -154,7 +154,7 @@ pub(super) fn locale_artifact_module(
 }
 
 pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
-    let facts = linguini_codegen::StringResultFacts::for_module(request.import_locale);
+    let facts = super::facts::ExpressionFacts::for_module(request.import_locale);
     let target = request.output.target();
     let shared_import_path = import_path_for_target(request.shared_import_path, target);
     let runtime_import_path = import_path_for_target(request.runtime_import_path, target);

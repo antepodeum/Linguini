@@ -42,6 +42,7 @@ pub use direct_dependencies::{
     direct_message_dependencies, direct_symbol_dependencies, SemanticSymbolKind,
 };
 pub use dispatch::{form_dispatch_plan, function_dispatch_plan};
+pub use form_demand::independent_form_attribute_names;
 pub use requirements::{
     expression_has_string_result, formatter_requirements, module_uses_inline_functions,
     plural_required, FormatterRequirements, StringResultFacts,

@@ -30,11 +30,27 @@ use linguini_codegen::{
 pub struct EcmaSemanticImport {
     pub kind: EcmaSemanticSymbolKind,
     pub name: String,
+    /// Consumer-local identifier; form edges bind a namespace through `ecmascript_bindings`.
     pub binding: String,
     pub module_path: String,
     pub import_path: String,
     pub source_ids: Vec<SourceId>,
     pub type_only: bool,
+}
+
+impl EcmaSemanticImport {
+    /// Structured consumer binding. Form modules expose attribute tables or an opaque value
+    /// through a namespace; other value symbols retain a named export.
+    pub fn ecmascript_bindings(&self) -> EcmaImportBindings {
+        let named = || vec![EcmaNamedImport::new(&self.binding, &self.binding)];
+        if self.type_only {
+            EcmaImportBindings::TypeNamed(named())
+        } else if self.kind == EcmaSemanticSymbolKind::LocaleForm {
+            EcmaImportBindings::Namespace(self.binding.clone())
+        } else {
+            EcmaImportBindings::Named(named())
+        }
+    }
 }
 
 /// Stable descriptor for one generated semantic leaf.
@@ -43,6 +59,7 @@ pub struct EcmaSemanticArtifact {
     pub locale: String,
     pub kind: EcmaSemanticSymbolKind,
     pub name: String,
+    /// Consumer binding for this symbol; form consumers use a namespace import.
     pub binding: String,
     pub module_path: String,
     pub source_map_path: String,
@@ -54,7 +71,7 @@ pub struct EcmaSemanticArtifact {
     pub imports: Vec<EcmaSemanticImport>,
 }
 
-/// Rendered one-binding semantic module.
+/// Rendered semantic module with independently selectable form attribute exports.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompiledEcmaSemanticModule {
     pub artifact: EcmaSemanticArtifact,
@@ -203,7 +220,10 @@ fn compile_bundler_semantic_module_impl(
         })?
         .module;
     let options = project_locale_options(&artifact.locale, &project.options);
-    let facts = linguini_codegen::StringResultFacts::for_module(locale);
+    let facts = super::facts::ExpressionFacts::for_bundler_module(
+        locale,
+        (artifact.kind == EcmaSemanticSymbolKind::LocaleForm).then_some(artifact.name.as_str()),
+    );
     let one = one_symbol_module(locale, artifact.kind, &artifact.name);
     if !module_has_symbol(&one, artifact.kind) {
         return Err(EcmaCodegenError::UnknownSemanticArtifact {
@@ -218,17 +238,7 @@ fn compile_bundler_semantic_module_impl(
         .filter(|dependency| !dependency.type_only)
         .map(|dependency| EcmaImport {
             specifier: import_path_for_target(&dependency.import_path, target),
-            bindings: if dependency.type_only {
-                EcmaImportBindings::TypeNamed(vec![EcmaNamedImport::new(
-                    &dependency.binding,
-                    &dependency.binding,
-                )])
-            } else {
-                EcmaImportBindings::Named(vec![EcmaNamedImport::new(
-                    &dependency.binding,
-                    &dependency.binding,
-                )])
-            },
+            bindings: dependency.ecmascript_bindings(),
         })
         .collect::<Vec<_>>();
 
@@ -822,7 +832,7 @@ mod tests {
         .expect("physical");
         assert!(physical
             .code
-            .contains(&format!("import {{ {} }}", form.binding)));
+            .contains(&format!("import * as {} from", form.binding)));
         assert!(!physical.code.contains(&format!("const {} =", form.binding)));
         let enum_module =
             compile_bundler_semantic_module(&project, locale_enum, &sources(schema, locale))
@@ -882,7 +892,7 @@ mod tests {
             .expect("inline helper");
         assert!(compiled
             .code
-            .contains(&format!("import {{ {} }}", form.binding)));
+            .contains(&format!("import * as {} from", form.binding)));
         assert!(!compiled.code.contains(&format!("const {} =", form.binding)));
         let message =
             compile_bundler_message_artifact_module(&project, &message, &sources(schema, locale))

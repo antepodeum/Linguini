@@ -649,6 +649,13 @@ mod tests {
             })
             .build()
             .unwrap();
+        assert_eq!(
+            crate::independent_form_attribute_names(&locale.forms()[0])
+                .unwrap()
+                .into_iter()
+                .collect::<Vec<_>>(),
+            ["Gender", "display", "emoji", "gen", "nom"]
+        );
         for (message, attribute, plural) in [
             ("gender", "Gender", false),
             ("nom", "nom", true),
@@ -696,6 +703,7 @@ mod tests {
         let locale = lower_locale(&parse_locale(
             "let marker = EAGER\nfn Read(fruit: Fruit) { _ => {fruit.label} }\nimpl Fruit { apple {\nlabel = Apple\neager = {marker}\nform nom(fruit: Fruit) { _ => {Read(fruit)} }\nunused = UNUSED\n} }\nroot = {fruit.nom(fruit)}\n",
         ).unwrap());
+        assert!(crate::independent_form_attribute_names(&locale.forms()[0]).is_none());
         let closure = message_dependency_closure(&schema, "en", &locale, "root").unwrap();
         let entries = &closure.locale_module().forms()[0].variants[0].entries;
         assert_eq!(entries.len(), 3);

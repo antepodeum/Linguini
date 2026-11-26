@@ -9,8 +9,7 @@ use linguini_ir::{
 use linguini_syntax::{SourceId, Span};
 
 use crate::ecmascript::{
-    EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaSource,
-    EcmaStatement,
+    EcmaImport, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaSource, EcmaStatement,
 };
 
 use super::deps::MessageDependencyClosure;
@@ -266,7 +265,11 @@ fn emit_message_module(
     let target = output.target();
     let schema = closure.schema();
     let complete_locale = closure.locale_module();
-    let facts = linguini_codegen::StringResultFacts::for_module(complete_locale);
+    let facts = if runtime_import_path.is_some() {
+        super::facts::ExpressionFacts::for_bundler_module(complete_locale, None)
+    } else {
+        super::facts::ExpressionFacts::for_module(complete_locale)
+    };
     let physical_locale;
     let locale = if runtime_import_path.is_some() {
         physical_locale = IrModuleBuilder::seeded(complete_locale)
@@ -402,10 +405,7 @@ fn emit_message_module(
         }
         module.push_import(EcmaImport {
             specifier: import_path_for_target(&dependency.import_path, target),
-            bindings: EcmaImportBindings::Named(vec![EcmaNamedImport::new(
-                &dependency.binding,
-                &dependency.binding,
-            )]),
+            bindings: dependency.ecmascript_bindings(),
         });
     }
     {

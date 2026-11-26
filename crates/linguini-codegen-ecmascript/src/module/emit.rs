@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use linguini_codegen::{parameter_formatters, StringResultFacts};
+use super::facts::ExpressionFacts;
+use linguini_codegen::parameter_formatters;
 use linguini_ir::{IrMessage, IrModule};
 
 use crate::ecmascript::{EcmaImport, EcmaImportBindings, EcmaNamedImport};
@@ -12,8 +13,7 @@ use super::expr::{
 use super::formatter_codegen::formatter_data_declaration;
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
-    emit_docs, emit_docs_with_tags, form_binding_name, function_name, property_key,
-    safe_identifier, ts_type, JsDocTag,
+    emit_docs, emit_docs_with_tags, function_name, property_key, safe_identifier, ts_type, JsDocTag,
 };
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
@@ -216,17 +216,51 @@ pub(super) fn emit_forms(
     options: &EcmaOptions,
     exported: bool,
     output: &mut String,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) {
     for form in module.forms() {
         emit_docs(&form.docs, "", output);
-        let variants = form.variants.iter().map(|variant| minijinja::context! {
-            key => property_key(&variant.name), value => form_object(schema, &variant.entries, options, facts),
-        }).collect::<Vec<_>>();
-        output.push_str(&crate::templates::render(
-            "module/form",
-            minijinja::context! { exported, name => form_binding_name(&form.name), variants },
-        ));
+        let mut emit_table = |name: String, attribute: Option<&str>| {
+            let variants = form
+                .variants
+                .iter()
+                .map(|variant| {
+                    let selected = attribute.map(|attribute| {
+                        variant
+                            .entries
+                            .iter()
+                            .filter(|entry| match entry {
+                                linguini_ir::IrFormEntry::Attribute { name, .. } => {
+                                    name == attribute
+                                }
+                                linguini_ir::IrFormEntry::Branch(_) => false,
+                            })
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    });
+                    let entries = selected.as_deref().unwrap_or(&variant.entries);
+                    let key = property_key(&variant.name);
+                    let value = form_object(schema, entries, options, facts);
+                    minijinja::context! { key, value }
+                })
+                .collect::<Vec<_>>();
+            output.push_str(&crate::templates::render(
+                "module/form",
+                minijinja::context! { exported, name, variants },
+            ));
+        };
+        if facts.independent_form(&form.name) {
+            for attribute in linguini_codegen::independent_form_attribute_names(form)
+                .expect("planned independent form")
+            {
+                emit_table(
+                    super::names::form_attribute_binding_name(attribute),
+                    Some(attribute),
+                );
+            }
+        } else {
+            emit_table(facts.form_export_binding(&form.name), None);
+        }
     }
 }
 
@@ -235,7 +269,7 @@ pub(super) fn emit_variables(
     options: &EcmaOptions,
     exported: bool,
     output: &mut String,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) {
     for variable in module.variables() {
         emit_docs(&variable.docs, "", output);
@@ -251,7 +285,7 @@ pub(super) fn emit_local_functions(
     options: &EcmaOptions,
     exported: bool,
     output: &mut String,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) {
     for function in module.functions() {
         let parameter_names = super::names::function_parameter_names(
@@ -308,7 +342,7 @@ pub(super) fn emit_messages(
     locale: &IrModule,
     options: &EcmaOptions,
     output: &mut String,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> ModuleExports {
     for signature in schema.messages() {
         if !signature.parameters.is_empty()
@@ -348,7 +382,7 @@ fn emit_message_function(
     locale: &IrModule,
     options: &EcmaOptions,
     output: &mut String,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> bool {
     let Some(implementation) = message_implementation(locale, &signature.name) else {
         return false;
@@ -384,7 +418,7 @@ fn emit_message_object(
     locale: &IrModule,
     options: &EcmaOptions,
     output: &mut String,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) {
     emit_docs(&tree.docs, "", output);
     let value = object_literal(schema, tree, locale, options, 0, facts);
@@ -402,7 +436,7 @@ fn object_literal(
     locale: &IrModule,
     options: &EcmaOptions,
     depth: usize,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     let indent = "  ".repeat(depth);
     let child_indent = "  ".repeat(depth + 1);
@@ -432,7 +466,7 @@ fn group_property_value(
     signature: &IrMessage,
     implementation: &IrMessage,
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     let call_signature = MessageCallSignature::from_message(signature);
     if !call_signature.is_parameterized() {
@@ -457,7 +491,7 @@ pub(crate) fn message_body(
     signature: &IrMessage,
     implementation: &IrMessage,
     options: &EcmaOptions,
-    facts: &StringResultFacts,
+    facts: &ExpressionFacts,
 ) -> String {
     let context = signature
         .parameters

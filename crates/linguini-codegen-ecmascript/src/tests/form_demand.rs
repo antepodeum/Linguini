@@ -242,9 +242,90 @@ for (const render of [ordinary.count,physical.count,count]) {
   assert.equal(render('apple',1), 'apple');
   assert.equal(render({fruit:'apple',value:2}), 'apples');
 }
+
 console.log('verified');
 "#
         ),
         "verified"
     );
+}
+
+#[test]
+fn physical_form_attributes_can_reference_other_attributes_in_their_own_module() {
+    let schema_source = "enum Fruit { apple }\nroot(fruit: Fruit)\n";
+    let locale_source = "impl Fruit { apple {\nlabel = APPLE\nform copy(other: Fruit) { _ => {other.label} }\nunused = UNUSED\n} }\nroot = {fruit.copy(fruit)}\n";
+    let schema = lower_schema(&parse_schema_in(schema_source, SourceId(1)).unwrap());
+    let locales = [EcmaLocaleModule {
+        locale: "en".into(),
+        module: lower_locale(&parse_locale_in(locale_source, SourceId(2)).unwrap()),
+    }];
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &project_options("en")).unwrap();
+    let sources = [
+        crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
+        crate::EcmaSource::new(SourceId(2), "en.lgl", locale_source),
+    ];
+    let mut files = crate::generate_project_files(&project).unwrap();
+    for artifact in project.semantic_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        assert!(compiled.code.contains("__lgl_attr_label[other].label"));
+        assert!(!compiled.code.contains("import * as __lgl_form_Fruit"));
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    let artifact = project.message_artifacts().unwrap().remove(0);
+    let compiled =
+        crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+    files.push(EcmaGeneratedFile {
+        path: artifact.module_path.clone(),
+        contents: compiled.code,
+    });
+    let script = format!(
+        r#"import assert from 'node:assert/strict'; const ordinary=await import('./locales/en.js'); const physical=await import({:?}); assert.equal(ordinary.root('apple'),'APPLE'); assert.equal(physical.message({{fruit:'apple'}}),'APPLE'); console.log('verified');"#,
+        format!("./{}", artifact.module_path)
+    );
+    assert_eq!(execute_project(&files, &script), "verified");
+}
+
+#[test]
+fn physical_opaque_forms_reuse_imported_attribute_tables() {
+    let schema_source = "enum Outer { entry }\nenum Value { inner }\nroot(outer: Outer, inner: Value, count: Number)\n";
+    let locale_source = "impl Value { inner { label = Inner } }\nimpl Outer { entry {\none => One\n_ => Many\nform from(other: Value) { _ => {other.label} }\n} }\nroot = {outer(count)}:{outer.from(inner)}\n";
+    let schema = lower_schema(&parse_schema_in(schema_source, SourceId(1)).unwrap());
+    let locales = [EcmaLocaleModule {
+        locale: "en".into(),
+        module: lower_locale(&parse_locale_in(locale_source, SourceId(2)).unwrap()),
+    }];
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &project_options("en")).unwrap();
+    let sources = [
+        crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
+        crate::EcmaSource::new(SourceId(2), "en.lgl", locale_source),
+    ];
+    let mut files = crate::generate_project_files(&project).unwrap();
+    for artifact in project.semantic_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        if artifact.name == "Outer" {
+            assert!(compiled.code.contains("import * as __lgl_form_Value from"));
+            assert!(compiled.code.contains("export const __lgl_value ="));
+        }
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    let artifact = project.message_artifacts().unwrap().remove(0);
+    let compiled =
+        crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+    files.push(EcmaGeneratedFile {
+        path: artifact.module_path.clone(),
+        contents: compiled.code,
+    });
+    let script = format!(
+        r#"import assert from 'node:assert/strict'; const ordinary=await import('./locales/en.js'); const physical=await import({:?}); for(const root of [ordinary.root,physical.message]) {{ assert.equal(root('entry','inner',1),'One:Inner'); assert.equal(root({{outer:'entry',inner:'inner',count:2}}),'Many:Inner'); }} console.log('verified');"#,
+        format!("./{}", artifact.module_path)
+    );
+    assert_eq!(execute_project(&files, &script), "verified");
 }
