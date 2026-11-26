@@ -721,6 +721,10 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
   builds, typechecks, and executes the Getting Started JavaScript/TypeScript example from both the
   workspace and Cargo package file sets. The complete SvelteKit provider and every alternative
   web-guide hook/component/client/server variant compile and pass strict Svelte checking.
+      Package staging follows Cargo path dependencies, including development manifests, while
+      pruning unrelated packages only in an isolated lock and rejecting external version changes.
+      Executed packaged examples pass, and workspace dry-packaging omits the unpublished test
+      helper from the LSP manifest.
 
 ## Required documentation migration
 

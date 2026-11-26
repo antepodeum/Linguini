@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { PACKAGED_RUNTIME_CRATES, workspacePackageMetadata } from "./docs-packaged.mjs";
+import { PACKAGED_RUNTIME_CRATES, packagedWorkspaceCrates, verifyPackagedDependencies, workspacePackageMetadata } from "./docs-packaged.mjs";
 import test from "node:test";
 
 import {
@@ -41,6 +41,25 @@ test("packaged documentation inherits workspace metadata instead of a separate R
   const current = workspacePackageMetadata(readFileSync(resolve(REPOSITORY_ROOT, "Cargo.toml"), "utf8"));
   assert.match(current, /rust-version = "\d+\.\d+(?:\.\d+)?"/);
   assert.doesNotMatch(current, /planned_dependencies/);
+});
+
+test("packaged documentation stages manifest dependencies without adding unrelated crates", () => {
+  const dependency = (name, kind = null, target = null) => ({name, path: resolve('crates', name), kind, target});
+  const pkg = (name, dependencies = []) => ({name, manifest_path: resolve('crates', name, 'Cargo.toml'), dependencies});
+  const packages = [
+    pkg('runtime', [dependency('lsp')]),
+    pkg('lsp', [dependency('support', 'dev', 'cfg(unix)'), {name: 'url', path: null}]),
+    pkg('support', [dependency('build-support', 'build')]),
+    pkg('build-support', [dependency('support', 'dev')]),
+    pkg('unrelated'),
+  ];
+  assert.deepEqual(packagedWorkspaceCrates(packages, ['runtime']), ['build-support', 'lsp', 'runtime', 'support']);
+  assert.throws(() => packagedWorkspaceCrates(packages, ['missing']), /missing packaged workspace crate: missing/);
+  assert.throws(() => packagedWorkspaceCrates(packages.filter(pkg => pkg.name !== 'support'), ['runtime']), /outside the workspace/);
+  const registry = id => ({id, source: 'registry+https://github.com/rust-lang/crates.io-index'});
+  const locked = [registry('url@2.5.9'), registry('wasm-bindgen@0.2.130')];
+  verifyPackagedDependencies(locked, [registry('url@2.5.9'), {id: 'staged-runtime', source: null}]);
+  assert.throws(() => verifyPackagedDependencies(locked, [registry('url@2.6.0')]), /absent from the workspace lock/);
 });
 
 test("public contract policy requires docs, migrations, and tests together", () => {

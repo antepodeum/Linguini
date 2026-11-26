@@ -55,7 +55,7 @@ function stageCratePackage(root, stageRoot, crateName) {
   const destinationRoot = resolve(stageRoot, "crates", crateName);
   const packageFiles = run(
     "cargo",
-    ["package", "--offline", "--locked", "--list", "-p", crateName],
+    ["package", "--offline", "--locked", "--allow-dirty", "--list", "-p", crateName],
     { cwd: root },
   )
     .trimEnd()
@@ -83,17 +83,54 @@ export function workspacePackageMetadata(manifest) {
   return section.trimEnd();
 }
 
+export function packagedWorkspaceCrates(packages, roots = PACKAGED_RUNTIME_CRATES) {
+  const byName = new Map(packages.map(pkg => [pkg.name, pkg]));
+  const byPath = new Map(packages.map(pkg => [resolve(dirname(pkg.manifest_path)), pkg.name]));
+  const selected = new Set();
+  const pending = [...roots];
+  while (pending.length) {
+    const name = pending.pop();
+    if (selected.has(name)) continue;
+    const pkg = byName.get(name);
+    if (!pkg) throw new Error(`missing packaged workspace crate: ${name}`);
+    selected.add(name);
+    // Cargo loads path dependencies from original manifests even when they are dev-only.
+    for (const dependency of pkg.dependencies) {
+      if (!dependency.path) continue;
+      const target = byPath.get(resolve(dependency.path));
+      if (!target) throw new Error(`packaged dependency is outside the workspace: ${dependency.path}`);
+      pending.push(target);
+    }
+  }
+  return [...selected].sort();
+}
+
+export function verifyPackagedDependencies(original, staged) {
+  const locked = new Set(original.filter(pkg => pkg.source).map(pkg => pkg.id));
+  for (const pkg of staged) {
+    if (pkg.source && !locked.has(pkg.id)) {
+      throw new Error(`packaged dependency is absent from the workspace lock: ${pkg.id}`);
+    }
+  }
+}
+
 export function stagePackagedWorkspace(root, stageRoot) {
-  for (const crateName of PACKAGED_RUNTIME_CRATES) {
+  const metadata = JSON.parse(run("cargo", ["metadata", "--offline", "--locked", "--format-version", "1"], {cwd: root}));
+  const crates = packagedWorkspaceCrates(metadata.packages);
+  for (const crateName of crates) {
     stageCratePackage(root, stageRoot, crateName);
   }
-  const members = PACKAGED_RUNTIME_CRATES.map((name) => `  "crates/${name}",`).join("\n");
-  const metadata = workspacePackageMetadata(readFileSync(join(root, "Cargo.toml"), "utf8"));
+  const members = crates.map((name) => `  "crates/${name}",`).join("\n");
+  const packageMetadata = workspacePackageMetadata(readFileSync(join(root, "Cargo.toml"), "utf8"));
   writeFileSync(
     join(stageRoot, "Cargo.toml"),
-    `[workspace]\nresolver = "2"\nmembers = [\n${members}\n]\n\n${metadata}\n`,
+    `[workspace]\nresolver = "2"\nmembers = [\n${members}\n]\n\n${packageMetadata}\n`,
   );
   copyFileSync(join(root, "Cargo.lock"), join(stageRoot, "Cargo.lock"));
+  // Prune unrelated workspace members (such as the WASM transport) in the isolated lock.
+  // Every retained external version must still come from the original locked resolution.
+  const staged = JSON.parse(run("cargo", ["metadata", "--offline", "--format-version", "1"], {cwd: stageRoot}));
+  verifyPackagedDependencies(metadata.packages, staged.packages);
 }
 
 export async function main({ root = REPOSITORY_ROOT } = {}) {

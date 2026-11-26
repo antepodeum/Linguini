@@ -30,4 +30,4 @@ tower-lsp-server = { package = "tower-lsp", version = "=0.20.0", default-feature
 [dev-dependencies]
 futures = { version = "=0.3.32", default-features = false, features = ["std", "async-await"] }
 tower-service = "=0.3.3"
-linguini-test-support = { path = "../linguini-test-support", version = "0.1.0-alpha.4" }
+linguini-test-support = { path = "../linguini-test-support" }

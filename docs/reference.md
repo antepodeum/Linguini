@@ -1067,6 +1067,12 @@ The CLI now consumes mapped project artifacts through its existing atomic owners
 JavaScript namespace typedefs retain the full message API even when declarations are disabled.
 The integrated fixture is `tests/fixtures/golden/snapshots/js-complete-project`.
 
+Packaged-documentation verification stages Cargo-listed source files and the full workspace
+path-dependency closure, including development manifests. Its isolated lock prunes unrelated
+workspace packages offline and rejects external versions absent from the original locked
+resolution; subsequent example builds remain locked. Unpublished test helpers use path-only
+development dependencies so Cargo omits them from published manifests.
+
 Locale declaration barrels now re-export their imported namespace bindings directly. This fixes
 strict declaration checking that previously reported an import/local declaration collision and a
 self-referential namespace type; the public export names and value types remain unchanged.

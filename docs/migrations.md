@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Unpublished Cargo test helpers
+
+The LSP and CLDR generation tool now refer to workspace-only `linguini-test-support` without
+a registry version. Cargo omits that development dependency from published manifests, avoiding
+a dependency on an unpublished package. Packaged-documentation staging still includes the
+complete path-dependency manifest closure and verifies its external versions against the
+workspace lock. Application runtime dependencies and APIs are unchanged.
+
 ## Shared type expression rendering
 
 Primitive types and enum literal unions now render through the same ECMAScript type template
