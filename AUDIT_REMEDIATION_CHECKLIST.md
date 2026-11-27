@@ -726,6 +726,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       parity remains open. CLI unit/integration suites pass on
       Node 20 and Node 24, with workspace Clippy, Rust 1.87, executable documentation, and
       packaged-source checks passing. Generated code/declaration/map expectations are unchanged.
+      Plural input previews now follow ECMAScript trimming, accepting BOM while rejecting NEL
+      (GEN-A63). All 25 trim characters, internal whitespace, invalid controls, exact fractions,
+      compact exponents, and category passthrough execute through five call paths in five locales:
+      7,375 native/generated comparisons pass on Node 20 and 24. CLI suites, workspace Clippy,
+      and Rust 1.87 pass; application artifacts stay unchanged.
       Decimal/currency previews now consume `NumberFormatPlan` for affixes, grouping thresholds,
       fraction precision, and rounding quantum, removing their separate static-choice assembly.
       Pattern-defined increments retain their quantum unless supplemental currency data overrides

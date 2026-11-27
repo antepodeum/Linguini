@@ -815,7 +815,10 @@ struct ExactPluralOperands {
 
 impl ExactPluralOperands {
     fn parse(value: &str) -> Result<Self, RenderError> {
-        let sample = value.trim();
+        // Match ECMAScript String.prototype.trim: Rust includes NEL and excludes BOM.
+        let sample = value.trim_matches(|character: char| {
+            character == '\u{feff}' || (character.is_whitespace() && character != '\u{0085}')
+        });
         let unsigned = match sample.as_bytes().first() {
             Some(b'+' | b'-') => &sample[1..],
             _ => sample,
@@ -1372,6 +1375,8 @@ fn group_integer_digits(
 
 #[cfg(test)]
 mod tests {
+    mod plural_inputs;
+
     use super::*;
     use linguini_ir::{lower_locale, lower_schema};
     use linguini_syntax::{parse_locale, parse_schema};
