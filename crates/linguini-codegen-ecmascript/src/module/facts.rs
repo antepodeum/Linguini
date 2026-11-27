@@ -6,7 +6,7 @@ use linguini_codegen::{independent_form_attribute_names, StringResultFacts};
 use linguini_ir::{IrExpression, IrExpressionKind, IrModule};
 
 use super::names::{
-    form_attribute_binding_name, form_binding_name, property_access, safe_identifier,
+    form_attribute_binding_name, form_binding_name, local_function_name, property_access,
 };
 
 const FORM_VALUE_BINDING: &str = "__lgl_value";
@@ -30,7 +30,7 @@ impl ExpressionFacts {
             .collect::<BTreeSet<_>>();
         let reserved = functions
             .iter()
-            .map(|name| safe_identifier(name))
+            .map(|name| local_function_name(name))
             .chain(super::formatters::formatter_helper_names(schema, module))
             .chain(["String", "undefined", "normalizeMessageArgs"].map(str::to_owned))
             .collect();

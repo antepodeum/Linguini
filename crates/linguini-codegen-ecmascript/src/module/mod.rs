@@ -826,7 +826,7 @@ pub(super) fn locale_global_value_names(locale: &IrModule) -> Vec<String> {
             locale
                 .functions()
                 .iter()
-                .map(|item| safe_identifier(&item.name)),
+                .map(|item| names::local_function_name(&item.name)),
         )
         .collect()
 }

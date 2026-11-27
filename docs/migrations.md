@@ -139,6 +139,17 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Private function names and JavaScript intrinsics
+
+Unqualified backend input can contain valid local functions named `String`, `Number`, `Date`,
+or other JavaScript intrinsics. These functions now receive collision-safe private bindings.
+Previously `fn String(value: Number) { _ => {value} }` could recursively call itself when the
+backend emitted JavaScript string conversion. Function declarations, calls, aggregate globals,
+and physical semantic imports now agree on the private name. Public message/enum exports,
+source properties, and named argument keys retain their spelling. Regenerate artifacts;
+application APIs and configuration do not change. This correction covers local function
+bindings; other declaration roles remain part of the broader identifier audit.
+
 ## Unicode first-weekday preferences
 
 Gregorian `Y` and `yw` requests now honor valid `fw` locale keywords, such as

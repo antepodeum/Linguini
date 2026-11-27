@@ -120,6 +120,16 @@ fn branch_names(branches: &[linguini_ir::IrFunctionBranch], used: &mut BTreeSet<
     }
 }
 
+/// Private local functions may use source names that are JavaScript intrinsics.
+pub(super) fn local_function_name(name: &str) -> String {
+    if is_runtime_global(name) {
+        // A leading separator distinguishes this readable binding from both encoded
+        // names and qualified paths. Source properties keep their original spelling.
+        return format!("__lgl_name_${name}");
+    }
+    safe_identifier(name)
+}
+
 pub fn safe_identifier(name: &str) -> String {
     if is_safe_identifier(name) && !name.starts_with("__lgl_") {
         return name.to_owned();
@@ -129,6 +139,37 @@ pub fn safe_identifier(name: &str) -> String {
         return format!("__lgl_name_{path}");
     }
     encoded_name("__lgl_name_", name)
+}
+
+/// Intrinsics used by generated expressions, formatters, and shared helpers must stay
+/// available even when a source declaration has the same name.
+fn is_runtime_global(name: &str) -> bool {
+    matches!(
+        name,
+        "String"
+            | "Number"
+            | "BigInt"
+            | "Date"
+            | "Math"
+            | "Object"
+            | "Array"
+            | "Reflect"
+            | "Symbol"
+            | "JSON"
+            | "RegExp"
+            | "Boolean"
+            | "Set"
+            | "Map"
+            | "WeakMap"
+            | "Promise"
+            | "Intl"
+            | "Error"
+            | "TypeError"
+            | "RangeError"
+            | "NaN"
+            | "Infinity"
+            | "undefined"
+    )
 }
 
 fn readable_qualified_name(name: &str) -> Option<String> {
@@ -471,6 +512,14 @@ mod tests {
     #[test]
     fn identifiers_are_valid_ascii_injective_and_avoid_reserved_words() {
         assert_eq!(safe_identifier("message"), "message");
+        assert_eq!(safe_identifier("String"), "String");
+        assert_eq!(super::local_function_name("String"), "__lgl_name_$String");
+        assert_ne!(
+            super::local_function_name("String"),
+            safe_identifier("__lgl_name_$String")
+        );
+        assert_eq!(property_key("String"), "String");
+        assert_eq!(property_access("String"), ".String");
         assert_eq!(
             safe_identifier("message-name"),
             "__lgl_name_6D6573736167652D6E616D65"
@@ -517,6 +566,11 @@ mod tests {
             "Fruit",
             "fruit",
             "class",
+            "String",
+            "Math",
+            "undefined",
+            "__lgl_name_$String",
+            "__lgl_name_$undefined",
             "shop.Fruit",
             "shop$Fruit",
             "shop..Fruit",

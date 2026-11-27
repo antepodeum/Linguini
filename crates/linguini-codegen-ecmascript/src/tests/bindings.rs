@@ -1,6 +1,52 @@
 use super::*;
 use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
 
+fn binding_project_files(
+    schema_source: &str,
+    locale_source: &str,
+) -> (Vec<EcmaGeneratedFile>, String) {
+    let schema = lower_schema(&parse_schema_in(schema_source, SourceId(1)).unwrap());
+    let locales = [EcmaLocaleModule {
+        locale: "en".into(),
+        module: lower_locale(&parse_locale_in(locale_source, SourceId(2)).unwrap()),
+    }];
+    let project = ValidatedEcmaProject::try_new(&schema, &locales, &project_options("en")).unwrap();
+    let sources = [
+        crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
+        crate::EcmaSource::new(SourceId(2), "en.lgl", locale_source),
+    ];
+    let mut files = crate::generate_project_files(&project).unwrap();
+    for artifact in project.semantic_artifacts().unwrap() {
+        let compiled =
+            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        files.push(EcmaGeneratedFile {
+            path: artifact.module_path,
+            contents: compiled.code,
+        });
+    }
+    let artifact = project.message_artifacts().unwrap().remove(0);
+    let physical =
+        crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+    files.push(EcmaGeneratedFile {
+        path: artifact.module_path.clone(),
+        contents: physical.code,
+    });
+    let standalone = crate::compile_message_module(
+        &project,
+        "en",
+        "root",
+        "standalone.js",
+        "./shared.js",
+        &sources,
+    )
+    .unwrap();
+    files.push(EcmaGeneratedFile {
+        path: "standalone.js".into(),
+        contents: standalone.code,
+    });
+    (files, format!("./{}", artifact.module_path))
+}
+
 #[test]
 fn named_functions_keep_precedence_without_shadowing_or_parameter_defaults() {
     for (declaration, ty, sample) in [
@@ -28,47 +74,7 @@ fn named_functions_keep_precedence_without_shadowing_or_parameter_defaults() {
                 ""
             };
             let locale_source = format!("{form}fn helper(count: Number) {{ _ => {{count}} }}\nfn Forward(helper: {ty}, count: Number) {{ _ => {{helper(count)}} }}\nroot = {body}\n");
-            let schema = lower_schema(&parse_schema_in(&schema_source, SourceId(1)).unwrap());
-            let locales = [EcmaLocaleModule {
-                locale: "en".into(),
-                module: lower_locale(&parse_locale_in(&locale_source, SourceId(2)).unwrap()),
-            }];
-            let project =
-                ValidatedEcmaProject::try_new(&schema, &locales, &project_options("en")).unwrap();
-            let sources = [
-                crate::EcmaSource::new(SourceId(1), "schema.lgs", &schema_source),
-                crate::EcmaSource::new(SourceId(2), "en.lgl", &locale_source),
-            ];
-            let mut files = crate::generate_project_files(&project).unwrap();
-            for artifact in project.semantic_artifacts().unwrap() {
-                let compiled =
-                    crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
-                files.push(EcmaGeneratedFile {
-                    path: artifact.module_path,
-                    contents: compiled.code,
-                });
-            }
-            let artifact = project.message_artifacts().unwrap().remove(0);
-            let physical =
-                crate::compile_bundler_message_artifact_module(&project, &artifact, &sources)
-                    .unwrap();
-            files.push(EcmaGeneratedFile {
-                path: artifact.module_path.clone(),
-                contents: physical.code,
-            });
-            let standalone = crate::compile_message_module(
-                &project,
-                "en",
-                "root",
-                "standalone.js",
-                "./shared.js",
-                &sources,
-            )
-            .unwrap();
-            files.push(EcmaGeneratedFile {
-                path: "standalone.js".into(),
-                contents: standalone.code,
-            });
+            let (files, physical) = binding_project_files(&schema_source, &locale_source);
             for file in files.iter().filter(|file| file.path.ends_with(".js")) {
                 for unused in ["UNUSED_FORM", "formatCurrency", "formatDate"] {
                     assert!(
@@ -98,9 +104,76 @@ for (const root of [ordinary.root,physical.message,standalone.message]) {{
 }}
 console.log('verified');
 "#,
-                physical = format!("./{}", artifact.module_path)
+                physical = physical
             );
             assert_eq!(execute_project(&files, &script), "verified", "{ty} {body}");
         }
     }
+}
+
+#[test]
+fn source_functions_cannot_shadow_generated_javascript_intrinsics() {
+    let names = [
+        "String",
+        "Number",
+        "BigInt",
+        "Date",
+        "Math",
+        "Object",
+        "Array",
+        "Reflect",
+        "Symbol",
+        "JSON",
+        "RegExp",
+        "Boolean",
+        "Set",
+        "Map",
+        "WeakMap",
+        "Promise",
+        "Intl",
+        "Error",
+        "TypeError",
+        "RangeError",
+        "NaN",
+        "Infinity",
+        "undefined",
+    ];
+    let schema_source = "root(value: Number, stamp: Date)\n";
+    let mut locale_source = String::new();
+    for name in names {
+        locale_source.push_str(&format!(
+            "fn {name}(value: Number) {{ _ => {name} {{value}} }}\n"
+        ));
+    }
+    locale_source.push_str("root = ");
+    for name in names {
+        locale_source.push_str(&format!("{{{name}(value)}}|"));
+    }
+    locale_source.push_str("{value @number}|{stamp @date(skeleton = \"yw\")}\n");
+    let (files, physical) = binding_project_files(schema_source, &locale_source);
+    let names = serde_json::to_string(&names).unwrap();
+    let script = format!(
+        r#"
+import assert from 'node:assert/strict';
+const ordinary = await import('./locales/en.js');
+const physical = await import({physical:?});
+const standalone = await import('./standalone.js');
+const names = {names};
+for (const root of [ordinary.root, physical.message, standalone.message]) {{
+  const expected = value => names.map(name => name+' '+value).join('|')+'|'+value+'|week 1 of 2021';
+  assert.equal(root(2, '2021-01-01'), expected(2));
+  assert.equal(root({{value:2, stamp:new Date('2021-01-01T00:00:00Z')}}), expected(2));
+  assert.equal(root({{value:2n, stamp:0}}), names.map(name=>name+' 2').join('|')+'|2|week 1 of 1970');
+  const seen=[];
+  const args=Object.defineProperties({{}}, {{value:{{enumerable:true,get(){{seen.push('value');return 2;}}}},stamp:{{enumerable:true,get(){{seen.push('stamp');return '2021-01-01';}}}}}});
+  assert.equal(root(args), expected(2));
+  assert.deepEqual(seen,['value','stamp']);
+  const failure=new Error('caller coercion');
+  assert.throws(()=>root({{[Symbol.toPrimitive](){{throw failure;}}}},0),error=>error===failure);
+  assert.throws(()=>root(2,'invalid'),RangeError);
+}}
+console.log('verified');
+"#
+    );
+    assert_eq!(execute_project(&files, &script), "verified");
 }

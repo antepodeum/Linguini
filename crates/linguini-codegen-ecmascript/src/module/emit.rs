@@ -14,7 +14,8 @@ use super::expr::{
 use super::formatter_codegen::formatter_data_declaration;
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
-    emit_docs, emit_docs_with_tags, function_name, property_key, safe_identifier, ts_type, JsDocTag,
+    emit_docs, emit_docs_with_tags, function_name, local_function_name, property_key,
+    safe_identifier, ts_type, JsDocTag,
 };
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
@@ -334,7 +335,7 @@ pub(super) fn emit_local_functions(
             facts,
         );
         output.push_str(&crate::templates::render("local_function", minijinja::context! {
-            docs => "", name => safe_identifier(&function.name), parameters => parameter_names, body, exported,
+            docs => "", name => local_function_name(&function.name), parameters => parameter_names, body, exported,
         }));
     }
 }

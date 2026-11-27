@@ -108,6 +108,12 @@ while diagnosing the current source. Each fallback source must also be checked i
 `linguini_ir::qualify_locale_module_in_context` qualifies one fresh source against its composed
 relative globals and schema, preserving the loader's guarded merge order and original source IDs.
 
+The ECMAScript backend gives private local functions a separate binding policy from public
+messages and types. A function named `String`, for example, receives a readable private name
+such as `__lgl_name_$String`, so its body can still use JavaScript string conversion. Ordinary
+globals, standalone modules, physical semantic imports, and calls share that binding. Source
+function names, public message/enum exports, argument keys, and property spellings stay intact.
+
 `linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` family. Its
 `IntegerPluralPlan` specializes ordered cardinal rules and projected results over the proven
 integer domain 1–53, preserving overlaps while merging equal outputs and removing unreachable

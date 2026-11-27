@@ -7,7 +7,7 @@ use linguini_ir::{
     IrFormatterKind, IrFunctionBranch, IrFunctionParameter, IrModule, IrText, IrTextPart, IrValue,
 };
 
-use super::names::{property_access, property_key, safe_identifier, string_literal};
+use super::names::{local_function_name, property_access, property_key, string_literal};
 use super::{render_jsdoc_type, EcmaOptions, TypeModel};
 
 pub(super) fn form_object(
@@ -250,7 +250,7 @@ fn unformatted_expression_value(
     let path = if called && expression.path.len() == 1 && is_plural_intrinsic(&expression.path[0]) {
         options.plural_function.clone()
     } else if facts.is_global_call(expression) {
-        safe_identifier(&expression.path.join("."))
+        local_function_name(&expression.path.join("."))
     } else {
         context.path(&expression.path)
     };

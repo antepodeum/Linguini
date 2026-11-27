@@ -12,7 +12,9 @@ use crate::ecmascript::{
 
 use super::emit::{self, emit_forms, emit_local_functions, emit_variables};
 use super::formatters::{formatter_helper_names, plural_required};
-use super::names::{form_binding_name, import_path_for_target, safe_identifier};
+use super::names::{
+    form_binding_name, import_path_for_target, local_function_name, safe_identifier,
+};
 use super::{project_locale_options, EcmaCodegenError, EcmaModuleKind, ValidatedEcmaProject};
 
 const MAX_PORTABLE_PATH_BYTES: usize = 240;
@@ -419,6 +421,7 @@ pub(super) fn message_imports_with_artifacts(
 pub(super) fn semantic_binding(kind: EcmaSemanticSymbolKind, name: &str) -> String {
     match kind {
         EcmaSemanticSymbolKind::LocaleForm => form_binding_name(name),
+        EcmaSemanticSymbolKind::LocaleFunction => local_function_name(name),
         _ => safe_identifier(name),
     }
 }

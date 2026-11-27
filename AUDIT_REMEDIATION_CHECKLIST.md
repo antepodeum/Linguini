@@ -1770,6 +1770,13 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       directly across ordinary and physical modules, including aliases and imported globals.
       Executed conversion traces retain raw parameters, numeric plural inputs, coercion hints,
       and thrown errors; unproven member references still coerce.
+      Intrinsic-named local functions now receive readable private bindings such as
+      `__lgl_name_$String`, shared by declaration/call/import planning (GEN-A49). A 23-function
+      source executes ordinary, standalone, and physical output with numeric/week formatters,
+      getter/coercion/error checks, and preserved source keys. All 188 emitter tests pass on
+      Node 20; generated Node 24 and strict JS/TS 5.8/5.9/6 consumers pass. Existing generated
+      code/declaration/map snapshots stay unchanged. Workspace Clippy, Rust 1.87, 223 patch
+      API checks, and four documentation gates pass. Other declaration roles remain under audit.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       Shared form demand projects standalone closures and generated projects to used attributes
