@@ -928,15 +928,21 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       main stacks; a 256 KiB thread regression covers the lookup families. All 5,357 record
       values retain exact metadata. Locked workspace tests pass on Node 20, with Clippy,
       Rust 1.87 native/WASM, reproducibility, and 223 patch API checks passing too. Sixteen
-      native Vite 7/8 consumers retain exact bytes. Hosted Windows confirmation remains open.
+      native Vite 7/8 consumers retain exact bytes. Hosted confirmation is recorded below.
       The same run's Vite 5 failure comes from internal library analysis requiring an unnamed
       application's package name (GEN-A75). Analysis now owns its output filename. A real
       unnamed-package regression reproduces the old exception and verifies exact demand,
       a single import-free chunk, and executed output. All 13 core, 64 Svelte, and 5 Vue tests
       pass on each of Vite 5.4.21, 6.4.6, 7.3.3, and 8.4.0 on Node 24 (328 total); nine
       page-payload tests pass on Node 20 with frozen Vite 7. Package manifests, locks, workspace
-      policy, and frozen installs are restored after probes. Hosted Vite 5 passes on source
-      `09394e6` in run 46069622892; the other pending hosted jobs remain separate requirements.
+      policy, and frozen installs are restored after probes.
+      [Push run 46069622892](https://github.com/antepodeum/Linguini/actions/runs/46069622892)
+      on `09394e6` passes all 24 enabled jobs, including Linux/macOS/Windows Rust, native/WASM
+      minimum checks, platform TypeScript, Vite 5–8, adapters, editor/WASM, and production site.
+      Changed-code mutation testing is intentionally PR-only and skips this push. This confirms
+      the hosted repairs above. Installed native/universal VSIX smoke remains a local receipt:
+      the extension CI job currently tests, compiles, bundles, and exercises WASM, but does not
+      install the packaged VSIX into an Extension Host. That integration-CI requirement stays open.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;
@@ -1472,9 +1478,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       packaged documentation, and production SSR/browser/graph checks. All 45 production locale
       payloads retain identical paths and bytes. Separate Node 24 adapter runs pass 82 tests
       on each of Vite 5.4.21, 6.4.6, 7.3.3, and 8.4.0 (328 total), with frozen metadata and
-      dependency installs restored afterward. Hosted run 46069622892 is still in progress;
-      its Vite 5–8 jobs pass. These receipts leave pending hosted jobs and the broader
-      architecture/platform/release requirements open.
+      dependency installs restored afterward. Hosted run 46069622892 passes all 24 enabled
+      jobs, including Windows/macOS/Linux Rust and Vite 5–8. Changed-code mutation testing is
+      PR-only and skips this push. Installed VSIX integration CI and the broader architecture/
+      release requirements remain open; a passing run does not close unfinished acceptance criteria.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
