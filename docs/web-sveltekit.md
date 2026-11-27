@@ -357,6 +357,8 @@ Use `linkModule: "src/lib/link-transform.ts"` in the Vite options to transform s
 through an application module exporting `localizeTransformedHref`. For browser-created anchors,
 explicitly initialize `startRuntimeLinkLocalization` from `@antepodeum/linguini-web/runtime-links`
 and dispose it when its owner is destroyed. These choices do not change native message generation.
+The observer ignores added text nodes and coalesces repeated mutation records for the same
+pending subtree. Use the returned `refresh()` method when all links need the current locale.
 
 ```ts
 // src/lib/documented-client-helpers.ts

@@ -1026,6 +1026,15 @@ TypeScript, and application/bundler imports select their capabilities.
       locale and attribute types. Fourteen runtime/parity, documentation/package, and production
       site/browser gates pass; twenty-nine Node 20 runtime/hook/graph tests also pass. Broader
       platform and page-demand acceptance remains open.
+      Runtime link queues now count newly accepted roots, skipping text nodes and duplicate
+      records (GEN-A66). A fixture with 600 anchors visits zero elements instead of 601 after
+      text additions, and one instead of 601 for repeated records on one changed link.
+      Animation/timer scheduling, both overflow paths, the 256-element frame budget, ignored
+      attributes, refresh, and cleanup remain covered. Vite 7/8 consumers retain one chunk;
+      the cost audit records byte/compression tradeoffs. Generic framework capability and page
+      delivery requirements remain open.
+      All 25 web tests pass on Node 20/24, alongside thirteen runtime/parity, packaging,
+      documentation, and production site/SSR/browser/graph gates.
 - [x] WEB-A14 — Normalize one `LocaleSwitchPlan` shared by browser and server transports.
 - [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [x] WEB-A16 — Create an optional runtime switch handler with validated same-origin return targets.

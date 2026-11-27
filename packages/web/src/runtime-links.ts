@@ -37,16 +37,17 @@ export function startRuntimeLinkLocalization<LocaleName extends string>(web: Lin
         }
     };
 
-    const enqueueRoot = (root: Node) => {
+    const enqueueRoot = (root: Node): boolean => {
         if (destroyed || !isLinkTraversalRoot(root) || queuedRoots.has(root))
-            return;
+            return false;
         if (pendingRoots.length >= MAX_PENDING_ROOTS) {
             enqueueDocument();
-            return;
+            return true;
         }
         pendingRoots.push(root);
         queuedRoots.add(root);
         schedule();
+        return true;
     };
     const enqueueDocument = () => {
         pendingRoots.length = 0;
@@ -88,16 +89,17 @@ export function startRuntimeLinkLocalization<LocaleName extends string>(web: Lin
     const observer = typeof MutationObserver === "undefined"
         ? undefined
         : new MutationObserver((mutations) => {
+            // Only new eligible roots consume the queue budget.
             let queued = 0;
             for (const mutation of mutations) {
                 if (mutation.type === "attributes") {
-                    enqueueRoot(mutation.target);
-                    queued += 1;
+                    if (enqueueRoot(mutation.target))
+                        queued += 1;
                 }
                 else {
                     for (const node of mutation.addedNodes) {
-                        enqueueRoot(node);
-                        queued += 1;
+                        if (enqueueRoot(node))
+                            queued += 1;
                         if (queued >= MAX_PENDING_ROOTS)
                             break;
                     }

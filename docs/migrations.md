@@ -17,6 +17,12 @@ Regenerate output to reuse digit-replacement functions across number, currency, 
 formatters. Formatting no longer creates a replacement function on each numeric call.
 Accepted inputs, formatted text, and public signatures are unchanged.
 
+## Runtime link mutation coalescing
+
+Runtime link localization skips text additions and coalesces duplicate mutation records.
+Only newly queued subtrees contribute to its overflow fallback, avoiding unrelated document
+scans. Public APIs, locale policy, and cleanup are unchanged; no application changes are required.
+
 ## Offline CLDR number-pattern validation
 
 CLDR updates now reject padding inside an affix or numeric skeleton. Padding escapes preserve

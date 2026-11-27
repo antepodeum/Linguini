@@ -604,5 +604,32 @@ All minified consumers shrink by 88–92 bytes. Compression is not uniformly sma
 gzip on Vite 8 grows by three bytes, and Chakma Brotli is unchanged there. The change removes
 per-call callback creation without introducing a runtime lookup registry or CLDR parser.
 
+## Runtime link mutation queues
+
+The DOM observer counted text nodes and duplicate records toward its overflow threshold even
+when neither added a traversal root. That promoted a batch to a document scan. The queue now
+reports whether it accepted a root, and only that work advances the overflow counter.
+
+A fixture with 600 anchors measures follow-up work after its initial scan. Adding 300 text
+nodes changes scheduled tasks from one to zero and visited elements from 601 to zero. A batch
+of 300 attribute records for one changed link still schedules one task, but visits one element
+instead of 601. Both animation and timer modes execute these checks through complete minified
+consumers. Package tests also retain the overflow fallback across one/multiple batches, the
+256-element frame budget, download/ignore handling, explicit refresh, and cleanup.
+
+The consumers compile the maintained web package, create its routing metadata, and initialize
+runtime link localization. Each executes in one chunk without static or dynamic imports.
+Node 24.13.1 minified/gzip/Brotli bytes:
+
+| Bundler | Before | After |
+| --- | ---: | ---: |
+| Vite 7.3.3 | 9,853 / 3,797 / 3,417 | 9,851 / 3,801 / 3,415 |
+| Vite 8.0.13 | 9,646 / 3,682 / 3,323 | 9,644 / 3,684 / 3,332 |
+
+Minified output shrinks by two bytes. Gzip grows by four/two bytes respectively; Brotli falls
+by two bytes on Vite 7 and grows by nine on Vite 8. These are operation counts and complete
+consumer sizes, without a timing or heap-size claim. The observer still examines mutation
+records to find affected roots; the bounded frame budget applies to element traversal.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.
