@@ -1444,3 +1444,110 @@ console.log('verified');
         .stdout(contains("apple / Apple / 2"))
         .stdout(contains("=> apple / apple"));
 }
+
+#[test]
+fn classified_plural_values_pass_native_and_physical_function_and_form_calls() {
+    let project = TempDir::new().unwrap();
+    fs::write(
+        project.path().join("linguini.toml"),
+        "[project]\nname=\"plural-forward\"\ndefault_locale=\"en\"\nlocales=[\"en\",\"ru\"]\n\
+         [paths]\nschema=\"schema\"\nlocale=\"locales\"\n\
+         [targets.ts]\nout=\"generated\"\n\
+         [targets.ts.bundler]\nsources=[\"src\"]\nlocale_loading=\"dynamic\"\n",
+    )
+    .unwrap();
+    fs::write(project.path().join("package.json"), "{\"type\":\"module\"}").unwrap();
+    for directory in ["schema", "locales/main", "src"] {
+        fs::create_dir_all(project.path().join(directory)).unwrap();
+    }
+    fs::write(project.path().join("src/index.js"), "export {};\n").unwrap();
+    fs::write(
+        project.path().join("schema/main.lgs"),
+        "enum Fruit { apple }\nsummary(fruit: Fruit, count: Number)\n",
+    )
+    .unwrap();
+    let locale = concat!(
+        "fn Echo(value: Plural) { _ => {value} }\n",
+        "fn Forward(value: Plural) { _ => {Echo(value)} }\n",
+        "fn Numeric(value: Number) { _ => {value} }\n",
+        "impl Fruit { apple { one => ONE\n_ => OTHER\n",
+        "form nom(Plural) { one => ONE_NOM\n_ => OTHER_NOM\n} } }\n",
+        "summary = {Echo(Plural(count))}|{Forward(Plural(count))}|",
+        "{fruit(Plural(count))}|{fruit.nom(Plural(count))}|",
+        "{fn(value: Plural(count)) { _ => {Echo(value)} }}\n",
+    );
+    for language in ["en", "ru"] {
+        fs::write(
+            project.path().join(format!("locales/main/{language}.lgl")),
+            locale,
+        )
+        .unwrap();
+    }
+    for command in ["check", "build"] {
+        linguini()
+            .current_dir(project.path())
+            .args([command, "--format", "json"])
+            .assert()
+            .success()
+            .stderr("");
+    }
+    let execution = std::process::Command::new("node")
+        .current_dir(project.path())
+        .args(["--input-type=module", "--eval", r#"
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const {createLinguini,prepareLinguini}=await import('./generated/index.js');
+const manifest=JSON.parse(await readFile('./generated/bundler/manifest.json','utf8'));
+for (const locale of ['en','ru']) {
+  await prepareLinguini(locale);
+  const path=manifest.messages['main.summary'].locales[locale].module;
+  const physical=(await import('./generated/'+path)).message;
+  for (const count of [1,2,1.5]) {
+    const category=count===1?'one':locale==='ru'&&count===2?'few':'other';
+    const expected=[category,category,count===1?'ONE':'OTHER',count===1?'ONE_NOM':'OTHER_NOM',category].join('|');
+    for (const message of [createLinguini(locale).main.summary,physical]) {
+      assert.equal(message('apple',count),expected);
+      assert.equal(message({count,fruit:'apple'}),expected);
+    }
+  }
+}
+console.log('verified');
+"#]).output().unwrap();
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(execution.stdout).unwrap().trim(),
+        "verified"
+    );
+    linguini()
+        .current_dir(project.path())
+        .arg("generate")
+        .assert()
+        .success()
+        .stdout(contains("=> one|one|ONE|ONE_NOM|one"))
+        .stdout(contains("=> few|few|OTHER|OTHER_NOM|few"))
+        .stdout(contains("=> other|other|OTHER|OTHER_NOM|other"));
+    let baseline = fs::read(project.path().join("generated/index.js")).unwrap();
+    for invalid in [
+        "Echo(fruit)",
+        "Numeric(Plural(count))",
+        "Plural(Plural(count))",
+    ] {
+        let source = locale.replace("Echo(Plural(count))", invalid);
+        fs::write(project.path().join("locales/main/en.lgl"), source).unwrap();
+        linguini()
+            .current_dir(project.path())
+            .args(["build", "--format", "json"])
+            .assert()
+            .failure()
+            .stdout(contains("linguini.type_mismatch"))
+            .stderr("");
+        assert_eq!(
+            fs::read(project.path().join("generated/index.js")).unwrap(),
+            baseline
+        );
+    }
+}

@@ -280,6 +280,45 @@ fn inline_function_plural_selector_accepts_numeric_outer_value() {
 }
 
 #[test]
+fn plural_results_forward_to_plural_functions_and_forms_without_becoming_numbers() {
+    let schema = lower_schema(
+        &parse_schema("enum Fruit { apple }\nsummary(fruit: Fruit, count: Number)\n").unwrap(),
+    );
+    let declarations = concat!(
+        "fn Echo(value: Plural) { _ => {value} }\n",
+        "fn Forward(value: Plural) { _ => {Echo(value)} }\n",
+        "fn Numeric(value: Number) { _ => {value} }\n",
+        "impl Fruit { apple { one => ONE\n_ => OTHER\n",
+        "form nom(Plural) { one => ONE_NOM\n_ => OTHER_NOM\n} } }\n",
+    );
+    let valid = lower_locale(
+        &parse_locale(&format!(
+            "{declarations}summary = {{Echo(Plural(count))}}|{{Forward(Plural(count))}}|\
+         {{fruit(Plural(count))}}|{{fruit.nom(Plural(count))}}|\
+         {{fn(value: Plural(count)) {{ _ => {{Echo(value)}} }} }}\n",
+        ))
+        .unwrap(),
+    );
+    validate_ir(&schema, &valid).expect("classified values are assignable to Plural");
+
+    for (expression, code) in [
+        ("Echo(fruit)", "IR026"),
+        ("Numeric(Plural(count))", "IR027"),
+        ("Plural(Plural(count))", "IR026"),
+    ] {
+        let locale = lower_locale(
+            &parse_locale(&format!("{declarations}summary = {{{expression}}}\n")).unwrap(),
+        );
+        let errors =
+            validate_ir(&schema, &locale).expect_err("plural and numeric domains stay distinct");
+        assert!(
+            errors.iter().any(|error| error.code == code),
+            "{expression}: {errors:?}"
+        );
+    }
+}
+
+#[test]
 fn inline_function_rejects_unresolved_binding_rhs() {
     let schema = lower_schema(&parse_schema("summary(count: String)\n").expect("schema"));
     let locale = lower_locale(

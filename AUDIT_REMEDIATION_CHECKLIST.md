@@ -1404,6 +1404,12 @@ and the composed payload/SSR requirements below.
       arity/types, incomplete variant implementations, and named-function precedence are covered.
       Native check/build, executed named/positional calls, previews, and failed-build output
       preservation verify the actual CLI path. Broader SSR and delivery criteria remain open.
+      Classified `Plural` results also forward into plural function/form parameters instead of
+      failing IR validation after a successful analyzer check (GEN-A43). Native check/build/preview
+      and ordinary/physical English/Russian execution cover named/forwarded/inline functions,
+      named/unnamed forms, and positional/named calls. Negative tests keep categories distinct
+      from numeric parameters/intrinsic inputs and retain previous output on failed builds.
+      This is a focused semantic correction; the full framework/SSR matrix remains open.
       The built SvelteKit server now renders concurrent French/Russian/English requests with values,
       recursive namespaces, named/positional calls, forms/plurals, and number/currency/date formatters.
       Chromium verifies French hydration text and locale switching. The production message lab

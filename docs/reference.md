@@ -762,6 +762,9 @@ Any `Number` passed to a typed `Plural` parameter converts automatically using
 CLDR plural rules for the active locale. In a value-based inline selector, use
 `Plural(value)` to request that conversion explicitly; a value already typed as
 `Plural` can be selected directly. Intrinsic names are case-sensitive.
+Classified values can also be forwarded into `Plural` parameters of named functions and
+named/unnamed forms, including through inline bindings. They remain category values: passing
+one to a numeric parameter or classifying it again with `Plural(...)` is a source type error.
 
 Categories are locale rules, not universal meanings. For Russian cardinal
 plurals, integer examples include `1` and `21` in `one`; `2`, `3`, `4`, and `22`

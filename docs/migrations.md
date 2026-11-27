@@ -4,6 +4,14 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Forwarding classified plural values
+
+Native build and preview validation now accept an existing `Plural` result when a function or
+form expects `Plural`, matching the analyzer. This includes explicit `Plural(count)` arguments,
+forwarding through named functions, and captured inline values. Classified values remain distinct
+from `Number`/`Decimal`; numeric parameters and the numeric-only `Plural(...)` intrinsic still
+reject them. No syntax, runtime representation, or public message signature changes are required.
+
 ## Function-call and parameter scope
 
 Regenerate output when using the backend API with unqualified named functions whose names also

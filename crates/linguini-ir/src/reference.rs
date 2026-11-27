@@ -1744,7 +1744,9 @@ fn require_assignable(
     errors: &mut Vec<IrReferenceError>,
 ) {
     if expected == "Plural" {
-        require_numeric(subject, actual, span, context, errors);
+        if actual != "Plural" {
+            require_numeric(subject, actual, span, context, errors);
+        }
         return;
     }
     let expected = context.resolve_alias(expected).unwrap_or(expected);
