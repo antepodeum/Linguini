@@ -146,14 +146,14 @@ pub(crate) fn generate_formatting_tables(
     };
     Ok((
         quote! {
-            fn generated_number_formatting(locale: &str) -> Option<NumberFormatData> {
+            fn generated_number_formatting(locale: &str) -> Option<&'static NumberFormatData> {
                 match locale {
                     #(#number_arms)*
                     _ => None,
                 }
             }
 
-            fn generated_currency_formatting(locale: &str) -> Option<CurrencyFormatData> {
+            fn generated_currency_formatting(locale: &str) -> Option<&'static CurrencyFormatData> {
                 match locale {
                     #(#currency_arms)*
                     _ => None,
@@ -171,7 +171,7 @@ pub(crate) fn generate_formatting_tables(
                 }
             }
 
-            fn generated_date_formatting(locale: &str) -> Option<DateFormatData> {
+            fn generated_date_formatting(locale: &str) -> Option<&'static DateFormatData> {
                 match locale {
                     #(#date_arms)*
                     _ => None,
@@ -209,19 +209,22 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
     let decimal_pattern = number_pattern_tokens(&numbers.decimal_pattern);
     let percent_pattern = number_pattern_tokens(&numbers.percent_pattern);
     quote! {
-        #locale => Some(NumberFormatData {
-            locale: #locale,
-            numbering_system: #numbering_system,
-            digits: #digits,
-            decimal_symbol: #decimal_symbol,
-            group_symbol: #group_symbol,
-            minus_sign: #minus_sign,
-            plus_sign: #plus_sign,
-            exponential_symbol: #exponential_symbol,
-            minimum_grouping_digits: #minimum_grouping_digits,
-            decimal_pattern: #decimal_pattern,
-            percent_pattern: #percent_pattern,
-        }),
+        #locale => {
+            static DATA: NumberFormatData = NumberFormatData {
+                locale: #locale,
+                numbering_system: #numbering_system,
+                digits: #digits,
+                decimal_symbol: #decimal_symbol,
+                group_symbol: #group_symbol,
+                minus_sign: #minus_sign,
+                plus_sign: #plus_sign,
+                exponential_symbol: #exponential_symbol,
+                minimum_grouping_digits: #minimum_grouping_digits,
+                decimal_pattern: #decimal_pattern,
+                percent_pattern: #percent_pattern,
+            };
+            Some(&DATA)
+        },
     }
 }
 
@@ -236,15 +239,18 @@ fn currency_arm(locale: &str, currency: CurrencyData) -> TokenStream {
     let accounting_alpha_next_to_number =
         optional_number_pattern_tokens(currency.accounting_alpha_next_to_number.as_ref(), true);
     quote! {
-        #locale => Some(CurrencyFormatData {
-            locale: #locale,
-            decimal_symbol: #decimal_symbol,
-            group_symbol: #group_symbol,
-            standard_pattern: #standard_pattern,
-            accounting_pattern: #accounting_pattern,
-            standard_alpha_next_to_number: #standard_alpha_next_to_number,
-            accounting_alpha_next_to_number: #accounting_alpha_next_to_number,
-        }),
+        #locale => {
+            static DATA: CurrencyFormatData = CurrencyFormatData {
+                locale: #locale,
+                decimal_symbol: #decimal_symbol,
+                group_symbol: #group_symbol,
+                standard_pattern: #standard_pattern,
+                accounting_pattern: #accounting_pattern,
+                standard_alpha_next_to_number: #standard_alpha_next_to_number,
+                accounting_alpha_next_to_number: #accounting_alpha_next_to_number,
+            };
+            Some(&DATA)
+        },
     }
 }
 
@@ -273,15 +279,18 @@ fn date_arm(locale: &str, dates: DateData, digits: &str) -> TokenStream {
     let months = symbol_widths_tokens(&dates.months);
     let weekdays = symbol_widths_tokens(&dates.weekdays);
     quote! {
-        #locale => Some(DateFormatData {
-            locale: #locale,
-            digits: #digits,
-            date_formats: #date_formats,
-            time_formats: #time_formats,
-            date_time_formats: #date_time_formats,
-            months: #months,
-            weekdays: #weekdays,
-        }),
+        #locale => {
+            static DATA: DateFormatData = DateFormatData {
+                locale: #locale,
+                digits: #digits,
+                date_formats: #date_formats,
+                time_formats: #time_formats,
+                date_time_formats: #date_time_formats,
+                months: #months,
+                weekdays: #weekdays,
+            };
+            Some(&DATA)
+        },
     }
 }
 

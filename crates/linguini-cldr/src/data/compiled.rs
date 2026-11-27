@@ -93,6 +93,7 @@ pub fn compiled_number_formatting(locale: &str) -> Option<NumberFormatData> {
         LocaleFallbackComponent::Main,
         generated_number_formatting,
     )
+    .copied()
 }
 
 pub fn compiled_currency_formatting(locale: &str) -> Option<CurrencyFormatData> {
@@ -101,6 +102,7 @@ pub fn compiled_currency_formatting(locale: &str) -> Option<CurrencyFormatData> 
         LocaleFallbackComponent::Main,
         generated_currency_formatting,
     )
+    .copied()
 }
 
 /// Resolve the pinned locale symbol for one currency. Unknown codes have no symbol.
@@ -133,6 +135,7 @@ pub fn compiled_date_formatting(locale: &str) -> Option<DateFormatData> {
         LocaleFallbackComponent::Main,
         generated_date_formatting,
     )
+    .copied()
 }
 
 /// Resolve one supported solar calendar using the shared CLDR locale fallback policy.
@@ -145,6 +148,7 @@ pub fn compiled_calendar_formatting(locale: &str, calendar: &str) -> Option<Cale
     resolve_locale_tag(locale, LocaleFallbackComponent::Main, |tag| {
         generated_calendar_formatting(tag, calendar)
     })
+    .copied()
 }
 
 pub fn compiled_day_period_rules(locale: &str) -> Option<&'static [DayPeriodRule]> {

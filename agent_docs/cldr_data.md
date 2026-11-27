@@ -44,6 +44,13 @@ patterns. `linguini-codegen/src/numbers/currency.rs` selects the whole pattern u
 profile. It owns style fallback, code normalization, symbol lookup, separators, precision, and
 rounding for both native previews and ECMAScript rendering. Classification tables remain in the
 compiler; application output contains only the selected numeric implementation and literals.
+Profile v11 gives each number/currency/date/calendar record an explicit scoped static owner.
+Private lookup functions return a static reference; public lookup functions copy the selected
+record after locale fallback, retaining their existing owned return types. Explicit ownership
+also supports calendar rows that refer to shared static symbol groups. This avoids constructing
+large records in every unoptimized match arm. A 256 KiB thread exercises the formatting lookup
+families across the supported locale candidates. Compiler-table storage stays separate from
+application output; the borrowing change preserves every previous record value.
 
 The calendar profile covers Gregorian, Buddhist, ROC, and Japanese data: 3,060 locale/calendar
 pairs, contextual symbols, eras, skeletons, day periods, week rules, and GMT formats. Equal

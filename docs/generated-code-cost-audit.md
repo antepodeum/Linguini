@@ -769,5 +769,37 @@ tables are pruned. Both execute the selected behavior and observe input coercion
 measurements establish payload costs and pruning, without an execution-time or heap-use claim.
 Rust 1.87 native/WASM, workspace Clippy, and 223 patch-level common-codegen API checks pass.
 
+## Compiler lookup stack use
+
+GEN-A74 addresses the Windows debug CLI stack overflows in [push run 46063349104](https://github.com/antepodeum/Linguini/actions/runs/46063349104).
+A local native `build` reproduces the overflow with a 1 MiB main-stack limit. Unoptimized
+lookup match arms constructed each large formatting record by value. Profile v11 assigns each
+record a scoped static owner; private lookups return references and public APIs copy just the
+selected record after locale fallback. Calendar rows retain their shared static symbol groups.
+
+The same Linux debug binary's disassembled functions have these explicit stack reservations:
+
+| Private lookup | Before, bytes | After, bytes |
+| --- | ---: | ---: |
+| Number | 1,072,600 | 40 |
+| Currency | 1,221,064 | 40 |
+| Date | 1,713,656 | 40 |
+| Calendar | 1,468,888 | 72 |
+
+These measurements describe the lookup functions, without asserting a total process-memory
+bound or a cross-platform assembly layout. Complete native `build` and `generate` calls,
+including forwarded Date aliases and two skeletons, pass with both 1 MiB and 256 KiB main stacks.
+A Rust regression exercises the lookup families on a 256 KiB thread. The debug CLI grows from
+289,089,688 to 289,858,528 bytes as records acquire static storage; this is a compiler artifact,
+not an application-payload measurement.
+
+Removing only the new ownership wrappers and private reference return types reproduces the
+previous compiler table byte for byte: 766 number, 766 currency, 765 date, and 3,060 calendar
+records retain their data. Public lookup signatures and returned values remain unchanged.
+All locked workspace tests pass on Node 20. Strict Clippy, Rust 1.87 native/WASM, offline
+reproducibility, and all 223 patch-level CLDR API checks pass. Sixteen complete native Vite 7/8
+number/USD/CHF/date consumers retain identical programs, compressed sizes, outputs, and callback
+sharing. Hosted Windows confirmation remains a separate integration receipt.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

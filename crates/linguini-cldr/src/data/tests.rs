@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "7c6d33f64c76b2514304e6d044bfbd51b9d6a5a7da3b53a0c3a1b8fdbfe2a5d7"
+        "2f4ec52895bd160e64ae1afba98893fb7889450ea5dfc2dd7ad3c73c8431ce02"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -330,3 +330,38 @@ fn currency_symbols_resolve_pinned_locale_data_without_host_intl() {
     assert_eq!(super::compiled_currency_symbol("en", "ZZZ"), None);
 }
 use super::{NumberAffix, NumberAffixPart};
+
+#[test]
+fn formatting_record_lookups_fit_a_small_stack() {
+    std::thread::Builder::new()
+        .name("cldr-formatting-small-stack".into())
+        .stack_size(256 * 1024)
+        .spawn(|| {
+            let mut locales = std::collections::BTreeSet::new();
+            for locale in crate::locale_resolution_candidates() {
+                let Some(numbers) = std::hint::black_box(compiled_number_formatting(locale)) else {
+                    continue;
+                };
+                locales.insert(numbers.locale);
+                assert!(
+                    std::hint::black_box(compiled_currency_formatting(locale)).is_some(),
+                    "{locale}"
+                );
+                std::hint::black_box(compiled_date_formatting(locale));
+                for calendar in ["gregory", "buddhist", "roc", "japanese"] {
+                    if let Some(data) =
+                        std::hint::black_box(crate::compiled_calendar_formatting(locale, calendar))
+                    {
+                        assert_eq!(data.calendar, calendar, "{locale}");
+                    }
+                }
+            }
+            assert!(
+                locales.len() > 500,
+                "formatting locale coverage unexpectedly shrank"
+            );
+        })
+        .expect("small-stack formatting thread")
+        .join()
+        .expect("small-stack formatting lookups");
+}

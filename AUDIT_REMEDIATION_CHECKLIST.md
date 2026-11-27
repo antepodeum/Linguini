@@ -919,6 +919,16 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       updated working tree also passes all 71 full-profile gates, including rebuilt editor/WASM,
       native tsc, offline packages, documentation, and production SSR/browser/graph checks. Hosted confirmation remains
       required after pushing; this receipt does not claim the failed remote run is green.
+      [Push run 46063349104](https://github.com/antepodeum/Linguini/actions/runs/46063349104)
+      also exposes Windows debug CLI stack overflows (GEN-A74). Native `build` reproduces the
+      failure with a 1 MiB main stack. Formatting lookup rows now have explicit static owners;
+      private lookups borrow the selected record and public APIs retain owned results. The four
+      private functions' Linux debug stack reservations fall from 1.0–1.7 MiB to 40/40/40/72 bytes.
+      `build`/`generate`, including forwarded Date aliases/skeletons, pass with 1 MiB and 256 KiB
+      main stacks; a 256 KiB thread regression covers the lookup families. All 5,357 record
+      values retain exact metadata. Locked workspace tests pass on Node 20, with Clippy,
+      Rust 1.87 native/WASM, reproducibility, and 223 patch API checks passing too. Sixteen
+      native Vite 7/8 consumers retain exact bytes. Hosted Windows confirmation remains open.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;

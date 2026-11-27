@@ -81,12 +81,15 @@ pub(crate) fn generate_calendar_tables(source: &CldrSource) -> Result<TokenStrea
             };
             pair_count += 1;
             calendar_arms.push(quote! {
-                #target_calendar => Some(CalendarFormatData {
-                    locale: #locale, calendar: #target_calendar,
-                    date_formats: #dates, time_formats: #times, date_time_formats: #combined,
-                    symbols: #group, skeletons: &[#(#skeletons),*],
-                    japanese_year_patterns: &[#(#japanese_year_patterns),*],
-                }),
+                #target_calendar => {
+                    static DATA: CalendarFormatData = CalendarFormatData {
+                        locale: #locale, calendar: #target_calendar,
+                        date_formats: #dates, time_formats: #times, date_time_formats: #combined,
+                        symbols: #group, skeletons: &[#(#skeletons),*],
+                        japanese_year_patterns: &[#(#japanese_year_patterns),*],
+                    };
+                    Some(&DATA)
+                },
             });
         }
         if !calendar_arms.is_empty() {
@@ -98,7 +101,7 @@ pub(crate) fn generate_calendar_tables(source: &CldrSource) -> Result<TokenStrea
     }
     Ok(quote! {
         #(#definitions)*
-        fn generated_calendar_formatting(locale: &str, calendar: &str) -> Option<CalendarFormatData> {
+        fn generated_calendar_formatting(locale: &str, calendar: &str) -> Option<&'static CalendarFormatData> {
             match locale { #(#arms)* _ => None }
         }
     })
