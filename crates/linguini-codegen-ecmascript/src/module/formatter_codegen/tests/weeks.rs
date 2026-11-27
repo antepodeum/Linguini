@@ -20,6 +20,11 @@ fn compiled_week_formats_match_raw_cldr_wording_and_calendar_boundaries() {
         "en-u-sd-fra",
         "en-u-sd-cn11",
         "en-u-ca-iso8601-rg-afbal",
+        "en-u-sd-gbgbn",
+        "en-u-sd-fr75",
+        "nso-u-sd-gbgbn",
+        "mt-u-rg-usca",
+        "sa-u-sd-gbgbn",
         "en-GB-u-fw-sun",
         "en-GB-u-fw-mon",
         "en-GB-u-fw-tue",
@@ -160,6 +165,7 @@ fn week_arithmetic_and_plural_work_follow_selected_requests() {
         ("en-GB", "en-GB-u-ca-iso8601"),
         ("en-GB", "en-GB-u-rg-fra"),
         ("en-GB", "en-GB-u-rg-gbeng"),
+        ("en-u-sd-gbeng", "en-u-sd-gbgbn"),
     ] {
         for skeleton in ["yw", "MMMMW"] {
             let requests = [request(IrFormatterKind::Date, &[("skeleton", skeleton)])];

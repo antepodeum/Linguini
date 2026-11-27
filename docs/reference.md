@@ -536,12 +536,12 @@ surface. Current guarantees are:
   then the world default. A region override such as `en-US-u-rg-gbzzzz` uses GB's first weekday
   and minimum days. A subdivision such as `en-u-sd-gbeng` supplies GB only when no explicit
   region or valid region override exists. `rg` accepts a regular subdivision or a regular
-  region plus `zzzz`; `sd` requires a complete regular subdivision code. The shared canonicalizer
-  first applies the pinned subdivision aliases: `rg-fi01` becomes `rg-axzzzz`, and `sd-fra`
+  region plus `zzzz`; `sd` accepts a complete regular or deprecated subdivision code. The shared
+  canonicalizer first applies the pinned subdivision aliases: `rg-fi01` becomes `rg-axzzzz`, and `sd-fra`
   becomes `sd-frges`. Unrecognized values, grouping regions, and malformed types are ignored;
-  private use and other extensions cannot supply preferences. Obsolete subdivision IDs without
-  replacement metadata remain unresolved. Without a matching likely region, resolution uses
-  world rules.
+  private use and other extensions cannot supply preferences. Thus `en-u-sd-gbgbn` uses GB's
+  convention even though this obsolete code has no replacement alias; `en-u-rg-gbgbn` ignores
+  the invalid region override. Without a matching likely region, resolution uses world rules.
   `ca-iso8601` sets minimum days to four and defaults to Monday; valid `rg` or `fw` can
   change that first weekday. `fw` accepts `sun`, `mon`, `tue`, `wed`, `thu`, `fri`, or `sat`
   and preserves the effective minimum-days rule. Thus `2021-01-03` is week 1 of 2021 in

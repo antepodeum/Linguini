@@ -16,12 +16,19 @@ symbol tables share storage. Hawaiian retains its explicit unsupported Roman-mon
 
 Week preference validity comes from the pinned territory/subdivision containment and alias
 metadata. The regular sets contain 257 regions and 5,027 subdivisions, excluding grouping
-regions and obsolete aliases. The common extension-alias table applies 147 subdivision
-replacements to `rg` and `sd`. Obsolete subdivision IDs without replacement metadata are not
-covered by this profile.
+regions and obsolete aliases. They are checked for exact agreement with the bundled CLDR 48.2
+validity file, which also supplies 626 deprecated subdivisions and 257 unknown subdivision IDs.
+The common extension-alias table applies 147 subdivision replacements to `rg` and `sd` before
+validity checks. `sd` accepts regular/deprecated IDs; `rg` accepts regular/unknown IDs.
 
-The maintainer generator owns table construction in `src/week.rs` and alias lowering in
-`src/locale.rs`. The shared resolver is `linguini-cldr/src/locale/week.rs`; native previews and
+The bundled source is `linguini-cldr-macros/data/subdivision.xml`, copied unchanged from CLDR
+`release-48-2`, commit `11299982335beb974c1c63c45265184e759c0f41`. Its provenance, byte count,
+and verified SHA-256 are recorded under `inputs.bundled_sources` in the generated manifest.
+The existing input-tree counts and hash describe the CLDR JSON checkout. XML parsing belongs
+only to the offline maintainer tool; `linguini-cldr` retains no normal dependencies.
+
+The maintainer generator owns table construction in `src/week.rs`, validity parsing in
+`src/validity.rs`, and alias lowering in `src/locale.rs`. The shared resolver is `linguini-cldr/src/locale/week.rs`; native previews and
 code generators use its effective first weekday and minimum days. `linguini-codegen` owns
 week arithmetic and finite wording plans. Application JavaScript receives specialized
 arithmetic and text choices, without these validity tables or a CLDR interpreter.

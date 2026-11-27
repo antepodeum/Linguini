@@ -448,9 +448,8 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       at compilation too (GEN-A60). Pinned containment/alias data supplies 257 regular regions
       and 5,027 regular subdivisions; `rg` accepts both region and subdivision overrides.
       Shared canonicalization applies 147 pinned subdivision aliases before validity checks.
-      Unrecognized, grouping, and malformed preferences are ignored; obsolete subdivision IDs
-      without replacement metadata remain unresolved. First-day precedence and the ISO four-day
-      minimum are independent. Missing explicit territory rows and unmatched likely regions
+      Unrecognized, grouping, and malformed preferences are ignored. First-day precedence
+      and the ISO four-day minimum are independent. Missing explicit territory rows and unmatched likely regions
       use world rules. Both week families pass boundary execution and 3,456 native/generated
       cases per family, executed in three host zones,
       and cold/warm ordinary/physical builds on Node 20. Equivalent preferences retain identical
@@ -458,6 +457,19 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       native/WASM, 223 patch API checks per affected data crate, reproducible generation,
       and all 71 full-profile gates pass. Closest matching, other calendars, and selectable
       zones remain open.
+      The complete pinned validity registry now records 626 deprecated subdivision IDs,
+      including those without replacement aliases (GEN-A61). Its regular and unknown sets are
+      checked against the JSON data; all 11,820 `sd`/`rg` cases execute after canonicalization.
+      Native/generated week cases also cover Northern Sotho zero wording, Maltese week six,
+      and Sanskrit without cardinal data. Cold/warm ordinary/physical builds and prepared
+      project entries pass. The new parser is confined to the offline maintainer tool;
+      existing compiler formatting records, regular lookup arms, and application goldens
+      remain unchanged. Equivalent regular/obsolete preferences emit identical formatter bytes.
+      All 198 emitter tests and affected shared/CLI/data suites pass on Node 20; the expanded
+      week corpus passes on Node 24. Each family checks 4,096 native/generated cases in three
+      host zones. Clippy, Rust 1.87 native/WASM, reproducible generation, 223 patch API checks,
+      seven strict-date/documentation gates, and dependency policy/advisory checks pass.
+      Broader date/calendar criteria remain open.
       Canonical month-week `MMMMW` now uses the same finite family planner and direct arithmetic
       for the selected convention's reachable subset of 0–6 (GEN-A54). Week zero, week six,
       formatting/standalone month names, localized digits, and final-month ownership execute

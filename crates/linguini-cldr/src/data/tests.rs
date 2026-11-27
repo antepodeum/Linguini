@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "cbb0ba504ee3acfd658be09d87268feb6814d9ae0797d33d6f2967fff829a01b"
+        "cca630475d794d6fd04e49c208fdd8e30c4f9536324ccbfbd58dd5b2f58480d3"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -142,6 +142,8 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     assert_eq!(manifest["coverage"]["calendar_locale_pairs"], 3060);
     assert_eq!(manifest["coverage"]["regular_week_regions"], 257);
     assert_eq!(manifest["coverage"]["regular_week_subdivisions"], 5_027);
+    assert_eq!(manifest["coverage"]["deprecated_week_subdivisions"], 626);
+    assert_eq!(manifest["coverage"]["unknown_week_subdivisions"], 257);
 }
 
 #[test]

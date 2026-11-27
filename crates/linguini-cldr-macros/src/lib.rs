@@ -9,6 +9,7 @@ mod locale;
 mod sha256;
 mod source;
 mod source_paths;
+mod validity;
 mod week;
 
 use serde_json::json;
@@ -51,11 +52,19 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "license": "Unicode-3.0"
         },
         "inputs": {
-            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+week-preference-validity+subdivision-aliases+zone-formats+layout-v6",
+            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+week-preference-validity+subdivision-aliases+subdivision-validity+zone-formats+layout-v7",
             "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
             "tree_sha256": source.source_tree_sha256(),
             "file_count": source.input_file_count(),
-            "bytes": source.input_bytes()?
+            "bytes": source.input_bytes()?,
+            "bundled_sources": [{
+                "path": "data/subdivision.xml",
+                "source": validity::SOURCE_URL,
+                "ref": validity::SOURCE_REF,
+                "license": "Unicode-3.0",
+                "sha256": validity::SOURCE_SHA256,
+                "bytes": validity::SOURCE.len()
+            }]
         },
         "artifact": {
             "path": ARTIFACT_FILE,
@@ -66,6 +75,8 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "source_locales": source.locales().len(),
             "regular_week_regions": generated.week.regions,
             "regular_week_subdivisions": generated.week.subdivisions,
+            "deprecated_week_subdivisions": generated.week.deprecated_subdivisions,
+            "unknown_week_subdivisions": generated.week.unknown_subdivisions,
             "plural_locales": generated.plural_locales,
             "plural_categories": generated.plural_categories,
             "language_aliases": generated.locale.language_aliases,
@@ -139,9 +150,9 @@ mod tests {
     const CHECKED_MANIFEST: &[u8] =
         include_bytes!("../../linguini-cldr/src/data/generated/manifest.json");
     const GOLDEN_ARTIFACT_SHA256: &str =
-        "cbb0ba504ee3acfd658be09d87268feb6814d9ae0797d33d6f2967fff829a01b";
+        "cca630475d794d6fd04e49c208fdd8e30c4f9536324ccbfbd58dd5b2f58480d3";
     const GOLDEN_MANIFEST_SHA256: &str =
-        "3e66ad1fd26d2a4f1c2fb968d9262ee1b21693810543cd2af7a29e41f2760ec8";
+        "dcdfa851d38b8ea05755175501d09c4339dc15b5e9b385606a1ec00e648a39b6";
 
     #[test]
     fn checked_artifact_matches_full_pinned_manifest_and_golden_hash() {
@@ -173,6 +184,17 @@ mod tests {
         assert_eq!(manifest["coverage"]["source_locales"], 766);
         assert_eq!(manifest["coverage"]["regular_week_regions"], 257);
         assert_eq!(manifest["coverage"]["regular_week_subdivisions"], 5_027);
+        assert_eq!(manifest["coverage"]["deprecated_week_subdivisions"], 626);
+        assert_eq!(manifest["coverage"]["unknown_week_subdivisions"], 257);
+        assert_eq!(
+            manifest["inputs"]["bundled_sources"][0]["ref"],
+            "release-48-2"
+        );
+        assert_eq!(manifest["inputs"]["bundled_sources"][0]["bytes"], 22_807);
+        assert_eq!(
+            manifest["inputs"]["bundled_sources"][0]["sha256"],
+            crate::validity::SOURCE_SHA256
+        );
         assert_eq!(manifest["coverage"]["language_aliases"], 500);
         assert_eq!(manifest["coverage"]["script_aliases"], 1);
         assert_eq!(manifest["coverage"]["territory_aliases"], 640);

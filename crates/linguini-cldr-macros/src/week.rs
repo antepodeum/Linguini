@@ -9,7 +9,11 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) struct WeekCoverage {
     pub(crate) regions: usize,
     pub(crate) subdivisions: usize,
+    pub(crate) deprecated_subdivisions: usize,
+    pub(crate) unknown_subdivisions: usize,
 }
+
+type SubdivisionsByRegion = BTreeMap<String, Vec<String>>;
 
 pub(crate) fn generate_week_tables(
     source: &CldrSource,
@@ -61,24 +65,64 @@ pub(crate) fn generate_week_tables(
         &aliases["supplemental"]["metadata"]["alias"]["subdivisionAlias"],
         &regions,
     )?;
+    let validity = crate::validity::subdivisions()?;
+    let regular_codes = subdivisions
+        .values()
+        .flatten()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if regular_codes != validity.regular {
+        return Err(
+            "CLDR JSON containment and bundled regular subdivision validity differ".to_owned(),
+        );
+    }
+    let unknown_regions = validity
+        .unknown
+        .iter()
+        .map(|code| {
+            code.strip_suffix("zzzz")
+                .map(str::to_ascii_uppercase)
+                .ok_or_else(|| format!("invalid unknown subdivision {code}"))
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    if unknown_regions != regions {
+        return Err("CLDR JSON regions and bundled unknown subdivision validity differ".to_owned());
+    }
+    let deprecated = group_subdivisions(validity.deprecated.iter().map(String::as_str), &regions)?;
     let coverage = WeekCoverage {
         regions: regions.len(),
         subdivisions: subdivisions.values().map(Vec::len).sum(),
+        deprecated_subdivisions: validity.deprecated.len(),
+        unknown_subdivisions: validity.unknown.len(),
     };
     let region_values = regions.iter();
-    let subdivision_arms = subdivisions
-        .iter()
-        .map(|(region, codes)| quote! { #(#codes)|* => Some(#region), });
+    let subdivision_arms = subdivision_arms_for_regions(&subdivisions);
+    let deprecated_arms = subdivision_arms_for_regions(&deprecated);
     Ok((
         quote! {
             fn generated_week_data(territory: &str) -> Option<WeekData> { match territory { #(#week_arms)* _ => None } }
             pub(crate) fn generated_regular_week_region(region: &str) -> bool { matches!(region, #(#region_values)|*) }
-            pub(crate) fn generated_week_subdivision_region(subdivision: &str) -> Option<&'static str> {
+            pub(crate) fn generated_regular_week_subdivision_region(subdivision: &str) -> Option<&'static str> {
                 match subdivision { #(#subdivision_arms)* _ => None }
+            }
+            pub(crate) fn generated_week_subdivision_region(subdivision: &str) -> Option<&'static str> {
+                if let Some(region) = generated_regular_week_subdivision_region(subdivision) {
+                    return Some(region);
+                }
+                match subdivision {
+                    #(#deprecated_arms)* _ => None
+                }
             }
         },
         coverage,
     ))
+}
+
+fn subdivision_arms_for_regions(subdivisions: &SubdivisionsByRegion) -> Vec<TokenStream> {
+    subdivisions
+        .iter()
+        .map(|(region, codes)| quote! { #(#codes)|* => Some(#region), })
+        .collect()
 }
 
 fn object(value: &Value) -> Result<&Map<String, Value>, String> {
@@ -129,14 +173,26 @@ fn regular_subdivisions(
     containment: &Value,
     aliases: &Value,
     regions: &BTreeSet<String>,
-) -> Result<BTreeMap<String, Vec<String>>, String> {
+) -> Result<SubdivisionsByRegion, String> {
     let aliases = object(aliases)?;
     let mut codes = BTreeSet::new();
     for (parent, value) in object(containment)? {
         codes.insert(parent.as_str());
         codes.extend(children(value)?);
     }
-    let mut subdivisions = BTreeMap::<_, Vec<_>>::new();
+    group_subdivisions(
+        codes
+            .into_iter()
+            .filter(|code| !aliases.contains_key(*code)),
+        regions,
+    )
+}
+
+fn group_subdivisions<'a>(
+    codes: impl IntoIterator<Item = &'a str>,
+    regions: &BTreeSet<String>,
+) -> Result<SubdivisionsByRegion, String> {
+    let mut subdivisions = SubdivisionsByRegion::new();
     for code in codes {
         if code.len() == 2 && regions.contains(&code.to_ascii_uppercase()) {
             continue;
@@ -152,13 +208,10 @@ fn regular_subdivisions(
         if !regions.contains(&region) {
             return Err(format!("invalid subdivision region {code}"));
         }
-        // Country roots and obsolete codes are containment nodes, not regular subdivisions.
-        if !aliases.contains_key(code) {
-            subdivisions
-                .entry(region)
-                .or_default()
-                .push(code.to_owned());
-        }
+        subdivisions
+            .entry(region)
+            .or_default()
+            .push(code.to_owned());
     }
     if subdivisions.is_empty() {
         return Err("empty week subdivision validity data".to_owned());

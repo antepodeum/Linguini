@@ -427,6 +427,14 @@ retain their bytes. Corrected conventions change selected arithmetic constants a
 week outcomes without adding runtime preference parsing or dispatch. This is a correctness
 and structure check, with no new bundle-size or timing claim.
 
+The obsolete-subdivision follow-up (GEN-A61) adds the complete pinned validity source to the
+offline maintainer tool. Regular lookup arms and other existing compiler records remain
+identical. Executed regular/obsolete preference pairs emit identical `yw`/`MMMMW` formatter
+bytes; raw-pattern checks also cover zero/six wording and constant Sanskrit without cardinal
+rules. The registry stays in compiler data, and XML parsing runs only during offline generation.
+Generated JavaScript gains no helper, preference parser, or validity table. No new timing or bundle-size claim
+is made for this data-coverage correction.
+
 A source enum or alias named `Record` previously broke the helper's utility-type annotation.
 Its anonymous index-signature replacement preserves public names and runtime statements.
 Actual before/after generated enum consumers execute in one self-contained chunk each and

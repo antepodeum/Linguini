@@ -43,6 +43,11 @@ fn assert_week_family(skeleton: &str) {
         "en-u-sd-fra",
         "en-u-sd-cn11",
         "en-u-ca-iso8601-rg-afbal",
+        "en-u-sd-gbgbn",
+        "en-u-sd-fr75",
+        "nso-u-sd-gbgbn",
+        "mt-u-rg-usca",
+        "sa-u-sd-gbgbn",
     ];
     fs::create_dir_all(root.join("schema")).unwrap();
     fs::create_dir_all(root.join("locales/main")).unwrap();
@@ -85,16 +90,20 @@ fn assert_week_family(skeleton: &str) {
     ) + r#"
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {prepareLinguini,createLinguini} from './generated/index.js';
 const manifest=JSON.parse(readFileSync('./generated/bundler/manifest.json','utf8'));
 for(const locale of locales) {
+  const prepared=await prepareLinguini(locale);
+  assert.equal(createLinguini(locale),prepared);
   const {main}=await import('./generated/locales/'+locale+'.js');
   const {message}=await import('./generated/'+manifest.messages['main.period'].locales[locale].module);
   for(const value of ['2021-01-01','2021-01-04','2021-05-30','2021-05-31',0,-1,new Date('0000-01-01T00:00:00Z')]) {
     const result=main.period(value);
+    assert.equal(prepared.main.period(value),result);
     assert.equal(main.forwarded({value}),result);
     assert.equal(message(value),result);
   }
-  if(['en-GB','en-US-u-rg-gbzzzz','en-u-sd-gbeng','en-US-u-ca-iso8601','en-u-ca-iso8601-fw-sun','en-u-rg-gbeng','en-u-rg-fi01','en-u-sd-fra'].includes(locale)) assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 53 of 2020':'week 0 of January');
+  if(['en-GB','en-US-u-rg-gbzzzz','en-u-sd-gbeng','en-US-u-ca-iso8601','en-u-ca-iso8601-fw-sun','en-u-rg-gbeng','en-u-rg-fi01','en-u-sd-fra','en-u-sd-gbgbn','en-u-sd-fr75'].includes(locale)) assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 53 of 2020':'week 0 of January');
   if(['en','en-US-u-sd-gbeng','en-u-sd-frxxx'].includes(locale)) {
     assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 1 of 2021':'week 1 of January');
     if(skeleton==='MMMMW') assert.equal(main.period('2021-05-30'),'week 6 of May');

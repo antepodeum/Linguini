@@ -1,7 +1,10 @@
 //! Resolve locale week preferences before any target code is generated.
 
 use super::{canonical_locale_id, language_likely_target, normalize_placeholder_subtags};
-use crate::data::{generated_regular_week_region, generated_week_subdivision_region, WeekData};
+use crate::data::{
+    generated_regular_week_region, generated_regular_week_subdivision_region,
+    generated_week_subdivision_region, WeekData,
+};
 
 pub(crate) fn resolve_week_data(
     locale: &str,
@@ -16,7 +19,7 @@ pub(crate) fn resolve_week_data(
             .strip_suffix("zzzz")
             .map(str::to_ascii_uppercase)
             .filter(|region| generated_regular_week_region(region))
-            .or_else(|| generated_week_subdivision_region(region).map(str::to_owned)),
+            .or_else(|| generated_regular_week_subdivision_region(region).map(str::to_owned)),
         _ => None,
     };
     let territory = region_override
@@ -59,6 +62,32 @@ pub(crate) fn resolve_week_data(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn obsolete_subdivisions_keep_their_validity_and_preference_precedence() {
+        for (locale, first_day, min_days) in [
+            ("en-u-sd-gbgbn", 1, 4),
+            ("en-u-sd-fr75", 1, 4),
+            ("en-u-sd-czpr", 1, 4),
+            ("en-US-u-sd-gbgbn", 0, 1),
+            ("en-u-fw-sun-sd-gbgbn", 0, 4),
+            ("en-u-ca-iso8601-rg-afbal-sd-gbgbn", 6, 4),
+            // rg accepts regular/unknown subdivision codes after canonicalization;
+            // sd also accepts deprecated codes. Neither accepts an invented suffix.
+            ("en-u-rg-gbgbn", 0, 1),
+            ("en-u-rg-fr75", 0, 1),
+            ("en-u-sd-gbxxx", 0, 1),
+        ] {
+            assert_eq!(
+                crate::compiled_week_data(locale),
+                Some(WeekData {
+                    first_day,
+                    min_days
+                }),
+                "{locale}"
+            );
+        }
+    }
 
     #[test]
     fn week_preferences_follow_cldr_precedence_and_calendar_minimum_days() {

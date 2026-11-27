@@ -249,7 +249,8 @@ and ISO week settings (`ca-iso8601`) for `Y`, `yw`, and `MMMMW`. For example,
 `fw` or `rg` changes their first weekday. The shared canonicalizer now applies the 147 pinned
 subdivision aliases to `rg` and `sd`, including two-letter replacements suffixed with `zzzz`;
 `rg` also accepts regular subdivisions. Invalid canonical preference values are ignored.
-Obsolete subdivision IDs without replacement metadata remain unresolved. Unmatched
+The pinned subdivision validity registry also recognizes obsolete `sd` IDs without replacement
+metadata, such as `sd-gbgbn`; the same obsolete ID remains invalid as an `rg` value. Unmatched
 likely regions now use the world week convention rather than the locale matcher's `und`
 fallback. Regenerate artifacts to receive the corrected constants; no configuration or runtime
 adapter changes are needed. Equivalent preferences retain identical formatter code.
