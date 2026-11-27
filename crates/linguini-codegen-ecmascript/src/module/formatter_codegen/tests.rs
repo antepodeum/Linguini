@@ -915,8 +915,8 @@ fn generated_javascript_formatter_runtime_snapshot_is_stable() {
         std::fs::write(&snapshot, &output).expect("write JavaScript formatter snapshot");
     }
 
-    assert!(!output.contains("value: GeneratedNumeric"));
-    assert!(!output.contains("type GeneratedNumeric ="));
+    assert!(!output.contains("value: __lgl_Numeric"));
+    assert!(!output.contains("type __lgl_Numeric ="));
     assert_eq!(
         output,
         std::fs::read_to_string(snapshot).expect("read JavaScript formatter snapshot")

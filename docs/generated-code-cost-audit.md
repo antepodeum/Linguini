@@ -427,5 +427,13 @@ retain byte-identical bundled code: 522/372/304 minified/gzip/Brotli bytes on Vi
 application TS without `allowJs` on TypeScript 5.8.3, 5.9.3, and 6.0.3. This is a typing
 correction with no runtime work or timing claim.
 
+Numeric helper typedefs also use reserved compiler names, preserving source enums named
+`GeneratedNumeric`/`GeneratedDecimal` in standalone output. The actual generated before/after
+module is identical after removing JSDoc; executed complete consumers retain byte-identical
+bundles at 1,957/1,028/929 minified/gzip/Brotli bytes on Vite 7.3.3 and 1,896/995/904 on
+Vite 8.0.13. Both consumers contain one self-contained chunk. Source parameter and enum types
+pass the permanent checked-JS/application-TS contracts on TypeScript 5.8.3, 5.9.3, and 6.0.3.
+No formatter statements, runtime parsing, or runtime type dispatch are added.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

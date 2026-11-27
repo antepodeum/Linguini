@@ -139,6 +139,15 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Numeric helper type names
+
+Canonical numeric helpers now use private JSDoc typedefs `__lgl_Numeric` and `__lgl_Decimal`.
+The previous `GeneratedNumeric`/`GeneratedDecimal` names could duplicate source enum/alias
+imports in a standalone message and make checked JavaScript fail. Source-owned exports and
+message parameter types keep their names; executable formatter statements and public
+application APIs are unchanged. Regenerate output to update the internal annotations. Compiler
+helper typedefs are implementation details, not source types to import from runtime artifacts.
+
 ## Source types named Record
 
 Generated checked JavaScript now accepts enums and aliases named `Record`. Previously the

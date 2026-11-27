@@ -4,7 +4,7 @@
 {% set numeric_value = "localized" if plan.digits != "0123456789" else formatted_value -%}
 {% set output_value = "scientific" if plan.exponent_digits is not none else numeric_value -%}
 /**
- * @param {GeneratedNumeric} value
+ * @param {__lgl_Numeric} value
  * @returns {string}
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {

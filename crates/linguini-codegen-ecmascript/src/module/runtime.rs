@@ -201,7 +201,7 @@ mod tests {
             .contains("export function pluralEnUs(value)"));
         assert!(!javascript.code.contains("formatCurrency"));
         assert!(!javascript.code.contains("formatDate"));
-        assert!(!javascript.code.contains("type GeneratedNumeric ="));
+        assert!(!javascript.code.contains("type __lgl_Numeric ="));
         assert!(javascript
             .code
             .ends_with("//# sourceMappingURL=_runtime.js.map\n"));

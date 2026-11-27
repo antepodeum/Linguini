@@ -1,5 +1,5 @@
 /**
- * @typedef {object} GeneratedDecimal
+ * @typedef {object} __lgl_Decimal
  * @property {boolean} negative
  * @property {string} integer
  * @property {string} fraction
@@ -7,8 +7,8 @@
 const MAX_GENERATED_DECIMAL_DIGITS = 8192;
 
 /**
- * @param {GeneratedNumeric} value
- * @returns {GeneratedDecimal | undefined}
+ * @param {__lgl_Numeric} value
+ * @returns {__lgl_Decimal | undefined}
  */
 function parseGeneratedDecimal(value) {
   if (typeof value === "number" && !Number.isFinite(value)) return undefined;
@@ -65,8 +65,8 @@ function parseGeneratedDecimal(value) {
 }
 
 {% for plan in scale_plans %}/**
- * @param {GeneratedDecimal} decimal
- * @returns {GeneratedDecimal}
+ * @param {__lgl_Decimal} decimal
+ * @returns {__lgl_Decimal}
  */
 function scaleBy{{ plan.scale }}(decimal) {
   const source = `${decimal.integer}${decimal.fraction}`;
@@ -79,8 +79,8 @@ function scaleBy{{ plan.scale }}(decimal) {
 }
 
 {% endfor %}{% if scientific %}/**
- * @param {GeneratedDecimal} decimal
- * @returns {{ "{{" }} decimal: GeneratedDecimal, exponent: number }}
+ * @param {__lgl_Decimal} decimal
+ * @returns {{ "{{" }} decimal: __lgl_Decimal, exponent: number }}
  */
 function scientificGeneratedDecimal(decimal) {
   if (decimal.integer === "0" && decimal.fraction === "") {
@@ -109,7 +109,7 @@ function scientificGeneratedDecimal(decimal) {
 }
 
 {% endif %}{% for plan in significant_plans %}/**
- * @param {GeneratedDecimal} decimal
+ * @param {__lgl_Decimal} decimal
  * @returns {{ "{{" }} integer: string, fraction: string }}
  */
 function roundTo{{ plan.max_significant }}SignificantDigits(decimal) {
@@ -143,7 +143,7 @@ function padTo{{ plan.min_significant }}SignificantDigits(integer, fraction) {
 
 {% endfor %}{% for plan in rounding_plans %}{% with fraction_digits=plan.max_fraction, increment=plan.rounding, half=plan.rounding_half, half_fraction=plan.rounding_half_fraction, name=plan.rounding_helper %}{% include "number_rounding" %}{% endwith %}
 {% endfor %}{% if significant_plans %}/**
- * @param {GeneratedDecimal} decimal
+ * @param {__lgl_Decimal} decimal
  * @param {number} fractionDigits
  * @returns {{ "{{" }} integer: string, fraction: string }}
  */

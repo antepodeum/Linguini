@@ -116,6 +116,9 @@ function names, public message/enum exports, argument keys, and property spellin
 The shared argument helper uses an anonymous dictionary annotation so a source enum or alias
 named `Record` keeps its public name without shadowing a TypeScript utility type used by the
 helper. The annotation is erased by bundlers and adds no runtime operation.
+Numeric helper typedefs likewise use reserved compiler names `__lgl_Numeric` and
+`__lgl_Decimal`. Source types named `GeneratedNumeric` or `GeneratedDecimal` retain their
+public names in shared declarations and standalone message signatures.
 
 `linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` family. Its
 `IntegerPluralPlan` specializes ordered cardinal rules and projected results over the proven

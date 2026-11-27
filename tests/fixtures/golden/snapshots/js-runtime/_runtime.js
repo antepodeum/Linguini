@@ -1,7 +1,7 @@
-/** @typedef {number | bigint | string} GeneratedNumeric */
+/** @typedef {number | bigint | string} __lgl_Numeric */
 
 /**
- * @param {GeneratedNumeric} value
+ * @param {__lgl_Numeric} value
  * @returns {string}
  */
 export function formatNumber(value) {
@@ -24,7 +24,7 @@ export function formatNumber(value) {
 }
 
 /**
- * @typedef {object} GeneratedDecimal
+ * @typedef {object} __lgl_Decimal
  * @property {boolean} negative
  * @property {string} integer
  * @property {string} fraction
@@ -32,8 +32,8 @@ export function formatNumber(value) {
 const MAX_GENERATED_DECIMAL_DIGITS = 8192;
 
 /**
- * @param {GeneratedNumeric} value
- * @returns {GeneratedDecimal | undefined}
+ * @param {__lgl_Numeric} value
+ * @returns {__lgl_Decimal | undefined}
  */
 function parseGeneratedDecimal(value) {
   if (typeof value === "number" && !Number.isFinite(value)) return undefined;
@@ -90,7 +90,7 @@ function parseGeneratedDecimal(value) {
 }
 
 /**
- * @param {GeneratedDecimal} decimal
+ * @param {__lgl_Decimal} decimal
  * @returns {{ integer: string, fraction: string }}
  */
 function roundTo3FractionDigits(decimal) {

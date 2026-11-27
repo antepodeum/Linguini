@@ -1,7 +1,7 @@
-/** @typedef {number | bigint | string} GeneratedNumeric */
+/** @typedef {number | bigint | string} __lgl_Numeric */
 
 /**
- * @param {GeneratedNumeric} value
+ * @param {__lgl_Numeric} value
  * @returns {string}
  */
 export function scientificLatin(value) {
@@ -24,7 +24,7 @@ export function scientificLatin(value) {
 }
 
 /**
- * @param {GeneratedNumeric} value
+ * @param {__lgl_Numeric} value
  * @returns {string}
  */
 export function scientificPersian(value) {
@@ -48,7 +48,7 @@ export function scientificPersian(value) {
 }
 
 /**
- * @param {GeneratedNumeric} value
+ * @param {__lgl_Numeric} value
  * @returns {string}
  */
 export function scientificAdlam(value) {
@@ -72,7 +72,7 @@ export function scientificAdlam(value) {
 }
 
 /**
- * @param {GeneratedNumeric} value
+ * @param {__lgl_Numeric} value
  * @returns {string}
  */
 export function scientificMixed(value) {
@@ -122,7 +122,7 @@ export function scientificMixed(value) {
 }
 
 /**
- * @typedef {object} GeneratedDecimal
+ * @typedef {object} __lgl_Decimal
  * @property {boolean} negative
  * @property {string} integer
  * @property {string} fraction
@@ -130,8 +130,8 @@ export function scientificMixed(value) {
 const MAX_GENERATED_DECIMAL_DIGITS = 8192;
 
 /**
- * @param {GeneratedNumeric} value
- * @returns {GeneratedDecimal | undefined}
+ * @param {__lgl_Numeric} value
+ * @returns {__lgl_Decimal | undefined}
  */
 function parseGeneratedDecimal(value) {
   if (typeof value === "number" && !Number.isFinite(value)) return undefined;
@@ -188,8 +188,8 @@ function parseGeneratedDecimal(value) {
 }
 
 /**
- * @param {GeneratedDecimal} decimal
- * @returns {{ decimal: GeneratedDecimal, exponent: number }}
+ * @param {__lgl_Decimal} decimal
+ * @returns {{ decimal: __lgl_Decimal, exponent: number }}
  */
 function scientificGeneratedDecimal(decimal) {
   if (decimal.integer === "0" && decimal.fraction === "") {
@@ -218,7 +218,7 @@ function scientificGeneratedDecimal(decimal) {
 }
 
 /**
- * @param {GeneratedDecimal} decimal
+ * @param {__lgl_Decimal} decimal
  * @returns {{ integer: string, fraction: string }}
  */
 function roundTo3FractionDigits(decimal) {

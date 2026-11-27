@@ -1270,7 +1270,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Integrated first-weekday/private-function source `3589545` also passes all 71 local
       full-profile gates in one clean run, including rebuilt Node/browser WASM, installed tsc,
       packaged/offline consumers, documentation, and production SSR/browser/graph checks.
-      The subsequent `Record` annotation correction has its separate focused receipts (GEN-A50).
+      Subsequent helper-typing corrections have separate focused receipts (GEN-A50/A51).
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1787,6 +1787,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       before the correction. All 189 emitter tests and CLI tests pass on Node 20, with Node 24,
       strict TS 5.8/5.9/6, Clippy, and Rust 1.87 checks passing. Only seven current golden JSDoc
       lines change; complete Vite 7/8 consumers retain identical minified/gzip/Brotli output.
+      Numeric helper typedefs now use the reserved compiler namespace too (GEN-A51), avoiding
+      source `GeneratedNumeric`/`GeneratedDecimal` type imports in standalone output. Permanent
+      JS/declaration/consumer fixtures preserve both enum names and negative type contracts.
+      All 190 emitter tests and CLI tests pass on Node 20; all 42 codegen gates, Clippy, Rust 1.87,
+      Node 24, and strict JS/TS 5.8/5.9/6 checks pass. Existing changes contain only type comments,
+      and complete Vite 7/8 consumers retain identical minified/gzip/Brotli output.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       Shared form demand projects standalone closures and generated projects to used attributes

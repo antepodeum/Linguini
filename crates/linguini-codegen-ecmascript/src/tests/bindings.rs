@@ -177,3 +177,47 @@ console.log('verified');
     );
     assert_eq!(execute_project(&files, &script), "verified");
 }
+
+#[test]
+fn source_numeric_type_names_do_not_collide_with_standalone_helper_types() {
+    let schema_source = concat!(
+        "enum GeneratedDecimal { first }\n",
+        "enum GeneratedNumeric { second }\n",
+        "root(kind: GeneratedDecimal, measure: GeneratedNumeric, value: Number)\n",
+    );
+    let (files, _) =
+        binding_project_files(schema_source, "root = {kind} {measure} {value @number}\n");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/golden/snapshots/js-complete-project/type-names/numeric");
+    let selected = files
+        .into_iter()
+        .filter(|file| {
+            matches!(
+                file.path.as_str(),
+                "shared.js" | "shared.d.ts" | "standalone.js"
+            )
+        })
+        .collect::<Vec<_>>();
+    for file in &selected {
+        let path = root.join(&file.path);
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, &file.contents).unwrap();
+        }
+        assert_eq!(file.contents, std::fs::read_to_string(path).unwrap());
+    }
+    assert_eq!(
+        execute_project(
+            &selected,
+            r#"
+import assert from 'node:assert/strict';
+import {message} from './standalone.js';
+assert.equal(message('first','second',1234.5),'first second 1,234.5');
+assert.equal(message({kind:'first',measure:'second',value:2n}),'first second 2');
+assert.throws(()=>message('first','second','invalid'),RangeError);
+console.log('verified');
+"#
+        ),
+        "verified"
+    );
+}
