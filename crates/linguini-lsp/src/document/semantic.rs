@@ -5,13 +5,9 @@ use linguini_schema::{locale_navigation, locale_occurrences, schema_occurrences}
 pub(super) use linguini_schema::{SemanticKey, SemanticOccurrence};
 use linguini_syntax::{lex_schema_with_recovery, Span, TokenKind};
 
-use super::{contains, parsed_locale, parsed_schema, LinguiniDocument, LocaleSources};
-
-#[derive(Debug, Clone)]
-pub(super) struct ResolvedOccurrence {
-    pub document: LinguiniDocument,
-    pub occurrence: SemanticOccurrence,
-}
+use super::{
+    contains, parsed_locale, parsed_schema, LinguiniDocument, LocaleSources, WorkspaceReference,
+};
 
 /// Immutable semantic index for one workspace navigation operation.
 ///
@@ -143,7 +139,7 @@ impl NavigationDatabase {
             .cloned()
     }
 
-    fn resolve(&self, source: &LinguiniDocument, offset: usize) -> Option<Vec<ResolvedOccurrence>> {
+    fn resolve(&self, source: &LinguiniDocument, offset: usize) -> Option<Vec<WorkspaceReference>> {
         let source_occurrence = self.occurrence_at(source, offset)?;
         let global_owner = self.global_owner(source, &source_occurrence.key);
         let document_local = match &source_occurrence.key {
@@ -184,9 +180,10 @@ impl NavigationDatabase {
             }
             for occurrence in self.occurrences(&document.uri) {
                 if occurrence.key == source_occurrence.key {
-                    resolved.push(ResolvedOccurrence {
-                        document: document.clone(),
-                        occurrence: occurrence.clone(),
+                    resolved.push(WorkspaceReference {
+                        uri: document.uri.clone(),
+                        span: occurrence.span,
+                        declaration: occurrence.declaration,
                     });
                 }
             }
@@ -209,7 +206,7 @@ pub(super) fn resolved_occurrences(
     documents: impl IntoIterator<Item = LinguiniDocument>,
     source: &LinguiniDocument,
     offset: usize,
-) -> Option<Vec<ResolvedOccurrence>> {
+) -> Option<Vec<WorkspaceReference>> {
     NavigationDatabase::build(documents, source).resolve(source, offset)
 }
 
@@ -217,25 +214,24 @@ pub(super) fn definition_occurrence(
     documents: impl IntoIterator<Item = LinguiniDocument>,
     source: &LinguiniDocument,
     offset: usize,
-) -> Option<ResolvedOccurrence> {
+) -> Option<WorkspaceReference> {
     let database = NavigationDatabase::build(documents, source);
     let source_occurrence = database.occurrence_at(source, offset)?;
     let resolved = database.resolve(source, offset)?;
     let declarations = resolved
         .into_iter()
-        .filter(|candidate| candidate.occurrence.declaration)
+        .filter(|candidate| candidate.declaration)
         .collect::<Vec<_>>();
 
     if source.kind == SourceKind::Schema && source_occurrence.declaration {
         return declarations.into_iter().find(|candidate| {
-            candidate.document.uri == source.uri
-                && candidate.occurrence.span == source_occurrence.span
+            candidate.uri == source.uri && candidate.span == source_occurrence.span
         });
     }
 
     let schema_declarations = declarations
         .iter()
-        .filter(|candidate| candidate.document.kind == SourceKind::Schema)
+        .filter(|candidate| database.documents[&candidate.uri].kind == SourceKind::Schema)
         .collect::<Vec<_>>();
     if schema_declarations.len() == 1 {
         return schema_declarations.into_iter().next().cloned();
@@ -249,7 +245,7 @@ pub(super) fn definition_occurrence(
         .unwrap_or(&source.uri);
     let local = declarations
         .into_iter()
-        .filter(|candidate| candidate.document.uri == owner)
+        .filter(|candidate| candidate.uri == owner)
         .collect::<Vec<_>>();
     (local.len() == 1).then(|| local[0].clone())
 }
@@ -259,7 +255,7 @@ pub(super) fn rename_occurrences(
     source: &LinguiniDocument,
     offset: usize,
     new_name: &str,
-) -> Option<Vec<ResolvedOccurrence>> {
+) -> Option<Vec<WorkspaceReference>> {
     if !valid_identifier(new_name) {
         return None;
     }
@@ -278,7 +274,7 @@ pub(super) fn rename_occurrences(
 
     let affected_documents = resolved
         .iter()
-        .map(|candidate| candidate.document.uri.as_str())
+        .map(|candidate| candidate.uri.as_str())
         .collect::<BTreeSet<_>>();
     for uri in affected_documents {
         if database.occurrences(uri).iter().any(|occurrence| {

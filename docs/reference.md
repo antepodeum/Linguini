@@ -121,6 +121,9 @@ consuming locales; changing that shared source would change another locale's beh
 the container or unrelated globals remains available. `LocaleDeclaration::span()` supplies the
 original declaration scope, including its body, with override wrappers unwrapped.
 Typed form-property navigation remains outside this declaration-ownership improvement.
+Navigation results retain source URIs, spans, and declaration flags. Parsed documents stay in
+the immutable navigation snapshot; resolving many matches does not copy their source text into
+each result.
 
 `linguini_ir::qualify_locale_module_in_context` qualifies one fresh source against its composed
 relative globals and schema, preserving the loader's guarded merge order and original source IDs.

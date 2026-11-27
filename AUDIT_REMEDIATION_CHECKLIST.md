@@ -2200,6 +2200,14 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
       changes and refused ambiguous renames. Built Node 20/browser WASM protocol, workspace
       Clippy, Rust 1.87 native/WASM, and 223 patch API checks per affected crate pass. Typed
       form-property navigation remains separate.
+      Navigation now returns the existing URI/span/declaration result directly, keeping full
+      documents in the snapshot instead of copying text and line indices into every match.
+      A warmed debug SDK query over 16 locales, 282,545 source bytes, and 1,025 references
+      retains identical ordered URI/source/span/declaration results while reducing peak
+      additional requested heap from 19,854,910 to 669,505 bytes. This measures the query's
+      requested allocations, not production latency or client JavaScript. All 71 LSP tests,
+      actual Node/browser WASM protocol, Clippy, Rust 1.87 native/WASM, and 223 patch API checks
+      pass; public signatures and generated artifacts remain unchanged.
 - [x] P1-8 — Implement one CLDR locale fallback service.
 
 ### P2

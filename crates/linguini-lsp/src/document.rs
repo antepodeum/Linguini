@@ -695,15 +695,7 @@ pub fn references_at_with_workspace(
     if !document.is_within_safety_limits() {
         return Vec::new();
     }
-    resolved_occurrences(workspace, document, offset)
-        .unwrap_or_default()
-        .into_iter()
-        .map(|resolved| WorkspaceReference {
-            uri: resolved.document.uri,
-            span: resolved.occurrence.span,
-            declaration: resolved.occurrence.declaration,
-        })
-        .collect()
+    resolved_occurrences(workspace, document, offset).unwrap_or_default()
 }
 
 pub fn definition_at_with_workspace(
@@ -714,8 +706,7 @@ pub fn definition_at_with_workspace(
     if !document.is_within_safety_limits() {
         return None;
     }
-    definition_occurrence(workspace, document, offset)
-        .map(|resolved| (resolved.document.uri, resolved.occurrence.span))
+    definition_occurrence(workspace, document, offset).map(|resolved| (resolved.uri, resolved.span))
 }
 
 pub fn prepare_rename_at(document: &LinguiniDocument, offset: usize) -> Option<Span> {
@@ -738,9 +729,9 @@ pub fn rename_workspace_edits(
         .unwrap_or_default()
         .into_iter()
         .map(|resolved| WorkspaceTextEdit {
-            uri: resolved.document.uri,
+            uri: resolved.uri,
             edit: TextEdit {
-                span: resolved.occurrence.span,
+                span: resolved.span,
                 new_text: new_name.to_owned(),
             },
         })
