@@ -4,6 +4,7 @@ mod decimal_separator;
 mod digit_callbacks;
 mod month_weeks;
 mod number_inputs;
+mod optional_integer;
 mod padding;
 mod rounding;
 mod scientific;
@@ -634,6 +635,7 @@ fn known_fraction_presence_removes_branches_without_changing_optional_or_signifi
         pattern.positive.min_fraction_digits = min;
         pattern.positive.max_fraction_digits = max;
         pattern.positive.max_significant_digits = significant;
+        pattern.positive.min_integer_digits = if significant.is_some() { 0 } else { 1 };
         let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
         let source = crate::templates::render(
             "formatters/number",

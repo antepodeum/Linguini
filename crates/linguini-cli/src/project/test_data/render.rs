@@ -1176,7 +1176,11 @@ fn format_number_plan(
         decimal.integer.insert(0, '0');
     }
 
-    let grouped = group_integer_digits(&decimal.integer, plan.grouping, plan.group_symbol);
+    let grouped = if plan.can_omit_integer_zero() && decimal.integer == "0" {
+        String::new()
+    } else {
+        group_integer_digits(&decimal.integer, plan.grouping, plan.group_symbol)
+    };
     let formatted = if decimal.fraction.is_empty() && !plan.decimal_separator_always {
         grouped
     } else {
@@ -1358,6 +1362,7 @@ fn group_integer_digits(
 mod tests {
     mod currency_affixes;
     mod decimal_separator;
+    mod optional_integer;
     mod plural_inputs;
 
     use linguini_cldr::NumberAffix;

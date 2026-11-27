@@ -56,6 +56,14 @@ to preserve custom patterns without alternatives. Use `NumberFormatPlan::currenc
 style, symbol-boundary selection, separators, precision, and rounding with production output.
 This is a prerelease Rust source change; formatter arguments and JavaScript APIs are unchanged.
 
+## Optional integer zeros
+
+Advanced numeric patterns with no mandatory integer digit and a required fractional digit now
+omit the sole integer zero: `#.0` renders `.5` and `-.0` for `0.5` and negative zero. `0.0`
+continues to render `0.5`, and `#.##` keeps its leading zero. Rounding carry retains a nonzero
+integer. Native fraction previews and generated formatters share this decision through
+`NumberFormatPlan::can_omit_integer_zero`; the Rust method is additive.
+
 ## Runtime link scheduling and cleanup
 
 Runtime link localization skips text additions and coalesces duplicate mutation records.

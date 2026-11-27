@@ -585,6 +585,14 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       native/WASM, strict JS 5.8/5.9, dependency policy, and offline reproducibility checks pass.
       All 45 production locale payloads retain exact paths and bytes. Broader marker-width/
       engineering work stays open.
+      Optional integer zero rendering now follows the shared numeric plan (GEN-A73): `#.0`
+      renders `.5` after rounding while required integers/fractions, significant/scientific
+      controls, signed zero, and carry retain their rules. A shared 15-pattern corpus covers
+      180 independent ICU 78.3 outcomes with the existing half-up rounding contract; native
+      previews retain explicit percent/padding rejection. Node 20/24, strict JS 5.8/5.9/6,
+      workspace Clippy, Rust 1.87 native/WASM, and 223 patch API checks pass. Sixteen complete
+      Vite 7/8 consumers retain exact bytes; only selected optional-integer plans gain a zero
+      comparison. Broader pattern semantics and final integration criteria remain open.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.

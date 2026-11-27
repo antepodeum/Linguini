@@ -56,6 +56,15 @@ pub struct NumberFormatPlan {
 }
 
 impl NumberFormatPlan {
+    /// Whether a fixed-fraction pattern may omit its sole integer zero.
+    pub fn can_omit_integer_zero(&self) -> bool {
+        self.min_integer_digits == 0
+            && self.min_fraction_digits > 0
+            && self.min_significant_digits.is_none()
+            && self.max_significant_digits.is_none()
+            && self.scientific.is_none()
+    }
+
     /// Compile a selected, validated CLDR pattern and its effective number symbols.
     /// Currency callers supply the currency's resolved separators and optional fraction quantum.
     /// Unsupported scales, zero selected group sizes, or malformed quanta return `None`.

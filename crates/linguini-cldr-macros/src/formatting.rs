@@ -1278,6 +1278,12 @@ mod tests {
             "/../../tests/fixtures/codegen/currency-affixes.rs"
         ));
     }
+    mod optional_integer_cases {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/fixtures/codegen/optional-integer.rs"
+        ));
+    }
     use super::{
         extract_dates, extract_text_direction, require_exact_exclusions, NumberPaddingPosition,
     };
@@ -1304,6 +1310,64 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    #[test]
+    fn optional_integer_patterns_preserve_the_shared_numeric_contract() {
+        let mut samples = 0;
+        for case in optional_integer_cases::CASES {
+            let (numbers, expected) = case.formatting();
+            let symbols = super::NumberAffixSymbols {
+                minus: numbers.minus_sign.into(),
+                plus: numbers.plus_sign.into(),
+                percent: "%".into(),
+                per_mille: "‰".into(),
+            };
+            let actual = super::parse_number_pattern(case.pattern, &symbols)
+                .unwrap()
+                .positive;
+            assert_eq!(
+                actual.min_integer_digits, expected.positive.min_integer_digits,
+                "{}",
+                case.name
+            );
+            assert_eq!(
+                actual.min_fraction_digits, expected.positive.min_fraction_digits,
+                "{}",
+                case.name
+            );
+            assert_eq!(
+                actual.max_fraction_digits, expected.positive.max_fraction_digits,
+                "{}",
+                case.name
+            );
+            assert_eq!(
+                actual.decimal_separator_always, expected.positive.decimal_separator_always,
+                "{}",
+                case.name
+            );
+            assert_eq!(
+                actual.primary_group_size, expected.positive.primary_group_size,
+                "{}",
+                case.name
+            );
+            assert_eq!(actual.scale, expected.positive.scale, "{}", case.name);
+            assert_eq!(actual.padding, expected.positive.padding, "{}", case.name);
+            assert_eq!(
+                actual.prefix,
+                owned_affix(expected.positive.prefix),
+                "{}",
+                case.name
+            );
+            assert_eq!(
+                actual.suffix,
+                owned_affix(expected.positive.suffix),
+                "{}",
+                case.name
+            );
+            samples += case.samples.len();
+        }
+        assert_eq!(samples, 180);
     }
 
     #[test]

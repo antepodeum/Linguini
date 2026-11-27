@@ -190,6 +190,10 @@ symbols/carry result, and padding. `decimal_separator_always` preserves the sepa
 rounded fraction is empty; ordinary optional-fraction plans continue to omit it. The offline
 pattern compiler derives this choice from trailing decimal syntax such as `0.`. Generated
 functions resolve it during template rendering, while native fraction previews use the same plan.
+`can_omit_integer_zero` resolves whether a fixed-fraction pattern can omit its sole integer zero:
+`#.0` renders `.5`, whereas `0.0` renders `0.5`. Rounding happens first, so carry to `1.0` retains
+the integer. Optional fractions, significant digits, and scientific notation retain their own
+integer-display rules. Templates emit the zero test only when selected by the plan.
 Its nested affix/grouping/scientific models contain semantic values; target backends own helper
 names, identifier escaping, and template projection. `NumberFormatPlan::currency(locale, code,
 accounting)` also resolves currency style, display symbol, separators, fraction precision, and

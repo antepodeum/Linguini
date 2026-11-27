@@ -739,5 +739,35 @@ are a documented source break; the common planner's new currency entry point is 
 All 71 local full-profile gates, Rust 1.87 native/WASM, strict JS 5.8/5.9, and offline
 reproducibility checks pass. All 45 rebuilt production locale payloads retain exact paths and bytes.
 
+## Optional integer zeros
+
+GEN-A73 compiles zero integer omission from the shared numeric plan. For selected fixed-fraction
+patterns such as `#.0`, the formatter changes the rounded integer `"0"` to an empty string before
+formatting the body. Carry already happened, so `0.96` still becomes `1.0`. Prefix/suffix text,
+signed zero, grouping, padding, and digit substitution retain their owners. Optional-fraction,
+significant, and scientific plans keep their existing integer rules. Generated code receives no
+runtime option or pattern parser.
+
+The shared 15-pattern corpus has 180 ICU 78.3 results using the formatter's existing half-up
+rounding contract. Native fraction previews execute 156 results and explicitly reject the other
+24 percent/padding cases. Generated code executes all results with string/number inputs, plus
+bigint equivalence, a thousand-digit bigint, coercion count/error identity, signed zero, and
+nonfinite fallback. The curated program also passes strict JS on TS 5.8/5.9/6.
+
+All 5,265 current pinned pattern parts require an integer digit. Sixteen complete native Vite 7/8
+number/USD/CHF/date consumers retain byte-identical programs, compressed sizes, results, and
+callback sharing. A selected consumer imports just one generated style:
+
+| Style | Vite 7 minified/gzip/Brotli | Vite 8 minified/gzip/Brotli |
+| --- | --- | --- |
+| Required integer (`0.0`) | 1293/700/634 | 1268/687/624 |
+| Optional integer (`#.0`) | 1312/709/639 | 1287/695/634 |
+
+The optional style adds a 19-byte minified comparison in both builds. Each consumer emits one
+chunk, one `render` export, and no static/dynamic imports; other styles, affixes, and Unicode digit
+tables are pruned. Both execute the selected behavior and observe input coercion once. These
+measurements establish payload costs and pruning, without an execution-time or heap-use claim.
+Rust 1.87 native/WASM, workspace Clippy, and 223 patch-level common-codegen API checks pass.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

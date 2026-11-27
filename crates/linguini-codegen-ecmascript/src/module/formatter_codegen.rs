@@ -178,6 +178,7 @@ fn number_plan_context(
         prefix => &plan.affixes.prefix, suffix => &plan.affixes.suffix,
         negative_prefix => &plan.affixes.negative_prefix, negative_suffix => &plan.affixes.negative_suffix,
         min_integer => plan.min_integer_digits, min_fraction => plan.min_fraction_digits,
+        omit_integer_zero => plan.can_omit_integer_zero(),
         max_fraction => plan.max_fraction_digits, primary_group => grouping.map(|group| group.primary_size),
         grouping_threshold => grouping.map(|group| group.threshold), secondary_group => grouping.map(|group| group.secondary_size),
         decimal_symbol => plan.decimal_symbol, group_symbol => plan.group_symbol, digits => plan.digits, digit_lookup => digit_lookup(plan.digits),

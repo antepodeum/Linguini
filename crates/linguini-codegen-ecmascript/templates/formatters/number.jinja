@@ -21,7 +21,7 @@
     exponent += shift;
     rounded = { integer: rounded.integer[0], fraction: `${rounded.integer.slice(1)}${rounded.fraction}` };
 {% endif %}  }
-{% endif %}  {% if plan.primary_group is not none %}let{% else %}const{% endif %} integer = rounded.integer{% if plan.min_integer > 1 %}.padStart({{ plan.min_integer }}, "0"){% endif %};
+{% endif %}  {% if plan.primary_group is not none %}let{% else %}const{% endif %} integer = {% if plan.omit_integer_zero %}rounded.integer === "0" ? "" : {% endif %}rounded.integer{% if plan.min_integer > 1 %}.padStart({{ plan.min_integer }}, "0"){% endif %};
 {% if not fraction_empty %}{% include "formatters/number_fraction" %}{% endif %}{% if plan.primary_group is not none %}  if (integer.length > {{ plan.grouping_threshold }}) {
 {% if plan.primary_group != plan.secondary_group %}    const primaryStart = integer.length - {{ plan.primary_group }};
 {% endif %}    const firstGroup = {% if plan.secondary_group == 1 %}1{% else %}{{ 'integer.length' if plan.primary_group == plan.secondary_group else 'primaryStart' }} % {{ plan.secondary_group }} || {{ plan.secondary_group }}{% endif %};
