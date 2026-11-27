@@ -23,8 +23,16 @@ Rust loaders can provide ordered fallback ASTs through
 fallback source independently too. Qualify source IR against composed relative declarations with
 `qualify_locale_module_in_context`, then retain the established guarded merge. Original source
 identities remain available for diagnostics, dependency manifests, and source maps. Existing
-single-source analysis and qualification APIs remain available. Editor integration is tracked
-separately while it adopts the same context.
+single-source analysis and qualification APIs remain available.
+
+Native and in-memory editor hosts now derive the same declared fallback chain from project
+configuration. Validation includes inherited globals within the current namespace, including
+unsaved fallback edits, closing a buffer, and configuration changes. Missing-translation
+warnings still describe the current locale. The built Node and browser WASM workers share this
+behavior. No extension configuration changes are required. Custom Rust hosts can attach an
+ordered chain with `LinguiniDocument::with_locale_fallbacks`; standalone documents infer no
+implicit base, and ambiguous same-namespace fallback sources are excluded. Fallback-aware
+navigation is separate from this diagnostic context change.
 
 ## Forwarding classified plural values
 

@@ -42,6 +42,7 @@ pub struct LinguiniDocument {
     pub source_id: SourceId,
     pub namespace: Option<String>,
     pub locale: Option<String>,
+    pub(crate) locale_fallbacks: Vec<String>,
     pub version: Option<i32>,
     line_starts: Vec<usize>,
     parsed: Arc<OnceLock<ParsedDocument>>,
@@ -134,6 +135,7 @@ impl LinguiniDocument {
             source_id: SourceId::default(),
             namespace: None,
             locale: None,
+            locale_fallbacks: Vec::new(),
             version: None,
             line_starts,
             parsed: Arc::new(OnceLock::new()),
@@ -167,6 +169,20 @@ impl LinguiniDocument {
         self.namespace = Some(namespace.into());
         self.locale = locale;
         self
+    }
+
+    /// Attach the host's declared fallback locales in highest-to-lowest priority.
+    /// No implicit base locale is inferred for standalone documents.
+    pub fn with_locale_fallbacks(mut self, locales: impl IntoIterator<Item = String>) -> Self {
+        self.locale_fallbacks = locales.into_iter().collect();
+        self
+    }
+
+    pub(crate) fn copy_source_context(&mut self, source: &Self) {
+        self.set_source_id(source.source_id);
+        self.namespace = source.namespace.clone();
+        self.locale = source.locale.clone();
+        self.locale_fallbacks = source.locale_fallbacks.clone();
     }
 
     pub fn with_source_id(mut self, source_id: SourceId) -> Self {
@@ -296,7 +312,15 @@ pub fn diagnostics_with_workspace(
                 "validation",
                 validate_locale_ast(locale),
             ));
-            let schemas = matching_schema_documents(document, workspace);
+            let workspace = workspace.into_iter().collect::<Vec<_>>();
+            let schemas = matching_schema_documents(
+                document,
+                workspace
+                    .iter()
+                    .filter(|source| source.kind == SourceKind::Schema)
+                    .cloned(),
+            );
+            let fallback_asts = matching_locale_fallbacks(document, &workspace);
             let schema_asts = schemas
                 .iter()
                 .filter_map(|schema_document| {
@@ -308,8 +332,9 @@ pub fn diagnostics_with_workspace(
                 diagnostics.extend(analyze_locale_file(locale));
             } else {
                 diagnostics.extend(
-                    SchemaDatabase::build_from_files(&schema_asts).analyze_locale_with_options(
+                    SchemaDatabase::build_from_files(&schema_asts).analyze_locale_with_fallbacks(
                         locale,
+                        &fallback_asts,
                         LocaleCoverageOptions {
                             missing_message_severity: DiagnosticSeverity::Warning,
                             subject: "locale".to_owned(),
@@ -794,6 +819,30 @@ fn schema_database(documents: &[LinguiniDocument]) -> SchemaDatabase {
         .filter_map(|document| parsed_schema(document)?.ast.clone())
         .collect::<Vec<_>>();
     SchemaDatabase::build_from_files(&schemas)
+}
+
+fn matching_locale_fallbacks<'a>(
+    document: &LinguiniDocument,
+    workspace: &'a [LinguiniDocument],
+) -> Vec<&'a LocaleFile> {
+    document
+        .locale_fallbacks
+        .iter()
+        .filter_map(|locale| {
+            let mut candidates = workspace.iter().filter(|source| {
+                source.kind == SourceKind::Locale
+                    && source.namespace == document.namespace
+                    && source.locale.as_ref() == Some(locale)
+                    && source.uri != document.uri
+                    && source.is_within_safety_limits()
+            });
+            let source = candidates.next()?;
+            if candidates.next().is_some() {
+                return None;
+            }
+            parsed_locale(source)?.ast.as_ref()
+        })
+        .collect()
 }
 
 fn matching_schema_documents(

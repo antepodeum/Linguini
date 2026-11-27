@@ -199,6 +199,7 @@ fn contexts(
                 root: root.to_path_buf(),
                 schema_root: root.join(config.paths().schema()),
                 locale_root: root.join(config.paths().locale()),
+                locale_policy: super::configured_locale_policy(&config),
             }),
             Err(error) => {
                 push_index_error(&mut errors, format!("invalid {}: {error}", path.display()))

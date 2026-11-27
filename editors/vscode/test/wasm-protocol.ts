@@ -7,9 +7,13 @@ function expect(condition: unknown, message: string): asserts condition {
 const root = 'file:///work/caf%C3%A9%20space';
 const schemaUri = `${root}/build/schema/shop.lgs`;
 const localeUri = `${root}/locale/shop/en.lgl`;
-const config = '[project]\nname = "shop"\ndefault_locale = "en"\nlocales = ["en"]\n[paths]\nschema = "build/schema"\nlocale = "locale"\n';
+const config = '[project]\nname = "shop"\ndefault_locale = "en"\nlocales = ["en", "fr"]\n[paths]\nschema = "build/schema"\nlocale = "locale"\n';
 const schema = '/// Delivery label\ndelivery(count: Number)\n';
 const locale = '// 😀 Unicode\ndelivery = 😀 {count}  \n';
+const fallbackUri = `${root}/locale/fallback/fr.lgl`;
+const fallbackBaseUri = `${root}/locale/fallback/en.lgl`;
+const fallbackBase = 'let suffix = BASE\nfn render(count: Number) { _ => {count} }\nimpl Fruit { apple { label = Apple } }\nsummary = BASE\nother = OTHER\n';
+const fallbackLocale = 'summary = {render(count)}|{fruit.label}|{suffix}\n';
 
 /** Run the same real protocol scenario in a Node worker and a browser worker. */
 export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string, bytes: Uint8Array): Promise<unknown[]> {
@@ -36,10 +40,11 @@ export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string
     } else { messages.push(message); }
   });
   channel.onError((error) => { for (const waiter of pending.values()) waiter.reject(error); });
-  async function diagnostic(version: number, present: boolean): Promise<any> {
+  async function diagnostic(version: number, present: boolean, uri = localeUri,
+    matches: (params: any) => boolean = () => true): Promise<any> {
     const started = Date.now();
     while (Date.now() - started < 10_000) {
-      const event = messages.find((message) => message.method === 'textDocument/publishDiagnostics' && message.params.version === version && (message.params.diagnostics.length > 0) === present);
+      const event = messages.find((message) => message.method === 'textDocument/publishDiagnostics' && message.params.uri === uri && message.params.version === version && (message.params.diagnostics.length > 0) === present && matches(message.params));
       if (event) return event.params;
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
@@ -54,7 +59,9 @@ export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string
     expect(sourceRoots[0].schemaUri === `${root}/build/schema`, 'Rust configured roots');
     const files = [configFile, { uri: `${root}/broken/linguini.toml`, text: '[web]\n' }, { uri: schemaUri, text: schema }, { uri: localeUri, text: locale },
       { uri: `${root}/build/schema/account.lgs`, text: 'delivery(name: String)\n' },
-      { uri: `${root}/locale/account/en.lgl`, text: 'delivery = Hello {name}\n' }];
+      { uri: `${root}/locale/account/en.lgl`, text: 'delivery = Hello {name}\n' },
+      { uri: `${root}/build/schema/fallback.lgs`, text: 'enum Fruit { apple }\nsummary(fruit: Fruit, count: Number)\nother\n' },
+      { uri: fallbackBaseUri, text: fallbackBase }, { uri: fallbackUri, text: fallbackLocale }];
     await channel.replace(files);
     const partialPlan = await channel.sourcePlan([root]);
     expect(partialPlan.roots.length === 1 && partialPlan.errors.length === 1, 'an invalid config must not hide valid projects');
@@ -113,8 +120,33 @@ export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string
     // A stale document update must not overwrite the recovered buffer.
     send('textDocument/didChange', { textDocument: { uri: localeUri, version: 2 }, contentChanges: [{ text: 'broken' }] });
     expect(JSON.stringify(await request('textDocument/hover', at)).includes('Updated label'), 'stale edit rejection');
+    const noErrors = (params: any) => params.diagnostics.every((item: any) => item.severity !== 1);
+    const errorContains = (text: string) => (params: any) => params.diagnostics.some((item: any) => item.severity === 1 && item.message.includes(text));
+    send('textDocument/didOpen', { textDocument: { uri: fallbackUri, languageId: 'linguini-locale', version: 1, text: fallbackLocale } });
+    const inherited = await diagnostic(1, true, fallbackUri, noErrors);
+    expect(inherited.diagnostics.some((item: any) => item.message.includes('missing 1 schema message: `other`')), 'fallback keeps local translation coverage');
+    await channel.update(fallbackBaseUri, fallbackBase.replace('count: Number', 'count: String'));
+    send('workspace/didChangeWatchedFiles', { changes: [{ uri: fallbackBaseUri, type: 2 }] });
+    const changedFallback = await diagnostic(1, true, fallbackUri, errorContains('expects `String`, got `Number`'));
+    expect(changedFallback.diagnostics.some((item: any) => item.relatedInformation?.some((related: any) => related.location.uri === fallbackBaseUri)), 'fallback errors retain related source URIs');
+    const recoveredLocale = fallbackLocale.replace('render(count)', 'render(fruit.label)');
+    send('textDocument/didChange', { textDocument: { uri: fallbackUri, version: 2 }, contentChanges: [{ text: recoveredLocale }] });
+    const recoveredFallback = await diagnostic(2, true, fallbackUri, noErrors);
+    await channel.update(fallbackBaseUri, fallbackBase);
+    send('workspace/didChangeWatchedFiles', { changes: [{ uri: fallbackBaseUri, type: 2 }] });
+    const restoredBase = await diagnostic(2, true, fallbackUri, errorContains('expects `Number`, got `String`'));
+    send('textDocument/didChange', { textDocument: { uri: fallbackUri, version: 3 }, contentChanges: [{ text: fallbackLocale }] });
+    await diagnostic(3, true, fallbackUri, noErrors);
+    await channel.update(configFile.uri, config.replace('["en", "fr"]', '["en"]'));
+    send('workspace/didChangeWatchedFiles', { changes: [{ uri: configFile.uri, type: 2 }] });
+    const undeclared = await diagnostic(3, true, fallbackUri, errorContains('unknown function `render`'));
+    await channel.update(configFile.uri, config);
+    send('workspace/didChangeWatchedFiles', { changes: [{ uri: configFile.uri, type: 2 }] });
+    send('textDocument/didChange', { textDocument: { uri: fallbackUri, version: 4 }, contentChanges: [{ text: fallbackLocale }] });
+    const restoredFallback = await diagnostic(4, true, fallbackUri, noErrors);
+    const fallbackResults = [inherited, changedFallback, recoveredFallback, restoredBase, undeclared, restoredFallback];
     await request('shutdown');
     send('exit');
-    return [version, hover, definition, references, prepared, rename, completion, symbols, workspace, tokens, edits, highlight, actions, updated];
+    return [version, hover, definition, references, prepared, rename, completion, symbols, workspace, tokens, edits, highlight, actions, updated, fallbackResults];
   } finally { channel.dispose(); }
 }

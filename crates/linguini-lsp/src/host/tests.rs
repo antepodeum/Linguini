@@ -50,11 +50,21 @@ async fn next_diagnostics(
     uri: &str,
     version: i32,
 ) -> Value {
+    next_diagnostics_matching(notifications, uri, version, |_| true).await
+}
+
+async fn next_diagnostics_matching(
+    notifications: &mut mpsc::UnboundedReceiver<Value>,
+    uri: &str,
+    version: i32,
+    predicate: impl Fn(&Value) -> bool,
+) -> Value {
     tokio::time::timeout(Duration::from_secs(10), async {
         while let Some(event) = notifications.next().await {
             if event["method"] == "textDocument/publishDiagnostics"
                 && event["params"]["uri"] == uri
                 && event["params"]["version"] == version
+                && predicate(&event)
             {
                 return event;
             }
@@ -272,4 +282,238 @@ fn saved_workspace_updates_are_atomic_and_configuration_is_parsed_in_rust() {
     assert!(memory.source_roots(&roots).unwrap_err().contains("invalid"));
     memory.update(&config.uri, None).unwrap();
     assert!(memory.source_roots(&roots).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn configured_fallback_globals_match_native_and_memory_editor_diagnostics() {
+    let temp = linguini_test_support::temp_project_dir("lsp-fallbacks").unwrap();
+    let root = fs::canonicalize(temp.path()).unwrap();
+    let config = CONFIG.replace(
+        "locales = [\"en\"]",
+        "locales = [\"en\", \"en-001\", \"en-AU\", \"fr\"]",
+    );
+    let french = "form Word(Tone) { formal => Oui\ncasual => Non }\nsummary = {render(count)}|{fruit.label}|{suffix}|{Word(fruit.Tone)}\n";
+    let australian = "summary = {render(name,count)}|{fruit.label}|{suffix}\n";
+    let files = vec![
+        workspace_file(&root, "linguini.toml", &config),
+        workspace_file(&root, "build/schema/shop.lgs", "enum Fruit { apple }\nsummary(fruit: Fruit, count: Number, name: String)\nother\n"),
+        workspace_file(&root, "locale/shop/en.lgl", "let suffix = BASE\nenum Tone { formal, casual }\nfn render(count: Number) { _ => {count} }\nimpl Fruit { apple { label = Apple\nTone = formal } }\nsummary = BASE\nother = OTHER\n"),
+        workspace_file(&root, "locale/shop/en-001.lgl", "fn render(name: String, count: Number) { _ => {name}:{count} }\nimpl Fruit { apple { label = Parent } }\n"),
+        workspace_file(&root, "locale/shop/en-AU.lgl", australian),
+        workspace_file(&root, "locale/shop/fr.lgl", french),
+    ];
+    for file in &files {
+        let path = uri_to_file_path(&file.uri.parse().unwrap()).unwrap();
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, &file.text).unwrap();
+    }
+    let index = NativeHost
+        .workspace_index(vec![root.clone()])
+        .await
+        .unwrap();
+    assert!(index.errors.is_empty(), "{:?}", index.errors);
+    let documents = &index.projects[0].documents;
+    for locale in ["en-AU", "fr"] {
+        let document = documents
+            .iter()
+            .find(|document| document.locale.as_deref() == Some(locale))
+            .unwrap();
+        let diagnostics = crate::diagnostics_with_workspace(document, documents.clone());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|item| item.severity != linguini_analyzer::DiagnosticSeverity::Error),
+            "{locale}: {diagnostics:?}"
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|item| item.message.contains("missing 1 schema message: `other`")),
+            "{locale}: {diagnostics:?}"
+        );
+    }
+    let (native_service, native_socket) = crate::server::native_service();
+    let native =
+        exercise_fallback_diagnostics(native_service, native_socket, &root, &files, |source| {
+            fs::write(root.join("linguini.toml"), source).unwrap()
+        })
+        .await;
+    let memory = MemoryWorkspace::default();
+    memory.replace(files.clone()).unwrap();
+    let config_uri = path_to_uri(&root.join("linguini.toml"))
+        .unwrap()
+        .to_string();
+    let (memory_service, memory_socket) = memory.service(Arc::new(DelayedScheduler));
+    let browser =
+        exercise_fallback_diagnostics(memory_service, memory_socket, &root, &files, |source| {
+            memory.update(&config_uri, Some(source.to_owned())).unwrap()
+        })
+        .await;
+    assert_eq!(native, browser);
+}
+
+fn has_diagnostic_errors(event: &Value) -> bool {
+    event["params"]["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["severity"] == 1)
+}
+
+async fn exercise_fallback_diagnostics<S: LanguageServer>(
+    mut service: LspService<S>,
+    socket: tower_lsp_server::ClientSocket,
+    root: &Path,
+    files: &[WorkspaceFile],
+    update_config: impl Fn(&str),
+) -> Vec<Value> {
+    let (captured, mut notifications) = mpsc::unbounded();
+    let pump = tokio::spawn(async move {
+        let (mut stream, mut sink) = socket.split();
+        while let Some(message) = stream.next().await {
+            if let Some(id) = message.id() {
+                sink.send(Response::from_ok(id.clone(), Value::Null))
+                    .await
+                    .unwrap();
+            } else {
+                captured
+                    .unbounded_send(serde_json::to_value(message).unwrap())
+                    .unwrap();
+            }
+        }
+    });
+    let uri = |relative: &str| path_to_uri(&root.join(relative)).unwrap();
+    let source = |relative: &str| {
+        let uri = uri(relative).to_string();
+        files
+            .iter()
+            .find(|file| file.uri == uri)
+            .unwrap()
+            .text
+            .as_str()
+    };
+    let french_uri = uri("locale/shop/fr.lgl");
+    let australian_uri = uri("locale/shop/en-AU.lgl");
+    let english_uri = uri("locale/shop/en.lgl");
+    let config_uri = uri("linguini.toml");
+    request(&mut service, "initialize", json!({"capabilities":{},"workspaceFolders":[{"uri":path_to_uri(root).unwrap(),"name":"fallbacks"}]})).await;
+    notify(&mut service, "initialized", json!({})).await;
+    let mut results = Vec::new();
+    for (document_uri, text) in [
+        (&french_uri, source("locale/shop/fr.lgl")),
+        (&australian_uri, source("locale/shop/en-AU.lgl")),
+    ] {
+        notify(&mut service, "textDocument/didOpen", json!({"textDocument":{"uri":document_uri,"languageId":"linguini-locale","version":1,"text":text}})).await;
+        let initial = next_diagnostics(&mut notifications, document_uri.as_str(), 1).await;
+        assert!(!has_diagnostic_errors(&initial), "{initial:#?}");
+        results.push(initial);
+    }
+    let english = source("locale/shop/en.lgl").replacen("count: Number", "count: String", 1);
+    notify(&mut service, "textDocument/didOpen", json!({"textDocument":{"uri":english_uri,"languageId":"linguini-locale","version":1,"text":english}})).await;
+    let broken = next_diagnostics_matching(
+        &mut notifications,
+        french_uri.as_str(),
+        1,
+        has_diagnostic_errors,
+    )
+    .await;
+    assert!(
+        broken["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["message"]
+                .as_str()
+                .unwrap()
+                .contains("expects `String`, got `Number`")
+                && item["relatedInformation"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|related| related["location"]["uri"] == english_uri.as_str())),
+        "{broken:#?}"
+    );
+    results.push(broken);
+    let australian = source("locale/shop/en-AU.lgl");
+    notify(&mut service, "textDocument/didChange", json!({"textDocument":{"uri":australian_uri,"version":2},"contentChanges":[{"text":australian}]})).await;
+    let parent = next_diagnostics(&mut notifications, australian_uri.as_str(), 2).await;
+    assert!(!has_diagnostic_errors(&parent), "{parent:#?}");
+    results.push(parent);
+    let french = source("locale/shop/fr.lgl").replace("render(count)", "render(name)");
+    notify(
+        &mut service,
+        "textDocument/didChange",
+        json!({"textDocument":{"uri":french_uri,"version":2},"contentChanges":[{"text":french}]}),
+    )
+    .await;
+    let recovered = next_diagnostics(&mut notifications, french_uri.as_str(), 2).await;
+    assert!(!has_diagnostic_errors(&recovered), "{recovered:#?}");
+    results.push(recovered);
+    notify(
+        &mut service,
+        "textDocument/didClose",
+        json!({"textDocument":{"uri":english_uri}}),
+    )
+    .await;
+    let saved = next_diagnostics_matching(
+        &mut notifications,
+        french_uri.as_str(),
+        2,
+        has_diagnostic_errors,
+    )
+    .await;
+    assert!(
+        saved["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["message"]
+                .as_str()
+                .unwrap()
+                .contains("expects `Number`, got `String`")),
+        "{saved:#?}"
+    );
+    results.push(saved);
+    notify(&mut service, "textDocument/didChange", json!({"textDocument":{"uri":french_uri,"version":3},"contentChanges":[{"text":source("locale/shop/fr.lgl")}]})).await;
+    let recovered = next_diagnostics(&mut notifications, french_uri.as_str(), 3).await;
+    assert!(!has_diagnostic_errors(&recovered), "{recovered:#?}");
+    results.push(recovered);
+    let config = source("linguini.toml");
+    update_config(&config.replace("\"en-001\", ", ""));
+    notify(
+        &mut service,
+        "workspace/didChangeWatchedFiles",
+        json!({"changes":[{"uri":config_uri,"type":2}]}),
+    )
+    .await;
+    let changed =
+        next_diagnostics_matching(&mut notifications, australian_uri.as_str(), 2, |event| {
+            event["params"]["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|item| {
+                    item["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains("expects 1 argument(s), got 2")
+                })
+        })
+        .await;
+    results.push(changed);
+    update_config(config);
+    notify(
+        &mut service,
+        "workspace/didChangeWatchedFiles",
+        json!({"changes":[{"uri":config_uri,"type":2}]}),
+    )
+    .await;
+    notify(&mut service, "textDocument/didChange", json!({"textDocument":{"uri":australian_uri,"version":3},"contentChanges":[{"text":australian}]})).await;
+    let restored = next_diagnostics(&mut notifications, australian_uri.as_str(), 3).await;
+    assert!(!has_diagnostic_errors(&restored), "{restored:#?}");
+    results.push(restored);
+    request(&mut service, "shutdown", json!(null)).await;
+    notify(&mut service, "exit", json!(null)).await;
+    pump.abort();
+    results
 }

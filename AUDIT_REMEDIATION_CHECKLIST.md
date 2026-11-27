@@ -1526,7 +1526,13 @@ and the composed payload/SSR requirements below.
       covers CLDR-parent priority, local overrides, named/positional calls, source IDs, related-file
       diagnostics, warning promotion, and preserved output on invalid builds. Shared Vite 7/8 tests
       emit 12 exact payloads with inherited French globals and strict JS/TS consumers (GEN-A44).
-      Editor adoption and the broader backend/architecture criteria remain open.
+      Native and memory editor hosts now attach declared fallback chains from the shared CLDR
+      service, resolved only for indexed locales and reused across namespaces. Diagnostics retain
+      inherited signatures across unsaved fallback edits, close/revert, and configuration changes;
+      ambiguous sources fail closed and translation coverage stays local. All 63 LSP tests pass
+      on Node 20; actual built Node/browser WASM workers pass the same fallback checkpoints.
+      Workspace Clippy, Rust 1.87 native/WASM, and patch-level API checks pass. Broader
+      backend/architecture and fallback navigation criteria remain open.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.

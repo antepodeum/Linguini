@@ -71,6 +71,22 @@ pub(crate) struct ProjectContext {
     pub(crate) root: PathBuf,
     pub(crate) schema_root: PathBuf,
     pub(crate) locale_root: PathBuf,
+    pub(crate) locale_policy: std::sync::Arc<ProjectLocalePolicy>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub(crate) struct ProjectLocalePolicy {
+    default_locale: String,
+    locales: Vec<String>,
+}
+
+fn configured_locale_policy(
+    config: &linguini_config::LinguiniConfig,
+) -> std::sync::Arc<ProjectLocalePolicy> {
+    std::sync::Arc::new(ProjectLocalePolicy {
+        default_locale: config.project().default_locale().to_owned(),
+        locales: config.project().locales().to_vec(),
+    })
 }
 
 #[derive(Debug, Clone, Default)]

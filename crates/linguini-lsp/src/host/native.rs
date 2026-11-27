@@ -247,6 +247,7 @@ fn load_project_context(root: &Path) -> std::result::Result<ProjectContext, Stri
         root: normalize_existing_path(root),
         schema_root: normalize_existing_path(root.join(config.paths().schema())),
         locale_root: normalize_existing_path(root.join(config.paths().locale())),
+        locale_policy: super::configured_locale_policy(&config),
     })
 }
 

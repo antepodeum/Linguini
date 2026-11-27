@@ -245,6 +245,7 @@ impl Backend {
                     && current.source_id == document.source_id
                     && current.namespace == document.namespace
                     && current.locale == document.locale
+                    && current.locale_fallbacks == document.locale_fallbacks
             }
             None => false,
         }
@@ -284,9 +285,7 @@ impl Backend {
             .find(|candidate| document_file_path(candidate).as_ref() == Some(&path))
             .cloned();
         if let Some(indexed) = indexed {
-            document.set_source_id(indexed.source_id);
-            document.namespace = indexed.namespace;
-            document.locale = indexed.locale;
+            document.copy_source_context(&indexed);
         }
     }
 
@@ -326,9 +325,7 @@ impl Backend {
                     .flat_map(|project| project.documents.iter())
                     .find(|candidate| document_file_path(candidate).as_ref() == Some(&path))
                 {
-                    document.set_source_id(indexed.source_id);
-                    document.namespace = indexed.namespace.clone();
-                    document.locale = indexed.locale.clone();
+                    document.copy_source_context(indexed);
                 }
             }
         }
@@ -532,14 +529,12 @@ impl LanguageServer for Backend {
         }
         let Some(mut document) = LinguiniDocument::try_new(
             params.text_document.uri.to_string(),
-            previous.language_id,
+            previous.language_id.clone(),
             change.text,
         ) else {
             return;
         };
-        document.set_source_id(previous.source_id);
-        document.namespace = previous.namespace;
-        document.locale = previous.locale;
+        document.copy_source_context(&previous);
         document.version = Some(params.text_document.version);
         write_lock(&self.documents).insert(params.text_document.uri.clone(), document.clone());
         write_lock(&self.diagnostic_cache).remove(&params.text_document.uri);

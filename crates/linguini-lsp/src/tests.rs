@@ -1046,3 +1046,49 @@ fn highlight_positions_agree_for_lf_crlf_and_cr_line_endings() {
         assert_eq!(document.offset(line, column), offset);
     }
 }
+
+#[test]
+fn locale_fallback_diagnostics_require_explicit_unambiguous_namespace_context() {
+    let schema = LinguiniDocument::new(
+        "file:///schema/main.lgs",
+        "linguini-schema",
+        "summary(count: Number)\n",
+    )
+    .with_source_identity("main", None)
+    .with_source_id(SourceId(1));
+    let base = LinguiniDocument::new(
+        "file:///locales/main/en.lgl",
+        "linguini-locale",
+        "let suffix = BASE\nfn render(count: Number) { _ => {count} }\nsummary = BASE\n",
+    )
+    .with_source_identity("main", Some("en".into()))
+    .with_source_id(SourceId(2));
+    let locale = LinguiniDocument::new(
+        "file:///locales/main/fr.lgl",
+        "linguini-locale",
+        "summary = {render(count)}|{suffix}\n",
+    )
+    .with_source_identity("main", Some("fr".into()))
+    .with_source_id(SourceId(3));
+    let explicit = locale.clone().with_locale_fallbacks(["en".to_owned()]);
+    let valid = diagnostics_with_workspace(&explicit, [schema.clone(), base.clone()]);
+    assert!(valid.is_empty(), "{valid:?}");
+    let mut ambiguous = base.clone().with_source_id(SourceId(4));
+    ambiguous.uri = "file:///other/locales/main/en.lgl".into();
+    let foreign = base
+        .clone()
+        .with_source_identity("account", Some("en".into()));
+    for (current, workspace) in [
+        (locale, vec![schema.clone(), base.clone()]),
+        (explicit.clone(), vec![schema.clone(), foreign]),
+        (explicit, vec![schema, base, ambiguous]),
+    ] {
+        let invalid = diagnostics_with_workspace(&current, workspace);
+        assert!(
+            invalid
+                .iter()
+                .any(|item| item.message.contains("unknown function `render`")),
+            "{invalid:?}"
+        );
+    }
+}

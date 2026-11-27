@@ -129,6 +129,9 @@ fn load_project_snapshot(
 
     let mut bytes = 0u64;
     let mut documents = Vec::new();
+    let policy = std::sync::Arc::clone(&context.locale_policy);
+    let mut locale_plan = None;
+    let mut locale_fallbacks = std::collections::BTreeMap::new();
     for (path, namespace, locale, language_id) in sources {
         let normalized_path = provider.identity(&path);
         if !seen_sources.insert(normalized_path) {
@@ -183,8 +186,32 @@ fn load_project_snapshot(
         };
         let source_id = SourceId(*next_source_id);
         *next_source_id = next_source_id.saturating_add(1);
+        // Resolve only indexed locale names and reuse the chain across their namespaces.
+        let fallbacks = locale
+            .as_ref()
+            .map(|locale| {
+                locale_fallbacks
+                    .entry(locale.clone())
+                    .or_insert_with(|| {
+                        if !policy.locales.contains(locale) {
+                            return Vec::new();
+                        }
+                        let plan = locale_plan.get_or_insert_with(|| {
+                            linguini_cldr::ProjectLocalePlan::new(
+                                policy.locales.iter().map(String::as_str),
+                            )
+                        });
+                        plan.fallback_chain(locale, Some(&policy.default_locale))
+                            .into_iter()
+                            .filter(|fallback| !fallback.eq_ignore_ascii_case(locale))
+                            .collect()
+                    })
+                    .clone()
+            })
+            .unwrap_or_default();
         let document = LinguiniDocument::new(uri.to_string(), language_id, source)
             .with_source_identity(namespace, locale)
+            .with_locale_fallbacks(fallbacks)
             .with_source_id(source_id);
         if document.is_within_safety_limits() {
             prime_semantic_cache(&document);
