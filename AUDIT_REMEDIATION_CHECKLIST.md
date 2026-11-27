@@ -940,9 +940,15 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       on `09394e6` passes all 24 enabled jobs, including Linux/macOS/Windows Rust, native/WASM
       minimum checks, platform TypeScript, Vite 5–8, adapters, editor/WASM, and production site.
       Changed-code mutation testing is intentionally PR-only and skips this push. This confirms
-      the hosted repairs above. Installed native/universal VSIX smoke remains a local receipt:
-      the extension CI job currently tests, compiles, bundles, and exercises WASM, but does not
-      install the packaged VSIX into an Extension Host. That integration-CI requirement stays open.
+      the hosted repairs above. Regular CI now also builds a fresh release CLI, packages native
+      and universal VSIX archives with the existing release scripts, and installs each into the
+      existing isolated Extension Host harness. Native, explicit WASM, and automatic fallback
+      with an empty `PATH` pass locally on source `ba8649b`: activation, exact hover text, indexed
+      definitions, Unicode/Markdown highlighting, edits, restart, and native launcher arguments.
+      Archive/runtime checksums pass; the native payload matches the fresh release binary, and
+      the universal archive contains none. `actionlint` and package-manager policy pass. Hosted
+      confirmation of the newly added installed-package steps remains required. A real packed
+      npm compiler consumer also remains separate from the launcher's Node-substitute unit test.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;

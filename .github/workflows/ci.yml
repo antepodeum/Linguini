@@ -398,3 +398,38 @@ jobs:
         run: pnpm test:wasm && pnpm bundle
       - name: Verify WASM target with strict Clippy
         run: cargo clippy --locked -p linguini-lsp-wasm --target wasm32-unknown-unknown -- -D warnings
+      - name: Build native server for packaged extension
+        run: cargo build --locked --release -p linguini-cli
+      - name: Package native extension
+        working-directory: editors/vscode
+        env:
+          VSCE_TARGET: linux-x64
+          LINGUINI_SERVER_BINARY: ../../target/release/linguini
+          LINGUINI_VSIX_OUT_DIR: ../../target/ci-vsix
+          LINGUINI_WASM_DIR: dist/wasm
+        run: pnpm package:vsix
+      - name: Verify installed native VSIX
+        working-directory: editors/vscode
+        env:
+          LINGUINI_TEST_RUNTIME: native
+          LINGUINI_TEST_VSIX: ../../target/ci-vsix/linguini-vscode-linux-x64.vsix
+        run: xvfb-run -a node scripts/run-integration-tests.js
+      - name: Package universal extension
+        working-directory: editors/vscode
+        env:
+          VSCE_TARGET: universal
+          LINGUINI_VSIX_OUT_DIR: ../../target/ci-vsix
+          LINGUINI_WASM_DIR: dist/wasm
+        run: pnpm package:vsix
+      - name: Verify installed universal VSIX with WASM
+        working-directory: editors/vscode
+        env:
+          LINGUINI_TEST_RUNTIME: wasm
+          LINGUINI_TEST_VSIX: ../../target/ci-vsix/linguini-vscode-universal.vsix
+        run: xvfb-run -a node scripts/run-integration-tests.js
+      - name: Verify installed universal VSIX with automatic fallback
+        working-directory: editors/vscode
+        env:
+          LINGUINI_TEST_RUNTIME: auto
+          LINGUINI_TEST_VSIX: ../../target/ci-vsix/linguini-vscode-universal.vsix
+        run: xvfb-run -a node scripts/run-integration-tests.js
