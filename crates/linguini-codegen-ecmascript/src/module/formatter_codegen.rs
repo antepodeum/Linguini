@@ -201,7 +201,7 @@ fn generated_date_request(
     exported: bool,
     shared_tables: &mut DateTables,
 ) -> (String, DateHelperRequirements) {
-    if request.argument("skeleton") == Some("yw") {
+    if matches!(request.argument("skeleton"), Some("yw" | "MMMMW")) {
         return week::generate(locale, dates, request, name, exported, shared_tables);
     }
 
@@ -320,7 +320,7 @@ fn project_date_parts(
         }
         let numeric = matches!(
             character,
-            'y' | 'Y' | 'w' | 'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' | 'S'
+            'y' | 'Y' | 'w' | 'W' | 'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' | 'S'
         ) || matches!(character, 'M' | 'L' | 'Q' | 'q') && width <= 2;
         helpers.padding |= character == 'S'
             || (numeric && width == 2)
@@ -349,6 +349,7 @@ fn project_date_parts(
             exact_time => exact_count > 1 && (fields.contains(&'m') || fields.contains(&'s') || fields.contains(&'S')),
             year => fields.contains(&'y'),
             week_year => fields.contains(&'Y'),
+            month_week => fields.contains(&'W'),
             minus_sign,
             signed_week_year,
             era => fields.contains(&'G'),

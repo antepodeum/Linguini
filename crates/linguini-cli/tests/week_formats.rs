@@ -4,6 +4,15 @@ use tempfile::TempDir;
 
 #[test]
 fn year_week_requests_check_build_preview_and_preserve_failed_output() {
+    assert_week_family("yw");
+}
+
+#[test]
+fn month_week_requests_check_build_preview_and_preserve_failed_output() {
+    assert_week_family("MMMMW");
+}
+
+fn assert_week_family(skeleton: &str) {
     let project = TempDir::new().unwrap();
     let root = project.path();
     let locales = [
@@ -16,6 +25,8 @@ fn year_week_requests_check_build_preview_and_preserve_failed_output() {
         "mt",
         "fil",
         "hy",
+        "nso",
+        "sq",
         "en-GB-u-fw-sun",
         "en-u-fw-mon",
     ];
@@ -26,10 +37,10 @@ fn year_week_requests_check_build_preview_and_preserve_failed_output() {
         "[project]\nname=\"weeks\"\ndefault_locale=\"en-GB\"\nlocales={}\n[paths]\nschema=\"schema\"\nlocale=\"locales\"\n[targets.ts]\nout=\"generated\"\n",
         serde_json::to_string(&locales).unwrap()
     )).unwrap();
-    fs::write(root.join("schema/main.lgs"), "type WeekDate = Date @date(skeleton = \"yw\")\nperiod(value: WeekDate)\nforwarded(value: Date)\n").unwrap();
-    let source = "fn Receipt(value: Date) { _ => {value @date(skeleton = \"yw\")} }\nperiod = {value}\nforwarded = {Receipt(value)}\n";
+    fs::write(root.join("schema/main.lgs"), "type WeekDate = Date @date(skeleton = \"yw\")\nperiod(value: WeekDate)\nforwarded(value: Date)\n".replace("\"yw\"", &format!("{skeleton:?}"))).unwrap();
+    let source = "fn Receipt(value: Date) { _ => {value @date(skeleton = \"yw\")} }\nperiod = {value}\nforwarded = {Receipt(value)}\n".replace("\"yw\"", &format!("{skeleton:?}"));
     for locale in locales {
-        fs::write(root.join(format!("locales/main/{locale}.lgl")), source).unwrap();
+        fs::write(root.join(format!("locales/main/{locale}.lgl")), &source).unwrap();
     }
     for action in ["check", "build"] {
         assert_cmd::cargo::cargo_bin_cmd!("linguini")
@@ -54,25 +65,33 @@ fn year_week_requests_check_build_preview_and_preserve_failed_output() {
         paths.map(|path| fs::read(root.join(path)).unwrap()),
         baseline
     );
-    let execution = std::process::Command::new("node").current_dir(root)
-        .args(["--input-type=module", "-e", r#"
+    let script = format!("const skeleton = {skeleton:?};\n")
+        + r#"
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const manifest=JSON.parse(readFileSync('./generated/bundler/manifest.json','utf8'));
-for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy','en-GB-u-fw-sun','en-u-fw-mon']) {
+for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy','nso','sq','en-GB-u-fw-sun','en-u-fw-mon']) {
   const {main}=await import('./generated/locales/'+locale+'.js');
   const {message}=await import('./generated/'+manifest.messages['main.period'].locales[locale].module);
-  for(const value of ['2021-01-01','2021-01-04',0,-1,new Date('0000-01-01T00:00:00Z')]) {
+  for(const value of ['2021-01-01','2021-01-04','2021-05-30','2021-05-31',0,-1,new Date('0000-01-01T00:00:00Z')]) {
     const result=main.period(value);
     assert.equal(main.forwarded({value}),result);
     assert.equal(message(value),result);
   }
-  if(locale==='en-GB') assert.equal(main.period('2021-01-01'),'week 53 of 2020');
-  if(locale==='en') assert.equal(main.period('2021-01-01'),'week 1 of 2021');
-  if(locale==='en-GB-u-fw-sun') assert.equal(main.period('2021-01-03'),'week 1 of 2021');
+  if(locale==='en-GB') assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 53 of 2020':'week 0 of January');
+  if(locale==='en') {
+    assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 1 of 2021':'week 1 of January');
+    if(skeleton==='MMMMW') assert.equal(main.period('2021-05-30'),'week 6 of May');
+  }
+  if(locale==='en-GB-u-fw-sun') assert.equal(main.period('2021-01-03'),skeleton==='yw'?'week 1 of 2021':'week 1 of January');
 }
 console.log('ok');
-"#]).output().unwrap();
+"#;
+    let execution = std::process::Command::new("node")
+        .current_dir(root)
+        .args(["--input-type=module", "-e", &script])
+        .output()
+        .unwrap();
     assert!(
         execution.status.success(),
         "{}",
@@ -84,11 +103,22 @@ console.log('ok');
         .arg("generate")
         .assert()
         .success()
-        .stdout(contains("=> week 20 of 2026"))
-        .stdout(contains("=> week 1 of 1970"));
+        .stdout(contains(if skeleton == "yw" {
+            "=> week 20 of 2026"
+        } else {
+            "=> week 2 of May"
+        }))
+        .stdout(contains(if skeleton == "yw" {
+            "=> week 1 of 1970"
+        } else {
+            "=> week 1 of January"
+        }));
     fs::write(
         root.join("locales/main/mt.lgl"),
-        source.replace("skeleton = \"yw\"", "skeleton = \"yw\", style = \"short\""),
+        source.replace(
+            &format!("skeleton = {skeleton:?}"),
+            &format!("skeleton = {skeleton:?}, style = \"short\""),
+        ),
     )
     .unwrap();
     assert_cmd::cargo::cargo_bin_cmd!("linguini")

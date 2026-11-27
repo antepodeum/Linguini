@@ -128,7 +128,7 @@ pub(crate) fn compile_week_pattern(
 fn compile_pattern(
     locale: &str,
     pattern: &str,
-    week_of_year: bool,
+    week_fields: bool,
 ) -> Result<Vec<DatePatternPart>, DatePatternError> {
     let mut parts = Vec::new();
     let mut literal = String::new();
@@ -192,13 +192,15 @@ fn compile_pattern(
             'E' => width <= 6,
             'e' | 'c' => (3..=6).contains(&width),
             'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' => width <= 2,
-            'w' => week_of_year && width <= 2,
+            'w' => week_fields && width <= 2,
+            'W' => week_fields && width == 1,
             _ => false,
         };
         if !supported {
             return Err(unsupported());
         }
-        if matches!(symbol, 'Y' | 'w') && crate::GregorianWeekYearPlan::for_locale(locale).is_none()
+        if matches!(symbol, 'Y' | 'w' | 'W')
+            && crate::GregorianWeekYearPlan::for_locale(locale).is_none()
         {
             return Err(DatePatternError::MissingWeekData {
                 locale: locale.to_owned(),

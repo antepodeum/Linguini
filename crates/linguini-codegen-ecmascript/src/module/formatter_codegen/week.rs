@@ -81,7 +81,8 @@ pub(super) fn generate(
     let output = crate::templates::render(
         "formatters/week_date",
         context! {
-            name, exported, branches, factored, patterns => patterns.iter().map(pattern_context).collect::<Vec<_>>(),
+            name, exported, branches, factored, month_week => request.argument("skeleton") == Some("MMMMW"),
+            month_anchor_offset => i16::from(plan.week.anchor_offset) - 1, patterns => patterns.iter().map(pattern_context).collect::<Vec<_>>(),
             fallback => pattern_context(&patterns[plan.selection.fallback]), digits => dates.digits,
             week_year => plan.patterns.iter().any(|pattern| pattern.fields.contains(&'Y')),
             previous => plan.week.previous_last_day.is_some(), next => plan.week.next_first_day.is_some(),

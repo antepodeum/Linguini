@@ -1,8 +1,12 @@
+import { formatDate_skeleton_MMMMW as formatMonthWeek } from "./month-week-mt.js";
 import { formatFlexible, formatFixed, formatNarrow, formatYear, formatLocalized } from "./date.js";
 import { formatDate_skeleton_yMMMd, formatDate_skeleton_Hm, formatDate_skeleton_GyMMMd, formatDate_skeleton_yQQQ } from "./skeletons.js";
 
 /** @type {string[]} */
 const results = [
+  formatMonthWeek(new Date()),
+  formatMonthWeek(0),
+  formatMonthWeek("2021-01-01"),
   formatFlexible(new Date()),
   formatFixed(0),
   formatNarrow("2024-01-02T13:30:00Z"),
@@ -23,4 +27,6 @@ formatDate_skeleton_yMMMd(false);
 formatDate_skeleton_yQQQ(false);
 // @ts-expect-error localized digit output preserves the Date input contract
 formatLocalized(false);
+// @ts-expect-error month-week formatters retain Date inputs
+formatMonthWeek(false);
 void results;

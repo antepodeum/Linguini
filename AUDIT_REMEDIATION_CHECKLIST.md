@@ -436,8 +436,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       preview comparisons cover 1,044 cases in three host zones, alongside public cold/warm,
       ordinary/physical, schema-default/function, and preserved-output-on-error checks (GEN-A47).
       Strict JS/TS 5.8/5.9/6, Node 20, Clippy, Rust 1.87, patch API, and complete Vite 7/8 consumers
-      pass; existing generated code/declaration/map snapshots remain unchanged. Month weeks,
-      closest-match skeletons, combined date/time synthesis, other calendars, and selectable
+      pass; existing generated code/declaration/map snapshots remain unchanged. Closest-match skeletons, combined date/time synthesis, other calendars, and selectable
       non-UTC zones remain open.
       Valid Unicode `fw` preferences now override the compiled first weekday through the shared
       BCP 47 parser while preserving territory minimum days (GEN-A48). Seven weekdays across
@@ -446,6 +445,18 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       emit identical formatter bytes. Workspace Clippy, Rust 1.87 native/WASM, 223 patch API
       checks, strict JS/TS 5.8/5.9/6, documentation gates, and complete Vite 7/8 consumers pass.
       Region/subdivision and calendar-specific week overrides remain open.
+      Canonical month-week `MMMMW` now uses the same finite family planner and direct arithmetic
+      for the selected convention's reachable subset of 0–6 (GEN-A54). Week zero, week six,
+      formatting/standalone month names, localized digits, and final-month ownership execute
+      correctly without year/leap calculations or runtime CLDR parsing. All 49 conventions and
+      a full Gregorian cycle are checked; raw-pattern execution covers every live wording variant,
+      extended years, TimeClip endpoints, getter counts, and caller errors. Native/generated
+      parity covers 1,664 cases in three zones, plus cold/warm public builds, previews, function
+      forwarding, and preserved failed-build output. All 57 common/194 emitter tests and CLI
+      tests pass on Node 20, with changed cases on Node 24. Clippy, Rust 1.87 native/WASM,
+      223 patch API checks per changed codegen crate, strict JS/application TS 5.8/5.9/6, nine
+      date/project/documentation gates, and eight complete Vite 7/8 consumers pass. Existing code/declaration/map snapshots stay unchanged. Broader skeleton
+      matching, other calendars/zones, and missing required locale-rule data remain separate.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [x] #160 — Share one plural grammar implementation across all targets. `linguini-cldr` owns the
   sole rule parser; the offline generator imports it and TypeScript codegen lowers its typed AST.
@@ -1273,7 +1284,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Integrated helper-typing/private-variable source `995242a` also passes all 71 local
       full-profile gates in one clean run, including strict generated consumers, installed/native
       tsc, rebuilt editor/WASM, offline packages, and production SSR/browser/graph checks.
-      Subsequent public export-binding changes have separate focused receipts (GEN-A53).
+      Integrated public export-binding source `886c47f` also passes all 71 local full-profile
+      gates in one clean run, including native namespace regressions, installed tsc, editor/WASM,
+      offline packages, documentation, and production SSR/browser/graph checks (GEN-A53).
+      Subsequent month-week work has separate focused receipts (GEN-A54).
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.

@@ -409,7 +409,7 @@ Every consumer contains one self-contained chunk. Compared with the initial inte
 helper prototype, inlining saves 10–25 Brotli bytes in the first three profiles. Factoring Maltese
 wording then saves 58 minified bytes and 3/2 Brotli bytes on Vite 7/8; the three constant-pattern
 profiles retain their sizes. These are output-size measurements, with no timing claim. General
-message-selector outcome specialization, month weeks, other calendars/zones, and exact composed-
+message-selector outcome specialization, other calendars/zones, and exact composed-
 page delivery remain under remediation.
 
 The first-weekday (`fw`) correction changes build-time constants only. Ten locale outputs pass
@@ -464,6 +464,27 @@ The previous generated modules fail to import because of duplicate bindings, so 
 post-fix consumer sizes, not a before/after compression improvement or timing claim. Existing
 non-colliding runtime, declaration, and source-map snapshots remain byte-identical. The fix adds
 no runtime registry, wrapper function, or CLDR interpretation.
+
+Canonical month-week (`MMMMW`) formatting reuses the finite wording planner. Its arithmetic
+reads the month, day, and weekday once each, without year/leap work or a calendar helper call.
+The minimum-days convention restricts the plural domain before emission: one-day first weeks
+cannot reach zero, and first weeks requiring at least three days cannot reach six. Equal
+wording and month tables share the existing specialization and literal-choice models.
+
+Twelve complete generated locale outputs pass strict checked JS and application TS without
+`allowJs` on TypeScript 5.8.3, 5.9.3, and 6.0.3. Executed consumers each contain one
+self-contained chunk. Node 24.13.1 minified/gzip/Brotli bytes:
+
+| Locale | Vite 7.3.3 | Vite 8.0.13 |
+| --- | ---: | ---: |
+| `en-GB` | 1,488 / 844 / 726 | 1,429 / 798 / 684 |
+| `fa` | 1,617 / 970 / 814 | 1,558 / 922 / 773 |
+| `mt` | 1,540 / 871 / 765 | 1,481 / 826 / 721 |
+| `zh` | 1,490 / 857 / 746 | 1,431 / 811 / 689 |
+
+This extends a previously rejected request; these are post-change consumer sizes, not a
+before/after improvement or timing claim. Existing formatter/declaration/map goldens retain
+their bytes. New curated month-week fixtures join the strict date-consumer gate.
 
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

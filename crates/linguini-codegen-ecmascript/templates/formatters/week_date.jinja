@@ -5,9 +5,10 @@
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {
   const date = coerceDate(value);
-  const extendedYear = date.getUTCFullYear();
-  const month = date.getUTCMonth();
-{% include "formatters/week_number" %}{% if factored is not none %}{% for branch in branches %}{{ moduli(branch.moduli) }}{% endfor %}{% with clock=factored.clock, parts=factored.parts, periods=factored.periods, localize_result=factored.localize_result, prepared_week=true %}{% include "formatters/date_body" %}{% endwith %}{% else %}{% for branch in branches %}{{ moduli(branch.moduli) }}  if ({% for condition in branch.conditions %}{% for relation in condition %}{{ predicate(relation, false, branch.conditions|length > 1 or condition|length > 1) }}{{ " && " if not loop.last }}{% else %}true{% endfor %}{{ " || " if not loop.last }}{% endfor %}) {
+{% if not month_week %}  const extendedYear = date.getUTCFullYear();
+{% endif %}  const month = date.getUTCMonth();
+{% if month_week %}  const weekNumber = Math.floor((date.getUTCDate(){% if month_anchor_offset > 0 %} + {{ month_anchor_offset }}{% elif month_anchor_offset < 0 %} - {{ -month_anchor_offset }}{% endif %} - {% if weekday_shift %}((date.getUTCDay() + {{ weekday_shift }}) % 7){% else %}date.getUTCDay(){% endif %}) / 7) + 1;
+{% else %}{% include "formatters/week_number" %}{% endif %}{% if factored is not none %}{% for branch in branches %}{{ moduli(branch.moduli) }}{% endfor %}{% with clock=factored.clock, parts=factored.parts, periods=factored.periods, localize_result=factored.localize_result, prepared_week=true %}{% include "formatters/date_body" %}{% endwith %}{% else %}{% for branch in branches %}{{ moduli(branch.moduli) }}  if ({% for condition in branch.conditions %}{% for relation in condition %}{{ predicate(relation, false, branch.conditions|length > 1 or condition|length > 1) }}{{ " && " if not loop.last }}{% else %}true{% endfor %}{{ " || " if not loop.last }}{% endfor %}) {
 {% with clock=branch.pattern.clock, parts=branch.pattern.parts, periods=branch.pattern.periods, localize_result=branch.pattern.localize_result, prepared_week=true %}{% filter indent(2, true) %}{% include "formatters/date_body" %}{% endfilter %}{% endwith %}
   }
 {% endfor %}{% with clock=fallback.clock, parts=fallback.parts, periods=fallback.periods, localize_result=fallback.localize_result, prepared_week=true %}{% include "formatters/date_body" %}{% endwith %}{% endif %}}

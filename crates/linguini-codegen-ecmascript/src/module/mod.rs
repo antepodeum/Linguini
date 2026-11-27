@@ -532,7 +532,13 @@ fn validate_formatter_data(
         for request in linguini_codegen::formatter_requests(schema, locale) {
             if request.formatter.kind == linguini_ir::IrFormatterKind::Date {
                 if linguini_codegen::week_date_request_plan(locale_name, &request)
-                    .map_err(|error| date_plan_error(locale_name, "yw", error))?
+                    .map_err(|error| {
+                        date_plan_error(
+                            locale_name,
+                            request.argument("skeleton").unwrap_or_default(),
+                            error,
+                        )
+                    })?
                     .is_some()
                 {
                     continue;

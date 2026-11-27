@@ -64,6 +64,14 @@ impl GregorianWeekYearPlan {
         ((anchor - 1) / 7 + 1) as u8
     }
 
+    /// Gregorian week of month (0–6) for validated day/weekday fields. An incomplete
+    /// first week belongs to week zero; month weeks never roll into an adjacent month.
+    pub fn month_week_number(self, day: u8, weekday: u8) -> u8 {
+        let local_weekday = (u16::from(weekday) + u16::from(self.weekday_shift)) % 7;
+        let anchor = i32::from(day) + i32::from(self.anchor_offset) - i32::from(local_weekday);
+        ((anchor - 1).div_euclid(7) + 1) as u8
+    }
+
     pub fn for_week_data(week: WeekData) -> Option<Self> {
         if week.first_day > 6 || !(1..=7).contains(&week.min_days) {
             return None;
@@ -95,6 +103,43 @@ mod tests {
             start + 7
         } else {
             start
+        }
+    }
+
+    #[test]
+    fn month_weeks_match_first_week_anchors_for_every_day_and_convention() {
+        for first_day in 0..7 {
+            for min_days in 1..=7 {
+                let week = WeekData {
+                    first_day,
+                    min_days,
+                };
+                let plan = GregorianWeekYearPlan::for_week_data(week).unwrap();
+                let mut seen = std::collections::BTreeSet::new();
+                for year in 1600..2000 {
+                    let days = days_before_year(year + 1) - days_before_year(year);
+                    let mut before_month = days_before_year(year);
+                    for count in [31, 28 + days - 365, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] {
+                        let first_weekday = (before_month + 1).rem_euclid(7);
+                        let preceding = (first_weekday - i64::from(first_day)).rem_euclid(7);
+                        let mut first = 1 - preceding;
+                        if 7 - preceding < i64::from(min_days) {
+                            first += 7;
+                        }
+                        for day in 1..=count {
+                            let weekday = (first_weekday + day - 1).rem_euclid(7);
+                            let expected = (day - first).div_euclid(7) + 1;
+                            let actual = plan.month_week_number(day as u8, weekday as u8);
+                            assert_eq!(i64::from(actual), expected, "{year}/{day}: {week:?}");
+                            seen.insert(actual);
+                        }
+                        before_month += count;
+                    }
+                }
+                let minimum = u8::from(min_days == 1);
+                let maximum = (37 - min_days) / 7 + 1;
+                assert_eq!(seen, (minimum..=maximum).collect(), "{week:?}");
+            }
         }
     }
 

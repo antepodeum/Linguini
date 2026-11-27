@@ -2,6 +2,65 @@ use super::*;
 use linguini_cldr::{built_in_plural_rules, compiled_calendar_formatting, PluralOperands};
 
 #[test]
+fn pinned_month_week_families_specialize_their_exact_reachable_domain() {
+    let mut checked = 0;
+    let mut branching = std::collections::BTreeSet::new();
+    for locale in linguini_cldr::locale_resolution_candidates() {
+        let Some(calendar) = compiled_calendar_formatting(locale, "gregory") else {
+            continue;
+        };
+        let Some(rules) = built_in_plural_rules(locale) else {
+            continue;
+        };
+        let plan = WeekDatePlan::for_skeleton(locale, &calendar, &rules, "MMMMW").unwrap();
+        checked += 1;
+        if !plan.selection.branches.is_empty() {
+            branching.insert(*locale);
+        }
+        let week = linguini_cldr::compiled_week_data(locale).unwrap();
+        assert_eq!(plan.selection.minimum, u64::from(week.min_days == 1));
+        assert_eq!(
+            plan.selection.maximum,
+            u64::from((37 - week.min_days) / 7 + 1)
+        );
+        let mut used = std::collections::BTreeSet::new();
+        for value in plan.selection.minimum..=plan.selection.maximum {
+            let operands = PluralOperands::parse(&value.to_string()).unwrap();
+            let category = rules.category_for_operands(&operands);
+            let key = format!("MMMMW-count-{category}");
+            let source = calendar
+                .skeletons
+                .iter()
+                .find(|(name, _)| *name == key)
+                .or_else(|| {
+                    calendar
+                        .skeletons
+                        .iter()
+                        .find(|(name, _)| *name == "MMMMW-count-other")
+                })
+                .unwrap()
+                .1;
+            let index = *plan.selection.result_for_integer(value).unwrap();
+            used.insert(index);
+            let expected = DatePatternPlan::for_week(locale, source, &calendar).unwrap();
+            assert_eq!(plan.patterns[index], expected, "{locale}/{value}");
+            assert!(expected
+                .fields
+                .iter()
+                .all(|field| matches!(field, 'M' | 'L' | 'W')));
+        }
+        assert_eq!(
+            used.len(),
+            plan.patterns.len(),
+            "{locale}: unused month-week pattern"
+        );
+    }
+    assert!(checked > 500);
+    assert!(branching.contains("mt"));
+    assert!(branching.contains("sq"));
+}
+
+#[test]
 fn every_pinned_week_family_resolves_only_live_patterns_and_exact_outcomes() {
     let mut locales = std::collections::BTreeSet::new();
     let mut branching = 0;

@@ -200,14 +200,28 @@ weekday preferences produce identical formatter code, with no runtime locale par
 branches. Native previews and ordinary/physical generated modules use the same policy.
 Region/subdivision and calendar-specific week-preference overrides remain under remediation.
 
+## Gregorian month/week formatting
+
+Use `@date(skeleton = "MMMMW")` for the pinned Gregorian month/week family. The shared
+`WeekDatePlan::for_skeleton` compiles reachable count-specific wording and month symbols, and
+native previews use `GregorianWeekYearPlan::month_week_number`. An incomplete first week may
+be zero; a final week stays in its calendar month. This corrects the earlier missing-skeleton
+rejection without a runtime CLDR interpreter, year arithmetic, or new configuration.
+
+Schema defaults, function forwarding, named/positional calls, and ordinary/physical output use
+this policy. Existing static date/year-week output, declarations, and maps keep their snapshots.
+Regenerate artifacts to use the request. The existing requirement for pinned calendar, week,
+and cardinal-rule data also applies to this family.
+
 ## Gregorian year/week formatting
 
 Use `@date(skeleton = "yw")` for the pinned Gregorian year/week format. Generation now resolves
 its count-specific CLDR patterns, week number, week-based year, and locale wording during builds.
 No application category selection or runtime CLDR parser is needed. The request works in schema
 defaults, named functions, native previews, ordinary output, and physical message modules. Existing
-static date output, declarations, and source maps retain their snapshots. Week-of-month `W`,
-other calendars, closest-match skeletons, and selectable non-UTC zones remain open.
+static date output, declarations, and source maps retain their snapshots. Month weeks are now
+covered separately below; other calendars, closest-match skeletons, and selectable non-UTC zones
+remain open.
 
 Rust backends can consume `WeekDatePlan`, `IntegerPluralPlan`, and `DateLiteralChoice` from
 `linguini-codegen`; ECMAScript syntax stays in canonical templates. Public existing Rust types

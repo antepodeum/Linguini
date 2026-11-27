@@ -129,11 +129,12 @@ Numeric helper typedefs likewise use reserved compiler names `__lgl_Numeric` and
 `__lgl_Decimal`. Source types named `GeneratedNumeric` or `GeneratedDecimal` retain their
 public names in shared declarations and standalone message signatures.
 
-`linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` family. Its
+`linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` and `MMMMW` families. Its
 `IntegerPluralPlan` specializes ordered cardinal rules and projected results over the proven
 integer domain 1–53, preserving overlaps while merging equal outputs and removing unreachable
-patterns. `DateLiteralChoice` factors literal-only differences without changing field order or
-losing digit-localization proofs. Native previews and target templates share these models;
+patterns. `for_skeleton` also selects month-week wording over its reachable subset of 0–6,
+using the compiled minimum-days rule. `DateLiteralChoice` factors literal-only differences without
+changing field order or losing digit-localization proofs. Native previews and target templates share these models;
 request selection is available through `week_date_request_plan`.
 
 `linguini_codegen::NumberFormatPlan` resolves the selected number pattern's affixes, grouping
@@ -471,8 +472,14 @@ surface. Current guarantees are:
   2020 in `en-GB`, and week 1 of 2021 in `en`. The selected
   [territory week conventions](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Week_Elements)
   and the reachable wording for weeks 1–53 are compiled into arithmetic and direct text choices;
-  generated code contains no CLDR pattern/category table or interpreter. Week-of-month `W`
-  remains under remediation.
+  generated code contains no CLDR pattern/category table or interpreter.
+  `skeleton = "MMMMW"` compiles week-of-month `W` and its locale-specific month names and
+  count-dependent wording through the same plan. Incomplete first weeks are week zero when
+  the minimum-days rule requires it; final weeks retain the current month. Thus `2021-01-01`
+  renders `week 0 of January` in `en-GB`, while `2021-05-30` renders `week 6 of May` in `en`.
+  Generation prunes unreachable zero/six outcomes for the selected convention and emits no
+  year or leap-year arithmetic for this request. Both week families require pinned calendar,
+  territory week, and cardinal-rule data; unavailable required data fails generation.
   A valid Unicode `fw` keyword (`sun`, `mon`, `tue`, `wed`, `thu`, `fri`, or `sat`) overrides
   the first weekday at compilation; the territory's minimum-days rule stays unchanged. Thus
   `2021-01-03` is week 1 of 2021 in `en-GB-u-fw-sun`, versus week 53 of 2020 in `en-GB`.

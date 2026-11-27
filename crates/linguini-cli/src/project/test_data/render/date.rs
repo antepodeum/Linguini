@@ -63,14 +63,18 @@ fn format_date_input(
         DateInput::Timestamp(value) => input::parse_timestamp(value)?,
     };
     let week_number = week.as_ref().map(|plan| {
-        plan.week
-            .week_number(date.year, date.month - 1, date.day, date.weekday)
+        if request.argument("skeleton") == Some("MMMMW") {
+            plan.week.month_week_number(date.day, date.weekday)
+        } else {
+            plan.week
+                .week_number(date.year, date.month - 1, date.day, date.weekday)
+        }
     });
     let plan = if let Some(week) = &week {
         let index = *week
             .selection
             .result_for_integer(u64::from(week_number.expect("week date")))
-            .expect("Gregorian week is in 1–53");
+            .expect("Gregorian week is inside the compiled domain");
         &week.patterns[index]
     } else {
         ordinary.as_ref().expect("ordinary date plan")
@@ -134,7 +138,7 @@ fn format_date_input(
                         }
                         text
                     }
-                    'w' => pad(week_number.expect("compiled week field"), width),
+                    'w' | 'W' => pad(week_number.expect("compiled week field"), width),
                     'M' | 'L' => pad(date.month, width),
                     'Q' | 'q' => pad((date.month - 1) / 3 + 1, width),
                     'd' => pad(date.day, width),

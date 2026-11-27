@@ -440,17 +440,27 @@ console.log(JSON.stringify(values.map(value=>{
 
 #[test]
 fn native_year_week_previews_match_built_messages_across_week_outcomes() {
+    assert_native_week_previews("yw");
+}
+
+#[test]
+fn native_month_week_previews_match_built_messages_across_week_outcomes() {
+    assert_native_week_previews("MMMMW");
+}
+
+fn assert_native_week_previews(skeleton: &str) {
     use super::super::{Renderer, SampleValue};
     use linguini_ir::{lower_locale, lower_schema};
     use linguini_syntax::{parse_locale, parse_schema};
     use std::collections::BTreeMap;
-    let schema_source = "type WeekDate = Date @date(skeleton = \"yw\")\nsample0(value: WeekDate)\nsample1(value: Date)\n";
+    let schema_source = "type WeekDate = Date @date(skeleton = \"yw\")\nsample0(value: WeekDate)\nsample1(value: Date)\n".replace("\"yw\"", &format!("{skeleton:?}"));
     let source = concat!(
         "fn Receipt(value: Date) { _ => {value @date(skeleton = \"yw\")} }\n",
         "sample0 = {value}\nsample1 = {Receipt(value)}\n",
-    );
-    let schema = lower_schema(&parse_schema(schema_source).unwrap());
-    let module = lower_locale(&parse_locale(source).unwrap());
+    )
+    .replace("\"yw\"", &format!("{skeleton:?}"));
+    let schema = lower_schema(&parse_schema(&schema_source).unwrap());
+    let module = lower_locale(&parse_locale(&source).unwrap());
     let locales = [
         "en",
         "en-GB",
@@ -461,6 +471,8 @@ fn native_year_week_previews_match_built_messages_across_week_outcomes() {
         "mt",
         "fil",
         "hy",
+        "nso",
+        "sq",
         "en-GB-u-fw-sun",
         "gd-u-fw-sun",
     ];
@@ -486,6 +498,12 @@ fn native_year_week_previews_match_built_messages_across_week_outcomes() {
             "0000-01-01",
             "2021-01-01",
             "2021-01-04",
+            "2021-05-30",
+            "2021-05-31",
+            "2021-02-01",
+            "2021-02-28",
+            "2021-08-01",
+            "2021-08-02",
             "2020-12-31T23:00-03:00",
         ] {
             for index in 0..2 {
@@ -500,8 +518,8 @@ fn native_year_week_previews_match_built_messages_across_week_outcomes() {
         }
     }
     super::super::parity::assert_generated_samples_in_time_zones(
-        schema_source,
-        source,
+        &schema_source,
+        &source,
         &locales,
         &cases,
         &["UTC", "America/Los_Angeles", "Asia/Kolkata"],
