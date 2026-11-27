@@ -206,8 +206,7 @@ Desktop VS Code packages bundle a matching native language server and a WASM wor
 The universal VSIX uses that same worker on desktop and in the browser.
 Generated tooling uses the `linguini` command by default.
 
-Builds consume checked-in, hash-verified CLDR artifacts only. Compilation never
-fetches CLDR data or invokes `git`; an incomplete source archive fails explicitly.
+Building translations does not require a CLDR download.
 
 ```
 linguini init      Create a project skeleton
