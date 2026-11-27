@@ -16,6 +16,8 @@ function pnpm(args, cwd) {
 test("packed framework adapters preserve strict types and framework ownership", (context) => {
   const root = mkdtempSync(path.join(tmpdir(), "linguini-framework-packages-"));
   context.after(() => rmSync(root, { recursive: true, force: true }));
+  // Temporary consumers may live on a different filesystem with a different default store.
+  const store = pnpm(["store", "path"], fileURLToPath(new URL("../", import.meta.url))).trim();
   const overrides = {};
   for (const name of ["project", "vite", "svelte", "vue"]) {
     const archive = path.join(root, `${name}.tgz`);
@@ -31,7 +33,7 @@ test("packed framework adapters preserve strict types and framework ownership", 
     },
   }));
   writeFileSync(path.join(consumer, "pnpm-workspace.yaml"), `overrides:\n${Object.entries(overrides).map(([name, value]) => `  '${name}': ${JSON.stringify(value)}`).join("\n")}\n`);
-  pnpm(["install", "--prefer-offline", "--ignore-scripts"], consumer);
+  pnpm(["install", "--prefer-offline", "--ignore-scripts", "--store-dir", store], consumer);
   writeFileSync(path.join(consumer, "tsconfig.json"), JSON.stringify({ compilerOptions: {
     strict: true, allowJs: false, skipLibCheck: false, target: "ES2022",
     module: "NodeNext", moduleResolution: "NodeNext", outDir: "output", types: ["node"],

@@ -1234,6 +1234,13 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       workspace Clippy, and patch API checks pass; six complete consumers retain the same output
       and minified/gzip/Brotli sizes on Vite 7/8. This verifies ESM-A7's single-runtime completion;
       native qualification scopes and the remaining architecture/platform requirements are separate.
+      Inherited-source/editor source `6c32866` passes 70 of 71 full-profile gates, including all
+      Rust tests, strict generated consumers, installed tsc build/watch, editor/WASM, and production
+      SSR/browser checks. The packed Vue install alone failed because `/tmp` selected a different
+      default pnpm store with no cached `smol-toml` tarball. Its consumer now explicitly reuses the
+      package's store, as the Kit packaging test already does. The failed Vue gate then passes all
+      five tests offline, and its packed consumer passes separately on Node 20. This is a full-run
+      receipt plus a targeted repair/rerun, not a second all-green full run or hosted-CI verification.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
