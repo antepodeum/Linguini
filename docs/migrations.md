@@ -37,6 +37,12 @@ precision. For example, `#,#@#` compiles to one–two significant digits. The of
 invalid digit order, empty integer groups, and grouping in scientific mantissas. Mixed significant
 and fixed decimal syntax is explicitly unsupported. These checks add no application runtime code.
 
+Trailing plus signs now compile as localized affixes, including after scientific exponents, and
+an empty negative subpattern after a final `;` uses the implicit negative form. Affix text must
+quote numeric pattern characters such as digits, `#`, `@`, `.` and `,`. Unsupported leading decimal
+or grouping forms now fail instead of becoming literal prefixes. Pinned application output is
+unchanged; these corrections belong to the offline CLDR compiler.
+
 ## Shared project locale matching
 
 The project locale matcher now lives in `linguini_cldr::ProjectLocalePlan`. The existing

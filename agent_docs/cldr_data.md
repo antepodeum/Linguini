@@ -18,6 +18,11 @@ Significant precision starts at the first `@`; earlier hashes only position grou
 digits must precede optional digits in fractions and follow them in fixed integer patterns.
 Significant digits form one contiguous required run. Empty integer groups, grouped scientific
 mantissas, and mixed significant/fixed decimal syntax are rejected by the offline compiler.
+The skeleton scanner reserves `+` for an exponent sign only immediately after `E`; a later plus
+belongs to the localized affix. A final empty negative subpattern preserves implicit negation.
+Affix quoting is checked before symbol substitution, preventing numeric metacharacters outside
+the skeleton from silently becoming literals. Leading decimal/grouping forms require additional
+model support and currently fail. Padding escapes remain opaque to these checks.
 
 The calendar profile covers Gregorian, Buddhist, ROC, and Japanese data: 3,060 locale/calendar
 pairs, contextual symbols, eras, skeletons, day periods, week rules, and GMT formats. Equal

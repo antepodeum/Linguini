@@ -850,6 +850,7 @@ fn parse_number_pattern(
     let positive = parse_number_pattern_part(parts[0], symbols)?;
     let negative = parts
         .get(1)
+        .filter(|part| !part.is_empty())
         .map(|part| parse_number_pattern_part(part, symbols))
         .transpose()?;
     Ok(NumberPattern { positive, negative })
@@ -1230,10 +1231,8 @@ fn find_unquoted_digit(pattern: &str) -> Option<usize> {
 
 fn number_skeleton_end(pattern: &str, start: usize) -> usize {
     for (offset, character) in pattern[start..].char_indices() {
-        if !matches!(
-            character,
-            '#' | '0'..='9' | '@' | ',' | '.' | 'E' | '+' | '*'
-        ) {
+        let exponent_sign = character == '+' && pattern[..start + offset].ends_with('E');
+        if !matches!(character, '#' | '0'..='9' | '@' | ',' | '.' | 'E' | '*') && !exponent_sign {
             return start + offset;
         }
     }
@@ -1262,6 +1261,11 @@ fn compile_affix(affix: &str, symbols: &NumberAffixSymbols) -> Result<(String, u
                     } else {
                         &symbols.per_mille
                     });
+                }
+                '#' | '@' | '0'..='9' | '.' | ',' | '*' | ';' if !quoted => {
+                    return Err(format!(
+                        "unquoted number-pattern character `{character}` in affix `{affix}`"
+                    ));
                 }
                 _ => result.push(character),
             }
@@ -1414,6 +1418,93 @@ mod tests {
             pattern.negative.expect("negative subpattern").prefix,
             "negative"
         );
+    }
+
+    #[test]
+    fn number_suffix_plus_signs_are_affixes_after_the_complete_skeleton() {
+        let symbols = super::NumberAffixSymbols {
+            minus: "−".into(),
+            plus: "＋".into(),
+            percent: "٪".into(),
+            per_mille: "‰".into(),
+        };
+        for (source, suffix, exponent, sign_always, scale) in [
+            ("0.00+", "＋", None, false, 1),
+            ("0E0+", "＋", Some(1), false, 1),
+            ("0E+00+", "＋", Some(2), true, 1),
+            ("0+%", "＋٪", None, false, 100),
+            ("0'+'", "+", None, false, 1),
+        ] {
+            let pattern = super::parse_number_pattern(source, &symbols).unwrap();
+            assert_eq!(pattern.positive.suffix, suffix, "{source}");
+            assert_eq!(pattern.positive.exponent_digits, exponent, "{source}");
+            assert_eq!(
+                pattern.positive.exponent_sign_always, sign_always,
+                "{source}"
+            );
+            assert_eq!(pattern.positive.scale, scale, "{source}");
+        }
+        let pattern = super::parse_number_pattern("0.00+;0.00-", &symbols).unwrap();
+        assert_eq!(pattern.positive.suffix, "＋");
+        assert_eq!(pattern.negative.unwrap().suffix, "−");
+        for invalid in ["0E+", "0E++00", "0E+0E0"] {
+            assert!(
+                super::parse_number_pattern(invalid, &symbols).is_err(),
+                "{invalid}"
+            );
+        }
+    }
+
+    #[test]
+    fn trailing_subpattern_separators_preserve_quotes_padding_and_spaces() {
+        for source in ["0;", "0.00;", "'pre;'0';tail';", "*;0;", "0 ;"] {
+            let pattern = parse_number_pattern(source).unwrap();
+            assert!(pattern.negative.is_none(), "{source}");
+        }
+        let quoted = parse_number_pattern("'pre;'0';tail';").unwrap();
+        assert_eq!(quoted.positive.prefix, "pre;");
+        assert_eq!(quoted.positive.suffix, ";tail");
+        let padded = parse_number_pattern("*;0;").unwrap();
+        assert_eq!(padded.positive.padding.unwrap().character, ';');
+        let spaced = parse_number_pattern("0 ;").unwrap();
+        assert_eq!(spaced.positive.suffix, " ");
+        let negative = parse_number_pattern("0; -0 ").unwrap().negative.unwrap();
+        assert_eq!(negative.prefix, " -");
+        assert_eq!(negative.suffix, " ");
+        // A second separator is not an empty trailing negative subpattern.
+        for invalid in ["0;;", "0;-0;", ";"] {
+            assert!(parse_number_pattern(invalid).is_err(), "{invalid}");
+        }
+    }
+
+    #[test]
+    fn numeric_affix_metacharacters_require_quotes() {
+        let symbols = super::NumberAffixSymbols {
+            minus: "-".into(),
+            plus: "+".into(),
+            percent: "%".into(),
+            per_mille: "‰".into(),
+        };
+        for character in "#@0123456789.,*;".chars() {
+            let affix = format!("tail{character}");
+            assert!(super::compile_affix(&affix, &symbols).is_err(), "{affix}");
+        }
+        for source in [
+            "0 tail#",
+            "0 tail@",
+            "0 tail5",
+            ",0",
+            ".0",
+            "0 tail,",
+            "0 tail.",
+            "руб.*;0.0'кг'",
+        ] {
+            assert!(parse_number_pattern(source).is_err(), "{source}");
+        }
+        let literal = "@#0123456789.,*;";
+        let pattern = parse_number_pattern(&format!("'{literal}'0'{literal}'")).unwrap();
+        assert_eq!(pattern.positive.prefix, literal);
+        assert_eq!(pattern.positive.suffix, literal);
     }
 
     #[test]
@@ -1635,7 +1726,7 @@ mod tests {
                 10,
             ),
             (
-                "руб.*;0.0'кг'",
+                "'руб.'*;0.0'кг'",
                 ';',
                 NumberPaddingPosition::AfterPrefix,
                 "руб.",
@@ -1664,14 +1755,17 @@ mod tests {
         for pattern in [
             "pre*xfix0.0tail",
             "pre0.0ta*xil",
-            "р*xуб.0.0кг",
-            "руб.0.0к*xг",
+            "р*xуб'.'0.0кг",
+            "руб'.'0.0к*xг",
             "0.*x0",
             "0*x.0",
         ] {
+            let error = parse_number_pattern(pattern)
+                .err()
+                .unwrap_or_else(|| panic!("padding inside a component must fail: {pattern}"));
             assert!(
-                parse_number_pattern(pattern).is_err(),
-                "padding inside a component must fail: {pattern}"
+                error.contains("pads inside a component"),
+                "{pattern}: {error}"
             );
         }
     }

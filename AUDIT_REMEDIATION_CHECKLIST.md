@@ -544,6 +544,14 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       all 27 maintainer tests pass and pinned artifacts reproduce byte for byte. No generated
       application code, declaration, or map changes. Workspace Clippy and Rust 1.87 pass; the
       full profile passes its other 70 gates. Other pattern semantics remain open.
+      Suffix plus signs and empty trailing negative subpatterns now compile correctly (GEN-A69).
+      Affix metacharacters require quoting; unsupported leading decimal/grouping forms fail
+      rather than becoming literal prefixes. Existing Cyrillic padding expectations retain
+      valid quoted punctuation, and padding rejection checks require their specific error.
+      All 30 maintainer tests and workspace Clippy pass; pinned data reproduces byte for byte.
+      Remaining model gaps include literal versus placeholder currency affixes, currency-marker
+      widths, always-visible decimal separators, and integer-width/engineering semantics.
+      Leading decimal/grouping forms are explicitly unsupported pending that model work.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.
