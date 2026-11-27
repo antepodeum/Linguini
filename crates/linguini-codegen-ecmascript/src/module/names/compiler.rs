@@ -17,16 +17,15 @@ pub(super) fn catalog_name(name: &str) -> bool {
 
 pub(super) fn inline_name(name: &str) -> bool {
     catalog_name(name)
+        || plural_name(name)
         || matches!(
             name,
             "message"
                 | "MAX_GENERATED_DECIMAL_DIGITS"
-                | "MAX_PLURAL_DECIMAL_DIGITS"
                 | "parseGeneratedDecimal"
                 | "scientificGeneratedDecimal"
                 | "roundGeneratedFraction"
                 | "throwInvalidNumber"
-                | "throwInvalidPluralNumber"
                 | "padNumber"
                 | "coerceDate"
                 | "createUTCDate"
@@ -39,4 +38,11 @@ pub(super) fn inline_name(name: &str) -> bool {
             name.strip_prefix(prefix)
                 .is_some_and(|tail| tail.as_bytes().first().is_some_and(u8::is_ascii_digit))
         })
+}
+
+pub(super) fn plural_name(name: &str) -> bool {
+    matches!(
+        name,
+        "MAX_PLURAL_DECIMAL_DIGITS" | "throwInvalidPluralNumber"
+    )
 }

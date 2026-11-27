@@ -127,6 +127,10 @@ pub(super) fn public_value_name(name: &str) -> String {
     value_name(name, compiler::catalog_name(name))
 }
 
+pub(super) fn plural_value_name(name: &str) -> String {
+    value_name(name, compiler::plural_name(name))
+}
+
 fn value_name(name: &str, compiler_owned: bool) -> String {
     if is_runtime_global(name) || (is_identifier_text(name) && compiler_owned) {
         // A leading separator distinguishes this readable binding from both encoded

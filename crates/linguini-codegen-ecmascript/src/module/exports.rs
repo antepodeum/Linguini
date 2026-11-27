@@ -1,11 +1,11 @@
 //! Public value names and their independently allocated local bindings.
 
-use super::names::{property_key, public_value_name, safe_identifier};
+use super::names::{plural_value_name, property_key, public_value_name, safe_identifier};
 use crate::{EcmaImport, EcmaNamedImport};
 use minijinja::{context, Value};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct ValueExport {
+pub(crate) struct ValueExport {
     pub name: String,
     pub binding: String,
 }
@@ -13,6 +13,10 @@ pub(super) struct ValueExport {
 impl ValueExport {
     pub fn new(source: &str) -> Self {
         Self::alias(source, &public_value_name(source))
+    }
+
+    pub fn plural(source: &str) -> Self {
+        Self::alias(source, &plural_value_name(source))
     }
 
     pub fn alias(source: &str, binding: &str) -> Self {
@@ -39,9 +43,9 @@ impl ValueExport {
         )
     }
 
-    pub fn append_alias(&self, output: &mut String) {
+    pub fn append_alias(&self, output: &mut String, blank_line: bool) {
         if !self.is_direct() {
-            output.push_str(&self.statement(true));
+            output.push_str(&self.statement(blank_line));
         }
     }
 

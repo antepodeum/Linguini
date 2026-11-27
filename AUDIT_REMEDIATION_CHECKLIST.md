@@ -1300,7 +1300,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Integrated month-week source `42ffd3e` also passes all 71 local full-profile gates in one
       clean run, including native cold/warm/preview regressions, strict date consumers, installed
       tsc, editor/WASM, offline packages, documentation, and production SSR/browser/graph checks.
-      Subsequent constant-family cardinal-data work has separate focused receipts (GEN-A55).
+      Subsequent constant-family/classifier-binding work has focused receipts (GEN-A55–A56).
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1839,6 +1839,14 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Existing runtime/declaration/map goldens stay unchanged; four Vite 7/8 consumers execute
       as one self-contained chunk each. This closes these concrete binding defects; broader
       identifier, optimization, and page-delivery requirements stay open.
+      The public plural-function generator now shares safe local bindings and static export
+      aliases too (GEN-A56). Ten requested names across four canonical rule families retain
+      public exports, category strings/passthrough, numeric/compact/fraction semantics, and
+      invalid-input errors. A permanent strict-JS fixture covers positive/negative calls and
+      private-export exclusion. All 196 emitter tests and CLI tests pass on Node 20, with Clippy,
+      Rust 1.87, 223 patch API checks, strict JS 5.8/5.9/6, Node 24 custom-name execution, and
+      eight runtime/project/documentation gates passing. Existing output snapshots
+      remain unchanged; executed Vite 7/8 consumers retain ordinary-name minified/gzip/Brotli sizes.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       Shared form demand projects standalone closures and generated projects to used attributes

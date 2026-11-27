@@ -152,7 +152,7 @@ fn emit_message_object_declaration(name: &str, tree: &MessageTree, output: &mut 
         "declarations/constant",
         minijinja::context! { name => &export.binding, ty, exported => export.is_direct(), blank_line => export.is_direct() },
     ));
-    export.append_alias(output);
+    export.append_alias(output, true);
 }
 
 fn emit_function_declaration(signature: &IrMessage, output: &mut String) {
@@ -164,7 +164,7 @@ fn emit_function_declaration(signature: &IrMessage, output: &mut String) {
             export.is_direct(),
         ),
     );
-    export.append_alias(output);
+    export.append_alias(output, true);
 }
 
 fn emit_default_declaration(exports: &[ValueExport], output: &mut String) {

@@ -421,7 +421,7 @@ fn emit_message_function(
             },
         ));
     }
-    export.append_alias(output);
+    export.append_alias(output, true);
     true
 }
 
@@ -443,7 +443,7 @@ fn emit_message_object(
             exported => export.is_direct(), name => &export.binding, value, blank_line => export.is_direct(),
         },
     ));
-    export.append_alias(output);
+    export.append_alias(output, true);
 }
 
 fn object_literal(

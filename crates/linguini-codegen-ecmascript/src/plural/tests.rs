@@ -610,3 +610,72 @@ for (const invalid of ['invalid', NaN, Infinity, '1'.repeat(8193)]) {{
     assert!(russian.contains("if (visibleFractionDigits !== 0) return \"other\";"));
     assert!(russian.contains("return \"many\";\n}"));
 }
+
+#[test]
+fn public_classifier_names_preserve_exports_and_leave_runtime_bindings_available() {
+    for (name, public_name) in [
+        ("String", "String"),
+        ("Number", "Number"),
+        ("BigInt", "BigInt"),
+        ("Math", "Math"),
+        ("RangeError", "RangeError"),
+        ("undefined", "undefined"),
+        ("MAX_PLURAL_DECIMAL_DIGITS", "MAX_PLURAL_DECIMAL_DIGITS"),
+        ("throwInvalidPluralNumber", "throwInvalidPluralNumber"),
+        ("class", "__lgl_name_636C617373"),
+        ("a.b", "__lgl_name_a$b"),
+    ] {
+        for locale in ["ru", "fr", "ar", "sl"] {
+            let rules = built_in_plural_rules(locale).unwrap();
+            assert!(rules.category_for("1c8192").is_err());
+            let code = generate_plural_function(name, &rules);
+            if name == "String" && locale == "ru" {
+                let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../tests/fixtures/golden/snapshots/js-runtime/plural-name.js");
+                if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+                    std::fs::write(&path, &code).unwrap();
+                }
+                assert_eq!(code, std::fs::read_to_string(path).unwrap());
+            }
+            let cases = [
+                "0",
+                "1",
+                "2",
+                "5",
+                "11",
+                "1.00",
+                "1.2",
+                "1000001",
+                "9007199254740993",
+                "1c3",
+            ]
+            .map(|value| serde_json::json!([value, rules.category_for(value).unwrap()]));
+            let script = format!(
+                r#"
+import assert from 'node:assert/strict';
+const module=await import('./classifier.js');
+assert.deepEqual(Object.keys(module),[{public_name:?}]);
+const classify=module[{public_name:?}];
+for(const [value,expected] of {cases}) assert.equal(classify(value),expected);
+for(const value of [0,1,2,5,11,1000001]) assert.equal(classify(value),classify(String(value)));
+for(const value of [1n,1000001n,9007199254740993n]) assert.equal(classify(value),classify(String(value)));
+for(const value of ['zero','one','two','few','many','other']) assert.equal(classify(value),value);
+for(const value of [NaN,Infinity,'invalid','1e8192','1c8192']) assert.throws(()=>classify(value),RangeError);
+console.log('verified');
+"#,
+                cases = serde_json::to_string(&cases).unwrap()
+            );
+            assert_eq!(
+                crate::test_runtime::execute_project(
+                    &[crate::EcmaGeneratedFile {
+                        path: "classifier.js".into(),
+                        contents: code
+                    }],
+                    &script
+                ),
+                "verified",
+                "{locale}/{name}"
+            );
+        }
+    }
+}

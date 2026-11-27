@@ -128,6 +128,13 @@ helper. The annotation is erased by bundlers and adds no runtime operation.
 Numeric helper typedefs likewise use reserved compiler names `__lgl_Numeric` and
 `__lgl_Decimal`. Source types named `GeneratedNumeric` or `GeneratedDecimal` retain their
 public names in shared declarations and standalone message signatures.
+The public Rust `generate_plural_function` API shares this export model. A requested name such
+as `String`, `Number`, or `throwInvalidPluralNumber` keeps its valid public export name while
+its local binding leaves runtime helpers and intrinsics available. Keywords and qualified names
+use the backend's normal safe-identifier mapping (for example, `a.b` becomes `__lgl_name_a$b`).
+Ordinary classifier names such as `pluralRu` retain their output; category strings, input
+validation, and category passthrough keep their existing contract.
+
 
 `linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` and `MMMMW` families. Its
 `IntegerPluralPlan` specializes ordered cardinal rules and projected results over the proven

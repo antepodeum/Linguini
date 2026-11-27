@@ -26,6 +26,8 @@ mod tree;
 mod type_model;
 mod type_tree;
 
+pub(crate) use exports::ValueExport;
+
 pub(crate) use crate::ecmascript::EcmaModuleKind;
 use formatters::formatter_helper_names;
 

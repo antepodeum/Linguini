@@ -4,7 +4,11 @@ use linguini_cldr::{Operand, PluralRules, Relation, RelationOperator};
 use minijinja::context;
 
 pub fn generate_plural_function(function_name: &str, rules: &PluralRules) -> String {
-    generate_plural_function_with_visibility(function_name, rules, true)
+    let export = crate::module::ValueExport::plural(function_name);
+    let mut output =
+        generate_plural_function_with_visibility(&export.binding, rules, export.is_direct());
+    export.append_alias(&mut output, false);
+    output
 }
 
 pub(crate) fn generate_plural_function_with_visibility(

@@ -504,5 +504,20 @@ These requests previously failed to build. The figures are post-fix consumer siz
 before/after size or timing claim. Differing wording and missing fallback records still fail;
 there is no assumed runtime category or new runtime fallback.
 
+Public classifiers with intrinsic/helper names use static export aliases. After the expected
+function-name/export substitution, the generated executable statements match the ordinary-name
+classifier exactly. Both variants execute through a consumer exporting the same `classify`
+API, in one self-contained chunk each:
+
+| Bundler | Ordinary name: minified / gzip / Brotli | Protected custom name |
+| --- | ---: | ---: |
+| Vite 7.3.3 | 901 / 530 / 478 | 901 / 530 / 478 |
+| Vite 8.0.13 | 884 / 520 / 468 | 884 / 520 / 468 |
+
+Vite 7 chooses different minified local names while retaining identical sizes. Vite 8 produces
+byte-identical bundles. Numeric/category results and invalid-value errors execute on Node
+24.13.1. These are equality measurements against an equivalent valid classifier name, not a
+before/after improvement for the previously broken name, and make no timing claim.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

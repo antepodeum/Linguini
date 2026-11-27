@@ -139,6 +139,18 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Custom public plural-function names
+
+Rust callers of `generate_plural_function` can now use names such as `String`, `Number`,
+`MAX_PLURAL_DECIMAL_DIGITS`, and `throwInvalidPluralNumber` without shadowing conversions or
+redeclaring classifier helpers. Valid public names are preserved through static export aliases.
+Invalid identifiers use the same safe-name mapping as other backend exports; `class` maps to
+`__lgl_name_636C617373`, and `a.b` maps to `__lgl_name_a$b`.
+
+Normal classifier output, category strings, passthrough categories, numeric parsing, errors,
+and project output retain their existing behavior. Regenerate custom-name helpers to receive
+the fix; no project configuration changes are needed.
+
 ## Public export names and compiler bindings
 
 Regenerate artifacts to fix accepted message or namespace names such as `formatNumber`,
