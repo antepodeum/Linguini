@@ -29,8 +29,9 @@ pub use locale::{
     analyze_locale_coverage, analyze_locale_coverage_with_options, analyze_locale_file,
     analyze_locale_message_coverage, analyze_locale_message_coverage_with_options,
     analyze_locale_project_coverage, analyze_locale_project_coverage_with_options,
-    locale_public_messages, schema_public_messages, schema_public_messages_from_files,
-    ImplementedLocaleMessage, LocaleCoverageOptions, RequiredLocaleMessage,
+    analyze_locale_project_with_fallbacks, locale_public_messages, schema_public_messages,
+    schema_public_messages_from_files, ImplementedLocaleMessage, LocaleCoverageOptions,
+    RequiredLocaleMessage,
 };
 pub use message_coverage::{analyze_message_coverage, PublicMessage};
 pub use reference::{detect_reference_cycles, ReferenceNode};

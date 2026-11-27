@@ -3,6 +3,7 @@ use linguini_analyzer::{
     analyze_unused_messages, ApplicationUsage, Diagnostic, DiagnosticCategory, DiagnosticSeverity,
     PublicMessage, QuickFix,
 };
+use linguini_codegen::ProjectLocalePlan;
 use linguini_config::{
     discover_application_source_files, discover_locale_files, discover_schema_files, LinguiniConfig,
 };
@@ -15,8 +16,8 @@ use super::diagnostics::ProjectDiagnostics;
 use super::fixes::missing_locale_fix_id;
 use super::io::{path_for_output, read_file, read_project_config, render_file_diagnostics};
 use super::sources::{
-    coverage_options, expected_locale_path, locale_index, project_source_id,
-    schema_project_diagnostics, SourceKind,
+    coverage_options, expected_locale_path, locale_fallback_sources, locale_index,
+    project_source_id, schema_project_diagnostics, SourceKind,
 };
 use super::util::{namespace_display, pluralize};
 use super::{ParsedLocaleSource, ParsedSchemaSource};
@@ -226,6 +227,7 @@ fn collect_project_coverage_diagnostics(
     output: &mut ProjectDiagnostics,
 ) -> CliResult<()> {
     let locale_index = locale_index(locale_files)?;
+    let plan = ProjectLocalePlan::new(config.project().locales().iter().map(String::as_str));
 
     for schema_file in schema_files {
         let database = SchemaDatabase::build(&schema_file.ast);
@@ -235,8 +237,20 @@ fn collect_project_coverage_diagnostics(
         for locale in config.project().locales() {
             match locale_index.get(&(schema_file.file.namespace.clone(), locale.clone())) {
                 Some(locale_file) => {
-                    let diagnostics = database.analyze_locale_with_options(
+                    let inherited = locale_fallback_sources(
+                        &locale_index,
+                        &plan,
+                        &schema_file.file.namespace,
+                        locale,
+                        config.project().default_locale(),
+                    );
+                    let fallbacks = inherited
+                        .iter()
+                        .map(|source| &source.ast)
+                        .collect::<Vec<_>>();
+                    let diagnostics = database.analyze_locale_with_fallbacks(
                         &locale_file.ast,
+                        &fallbacks,
                         coverage_options(config, &schema_file.file.namespace, locale),
                     );
                     output.push(

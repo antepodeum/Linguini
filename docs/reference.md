@@ -96,6 +96,15 @@ and helper bindings. Canonical locale metadata remains normalized.
 whole declarations while keeping their first position, retains every source origin, and marks
 overrides. The host validates the resulting locale against its schema before artifact emission.
 
+Native `check`, `build`, and `generate` also resolve globals inherited from that source chain.
+A locale can use an inherited form, enum, variable, or function without redeclaring it. A nearer
+source owns the whole declaration; missing form attributes are not merged from lower-priority
+sources. Translation coverage still describes messages present in the current source file.
+`SchemaDatabase::analyze_locale_with_fallbacks` accepts ordered fallback ASTs as signature context
+while diagnosing the current source. Each fallback source must also be checked independently.
+`linguini_ir::qualify_locale_module_in_context` qualifies one fresh source against its composed
+relative globals and schema, preserving the loader's guarded merge order and original source IDs.
+
 `linguini_codegen::NumberFormatPlan` resolves the selected number pattern's affixes, grouping
 thresholds, decimal scale, precision/rounding, scientific symbols/carry result, and padding.
 Its nested affix/grouping/scientific models contain semantic values; target backends own helper

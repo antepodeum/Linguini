@@ -1275,3 +1275,107 @@ root = {fruit(count)} {fruit.display(count)} {fruit(Plural(count))} {Echo(fruit(
         .iter()
         .any(|diagnostic| diagnostic.message == "type `Fruit` has no unnamed form"));
 }
+
+#[test]
+fn inherited_globals_keep_priority_whole_declarations_and_source_local_diagnostics() {
+    use linguini_syntax::{parse_locale_in, parse_schema_in};
+    let schema = parse_schema_in(
+        "enum Fruit { apple }\nsummary(fruit: Fruit, count: Number)\nother\n",
+        SourceId(1),
+    )
+    .unwrap();
+    let source = "let label = LOCAL\nsummary = {fruit.label}|{render(count)}|{suffix}|{render}\n";
+    let locale = parse_locale_in(source, SourceId(2)).unwrap();
+    let parent = parse_locale_in("impl Fruit { apple { label = PARENT } }\n", SourceId(3)).unwrap();
+    let base = parse_locale_in(
+        concat!(
+            "let label = BASE\nlet suffix = SUFFIX\nlet render = VALUE\n",
+            "fn render(count: Number) { _ => {label}:{count} }\n",
+            "enum Tone { formal, casual }\n",
+            "impl Fruit { apple { label = BASE\ntail = BASE_TAIL } }\n",
+            "other = OTHER\n",
+        ),
+        SourceId(4),
+    )
+    .unwrap();
+    let analyze = |locale: &linguini_syntax::LocaleFile| {
+        super::analyze_locale_project_with_fallbacks(
+            std::slice::from_ref(&schema),
+            locale,
+            &[&parent, &base],
+            LocaleCoverageOptions {
+                missing_message_severity: DiagnosticSeverity::Warning,
+                ..Default::default()
+            },
+        )
+    };
+    let diagnostics = analyze(&locale);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|item| item.severity != DiagnosticSeverity::Error),
+        "{diagnostics:?}"
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .any(|item| item.message.contains("missing 1 schema message: `other`")),
+        "{diagnostics:?}"
+    );
+    for (replacement, expected) in [
+        ("fruit.tail", "unknown form property `tail`"),
+        ("render(fruit)", "expects `Number`, got `Fruit`"),
+    ] {
+        let target = if replacement == "fruit.tail" {
+            "fruit.label"
+        } else {
+            "render(count)"
+        };
+        let invalid = parse_locale_in(&source.replace(target, replacement), SourceId(2)).unwrap();
+        let diagnostics = analyze(&invalid);
+        let error = diagnostics
+            .iter()
+            .find(|item| item.message.contains(expected))
+            .unwrap_or_else(|| panic!("{diagnostics:?}"));
+        assert_eq!(error.source_span.unwrap().source, SourceId(2));
+        if replacement == "render(fruit)" {
+            assert!(error
+                .related
+                .iter()
+                .any(|item| item.span.source == SourceId(4)));
+        }
+    }
+    let blocked = parse_locale_in(&format!("let render = BLOCKED\n{source}"), SourceId(2)).unwrap();
+    let diagnostics = analyze(&blocked);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|item| item.message.contains("type `String` has no unnamed form")),
+        "{diagnostics:?}"
+    );
+
+    let typed = parse_locale_in(
+        "form Say(Tone) { formal => Yes\ncasual => No }\nsummary = {Say(tone)}\n",
+        SourceId(2),
+    )
+    .unwrap();
+    let typed_schema = parse_schema("summary(tone: String)\n").unwrap();
+    let diagnostics = super::analyze_locale_project_with_fallbacks(
+        &[typed_schema],
+        &typed,
+        &[&base],
+        LocaleCoverageOptions::default(),
+    );
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|item| item.message.contains("unknown enum or category")),
+        "{diagnostics:?}"
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .any(|item| item.message.contains("expects `Tone`, got `String`")),
+        "{diagnostics:?}"
+    );
+}

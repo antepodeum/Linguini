@@ -20,7 +20,20 @@ pub(super) fn analyze_locale_branch_coverage_from_files(
     schemas: &[SchemaFile],
     locale: &LocaleFile,
 ) -> Vec<Diagnostic> {
+    analyze_locale_branch_coverage_with_globals(schemas, locale, &[])
+}
+
+pub(super) fn analyze_locale_branch_coverage_with_globals(
+    schemas: &[SchemaFile],
+    locale: &LocaleFile,
+    inherited: &[&LocaleDeclaration],
+) -> Vec<Diagnostic> {
     let mut enum_variants = schema_enum_variants(schemas);
+    // Inherited sources are checked in their own analysis. Their enum definitions provide
+    // branch domains here without moving duplicate/source diagnostics onto this locale.
+    for declaration in inherited {
+        super::context::extend_locale_enum_context(declaration, &mut enum_variants);
+    }
     let mut diagnostics = Vec::new();
     for declaration in locale.declarations() {
         collect_locale_enum_variants(declaration, &mut enum_variants, &mut diagnostics);

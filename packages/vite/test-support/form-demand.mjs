@@ -62,7 +62,7 @@ copy = {fruit.copy(fruit)}
 callable = {value(count)}:{value.label}
 eager = {value.label}
 `);
-    await writeFile(path.join(root, 'locales/main/fr.lgl'), forms + 'gender = FR:{fruit.Gender}\n');
+    await writeFile(path.join(root, 'locales/main/fr.lgl'), 'gender = FR:{fruit.Gender}\n');
     await writeFile(path.join(root, 'linguini.toml'), `
 [project]
 name = "form-demand"

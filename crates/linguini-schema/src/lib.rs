@@ -170,6 +170,22 @@ impl SchemaDatabase {
         analyze_locale_project_coverage_with_options(&self.sources, locale, options)
     }
 
+    /// Analyze the current locale with whole inherited globals, retaining local coverage.
+    /// Fallback sources are ordered from highest to lowest priority and checked independently.
+    pub fn analyze_locale_with_fallbacks(
+        &self,
+        locale: &linguini_syntax::LocaleFile,
+        fallbacks: &[&linguini_syntax::LocaleFile],
+        options: LocaleCoverageOptions,
+    ) -> Vec<Diagnostic> {
+        linguini_analyzer::analyze_locale_project_with_fallbacks(
+            &self.sources,
+            locale,
+            fallbacks,
+            options,
+        )
+    }
+
     pub fn into_parts(self) -> (SchemaSymbols, Vec<Diagnostic>) {
         (self.symbols, self.diagnostics)
     }

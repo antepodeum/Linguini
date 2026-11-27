@@ -1,16 +1,14 @@
-use crate::{
-    analyze_function_patterns, analyze_project_expressions_from_files, Diagnostic,
-    DiagnosticSeverity, QuickFix, Replacement,
-};
+use crate::{analyze_function_patterns, Diagnostic, DiagnosticSeverity, QuickFix, Replacement};
 use linguini_syntax::{
     DocComment, LocaleDeclaration, LocaleFile, MessageGroup, MessageImplementationGroup,
     SchemaDeclaration, SchemaFile, Span,
 };
 
 mod branches;
+pub(crate) mod context;
 mod messages;
 
-use self::branches::{analyze_locale_branch_coverage, analyze_locale_branch_coverage_from_files};
+use self::branches::analyze_locale_branch_coverage;
 use self::messages::{
     format_name_list, locale_message_map, missing_message_stub_text, pluralize, schema_message_map,
 };
@@ -106,15 +104,34 @@ pub fn analyze_locale_project_coverage_with_options(
     locale: &LocaleFile,
     options: LocaleCoverageOptions,
 ) -> Vec<Diagnostic> {
+    analyze_locale_project_with_fallbacks(schemas, locale, &[], options)
+}
+
+/// Analyzes this locale with inherited globals in highest-to-lowest fallback priority.
+///
+/// Fallback sources provide whole declarations and their original spans. Only the current
+/// locale's bodies, declarations, and translation coverage receive diagnostics; callers must
+/// analyze each fallback source independently too. Parsed source roots remain unchanged.
+pub fn analyze_locale_project_with_fallbacks(
+    schemas: &[SchemaFile],
+    locale: &LocaleFile,
+    fallbacks: &[&LocaleFile],
+    options: LocaleCoverageOptions,
+) -> Vec<Diagnostic> {
+    let inherited = context::inherited_globals(locale, fallbacks);
     let mut diagnostics = analyze_locale_message_coverage_with_options(
         &schema_public_messages_from_files(schemas),
         &locale_public_messages(locale),
         locale.span(),
         options,
     );
-    diagnostics.extend(analyze_locale_branch_coverage_from_files(schemas, locale));
+    diagnostics.extend(branches::analyze_locale_branch_coverage_with_globals(
+        schemas, locale, &inherited,
+    ));
     diagnostics.extend(analyze_function_patterns(locale));
-    diagnostics.extend(analyze_project_expressions_from_files(schemas, locale));
+    diagnostics.extend(crate::expression::analyze_project_expressions_with_globals(
+        schemas, locale, &inherited,
+    ));
     diagnostics
 }
 

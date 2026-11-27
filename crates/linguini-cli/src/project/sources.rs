@@ -1,5 +1,6 @@
 use crate::{CliError, CliResult};
 use linguini_analyzer::{Diagnostic, DiagnosticSeverity, LocaleCoverageOptions};
+use linguini_codegen::ProjectLocalePlan;
 use linguini_config::{discover_locale_files, discover_schema_files, LinguiniConfig};
 use linguini_schema::SchemaDatabase;
 use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
@@ -80,6 +81,30 @@ pub(crate) fn locale_index(
         }
     }
     Ok(index)
+}
+
+pub(crate) fn project_locale_fallbacks(
+    plan: &ProjectLocalePlan<'_>,
+    locale: &str,
+    default_locale: &str,
+) -> Vec<String> {
+    plan.fallback_chain(locale, Some(default_locale))
+        .into_iter()
+        .filter(|fallback| !fallback.eq_ignore_ascii_case(locale))
+        .collect()
+}
+
+pub(crate) fn locale_fallback_sources<'a>(
+    index: &BTreeMap<(String, String), &'a ParsedLocaleSource>,
+    plan: &ProjectLocalePlan<'_>,
+    namespace: &str,
+    locale: &str,
+    default_locale: &str,
+) -> Vec<&'a ParsedLocaleSource> {
+    project_locale_fallbacks(plan, locale, default_locale)
+        .into_iter()
+        .filter_map(|fallback| index.get(&(namespace.to_owned(), fallback)).copied())
+        .collect()
 }
 
 #[derive(Debug, Clone, Copy)]

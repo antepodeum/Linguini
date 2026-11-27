@@ -1,3 +1,5 @@
+mod inputs;
+
 use crate::branch_coverage::validate_branch_sequence;
 use crate::{
     analyze_branch_coverage, require_other_branch, BranchCoverage, Diagnostic, NamedSpan, QuickFix,
@@ -255,6 +257,14 @@ pub fn analyze_project_expressions_from_files(
     schemas: &[SchemaFile],
     locale: &LocaleFile,
 ) -> Vec<Diagnostic> {
+    analyze_project_expressions_with_globals(schemas, locale, &[])
+}
+
+pub(crate) fn analyze_project_expressions_with_globals(
+    schemas: &[SchemaFile],
+    locale: &LocaleFile,
+    inherited: &[&LocaleDeclaration],
+) -> Vec<Diagnostic> {
     let mut schema_messages = BTreeMap::new();
     for schema in schemas {
         for declaration in schema.declarations() {
@@ -305,8 +315,12 @@ pub fn analyze_project_expressions_from_files(
             enum_variants.insert((*alias).to_owned(), variants);
         }
     }
-    for declaration in locale.declarations() {
-        collect_expression_enum_variants(declaration, &mut enum_variants);
+    for declaration in locale
+        .declarations()
+        .iter()
+        .chain(inherited.iter().copied())
+    {
+        crate::locale::context::extend_locale_enum_context(declaration, &mut enum_variants);
     }
     let enum_names = schema_enum_names
         .iter()
@@ -319,67 +333,42 @@ pub fn analyze_project_expressions_from_files(
                 })
                 .map(|name| (*name).to_owned()),
         )
-        .chain(locale.declarations().iter().filter_map(|declaration| {
-            let LocaleDeclaration::Enum(item) = declaration else {
-                return None;
-            };
-            Some(item.name.value.clone())
-        }))
+        .chain(
+            locale
+                .declarations()
+                .iter()
+                .chain(inherited.iter().copied())
+                .filter_map(|declaration| {
+                    let LocaleDeclaration::Enum(item) = declaration else {
+                        return None;
+                    };
+                    Some(item.name.value.clone())
+                }),
+        )
         .collect::<BTreeSet<_>>();
 
-    let mut functions = Vec::new();
-    let mut forms = Vec::new();
-    let mut variables = Vec::new();
-    let mut messages = Vec::new();
-    for declaration in locale.declarations() {
-        collect_locale_expression_inputs(
+    let mut input = ExpressionAnalysis {
+        functions: Vec::new(),
+        forms: Vec::new(),
+        variables: Vec::new(),
+        messages: Vec::new(),
+    };
+    for (declaration, include_bodies) in locale
+        .declarations()
+        .iter()
+        .map(|item| (item, true))
+        .chain(inherited.iter().copied().map(|item| (item, false)))
+    {
+        input.collect_declaration(
             declaration,
             None,
             &schema_messages,
             &enum_names,
             &type_aliases,
-            &mut functions,
-            &mut forms,
-            &mut variables,
-            &mut messages,
+            include_bodies,
         );
     }
-    analyze_expressions_with_enums(
-        ExpressionAnalysis {
-            variables,
-            messages,
-            functions,
-            forms,
-        },
-        &enum_variants,
-        &type_aliases,
-    )
-}
-
-fn collect_expression_enum_variants(
-    declaration: &LocaleDeclaration,
-    enum_variants: &mut BTreeMap<String, Vec<NamedSpan>>,
-) {
-    match declaration {
-        LocaleDeclaration::Enum(item) => {
-            enum_variants
-                .entry(item.name.value.clone())
-                .or_insert_with(|| {
-                    item.variants
-                        .iter()
-                        .map(|variant| NamedSpan::new(&variant.value, variant.span))
-                        .collect()
-                });
-        }
-        LocaleDeclaration::Override(inner) => {
-            collect_expression_enum_variants(inner, enum_variants);
-        }
-        LocaleDeclaration::Form(_)
-        | LocaleDeclaration::Variable(_)
-        | LocaleDeclaration::Function(_)
-        | LocaleDeclaration::Message(_)
-        | LocaleDeclaration::Group(_) => {}
-    }
+    analyze_expressions_with_enums(input, &enum_variants, &type_aliases)
 }
 
 fn collect_schema_messages<'a>(
@@ -412,154 +401,6 @@ fn collect_schema_group<'a>(
     }
     for child in &group.groups {
         collect_schema_group(child, Some(&group_name), messages);
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn collect_locale_expression_inputs(
-    declaration: &LocaleDeclaration,
-    namespace: Option<&str>,
-    schema_messages: &BTreeMap<String, &linguini_syntax::MessageSignature>,
-    enum_names: &BTreeSet<String>,
-    type_aliases: &BTreeMap<&str, &str>,
-    functions: &mut Vec<FunctionSignature>,
-    forms: &mut Vec<FormSignature>,
-    variables: &mut Vec<Variable>,
-    messages: &mut Vec<MessageToAnalyze>,
-) {
-    match declaration {
-        LocaleDeclaration::Variable(variable) => {
-            variables.push(Variable::new(
-                &variable.name.value,
-                "String",
-                variable.name.span,
-            ));
-            messages.push(MessageToAnalyze::new(
-                format!("variable `{}`", variable.name.value),
-                variable.value.clone(),
-                Vec::new(),
-            ));
-        }
-        LocaleDeclaration::Function(function) => {
-            functions.push(FunctionSignature::typed(
-                &function.name.value,
-                function
-                    .parameters
-                    .iter()
-                    .map(|parameter| resolve_schema_type(&parameter.ty.value, type_aliases)),
-                function.span,
-            ));
-            let parameters = named_function_parameters(&function.parameters, type_aliases);
-            collect_function_branch_expression_inputs(
-                &format!("function `{}`", function.name.value),
-                &function.branches,
-                &parameters,
-                messages,
-            );
-        }
-        LocaleDeclaration::Form(form) => {
-            let mut properties = BTreeMap::new();
-            if !form.variants.is_empty()
-                && form.variants.iter().all(|variant| {
-                    variant
-                        .entries
-                        .iter()
-                        .any(|entry| matches!(entry, FormEntry::Branch(_)))
-                })
-            {
-                properties.insert(String::new(), FormProperty::callable(form.span));
-            }
-            for variant in &form.variants {
-                collect_form_properties(
-                    &variant.entries,
-                    enum_names,
-                    type_aliases,
-                    &mut properties,
-                );
-                collect_form_entry_expression_inputs(
-                    &format!(
-                        "form `{}` variant `{}`",
-                        form.name.value, variant.name.value
-                    ),
-                    &variant.entries,
-                    &[],
-                    type_aliases,
-                    messages,
-                );
-            }
-            forms.push(FormSignature::new(
-                resolve_schema_type(&form.name.value, type_aliases),
-                properties.into_values().collect(),
-                form.span,
-            ));
-        }
-        LocaleDeclaration::Message(message) => {
-            let name = qualified_name(namespace, &message.name.value);
-            let parameters = schema_messages
-                .get(&name)
-                .map(|signature| {
-                    signature
-                        .parameters
-                        .iter()
-                        .map(|parameter| {
-                            Variable::new(
-                                &parameter.name.value,
-                                resolve_schema_type(&parameter.ty.value, type_aliases),
-                                parameter.span,
-                            )
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            messages.push(MessageToAnalyze::new(
-                name,
-                message.value.clone(),
-                parameters,
-            ));
-        }
-        LocaleDeclaration::Group(group) => {
-            let group_name = qualified_name(namespace, &group.name.value);
-            for message in &group.messages {
-                let declaration = LocaleDeclaration::Message(message.clone());
-                collect_locale_expression_inputs(
-                    &declaration,
-                    Some(&group_name),
-                    schema_messages,
-                    enum_names,
-                    type_aliases,
-                    functions,
-                    forms,
-                    variables,
-                    messages,
-                );
-            }
-            for child in &group.groups {
-                let declaration = LocaleDeclaration::Group(child.clone());
-                collect_locale_expression_inputs(
-                    &declaration,
-                    Some(&group_name),
-                    schema_messages,
-                    enum_names,
-                    type_aliases,
-                    functions,
-                    forms,
-                    variables,
-                    messages,
-                );
-            }
-        }
-        LocaleDeclaration::Override(inner) => collect_locale_expression_inputs(
-            inner,
-            namespace,
-            schema_messages,
-            enum_names,
-            type_aliases,
-            functions,
-            forms,
-            variables,
-            messages,
-        ),
-        LocaleDeclaration::Enum(_) => {}
     }
 }
 

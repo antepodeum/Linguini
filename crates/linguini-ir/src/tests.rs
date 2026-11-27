@@ -1096,6 +1096,42 @@ fn locale_qualification_preserves_schema_and_nested_lexical_scopes() {
 }
 
 #[test]
+fn namespace_qualification_reads_inherited_globals_without_mutating_the_context() {
+    let mut schema = lower_schema(
+        &parse_schema("enum Fruit { apple }\nroot(helper: Fruit, count: Number)\n").unwrap(),
+    );
+    let mut primary =
+        lower_locale(&parse_locale("root = {helper}|{helper(count)}|{suffix}\n").unwrap());
+    let mut inherited = lower_locale(
+        &parse_locale("let suffix = BASE\nfn helper(count: Number) { _ => {count} }\n").unwrap(),
+    );
+    let mut context = primary.clone();
+    context.try_append(inherited.clone()).unwrap();
+    let unchanged = context.clone();
+    crate::qualify_locale_module_in_context(&mut primary, &schema, &context, "shop.checkout");
+    crate::qualify_locale_module_in_context(&mut inherited, &schema, &context, "shop.checkout");
+    assert_eq!(context, unchanged);
+    let paths = primary.messages[0]
+        .body
+        .as_ref()
+        .unwrap()
+        .parts
+        .iter()
+        .filter_map(|part| match part {
+            IrTextPart::Placeholder(expression) => Some(expression.path.join(".")),
+            IrTextPart::Text(_) => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        paths,
+        ["helper", "shop.checkout.helper", "shop.checkout.suffix"]
+    );
+    primary.try_append(inherited).unwrap();
+    qualify_module(&mut schema, "shop.checkout");
+    ensure_no_unresolved_references(&schema, &primary).unwrap();
+}
+
+#[test]
 fn reference_validation_resolves_qualified_functions_and_variables() {
     let mut schema = lower_schema(
         &parse_schema(

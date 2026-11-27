@@ -1517,6 +1517,13 @@ and the composed payload/SSR requirements below.
       suites pass on Node 20/24, with workspace Clippy, Rust 1.87, nineteen consumer/documentation/
       production-site gates, and final packaged-source checks passing. Explicit patch-level API
       checks pass 223 checks per affected public crate; existing error enums remain compatible.
+      Native source analysis now shares inherited whole-global context without copying messages
+      into translation coverage. The same fallback chain feeds check/build/preview; qualification
+      sees composed declarations while retaining guarded merge/provenance. Four-locale execution
+      covers CLDR-parent priority, local overrides, named/positional calls, source IDs, related-file
+      diagnostics, warning promotion, and preserved output on invalid builds. Shared Vite 7/8 tests
+      emit 12 exact payloads with inherited French globals and strict JS/TS consumers (GEN-A44).
+      Editor adoption and the broader backend/architecture criteria remain open.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.

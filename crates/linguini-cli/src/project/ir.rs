@@ -3,8 +3,8 @@
 use super::check::reject_locale_files_without_schema_namespace;
 use super::io::{path_for_output, render_file_diagnostics};
 use super::sources::{
-    coverage_options, expected_locale_path, load_locale_sources, load_schema_sources, locale_index,
-    schema_project_diagnostics,
+    coverage_options, expected_locale_path, load_locale_sources, load_schema_sources,
+    locale_fallback_sources, locale_index, schema_project_diagnostics,
 };
 use super::{ParsedLocaleSource, ParsedSchemaSource};
 use crate::{CliError, CliResult};
@@ -12,7 +12,7 @@ use linguini_analyzer::DiagnosticSeverity;
 use linguini_codegen::ProjectLocalePlan;
 use linguini_config::LinguiniConfig;
 use linguini_ir::{
-    ensure_no_unresolved_references, lower_locale, lower_schema, qualify_locale_module,
+    ensure_no_unresolved_references, lower_locale, lower_schema, qualify_locale_module_in_context,
     qualify_module, IrModule, IrModuleBuilder, IrSymbolKind, LocaleIr, SchemaIr,
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -61,16 +61,10 @@ fn build_locale_ir(
     plan: &ProjectLocalePlan<'_>,
 ) -> CliResult<LocaleIr> {
     let mut locale_ir = IrModule::default();
-    let fallbacks = project_locale_fallbacks(plan, locale, config.project().default_locale());
 
     for schema_file in schema_files {
         let namespace = &schema_file.file.namespace;
         let schema = lower_schema(&schema_file.ast);
-        let qualify_locale = |file: &ParsedLocaleSource| {
-            let mut module = lower_locale(&file.ast);
-            qualify_locale_module(&mut module, &schema, namespace);
-            module
-        };
         let locale_key = (namespace.clone(), locale.to_owned());
         let locale_file = locale_index.get(&locale_key);
 
@@ -82,32 +76,46 @@ fn build_locale_ir(
             )));
         }
 
+        let inherited = locale_fallback_sources(
+            locale_index,
+            plan,
+            namespace,
+            locale,
+            config.project().default_locale(),
+        );
         if let Some(locale_file) = locale_file {
-            ensure_locale_has_required_messages(root, config, schema_file, locale_file, locale)?;
-            merge_module(&mut locale_ir, qualify_locale(locale_file))?;
+            ensure_locale_has_required_messages(
+                root,
+                config,
+                schema_file,
+                locale_file,
+                locale,
+                &inherited,
+            )?;
         }
-
-        for fallback_locale in &fallbacks {
-            let fallback_key = (namespace.clone(), fallback_locale.to_owned());
-            if let Some(default_locale_file) = locale_index.get(&fallback_key) {
-                merge_module_fallback(&mut locale_ir, qualify_locale(default_locale_file))?;
-            }
+        let primary = locale_file.map(|file| lower_locale(&file.ast));
+        let fallbacks = inherited
+            .iter()
+            .map(|file| lower_locale(&file.ast))
+            .collect::<Vec<_>>();
+        let mut context = primary.clone().unwrap_or_default();
+        for module in &fallbacks {
+            merge_module_fallback(&mut context, module.clone())?;
+        }
+        let qualify_locale = |mut module: IrModule| {
+            qualify_locale_module_in_context(&mut module, &schema, &context, namespace);
+            module
+        };
+        if let Some(module) = primary {
+            merge_module(&mut locale_ir, qualify_locale(module))?;
+        }
+        for module in fallbacks {
+            merge_module_fallback(&mut locale_ir, qualify_locale(module))?;
         }
     }
 
     LocaleIr::try_from_module(locale_ir)
         .map_err(|error| CliError::Diagnostics(format!("invalid locale IR: {error}\n")))
-}
-
-fn project_locale_fallbacks(
-    plan: &ProjectLocalePlan<'_>,
-    locale: &str,
-    default_locale: &str,
-) -> Vec<String> {
-    plan.fallback_chain(locale, Some(default_locale))
-        .into_iter()
-        .filter(|fallback| !fallback.eq_ignore_ascii_case(locale))
-        .collect()
 }
 
 fn ensure_locale_has_required_messages(
@@ -116,10 +124,15 @@ fn ensure_locale_has_required_messages(
     schema_file: &ParsedSchemaSource,
     locale_file: &ParsedLocaleSource,
     locale: &str,
+    fallbacks: &[&ParsedLocaleSource],
 ) -> CliResult<()> {
     let diagnostics = linguini_schema::SchemaDatabase::build(&schema_file.ast)
-        .analyze_locale_with_options(
+        .analyze_locale_with_fallbacks(
             &locale_file.ast,
+            &fallbacks
+                .iter()
+                .map(|source| &source.ast)
+                .collect::<Vec<_>>(),
             coverage_options(config, &schema_file.file.namespace, locale),
         );
     let blocking = diagnostics
@@ -131,12 +144,23 @@ fn ensure_locale_has_required_messages(
         return Ok(());
     }
 
-    Err(CliError::Diagnostics(render_file_diagnostics(
+    let mut diagnostics = super::diagnostics::ProjectDiagnostics::default();
+    diagnostics.register_source(
+        schema_file.ast.span().source,
         root,
-        &locale_file.file.path,
-        &locale_file.source,
-        &blocking,
-    )))
+        &schema_file.file.path,
+        &schema_file.source,
+    );
+    for source in std::iter::once(locale_file).chain(fallbacks.iter().copied()) {
+        diagnostics.register_source(
+            source.ast.span().source,
+            root,
+            &source.file.path,
+            &source.source,
+        );
+    }
+    diagnostics.push(root, &locale_file.file.path, &locale_file.source, &blocking);
+    Err(CliError::Diagnostics(diagnostics.render_human(true)))
 }
 
 fn ensure_schema_project_valid(root: &Path, schema_files: &[ParsedSchemaSource]) -> CliResult<()> {

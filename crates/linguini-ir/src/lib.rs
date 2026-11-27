@@ -13,7 +13,7 @@ pub use model::{
     IrSymbolConflict, IrSymbolKind, IrText, IrTextBlockMode, IrTextPart, IrTypeAlias, IrValue,
     IrVariable, LocaleIr, SchemaIr,
 };
-pub use namespace::{qualify_locale_module, qualify_module};
+pub use namespace::{qualify_locale_module, qualify_locale_module_in_context, qualify_module};
 pub use reference::{
     ensure_no_unresolved_references, validate_ir, validate_typed_ir, IrReferenceError,
     IrRelatedError, ValidatedIr, ValidatedProjectIr, BUILTIN_PLURAL,

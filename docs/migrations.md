@@ -4,6 +4,21 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Inherited source globals in native projects
+
+Native `check`, `build`, and `generate` accept form, enum, function, and variable references
+supplied by declared CLDR parents or the project base. Redeclaring these globals in every locale
+is unnecessary. Nearer declarations still replace whole definitions, and missing-translation
+warnings plus `--deny-warnings` retain their existing meaning.
+
+Rust loaders can provide ordered fallback ASTs through
+`SchemaDatabase::analyze_locale_with_fallbacks`. It checks only the current source; analyze each
+fallback source independently too. Qualify source IR against composed relative declarations with
+`qualify_locale_module_in_context`, then retain the established guarded merge. Original source
+identities remain available for diagnostics, dependency manifests, and source maps. Existing
+single-source analysis and qualification APIs remain available. Editor integration is tracked
+separately while it adopts the same context.
+
 ## Forwarding classified plural values
 
 Native build and preview validation now accept an existing `Plural` result when a function or

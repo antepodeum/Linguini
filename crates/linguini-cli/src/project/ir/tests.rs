@@ -1,4 +1,5 @@
 use super::*;
+use crate::project::sources::project_locale_fallbacks;
 use linguini_syntax::parse_locale;
 
 #[test]

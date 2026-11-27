@@ -14,7 +14,7 @@ use linguini_core::TypeKind;
 /// validation, diagnostics, and code generation on the same canonical paths.
 /// Use [`qualify_locale_module`] when message signatures are owned by a separate schema.
 pub fn qualify_module(module: &mut IrModule, namespace: &str) {
-    qualify_module_with_schema(module, None, namespace);
+    qualify_module_with_schema(module, None, None, namespace);
 }
 
 /// Qualifies a freshly lowered locale while preserving schema-owned message parameters.
@@ -23,7 +23,20 @@ pub fn qualify_module(module: &mut IrModule, namespace: &str) {
 /// their function identity even when a message, function, form, or inline parameter has the
 /// same name; ordinary references keep their lexical binding. Call before project merging.
 pub fn qualify_locale_module(module: &mut IrModule, schema: &IrModule, namespace: &str) {
-    qualify_module_with_schema(module, Some(schema), namespace);
+    qualify_module_with_schema(module, Some(schema), None, namespace);
+}
+
+/// Qualifies one fresh source module against its effective, fallback-composed locale globals.
+///
+/// The schema and context use relative names from the same filesystem namespace. Only `module`
+/// is changed, so loaders can retain their established guarded merge order and source provenance.
+pub fn qualify_locale_module_in_context(
+    module: &mut IrModule,
+    schema: &IrModule,
+    context: &IrModule,
+    namespace: &str,
+) {
+    qualify_module_with_schema(module, Some(schema), Some(context), namespace);
 }
 
 struct QualificationScope {
@@ -32,7 +45,12 @@ struct QualificationScope {
     functions: BTreeSet<String>,
 }
 
-fn qualify_module_with_schema(module: &mut IrModule, schema: Option<&IrModule>, namespace: &str) {
+fn qualify_module_with_schema(
+    module: &mut IrModule,
+    schema: Option<&IrModule>,
+    context: Option<&IrModule>,
+    namespace: &str,
+) {
     if namespace.is_empty() {
         return;
     }
@@ -46,10 +64,11 @@ fn qualify_module_with_schema(module: &mut IrModule, schema: Option<&IrModule>, 
         return;
     }
 
+    let context = context.unwrap_or(&*module);
     let scope = QualificationScope {
         namespace: namespace_parts.join("."),
-        declarations: declaration_roots(module),
-        functions: module
+        declarations: declaration_roots(context),
+        functions: context
             .functions
             .iter()
             .map(|item| item.name.clone())
