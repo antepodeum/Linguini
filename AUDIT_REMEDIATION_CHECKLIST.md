@@ -537,6 +537,13 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       202 emitter tests pass; 96 generated padding cases execute on Node 20/24. Pinned CLDR
       artifacts reproduce byte for byte. Clippy and Rust 1.87 pass; broader pattern semantics
       remain open.
+      Significant precision now excludes grouping placeholders before the first `@` (GEN-A68).
+      Offline validation rejects malformed fixed/significant digit order, empty integer groups,
+      grouped scientific mantissas, and unsupported mixed significant/fixed decimal syntax.
+      A 1,092-skeleton grammar corpus matches independent ICU 78.3 acceptance/precision checks;
+      all 27 maintainer tests pass and pinned artifacts reproduce byte for byte. No generated
+      application code, declaration, or map changes. Workspace Clippy and Rust 1.87 pass; the
+      full profile passes its other 70 gates. Other pattern semantics remain open.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.

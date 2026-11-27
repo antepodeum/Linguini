@@ -14,6 +14,10 @@ Numeric patterns compile in `linguini-cldr-macros/src/formatting.rs`. Subpattern
 escaped padding characters opaque; padding is valid only at the four affix/number boundaries.
 Rounding digits contribute to mandatory widths as ordinary zero placeholders do. Padding uses
 the shared `linguini_cldr::NumberPadding` model consumed by the common number-format plan.
+Significant precision starts at the first `@`; earlier hashes only position grouping. Required
+digits must precede optional digits in fractions and follow them in fixed integer patterns.
+Significant digits form one contiguous required run. Empty integer groups, grouped scientific
+mantissas, and mixed significant/fixed decimal syntax are rejected by the offline compiler.
 
 The calendar profile covers Gregorian, Buddhist, ROC, and Japanese data: 3,060 locale/calendar
 pairs, contextual symbols, eras, skeletons, day periods, week rules, and GMT formats. Equal

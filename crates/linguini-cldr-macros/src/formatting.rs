@@ -920,31 +920,23 @@ fn parse_number_pattern_part(
                 .count()
         })
         .collect::<Vec<_>>();
-
-    let significant = mantissa.contains('@');
-    if significant && mantissa.chars().any(|character| character.is_ascii_digit()) {
+    if group_sizes.contains(&0) {
         return Err(format!(
-            "number pattern mixes significant and fixed digits: `{original}`"
+            "number pattern has an empty integer group: `{original}`"
         ));
     }
-    let min_significant_digits = significant
-        .then(|| {
-            checked_u8(
-                mantissa.matches('@').count(),
-                "minimum significant digits",
-                original,
-            )
-        })
-        .transpose()?;
-    let max_significant_digits = significant
-        .then(|| {
-            checked_u8(
-                mantissa.matches(['@', '#']).count(),
-                "maximum significant digits",
-                original,
-            )
-        })
-        .transpose()?;
+    if exponent.is_some() && group_sizes.len() > 1 {
+        return Err(format!(
+            "number pattern groups a scientific mantissa: `{original}`"
+        ));
+    }
+
+    let (min_significant_digits, max_significant_digits) =
+        parse_significant_digits(mantissa, original)?;
+    let significant = min_significant_digits.is_some();
+    if !significant {
+        validate_fixed_digit_order(integer, fraction, original)?;
+    }
     let rounding_increment = parse_rounding_increment(integer, fraction, significant);
     let scale = match (prefix_scale, suffix_scale) {
         (1, scale) | (scale, 1) => scale,
@@ -990,6 +982,65 @@ fn parse_number_pattern_part(
         scale,
         padding,
     })
+}
+
+fn parse_significant_digits(
+    mantissa: &str,
+    pattern: &str,
+) -> Result<(Option<u8>, Option<u8>), String> {
+    let Some(start) = mantissa.find('@') else {
+        return Ok((None, None));
+    };
+    if mantissa.contains('.') || mantissa.chars().any(|character| character.is_ascii_digit()) {
+        return Err(format!(
+            "number pattern mixes significant and fixed digit syntax: `{pattern}`"
+        ));
+    }
+    let mut minimum = 0;
+    let mut maximum = 0;
+    let mut optional = false;
+    // Leading hashes only position grouping; precision starts at the first required digit.
+    for character in mantissa[start..].chars() {
+        match character {
+            '@' if !optional => minimum += 1,
+            '#' => optional = true,
+            ',' => continue,
+            _ => {
+                return Err(format!(
+                    "number pattern has invalid significant digit order: `{pattern}`"
+                ))
+            }
+        }
+        maximum += 1;
+    }
+    Ok((
+        Some(checked_u8(minimum, "minimum significant digits", pattern)?),
+        Some(checked_u8(maximum, "maximum significant digits", pattern)?),
+    ))
+}
+
+fn validate_fixed_digit_order(integer: &str, fraction: &str, pattern: &str) -> Result<(), String> {
+    let mut required = false;
+    for character in integer.chars() {
+        if character.is_ascii_digit() {
+            required = true;
+        } else if character == '#' && required {
+            return Err(format!(
+                "number pattern has an optional integer digit after a required digit: `{pattern}`"
+            ));
+        }
+    }
+    let mut optional = false;
+    for character in fraction.chars() {
+        if character == '#' {
+            optional = true;
+        } else if character.is_ascii_digit() && optional {
+            return Err(format!(
+                "number pattern has a required fraction digit after an optional digit: `{pattern}`"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn parse_exponent(exponent: Option<&str>, pattern: &str) -> Result<(Option<u8>, bool), String> {
@@ -1421,6 +1472,107 @@ mod tests {
                 .scale,
             1000
         );
+    }
+
+    #[test]
+    fn significant_precision_ignores_leading_grouping_placeholders() {
+        for (pattern, minimum, maximum, grouping) in [
+            ("#,#@#", 1, 2, Some(3)),
+            ("###@@##", 2, 4, None),
+            ("#,#@@##", 2, 4, Some(5)),
+            ("##@@###E+00", 2, 5, None),
+            ("'prefix#@'###@@##'suffix@#'", 2, 4, None),
+        ] {
+            let parsed = parse_number_pattern(pattern).unwrap().positive;
+            assert_eq!(parsed.min_significant_digits, Some(minimum), "{pattern}");
+            assert_eq!(parsed.max_significant_digits, Some(maximum), "{pattern}");
+            assert_eq!(parsed.primary_group_size, grouping, "{pattern}");
+        }
+        let pattern = format!("{}@", "#".repeat(512));
+        let parsed = parse_number_pattern(&pattern).unwrap().positive;
+        assert_eq!(parsed.min_significant_digits, Some(1));
+        assert_eq!(parsed.max_significant_digits, Some(1));
+        for pattern in ["@".repeat(256), format!("@{}", "#".repeat(255))] {
+            assert!(parse_number_pattern(&pattern).is_err(), "{pattern}");
+        }
+    }
+
+    #[test]
+    fn number_digit_order_and_grouping_are_validated_before_compilation() {
+        for pattern in [
+            "0#", "5#", "#0#", "0,#0", "0.#0", "0.#5", "0.0#0", "@@#@", "@#,@", "@.##", "0,,0",
+            "0,", "#,##0E0", "@,@@E0",
+        ] {
+            for source in [pattern.to_owned(), format!("'pre'{pattern}'tail'")] {
+                let error = parse_number_pattern(&source)
+                    .err()
+                    .unwrap_or_else(|| panic!("invalid pattern accepted: {source}"));
+                assert!(error.contains(&source), "{error}");
+            }
+        }
+        for pattern in [
+            "###",
+            "#.##",
+            "#,##0.00##",
+            "#,#50.05##",
+            "00,00",
+            "@@##E+00",
+        ] {
+            assert!(parse_number_pattern(pattern).is_ok(), "{pattern}");
+        }
+    }
+
+    #[test]
+    fn short_number_skeletons_follow_the_fixed_and_significant_grammars() {
+        // Construct valid languages from their productions, then check every short word.
+        let mut valid = std::collections::BTreeMap::new();
+        for leading in 0..=6 {
+            for required in 0..=6 - leading {
+                if leading + required > 0 {
+                    valid.insert(
+                        format!("{}{}", "#".repeat(leading), "0".repeat(required)),
+                        None,
+                    );
+                }
+                if required == 0 {
+                    continue;
+                }
+                for trailing in 0..=6 - leading - required {
+                    valid.insert(
+                        format!(
+                            "{}{}{}",
+                            "#".repeat(leading),
+                            "@".repeat(required),
+                            "#".repeat(trailing)
+                        ),
+                        Some((required as u8, (required + trailing) as u8)),
+                    );
+                }
+            }
+        }
+        let mut checked = 0;
+        for length in 1..=6 {
+            for mut encoded in 0..3_usize.pow(length) {
+                let word: String = (0..length)
+                    .map(|_| {
+                        let digit = b"#0@"[encoded % 3];
+                        encoded /= 3;
+                        digit as char
+                    })
+                    .collect();
+                let parsed = parse_number_pattern(&word);
+                assert_eq!(parsed.is_ok(), valid.contains_key(&word), "{word}");
+                if let Ok(pattern) = parsed {
+                    let limits = pattern
+                        .positive
+                        .min_significant_digits
+                        .zip(pattern.positive.max_significant_digits);
+                    assert_eq!(limits, valid[&word], "{word}");
+                }
+                checked += 1;
+            }
+        }
+        assert_eq!(checked, 1_092);
     }
 
     #[test]

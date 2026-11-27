@@ -32,6 +32,11 @@ CLDR updates now reject padding inside an affix or numeric skeleton. Padding esc
 their literal character, and rounding digits 1–9 count toward mandatory digit widths. Current
 pinned data and generated application output are unchanged; no application changes are required.
 
+Leading `#` placeholders before the first `@` now affect grouping without increasing significant
+precision. For example, `#,#@#` compiles to one–two significant digits. The offline compiler rejects
+invalid digit order, empty integer groups, and grouping in scientific mantissas. Mixed significant
+and fixed decimal syntax is explicitly unsupported. These checks add no application runtime code.
+
 ## Shared project locale matching
 
 The project locale matcher now lives in `linguini_cldr::ProjectLocalePlan`. The existing
