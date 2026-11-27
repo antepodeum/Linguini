@@ -1254,6 +1254,12 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       package's store, as the Kit packaging test already does. The failed Vue gate then passes all
       five tests offline, and its packed consumer passes separately on Node 20. This is a full-run
       receipt plus a targeted repair/rerun, not a second all-green full run or hosted-CI verification.
+      Integrated source `da0567b` passes all 71 local full-profile gates in one clean run,
+      including the repaired offline packed Vue consumer, typed native Date previews, named-call
+      editor identity, compiled Gregorian year/week output, installed tsc build/watch, editor/WASM,
+      documentation consumers, and production SSR/browser checks. Node 20, Rust 1.87, strict
+      JS/TS 5.8/5.9/6, and patch API checks separately cover the changed formatter boundaries.
+      Hosted CI and the remaining architecture/platform requirements stay open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
