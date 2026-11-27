@@ -6,6 +6,8 @@ use super::{
 };
 use linguini_syntax::SourceId;
 
+mod fallback_navigation;
+
 #[test]
 fn diagnostics_report_schema_parse_errors() {
     let document = LinguiniDocument::new(

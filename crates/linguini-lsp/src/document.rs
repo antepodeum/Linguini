@@ -1,3 +1,4 @@
+mod context;
 mod plural_hover;
 mod semantic;
 mod symbols;
@@ -16,6 +17,7 @@ use linguini_syntax::{
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, OnceLock};
 
+use self::context::LocaleSources;
 use self::plural_hover::plural_branch_hover;
 use self::semantic::{
     definition_occurrence, occurrence_at, occurrences, rename_occurrences, resolved_occurrences,
@@ -825,23 +827,10 @@ fn matching_locale_fallbacks<'a>(
     document: &LinguiniDocument,
     workspace: &'a [LinguiniDocument],
 ) -> Vec<&'a LocaleFile> {
-    document
-        .locale_fallbacks
-        .iter()
-        .filter_map(|locale| {
-            let mut candidates = workspace.iter().filter(|source| {
-                source.kind == SourceKind::Locale
-                    && source.namespace == document.namespace
-                    && source.locale.as_ref() == Some(locale)
-                    && source.uri != document.uri
-                    && source.is_within_safety_limits()
-            });
-            let source = candidates.next()?;
-            if candidates.next().is_some() {
-                return None;
-            }
-            parsed_locale(source)?.ast.as_ref()
-        })
+    LocaleSources::new(workspace.iter())
+        .fallbacks(document)
+        .into_iter()
+        .filter_map(|source| parsed_locale(source)?.ast.as_ref())
         .collect()
 }
 

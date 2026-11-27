@@ -8,6 +8,8 @@ mod branches;
 pub(crate) mod context;
 mod messages;
 
+pub use context::{inherited_locale_globals, InheritedLocaleGlobal};
+
 use self::branches::analyze_locale_branch_coverage;
 use self::messages::{
     format_name_list, locale_message_map, missing_message_stub_text, pluralize, schema_message_map,
@@ -118,7 +120,10 @@ pub fn analyze_locale_project_with_fallbacks(
     fallbacks: &[&LocaleFile],
     options: LocaleCoverageOptions,
 ) -> Vec<Diagnostic> {
-    let inherited = context::inherited_globals(locale, fallbacks);
+    let inherited = inherited_locale_globals(locale, fallbacks)
+        .into_iter()
+        .map(|global| global.declaration)
+        .collect::<Vec<_>>();
     let mut diagnostics = analyze_locale_message_coverage_with_options(
         &schema_public_messages_from_files(schemas),
         &locale_public_messages(locale),

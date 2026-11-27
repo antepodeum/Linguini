@@ -3,7 +3,10 @@ mod navigation;
 
 pub use highlight::{highlight_tokens, HighlightKind, HighlightToken};
 
-pub use navigation::{locale_occurrences, schema_occurrences, SemanticKey, SemanticOccurrence};
+pub use navigation::{
+    locale_navigation, locale_occurrences, schema_occurrences, LocaleGlobalOccurrence,
+    LocaleNavigation, SemanticKey, SemanticOccurrence,
+};
 
 use linguini_analyzer::{
     analyze_locale_project_coverage, analyze_locale_project_coverage_with_options, Diagnostic,

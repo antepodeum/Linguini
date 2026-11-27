@@ -12,7 +12,7 @@ const schema = '/// Delivery label\ndelivery(count: Number)\n';
 const locale = '// 😀 Unicode\ndelivery = 😀 {count}  \n';
 const fallbackUri = `${root}/locale/fallback/fr.lgl`;
 const fallbackBaseUri = `${root}/locale/fallback/en.lgl`;
-const fallbackBase = 'let suffix = BASE\nfn render(count: Number) { _ => {count} }\nimpl Fruit { apple { label = Apple } }\nsummary = BASE\nother = OTHER\n';
+const fallbackBase = 'let suffix = BASE\nfn render(count: Number) { _ => {count}|{suffix} }\nimpl Fruit { apple { label = Apple } }\nsummary = BASE\nother = OTHER\n';
 const fallbackLocale = 'summary = {render(count)}|{fruit.label}|{suffix}\n';
 const scopeUri = `${root}/locale/scope/en.lgl`;
 const scopeLocale = 'fn helper(count: Number) { _ => {count} }\nfn Forward(helper: String, count: Number) { _ => {helper}|{helper(count)} }\nsummary = {fn(helper: value) { _ => {helper}|{helper(count)} }}\n';
@@ -129,6 +129,20 @@ export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string
     send('textDocument/didOpen', { textDocument: { uri: fallbackUri, languageId: 'linguini-locale', version: 1, text: fallbackLocale } });
     const inherited = await diagnostic(1, true, fallbackUri, noErrors);
     expect(inherited.diagnostics.some((item: any) => item.message.includes('missing 1 schema message: `other`')), 'fallback keeps local translation coverage');
+    const fallbackNavigation = [];
+    for (const [name, line, character] of [['render', 1, 3], ['suffix', 0, 4]] as const) {
+      const at = { textDocument: { uri: fallbackUri }, position: { line: 0, character: fallbackLocale.indexOf(name) } };
+      const definition = await request('textDocument/definition', at);
+      expect(definition.uri === fallbackBaseUri && definition.range.start.line === line
+        && definition.range.start.character === character && definition.range.end.character === character + name.length,
+      'inherited definition retains exact source ownership and span');
+      const references = await request('textDocument/references', { ...at, context: { includeDeclaration: true } });
+      expect(references.length === (name === 'suffix' ? 3 : 2) && references.every((item: any) => item.uri === fallbackBaseUri || item.uri === fallbackUri), 'inherited references include owner and consumer');
+      const renamed = await request('textDocument/rename', { ...at, newName: 'renamed' });
+      expect(Object.keys(renamed.changes).length === 2 && renamed.changes[fallbackBaseUri].length === (name === 'suffix' ? 2 : 1)
+        && renamed.changes[fallbackUri].length === 1, 'inherited rename edits owner and consumer together');
+      fallbackNavigation.push([definition, references, renamed]);
+    }
     await channel.update(fallbackBaseUri, fallbackBase.replace('count: Number', 'count: String'));
     send('workspace/didChangeWatchedFiles', { changes: [{ uri: fallbackBaseUri, type: 2 }] });
     const changedFallback = await diagnostic(1, true, fallbackUri, errorContains('expects `String`, got `Number`'));
@@ -148,7 +162,21 @@ export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string
     send('workspace/didChangeWatchedFiles', { changes: [{ uri: configFile.uri, type: 2 }] });
     send('textDocument/didChange', { textDocument: { uri: fallbackUri, version: 4 }, contentChanges: [{ text: fallbackLocale }] });
     const restoredFallback = await diagnostic(4, true, fallbackUri, noErrors);
-    const fallbackResults = [inherited, changedFallback, recoveredFallback, restoredBase, undeclared, restoredFallback];
+    const overridden = `let suffix = LOCAL\n${fallbackLocale}`;
+    send('textDocument/didChange', { textDocument: { uri: fallbackUri, version: 5 }, contentChanges: [{ text: overridden }] });
+    const overriddenFallback = await diagnostic(5, true, fallbackUri, noErrors);
+    send('textDocument/didOpen', { textDocument: { uri: fallbackBaseUri, languageId: 'linguini-locale', version: 1, text: fallbackBase } });
+    await diagnostic(1, false, fallbackBaseUri, noErrors);
+    const refusedRenames = [];
+    for (const uri of [fallbackBaseUri, fallbackUri]) {
+      const refused = await request('textDocument/rename', { textDocument: { uri }, position: { line: 0, character: 4 }, newName: 'renamed' }).then(
+        () => { throw new Error('ambiguous inherited rename must be refused'); },
+        (error: Error) => JSON.parse(error.message),
+      );
+      expect(refused.code === -32602, 'shared inherited body with different override bindings cannot be renamed safely');
+      refusedRenames.push(refused);
+    }
+    const fallbackResults = [inherited, fallbackNavigation, changedFallback, recoveredFallback, restoredBase, undeclared, restoredFallback, overriddenFallback, refusedRenames];
     send('textDocument/didOpen', { textDocument: { uri: scopeUri, languageId: 'linguini-locale', version: 1, text: scopeLocale } });
     await diagnostic(1, false, scopeUri);
     const scopeResults = [];

@@ -1304,7 +1304,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       full-profile gates in one clean run, including native week-date parity/builds, strict custom
       classifier consumers, installed tsc, editor/WASM, offline packages, documentation, and
       production SSR/browser/graph checks (GEN-A55–A56).
-      Subsequent programmatic type-keyword work has focused receipts (GEN-A57).
+      The integrated programmatic type-keyword and inherited-navigation working tree also passes
+      all 71 full-profile gates after the shared-body rename guard (GEN-A57–A58): locked Rust,
+      strict consumers, installed/native tsc, rebuilt editor/WASM, offline packages, documentation,
+      and production SSR/browser/graph checks. Broader unfinished architecture criteria stay open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1603,7 +1606,11 @@ and the composed payload/SSR requirements below.
       ambiguous sources fail closed and translation coverage stays local. All 63 LSP tests pass
       on Node 20; actual built Node/browser WASM workers pass the same fallback checkpoints.
       Workspace Clippy, Rust 1.87 native/WASM, and patch-level API checks pass. Broader
-      backend/architecture and fallback navigation criteria remain open.
+      backend/architecture criteria remain open. Inherited variable/function and locale enum type
+      navigation now shares that declaration selection and original ownership (GEN-A58), including
+      rejection of renames that would change a shared body's binding in another locale. All 71
+      LSP tests, built Node 20/browser WASM protocol, Clippy, Rust 1.87 native/WASM, and 223 patch
+      API checks per affected crate pass. Typed form-property navigation remains separate.
 - [-] MOD-A8 — Update public APIs, migration notes, examples, the real site, package boundaries,
       and CI. Verify canonical JS + `.d.ts`, strict TS without `allowJs`, plain `tsc` build/watch/
       project references, Vite 5–8, and SvelteKit production with the new configuration and modules.
@@ -2152,9 +2159,18 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
       Named calls now retain function identity inside same-named function/inline value bindings
       (GEN-A45), matching native validation/generation. Exact definition/reference/rename spans,
       foreign-locale isolation, and semantic token kinds execute through the shared walk. The
-      64-test LSP suite passes on Node 20 alongside actual Node/browser WASM protocol tests,
-      workspace Clippy, and Rust 1.87 WASM. Bare references retain local binding identity;
-      inherited-global navigation remains separate from this call-scope correction.
+      call-scope correction passes the 64-test LSP suite and actual Node/browser WASM protocol.
+      Inherited variable/function and locale enum type navigation now reuses the analyzer's
+      borrowed whole-declaration selection with explicit source ownership (GEN-A58). Definition,
+      reference, and rename operations distinguish nearer overrides and unrelated locales;
+      duplicate fallback sources and effective-global rename conflicts are guarded. Shared tests
+      retain original roots/spans, value/call pairs, and same-named lexical bindings. Shared body
+      scopes also reject renames with different effective bindings in consuming locales, while
+      allowing unrelated globals and the inherited container itself to be renamed. All 71 LSP
+      tests pass on Node 20, including native/memory protocol parity and fallback configuration
+      changes and refused ambiguous renames. Built Node 20/browser WASM protocol, workspace
+      Clippy, Rust 1.87 native/WASM, and 223 patch API checks per affected crate pass. Typed
+      form-property navigation remains separate.
 - [x] P1-8 — Implement one CLDR locale fallback service.
 
 ### P2

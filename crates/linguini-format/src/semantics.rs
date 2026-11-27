@@ -221,11 +221,7 @@ impl FormatSemantics {
             }
             LocaleDeclaration::Group(group) => self.group(group, source)?,
             LocaleDeclaration::Override(inner) => {
-                self.keyword_header(
-                    locale_declaration_span(inner),
-                    locale_declaration_name_span(inner),
-                    source,
-                )?;
+                self.keyword_header(inner.span(), locale_declaration_name_span(inner), source)?;
                 self.declaration(inner, source)?;
             }
         }
@@ -365,18 +361,6 @@ fn validate_span(source: &str, span: Span) -> Result<(), FormatError> {
 
 fn contains(outer: Span, inner: Span) -> bool {
     outer.source == inner.source && outer.start <= inner.start && inner.end <= outer.end
-}
-
-fn locale_declaration_span(declaration: &LocaleDeclaration) -> Span {
-    match declaration {
-        LocaleDeclaration::Enum(declaration) => declaration.span,
-        LocaleDeclaration::Variable(declaration) => declaration.span,
-        LocaleDeclaration::Form(declaration) => declaration.span,
-        LocaleDeclaration::Function(declaration) => declaration.span,
-        LocaleDeclaration::Message(declaration) => declaration.span,
-        LocaleDeclaration::Group(declaration) => declaration.span,
-        LocaleDeclaration::Override(inner) => locale_declaration_span(inner),
-    }
 }
 
 fn locale_declaration_name_span(declaration: &LocaleDeclaration) -> Span {

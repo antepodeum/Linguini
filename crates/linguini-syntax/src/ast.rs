@@ -86,6 +86,21 @@ pub enum LocaleDeclaration {
     Override(Box<LocaleDeclaration>),
 }
 
+impl LocaleDeclaration {
+    /// Returns the complete declaration span, unwrapping an override marker.
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Enum(item) => item.span,
+            Self::Variable(item) => item.span,
+            Self::Form(item) => item.span,
+            Self::Function(item) => item.span,
+            Self::Message(item) => item.span,
+            Self::Group(item) => item.span,
+            Self::Override(inner) => inner.span(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumDeclaration {
     pub docs: Vec<DocComment>,

@@ -24,15 +24,23 @@ async fn request<S: LanguageServer>(
     method: &str,
     params: Value,
 ) -> Value {
+    let response = request_response(service, method, params).await;
+    assert!(response.error().is_none(), "{method}: {response:?}");
+    response.result().unwrap().clone()
+}
+
+async fn request_response<S: LanguageServer>(
+    service: &mut LspService<S>,
+    method: &str,
+    params: Value,
+) -> Response {
     let mut message = json!({"jsonrpc":"2.0", "id":1, "method":method, "params":params});
     if params.is_null() {
         message.as_object_mut().unwrap().remove("params");
     }
     let request: Request = serde_json::from_value(message).unwrap();
     poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
-    let response = service.call(request).await.unwrap().unwrap();
-    assert!(response.error().is_none(), "{method}: {response:?}");
-    response.result().unwrap().clone()
+    service.call(request).await.unwrap().unwrap()
 }
 
 async fn notify<S: LanguageServer>(service: &mut LspService<S>, method: &str, params: Value) {
@@ -297,7 +305,7 @@ async fn configured_fallback_globals_match_native_and_memory_editor_diagnostics(
     let files = vec![
         workspace_file(&root, "linguini.toml", &config),
         workspace_file(&root, "build/schema/shop.lgs", "enum Fruit { apple }\nsummary(fruit: Fruit, count: Number, name: String)\nother\n"),
-        workspace_file(&root, "locale/shop/en.lgl", "let suffix = BASE\nenum Tone { formal, casual }\nfn render(count: Number) { _ => {count} }\nimpl Fruit { apple { label = Apple\nTone = formal } }\nsummary = BASE\nother = OTHER\n"),
+        workspace_file(&root, "locale/shop/en.lgl", "let suffix = BASE\nenum Tone { formal, casual }\nfn render(count: Number) { _ => {count}|{suffix} }\nimpl Fruit { apple { label = Apple\nTone = formal } }\nsummary = BASE\nother = OTHER\n"),
         workspace_file(&root, "locale/shop/en-001.lgl", "fn render(name: String, count: Number) { _ => {name}:{count} }\nimpl Fruit { apple { label = Parent } }\n"),
         workspace_file(&root, "locale/shop/en-AU.lgl", australian),
         workspace_file(&root, "locale/shop/fr.lgl", french),
@@ -408,6 +416,60 @@ async fn exercise_fallback_diagnostics<S: LanguageServer>(
         assert!(!has_diagnostic_errors(&initial), "{initial:#?}");
         results.push(initial);
     }
+    for (relative, document_uri) in [
+        ("locale/shop/fr.lgl", &french_uri),
+        ("locale/shop/en-AU.lgl", &australian_uri),
+    ] {
+        let document =
+            crate::LinguiniDocument::new(document_uri.to_string(), "lgl", source(relative));
+        for name in ["render", "suffix"] {
+            let target_relative = if name == "render" && relative.ends_with("en-AU.lgl") {
+                "locale/shop/en-001.lgl"
+            } else {
+                "locale/shop/en.lgl"
+            };
+            let target_uri = uri(target_relative);
+            let target = crate::LinguiniDocument::new(
+                target_uri.to_string(),
+                "lgl",
+                source(target_relative),
+            );
+            let (line, character) = document.position(document.text.find(name).unwrap());
+            let at = json!({"textDocument":{"uri":document_uri},"position":{"line":line,"character":character}});
+            let definition = request(&mut service, "textDocument/definition", at.clone()).await;
+            let start = target.text.find(name).unwrap();
+            let (line, character) = target.position(start);
+            let (end_line, end_character) = target.position(start + name.len());
+            assert_eq!(
+                definition,
+                json!({"uri":target_uri,"range":{"start":{"line":line,"character":character},"end":{"line":end_line,"character":end_character}}})
+            );
+            let mut params = at.clone();
+            params["context"] = json!({"includeDeclaration":true});
+            let references = request(&mut service, "textDocument/references", params).await;
+            let references = references.as_array().unwrap();
+            assert_eq!(references.len(), if name == "render" { 2 } else { 4 });
+            assert!(references
+                .iter()
+                .all(|item| item["uri"] == target_uri.as_str()
+                    || item["uri"] == document_uri.as_str()
+                    || name == "suffix"
+                        && (item["uri"] == australian_uri.as_str()
+                            || item["uri"] == french_uri.as_str())));
+            let mut params = at;
+            params["newName"] = json!("renamed");
+            let renamed = request(&mut service, "textDocument/rename", params).await;
+            let mut expected = std::collections::BTreeMap::<String, Vec<Value>>::new();
+            for reference in references {
+                expected
+                    .entry(reference["uri"].as_str().unwrap().into())
+                    .or_default()
+                    .push(json!({"range":reference["range"],"newText":"renamed"}));
+            }
+            assert_eq!(renamed["changes"], json!(expected));
+            results.extend([definition, json!(references), renamed]);
+        }
+    }
     let english = source("locale/shop/en.lgl").replacen("count: Number", "count: String", 1);
     notify(&mut service, "textDocument/didOpen", json!({"textDocument":{"uri":english_uri,"languageId":"linguini-locale","version":1,"text":english}})).await;
     let broken = next_diagnostics_matching(
@@ -501,6 +563,12 @@ async fn exercise_fallback_diagnostics<S: LanguageServer>(
         })
         .await;
     results.push(changed);
+    let offset = australian.find("render").unwrap();
+    let (line, character) =
+        crate::LinguiniDocument::new("linguini:au", "lgl", australian).position(offset);
+    let changed_definition = request(&mut service, "textDocument/definition", json!({"textDocument":{"uri":australian_uri},"position":{"line":line,"character":character}})).await;
+    assert_eq!(changed_definition["uri"], english_uri.as_str());
+    results.push(changed_definition);
     update_config(config);
     notify(
         &mut service,
@@ -512,6 +580,25 @@ async fn exercise_fallback_diagnostics<S: LanguageServer>(
     let restored = next_diagnostics(&mut notifications, australian_uri.as_str(), 3).await;
     assert!(!has_diagnostic_errors(&restored), "{restored:#?}");
     results.push(restored);
+    let overridden = format!("let suffix = LOCAL\n{}", source("locale/shop/fr.lgl"));
+    notify(&mut service, "textDocument/didChange", json!({"textDocument":{"uri":french_uri,"version":4},"contentChanges":[{"text":overridden}]})).await;
+    let overridden_diagnostics = next_diagnostics(&mut notifications, french_uri.as_str(), 4).await;
+    assert!(
+        !has_diagnostic_errors(&overridden_diagnostics),
+        "{overridden_diagnostics:#?}"
+    );
+    results.push(overridden_diagnostics);
+    notify(&mut service, "textDocument/didOpen", json!({"textDocument":{"uri":english_uri,"languageId":"linguini-locale","version":2,"text":source("locale/shop/en.lgl")}})).await;
+    let opened = next_diagnostics(&mut notifications, english_uri.as_str(), 2).await;
+    assert!(!has_diagnostic_errors(&opened), "{opened:#?}");
+    results.push(opened);
+    for document_uri in [&english_uri, &french_uri] {
+        let refused = request_response(&mut service, "textDocument/rename", json!({"textDocument":{"uri":document_uri},"position":{"line":0,"character":4},"newName":"renamed"})).await;
+        assert!(refused.result().is_none());
+        let refused = serde_json::to_value(refused).unwrap();
+        assert_eq!(refused["error"]["code"], -32602);
+        results.push(refused);
+    }
     request(&mut service, "shutdown", json!(null)).await;
     notify(&mut service, "exit", json!(null)).await;
     pump.abort();

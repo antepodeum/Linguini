@@ -105,6 +105,23 @@ source owns the whole declaration; missing form attributes are not merged from l
 sources. Translation coverage still describes messages present in the current source file.
 `SchemaDatabase::analyze_locale_with_fallbacks` accepts ordered fallback ASTs as signature context
 while diagnosing the current source. Each fallback source must also be checked independently.
+`linguini_analyzer::inherited_locale_globals` exposes that same borrowed declaration selection
+with its owning parsed source. `linguini_schema::locale_navigation` indexes the current source
+against those globals and retains declaration ownership separately from current-file occurrences.
+The existing single-source occurrence API keeps its behavior.
+
+Editor definitions, references, and rename use this context for inherited variables, functions,
+and locale enum types. A nearer declaration owns the whole name; unrelated namespaces, duplicate
+fallback sources, and overridden declarations are excluded. Rename rejects conflicting effective
+global names. Function calls retain function identity inside same-named lexical bindings, while
+bare references retain the binding. Unsaved current buffers and fallback configuration changes
+participate in each navigation snapshot. Standalone documents infer no fallback chain.
+Renaming is refused when an inherited body's reference binds to different declarations in its
+consuming locales; changing that shared source would change another locale's behavior. Renaming
+the container or unrelated globals remains available. `LocaleDeclaration::span()` supplies the
+original declaration scope, including its body, with override wrappers unwrapped.
+Typed form-property navigation remains outside this declaration-ownership improvement.
+
 `linguini_ir::qualify_locale_module_in_context` qualifies one fresh source against its composed
 relative globals and schema, preserving the loader's guarded merge order and original source IDs.
 

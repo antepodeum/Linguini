@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use linguini_analyzer::{inherited_locale_globals, InheritedLocaleGlobal};
 use linguini_core::{is_plural_intrinsic, TypeKind};
 use linguini_syntax::{
     Expression, ExpressionKind, FormEntry, FunctionBranch, FunctionBranchValue, LocaleDeclaration,
@@ -163,12 +164,90 @@ pub fn locale_occurrences(locale: &LocaleFile) -> Vec<SemanticOccurrence> {
     for declaration in locale.declarations() {
         collect_locale_names(declaration, &mut names);
     }
+    collect_locale_occurrences(locale, &names)
+}
 
+/// One global declaration and the original source that owns it.
+#[derive(Debug, Clone)]
+pub struct LocaleGlobalOccurrence<'a> {
+    /// Original parsed locale, retained independently of numeric source IDs.
+    pub source: &'a LocaleFile,
+    /// Declaration of a variable, function, locale enum/member, or form attribute.
+    pub occurrence: SemanticOccurrence,
+}
+
+/// Current-source occurrences resolved against its effective global declarations.
+#[derive(Debug, Clone)]
+pub struct LocaleNavigation<'a> {
+    /// Only occurrences physically present in the current locale.
+    pub occurrences: Vec<SemanticOccurrence>,
+    /// Local and inherited global declarations with their original source ownership.
+    pub globals: Vec<LocaleGlobalOccurrence<'a>>,
+    /// Selected whole fallback declarations, retaining their original body scopes.
+    pub inherited: Vec<InheritedLocaleGlobal<'a>>,
+}
+
+/// Index one locale using the analyzer's whole-declaration fallback selection.
+///
+/// Fallbacks are ordered from highest to lowest priority. Inherited bodies are not added
+/// to current-source occurrences; callers index those sources in their own context.
+pub fn locale_navigation<'a>(
+    locale: &'a LocaleFile,
+    fallbacks: &[&'a LocaleFile],
+) -> LocaleNavigation<'a> {
+    let inherited = inherited_locale_globals(locale, fallbacks);
+    let mut names = LocaleNames::default();
+    for declaration in locale.declarations() {
+        collect_locale_names(declaration, &mut names);
+    }
+    for global in &inherited {
+        collect_locale_names(global.declaration, &mut names);
+    }
+
+    let output = collect_locale_occurrences(locale, &names);
+    let mut globals = global_occurrences(locale, &output);
+    for global in &inherited {
+        let mut occurrences = Vec::new();
+        collect_locale_declaration(global.declaration, &names, &mut occurrences);
+        globals.extend(global_occurrences(global.source, &occurrences));
+    }
+    LocaleNavigation {
+        occurrences: output,
+        globals,
+        inherited,
+    }
+}
+
+fn collect_locale_occurrences(locale: &LocaleFile, names: &LocaleNames) -> Vec<SemanticOccurrence> {
     let mut output = Vec::new();
     for declaration in locale.declarations() {
-        collect_locale_declaration(declaration, &names, &mut output);
+        collect_locale_declaration(declaration, names, &mut output);
     }
     output
+}
+
+fn global_occurrences<'a>(
+    source: &'a LocaleFile,
+    occurrences: &[SemanticOccurrence],
+) -> Vec<LocaleGlobalOccurrence<'a>> {
+    occurrences
+        .iter()
+        .filter(|occurrence| {
+            occurrence.declaration
+                && matches!(
+                    occurrence.key,
+                    SemanticKey::Variable(_)
+                        | SemanticKey::Function(_)
+                        | SemanticKey::Type(_)
+                        | SemanticKey::EnumVariant { .. }
+                        | SemanticKey::FormAttribute { .. }
+                )
+        })
+        .map(|occurrence| LocaleGlobalOccurrence {
+            source,
+            occurrence: occurrence.clone(),
+        })
+        .collect()
 }
 
 fn collect_locale_names(declaration: &LocaleDeclaration, names: &mut LocaleNames) {
@@ -567,8 +646,9 @@ fn push(output: &mut Vec<SemanticOccurrence>, key: SemanticKey, span: Span, decl
 
 #[cfg(test)]
 mod tests {
-    use super::is_builtin_type;
+    use super::{is_builtin_type, locale_navigation, SemanticKey};
     use linguini_core::TypeKind;
+    use linguini_syntax::{parse_locale_with_recovery_in, SourceId};
 
     #[test]
     fn builtin_type_filter_tracks_the_shared_primitive_registry() {
@@ -576,5 +656,64 @@ mod tests {
             assert!(is_builtin_type(kind.as_str()));
         }
         assert!(!is_builtin_type("UserType"));
+    }
+
+    #[test]
+    fn contextual_navigation_borrows_effective_globals_without_importing_bodies() {
+        let parse = |id, text| {
+            let parsed = parse_locale_with_recovery_in(text, SourceId(id));
+            assert!(parsed.errors.is_empty(), "{:?}", parsed.errors);
+            parsed.ast.unwrap()
+        };
+        let base = parse(1, "let suffix = BASE\nlet pair = VALUE\nfn pair(count: Number) { _ => {count} }\nfn hidden(count: Number) { _ => BASE }\nenum Tone { formal }\nmessage = BASE\n");
+        let parent = parse(
+            2,
+            "fn render(count: Number) { _ => {count}|{suffix} }\nenum Tone { casual }\n",
+        );
+        let current = parse(
+            3,
+            "hidden = LOCAL\nsummary = {render(count)}|{suffix}|{pair}|{pair(count)}\n",
+        );
+        let original = (base.clone(), parent.clone(), current.clone());
+        let navigation = locale_navigation(&current, &[&parent, &base]);
+        assert!(navigation
+            .occurrences
+            .iter()
+            .all(|item| item.span.source == SourceId(3)));
+        for (key, owner) in [
+            (SemanticKey::Variable("suffix".into()), &base),
+            (SemanticKey::Variable("pair".into()), &base),
+            (SemanticKey::Function("pair".into()), &base),
+            (SemanticKey::Function("render".into()), &parent),
+            (SemanticKey::Type("Tone".into()), &parent),
+        ] {
+            let global = navigation
+                .globals
+                .iter()
+                .find(|global| global.occurrence.key == key)
+                .unwrap();
+            assert!(std::ptr::eq(global.source, owner));
+            if !matches!(key, SemanticKey::Type(_)) {
+                assert!(navigation
+                    .occurrences
+                    .iter()
+                    .any(|item| !item.declaration && item.key == key));
+            }
+        }
+        assert!(!navigation
+            .globals
+            .iter()
+            .any(|global| matches!(&global.occurrence.key,
+            SemanticKey::Function(name) if name == "hidden")));
+        assert!(!navigation
+            .globals
+            .iter()
+            .any(|global| matches!(&global.occurrence.key,
+            SemanticKey::EnumVariant { variant, .. } if variant == "formal")));
+        assert!(
+            !navigation.occurrences.iter().any(|item| matches!(&item.key,
+            SemanticKey::Message(name) if name == "message"))
+        );
+        assert_eq!((base, parent, current), original);
     }
 }

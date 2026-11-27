@@ -31,8 +31,18 @@ unsaved fallback edits, closing a buffer, and configuration changes. Missing-tra
 warnings still describe the current locale. The built Node and browser WASM workers share this
 behavior. No extension configuration changes are required. Custom Rust hosts can attach an
 ordered chain with `LinguiniDocument::with_locale_fallbacks`; standalone documents infer no
-implicit base, and ambiguous same-namespace fallback sources are excluded. Fallback-aware
-navigation is separate from this diagnostic context change.
+implicit base, and ambiguous same-namespace fallback sources are excluded.
+
+Definitions, references, and rename now follow inherited variable/function and locale enum type
+ownership through that chain. References from consumers of the same declaration participate
+together; nearer overrides and unrelated locales/namespaces retain their own identities. Existing
+single-source APIs remain available, and no project or extension configuration change is required.
+Rust tools can reuse `inherited_locale_globals` and `locale_navigation` for borrowed effective
+globals and current-source occurrences without combining source roots or relying on unique
+numeric source IDs. The LSP refuses a rename when an inherited body would acquire a different
+binding in another locale. This uses the existing invalid-rename protocol error and leaves all
+files untouched; ordinary unambiguous inherited renames remain available. Navigation for typed
+form properties remains separate.
 
 ## Forwarding classified plural values
 

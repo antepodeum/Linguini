@@ -4,10 +4,24 @@ use crate::NamedSpan;
 use linguini_syntax::{LocaleDeclaration, LocaleFile};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub(super) fn inherited_globals<'a>(
+/// A borrowed fallback declaration together with its original source root.
+#[derive(Debug, Clone, Copy)]
+pub struct InheritedLocaleGlobal<'a> {
+    /// Source that owns the selected whole declaration.
+    pub source: &'a LocaleFile,
+    /// Selected enum, form, variable, or function, preserving override wrappers and spans.
+    pub declaration: &'a LocaleDeclaration,
+}
+
+/// Select inherited globals in highest-to-lowest fallback priority.
+///
+/// Every declaration in a nearer source claims its name, including messages and groups.
+/// Declarations from the same source claim names together, preserving value/call pairs.
+/// Source roots and translation coverage are never composed or modified.
+pub fn inherited_locale_globals<'a>(
     locale: &'a LocaleFile,
     fallbacks: &[&'a LocaleFile],
-) -> Vec<&'a LocaleDeclaration> {
+) -> Vec<InheritedLocaleGlobal<'a>> {
     let mut owned = locale
         .declarations()
         .iter()
@@ -17,7 +31,10 @@ pub(super) fn inherited_globals<'a>(
     for fallback in fallbacks {
         for declaration in fallback.declarations() {
             if !owned.contains(declaration_name(declaration)) && is_global(declaration) {
-                inherited.push(declaration);
+                inherited.push(InheritedLocaleGlobal {
+                    source: fallback,
+                    declaration,
+                });
             }
         }
         // Declarations from one source can share a name in value and call positions. Claim
