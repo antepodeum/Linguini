@@ -3,8 +3,7 @@
 mod week;
 
 use linguini_cldr::{
-    compiled_currency_formatting, compiled_date_formatting, compiled_number_formatting,
-    NumberPaddingPosition, NumberPattern,
+    compiled_date_formatting, compiled_number_formatting, NumberPaddingPosition, NumberPattern,
 };
 
 use super::formatter_helpers::{
@@ -40,52 +39,30 @@ pub(super) fn formatter_data_declaration(
         let name = super::formatters::formatter_binding(request);
         match request.formatter.kind {
             linguini_ir::IrFormatterKind::Number | linguini_ir::IrFormatterKind::Currency => {
-                let numbers = compiled_number_formatting(locale).expect("validated number locale");
-                let mut pattern = numbers.decimal_pattern;
-                if request.formatter.kind == linguini_ir::IrFormatterKind::Currency {
-                    let currency =
-                        compiled_currency_formatting(locale).expect("validated currency locale");
-                    let numbers = linguini_cldr::NumberFormatData {
-                        decimal_symbol: currency.decimal_symbol,
-                        group_symbol: currency.group_symbol,
-                        ..numbers
-                    };
-                    pattern = if request.argument("accounting") == Some("true") {
-                        currency
-                            .accounting_pattern
-                            .unwrap_or(currency.standard_pattern)
-                    } else {
-                        currency.standard_pattern
-                    };
-                    let code = request.argument("code").unwrap_or("USD");
-                    let symbol =
-                        Some(linguini_cldr::compiled_currency_symbol(locale, code).unwrap_or(code));
-                    let fraction = linguini_cldr::compiled_currency_fraction(code)
-                        .expect("validated currency code");
-                    pattern.positive.min_fraction_digits = fraction.digits;
-                    pattern.positive.max_fraction_digits = fraction.digits;
-                    // Supplemental increments are expressed at the currency fraction scale.
-                    let rounding = fraction.rounding.to_string();
-                    let plan = number_plan(
-                        &pattern,
-                        symbol,
-                        &numbers,
-                        Some(&rounding),
-                        &mut digit_bindings,
-                    );
-                    plans.push(plan.clone());
-                    output.push_str(&crate::templates::render(
-                        "formatters/number",
-                        context! { name, plan, exported => export_helpers },
-                    ));
+                let plan = if request.formatter.kind == linguini_ir::IrFormatterKind::Currency {
+                    let selected = linguini_codegen::NumberFormatPlan::currency(
+                        locale,
+                        request.argument("code").unwrap_or("USD"),
+                        request.argument("accounting") == Some("true"),
+                    )
+                    .expect("validated CLDR currency formatting plan");
+                    number_plan_context(&selected, &mut digit_bindings)
                 } else {
-                    let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
-                    plans.push(plan.clone());
-                    output.push_str(&crate::templates::render(
-                        "formatters/number",
-                        context! { name, plan, exported => export_helpers },
-                    ));
-                }
+                    let numbers =
+                        compiled_number_formatting(locale).expect("validated number locale");
+                    number_plan(
+                        &numbers.decimal_pattern,
+                        None,
+                        &numbers,
+                        None,
+                        &mut digit_bindings,
+                    )
+                };
+                plans.push(plan.clone());
+                output.push_str(&crate::templates::render(
+                    "formatters/number",
+                    context! { name, plan, exported => export_helpers },
+                ));
             }
             linguini_ir::IrFormatterKind::Date => {
                 let dates = compiled_date_formatting(locale).expect("validated date locale");
@@ -172,9 +149,16 @@ fn number_plan(
     rounding: Option<&str>,
     digit_bindings: &mut DigitBindings,
 ) -> minijinja::Value {
-    use minijinja::context;
     let plan = linguini_codegen::NumberFormatPlan::new(pattern, symbol, numbers, rounding)
         .expect("validated CLDR number formatting plan");
+    number_plan_context(&plan, digit_bindings)
+}
+
+fn number_plan_context(
+    plan: &linguini_codegen::NumberFormatPlan,
+    digit_bindings: &mut DigitBindings,
+) -> minijinja::Value {
+    use minijinja::context;
     let rounding = &plan.rounding;
     let grouping = plan.grouping;
     let scientific = plan.scientific.as_ref();

@@ -191,8 +191,12 @@ rounded fraction is empty; ordinary optional-fraction plans continue to omit it.
 pattern compiler derives this choice from trailing decimal syntax such as `0.`. Generated
 functions resolve it during template rendering, while native fraction previews use the same plan.
 Its nested affix/grouping/scientific models contain semantic values; target backends own helper
-names, identifier escaping, and template projection. Currency callers supply their resolved
-separators and fraction quantum. No ECMAScript syntax or template engine belongs to this plan.
+names, identifier escaping, and template projection. `NumberFormatPlan::currency(locale, code,
+accounting)` also resolves currency style, display symbol, separators, fraction precision, and
+rounding. It selects the complete pinned `alphaNextToNumber` alternative when the symbol's
+boundary facing the number is a Unicode letter. Selection happens before target rendering;
+no symbol classification or pattern selection runs in the generated formatter. No ECMAScript
+syntax or template engine belongs to this plan.
 
 Numeric pattern affixes use `NumberAffix::Literal`, `CurrencySymbol`, or `Parts`. Composite parts
 distinguish `NumberAffixPart::Literal` from `CurrencySymbol`; a literal `¤` stays literal even
@@ -502,7 +506,10 @@ surface. Current guarantees are:
   uses `.` decimals, independently of ordinary number formatting. Display symbols also come
   from pinned CLDR data during generation, so the output does not query host
   `Intl.NumberFormat`. The native preview
-  resolves symbols through that same pinned locale lookup. Decimal/currency previews consume
+  resolves symbols through that same pinned locale lookup. Letter-boundary alternatives are
+  selected as complete CLDR patterns, including their grouping and negative styles. For example,
+  English CHF formatting includes a non-breaking space after `CHF`, while USD keeps `$` adjacent
+  to the number. Decimal/currency previews consume
   the shared `NumberFormatPlan` for affixes, grouping thresholds, fraction precision, and
   rounding increments, including the effective supplemental currency override. Invalid or
   unsupported internal plan shapes fail explicitly. Currency display-name/plural forms and

@@ -33,10 +33,17 @@ until their semantics are implemented.
 Profile v8 added decimal-separator visibility in the shared numeric pattern metadata. A
 trailing decimal in the mantissa sets `decimal_separator_always`; quoted punctuation and optional
 fraction placeholders do not. The common number plan carries the choice into native previews
-and build-time template selection. All 3,438 pinned pattern parts use `false`; that addition
+and build-time template selection. Profile v8 sets all 3,438 pattern parts to `false`; that addition
 otherwise preserved the previous compiler artifact. Profile v9 adds typed affixes. Flattening
 all 6,876 affixes back to text reproduces the v8 artifact byte for byte; all other metadata is
 unchanged. Pinned literal fragments contain no currency marks, preserving existing substitutions.
+Profile v10 retains full standard/accounting `alphaNextToNumber` alternatives as optional static
+pattern references. Borrowing avoids enlarging copied locale records with two more complete
+patterns. `linguini-codegen/src/numbers/currency.rs` selects the whole pattern using Unicode
+16.0 General Category L at the symbol boundary facing the number, matching the pinned input
+profile. It owns style fallback, code normalization, symbol lookup, separators, precision, and
+rounding for both native previews and ECMAScript rendering. Classification tables remain in the
+compiler; application output contains only the selected numeric implementation and literals.
 
 The calendar profile covers Gregorian, Buddhist, ROC, and Japanese data: 3,060 locale/calendar
 pairs, contextual symbols, eras, skeletons, day periods, week rules, and GMT formats. Equal

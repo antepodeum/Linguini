@@ -36,3 +36,39 @@ fn numeric_previews_replace_only_compiled_currency_slots() {
         }
     }
 }
+
+#[test]
+fn currency_previews_use_the_complete_pinned_letter_boundary_pattern() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/codegen/currency-boundaries.json"
+    )))
+    .unwrap();
+    let schema = linguini_ir::IrModule::default();
+    for case in cases.as_array().unwrap() {
+        let renderer = Renderer::new(&schema, &schema, case["locale"].as_str().unwrap());
+        let arguments = [
+            IrFormatterArgument {
+                name: "code".into(),
+                value: case["code"].as_str().unwrap().to_owned(),
+            },
+            IrFormatterArgument {
+                name: "accounting".into(),
+                value: case["accounting"].to_string(),
+            },
+        ];
+        let input = case["input"].as_str().unwrap();
+        assert_eq!(
+            renderer.format_currency(input, &arguments).unwrap(),
+            case["positive"].as_str().unwrap(),
+            "{case}"
+        );
+        assert_eq!(
+            renderer
+                .format_currency(&format!("-{input}"), &arguments)
+                .unwrap(),
+            case["negative"].as_str().unwrap(),
+            "{case}"
+        );
+    }
+}

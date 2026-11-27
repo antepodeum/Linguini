@@ -12,7 +12,9 @@ mod weeks;
 
 use super::super::formatters::{formatter_binding, FormatterRequest};
 use super::*;
-use linguini_cldr::{NumberAffix, NumberFormatData, NumberPadding, NumberPatternPart};
+use linguini_cldr::{
+    compiled_currency_formatting, NumberAffix, NumberFormatData, NumberPadding, NumberPatternPart,
+};
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFormatterKind};
 
 fn date_parts(
@@ -605,7 +607,7 @@ fn currency_increment_is_specialized_before_runtime_execution() {
 #[test]
 fn known_fraction_presence_removes_branches_without_changing_optional_or_significant_output() {
     let mut digit_bindings = DigitBindings::default();
-    for (code, expected) in [("USD", "$1.23"), ("JPY", "¥1"), ("KWD", "KWD1.235")] {
+    for (code, expected) in [("USD", "$1.23"), ("JPY", "¥1"), ("KWD", "KWD\u{a0}1.235")] {
         let formatter = request(IrFormatterKind::Currency, &[("code", code)]);
         let binding = formatter_binding(&formatter);
         let emitted = formatter_data_declaration("en", &[formatter], false);
@@ -968,7 +970,7 @@ fn generated_javascript_formatters_execute_pinned_locale_corpus() {
     let cases = [
         (
             "en",
-            "[\"1,234,567.89\",\"ZZZ1,234,567.89\",\"1/2/24, 1:04\u{202f}PM\"]",
+            "[\"1,234,567.89\",\"ZZZ\u{a0}1,234,567.89\",\"1/2/24, 1:04\u{202f}PM\"]",
         ),
         (
             "ru",
@@ -980,7 +982,7 @@ fn generated_javascript_formatters_execute_pinned_locale_corpus() {
         ),
         (
             "hi",
-            "[\"12,34,567.89\",\"ZZZ12,34,567.89\",\"2/1/24, 1:04 pm\"]",
+            "[\"12,34,567.89\",\"ZZZ\u{a0}12,34,567.89\",\"2/1/24, 1:04 pm\"]",
         ),
     ];
     for (locale, expected) in cases {

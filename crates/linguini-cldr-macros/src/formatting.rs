@@ -229,13 +229,12 @@ fn currency_arm(locale: &str, currency: CurrencyData) -> TokenStream {
     let decimal_symbol = currency.decimal_symbol;
     let group_symbol = currency.group_symbol;
     let standard_pattern = number_pattern_tokens(&currency.standard_pattern);
-    let accounting_pattern = currency.accounting_pattern.as_ref().map_or_else(
-        || quote! { None },
-        |pattern| {
-            let pattern = number_pattern_tokens(pattern);
-            quote! { Some(#pattern) }
-        },
-    );
+    let accounting_pattern =
+        optional_number_pattern_tokens(currency.accounting_pattern.as_ref(), false);
+    let standard_alpha_next_to_number =
+        optional_number_pattern_tokens(currency.standard_alpha_next_to_number.as_ref(), true);
+    let accounting_alpha_next_to_number =
+        optional_number_pattern_tokens(currency.accounting_alpha_next_to_number.as_ref(), true);
     quote! {
         #locale => Some(CurrencyFormatData {
             locale: #locale,
@@ -243,8 +242,28 @@ fn currency_arm(locale: &str, currency: CurrencyData) -> TokenStream {
             group_symbol: #group_symbol,
             standard_pattern: #standard_pattern,
             accounting_pattern: #accounting_pattern,
+            standard_alpha_next_to_number: #standard_alpha_next_to_number,
+            accounting_alpha_next_to_number: #accounting_alpha_next_to_number,
         }),
     }
+}
+
+fn optional_number_pattern_tokens(
+    pattern: Option<&NumberPattern>,
+    by_reference: bool,
+) -> TokenStream {
+    pattern.map_or_else(
+        || quote! { None },
+        |pattern| {
+            let pattern = number_pattern_tokens(pattern);
+            let pattern = if by_reference {
+                quote! { &#pattern }
+            } else {
+                pattern
+            };
+            quote! { Some(#pattern) }
+        },
+    )
 }
 
 fn date_arm(locale: &str, dates: DateData, digits: &str) -> TokenStream {
@@ -284,6 +303,8 @@ struct CurrencyData {
     group_symbol: String,
     standard_pattern: NumberPattern,
     accounting_pattern: Option<NumberPattern>,
+    standard_alpha_next_to_number: Option<NumberPattern>,
+    accounting_alpha_next_to_number: Option<NumberPattern>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -414,15 +435,20 @@ fn extract_currency(value: &Value, locale: &str) -> Result<CurrencyData, String>
         "numbers",
     )?;
     let affix_symbols = NumberAffixSymbols::extract(symbols)?;
-    let accounting_pattern = currency_formats
-        .get("accounting")
-        .map(|value| {
-            let pattern = value
-                .as_str()
-                .ok_or_else(|| "currency formats.accounting is not a string".to_owned())?;
-            parse_number_pattern(pattern, &affix_symbols)
-        })
-        .transpose()?;
+    let optional_pattern = |key: &str| {
+        currency_formats
+            .get(key)
+            .map(|value| {
+                let pattern = value
+                    .as_str()
+                    .ok_or_else(|| format!("currency formats.{key} is not a string"))?;
+                parse_number_pattern(pattern, &affix_symbols)
+            })
+            .transpose()
+    };
+    let accounting_pattern = optional_pattern("accounting")?;
+    let standard_alpha_next_to_number = optional_pattern("standard-alphaNextToNumber")?;
+    let accounting_alpha_next_to_number = optional_pattern("accounting-alphaNextToNumber")?;
     Ok(CurrencyData {
         decimal_symbol: string_field(
             symbols,
@@ -444,6 +470,8 @@ fn extract_currency(value: &Value, locale: &str) -> Result<CurrencyData, String>
         )?,
         standard_pattern: parse_number_pattern(&standard, &affix_symbols)?,
         accounting_pattern,
+        standard_alpha_next_to_number,
+        accounting_alpha_next_to_number,
     })
 }
 
@@ -1320,6 +1348,44 @@ mod tests {
         let ordinary = super::extract_currency(&input, "en").unwrap();
         assert_eq!(ordinary.decimal_symbol, ".");
         assert_eq!(ordinary.group_symbol, ",");
+        assert!(ordinary.standard_alpha_next_to_number.is_none());
+        assert!(ordinary.accounting_alpha_next_to_number.is_none());
+        input["main"]["en"]["numbers"]["currencyFormats-numberSystem-latn"]
+            ["standard-alphaNextToNumber"] = json!("¤ #,##0.00");
+        input["main"]["en"]["numbers"]["currencyFormats-numberSystem-latn"]
+            ["accounting-alphaNextToNumber"] = json!("¤ #,##0.00;(¤ #,##0.00)");
+        let variants = super::extract_currency(&input, "en").unwrap();
+        assert_eq!(
+            variants
+                .standard_alpha_next_to_number
+                .unwrap()
+                .positive
+                .prefix,
+            vec![
+                linguini_cldr::NumberAffixPart::CurrencySymbol,
+                linguini_cldr::NumberAffixPart::Literal(" ".to_owned())
+            ]
+        );
+        assert!(variants
+            .accounting_alpha_next_to_number
+            .unwrap()
+            .negative
+            .is_some());
+        for key in ["standard-alphaNextToNumber", "accounting-alphaNextToNumber"] {
+            for invalid in [
+                json!(null),
+                json!(1),
+                json!(false),
+                json!([]),
+                json!({}),
+                json!("¤0..0"),
+            ] {
+                let mut malformed = input.clone();
+                malformed["main"]["en"]["numbers"]["currencyFormats-numberSystem-latn"][key] =
+                    invalid;
+                assert!(super::extract_currency(&malformed, "en").is_err(), "{key}");
+            }
+        }
         input["main"]["en"]["numbers"]["symbols-numberSystem-latn"]["currencyDecimal"] = json!(":");
         input["main"]["en"]["numbers"]["symbols-numberSystem-latn"]["currencyGroup"] = json!(";");
         let currency = super::extract_currency(&input, "en").unwrap();

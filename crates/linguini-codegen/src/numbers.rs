@@ -4,6 +4,8 @@ use linguini_cldr::{NumberAffix, NumberAffixPart, NumberFormatData, NumberPaddin
 
 use crate::NumberRoundingPlan;
 
+mod currency;
+
 /// Literal affixes after currency replacement and implicit negative-sign expansion.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NumberAffixPlan {

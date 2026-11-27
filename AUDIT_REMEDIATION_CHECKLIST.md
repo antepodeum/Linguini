@@ -574,6 +574,17 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       and eight byte-identical native Vite 7/8 consumers verify the changed boundary.
       Compiler witnesses reject legacy string assignments and accept typed replacements;
       passing API-checker lints do not cover field-type changes.
+      Full `alphaNextToNumber` alternatives now compile into shared currency selection (GEN-A72).
+      Native previews and ECMAScript reuse style, symbol-boundary, separator, precision, and
+      rounding choices. A shared 32-pattern corpus matches 64 independent ICU 78.3 outcomes
+      using the selected pinned patterns, including symbol movement and changed negative styles.
+      Category L checks use the input profile's Unicode 16.0 and stay in the compiler. Sixteen
+      native Vite 7/8 consumers preserve number/date results and digit-callback counts; four
+      unaffected programs retain exact bytes. New optional static-reference fields require the
+      documented Rust struct-literal migration. All 71 local full-profile gates, Rust 1.87
+      native/WASM, strict JS 5.8/5.9, dependency policy, and offline reproducibility checks pass.
+      All 45 production locale payloads retain exact paths and bytes. Broader marker-width/
+      engineering work stays open.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.
@@ -1425,6 +1436,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       those two source breaks. Rust 1.87 native/WASM and strict JS 5.8/5.9/6 checks pass.
       Typed currency-affix provenance (GEN-A71) also passes all 71 local full-profile gates,
       including installed tsc, rebuilt editor/WASM, and production SSR/browser/graph checks.
+      Whole currency-pattern selection (GEN-A72) passes all 71 local full-profile gates too,
+      including installed tsc, rebuilt editor/WASM, and production SSR/browser/graph checks.
+      The 45 production locale payloads retain exact paths and bytes; Rust 1.87 native/WASM,
+      strict JS 5.8/5.9, dependency policy, and offline reproducibility pass separately.
       These local receipts leave the broader architecture and hosted platform gates open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
@@ -2394,6 +2409,9 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
   those skips are not a patch-compatibility claim. GEN-A71 changes prefix/suffix field types;
   the checker passes 223 lints per affected crate but does not cover type changes. Rust
   compiler witnesses verify the documented break and the typed migration.
+  GEN-A72 adds two optional reference fields to `CurrencyFormatData`. Forced patch checks against
+  `f4f92cf` identify precisely that struct-literal break, with 222 other CLDR and all 223
+  common-codegen checks passing. Migration notes document the new fields.
 - [x] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests. Local Linux
   receipts cover the full-profile npm/site/WASM checks, 80 adapter tests per major on `0143d99`,
   and fresh installed native/universal VSIX packages in native, explicit WASM, and empty-PATH

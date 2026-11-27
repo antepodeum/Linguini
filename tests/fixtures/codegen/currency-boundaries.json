@@ -1,0 +1,290 @@
+[
+  {
+    "locale": "en",
+    "code": "CHF",
+    "accounting": false,
+    "pattern": "¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "CHF 1,234,567.50",
+    "negative": "-CHF 1,234,567.50"
+  },
+  {
+    "locale": "en",
+    "code": "CHF",
+    "accounting": true,
+    "pattern": "¤ #,##0.00;(¤ #,##0.00)",
+    "input": "1234567.5",
+    "positive": "CHF 1,234,567.50",
+    "negative": "(CHF 1,234,567.50)"
+  },
+  {
+    "locale": "en",
+    "code": "USD",
+    "accounting": false,
+    "pattern": "¤#,##0.00",
+    "input": "1234567.5",
+    "positive": "$1,234,567.50",
+    "negative": "-$1,234,567.50"
+  },
+  {
+    "locale": "en",
+    "code": "USD",
+    "accounting": true,
+    "pattern": "¤#,##0.00;(¤#,##0.00)",
+    "input": "1234567.5",
+    "positive": "$1,234,567.50",
+    "negative": "($1,234,567.50)"
+  },
+  {
+    "locale": "en",
+    "code": "CNY",
+    "accounting": false,
+    "pattern": "¤#,##0.00",
+    "input": "1234567.5",
+    "positive": "CN¥1,234,567.50",
+    "negative": "-CN¥1,234,567.50"
+  },
+  {
+    "locale": "en",
+    "code": "CNY",
+    "accounting": true,
+    "pattern": "¤#,##0.00;(¤#,##0.00)",
+    "input": "1234567.5",
+    "positive": "CN¥1,234,567.50",
+    "negative": "(CN¥1,234,567.50)"
+  },
+  {
+    "locale": "agq",
+    "code": "USD",
+    "accounting": false,
+    "pattern": "¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "US$ 1 234 567,50",
+    "negative": "-US$ 1 234 567,50"
+  },
+  {
+    "locale": "agq",
+    "code": "USD",
+    "accounting": true,
+    "pattern": "¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "US$ 1 234 567,50",
+    "negative": "-US$ 1 234 567,50"
+  },
+  {
+    "locale": "ccp",
+    "code": "USD",
+    "accounting": false,
+    "pattern": "¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "US$ 𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽.𑄻𑄶",
+    "negative": "-US$ 𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽.𑄻𑄶"
+  },
+  {
+    "locale": "ccp",
+    "code": "USD",
+    "accounting": true,
+    "pattern": "¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "US$ 𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽.𑄻𑄶",
+    "negative": "-US$ 𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽.𑄻𑄶"
+  },
+  {
+    "locale": "bn",
+    "code": "USD",
+    "accounting": false,
+    "pattern": "#,##,##0.00 ¤",
+    "input": "1234567.5",
+    "positive": "১২,৩৪,৫৬৭.৫০ US$",
+    "negative": "-১২,৩৪,৫৬৭.৫০ US$"
+  },
+  {
+    "locale": "bn",
+    "code": "USD",
+    "accounting": true,
+    "pattern": "#,##,##0.00 ¤;(#,##,##0.00 ¤)",
+    "input": "1234567.5",
+    "positive": "১২,৩৪,৫৬৭.৫০ US$",
+    "negative": "(১২,৩৪,৫৬৭.৫০ US$)"
+  },
+  {
+    "locale": "fa",
+    "code": "CHF",
+    "accounting": false,
+    "pattern": "‎¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "‎CHF ۱٬۲۳۴٬۵۶۷٫۵۰",
+    "negative": "‎−‎CHF ۱٬۲۳۴٬۵۶۷٫۵۰"
+  },
+  {
+    "locale": "fa",
+    "code": "CHF",
+    "accounting": true,
+    "pattern": "‎¤ #,##0.00;‎(¤ #,##0.00)",
+    "input": "1234567.5",
+    "positive": "‎CHF ۱٬۲۳۴٬۵۶۷٫۵۰",
+    "negative": "‎(CHF ۱٬۲۳۴٬۵۶۷٫۵۰)"
+  },
+  {
+    "locale": "fa",
+    "code": "CNY",
+    "accounting": false,
+    "pattern": "‎¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "‎¥CN ۱٬۲۳۴٬۵۶۷٫۵۰",
+    "negative": "‎−‎¥CN ۱٬۲۳۴٬۵۶۷٫۵۰"
+  },
+  {
+    "locale": "fa",
+    "code": "CNY",
+    "accounting": true,
+    "pattern": "‎¤ #,##0.00;‎(¤ #,##0.00)",
+    "input": "1234567.5",
+    "positive": "‎¥CN ۱٬۲۳۴٬۵۶۷٫۵۰",
+    "negative": "‎(¥CN ۱٬۲۳۴٬۵۶۷٫۵۰)"
+  },
+  {
+    "locale": "ar-EG",
+    "code": "CHF",
+    "accounting": false,
+    "pattern": "‏#,##0.00 ¤",
+    "input": "1234567.5",
+    "positive": "‏١٬٢٣٤٬٥٦٧٫٥٠ CHF",
+    "negative": "؜-‏١٬٢٣٤٬٥٦٧٫٥٠ CHF"
+  },
+  {
+    "locale": "ar-EG",
+    "code": "CHF",
+    "accounting": true,
+    "pattern": "‏#,##0.00 ¤",
+    "input": "1234567.5",
+    "positive": "‏١٬٢٣٤٬٥٦٧٫٥٠ CHF",
+    "negative": "؜-‏١٬٢٣٤٬٥٦٧٫٥٠ CHF"
+  },
+  {
+    "locale": "de-CH",
+    "code": "CHF",
+    "accounting": false,
+    "pattern": "¤ #,##0.00;¤-#,##0.00",
+    "input": "1234567.5",
+    "positive": "CHF 1'234'567.50",
+    "negative": "CHF-1'234'567.50"
+  },
+  {
+    "locale": "de-CH",
+    "code": "CHF",
+    "accounting": true,
+    "pattern": "¤ #,##0.00;¤-#,##0.00",
+    "input": "1234567.5",
+    "positive": "CHF 1'234'567.50",
+    "negative": "CHF-1'234'567.50"
+  },
+  {
+    "locale": "es-CL",
+    "code": "CHF",
+    "accounting": false,
+    "pattern": "¤ #,##0.00;¤-#,##0.00",
+    "input": "1234567.5",
+    "positive": "CHF 1.234.567,50",
+    "negative": "CHF-1.234.567,50"
+  },
+  {
+    "locale": "es-CL",
+    "code": "CHF",
+    "accounting": true,
+    "pattern": "¤ #,##0.00;¤-#,##0.00",
+    "input": "1234567.5",
+    "positive": "CHF 1.234.567,50",
+    "negative": "CHF-1.234.567,50"
+  },
+  {
+    "locale": "es-CL",
+    "code": "USD",
+    "accounting": false,
+    "pattern": "¤#,##0.00;¤-#,##0.00",
+    "input": "1234567.5",
+    "positive": "US$1.234.567,50",
+    "negative": "US$-1.234.567,50"
+  },
+  {
+    "locale": "es-CL",
+    "code": "USD",
+    "accounting": true,
+    "pattern": "¤#,##0.00;¤-#,##0.00",
+    "input": "1234567.5",
+    "positive": "US$1.234.567,50",
+    "negative": "US$-1.234.567,50"
+  },
+  {
+    "locale": "km",
+    "code": "CHF",
+    "accounting": false,
+    "pattern": "#,##0.00 ¤",
+    "input": "1234567.5",
+    "positive": "1,234,567.50 CHF",
+    "negative": "-1,234,567.50 CHF"
+  },
+  {
+    "locale": "km",
+    "code": "CHF",
+    "accounting": true,
+    "pattern": "#,##0.00 ¤;(#,##0.00 ¤)",
+    "input": "1234567.5",
+    "positive": "1,234,567.50 CHF",
+    "negative": "(1,234,567.50 CHF)"
+  },
+  {
+    "locale": "km",
+    "code": "USD",
+    "accounting": false,
+    "pattern": "#,##0.00¤",
+    "input": "1234567.5",
+    "positive": "1,234,567.50$",
+    "negative": "-1,234,567.50$"
+  },
+  {
+    "locale": "km",
+    "code": "USD",
+    "accounting": true,
+    "pattern": "#,##0.00¤;(#,##0.00¤)",
+    "input": "1234567.5",
+    "positive": "1,234,567.50$",
+    "negative": "(1,234,567.50$)"
+  },
+  {
+    "locale": "ab",
+    "code": "CHF",
+    "accounting": false,
+    "pattern": "#,##0.00 ¤",
+    "input": "1234567.5",
+    "positive": "1,234,567.50 CHF",
+    "negative": "-1,234,567.50 CHF"
+  },
+  {
+    "locale": "ab",
+    "code": "CHF",
+    "accounting": true,
+    "pattern": "#,##0.00 ¤",
+    "input": "1234567.5",
+    "positive": "1,234,567.50 CHF",
+    "negative": "-1,234,567.50 CHF"
+  },
+  {
+    "locale": "bem",
+    "code": "CHF",
+    "accounting": false,
+    "pattern": "¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "CHF 1,234,567.50",
+    "negative": "-CHF 1,234,567.50"
+  },
+  {
+    "locale": "bem",
+    "code": "CHF",
+    "accounting": true,
+    "pattern": "¤ #,##0.00",
+    "input": "1234567.5",
+    "positive": "CHF 1,234,567.50",
+    "negative": "-CHF 1,234,567.50"
+  }
+]

@@ -73,6 +73,10 @@ pub struct CurrencyFormatData {
     pub group_symbol: &'static str,
     pub standard_pattern: NumberPattern,
     pub accounting_pattern: Option<NumberPattern>,
+    /// Full alternative selected when the currency boundary is a Unicode letter.
+    pub standard_alpha_next_to_number: Option<&'static NumberPattern>,
+    /// Accounting alternative; absence retains the selected base accounting pattern.
+    pub accounting_alpha_next_to_number: Option<&'static NumberPattern>,
 }
 
 /// CLDR supplemental currency fraction and rounding rules.

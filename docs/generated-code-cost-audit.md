@@ -701,5 +701,43 @@ assignments and accepts their typed replacements. All 71 local full-profile gate
 Wider currency display markers remain explicitly unsupported; this correction
 does not claim complete currency-pattern support or improved execution time or heap use.
 
+## Currency letter-boundary alternatives
+
+GEN-A72 selects full pinned `alphaNextToNumber` patterns in the shared Rust currency planner.
+Native previews and target rendering use the same style, symbol, boundary, separator, precision,
+and rounding choices. Unicode 16.0 classification stays in the compiler. The ECMAScript numeric
+template is unchanged: it receives the selected constants, without runtime classification,
+option objects, alternative-pattern tables, or CLDR parsing.
+
+A shared 32-pattern corpus retains the selected raw patterns and executes 64 positive/negative
+results against both native previews and generated formatters. Independent ICU 78.3 formatting
+uses those explicit pinned patterns and resolved symbols/precision. This verifies the numeric
+rendering without treating the host's legacy currency-spacing selection as the oracle for
+CLDR's full alternatives. The corpus includes alternatives that move the symbol, change grouping,
+or replace an explicit accounting negative pattern with implicit negation.
+
+Complete native consumers render ordinary numbers, USD, CHF, and dates in eight locales. Each
+Vite 7/8 entry emits one chunk with no static or dynamic imports. All 16 preserve ordinary
+number/date results and digit-callback sharing/counts. Minified/gzip/Brotli bytes:
+
+| Locale | Vite 7 before → after | Vite 8 before → after |
+| --- | --- | --- |
+| en | 3920/1586/1439 → 3924/1593/1444 | 3761/1528/1377 → 3769/1534/1382 |
+| agq | 3932/1628/1470 → 3940/1610/1452 | 3779/1544/1401 → 3795/1550/1398 |
+| ccp | 4383/1792/1589 → 4363/1798/1607 | 4224/1696/1502 → 4212/1734/1533 |
+| bn | 4205/1789/1574 → 4209/1793/1577 | 4046/1692/1488 → 4054/1696/1492 |
+| fa | 4171/1746/1547 → 4175/1751/1554 | 4012/1685/1492 → 4020/1690/1496 |
+| ar-EG | 4064/1669/1506 → 4064/1669/1506 | 3911/1582/1425 → 3911/1582/1425 |
+| de-CH | 3891/1546/1402 → 3891/1546/1402 | 3738/1486/1340 → 3738/1486/1340 |
+| km | 4062/1701/1500 → 4064/1705/1504 | 3903/1617/1422 → 3907/1621/1426 |
+
+The four unaffected ar-EG/de-CH programs retain exact bytes. Other consumers have corrected
+currency output; their size changes include required spacing and pattern placement/grouping.
+These are complete-consumer costs, without timing or heap-use claims. All previous metadata
+retains exact bytes after removing the new alternative fields. The Rust SDK's two added fields
+are a documented source break; the common planner's new currency entry point is additive.
+All 71 local full-profile gates, Rust 1.87 native/WASM, strict JS 5.8/5.9, and offline
+reproducibility checks pass. All 45 rebuilt production locale payloads retain exact paths and bytes.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

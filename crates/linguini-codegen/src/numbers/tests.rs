@@ -185,6 +185,14 @@ fn all_reachable_pinned_number_percent_and_currency_patterns_have_shared_plans()
                 "{locale}"
             );
         }
+        for code in ["USD", "CHF", "JPY"] {
+            for accounting in [false, true] {
+                assert!(
+                    NumberFormatPlan::currency(locale, code, accounting).is_some(),
+                    "{locale}/{code}/{accounting}"
+                );
+            }
+        }
         let currency = compiled_currency_formatting(locale).unwrap();
         let symbols = NumberFormatData {
             decimal_symbol: currency.decimal_symbol,
@@ -193,11 +201,14 @@ fn all_reachable_pinned_number_percent_and_currency_patterns_have_shared_plans()
         };
         let symbol = compiled_currency_symbol(locale, "USD").unwrap_or("USD");
         for pattern in [
-            currency.standard_pattern,
-            currency
-                .accounting_pattern
-                .unwrap_or(currency.standard_pattern),
-        ] {
+            Some(currency.standard_pattern),
+            currency.accounting_pattern,
+            currency.standard_alpha_next_to_number.copied(),
+            currency.accounting_alpha_next_to_number.copied(),
+        ]
+        .into_iter()
+        .flatten()
+        {
             assert!(
                 NumberFormatPlan::new(&pattern, Some(symbol), &symbols, Some("0")).is_some(),
                 "{locale}"

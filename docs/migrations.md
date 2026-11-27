@@ -42,6 +42,20 @@ only explicit slots. Native previews and generated formatters share the resolved
 Multi-character currency marker widths remain unsupported and fail during offline compilation
 instead of producing repeated symbols. JavaScript APIs and application configuration are unchanged.
 
+## Currency letter-boundary patterns
+
+Currency formatters and native previews now select CLDR's `alphaNextToNumber` variant when
+available and the symbol's end facing the number is a Unicode letter. English CHF/KWD/CLF
+output gains the required non-breaking space. Some pinned alternatives also change symbol
+placement, grouping, or accounting style; the complete alternative applies. Symbol selection
+and pattern lowering happen during compilation, with no extra generated runtime branch.
+
+Rust `CurrencyFormatData` struct literals must initialize `standard_alpha_next_to_number` and
+`accounting_alpha_next_to_number`, both `Option<&'static NumberPattern>`. Set them to `None`
+to preserve custom patterns without alternatives. Use `NumberFormatPlan::currency` to share
+style, symbol-boundary selection, separators, precision, and rounding with production output.
+This is a prerelease Rust source change; formatter arguments and JavaScript APIs are unchanged.
+
 ## Runtime link scheduling and cleanup
 
 Runtime link localization skips text additions and coalesces duplicate mutation records.

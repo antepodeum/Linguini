@@ -7,8 +7,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use linguini_cldr::{
-    built_in_plural_rules, compiled_currency_formatting, compiled_currency_fraction,
-    compiled_currency_symbol, compiled_number_formatting, NumberFormatData, NumberPattern, Operand,
+    built_in_plural_rules, compiled_number_formatting, NumberFormatData, NumberPattern, Operand,
     PluralRule, PluralRules, Range, Relation, RelationOperator,
 };
 use linguini_codegen::{NumberFormatPlan, NumberGroupingPlan};
@@ -623,41 +622,15 @@ impl<'a> Renderer<'a> {
     ) -> Result<String, RenderError> {
         let code = formatter_argument(arguments, "code").unwrap_or("USD");
         let accounting = formatter_argument(arguments, "accounting") == Some("true");
-        let (Some(numbers), Some(currency), Some(fraction)) = (
-            compiled_number_formatting(self.locale),
-            compiled_currency_formatting(self.locale),
-            compiled_currency_fraction(code),
-        ) else {
-            return Err(RenderError::Unsupported {
+        let plan = NumberFormatPlan::currency(self.locale, code, accounting).ok_or_else(|| {
+            RenderError::Unsupported {
                 detail: format!(
                     "missing required CLDR currency formatting or fraction data for preview locale `{}` and currency `{code}`",
                     self.locale
                 ),
-            });
-        };
-        let pattern = if accounting {
-            currency
-                .accounting_pattern
-                .as_ref()
-                .unwrap_or(&currency.standard_pattern)
-        } else {
-            &currency.standard_pattern
-        };
-        let normalized_code = code.to_ascii_uppercase();
-        let symbol =
-            compiled_currency_symbol(self.locale, &normalized_code).unwrap_or(&normalized_code);
-        let numbers = NumberFormatData {
-            decimal_symbol: currency.decimal_symbol,
-            group_symbol: currency.group_symbol,
-            ..numbers
-        };
-        format_number_pattern(
-            value,
-            pattern,
-            &numbers,
-            Some(symbol),
-            Some((fraction.digits, fraction.rounding)),
-        )
+            }
+        })?;
+        format_number_plan(value, &plan, self.locale)
     }
 
     fn format_date(
@@ -1158,6 +1131,14 @@ fn format_number_pattern(
         .ok_or_else(|| RenderError::Unsupported {
             detail: "invalid compiled numeric preview plan".to_owned(),
         })?;
+    format_number_plan(value, &plan, numbers.locale)
+}
+
+fn format_number_plan(
+    value: &str,
+    plan: &NumberFormatPlan,
+    locale: &str,
+) -> Result<String, RenderError> {
     if plan.scale != 1
         || plan.scientific.is_some()
         || plan.padding.is_some()
@@ -1212,7 +1193,7 @@ fn format_number_pattern(
         output.push_str(&formatted);
     } else {
         let digits = linguini_codegen::decimal_digit_symbols(plan.digits)
-            .ok_or_else(|| missing_cldr_data("numeric symbols", numbers.locale))?;
+            .ok_or_else(|| missing_cldr_data("numeric symbols", locale))?;
         append_localized_digits(&mut output, &formatted, &digits);
     }
     output.push_str(suffix);
@@ -1799,7 +1780,7 @@ sample2 = {value @currency(code = "USD", accounting = "true")}
         assert_eq!(numeric_part(format("1.23", "CHF")), "1.23");
 
         let numbers = compiled_number_formatting("en").expect("number data");
-        let currency = compiled_currency_formatting("en").expect("currency data");
+        let currency = linguini_cldr::compiled_currency_formatting("en").expect("currency data");
         let cash_rounded = format_number_pattern(
             "1.23",
             &currency.standard_pattern,

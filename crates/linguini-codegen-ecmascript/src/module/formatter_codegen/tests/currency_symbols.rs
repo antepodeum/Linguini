@@ -99,3 +99,52 @@ console.log('ok');
         assert!(!runtime.contains("currencyGroup"), "{locale}");
     }
 }
+
+#[test]
+fn currency_letter_boundaries_select_the_pinned_alternate_pattern() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/codegen/currency-boundaries.json"
+    )))
+    .unwrap();
+    for case in cases.as_array().unwrap() {
+        let code = case["code"].as_str().unwrap();
+        let accounting = if case["accounting"].as_bool().unwrap() {
+            "true"
+        } else {
+            "false"
+        };
+        let request = request(
+            IrFormatterKind::Currency,
+            &[("code", code), ("accounting", accounting)],
+        );
+        let name = formatter_binding(&request);
+        let runtime =
+            formatter_data_declaration(case["locale"].as_str().unwrap(), &[request], false);
+        for forbidden in [
+            "alphaNextToNumber",
+            "currencySpacing",
+            "GeneralCategory",
+            "NumberAffix",
+        ] {
+            assert!(!runtime.contains(forbidden), "{forbidden}: {case}");
+        }
+        let script = format!(
+            r#"{runtime}
+import assert from 'node:assert/strict';
+Intl.NumberFormat = class {{ constructor() {{ throw Error('host formatter'); }} }};
+const value = {input};
+assert.equal({name}(value), {positive});
+assert.equal({name}(Number(value)), {positive});
+assert.equal({name}('-' + value), {negative});
+assert.equal({name}(-Number(value)), {negative});
+assert.equal({name}(1234567n), {name}('1234567'));
+console.log('ok');
+"#,
+            input = case["input"],
+            positive = case["positive"],
+            negative = case["negative"]
+        );
+        assert_eq!(execute(&script), "ok", "{case}");
+    }
+}

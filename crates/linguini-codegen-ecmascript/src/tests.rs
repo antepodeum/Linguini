@@ -1628,14 +1628,14 @@ uf = {value @currency(code = \"CLF\")}\n",
             &files,
             r#"const { yen, dinar, uf } = await import('./locales/en.js'); console.log(JSON.stringify([yen('1234.56789'),dinar('1234.56789'),uf('1234.56789')]));"#
         ),
-        r#"["¥1,235","KWD1,234.568","CLF1,234.5679"]"#
+        r#"["¥1,235","KWD 1,234.568","CLF 1,234.5679"]"#
     );
     assert_eq!(
         execute_project(
             &files,
             r#"const { dollar, yen, lowercase, dinar, uf } = await import('./locales/en.js'); console.log(JSON.stringify([dollar('1.005'),yen('1.25'),lowercase('1.25'),dinar('1.2345'),uf('1.23456')]));"#
         ),
-        r#"["$1.01","¥1","¥1","KWD1.235","CLF1.2346"]"#
+        r#"["$1.01","¥1","¥1","KWD 1.235","CLF 1.2346"]"#
     );
 }
 
