@@ -90,3 +90,32 @@ fn all_source_selectable_pinned_gregorian_skeletons_resolve_their_symbol_plans()
         "insufficient pinned skeleton coverage: {checked}"
     );
 }
+
+#[test]
+fn literal_choices_factor_only_text_and_preserve_digit_and_field_semantics() {
+    let calendar = linguini_cldr::compiled_calendar_formatting("ar-EG", "gregory").unwrap();
+    let patterns = ["w 'week' Y", "w 'week1' Y"]
+        .map(|pattern| DatePatternPlan::for_week("ar-EG", pattern, &calendar).unwrap());
+    let choice = DateLiteralChoice::for_patterns(&patterns).unwrap();
+    assert_eq!(choice.prefix.len(), 1);
+    assert_eq!(choice.suffix.len(), 1);
+    assert_eq!(choice.values, [" week ", " week1 "]);
+    assert!(!choice.can_localize_whole_result);
+    for (pattern, text) in patterns.iter().zip(&choice.values) {
+        let mut restored = choice.prefix.clone();
+        restored.push(DateFormatPart::Literal(text.clone()));
+        restored.extend(choice.suffix.clone());
+        assert_eq!(restored, pattern.parts);
+    }
+    assert!(DateLiteralChoice::for_patterns(&patterns[..1]).is_none());
+    assert!(DateLiteralChoice::for_patterns(&[patterns[0].clone(), patterns[0].clone()]).is_none());
+    let changed_field = DatePatternPlan::for_week("ar-EG", "Y 'week' w", &calendar).unwrap();
+    assert!(DateLiteralChoice::for_patterns(&[patterns[0].clone(), changed_field]).is_none());
+    let calendar = linguini_cldr::compiled_calendar_formatting("en", "gregory").unwrap();
+    let mut periods = [
+        DatePatternPlan::new("en", "B 'one'", &calendar).unwrap(),
+        DatePatternPlan::new("en", "B 'other'", &calendar).unwrap(),
+    ];
+    periods[1].periods.clear();
+    assert!(DateLiteralChoice::for_patterns(&periods).is_none());
+}

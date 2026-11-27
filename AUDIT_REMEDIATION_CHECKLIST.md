@@ -429,7 +429,15 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       and independent calendar-year/era fields. A full Gregorian cycle checks all 49 week-rule
       combinations; executed eight-locale coverage checks eight widths and BCE/CE boundaries.
       Impossible boundary branches and unused helpers/padding/sign bindings are omitted.
-      Closest-match skeletons, combined date/time synthesis, other calendars, and selectable
+      Canonical `yw` now compiles its week number and count-specific wording through shared
+      `WeekDatePlan`/`IntegerPluralPlan`, with no runtime CLDR interpreter. A full Gregorian
+      cycle proves every day under all 49 week conventions; raw-pattern execution covers 413
+      years and 17 locale tags, including all nine tags with different live wording. Native
+      preview comparisons cover 1,044 cases in three host zones, alongside public cold/warm,
+      ordinary/physical, schema-default/function, and preserved-output-on-error checks (GEN-A47).
+      Strict JS/TS 5.8/5.9/6, Node 20, Clippy, Rust 1.87, patch API, and complete Vite 7/8 consumers
+      pass; existing generated code/declaration/map snapshots remain unchanged. Month weeks,
+      closest-match skeletons, combined date/time synthesis, other calendars, and selectable
       non-UTC zones remain open.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [x] #160 — Share one plural grammar implementation across all targets. `linguini-cldr` owns the
@@ -1783,8 +1791,13 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Proven native integer suffixes also bypass parsing: executed spies observe zero String
       conversions and regex matches for safe integer counts. The measured complete Russian
       message grows by 22 Brotli bytes; local integer-call time changes from 0.409 to 0.071 µs.
-      String and mixed inputs retain output parity. These local results do not close repeated
-      normalization, selector-specific outcomes, or the broader page-delivery criteria.
+      String and mixed inputs retain output parity. Bounded week-format selectors now compile
+      only live wording outcomes from weeks 1–53, removing constant operands and redundant
+      modulo operations while preserving overlapping category order. Literal-only alternatives
+      share numeric field evaluation. Eight complete Vite 7/8 consumers execute in one chunk;
+      strict JS/TS and native previews cover the same compiled plan (GEN-A47). These receipts
+      do not close repeated normalization, general message-selector outcomes, or the broader
+      page-delivery criteria.
       Constant numeric plural decisions now bypass parsing for every finite native number and
       omit the unreachable native-number regex. Japanese/Chinese/Korean/Thai and a constant-one
       model retain coercion, category passthrough, compact syntax, invalid-input errors, and digit

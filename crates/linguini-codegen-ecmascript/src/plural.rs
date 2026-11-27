@@ -129,6 +129,34 @@ pub(crate) fn generate_plural_function_with_visibility(
 }
 
 fn relation_context(relation: &Relation, integer_tail_digits: Option<usize>) -> minijinja::Value {
+    predicate_context(
+        relation,
+        operand_name(relation.expression.operand),
+        operand_binding(relation.expression.operand, integer_tail_digits.is_some()),
+        modulo_name(
+            relation.expression.operand,
+            relation.expression.modulo,
+            integer_tail_digits,
+        ),
+        is_bigint(relation.expression.operand, integer_tail_digits),
+    )
+}
+
+pub(crate) fn integer_relation_context(
+    relation: &Relation,
+    binding: &str,
+    modulo_name: Option<String>,
+) -> minijinja::Value {
+    predicate_context(relation, "i", binding, modulo_name, false)
+}
+
+fn predicate_context(
+    relation: &Relation,
+    operand: &str,
+    binding: &str,
+    modulo_name: Option<String>,
+    bigint: bool,
+) -> minijinja::Value {
     let ranges = relation
         .ranges
         .ranges
@@ -138,10 +166,7 @@ fn relation_context(relation: &Relation, integer_tail_digits: Option<usize>) -> 
         })
         .collect::<Vec<_>>();
     context! {
-        operand => operand_name(relation.expression.operand),
-        binding => operand_binding(relation.expression.operand, integer_tail_digits.is_some()),
-        modulo_name => modulo_name(relation.expression.operand, relation.expression.modulo, integer_tail_digits),
-        bigint => is_bigint(relation.expression.operand, integer_tail_digits),
+        operand, binding, modulo_name, bigint,
         allow_fraction => matches!(relation.operator, RelationOperator::Within | RelationOperator::NotWithin),
         negated => matches!(relation.operator, RelationOperator::NotEqual | RelationOperator::NotIn | RelationOperator::NotWithin),
         ranges,

@@ -108,6 +108,13 @@ while diagnosing the current source. Each fallback source must also be checked i
 `linguini_ir::qualify_locale_module_in_context` qualifies one fresh source against its composed
 relative globals and schema, preserving the loader's guarded merge order and original source IDs.
 
+`linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` family. Its
+`IntegerPluralPlan` specializes ordered cardinal rules and projected results over the proven
+integer domain 1–53, preserving overlaps while merging equal outputs and removing unreachable
+patterns. `DateLiteralChoice` factors literal-only differences without changing field order or
+losing digit-localization proofs. Native previews and target templates share these models;
+request selection is available through `week_date_request_plan`.
+
 `linguini_codegen::NumberFormatPlan` resolves the selected number pattern's affixes, grouping
 thresholds, decimal scale, precision/rounding, scientific symbols/carry result, and padding.
 Its nested affix/grouping/scientific models contain semantic values; target backends own helper
@@ -438,7 +445,13 @@ surface. Current guarantees are:
   Week-based year `Y` follows the locale territory's first weekday and minimum days in the
   first week, including the pinned Scottish Gaelic `yMMM` pattern. It retains signed extended
   years, while `y` renders the year of era. `YY` keeps the last two absolute digits and the sign;
-  other widths set the minimum digit count. Week-number fields `w`/`W` remain unsupported.
+  other widths set the minimum digit count. `skeleton = "yw"` also compiles week-of-year
+  field `w` and its CLDR plural-dependent wording. For example, `2021-01-01` is week 53 of
+  2020 in `en-GB`, and week 1 of 2021 in `en`. The selected
+  [territory week conventions](https://www.unicode.org/reports/tr35/tr35-78/tr35-dates.html#Week_Elements)
+  and the reachable wording for weeks 1–53 are compiled into arithmetic and direct text choices;
+  generated code contains no CLDR pattern/category table or interpreter. Week-of-month `W`
+  remains under remediation.
   Selectable time zones, non-Gregorian calendars, closest-match skeletons, and synthesized
   date/time combinations remain under remediation. Native `generate` date samples include
   `YYYY-MM-DD` at UTC midnight, a zone-less noon, and a date-time with an explicit offset.

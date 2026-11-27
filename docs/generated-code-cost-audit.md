@@ -381,5 +381,36 @@ GEN-A11 and GEN-A10 findings. Repeated date getters cannot be blindly cached: th
 coercer returns a supplied `Date` object, so overridden getters can be observable. Raw input
 coercion and validation also remain necessary; they are not runtime parsing of CLDR patterns.
 
+## Compiled Gregorian week wording
+
+The canonical `yw` request resolves CLDR's count-specific patterns during generation. Its numeric
+week domain is 1–53, so fractional/compact operands and out-of-domain rules disappear. Equal
+wording merges, and only live patterns survive. Nine pinned locale tags require different live
+wording; the others reduce to one pattern. Calendar arithmetic runs directly in the selected
+formatter and shares its year rollover work, without an additional calendar helper call.
+
+Literal-only alternatives also share the numeric fields. A Maltese formatter has one conversion
+of the week and year around a direct wording choice. Factoring preserves field order and literal
+digits, and retains first-use modulo evaluation. The raw-pattern oracle covers 413 years and
+17 locale tags; supplied-Date getter counts and caller error identity remain covered. All twelve
+locale outputs used by strict consumers, including the nine nonconstant tags, pass checked JS
+and application TypeScript without `allowJs` on TypeScript 5.8.3, 5.9.3, and 6.0.3.
+
+Complete executed consumers, Node 24.13.1, minified / gzip / Brotli bytes:
+
+| Selected locale | Vite 7.3.3 | Vite 8.0.13 |
+| --- | ---: | ---: |
+| `en-GB` | 1,600 / 870 / 765 | 1,529 / 818 / 711 |
+| `fo` | 1,632 / 906 / 802 | 1,561 / 852 / 751 |
+| `ff-Adlm` | 1,651 / 939 / 809 | 1,585 / 890 / 768 |
+| `mt` | 1,617 / 888 / 782 | 1,551 / 842 / 735 |
+
+Every consumer contains one self-contained chunk. Compared with the initial internal calendar-
+helper prototype, inlining saves 10–25 Brotli bytes in the first three profiles. Factoring Maltese
+wording then saves 58 minified bytes and 3/2 Brotli bytes on Vite 7/8; the three constant-pattern
+profiles retain their sizes. These are output-size measurements, with no timing claim. General
+message-selector outcome specialization, month weeks, other calendars/zones, and exact composed-
+page delivery remain under remediation.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

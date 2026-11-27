@@ -1,5 +1,7 @@
 //! Locale formatter lowering and demand-selected runtime assembly.
 
+mod week;
+
 use linguini_cldr::{
     compiled_currency_formatting, compiled_date_formatting, compiled_number_formatting,
     NumberPaddingPosition, NumberPattern,
@@ -199,6 +201,10 @@ fn generated_date_request(
     exported: bool,
     shared_tables: &mut DateTables,
 ) -> (String, DateHelperRequirements) {
+    if request.argument("skeleton") == Some("yw") {
+        return week::generate(locale, dates, request, name, exported, shared_tables);
+    }
+
     let pattern = linguini_codegen::date_request_pattern(dates, request)
         .expect("validated CLDR date request");
     let pattern = date_parts(&pattern, dates, name, locale, shared_tables);
@@ -227,14 +233,24 @@ fn date_parts(
     requested_locale: &str,
     shared_tables: &mut DateTables,
 ) -> CompiledDatePattern {
-    use minijinja::context;
-    let mut helpers = DateHelperRequirements::default();
     let calendar = linguini_cldr::compiled_calendar_formatting(dates.locale, "gregory")
         .expect("validated locale has pinned Gregorian symbols");
-    let mut parts = Vec::new();
-    let mut tables = std::collections::BTreeMap::<String, Vec<&str>>::new();
     let plan = linguini_codegen::DatePatternPlan::new(requested_locale, pattern, &calendar)
         .expect("validated date pattern and symbols");
+    project_date_parts(&plan, dates, name, requested_locale, shared_tables)
+}
+
+fn project_date_parts(
+    plan: &linguini_codegen::DatePatternPlan,
+    dates: &linguini_cldr::DateFormatData,
+    name: &str,
+    requested_locale: &str,
+    shared_tables: &mut DateTables,
+) -> CompiledDatePattern {
+    use minijinja::context;
+    let mut helpers = DateHelperRequirements::default();
+    let mut parts = Vec::new();
+    let mut tables = std::collections::BTreeMap::<String, Vec<&str>>::new();
     let fields = &plan.fields;
     let mut has_periods = false;
     let mut exact_periods = false;
@@ -304,7 +320,7 @@ fn date_parts(
         }
         let numeric = matches!(
             character,
-            'y' | 'Y' | 'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' | 'S'
+            'y' | 'Y' | 'w' | 'd' | 'H' | 'h' | 'K' | 'k' | 'm' | 's' | 'S'
         ) || matches!(character, 'M' | 'L' | 'Q' | 'q') && width <= 2;
         helpers.padding |= character == 'S'
             || (numeric && width == 2)

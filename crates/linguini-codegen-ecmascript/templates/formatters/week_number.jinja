@@ -1,0 +1,13 @@
+  const leapYear = extendedYear % 4 === 0 && (extendedYear % 100 !== 0 || extendedYear % 400 === 0);
+  let weekAnchor = Math.floor((275 * month + 5) / 9) + date.getUTCDate(){% if anchor_offset %} + {{ anchor_offset }}{% endif %} - {% if weekday_shift %}((date.getUTCDay() + {{ weekday_shift }}) % 7){% else %}date.getUTCDay(){% endif %};
+  if (month > 1) weekAnchor -= leapYear ? 1 : 2;
+{% if week_year %}  let weekYear = extendedYear;
+{% endif %}{% if previous %}  if (weekAnchor < 1) {
+    const previousYear = extendedYear - 1;
+    weekAnchor += previousYear % 4 === 0 && (previousYear % 100 !== 0 || previousYear % 400 === 0) ? 366 : 365;
+{% if week_year %}    weekYear = previousYear;
+{% endif %}  }{% endif %}{% if next %}{{ " else " if previous else "  " }}if (weekAnchor > (leapYear ? 366 : 365)) {
+    weekAnchor -= leapYear ? 366 : 365;
+{% if week_year %}    weekYear = extendedYear + 1;
+{% endif %}  }{% endif %}
+  const weekNumber = Math.floor((weekAnchor - 1) / 7) + 1;

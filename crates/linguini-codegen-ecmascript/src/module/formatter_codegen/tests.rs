@@ -3,6 +3,7 @@ mod number_inputs;
 mod rounding;
 mod scientific;
 mod week_year;
+mod weeks;
 
 use super::super::formatters::{formatter_binding, FormatterRequest};
 use super::*;

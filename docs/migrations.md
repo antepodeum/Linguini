@@ -139,6 +139,19 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Gregorian year/week formatting
+
+Use `@date(skeleton = "yw")` for the pinned Gregorian year/week format. Generation now resolves
+its count-specific CLDR patterns, week number, week-based year, and locale wording during builds.
+No application category selection or runtime CLDR parser is needed. The request works in schema
+defaults, named functions, native previews, ordinary output, and physical message modules. Existing
+static date output, declarations, and source maps retain their snapshots. Week-of-month `W`,
+other calendars, closest-match skeletons, and selectable non-UTC zones remain open.
+
+Rust backends can consume `WeekDatePlan`, `IntegerPluralPlan`, and `DateLiteralChoice` from
+`linguini-codegen`; ECMAScript syntax stays in canonical templates. Public existing Rust types
+and error variants remain compatible. Regenerate output to use the new request.
+
 ## Native numeric Date previews
 
 Native `generate` now appends epoch-millisecond inputs `0` and `-1` to Date samples. Preview

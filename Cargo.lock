@@ -778,6 +778,7 @@ dependencies = [
  "linguini-ir",
  "linguini-syntax",
  "minijinja",
+ "serde_json",
 ]
 
 [[package]]

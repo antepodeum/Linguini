@@ -1,9 +1,11 @@
+{% from "plural_predicates" import predicate -%}
 {% macro field(part, clock) -%}
 {% if part.field == "y" %}{% if part.width == 2 %}padNumber(year % 100, 2){% elif part.width > 2 %}padNumber(year, {{ part.width }}){% else %}String(year){% endif %}
 {%- elif part.field == "Y" %}{% if part.width == 1 and clock.minus_sign == "-" %}String(weekYear){% else %}(weekYearSign + {% if part.width == 2 %}padNumber(weekYearMagnitude % 100, 2){% elif part.width > 2 %}padNumber(weekYearMagnitude, {{ part.width }}){% else %}String(weekYearMagnitude){% endif %}){% endif %}
 {%- elif part.field in ["M", "L"] %}{% if part.width >= 3 %}{{ part.table }}[{{ "month" if clock.week_year else "date.getUTCMonth()" }}]{% elif part.width == 2 %}padNumber({{ "month" if clock.week_year else "date.getUTCMonth()" }} + 1, 2){% else %}String({{ "month" if clock.week_year else "date.getUTCMonth()" }} + 1){% endif %}
 {%- elif part.field in ["Q", "q"] %}{% if part.width >= 3 %}{{ part.table }}[Math.floor({{ "month" if clock.week_year else "date.getUTCMonth()" }} / 3)]{% elif part.width == 2 %}padNumber(Math.floor({{ "month" if clock.week_year else "date.getUTCMonth()" }} / 3) + 1, 2){% else %}String(Math.floor({{ "month" if clock.week_year else "date.getUTCMonth()" }} / 3) + 1){% endif %}
 {%- elif part.field in ["E", "e", "c"] and part.table is not none %}{{ part.table }}[date.getUTCDay()]
+{%- elif part.field == "w" %}{% if part.width == 2 %}padNumber(weekNumber, 2){% else %}String(weekNumber){% endif %}
 {%- elif part.field == "d" %}{% if part.width == 2 %}padNumber(date.getUTCDate(), 2){% else %}String(date.getUTCDate()){% endif %}
 {%- elif part.field in ["H", "h", "K", "k", "m", "s"] %}{% if part.width == 2 %}padNumber({% else %}String({% endif %}{% if part.field == "H" %}{{ "hours" if clock.hours else "date.getUTCHours()" }}{% elif part.field == "h" %}{{ "hours" if clock.hours else "date.getUTCHours()" }} % 12 || 12{% elif part.field == "K" %}{{ "hours" if clock.hours else "date.getUTCHours()" }} % 12{% elif part.field == "k" %}{{ "hours" if clock.hours else "date.getUTCHours()" }} || 24{% elif part.field == "m" %}{{ "minutes" if clock.minutes else "date.getUTCMinutes()" }}{% else %}{{ "seconds" if clock.seconds else "date.getUTCSeconds()" }}{% endif %}{% if part.width == 2 %}, 2{% endif %})
 {%- elif part.field == "S" %}padNumber({{ "milliseconds" if clock.milliseconds else "date.getUTCMilliseconds()" }}, 3){% if part.width > 3 %}.padEnd({{ part.width }}, "0"){% endif %}{% if part.width != 3 %}.slice(0, {{ part.width }}){% endif %}
@@ -12,6 +14,12 @@
 {%- elif part.field == "G" %}({{ "extendedYear" if clock.year or clock.week_year else "date.getUTCFullYear()" }} > 0 ? {{ part.ad|js }} : {{ part.bc|js }})
 {%- else %}{{ unsupported_date_field }}{% endif %}
 {%- endmacro %}
+{% macro literal_choice(part) -%}
+(
+{% for branch in part.branches %}    {{ "  : " if not loop.first }}{% for condition in branch.conditions %}{% for relation in condition %}{{ predicate(relation, false, branch.conditions|length > 1 or condition|length > 1) }}{{ " && " if not loop.last }}{% else %}true{% endfor %}{{ " || " if not loop.last }}{% endfor %} ? {{ branch.value|js }}
+{% endfor %}      : {{ part.fallback|js }}
+  )
+{%- endmacro %}
 {% macro expression(parts, digits, clock) -%}
-{% for part in parts %}{% if part.kind == "literal" %}{{ part.value|js }}{% else %}{{ field(part, clock) }}{% if digits != "0123456789" and part.numeric %}.replace(/\d/g, localizeDigit){% endif %}{% endif %}{{ " + " if not loop.last }}{% else %}""{% endfor %}
+{% for part in parts %}{% if part.kind == "literal" %}{{ part.value|js }}{% elif part.kind == "choice" %}{{ literal_choice(part) }}{% else %}{{ field(part, clock) }}{% if digits != "0123456789" and part.numeric %}.replace(/\d/g, localizeDigit){% endif %}{% endif %}{{ " + " if not loop.last }}{% else %}""{% endfor %}
 {%- endmacro %}

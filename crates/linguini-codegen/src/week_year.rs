@@ -1,4 +1,4 @@
-//! Build-time Gregorian week-year boundaries from CLDR territory week conventions.
+//! Gregorian week-year and week-number arithmetic from CLDR territory conventions.
 
 use linguini_cldr::{compiled_week_data, WeekData};
 
@@ -34,6 +34,34 @@ impl GregorianWeekYearPlan {
         } else {
             0
         }
+    }
+
+    /// Gregorian week number (1–53) for validated fields, using the same convention as
+    /// [`Self::year_offset`]. Month and weekday are zero-based; day is one-based.
+    pub fn week_number(self, year: i32, month: u8, day: u8, weekday: u8) -> u8 {
+        let leap = |year: i64| year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+        let year = i64::from(year);
+        let ordinal = (275 * i32::from(month) + 5) / 9 + i32::from(day)
+            - if month > 1 {
+                if leap(year) {
+                    1
+                } else {
+                    2
+                }
+            } else {
+                0
+            };
+        let local_weekday = (u16::from(weekday) + u16::from(self.weekday_shift)) % 7;
+        let mut anchor = ordinal + i32::from(self.anchor_offset) - i32::from(local_weekday);
+        if anchor < 1 {
+            anchor += if leap(year - 1) { 366 } else { 365 };
+        } else {
+            let days = if leap(year) { 366 } else { 365 };
+            if anchor > days {
+                anchor -= days;
+            }
+        }
+        ((anchor - 1) / 7 + 1) as u8
     }
 
     pub fn for_week_data(week: WeekData) -> Option<Self> {
@@ -104,6 +132,89 @@ mod tests {
                             year
                         };
                         assert_eq!(actual, expected, "{year}/{ordinal}: {week:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn week_numbers_match_complete_week_rules_for_every_day_and_convention() {
+        let years = (1600..2000).chain([
+            -271_820,
+            -400,
+            -100,
+            -4,
+            -1,
+            0,
+            1,
+            4,
+            100,
+            400,
+            275_000,
+            i64::from(i32::MIN),
+            i64::from(i32::MAX),
+        ]);
+        for year in years {
+            let days = days_before_year(year + 1) - days_before_year(year);
+            let previous_days = days_before_year(year) - days_before_year(year - 1);
+            let january_weekday = (days_before_year(year) + 1).rem_euclid(7);
+            for first_day in 0..7 {
+                for min_days in 1..=7 {
+                    let week = WeekData {
+                        first_day,
+                        min_days,
+                    };
+                    let plan = GregorianWeekYearPlan::for_week_data(week).unwrap();
+                    let start = first_week_start(year, week);
+                    let previous_start = -previous_days + first_week_start(year - 1, week);
+                    let next_start = days + first_week_start(year + 1, week);
+                    let mut ordinal = 0;
+                    for (month, count) in [
+                        31,
+                        28 + (days - 365),
+                        31,
+                        30,
+                        31,
+                        30,
+                        31,
+                        31,
+                        30,
+                        31,
+                        30,
+                        31,
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        for day in 1..=count {
+                            ordinal += 1;
+                            let weekday = (january_weekday + ordinal - 1).rem_euclid(7);
+                            let (expected_year, first) = if ordinal < start {
+                                (year - 1, previous_start)
+                            } else if ordinal >= next_start {
+                                (year + 1, next_start)
+                            } else {
+                                (year, start)
+                            };
+                            let actual_year = year
+                                + i64::from(plan.year_offset(
+                                    month as u8,
+                                    day as u8,
+                                    weekday as u8,
+                                ));
+                            let number = plan.week_number(
+                                year as i32,
+                                month as u8,
+                                day as u8,
+                                weekday as u8,
+                            );
+                            assert_eq!(
+                                (actual_year, i64::from(number)),
+                                (expected_year, (ordinal - first) / 7 + 1),
+                                "{year}/{month}/{day}: {week:?}"
+                            );
+                        }
                     }
                 }
             }

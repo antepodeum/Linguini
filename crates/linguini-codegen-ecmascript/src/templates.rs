@@ -167,6 +167,18 @@ fn environment() -> &'static EcmaTemplateEngine {
                 include_str!("../templates/digit_helpers.jinja"),
             ),
             (
+                "formatters/date_body",
+                include_str!("../templates/formatters/date_body.jinja"),
+            ),
+            (
+                "formatters/week_date",
+                include_str!("../templates/formatters/week_date.jinja"),
+            ),
+            (
+                "formatters/week_number",
+                include_str!("../templates/formatters/week_number.jinja"),
+            ),
+            (
                 "week_year_helpers",
                 include_str!("../templates/week_year_helpers.jinja"),
             ),

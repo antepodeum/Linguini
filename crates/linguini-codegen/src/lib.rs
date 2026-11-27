@@ -14,6 +14,7 @@ mod dispatch;
 mod form_demand;
 mod formatters;
 mod inline;
+mod integer_plurals;
 mod locales;
 mod message_tree;
 mod numbers;
@@ -24,12 +25,15 @@ mod provenance;
 mod requirements;
 mod rounding;
 mod types;
+mod week_date;
 mod week_year;
 
 pub use date_pattern::{
     compile_date_pattern, date_request_pattern, DatePatternError, DatePatternPart,
 };
-pub use date_plan::{DateFieldPlan, DateFormatPart, DatePatternPlan, DatePlanError};
+pub use date_plan::{
+    DateFieldPlan, DateFormatPart, DateLiteralChoice, DatePatternPlan, DatePlanError,
+};
 pub use date_symbols::{date_field_symbols, DateFieldSymbols};
 pub use day_periods::{day_period_plan, DayPeriodPlan, DayPeriodSpan, ExactDayPeriod};
 pub use decision::{Decision, DecisionArm};
@@ -48,6 +52,7 @@ pub use requirements::{
     plural_required, FormatterRequirements, StringResultFacts,
 };
 pub use types::{expression_value_type, resolve_type_name, TypeModel};
+pub use week_date::{week_date_request_plan, WeekDatePlan};
 pub use week_year::GregorianWeekYearPlan;
 
 pub use formatters::{
@@ -55,6 +60,7 @@ pub use formatters::{
 };
 
 pub use inline::lower_inline_functions;
+pub use integer_plurals::{IntegerPluralBranch, IntegerPluralPlan};
 pub use locales::{compose_locale_modules, ProjectLocalePlan};
 pub use numbers::{NumberAffixPlan, NumberFormatPlan, NumberGroupingPlan, NumberScientificPlan};
 

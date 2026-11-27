@@ -76,13 +76,91 @@ pub struct DatePatternPlan {
     pub can_localize_whole_result: bool,
 }
 
+/// Shared field evaluation around one literal choice. Variants must differ only in text;
+/// fields keep their original order, and digit-localization proofs include every alternative.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DateLiteralChoice {
+    pub prefix: Vec<DateFormatPart>,
+    pub values: Vec<String>,
+    pub suffix: Vec<DateFormatPart>,
+    pub can_localize_whole_result: bool,
+}
+
+impl DateLiteralChoice {
+    pub fn for_patterns(patterns: &[DatePatternPlan]) -> Option<Self> {
+        let first = patterns.first()?;
+        if patterns.len() < 2
+            || patterns.iter().all(|pattern| pattern.parts == first.parts)
+            || patterns
+                .iter()
+                .any(|pattern| pattern.periods != first.periods)
+        {
+            return None;
+        }
+        let shortest = patterns.iter().map(|pattern| pattern.parts.len()).min()?;
+        let prefix = (0..shortest)
+            .take_while(|&index| {
+                patterns
+                    .iter()
+                    .all(|pattern| pattern.parts[index] == first.parts[index])
+            })
+            .count();
+        let suffix = (0..shortest - prefix)
+            .take_while(|&index| {
+                patterns.iter().all(|pattern| {
+                    pattern.parts[pattern.parts.len() - 1 - index]
+                        == first.parts[first.parts.len() - 1 - index]
+                })
+            })
+            .count();
+        let mut values = Vec::with_capacity(patterns.len());
+        for pattern in patterns {
+            let mut value = String::new();
+            for part in &pattern.parts[prefix..pattern.parts.len() - suffix] {
+                match part {
+                    DateFormatPart::Literal(text) => value.push_str(text),
+                    DateFormatPart::Field(_) => return None,
+                }
+            }
+            values.push(value);
+        }
+        Some(Self {
+            prefix: first.parts[..prefix].to_vec(),
+            values,
+            suffix: first.parts[first.parts.len() - suffix..].to_vec(),
+            can_localize_whole_result: patterns
+                .iter()
+                .all(|pattern| pattern.can_localize_whole_result),
+        })
+    }
+}
+
 impl DatePatternPlan {
     pub fn new(
         locale: &str,
         pattern: &str,
         calendar: &CalendarFormatData,
     ) -> Result<Self, DatePlanError> {
-        let parsed = compile_date_pattern(locale, pattern)?;
+        Self::from_parts(locale, compile_date_pattern(locale, pattern)?, calendar)
+    }
+
+    pub(crate) fn for_week(
+        locale: &str,
+        pattern: &str,
+        calendar: &CalendarFormatData,
+    ) -> Result<Self, DatePlanError> {
+        Self::from_parts(
+            locale,
+            crate::date_pattern::compile_week_pattern(locale, pattern)?,
+            calendar,
+        )
+    }
+
+    fn from_parts(
+        locale: &str,
+        parsed: Vec<DatePatternPart>,
+        calendar: &CalendarFormatData,
+    ) -> Result<Self, DatePlanError> {
         let mut parts = Vec::with_capacity(parsed.len());
         let mut periods = Vec::new();
         let mut fields = BTreeSet::new();

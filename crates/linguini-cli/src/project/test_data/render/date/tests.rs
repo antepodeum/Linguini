@@ -419,3 +419,63 @@ console.log(JSON.stringify(values.map(value=>{
         }
     }
 }
+
+#[test]
+fn native_year_week_previews_match_built_messages_across_week_outcomes() {
+    use super::super::{Renderer, SampleValue};
+    use linguini_ir::{lower_locale, lower_schema};
+    use linguini_syntax::{parse_locale, parse_schema};
+    use std::collections::BTreeMap;
+    let schema_source = "type WeekDate = Date @date(skeleton = \"yw\")\nsample0(value: WeekDate)\nsample1(value: Date)\n";
+    let source = concat!(
+        "fn Receipt(value: Date) { _ => {value @date(skeleton = \"yw\")} }\n",
+        "sample0 = {value}\nsample1 = {Receipt(value)}\n",
+    );
+    let schema = lower_schema(&parse_schema(schema_source).unwrap());
+    let module = lower_locale(&parse_locale(source).unwrap());
+    let locales = [
+        "en", "en-GB", "fo", "fa", "ar-EG", "ff-Adlm", "mt", "fil", "hy",
+    ];
+    let mut cases = Vec::new();
+    for locale in locales {
+        let renderer = Renderer::new(&schema, &module, locale);
+        for week in 0..54 {
+            let milliseconds = 1_577_836_800_000_i64 + week * 604_800_000;
+            for index in 0..2 {
+                let expected = renderer
+                    .render_message(
+                        &format!("sample{index}"),
+                        &BTreeMap::from([(
+                            "value".into(),
+                            SampleValue::Number(milliseconds.to_string()),
+                        )]),
+                    )
+                    .unwrap();
+                cases.push(serde_json::json!({"locale":locale,"index":index,"value":milliseconds,"expected":expected}));
+            }
+        }
+        for value in [
+            "0000-01-01",
+            "2021-01-01",
+            "2021-01-04",
+            "2020-12-31T23:00-03:00",
+        ] {
+            for index in 0..2 {
+                let expected = renderer
+                    .render_message(
+                        &format!("sample{index}"),
+                        &BTreeMap::from([("value".into(), SampleValue::String(value.into()))]),
+                    )
+                    .unwrap();
+                cases.push(serde_json::json!({"locale":locale,"index":index,"value":value,"expected":expected}));
+            }
+        }
+    }
+    super::super::parity::assert_generated_samples_in_time_zones(
+        schema_source,
+        source,
+        &locales,
+        &cases,
+        &["UTC", "America/Los_Angeles", "Asia/Kolkata"],
+    );
+}

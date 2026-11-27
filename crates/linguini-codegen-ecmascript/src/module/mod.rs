@@ -530,6 +530,12 @@ fn validate_formatter_data(
             })?;
         for request in linguini_codegen::formatter_requests(schema, locale) {
             if request.formatter.kind == linguini_ir::IrFormatterKind::Date {
+                if linguini_codegen::week_date_request_plan(locale_name, &request)
+                    .map_err(|error| date_plan_error(locale_name, "yw", error))?
+                    .is_some()
+                {
+                    continue;
+                }
                 let pattern =
                     linguini_codegen::date_request_pattern(&dates, &request).map_err(|error| {
                         EcmaCodegenError::InvalidDatePattern {
@@ -538,26 +544,31 @@ fn validate_formatter_data(
                             error,
                         }
                     })?;
-                linguini_codegen::DatePatternPlan::new(locale_name, &pattern, &calendar).map_err(
-                    |error| match error {
-                        linguini_codegen::DatePlanError::Pattern(error) => {
-                            EcmaCodegenError::InvalidDatePattern {
-                                locale: locale_name.to_owned(),
-                                pattern,
-                                error,
-                            }
-                        }
-                        linguini_codegen::DatePlanError::MissingFieldSymbols { .. } => {
-                            EcmaCodegenError::MissingDateFormatting {
-                                locale: locale_name.to_owned(),
-                            }
-                        }
-                    },
-                )?;
+                linguini_codegen::DatePatternPlan::new(locale_name, &pattern, &calendar)
+                    .map_err(|error| date_plan_error(locale_name, &pattern, error))?;
             }
         }
     }
     Ok(())
+}
+
+fn date_plan_error(
+    locale: &str,
+    pattern: &str,
+    error: linguini_codegen::DatePlanError,
+) -> EcmaCodegenError {
+    match error {
+        linguini_codegen::DatePlanError::Pattern(error) => EcmaCodegenError::InvalidDatePattern {
+            locale: locale.to_owned(),
+            pattern: pattern.to_owned(),
+            error,
+        },
+        linguini_codegen::DatePlanError::MissingFieldSymbols { .. } => {
+            EcmaCodegenError::MissingDateFormatting {
+                locale: locale.to_owned(),
+            }
+        }
+    }
 }
 
 fn validate_project_inputs(

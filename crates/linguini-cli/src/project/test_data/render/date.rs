@@ -51,11 +51,29 @@ fn format_date_input(
         kind: IrFormatterKind::Date,
         arguments: arguments.to_owned(),
     });
-    let pattern = date_request_pattern(&dates, &request).map_err(pattern_error)?;
-    let plan = DatePatternPlan::new(locale, &pattern, &calendar).map_err(pattern_error)?;
+    let week = linguini_codegen::week_date_request_plan(locale, &request).map_err(pattern_error)?;
+    let ordinary = if week.is_none() {
+        let pattern = date_request_pattern(&dates, &request).map_err(pattern_error)?;
+        Some(DatePatternPlan::new(locale, &pattern, &calendar).map_err(pattern_error)?)
+    } else {
+        None
+    };
     let date = match value {
         DateInput::Iso(value) => parse_date(value)?,
         DateInput::Timestamp(value) => input::parse_timestamp(value)?,
+    };
+    let week_number = week.as_ref().map(|plan| {
+        plan.week
+            .week_number(date.year, date.month - 1, date.day, date.weekday)
+    });
+    let plan = if let Some(week) = &week {
+        let index = *week
+            .selection
+            .result_for_integer(u64::from(week_number.expect("week date")))
+            .expect("Gregorian week is in 1–53");
+        &week.patterns[index]
+    } else {
+        ordinary.as_ref().expect("ordinary date plan")
     };
     let displayed_minutes = if plan.fields.contains(&'m') {
         date.minute
@@ -116,6 +134,7 @@ fn format_date_input(
                         }
                         text
                     }
+                    'w' => pad(week_number.expect("compiled week field"), width),
                     'M' | 'L' => pad(date.month, width),
                     'Q' | 'q' => pad((date.month - 1) / 3 + 1, width),
                     'd' => pad(date.day, width),
