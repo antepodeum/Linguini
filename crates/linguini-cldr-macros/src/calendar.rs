@@ -193,39 +193,6 @@ pub(crate) fn generate_supplemental_tables(source: &CldrSource) -> Result<TokenS
         }
         period_arms.push(quote! { #locale => Some(&[#(#items),*]), });
     }
-    let week = read_json(&source.supplemental_path("weekData"))?;
-    let week = &week["supplemental"]["weekData"];
-    let mut week_arms = Vec::new();
-    let territories = week["firstDay"]
-        .as_object()
-        .ok_or("missing firstDay")?
-        .keys()
-        .chain(week["minDays"].as_object().ok_or("missing minDays")?.keys())
-        .collect::<std::collections::BTreeSet<_>>();
-    for territory in territories {
-        let first = week["firstDay"]
-            .get(territory)
-            .unwrap_or(&week["firstDay"]["001"])
-            .as_str()
-            .ok_or("invalid firstDay")?;
-        let first = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
-            .iter()
-            .position(|day| *day == first)
-            .ok_or("invalid weekday")? as u8;
-        let min_days = week["minDays"]
-            .get(territory)
-            .unwrap_or(&week["minDays"]["001"])
-            .as_str()
-            .ok_or("invalid minDays")?
-            .parse::<u8>()
-            .map_err(|_| "invalid minDays")?;
-        if !(1..=7).contains(&min_days) {
-            return Err("minDays out of range".to_owned());
-        }
-        week_arms.push(
-            quote! { #territory => Some(WeekData { first_day: #first, min_days: #min_days }), },
-        );
-    }
     let eras = read_json(&source.supplemental_path("calendarData"))?;
     let eras = eras["supplemental"]["calendarData"]["japanese"]["eras"]
         .as_object()
@@ -268,7 +235,6 @@ pub(crate) fn generate_supplemental_tables(source: &CldrSource) -> Result<TokenS
     }
     Ok(quote! {
         fn generated_day_period_rules(locale: &str) -> Option<&'static [DayPeriodRule]> { match locale { #(#period_arms)* _ => None } }
-        fn generated_week_data(territory: &str) -> Option<WeekData> { match territory { #(#week_arms)* _ => None } }
         fn generated_japanese_era_starts() -> &'static [(u16, i32, u8, u8)] { &[#(#starts),*] }
         fn generated_time_zone_formatting(locale: &str) -> Option<TimeZoneFormatData> { match locale { #(#zones)* _ => None } }
     })

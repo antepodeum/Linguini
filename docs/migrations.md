@@ -242,7 +242,17 @@ minimum-days rule. Invalid keyword types are ignored; text in private use or oth
 cannot act as an override. Regenerate output to receive the corrected constants. Equivalent
 weekday preferences produce identical formatter code, with no runtime locale parsing or extra
 branches. Native previews and ordinary/physical generated modules use the same policy.
-Region/subdivision and calendar-specific week-preference overrides remain under remediation.
+Week preferences now also honor regular region overrides (`rg`), regular subdivisions (`sd`)
+and ISO week settings (`ca-iso8601`) for `Y`, `yw`, and `MMMMW`. For example,
+`en-US-u-rg-gbzzzz` and `en-u-sd-gbeng` use GB's Monday/four-day convention, while an explicit
+`en-US` region takes precedence over `sd-gbeng`. ISO weeks keep a four-day minimum even if
+`fw` or `rg` changes their first weekday. The shared canonicalizer now applies the 147 pinned
+subdivision aliases to `rg` and `sd`, including two-letter replacements suffixed with `zzzz`;
+`rg` also accepts regular subdivisions. Invalid canonical preference values are ignored.
+Obsolete subdivision IDs without replacement metadata remain unresolved. Unmatched
+likely regions now use the world week convention rather than the locale matcher's `und`
+fallback. Regenerate artifacts to receive the corrected constants; no configuration or runtime
+adapter changes are needed. Equivalent preferences retain identical formatter code.
 
 ## Constant week wording without cardinal records
 

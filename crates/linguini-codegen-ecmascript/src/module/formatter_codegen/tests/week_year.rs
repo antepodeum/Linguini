@@ -53,6 +53,9 @@ function reference(date, firstDay, minDays) {
         "gd",
         "gd-u-fw-sun",
         "en-GB-u-fw-sat",
+        "en-US-u-rg-gbzzzz",
+        "en-u-sd-gbeng",
+        "en-AU-u-ca-iso8601-rg-afzzzz",
     ] {
         let emitted = runtime(
             locale,

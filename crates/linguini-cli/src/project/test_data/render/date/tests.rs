@@ -476,6 +476,19 @@ fn assert_native_week_previews(skeleton: &str) {
         "sa",
         "en-GB-u-fw-sun",
         "gd-u-fw-sun",
+        "en-US-u-rg-gbzzzz",
+        "en-US-u-rg-aczzzz",
+        "en-u-sd-gbeng",
+        "en-US-u-sd-gbeng",
+        "en-u-sd-frxxx",
+        "en-US-u-ca-iso8601",
+        "en-AU-u-ca-iso8601-rg-afzzzz",
+        "en-u-ca-iso8601-fw-sun",
+        "en-u-rg-gbeng",
+        "en-u-rg-fi01",
+        "en-u-sd-fra",
+        "en-u-sd-cn11",
+        "en-u-ca-iso8601-rg-afbal",
     ];
     let mut cases = Vec::new();
     for locale in locales {

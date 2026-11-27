@@ -444,7 +444,20 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       host zones, and public ordinary/physical builds pass on Node 20. Equivalent preferences
       emit identical formatter bytes. Workspace Clippy, Rust 1.87 native/WASM, 223 patch API
       checks, strict JS/TS 5.8/5.9/6, documentation gates, and complete Vite 7/8 consumers pass.
-      Region/subdivision and calendar-specific week overrides remain open.
+      Regular `rg` region overrides, `sd` subdivisions, and ISO week preferences now resolve
+      at compilation too (GEN-A60). Pinned containment/alias data supplies 257 regular regions
+      and 5,027 regular subdivisions; `rg` accepts both region and subdivision overrides.
+      Shared canonicalization applies 147 pinned subdivision aliases before validity checks.
+      Unrecognized, grouping, and malformed preferences are ignored; obsolete subdivision IDs
+      without replacement metadata remain unresolved. First-day precedence and the ISO four-day
+      minimum are independent. Missing explicit territory rows and unmatched likely regions
+      use world rules. Both week families pass boundary execution and 3,456 native/generated
+      cases per family, executed in three host zones,
+      and cold/warm ordinary/physical builds on Node 20. Equivalent preferences retain identical
+      formatter bytes; existing application goldens stay unchanged. Clippy and Rust 1.87
+      native/WASM, 223 patch API checks per affected data crate, reproducible generation,
+      and all 71 full-profile gates pass. Closest matching, other calendars, and selectable
+      zones remain open.
       Canonical month-week `MMMMW` now uses the same finite family planner and direct arithmetic
       for the selected convention's reachable subset of 0–6 (GEN-A54). Week zero, week six,
       formatting/standalone month names, localized digits, and final-month ownership execute

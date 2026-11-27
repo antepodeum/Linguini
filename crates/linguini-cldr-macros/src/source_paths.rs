@@ -10,7 +10,7 @@ pub(crate) const SOURCE_REF: &str = "48.2.0";
 pub(crate) const SOURCE_COMMIT: &str = "bb334e8d6250c9363e957e131bf7e6d08ec72f91";
 pub(crate) const SOURCE_GIT_TREE: &str = "b297a9501ae136e59d006f0497204524a5478cc9";
 pub(crate) const SOURCE_TREE_SHA256: &str =
-    "ab1593dec96335c876237c976e80087a4d8631456b2b8fa2b65dd3a743ac17f8";
+    "1ec46e47a5bdebb45bf829d3349d765271c67680bf9816bd585438ed57750019";
 pub(crate) const CLDR_VERSION: &str = "48.2.0";
 pub(crate) const UNICODE_VERSION: &str = "16.0.0";
 pub(crate) const EXPECTED_LOCALE_COUNT: usize = 766;
@@ -108,7 +108,13 @@ impl CldrSource {
         input_files.push(plurals.clone());
         input_files.push(currency_data.clone());
         input_files.push(numbering_systems.clone());
-        for name in ["dayPeriods", "weekData", "calendarData"] {
+        for name in [
+            "dayPeriods",
+            "weekData",
+            "calendarData",
+            "territoryContainment",
+            "subdivisionContainment",
+        ] {
             input_files.push(checked_file(
                 &root,
                 &format!("cldr-json/cldr-core/supplemental/{name}.json"),

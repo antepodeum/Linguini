@@ -530,11 +530,23 @@ surface. Current guarantees are:
   When a locale has no cardinal record, equal compiled variants produce one unconditional
   pattern; differing wording or missing fallback data still fails generation. Explicit plural
   operations retain their existing cardinal-data requirement.
-  A valid Unicode `fw` keyword (`sun`, `mon`, `tue`, `wed`, `thu`, `fri`, or `sat`) overrides
-  the first weekday at compilation; the territory's minimum-days rule stays unchanged. Thus
-  `2021-01-03` is week 1 of 2021 in `en-GB-u-fw-sun`, versus week 53 of 2020 in `en-GB`.
-  Invalid `fw` types are ignored, and private-use/other extensions cannot supply the override.
-  Region/subdivision (`rg`/`sd`) and calendar-specific week-preference overrides remain open.
+  Week preferences follow the pinned CLDR 48
+  [first-day precedence](https://github.com/unicode-org/cldr/blob/release-48/docs/ldml/tr35-dates.md#first-day-overrides):
+  valid `fw`, valid `rg`, ISO calendar preference, explicit region, valid `sd`, likely region,
+  then the world default. A region override such as `en-US-u-rg-gbzzzz` uses GB's first weekday
+  and minimum days. A subdivision such as `en-u-sd-gbeng` supplies GB only when no explicit
+  region or valid region override exists. `rg` accepts a regular subdivision or a regular
+  region plus `zzzz`; `sd` requires a complete regular subdivision code. The shared canonicalizer
+  first applies the pinned subdivision aliases: `rg-fi01` becomes `rg-axzzzz`, and `sd-fra`
+  becomes `sd-frges`. Unrecognized values, grouping regions, and malformed types are ignored;
+  private use and other extensions cannot supply preferences. Obsolete subdivision IDs without
+  replacement metadata remain unresolved. Without a matching likely region, resolution uses
+  world rules.
+  `ca-iso8601` sets minimum days to four and defaults to Monday; valid `rg` or `fw` can
+  change that first weekday. `fw` accepts `sun`, `mon`, `tue`, `wed`, `thu`, `fri`, or `sat`
+  and preserves the effective minimum-days rule. Thus `2021-01-03` is week 1 of 2021 in
+  `en-GB-u-fw-sun`, versus week 53 of 2020 in `en-GB`. These preferences become constants
+  during compilation; generated JavaScript carries no validity tables or locale parser.
   Selectable time zones, non-Gregorian calendars, closest-match skeletons, and synthesized
   date/time combinations remain under remediation. Native `generate` date samples include
   `YYYY-MM-DD` at UTC midnight, a zone-less noon, and a date-time with an explicit offset.

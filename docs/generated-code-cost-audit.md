@@ -419,6 +419,14 @@ bytes and the 1,600/870/765 and 1,529/818/711 consumer sizes above; other weekda
 compiled arithmetic with their selected constants. This adds no runtime locale parser or
 preference dispatch, and makes no timing claim.
 
+Region (`rg`), subdivision (`sd`), and ISO week preferences likewise resolve before emission
+(GEN-A60). The two added validity lookups belong to the pinned Rust compiler data; generated
+JavaScript does not carry them. Executed `yw` and `MMMMW` tests compare formatter bytes for
+equivalent region, subdivision, ISO, and weekday preferences. All existing application goldens
+retain their bytes. Corrected conventions change selected arithmetic constants and reachable
+week outcomes without adding runtime preference parsing or dispatch. This is a correctness
+and structure check, with no new bundle-size or timing claim.
+
 A source enum or alias named `Record` previously broke the helper's utility-type annotation.
 Its anonymous index-signature replacement preserves public names and runtime statements.
 Actual before/after generated enum consumers execute in one self-contained chunk each and

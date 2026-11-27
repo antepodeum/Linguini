@@ -1,8 +1,8 @@
 {
   "artifact": {
-    "bytes": 16110038,
+    "bytes": 16173873,
     "path": "cldr_tables.rs",
-    "sha256": "1922d26db5a9368a454b0b2211d8ebfb463f498899427c21b8e547ec84cec500"
+    "sha256": "cbb0ba504ee3acfd658be09d87268feb6814d9ae0797d33d6f2967fff829a01b"
   },
   "coverage": {
     "calendar_locale_pairs": 3060,
@@ -34,7 +34,7 @@
       ]
     },
     "extension_key_aliases": 0,
-    "extension_type_aliases": 49,
+    "extension_type_aliases": 343,
     "language_aliases": 500,
     "likely_subtags": 7788,
     "locale_candidates": 8460,
@@ -44,8 +44,11 @@
     "parent_locales": 199,
     "plural_categories": 499,
     "plural_locales": 224,
+    "regular_week_regions": 257,
+    "regular_week_subdivisions": 5027,
     "script_aliases": 1,
     "source_locales": 766,
+    "subdivision_aliases": 147,
     "territory_aliases": 640,
     "text_direction_locales": 764,
     "variant_aliases": 2
@@ -55,11 +58,11 @@
     "name": "linguini-cldr-macros"
   },
   "inputs": {
-    "bytes": 153254674,
-    "file_count": 6160,
-    "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+zone-formats+layout-v5",
+    "bytes": 153382007,
+    "file_count": 6162,
+    "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+week-preference-validity+subdivision-aliases+zone-formats+layout-v6",
     "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
-    "tree_sha256": "ab1593dec96335c876237c976e80087a4d8631456b2b8fa2b65dd3a743ac17f8"
+    "tree_sha256": "1ec46e47a5bdebb45bf829d3349d765271c67680bf9816bd585438ed57750019"
   },
   "schema": 1,
   "source": {

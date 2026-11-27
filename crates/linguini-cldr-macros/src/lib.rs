@@ -9,6 +9,7 @@ mod locale;
 mod sha256;
 mod source;
 mod source_paths;
+mod week;
 
 use serde_json::json;
 use sha256::{digest, hex};
@@ -50,7 +51,7 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "license": "Unicode-3.0"
         },
         "inputs": {
-            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+zone-formats+layout-v5",
+            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+four-calendars+day-periods+week-data+week-preference-validity+subdivision-aliases+zone-formats+layout-v6",
             "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
             "tree_sha256": source.source_tree_sha256(),
             "file_count": source.input_file_count(),
@@ -63,6 +64,8 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
         },
         "coverage": {
             "source_locales": source.locales().len(),
+            "regular_week_regions": generated.week.regions,
+            "regular_week_subdivisions": generated.week.subdivisions,
             "plural_locales": generated.plural_locales,
             "plural_categories": generated.plural_categories,
             "language_aliases": generated.locale.language_aliases,
@@ -74,6 +77,7 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "likely_subtags": generated.locale.likely_subtags,
             "extension_key_aliases": generated.locale.extension_key_aliases,
             "extension_type_aliases": generated.locale.extension_type_aliases,
+            "subdivision_aliases": generated.locale.subdivision_aliases,
             "locale_candidates": generated.locale.locale_candidates,
             "number_locales": generated.formatting.number_locales,
             "numbering_systems": generated.formatting.numbering_systems,
@@ -135,9 +139,9 @@ mod tests {
     const CHECKED_MANIFEST: &[u8] =
         include_bytes!("../../linguini-cldr/src/data/generated/manifest.json");
     const GOLDEN_ARTIFACT_SHA256: &str =
-        "1922d26db5a9368a454b0b2211d8ebfb463f498899427c21b8e547ec84cec500";
+        "cbb0ba504ee3acfd658be09d87268feb6814d9ae0797d33d6f2967fff829a01b";
     const GOLDEN_MANIFEST_SHA256: &str =
-        "390eae944d804fd0834fcb0b0e22a0554b1ec3aa2185e0128c5bd82245184bed";
+        "3e66ad1fd26d2a4f1c2fb968d9262ee1b21693810543cd2af7a29e41f2760ec8";
 
     #[test]
     fn checked_artifact_matches_full_pinned_manifest_and_golden_hash() {
@@ -163,10 +167,12 @@ mod tests {
         );
         assert_eq!(
             manifest["inputs"]["tree_sha256"],
-            "ab1593dec96335c876237c976e80087a4d8631456b2b8fa2b65dd3a743ac17f8"
+            "1ec46e47a5bdebb45bf829d3349d765271c67680bf9816bd585438ed57750019"
         );
-        assert_eq!(manifest["inputs"]["file_count"], 6_160);
+        assert_eq!(manifest["inputs"]["file_count"], 6_162);
         assert_eq!(manifest["coverage"]["source_locales"], 766);
+        assert_eq!(manifest["coverage"]["regular_week_regions"], 257);
+        assert_eq!(manifest["coverage"]["regular_week_subdivisions"], 5_027);
         assert_eq!(manifest["coverage"]["language_aliases"], 500);
         assert_eq!(manifest["coverage"]["script_aliases"], 1);
         assert_eq!(manifest["coverage"]["territory_aliases"], 640);
@@ -175,7 +181,8 @@ mod tests {
         assert_eq!(manifest["coverage"]["locale_rules"], 1);
         assert_eq!(manifest["coverage"]["likely_subtags"], 7_788);
         assert_eq!(manifest["coverage"]["extension_key_aliases"], 0);
-        assert_eq!(manifest["coverage"]["extension_type_aliases"], 49);
+        assert_eq!(manifest["coverage"]["extension_type_aliases"], 343);
+        assert_eq!(manifest["coverage"]["subdivision_aliases"], 147);
         assert_eq!(manifest["coverage"]["locale_candidates"], 8_460);
         assert_eq!(manifest["coverage"]["plural_locales"], 224);
         assert_eq!(manifest["coverage"]["plural_categories"], 499);

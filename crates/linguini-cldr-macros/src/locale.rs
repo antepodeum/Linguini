@@ -19,6 +19,7 @@ pub(crate) struct LocaleCoverage {
     pub(crate) likely_subtags: usize,
     pub(crate) extension_key_aliases: usize,
     pub(crate) extension_type_aliases: usize,
+    pub(crate) subdivision_aliases: usize,
     pub(crate) locale_candidates: usize,
 }
 
@@ -69,7 +70,10 @@ pub(crate) fn generate_locale_tables(
         )?,
         likely_subtags_path,
     )?;
-    let (extension_key_aliases, extension_type_aliases) = extension_alias_entries(bcp47_path)?;
+    let (extension_key_aliases, mut extension_type_aliases) = extension_alias_entries(bcp47_path)?;
+    let subdivision_aliases = alias_entries(aliases, "subdivisionAlias", true, aliases_path)?;
+    extension_type_aliases.extend(subdivision_extension_aliases(&subdivision_aliases)?);
+    extension_type_aliases.sort();
     let locale_candidates = language_aliases
         .iter()
         .map(|(key, _)| key.clone())
@@ -107,6 +111,7 @@ pub(crate) fn generate_locale_tables(
         likely_subtags: likely_subtags.len(),
         extension_key_aliases: extension_key_aliases.len(),
         extension_type_aliases: extension_type_aliases.len(),
+        subdivision_aliases: subdivision_aliases.len(),
         locale_candidates: locale_candidates.len(),
     };
 
@@ -125,6 +130,37 @@ pub(crate) fn generate_locale_tables(
         },
         coverage,
     ))
+}
+
+fn subdivision_extension_aliases(
+    aliases: &[(String, String)],
+) -> Result<ExtensionTypeAliases, String> {
+    let mut types = Vec::new();
+    for (source, replacements) in aliases {
+        // LDML canonicalization chooses the first replacement of a split subdivision.
+        let replacement = replacements
+            .split_whitespace()
+            .next()
+            .ok_or_else(|| format!("empty subdivision alias {source}"))?;
+        let mut replacement = replacement.to_ascii_lowercase();
+        if replacement.len() == 2 {
+            replacement.push_str("zzzz");
+        }
+        if !(3..=8).contains(&replacement.len())
+            || !replacement
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        {
+            return Err(format!("invalid subdivision alias {source}: {replacement}"));
+        }
+        for key in ["rg", "sd"] {
+            types.push((
+                ("u".to_owned(), key.to_owned(), source.clone()),
+                replacement.clone(),
+            ));
+        }
+    }
+    Ok(types)
 }
 
 fn extension_alias_entries(

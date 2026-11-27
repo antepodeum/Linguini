@@ -18,11 +18,13 @@ pub(crate) struct GeneratedTables {
     pub(crate) plural_categories: usize,
     pub(crate) locale: LocaleCoverage,
     pub(crate) formatting: FormattingCoverage,
+    pub(crate) week: crate::week::WeekCoverage,
 }
 
 pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedTables, String> {
     let calendars = crate::calendar::generate_calendar_tables(source)?;
     let supplemental = crate::calendar::generate_supplemental_tables(source)?;
+    let (week_tables, week) = crate::week::generate_week_tables(source)?;
     let (locale_tables, locale) = generate_locale_tables(
         source.aliases(),
         source.parent_locales(),
@@ -53,11 +55,13 @@ pub(crate) fn generate_compiled_tables(source: &CldrSource) -> Result<GeneratedT
             #formatting_tables
             #calendars
             #supplemental
+            #week_tables
         },
         plural_locales,
         plural_categories,
         locale,
         formatting,
+        week,
     })
 }
 

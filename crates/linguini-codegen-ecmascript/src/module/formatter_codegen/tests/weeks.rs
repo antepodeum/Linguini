@@ -6,6 +6,20 @@ fn compiled_week_formats_match_raw_cldr_wording_and_calendar_boundaries() {
         "en", "en-GB", "ru", "ar-EG", "fa", "ff-Adlm", "gd", "ja", "sa",
     ]);
     locales.extend([
+        "en-US-u-rg-gbzzzz",
+        "en-GB-u-rg-uszzzz",
+        "en-US-u-rg-aczzzz",
+        "en-u-sd-gbeng",
+        "en-US-u-sd-gbeng",
+        "en-u-sd-frxxx",
+        "en-US-u-ca-iso8601",
+        "en-AU-u-ca-iso8601-rg-afzzzz",
+        "en-u-ca-iso8601-fw-sun",
+        "en-u-rg-gbeng",
+        "en-u-rg-fi01",
+        "en-u-sd-fra",
+        "en-u-sd-cn11",
+        "en-u-ca-iso8601-rg-afbal",
         "en-GB-u-fw-sun",
         "en-GB-u-fw-mon",
         "en-GB-u-fw-tue",
@@ -138,13 +152,23 @@ assert.throws(()=>formatDate_skeleton_yw(value),error=>error===failure);
 
 #[test]
 fn week_arithmetic_and_plural_work_follow_selected_requests() {
-    let requests = [request(IrFormatterKind::Date, &[("skeleton", "yw")])];
-    for (base, equivalent) in [("en", "en-u-fw-sun"), ("en-GB", "en-GB-u-fw-mon")] {
-        assert_eq!(
-            formatter_data_declaration(base, &requests, false),
-            formatter_data_declaration(equivalent, &requests, false),
-            "an equivalent weekday override must not add runtime overhead"
-        );
+    for (base, equivalent) in [
+        ("en", "en-u-fw-sun"),
+        ("en-GB", "en-GB-u-fw-mon"),
+        ("en-GB", "en-GB-u-rg-gbzzzz"),
+        ("en", "en-u-sd-usca"),
+        ("en-GB", "en-GB-u-ca-iso8601"),
+        ("en-GB", "en-GB-u-rg-fra"),
+        ("en-GB", "en-GB-u-rg-gbeng"),
+    ] {
+        for skeleton in ["yw", "MMMMW"] {
+            let requests = [request(IrFormatterKind::Date, &[("skeleton", skeleton)])];
+            assert_eq!(
+                formatter_data_declaration(base, &requests, false),
+                formatter_data_declaration(equivalent, &requests, false),
+                "an equivalent week preference must not add runtime overhead"
+            );
+        }
     }
     let ordinary = formatter_data_declaration("en", &[request(IrFormatterKind::Date, &[])], false);
     assert!(!ordinary.contains("weekAnchor"));

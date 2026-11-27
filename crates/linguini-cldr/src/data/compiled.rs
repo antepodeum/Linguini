@@ -155,7 +155,7 @@ pub fn compiled_day_period_rules(locale: &str) -> Option<&'static [DayPeriodRule
     )
 }
 
-/// Resolve territory week conventions, honoring a valid Unicode `fw` first-day override.
+/// Resolve CLDR week conventions with Unicode `fw`, `rg`, `sd`, and ISO calendar preferences.
 pub fn compiled_week_data(locale: &str) -> Option<WeekData> {
     crate::locale::resolve_week_data(locale, generated_week_data)
 }

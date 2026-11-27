@@ -30,6 +30,19 @@ fn assert_week_family(skeleton: &str) {
         "sa",
         "en-GB-u-fw-sun",
         "en-u-fw-mon",
+        "en-US-u-rg-gbzzzz",
+        "en-US-u-rg-aczzzz",
+        "en-u-sd-gbeng",
+        "en-US-u-sd-gbeng",
+        "en-u-sd-frxxx",
+        "en-US-u-ca-iso8601",
+        "en-AU-u-ca-iso8601-rg-afzzzz",
+        "en-u-ca-iso8601-fw-sun",
+        "en-u-rg-gbeng",
+        "en-u-rg-fi01",
+        "en-u-sd-fra",
+        "en-u-sd-cn11",
+        "en-u-ca-iso8601-rg-afbal",
     ];
     fs::create_dir_all(root.join("schema")).unwrap();
     fs::create_dir_all(root.join("locales/main")).unwrap();
@@ -66,12 +79,14 @@ fn assert_week_family(skeleton: &str) {
         paths.map(|path| fs::read(root.join(path)).unwrap()),
         baseline
     );
-    let script = format!("const skeleton = {skeleton:?};\n")
-        + r#"
+    let script = format!(
+        "const skeleton = {skeleton:?};\nconst locales = {};\n",
+        serde_json::to_string(&locales).unwrap()
+    ) + r#"
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const manifest=JSON.parse(readFileSync('./generated/bundler/manifest.json','utf8'));
-for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy','nso','sq','sa','en-GB-u-fw-sun','en-u-fw-mon']) {
+for(const locale of locales) {
   const {main}=await import('./generated/locales/'+locale+'.js');
   const {message}=await import('./generated/'+manifest.messages['main.period'].locales[locale].module);
   for(const value of ['2021-01-01','2021-01-04','2021-05-30','2021-05-31',0,-1,new Date('0000-01-01T00:00:00Z')]) {
@@ -79,11 +94,17 @@ for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy','n
     assert.equal(main.forwarded({value}),result);
     assert.equal(message(value),result);
   }
-  if(locale==='en-GB') assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 53 of 2020':'week 0 of January');
-  if(locale==='en') {
+  if(['en-GB','en-US-u-rg-gbzzzz','en-u-sd-gbeng','en-US-u-ca-iso8601','en-u-ca-iso8601-fw-sun','en-u-rg-gbeng','en-u-rg-fi01','en-u-sd-fra'].includes(locale)) assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 53 of 2020':'week 0 of January');
+  if(['en','en-US-u-sd-gbeng','en-u-sd-frxxx'].includes(locale)) {
     assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 1 of 2021':'week 1 of January');
     if(skeleton==='MMMMW') assert.equal(main.period('2021-05-30'),'week 6 of May');
   }
+  if(['en-AU-u-ca-iso8601-rg-afzzzz','en-u-ca-iso8601-rg-afbal'].includes(locale)) assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 52 of 2020':'week 0 of January');
+  if(locale==='en-u-sd-cn11') {
+    assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 1 of 2021':'week 1 of January');
+    if(skeleton==='MMMMW') assert.equal(main.period('2021-05-30'),'week 5 of May');
+  }
+  if(locale==='en-US-u-rg-aczzzz') assert.equal(main.period('2021-01-01'),skeleton==='yw'?'week 1 of 2021':'week 1 of January');
   if(locale==='en-GB-u-fw-sun') assert.equal(main.period('2021-01-03'),skeleton==='yw'?'week 1 of 2021':'week 1 of January');
 }
 console.log('ok');

@@ -489,6 +489,26 @@ fn normalize_placeholder_subtags(locale: &mut LocaleId) {
 }
 
 fn likely_target(locale: &LocaleId) -> Option<LocaleId> {
+    if let Some(target) = language_likely_target(locale) {
+        return Some(target);
+    }
+    let mut candidates = Vec::new();
+    if let Some(script) = &locale.script {
+        push_unique(&mut candidates, format!("und-{script}"));
+    }
+    if let Some(region) = &locale.region {
+        push_unique(&mut candidates, format!("und-{region}"));
+    }
+    push_unique(&mut candidates, "und".to_owned());
+
+    candidates.into_iter().find_map(|candidate| {
+        generated_likely_subtag(&candidate).and_then(|target| parse_syntax(target).ok())
+    })
+}
+
+// LDML Add Likely Subtags preserves a missing match; locale matching additionally
+// permits the und fallbacks above. Week preferences need the former's world fallback.
+fn language_likely_target(locale: &LocaleId) -> Option<LocaleId> {
     let mut candidates = Vec::new();
     let language = locale.language.as_str();
     if let (Some(script), Some(region)) = (&locale.script, &locale.region) {
@@ -501,14 +521,6 @@ fn likely_target(locale: &LocaleId) -> Option<LocaleId> {
         push_unique(&mut candidates, format!("{language}-{region}"));
     }
     push_unique(&mut candidates, language.to_owned());
-    if let Some(script) = &locale.script {
-        push_unique(&mut candidates, format!("und-{script}"));
-    }
-    if let Some(region) = &locale.region {
-        push_unique(&mut candidates, format!("und-{region}"));
-    }
-    push_unique(&mut candidates, "und".to_owned());
-
     candidates.into_iter().find_map(|candidate| {
         generated_likely_subtag(&candidate).and_then(|target| parse_syntax(target).ok())
     })
@@ -834,6 +846,19 @@ mod tests {
             canonicalize_locale("iw-u-ms-imperial").expect("extension type alias"),
             "he-u-ms-uksystem"
         );
+        for (input, expected) in [
+            ("en-u-rg-fi01", "en-u-rg-axzzzz"),
+            ("en-u-sd-fra", "en-u-sd-frges"),
+            ("en-u-sd-cn11", "en-u-sd-cnbj"),
+            ("en-u-sd-lud", "en-u-sd-lucl"),
+            ("en-u-sd-frbl", "en-u-sd-blzzzz"),
+            ("en-u-rg-fra-sd-cn11", "en-u-rg-frges-sd-cnbj"),
+            ("en-x-u-sd-fra", "en-x-u-sd-fra"),
+            ("en-a-sd-fra", "en-a-sd-fra"),
+            ("en-u-sd-fra-frges", "en-u-sd-fra-frges"),
+        ] {
+            assert_eq!(canonicalize_locale(input).unwrap(), expected, "{input}");
+        }
         assert_eq!(
             canonicalize_locale("en-t-iw").expect("transform language alias"),
             "en-t-he"
