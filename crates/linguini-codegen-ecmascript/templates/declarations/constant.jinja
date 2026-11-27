@@ -1,2 +1,2 @@
-export declare const {{ name }}: {{ ty }};
+{% if exported|default(true) %}export {% endif %}declare const {{ name }}: {{ ty }};
 {{ "\n" if blank_line else "" -}}

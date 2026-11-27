@@ -6,9 +6,7 @@ use linguini_ir::{
 
 use crate::ecmascript::EcmaModuleKind;
 
-pub fn function_name(name: &str) -> String {
-    safe_identifier(name)
-}
+mod compiler;
 
 /// Stable readable names for source selectors declared by type instead of by name.
 pub(super) fn function_parameter_names(
@@ -120,9 +118,17 @@ fn branch_names(branches: &[linguini_ir::IrFunctionBranch], used: &mut BTreeSet<
     }
 }
 
-/// Private locale variables/functions may use names that are JavaScript intrinsics.
+/// Local bindings for source-owned values must leave compiler identifiers available.
 pub(super) fn private_value_name(name: &str) -> String {
-    if is_runtime_global(name) {
+    value_name(name, compiler::inline_name(name))
+}
+
+pub(super) fn public_value_name(name: &str) -> String {
+    value_name(name, compiler::catalog_name(name))
+}
+
+fn value_name(name: &str, compiler_owned: bool) -> String {
+    if is_runtime_global(name) || (is_identifier_text(name) && compiler_owned) {
         // A leading separator distinguishes this readable binding from both encoded
         // names and qualified paths. Source properties keep their original spelling.
         return format!("__lgl_name_${name}");
@@ -286,17 +292,6 @@ pub fn property_access(name: &str) -> String {
     } else {
         format!("[{}]", string_literal(name))
     }
-}
-
-pub fn path_expression(path: &[String]) -> String {
-    let Some((root, properties)) = path.split_first() else {
-        return String::new();
-    };
-    let mut output = safe_identifier(root);
-    for property in properties {
-        output.push_str(&property_access(property));
-    }
-    output
 }
 
 pub fn property_key(name: &str) -> String {
@@ -472,8 +467,8 @@ fn is_reserved_word(name: &str) -> bool {
 mod tests {
     use super::{
         argument_keys_binding_name, emit_docs, escape_string, form_attribute_binding_name,
-        form_binding_name, function_name, path_expression, portable_path_component_error,
-        property_access, property_key, safe_file_stem, safe_identifier, string_literal,
+        form_binding_name, portable_path_component_error, property_access, property_key,
+        safe_file_stem, safe_identifier, string_literal,
     };
 
     #[test]
@@ -533,7 +528,10 @@ mod tests {
         assert_eq!(safe_identifier("日本語"), "__lgl_name_E697A5E69CACE8AA9E");
         assert_eq!(safe_identifier("\u{0000}"), "__lgl_name_00");
         assert_eq!(safe_identifier(""), "__lgl_name_");
-        assert_eq!(function_name("account.delete"), "__lgl_name_account$delete");
+        assert_eq!(
+            super::private_value_name("account.delete"),
+            "__lgl_name_account$delete"
+        );
 
         assert_ne!(
             safe_identifier("message-name"),
@@ -674,7 +672,8 @@ mod tests {
         assert_eq!(property_access("label"), ".label");
         assert_eq!(property_access("delete"), "[\"delete\"]");
         assert_eq!(
-            path_expression(&["class".to_owned(), "delete".to_owned()]),
+            super::super::scope::ExpressionScope::default()
+                .path(&["class".to_owned(), "delete".to_owned()]),
             "__lgl_name_636C617373[\"delete\"]"
         );
     }

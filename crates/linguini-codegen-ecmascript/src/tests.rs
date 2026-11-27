@@ -8,6 +8,7 @@ use std::fs;
 use std::path::Path;
 
 mod bindings;
+mod export_bindings;
 mod form_demand;
 
 fn generate_project_files(

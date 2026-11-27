@@ -184,22 +184,27 @@ impl MessageCallSignature {
     }
 
     /// Render both public overload declarations for a top-level message.
-    pub(crate) fn overload_declarations(&self, name: &str, docs: &[String]) -> String {
+    pub(crate) fn overload_declarations(
+        &self,
+        name: &str,
+        docs: &[String],
+        exported: bool,
+    ) -> String {
         if !self.is_parameterized() {
             let mut output = String::new();
             super::names::emit_docs(docs, "", &mut output);
             output.push_str(&crate::templates::render(
                 "declarations/constant",
-                minijinja::context! { name, ty => "string", blank_line => true },
+                minijinja::context! { name, exported, ty => "string", blank_line => exported },
             ));
             return output;
         }
 
         let mut output = String::new();
         emit_docs_with_tags(docs, &self.positional_doc_tags(), "", &mut output);
-        output.push_str(&crate::templates::render("declarations/function", minijinja::context! { name, parameters => self.positional_params(), blank_line => false }));
+        output.push_str(&crate::templates::render("declarations/function", minijinja::context! { name, exported, parameters => self.positional_params(), blank_line => false }));
         emit_docs_with_tags(docs, &self.named_doc_tags(), "", &mut output);
-        output.push_str(&crate::templates::render("declarations/function", minijinja::context! { name, parameters => self.render_signature("named_argument", false), blank_line => true }));
+        output.push_str(&crate::templates::render("declarations/function", minijinja::context! { name, exported, parameters => self.render_signature("named_argument", false), blank_line => exported }));
         output
     }
 
@@ -285,7 +290,7 @@ mod tests {
         assert_eq!(signature.callable_type(), "string");
         assert_eq!(signature.positional_params(), "");
         assert_eq!(
-            signature.overload_declarations("message", &[]),
+            signature.overload_declarations("message", &[], true),
             "export declare const message: string;\n\n"
         );
     }
@@ -360,7 +365,8 @@ mod tests {
     #[test]
     fn overload_docs_are_preserved_on_both_signatures() {
         let signature = MessageCallSignature::from_message(&message(&[("count", "Number")]));
-        let declarations = signature.overload_declarations("message", &["A message".to_owned()]);
+        let declarations =
+            signature.overload_declarations("message", &["A message".to_owned()], true);
         assert_eq!(declarations.matches(" * A message").count(), 2);
         assert!(declarations.contains(" * @param {number | bigint | string} count"));
         assert!(declarations.contains(" * @param {{ count: number | bigint | string }} args"));
@@ -381,7 +387,8 @@ mod tests {
     #[test]
     fn generated_doc_tags_escape_hostile_source_parameter_names() {
         let signature = MessageCallSignature::from_message(&message(&[("*/", "String")]));
-        let declarations = signature.overload_declarations("message", &["Safe prose".to_owned()]);
+        let declarations =
+            signature.overload_declarations("message", &["Safe prose".to_owned()], true);
 
         assert!(declarations.contains("@param {string} __lgl_name_2A2F"));
         assert!(declarations.contains("@param {{ \"* /\": string }} args"));

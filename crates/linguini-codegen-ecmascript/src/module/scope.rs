@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use super::names::{path_expression, property_access, safe_identifier};
+use super::names::{property_access, public_value_name, safe_identifier};
 
 #[derive(Default)]
 pub(super) struct ExpressionScope {
@@ -48,10 +48,13 @@ impl ExpressionScope {
         let Some((root, properties)) = path.split_first() else {
             return String::new();
         };
-        let Some(binding) = self.bindings.get(root) else {
-            return path_expression(path);
-        };
-        let mut output = binding.clone();
+        let mut output = self.bindings.get(root).cloned().unwrap_or_else(|| {
+            if self.types.contains_key(root) {
+                safe_identifier(root)
+            } else {
+                public_value_name(root)
+            }
+        });
         for property in properties {
             output.push_str(&property_access(property));
         }

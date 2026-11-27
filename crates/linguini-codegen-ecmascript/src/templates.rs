@@ -62,6 +62,10 @@ fn environment() -> &'static EcmaTemplateEngine {
                 include_str!("../templates/module/exports.jinja"),
             ),
             (
+                "module/value_export",
+                include_str!("../templates/module/value_export.jinja"),
+            ),
+            (
                 "module/import_typedefs",
                 include_str!("../templates/module/import_typedefs.jinja"),
             ),

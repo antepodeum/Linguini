@@ -1,5 +1,5 @@
 const lgl = {
-{% for name in names %}  {{ name }},
+{% for export in exports %}  {% if export.name == export.binding %}{{ export.binding }}{% else %}{{ export.key }}: {{ export.binding }}{% endif %},
 {% endfor %}};
 
 export default lgl;

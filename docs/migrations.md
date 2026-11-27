@@ -139,6 +139,16 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Public export names and compiler bindings
+
+Regenerate artifacts to fix accepted message or namespace names such as `formatNumber`,
+`normalizeMessageArgs`, `String`, and `lgl`. Previously these could redeclare generated helpers
+or shadow JavaScript conversion. Public named exports and default-catalog keys retain their
+spelling; local bindings now use static export aliases when required. Declarations preserve
+positional/named overloads and source enum types, and do not export the private binding names.
+Private functions and variables likewise leave standalone helper names available. No source,
+configuration, or application import changes are needed.
+
 ## Locale variables and runtime globals
 
 Private locale variable bindings now share the runtime-intrinsic protection used by local

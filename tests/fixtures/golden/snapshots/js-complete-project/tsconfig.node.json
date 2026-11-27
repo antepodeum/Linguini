@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": []
   },
-  "include": ["svelte-host-consumer.ts", "typescript-consumer.ts", "type-names/consumer.ts"]
+  "include": ["svelte-host-consumer.ts", "typescript-consumer.ts", "type-names/consumer.ts", "bindings/namespaces/consumer.ts", "bindings/public-values/consumer.ts"]
 }

@@ -116,6 +116,12 @@ function names, public message/enum exports, argument keys, and property spellin
 A locale variable named `undefined` likewise receives a private binding, keeping numeric helper
 sentinels intact in standalone output. References distinguish declared globals from lexical
 inputs, so an inline binding with that source name still reads its own value.
+Public message and namespace exports also keep source names such as `formatNumber`,
+`normalizeMessageArgs`, `String`, and `lgl`. Their local JavaScript bindings use collision-safe
+names when necessary; static export aliases and explicit default-catalog fields preserve the
+public API without adding runtime dispatch. Declaration imports, overloads, and default-catalog
+types share the same binding model. Private functions and variables also leave inline formatter
+helper names available in standalone output.
 The shared argument helper uses an anonymous dictionary annotation so a source enum or alias
 named `Record` keeps its public name without shadowing a TypeScript utility type used by the
 helper. The annotation is erased by bundlers and adds no runtime operation.

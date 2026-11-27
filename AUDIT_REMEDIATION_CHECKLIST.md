@@ -1270,7 +1270,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Integrated first-weekday/private-function source `3589545` also passes all 71 local
       full-profile gates in one clean run, including rebuilt Node/browser WASM, installed tsc,
       packaged/offline consumers, documentation, and production SSR/browser/graph checks.
-      Subsequent helper-typing/binding corrections have separate focused receipts (GEN-A50–A52).
+      Integrated helper-typing/private-variable source `995242a` also passes all 71 local
+      full-profile gates in one clean run, including strict generated consumers, installed/native
+      tsc, rebuilt editor/WASM, offline packages, and production SSR/browser/graph checks.
+      Subsequent public export-binding changes have separate focused receipts (GEN-A53).
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1801,6 +1804,14 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Clippy, Rust 1.87, 223 patch API checks, and three complete-project gates passing. Existing
       snapshots stay unchanged. Complete Vite 7/8 consumers verify the repaired behavior; the cost
       audit records both compression outcomes, including Vite 8's five-byte Brotli increase.
+      Public message/namespace exports now separate source names from local compiler bindings
+      (GEN-A53), preserving named/default APIs and strict declaration overloads. Native cold/warm
+      builds, previews, ordinary/physical modules, and SDK standalone/helper collisions execute
+      successfully. All 193 emitter tests and CLI tests pass on Node 20, with Clippy, Rust 1.87,
+      223 patch API checks, three complete-project gates, and strict JS/application TS 5.8/5.9/6.
+      Existing runtime/declaration/map goldens stay unchanged; four Vite 7/8 consumers execute
+      as one self-contained chunk each. This closes these concrete binding defects; broader
+      identifier, optimization, and page-delivery requirements stay open.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       Shared form demand projects standalone closures and generated projects to used attributes

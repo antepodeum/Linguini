@@ -3,6 +3,7 @@ mod decl;
 mod deps;
 mod emit;
 mod entry;
+mod exports;
 mod expr;
 mod facts;
 mod formatter_codegen;

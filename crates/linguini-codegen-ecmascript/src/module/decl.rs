@@ -6,9 +6,8 @@ use crate::ecmascript::{
 };
 
 use super::emit::{schema_type_aliases, schema_type_names};
-use super::names::{
-    declaration_import_path, emit_docs, function_name, safe_file_stem, safe_identifier,
-};
+use super::exports::{default_context, ValueExport};
+use super::names::{declaration_import_path, emit_docs, safe_file_stem, safe_identifier};
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
 
@@ -21,22 +20,14 @@ pub fn generate_locale_declaration_with_namespaces(
     let mut output = String::new();
     for namespace in namespaces {
         let file_stem = safe_file_stem(namespace);
-        let identifier = safe_identifier(namespace);
-        imports.push(EcmaImport::named(
-            format!("./{locale}/{file_stem}.js"),
-            vec![EcmaNamedImport::new(&identifier, &identifier)],
-        ));
+        imports.push(ValueExport::new(namespace).import(format!("./{locale}/{file_stem}.js")));
     }
     if let Some(type_import) = type_import(schema, "../shared") {
         imports.push(type_import);
     }
     emit_type_alias_declarations(schema, &mut output);
     for namespace in namespaces {
-        let identifier = safe_identifier(namespace);
-        output.push_str(&crate::templates::render(
-            "module/exports",
-            minijinja::context! { names => [identifier], blank_line => true },
-        ));
+        output.push_str(&ValueExport::new(namespace).statement(true));
     }
     let exports = emit_message_declarations(schema, &mut output);
     emit_default_declaration_with_namespaces(&exports, namespaces, &mut output);
@@ -63,12 +54,9 @@ pub fn generate_locale_declaration_with_shared_import(
     emit_default_declaration(&exports, &mut output);
     if let Some(namespace_alias) = namespace_alias {
         let identifier = safe_identifier(namespace_alias);
-        if !exports.iter().any(|export| export == &identifier) {
+        if !exports.iter().any(|export| export.name == identifier) {
             output.push('\n');
-            output.push_str(&crate::templates::render(
-                "declarations/constant",
-                minijinja::context! { name => identifier, ty => "typeof lgl", blank_line => false },
-            ));
+            output.push_str(&ValueExport::alias(namespace_alias, "lgl").statement(false));
         }
     }
     render_declaration_module(
@@ -136,7 +124,7 @@ fn render_declaration_module(
     module.render_code()
 }
 
-fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<String> {
+fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<ValueExport> {
     let nested = nested_message_tree(schema);
     let mut exports = Vec::new();
 
@@ -145,12 +133,12 @@ fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<Stri
             continue;
         }
         emit_function_declaration(signature, output);
-        exports.push(function_name(&signature.name));
+        exports.push(ValueExport::new(&signature.name));
     }
 
     for (group, messages) in nested.children {
         emit_message_object_declaration(&group, &messages, output);
-        exports.push(safe_identifier(&group));
+        exports.push(ValueExport::new(&group));
     }
 
     exports
@@ -158,37 +146,38 @@ fn emit_message_declarations(schema: &IrModule, output: &mut String) -> Vec<Stri
 
 fn emit_message_object_declaration(name: &str, tree: &MessageTree, output: &mut String) {
     emit_docs(&tree.docs, "", output);
+    let export = ValueExport::new(name);
     let (ty, _) = super::type_tree::MessageTreeType::locale_declaration().render(tree);
     output.push_str(&crate::templates::render(
         "declarations/constant",
-        minijinja::context! { name => safe_identifier(name), ty, blank_line => true },
+        minijinja::context! { name => &export.binding, ty, exported => export.is_direct(), blank_line => export.is_direct() },
     ));
+    export.append_alias(output);
 }
 
 fn emit_function_declaration(signature: &IrMessage, output: &mut String) {
-    let name = function_name(&signature.name);
+    let export = ValueExport::new(&signature.name);
     output.push_str(
-        &MessageCallSignature::from_message(signature)
-            .overload_declarations(name.as_str(), &signature.docs),
+        &MessageCallSignature::from_message(signature).overload_declarations(
+            &export.binding,
+            &signature.docs,
+            export.is_direct(),
+        ),
     );
+    export.append_alias(output);
 }
 
-fn emit_default_declaration(exports: &[String], output: &mut String) {
+fn emit_default_declaration(exports: &[ValueExport], output: &mut String) {
     emit_default_declaration_with_namespaces(exports, &[], output);
 }
 
 fn emit_default_declaration_with_namespaces(
-    exports: &[String],
+    exports: &[ValueExport],
     namespaces: &[String],
     output: &mut String,
 ) {
-    let names = exports
-        .iter()
-        .cloned()
-        .chain(namespaces.iter().map(|name| safe_identifier(name)))
-        .collect::<Vec<_>>();
     output.push_str(&crate::templates::render(
         "declarations/default",
-        minijinja::context! { names },
+        default_context(exports, namespaces),
     ));
 }

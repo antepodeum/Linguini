@@ -450,5 +450,20 @@ This is a correctness fix, not a uniform compression improvement: Vite 8's Brotl
 by five bytes. There is no timing claim. Permanent lexical-scope and positive/negative typed
 consumers retain source keys and public signatures on TypeScript 5.8.3, 5.9.3, and 6.0.3.
 
+Public export/helper collisions are resolved with local binding names and static ESM aliases.
+The new native namespace and SDK public-value consumers execute on Vite 7.3.3 and 8.0.13 in
+one self-contained chunk each, with no imports or dynamic imports left in the bundle. Measured
+minified/gzip/Brotli bytes on Node 24.13.1:
+
+| Consumer | Vite 7.3.3 | Vite 8.0.13 |
+| --- | ---: | ---: |
+| Six native namespaces | 3,017 / 1,335 / 1,212 | 2,932 / 1,327 / 1,207 |
+| Five SDK public values | 2,167 / 1,082 / 974 | 2,098 / 1,052 / 956 |
+
+The previous generated modules fail to import because of duplicate bindings, so these are
+post-fix consumer sizes, not a before/after compression improvement or timing claim. Existing
+non-colliding runtime, declaration, and source-map snapshots remain byte-identical. The fix adds
+no runtime registry, wrapper function, or CLDR interpretation.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

@@ -1,4 +1,4 @@
-export function {{ name }}({{ parameters }}) {
+{% if exported|default(true) %}export {% endif %}function {{ name }}({{ parameters }}) {
   {{ normalization }}
   return {{ body }};
 }

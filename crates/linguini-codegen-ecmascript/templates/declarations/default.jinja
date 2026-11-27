@@ -1,5 +1,5 @@
 declare const lgl: {
-{% for name in names %}  readonly {{ name }}: typeof {{ name }};
+{% for export in exports %}  readonly {{ export.name }}: typeof {{ export.binding }};
 {% endfor %}};
 
 export default lgl;

@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::exports::ValueExport;
 use super::facts::ExpressionFacts;
 use super::scope::ExpressionScope;
 use linguini_codegen::parameter_formatters;
@@ -14,8 +15,8 @@ use super::expr::{
 use super::formatter_codegen::formatter_data_declaration;
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
-    emit_docs, emit_docs_with_tags, function_name, private_value_name, property_key,
-    safe_identifier, ts_type, JsDocTag,
+    emit_docs, emit_docs_with_tags, private_value_name, property_key, safe_identifier, ts_type,
+    JsDocTag,
 };
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
@@ -23,9 +24,9 @@ use super::type_model::{render_jsdoc_type, render_string_union, TypeModel};
 use super::EcmaOptions;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ModuleExports {
-    pub top_level: Vec<String>,
-    pub groups: Vec<String>,
+pub(super) struct ModuleExports {
+    pub top_level: Vec<ValueExport>,
+    pub groups: Vec<ValueExport>,
 }
 
 pub fn module_imports(
@@ -367,13 +368,13 @@ pub(super) fn emit_messages(
             continue;
         }
         if emit_message_function(schema, signature, locale, options, output, facts) {
-            exports.top_level.push(function_name(&signature.name));
+            exports.top_level.push(ValueExport::new(&signature.name));
         }
     }
 
     for (group, messages) in nested.children {
         emit_message_object(schema, &group, &messages, locale, options, output, facts);
-        exports.groups.push(safe_identifier(&group));
+        exports.groups.push(ValueExport::new(&group));
     }
 
     exports
@@ -399,12 +400,13 @@ fn emit_message_function(
         facts,
         &call_signature,
     );
-    let name = function_name(&signature.name);
+    let export = ValueExport::new(&signature.name);
+    let name = &export.binding;
     if !call_signature.is_parameterized() {
         emit_docs(&signature.docs, "", output);
         output.push_str(&crate::templates::render(
             "module/constant",
-            minijinja::context! { exported => true, name, value => body },
+            minijinja::context! { exported => export.is_direct(), name, value => body, blank_line => export.is_direct() },
         ));
     } else {
         {
@@ -413,11 +415,13 @@ fn emit_message_function(
         output.push_str(&crate::templates::render(
             "module/message",
             minijinja::context! {
-                name, parameters => call_signature.implementation_rest_params(),
+                name, exported => export.is_direct(), blank_line => export.is_direct(),
+                parameters => call_signature.implementation_rest_params(),
                 normalization => call_signature.normalized_bindings_statement(), body,
             },
         ));
     }
+    export.append_alias(output);
     true
 }
 
@@ -431,13 +435,15 @@ fn emit_message_object(
     facts: &ExpressionFacts,
 ) {
     emit_docs(&tree.docs, "", output);
+    let export = ValueExport::new(name);
     let value = object_literal(schema, tree, locale, options, 0, facts);
     output.push_str(&crate::templates::render(
         "module/constant",
         minijinja::context! {
-            exported => true, name => safe_identifier(name), value,
+            exported => export.is_direct(), name => &export.binding, value, blank_line => export.is_direct(),
         },
     ));
+    export.append_alias(output);
 }
 
 fn object_literal(

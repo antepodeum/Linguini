@@ -1,15 +1,13 @@
 //! Locale namespace and barrel emission for canonical JavaScript.
 
-use crate::ecmascript::{
-    EcmaImport, EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaNamedImport, EcmaSource,
-    EcmaStatement,
-};
+use crate::ecmascript::{EcmaModule, EcmaModuleKind, EcmaModuleOutput, EcmaSource, EcmaStatement};
 use linguini_ir::IrModule;
 
 use super::emit::{
     emit_forms, emit_local_functions, emit_locale_enum_jsdoc_types, emit_messages,
     emit_schema_jsdoc_types, emit_variables, module_imports, ModuleExports,
 };
+use super::exports::{default_context, ValueExport};
 use super::message::ordered_sources;
 use super::names::{import_path_for_target, safe_file_stem, safe_identifier};
 use super::{
@@ -160,12 +158,11 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
     let runtime_import_path = import_path_for_target(request.runtime_import_path, target);
     let mut imports = Vec::new();
     for namespace in request.namespaces {
-        let identifier = safe_identifier(namespace);
         let file_stem = safe_file_stem(namespace);
-        imports.push(EcmaImport::named(
-            import_path_for_target(&format!("./{}/{file_stem}", request.options.locale), target),
-            vec![EcmaNamedImport::new(&identifier, &identifier)],
-        ));
+        imports.push(ValueExport::new(namespace).import(import_path_for_target(
+            &format!("./{}/{file_stem}", request.options.locale),
+            target,
+        )));
     }
     imports.extend(module_imports(
         request.schema,
@@ -198,10 +195,7 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
         emit_locale_enum_jsdoc_types(request.schema, request.locale, &mut body);
     }
     for namespace in request.namespaces {
-        body.push_str(&crate::templates::render(
-            "module/exports",
-            minijinja::context! { names => [safe_identifier(namespace)], blank_line => true },
-        ));
+        body.push_str(&ValueExport::new(namespace).statement(true));
     }
     emit_variables(request.locale, request.options, false, &mut body, &facts);
     emit_forms(
@@ -234,10 +228,10 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
             .top_level
             .iter()
             .chain(exports.groups.iter())
-            .any(|export| export == &identifier);
+            .any(|export| export.name == identifier);
         if !alias_is_exported {
             body.push('\n');
-            body.push_str(&crate::templates::render("module/constant", minijinja::context! { exported => true, name => identifier, value => "lgl", blank_line => false }));
+            body.push_str(&ValueExport::alias(namespace_alias, "lgl").statement(false));
         }
     }
 
@@ -251,16 +245,9 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
 }
 
 fn emit_locale_default(exports: &ModuleExports, namespaces: &[String], output: &mut String) {
-    let names = exports
-        .top_level
-        .iter()
-        .chain(&exports.groups)
-        .cloned()
-        .chain(namespaces.iter().map(|name| safe_identifier(name)))
-        .collect::<Vec<_>>();
     output.push_str(&crate::templates::render(
         "module/locale_default",
-        minijinja::context! { names },
+        default_context(exports.top_level.iter().chain(&exports.groups), namespaces),
     ));
 }
 
