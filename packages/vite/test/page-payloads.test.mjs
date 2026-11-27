@@ -158,6 +158,34 @@ test('deferred boundaries cannot silently omit new messages or widen the initial
   }
 });
 
+test('page analysis supports application packages without a name', async context => {
+  const root = await mkdtemp(path.join(tmpdir(),'linguini-anonymous-page-'));
+  context.after(() => rm(root,{recursive:true,force:true}));
+  await writeFile(path.join(root,'package.json'),JSON.stringify({type:'module'}));
+  const virtual = 'virtual:linguini/message/' + Buffer.from('page').toString('hex');
+  await writeFile(path.join(root,'entry.js'),`import {message} from ${JSON.stringify(virtual)}; export const render = () => message();`);
+  let receipt;
+  const output = await build({
+    configFile:false,root,logLevel:'silent',
+    plugins:[{
+      name:'anonymous-page',
+      resolveId(id) { if (id === virtual) return '\0' + id; },
+      load(id) { if (id === '\0' + virtual) return 'export function message() { return "PAGE_ONLY"; }'; },
+      async generateBundle() {
+        receipt = await pageMessageUsage(this,[path.join(root,'entry.js')],{root,build:{target:'es2022'}});
+      },
+    }],
+    build:{write:false,rollupOptions:{input:path.join(root,'entry.js'),preserveEntrySignatures:'strict',output:{format:'es'}}},
+  });
+  assert.deepEqual(receipt,{messages:['page'],deferred:[]});
+  const chunks = output.output.filter(item => item.type === 'chunk');
+  assert.equal(chunks.length,1);
+  assert.deepEqual(chunks[0].imports,[]);
+  assert.deepEqual(chunks[0].dynamicImports,[]);
+  const module = await import('data:text/javascript;base64,' + Buffer.from(chunks[0].code).toString('base64'));
+  assert.equal(module.render(),'PAGE_ONLY');
+});
+
 test('page analysis preserves the host module side-effect decisions', async context => {
   const root = await mkdtemp(path.join(tmpdir(),'linguini-page-effects-'));
   context.after(() => rm(root,{recursive:true,force:true}));

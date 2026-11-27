@@ -929,6 +929,13 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       values retain exact metadata. Locked workspace tests pass on Node 20, with Clippy,
       Rust 1.87 native/WASM, reproducibility, and 223 patch API checks passing too. Sixteen
       native Vite 7/8 consumers retain exact bytes. Hosted Windows confirmation remains open.
+      The same run's Vite 5 failure comes from internal library analysis requiring an unnamed
+      application's package name (GEN-A75). Analysis now owns its output filename. A real
+      unnamed-package regression reproduces the old exception and verifies exact demand,
+      a single import-free chunk, and executed output. All 13 core, 64 Svelte, and 5 Vue tests
+      pass on Vite 5.4.21/Node 24; nine page-payload tests pass on Node 20 with frozen Vite 7.
+      Package manifests, locks, workspace policy, and frozen installs are restored after probes.
+      Hosted Vite 5 confirmation and the final integration/version matrix remain open.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;

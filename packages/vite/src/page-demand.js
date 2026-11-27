@@ -135,7 +135,7 @@ async function analyzePage(context, entries, config, followDeferred) {
     }],
     build: {
       write: false,
-      lib: { entry: ENTRY, formats: ["es"] },
+      lib: { entry: ENTRY, formats: ["es"], fileName: "linguini-page-analysis" },
       minify: false,
       // The async facade is an analysis boundary, not code delivered to this target.
       target: followDeferred ? 'esnext' : config.build.target,

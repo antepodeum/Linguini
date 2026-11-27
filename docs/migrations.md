@@ -64,6 +64,11 @@ continues to render `0.5`, and `#.##` keeps its leading zero. Rounding carry ret
 integer. Native fraction previews and generated formatters share this decision through
 `NumberFormatPlan::can_omit_integer_zero`; the Rust method is additive.
 
+## Vite 5 projects without a package name
+
+Page-demand analysis supports projects whose `package.json` omits `name`, including
+programmatic Vite 5 builds. Application bundle naming follows the existing Vite configuration.
+
 ## Runtime link scheduling and cleanup
 
 Runtime link localization skips text additions and coalesces duplicate mutation records.
