@@ -933,9 +933,10 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       application's package name (GEN-A75). Analysis now owns its output filename. A real
       unnamed-package regression reproduces the old exception and verifies exact demand,
       a single import-free chunk, and executed output. All 13 core, 64 Svelte, and 5 Vue tests
-      pass on Vite 5.4.21/Node 24; nine page-payload tests pass on Node 20 with frozen Vite 7.
-      Package manifests, locks, workspace policy, and frozen installs are restored after probes.
-      Hosted Vite 5 confirmation and the final integration/version matrix remain open.
+      pass on each of Vite 5.4.21, 6.4.6, 7.3.3, and 8.4.0 on Node 24 (328 total); nine
+      page-payload tests pass on Node 20 with frozen Vite 7. Package manifests, locks, workspace
+      policy, and frozen installs are restored after probes. Hosted Vite 5 passes on source
+      `09394e6` in run 46069622892; the other pending hosted jobs remain separate requirements.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;
@@ -1465,7 +1466,15 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       including installed tsc, rebuilt editor/WASM, and production SSR/browser/graph checks.
       The 45 production locale payloads retain exact paths and bytes; Rust 1.87 native/WASM,
       strict JS 5.8/5.9, dependency policy, and offline reproducibility pass separately.
-      These local receipts leave the broader architecture and hosted platform gates open.
+      Integrated optional-integer, bounded compiler-stack, and anonymous Vite analysis source
+      `09394e6` (GEN-A73–A75) passes all 71 local full-profile gates in one clean run, including
+      locked Rust/Clippy, strict generated consumers, installed tsc, rebuilt editor/WASM,
+      packaged documentation, and production SSR/browser/graph checks. All 45 production locale
+      payloads retain identical paths and bytes. Separate Node 24 adapter runs pass 82 tests
+      on each of Vite 5.4.21, 6.4.6, 7.3.3, and 8.4.0 (328 total), with frozen metadata and
+      dependency installs restored afterward. Hosted run 46069622892 is still in progress;
+      its Vite 5–8 jobs pass. These receipts leave pending hosted jobs and the broader
+      architecture/platform/release requirements open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
