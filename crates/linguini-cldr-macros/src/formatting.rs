@@ -1,3 +1,4 @@
+use linguini_cldr::{NumberPadding, NumberPaddingPosition};
 use proc_macro2::TokenStream;
 use quote::quote;
 use serde_json::Value;
@@ -814,23 +815,10 @@ struct NumberPatternPart {
     padding: Option<NumberPadding>,
 }
 
-struct NumberPadding {
-    character: char,
-    width: u16,
-    position: NumberPaddingPosition,
-}
-
 struct PaddingMarker {
     index: usize,
     character: char,
     width: u16,
-}
-
-enum NumberPaddingPosition {
-    BeforePrefix,
-    AfterPrefix,
-    BeforeSuffix,
-    AfterSuffix,
 }
 
 struct NumberAffixSymbols {
@@ -855,7 +843,7 @@ fn parse_number_pattern(
     pattern: &str,
     symbols: &NumberAffixSymbols,
 ) -> Result<NumberPattern, String> {
-    let parts = split_unquoted(pattern, ';')?;
+    let parts = split_number_subpatterns(pattern)?;
     if parts.is_empty() || parts.len() > 2 {
         return Err(format!("invalid number pattern `{pattern}`"));
     }
@@ -880,7 +868,7 @@ fn parse_number_pattern_part(
     let (suffix, suffix_scale) = compile_affix(&pattern[number_end..], symbols)?;
     let number = &pattern[number_start..number_end];
     let padding = padding_marker
-        .map(|marker| classify_padding(marker, number_start, number_end, original))
+        .map(|marker| classify_padding(marker, number_start, number_end, pattern.len(), original))
         .transpose()?;
     let (mantissa, exponent) = number
         .split_once('E')
@@ -971,18 +959,12 @@ fn parse_number_pattern_part(
         prefix,
         suffix,
         min_integer_digits: checked_u8(
-            integer
-                .chars()
-                .filter(|character| *character == '0')
-                .count(),
+            integer.chars().filter(char::is_ascii_digit).count(),
             "minimum integer digits",
             original,
         )?,
         min_fraction_digits: checked_u8(
-            fraction
-                .chars()
-                .filter(|character| *character == '0')
-                .count(),
+            fraction.chars().filter(char::is_ascii_digit).count(),
             "minimum fraction digits",
             original,
         )?,
@@ -1117,6 +1099,7 @@ fn classify_padding(
     marker: PaddingMarker,
     number_start: usize,
     number_end: usize,
+    pattern_length: usize,
     pattern: &str,
 ) -> Result<NumberPadding, String> {
     let PaddingMarker {
@@ -1126,15 +1109,15 @@ fn classify_padding(
     } = marker;
     let position = if index == 0 {
         NumberPaddingPosition::BeforePrefix
-    } else if index <= number_start {
+    } else if index == number_start {
         NumberPaddingPosition::AfterPrefix
     } else if index == number_end {
         NumberPaddingPosition::BeforeSuffix
-    } else if index > number_end {
+    } else if index == pattern_length {
         NumberPaddingPosition::AfterSuffix
     } else {
         return Err(format!(
-            "number pattern pads inside its numeric skeleton: `{pattern}`"
+            "number pattern pads inside a component: `{pattern}`"
         ));
     };
     Ok(NumberPadding {
@@ -1144,7 +1127,7 @@ fn classify_padding(
     })
 }
 
-fn split_unquoted(source: &str, separator: char) -> Result<Vec<&str>, String> {
+fn split_number_subpatterns(source: &str) -> Result<Vec<&str>, String> {
     let mut parts = Vec::new();
     let mut start = 0;
     let mut quoted = false;
@@ -1159,7 +1142,10 @@ fn split_unquoted(source: &str, separator: char) -> Result<Vec<&str>, String> {
             } else {
                 quoted = !quoted;
             }
-        } else if character == separator && !quoted {
+        } else if character == '*' && !quoted {
+            // A padding escape makes its next code point opaque, even an apostrophe or `;`.
+            chars.next();
+        } else if character == ';' && !quoted {
             parts.push(&source[start..index]);
             start = index + character.len_utf8();
         }
@@ -1184,7 +1170,7 @@ fn find_unquoted_digit(pattern: &str) -> Option<usize> {
             } else {
                 quoted = !quoted;
             }
-        } else if !quoted && matches!(character, '#' | '0' | '@') {
+        } else if !quoted && matches!(character, '#' | '0'..='9' | '@') {
             return Some(index);
         }
     }
@@ -1392,6 +1378,23 @@ mod tests {
         let rounded = parse_number_pattern("#,##0.05").expect("rounding").positive;
         assert_eq!(rounded.rounding_increment.as_deref(), Some("5"));
         assert_eq!(rounded.max_fraction_digits, 2);
+        assert_eq!(rounded.min_fraction_digits, 2);
+
+        for (pattern, increment, integer_digits) in
+            [("5", "5", 1), ("50", "50", 2), ("#,#50", "50", 2)]
+        {
+            let rounded = parse_number_pattern(pattern)
+                .expect("integer rounding")
+                .positive;
+            assert_eq!(
+                rounded.rounding_increment.as_deref(),
+                Some(increment),
+                "{pattern}"
+            );
+            assert_eq!(rounded.min_integer_digits, integer_digits, "{pattern}");
+            assert_eq!(rounded.max_fraction_digits, 0, "{pattern}");
+            assert_eq!(rounded.prefix, "", "{pattern}");
+        }
 
         let padded = parse_number_pattern("USD *x#,##0")
             .expect("padding")
@@ -1421,10 +1424,114 @@ mod tests {
     }
 
     #[test]
+    fn number_padding_escapes_special_characters_and_preserves_quoted_affixes() {
+        for (pattern, character, position, prefix, suffix, width) in [
+            (
+                "*'pre0.0tail",
+                '\'',
+                NumberPaddingPosition::BeforePrefix,
+                "pre",
+                "tail",
+                10,
+            ),
+            (
+                "pre*;0.0tail",
+                ';',
+                NumberPaddingPosition::AfterPrefix,
+                "pre",
+                "tail",
+                10,
+            ),
+            (
+                "pre0.0*💠tail",
+                '💠',
+                NumberPaddingPosition::BeforeSuffix,
+                "pre",
+                "tail",
+                10,
+            ),
+            (
+                "pre0.0tail**",
+                '*',
+                NumberPaddingPosition::AfterSuffix,
+                "pre",
+                "tail",
+                10,
+            ),
+            (
+                "'pre*''fix'*;0.0'ta;il'",
+                ';',
+                NumberPaddingPosition::AfterPrefix,
+                "pre*'fix",
+                "ta;il",
+                16,
+            ),
+            (
+                "*'0.0;'-'0.0",
+                '\'',
+                NumberPaddingPosition::BeforePrefix,
+                "",
+                "",
+                3,
+            ),
+            (
+                "pre*;0.0tail;-0.0",
+                ';',
+                NumberPaddingPosition::AfterPrefix,
+                "pre",
+                "tail",
+                10,
+            ),
+            (
+                "руб.*;0.0'кг'",
+                ';',
+                NumberPaddingPosition::AfterPrefix,
+                "руб.",
+                "кг",
+                9,
+            ),
+        ] {
+            let parsed = parse_number_pattern(pattern)
+                .unwrap_or_else(|error| panic!("{pattern:?}: {error}"));
+            assert_eq!(parsed.positive.prefix, prefix, "{pattern}");
+            assert_eq!(parsed.positive.suffix, suffix, "{pattern}");
+            let padding = parsed.positive.padding.unwrap();
+            assert_eq!(padding.character, character, "{pattern}");
+            assert_eq!(padding.position, position, "{pattern}");
+            assert_eq!(padding.width, width, "{pattern}");
+            assert_eq!(
+                parsed.negative.is_some(),
+                pattern.ends_with(";-0.0") || pattern.ends_with(";'-'0.0"),
+                "{pattern}"
+            );
+        }
+    }
+
+    #[test]
+    fn number_padding_rejects_positions_inside_affixes_and_the_skeleton() {
+        for pattern in [
+            "pre*xfix0.0tail",
+            "pre0.0ta*xil",
+            "р*xуб.0.0кг",
+            "руб.0.0к*xг",
+            "0.*x0",
+            "0*x.0",
+        ] {
+            assert!(
+                parse_number_pattern(pattern).is_err(),
+                "padding inside a component must fail: {pattern}"
+            );
+        }
+    }
+
+    #[test]
     fn number_pattern_parser_rejects_invalid_or_oversized_models() {
         assert!(parse_number_pattern("#E").is_err());
         assert!(parse_number_pattern("@@0").is_err());
         assert!(parse_number_pattern("*x*y#,##0").is_err());
+        for pattern in ["0*", "pre0.0tail*", "*;*;0"] {
+            assert!(parse_number_pattern(pattern).is_err(), "{pattern}");
+        }
         assert!(parse_number_pattern(&format!("0.{}", "0".repeat(256))).is_err());
         assert!(parse_number_pattern("'unterminated#,##0").is_err());
     }

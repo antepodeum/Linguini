@@ -17,6 +17,12 @@ Regenerate output to reuse digit-replacement functions across number, currency, 
 formatters. Formatting no longer creates a replacement function on each numeric call.
 Accepted inputs, formatted text, and public signatures are unchanged.
 
+## Offline CLDR number-pattern validation
+
+CLDR updates now reject padding inside an affix or numeric skeleton. Padding escapes preserve
+their literal character, and rounding digits 1–9 count toward mandatory digit widths. Current
+pinned data and generated application output are unchanged; no application changes are required.
+
 ## Shared project locale matching
 
 The project locale matcher now lives in `linguini_cldr::ProjectLocalePlan`. The existing

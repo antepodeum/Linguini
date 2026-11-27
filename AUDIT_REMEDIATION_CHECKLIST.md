@@ -531,6 +531,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       Internal scientific lowering also compiles localized exponent separators and signs,
       preserving bidirectional marks and literal digits within those symbols. Broader scientific
       and engineering patterns remain part of OPT-A1/A2 rather than a completed surface.
+      Offline numeric-pattern parsing now honors padding escape characters, restricts padding
+      to the four component boundaries, and treats rounding digits 1–9 as mandatory digits
+      (GEN-A65). It reuses the shared padding model. All 24 maintainer, 60 common planner, and
+      202 emitter tests pass; 96 generated padding cases execute on Node 20/24. Pinned CLDR
+      artifacts reproduce byte for byte. Clippy and Rust 1.87 pass; broader pattern semantics
+      remain open.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.

@@ -3,6 +3,7 @@ mod date_composition;
 mod digit_callbacks;
 mod month_weeks;
 mod number_inputs;
+mod padding;
 mod rounding;
 mod scientific;
 mod week_year;

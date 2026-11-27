@@ -10,6 +10,11 @@ package versions, locale coverage, and consumed-input SHA-256 before writing out
 manifest records the source identity, input profile, artifact hash, and coverage. Generation
 and `--check` use the same deterministic path without fetching upstream data.
 
+Numeric patterns compile in `linguini-cldr-macros/src/formatting.rs`. Subpattern scanning keeps
+escaped padding characters opaque; padding is valid only at the four affix/number boundaries.
+Rounding digits contribute to mandatory widths as ordinary zero placeholders do. Padding uses
+the shared `linguini_cldr::NumberPadding` model consumed by the common number-format plan.
+
 The calendar profile covers Gregorian, Buddhist, ROC, and Japanese data: 3,060 locale/calendar
 pairs, contextual symbols, eras, skeletons, day periods, week rules, and GMT formats. Equal
 symbol tables share storage. Hawaiian retains its explicit unsupported Roman-month exclusion.
