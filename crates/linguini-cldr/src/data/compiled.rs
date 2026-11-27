@@ -1,7 +1,7 @@
 use super::{
     CalendarFormatData, CurrencyFormatData, CurrencyFractionData, DateFormatData, DateSymbolWidths,
-    DayPeriodRule, FormatWidths, NumberFormatData, NumberPattern, NumberPatternPart,
-    PluralCategoryRule, PluralRules, TimeZoneFormatData, WeekData,
+    DayPeriodRule, FormatWidths, NumberAffix, NumberAffixPart, NumberFormatData, NumberPattern,
+    NumberPatternPart, PluralCategoryRule, PluralRules, TimeZoneFormatData, WeekData,
 };
 use crate::plural::{
     Condition, Operand, OperandExpression, PluralOperands, PluralRule, Range, RangeList, Relation,

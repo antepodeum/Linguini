@@ -549,8 +549,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       rather than becoming literal prefixes. Existing Cyrillic padding expectations retain
       valid quoted punctuation, and padding rejection checks require their specific error.
       All 30 maintainer tests and workspace Clippy pass; pinned data reproduces byte for byte.
-      Remaining model gaps include literal versus placeholder currency affixes, currency-marker
-      widths and integer-width/engineering semantics.
+      Remaining model gaps include currency-marker widths and integer-width/engineering semantics.
       Leading decimal/grouping forms are explicitly unsupported pending that model work.
       Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
       Native fraction previews and generated fixed/significant/scientific formatters preserve it;
@@ -563,6 +562,18 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       integrations pass on Node 20. Node 24 corpus execution, strict JS 5.8/5.9/6, Rust 1.87
       native/WASM, and all 71 local full-profile gates pass. Forced patch checks report only the
       documented field addition per affected crate; the other 222 checks pass in each.
+      Literal versus placeholder currency affixes now have explicit shared semantic types
+      (GEN-A71). The maintainer lexer preserves ordered fragments; the common planner expands
+      only slots, leaving literal currency marks unchanged. One ten-case contract is shared
+      across raw-pattern parsing, planning, native preview, and generated execution, matching
+      twenty independent ICU 78.3 outcomes. All 6,876 typed affixes flatten to the exact previous
+      compiler artifact. Current pinned literals contain no currency marks, preserving existing
+      substitutions. Wider currency display markers remain explicitly unsupported. Rust prefix
+      and suffix fields now require typed affixes; migration notes document that source break.
+      All 71 local full-profile gates pass. Separate Node 20/24, Rust 1.87 native/WASM,
+      and eight byte-identical native Vite 7/8 consumers verify the changed boundary.
+      Compiler witnesses reject legacy string assignments and accept typed replacements;
+      passing API-checker lints do not cover field-type changes.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.
@@ -1412,6 +1423,9 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       (GEN-A65–A70) pass all 71 local full-profile gates. The new semantic field changes Rust
       struct-literal construction; migration notes document it, and forced patch checks isolate
       those two source breaks. Rust 1.87 native/WASM and strict JS 5.8/5.9/6 checks pass.
+      Typed currency-affix provenance (GEN-A71) also passes all 71 local full-profile gates,
+      including installed tsc, rebuilt editor/WASM, and production SSR/browser/graph checks.
+      These local receipts leave the broader architecture and hosted platform gates open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -2377,7 +2391,9 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
   GEN-A70 adds a documented boolean to `NumberPatternPart` and `NumberFormatPlan`. Forced patch
   comparisons against `e1c2dfd` find precisely those two struct-literal breaks, with 222 other
   checks passing per crate. Default unchanged-prerelease checks skip their 254 stable lints;
-  those skips are not a patch-compatibility claim.
+  those skips are not a patch-compatibility claim. GEN-A71 changes prefix/suffix field types;
+  the checker passes 223 lints per affected crate but does not cover type changes. Rust
+  compiler witnesses verify the documented break and the typed migration.
 - [x] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests. Local Linux
   receipts cover the full-profile npm/site/WASM checks, 80 adapter tests per major on `0143d99`,
   and fresh installed native/universal VSIX packages in native, explicit WASM, and empty-PATH

@@ -89,8 +89,8 @@ fn decimal_visibility_preserves_unicode_affixes_and_padding_width() {
         let numbers = compiled_number_formatting(locale).unwrap();
         let mut pattern = numbers.decimal_pattern;
         pattern.negative = None;
-        pattern.positive.prefix = "v12:";
-        pattern.positive.suffix = ":v34";
+        pattern.positive.prefix = NumberAffix::Literal("v12:");
+        pattern.positive.suffix = NumberAffix::Literal(":v34");
         pattern.positive.min_fraction_digits = 0;
         pattern.positive.max_fraction_digits = 0;
         pattern.positive.decimal_separator_always = true;
@@ -115,8 +115,8 @@ fn decimal_visibility_preserves_unicode_affixes_and_padding_width() {
     ] {
         let mut pattern = numbers.decimal_pattern;
         pattern.negative = None;
-        pattern.positive.prefix = "¤";
-        pattern.positive.suffix = "k";
+        pattern.positive.prefix = NumberAffix::CurrencySymbol;
+        pattern.positive.suffix = NumberAffix::Literal("k");
         pattern.positive.min_fraction_digits = 0;
         pattern.positive.max_fraction_digits = 0;
         pattern.positive.decimal_separator_always = true;

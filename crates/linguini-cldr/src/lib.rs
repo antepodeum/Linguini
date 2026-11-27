@@ -10,8 +10,9 @@ pub use data::{
     compiled_plural_rules, compiled_time_zone_formatting, compiled_week_data, japanese_era_starts,
     CalendarFormatData, CompiledPluralCategory, CompiledPluralRules, CurrencyFormatData,
     CurrencyFractionData, DateFormatData, DateSymbolWidths, DayPeriodRule, FormatWidths,
-    NumberFormatData, NumberPadding, NumberPaddingPosition, NumberPattern, NumberPatternPart,
-    PluralCategoryRule, PluralRules, TimeZoneFormatData, WeekData, CLDR_DATA_MANIFEST_JSON,
+    NumberAffix, NumberAffixPart, NumberFormatData, NumberPadding, NumberPaddingPosition,
+    NumberPattern, NumberPatternPart, PluralCategoryRule, PluralRules, TimeZoneFormatData,
+    WeekData, CLDR_DATA_MANIFEST_JSON,
 };
 pub use locale::{
     canonicalize_locale, locale_fallback_chain, locale_fallback_chain_for,

@@ -12,7 +12,7 @@ mod weeks;
 
 use super::super::formatters::{formatter_binding, FormatterRequest};
 use super::*;
-use linguini_cldr::{NumberFormatData, NumberPadding, NumberPatternPart};
+use linguini_cldr::{NumberAffix, NumberFormatData, NumberPadding, NumberPatternPart};
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFormatterKind};
 
 fn date_parts(
@@ -323,8 +323,8 @@ use std::process::{Command, Stdio};
 fn generated_number_runtime_receives_complete_pattern_semantics() {
     let mut digit_bindings = DigitBindings::default();
     let part = NumberPatternPart {
-        prefix: "pre",
-        suffix: "%",
+        prefix: NumberAffix::Literal("pre"),
+        suffix: NumberAffix::Literal("%"),
         min_integer_digits: 1,
         min_fraction_digits: 0,
         max_fraction_digits: 2,
@@ -663,8 +663,8 @@ fn known_fraction_presence_removes_branches_without_changing_optional_or_signifi
         "-١,٢٣٥"
     );
 
-    pattern.positive.prefix = "prefix";
-    pattern.positive.suffix = "tail";
+    pattern.positive.prefix = NumberAffix::Literal("prefix");
+    pattern.positive.suffix = NumberAffix::Literal("tail");
     pattern.negative = Some(pattern.positive);
     let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
     let source = crate::templates::render(

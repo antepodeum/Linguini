@@ -30,8 +30,8 @@ fn compiled_padding_preserves_positions_and_literal_codepoints() {
             for (character_index, character) in ['\'', ';', '💠', '*'].into_iter().enumerate() {
                 let mut pattern = numbers.decimal_pattern;
                 pattern.negative = None;
-                pattern.positive.prefix = "pre";
-                pattern.positive.suffix = "tail";
+                pattern.positive.prefix = NumberAffix::Literal("pre");
+                pattern.positive.suffix = NumberAffix::Literal("tail");
                 pattern.positive.min_integer_digits = 1;
                 pattern.positive.min_fraction_digits = 1;
                 pattern.positive.max_fraction_digits = 1;

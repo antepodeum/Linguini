@@ -1375,8 +1375,11 @@ fn group_integer_digits(
 
 #[cfg(test)]
 mod tests {
+    mod currency_affixes;
     mod decimal_separator;
     mod plural_inputs;
+
+    use linguini_cldr::NumberAffix;
 
     use super::*;
     use linguini_ir::{lower_locale, lower_schema};
@@ -1662,8 +1665,8 @@ mod tests {
     fn numeric_preview_digits_preserve_affixes_and_unicode_scalars() {
         let mut numbers = compiled_number_formatting("fa").unwrap();
         let mut pattern = numbers.decimal_pattern;
-        pattern.positive.prefix = "v12:";
-        pattern.positive.suffix = ":v34";
+        pattern.positive.prefix = NumberAffix::Literal("v12:");
+        pattern.positive.suffix = NumberAffix::Literal(":v34");
         assert_eq!(
             format_number_pattern("123", &pattern, &numbers, None, None).unwrap(),
             "v12:۱۲۳:v34"

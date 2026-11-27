@@ -1,6 +1,6 @@
 //! Target-independent choices resolved from a selected CLDR number pattern.
 
-use linguini_cldr::{NumberFormatData, NumberPadding, NumberPattern};
+use linguini_cldr::{NumberAffix, NumberAffixPart, NumberFormatData, NumberPadding, NumberPattern};
 
 use crate::NumberRoundingPlan;
 
@@ -64,9 +64,7 @@ impl NumberFormatPlan {
         rounding: Option<&str>,
     ) -> Option<Self> {
         let positive = &pattern.positive;
-        let affix = |text: &str| {
-            symbol.map_or_else(|| text.to_owned(), |symbol| text.replace('\u{a4}', symbol))
-        };
+        let affix = |value| resolve_affix(value, symbol);
         let prefix = affix(positive.prefix);
         let suffix = affix(positive.suffix);
         let negative_prefix = pattern.negative.as_ref().map_or_else(
@@ -137,6 +135,20 @@ impl NumberFormatPlan {
             scientific,
             padding: positive.padding,
         })
+    }
+}
+
+fn resolve_affix(affix: NumberAffix, symbol: Option<&str>) -> String {
+    match affix {
+        NumberAffix::Literal(text) => text.to_owned(),
+        NumberAffix::CurrencySymbol => symbol.unwrap_or("¤").to_owned(),
+        NumberAffix::Parts(parts) => parts
+            .iter()
+            .map(|part| match part {
+                NumberAffixPart::Literal(text) => *text,
+                NumberAffixPart::CurrencySymbol => symbol.unwrap_or("¤"),
+            })
+            .collect(),
     }
 }
 

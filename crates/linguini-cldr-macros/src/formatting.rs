@@ -1,3 +1,6 @@
+mod affix;
+
+use affix::{affix_tokens, compile_affix, CompiledAffix, NumberAffixSymbols};
 use linguini_cldr::{NumberPadding, NumberPaddingPosition};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -731,8 +734,8 @@ fn number_pattern_tokens(pattern: &NumberPattern) -> TokenStream {
 }
 
 fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
-    let prefix = &part.prefix;
-    let suffix = &part.suffix;
+    let prefix = affix_tokens(&part.prefix);
+    let suffix = affix_tokens(&part.suffix);
     let min_integer_digits = part.min_integer_digits;
     let min_fraction_digits = part.min_fraction_digits;
     let max_fraction_digits = part.max_fraction_digits;
@@ -801,8 +804,8 @@ struct NumberPattern {
 }
 
 struct NumberPatternPart {
-    prefix: String,
-    suffix: String,
+    prefix: CompiledAffix,
+    suffix: CompiledAffix,
     min_integer_digits: u8,
     min_fraction_digits: u8,
     max_fraction_digits: u8,
@@ -822,24 +825,6 @@ struct PaddingMarker {
     index: usize,
     character: char,
     width: u16,
-}
-
-struct NumberAffixSymbols {
-    minus: String,
-    plus: String,
-    percent: String,
-    per_mille: String,
-}
-
-impl NumberAffixSymbols {
-    fn extract(symbols: &Value) -> Result<Self, String> {
-        Ok(Self {
-            minus: string_field(symbols, "minusSign", "number symbols")?,
-            plus: string_field(symbols, "plusSign", "number symbols")?,
-            percent: string_field(symbols, "percentSign", "number symbols")?,
-            per_mille: string_field(symbols, "perMille", "number symbols")?,
-        })
-    }
 }
 
 fn parse_number_pattern(
@@ -1243,52 +1228,6 @@ fn number_skeleton_end(pattern: &str, start: usize) -> usize {
     pattern.len()
 }
 
-fn compile_affix(affix: &str, symbols: &NumberAffixSymbols) -> Result<(String, u16), String> {
-    let mut result = String::with_capacity(affix.len());
-    let mut scale = 1;
-    let mut quoted = false;
-    let mut chars = affix.chars().peekable();
-    while let Some(character) = chars.next() {
-        if character != '\'' {
-            match character {
-                '-' if !quoted => result.push_str(&symbols.minus),
-                '+' if !quoted => result.push_str(&symbols.plus),
-                '%' | '\u{2030}' if !quoted => {
-                    if scale != 1 {
-                        return Err(format!(
-                            "number affix has multiple scaling symbols: `{affix}`"
-                        ));
-                    }
-                    scale = if character == '%' { 100 } else { 1000 };
-                    result.push_str(if character == '%' {
-                        &symbols.percent
-                    } else {
-                        &symbols.per_mille
-                    });
-                }
-                '#' | '@' | '0'..='9' | '.' | ',' | '*' | ';' if !quoted => {
-                    return Err(format!(
-                        "unquoted number-pattern character `{character}` in affix `{affix}`"
-                    ));
-                }
-                _ => result.push(character),
-            }
-            continue;
-        }
-        if chars.peek() == Some(&'\'') {
-            chars.next();
-            result.push('\'');
-        } else {
-            quoted = !quoted;
-        }
-    }
-    if quoted {
-        Err(format!("unterminated quote in number affix `{affix}`"))
-    } else {
-        Ok((result, scale))
-    }
-}
-
 fn checked_u8(value: usize, field: &str, pattern: &str) -> Result<u8, String> {
     u8::try_from(value).map_err(|_| format!("{field} exceeds u8 in number pattern `{pattern}`"))
 }
@@ -1305,10 +1244,59 @@ fn extract_text_direction<'a>(value: &'a Value, locale: &str) -> Result<&'a str,
 
 #[cfg(test)]
 mod tests {
+    mod currency_affix_cases {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/fixtures/codegen/currency-affixes.rs"
+        ));
+    }
     use super::{
         extract_dates, extract_text_direction, require_exact_exclusions, NumberPaddingPosition,
     };
     use serde_json::json;
+
+    fn literal_affix(text: &str) -> super::CompiledAffix {
+        if text.is_empty() {
+            Vec::new()
+        } else {
+            vec![linguini_cldr::NumberAffixPart::Literal(text.to_owned())]
+        }
+    }
+
+    fn owned_affix(affix: linguini_cldr::NumberAffix) -> super::CompiledAffix {
+        use linguini_cldr::{NumberAffix, NumberAffixPart};
+        match affix {
+            NumberAffix::Literal(text) => literal_affix(text),
+            NumberAffix::CurrencySymbol => vec![NumberAffixPart::CurrencySymbol],
+            NumberAffix::Parts(parts) => parts
+                .iter()
+                .map(|part| match part {
+                    NumberAffixPart::Literal(text) => NumberAffixPart::Literal((*text).to_owned()),
+                    NumberAffixPart::CurrencySymbol => NumberAffixPart::CurrencySymbol,
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn currency_affix_patterns_compile_the_shared_execution_contract() {
+        for case in currency_affix_cases::CASES {
+            let parsed = parse_number_pattern(case.pattern).unwrap();
+            let label = format!(
+                "{}: {} ({} / {})",
+                case.name, case.pattern, case.positive, case.negative_text
+            );
+            assert_eq!(parsed.positive.prefix, owned_affix(case.prefix), "{label}");
+            assert_eq!(parsed.positive.suffix, owned_affix(case.suffix), "{label}");
+            if let Some((prefix, suffix)) = case.negative {
+                let negative = parsed.negative.unwrap();
+                assert_eq!(negative.prefix, owned_affix(prefix), "{label}");
+                assert_eq!(negative.suffix, owned_affix(suffix), "{label}");
+            } else {
+                assert!(parsed.negative.is_none(), "{label}");
+            }
+        }
+    }
 
     fn parse_number_pattern(pattern: &str) -> Result<super::NumberPattern, String> {
         super::parse_number_pattern(
@@ -1392,21 +1380,72 @@ mod tests {
         };
         let parse = |pattern| super::parse_number_pattern(pattern, &symbols).unwrap();
         let implicit = parse("0%");
-        assert_eq!(implicit.positive.suffix, "٪");
+        assert_eq!(implicit.positive.suffix, literal_affix("٪"));
         assert_eq!(implicit.positive.scale, 100);
         assert!(implicit.negative.is_none());
         let explicit = parse("+0‰;-0‰");
-        assert_eq!(explicit.positive.prefix, "\u{200e}+");
-        assert_eq!(explicit.positive.suffix, "؉");
+        assert_eq!(explicit.positive.prefix, literal_affix("\u{200e}+"));
+        assert_eq!(explicit.positive.suffix, literal_affix("؉"));
         assert_eq!(explicit.positive.scale, 1000);
-        assert_eq!(explicit.negative.unwrap().prefix, "\u{200e}−");
+        assert_eq!(
+            explicit.negative.unwrap().prefix,
+            literal_affix("\u{200e}−")
+        );
         let quoted = parse("'-+%'0'‰''';'minus'0'%' ");
-        assert_eq!(quoted.positive.prefix, "-+%");
-        assert_eq!(quoted.positive.suffix, "‰'");
+        assert_eq!(quoted.positive.prefix, literal_affix("-+%"));
+        assert_eq!(quoted.positive.suffix, literal_affix("‰'"));
         assert_eq!(quoted.positive.scale, 1);
-        assert_eq!(quoted.negative.unwrap().suffix, "% ");
+        assert_eq!(quoted.negative.unwrap().suffix, literal_affix("% "));
         assert!(super::parse_number_pattern("%0‰", &symbols).is_err());
         assert!(super::parse_number_pattern("0%%", &symbols).is_err());
+    }
+
+    #[test]
+    fn literal_currency_marks_remain_distinct_from_substitution_slots() {
+        for (literal, placeholder) in [("'¤'0", "¤0"), ("0'¤'", "0¤"), ("'¤'¤0", "¤'¤'0")] {
+            let literal = parse_number_pattern(literal).unwrap();
+            let placeholder = parse_number_pattern(placeholder).unwrap();
+            assert_ne!(
+                super::number_pattern_part_tokens(&literal.positive).to_string(),
+                super::number_pattern_part_tokens(&placeholder.positive).to_string(),
+                "quoted currency marks must not become substitution slots"
+            );
+        }
+    }
+
+    #[test]
+    fn currency_affix_parts_preserve_literal_and_marker_order() {
+        use linguini_cldr::NumberAffixPart::{CurrencySymbol, Literal};
+        for (source, expected) in [
+            ("'¤'¤0", vec![Literal("¤".to_owned()), CurrencySymbol]),
+            ("¤'¤'0", vec![CurrencySymbol, Literal("¤".to_owned())]),
+            ("'a''¤'¤0", vec![Literal("a'¤".to_owned()), CurrencySymbol]),
+            (
+                "¤x¤0",
+                vec![CurrencySymbol, Literal("x".to_owned()), CurrencySymbol],
+            ),
+            ("'¤¤¤¤¤'0", vec![Literal("¤¤¤¤¤".to_owned())]),
+        ] {
+            assert_eq!(
+                parse_number_pattern(source).unwrap().positive.prefix,
+                expected,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn unsupported_currency_display_widths_fail_instead_of_repeating_symbols() {
+        for width in 2..=6 {
+            let marker = "¤".repeat(width);
+            for source in [format!("{marker}0"), format!("0{marker}")] {
+                let error = parse_number_pattern(&source).err().unwrap();
+                assert!(
+                    error.contains("unsupported currency marker width"),
+                    "{source}: {error}"
+                );
+            }
+        }
     }
 
     #[test]
@@ -1414,13 +1453,13 @@ mod tests {
         let pattern =
             parse_number_pattern("'pre;fix'#,##0.00' suffix';'negative'#,##0.00").expect("pattern");
 
-        assert_eq!(pattern.positive.prefix, "pre;fix");
-        assert_eq!(pattern.positive.suffix, " suffix");
+        assert_eq!(pattern.positive.prefix, literal_affix("pre;fix"));
+        assert_eq!(pattern.positive.suffix, literal_affix(" suffix"));
         assert_eq!(pattern.positive.primary_group_size, Some(3));
         assert_eq!(pattern.positive.min_fraction_digits, 2);
         assert_eq!(
             pattern.negative.expect("negative subpattern").prefix,
-            "negative"
+            literal_affix("negative")
         );
     }
 
@@ -1440,7 +1479,7 @@ mod tests {
             ("0'+'", "+", None, false, 1),
         ] {
             let pattern = super::parse_number_pattern(source, &symbols).unwrap();
-            assert_eq!(pattern.positive.suffix, suffix, "{source}");
+            assert_eq!(pattern.positive.suffix, literal_affix(suffix), "{source}");
             assert_eq!(pattern.positive.exponent_digits, exponent, "{source}");
             assert_eq!(
                 pattern.positive.exponent_sign_always, sign_always,
@@ -1449,8 +1488,8 @@ mod tests {
             assert_eq!(pattern.positive.scale, scale, "{source}");
         }
         let pattern = super::parse_number_pattern("0.00+;0.00-", &symbols).unwrap();
-        assert_eq!(pattern.positive.suffix, "＋");
-        assert_eq!(pattern.negative.unwrap().suffix, "−");
+        assert_eq!(pattern.positive.suffix, literal_affix("＋"));
+        assert_eq!(pattern.negative.unwrap().suffix, literal_affix("−"));
         for invalid in ["0E+", "0E++00", "0E+0E0"] {
             assert!(
                 super::parse_number_pattern(invalid, &symbols).is_err(),
@@ -1466,15 +1505,15 @@ mod tests {
             assert!(pattern.negative.is_none(), "{source}");
         }
         let quoted = parse_number_pattern("'pre;'0';tail';").unwrap();
-        assert_eq!(quoted.positive.prefix, "pre;");
-        assert_eq!(quoted.positive.suffix, ";tail");
+        assert_eq!(quoted.positive.prefix, literal_affix("pre;"));
+        assert_eq!(quoted.positive.suffix, literal_affix(";tail"));
         let padded = parse_number_pattern("*;0;").unwrap();
         assert_eq!(padded.positive.padding.unwrap().character, ';');
         let spaced = parse_number_pattern("0 ;").unwrap();
-        assert_eq!(spaced.positive.suffix, " ");
+        assert_eq!(spaced.positive.suffix, literal_affix(" "));
         let negative = parse_number_pattern("0; -0 ").unwrap().negative.unwrap();
-        assert_eq!(negative.prefix, " -");
-        assert_eq!(negative.suffix, " ");
+        assert_eq!(negative.prefix, literal_affix(" -"));
+        assert_eq!(negative.suffix, literal_affix(" "));
         // A second separator is not an empty trailing negative subpattern.
         for invalid in ["0;;", "0;-0;", ";"] {
             assert!(parse_number_pattern(invalid).is_err(), "{invalid}");
@@ -1507,8 +1546,8 @@ mod tests {
         }
         let literal = "@#0123456789.,*;";
         let pattern = parse_number_pattern(&format!("'{literal}'0'{literal}'")).unwrap();
-        assert_eq!(pattern.positive.prefix, literal);
-        assert_eq!(pattern.positive.suffix, literal);
+        assert_eq!(pattern.positive.prefix, literal_affix(literal));
+        assert_eq!(pattern.positive.suffix, literal_affix(literal));
     }
 
     #[test]
@@ -1539,7 +1578,7 @@ mod tests {
             );
             assert_eq!(rounded.min_integer_digits, integer_digits, "{pattern}");
             assert_eq!(rounded.max_fraction_digits, 0, "{pattern}");
-            assert_eq!(rounded.prefix, "", "{pattern}");
+            assert_eq!(rounded.prefix, literal_affix(""), "{pattern}");
         }
 
         let padded = parse_number_pattern("USD *x#,##0")
@@ -1762,8 +1801,8 @@ mod tests {
         ] {
             let parsed = parse_number_pattern(pattern)
                 .unwrap_or_else(|error| panic!("{pattern:?}: {error}"));
-            assert_eq!(parsed.positive.prefix, prefix, "{pattern}");
-            assert_eq!(parsed.positive.suffix, suffix, "{pattern}");
+            assert_eq!(parsed.positive.prefix, literal_affix(prefix), "{pattern}");
+            assert_eq!(parsed.positive.suffix, literal_affix(suffix), "{pattern}");
             let padding = parsed.positive.padding.unwrap();
             assert_eq!(padding.character, character, "{pattern}");
             assert_eq!(padding.position, position, "{pattern}");

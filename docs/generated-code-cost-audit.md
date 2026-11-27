@@ -676,5 +676,30 @@ Existing application goldens retain their code, declaration, and map bytes. Prof
 compiler metadata; direct Rust struct literals require the new boolean field, as described in
 the migration notes. These results do not complete the remaining numeric-pattern model gaps.
 
+## Currency affix provenance
+
+GEN-A71 keeps literal currency marks separate from substitution slots in compiler metadata.
+The common number planner expands only slots, producing final prefix/suffix strings before
+ECMAScript rendering. Generated formatters gain no runtime affix arrays, slot dispatch,
+pattern parser, or substitution helper. Native previews use the same resolved strings.
+
+A shared ten-case contract exercises parsing, planning, native previews, and generated
+positive/negative calls. Twenty results match ICU 78.3 with fraction precision fixed to zero,
+isolating affix behavior from currency precision defaults. Cases include literal marks,
+literal/slot order, repeated slots, suffixes, explicit negative affixes, and doubled apostrophes.
+
+All 6,876 profile-v9 affixes flatten to the exact previous compiler artifact. Pinned literal
+fragments contain no currency marks, so existing substitutions retain their text. Eight complete
+native Vite 7/8 number/currency/date consumers remain byte-for-byte identical, including
+minified/gzip/Brotli sizes, output, callback sharing, and one self-contained chunk per entry.
+All existing application code/declaration/map goldens also retain their bytes.
+
+This is a prerelease Rust source change: prefix/suffix fields now require typed affixes.
+The API checker passes its 223 lints per affected crate, but its documented type-change
+limitation does not establish source compatibility. A compiler witness rejects legacy string
+assignments and accepts their typed replacements. All 71 local full-profile gates pass.
+Wider currency display markers remain explicitly unsupported; this correction
+does not claim complete currency-pattern support or improved execution time or heap use.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

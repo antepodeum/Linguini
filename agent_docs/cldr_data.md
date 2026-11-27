@@ -23,11 +23,20 @@ belongs to the localized affix. A final empty negative subpattern preserves impl
 Affix quoting is checked before symbol substitution, preventing numeric metacharacters outside
 the skeleton from silently becoming literals. Leading decimal/grouping forms require additional
 model support and currently fail. Padding escapes remain opaque to these checks.
-Profile v8 retains decimal-separator visibility in the shared numeric pattern metadata. A
+Affix lexing and symbol substitution live in `formatting/affix.rs`. Literal text and currency
+slots use the shared `NumberAffixPart` model with owned text during compilation and borrowed
+text in the checked tables. Compact `NumberAffix` values distinguish literals, single slots,
+and composite fragments. The common number plan resolves only explicit slots to currency text;
+quoted currency marks remain opaque literals. Wider currency display markers fail explicitly
+until their semantics are implemented.
+
+Profile v8 added decimal-separator visibility in the shared numeric pattern metadata. A
 trailing decimal in the mantissa sets `decimal_separator_always`; quoted punctuation and optional
 fraction placeholders do not. The common number plan carries the choice into native previews
-and build-time template selection. All 3,438 pinned pattern parts currently use `false`; removing
-those added fields reproduces the previous compiler artifact byte for byte.
+and build-time template selection. All 3,438 pinned pattern parts use `false`; that addition
+otherwise preserved the previous compiler artifact. Profile v9 adds typed affixes. Flattening
+all 6,876 affixes back to text reproduces the v8 artifact byte for byte; all other metadata is
+unchanged. Pinned literal fragments contain no currency marks, preserving existing substitutions.
 
 The calendar profile covers Gregorian, Buddhist, ROC, and Japanese data: 3,060 locale/calendar
 pairs, contextual symbols, eras, skeletons, day periods, week rules, and GMT formats. Equal

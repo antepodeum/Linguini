@@ -4,14 +4,55 @@ use linguini_cldr::{
     NumberPaddingPosition,
 };
 
+mod currency_affix_cases {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/codegen/currency-affixes.rs"
+    ));
+}
+
+#[test]
+fn currency_substitution_preserves_literal_affix_fragments() {
+    let numbers = compiled_number_formatting("en").unwrap();
+    for case in currency_affix_cases::CASES {
+        let mut pattern = numbers.decimal_pattern;
+        pattern.positive.prefix = case.prefix;
+        pattern.positive.suffix = case.suffix;
+        pattern.negative = case
+            .negative
+            .map(|(prefix, suffix)| linguini_cldr::NumberPatternPart {
+                prefix,
+                suffix,
+                ..pattern.positive
+            });
+        let plan = NumberFormatPlan::new(&pattern, Some("$"), &numbers, None).unwrap();
+        for (prefix, suffix, expected) in [
+            (&plan.affixes.prefix, &plan.affixes.suffix, case.positive),
+            (
+                &plan.affixes.negative_prefix,
+                &plan.affixes.negative_suffix,
+                case.negative_text,
+            ),
+        ] {
+            assert_eq!(
+                format!("{prefix}1{suffix}"),
+                expected,
+                "{}: {}",
+                case.name,
+                case.pattern
+            );
+        }
+    }
+}
+
 #[test]
 fn selected_pattern_compiles_affixes_grouping_quantum_scientific_symbols_and_padding() {
     let mut numbers = compiled_number_formatting("fa").unwrap();
     numbers.minimum_grouping_digits = 2;
     let mut pattern = numbers.decimal_pattern;
     pattern.negative = None;
-    pattern.positive.prefix = "¤";
-    pattern.positive.suffix = "%";
+    pattern.positive.prefix = NumberAffix::CurrencySymbol;
+    pattern.positive.suffix = NumberAffix::Literal("%");
     pattern.positive.secondary_group_size = Some(2);
     pattern.positive.scale = 100;
     pattern.positive.min_significant_digits = Some(2);
@@ -62,8 +103,11 @@ fn selected_pattern_compiles_affixes_grouping_quantum_scientific_symbols_and_pad
     assert!(plan.decimal_separator_always);
     let mut negative = pattern.positive;
     negative.decimal_separator_always = false;
-    negative.prefix = "(¤";
-    negative.suffix = ")";
+    negative.prefix = NumberAffix::Parts(&[
+        NumberAffixPart::Literal("("),
+        NumberAffixPart::CurrencySymbol,
+    ]);
+    negative.suffix = NumberAffix::Literal(")");
     pattern.negative = Some(negative);
     let plan = NumberFormatPlan::new(&pattern, Some("€"), &numbers, None).unwrap();
     assert_eq!(plan.affixes.negative_prefix, "(€");

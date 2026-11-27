@@ -125,7 +125,7 @@ fn checked_in_cldr_manifest_is_packaged_and_exposes_full_identity() {
     );
     assert_eq!(
         manifest["artifact"]["sha256"],
-        "6ec2370d95417b573eff6f8777c4849ab3cf90d006b90f4534236294c7214d2c"
+        "6cd2b6a64ccfd4d7eb714e6399f44a8fc6ee6091f097d5a99d1b41339c478379"
     );
     assert_eq!(manifest["coverage"]["language_aliases"], 500);
     assert_eq!(manifest["coverage"]["parent_locales"], 199);
@@ -193,11 +193,17 @@ fn compiled_formatting_data_is_typed_not_json() {
     assert_eq!(swiss_french.decimal_symbol, ".");
     assert_eq!(swiss_french.group_symbol, "'");
     let accounting = currency.accounting_pattern.expect("accounting pattern");
-    assert_eq!(accounting.positive.prefix, "\u{a4}");
+    assert_eq!(accounting.positive.prefix, NumberAffix::CurrencySymbol);
     assert_eq!(accounting.positive.min_fraction_digits, 2);
     let accounting_negative = accounting.negative.expect("negative accounting pattern");
-    assert_eq!(accounting_negative.prefix, "(\u{a4}");
-    assert_eq!(accounting_negative.suffix, ")");
+    assert_eq!(
+        accounting_negative.prefix,
+        NumberAffix::Parts(&[
+            NumberAffixPart::Literal("("),
+            NumberAffixPart::CurrencySymbol
+        ])
+    );
+    assert_eq!(accounting_negative.suffix, NumberAffix::Literal(")"));
     assert_eq!(dates.time_formats.short, "h:mm\u{202f}a");
     assert_eq!(dates.months.wide[0], "January");
     assert_eq!(dates.weekdays.abbreviated[0], "Sun");
@@ -323,3 +329,4 @@ fn currency_symbols_resolve_pinned_locale_data_without_host_intl() {
     assert_eq!(super::compiled_currency_symbol("fr-CA", "CAD"), Some("$"));
     assert_eq!(super::compiled_currency_symbol("en", "ZZZ"), None);
 }
+use super::{NumberAffix, NumberAffixPart};

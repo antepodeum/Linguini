@@ -29,6 +29,19 @@ previews and generated number/currency/scientific functions honor the flag even 
 leaves no fractional digits. ECMAScript templates select direct concatenation at build time.
 Application configuration, JavaScript inputs, and existing pinned message output are unchanged.
 
+## Typed numeric affixes in the Rust SDK
+
+`NumberPatternPart.prefix` and `.suffix` now use `linguini_cldr::NumberAffix`. Construct ordinary
+text with `NumberAffix::Literal(text)` and a currency substitution with
+`NumberAffix::CurrencySymbol`. Compose mixed affixes with `NumberAffix::Parts` containing
+`NumberAffixPart::Literal(text)` and `NumberAffixPart::CurrencySymbol` entries. This is a
+prerelease Rust source compatibility change; the `NumberFormatPlan::new` signature is unchanged.
+
+Currency expansion preserves literal `¤` characters, including quoted CLDR text, and replaces
+only explicit slots. Native previews and generated formatters share the resolved affixes.
+Multi-character currency marker widths remain unsupported and fail during offline compilation
+instead of producing repeated symbols. JavaScript APIs and application configuration are unchanged.
+
 ## Runtime link scheduling and cleanup
 
 Runtime link localization skips text additions and coalesces duplicate mutation records.

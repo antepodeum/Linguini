@@ -194,6 +194,13 @@ Its nested affix/grouping/scientific models contain semantic values; target back
 names, identifier escaping, and template projection. Currency callers supply their resolved
 separators and fraction quantum. No ECMAScript syntax or template engine belongs to this plan.
 
+Numeric pattern affixes use `NumberAffix::Literal`, `CurrencySymbol`, or `Parts`. Composite parts
+distinguish `NumberAffixPart::Literal` from `CurrencySymbol`; a literal `¤` stays literal even
+when a currency symbol is supplied. The shared planner resolves these fragments before target
+rendering, preserving their order and explicit negative affixes. The current offline profile
+supports the single-character currency-symbol marker; code/name/narrow marker widths remain
+unsupported.
+
 Schema path selection, locale-to-schema projection, root/nested namespace projection, and the
 documented nested message tree also live in `linguini-codegen`. Declaration order and source
 identity survive projection; target backends render the resulting messages/types themselves.

@@ -170,10 +170,25 @@ pub struct NumberPattern {
     pub negative: Option<NumberPatternPart>,
 }
 
+/// A compiled numeric affix, with currency substitutions distinct from literal text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumberAffix {
+    Literal(&'static str),
+    CurrencySymbol,
+    Parts(&'static [NumberAffixPart]),
+}
+
+/// Text is owned while compiling CLDR and borrowed in the checked data tables.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumberAffixPart<Text = &'static str> {
+    Literal(Text),
+    CurrencySymbol,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NumberPatternPart {
-    pub prefix: &'static str,
-    pub suffix: &'static str,
+    pub prefix: NumberAffix,
+    pub suffix: NumberAffix,
     pub min_integer_digits: u8,
     pub min_fraction_digits: u8,
     pub max_fraction_digits: u8,
