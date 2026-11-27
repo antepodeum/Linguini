@@ -1,0 +1,177 @@
+[
+  {
+    "name": "integer",
+    "min_fraction": 0,
+    "max_fraction": 0,
+    "min_significant": null,
+    "max_significant": null,
+    "scientific": false,
+    "samples": [
+      {
+        "input": "1",
+        "visible": "1.",
+        "ordinary": "1"
+      },
+      {
+        "input": "1234.25",
+        "visible": "1,234.",
+        "ordinary": "1,234"
+      },
+      {
+        "input": "-0",
+        "visible": "-0.",
+        "ordinary": "-0"
+      },
+      {
+        "input": "9.9",
+        "visible": "10.",
+        "ordinary": "10"
+      },
+      {
+        "input": "1e-3",
+        "visible": "0.",
+        "ordinary": "0"
+      }
+    ]
+  },
+  {
+    "name": "optional",
+    "min_fraction": 0,
+    "max_fraction": 2,
+    "min_significant": null,
+    "max_significant": null,
+    "scientific": false,
+    "samples": [
+      {
+        "input": "1",
+        "visible": "1.",
+        "ordinary": "1"
+      },
+      {
+        "input": "1234.25",
+        "visible": "1,234.25",
+        "ordinary": "1,234.25"
+      },
+      {
+        "input": "-0",
+        "visible": "-0.",
+        "ordinary": "-0"
+      },
+      {
+        "input": "9.9",
+        "visible": "9.9",
+        "ordinary": "9.9"
+      },
+      {
+        "input": "1e-3",
+        "visible": "0.",
+        "ordinary": "0"
+      }
+    ]
+  },
+  {
+    "name": "required",
+    "min_fraction": 2,
+    "max_fraction": 2,
+    "min_significant": null,
+    "max_significant": null,
+    "scientific": false,
+    "samples": [
+      {
+        "input": "1",
+        "visible": "1.00",
+        "ordinary": "1.00"
+      },
+      {
+        "input": "1234.25",
+        "visible": "1,234.25",
+        "ordinary": "1,234.25"
+      },
+      {
+        "input": "-0",
+        "visible": "-0.00",
+        "ordinary": "-0.00"
+      },
+      {
+        "input": "9.9",
+        "visible": "9.90",
+        "ordinary": "9.90"
+      },
+      {
+        "input": "1e-3",
+        "visible": "0.00",
+        "ordinary": "0.00"
+      }
+    ]
+  },
+  {
+    "name": "significant",
+    "min_fraction": 0,
+    "max_fraction": 0,
+    "min_significant": 2,
+    "max_significant": 3,
+    "scientific": false,
+    "samples": [
+      {
+        "input": "1",
+        "visible": "1.0",
+        "ordinary": "1.0"
+      },
+      {
+        "input": "1234.25",
+        "visible": "1,230.",
+        "ordinary": "1,230"
+      },
+      {
+        "input": "-0",
+        "visible": "-0.0",
+        "ordinary": "-0.0"
+      },
+      {
+        "input": "9.9",
+        "visible": "9.9",
+        "ordinary": "9.9"
+      },
+      {
+        "input": "1e-3",
+        "visible": "0.0010",
+        "ordinary": "0.0010"
+      }
+    ]
+  },
+  {
+    "name": "scientific",
+    "min_fraction": 0,
+    "max_fraction": 0,
+    "min_significant": null,
+    "max_significant": null,
+    "scientific": true,
+    "samples": [
+      {
+        "input": "1",
+        "visible": "1.E00",
+        "ordinary": "1E00"
+      },
+      {
+        "input": "1234.25",
+        "visible": "1.E03",
+        "ordinary": "1E03"
+      },
+      {
+        "input": "-0",
+        "visible": "-0.E00",
+        "ordinary": "-0E00"
+      },
+      {
+        "input": "9.9",
+        "visible": "1.E01",
+        "ordinary": "1E01"
+      },
+      {
+        "input": "1e-3",
+        "visible": "1.E-03",
+        "ordinary": "1E-03"
+      }
+    ]
+  }
+]

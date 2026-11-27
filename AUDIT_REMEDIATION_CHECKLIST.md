@@ -550,8 +550,19 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       valid quoted punctuation, and padding rejection checks require their specific error.
       All 30 maintainer tests and workspace Clippy pass; pinned data reproduces byte for byte.
       Remaining model gaps include literal versus placeholder currency affixes, currency-marker
-      widths, always-visible decimal separators, and integer-width/engineering semantics.
+      widths and integer-width/engineering semantics.
       Leading decimal/grouping forms are explicitly unsupported pending that model work.
+      Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
+      Native fraction previews and generated fixed/significant/scientific formatters preserve it;
+      templates fold the choice into selected concatenation without a runtime flag or parser.
+      Shared corpus execution covers 50 outcomes, independently matched by ICU 78.3; Unicode
+      affixes, negative zero, special inputs, coercion/error observations, and all padding positions
+      retain coverage. All 3,438 pinned pattern parts use false, preserving prior metadata and
+      application output. Rust struct literals must initialize the added boolean field.
+      All 42 CLDR, 31 maintainer, 60 common planner, 204 emitter, and 112 CLI unit tests plus
+      integrations pass on Node 20. Node 24 corpus execution, strict JS 5.8/5.9/6, Rust 1.87
+      native/WASM, and all 71 local full-profile gates pass. Forced patch checks report only the
+      documented field addition per affected crate; the other 222 checks pass in each.
 - [x] #179 — Validate model limits before narrowing integer casts.
 - [x] #180 — Share the runtime plural grammar. Generated Rust predicates and TypeScript predicates
   both lower the canonical `linguini-cldr::PluralRule`; neither target reparses CLDR rule text.
@@ -1397,6 +1408,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       (GEN-A60–A64) also pass all 71 local full-profile gates. Separate Node 20/24 formatter and
       CLI suites, Rust 1.87, and strict JS 5.8/5.9 checks pass. Broader architecture and hosted
       platform/release verification remain open.
+      The integrated numeric-pattern, DOM scheduling/cleanup, and decimal-visibility changes
+      (GEN-A65–A70) pass all 71 local full-profile gates. The new semantic field changes Rust
+      struct-literal construction; migration notes document it, and forced patch checks isolate
+      those two source breaks. Rust 1.87 native/WASM and strict JS 5.8/5.9/6 checks pass.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -2359,6 +2374,10 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
   passed with cargo-deny 0.20.2, cargo-audit 0.22.2, and cargo-semver-checks 0.50.0 against
   `origin/dev`; the workspace crates remain prerelease `0.1.0-alpha.4`, so semver-checks correctly
   treated the unchanged prerelease versions as major-compatible and skipped stable-release lints.
+  GEN-A70 adds a documented boolean to `NumberPatternPart` and `NumberFormatPlan`. Forced patch
+  comparisons against `e1c2dfd` find precisely those two struct-literal breaks, with 222 other
+  checks passing per crate. Default unchanged-prerelease checks skip their 254 stable lints;
+  those skips are not a patch-compatibility claim.
 - [x] Run Vite 5–8, SvelteKit, npm launcher, native VSIX, and WASM integration tests. Local Linux
   receipts cover the full-profile npm/site/WASM checks, 80 adapter tests per major on `0143d99`,
   and fresh installed native/universal VSIX packages in native, explicit WASM, and empty-PATH

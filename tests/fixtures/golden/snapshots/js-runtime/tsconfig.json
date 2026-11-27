@@ -7,5 +7,5 @@
     "strict": true,
     "target": "ES2022"
   },
-  "files": ["_runtime.js", "unicode.js", "unicode-consumer.js", "scientific.js", "plural-name.js", "plural-name-consumer.js", "../codegen-js-plural-ru.js", "../ts/locales/ru/_runtime.ts", "../js-globals/typescript/locales/en-us/_runtime.ts"]
+  "files": ["_runtime.js", "unicode.js", "unicode-consumer.js", "scientific.js", "decimal-separator.js", "plural-name.js", "plural-name-consumer.js", "../codegen-js-plural-ru.js", "../ts/locales/ru/_runtime.ts", "../js-globals/typescript/locales/en-us/_runtime.ts"]
 }

@@ -736,6 +736,7 @@ fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
     let min_integer_digits = part.min_integer_digits;
     let min_fraction_digits = part.min_fraction_digits;
     let max_fraction_digits = part.max_fraction_digits;
+    let decimal_separator_always = part.decimal_separator_always;
     let primary_group_size = option_u8_tokens(part.primary_group_size);
     let secondary_group_size = option_u8_tokens(part.secondary_group_size);
     let min_significant_digits = option_u8_tokens(part.min_significant_digits);
@@ -776,6 +777,7 @@ fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
             min_integer_digits: #min_integer_digits,
             min_fraction_digits: #min_fraction_digits,
             max_fraction_digits: #max_fraction_digits,
+            decimal_separator_always: #decimal_separator_always,
             primary_group_size: #primary_group_size,
             secondary_group_size: #secondary_group_size,
             min_significant_digits: #min_significant_digits,
@@ -804,6 +806,7 @@ struct NumberPatternPart {
     min_integer_digits: u8,
     min_fraction_digits: u8,
     max_fraction_digits: u8,
+    decimal_separator_always: bool,
     primary_group_size: Option<u8>,
     secondary_group_size: Option<u8>,
     min_significant_digits: Option<u8>,
@@ -969,6 +972,7 @@ fn parse_number_pattern_part(
             "maximum fraction digits",
             original,
         )?,
+        decimal_separator_always: mantissa.ends_with('.'),
         primary_group_size: (group_sizes.len() > 1)
             .then(|| checked_u8(group_sizes[0], "primary group size", original))
             .transpose()?,
@@ -1563,6 +1567,28 @@ mod tests {
                 .scale,
             1000
         );
+    }
+
+    #[test]
+    fn trailing_decimal_separator_is_retained_in_compiled_number_metadata() {
+        for (ordinary, visible) in [("0", "0."), ("#,##0", "#,##0."), ("0E+00", "0.E+00")] {
+            let ordinary = parse_number_pattern(ordinary).unwrap();
+            let visible = parse_number_pattern(visible).unwrap();
+            let ordinary = super::number_pattern_part_tokens(&ordinary.positive).to_string();
+            let visible = super::number_pattern_part_tokens(&visible.positive).to_string();
+            assert_ne!(
+                ordinary, visible,
+                "decimal visibility must survive compilation"
+            );
+            assert!(visible.contains("decimal_separator_always : true"));
+            assert!(ordinary.contains("decimal_separator_always : false"));
+        }
+        for pattern in ["0.0", "0.##", "0'.'"] {
+            let parsed = parse_number_pattern(pattern).unwrap();
+            assert!(super::number_pattern_part_tokens(&parsed.positive)
+                .to_string()
+                .contains("decimal_separator_always : false"));
+        }
     }
 
     #[test]

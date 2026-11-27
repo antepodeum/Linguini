@@ -197,6 +197,7 @@ fn number_plan(
         max_fraction => plan.max_fraction_digits, primary_group => grouping.map(|group| group.primary_size),
         grouping_threshold => grouping.map(|group| group.threshold), secondary_group => grouping.map(|group| group.secondary_size),
         decimal_symbol => plan.decimal_symbol, group_symbol => plan.group_symbol, digits => plan.digits, digit_lookup => digit_lookup(plan.digits),
+        decimal_separator_always => plan.decimal_separator_always,
         digit_helper => digit_bindings.binding(plan.digits),
         scale => plan.scale, scale_shift => plan.scale_shift,
         min_significant => plan.min_significant_digits, max_significant => plan.max_significant_digits,

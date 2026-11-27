@@ -16,6 +16,7 @@ fn selected_pattern_compiles_affixes_grouping_quantum_scientific_symbols_and_pad
     pattern.positive.scale = 100;
     pattern.positive.min_significant_digits = Some(2);
     pattern.positive.max_significant_digits = Some(4);
+    pattern.positive.decimal_separator_always = true;
     pattern.positive.rounding_increment = Some("5");
     pattern.positive.exponent_digits = Some(2);
     pattern.positive.exponent_sign_always = true;
@@ -58,7 +59,9 @@ fn selected_pattern_compiles_affixes_grouping_quantum_scientific_symbols_and_pad
     assert_eq!(plan.digits, "۰۱۲۳۴۵۶۷۸۹");
     assert_eq!(plan.decimal_symbol, "٫");
     assert_eq!(plan.group_symbol, "٬");
+    assert!(plan.decimal_separator_always);
     let mut negative = pattern.positive;
+    negative.decimal_separator_always = false;
     negative.prefix = "(¤";
     negative.suffix = ")";
     pattern.negative = Some(negative);
@@ -66,6 +69,10 @@ fn selected_pattern_compiles_affixes_grouping_quantum_scientific_symbols_and_pad
     assert_eq!(plan.affixes.negative_prefix, "(€");
     assert_eq!(plan.affixes.negative_suffix, ")");
     assert_eq!(plan.rounding.increment, "5");
+    assert!(
+        plan.decimal_separator_always,
+        "the positive pattern owns numeric choices"
+    );
 }
 
 #[test]
@@ -115,6 +122,7 @@ fn plan_boundaries_preserve_optional_demand_and_avoid_narrowing_thresholds() {
     assert!(plan.grouping.is_none());
     assert!(plan.scientific.is_none());
     assert!(plan.padding.is_none());
+    assert!(!plan.decimal_separator_always);
 }
 
 #[test]

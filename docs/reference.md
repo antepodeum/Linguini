@@ -185,7 +185,11 @@ changing field order or losing digit-localization proofs. Native previews and ta
 request selection is available through `week_date_request_plan`.
 
 `linguini_codegen::NumberFormatPlan` resolves the selected number pattern's affixes, grouping
-thresholds, decimal scale, precision/rounding, scientific symbols/carry result, and padding.
+thresholds, decimal scale, precision/rounding, decimal-separator visibility, scientific
+symbols/carry result, and padding. `decimal_separator_always` preserves the separator when the
+rounded fraction is empty; ordinary optional-fraction plans continue to omit it. The offline
+pattern compiler derives this choice from trailing decimal syntax such as `0.`. Generated
+functions resolve it during template rendering, while native fraction previews use the same plan.
 Its nested affix/grouping/scientific models contain semantic values; target backends own helper
 names, identifier escaping, and template projection. Currency callers supply their resolved
 separators and fraction quantum. No ECMAScript syntax or template engine belongs to this plan.

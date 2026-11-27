@@ -1,5 +1,6 @@
 {% set fraction_empty = plan.max_fraction == 0 and plan.max_significant is none and plan.min_significant is none and (plan.exponent_digits is none or plan.carry_fraction is not none) -%}
-{% set formatted_value = "integer" if fraction_empty and plan.exponent_digits is none else "formatted" -%}
+{% set inline_decimal = fraction_empty and plan.decimal_separator_always and plan.digits == "0123456789" and plan.exponent_digits is none and plan.padding is none -%}
+{% set formatted_value = "integer" if fraction_empty and plan.exponent_digits is none and (not plan.decimal_separator_always or inline_decimal) else "formatted" -%}
 {% set numeric_value = "localized" if plan.digits != "0123456789" else formatted_value -%}
 {% set output_value = "scientific" if plan.exponent_digits is not none else numeric_value -%}
 /**
@@ -30,7 +31,7 @@
     }
     integer = grouped{% if plan.primary_group != plan.secondary_group %} + {{ plan.group_symbol|js }} + integer.slice(primaryStart){% endif %};
   }
-{% endif %}{% if not fraction_empty or plan.exponent_digits is not none %}  const formatted = {% if fraction_empty %}integer{% elif plan.max_significant is none and plan.min_fraction > 0 %}integer + {{ plan.decimal_symbol|js }} + fraction{% else %}fraction ? integer + {{ plan.decimal_symbol|js }} + fraction : integer{% endif %};
+{% endif %}{% if not inline_decimal and (not fraction_empty or plan.exponent_digits is not none or plan.decimal_separator_always) %}  const formatted = {% if fraction_empty %}integer{% if plan.decimal_separator_always %} + {{ plan.decimal_symbol|js }}{% endif %}{% elif plan.decimal_separator_always or (plan.max_significant is none and plan.min_fraction > 0) %}integer + {{ plan.decimal_symbol|js }} + fraction{% else %}fraction ? integer + {{ plan.decimal_symbol|js }} + fraction : integer{% endif %};
 {% endif %}{% if plan.digits != "0123456789" %}  const localized = {{ formatted_value }}.replace(/\d/g, {{ plan.digit_helper }});
 {% endif %}{% if plan.exponent_digits is not none %}  const exponentDigits = String(Math.abs(exponent)).padStart({{ plan.exponent_digits }}, "0");
   const scientific = {{ numeric_value }} + {{ plan.exponential_symbol|js }} + (exponent < 0 ? {{ plan.minus_sign|js }} : {{ plan.exponent_plus|js }}) + {% if plan.digits == "0123456789" %}exponentDigits{% else %}exponentDigits.replace(/\d/g, {{ plan.digit_helper }}){% endif %};
@@ -38,6 +39,6 @@
 {% if plan.suffix == plan.negative_suffix %}{% if plan.suffix %}  const suffix = {{ plan.suffix|js }};
 {% endif %}{% else %}  const suffix = decimal.negative ? {{ plan.negative_suffix|js }} : {{ plan.suffix|js }};
 {% endif %}{% if plan.padding is not none %}  const padding = {{ plan.padding.character|js }}.repeat(Math.max(0, {{ plan.padding.width }} - [...(prefix + {{ output_value }}{% if plan.suffix or plan.suffix != plan.negative_suffix %} + suffix{% endif %})].length));
-{% endif %}  return {% if plan.padding is not none and plan.padding.position == 0 %}padding + {% endif %}prefix + {% if plan.padding is not none and plan.padding.position == 1 %}padding + {% endif %}{{ output_value }}{% if plan.padding is not none and plan.padding.position == 2 %} + padding{% endif %}{% if plan.suffix or plan.suffix != plan.negative_suffix %} + suffix{% endif %}{% if plan.padding is not none and plan.padding.position == 3 %} + padding{% endif %};
+{% endif %}  return {% if plan.padding is not none and plan.padding.position == 0 %}padding + {% endif %}prefix + {% if plan.padding is not none and plan.padding.position == 1 %}padding + {% endif %}{{ output_value }}{% if inline_decimal %} + {{ plan.decimal_symbol|js }}{% endif %}{% if plan.padding is not none and plan.padding.position == 2 %} + padding{% endif %}{% if plan.suffix or plan.suffix != plan.negative_suffix %} + suffix{% endif %}{% if plan.padding is not none and plan.padding.position == 3 %} + padding{% endif %};
 }
 {{ "\n" -}}

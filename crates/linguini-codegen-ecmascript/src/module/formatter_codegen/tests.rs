@@ -1,5 +1,6 @@
 mod currency_symbols;
 mod date_composition;
+mod decimal_separator;
 mod digit_callbacks;
 mod month_weeks;
 mod number_inputs;
@@ -327,6 +328,7 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         min_integer_digits: 1,
         min_fraction_digits: 0,
         max_fraction_digits: 2,
+        decimal_separator_always: false,
         primary_group_size: Some(3),
         secondary_group_size: Some(2),
         min_significant_digits: Some(2),

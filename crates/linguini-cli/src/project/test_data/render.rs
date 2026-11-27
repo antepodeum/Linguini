@@ -1196,7 +1196,7 @@ fn format_number_pattern(
     }
 
     let grouped = group_integer_digits(&decimal.integer, plan.grouping, plan.group_symbol);
-    let formatted = if decimal.fraction.is_empty() {
+    let formatted = if decimal.fraction.is_empty() && !plan.decimal_separator_always {
         grouped
     } else {
         format!("{grouped}{}{}", plan.decimal_symbol, decimal.fraction)
@@ -1375,6 +1375,7 @@ fn group_integer_digits(
 
 #[cfg(test)]
 mod tests {
+    mod decimal_separator;
     mod plural_inputs;
 
     use super::*;

@@ -645,5 +645,36 @@ guards add 17 minified bytes and four/three Brotli bytes on Vite 7/8:
 These complete consumers retain the queue operation counts above and one self-contained chunk.
 The figures establish observable cleanup behavior and code size, without a heap-size claim.
 
+## Decimal-separator visibility
+
+GEN-A70 retains the semantic difference between `0` and `0.` in the shared pattern/number
+plan. The ECMAScript template folds this metadata into selected concatenation. For an ASCII
+integer plan without padding, the return expression appends the separator directly; padding
+and digit-localization plans retain the intermediate string when they reuse it. No runtime
+flag, pattern parser, or extra helper is emitted.
+
+Complete Vite 7/8 consumers import one integer formatter from the regenerated ten-export
+fixture. Each retains only its selected export, executes the five integer corpus inputs plus
+NaN/infinity, and emits one self-contained chunk without imports. Node 24.13.1
+minified/gzip/Brotli bytes:
+
+| Bundler | Ordinary integer | Always-visible separator |
+| --- | ---: | ---: |
+| Vite 7.3.3 | 1,257 / 686 / 625 | 1,261 / 690 / 630 |
+| Vite 8.0.13 | 1,232 / 670 / 612 | 1,236 / 673 / 615 |
+
+The corrected output requires `+"."`, adding four minified bytes on either bundler. Gzip grows
+by four/three bytes and Brotli by five/three. This is a corrected-output comparison, rather
+than a claim that incorrect output was equivalent or that heap use or execution time improved.
+The initial template retained an unnecessary intermediate binding; folding it into this return
+reduced the Vite 7 cost from fourteen extra minified bytes to four.
+
+All 3,438 existing pinned pattern parts use `false`. Eight native number/currency/date
+consumers across `ar-EG`, `fa`, `ff-Adlm`, and `ccp` retain byte-identical Vite 7/8 programs,
+including identical gzip/Brotli sizes, text, shared digit callbacks, and one chunk per entry.
+Existing application goldens retain their code, declaration, and map bytes. Profile v8 extends
+compiler metadata; direct Rust struct literals require the new boolean field, as described in
+the migration notes. These results do not complete the remaining numeric-pattern model gaps.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

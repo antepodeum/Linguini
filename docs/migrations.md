@@ -17,6 +17,18 @@ Regenerate output to reuse digit-replacement functions across number, currency, 
 formatters. Formatting no longer creates a replacement function on each numeric call.
 Accepted inputs, formatted text, and public signatures are unchanged.
 
+## Visible decimal separators in Rust formatter models
+
+`linguini_cldr::NumberPatternPart` and `linguini_codegen::NumberFormatPlan` now include
+`decimal_separator_always: bool`. Rust code constructing either struct directly must initialize
+this field; use `false` to retain prior behavior. `NumberFormatPlan::new` derives it from the
+selected pattern. This is a Rust source compatibility change in the prerelease SDK.
+
+The offline CLDR compiler retains trailing decimal separators such as `0.`. Native fraction
+previews and generated number/currency/scientific functions honor the flag even when rounding
+leaves no fractional digits. ECMAScript templates select direct concatenation at build time.
+Application configuration, JavaScript inputs, and existing pinned message output are unchanged.
+
 ## Runtime link scheduling and cleanup
 
 Runtime link localization skips text additions and coalesces duplicate mutation records.

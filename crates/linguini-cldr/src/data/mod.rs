@@ -177,6 +177,8 @@ pub struct NumberPatternPart {
     pub min_integer_digits: u8,
     pub min_fraction_digits: u8,
     pub max_fraction_digits: u8,
+    /// Retain the decimal separator even when the formatted fraction is empty.
+    pub decimal_separator_always: bool,
     pub primary_group_size: Option<u8>,
     pub secondary_group_size: Option<u8>,
     pub min_significant_digits: Option<u8>,
