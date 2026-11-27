@@ -1,6 +1,6 @@
-{% from "formatters/date_parts" import expression %}{% for table in tables %}const {{ table.name }} = [{% for value in table.values %}{{ value|js }}{{ ", " if not loop.last }}{% endfor %}];
+{% from "formatters/date_parts" import expression %}{% from "types/host" import date_input %}{% for table in tables %}const {{ table.name }} = [{% for value in table.values %}{{ value|js }}{{ ", " if not loop.last }}{% endfor %}];
 {% endfor %}/**
- * @param {Date | number | string} value
+ * @param { {{- date_input() -}} } value
  * @returns {string}
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {

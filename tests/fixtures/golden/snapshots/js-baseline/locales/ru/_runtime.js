@@ -25,7 +25,7 @@ export function formatCurrency_code_RUB(value) {
 }
 
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatDate_style_short(value) {
@@ -162,11 +162,11 @@ function padNumber(value, length) {
 }
 
 /**
- * @param {Date | number | string} value
- * @returns {Date}
+ * @param {globalThis.Date | number | string} value
+ * @returns {globalThis.Date}
  */
 function coerceDate(value) {
-  /** @type {Date} */
+  /** @type {globalThis.Date} */
   let date;
   if (value instanceof Date) {
     date = value;
@@ -198,7 +198,7 @@ function coerceDate(value) {
  * @param {number} year
  * @param {number} month
  * @param {number} day
- * @returns {Date}
+ * @returns {globalThis.Date}
  */
 function createUTCDate(year, month, day) {
   validateDateFields(year, month, day);

@@ -1,6 +1,6 @@
 const formatWeekYear_months_3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatWeekYear(value) {
@@ -24,11 +24,11 @@ function padNumber(value, length) {
 }
 
 /**
- * @param {Date | number | string} value
- * @returns {Date}
+ * @param {globalThis.Date | number | string} value
+ * @returns {globalThis.Date}
  */
 function coerceDate(value) {
-  /** @type {Date} */
+  /** @type {globalThis.Date} */
   let date;
   if (value instanceof Date) {
     date = value;
@@ -60,7 +60,7 @@ function coerceDate(value) {
  * @param {number} year
  * @param {number} month
  * @param {number} day
- * @returns {Date}
+ * @returns {globalThis.Date}
  */
 function createUTCDate(year, month, day) {
   validateDateFields(year, month, day);
@@ -91,7 +91,7 @@ function throwInvalidDate() {
   throw new RangeError("Linguini: invalid date value");
 }
 /**
- * @param {Date} date
+ * @param {globalThis.Date} date
  * @param {number} year
  * @param {number} month
  * @returns {number}

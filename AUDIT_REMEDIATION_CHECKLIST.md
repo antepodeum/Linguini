@@ -1322,6 +1322,9 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       all 71 full-profile gates after the shared-body rename guard (GEN-A57–A58): locked Rust,
       strict consumers, installed/native tsc, rebuilt editor/WASM, offline packages, documentation,
       and production SSR/browser/graph checks. Broader unfinished architecture criteria stay open.
+      The qualified native-date annotation follow-up also passes all 71 full-profile gates
+      (GEN-A59), including strict generated consumers, installed tsc, rebuilt editor/WASM,
+      offline packages, documentation, and production site/SSR/browser/graph checks.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1882,6 +1885,16 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       1.87, 223 patch API checks, and eight schema/project/documentation gates pass. Existing output
       snapshots stay unchanged, and complete Vite 7/8 before/after consumers retain byte-identical
       bundles. Native case rules remain intact.
+      Native date annotations now share qualified host-type templates (GEN-A59), preventing an
+      accepted unqualified source `Date` type from capturing native date inputs/helper results.
+      Public source `Date`/`globalThis` types retain their own identities. Executed ordinary,
+      physical, and standalone modules cover native Dates, epoch numbers, strings, named getters,
+      invalid inputs, and caller errors. Both strict consumer gates failed before the correction;
+      positive/negative checked JS and application TS now pass on 5.8/5.9/6. All 198 emitter tests
+      and CLI tests pass on Node 20, with the new corpus on Node 24, Clippy, Rust 1.87, 223 patch
+      API checks, and eleven consumer/documentation gates passing. Eleven changed existing JS
+      goldens retain identical executable syntax; existing source maps and frozen comparisons
+      stay unchanged. Complete Vite 7/8 consumers execute with byte-identical before/after bundles.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       Shared form demand projects standalone closures and generated projects to used attributes

@@ -1,0 +1,2 @@
+{% macro date_value() -%}globalThis.Date{%- endmacro %}
+{% macro date_input() -%}{{ date_value() }} | number | string{%- endmacro %}

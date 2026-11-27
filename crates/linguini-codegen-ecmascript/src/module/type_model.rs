@@ -61,7 +61,11 @@ mod tests {
                 TypeModel::NumberInput,
                 "number | bigint | string",
             ),
-            ("Date", TypeModel::DateInput, "Date | number | string"),
+            (
+                "Date",
+                TypeModel::DateInput,
+                "globalThis.Date | number | string",
+            ),
             (
                 "shop.Money",
                 TypeModel::Named("shop.Money".to_owned()),
@@ -75,5 +79,14 @@ mod tests {
             assert_eq!(render_typescript_type(&model), expected_output);
             assert_eq!(render_jsdoc_type(&model), expected_output);
         }
+        // Explicit named source types keep their identity beside native host inputs.
+        assert_eq!(
+            render_typescript_type(&TypeModel::Named("Date".into())),
+            "Date"
+        );
+        assert_eq!(
+            render_jsdoc_type(&TypeModel::Named("globalThis".into())),
+            "globalThis"
+        );
     }
 }

@@ -1,5 +1,5 @@
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatDate_skeleton_yw(value) {
@@ -20,7 +20,7 @@ export function formatDate_skeleton_yw(value) {
 
 const formatDate_skeleton_MMMMW_months_3 = ["जनवरी:", "फरवरी:", "मार्च:", "अप्रैल:", "मई", "जून:", "जुलाई:", "अगस्त:", "सितंबर:", "अक्तूबर:", "नवंबर:", "दिसंबर:"];
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatDate_skeleton_MMMMW(value) {
@@ -31,11 +31,11 @@ export function formatDate_skeleton_MMMMW(value) {
 }
 
 /**
- * @param {Date | number | string} value
- * @returns {Date}
+ * @param {globalThis.Date | number | string} value
+ * @returns {globalThis.Date}
  */
 function coerceDate(value) {
-  /** @type {Date} */
+  /** @type {globalThis.Date} */
   let date;
   if (value instanceof Date) {
     date = value;
@@ -67,7 +67,7 @@ function coerceDate(value) {
  * @param {number} year
  * @param {number} month
  * @param {number} day
- * @returns {Date}
+ * @returns {globalThis.Date}
  */
 function createUTCDate(year, month, day) {
   validateDateFields(year, month, day);

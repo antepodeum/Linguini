@@ -1,5 +1,5 @@
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatFlexible(value) {
@@ -20,7 +20,7 @@ export function formatFlexible(value) {
 }
 
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatFixed(value) {
@@ -37,7 +37,7 @@ export function formatFixed(value) {
 }
 
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatNarrow(value) {
@@ -55,7 +55,7 @@ export function formatNarrow(value) {
 }
 
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatYear(value) {
@@ -66,7 +66,7 @@ export function formatYear(value) {
 }
 
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatLocalized(value) {
@@ -86,11 +86,11 @@ function padNumber(value, length) {
 }
 
 /**
- * @param {Date | number | string} value
- * @returns {Date}
+ * @param {globalThis.Date | number | string} value
+ * @returns {globalThis.Date}
  */
 function coerceDate(value) {
-  /** @type {Date} */
+  /** @type {globalThis.Date} */
   let date;
   if (value instanceof Date) {
     date = value;
@@ -122,7 +122,7 @@ function coerceDate(value) {
  * @param {number} year
  * @param {number} month
  * @param {number} day
- * @returns {Date}
+ * @returns {globalThis.Date}
  */
 function createUTCDate(year, month, day) {
   validateDateFields(year, month, day);

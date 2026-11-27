@@ -9,6 +9,7 @@ use std::path::Path;
 
 mod bindings;
 mod constant_week_dates;
+mod date_types;
 mod export_bindings;
 mod form_demand;
 mod type_keywords;
@@ -1296,7 +1297,7 @@ plain = Raw {price @number}
         .expect("shared module");
     assert!(shared_module
         .contents
-        .contains("@typedef {Date | number | string} ShortDate"));
+        .contains("@typedef {globalThis.Date | number | string} ShortDate"));
     assert!(locale_module
         .contents
         .contains("export function plain(...__lgl_args)"));

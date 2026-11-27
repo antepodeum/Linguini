@@ -531,5 +531,28 @@ Vite 8.0.13, measured on Node 24.13.1. The before versions render correctly but 
 checks; the correction is to the type contract. There is no runtime registry, wrapper, or
 classification added, and no timing claim.
 
+## Native Date annotations beside source types
+
+An unqualified SDK source enum named `Date` captures the generated date input alias, rejecting
+native instances in TypeScript although a forwarded explicit date formatter executes them.
+Qualified `globalThis.Date` input/result annotations share one host-type template. The source
+`Date` enum and programmatic `globalThis` type keep their own exports and finite values.
+
+The permanent fixture checks ordinary, physical, and standalone execution and strict positive/
+negative consumers on TS 5.8.3, 5.9.3, and 6.0.3. Eleven changed existing JavaScript goldens have
+identical executable syntax after comments are removed; existing source-map goldens and frozen
+comparison runtimes are unchanged.
+
+A complete SDK consumer calls its named function's short-date formatter through the generated
+locale message. Both versions execute Date instances and ISO text in one self-contained chunk.
+App builds on Node 24.13.1 retain byte-identical before/after bundles:
+
+| Bundler | Before minified / gzip / Brotli | After minified / gzip / Brotli |
+| --- | ---: | ---: |
+| Vite 7.3.3 | 1,461 / 798 / 698 | 1,461 / 798 / 698 |
+| Vite 8.0.13 | 1,398 / 750 / 652 | 1,398 / 750 / 652 |
+
+The correction adds no runtime expression or operation and makes no timing claim.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

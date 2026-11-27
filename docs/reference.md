@@ -164,6 +164,13 @@ first, keeping them distinct from compiler bindings. Definitions, imports, type 
 short aliases, JSDoc, and declarations use the same allocation; values and argument keys keep
 their own naming policy. Native syntax's case rules do not change.
 
+Native date types render as `globalThis.Date` in generated JSDoc and declarations. This keeps
+`Date | number | string` input semantics and native date helper results independent of source
+types named `Date`, including unqualified programmatic IR. The source enum/alias export retains
+its own name and values; a source type named `globalThis` also remains independent of the native
+namespace. Date values, epoch numbers, and supported date strings retain the same runtime behavior.
+These qualified names affect annotations only.
+
 
 
 `linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` and `MMMMW` families. Its

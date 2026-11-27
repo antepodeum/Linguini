@@ -17,6 +17,7 @@ fn environment() -> &'static EcmaTemplateEngine {
                 "types/expression",
                 include_str!("../templates/types/expression.jinja"),
             ),
+            ("types/host", include_str!("../templates/types/host.jinja")),
             (
                 "types/documentation",
                 include_str!("../templates/types/documentation.jinja"),

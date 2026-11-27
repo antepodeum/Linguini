@@ -1,3 +1,4 @@
+{%- from "types/host" import date_input -%}
 {%- if kind == "string" -%}
 string
 {%- elif kind == "boolean" -%}
@@ -5,7 +6,7 @@ boolean
 {%- elif kind == "number_input" -%}
 number | bigint | string
 {%- elif kind == "date_input" -%}
-Date | number | string
+{{ date_input() }}
 {%- elif kind == "named" -%}
 {{ name }}
 {%- elif kind == "string_union" -%}

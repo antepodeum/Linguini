@@ -49,7 +49,7 @@ export function formatCurrency(value) {
 
 const formatDate_months_3 = ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."];
 /**
- * @param {Date | number | string} value
+ * @param {globalThis.Date | number | string} value
  * @returns {string}
  */
 export function formatDate(value) {
@@ -154,11 +154,11 @@ function throwInvalidNumber() {
   throw new RangeError("Linguini: invalid numeric value");
 }
 /**
- * @param {Date | number | string} value
- * @returns {Date}
+ * @param {globalThis.Date | number | string} value
+ * @returns {globalThis.Date}
  */
 function coerceDate(value) {
-  /** @type {Date} */
+  /** @type {globalThis.Date} */
   let date;
   if (value instanceof Date) {
     date = value;
@@ -190,7 +190,7 @@ function coerceDate(value) {
  * @param {number} year
  * @param {number} month
  * @param {number} day
- * @returns {Date}
+ * @returns {globalThis.Date}
  */
 function createUTCDate(year, month, day) {
   validateDateFields(year, month, day);

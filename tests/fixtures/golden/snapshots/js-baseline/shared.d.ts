@@ -4,7 +4,7 @@ export type Size = "small" | "big";
 
 export type Money = number | bigint | string;
 
-export type ShortDate = Date | number | string;
+export type ShortDate = globalThis.Date | number | string;
 
 export declare function normalizeMessageArgs(
   values: unknown[],

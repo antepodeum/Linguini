@@ -1,5 +1,5 @@
-/**
- * @param {Date} date
+{% from "types/host" import date_value %}/**
+ * @param { {{- date_value() -}} } date
  * @param {number} year
  * @param {number} month
  * @returns {number}

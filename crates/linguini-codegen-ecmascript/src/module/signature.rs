@@ -78,7 +78,7 @@ impl MessageCallSignature {
         !self.parameters.is_empty()
     }
 
-    /// Positional call parameters, for example `count: number, date: Date | number | string`.
+    /// Positional call parameters, for example `count: number, date: globalThis.Date | number | string`.
     pub(crate) fn positional_params(&self) -> String {
         self.render_signature("positional", false)
     }
@@ -327,11 +327,11 @@ mod tests {
             MessageCallSignature::from_message(&message(&[("first", "String"), ("when", "Date")]));
         assert_eq!(
             signature.positional_params(),
-            "first: string, when: Date | number | string"
+            "first: string, when: globalThis.Date | number | string"
         );
         assert_eq!(
             signature.named_object_type(),
-            "{ first: string; when: Date | number | string }"
+            "{ first: string; when: globalThis.Date | number | string }"
         );
         assert_eq!(signature.parameter_bindings(), vec!["first", "when"]);
     }

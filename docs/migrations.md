@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Native date type annotations
+
+Generated native date annotations now use `globalThis.Date`, preserving native `Date` arguments
+when a source type also exports as `Date`. No application changes are required; public source
+type exports and accepted date representations retain their meaning. Checked JavaScript and
+declaration consumers now agree with executed ordinary, physical, and standalone output.
+
 ## Shared project locale matching
 
 The project locale matcher now lives in `linguini_cldr::ProjectLocalePlan`. The existing

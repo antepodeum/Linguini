@@ -1,7 +1,7 @@
 /** @typedef {"apple" | "pear" | "orange"} Fruit */
 /** @typedef {"small" | "big"} Size */
 /** @typedef {number | bigint | string} Money */
-/** @typedef {Date | number | string} ShortDate */
+/** @typedef {globalThis.Date | number | string} ShortDate */
 
 /**
  * @overload

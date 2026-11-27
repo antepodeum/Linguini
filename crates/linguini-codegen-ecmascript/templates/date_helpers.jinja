@@ -1,4 +1,4 @@
-{% if padding %}/**
+{% from "types/host" import date_input, date_value %}{% if padding %}/**
  * @param {number} value
  * @param {number} length
  * @returns {string}
@@ -8,11 +8,11 @@ function padNumber(value, length) {
 }
 
 {% endif %}/**
- * @param {Date | number | string} value
- * @returns {Date}
+ * @param { {{- date_input() -}} } value
+ * @returns { {{- date_value() -}} }
  */
 function coerceDate(value) {
-  /** @type {Date} */
+  /** @type { {{- date_value() -}} } */
   let date;
   if (value instanceof Date) {
     date = value;
@@ -44,7 +44,7 @@ function coerceDate(value) {
  * @param {number} year
  * @param {number} month
  * @param {number} day
- * @returns {Date}
+ * @returns { {{- date_value() -}} }
  */
 function createUTCDate(year, month, day) {
   validateDateFields(year, month, day);
