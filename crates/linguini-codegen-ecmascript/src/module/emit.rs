@@ -14,7 +14,7 @@ use super::expr::{
 use super::formatter_codegen::formatter_data_declaration;
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
-    emit_docs, emit_docs_with_tags, function_name, local_function_name, property_key,
+    emit_docs, emit_docs_with_tags, function_name, private_value_name, property_key,
     safe_identifier, ts_type, JsDocTag,
 };
 use super::signature::MessageCallSignature;
@@ -276,7 +276,7 @@ pub(super) fn emit_variables(
     for variable in module.variables() {
         emit_docs(&variable.docs, "", output);
         output.push_str(&crate::templates::render("module/constant", minijinja::context! {
-            exported, name => safe_identifier(&variable.name), value => text_expression(&variable.value, options, facts),
+            exported, name => private_value_name(&variable.name), value => text_expression(&variable.value, options, facts),
         }));
     }
 }
@@ -335,7 +335,7 @@ pub(super) fn emit_local_functions(
             facts,
         );
         output.push_str(&crate::templates::render("local_function", minijinja::context! {
-            docs => "", name => local_function_name(&function.name), parameters => parameter_names, body, exported,
+            docs => "", name => private_value_name(&function.name), parameters => parameter_names, body, exported,
         }));
     }
 }

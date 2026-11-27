@@ -139,6 +139,16 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Locale variables and runtime globals
+
+Private locale variable bindings now share the runtime-intrinsic protection used by local
+functions. For example, `let undefined = Prefix` no longer replaces the numeric helper's
+`undefined` sentinel in standalone output; `NaN` and infinities retain ordinary/physical output
+behavior. Declaration, reference, aggregate-global export, and semantic-import names agree on
+the private binding. Inline inputs retain lexical precedence. Existing source validation,
+public message signatures, source properties, and named argument keys remain unchanged.
+Regenerate artifacts to receive the correction; no application configuration changes are needed.
+
 ## Numeric helper type names
 
 Canonical numeric helpers now use private JSDoc typedefs `__lgl_Numeric` and `__lgl_Decimal`.

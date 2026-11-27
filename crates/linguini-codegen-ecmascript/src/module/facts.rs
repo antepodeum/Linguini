@@ -6,7 +6,7 @@ use linguini_codegen::{independent_form_attribute_names, StringResultFacts};
 use linguini_ir::{IrExpression, IrExpressionKind, IrModule};
 
 use super::names::{
-    form_attribute_binding_name, form_binding_name, local_function_name, property_access,
+    form_attribute_binding_name, form_binding_name, private_value_name, property_access,
 };
 
 const FORM_VALUE_BINDING: &str = "__lgl_value";
@@ -18,6 +18,7 @@ pub(super) struct ExpressionFacts {
     independent_forms: BTreeSet<String>,
     local_form: Option<String>,
     functions: BTreeSet<String>,
+    variables: BTreeSet<String>,
     reserved: BTreeSet<String>,
 }
 
@@ -30,7 +31,7 @@ impl ExpressionFacts {
             .collect::<BTreeSet<_>>();
         let reserved = functions
             .iter()
-            .map(|name| local_function_name(name))
+            .map(|name| private_value_name(name))
             .chain(super::formatters::formatter_helper_names(schema, module))
             .chain(["String", "undefined", "normalizeMessageArgs"].map(str::to_owned))
             .collect();
@@ -40,6 +41,11 @@ impl ExpressionFacts {
             independent_forms: BTreeSet::new(),
             local_form: None,
             functions,
+            variables: module
+                .variables()
+                .iter()
+                .map(|item| item.name.clone())
+                .collect(),
             reserved,
         }
     }
@@ -70,6 +76,22 @@ impl ExpressionFacts {
         expression.kind == IrExpressionKind::Call
             && (linguini_ir::is_plural_intrinsic(&expression.path.join("."))
                 || self.functions.contains(&expression.path.join(".")))
+    }
+
+    pub(super) fn global_variable_binding(&self, path: &[String]) -> Option<String> {
+        let name = path.join(".");
+        if self.variables.contains(&name) {
+            return Some(private_value_name(&name));
+        }
+        let (root, properties) = path.split_first()?;
+        if !self.variables.contains(root) {
+            return None;
+        }
+        let mut binding = private_value_name(root);
+        for property in properties {
+            binding.push_str(&property_access(property));
+        }
+        Some(binding)
     }
 
     pub(super) fn expression_has_string_result<'a>(

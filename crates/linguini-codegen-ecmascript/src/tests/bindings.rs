@@ -221,3 +221,52 @@ console.log('verified');
         "verified"
     );
 }
+
+#[test]
+fn source_variables_cannot_shadow_runtime_intrinsics_or_lexical_parameters() {
+    let source = concat!(
+        "let undefined = Prefix\n",
+        "fn Captured(value: Number) { _ => {value @number} }\n",
+        "fn Decorated(value: Number) { _ => {undefined}:{Captured(value)} }\n",
+        "root = {undefined}|{value @number}|{Decorated(value)}|{fn(undefined: value) { _ => {undefined @number} }}\n",
+    );
+    let (files, physical) = binding_project_files("root(value: Number)\n", source);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/golden/snapshots/js-complete-project/bindings/variables");
+    for file in files.iter().filter(|file| {
+        matches!(
+            file.path.as_str(),
+            "shared.js" | "shared.d.ts" | "standalone.js"
+        )
+    }) {
+        let path = root.join(&file.path);
+        if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, &file.contents).unwrap();
+        }
+        assert_eq!(file.contents, std::fs::read_to_string(path).unwrap());
+    }
+    let script = format!(
+        r#"
+import assert from 'node:assert/strict';
+const ordinary=await import('./locales/en.js');
+const physical=await import({physical:?});
+const standalone=await import('./standalone.js');
+for(const root of [ordinary.root,physical.message,standalone.message]) {{
+  for(const [value,formatted] of [[0,'0'],[2n,'2'],[-0,'-0'],[NaN,'NaN'],[Infinity,'Infinity'],[-Infinity,'-Infinity'],['1234.5','1,234.5']]) {{
+    const expected='Prefix|'+formatted+'|Prefix:'+formatted+'|'+formatted;
+    assert.equal(root(value),expected);
+    assert.equal(root({{value}}),expected);
+  }}
+  const seen=[];
+  const args=Object.defineProperty({{}},'value',{{enumerable:true,get(){{seen.push('value');return NaN;}}}});
+  assert.equal(root(args),'Prefix|NaN|Prefix:NaN|NaN');
+  assert.deepEqual(seen,['value']);
+  const failure=new Error('caller conversion');
+  assert.throws(()=>root({{[Symbol.toPrimitive](){{throw failure;}}}}),error=>error===failure);
+}}
+console.log('verified');
+"#
+    );
+    assert_eq!(execute_project(&files, &script), "verified");
+}

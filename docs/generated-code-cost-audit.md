@@ -435,5 +435,20 @@ Vite 8.0.13. Both consumers contain one self-contained chunk. Source parameter a
 pass the permanent checked-JS/application-TS contracts on TypeScript 5.8.3, 5.9.3, and 6.0.3.
 No formatter statements, runtime parsing, or runtime type dispatch are added.
 
+A locale variable named `undefined` previously corrupted standalone numeric sentinels. Sharing
+private value bindings fixes that behavior without a wrapper, runtime lookup table, or extra
+formatter branch. Complete before/after consumers execute finite inputs; the before version
+throws on NaN and the after version matches ordinary/physical output. Each remains one
+self-contained chunk. Measured minified/gzip/Brotli bytes:
+
+| Bundler | Before | After |
+| --- | ---: | ---: |
+| Vite 7.3.3 | 1,927 / 1,016 / 918 | 1,925 / 1,016 / 916 |
+| Vite 8.0.13 | 1,866 / 984 / 885 | 1,864 / 983 / 890 |
+
+This is a correctness fix, not a uniform compression improvement: Vite 8's Brotli output grows
+by five bytes. There is no timing claim. Permanent lexical-scope and positive/negative typed
+consumers retain source keys and public signatures on TypeScript 5.8.3, 5.9.3, and 6.0.3.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

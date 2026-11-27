@@ -120,8 +120,8 @@ fn branch_names(branches: &[linguini_ir::IrFunctionBranch], used: &mut BTreeSet<
     }
 }
 
-/// Private local functions may use source names that are JavaScript intrinsics.
-pub(super) fn local_function_name(name: &str) -> String {
+/// Private locale variables/functions may use names that are JavaScript intrinsics.
+pub(super) fn private_value_name(name: &str) -> String {
     if is_runtime_global(name) {
         // A leading separator distinguishes this readable binding from both encoded
         // names and qualified paths. Source properties keep their original spelling.
@@ -513,9 +513,9 @@ mod tests {
     fn identifiers_are_valid_ascii_injective_and_avoid_reserved_words() {
         assert_eq!(safe_identifier("message"), "message");
         assert_eq!(safe_identifier("String"), "String");
-        assert_eq!(super::local_function_name("String"), "__lgl_name_$String");
+        assert_eq!(super::private_value_name("String"), "__lgl_name_$String");
         assert_ne!(
-            super::local_function_name("String"),
+            super::private_value_name("String"),
             safe_identifier("__lgl_name_$String")
         );
         assert_eq!(property_key("String"), "String");

@@ -108,11 +108,14 @@ while diagnosing the current source. Each fallback source must also be checked i
 `linguini_ir::qualify_locale_module_in_context` qualifies one fresh source against its composed
 relative globals and schema, preserving the loader's guarded merge order and original source IDs.
 
-The ECMAScript backend gives private local functions a separate binding policy from public
-messages and types. A function named `String`, for example, receives a readable private name
+The ECMAScript backend gives private locale variables and local functions a separate binding
+policy from public messages and types. A function named `String`, for example, receives a readable private name
 such as `__lgl_name_$String`, so its body can still use JavaScript string conversion. Ordinary
 globals, standalone modules, physical semantic imports, and calls share that binding. Source
 function names, public message/enum exports, argument keys, and property spellings stay intact.
+A locale variable named `undefined` likewise receives a private binding, keeping numeric helper
+sentinels intact in standalone output. References distinguish declared globals from lexical
+inputs, so an inline binding with that source name still reads its own value.
 The shared argument helper uses an anonymous dictionary annotation so a source enum or alias
 named `Record` keeps its public name without shadowing a TypeScript utility type used by the
 helper. The annotation is erased by bundlers and adds no runtime operation.

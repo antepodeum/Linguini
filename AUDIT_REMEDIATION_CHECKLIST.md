@@ -1270,7 +1270,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Integrated first-weekday/private-function source `3589545` also passes all 71 local
       full-profile gates in one clean run, including rebuilt Node/browser WASM, installed tsc,
       packaged/offline consumers, documentation, and production SSR/browser/graph checks.
-      Subsequent helper-typing corrections have separate focused receipts (GEN-A50/A51).
+      Subsequent helper-typing/binding corrections have separate focused receipts (GEN-A50–A52).
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1793,6 +1793,14 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       All 190 emitter tests and CLI tests pass on Node 20; all 42 codegen gates, Clippy, Rust 1.87,
       Node 24, and strict JS/TS 5.8/5.9/6 checks pass. Existing changes contain only type comments,
       and complete Vite 7/8 consumers retain identical minified/gzip/Brotli output.
+      Locale variables now share private intrinsic-safe value bindings too (GEN-A52). A source
+      `undefined` variable no longer corrupts standalone numeric sentinels; inline lexical inputs
+      keep their own values. Executed ordinary/physical/standalone cases cover finite values,
+      signed zero, NaN/infinities, bigint, forwarding/captures, getters, and caller exceptions.
+      All 191 emitter tests and CLI tests pass on Node 20, with Node 24, strict JS/TS 5.8/5.9/6,
+      Clippy, Rust 1.87, 223 patch API checks, and three complete-project gates passing. Existing
+      snapshots stay unchanged. Complete Vite 7/8 consumers verify the repaired behavior; the cost
+      audit records both compression outcomes, including Vite 8's five-byte Brotli increase.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       Shared form demand projects standalone closures and generated projects to used attributes
