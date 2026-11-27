@@ -139,6 +139,16 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Source types named Record
+
+Generated checked JavaScript now accepts enums and aliases named `Record`. Previously the
+shared argument helper's `Record<string, unknown>` annotation resolved to the source type,
+causing TypeScript to report that `Record` was not generic. The helper now uses an anonymous
+string-indexed object type. Source type names, public declarations, and runtime behavior remain
+unchanged. Regenerate output to replace the annotation; no source or configuration changes
+are required. Permanent enum/alias fixtures preserve positive and negative strict-consumer
+contracts, including application TypeScript without `allowJs`.
+
 ## Private function names and JavaScript intrinsics
 
 Unqualified backend input can contain valid local functions named `String`, `Number`, `Date`,

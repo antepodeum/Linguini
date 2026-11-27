@@ -419,5 +419,13 @@ bytes and the 1,600/870/765 and 1,529/818/711 consumer sizes above; other weekda
 compiled arithmetic with their selected constants. This adds no runtime locale parser or
 preference dispatch, and makes no timing claim.
 
+A source enum or alias named `Record` previously broke the helper's utility-type annotation.
+Its anonymous index-signature replacement preserves public names and runtime statements.
+Actual before/after generated enum consumers execute in one self-contained chunk each and
+retain byte-identical bundled code: 522/372/304 minified/gzip/Brotli bytes on Vite 7.3.3 and
+503/356/289 on Vite 8.0.13. Both permanent enum/alias fixtures pass strict checked JS and
+application TS without `allowJs` on TypeScript 5.8.3, 5.9.3, and 6.0.3. This is a typing
+correction with no runtime work or timing claim.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

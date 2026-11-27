@@ -136,6 +136,48 @@ mod tests {
     use super::generate_shared_module;
 
     #[test]
+    fn record_named_source_types_preserve_shared_helpers_and_public_names() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/golden/snapshots/js-complete-project/type-names");
+        let mut files = Vec::new();
+        for (kind, source) in [
+            ("enum", "enum Record { apple, pear }\n"),
+            ("alias", "type Record = String\n"),
+        ] {
+            let schema = lower_schema_typed(&parse_schema(source).unwrap());
+            for mut file in crate::generate_schema_files(&schema)
+                .into_iter()
+                .filter(|file| file.path.starts_with("shared."))
+            {
+                let path = root.join(kind).join(&file.path);
+                if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+                    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+                    std::fs::write(&path, &file.contents).unwrap();
+                }
+                assert_eq!(file.contents, std::fs::read_to_string(path).unwrap());
+                file.path = format!("{kind}/{}", file.path);
+                files.push(file);
+            }
+        }
+        assert_eq!(
+            crate::test_runtime::execute_project(
+                &files,
+                r#"
+import assert from 'node:assert/strict';
+import {normalizeMessageArgs as enumArgs} from './enum/shared.js';
+import {normalizeMessageArgs as aliasArgs} from './alias/shared.js';
+for (const normalize of [enumArgs, aliasArgs]) {
+  assert.deepEqual(normalize([{value:'apple'}], ['value']), ['apple']);
+  assert.throws(()=>normalize([{value:'apple', extra:1}], ['value']), TypeError);
+}
+console.log('ok');
+"#
+            ),
+            "ok"
+        );
+    }
+
+    #[test]
     fn javascript_schema_module_uses_jsdoc_without_typescript_syntax() {
         let schema = lower_schema_typed(
             &parse_schema("/// Tone docs\nenum Tone { warm, cool }\ntype Amount = Number\n")
@@ -157,6 +199,12 @@ mod tests {
         assert!(output.contains("export function normalizeMessageArgs(values, keys)"));
         assert!(!output.contains("export type"));
         assert!(!output.contains(" as Record"));
-        assert!(!output.contains(": string"));
+        assert_eq!(
+            crate::test_runtime::execute_project(
+                &[crate::EcmaGeneratedFile { path: "shared.js".into(), contents: output }],
+                "import {normalizeMessageArgs} from './shared.js'; console.log(normalizeMessageArgs([{value:'ok'}],['value'])[0]);"
+            ),
+            "ok"
+        );
     }
 }

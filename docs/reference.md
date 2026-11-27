@@ -113,6 +113,9 @@ messages and types. A function named `String`, for example, receives a readable 
 such as `__lgl_name_$String`, so its body can still use JavaScript string conversion. Ordinary
 globals, standalone modules, physical semantic imports, and calls share that binding. Source
 function names, public message/enum exports, argument keys, and property spellings stay intact.
+The shared argument helper uses an anonymous dictionary annotation so a source enum or alias
+named `Record` keeps its public name without shadowing a TypeScript utility type used by the
+helper. The annotation is erased by bundlers and adds no runtime operation.
 
 `linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` family. Its
 `IntegerPluralPlan` specializes ordered cardinal rules and projected results over the proven

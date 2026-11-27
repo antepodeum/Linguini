@@ -1267,6 +1267,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       documentation consumers, and production SSR/browser checks. Node 20, Rust 1.87, strict
       JS/TS 5.8/5.9/6, and patch API checks separately cover the changed formatter boundaries.
       Hosted CI and the remaining architecture/platform requirements stay open.
+      Integrated first-weekday/private-function source `3589545` also passes all 71 local
+      full-profile gates in one clean run, including rebuilt Node/browser WASM, installed tsc,
+      packaged/offline consumers, documentation, and production SSR/browser/graph checks.
+      The subsequent `Record` annotation correction has its separate focused receipts (GEN-A50).
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1777,6 +1781,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Node 20; generated Node 24 and strict JS/TS 5.8/5.9/6 consumers pass. Existing generated
       code/declaration/map snapshots stay unchanged. Workspace Clippy, Rust 1.87, 223 patch
       API checks, and four documentation gates pass. Other declaration roles remain under audit.
+      The shared helper's dictionary annotation also avoids source `Record` type shadowing
+      (GEN-A50), retaining public enum/alias names. Permanent checked-JS and no-`allowJs` consumers
+      cover both forms and reject invalid source values; the registered gate reproduced TS2315
+      before the correction. All 189 emitter tests and CLI tests pass on Node 20, with Node 24,
+      strict TS 5.8/5.9/6, Clippy, and Rust 1.87 checks passing. Only seven current golden JSDoc
+      lines change; complete Vite 7/8 consumers retain identical minified/gzip/Brotli output.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
       Shared form demand projects standalone closures and generated projects to used attributes

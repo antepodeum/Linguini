@@ -25,7 +25,7 @@ export function normalizeMessageArgs(values, keys) {
   if (typeof candidate !== "object" || candidate === null) {
     return values;
   }
-  const record = /** @type {Record<string, unknown>} */ (candidate);
+  const record = /** @type { { [key: string]: unknown } } */ (candidate);
   if (!keys.every((key) => Object.prototype.hasOwnProperty.call(record, key))) {
     return values;
   }
