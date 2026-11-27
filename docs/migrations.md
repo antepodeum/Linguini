@@ -139,6 +139,21 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Programmatic IR type names
+
+The ECMAScript SDK now emits valid, narrow typing for accepted IR enums and aliases named
+`string`, `undefined`, `unknown`, `object`, and other TypeScript type keywords. Previously these
+could emit invalid declarations or resolve parameter types to a TypeScript primitive. New safe
+type names use a readable reserved prefix, such as `__lgl_type_string`. Imports, references,
+short aliases, checked JavaScript, and declarations agree on the name.
+
+Native source case rules, valid existing type names, value exports, and named argument keys
+stay intact. This includes contextual names such as `intrinsic`, `type`, and `abstract`; source
+names already beginning with the compiler prefix retain their distinct escaped names. Regenerate
+SDK output and update imports of newly supported keyword types to their allocated names.
+Primitive `TypeModel::String` continues to render `string`; `TypeModel::Named("string")` represents
+a named source type and now renders `__lgl_type_string`.
+
 ## Custom public plural-function names
 
 Rust callers of `generate_plural_function` can now use names such as `String`, `Number`,

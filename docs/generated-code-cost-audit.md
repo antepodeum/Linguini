@@ -519,5 +519,17 @@ byte-identical bundles. Numeric/category results and invalid-value errors execut
 24.13.1. These are equality measurements against an equivalent valid classifier name, not a
 before/after improvement for the previously broken name, and make no timing claim.
 
+Programmatic IR type keywords now receive safe type identifiers without changing value names
+or runtime expressions. Permanent enum/alias projects cover 21 names, qualified short aliases,
+compiler-prefix separation, and positive/negative type contracts. Checked JS and application TS
+without `allowJs` pass on TypeScript 5.8.3, 5.9.3, and 6.0.3.
+
+Controlled before/after SDK projects for an enum named `string` and an alias named `undefined`
+execute through complete consumers as one self-contained chunk each. Both cases retain
+byte-identical bundles: 489/350/291 minified/gzip/Brotli bytes on Vite 7.3.3 and 470/334/274 on
+Vite 8.0.13, measured on Node 24.13.1. The before versions render correctly but fail TypeScript
+checks; the correction is to the type contract. There is no runtime registry, wrapper, or
+classification added, and no timing claim.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

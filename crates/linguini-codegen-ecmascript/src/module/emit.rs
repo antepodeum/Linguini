@@ -15,8 +15,8 @@ use super::expr::{
 use super::formatter_codegen::formatter_data_declaration;
 use super::formatters::{formatter_requirements, module_uses_inline_functions};
 use super::names::{
-    emit_docs, emit_docs_with_tags, private_value_name, property_key, safe_identifier, ts_type,
-    JsDocTag,
+    emit_docs, emit_docs_with_tags, private_value_name, property_key, safe_type_identifier,
+    ts_type, JsDocTag,
 };
 use super::signature::MessageCallSignature;
 use super::tree::{nested_message_tree, MessageTree};
@@ -102,12 +102,12 @@ pub fn schema_type_names(schema: &IrModule) -> Vec<String> {
     schema
         .enums()
         .iter()
-        .map(|item| safe_identifier(&item.name))
+        .map(|item| safe_type_identifier(&item.name))
         .chain(
             schema
                 .type_aliases()
                 .iter()
-                .map(|item| safe_identifier(&item.name)),
+                .map(|item| safe_type_identifier(&item.name)),
         )
         .collect()
 }
@@ -127,14 +127,14 @@ pub fn schema_type_aliases(schema: &IrModule) -> Vec<(String, String)> {
     }
     let generated_names = names
         .iter()
-        .map(|name| safe_identifier(name))
+        .map(|name| safe_type_identifier(name))
         .collect::<BTreeSet<_>>();
 
     names
         .into_iter()
         .filter_map(|name| {
-            let public_name = safe_identifier(name.rsplit('.').next().unwrap_or(name));
-            let generated_name = safe_identifier(name);
+            let public_name = safe_type_identifier(name.rsplit('.').next().unwrap_or(name));
+            let generated_name = safe_type_identifier(name);
             (public_name != generated_name
                 && public_name_counts.get(name.rsplit('.').next().unwrap_or(name)) == Some(&1)
                 && !generated_names.contains(&public_name))
@@ -173,7 +173,7 @@ pub(super) fn emit_enum(item: &linguini_ir::IrEnum, output: &mut String) {
     let variants = render_string_union(&item.variants);
     output.push_str(&crate::templates::render(
         "declarations/alias",
-        minijinja::context! { name => safe_identifier(&item.name), ty => variants },
+        minijinja::context! { name => safe_type_identifier(&item.name), ty => variants },
     ));
 }
 
@@ -196,7 +196,7 @@ pub(super) fn emit_locale_enum_jsdoc_types(
         emit_docs_with_tags(
             &[],
             &[JsDocTag::Typedef {
-                name: safe_identifier(&item.name),
+                name: safe_type_identifier(&item.name),
                 ty: variants.replace("*/", "*\\u002f"),
             }],
             "",
@@ -209,7 +209,7 @@ pub(super) fn emit_type_alias(item: &linguini_ir::IrTypeAlias, output: &mut Stri
     emit_docs(&item.docs, "", output);
     output.push_str(&crate::templates::render(
         "declarations/alias",
-        minijinja::context! { name => safe_identifier(&item.name), ty => ts_type(&item.target) },
+        minijinja::context! { name => safe_type_identifier(&item.name), ty => ts_type(&item.target) },
     ));
 }
 

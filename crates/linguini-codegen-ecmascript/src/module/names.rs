@@ -151,6 +151,16 @@ pub fn safe_identifier(name: &str) -> String {
     encoded_name("__lgl_name_", name)
 }
 
+/// Source type symbols also need to leave TypeScript primitive/operator names available.
+pub(super) fn safe_type_identifier(name: &str) -> String {
+    let identifier = safe_identifier(name);
+    if compiler::type_keyword(&identifier) {
+        format!("__lgl_type_{identifier}")
+    } else {
+        identifier
+    }
+}
+
 /// Intrinsics used by generated expressions, formatters, and shared helpers must stay
 /// available even when a source declaration has the same name.
 fn is_runtime_global(name: &str) -> bool {

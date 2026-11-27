@@ -11,6 +11,7 @@ mod bindings;
 mod constant_week_dates;
 mod export_bindings;
 mod form_demand;
+mod type_keywords;
 
 fn generate_project_files(
     schema: &linguini_ir::SchemaIr,

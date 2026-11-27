@@ -1,6 +1,6 @@
 pub use linguini_codegen::TypeModel;
 
-use super::names::safe_identifier;
+use super::names::safe_type_identifier;
 
 pub fn render_typescript_type(model: &TypeModel) -> String {
     let value = match model {
@@ -9,7 +9,7 @@ pub fn render_typescript_type(model: &TypeModel) -> String {
         TypeModel::NumberInput => minijinja::context! { kind => "number_input" },
         TypeModel::DateInput => minijinja::context! { kind => "date_input" },
         TypeModel::Named(name) => {
-            minijinja::context! { kind => "named", name => safe_identifier(name) }
+            minijinja::context! { kind => "named", name => safe_type_identifier(name) }
         }
     };
     crate::templates::render("types/expression", value)
@@ -35,6 +35,26 @@ mod tests {
         let cases = [
             ("String", TypeModel::String, "string"),
             ("Boolean", TypeModel::Boolean, "boolean"),
+            (
+                "string",
+                TypeModel::Named("string".into()),
+                "__lgl_type_string",
+            ),
+            (
+                "undefined",
+                TypeModel::Named("undefined".into()),
+                "__lgl_type_undefined",
+            ),
+            (
+                "keyof",
+                TypeModel::Named("keyof".into()),
+                "__lgl_type_keyof",
+            ),
+            (
+                "intrinsic",
+                TypeModel::Named("intrinsic".into()),
+                "intrinsic",
+            ),
             ("Number", TypeModel::NumberInput, "number | bigint | string"),
             (
                 "Decimal",

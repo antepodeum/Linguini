@@ -135,6 +135,19 @@ use the backend's normal safe-identifier mapping (for example, `a.b` becomes `__
 Ordinary classifier names such as `pluralRu` retain their output; category strings, input
 validation, and category passthrough keep their existing contract.
 
+Programmatically constructed IR can contain type names outside native syntax's PascalCase
+rules. The ECMAScript backend allocates separate type identifiers for
+[predefined TypeScript names](https://github.com/microsoft/TypeScript/blob/v5.8.3/src/compiler/checker.ts#L45415)
+and words that make type declarations or references ambiguous. For example, a source type
+named `string` exports as `__lgl_type_string`, while the source primitive `String` still renders
+as TypeScript `string`. `keyof`, `infer`, `readonly`, `unique`, and `as` also receive safe type
+names. Existing JavaScript-keyword escaping stays intact, as do valid contextual names such
+as `intrinsic`, `type`, and `abstract`. Source names using the reserved `__lgl_` prefix are escaped
+first, keeping them distinct from compiler bindings. Definitions, imports, type references,
+short aliases, JSDoc, and declarations use the same allocation; values and argument keys keep
+their own naming policy. Native syntax's case rules do not change.
+
+
 
 `linguini_codegen::WeekDatePlan` resolves the canonical Gregorian `yw` and `MMMMW` families. Its
 `IntegerPluralPlan` specializes ordered cardinal rules and projected results over the proven

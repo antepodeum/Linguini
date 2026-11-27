@@ -6,7 +6,7 @@ use crate::ecmascript::{
     EcmaImport, EcmaImportBindings, EcmaModule, EcmaModuleOutput, EcmaNamedImport, EcmaStatement,
 };
 
-use super::names::safe_identifier;
+use super::names::safe_type_identifier;
 use super::tree::{nested_message_tree, MessageTree, MessageTreeMessage};
 
 /// Generate the schema-owned namespace type used by the project runtime.
@@ -101,7 +101,7 @@ fn message_type_names(schema: &IrModule) -> Vec<String> {
         .map(|item| item.name.as_str())
         .chain(schema.type_aliases().iter().map(|item| item.name.as_str()))
         .filter(|name| referenced.contains(name))
-        .map(safe_identifier)
+        .map(safe_type_identifier)
         .collect()
 }
 

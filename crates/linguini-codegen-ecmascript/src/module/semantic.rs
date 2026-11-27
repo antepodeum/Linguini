@@ -13,7 +13,7 @@ use crate::ecmascript::{
 use super::emit::{self, emit_forms, emit_local_functions, emit_variables};
 use super::formatters::{formatter_helper_names, plural_required};
 use super::names::{
-    form_binding_name, import_path_for_target, private_value_name, safe_identifier,
+    form_binding_name, import_path_for_target, private_value_name, safe_type_identifier,
 };
 use super::{project_locale_options, EcmaCodegenError, EcmaModuleKind, ValidatedEcmaProject};
 
@@ -424,7 +424,7 @@ pub(super) fn semantic_binding(kind: EcmaSemanticSymbolKind, name: &str) -> Stri
         EcmaSemanticSymbolKind::LocaleFunction | EcmaSemanticSymbolKind::LocaleVariable => {
             private_value_name(name)
         }
-        _ => safe_identifier(name),
+        EcmaSemanticSymbolKind::LocaleEnum => safe_type_identifier(name),
     }
 }
 
@@ -605,7 +605,7 @@ fn schema_types_for_symbol(schema: &IrModule, locale: &IrModule) -> Vec<String> 
     }
     names
         .into_iter()
-        .map(|name| safe_identifier(&name))
+        .map(|name| safe_type_identifier(&name))
         .collect()
 }
 

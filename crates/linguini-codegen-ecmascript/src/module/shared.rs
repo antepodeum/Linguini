@@ -4,7 +4,7 @@ use linguini_syntax::Span;
 use crate::ecmascript::{EcmaModule, EcmaModuleOutput, EcmaStatement};
 
 use super::emit::{emit_enum, emit_type_alias};
-use super::names::{emit_docs_with_tags, safe_identifier, JsDocTag};
+use super::names::{emit_docs_with_tags, safe_type_identifier, JsDocTag};
 use super::provenance::map_symbol_lines;
 use super::shared_runtime::{shared_declarations, shared_runtime};
 use super::type_model::{render_jsdoc_type, render_string_union, TypeModel};
@@ -89,7 +89,7 @@ fn emit_jsdoc_schema_types(
         emit_docs_with_tags(
             &item.docs,
             &[JsDocTag::Typedef {
-                name: safe_identifier(&item.name),
+                name: safe_type_identifier(&item.name),
                 ty,
             }],
             "",
@@ -109,7 +109,7 @@ fn emit_jsdoc_schema_types(
         emit_docs_with_tags(
             &item.docs,
             &[JsDocTag::Typedef {
-                name: safe_identifier(&item.name),
+                name: safe_type_identifier(&item.name),
                 ty: render_jsdoc_type(&TypeModel::from_source_name(&item.target)),
             }],
             "",

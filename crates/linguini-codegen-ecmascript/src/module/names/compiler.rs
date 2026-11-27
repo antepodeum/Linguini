@@ -46,3 +46,25 @@ pub(super) fn plural_name(name: &str) -> bool {
         "MAX_PLURAL_DECIMAL_DIGITS" | "throwInvalidPluralNumber"
     )
 }
+
+/// Predefined types and contextual words that make declarations/references ambiguous.
+pub(super) fn type_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "any"
+            | "unknown"
+            | "never"
+            | "number"
+            | "bigint"
+            | "boolean"
+            | "string"
+            | "symbol"
+            | "object"
+            | "undefined"
+            | "as"
+            | "infer"
+            | "keyof"
+            | "readonly"
+            | "unique"
+    )
+}

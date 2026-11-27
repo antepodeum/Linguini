@@ -72,10 +72,18 @@ pub(crate) fn root_project_files(
         crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
         crate::EcmaSource::new(SourceId(2), format!("{locale_name}.lgl"), locale_source),
     ];
-    let mut files = crate::generate_project_files(&project).unwrap();
+    root_project_artifacts(locale_name, &project, &sources)
+}
+
+/// Compile one validated root-message project in all executable module shapes.
+pub(crate) fn root_project_artifacts(
+    locale_name: &str,
+    project: &ValidatedEcmaProject<'_>,
+    sources: &[crate::EcmaSource],
+) -> (Vec<EcmaGeneratedFile>, String) {
+    let mut files = crate::generate_project_files(project).unwrap();
     for artifact in project.semantic_artifacts().unwrap() {
-        let compiled =
-            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
+        let compiled = crate::compile_bundler_semantic_module(project, &artifact, sources).unwrap();
         files.push(EcmaGeneratedFile {
             path: artifact.module_path,
             contents: compiled.code,
@@ -83,18 +91,18 @@ pub(crate) fn root_project_files(
     }
     let artifact = project.message_artifacts().unwrap().remove(0);
     let physical =
-        crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
+        crate::compile_bundler_message_artifact_module(project, &artifact, sources).unwrap();
     files.push(EcmaGeneratedFile {
         path: artifact.module_path.clone(),
         contents: physical.code,
     });
     let standalone = crate::compile_message_module(
-        &project,
+        project,
         locale_name,
         "root",
         "standalone.js",
         "./shared.js",
-        &sources,
+        sources,
     )
     .unwrap();
     files.push(EcmaGeneratedFile {
