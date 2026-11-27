@@ -439,6 +439,13 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       pass; existing generated code/declaration/map snapshots remain unchanged. Month weeks,
       closest-match skeletons, combined date/time synthesis, other calendars, and selectable
       non-UTC zones remain open.
+      Valid Unicode `fw` preferences now override the compiled first weekday through the shared
+      BCP 47 parser while preserving territory minimum days (GEN-A48). Seven weekdays across
+      pinned locale candidates, 24-tag raw week execution, 1,276 native/generated cases in three
+      host zones, and public ordinary/physical builds pass on Node 20. Equivalent preferences
+      emit identical formatter bytes. Workspace Clippy, Rust 1.87 native/WASM, 223 patch API
+      checks, strict JS/TS 5.8/5.9/6, documentation gates, and complete Vite 7/8 consumers pass.
+      Region/subdivision and calendar-specific week overrides remain open.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [x] #160 — Share one plural grammar implementation across all targets. `linguini-cldr` owns the
   sole rule parser; the offline generator imports it and TypeScript codegen lowers its typed AST.

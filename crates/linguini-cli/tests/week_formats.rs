@@ -7,7 +7,17 @@ fn year_week_requests_check_build_preview_and_preserve_failed_output() {
     let project = TempDir::new().unwrap();
     let root = project.path();
     let locales = [
-        "en-GB", "en", "fo", "fa", "ar-EG", "ff-Adlm", "mt", "fil", "hy",
+        "en-GB",
+        "en",
+        "fo",
+        "fa",
+        "ar-EG",
+        "ff-Adlm",
+        "mt",
+        "fil",
+        "hy",
+        "en-GB-u-fw-sun",
+        "en-u-fw-mon",
     ];
     fs::create_dir_all(root.join("schema")).unwrap();
     fs::create_dir_all(root.join("locales/main")).unwrap();
@@ -49,7 +59,7 @@ fn year_week_requests_check_build_preview_and_preserve_failed_output() {
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const manifest=JSON.parse(readFileSync('./generated/bundler/manifest.json','utf8'));
-for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy']) {
+for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy','en-GB-u-fw-sun','en-u-fw-mon']) {
   const {main}=await import('./generated/locales/'+locale+'.js');
   const {message}=await import('./generated/'+manifest.messages['main.period'].locales[locale].module);
   for(const value of ['2021-01-01','2021-01-04',0,-1,new Date('0000-01-01T00:00:00Z')]) {
@@ -59,6 +69,7 @@ for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy']) 
   }
   if(locale==='en-GB') assert.equal(main.period('2021-01-01'),'week 53 of 2020');
   if(locale==='en') assert.equal(main.period('2021-01-01'),'week 1 of 2021');
+  if(locale==='en-GB-u-fw-sun') assert.equal(main.period('2021-01-03'),'week 1 of 2021');
 }
 console.log('ok');
 "#]).output().unwrap();

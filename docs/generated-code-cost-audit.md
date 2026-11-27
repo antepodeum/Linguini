@@ -412,5 +412,12 @@ profiles retain their sizes. These are output-size measurements, with no timing 
 message-selector outcome specialization, month weeks, other calendars/zones, and exact composed-
 page delivery remain under remediation.
 
+The first-weekday (`fw`) correction changes build-time constants only. Ten locale outputs pass
+strict JS/application TS on TypeScript 5.8.3, 5.9.3, and 6.0.3. Eight complete Vite 7/8 consumers
+execute as one self-contained chunk each. `en-GB-u-fw-mon` retains `en-GB`'s identical formatter
+bytes and the 1,600/870/765 and 1,529/818/711 consumer sizes above; other weekdays use the same
+compiled arithmetic with their selected constants. This adds no runtime locale parser or
+preference dispatch, and makes no timing claim.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

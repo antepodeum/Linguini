@@ -139,6 +139,17 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Unicode first-weekday preferences
+
+Gregorian `Y` and `yw` requests now honor valid `fw` locale keywords, such as
+`en-GB-u-fw-sun`. Previously this locale silently retained Monday and could format the wrong
+week/year near boundaries. Resolution uses the shared BCP 47 parser and retains the territory's
+minimum-days rule. Invalid keyword types are ignored; text in private use or other extensions
+cannot act as an override. Regenerate output to receive the corrected constants. Equivalent
+weekday preferences produce identical formatter code, with no runtime locale parsing or extra
+branches. Native previews and ordinary/physical generated modules use the same policy.
+Region/subdivision and calendar-specific week-preference overrides remain under remediation.
+
 ## Gregorian year/week formatting
 
 Use `@date(skeleton = "yw")` for the pinned Gregorian year/week format. Generation now resolves

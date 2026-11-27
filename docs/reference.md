@@ -452,6 +452,11 @@ surface. Current guarantees are:
   and the reachable wording for weeks 1–53 are compiled into arithmetic and direct text choices;
   generated code contains no CLDR pattern/category table or interpreter. Week-of-month `W`
   remains under remediation.
+  A valid Unicode `fw` keyword (`sun`, `mon`, `tue`, `wed`, `thu`, `fri`, or `sat`) overrides
+  the first weekday at compilation; the territory's minimum-days rule stays unchanged. Thus
+  `2021-01-03` is week 1 of 2021 in `en-GB-u-fw-sun`, versus week 53 of 2020 in `en-GB`.
+  Invalid `fw` types are ignored, and private-use/other extensions cannot supply the override.
+  Region/subdivision (`rg`/`sd`) and calendar-specific week-preference overrides remain open.
   Selectable time zones, non-Gregorian calendars, closest-match skeletons, and synthesized
   date/time combinations remain under remediation. Native `generate` date samples include
   `YYYY-MM-DD` at UTC midnight, a zone-less noon, and a date-time with an explicit offset.

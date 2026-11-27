@@ -5,6 +5,15 @@ fn compiled_week_formats_match_raw_cldr_wording_and_calendar_boundaries() {
     let mut locales = std::collections::BTreeSet::from([
         "en", "en-GB", "ru", "ar-EG", "fa", "ff-Adlm", "gd", "ja",
     ]);
+    locales.extend([
+        "en-GB-u-fw-sun",
+        "en-GB-u-fw-mon",
+        "en-GB-u-fw-tue",
+        "en-GB-u-fw-wed",
+        "en-GB-u-fw-thu",
+        "en-GB-u-fw-fri",
+        "en-GB-u-fw-sat",
+    ]);
     for locale in linguini_cldr::locale_resolution_candidates() {
         let Some(calendar) = linguini_cldr::compiled_calendar_formatting(locale, "gregory") else {
             continue;
@@ -125,6 +134,14 @@ assert.throws(()=>formatDate_skeleton_yw(value),error=>error===failure);
 
 #[test]
 fn week_arithmetic_and_plural_work_follow_selected_requests() {
+    let requests = [request(IrFormatterKind::Date, &[("skeleton", "yw")])];
+    for (base, equivalent) in [("en", "en-u-fw-sun"), ("en-GB", "en-GB-u-fw-mon")] {
+        assert_eq!(
+            formatter_data_declaration(base, &requests, false),
+            formatter_data_declaration(equivalent, &requests, false),
+            "an equivalent weekday override must not add runtime overhead"
+        );
+    }
     let ordinary = formatter_data_declaration("en", &[request(IrFormatterKind::Date, &[])], false);
     assert!(!ordinary.contains("weekAnchor"));
     let english = formatter_data_declaration(

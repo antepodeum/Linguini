@@ -155,13 +155,9 @@ pub fn compiled_day_period_rules(locale: &str) -> Option<&'static [DayPeriodRule
     )
 }
 
+/// Resolve territory week conventions, honoring a valid Unicode `fw` first-day override.
 pub fn compiled_week_data(locale: &str) -> Option<WeekData> {
-    let maximized = crate::maximize_locale(locale).ok()?;
-    let territory = maximized.split('-').skip(1).find(|part| {
-        (part.len() == 2 && part.bytes().all(|byte| byte.is_ascii_uppercase()))
-            || (part.len() == 3 && part.bytes().all(|byte| byte.is_ascii_digit()))
-    })?;
-    generated_week_data(territory).or_else(|| generated_week_data("001"))
+    crate::locale::resolve_week_data(locale, generated_week_data)
 }
 
 pub fn compiled_time_zone_formatting(locale: &str) -> Option<TimeZoneFormatData> {

@@ -42,7 +42,18 @@ function reference(date, firstDay, minDays) {
 }
 "#,
     );
-    for locale in ["en-US", "en-GB", "en-AU", "pt-PT", "dv", "ar", "fa", "gd"] {
+    for locale in [
+        "en-US",
+        "en-GB",
+        "en-AU",
+        "pt-PT",
+        "dv",
+        "ar",
+        "fa",
+        "gd",
+        "gd-u-fw-sun",
+        "en-GB-u-fw-sat",
+    ] {
         let emitted = runtime(
             locale,
             "Y'|'YY'|'YYY'|'YYYY'|'YYYYY'|'YYYYYY'|'YYYYYYY'|'YYYYYYYY",

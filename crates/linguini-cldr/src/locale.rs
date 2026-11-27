@@ -8,6 +8,9 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
+mod week;
+pub(crate) use week::resolve_week_data;
+
 /// CLDR data component whose inheritance rules should be followed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LocaleFallbackComponent {
@@ -707,6 +710,21 @@ fn structural_parent(locale: &LocaleId) -> Option<LocaleId> {
 }
 
 impl LocaleId {
+    /// Read only canonical Unicode keywords, excluding attributes, other extensions,
+    /// and private use. A keyword may have no type or several type subtags.
+    fn unicode_keyword(&self, key: &str) -> Option<&[String]> {
+        let extension = self
+            .extensions
+            .iter()
+            .find(|extension| extension[0] == "u")?;
+        let start = extension.iter().position(|subtag| subtag == key)? + 1;
+        let length = extension[start..]
+            .iter()
+            .position(|subtag| subtag.len() == 2)
+            .unwrap_or(extension.len() - start);
+        Some(&extension[start..start + length])
+    }
+
     fn language_only(language: &str) -> Self {
         Self {
             language: language.to_owned(),

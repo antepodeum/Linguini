@@ -52,6 +52,24 @@ fn date_samples_use_selected_requests_and_preserve_input_validation() {
     for (locale, value, options, expected) in [
         ("en", "2024-01-02", vec![], "Jan 2, 2024"),
         ("gd", "2021-01-01", vec![("skeleton", "yMMM")], "Faoi 2020"),
+        (
+            "gd-u-fw-sun",
+            "2021-01-03",
+            vec![("skeleton", "yMMM")],
+            "Faoi 2021",
+        ),
+        (
+            "en-GB-u-fw-sun",
+            "2021-01-03",
+            vec![("skeleton", "yw")],
+            "week 1 of 2021",
+        ),
+        (
+            "en-GB",
+            "2021-01-03",
+            vec![("skeleton", "yw")],
+            "week 53 of 2020",
+        ),
         ("gd", "0000-01-01", vec![("skeleton", "yMMM")], "Faoi -1"),
         (
             "en",
@@ -434,7 +452,17 @@ fn native_year_week_previews_match_built_messages_across_week_outcomes() {
     let schema = lower_schema(&parse_schema(schema_source).unwrap());
     let module = lower_locale(&parse_locale(source).unwrap());
     let locales = [
-        "en", "en-GB", "fo", "fa", "ar-EG", "ff-Adlm", "mt", "fil", "hy",
+        "en",
+        "en-GB",
+        "fo",
+        "fa",
+        "ar-EG",
+        "ff-Adlm",
+        "mt",
+        "fil",
+        "hy",
+        "en-GB-u-fw-sun",
+        "gd-u-fw-sun",
     ];
     let mut cases = Vec::new();
     for locale in locales {
