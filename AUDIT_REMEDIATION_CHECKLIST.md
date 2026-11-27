@@ -810,6 +810,20 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       uses `macos-latest`; confirmation of these remaining repairs on hosted runners is pending.
       Current Linux Vite/installed native and universal VSIX receipts are recorded under ESM-M11;
       they do not establish the pending hosted Windows/macOS results or release signing.
+      Later [push run 45954831211](https://github.com/antepodeum/Linguini/actions/runs/45954831211)
+      on `aec1d335` failed during local dependency refresh: frozen installs had package contents
+      but no registry metadata for the subsequent offline update. The earlier installer fixture
+      contained only directory dependencies and missed this constraint. Setup now rebuilds a
+      local-package consumer's modules from its frozen graph, retaining the prior installation
+      until success. A fully offline registry-dependency fixture reproduces `NO_OFFLINE_META`
+      before the fix and passes cold/warm afterward with an empty metadata cache and unchanged
+      lock/declarations. Failure and graph-drift checks restore the prior modules too. All 23
+      installer/runner tests pass on Node 20/24; actual Svelte/tsc setup paths also accept empty
+      metadata caches. Node 20 Svelte/Kit runtime gates and all fourteen native tsc integration
+      tests pass, including packed installation, build/watch, and project references. The complete
+      updated working tree also passes all 71 full-profile gates, including rebuilt editor/WASM,
+      native tsc, offline packages, documentation, and production SSR/browser/graph checks. Hosted confirmation remains
+      required after pushing; this receipt does not claim the failed remote run is green.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;
@@ -2062,14 +2076,16 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
       A regression rejects bare filters and missing registered files. All eighteen runner tests
       pass on Node 20/24, and the nine corrected tasks each execute their one intended fixture
       with archived semver-check copies still present under `target/`.
-      Repository installation now refreshes local directory packages after a frozen install,
-      selecting explicit source paths without changing manifest, workspace-policy, or lockfile
-      bytes. Cold/warm offline fixtures verify added/replaced/deleted files, graph-drift rollback,
-      and failure propagation; registry-only declarations receive no update. The fixture and
-      runner suites pass twenty-two tests on Node 20/24. Runtime preparation and every changed
-      CI install path pass locally, including alias invocation, and `actionlint` accepts the
-      workflow. Quick/full profiles include the installer regression; hosted verification of
-      the changed workflow remains required after pushing.
+      Repository installation now refreshes local directory packages by recreating their
+      consumer's modules from the frozen graph. It preserves manifest, workspace-policy, and
+      lockfile bytes, without resolving registry dependencies again. Cold/warm offline fixtures
+      verify added/replaced/deleted files and registry dependencies with an empty metadata cache.
+      Failed installation or graph drift restores the prior modules as well as locked metadata;
+      successful/failed refreshes leave no backup directory. Registry-only consumers keep normal
+      frozen installation. All twenty-three installer/runner tests pass on Node 20/24. Runtime
+      preparation and actual Svelte/tsc setup paths pass, including empty metadata caches. The
+      existing CI job already runs the expanded regression. Quick/full profiles include it;
+      hosted confirmation of this fix remains required after pushing (run 45954831211).
 - [x] LOCAL-A2 — Generate, type-check, build, and inspect the real site production graph locally.
       Site builds generate current native messages and highlight tokens into ignored directories;
       archived output and its restore/package workflow are removed. A repository gate rejects

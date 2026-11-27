@@ -239,8 +239,8 @@ node packages/scripts/install-project-dependencies.mjs site
 pnpm --dir site exec playwright install chromium  # production browser tests
 ```
 
-The repository installer refreshes added or removed local package files while preserving
-declared and locked dependency versions.
+The repository installer refreshes local package files from the frozen dependency graph.
+It restores the previous installation if refreshing fails.
 
 The root runner provides repository-wide local verification:
 
