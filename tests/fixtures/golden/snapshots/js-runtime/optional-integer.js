@@ -184,7 +184,7 @@ export function formatWidthOptionalInteger(value) {
   const fraction = rounded.fraction.padEnd(1, "0");
   const formatted = integer + "." + fraction;
   const prefix = decimal.negative ? "-" : "";
-  const padding = "_".repeat(Math.max(0, 3 - [...(prefix + formatted)].length));
+  const padding = "_".repeat(Math.max(0, (decimal.negative ? 2 : 3) - formatted.length));
   return padding + prefix + formatted;
 }
 

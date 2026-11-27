@@ -128,6 +128,10 @@ fn environment() -> &'static EcmaTemplateEngine {
                 "formatters/number_fraction",
                 include_str!("../templates/formatters/number_fraction.jinja"),
             ),
+            (
+                "formatters/number_padding",
+                include_str!("../templates/formatters/number_padding.jinja"),
+            ),
             ("dispatch", include_str!("../templates/dispatch.jinja")),
             (
                 "dispatch_function",

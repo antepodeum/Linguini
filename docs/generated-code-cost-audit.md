@@ -801,5 +801,51 @@ reproducibility, and all 223 patch-level CLDR API checks pass. Sixteen complete 
 number/USD/CHF/date consumers retain identical programs, compressed sizes, outputs, and callback
 sharing. Hosted Windows confirmation remains a separate integration receipt.
 
+
+## Numeric padding widths
+
+GEN-A76 replaces full-result string concatenation and character-array construction used only
+for padding width. Rust counts resolved affixes and scientific symbols. Templates measure the
+numeric body before digit substitution: each mapped digit still occupies one Unicode scalar.
+Supplementary separators contribute compiled UTF-16 corrections; grouping counts use the
+selected primary/secondary widths inside the existing grouping branch. Optional decimals add
+their correction only when displayed. No extra traversal of the numeric output is required.
+Patterns whose affixes already exhaust both signed widths omit padding entirely.
+
+The new executed corpus covers 2,496 comparisons across fixed/optional/significant fractions,
+integer-only/forced-decimal output, scientific signs, equal/unequal/delayed grouping, all four
+padding positions, zero/short/wide limits, signed zero, rounding carry, and thousand-digit input.
+ASCII, Arabic, Adlam, Chakma, mixed BMP/supplementary digits, and supplementary affixes and
+multi-character separators retain Unicode scalar widths. Expected padding uses the unpadded
+result's independently counted scalars. Existing literal-output padding tests remain intact.
+Execution disables string iteration and verifies zero additional character-code reads.
+
+Complete tree-shaken consumers of the generated template output, compared with `09394e6` on
+Node 24.13.1, preserve output and emit one `render` export/chunk without imports. Vite 7.3.3
+and 8.0.13 produce these minified/gzip/Brotli sizes:
+
+| Vite | Selected plan | Before bytes | After bytes |
+| --- | --- | --- | --- |
+| 7 | ASCII digits/separators | 1514/802/734 | 1519/803/737 |
+| 7 | Arabic digits, supplementary affixes | 1632/895/820 | 1639/896/823 |
+| 7 | Adlam digits, BMP separators | 1599/847/784 | 1606/849/782 |
+| 7 | Chakma digits, supplementary separators | 1624/872/810 | 1671/890/829 |
+| 7 | ASCII digits, supplementary separators | 1550/833/768 | 1595/856/788 |
+| 7 | Equal scalar-width affixes | 1526/817/754 | 1517/814/748 |
+| 8 | ASCII digits/separators | 1467/781/712 | 1465/774/707 |
+| 8 | Arabic digits, supplementary affixes | 1585/873/794 | 1592/871/795 |
+| 8 | Adlam digits, BMP separators | 1552/827/754 | 1552/820/751 |
+| 8 | Chakma digits, supplementary separators | 1577/851/782 | 1613/864/799 |
+| 8 | ASCII digits, supplementary separators | 1503/813/741 | 1544/833/761 |
+| 8 | Equal scalar-width affixes | 1479/797/731 | 1470/792/724 |
+
+All twelve consumers create zero string iterators for padding instead of one. This establishes
+removal of that traversal and character array, without an execution-time or retained-heap claim.
+Supplementary separators need selected arithmetic and increase some payloads; the largest
+observed change is 47 minified and 20 Brotli bytes. None of the current pinned numeric patterns
+requests padding, so this arithmetic is absent from their generated implementations. Existing
+application code, declarations, and maps remain unchanged; curated padding fixtures exercise
+the selected implementations.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

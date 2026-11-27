@@ -64,6 +64,12 @@ continues to render `0.5`, and `#.##` keeps its leading zero. Rounding carry ret
 integer. Native fraction previews and generated formatters share this decision through
 `NumberFormatPlan::can_omit_integer_zero`; the Rust method is additive.
 
+## Numeric padding
+
+Padded number and currency output retains its existing Unicode width and placement. Regenerate
+output to use specialized width calculations without constructing a character array; no API or
+configuration changes are required.
+
 ## Vite 5 projects without a package name
 
 Page-demand analysis supports projects whose `package.json` omits `name`, including

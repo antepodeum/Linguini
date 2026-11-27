@@ -2054,6 +2054,16 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       stay unchanged. Complete Vite 7/8 consumers execute with byte-identical before/after bundles.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
+      Numeric padding now compiles scalar-width arithmetic (GEN-A76), removing full-result
+      concatenation, character arrays, and extra text traversal. Affix/scientific widths are
+      static; selected separator corrections follow actual grouping and fraction visibility.
+      The 2,496-case corpus plus existing literal expectations preserves all positions, signs,
+      rounding, Unicode alphabets/affixes/separators, and width limits. Node 20/24 execution,
+      strict JS 5.8/5.9/6, workspace Clippy, and Rust 1.87 native/WASM checks pass. Twelve complete
+      Vite 7/8 consumers retain output and one import-free chunk, with no padding iterator.
+      Supplementary separator arithmetic adds up to 47 minified/20 Brotli bytes; the cost audit
+      records every measured tradeoff. Existing pinned patterns request no padding, and their
+      application code/declarations/maps stay unchanged. Broader allocation criteria remain open.
       Digit replacement callbacks now share one compiled function per alphabet across number,
       currency, and date requests (GEN-A64). Scientific mantissas/exponents share it too;
       distinct alphabets stay separate, and ASCII-only output emits none. Eight complete

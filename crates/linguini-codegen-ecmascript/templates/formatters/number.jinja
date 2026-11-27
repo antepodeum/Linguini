@@ -22,8 +22,10 @@
     rounded = { integer: rounded.integer[0], fraction: `${rounded.integer.slice(1)}${rounded.fraction}` };
 {% endif %}  }
 {% endif %}  {% if plan.primary_group is not none %}let{% else %}const{% endif %} integer = {% if plan.omit_integer_zero %}rounded.integer === "0" ? "" : {% endif %}rounded.integer{% if plan.min_integer > 1 %}.padStart({{ plan.min_integer }}, "0"){% endif %};
-{% if not fraction_empty %}{% include "formatters/number_fraction" %}{% endif %}{% if plan.primary_group is not none %}  if (integer.length > {{ plan.grouping_threshold }}) {
-{% if plan.primary_group != plan.secondary_group %}    const primaryStart = integer.length - {{ plan.primary_group }};
+{% if not fraction_empty %}{% include "formatters/number_fraction" %}{% endif %}{% if plan.primary_group is not none %}{% if plan.padding is not none and plan.padding.group_surrogates > 0 %}  let groupPaddingCorrection = 0;
+{% endif %}  if (integer.length > {{ plan.grouping_threshold }}) {
+{% if plan.padding is not none and plan.padding.group_surrogates > 0 %}    groupPaddingCorrection = Math.ceil((integer.length - {{ plan.primary_group }}) / {{ plan.secondary_group }}){% if plan.padding.group_surrogates != 1 %} * {{ plan.padding.group_surrogates }}{% endif %};
+{% endif %}{% if plan.primary_group != plan.secondary_group %}    const primaryStart = integer.length - {{ plan.primary_group }};
 {% endif %}    const firstGroup = {% if plan.secondary_group == 1 %}1{% else %}{{ 'integer.length' if plan.primary_group == plan.secondary_group else 'primaryStart' }} % {{ plan.secondary_group }} || {{ plan.secondary_group }}{% endif %};
     let grouped = integer.slice(0, firstGroup);
     for (let offset = firstGroup; offset < {{ 'integer.length' if plan.primary_group == plan.secondary_group else 'primaryStart' }}; offset += {{ plan.secondary_group }}) {
@@ -38,7 +40,6 @@
 {% endif %}  const prefix = {% if plan.negative_prefix == plan.prefix %}{{ plan.prefix|js }}{% else %}decimal.negative ? {{ plan.negative_prefix|js }} : {{ plan.prefix|js }}{% endif %};
 {% if plan.suffix == plan.negative_suffix %}{% if plan.suffix %}  const suffix = {{ plan.suffix|js }};
 {% endif %}{% else %}  const suffix = decimal.negative ? {{ plan.negative_suffix|js }} : {{ plan.suffix|js }};
-{% endif %}{% if plan.padding is not none %}  const padding = {{ plan.padding.character|js }}.repeat(Math.max(0, {{ plan.padding.width }} - [...(prefix + {{ output_value }}{% if plan.suffix or plan.suffix != plan.negative_suffix %} + suffix{% endif %})].length));
-{% endif %}  return {% if plan.padding is not none and plan.padding.position == 0 %}padding + {% endif %}prefix + {% if plan.padding is not none and plan.padding.position == 1 %}padding + {% endif %}{{ output_value }}{% if inline_decimal %} + {{ plan.decimal_symbol|js }}{% endif %}{% if plan.padding is not none and plan.padding.position == 2 %} + padding{% endif %}{% if plan.suffix or plan.suffix != plan.negative_suffix %} + suffix{% endif %}{% if plan.padding is not none and plan.padding.position == 3 %} + padding{% endif %};
+{% endif %}{% if plan.padding is not none %}{% include "formatters/number_padding" %}{% endif %}  return {% if plan.padding is not none and plan.padding.position == 0 %}padding + {% endif %}prefix + {% if plan.padding is not none and plan.padding.position == 1 %}padding + {% endif %}{{ output_value }}{% if inline_decimal %} + {{ plan.decimal_symbol|js }}{% endif %}{% if plan.padding is not none and plan.padding.position == 2 %} + padding{% endif %}{% if plan.suffix or plan.suffix != plan.negative_suffix %} + suffix{% endif %}{% if plan.padding is not none and plan.padding.position == 3 %} + padding{% endif %};
 }
 {{ "\n" -}}

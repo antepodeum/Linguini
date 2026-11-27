@@ -162,10 +162,7 @@ fn number_plan_context(
     let rounding = &plan.rounding;
     let grouping = plan.grouping;
     let scientific = plan.scientific.as_ref();
-    let padding = plan.padding.as_ref().map(|padding| context! {
-        character => padding.character.to_string(), width => padding.width,
-        position => match padding.position { NumberPaddingPosition::BeforePrefix => 0, NumberPaddingPosition::AfterPrefix => 1, NumberPaddingPosition::BeforeSuffix => 2, NumberPaddingPosition::AfterSuffix => 3 },
-    });
+    let padding = number_padding_context(plan);
     let rounding_helper = if rounding.increment == "1" {
         format!("roundTo{}FractionDigits", rounding.fraction_digits)
     } else {
@@ -194,6 +191,42 @@ fn number_plan_context(
         exponent_plus => scientific.map(|scientific| scientific.positive_sign),
         carry_fraction => scientific.and_then(|scientific| scientific.carry_fraction.as_deref()), padding,
     }
+}
+
+fn number_padding_context(plan: &linguini_codegen::NumberFormatPlan) -> Option<minijinja::Value> {
+    use minijinja::context;
+    let padding = plan.padding.as_ref()?;
+    let exponent_sign_width = plan.scientific.as_ref().and_then(|scientific| {
+        let positive = scientific.positive_sign.chars().count();
+        let negative = scientific.negative_sign.chars().count();
+        (positive != negative).then(|| context! { positive, negative })
+    });
+    let scientific_width = plan.scientific.as_ref().map_or(0, |scientific| {
+        scientific.separator.chars().count()
+            + if exponent_sign_width.is_none() {
+                scientific.positive_sign.chars().count()
+            } else {
+                0
+            }
+    });
+    let available_width = |prefix: &str, suffix: &str| {
+        usize::from(padding.width)
+            .saturating_sub(prefix.chars().count() + suffix.chars().count() + scientific_width)
+    };
+    let positive_width = available_width(&plan.affixes.prefix, &plan.affixes.suffix);
+    let negative_width =
+        available_width(&plan.affixes.negative_prefix, &plan.affixes.negative_suffix);
+    if positive_width == 0 && negative_width == 0 {
+        return None;
+    }
+    // Each digit substitution replaces one scalar with one scalar. Measure the body
+    // before substitution and correct only the selected separators' UTF-16 widths.
+    let surrogates = |text: &str| text.encode_utf16().count() - text.chars().count();
+    Some(context! {
+        character => padding.character.to_string(), positive_width, negative_width, exponent_sign_width,
+        decimal_surrogates => surrogates(plan.decimal_symbol), group_surrogates => surrogates(plan.group_symbol),
+        position => match padding.position { NumberPaddingPosition::BeforePrefix => 0, NumberPaddingPosition::AfterPrefix => 1, NumberPaddingPosition::BeforeSuffix => 2, NumberPaddingPosition::AfterSuffix => 3 },
+    })
 }
 
 #[derive(Default)]

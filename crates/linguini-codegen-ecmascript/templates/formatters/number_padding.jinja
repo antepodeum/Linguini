@@ -1,0 +1,15 @@
+{% set count -%}
+{% if plan.padding.positive_width == plan.padding.negative_width -%}
+{{ plan.padding.positive_width }}
+{%- else -%}
+(decimal.negative ? {{ plan.padding.negative_width }} : {{ plan.padding.positive_width }})
+{%- endif %} - {{ formatted_value }}.length
+{%- if plan.primary_group is not none and plan.padding.group_surrogates > 0 %} + groupPaddingCorrection
+{%- endif %}
+{%- if plan.padding.decimal_surrogates > 0 and (not fraction_empty or plan.decimal_separator_always) %} + {% if plan.decimal_separator_always or (plan.max_significant is none and plan.min_fraction > 0) %}{{ plan.padding.decimal_surrogates }}{% else %}(fraction ? {{ plan.padding.decimal_surrogates }} : 0){% endif %}
+{%- endif %}
+{%- if plan.exponent_digits is not none %} - exponentDigits.length
+{%- if plan.padding.exponent_sign_width is not none %} - (exponent < 0 ? {{ plan.padding.exponent_sign_width.negative }} : {{ plan.padding.exponent_sign_width.positive }})
+{%- endif %}
+{%- endif %}
+{%- endset %}  const padding = {{ plan.padding.character|js }}.repeat(Math.max(0, {{ count }}));
