@@ -500,7 +500,8 @@ surface. Current guarantees are:
   width and `time_style` selects a CLDR time width; each accepts `"full"`,
   `"long"`, `"medium"`, or `"short"`. Supplying only `time_style` emits only
   the time, while supplying both combines them with the matching CLDR
-  date-time pattern. Rendering uses pinned Gregorian patterns plus
+  date-time pattern. Quoted literal text and literal braces in either component are preserved.
+  Rendering uses pinned Gregorian patterns plus
   context/width-specific month, weekday, and quarter names, eras, and localized fixed/flexible
   day periods. Time fields are evaluated in UTC; zone-bearing widths use pinned localized
   UTC names, falling back to the localized GMT-zero label when the selected name is absent.

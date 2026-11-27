@@ -1,4 +1,5 @@
 mod currency_symbols;
+mod date_composition;
 mod month_weeks;
 mod number_inputs;
 mod rounding;

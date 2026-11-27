@@ -424,6 +424,9 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       all widths and contexts. Pinned quarter skeletons/symbols are checked across 508 locale
       records; generated requests execute in four locales, with UTC boundaries, Arabic digits,
       supplied-Date getter observations, strict JS typing, and unused quarter removal covered.
+      Date/time composition preserves inserted literal markers and apostrophe quoting
+      (GEN-A62). Shared tests check all 32,512 pinned style combinations for unchanged patterns;
+      executed English/Arabic requests retain literal digits, UTC rollover, and getter behavior.
       Week-based year `Y` now compiles territory week conventions into bounded January/December
       arithmetic, including Scottish Gaelic `yMMM`, signed extended years, localized digits/signs,
       and independent calendar-year/era fields. A full Gregorian cycle checks all 49 week-rule

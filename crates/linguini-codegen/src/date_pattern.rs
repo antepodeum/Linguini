@@ -101,12 +101,38 @@ pub fn date_request_pattern(
         .then(|| select(dates.date_formats, style.unwrap_or("medium")));
     let time = time_style.map(|style| select(dates.time_formats, style));
     Ok(match (date, time) {
-        (Some(date), Some(time)) => select(dates.date_time_formats, style.unwrap_or("medium"))
-            .replace("{1}", date)
-            .replace("{0}", time),
+        (Some(date), Some(time)) => compose_date_time_pattern(
+            select(dates.date_time_formats, style.unwrap_or("medium")),
+            date,
+            time,
+        ),
         (Some(part), None) | (None, Some(part)) => part.to_owned(),
         (None, None) => unreachable!("at least a date or time pattern is selected"),
     })
+}
+
+/// Resolve only the composition's markers; inserted CLDR patterns remain opaque.
+/// Preserve quoting for the subsequent date-pattern compiler.
+fn compose_date_time_pattern(composition: &str, date: &str, time: &str) -> String {
+    let mut output = String::with_capacity(composition.len() + date.len() + time.len());
+    let mut copied = 0;
+    for (offset, _) in composition.match_indices('{') {
+        let remaining = &composition[offset..];
+        let replacement = if remaining.starts_with("{0}") {
+            Some(time)
+        } else if remaining.starts_with("{1}") {
+            Some(date)
+        } else {
+            None
+        };
+        if let Some(replacement) = replacement {
+            output.push_str(&composition[copied..offset]);
+            output.push_str(replacement);
+            copied = offset + 3;
+        }
+    }
+    output.push_str(&composition[copied..]);
+    output
 }
 
 /// Parse CLDR quoting and specialize UTC zones to literals before target emission.
@@ -225,6 +251,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn date_time_composition_keeps_inserted_patterns_opaque_and_quotes_intact() {
+        let mut dates = linguini_cldr::compiled_date_formatting("en").unwrap();
+        dates.date_formats.long = "'date {0}' y";
+        dates.time_formats.short = "HH:mm 'time {1}'";
+        let request = FormatterRequest::new(&linguini_ir::IrFormatter {
+            kind: linguini_ir::IrFormatterKind::Date,
+            arguments: [("style", "long"), ("time_style", "short")]
+                .into_iter()
+                .map(|(name, value)| linguini_ir::IrFormatterArgument {
+                    name: name.into(),
+                    value: value.into(),
+                })
+                .collect(),
+        });
+        for (composition, expected) in [
+            (
+                "{1} / {0} / {1}",
+                "'date {0}' y / HH:mm 'time {1}' / 'date {0}' y",
+            ),
+            (
+                "'o''clock' — {0}; {1}",
+                "'o''clock' — HH:mm 'time {1}'; 'date {0}' y",
+            ),
+        ] {
+            dates.date_time_formats.long = composition;
+            let actual = date_request_pattern(&dates, &request).unwrap();
+            assert_eq!(actual, expected, "{composition}");
+            compile_date_pattern("en", &actual).unwrap();
+        }
+    }
+
+    #[test]
     fn exact_skeleton_selection_keeps_locale_patterns_and_rejects_missing_ids() {
         let request = |skeleton: &str| {
             FormatterRequest::new(&linguini_ir::IrFormatter {
@@ -315,7 +373,12 @@ mod tests {
                     compile_date_pattern(locale, time)
                         .unwrap_or_else(|error| panic!("{locale}: {time:?}: {error}"));
                     for composition in widths(dates.date_time_formats) {
-                        let pattern = composition.replace("{1}", date).replace("{0}", time);
+                        let pattern = compose_date_time_pattern(composition, date, time);
+                        assert_eq!(
+                            pattern,
+                            composition.replace("{1}", date).replace("{0}", time),
+                            "existing pinned composition changed in {locale}"
+                        );
                         compile_date_pattern(locale, &pattern)
                             .unwrap_or_else(|error| panic!("{locale}: {pattern:?}: {error}"));
                     }

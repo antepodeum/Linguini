@@ -122,6 +122,10 @@ unchanged.
 
 ## Shared date-pattern planning
 
+Date/time composition now preserves literal `{0}` and `{1}` text inside inserted date and time
+patterns. Only placeholders in the composition itself are replaced; CLDR apostrophe quoting
+retains its meaning. No application changes are required.
+
 Code generation and native previews now consume the same resolved date-field/symbol and
 shared day-period plan from `linguini-codegen`. Missing required symbols are checked alongside
 pattern validity. The new `DatePlanError` retains structured symbol errors without changing
