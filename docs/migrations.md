@@ -4,6 +4,13 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Shared project locale matching
+
+The project locale matcher now lives in `linguini_cldr::ProjectLocalePlan`. The existing
+`linguini_codegen::ProjectLocalePlan` keeps its Rust type and method signatures through a thin
+facade over the same implementation. Locale precedence and generated output are unchanged.
+Source tools can use the neutral CLDR service without depending on code generation.
+
 ## Inherited source globals in native projects
 
 Native `check`, `build`, and `generate` accept form, enum, function, and variable references

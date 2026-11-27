@@ -1468,6 +1468,9 @@ and the composed payload/SSR requirements below.
       planning in the common crate. Exact names, aliases, CLDR parents/likely scripts, and base
       precedence have shared tests; current generated code/declaration/map snapshots are unchanged.
       ECMAScript owns only the locale artifact projection and syntax for this boundary.
+      The matching implementation is now owned by the neutral CLDR service. The established
+      `linguini-codegen` type forwards to that implementation without changing its Rust identity
+      or signatures; source tools can share the plan without a code-generation dependency.
       Locale declaration overlays also use common `compose_locale_modules`: all six locale
       declaration families retain whole-declaration precedence, stable order, source identities,
       and complete override history. The backend retains schema validation after composition;

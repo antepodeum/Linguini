@@ -81,11 +81,14 @@ JSDoc rendering through `render_typescript_type` and `render_jsdoc_type`, templa
 emission. Primitive types and enum literal unions use one canonical type-expression template
 for schema declarations, schema JSDoc, locale JSDoc, and selector annotations.
 
-`linguini_codegen::ProjectLocalePlan` owns project fallback matching and the finite pinned
+`linguini_cldr::ProjectLocalePlan` owns project fallback matching and the finite pinned
 locale-resolution table. It preserves declared spellings, exact-name precedence, CLDR parents,
 aliases, likely scripts, and the optional base fallback. Declared tags are canonicalized once
 per plan. The ECMAScript backend renders these results through its locale templates; this
 shared model contains no JavaScript syntax or web routing/persistence policy.
+The existing `linguini_codegen::ProjectLocalePlan` type remains a forwarding facade with the
+same methods. CLDR owns the implementation, allowing source tools to reuse it independently of
+code generation.
 Native build and `generate` previews share a validated project-IR loader and this locale plan.
 Declared CLDR parents precede the project base. An exact declared spelling retains its own
 source and parent chain when a canonical sibling is also declared; it does not inherit that
