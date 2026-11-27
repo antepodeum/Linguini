@@ -359,6 +359,8 @@ explicitly initialize `startRuntimeLinkLocalization` from `@antepodeum/linguini-
 and dispose it when its owner is destroyed. These choices do not change native message generation.
 The observer ignores added text nodes and coalesces repeated mutation records for the same
 pending subtree. Use the returned `refresh()` method when all links need the current locale.
+After `destroy()`, both `refresh()` and repeated `destroy()` calls are inert, including when
+the document is no longer accessible.
 
 ```ts
 // src/lib/documented-client-helpers.ts

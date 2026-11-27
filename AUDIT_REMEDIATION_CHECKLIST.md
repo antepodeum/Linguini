@@ -1035,6 +1035,11 @@ TypeScript, and application/bundler imports select their capabilities.
       delivery requirements remain open.
       All 25 web tests pass on Node 20/24, alongside thirteen runtime/parity, packaging,
       documentation, and production site/SSR/browser/graph gates.
+      Disposed runtime link handles are now inert (GEN-A67): refresh/repeated destruction read
+      no browser globals and disconnect only once. Animation/timer tests cover pending traversal
+      cancellation and an inaccessible document, including complete minified Vite 7/8 consumers.
+      All 27 web tests pass on Node 20/24, together with nine package/parity/documentation and
+      production site/SSR/browser/graph gates.
 - [x] WEB-A14 — Normalize one `LocaleSwitchPlan` shared by browser and server transports.
 - [x] WEB-A15 — Use `localizeHref` for all path-based transitions.
 - [x] WEB-A16 — Create an optional runtime switch handler with validated same-origin return targets.

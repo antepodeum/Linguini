@@ -50,6 +50,8 @@ export function startRuntimeLinkLocalization<LocaleName extends string>(web: Lin
         return true;
     };
     const enqueueDocument = () => {
+        if (destroyed)
+            return;
         pendingRoots.length = 0;
         queuedRoots.clear();
         activeTraversal = undefined;
@@ -135,6 +137,8 @@ export function startRuntimeLinkLocalization<LocaleName extends string>(web: Lin
     return {
         refresh: enqueueDocument,
         destroy() {
+            if (destroyed)
+                return;
             destroyed = true;
             observer?.disconnect();
             document.removeEventListener("click", onClick, true);

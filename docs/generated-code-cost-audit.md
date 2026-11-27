@@ -631,5 +631,19 @@ by two bytes on Vite 7 and grows by nine on Vite 8. These are operation counts a
 consumer sizes, without a timing or heap-size claim. The observer still examines mutation
 records to find affected roots; the bounded frame budget applies to element traversal.
 
+The subsequent lifecycle fix also makes `refresh()` and repeated `destroy()` inert after
+disposal. A throwing document getter exposes two invalid accesses and exceptions before the
+fix, and zero accesses/exceptions after it; the observer disconnects once. Both animation and
+timer consumers cancel pending traversal. Relative to the queue optimization above, the
+guards add 17 minified bytes and four/three Brotli bytes on Vite 7/8:
+
+| Bundler | Before cleanup fix | After cleanup fix |
+| --- | ---: | ---: |
+| Vite 7.3.3 | 9,851 / 3,801 / 3,415 | 9,868 / 3,806 / 3,419 |
+| Vite 8.0.13 | 9,644 / 3,684 / 3,332 | 9,661 / 3,688 / 3,335 |
+
+These complete consumers retain the queue operation counts above and one self-contained chunk.
+The figures establish observable cleanup behavior and code size, without a heap-size claim.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

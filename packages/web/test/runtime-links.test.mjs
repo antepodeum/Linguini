@@ -27,6 +27,24 @@ function resetVisits(browser) {
 
 for (const animation of [true, false]) {
   const scheduler = animation ? 'animation' : 'timer';
+  test(`${scheduler}: disposed handles are inert when browser globals disappear`, () => withLinkBrowser(animation, browser => {
+    const effects = startRuntimeLinkLocalization(web, () => 'fr');
+    browser.flushOne();
+    assert.equal(browser.frames.size + browser.timers.size, 1);
+    effects.destroy();
+    let reads = 0;
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      get() {reads++; throw Error('document is no longer accessible');},
+    });
+    assert.doesNotThrow(() => effects.refresh());
+    assert.doesNotThrow(() => effects.destroy());
+    assert.equal(reads, 0);
+    assert.equal(browser.disconnected(), 1);
+    assert.equal(browser.frames.size + browser.timers.size, 0);
+    assert.equal(browser.listeners.size, 0);
+  }));
+
   test(`${scheduler}: text-only mutations schedule no link traversal`, () => withLinkBrowser(animation, browser => {
     const effects = startRuntimeLinkLocalization(web, () => 'fr');
     try {
