@@ -1,4 +1,4 @@
-//! Parse the generated date runtime's explicit ISO string input domain in UTC.
+//! Parse the generated date runtime's ISO strings and numeric UTC millisecond inputs.
 
 use super::RenderError;
 
@@ -18,6 +18,60 @@ pub(super) fn parse_date(value: &str) -> Result<DateParts, RenderError> {
     parse_iso(value).ok_or_else(|| RenderError::InvalidDate {
         value: value.to_owned(),
     })
+}
+
+pub(super) fn parse_timestamp(value: &str) -> Result<DateParts, RenderError> {
+    timestamp_parts(value).ok_or_else(|| RenderError::InvalidDate {
+        value: value.to_owned(),
+    })
+}
+
+fn timestamp_parts(value: &str) -> Option<DateParts> {
+    const MILLISECONDS_PER_DAY: i64 = 86_400_000;
+    const MAX_TIMESTAMP: f64 = 8_640_000_000_000_000.0;
+    let milliseconds = value.parse::<f64>().ok()?;
+    if !milliseconds.is_finite() || milliseconds.abs() > MAX_TIMESTAMP {
+        return None;
+    }
+    // ECMAScript TimeClip truncates toward zero before splitting negative UTC days.
+    let milliseconds = milliseconds.trunc() as i64;
+    let days = milliseconds.div_euclid(MILLISECONDS_PER_DAY);
+    let time = milliseconds.rem_euclid(MILLISECONDS_PER_DAY);
+    let ordinal = days + days_before_year(1970);
+    // TimeClip's endpoints lie inside these bounds. Find the containing Gregorian year
+    // without relying on a host timezone or overflowing a native calendar library.
+    let (mut lower, mut upper) = (-300_000, 300_001);
+    while lower + 1 < upper {
+        let middle = lower + (upper - lower) / 2;
+        if days_before_year(middle) <= ordinal {
+            lower = middle;
+        } else {
+            upper = middle;
+        }
+    }
+    let year = lower;
+    let mut day = ordinal - days_before_year(year);
+    let mut month = 1;
+    while day >= i64::from(days_in_month(year, month)) {
+        day -= i64::from(days_in_month(year, month));
+        month += 1;
+    }
+    Some(DateParts {
+        year,
+        month,
+        day: (day + 1) as u8,
+        weekday: (days + 4).rem_euclid(7) as u8,
+        hour: (time / 3_600_000) as u8,
+        minute: (time / 60_000 % 60) as u8,
+        second: (time / 1_000 % 60) as u8,
+        millisecond: (time % 1_000) as u16,
+    })
+}
+
+fn days_before_year(year: i32) -> i64 {
+    let year = i64::from(year);
+    year * 365 + (year + 3).div_euclid(4) - (year + 99).div_euclid(100)
+        + (year + 399).div_euclid(400)
 }
 
 fn parse_iso(value: &str) -> Option<DateParts> {

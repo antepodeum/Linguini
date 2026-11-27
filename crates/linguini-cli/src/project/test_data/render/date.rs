@@ -1,4 +1,4 @@
-//! Native previews of ISO date sample values through the shared CLDR request planner.
+//! Native previews of ISO strings and numeric timestamps through the shared CLDR planner.
 
 use linguini_cldr::{compiled_calendar_formatting, compiled_date_formatting};
 use linguini_codegen::{
@@ -7,11 +7,40 @@ use linguini_codegen::{
 };
 use linguini_ir::{IrFormatter, IrFormatterArgument, IrFormatterKind};
 
-use super::{append_localized_digits, RenderError};
+use super::{append_localized_digits, RenderError, SampleValue};
 
 pub(super) fn format_date(
     locale: &str,
     value: &str,
+    arguments: &[IrFormatterArgument],
+) -> Result<String, RenderError> {
+    format_date_input(locale, DateInput::Iso(value), arguments)
+}
+
+pub(super) fn format_sample_date(
+    locale: &str,
+    value: &SampleValue,
+    arguments: &[IrFormatterArgument],
+) -> Result<String, RenderError> {
+    match value {
+        SampleValue::String(value) => format_date(locale, value, arguments),
+        SampleValue::Number(value) => {
+            format_date_input(locale, DateInput::Timestamp(value), arguments)
+        }
+        SampleValue::Boolean(_) => Err(RenderError::InvalidDate {
+            value: value.as_text(),
+        }),
+    }
+}
+
+enum DateInput<'a> {
+    Iso(&'a str),
+    Timestamp(&'a str),
+}
+
+fn format_date_input(
+    locale: &str,
+    value: DateInput<'_>,
     arguments: &[IrFormatterArgument],
 ) -> Result<String, RenderError> {
     let dates = compiled_date_formatting(locale)
@@ -24,7 +53,10 @@ pub(super) fn format_date(
     });
     let pattern = date_request_pattern(&dates, &request).map_err(pattern_error)?;
     let plan = DatePatternPlan::new(locale, &pattern, &calendar).map_err(pattern_error)?;
-    let date = parse_date(value)?;
+    let date = match value {
+        DateInput::Iso(value) => parse_date(value)?,
+        DateInput::Timestamp(value) => input::parse_timestamp(value)?,
+    };
     let displayed_minutes = if plan.fields.contains(&'m') {
         date.minute
     } else {

@@ -446,7 +446,10 @@ surface. Current guarantees are:
   parser normalizes explicit offsets to UTC, preserves millisecond precision, and handles
   `24:00` and calendar/year rollover. Date-only and zone-less samples remain host-zone independent.
   Invalid calendar/time/offset fields are rejected; numeric strings are not epoch values.
-  Native typed epoch-number and Date-object parity remains under remediation.
+  Native previews also preserve numeric epoch inputs through functions, callable forms, and
+  inline bindings, including fractional-millisecond truncation and negative epochs. A number
+  such as `0` denotes the Unix epoch; the string `"0"` remains invalid. Date samples append
+  numeric `0` and `-1` after the ISO cases. Native Date-object parity remains under remediation.
 
 ```lgl
 created_at = {created @date(style = "long", time_style = "short")}

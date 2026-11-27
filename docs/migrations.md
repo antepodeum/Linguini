@@ -139,6 +139,16 @@ to UTC instead of rejecting them or assuming midnight. Clock fields, display-pre
 periods, year-of-era, and week-year rollover follow the selected compiled request. No generated
 JavaScript, declaration, configuration, or application API changes are required.
 
+## Native numeric Date previews
+
+Native `generate` now appends epoch-millisecond inputs `0` and `-1` to Date samples. Preview
+arguments retain their input kind through aliases, named/forwarded functions, callable forms,
+and inline captures. Numeric timestamps follow JavaScript's millisecond truncation and finite
+Date range; ISO strings keep their existing validation, so the string `"0"` remains invalid.
+Formatter results become strings before subsequent calls or formatters. Date errors now describe
+an invalid date value rather than restricting the diagnostic to `YYYY-MM-DD`. Generated runtime,
+declaration, and source-map output is unchanged. Native Date-object samples remain open.
+
 ## Constant plural classifiers
 
 Regeneration specializes classifiers whose compiled numeric result is constant, such as Japanese

@@ -265,3 +265,157 @@ fn native_date_samples_match_real_generated_modules_across_requests_and_locales(
         &["UTC", "America/Los_Angeles", "Asia/Kolkata"],
     );
 }
+
+#[test]
+fn numeric_date_samples_keep_their_input_kind_through_forwarded_calls() {
+    use super::super::{Renderer, SampleValue};
+    use linguini_ir::{lower_locale, lower_schema};
+    use linguini_syntax::{parse_locale, parse_schema};
+    use std::collections::BTreeMap;
+
+    let schema_source = concat!(
+        "enum Mode { receipt }\n",
+        "type Instant = Date\n",
+        "sample0(value: Instant)\n",
+        "sample1(value: Instant)\n",
+        "sample2(value: Instant)\n",
+        "sample3(value: Instant)\n",
+        "sample4(value: Instant, mode: Mode)\n",
+        "sample5(value: Instant)\n",
+    );
+    let locale_source = concat!(
+        "impl Mode { receipt { form label(when: Instant) { _ => ",
+        "{when @date(skeleton = \"yMMMd\")} / {when @date(skeleton = \"Hms\")} } } }\n",
+        "fn Echo(text: String) { _ => {text} }\n",
+        "fn Receipt(value: Instant) { _ => ",
+        "{value @date(skeleton = \"yMMMd\")} / {value @date(skeleton = \"Hms\")} }\n",
+        "fn Forward(value: Instant) { _ => {Receipt(value)} }\n",
+        "sample0 = {value @date(skeleton = \"yMMMd\")} / {value @date(skeleton = \"Hms\")}\n",
+        "sample1 = {Receipt(value)}\n",
+        "sample2 = {Forward(value)}\n",
+        "sample3 = {fn(saved: value) { _ => {Receipt(saved)} }}\n",
+        "sample4 = {mode.label(value)}\n",
+        "sample5 = {Echo(value @date(skeleton = \"yMMMd\"))} / ",
+        "{Echo(value @date(skeleton = \"Hms\"))}\n",
+    );
+    let schema = lower_schema(&parse_schema(schema_source).unwrap());
+    let module = lower_locale(&parse_locale(locale_source).unwrap());
+    let mut cases = Vec::new();
+    for locale in ["en", "ru", "ar-EG", "ff-Adlm"] {
+        let renderer = Renderer::new(&schema, &module, locale);
+        for (milliseconds, iso) in [
+            (0.0, "1970-01-01T00:00:00Z"),
+            (0.99, "1970-01-01T00:00:00Z"),
+            (-0.99, "1970-01-01T00:00:00Z"),
+            (-1.0, "1969-12-31T23:59:59.999Z"),
+            (1_715_852_096_789.0, "2024-05-16T09:34:56.789Z"),
+            (-62_167_219_200_000.0, "0000-01-01T00:00:00Z"),
+        ] {
+            for index in 0..6 {
+                let name = format!("sample{index}");
+                let expected = renderer
+                    .render_message(
+                        &name,
+                        &BTreeMap::from([
+                            ("mode".into(), SampleValue::String("receipt".into())),
+                            ("value".into(), SampleValue::String(iso.into())),
+                        ]),
+                    )
+                    .unwrap();
+                let actual = renderer
+                    .render_message(
+                        &name,
+                        &BTreeMap::from([
+                            ("mode".into(), SampleValue::String("receipt".into())),
+                            (
+                                "value".into(),
+                                SampleValue::Number(milliseconds.to_string()),
+                            ),
+                        ]),
+                    )
+                    .unwrap();
+                assert_eq!(actual, expected, "{locale}/{name}/{milliseconds}");
+                cases.push(serde_json::json!({"locale":locale,"index":index,"args":if index == 4 { serde_json::json!([milliseconds,"receipt"]) } else { serde_json::json!([milliseconds]) },"expected":expected}));
+            }
+        }
+        for index in 0..6 {
+            assert!(matches!(
+                renderer.render_message(
+                    &format!("sample{index}"),
+                    &BTreeMap::from([
+                        ("mode".into(), SampleValue::String("receipt".into())),
+                        ("value".into(), SampleValue::String("0".into()))
+                    ])
+                ),
+                Err(RenderError::InvalidDate { .. })
+            ));
+        }
+    }
+    super::super::parity::assert_generated_samples_in_time_zones(
+        schema_source,
+        locale_source,
+        &["en", "ru", "ar-EG", "ff-Adlm"],
+        &cases,
+        &["UTC", "America/Los_Angeles", "Asia/Kolkata"],
+    );
+}
+
+#[test]
+fn numeric_date_fields_match_time_clip_across_the_javascript_date_range() {
+    let output = std::process::Command::new("node")
+        .args([
+            "--input-type=module",
+            "-e",
+            r#"
+const values = [0,-0,0.99,-0.99,1,-1,86400000,-86400000,
+  -62167219200000,-2203977600000,951782400000,
+  -8640000000000000,8640000000000000,-8640000000000001,8640000000000001,
+  NaN,Infinity,-Infinity];
+let seed = 1;
+for(let index=0;index<1024;index++) {
+  seed = (Math.imul(seed,1664525)+1013904223)>>>0;
+  values.push((seed/0xffffffff*2-1)*8640000000000000);
+}
+console.log(JSON.stringify(values.map(value=>{
+  const date = new Date(value);
+  return {value:String(value),fields:Number.isFinite(date.getTime())?
+    [date.getUTCFullYear(),date.getUTCMonth()+1,date.getUTCDate(),date.getUTCDay(),
+     date.getUTCHours(),date.getUTCMinutes(),date.getUTCSeconds(),date.getUTCMilliseconds()]:null};
+})));
+"#,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let cases: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).unwrap();
+    for case in cases {
+        let value = case["value"].as_str().unwrap();
+        let result = super::input::parse_timestamp(value);
+        if case["fields"].is_null() {
+            assert!(
+                matches!(result, Err(RenderError::InvalidDate { .. })),
+                "{case}"
+            );
+        } else {
+            let date = result.unwrap_or_else(|error| panic!("{case}: {error}"));
+            assert_eq!(
+                serde_json::json!([
+                    date.year,
+                    date.month,
+                    date.day,
+                    date.weekday,
+                    date.hour,
+                    date.minute,
+                    date.second,
+                    date.millisecond
+                ]),
+                case["fields"],
+                "{case}"
+            );
+        }
+    }
+}

@@ -532,12 +532,12 @@ fn generate_command_outputs_rendered_locale_matrix() {
     fs::create_dir_all(&locale_dir).expect("locale dir");
     fs::write(
         schema_dir.join("shop.lgs"),
-        "enum Fruit {\n  apple\n  pear\n}\ncounted(count: Number, fruit: Fruit)\n",
+        "enum Fruit {\n  apple\n  pear\n}\ncounted(count: Number, fruit: Fruit)\ntype Instant = Date\nseen(value: Instant)\n",
     )
     .expect("schema file");
     fs::write(
         locale_dir.join("en.lgl"),
-        "impl Fruit {\n  apple {\n    form gen(Plural) {\n      one => apple\n      _ => apples\n    }\n  }\n  pear {\n    form gen(Plural) {\n      one => pear\n      _ => pears\n    }\n  }\n}\ncounted = {count} {fruit.gen(count)}\n",
+        "impl Fruit {\n  apple {\n    form gen(Plural) {\n      one => apple\n      _ => apples\n    }\n  }\n  pear {\n    form gen(Plural) {\n      one => pear\n      _ => pears\n    }\n  }\n}\ncounted = {count} {fruit.gen(count)}\nfn Receipt(value: Instant) { _ => {value @date(skeleton = \"yMMMd\")} / {value @date(skeleton = \"Hms\")} }\nfn Forward(value: Instant) { _ => {Receipt(value)} }\nseen = {Forward(value)}\n",
     )
     .expect("locale file");
 
@@ -557,6 +557,9 @@ fn generate_command_outputs_rendered_locale_matrix() {
         .stdout(contains("5"))
         .stdout(contains("=> 1 apple"))
         .stdout(contains("=> 5 apples"))
+        .stdout(contains("message shop.seen"))
+        .stdout(contains("value=0\n      => Jan 1, 1970 / 00:00:00"))
+        .stdout(contains("value=-1\n      => Dec 31, 1969 / 23:59:59"))
         .stdout(predicates::str::contains("\"locales\"").not());
 }
 

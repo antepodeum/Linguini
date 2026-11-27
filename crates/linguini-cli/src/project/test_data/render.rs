@@ -110,7 +110,7 @@ impl fmt::Display for RenderError {
                 write!(formatter, "`{value}` is not a supported decimal number")
             }
             Self::InvalidDate { value } => {
-                write!(formatter, "`{value}` is not a valid YYYY-MM-DD date")
+                write!(formatter, "`{value}` is not a valid date value")
             }
             Self::AliasCycle { chain } => {
                 write!(formatter, "formatter alias cycle: {}", chain.join(" -> "))
@@ -177,7 +177,9 @@ impl<'a> Renderer<'a> {
             match part {
                 IrTextPart::Text(value) => output.push_str(value),
                 IrTextPart::Placeholder(expression) => output.push_str(
-                    &self.eval_expression_value(expression, context, inputs, depth + 1)?,
+                    &self
+                        .eval_expression_value(expression, context, inputs, depth + 1)?
+                        .into_text(),
                 ),
             }
         }
@@ -190,13 +192,14 @@ impl<'a> Renderer<'a> {
         context: &BTreeMap<String, String>,
         inputs: &BTreeMap<String, SampleValue>,
         depth: usize,
-    ) -> Result<String, RenderError> {
+    ) -> Result<SampleValue, RenderError> {
         let value = self.eval_unformatted_expression(expression, context, inputs, depth)?;
         expression
             .formatters
             .iter()
             .try_fold(value, |current, formatter| {
-                self.apply_formatter(&current, formatter)
+                self.apply_formatter(current, formatter)
+                    .map(SampleValue::String)
             })
     }
 
@@ -206,7 +209,7 @@ impl<'a> Renderer<'a> {
         context: &BTreeMap<String, String>,
         inputs: &BTreeMap<String, SampleValue>,
         depth: usize,
-    ) -> Result<String, RenderError> {
+    ) -> Result<SampleValue, RenderError> {
         ensure_depth(depth)?;
         let args = expression
             .arguments
@@ -245,14 +248,14 @@ impl<'a> Renderer<'a> {
                         actual: args.len(),
                     });
                 }
-                plural_key(self.locale, &args[0])
+                plural_key(self.locale, args[0].as_str())
             }
             [function] if expression.kind == IrExpressionKind::Call => {
                 self.eval_function(function, &args, depth + 1)
             }
             [root] => {
                 if let Some(value) = inputs.get(root) {
-                    return Ok(value.as_text());
+                    return Ok(value.clone());
                 }
                 let variable = self
                     .module
@@ -277,18 +280,20 @@ impl<'a> Renderer<'a> {
                 name: expression.path.join("."),
             }),
         }
+        .map(SampleValue::String)
     }
 
     fn eval_form_call(
         &self,
         root: &str,
         property: Option<&str>,
-        args: &[String],
+        args: &[SampleValue],
         context: &BTreeMap<String, String>,
         inputs: &BTreeMap<String, SampleValue>,
         depth: usize,
     ) -> Result<String, RenderError> {
         ensure_depth(depth)?;
+        let selector = args.first().map(SampleValue::as_str);
         let form = self.form_for(root, context)?;
         let variant_name = inputs.get(root).map(SampleValue::as_text).ok_or_else(|| {
             RenderError::MissingSymbol {
@@ -319,7 +324,7 @@ impl<'a> Renderer<'a> {
                 self.parameter_scope(&callable, parameters, args)?;
             return self.eval_ir_value(
                 value,
-                args.first().map(String::as_str),
+                selector,
                 parameters
                     .first()
                     .is_none_or(|parameter| parameter.ty == "Plural"),
@@ -338,7 +343,7 @@ impl<'a> Renderer<'a> {
             })
             .collect::<Vec<_>>();
         select_branch(
-            args.first().map(String::as_str).unwrap_or("other"),
+            selector.unwrap_or("other"),
             &branches,
             true,
             self.locale,
@@ -430,7 +435,7 @@ impl<'a> Renderer<'a> {
     fn eval_function(
         &self,
         name: &str,
-        args: &[String],
+        args: &[SampleValue],
         depth: usize,
     ) -> Result<String, RenderError> {
         let function = self
@@ -463,7 +468,7 @@ impl<'a> Renderer<'a> {
         parameters: &[IrFunctionParameter],
         branches: &[IrFunctionBranch],
         dispatch_depth: usize,
-        args: &[String],
+        args: &[SampleValue],
         context: &BTreeMap<String, String>,
         inputs: &BTreeMap<String, SampleValue>,
         depth: usize,
@@ -473,7 +478,7 @@ impl<'a> Renderer<'a> {
         let selector = parameter_index
             .map(|index| {
                 args.get(index)
-                    .map(String::as_str)
+                    .map(SampleValue::as_str)
                     .ok_or_else(|| RenderError::InvalidArity {
                         function: callable.to_owned(),
                         expected: index + 1,
@@ -556,7 +561,7 @@ impl<'a> Renderer<'a> {
         &self,
         callable: &str,
         parameters: &[IrFunctionParameter],
-        args: &[String],
+        args: &[SampleValue],
     ) -> Result<ParameterScope, RenderError> {
         let scope = parameter_scope(callable, parameters, args)?;
         for ty in scope.0.values() {
@@ -587,11 +592,17 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    fn apply_formatter(&self, value: &str, formatter: &IrFormatter) -> Result<String, RenderError> {
+    fn apply_formatter(
+        &self,
+        value: SampleValue,
+        formatter: &IrFormatter,
+    ) -> Result<String, RenderError> {
         match &formatter.kind {
-            IrFormatterKind::Number => self.format_number(value),
-            IrFormatterKind::Currency => self.format_currency(value, &formatter.arguments),
-            IrFormatterKind::Date => self.format_date(value, &formatter.arguments),
+            IrFormatterKind::Number => self.format_number(&value.into_text()),
+            IrFormatterKind::Currency => {
+                self.format_currency(&value.into_text(), &formatter.arguments)
+            }
+            IrFormatterKind::Date => self.format_date(&value, &formatter.arguments),
             IrFormatterKind::Unknown(name) => Err(RenderError::Unsupported {
                 detail: format!("formatter `{name}` cannot be previewed"),
             }),
@@ -651,10 +662,10 @@ impl<'a> Renderer<'a> {
 
     fn format_date(
         &self,
-        value: &str,
+        value: &SampleValue,
         arguments: &[IrFormatterArgument],
     ) -> Result<String, RenderError> {
-        date::format_date(self.locale, value, arguments)
+        date::format_sample_date(self.locale, value, arguments)
     }
 }
 
@@ -720,7 +731,7 @@ fn dispatch_parameter_indices(
 fn parameter_scope(
     callable: &str,
     parameters: &[IrFunctionParameter],
-    args: &[String],
+    args: &[SampleValue],
 ) -> Result<ParameterScope, RenderError> {
     if args.len() != parameters.len() {
         return Err(RenderError::InvalidArity {
@@ -735,7 +746,7 @@ fn parameter_scope(
     for (parameter, value) in parameters.iter().zip(args) {
         if let Some(name) = &parameter.name {
             context.insert(name.clone(), parameter.ty.clone());
-            inputs.insert(name.clone(), SampleValue::String(value.clone()));
+            inputs.insert(name.clone(), value.clone());
         }
     }
     Ok((context, inputs))

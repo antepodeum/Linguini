@@ -23,9 +23,21 @@ pub(super) enum SampleValue {
 }
 
 impl SampleValue {
-    pub(super) fn as_text(&self) -> String {
+    pub(super) fn as_str(&self) -> &str {
         match self {
-            Self::String(value) | Self::Number(value) => value.clone(),
+            Self::String(value) | Self::Number(value) => value,
+            Self::Boolean(true) => "true",
+            Self::Boolean(false) => "false",
+        }
+    }
+
+    pub(super) fn as_text(&self) -> String {
+        self.as_str().to_owned()
+    }
+
+    pub(super) fn into_text(self) -> String {
+        match self {
+            Self::String(value) | Self::Number(value) => value,
             Self::Boolean(value) => value.to_string(),
         }
     }
@@ -262,14 +274,13 @@ fn sample_values(schema: &IrModule, ty: &str) -> Result<Vec<SampleValue>, Sample
             .into_iter()
             .map(|value| SampleValue::Number(value.to_owned()))
             .collect()),
-        "Date" => Ok([
-            "2026-05-13",
-            "2026-05-13T12:00",
-            "2026-05-13T23:45:56.789+05:30",
-        ]
-        .into_iter()
-        .map(|value| SampleValue::String(value.to_owned()))
-        .collect()),
+        "Date" => Ok(vec![
+            SampleValue::String("2026-05-13".to_owned()),
+            SampleValue::String("2026-05-13T12:00".to_owned()),
+            SampleValue::String("2026-05-13T23:45:56.789+05:30".to_owned()),
+            SampleValue::Number("0".to_owned()),
+            SampleValue::Number("-1".to_owned()),
+        ]),
         "Boolean" => Ok(vec![
             SampleValue::Boolean(false),
             SampleValue::Boolean(true),
@@ -525,7 +536,7 @@ console.log(JSON.stringify(main));
     }
 
     #[test]
-    fn generated_date_samples_cover_midnight_noon_and_offset_inputs() {
+    fn generated_date_samples_cover_iso_strings_and_numeric_timestamps() {
         let schema = schema("seen(value: Date)\n");
         let locale = lower_locale(
             &parse_locale(
@@ -543,6 +554,7 @@ console.log(JSON.stringify(main));
             "=> 12:00 midnight / 00:00",
             "=> 12:00 noon / 12:00",
             "=> 6:15 in the evening / 18:15",
+            "=> 11:59 at night / 23:59",
         ] {
             assert!(output.contains(expected), "{output}");
         }

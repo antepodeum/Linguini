@@ -654,7 +654,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       Twelve locales × thirty requests × twenty-four valid inputs execute against generated
       modules in three host zones, alongside invalid calendar/time/offset rejection. Native
       Date samples add noon and offset cases after the preserved date-only baseline. Typed
-      epoch-number and Date-object parity remains open. CLI unit/integration suites pass on
+      epoch-number parity is now covered by GEN-A46: values retain their kind through nested
+      functions, aliases, inline bindings, callable forms, and explicit formatter results. Native
+      `generate` adds `0`/`-1` after the ISO samples. All 144 generated-module cases execute in
+      three host zones; 1,042 independent JavaScript Date comparisons verify TimeClip bounds,
+      fractional truncation, negative epochs, BCE/year zero, and UTC fields. Native Date-object
+      parity remains open. CLI unit/integration suites pass on
       Node 20 and Node 24, with workspace Clippy, Rust 1.87, executable documentation, and
       packaged-source checks passing. Generated code/declaration/map expectations are unchanged.
       Decimal/currency previews now consume `NumberFormatPlan` for affixes, grouping thresholds,
