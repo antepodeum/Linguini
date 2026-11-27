@@ -186,3 +186,79 @@ fn canonical_week_requests_reject_conflicts_and_other_calendar_kinds() {
     calendar.calendar = "buddhist";
     assert!(WeekDatePlan::new("en", &calendar, &built_in_plural_rules("en").unwrap()).is_err());
 }
+
+#[test]
+fn constant_families_do_not_require_unavailable_cardinal_rules() {
+    use linguini_ir::{IrFormatter, IrFormatterArgument, IrFormatterKind};
+    let mut checked = std::collections::BTreeSet::new();
+    for &locale in linguini_cldr::locale_resolution_candidates()
+        .iter()
+        .chain([&"sa"])
+    {
+        if built_in_plural_rules(locale).is_some()
+            || crate::GregorianWeekYearPlan::for_locale(locale).is_none()
+        {
+            continue;
+        }
+        let Some(calendar) = compiled_calendar_formatting(locale, "gregory") else {
+            continue;
+        };
+        for skeleton in ["yw", "MMMMW"] {
+            let request = crate::FormatterRequest::new(&IrFormatter {
+                kind: IrFormatterKind::Date,
+                arguments: vec![IrFormatterArgument {
+                    name: "skeleton".into(),
+                    value: skeleton.into(),
+                }],
+            });
+            let plan = week_date_request_plan(locale, &request)
+                .unwrap_or_else(|error| panic!("{locale}/{skeleton}: {error}"))
+                .unwrap();
+            assert!(plan.selection.branches.is_empty());
+            assert_eq!(plan.patterns.len(), 1);
+            let prefix = format!("{skeleton}-count-");
+            for &(name, pattern) in calendar.skeletons {
+                if name.starts_with(&prefix) {
+                    assert_eq!(
+                        plan.patterns[0],
+                        DatePatternPlan::for_week(locale, pattern, &calendar).unwrap(),
+                        "{locale}/{name}"
+                    );
+                }
+            }
+            checked.insert(locale);
+        }
+    }
+    assert!(checked.contains("sa"));
+    assert!(
+        checked.len() > 50,
+        "insufficient rule-free locale coverage: {}",
+        checked.len()
+    );
+}
+
+#[test]
+fn missing_rules_require_equal_compiled_variants_and_a_fallback() {
+    let mut calendar = compiled_calendar_formatting("en", "gregory").unwrap();
+    calendar.skeletons = &[("yw-count-one", "w 'of' Y"), ("yw-count-other", "w' of 'Y")];
+    let plan = WeekDatePlan::compile("en", &calendar, None, "yw").unwrap();
+    assert_eq!(plan.patterns.len(), 1);
+    assert!(plan.selection.branches.is_empty());
+    calendar.skeletons = &[
+        ("yw-count-one", "w 'one' Y"),
+        ("yw-count-other", "w 'many' Y"),
+    ];
+    assert!(matches!(
+        WeekDatePlan::compile("en", &calendar, None, "yw"),
+        Err(DatePlanError::Pattern(
+            DatePatternError::MissingSkeleton { .. }
+        ))
+    ));
+    calendar.skeletons = &[("yw-count-one", "w 'only' Y")];
+    assert!(matches!(
+        WeekDatePlan::compile("en", &calendar, None, "yw"),
+        Err(DatePlanError::Pattern(
+            DatePatternError::MissingSkeleton { .. }
+        ))
+    ));
+}

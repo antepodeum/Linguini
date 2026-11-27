@@ -27,6 +27,7 @@ fn assert_week_family(skeleton: &str) {
         "hy",
         "nso",
         "sq",
+        "sa",
         "en-GB-u-fw-sun",
         "en-u-fw-mon",
     ];
@@ -70,7 +71,7 @@ fn assert_week_family(skeleton: &str) {
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const manifest=JSON.parse(readFileSync('./generated/bundler/manifest.json','utf8'));
-for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy','nso','sq','en-GB-u-fw-sun','en-u-fw-mon']) {
+for(const locale of ['en-GB','en','fo','fa','ar-EG','ff-Adlm','mt','fil','hy','nso','sq','sa','en-GB-u-fw-sun','en-u-fw-mon']) {
   const {main}=await import('./generated/locales/'+locale+'.js');
   const {message}=await import('./generated/'+manifest.messages['main.period'].locales[locale].module);
   for(const value of ['2021-01-01','2021-01-04','2021-05-30','2021-05-31',0,-1,new Date('0000-01-01T00:00:00Z')]) {

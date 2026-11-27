@@ -486,5 +486,23 @@ This extends a previously rejected request; these are post-change consumer sizes
 before/after improvement or timing claim. Existing formatter/declaration/map goldens retain
 their bytes. New curated month-week fixtures join the strict date-consumer gate.
 
+A week-date family with equal compiled count variants no longer requires cardinal-rule data.
+The planner proves equality during generation and emits one unconditional pattern. Existing
+formatter/declaration/map goldens are byte-identical; the new Sanskrit fixture contains both
+families, localized digits, and the selected abbreviated month vector without a classifier.
+
+Four generated locale outputs (`sa`, `ccp`, `aa`, `la`) pass strict checked JS/application TS
+on TypeScript 5.8.3, 5.9.3, and 6.0.3. Complete consumers using both year/week and month/week
+messages execute as one self-contained chunk each. Node 24.13.1 minified/gzip/Brotli bytes:
+
+| Locale | Vite 7.3.3 | Vite 8.0.13 |
+| --- | ---: | ---: |
+| `sa` | 2,073 / 1,108 / 933 | 1,999 / 1,066 / 889 |
+| `ccp` | 2,302 / 1,127 / 949 | 2,228 / 1,088 / 908 |
+
+These requests previously failed to build. The figures are post-fix consumer sizes, with no
+before/after size or timing claim. Differing wording and missing fallback records still fail;
+there is no assumed runtime category or new runtime fallback.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

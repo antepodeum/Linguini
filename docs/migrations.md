@@ -200,6 +200,19 @@ weekday preferences produce identical formatter code, with no runtime locale par
 branches. Native previews and ordinary/physical generated modules use the same policy.
 Region/subdivision and calendar-specific week-preference overrides remain under remediation.
 
+## Constant week wording without cardinal records
+
+Week-date requests now work for locales such as Sanskrit (`sa`), Chakma (`ccp`), Afar (`aa`),
+and Latin (`la`) when the pinned count variants compile to the same pattern. Previously both
+`yw` and `MMMMW` failed because these locales lack an explicit cardinal-rule record, despite
+needing no plural choice. The shared planner proves variant equality before omitting that
+requirement and emits one unconditional pattern.
+
+Differing variants and missing fallback records still fail. Explicit `Plural(...)`, plural
+selectors, and plural forms retain their existing missing-data errors. Native previews,
+ordinary modules, physical modules, and standalone SDK output share this policy. Regenerate
+artifacts; no application configuration or imports need changing.
+
 ## Gregorian month/week formatting
 
 Use `@date(skeleton = "MMMMW")` for the pinned Gregorian month/week family. The shared
@@ -210,8 +223,8 @@ rejection without a runtime CLDR interpreter, year arithmetic, or new configurat
 
 Schema defaults, function forwarding, named/positional calls, and ordinary/physical output use
 this policy. Existing static date/year-week output, declarations, and maps keep their snapshots.
-Regenerate artifacts to use the request. The existing requirement for pinned calendar, week,
-and cardinal-rule data also applies to this family.
+Regenerate artifacts to use the request. Pinned calendar/week data remains required; cardinal
+rules are required when count-dependent wording differs.
 
 ## Gregorian year/week formatting
 

@@ -473,6 +473,7 @@ fn assert_native_week_previews(skeleton: &str) {
         "hy",
         "nso",
         "sq",
+        "sa",
         "en-GB-u-fw-sun",
         "gd-u-fw-sun",
     ];

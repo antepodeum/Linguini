@@ -8,6 +8,7 @@ use std::fs;
 use std::path::Path;
 
 mod bindings;
+mod constant_week_dates;
 mod export_bindings;
 mod form_demand;
 

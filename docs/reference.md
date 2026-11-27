@@ -478,8 +478,11 @@ surface. Current guarantees are:
   the minimum-days rule requires it; final weeks retain the current month. Thus `2021-01-01`
   renders `week 0 of January` in `en-GB`, while `2021-05-30` renders `week 6 of May` in `en`.
   Generation prunes unreachable zero/six outcomes for the selected convention and emits no
-  year or leap-year arithmetic for this request. Both week families require pinned calendar,
-  territory week, and cardinal-rule data; unavailable required data fails generation.
+  year or leap-year arithmetic for this request. Both week families require pinned calendar
+  and territory week data. Cardinal rules are needed only when count-dependent patterns differ.
+  When a locale has no cardinal record, equal compiled variants produce one unconditional
+  pattern; differing wording or missing fallback data still fails generation. Explicit plural
+  operations retain their existing cardinal-data requirement.
   A valid Unicode `fw` keyword (`sun`, `mon`, `tue`, `wed`, `thu`, `fri`, or `sat`) overrides
   the first weekday at compilation; the territory's minimum-days rule stays unchanged. Thus
   `2021-01-03` is week 1 of 2021 in `en-GB-u-fw-sun`, versus week 53 of 2020 in `en-GB`.

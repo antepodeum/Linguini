@@ -4,7 +4,7 @@ use std::fs;
 #[test]
 fn month_week_formats_match_raw_patterns_and_independent_month_anchors() {
     let mut locales = std::collections::BTreeSet::from([
-        "en", "en-GB", "ru", "ar-EG", "fa", "ff-Adlm", "fi", "zh", "vi", "st",
+        "en", "en-GB", "ru", "ar-EG", "fa", "ff-Adlm", "fi", "zh", "vi", "st", "sa",
     ]);
     locales.extend([
         "en-GB-u-fw-sun",
@@ -78,20 +78,43 @@ globalThis.Intl.DateTimeFormat=class {constructor(){throw Error('host date forma
             assert!(!emitted.contains(forbidden), "{locale}: {forbidden}");
         }
         assert_eq!(emitted.matches("date.getUTCMonth()").count(), 1, "{locale}");
-        if ["en-GB", "mt", "fa", "zh"].contains(&locale) {
+        let snapshot_name = if locale == "sa" {
+            Some("constant-weeks".to_owned())
+        } else if ["en-GB", "mt", "fa", "zh"].contains(&locale) {
+            Some(format!("month-week-{locale}"))
+        } else {
+            None
+        };
+        if let Some(snapshot_name) = snapshot_name {
+            let source = if locale == "sa" {
+                formatter_data_declaration(
+                    locale,
+                    &[
+                        request(IrFormatterKind::Date, &[("skeleton", "yw")]),
+                        request(IrFormatterKind::Date, &[("skeleton", "MMMMW")]),
+                    ],
+                    true,
+                )
+            } else {
+                emitted.clone()
+            };
             let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-                "../../tests/fixtures/golden/snapshots/js-date/month-week-{locale}.js"
+                "../../tests/fixtures/golden/snapshots/js-date/{snapshot_name}.js"
             ));
             if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
-                fs::write(&path, &emitted).unwrap();
+                fs::write(&path, &source).unwrap();
             }
-            assert_eq!(emitted, fs::read_to_string(path).unwrap());
+            assert_eq!(source, fs::read_to_string(path).unwrap());
         }
         let calendar = linguini_cldr::compiled_calendar_formatting(locale, "gregory").unwrap();
         let week = linguini_cldr::compiled_week_data(locale).unwrap();
-        let rules = linguini_cldr::compiled_plural_rules(locale).unwrap();
+        let rules = linguini_cldr::compiled_plural_rules(locale);
         let categories = (0..=6)
-            .map(|value| rules.category_for(&value.to_string()).unwrap())
+            .map(|value| {
+                rules.as_ref().map_or("other", |rules| {
+                    rules.category_for(&value.to_string()).unwrap()
+                })
+            })
             .collect::<Vec<_>>();
         let patterns = calendar
             .skeletons

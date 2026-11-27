@@ -1,51 +1,5 @@
 use super::*;
-use linguini_syntax::{parse_locale_in, parse_schema_in, SourceId};
-
-fn binding_project_files(
-    schema_source: &str,
-    locale_source: &str,
-) -> (Vec<EcmaGeneratedFile>, String) {
-    let schema = lower_schema(&parse_schema_in(schema_source, SourceId(1)).unwrap());
-    let locales = [EcmaLocaleModule {
-        locale: "en".into(),
-        module: lower_locale(&parse_locale_in(locale_source, SourceId(2)).unwrap()),
-    }];
-    let project = ValidatedEcmaProject::try_new(&schema, &locales, &project_options("en")).unwrap();
-    let sources = [
-        crate::EcmaSource::new(SourceId(1), "schema.lgs", schema_source),
-        crate::EcmaSource::new(SourceId(2), "en.lgl", locale_source),
-    ];
-    let mut files = crate::generate_project_files(&project).unwrap();
-    for artifact in project.semantic_artifacts().unwrap() {
-        let compiled =
-            crate::compile_bundler_semantic_module(&project, &artifact, &sources).unwrap();
-        files.push(EcmaGeneratedFile {
-            path: artifact.module_path,
-            contents: compiled.code,
-        });
-    }
-    let artifact = project.message_artifacts().unwrap().remove(0);
-    let physical =
-        crate::compile_bundler_message_artifact_module(&project, &artifact, &sources).unwrap();
-    files.push(EcmaGeneratedFile {
-        path: artifact.module_path.clone(),
-        contents: physical.code,
-    });
-    let standalone = crate::compile_message_module(
-        &project,
-        "en",
-        "root",
-        "standalone.js",
-        "./shared.js",
-        &sources,
-    )
-    .unwrap();
-    files.push(EcmaGeneratedFile {
-        path: "standalone.js".into(),
-        contents: standalone.code,
-    });
-    (files, format!("./{}", artifact.module_path))
-}
+use crate::test_runtime::root_project_files;
 
 #[test]
 fn named_functions_keep_precedence_without_shadowing_or_parameter_defaults() {
@@ -74,7 +28,7 @@ fn named_functions_keep_precedence_without_shadowing_or_parameter_defaults() {
                 ""
             };
             let locale_source = format!("{form}fn helper(count: Number) {{ _ => {{count}} }}\nfn Forward(helper: {ty}, count: Number) {{ _ => {{helper(count)}} }}\nroot = {body}\n");
-            let (files, physical) = binding_project_files(&schema_source, &locale_source);
+            let (files, physical) = root_project_files("en", &schema_source, &locale_source);
             for file in files.iter().filter(|file| file.path.ends_with(".js")) {
                 for unused in ["UNUSED_FORM", "formatCurrency", "formatDate"] {
                     assert!(
@@ -150,7 +104,7 @@ fn source_functions_cannot_shadow_generated_javascript_intrinsics() {
         locale_source.push_str(&format!("{{{name}(value)}}|"));
     }
     locale_source.push_str("{value @number}|{stamp @date(skeleton = \"yw\")}\n");
-    let (files, physical) = binding_project_files(schema_source, &locale_source);
+    let (files, physical) = root_project_files("en", schema_source, &locale_source);
     let names = serde_json::to_string(&names).unwrap();
     let script = format!(
         r#"
@@ -185,8 +139,11 @@ fn source_numeric_type_names_do_not_collide_with_standalone_helper_types() {
         "enum GeneratedNumeric { second }\n",
         "root(kind: GeneratedDecimal, measure: GeneratedNumeric, value: Number)\n",
     );
-    let (files, _) =
-        binding_project_files(schema_source, "root = {kind} {measure} {value @number}\n");
+    let (files, _) = root_project_files(
+        "en",
+        schema_source,
+        "root = {kind} {measure} {value @number}\n",
+    );
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/golden/snapshots/js-complete-project/type-names/numeric");
     let selected = files
@@ -230,7 +187,7 @@ fn source_variables_cannot_shadow_runtime_intrinsics_or_lexical_parameters() {
         "fn Decorated(value: Number) { _ => {undefined}:{Captured(value)} }\n",
         "root = {undefined}|{value @number}|{Decorated(value)}|{fn(undefined: value) { _ => {undefined @number} }}\n",
     );
-    let (files, physical) = binding_project_files("root(value: Number)\n", source);
+    let (files, physical) = root_project_files("en", "root(value: Number)\n", source);
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/golden/snapshots/js-complete-project/bindings/variables");
     for file in files.iter().filter(|file| {

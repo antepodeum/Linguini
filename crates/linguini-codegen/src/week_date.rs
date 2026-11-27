@@ -35,6 +35,15 @@ impl WeekDatePlan {
         rules: &PluralRules,
         skeleton: &str,
     ) -> Result<Self, DatePlanError> {
+        Self::compile(locale, calendar, Some(rules), skeleton)
+    }
+
+    fn compile(
+        locale: &str,
+        calendar: &CalendarFormatData,
+        rules: Option<&PluralRules>,
+        skeleton: &str,
+    ) -> Result<Self, DatePlanError> {
         let missing = || {
             DatePlanError::Pattern(DatePatternError::MissingSkeleton {
                 locale: locale.to_owned(),
@@ -59,6 +68,38 @@ impl WeekDatePlan {
         let fallback = lookup(&format!("{skeleton}-count-other"))
             .or_else(|| lookup(skeleton))
             .ok_or_else(missing)?;
+        let (minimum, maximum) = if skeleton == "yw" {
+            (1, 53)
+        } else {
+            (
+                u64::from(week.anchor_offset == 6),
+                u64::from((30 + week.anchor_offset) / 7 + 1),
+            )
+        };
+        let Some(rules) = rules else {
+            // Cardinal data cannot affect a family whose compiled variants are equal.
+            // Prove that equality rather than selecting an assumed default category.
+            let pattern = DatePatternPlan::for_week(locale, fallback, calendar)?;
+            let prefix = format!("{skeleton}-count-");
+            for &(name, source) in calendar.skeletons {
+                if name.starts_with(&prefix)
+                    && source != fallback
+                    && DatePatternPlan::for_week(locale, source, calendar)? != pattern
+                {
+                    return Err(missing());
+                }
+            }
+            return Ok(Self {
+                week,
+                patterns: vec![pattern],
+                selection: IntegerPluralPlan {
+                    minimum,
+                    maximum,
+                    branches: Vec::new(),
+                    fallback: 0,
+                },
+            });
+        };
         let mut patterns = Vec::new();
         let mut outcomes = BTreeMap::new();
         for category in rules
@@ -81,14 +122,6 @@ impl WeekDatePlan {
                 });
             outcomes.insert(category, index);
         }
-        let (minimum, maximum) = if skeleton == "yw" {
-            (1, 53)
-        } else {
-            (
-                u64::from(week.anchor_offset == 6),
-                u64::from((30 + week.anchor_offset) / 7 + 1),
-            )
-        };
         let mut selection =
             IntegerPluralPlan::for_rules(rules, minimum, maximum, |category| outcomes[category])
                 .ok_or_else(missing)?;
@@ -144,8 +177,8 @@ pub fn week_date_request_plan(
     };
     let calendar =
         linguini_cldr::compiled_calendar_formatting(locale, "gregory").ok_or_else(missing)?;
-    let rules = linguini_cldr::built_in_plural_rules(locale).ok_or_else(missing)?;
-    WeekDatePlan::for_skeleton(locale, &calendar, &rules, skeleton).map(Some)
+    let rules = linguini_cldr::built_in_plural_rules(locale);
+    WeekDatePlan::compile(locale, &calendar, rules.as_ref(), skeleton).map(Some)
 }
 
 #[cfg(test)]

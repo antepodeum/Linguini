@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn compiled_week_formats_match_raw_cldr_wording_and_calendar_boundaries() {
     let mut locales = std::collections::BTreeSet::from([
-        "en", "en-GB", "ru", "ar-EG", "fa", "ff-Adlm", "gd", "ja",
+        "en", "en-GB", "ru", "ar-EG", "fa", "ff-Adlm", "gd", "ja", "sa",
     ]);
     locales.extend([
         "en-GB-u-fw-sun",
@@ -89,9 +89,13 @@ function reference(date, firstDay, minDays, patterns, categories, digits, minus)
         }
         let calendar = linguini_cldr::compiled_calendar_formatting(locale, "gregory").unwrap();
         let week = linguini_cldr::compiled_week_data(locale).unwrap();
-        let rules = linguini_cldr::compiled_plural_rules(locale).unwrap();
+        let rules = linguini_cldr::compiled_plural_rules(locale);
         let categories = (1..=53)
-            .map(|value| rules.category_for(&value.to_string()).unwrap())
+            .map(|value| {
+                rules.as_ref().map_or("other", |rules| {
+                    rules.category_for(&value.to_string()).unwrap()
+                })
+            })
             .collect::<Vec<_>>();
         let patterns = calendar
             .skeletons

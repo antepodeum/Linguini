@@ -456,7 +456,17 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       tests pass on Node 20, with changed cases on Node 24. Clippy, Rust 1.87 native/WASM,
       223 patch API checks per changed codegen crate, strict JS/application TS 5.8/5.9/6, nine
       date/project/documentation gates, and eight complete Vite 7/8 consumers pass. Existing code/declaration/map snapshots stay unchanged. Broader skeleton
-      matching, other calendars/zones, and missing required locale-rule data remain separate.
+      matching and other calendars/zones remain separate.
+      Week families with no cardinal record now compile one unconditional pattern only after
+      proving all available count variants equal to the fallback plan (GEN-A55). Eligible pinned
+      locales, equivalent quoting, differing-pattern/missing-fallback guards, and Sanskrit raw
+      pattern execution are checked. Both families execute ordinary/physical/standalone output
+      for `sa`, `ccp`, `aa`, and `la`; native parity expands to 1,792 cases per family in three zones.
+      All 59 common/195 emitter tests and CLI tests pass on Node 20, with changed cases on Node 24.
+      Clippy, Rust 1.87 native/WASM, 223 patch API checks per changed codegen crate, strict
+      JS/application TS 5.8/5.9/6, nine date/project/documentation gates, and four complete Vite 7/8
+      consumers pass. Existing snapshots stay unchanged; explicit plural operations still require
+      rules. This removes an unused compile-time requirement without a runtime fallback.
 - [x] #159 — Apply currency symbols, digits, increments, and spacing.
 - [x] #160 — Share one plural grammar implementation across all targets. `linguini-cldr` owns the
   sole rule parser; the offline generator imports it and TypeScript codegen lowers its typed AST.
@@ -1287,7 +1297,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Integrated public export-binding source `886c47f` also passes all 71 local full-profile
       gates in one clean run, including native namespace regressions, installed tsc, editor/WASM,
       offline packages, documentation, and production SSR/browser/graph checks (GEN-A53).
-      Subsequent month-week work has separate focused receipts (GEN-A54).
+      Integrated month-week source `42ffd3e` also passes all 71 local full-profile gates in one
+      clean run, including native cold/warm/preview regressions, strict date consumers, installed
+      tsc, editor/WASM, offline packages, documentation, and production SSR/browser/graph checks.
+      Subsequent constant-family cardinal-data work has separate focused receipts (GEN-A55).
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.

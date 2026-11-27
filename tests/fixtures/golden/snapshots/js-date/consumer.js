@@ -1,9 +1,12 @@
+import { formatDate_skeleton_yw as constantYearWeek, formatDate_skeleton_MMMMW as constantMonthWeek } from "./constant-weeks.js";
 import { formatDate_skeleton_MMMMW as formatMonthWeek } from "./month-week-mt.js";
 import { formatFlexible, formatFixed, formatNarrow, formatYear, formatLocalized } from "./date.js";
 import { formatDate_skeleton_yMMMd, formatDate_skeleton_Hm, formatDate_skeleton_GyMMMd, formatDate_skeleton_yQQQ } from "./skeletons.js";
 
 /** @type {string[]} */
 const results = [
+  constantYearWeek(0),
+  constantMonthWeek("2021-01-01"),
   formatMonthWeek(new Date()),
   formatMonthWeek(0),
   formatMonthWeek("2021-01-01"),
@@ -29,4 +32,8 @@ formatDate_skeleton_yQQQ(false);
 formatLocalized(false);
 // @ts-expect-error month-week formatters retain Date inputs
 formatMonthWeek(false);
+// @ts-expect-error constant wording preserves the Date input contract
+constantYearWeek(false);
+// @ts-expect-error constant month-week wording still requires an input
+constantMonthWeek();
 void results;
