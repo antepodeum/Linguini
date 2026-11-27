@@ -14,6 +14,8 @@ const fallbackUri = `${root}/locale/fallback/fr.lgl`;
 const fallbackBaseUri = `${root}/locale/fallback/en.lgl`;
 const fallbackBase = 'let suffix = BASE\nfn render(count: Number) { _ => {count} }\nimpl Fruit { apple { label = Apple } }\nsummary = BASE\nother = OTHER\n';
 const fallbackLocale = 'summary = {render(count)}|{fruit.label}|{suffix}\n';
+const scopeUri = `${root}/locale/scope/en.lgl`;
+const scopeLocale = 'fn helper(count: Number) { _ => {count} }\nfn Forward(helper: String, count: Number) { _ => {helper}|{helper(count)} }\nsummary = {fn(helper: value) { _ => {helper}|{helper(count)} }}\n';
 
 /** Run the same real protocol scenario in a Node worker and a browser worker. */
 export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string, bytes: Uint8Array): Promise<unknown[]> {
@@ -61,7 +63,9 @@ export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string
       { uri: `${root}/build/schema/account.lgs`, text: 'delivery(name: String)\n' },
       { uri: `${root}/locale/account/en.lgl`, text: 'delivery = Hello {name}\n' },
       { uri: `${root}/build/schema/fallback.lgs`, text: 'enum Fruit { apple }\nsummary(fruit: Fruit, count: Number)\nother\n' },
-      { uri: fallbackBaseUri, text: fallbackBase }, { uri: fallbackUri, text: fallbackLocale }];
+      { uri: fallbackBaseUri, text: fallbackBase }, { uri: fallbackUri, text: fallbackLocale },
+      { uri: `${root}/build/schema/scope.lgs`, text: 'summary(value: String, count: Number)\n' },
+      { uri: scopeUri, text: scopeLocale }];
     await channel.replace(files);
     const partialPlan = await channel.sourcePlan([root]);
     expect(partialPlan.roots.length === 1 && partialPlan.errors.length === 1, 'an invalid config must not hide valid projects');
@@ -145,8 +149,24 @@ export async function exerciseWorker(endpoint: WorkerEndpoint, moduleUri: string
     send('textDocument/didChange', { textDocument: { uri: fallbackUri, version: 4 }, contentChanges: [{ text: fallbackLocale }] });
     const restoredFallback = await diagnostic(4, true, fallbackUri, noErrors);
     const fallbackResults = [inherited, changedFallback, recoveredFallback, restoredBase, undeclared, restoredFallback];
+    send('textDocument/didOpen', { textDocument: { uri: scopeUri, languageId: 'linguini-locale', version: 1, text: scopeLocale } });
+    await diagnostic(1, false, scopeUri);
+    const scopeResults = [];
+    for (const [line, source] of scopeLocale.trimEnd().split('\n').entries()) {
+      const character = source.indexOf('helper(count)');
+      if (character < 0) continue;
+      const at = { textDocument: { uri: scopeUri }, position: { line, character } };
+      const definition = await request('textDocument/definition', at);
+      expect(definition.uri === scopeUri && definition.range.start.line === 0 && definition.range.start.character === 3, 'named calls resolve to the function, preserving local bindings');
+      const references = await request('textDocument/references', { ...at, context: { includeDeclaration: true } });
+      expect(references.length === 3 && references.every((item: any) => item.uri === scopeUri), 'function references exclude same-named parameter and inline bindings');
+      const rename = await request('textDocument/rename', { ...at, newName: 'render' });
+      expect(rename.changes[scopeUri].length === 3 && Object.keys(rename.changes).length === 1, 'function rename edits only its declaration and calls');
+      scopeResults.push([definition, references, rename]);
+    }
+    expect(scopeResults.length === 2, 'both named and inline binding scopes are exercised');
     await request('shutdown');
     send('exit');
-    return [version, hover, definition, references, prepared, rename, completion, symbols, workspace, tokens, edits, highlight, actions, updated, fallbackResults];
+    return [version, hover, definition, references, prepared, rename, completion, symbols, workspace, tokens, edits, highlight, actions, updated, fallbackResults, scopeResults];
   } finally { channel.dispose(); }
 }

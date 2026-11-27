@@ -1092,3 +1092,85 @@ fn locale_fallback_diagnostics_require_explicit_unambiguous_namespace_context() 
         );
     }
 }
+
+#[test]
+fn named_calls_keep_function_identity_inside_same_named_bindings() {
+    let text = "fn helper(count: Number) { _ => {count} }\nfn Forward(helper: String, count: Number) { _ => {helper}|{helper(count)} }\nsummary = {fn(helper: value) { _ => {helper}|{helper(count)} }}\n";
+    let document = LinguiniDocument::new("file:///main/en.lgl", "linguini-locale", text)
+        .with_source_identity("main", Some("en".into()))
+        .with_source_id(SourceId(1));
+    let schema = LinguiniDocument::new(
+        "file:///schema/main.lgs",
+        "linguini-schema",
+        "summary(value: String, count: Number)\n",
+    )
+    .with_source_identity("main", None)
+    .with_source_id(SourceId(2));
+    let diagnostics = diagnostics_with_workspace(&document, [schema]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let foreign = LinguiniDocument::new("file:///main/fr.lgl", "linguini-locale", text)
+        .with_source_identity("main", Some("fr".into()))
+        .with_source_id(SourceId(3));
+    let function = text.find("helper").unwrap();
+    let calls = text
+        .match_indices("helper(count)")
+        .map(|(offset, _)| offset)
+        .collect::<Vec<_>>();
+    assert_eq!(calls.len(), 2);
+    let expected = std::iter::once(function)
+        .chain(calls.iter().copied())
+        .collect::<Vec<_>>();
+    let tokens = semantic_tokens(&document);
+    for call in calls {
+        let (uri, span) = definition_at_with_workspace(&document, call, [foreign.clone()])
+            .expect("named function definition");
+        assert_eq!(uri, document.uri);
+        assert_eq!(span.start, function);
+        let references = references_at_with_workspace(&document, call, [foreign.clone()]);
+        assert!(references.iter().all(|item| item.uri == document.uri));
+        assert_eq!(
+            references
+                .iter()
+                .map(|item| item.span.start)
+                .collect::<Vec<_>>(),
+            expected
+        );
+        let edits = rename_workspace_edits(
+            [document.clone(), foreign.clone()],
+            &document,
+            call,
+            "render",
+        );
+        assert!(edits.iter().all(|item| item.uri == document.uri));
+        assert_eq!(
+            edits
+                .iter()
+                .map(|item| item.edit.span.start)
+                .collect::<Vec<_>>(),
+            expected
+        );
+        let (line, start) = document.position(call);
+        assert!(tokens
+            .iter()
+            .any(|token| token.line == line && token.start == start && token.token_type == 7));
+    }
+    for binding in ["helper: String", "helper: value"] {
+        let declaration = text.find(binding).unwrap();
+        let reference = declaration + text[declaration..].find("{helper}").unwrap() + 1;
+        let (_, span) = definition_at_with_workspace(&document, reference, [])
+            .expect("local binding definition");
+        assert_eq!(span.start, declaration);
+        let edits = rename_workspace_edits([document.clone()], &document, reference, "label");
+        assert_eq!(
+            edits
+                .iter()
+                .map(|item| item.edit.span.start)
+                .collect::<Vec<_>>(),
+            [declaration, reference]
+        );
+        let (line, start) = document.position(reference);
+        assert!(tokens
+            .iter()
+            .any(|token| token.line == line && token.start == start && token.token_type == 9));
+    }
+}

@@ -464,15 +464,9 @@ fn collect_expression(
             .map(|part| part.value.as_str())
             .collect::<Vec<_>>()
             .join(".");
-        let (key, span) = if names.messages.contains(&full_path) {
-            (Some(SemanticKey::Message(full_path)), last.span)
-        } else if let Some(key) = bindings.get(&root.value) {
-            (Some(key.clone()), root.span)
-        } else if expression.kind == ExpressionKind::Reference
-            && names.variables.contains(&root.value)
-        {
-            (Some(SemanticKey::Variable(root.value.clone())), root.span)
-        } else if expression.kind == ExpressionKind::Call
+        // Calls resolve named functions and intrinsics before same-named local values.
+        // References retain lexical binding precedence.
+        let (key, span) = if expression.kind == ExpressionKind::Call
             && expression.path.len() == 1
             && names.functions.contains(&root.value)
         {
@@ -482,6 +476,14 @@ fn collect_expression(
             && is_plural_intrinsic(&root.value)
         {
             (Some(SemanticKey::Type("Plural".to_owned())), root.span)
+        } else if names.messages.contains(&full_path) {
+            (Some(SemanticKey::Message(full_path)), last.span)
+        } else if let Some(key) = bindings.get(&root.value) {
+            (Some(key.clone()), root.span)
+        } else if expression.kind == ExpressionKind::Reference
+            && names.variables.contains(&root.value)
+        {
+            (Some(SemanticKey::Variable(root.value.clone())), root.span)
         } else if let Some(owner) = owner {
             (
                 Some(SemanticKey::Parameter {

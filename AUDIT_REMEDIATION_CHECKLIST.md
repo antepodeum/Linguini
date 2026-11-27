@@ -2027,6 +2027,12 @@ remaining emitter extraction, exact page delivery, or framework SSR/hydration ve
 - [x] P1-7 — Make CLI and LSP consume that same database. Both consume it for diagnostics and
       coverage, message completion/hover, and fix discovery. Reference/definition/rename operations
       share one immutable navigation snapshot built from the schema-owned semantic occurrence walk.
+      Named calls now retain function identity inside same-named function/inline value bindings
+      (GEN-A45), matching native validation/generation. Exact definition/reference/rename spans,
+      foreign-locale isolation, and semantic token kinds execute through the shared walk. The
+      64-test LSP suite passes on Node 20 alongside actual Node/browser WASM protocol tests,
+      workspace Clippy, and Rust 1.87 WASM. Bare references retain local binding identity;
+      inherited-global navigation remains separate from this call-scope correction.
 - [x] P1-8 — Implement one CLDR locale fallback service.
 
 ### P2

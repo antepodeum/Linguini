@@ -56,6 +56,13 @@ separately should use the additive `linguini_ir::qualify_locale_module(locale, s
 with both freshly lowered relative modules, then merge the qualified result. No syntax or
 application-call changes are needed.
 
+## Editor identity for named calls
+
+Definitions, references, rename, and semantic highlighting now treat `helper(count)` as a named
+function call even inside a function parameter or inline binding named `helper`, matching native
+validation and generation. Bare `{helper}` references still belong to the local binding. The
+shared semantic walk supplies native and WASM editors; no source or extension changes are required.
+
 ## Unnamed form receiver validation
 
 Native `check` and `build` now accept existing unnamed form syntax such as `fruit(count)`.
