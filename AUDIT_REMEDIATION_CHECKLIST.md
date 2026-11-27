@@ -1358,6 +1358,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       The qualified native-date annotation follow-up also passes all 71 full-profile gates
       (GEN-A59), including strict generated consumers, installed tsc, rebuilt editor/WASM,
       offline packages, documentation, and production site/SSR/browser/graph checks.
+      The integrated week-validity, date-composition, plural-preview, and digit-callback changes
+      (GEN-A60–A64) also pass all 71 local full-profile gates. Separate Node 20/24 formatter and
+      CLI suites, Rust 1.87, and strict JS 5.8/5.9 checks pass. Broader architecture and hosted
+      platform/release verification remain open.
 
 - [-] ESM-M12 — Move executable output syntax out of ad hoc Rust strings into canonical
       JavaScript templates or ergonomic, compile-checked typed AST quotation macros in Rust.
@@ -1930,6 +1934,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       stay unchanged. Complete Vite 7/8 consumers execute with byte-identical before/after bundles.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
+      Digit replacement callbacks now share one compiled function per alphabet across number,
+      currency, and date requests (GEN-A64). Scientific mantissas/exponents share it too;
+      distinct alphabets stay separate, and ASCII-only output emits none. Eight complete
+      Vite 7/8 consumers retain identical text and one self-contained chunk each. Five rounds
+      expose one callback instead of eleven, and minified bundles shrink by 88–92 bytes.
+      The cost audit records compression differences, including a three-byte gzip increase.
       Shared form demand projects standalone closures and generated projects to used attributes
       and their transitive dependencies before inline lowering. Physical form modules expose
       independent attributes as named exports through namespace imports, so each page retains

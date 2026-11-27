@@ -2,12 +2,19 @@ use super::*;
 
 #[test]
 fn unchanged_rounding_reuses_canonical_records_without_padding_or_mutation() {
+    let mut digit_bindings = DigitBindings::default();
     let numbers = compiled_number_formatting("en").unwrap();
     let mut plans = Vec::new();
     for precision in 0..=6 {
         let mut pattern = numbers.decimal_pattern;
         pattern.positive.max_fraction_digits = precision;
-        plans.push(number_plan(&pattern, None, &numbers, None));
+        plans.push(number_plan(
+            &pattern,
+            None,
+            &numbers,
+            None,
+            &mut digit_bindings,
+        ));
     }
     let script = format!(
         r#"{}
@@ -36,6 +43,7 @@ console.log('ok');
 
 #[test]
 fn rounding_padding_matches_selected_minima_and_retains_quantum_rounding() {
+    let mut digit_bindings = DigitBindings::default();
     let numbers = compiled_number_formatting("en").unwrap();
     let mut source = String::new();
     let mut plans = Vec::new();
@@ -45,7 +53,7 @@ fn rounding_padding_matches_selected_minima_and_retains_quantum_rounding() {
         pattern.positive.min_fraction_digits = minimum;
         pattern.positive.max_fraction_digits = 3;
         pattern.positive.primary_group_size = None;
-        let plan = number_plan(&pattern, None, &numbers, None);
+        let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
         let name = format!("minimum{minimum}");
         source.push_str(&crate::templates::render(
             "formatters/number",
@@ -73,7 +81,13 @@ fn rounding_padding_matches_selected_minima_and_retains_quantum_rounding() {
     let mut quantum = numbers.decimal_pattern;
     quantum.positive.max_fraction_digits = 2;
     quantum.positive.rounding_increment = Some("5");
-    plans.push(number_plan(&quantum, None, &numbers, None));
+    plans.push(number_plan(
+        &quantum,
+        None,
+        &numbers,
+        None,
+        &mut digit_bindings,
+    ));
     let script = format!(
         r#"{source}{}
 import assert from 'node:assert/strict';

@@ -19,7 +19,7 @@ export function formatNumber(value) {
     integer = grouped;
   }
   const formatted = fraction ? integer + "." + fraction : integer;
-  const localized = formatted.replace(/\d/g, (digit) => String.fromCodePoint(digit.charCodeAt(0) + 125216));
+  const localized = formatted.replace(/\d/g, localizeDigit);
   const prefix = decimal.negative ? "-" : "";
   return prefix + localized;
 }
@@ -43,7 +43,7 @@ export function formatCurrency(value) {
     integer = grouped;
   }
   const formatted = integer + "." + fraction;
-  const localized = formatted.replace(/\d/g, (digit) => String.fromCodePoint(digit.charCodeAt(0) + 125216));
+  const localized = formatted.replace(/\d/g, localizeDigit);
   const prefix = decimal.negative ? "-US$ " : "US$ ";
   return prefix + localized;
 }
@@ -141,4 +141,11 @@ function roundTo3FractionDigits(decimal) {
 /** @returns {never} */
 function throwInvalidNumber() {
   throw new RangeError("Linguini: invalid numeric value");
+}
+/**
+ * @param {string} digit
+ * @returns {string}
+ */
+function localizeDigit(digit) {
+  return String.fromCodePoint(digit.charCodeAt(0) + 125216);
 }

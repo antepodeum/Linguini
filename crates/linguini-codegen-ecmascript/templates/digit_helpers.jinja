@@ -3,6 +3,6 @@
  * @param {string} digit
  * @returns {string}
  */
-function localizeDigit(digit) {
+function {{ name|default("localizeDigit") }}(digit) {
   {{ digit_body(lookup)|indent(2) }}
 }

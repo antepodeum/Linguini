@@ -9,6 +9,7 @@ use linguini_cldr::{
 
 use super::formatter_helpers::{
     date_formatter_helpers, digit_formatter_helper, digit_lookup, week_year_formatter_helper,
+    DigitBindings,
 };
 
 pub(super) fn formatter_data_declaration(
@@ -26,6 +27,11 @@ pub(super) fn formatter_data_declaration(
     let needs_date = requests
         .iter()
         .any(|request| request.formatter.kind == linguini_ir::IrFormatterKind::Date);
+    let mut digit_bindings = DigitBindings::new(needs_date.then(|| {
+        compiled_date_formatting(locale)
+            .expect("validated date locale")
+            .digits
+    }));
     let mut output = crate::templates::render("formatters/types", context! { needs_number });
     let mut plans = Vec::new();
     let mut date_helpers = DateHelperRequirements::default();
@@ -60,14 +66,20 @@ pub(super) fn formatter_data_declaration(
                     pattern.positive.max_fraction_digits = fraction.digits;
                     // Supplemental increments are expressed at the currency fraction scale.
                     let rounding = fraction.rounding.to_string();
-                    let plan = number_plan(&pattern, symbol, &numbers, Some(&rounding));
+                    let plan = number_plan(
+                        &pattern,
+                        symbol,
+                        &numbers,
+                        Some(&rounding),
+                        &mut digit_bindings,
+                    );
                     plans.push(plan.clone());
                     output.push_str(&crate::templates::render(
                         "formatters/number",
                         context! { name, plan, exported => export_helpers },
                     ));
                 } else {
-                    let plan = number_plan(&pattern, None, &numbers, None);
+                    let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
                     plans.push(plan.clone());
                     output.push_str(&crate::templates::render(
                         "formatters/number",
@@ -104,7 +116,12 @@ pub(super) fn formatter_data_declaration(
     }
     if date_helpers.digits {
         let dates = compiled_date_formatting(locale).expect("validated date locale");
-        output.push_str(&digit_formatter_helper(dates.digits));
+        if !plans
+            .iter()
+            .any(|plan| plan.get_attr("digits").unwrap() == minijinja::Value::from(dates.digits))
+        {
+            output.push_str(&digit_formatter_helper(dates.digits));
+        }
     }
     output
 }
@@ -129,7 +146,7 @@ fn number_helpers(plans: &[minijinja::Value]) -> String {
             .collect::<Vec<_>>()
     };
     let present = |plan: &minijinja::Value, key: &str| !plan.get_attr(key).unwrap().is_none();
-    crate::templates::render(
+    let mut output = crate::templates::render(
         "number_helpers",
         context! {
             rounding_plans => unique("rounding_helper", &|plan| !present(plan, "max_significant")),
@@ -138,7 +155,14 @@ fn number_helpers(plans: &[minijinja::Value]) -> String {
             padding_plans => unique("min_significant", &|plan| present(plan, "min_significant")),
             scientific => plans.iter().any(|plan| present(plan, "exponent_digits")),
         },
-    )
+    );
+    for plan in unique("digit_helper", &|plan| present(plan, "digit_helper")) {
+        output.push_str(&crate::templates::render(
+            "digit_helpers",
+            context! { name => plan.get_attr("digit_helper").unwrap(), lookup => plan.get_attr("digit_lookup").unwrap() },
+        ));
+    }
+    output
 }
 
 fn number_plan(
@@ -146,6 +170,7 @@ fn number_plan(
     symbol: Option<&str>,
     numbers: &linguini_cldr::NumberFormatData,
     rounding: Option<&str>,
+    digit_bindings: &mut DigitBindings,
 ) -> minijinja::Value {
     use minijinja::context;
     let plan = linguini_codegen::NumberFormatPlan::new(pattern, symbol, numbers, rounding)
@@ -172,6 +197,7 @@ fn number_plan(
         max_fraction => plan.max_fraction_digits, primary_group => grouping.map(|group| group.primary_size),
         grouping_threshold => grouping.map(|group| group.threshold), secondary_group => grouping.map(|group| group.secondary_size),
         decimal_symbol => plan.decimal_symbol, group_symbol => plan.group_symbol, digits => plan.digits, digit_lookup => digit_lookup(plan.digits),
+        digit_helper => digit_bindings.binding(plan.digits),
         scale => plan.scale, scale_shift => plan.scale_shift,
         min_significant => plan.min_significant_digits, max_significant => plan.max_significant_digits,
         rounding_helper, rounding => &rounding.increment, rounding_half => &rounding.half_integer,

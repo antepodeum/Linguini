@@ -2,6 +2,7 @@ use super::*;
 
 #[test]
 fn scientific_symbols_and_numeric_digits_are_compiled_independently() {
+    let mut digit_bindings = DigitBindings::default();
     let mut script = String::from(
         "import assert from 'node:assert/strict';\nIntl.NumberFormat=class {constructor(){throw Error('no host formatter');}};\n",
     );
@@ -53,7 +54,7 @@ fn scientific_symbols_and_numeric_digits_are_compiled_independently() {
             pattern.positive.max_fraction_digits = 2;
             pattern.positive.exponent_digits = Some(2);
             pattern.positive.exponent_sign_always = always_sign;
-            let plan = number_plan(&pattern, None, &numbers, None);
+            let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
             let name = format!("scientific{index}{}", u8::from(always_sign));
             script.push_str(&crate::templates::render(
                 "formatters/number",
@@ -89,7 +90,18 @@ fn scientific_symbols_and_numeric_digits_are_compiled_independently() {
         }
     }
     script.push_str(&number_helpers(&plans));
+    assert!(!script.contains("(digit) =>"));
+    script.push_str(
+        "const originalReplace = String.prototype.replace;\n\
+         const digitCallbacks = new Set();\n\
+         String.prototype.replace = function(pattern, replacement) {\n\
+         if (pattern instanceof RegExp && pattern.source === '\\\\d') digitCallbacks.add(replacement);\n\
+         return originalReplace.call(this, pattern, replacement);\n};\n",
+    );
     script.push_str(&checks);
+    script.push_str(
+        "assert.equal(digitCallbacks.size, 6);\nString.prototype.replace = originalReplace;\n",
+    );
     script.push_str("console.log('ok');\n");
     assert_eq!(execute(&script), "ok");
     for locale in ["en", "sv", "fa", "ar-EG", "ff-Adlm", "ccp"] {
@@ -108,6 +120,7 @@ fn scientific_symbols_and_numeric_digits_are_compiled_independently() {
 
 #[test]
 fn scientific_runtime_snapshot_is_strict_checked() {
+    let mut digit_bindings = DigitBindings::default();
     let mut output = crate::templates::render(
         "formatters/types",
         minijinja::context! { needs_number => true },
@@ -126,7 +139,7 @@ fn scientific_runtime_snapshot_is_strict_checked() {
         pattern.positive.secondary_group_size = None;
         pattern.positive.exponent_digits = Some(2);
         pattern.positive.exponent_sign_always = true;
-        let plan = number_plan(&pattern, None, &numbers, None);
+        let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
         output.push_str(&crate::templates::render(
             "formatters/number",
             minijinja::context! { name, plan => plan.clone(), exported => true },

@@ -3,6 +3,42 @@
 use crate::templates;
 use minijinja::context;
 
+/// Stable bindings for the digit alphabets used by one emitted formatter module.
+/// Date templates use the primary binding; numeric requests can add distinct alphabets.
+#[derive(Default)]
+pub(super) struct DigitBindings {
+    alphabets: Vec<String>,
+}
+
+impl DigitBindings {
+    pub(super) fn new(date_digits: Option<&str>) -> Self {
+        let mut bindings = Self::default();
+        if let Some(digits) = date_digits {
+            bindings.binding(digits);
+        }
+        bindings
+    }
+
+    pub(super) fn binding(&mut self, digits: &str) -> Option<String> {
+        if digits == "0123456789" {
+            return None;
+        }
+        let index = self
+            .alphabets
+            .iter()
+            .position(|alphabet| alphabet == digits)
+            .unwrap_or_else(|| {
+                self.alphabets.push(digits.to_owned());
+                self.alphabets.len() - 1
+            });
+        Some(if index == 0 {
+            "localizeDigit".to_owned()
+        } else {
+            format!("__lgl_digit{}", index + 1)
+        })
+    }
+}
+
 pub(super) fn digit_lookup(digits: &str) -> minijinja::Value {
     let symbols =
         linguini_codegen::decimal_digit_symbols(digits).expect("validated CLDR decimal symbols");

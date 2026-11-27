@@ -40,9 +40,9 @@ export function scientificPersian(value) {
   const integer = rounded.integer;
   const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "٫" + fraction : integer;
-  const localized = formatted.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[digit.charCodeAt(0) - 48]);
+  const localized = formatted.replace(/\d/g, localizeDigit);
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
-  const scientific = localized + "×۱۰^" + (exponent < 0 ? "‎−" : "‎+") + exponentDigits.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[digit.charCodeAt(0) - 48]);
+  const scientific = localized + "×۱۰^" + (exponent < 0 ? "‎−" : "‎+") + exponentDigits.replace(/\d/g, localizeDigit);
   const prefix = decimal.negative ? "‎−" : "";
   return prefix + scientific;
 }
@@ -64,9 +64,9 @@ export function scientificAdlam(value) {
   const integer = rounded.integer;
   const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "." + fraction : integer;
-  const localized = formatted.replace(/\d/g, (digit) => String.fromCodePoint(digit.charCodeAt(0) + 125216));
+  const localized = formatted.replace(/\d/g, __lgl_digit2);
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
-  const scientific = localized + "𞤉" + (exponent < 0 ? "-" : "+") + exponentDigits.replace(/\d/g, (digit) => String.fromCodePoint(digit.charCodeAt(0) + 125216));
+  const scientific = localized + "𞤉" + (exponent < 0 ? "-" : "+") + exponentDigits.replace(/\d/g, __lgl_digit2);
   const prefix = decimal.negative ? "-" : "";
   return prefix + scientific;
 }
@@ -88,35 +88,9 @@ export function scientificMixed(value) {
   const integer = rounded.integer;
   const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "." + fraction : integer;
-  const localized = formatted.replace(/\d/g, (digit) => {
-    switch (digit.charCodeAt(0)) {
-      case 48: return "0";
-      case 49: return "𝟙";
-      case 50: return "2";
-      case 51: return "𝟛";
-      case 52: return "4";
-      case 53: return "𝟝";
-      case 54: return "6";
-      case 55: return "𝟟";
-      case 56: return "8";
-      default: return "𝟡";
-    }
-  });
+  const localized = formatted.replace(/\d/g, __lgl_digit3);
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
-  const scientific = localized + "E" + (exponent < 0 ? "-" : "+") + exponentDigits.replace(/\d/g, (digit) => {
-    switch (digit.charCodeAt(0)) {
-      case 48: return "0";
-      case 49: return "𝟙";
-      case 50: return "2";
-      case 51: return "𝟛";
-      case 52: return "4";
-      case 53: return "𝟝";
-      case 54: return "6";
-      case 55: return "𝟟";
-      case 56: return "8";
-      default: return "𝟡";
-    }
-  });
+  const scientific = localized + "E" + (exponent < 0 ? "-" : "+") + exponentDigits.replace(/\d/g, __lgl_digit3);
   const prefix = decimal.negative ? "-" : "";
   return prefix + scientific;
 }
@@ -232,4 +206,36 @@ function roundTo3FractionDigits(decimal) {
 /** @returns {never} */
 function throwInvalidNumber() {
   throw new RangeError("Linguini: invalid numeric value");
+}
+/**
+ * @param {string} digit
+ * @returns {string}
+ */
+function __lgl_digit2(digit) {
+  return String.fromCodePoint(digit.charCodeAt(0) + 125216);
+}
+/**
+ * @param {string} digit
+ * @returns {string}
+ */
+function __lgl_digit3(digit) {
+  switch (digit.charCodeAt(0)) {
+    case 48: return "0";
+    case 49: return "𝟙";
+    case 50: return "2";
+    case 51: return "𝟛";
+    case 52: return "4";
+    case 53: return "𝟝";
+    case 54: return "6";
+    case 55: return "𝟟";
+    case 56: return "8";
+    default: return "𝟡";
+  }
+}
+/**
+ * @param {string} digit
+ * @returns {string}
+ */
+function localizeDigit(digit) {
+  return "۰۱۲۳۴۵۶۷۸۹"[digit.charCodeAt(0) - 48];
 }

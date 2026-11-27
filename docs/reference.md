@@ -421,6 +421,8 @@ width boundaries, padding, Unicode separators, negative zero, and the decimal in
 Known mandatory fractions concatenate directly. Non-scientific integer-only plans omit the
 fraction and formatted-value bindings, retaining grouping, digit localization, signs, and padding.
 Optional and significant-digit plans retain their required runtime decisions.
+Number, currency, and date formatters reuse one compiled replacement function per digit
+alphabet. ASCII-only output omits this helper.
 Plural predicates also compile during builds: only required scalar operands are produced at their
 first use, common guards are shared, and modulo results are calculated once. Comparisons use
 direct conditions without per-call operand objects or range arrays. Fraction-digit counts do not

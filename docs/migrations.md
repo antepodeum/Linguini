@@ -11,6 +11,12 @@ when a source type also exports as `Date`. No application changes are required; 
 type exports and accepted date representations retain their meaning. Checked JavaScript and
 declaration consumers now agree with executed ordinary, physical, and standalone output.
 
+## Reused digit localization
+
+Regenerate output to reuse digit-replacement functions across number, currency, and date
+formatters. Formatting no longer creates a replacement function on each numeric call.
+Accepted inputs, formatted text, and public signatures are unchanged.
+
 ## Shared project locale matching
 
 The project locale matcher now lives in `linguini_cldr::ProjectLocalePlan`. The existing

@@ -1,5 +1,6 @@
 mod currency_symbols;
 mod date_composition;
+mod digit_callbacks;
 mod month_weeks;
 mod number_inputs;
 mod rounding;
@@ -139,6 +140,7 @@ fn execute(script: &str) -> String {
 
 #[test]
 fn supplementary_number_digits_preserve_unicode_scalars() {
+    let mut digit_bindings = DigitBindings::default();
     let output = formatter_data_declaration(
         "ff-Adlm",
         &[
@@ -178,7 +180,13 @@ console.log('ok');
     {
         let mut numbers = compiled_number_formatting("en").unwrap();
         numbers.digits = digits;
-        let plan = number_plan(&numbers.decimal_pattern, None, &numbers, None);
+        let plan = number_plan(
+            &numbers.decimal_pattern,
+            None,
+            &numbers,
+            None,
+            &mut digit_bindings,
+        );
         let source = crate::templates::render(
             "formatters/number",
             minijinja::context! {
@@ -311,6 +319,7 @@ use std::process::{Command, Stdio};
 
 #[test]
 fn generated_number_runtime_receives_complete_pattern_semantics() {
+    let mut digit_bindings = DigitBindings::default();
     let part = NumberPatternPart {
         prefix: "pre",
         suffix: "%",
@@ -349,7 +358,7 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         percent_pattern: pattern,
     };
 
-    let plan = number_plan(&pattern, None, &numbers, None);
+    let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
     let generated = crate::templates::render(
         "formatters/number",
         minijinja::context! { name => "formatTest", plan => plan.clone(), exported => false },
@@ -381,6 +390,7 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
 
 #[test]
 fn number_affixes_use_pinned_localized_signs_and_scaling_symbols() {
+    let mut digit_bindings = DigitBindings::default();
     for (locale, expected) in [
         (
             "fa",
@@ -400,7 +410,7 @@ fn number_affixes_use_pinned_localized_signs_and_scaling_symbols() {
     ] {
         let numbers = compiled_number_formatting(locale).unwrap();
         let plans = [numbers.decimal_pattern, numbers.percent_pattern]
-            .map(|pattern| number_plan(&pattern, None, &numbers, None));
+            .map(|pattern| number_plan(&pattern, None, &numbers, None, &mut digit_bindings));
         let mut runtime = String::new();
         for (name, plan) in ["decimal", "percent"].into_iter().zip(&plans) {
             runtime.push_str(&crate::templates::render(
@@ -421,6 +431,7 @@ console.log(actual.join('|'));"#
 
 #[test]
 fn numeric_operations_are_selected_independently_and_execute_without_unused_helpers() {
+    let mut digit_bindings = DigitBindings::default();
     for (operation, expected) in [
         ("plain", "12.346"),
         ("scale", "1,234.567"),
@@ -440,7 +451,7 @@ fn numeric_operations_are_selected_independently_and_execute_without_unused_help
             }
             _ => {}
         }
-        let plan = number_plan(&pattern, None, &numbers, None);
+        let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
         let formatter = crate::templates::render(
             "formatters/number",
             minijinja::context! {
@@ -480,6 +491,7 @@ fn numeric_operations_are_selected_independently_and_execute_without_unused_help
 
 #[test]
 fn scientific_rounding_carry_preserves_compiled_precision() {
+    let mut digit_bindings = DigitBindings::default();
     let numbers = compiled_number_formatting("en").unwrap();
     let mut script = String::from("import assert from 'node:assert/strict';\n");
     let mut plans = Vec::new();
@@ -501,7 +513,7 @@ fn scientific_rounding_carry_preserves_compiled_precision() {
                 pattern.positive.min_significant_digits = Some(precision + 1);
                 pattern.positive.max_significant_digits = Some(precision + 1);
             }
-            let plan = number_plan(&pattern, None, &numbers, None);
+            let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
             let name = format!("scientific{precision}{mode}");
             let formatter = crate::templates::render(
                 "formatters/number",
@@ -563,11 +575,18 @@ fn scientific_rounding_carry_preserves_compiled_precision() {
 
 #[test]
 fn currency_increment_is_specialized_before_runtime_execution() {
+    let mut digit_bindings = DigitBindings::default();
     let numbers = compiled_number_formatting("en").unwrap();
     let mut pattern = compiled_currency_formatting("en").unwrap().standard_pattern;
     pattern.positive.min_fraction_digits = 2;
     pattern.positive.max_fraction_digits = 2;
-    let plan = number_plan(&pattern, Some("CHF"), &numbers, Some("5"));
+    let plan = number_plan(
+        &pattern,
+        Some("CHF"),
+        &numbers,
+        Some("5"),
+        &mut digit_bindings,
+    );
     let formatter = crate::templates::render(
         "formatters/number",
         minijinja::context! {
@@ -582,6 +601,7 @@ fn currency_increment_is_specialized_before_runtime_execution() {
 
 #[test]
 fn known_fraction_presence_removes_branches_without_changing_optional_or_significant_output() {
+    let mut digit_bindings = DigitBindings::default();
     for (code, expected) in [("USD", "$1.23"), ("JPY", "¥1"), ("KWD", "KWD1.235")] {
         let formatter = request(IrFormatterKind::Currency, &[("code", code)]);
         let binding = formatter_binding(&formatter);
@@ -609,7 +629,7 @@ fn known_fraction_presence_removes_branches_without_changing_optional_or_signifi
         pattern.positive.min_fraction_digits = min;
         pattern.positive.max_fraction_digits = max;
         pattern.positive.max_significant_digits = significant;
-        let plan = number_plan(&pattern, None, &numbers, None);
+        let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
         let source = crate::templates::render(
             "formatters/number",
             minijinja::context! {name => "formatValue", plan => plan.clone(), exported => false},
@@ -625,7 +645,7 @@ fn known_fraction_presence_removes_branches_without_changing_optional_or_signifi
     pattern.positive.max_fraction_digits = 0;
     pattern.positive.max_significant_digits = None;
     numbers.digits = "٠١٢٣٤٥٦٧٨٩";
-    let plan = number_plan(&pattern, None, &numbers, None);
+    let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
     let source = crate::templates::render(
         "formatters/number",
         minijinja::context! {name => "formatInteger", plan => plan.clone(), exported => false},
@@ -643,7 +663,7 @@ fn known_fraction_presence_removes_branches_without_changing_optional_or_signifi
     pattern.positive.prefix = "prefix";
     pattern.positive.suffix = "tail";
     pattern.negative = Some(pattern.positive);
-    let plan = number_plan(&pattern, None, &numbers, None);
+    let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
     let source = crate::templates::render(
         "formatters/number",
         minijinja::context! {name => "formatInteger", plan => plan.clone(), exported => false},
@@ -661,6 +681,7 @@ fn known_fraction_presence_removes_branches_without_changing_optional_or_signifi
 
 #[test]
 fn compiled_rounding_matches_exact_rational_oracle_without_static_runtime_parsing() {
+    let mut digit_bindings = DigitBindings::default();
     let numbers = compiled_number_formatting("en").unwrap();
     let mut plans = Vec::new();
     let mut cases = String::new();
@@ -678,7 +699,13 @@ fn compiled_rounding_matches_exact_rational_oracle_without_static_runtime_parsin
         ] {
             let mut pattern = numbers.decimal_pattern;
             pattern.positive.max_fraction_digits = precision;
-            let plan = number_plan(&pattern, None, &numbers, Some(increment));
+            let plan = number_plan(
+                &pattern,
+                None,
+                &numbers,
+                Some(increment),
+                &mut digit_bindings,
+            );
             let name = plan.get_attr("rounding_helper").unwrap();
             cases.push_str(&format!("[{name}, {precision}, {increment:?}],"));
             plans.push(plan);
@@ -785,6 +812,7 @@ console.log([formatNumber(1000),formatNumber(10000n),formatNumber('100000'),form
 
 #[test]
 fn compiled_grouping_covers_width_boundaries_padding_and_long_exact_values() {
+    let mut digit_bindings = DigitBindings::default();
     let mut numbers = compiled_number_formatting("en").unwrap();
     let mut plans = Vec::new();
     let mut generated = String::new();
@@ -801,7 +829,7 @@ fn compiled_grouping_covers_width_boundaries_padding_and_long_exact_values() {
                     pattern.positive.max_fraction_digits = 0;
                     numbers.group_symbol = if minimum == 1 { "," } else { "🍎" };
                     numbers.minimum_grouping_digits = grouping;
-                    let plan = number_plan(&pattern, None, &numbers, None);
+                    let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
                     let name = format!("group{primary}_{secondary}_{minimum}_g{grouping}");
                     generated.push_str(&crate::templates::render(
                         "formatters/number",
@@ -878,10 +906,17 @@ fn compiled_date_fields_select_padding_helpers() {
 
 #[test]
 fn significant_rounding_checks_input_derived_expansion_before_padding() {
+    let mut digit_bindings = DigitBindings::default();
     let numbers = compiled_number_formatting("en").unwrap();
     let mut pattern = numbers.decimal_pattern;
     pattern.positive.max_significant_digits = Some(3);
-    let helpers = number_helpers(&[number_plan(&pattern, None, &numbers, None)]);
+    let helpers = number_helpers(&[number_plan(
+        &pattern,
+        None,
+        &numbers,
+        None,
+        &mut digit_bindings,
+    )]);
     assert_eq!(
         execute(&format!(
             r#"{helpers}

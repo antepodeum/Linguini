@@ -570,5 +570,39 @@ App builds on Node 24.13.1 retain byte-identical before/after bundles:
 
 The correction adds no runtime expression or operation and makes no timing claim.
 
+## Shared digit replacement callbacks
+
+Number and currency formatters created a replacement callback per invocation; scientific
+formatting created separate callbacks for its mantissa and exponent. A build-time binding pool
+now interns digit alphabets. Numeric requests and dates reuse the same compiled lookup function;
+different alphabets retain independent functions, and ASCII-only output emits none.
+
+A controlled native project contains number, USD currency, and date messages. Each complete
+consumer executes in one self-contained chunk with no static or dynamic imports. Five rounds
+of all three messages expose 11 distinct replacement functions before the change and one after
+it, on both Vite versions. Text, negative zero, and UTC year rollover remain identical. These
+are observed function identities, not heap-size or timing measurements.
+
+Another 32 before/after consumers use physical message entries for number-only or date-only
+selection. Unminified Vite 7/8 builds exclude the unrelated date or decimal parser, execute
+identical text in one self-contained chunk, and retain the callback reuse after tree shaking.
+
+Node 24.13.1 minified/gzip/Brotli bytes:
+
+| Locale | Bundler | Before | After |
+| --- | --- | ---: | ---: |
+| `ar-EG` | Vite 7.3.3 | 3,780 / 1,652 / 1,486 | 3,692 / 1,637 / 1,478 |
+| `fa` | Vite 7.3.3 | 3,886 / 1,718 / 1,519 | 3,798 / 1,708 / 1,509 |
+| `ff-Adlm` | Vite 7.3.3 | 4,008 / 1,717 / 1,519 | 3,916 / 1,703 / 1,513 |
+| `ccp` | Vite 7.3.3 | 4,099 / 1,777 / 1,567 | 4,009 / 1,758 / 1,561 |
+| `ar-EG` | Vite 8.0.13 | 3,649 / 1,553 / 1,403 | 3,561 / 1,556 / 1,397 |
+| `fa` | Vite 8.0.13 | 3,751 / 1,655 / 1,460 | 3,663 / 1,649 / 1,456 |
+| `ff-Adlm` | Vite 8.0.13 | 3,877 / 1,653 / 1,464 | 3,785 / 1,645 / 1,455 |
+| `ccp` | Vite 8.0.13 | 3,964 / 1,672 / 1,478 | 3,874 / 1,665 / 1,478 |
+
+All minified consumers shrink by 88–92 bytes. Compression is not uniformly smaller: Arabic
+gzip on Vite 8 grows by three bytes, and Chakma Brotli is unchanged there. The change removes
+per-call callback creation without introducing a runtime lookup registry or CLDR parser.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.
