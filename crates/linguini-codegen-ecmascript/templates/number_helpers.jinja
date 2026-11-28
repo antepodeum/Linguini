@@ -92,19 +92,19 @@ function {{ plan.scientific_helper }}(decimal) {
   let exponent;
   if (decimal.integer !== "0") {
     source = `${decimal.integer}${decimal.fraction}`;
-    exponent = decimal.integer.length - 1;
+    exponent = decimal.integer.length{% if plan.scientific_integer_digits != 0 %} - 1{% endif %};
   } else {
     const first = decimal.fraction.search(/[1-9]/);
     source = decimal.fraction.slice(first);
-    exponent = -first - 1;
+    exponent = -first{% if plan.scientific_integer_digits != 0 %} - 1{% endif %};
   }
 {% if plan.scientific_exponent_step > 1 %}  const integerDigits = exponent - Math.floor(exponent / {{ plan.scientific_exponent_step }}) * {{ plan.scientific_exponent_step }} + 1;
   exponent -= integerDigits - 1;
 {% elif plan.scientific_integer_digits > 1 %}  exponent -= {{ plan.scientific_integer_digits - 1 }};
 {% endif %}  return {
     negative: decimal.negative,
-    integer: {% if plan.scientific_exponent_step > 1 %}source.slice(0, integerDigits).padEnd(integerDigits, "0"){% elif plan.scientific_integer_digits > 1 %}source.slice(0, {{ plan.scientific_integer_digits }}).padEnd({{ plan.scientific_integer_digits }}, "0"){% else %}source[0]{% endif %},
-    fraction: source.slice({% if plan.scientific_exponent_step > 1 %}integerDigits{% else %}{{ plan.scientific_integer_digits }}{% endif %}).replace(/0+$/, ""),
+    integer: {% if plan.scientific_integer_digits == 0 %}"0"{% elif plan.scientific_exponent_step > 1 %}source.slice(0, integerDigits).padEnd(integerDigits, "0"){% elif plan.scientific_integer_digits > 1 %}source.slice(0, {{ plan.scientific_integer_digits }}).padEnd({{ plan.scientific_integer_digits }}, "0"){% else %}source[0]{% endif %},
+    fraction: source{% if plan.scientific_integer_digits != 0 %}.slice({% if plan.scientific_exponent_step > 1 %}integerDigits{% else %}{{ plan.scientific_integer_digits }}{% endif %}){% endif %}.replace(/0+$/, ""),
     exponent,
   };
 }

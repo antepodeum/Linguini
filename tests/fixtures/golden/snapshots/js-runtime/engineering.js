@@ -92,6 +92,50 @@ export function engineeringIncrement(value) {
 }
 
 /**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
+export function scientificFraction2(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const mantissa = scientificWith0IntegerDigits(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo2FractionDigits(mantissa);
+  if (rounded.integer !== "0") {
+    exponent++;
+    rounded = { integer: "0", fraction: "10" };
+  }
+  const fraction = rounded.fraction.padEnd(2, "0");
+  const formatted = "." + fraction;
+  const exponentDigits = String(Math.abs(exponent));
+  const scientific = formatted + "E" + (exponent < 0 ? "-" : "") + exponentDigits;
+  const prefix = decimal.negative ? "-" : "";
+  return prefix + scientific;
+}
+
+/**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
+export function scientificFractionOptional(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const mantissa = scientificWith0IntegerDigits(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo2FractionDigits(mantissa);
+  if (rounded.integer !== "0") {
+    exponent++;
+    rounded = { integer: "0", fraction: "10" };
+  }
+  const fraction = rounded === mantissa ? rounded.fraction.padEnd(1, "0") : rounded.fraction.slice(0, 1) + rounded.fraction.slice(1).replace(/0+$/, "");
+  const formatted = "." + fraction;
+  const exponentDigits = String(Math.abs(exponent));
+  const scientific = formatted + "E" + (exponent < 0 ? "-" : "") + exponentDigits;
+  const prefix = decimal.negative ? "-" : "";
+  return prefix + scientific;
+}
+
+/**
  * @typedef {object} __lgl_Decimal
  * @property {boolean} negative
  * @property {string} integer
@@ -183,6 +227,34 @@ function engineeringWith3IntegerDigits(decimal) {
     negative: decimal.negative,
     integer: source.slice(0, integerDigits).padEnd(integerDigits, "0"),
     fraction: source.slice(integerDigits).replace(/0+$/, ""),
+    exponent,
+  };
+}
+
+/**
+ * @param {__lgl_Decimal} decimal
+ * @returns {__lgl_Decimal & { exponent: number }}
+ */
+function scientificWith0IntegerDigits(decimal) {
+  if (decimal.integer === "0" && decimal.fraction === "") {
+    return { negative: decimal.negative, integer: "0", fraction: "", exponent: 0 };
+  }
+  /** @type {string} */
+  let source;
+  /** @type {number} */
+  let exponent;
+  if (decimal.integer !== "0") {
+    source = `${decimal.integer}${decimal.fraction}`;
+    exponent = decimal.integer.length;
+  } else {
+    const first = decimal.fraction.search(/[1-9]/);
+    source = decimal.fraction.slice(first);
+    exponent = -first;
+  }
+  return {
+    negative: decimal.negative,
+    integer: "0",
+    fraction: source.replace(/0+$/, ""),
     exponent,
   };
 }

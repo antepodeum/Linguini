@@ -199,7 +199,8 @@ The offline pattern compiler also accepts ordinary leading decimals: `.00` has t
 fraction digits, while `.##` requires one and permits two. A bare `.` retains an integer digit
 and a visible decimal separator. ICU-compatible leading grouping, such as `,##0`, resolves to
 the selected group width during compilation. Quoted punctuation remains literal. Fraction-only
-scientific mantissas such as `.00E0` remain unsupported.
+scientific mantissas such as `.00E0` are supported: `12345` renders `.12E5`. Their normalized
+leading fraction position permits literal fraction rounding without significant-digit scans.
 
 `precision()` returns a shared `NumberPrecisionPlan`: fraction rounding, significant precision,
 or unlimited precision. `minimum_fraction_digits()` and `minimum_significant_digits()` resolve
@@ -212,6 +213,9 @@ the exponent round the original mantissa at its new scale.
 including optional integer placeholders; ordinary and explicit significant-digit patterns use
 `None`. Ordinary decimal output retains its complete integer. Prefer `NumberFormatPlan::new`
 to constructing its nested scientific plan directly.
+`NumberScientificPlan::integer_digits` is zero for fraction-only mantissas. Bare `.E0` selects
+unlimited precision with a visible separator; `.00E0` and `.##E0` retain their required fraction
+digits and adjust the exponent after rounding carry.
 
 Its nested affix/grouping/scientific models contain semantic values; target backends own helper
 names, identifier escaping, and template projection. `NumberFormatPlan::currency(locale, code,

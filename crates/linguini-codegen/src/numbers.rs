@@ -71,8 +71,16 @@ impl NumberFormatPlan {
         }
     }
 
-    /// Scientific patterns with derived significant precision pad total digits instead.
+    /// Required fraction width after resolving the scientific layout.
+    /// Fraction-only mantissas retain a digit; inferred significant precision pads total digits.
     pub fn minimum_fraction_digits(&self) -> u8 {
+        if self
+            .scientific
+            .as_ref()
+            .is_some_and(|scientific| scientific.integer_digits == 0)
+        {
+            return self.min_fraction_digits.max(1);
+        }
         if self.scientific.is_some()
             && self.max_significant_digits.is_none()
             && matches!(self.precision(), NumberPrecisionPlan::Significant { .. })
@@ -95,11 +103,13 @@ impl NumberFormatPlan {
 
     /// Whether a fixed-fraction pattern may omit its sole integer zero.
     pub fn can_omit_integer_zero(&self) -> bool {
+        if let Some(scientific) = &self.scientific {
+            return scientific.integer_digits == 0;
+        }
         self.min_integer_digits == 0
             && self.min_fraction_digits > 0
             && self.min_significant_digits.is_none()
             && self.max_significant_digits.is_none()
-            && self.scientific.is_none()
     }
 
     /// Compile a selected, validated CLDR pattern and its effective number symbols.

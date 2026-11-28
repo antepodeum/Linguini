@@ -6,7 +6,8 @@ use linguini_cldr::{NumberFormatData, NumberPatternPart};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NumberScientificPlan {
-    /// Fixed mantissa width; engineering notation uses one as its lower bound.
+    /// Fixed mantissa width; zero selects a fraction-only mantissa.
+    /// Engineering notation uses one as its lower bound.
     pub integer_digits: u8,
     /// Exponents are multiples of this value. One selects ordinary scientific notation.
     pub exponent_step: u8,
@@ -26,11 +27,17 @@ impl NumberScientificPlan {
     ) -> Option<Self> {
         let exponent_digits = positive.exponent_digits?;
         let explicit_significant = positive.max_significant_digits;
+        let fraction_only = explicit_significant.is_none()
+            && positive.min_integer_digits == 0
+            && positive.max_integer_digits == Some(0)
+            && positive.max_fraction_digits > 0;
         let engineering = explicit_significant.is_none()
             && positive
                 .max_integer_digits
                 .is_some_and(|maximum| maximum > positive.min_integer_digits && maximum > 1);
-        let integer_digits = if engineering || explicit_significant.is_some() {
+        let integer_digits = if fraction_only {
+            0
+        } else if engineering || explicit_significant.is_some() {
             1
         } else {
             positive.min_integer_digits.max(1)
@@ -40,11 +47,14 @@ impl NumberScientificPlan {
                 minimum: u16::from(positive.min_significant_digits.unwrap_or(1)),
                 maximum: u16::from(maximum),
             }
-        } else if rounding.increment != "1" {
+        } else if rounding.increment != "1" || fraction_only {
+            // Normalization puts the first significant digit immediately after
+            // the decimal separator for fraction-only mantissas, so literal
+            // fraction rounding handles both unit and quantum precision.
             NumberPrecisionPlan::Fraction
-        } else if positive.min_integer_digits == 0
-            && positive.max_fraction_digits == 0
-            && !positive.decimal_separator_always
+        } else if positive.max_fraction_digits == 0
+            && (positive.max_integer_digits == Some(0)
+                || (positive.min_integer_digits == 0 && !positive.decimal_separator_always))
         {
             NumberPrecisionPlan::Unlimited
         } else if engineering || positive.min_integer_digits == 0 {

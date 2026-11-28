@@ -917,7 +917,7 @@ fn parse_number_pattern_part(
     }
     let (integer, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
     let leading_decimal = integer.is_empty() && mantissa.starts_with('.');
-    if (!leading_decimal || exponent.is_some())
+    if !leading_decimal
         && !integer
             .chars()
             .any(|character| matches!(character, '#' | '0'..='9' | '@'))
@@ -1759,10 +1759,7 @@ mod tests {
             assert_eq!(parsed.primary_group_size, Some(primary), "{source}");
             assert_eq!(parsed.secondary_group_size, secondary, "{source}");
         }
-        // Fraction-only scientific mantissas need a distinct lowering contract.
         for source in [
-            ".00E0",
-            ".##E+00",
             ",0E0",
             ",,0",
             ",0,",

@@ -180,7 +180,7 @@ fn number_plan_context(
     let scientific_helper = scientific.map(|scientific| {
         if scientific.exponent_step > 1 {
             format!("engineeringWith{}IntegerDigits", scientific.exponent_step)
-        } else if scientific.integer_digits > 1 {
+        } else if scientific.integer_digits != 1 {
             format!("scientificWith{}IntegerDigits", scientific.integer_digits)
         } else {
             "scientificGeneratedDecimal".to_owned()
@@ -230,7 +230,7 @@ fn number_plan_context(
         scientific_integer_digits => scientific.map_or(1, |scientific| scientific.integer_digits),
         scientific_exponent_step => scientific.map_or(1, |scientific| scientific.exponent_step),
         scientific_carry_width => scientific.map_or(1, |scientific| scientific.integer_digits.max(scientific.exponent_step)),
-        scientific_carry_integer => scientific.map(|scientific| "1".to_owned() + &"0".repeat(usize::from(scientific.integer_digits) - 1)),
+        scientific_carry_integer => scientific.map(|scientific| if scientific.integer_digits == 0 { "0".to_owned() } else { "1".to_owned() + &"0".repeat(usize::from(scientific.integer_digits) - 1) }),
         unlimited_precision => plan.precision() == linguini_codegen::NumberPrecisionPlan::Unlimited,
     }
 }

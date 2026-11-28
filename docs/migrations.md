@@ -117,8 +117,12 @@ integer. Native fraction previews and generated formatters share this decision t
 The offline compiler now accepts ordinary leading-decimal and leading-grouping patterns.
 `.##` compiles with one required fraction digit; `,##0` selects grouping width three. Quoted
 prefix punctuation keeps its literal meaning. These forms previously failed compilation.
-No application configuration or JavaScript API changes are required; fraction-only scientific
-mantissas remain rejected until their distinct layout is supported.
+Fraction-only scientific mantissas now compile too: `.00E0` formats `12345` as `.12E5`, while
+`.##E0` permits optional fractional digits. Quantum carries use the same original-input
+rerounding contract as other scientific layouts. Rust SDK consumers inspecting
+`NumberScientificPlan::integer_digits` must handle zero as a fraction-only layout. Bare `.E0`
+selects unlimited precision with a visible decimal separator. Application configuration and
+JavaScript signatures are unchanged.
 
 ## Numeric padding
 

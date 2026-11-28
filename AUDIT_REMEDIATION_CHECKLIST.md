@@ -561,7 +561,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       (GEN-A86). `.##` requires one fractional digit; leading grouping retains its rightmost
       widths, while quoted punctuation remains literal. Six new patterns have 48 independent
       exact ICU expectations shared by parsing, generated execution, and native previews.
-      Currency-marker widths and fraction-only scientific mantissas remain explicitly unsupported.
+      Fraction-only scientific mantissas now use a zero-integer layout and literal fraction
+      precision (GEN-A87), with static carried fractions where proven and original-input
+      rerounding otherwise. The corpus now covers 43 patterns and 1,075 exact ICU expectations
+      in both generated and native output, including bare `.E0` unlimited precision. Unused
+      integer bindings and significant helpers are omitted. Currency-marker widths remain
+      explicitly unsupported; source-selectable scientific styles retain their separate scope.
       Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
       Native fraction previews and generated fixed/significant/scientific formatters preserve it;
       templates fold the choice into selected concatenation without a runtime flag or parser.

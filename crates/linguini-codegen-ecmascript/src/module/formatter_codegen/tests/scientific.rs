@@ -42,6 +42,8 @@ fn scientific_and_engineering_widths_match_exact_icu_results() {
             "##0.00E0" => Some("engineering3"),
             "###E0" => Some("engineeringUnlimited"),
             "##0.7E0" => Some("engineeringIncrement"),
+            ".00E0" => Some("scientificFraction2"),
+            ".##E0" => Some("scientificFractionOptional"),
             _ => None,
         } {
             checked.push_str(&crate::templates::render(
@@ -156,47 +158,67 @@ fn scientific_symbols_and_numeric_digits_are_compiled_independently() {
                 .map(|digit| alphabet[digit.to_digit(10).unwrap() as usize])
                 .collect::<String>()
         };
-        for always_sign in [false, true] {
-            let mut pattern = numbers.decimal_pattern;
-            pattern.positive.primary_group_size = None;
-            pattern.positive.secondary_group_size = None;
-            pattern.positive.min_fraction_digits = 2;
-            pattern.positive.max_fraction_digits = 2;
-            pattern.positive.max_integer_digits = Some(1);
-            pattern.positive.exponent_digits = Some(2);
-            pattern.positive.exponent_sign_always = always_sign;
-            let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
-            let name = format!("scientific{index}{}", u8::from(always_sign));
-            script.push_str(&crate::templates::render(
-                "formatters/number",
-                minijinja::context! { name, plan => plan.clone(), exported => false },
-            ));
-            plans.push(plan);
-            for (input, negative, integer, fraction, exponent, exponent_negative) in [
-                ("1234", false, "1", "23", "03", false),
-                ("0.001234", false, "1", "23", "03", true),
-                ("0", false, "0", "00", "00", false),
-                ("-0", true, "0", "00", "00", false),
-                ("-1234", true, "1", "23", "03", false),
-                ("9.999", false, "1", "00", "01", false),
-            ] {
-                let expected = format!(
-                    "{}{}{separator}{}{exponential}{}{}",
-                    if negative { minus } else { "" },
-                    localize(integer),
-                    localize(fraction),
-                    if exponent_negative {
-                        minus
-                    } else if always_sign {
-                        plus
-                    } else {
-                        ""
-                    },
-                    localize(exponent),
+        for integer_width in [0, 1] {
+            for always_sign in [false, true] {
+                let mut pattern = numbers.decimal_pattern;
+                pattern.positive.primary_group_size = None;
+                pattern.positive.secondary_group_size = None;
+                pattern.positive.min_fraction_digits = 2;
+                pattern.positive.max_fraction_digits = 2;
+                pattern.positive.min_integer_digits = integer_width;
+                pattern.positive.max_integer_digits = Some(integer_width);
+                pattern.positive.exponent_digits = Some(2);
+                pattern.positive.exponent_sign_always = always_sign;
+                let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
+                let name = format!("scientific{index}_{integer_width}{}", u8::from(always_sign));
+                let function = crate::templates::render(
+                    "formatters/number",
+                    minijinja::context! { name, plan => plan.clone(), exported => false },
                 );
-                checks.push_str(&format!(
+                if integer_width == 0 {
+                    assert!(!function.contains("const integer ="));
+                    assert!(!function.contains("SignificantDigits("));
+                }
+                script.push_str(&function);
+                plans.push(plan);
+                let samples = if integer_width == 0 {
+                    [
+                        ("1234", false, "", "12", "04", false),
+                        ("0.001234", false, "", "12", "02", true),
+                        ("0", false, "", "00", "00", false),
+                        ("-0", true, "", "00", "00", false),
+                        ("-1234", true, "", "12", "04", false),
+                        ("9.999", false, "", "10", "02", false),
+                    ]
+                } else {
+                    [
+                        ("1234", false, "1", "23", "03", false),
+                        ("0.001234", false, "1", "23", "03", true),
+                        ("0", false, "0", "00", "00", false),
+                        ("-0", true, "0", "00", "00", false),
+                        ("-1234", true, "1", "23", "03", false),
+                        ("9.999", false, "1", "00", "01", false),
+                    ]
+                };
+                for (input, negative, integer, fraction, exponent, exponent_negative) in samples {
+                    let expected = format!(
+                        "{}{}{separator}{}{exponential}{}{}",
+                        if negative { minus } else { "" },
+                        localize(integer),
+                        localize(fraction),
+                        if exponent_negative {
+                            minus
+                        } else if always_sign {
+                            plus
+                        } else {
+                            ""
+                        },
+                        localize(exponent),
+                    );
+                    checks.push_str(&format!(
                     "assert.equal({name}({input:?}), {expected:?}, {locale:?} + ':' + {input:?});\n"
                 ));
+                }
             }
         }
     }
@@ -216,6 +238,7 @@ for (const value of ["0", "-0", "12.34", "-0.00001234", "1e8191", "1e-8191"]) {
   const original = Object.freeze(parseGeneratedDecimal(value));
   const expected = {...original};
   scientificGeneratedDecimal(original);
+  scientificWith0IntegerDigits(original);
   assert.deepEqual(original, expected, "normalization mutated its input");
 }
 "#,

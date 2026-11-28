@@ -23,7 +23,7 @@ impl NumberRoundingPlan {
         significant_digits: Option<u8>,
         integer_digits: u8,
     ) -> Option<String> {
-        if integer_digits == 0 {
+        if integer_digits == 0 && self.fraction_digits == 0 && significant_digits.is_none() {
             return None;
         }
         let digits = match significant_digits {
@@ -43,7 +43,11 @@ impl NumberRoundingPlan {
                 self.fraction_digits
             }
         };
-        Some("0".repeat(usize::from(digits)))
+        Some(if integer_digits == 0 {
+            "1".to_owned() + &"0".repeat(usize::from(digits).saturating_sub(1))
+        } else {
+            "0".repeat(usize::from(digits))
+        })
     }
 
     /// CLDR's zero increment selects ordinary rounding to one scaled unit.
@@ -140,6 +144,19 @@ mod tests {
                     one.is_multiple_of(increment),
                     "{fraction_digits}/{increment}"
                 );
+                let fractional = plan.scientific_carry_fraction_for_width(None, 0);
+                assert_eq!(
+                    fractional.is_some(),
+                    fraction_digits > 0 && (one / 10).is_multiple_of(increment),
+                    "fraction-only {fraction_digits}/{increment}"
+                );
+                if let Some(fractional) = fractional {
+                    assert_eq!(fractional.len(), usize::from(fraction_digits));
+                    assert_eq!(
+                        fractional,
+                        "1".to_owned() + &"0".repeat(usize::from(fraction_digits) - 1)
+                    );
+                }
             }
         }
         let wide = NumberRoundingPlan::new(255, "5").unwrap();

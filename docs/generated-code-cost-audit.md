@@ -1033,7 +1033,36 @@ to `749bfd8` on Vite 7.3.3 and 8.0.13: 1338/718/652 and 1313/706/643 minified/gz
 The newly accepted `.0` consumer costs 1338/719/649 and 1313/706/643 bytes respectively. These
 are absolute new-consumer costs, not a before/after speed or size improvement. Each emits one
 `render` export/chunk without imports; unused added fixture exports are removed. Pinned CLDR
-artifact bytes remain unchanged. Fraction-only scientific mantissas remain unsupported.
+artifact bytes remain unchanged. GEN-A87 below covers fraction-only scientific mantissas.
+
+## Fraction-only scientific layouts
+
+GEN-A87 compiles the zero-integer mantissa position into its own normalizer. Its first significant
+digit is immediately after the separator, so existing literal fraction rounding handles both
+unit and quantum precision. No significant helper or integer-binding/zero-test scaffolding is
+selected for canonical fraction-only requests. Carry proofs resolve `.10`-style results in Rust;
+unproven quanta reround the original mantissa at the adjusted exponent. Bare `.E0` retains
+unlimited precision and a visible separator. No runtime CLDR syntax or options are introduced.
+
+Eleven new patterns extend the independent exact-decimal ICU corpus to 43 patterns and 1,075
+results. These execute with combined helpers, isolated helpers, and native previews. Zero-width
+carry proofs are checked across 38 fraction scales and 256 increments; zero fraction precision
+conservatively retains rerounding. Localized/supplementary digits and literal exponent symbols,
+signed zero, frozen inputs, and strict checked JavaScript remain covered.
+
+Eight existing complete consumers retain byte-identical bundles against `413c911` on Vite
+7.3.3 and 8.0.13. Newly supported consumers have these absolute minified/gzip/Brotli costs on
+Node 24.13.1; each executes its oracle samples and has one `render` export/chunk without imports:
+
+| Vite | Pattern | Bytes |
+| --- | --- | --- |
+| 7.3.3 | `.00E0` | 1765/853/788 |
+| 8.0.13 | `.00E0` | 1732/833/764 |
+| 7.3.3 | `.##E0` | 1833/871/806 |
+| 8.0.13 | `.##E0` | 1800/852/787 |
+
+These are new supported semantics, not a measured speed or retained-heap improvement. Pinned
+compiler artifacts retain their bytes; existing public source formatter options are unchanged.
 
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.
