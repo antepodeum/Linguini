@@ -532,7 +532,14 @@ surface. Current guarantees are:
   applies the same digit symbols to number and currency bodies, preserving literal affixes.
   When unit rounding leaves the canonical digits unchanged, it reuses that record and skips
   optional trimming. The formatter still supplies its required minimum fraction digits.
-  Percent, compact, scientific, significant-digit, and caller-selected numbering-system
+  `@number(style = "percent")` instead selects the locale's pinned percent pattern. It scales
+  the exact input by 100 before rounding, retaining localized percent placement, spacing, signs,
+  grouping, and digits. For example, English `0.125` becomes `13%`; the input is a ratio.
+  The numeric expansion limit also applies after scaling. `style = "decimal"` is equivalent
+  to plain `@number` and shares its generated formatter. Styles must be static `decimal` or
+  `percent` values; other styles and unknown options fail validation. Both styles work in
+  aliases, explicit annotations, nested call arguments, inline bindings, native previews,
+  and SSR. Compact, scientific, significant-digit, and caller-selected numbering-system
   styles are not exposed.
   Internal scientific lowering compiles the locale's `exponential`, `plusSign`, and `minusSign`
   symbols as literals. Digit substitution applies separately to mantissa and exponent digits,

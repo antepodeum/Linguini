@@ -719,6 +719,56 @@ fn validated_ir_rejects_formatter_type_mismatch() {
 }
 
 #[test]
+fn numeric_styles_are_static_validated_options_on_aliases_and_nested_inputs() {
+    let schema = lower_schema(
+        &parse_schema("type Ratio = Decimal @number(style = \"percent\")\nmessage(value: Ratio)\n")
+            .unwrap(),
+    );
+    let locale = |body: &str| {
+        lower_locale(
+            &parse_locale(&format!(
+                "fn Echo(value: String) {{ _ => {{value}} }}\nmessage = {body}\n"
+            ))
+            .unwrap(),
+        )
+    };
+    for body in [
+        "{value}",
+        "{value @number(style = \"percent\")}",
+        "{value @number(style = \"decimal\")}",
+        "{Echo(value @number(style = \"percent\"))}",
+        "{fn(copy: value @number(style = \"percent\")) { _ => {copy} }}",
+    ] {
+        validate_ir(&schema, &locale(body)).unwrap();
+    }
+    for (body, code) in [
+        ("{value @number(style = \"scientific\")}", "IR031"),
+        ("{value @number(style = \"Percent\")}", "IR031"),
+        ("{Echo(value @number(style = \"\"))}", "IR031"),
+        ("{value @number(max_fraction = \"2\")}", "IR030"),
+    ] {
+        let errors = validate_ir(&schema, &locale(body)).unwrap_err();
+        assert!(
+            errors.iter().any(|error| error.code == code),
+            "{body}: {errors:?}"
+        );
+    }
+    let duplicate =
+        parse_locale("message = {value @number(style = \"percent\", style = \"decimal\")}\n")
+            .unwrap_err();
+    assert!(duplicate.iter().any(|error| error
+        .message
+        .contains("duplicate annotation argument `style`")));
+    let strings = lower_schema(&parse_schema("message(value: String)\n").unwrap());
+    assert!(
+        validate_ir(&strings, &locale("{value @number(style = \"percent\")}"))
+            .unwrap_err()
+            .iter()
+            .any(|error| error.code == "IR032")
+    );
+}
+
+#[test]
 fn validated_ir_accepts_date_time_styles_and_rejects_unknown_widths() {
     let schema = lower_schema(&parse_schema("message(value: Date)\n").expect("schema parses"));
     let valid = lower_locale(

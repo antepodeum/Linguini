@@ -2,9 +2,9 @@
 
 mod week;
 
-use linguini_cldr::{
-    compiled_date_formatting, compiled_number_formatting, NumberPaddingPosition, NumberPattern,
-};
+#[cfg(test)]
+use linguini_cldr::NumberPattern;
+use linguini_cldr::{compiled_date_formatting, compiled_number_formatting, NumberPaddingPosition};
 
 use super::formatter_helpers::{
     date_formatter_helpers, digit_formatter_helper, digit_lookup, week_year_formatter_helper,
@@ -48,15 +48,12 @@ pub(super) fn formatter_data_declaration(
                     .expect("validated CLDR currency formatting plan");
                     number_plan_context(&selected, &mut digit_bindings)
                 } else {
-                    let numbers =
-                        compiled_number_formatting(locale).expect("validated number locale");
-                    number_plan(
-                        &numbers.decimal_pattern,
-                        None,
-                        &numbers,
-                        None,
-                        &mut digit_bindings,
+                    let selected = linguini_codegen::NumberFormatPlan::number(
+                        locale,
+                        request.argument("style").unwrap_or("decimal"),
                     )
+                    .expect("validated CLDR number formatting plan");
+                    number_plan_context(&selected, &mut digit_bindings)
                 };
                 plans.push(plan.clone());
                 output.push_str(&crate::templates::render(
@@ -151,6 +148,7 @@ const MAX_NUMBER_DECIMAL_DIGITS: usize = 8192;
 
 mod precision;
 
+#[cfg(test)]
 fn number_plan(
     pattern: &NumberPattern,
     symbol: Option<&str>,

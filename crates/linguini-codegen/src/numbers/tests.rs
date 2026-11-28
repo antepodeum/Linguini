@@ -12,6 +12,31 @@ mod currency_affix_cases {
 }
 
 #[test]
+fn number_styles_select_complete_pinned_patterns_and_reject_unsupported_requests() {
+    for locale in [
+        "en", "fr", "ru", "ar-EG", "fa", "sv", "ee", "tr", "hi", "ff-Adlm", "ccp",
+    ] {
+        let numbers = compiled_number_formatting(locale).unwrap();
+        for (style, pattern, scale) in [
+            ("decimal", numbers.decimal_pattern, 1),
+            ("percent", numbers.percent_pattern, 100),
+        ] {
+            let plan = NumberFormatPlan::number(locale, style).unwrap();
+            assert_eq!(
+                plan,
+                NumberFormatPlan::new(&pattern, None, &numbers, None).unwrap(),
+                "{locale}/{style}"
+            );
+            assert_eq!(plan.scale, scale, "{locale}/{style}");
+        }
+    }
+    for style in ["", "Percent", "scientific", "compact", "percent "] {
+        assert!(NumberFormatPlan::number("en", style).is_none(), "{style}");
+    }
+    assert!(NumberFormatPlan::number("zz", "percent").is_none());
+}
+
+#[test]
 fn currency_substitution_preserves_literal_affix_fragments() {
     let numbers = compiled_number_formatting("en").unwrap();
     for case in currency_affix_cases::CASES {

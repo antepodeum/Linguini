@@ -1,7 +1,9 @@
 mod date;
 mod number;
 
-use number::{append_localized_digits, format_number_pattern, format_number_plan};
+#[cfg(test)]
+use number::format_number_pattern;
+use number::{append_localized_digits, format_number_plan};
 
 #[cfg(test)]
 mod parity;
@@ -9,9 +11,10 @@ mod parity;
 use std::collections::BTreeMap;
 use std::fmt;
 
+#[cfg(test)]
+use linguini_cldr::compiled_number_formatting;
 use linguini_cldr::{
-    built_in_plural_rules, compiled_number_formatting, Operand, PluralRule, PluralRules, Range,
-    Relation, RelationOperator,
+    built_in_plural_rules, Operand, PluralRule, PluralRules, Range, Relation, RelationOperator,
 };
 use linguini_codegen::NumberFormatPlan;
 use linguini_ir::{
@@ -600,7 +603,7 @@ impl<'a> Renderer<'a> {
         formatter: &IrFormatter,
     ) -> Result<String, RenderError> {
         match &formatter.kind {
-            IrFormatterKind::Number => self.format_number(&value.into_text()),
+            IrFormatterKind::Number => self.format_number(&value.into_text(), &formatter.arguments),
             IrFormatterKind::Currency => {
                 self.format_currency(&value.into_text(), &formatter.arguments)
             }
@@ -611,11 +614,21 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    fn format_number(&self, value: &str) -> Result<String, RenderError> {
-        let Some(numbers) = compiled_number_formatting(self.locale) else {
-            return Err(missing_cldr_data("number formatting", self.locale));
-        };
-        format_number_pattern(value, &numbers.decimal_pattern, &numbers, None, None)
+    fn format_number(
+        &self,
+        value: &str,
+        arguments: &[IrFormatterArgument],
+    ) -> Result<String, RenderError> {
+        let style = formatter_argument(arguments, "style").unwrap_or("decimal");
+        let plan = NumberFormatPlan::number(self.locale, style).ok_or_else(|| {
+            RenderError::Unsupported {
+                detail: format!(
+                    "missing required CLDR number formatting for preview locale `{}` and style `{style}`",
+                    self.locale
+                ),
+            }
+        })?;
+        format_number_plan(value, &plan, self.locale)
     }
 
     fn format_currency(
@@ -1143,6 +1156,7 @@ mod tests {
     mod decimal_separator;
     mod number_rounding;
     mod optional_integer;
+    mod percent;
     mod plural_inputs;
     mod scientific;
 
@@ -1497,7 +1511,7 @@ mod tests {
             let renderer = Renderer::new(&schema, &module, locale);
             for value in &values {
                 for (index, expected) in [
-                    renderer.format_number(value),
+                    renderer.format_number(value, &[]),
                     renderer.format_currency(value, &usd),
                     renderer.format_currency(value, &accounting),
                 ]
@@ -1533,8 +1547,8 @@ sample2 = {value @currency(code = "USD", accounting = "true")}
             ("ee", "10000", "."),
         ] {
             let renderer = Renderer::new(&schema, &module, locale);
-            assert_eq!(renderer.format_number("999.9995").unwrap(), "1000");
-            assert_eq!(renderer.format_number("9999.9995").unwrap(), expected);
+            assert_eq!(renderer.format_number("999.9995", &[]).unwrap(), "1000");
+            assert_eq!(renderer.format_number("9999.9995", &[]).unwrap(), expected);
             let money = renderer.format_currency("999.995", &usd).unwrap();
             assert!(
                 money.contains(&format!("1000{decimal}00")),
@@ -1583,8 +1597,11 @@ sample2 = {value @currency(code = "USD", accounting = "true")}
         assert_eq!(numeric_part(cash_rounded), "1.25");
 
         let swedish = Renderer::new(&schema, &locale, "sv");
-        assert_eq!(swedish.format_number("-1234.5").unwrap(), "−1\u{a0}234,5");
-        assert_eq!(swedish.format_number("-0").unwrap(), "−0");
+        assert_eq!(
+            swedish.format_number("-1234.5", &[]).unwrap(),
+            "−1\u{a0}234,5"
+        );
+        assert_eq!(swedish.format_number("-0", &[]).unwrap(), "−0");
         assert_eq!(
             swedish
                 .format_currency(
@@ -1645,7 +1662,7 @@ sample2 = {value @currency(code = "USD", accounting = "true")}
         let locale = lower_locale(&parse_locale("").expect("locale"));
 
         let error = renderer(&schema, &locale, "zz")
-            .format_number("1")
+            .format_number("1", &[])
             .expect_err("unsupported preview locale must fail");
 
         assert!(matches!(error, RenderError::Unsupported { .. }));

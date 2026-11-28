@@ -6,12 +6,15 @@ use super::{
     increment_integer, missing_cldr_data, parse_decimal, DecimalParts, RenderError,
     MAX_DECIMAL_DIGITS,
 };
-use linguini_cldr::{NumberFormatData, NumberPaddingPosition, NumberPattern};
+use linguini_cldr::NumberPaddingPosition;
+#[cfg(test)]
+use linguini_cldr::{NumberFormatData, NumberPattern};
 use linguini_codegen::{
     NumberFormatPlan, NumberGroupingPlan, NumberPrecisionPlan, NumberScientificPlan,
 };
 use rounding::{round_fraction, RoundingQuantum};
 
+#[cfg(test)]
 pub(super) fn format_number_pattern(
     value: &str,
     pattern: &NumberPattern,

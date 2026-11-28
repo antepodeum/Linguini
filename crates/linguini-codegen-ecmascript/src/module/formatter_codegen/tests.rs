@@ -6,6 +6,7 @@ mod month_weeks;
 mod number_inputs;
 mod optional_integer;
 mod padding;
+mod percent;
 mod rounding;
 mod scientific;
 mod week_year;

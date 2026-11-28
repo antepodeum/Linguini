@@ -571,6 +571,13 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       context fails before emission. The affix corpus now covers 17 patterns and 34 independent
       ICU outcomes across parsing, planning, native previews, and generated execution. Other
       currency display widths and source-selectable scientific styles retain their open scope.
+      Source-selectable percent formatting now uses those shared compiled plans (GEN-A91).
+      Static `@number(style = "percent")` works in aliases, annotations, nested calls, inline
+      inputs/defaults, callable forms, previews, and SSR. Explicit decimal shares the default
+      request. Thirteen locales have 234 independent ICU results, with 1,872 native/generated
+      source comparisons and separate ordinary/physical/standalone execution. Unused runtime
+      styles and an unused Date alias are absent; complete Vite 7/8 consumers retain one chunk.
+      Other numeric styles and currency widths remain open.
       Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
       Native fraction previews and generated fixed/significant/scientific formatters preserve it;
       templates fold the choice into selected concatenation without a runtime flag or parser.
@@ -1882,6 +1889,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       runtime interpreter or parse CLDR syntax after generation. Parsing actual input values such
       as numeric strings or dates is a separate, demand-selected runtime operation.
 - [-] OPT-A2 — Emit specialized formatter implementations for the actual statically used requests.
+      Percent style is now selectable from source and resolves through shared common planning
+      (GEN-A91). Scaling, percent placement/spacing, precision, grouping thresholds, and digit
+      symbols use the pinned percent pattern; generated code contains no style dispatcher or
+      CLDR parser. Explicit decimal shares its default request. ICU/source/module/bundle and
+      strict-JavaScript checks cover the new surface; broader date/numeric styles remain open.
       Scientific layouts and precision now specialize normalizers, exponent steps, rounding,
       minimum digits, and carry proofs at build time (GEN-A82). Fixed, engineering, and unlimited
       patterns retain their distinct behavior; quantum magnitude changes reround the original

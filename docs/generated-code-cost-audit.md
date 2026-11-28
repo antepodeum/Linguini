@@ -1137,5 +1137,39 @@ Node 24.13.1, minified / gzip / Brotli bytes; baseline `8349f67`:
 No elapsed-time or retained-heap improvement is claimed. No source syntax, formatter API,
 calendar/zone coverage, or page-delivery criterion changes in this receipt.
 
+## Source-selectable percent plans
+
+GEN-A91 exposes the already compiled pinned percent patterns through
+`@number(style = "percent")`. Common planning selects the pattern before target rendering;
+native preview and generated code use the same scale/precision/grouping/affix decisions. The
+existing canonical numeric template and helpers emit the implementation. Explicit decimal
+requests normalize to the default request, preventing duplicate formatter functions when both
+spellings occur. Unused styles do not introduce dispatch or locale data into the runtime.
+
+An ICU 78.3 oracle with pinned patterns/grouping and half-up rounding verifies 234 outcomes
+across thirteen locales. Native/generated source comparisons execute 1,872 cases through aliases,
+explicit annotations, nested calls, inline inputs/defaults, callable forms, and decimal controls.
+String/number/bigint representations, signed zero, exact large values, coercion count/error
+identity, resource limits, invalid inputs, and the existing nonfinite fallback remain covered.
+The checked fixture shares one parser, scale-by-100 helper, and integer-rounding helper across
+its selected outputs. Ordinary, physical, and standalone module execution verifies canonical
+request reuse, named/positional calls, and omission of an unused Date alias's runtime.
+
+Complete executed Vite consumers each emit one self-contained chunk and run their independent
+locale expectations. Rendered-export metadata and script sentinels verify that unselected
+exports and digit systems are absent. Absolute minified / gzip / Brotli bytes on Node 24.13.1:
+
+| Selected locale | Vite 7.3.3 | Vite 8.0.13 |
+| --- | --- | --- |
+| English | 1529 / 776 / 713 | 1502 / 756 / 694 |
+| Turkish | 1527 / 774 / 712 | 1500 / 755 / 690 |
+| Persian | 1626 / 861 / 786 | 1597 / 841 / 758 |
+| Ewe | 1529 / 776 / 713 | 1502 / 756 / 694 |
+| Adlam Fula | 1624 / 832 / 770 | 1595 / 812 / 747 |
+
+These are costs of a newly selectable style, not before/after savings. Existing application
+code/declaration/map goldens retain their bytes; no timing, retained-heap, broader numeric-style,
+or exact page-delivery completion is claimed.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

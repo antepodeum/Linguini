@@ -7,7 +7,8 @@ use linguini_ir::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
-/// A canonical formatter request. Argument order never changes its identity.
+/// A canonical formatter request. Argument order never changes its identity;
+/// an explicit decimal number style shares the default request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormatterRequest {
     pub formatter: IrFormatter,
@@ -16,6 +17,11 @@ pub struct FormatterRequest {
 impl FormatterRequest {
     pub fn new(formatter: &IrFormatter) -> Self {
         let mut formatter = formatter.clone();
+        if formatter.kind == IrFormatterKind::Number {
+            formatter
+                .arguments
+                .retain(|argument| argument.name != "style" || argument.value != "decimal");
+        }
         formatter.arguments.sort_by(|a, b| a.name.cmp(&b.name));
         Self { formatter }
     }
@@ -235,6 +241,24 @@ mod tests {
         assert!(!requests
             .iter()
             .any(|request| request.formatter.kind == IrFormatterKind::Date));
+    }
+
+    #[test]
+    fn explicit_decimal_styles_share_the_default_request_without_erasing_percent() {
+        let schema = lower_schema(
+            &parse_schema(
+                "type Ratio = Decimal @number(style = \"percent\")\nmessage(value: Ratio)\n",
+            )
+            .unwrap(),
+        );
+        let locale = lower_locale(&parse_locale("message = {value} {value @number} {value @number(style = \"decimal\")} {value @number(style = \"percent\")}\n").unwrap());
+        let requests = formatter_requests(&schema, &locale);
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[0].formatter.kind, IrFormatterKind::Number);
+        assert_eq!(requests[0].key(), "number");
+        assert_eq!(requests[0].argument("style"), None);
+        assert_eq!(requests[1].argument("style"), Some("percent"));
+        assert_ne!(requests[0].key(), requests[1].key());
     }
 
     #[test]

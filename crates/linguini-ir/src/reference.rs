@@ -1778,7 +1778,7 @@ fn validate_formatters(
 ) {
     for formatter in formatters {
         let (allowed, expected_type): (&[&str], Option<&str>) = match &formatter.kind {
-            FormatterKind::Number => (&[], Some("numeric")),
+            FormatterKind::Number => (&["style"], Some("numeric")),
             FormatterKind::Currency => (&["code", "accounting"], Some("numeric")),
             FormatterKind::Date => (&["style", "time_style", "skeleton"], Some("Date")),
             FormatterKind::Unknown(name) => {
@@ -1812,6 +1812,15 @@ fn validate_formatters(
                 ));
             }
             match (formatter.kind.as_str(), argument.name.as_str()) {
+                ("number", "style")
+                    if !matches!(argument.value.as_str(), "decimal" | "percent") =>
+                {
+                    errors.push(IrReferenceError::new(
+                        "IR031",
+                        "number formatter option `style` must be decimal or percent",
+                        span,
+                    ));
+                }
                 ("date", "skeleton")
                     if argument.value.is_empty()
                         || !argument
