@@ -2013,6 +2013,14 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Russian/Ukrainian boundary and coercion tests preserve all other input paths and limits;
       the complete-consumer cost tradeoff is recorded under OPT-A7.
       Executed corpora cover 24 locales, fractional operators, compact exponents, and invalid inputs.
+      Standalone message closures now combine selector-category demand before emitting one
+      private classifier (GEN-A94). Public category results and observable dispatch errors retain
+      the full rules; earlier overlapping categories keep precedence. All category subsets across
+      24 locales and overlapping synthetic families preserve observed decisions. Executed
+      standalone/ordinary/physical consumers cover mixed selectors, coercion, validation, and
+      category passthrough. Vite 7/8 complete standalone consumers save 30/29 Brotli bytes for
+      one-category output; mixed consumers save 1/3 Brotli bytes with one extra minified byte.
+      Physical runtimes, composed-page specialization, and repeated normalization remain open.
       Namespace/barrel global imports now follow shared direct semantic edges; static namespaces
       and re-export-only barrels omit them. Project and physical-leaf execution covers captured
       globals, alias-typed callable forms, simultaneous inline-input scope, named/positional calls,

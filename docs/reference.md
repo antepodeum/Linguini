@@ -155,6 +155,12 @@ use the backend's normal safe-identifier mapping (for example, `a.b` becomes `__
 Ordinary classifier names such as `pluralRu` retain their output; category strings, input
 validation, and category passthrough keep their existing contract.
 
+The Rust SDK's `compile_message_module` specializes its private classifier to the category
+distinctions used by that message and its dependencies. Consumers share one combined classifier.
+Explicit `Plural(value)` results retain all categories; input validation and category-name
+inputs retain their meaning. This applies to standalone message closures. Physical modules
+and Vite page payloads still use their shared locale classifier.
+
 Programmatically constructed IR can contain type names outside native syntax's PascalCase
 rules. The ECMAScript backend allocates separate type identifiers for
 [predefined TypeScript names](https://github.com/microsoft/TypeScript/blob/v5.8.3/src/compiler/checker.ts#L45415)

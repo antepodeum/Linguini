@@ -8,6 +8,9 @@ use linguini_ir::{
     IrText, IrTextPart, IrValue,
 };
 
+mod plural_demand;
+pub use plural_demand::{plural_category_demand, PluralCategoryDemand};
+
 /// String-valued operations in validated IR. Named/inline functions and callable form
 /// branches return text; the plural intrinsic returns a category string. Raw references
 /// are unproven here; use `StringResultFacts` for generated locale text variables.

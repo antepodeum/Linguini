@@ -49,7 +49,8 @@ pub use dispatch::{form_dispatch_plan, function_dispatch_plan};
 pub use form_demand::independent_form_attribute_names;
 pub use requirements::{
     expression_has_string_result, formatter_requirements, module_uses_inline_functions,
-    plural_required, FormatterRequirements, StringResultFacts,
+    plural_category_demand, plural_required, FormatterRequirements, PluralCategoryDemand,
+    StringResultFacts,
 };
 pub use types::{expression_value_type, resolve_type_name, TypeModel};
 pub use week_date::{week_date_request_plan, WeekDatePlan};

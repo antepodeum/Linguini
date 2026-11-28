@@ -7,7 +7,7 @@ use linguini_codegen::parameter_formatters;
 use linguini_ir::{IrMessage, IrModule};
 
 use crate::ecmascript::{EcmaImport, EcmaImportBindings, EcmaNamedImport};
-use crate::plural::generate_plural_function_with_visibility;
+use crate::plural::generate_plural_function_for_demand;
 
 use super::expr::{
     form_object, function_dispatch_body, text_expression, text_expression_with_context,
@@ -143,10 +143,18 @@ pub fn schema_type_aliases(schema: &IrModule) -> Vec<(String, String)> {
         .collect()
 }
 
-pub fn emit_plural_helpers(options: &EcmaOptions, output: &mut String) {
+pub fn emit_plural_helpers(
+    schema: &IrModule,
+    locale: &IrModule,
+    options: &EcmaOptions,
+    output: &mut String,
+) {
     if let Some(rules) = &options.plural_rules {
-        let source =
-            generate_plural_function_with_visibility(&options.plural_function, rules, false);
+        let source = generate_plural_function_for_demand(
+            &options.plural_function,
+            rules,
+            &linguini_codegen::plural_category_demand(schema, locale),
+        );
         output.push_str(source.trim_end());
         output.push_str("\n\n");
     }

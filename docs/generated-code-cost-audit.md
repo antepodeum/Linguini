@@ -365,7 +365,7 @@ explains why disabling them can remove getters and invalid-access errors.
 
 | ID | Status | Verified evidence | Required remediation |
 | --- | --- | --- | --- |
-| GEN-A15 | Open | `js-baseline/locales/ru/_globals.js` compares the full `pluralRu` result with `one` in `Delivered`, `DeliveryNote`, and `SizeAdj`; callable fruit forms distinguish one/few/fallback. `expr.rs` and `requirements.rs` currently request a single complete classifier. | Add shared selector-outcome demand analysis; merge equivalent category outcomes and specialize only the required rules/operands. Evaluate numeric internal outcomes with complete consumer/page bytes, execution, and allocation evidence. Preserve public category names and distinguish counts from already classified internal values. |
+| GEN-A15 | Partial | GEN-A94 adds shared selector-category demand and ordered predicate reduction, used by standalone message closures. Consumers union their demand into one classifier; full public category values and observable errors retain their rules. Complete single/mixed/public consumers execute on Vite 7/8, with costs recorded below. Physical runtimes still request the complete classifier. | Integrate combined demand into exact composed-page delivery without duplicating classifiers or changing sparse-fallback origin semantics. Resolve repeated normalization/provenance and assess whole-page costs. Public category strings and raw count semantics must remain intact. |
 | GEN-A16 | Fixed | `shared.jinja::normalizeMessageArgs` requests `.filter(...).map(String).sort()` over own keys even when a valid named argument has no unknown keys. This shape occurs in eight scanned fixture copies. | Unknown keys are collected lazily; conversion and sorting occur only on errors. Successful named calls retain only the own-key snapshot and result array. Executed arities 0–128 count collection operations, and observation tests preserve separate classification/conversion phases, sorted errors, symbols/non-enumerable keys, getter/Proxy order, missing-key positional fallback, and frozen inputs. A local seven-batch Node comparison covered arities 1, 2, 8, 32, and 128; it does not establish a general speed improvement. No persistent sets/tables are added. |
 | GEN-A17 | Fixed | `codegen-js-formatters-ru.js` tested `fraction ? ... : integer` after a fixed two-digit currency round. Integer-only plans also retained fraction/formatted scaffolding. Owner: `formatters/number.jinja`. | Mandatory fractions now concatenate directly; non-scientific integer-only plans omit fraction/formatted bindings and localize/group the integer directly. Identical sign prefixes are selected during generation. Executed USD/JPY/KWD, optional/significant fractions, negative zero, localized digits, equal prefixes, and the existing grouping/padding/rounding corpus cover the change. |
 | GEN-A18 | Fixed | `date_helpers.jinja` validates an ISO date-time's calendar fields by constructing a `Date` it then discards, before constructing the final date-time. Instrumented generated code constructs two dates for `2024-01-02T13:04:05Z`, one for a date-only value, and one before rejecting February 30. | Gregorian field validation now uses arithmetic before constructing the returned date. Executed tests cover all 10,000 four-digit years against native calendar rollover, three host time zones, year zero, leap centuries, offsets, midnight rollover, malformed/time-invalid inputs, and observable supplied Date methods. Valid text values construct one Date; invalid calendar fields construct none; supplied Date objects retain identity and construct none. |
@@ -1253,3 +1253,35 @@ retained-heap, other currency display/cash-option, or exact page-delivery comple
 
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.
+
+## Standalone selector-category demand
+
+GEN-A94 compiles one classifier for the union of all category distinctions in a standalone
+message closure. It preserves public category values, errors, input coercion, category-name
+passthrough, and earlier overlapping rule precedence. Predicate selection happens in Rust;
+no CLDR syntax, category-demand table, or selector-policy interpreter enters generated code.
+
+The planner checks all 32 category subsets across 24 pinned locales and four synthetic rule
+families. Generated reduced/full classifiers execute across the same 24 locales, while twelve
+ordinary/physical/standalone project comparisons cover single, mixed, explicit-other, and
+public-category consumers in Russian, English, and Japanese. The tests retain fractional,
+compact, huge integer/string, expansion-limit, coercion, and invalid-input observations.
+
+Complete Russian standalone message consumers execute as one import-free chunk on Node
+24.13.1, Vite 7.3.3, and Vite 8.0.13. The baseline substitutes the unchanged full classifier into
+the same freshly compiled closure. Other generated statements remain identical.
+
+| Consumer | Vite | Before minified / gzip / Brotli bytes | After minified / gzip / Brotli bytes |
+| --- | --- | ---: | ---: |
+| One versus fallback | 7 | 1,448 / 801 / 716 | 1,408 / 774 / 686 |
+| One versus fallback | 8 | 1,413 / 780 / 692 | 1,374 / 752 / 663 |
+| Shared one/few consumers | 7 | 1,504 / 822 / 732 | 1,505 / 821 / 731 |
+| Shared one/few consumers | 8 | 1,469 / 800 / 710 | 1,470 / 799 / 707 |
+| One plus public category | 7 | 1,457 / 807 / 719 | 1,457 / 807 / 719 |
+| One plus public category | 8 | 1,422 / 786 / 698 | 1,422 / 786 / 698 |
+
+Mixed consumers retain one classifier rather than duplicating selector-specific parsers. Their
+remaining predicates already match the previous exhaustive-tail optimization; replacing its
+unobserved final category grows minified output by one byte while compressed output shrinks
+slightly. Public-category consumers are byte-identical. No timing, retained-heap, repeated
+normalization, physical-runtime, or composed-page completion is claimed. GEN-A15 stays partial.

@@ -10,6 +10,43 @@ pub struct PluralDecisionPlan {
 }
 
 impl PluralDecisionPlan {
+    /// Keep only distinctions observed by every consumer of this classifier.
+    /// Earlier overlapping rules retain their precedence even when their category
+    /// itself is unobserved. Failure to prove disjointness keeps the rule.
+    pub fn for_category_demand(rules: &PluralRules, demand: &crate::PluralCategoryDemand) -> Self {
+        let mut plan = Self::for_rules(rules);
+        let crate::PluralCategoryDemand::Categories(required) = demand else {
+            return plan;
+        };
+        if required.contains("other") {
+            return plan;
+        }
+        let Some(last) = plan
+            .categories
+            .iter()
+            .rposition(|category| required.contains(&category.category))
+        else {
+            plan.guards.clear();
+            plan.categories.clear();
+            return plan;
+        };
+        plan.categories.truncate(last + 1);
+        let categories = &plan.categories;
+        plan.categories = categories
+            .iter()
+            .enumerate()
+            .filter(|(index, category)| {
+                required.contains(&category.category)
+                    || categories[index + 1..].iter().any(|later| {
+                        required.contains(&later.category)
+                            && !rules_are_disjoint(&category.rule, &later.rule)
+                    })
+            })
+            .map(|(_, category)| category.clone())
+            .collect();
+        plan
+    }
+
     /// Every non-default category requires a value with no visible fractional digits.
     /// Modulo and negated guards do not prove this restriction.
     pub fn requires_zero_visible_fraction(&self) -> bool {
@@ -119,6 +156,27 @@ impl PluralDecisionPlan {
     }
 }
 
+fn rules_are_disjoint(a: &linguini_cldr::PluralRule, b: &linguini_cldr::PluralRule) -> bool {
+    use linguini_cldr::RelationOperator::{Equal, In, Within};
+    a.conditions.iter().all(|a| {
+        b.conditions.iter().all(|b| {
+            a.relations.iter().any(|a| {
+                b.relations.iter().any(|b| {
+                    a.expression == b.expression
+                        && matches!(a.operator, Equal | In | Within)
+                        && matches!(b.operator, Equal | In | Within)
+                        && a.ranges.ranges.iter().all(|a| {
+                            b.ranges
+                                .ranges
+                                .iter()
+                                .all(|b| a.end < b.start || b.end < a.start)
+                        })
+                })
+            })
+        })
+    })
+}
+
 fn integer_category_period(categories: &[PluralCategoryRule]) -> Option<u64> {
     let mut period = 1_u64;
     for relation in categories
@@ -216,6 +274,99 @@ fn decimal_modulo_digits(modulo: Option<u64>) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn category_demand_preserves_ordered_outcomes_including_overlapping_rules() {
+        use crate::PluralCategoryDemand;
+        let mut families = [
+            "en", "ru", "fr", "ar", "cy", "br", "ga", "gd", "kw", "lt", "lv", "mt", "ro", "sl",
+            "dsb", "pl", "cs", "sk", "is", "mk", "he", "pt", "es", "ja",
+        ]
+        .into_iter()
+        .map(|locale| linguini_cldr::built_in_plural_rules(locale).unwrap())
+        .collect::<Vec<_>>();
+        for (early, late) in [
+            ("n within 0..5", "n within 1..3"),
+            ("n = 0", "n = 1"),
+            ("n != 2", "n within 1..3"),
+            ("n = 0 or n = 3", "n within 1..3"),
+        ] {
+            families.push(PluralRules {
+                locale: early.into(),
+                categories: [("zero", early), ("one", late)]
+                    .into_iter()
+                    .map(|(category, source)| PluralCategoryRule {
+                        category: category.into(),
+                        source: source.into(),
+                        rule: linguini_cldr::parse_plural_rule(source).unwrap(),
+                    })
+                    .collect(),
+            });
+        }
+        let samples = (0..=200)
+            .map(|value| value.to_string())
+            .chain(
+                [
+                    "0.0", "1.0", "1.2", "1.20", "2.5", "11.00", "1c6", "1.2c6", "1000000",
+                ]
+                .into_iter()
+                .map(String::from),
+            )
+            .map(|value| linguini_cldr::PluralOperands::parse(&value).unwrap())
+            .collect::<Vec<_>>();
+        let keys = ["zero", "one", "two", "few", "many"];
+        for rules in families {
+            for mask in 0..32 {
+                let required = keys
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| mask & (1 << index) != 0)
+                    .map(|(_, key)| (*key).to_owned())
+                    .collect::<std::collections::BTreeSet<_>>();
+                let plan = PluralDecisionPlan::for_category_demand(
+                    &rules,
+                    &PluralCategoryDemand::Categories(required.clone()),
+                );
+                for operands in &samples {
+                    let full = rules
+                        .categories
+                        .iter()
+                        .find(|category| category.rule.matches(operands))
+                        .map_or("other", |category| category.category.as_str());
+                    let guards = linguini_cldr::PluralRule {
+                        conditions: vec![linguini_cldr::Condition {
+                            relations: plan.guards.clone(),
+                        }],
+                    };
+                    let reduced = if guards.matches(operands) {
+                        plan.categories
+                            .iter()
+                            .find(|category| category.rule.matches(operands))
+                            .map_or("other", |category| category.category.as_str())
+                    } else {
+                        "other"
+                    };
+                    assert_eq!(
+                        required.contains(full).then_some(full),
+                        required.contains(reduced).then_some(reduced),
+                        "{}/{mask}/{operands:?}",
+                        rules.locale
+                    );
+                }
+            }
+        }
+        let rules = linguini_cldr::built_in_plural_rules("ru").unwrap();
+        let demand = PluralCategoryDemand::Categories(["one".into()].into());
+        let plan = PluralDecisionPlan::for_category_demand(&rules, &demand);
+        assert_eq!(
+            plan.categories
+                .iter()
+                .map(|category| category.category.as_str())
+                .collect::<Vec<_>>(),
+            ["one"]
+        );
+        assert_eq!(plan.integer_input_suffix_modulus(), Some(100));
+    }
 
     #[test]
     fn zero_visible_fraction_proof_rejects_permissive_or_negated_guards() {

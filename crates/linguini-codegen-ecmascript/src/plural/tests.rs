@@ -319,6 +319,46 @@ fn execute(script: &str) {
 }
 
 #[test]
+fn reduced_classifiers_preserve_observed_categories_and_validation_across_families() {
+    use linguini_codegen::PluralCategoryDemand;
+    let mut script = String::from("import assert from 'node:assert/strict';\n");
+    for locale in [
+        "en", "ru", "fr", "ar", "cy", "br", "ga", "gd", "kw", "lt", "lv", "mt", "ro", "sl", "dsb",
+        "pl", "cs", "sk", "is", "mk", "he", "pt", "es", "ja",
+    ] {
+        let rules = built_in_plural_rules(locale).unwrap();
+        for keys in [
+            vec![],
+            vec!["one"],
+            vec!["one", "few"],
+            vec!["zero", "two", "many"],
+        ] {
+            let categories = keys.iter().map(|key| (*key).to_owned()).collect();
+            let full = generate_plural_function_with_visibility("full", &rules, false);
+            let reduced = super::generate_plural_function_for_demand(
+                "reduced",
+                &rules,
+                &PluralCategoryDemand::Categories(categories),
+            );
+            script.push_str(&format!(r#"{{
+const full=(()=>{{{full};return full;}})();
+const reduced=(()=>{{{reduced};return reduced;}})();
+const keys=new Set({keys:?});
+const observation=(fn,value)=>{{try{{const category=fn(value);return ['value',keys.has(category)?category:null];}}catch(error){{return [error.constructor.name,error.message];}}}};
+for(const value of [...Array.from({{length:401}},(_,i)=>i-200),'0.0','1.00','1.2','11.20','1c6','1.2c6','1'.repeat(8192),'1'.repeat(8193),1e30,Number.MIN_VALUE,Number.MAX_VALUE,10000000000000000000001n,NaN,Infinity,null,undefined,true,'bad','zero','one','two','few','many','other']){{
+ assert.deepEqual(observation(reduced,value),observation(full,value),{locale:?}+':'+String(value));
+}}
+let reads=0;const input={{toString(){{reads++;return '21';}}}};
+reduced(input);assert.equal(reads,1);
+const failure=new Error('coercion');assert.throws(()=>reduced({{toString(){{throw failure;}}}}),error=>error===failure);
+}}
+"#));
+        }
+    }
+    execute(&script);
+}
+
+#[test]
 fn compiled_predicates_match_cldr_across_locales_operators_and_operand_demand() {
     use linguini_cldr::{parse_plural_rule, PluralCategoryRule, PluralRules};
     let mut rules = [

@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Standalone plural category demand
+
+`compile_message_module` now removes unobserved plural predicates from its private classifier,
+combining every consumer in the message closure first. Public results, accepted inputs, errors,
+and call signatures are unchanged. No application changes are required. Rust backend authors
+can reuse `plural_category_demand`, `PluralCategoryDemand::merge`, and
+`PluralDecisionPlan::for_category_demand` from `linguini-codegen`; the supplied IR must contain
+every consumer of the resulting classifier. Physical and Vite page runtimes are unchanged.
+
 ## Canonical runtime artifact paths in the Rust SDK
 
 Manually constructed locale, locale-global, and locale-runtime artifact records must now use

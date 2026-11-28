@@ -14,6 +14,7 @@ mod date_types;
 mod export_bindings;
 mod form_demand;
 mod number_styles;
+mod plural_demand;
 mod type_keywords;
 
 fn generate_project_files(

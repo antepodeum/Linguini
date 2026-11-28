@@ -16,7 +16,30 @@ pub(crate) fn generate_plural_function_with_visibility(
     rules: &PluralRules,
     exported: bool,
 ) -> String {
-    let mut plan = linguini_codegen::PluralDecisionPlan::for_rules(rules);
+    generate_plural_plan(
+        function_name,
+        linguini_codegen::PluralDecisionPlan::for_rules(rules),
+        exported,
+    )
+}
+
+pub(crate) fn generate_plural_function_for_demand(
+    function_name: &str,
+    rules: &PluralRules,
+    demand: &linguini_codegen::PluralCategoryDemand,
+) -> String {
+    generate_plural_plan(
+        function_name,
+        linguini_codegen::PluralDecisionPlan::for_category_demand(rules, demand),
+        false,
+    )
+}
+
+fn generate_plural_plan(
+    function_name: &str,
+    mut plan: linguini_codegen::PluralDecisionPlan,
+    exported: bool,
+) -> String {
     let fallback = if plan.has_exhaustive_integer_categories() {
         plan.categories
             .pop()
