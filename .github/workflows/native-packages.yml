@@ -1,0 +1,193 @@
+name: Build native packages and VS Code extension
+
+on:
+  workflow_call:
+    inputs:
+      artifact_retention_days:
+        description: Retention for packaged build artifacts
+        type: number
+        default: 7
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  package-wasm:
+    name: Universal WASM language server
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: editors/vscode/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: editors/vscode
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: editors/vscode
+      - run: pnpm test && pnpm test:wasm
+        working-directory: editors/vscode
+      - name: Verify WASM target with strict Clippy
+        run: cargo clippy --locked -p linguini-lsp-wasm --target wasm32-unknown-unknown -- -D warnings
+      - name: Package universal VSIX
+        working-directory: editors/vscode
+        env:
+          VSCE_TARGET: universal
+          LINGUINI_WASM_DIR: dist/wasm
+        run: pnpm package:vsix
+      - name: Smoke test WASM in Extension Host
+        working-directory: editors/vscode
+        env:
+          LINGUINI_TEST_RUNTIME: wasm
+          LINGUINI_TEST_VSIX: dist/linguini-vscode-universal.vsix
+        run: xvfb-run -a node scripts/run-integration-tests.js
+      - name: Smoke test automatic fallback without native executables
+        working-directory: editors/vscode
+        env:
+          LINGUINI_TEST_RUNTIME: auto
+          LINGUINI_TEST_VSIX: dist/linguini-vscode-universal.vsix
+        run: xvfb-run -a node scripts/run-integration-tests.js
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: wasm-lsp-runtime
+          path: editors/vscode/dist/wasm/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: linguini-universal
+          path: |
+            editors/vscode/dist/*universal.vsix
+            editors/vscode/dist/*universal.vsix.sha256
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+  package-native:
+    name: Native ${{ matrix.platform }}
+    needs: package-wasm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+            rust_target: x86_64-unknown-linux-gnu
+            binary: target/x86_64-unknown-linux-gnu/release/linguini
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            rust_target: aarch64-unknown-linux-gnu
+            binary: target/aarch64-unknown-linux-gnu/release/linguini
+          - platform: darwin-x64
+            runner: macos-15-intel
+            rust_target: x86_64-apple-darwin
+            binary: target/x86_64-apple-darwin/release/linguini
+          - platform: darwin-arm64
+            runner: macos-15
+            rust_target: aarch64-apple-darwin
+            binary: target/aarch64-apple-darwin/release/linguini
+          - platform: win32-x64
+            runner: windows-2025
+            rust_target: x86_64-pc-windows-msvc
+            binary: target/x86_64-pc-windows-msvc/release/linguini.exe
+          - platform: win32-arm64
+            runner: windows-11-arm
+            rust_target: aarch64-pc-windows-msvc
+            binary: target/aarch64-pc-windows-msvc/release/linguini.exe
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.rust_target }}
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: editors/vscode/pnpm-lock.yaml
+      - name: Verify release versions
+        run: node packages/scripts/check-versions.mjs
+      - name: Verify JavaScript package-manager boundaries
+        run: node scripts/check-js-boundaries.mjs
+      - name: Build native CLI and LSP
+        run: cargo build --locked --release -p linguini-cli --target ${{ matrix.rust_target }}
+      - name: Stage checksummed native npm package
+        run: node packages/scripts/stage-native-package.mjs ${{ matrix.platform }} ${{ matrix.binary }}
+      - name: Pack native npm package
+        working-directory: packages/cli-${{ matrix.platform }}
+        run: npm pack --pack-destination ../../release
+      - name: Pack shared project configuration package
+        if: matrix.platform == 'linux-x64'
+        working-directory: packages/project
+        run: npm pack --pack-destination ../../release
+      - name: Build and pack runtime and build adapters
+        if: matrix.platform == 'linux-x64'
+        run: |
+          node packages/scripts/prepare-runtime-packages.mjs
+          pnpm --dir packages/vue install --frozen-lockfile
+          for package in web vite svelte vue tsc sveltekit; do
+            (cd "packages/$package" && npm pack --pack-destination ../../release)
+          done
+      - name: Pack launcher npm package
+        if: matrix.platform == 'linux-x64'
+        working-directory: packages/cli
+        run: node --test && npm pack --pack-destination ../../release
+      - name: Install extension dependencies
+        working-directory: editors/vscode
+        run: pnpm install --frozen-lockfile
+      - name: Test extension
+        working-directory: editors/vscode
+        run: pnpm test
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: wasm-lsp-runtime
+          path: editors/vscode/dist/wasm
+      - name: Package platform VSIX
+        working-directory: editors/vscode
+        env:
+          LINGUINI_WASM_DIR: dist/wasm
+          VSCE_TARGET: ${{ matrix.platform }}
+          LINGUINI_VSIX_OUT_DIR: ../../release
+          LINGUINI_SERVER_BINARY: ../../${{ matrix.binary }}
+        run: pnpm run package:vsix
+      - name: Install Linux Extension Host dependencies
+        if: runner.os == 'Linux'
+        working-directory: editors/vscode
+        run: pnpm exec playwright install-deps chromium firefox
+      - name: Verify installed native VSIX on Linux
+        if: runner.os == 'Linux'
+        working-directory: editors/vscode
+        env:
+          LINGUINI_TEST_RUNTIME: native
+          LINGUINI_TEST_VSIX: ../../release/linguini-vscode-${{ matrix.platform }}.vsix
+        run: xvfb-run -a node scripts/run-integration-tests.js
+      - name: Verify installed native VSIX on macOS and Windows
+        if: runner.os != 'Linux'
+        working-directory: editors/vscode
+        env:
+          LINGUINI_TEST_RUNTIME: native
+          LINGUINI_TEST_VSIX: ../../release/linguini-vscode-${{ matrix.platform }}.vsix
+        run: node scripts/run-integration-tests.js
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: linguini-${{ matrix.platform }}
+          path: |
+            release/*.tgz
+            release/*.vsix
+            release/*.vsix.sha256
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}

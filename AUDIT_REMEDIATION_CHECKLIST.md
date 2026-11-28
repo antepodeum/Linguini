@@ -949,6 +949,13 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       the universal archive contains none. `actionlint` and package-manager policy pass. Hosted
       confirmation of the newly added installed-package steps remains required. A real packed
       npm compiler consumer also remains separate from the launcher's Node-substitute unit test.
+      Native package CI now uses the same reusable build workflow as releases, with matching
+      runners, Rust targets, npm archives, and installed VSIX checks for Linux/macOS/Windows
+      on x64 and ARM64. Linux uses Xvfb; macOS/Windows launch the host directly. Universal
+      WASM/fallback coverage has its own job. Publishing remains owned by the release workflow.
+      Package-manager policy scans every workflow, including the extracted build workflow.
+      Only static workflow/policy validation was run for this matrix change; hosted results
+      remain required. Local package smoke reruns were stopped at the user's request.
 - [x] #363 — Land and verify packaging for every publishable crate.
 - [x] #364 — Land commit-SHA-pinned GitHub Actions.
 - [x] #365 — Use `rust-toolchain.toml` for the moving `stable` channel and required components;

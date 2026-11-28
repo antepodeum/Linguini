@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -41,7 +41,8 @@ for (const dependency of ["'@vscode/vsce-sign': true", "esbuild: true", "keytar:
   }
 }
 
-for (const relative of [".github/workflows/ci.yml", ".github/workflows/vscode-extension.yml"]) {
+for (const name of readdirSync(join(root, ".github/workflows")).filter((name) => /\.ya?ml$/.test(name))) {
+  const relative = `.github/workflows/${name}`;
   const workflow = readFileSync(join(root, relative), "utf8");
   if (/\bnpm (ci|install|test|run)\b|\bnpx\b|cache:\s*npm|package-lock\.json/.test(workflow)) {
     throw new Error(`${relative}: dependency installation and scripts must use pinned pnpm`);
