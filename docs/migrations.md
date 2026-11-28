@@ -114,6 +114,12 @@ continues to render `0.5`, and `#.##` keeps its leading zero. Rounding carry ret
 integer. Native fraction previews and generated formatters share this decision through
 `NumberFormatPlan::can_omit_integer_zero`; the Rust method is additive.
 
+The offline compiler now accepts ordinary leading-decimal and leading-grouping patterns.
+`.##` compiles with one required fraction digit; `,##0` selects grouping width three. Quoted
+prefix punctuation keeps its literal meaning. These forms previously failed compilation.
+No application configuration or JavaScript API changes are required; fraction-only scientific
+mantissas remain rejected until their distinct layout is supported.
+
 ## Numeric padding
 
 Padded number and currency output retains its existing Unicode width and placement. Regenerate

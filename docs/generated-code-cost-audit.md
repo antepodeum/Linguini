@@ -1019,5 +1019,21 @@ The other six consumers from GEN-A84 retain their previous bytes on both Vite ve
 These changes remove the selected source operations and helper; no execution-time or
 retained-heap improvement is claimed.
 
+## Leading numeric separators
+
+GEN-A86 recognizes ordinary leading decimal/group separators in the offline compiler. Existing
+numeric metadata and templates express their behavior; application code gains no pattern parser
+or option dispatcher. Six patterns add 48 exact ICU 78.3 expectations to the parser/generated/
+native corpus. Leading grouping is also exercised by the
+[ICU compatibility tests](https://github.com/unicode-org/icu/blob/main/icu4c/source/test/testdata/numberformattestspecification.txt).
+Quoted punctuation and malformed-group rejection retain their separate checks.
+
+An executed complete consumer of the existing optional-integer formatter remains byte-identical
+to `749bfd8` on Vite 7.3.3 and 8.0.13: 1338/718/652 and 1313/706/643 minified/gzip/Brotli bytes.
+The newly accepted `.0` consumer costs 1338/719/649 and 1313/706/643 bytes respectively. These
+are absolute new-consumer costs, not a before/after speed or size improvement. Each emits one
+`render` export/chunk without imports; unused added fixture exports are removed. Pinned CLDR
+artifact bytes remain unchanged. Fraction-only scientific mantissas remain unsupported.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

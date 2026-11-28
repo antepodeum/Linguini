@@ -557,7 +557,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       51 formatter tests and strict JS pass. Eight complete Vite 7/8 consumers retain their
       reference results in one import-free chunk, with costs recorded in the audit. Existing
       generated goldens remain unchanged. Rust SDK field additions are documented in migrations.
-      Currency-marker widths and leading decimal/grouping forms remain explicitly unsupported.
+      Ordinary leading decimal/grouping forms now compile into existing numeric metadata
+      (GEN-A86). `.##` requires one fractional digit; leading grouping retains its rightmost
+      widths, while quoted punctuation remains literal. Six new patterns have 48 independent
+      exact ICU expectations shared by parsing, generated execution, and native previews.
+      Currency-marker widths and fraction-only scientific mantissas remain explicitly unsupported.
       Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
       Native fraction previews and generated fixed/significant/scientific formatters preserve it;
       templates fold the choice into selected concatenation without a runtime flag or parser.

@@ -194,6 +194,13 @@ functions resolve it during template rendering, while native fraction previews u
 `#.0` renders `.5`, whereas `0.0` renders `0.5`. Rounding happens first, so carry to `1.0` retains
 the integer. Optional fractions, significant digits, and scientific notation retain their own
 integer-display rules. Templates emit the zero test only when selected by the plan.
+
+The offline pattern compiler also accepts ordinary leading decimals: `.00` has two required
+fraction digits, while `.##` requires one and permits two. A bare `.` retains an integer digit
+and a visible decimal separator. ICU-compatible leading grouping, such as `,##0`, resolves to
+the selected group width during compilation. Quoted punctuation remains literal. Fraction-only
+scientific mantissas such as `.00E0` remain unsupported.
+
 `precision()` returns a shared `NumberPrecisionPlan`: fraction rounding, significant precision,
 or unlimited precision. `minimum_fraction_digits()` and `minimum_significant_digits()` resolve
 the corresponding padding requirements. Scientific plans retain fixed mantissa widths and

@@ -4,6 +4,107 @@
  * @param {__lgl_Numeric} value
  * @returns {string}
  */
+export function formatLeadingDecimal(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const rounded = roundTo1FractionDigits(decimal);
+  const integer = rounded.integer === "0" ? "" : rounded.integer;
+  const fraction = rounded.fraction.padEnd(1, "0");
+  const formatted = integer + "." + fraction;
+  const prefix = decimal.negative ? "-" : "";
+  return prefix + formatted;
+}
+
+/**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
+export function formatLeadingOptionalDecimal(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const rounded = roundTo2FractionDigits(decimal);
+  const integer = rounded.integer === "0" ? "" : rounded.integer;
+  const fraction = rounded === decimal ? rounded.fraction.padEnd(1, "0") : rounded.fraction.slice(0, 1) + rounded.fraction.slice(1).replace(/0+$/, "");
+  const formatted = integer + "." + fraction;
+  const prefix = decimal.negative ? "-" : "";
+  return prefix + formatted;
+}
+
+/**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
+export function formatLeadingDecimalAffixes(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const rounded = roundTo2FractionDigits(decimal);
+  const integer = rounded.integer === "0" ? "" : rounded.integer;
+  const fraction = rounded.fraction.padEnd(2, "0");
+  const formatted = integer + "." + fraction;
+  const prefix = decimal.negative ? "-pre" : "pre";
+  const suffix = "tail";
+  return prefix + formatted + suffix;
+}
+
+/**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
+export function formatOnlyDecimal(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const rounded = roundTo0FractionDigits(decimal);
+  const integer = rounded.integer;
+  const prefix = decimal.negative ? "-" : "";
+  return prefix + integer + ".";
+}
+
+/**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
+export function formatLeadingGrouping(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const rounded = roundTo0FractionDigits(decimal);
+  let integer = rounded.integer;
+  if (integer.length > 3) {
+    const firstGroup = integer.length % 3 || 3;
+    let grouped = integer.slice(0, firstGroup);
+    for (let offset = firstGroup; offset < integer.length; offset += 3) {
+      grouped += "," + integer.slice(offset, offset + 3);
+    }
+    integer = grouped;
+  }
+  const prefix = decimal.negative ? "-" : "";
+  return prefix + integer;
+}
+
+/**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
+export function formatQuotedGroupingPrefix(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const rounded = roundTo0FractionDigits(decimal);
+  let integer = rounded.integer;
+  if (integer.length > 2) {
+    const firstGroup = integer.length % 2 || 2;
+    let grouped = integer.slice(0, firstGroup);
+    for (let offset = firstGroup; offset < integer.length; offset += 2) {
+      grouped += "," + integer.slice(offset, offset + 2);
+    }
+    integer = grouped;
+  }
+  const prefix = decimal.negative ? "-#" : "#";
+  return prefix + integer;
+}
+
+/**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
 export function formatOptionalInteger(value) {
   const decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);

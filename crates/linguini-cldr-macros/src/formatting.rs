@@ -890,8 +890,8 @@ fn parse_number_pattern_part(
 ) -> Result<NumberPatternPart, String> {
     let original = pattern;
     let (pattern, padding_marker) = extract_padding(pattern)?;
-    let number_start = find_unquoted_digit(&pattern)
-        .ok_or_else(|| format!("number pattern has no digit placeholder: `{pattern}`"))?;
+    let number_start = find_number_skeleton(&pattern)
+        .ok_or_else(|| format!("number pattern has no numeric skeleton: `{pattern}`"))?;
     let number_end = number_skeleton_end(&pattern, number_start);
     let (prefix, prefix_scale) = compile_affix(&pattern[..number_start], symbols)?;
     let (suffix, suffix_scale) = compile_affix(&pattern[number_end..], symbols)?;
@@ -916,8 +916,9 @@ fn parse_number_pattern_part(
         ));
     }
     let (integer, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
-    if integer.is_empty()
-        || !integer
+    let leading_decimal = integer.is_empty() && mantissa.starts_with('.');
+    if (!leading_decimal || exponent.is_some())
+        && !integer
             .chars()
             .any(|character| matches!(character, '#' | '0'..='9' | '@'))
     {
@@ -949,7 +950,11 @@ fn parse_number_pattern_part(
                 .count()
         })
         .collect::<Vec<_>>();
-    if group_sizes.contains(&0) {
+    // A leading separator defines the rightmost group without a prefix group.
+    // Empty interior/trailing groups still have no numeric interpretation.
+    if !integer.is_empty()
+        && (group_sizes[0] == 0 || group_sizes[..group_sizes.len() - 1].contains(&0))
+    {
         return Err(format!(
             "number pattern has an empty integer group: `{original}`"
         ));
@@ -980,7 +985,8 @@ fn parse_number_pattern_part(
         prefix,
         suffix,
         min_integer_digits: checked_u8(
-            integer.chars().filter(char::is_ascii_digit).count(),
+            integer.chars().filter(char::is_ascii_digit).count()
+                + usize::from(leading_decimal && fraction.is_empty()),
             "minimum integer digits",
             original,
         )?,
@@ -997,7 +1003,11 @@ fn parse_number_pattern_part(
             })
             .transpose()?,
         min_fraction_digits: checked_u8(
-            fraction.chars().filter(char::is_ascii_digit).count(),
+            fraction
+                .chars()
+                .filter(char::is_ascii_digit)
+                .count()
+                .max(usize::from(leading_decimal && !fraction.is_empty())),
             "minimum fraction digits",
             original,
         )?,
@@ -1250,7 +1260,7 @@ fn split_number_subpatterns(source: &str) -> Result<Vec<&str>, String> {
     Ok(parts)
 }
 
-fn find_unquoted_digit(pattern: &str) -> Option<usize> {
+fn find_number_skeleton(pattern: &str) -> Option<usize> {
     let mut quoted = false;
     let mut chars = pattern.char_indices().peekable();
     while let Some((index, character)) = chars.next() {
@@ -1263,7 +1273,7 @@ fn find_unquoted_digit(pattern: &str) -> Option<usize> {
             } else {
                 quoted = !quoted;
             }
-        } else if !quoted && matches!(character, '#' | '0'..='9' | '@') {
+        } else if !quoted && matches!(character, '#' | '0'..='9' | '@' | '.' | ',') {
             return Some(index);
         }
     }
@@ -1391,7 +1401,7 @@ mod tests {
             );
             samples += case.samples.len();
         }
-        assert_eq!(samples, 180);
+        assert_eq!(samples, 228);
     }
 
     #[test]
@@ -1725,8 +1735,6 @@ mod tests {
             "0 tail#",
             "0 tail@",
             "0 tail5",
-            ",0",
-            ".0",
             "0 tail,",
             "0 tail.",
             "руб.*;0.0'кг'",
@@ -1737,6 +1745,38 @@ mod tests {
         let pattern = parse_number_pattern(&format!("'{literal}'0'{literal}'")).unwrap();
         assert_eq!(pattern.positive.prefix, literal_affix(literal));
         assert_eq!(pattern.positive.suffix, literal_affix(literal));
+    }
+
+    #[test]
+    fn leading_separators_preserve_group_widths_and_reject_malformed_skeletons() {
+        for (source, primary, secondary) in [
+            (",0", 1, None),
+            (",##0", 3, None),
+            (",#,#0", 2, Some(1)),
+            ("'literal.,'#,##0", 3, None),
+        ] {
+            let parsed = parse_number_pattern(source).unwrap().positive;
+            assert_eq!(parsed.primary_group_size, Some(primary), "{source}");
+            assert_eq!(parsed.secondary_group_size, secondary, "{source}");
+        }
+        // Fraction-only scientific mantissas need a distinct lowering contract.
+        for source in [
+            ".00E0",
+            ".##E+00",
+            ",0E0",
+            ",,0",
+            ",0,",
+            ",0,,0",
+            ",.0",
+            "..0",
+            ".,0",
+            "'literal.,'0,##0",
+        ] {
+            let error = parse_number_pattern(source)
+                .err()
+                .unwrap_or_else(|| panic!("invalid or unsupported pattern accepted: {source}"));
+            assert!(error.contains(source), "{source}: {error}");
+        }
     }
 
     #[test]
