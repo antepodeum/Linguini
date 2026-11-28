@@ -5,17 +5,17 @@
  * @returns {string}
  */
 export function scientificLatin(value) {
-  let decimal = parseGeneratedDecimal(value);
+  const decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
-  let exponent;
-  ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
-  let rounded = roundTo3FractionDigits(decimal);
+  const mantissa = scientificGeneratedDecimal(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo3FractionDigits(mantissa);
   if (rounded.integer.length > 1) {
     exponent++;
     rounded = { integer: "1", fraction: "000" };
   }
   const integer = rounded.integer;
-  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === mantissa ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "." + fraction : integer;
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
   const scientific = formatted + "E" + (exponent < 0 ? "-" : "+") + exponentDigits;
@@ -28,17 +28,17 @@ export function scientificLatin(value) {
  * @returns {string}
  */
 export function scientificPersian(value) {
-  let decimal = parseGeneratedDecimal(value);
+  const decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
-  let exponent;
-  ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
-  let rounded = roundTo3FractionDigits(decimal);
+  const mantissa = scientificGeneratedDecimal(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo3FractionDigits(mantissa);
   if (rounded.integer.length > 1) {
     exponent++;
     rounded = { integer: "1", fraction: "000" };
   }
   const integer = rounded.integer;
-  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === mantissa ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "٫" + fraction : integer;
   const localized = formatted.replace(/\d/g, localizeDigit);
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
@@ -52,17 +52,17 @@ export function scientificPersian(value) {
  * @returns {string}
  */
 export function scientificAdlam(value) {
-  let decimal = parseGeneratedDecimal(value);
+  const decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
-  let exponent;
-  ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
-  let rounded = roundTo3FractionDigits(decimal);
+  const mantissa = scientificGeneratedDecimal(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo3FractionDigits(mantissa);
   if (rounded.integer.length > 1) {
     exponent++;
     rounded = { integer: "1", fraction: "000" };
   }
   const integer = rounded.integer;
-  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === mantissa ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "." + fraction : integer;
   const localized = formatted.replace(/\d/g, __lgl_digit2);
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
@@ -76,17 +76,17 @@ export function scientificAdlam(value) {
  * @returns {string}
  */
 export function scientificMixed(value) {
-  let decimal = parseGeneratedDecimal(value);
+  const decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
-  let exponent;
-  ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
-  let rounded = roundTo3FractionDigits(decimal);
+  const mantissa = scientificGeneratedDecimal(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo3FractionDigits(mantissa);
   if (rounded.integer.length > 1) {
     exponent++;
     rounded = { integer: "1", fraction: "000" };
   }
   const integer = rounded.integer;
-  const fraction = rounded === decimal ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
+  const fraction = rounded === mantissa ? rounded.fraction : rounded.fraction.replace(/0+$/, "");
   const formatted = fraction ? integer + "." + fraction : integer;
   const localized = formatted.replace(/\d/g, __lgl_digit3);
   const exponentDigits = String(Math.abs(exponent)).padStart(2, "0");
@@ -163,11 +163,11 @@ function parseGeneratedDecimal(value) {
 
 /**
  * @param {__lgl_Decimal} decimal
- * @returns {{ decimal: __lgl_Decimal, exponent: number }}
+ * @returns {__lgl_Decimal & { exponent: number }}
  */
 function scientificGeneratedDecimal(decimal) {
   if (decimal.integer === "0" && decimal.fraction === "") {
-    return { decimal: { ...decimal, integer: "0", fraction: "" }, exponent: 0 };
+    return { negative: decimal.negative, integer: "0", fraction: "", exponent: 0 };
   }
   /** @type {string} */
   let source;
@@ -182,11 +182,9 @@ function scientificGeneratedDecimal(decimal) {
     exponent = -first - 1;
   }
   return {
-    decimal: {
-      negative: decimal.negative,
-      integer: source[0],
-      fraction: source.slice(1).replace(/0+$/, ""),
-    },
+    negative: decimal.negative,
+    integer: source[0],
+    fraction: source.slice(1).replace(/0+$/, ""),
     exponent,
   };
 }

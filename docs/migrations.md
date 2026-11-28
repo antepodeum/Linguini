@@ -28,6 +28,12 @@ Regenerated classifiers whose shared rules require zero visible fractional digit
 visible digits, and invalid inputs retain their errors. Public APIs and application configuration
 are unchanged; no application changes are required.
 
+## Scientific formatter internals
+
+Regenerated scientific formatters use a single normalized mantissa/exponent record. Input
+representations, sign handling, rounding, localized symbols, and public signatures are unchanged.
+This removes an intermediate result wrapper; no application changes are required.
+
 ## Native date type annotations
 
 Generated native date annotations now use `globalThis.Date`, preserving native `Date` arguments

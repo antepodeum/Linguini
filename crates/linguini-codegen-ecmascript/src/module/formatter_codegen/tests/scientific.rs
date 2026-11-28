@@ -100,6 +100,16 @@ fn scientific_symbols_and_numeric_digits_are_compiled_independently() {
     );
     script.push_str(&checks);
     script.push_str(
+        r#"
+for (const value of ["0", "-0", "12.34", "-0.00001234", "1e8191", "1e-8191"]) {
+  const original = Object.freeze(parseGeneratedDecimal(value));
+  const expected = {...original};
+  scientificGeneratedDecimal(original);
+  assert.deepEqual(original, expected, "normalization mutated its input");
+}
+"#,
+    );
+    script.push_str(
         "assert.equal(digitCallbacks.size, 6);\nString.prototype.replace = originalReplace;\n",
     );
     script.push_str("console.log('ok');\n");

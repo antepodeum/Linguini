@@ -3,17 +3,18 @@
 {% set formatted_value = "integer" if fraction_empty and plan.exponent_digits is none and (not plan.decimal_separator_always or inline_decimal) else "formatted" -%}
 {% set numeric_value = "localized" if plan.digits != "0123456789" else formatted_value -%}
 {% set output_value = "scientific" if plan.exponent_digits is not none else numeric_value -%}
+{% set rounding_input = "mantissa" if plan.exponent_digits is not none else "decimal" -%}
 /**
  * @param {__lgl_Numeric} value
  * @returns {string}
  */
 {% if exported %}export {% endif %}function {{ name }}(value) {
-  {% if plan.scale != 1 or plan.exponent_digits is not none %}let{% else %}const{% endif %} decimal = parseGeneratedDecimal(value);
+  {% if plan.scale != 1 %}let{% else %}const{% endif %} decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
 {% if plan.scale != 1 %}  decimal = scaleBy{{ plan.scale }}(decimal);
-{% endif %}{% if plan.exponent_digits is not none %}  let exponent;
-  ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
-{% endif %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} rounded = {% if plan.max_significant is not none %}roundTo{{ plan.max_significant }}SignificantDigits(decimal){% else %}{{ plan.rounding_helper }}(decimal){% endif %};
+{% endif %}{% if plan.exponent_digits is not none %}  const mantissa = scientificGeneratedDecimal(decimal);
+  let exponent = mantissa.exponent;
+{% endif %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} rounded = {% if plan.max_significant is not none %}roundTo{{ plan.max_significant }}SignificantDigits({{ rounding_input }}){% else %}{{ plan.rounding_helper }}({{ rounding_input }}){% endif %};
 {% if plan.exponent_digits is not none %}  if (rounded.integer.length > 1) {
 {% if plan.carry_fraction is not none %}    exponent++;
     rounded = { integer: "1", fraction: {{ plan.carry_fraction|js }} };

@@ -7,12 +7,12 @@ rounded.fraction{% if unpadded_rounding and plan.min_fraction > 0 %}.padEnd({{ p
 {%- endset -%}
 {% elif plan.min_fraction == 0 -%}
 {% set fraction_value -%}
-{% if unpadded_rounding %}rounded === decimal ? rounded.fraction : {% endif -%}
+{% if unpadded_rounding %}rounded === {{ rounding_input }} ? rounded.fraction : {% endif -%}
 rounded.fraction.replace(/0+$/, "")
 {%- endset -%}
 {% else -%}
 {% set fraction_value -%}
-{% if unpadded_rounding %}rounded === decimal ? rounded.fraction.padEnd({{ plan.min_fraction }}, "0") : {% endif -%}
+{% if unpadded_rounding %}rounded === {{ rounding_input }} ? rounded.fraction.padEnd({{ plan.min_fraction }}, "0") : {% endif -%}
 rounded.fraction.slice(0, {{ plan.min_fraction }}) + rounded.fraction.slice({{ plan.min_fraction }}).replace(/0+$/, "")
 {%- endset -%}
 {% endif -%}

@@ -187,11 +187,11 @@ export function significant_visible(value) {
  * @returns {string}
  */
 export function scientific_ordinary(value) {
-  let decimal = parseGeneratedDecimal(value);
+  const decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
-  let exponent;
-  ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
-  let rounded = roundTo0FractionDigits(decimal);
+  const mantissa = scientificGeneratedDecimal(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo0FractionDigits(mantissa);
   if (rounded.integer.length > 1) {
     exponent++;
     rounded = { integer: "1", fraction: "" };
@@ -209,11 +209,11 @@ export function scientific_ordinary(value) {
  * @returns {string}
  */
 export function scientific_visible(value) {
-  let decimal = parseGeneratedDecimal(value);
+  const decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
-  let exponent;
-  ({ decimal, exponent } = scientificGeneratedDecimal(decimal));
-  let rounded = roundTo0FractionDigits(decimal);
+  const mantissa = scientificGeneratedDecimal(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo0FractionDigits(mantissa);
   if (rounded.integer.length > 1) {
     exponent++;
     rounded = { integer: "1", fraction: "" };
@@ -294,11 +294,11 @@ function parseGeneratedDecimal(value) {
 
 /**
  * @param {__lgl_Decimal} decimal
- * @returns {{ decimal: __lgl_Decimal, exponent: number }}
+ * @returns {__lgl_Decimal & { exponent: number }}
  */
 function scientificGeneratedDecimal(decimal) {
   if (decimal.integer === "0" && decimal.fraction === "") {
-    return { decimal: { ...decimal, integer: "0", fraction: "" }, exponent: 0 };
+    return { negative: decimal.negative, integer: "0", fraction: "", exponent: 0 };
   }
   /** @type {string} */
   let source;
@@ -313,11 +313,9 @@ function scientificGeneratedDecimal(decimal) {
     exponent = -first - 1;
   }
   return {
-    decimal: {
-      negative: decimal.negative,
-      integer: source[0],
-      fraction: source.slice(1).replace(/0+$/, ""),
-    },
+    negative: decimal.negative,
+    integer: source[0],
+    fraction: source.slice(1).replace(/0+$/, ""),
     exponent,
   };
 }

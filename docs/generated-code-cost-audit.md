@@ -892,5 +892,34 @@ this is not a claim that every compiler traversal is eliminated. Generated code,
 and source-map bytes retain their existing snapshots. No runtime bytes or operations change,
 and no compiler timing or retained-heap measurement is claimed.
 
+## Scientific normalization records
+
+GEN-A81 replaces nested scientific normalization results with a flat mantissa/exponent record.
+Each zero/nonzero branch constructs one record rather than a decimal plus a result wrapper.
+The caller retains its original sign source and uses the normalized mantissa for both rounding
+and unchanged-record fraction reuse. Frozen canonical input checks retain immutability; the
+existing precision/carry, localized digits/symbols, padding, and expansion-bound corpora pass.
+All 50 formatter tests and the registered strict checked-JavaScript runtime fixture pass.
+
+Complete consumers compared with `496b424`, built and executed on Node 24.13.1, each retain
+one `render` export/chunk, no imports, and identical results for zero, negative zero, carries,
+positive/negative and extreme exponents, numbers, strings, and BigInts. Sizes are minified/gzip/
+Brotli bytes:
+
+| Vite | Selected digits | Before | After |
+| --- | --- | --- | --- |
+| 7.3.3 | Latin | 1856/903/835 | 1843/889/824 |
+| 7.3.3 | Persian | 1975/996/922 | 1962/982/907 |
+| 7.3.3 | Adlam | 1961/963/901 | 1948/948/882 |
+| 7.3.3 | Mixed BMP/supplementary | 2126/1015/942 | 2113/1001/929 |
+| 8.0.13 | Latin | 1831/883/815 | 1810/869/801 |
+| 8.0.13 | Persian | 1950/978/902 | 1929/961/884 |
+| 8.0.13 | Adlam | 1936/944/875 | 1915/929/862 |
+| 8.0.13 | Mixed BMP/supplementary | 2101/994/912 | 2080/980/905 |
+
+This removes one object construction in the normalization source. It is not a measured
+retained-heap or execution-time claim. Non-scientific implementations emit no new code.
+Engineering notation and its integer-width metadata remain separate, unfinished work.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

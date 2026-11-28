@@ -2085,6 +2085,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       stay unchanged. Complete Vite 7/8 consumers execute with byte-identical before/after bundles.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
+      Scientific normalization now returns one flat mantissa/exponent record instead of two
+      nested objects (GEN-A81). Its caller uses that same mantissa for rounding and fraction
+      reuse; signs and frozen inputs retain their behavior. All 50 formatter tests and strict
+      checked JS pass. Eight complete Vite 7/8 consumers preserve results and one import-free
+      chunk, saving 13/21 minified and 7–19 Brotli bytes. No timing or heap-size claim is made;
+      engineering integer widths and broader allocation/delivery requirements remain open.
       Proven zero-visible-fraction guards now reject finite native fractions before String/regex
       parsing (GEN-A79). Safe integer operations are unchanged. Executed Russian/Ukrainian cases
       disable text parsing, including subnormals; permissive/modular synthetic rules retain their
