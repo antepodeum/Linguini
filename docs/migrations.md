@@ -47,6 +47,11 @@ the original input at the new exponent, fixing outputs such as `000.7E0` with `9
 Native numeric previews share these plans and also support compiled significant precision,
 decimal scaling, and padding. Source-level number formatter options retain their existing surface.
 
+Regenerated significant rounding and padding helpers omit repeated leading-digit scans when all
+their callers supply normalized scientific mantissas. Ordinary callers retain general rounding
+and input-expansion checks. Formatted results, accepted inputs, and public APIs are unchanged;
+no application changes are required.
+
 ## Native date type annotations
 
 Generated native date annotations now use `globalThis.Date`, preserving native `Date` arguments

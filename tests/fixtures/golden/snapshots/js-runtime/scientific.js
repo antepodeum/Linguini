@@ -96,6 +96,30 @@ export function scientificMixed(value) {
 }
 
 /**
+ * @param {__lgl_Numeric} value
+ * @returns {string}
+ */
+export function scientificSignificant(value) {
+  const decimal = parseGeneratedDecimal(value);
+  if (!decimal) return String(value);
+  const mantissa = scientificGeneratedDecimal(decimal);
+  let exponent = mantissa.exponent;
+  let rounded = roundTo3SignificantDigits(mantissa);
+  if (rounded.integer.length > 1) {
+    exponent++;
+    rounded = { integer: "1", fraction: "00" };
+  }
+  const integer = rounded.integer;
+  let fraction = rounded.fraction.replace(/0+$/, "");
+  fraction = padTo3SignificantDigits(integer, fraction);
+  const formatted = fraction ? integer + "." + fraction : integer;
+  const exponentDigits = String(Math.abs(exponent));
+  const scientific = formatted + "E" + (exponent < 0 ? "-" : "") + exponentDigits;
+  const prefix = decimal.negative ? "-" : "";
+  return prefix + scientific;
+}
+
+/**
  * @typedef {object} __lgl_Decimal
  * @property {boolean} negative
  * @property {string} integer
@@ -187,6 +211,28 @@ function scientificGeneratedDecimal(decimal) {
     fraction: source.slice(1).replace(/0+$/, ""),
     exponent,
   };
+}
+
+/**
+ * @param {__lgl_Decimal} decimal
+ * @returns {{ integer: string, fraction: string }}
+ */
+function roundTo3SignificantDigits(decimal) {
+  if (decimal.integer === "0") return { integer: "0", fraction: "" };
+  const fraction = decimal.fraction.slice(0, 2).padEnd(2, "0");
+  if (decimal.fraction.length <= 2 || decimal.fraction[2] < "5") return { integer: decimal.integer, fraction };
+  const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(3, "0");
+  return { integer: digits.slice(0, -2), fraction: digits.slice(-2) };
+}
+
+/**
+ * @param {string} integer
+ * @param {string} fraction
+ * @returns {string}
+ */
+function padTo3SignificantDigits(integer, fraction) {
+  const current = integer === "0" ? 1 : integer.length + fraction.length;
+  return fraction.padEnd(fraction.length + Math.max(0, 3 - current), "0");
 }
 
 /**

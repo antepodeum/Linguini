@@ -1918,6 +1918,12 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       inactive locale, or scaffolding in initial page delivery; integrate with ESM-A3/MOD-A4.
       Numeric scale/scientific/significant/padding helpers now have independent demand flags,
       verified by isolated generated/executed plans and absence checks for unselected helpers.
+      Significant helpers now combine every caller's shape before omitting first-digit scans,
+      unreachable integer rounding, or derived fraction-limit checks (GEN-A84). Mixed ordinary
+      callers preserve the general path regardless of request order. All 800 ICU expectations
+      execute with both shared and isolated helpers; operation spies and frozen-record checks
+      cover normalization, padding, carries, and retained limits. Complete engineering consumers
+      save 71/70 Brotli bytes on Vite 7/8; unaffected numeric consumers retain their bytes.
       Identical date-name vectors also share one binding across selected formatter requests.
       Different widths and Russian formatting/standalone values remain distinct; executed Date
       getter counts are unchanged. Real bundles keep shared tables without retaining the unused

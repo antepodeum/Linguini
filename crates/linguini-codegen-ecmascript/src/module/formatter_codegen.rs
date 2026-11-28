@@ -123,13 +123,17 @@ fn number_helpers(plans: &[minijinja::Value]) -> String {
             .collect::<Vec<_>>()
     };
     let present = |plan: &minijinja::Value, key: &str| !plan.get_attr(key).unwrap().is_none();
+    let precision = precision::PrecisionHelpers::for_plans(plans, MAX_NUMBER_DECIMAL_DIGITS);
     let mut output = crate::templates::render(
         "number_helpers",
         context! {
             rounding_plans => unique("rounding_helper", &|plan| !present(plan, "max_significant") && plan.get_attr("unlimited_precision").unwrap() != minijinja::Value::from(true)),
             scale_plans => unique("scale", &|plan| plan.get_attr("scale").unwrap() != minijinja::Value::from(1)),
-            significant_plans => unique("max_significant", &|plan| present(plan, "max_significant")),
-            padding_plans => unique("min_significant", &|plan| present(plan, "min_significant")),
+            significant_plans => precision.rounding,
+            padding_plans => precision.padding,
+            significant_fraction_rounding => precision.variable_rounding,
+            significant_fraction_bounded => precision.fraction_bounded,
+            max_decimal_digits => MAX_NUMBER_DECIMAL_DIGITS,
             scientific_plans => unique("scientific_helper", &|plan| present(plan, "exponent_digits")),
             scientific_shift => plans.iter().any(|plan| present(plan, "exponent_digits") && !present(plan, "carry_fraction") && plan.get_attr("unlimited_precision").unwrap() != minijinja::Value::from(true)),
         },
@@ -142,6 +146,10 @@ fn number_helpers(plans: &[minijinja::Value]) -> String {
     }
     output
 }
+
+const MAX_NUMBER_DECIMAL_DIGITS: usize = 8192;
+
+mod precision;
 
 fn number_plan(
     pattern: &NumberPattern,

@@ -237,20 +237,8 @@ function shiftScientificMantissa(decimal, shift) {
  * @returns {{ integer: string, fraction: string }}
  */
 function roundTo3SignificantDigits(decimal) {
-  const combined = `${decimal.integer}${decimal.fraction}`;
-  const first = combined.search(/[1-9]/);
-  if (first < 0) return { integer: "0", fraction: "" };
-  const cut = first + 3;
-  if (cut >= decimal.integer.length) {
-    return roundGeneratedFraction(decimal, cut - decimal.integer.length);
-  }
-
-  const kept = decimal.integer.slice(0, cut);
-  const rounded = BigInt(kept) + (decimal.integer[cut] >= "5" ? 1n : 0n);
-  return {
-    integer: `${rounded}${"0".repeat(decimal.integer.length - cut)}`,
-    fraction: "",
-  };
+  if (decimal.integer === "0") return { integer: "0", fraction: "" };
+  return roundGeneratedFraction(decimal, 3 - decimal.integer.length);
 }
 
 /**
@@ -259,9 +247,7 @@ function roundTo3SignificantDigits(decimal) {
  * @returns {string}
  */
 function padTo3SignificantDigits(integer, fraction) {
-  const combined = `${integer}${fraction}`;
-  const first = combined.search(/[1-9]/);
-  const current = first < 0 ? 1 : combined.length - first;
+  const current = integer === "0" ? 1 : integer.length + fraction.length;
   return fraction.padEnd(fraction.length + Math.max(0, 3 - current), "0");
 }
 
@@ -296,7 +282,6 @@ function roundTo2FractionDigits(decimal) {
  * @returns {{ integer: string, fraction: string }}
  */
 function roundGeneratedFraction(decimal, fractionDigits) {
-  if (fractionDigits > MAX_GENERATED_DECIMAL_DIGITS) throwInvalidNumber();
   const fraction = decimal.fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0");
   if (decimal.fraction.length <= fractionDigits || decimal.fraction[fractionDigits] < "5") return { integer: decimal.integer, fraction };
   const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(fractionDigits + 1, "0");

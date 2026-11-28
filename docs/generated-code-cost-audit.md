@@ -956,5 +956,41 @@ These are absolute costs for corrected selected implementations. No execution-ti
 retained-heap improvement is claimed. GEN-A83 brings native previews onto these shared plans,
 including scaling, significant precision, and padding; it adds no application runtime code.
 
+## Normalized significant precision
+
+GEN-A84 collects the input shapes of every caller of each significant rounding/padding helper.
+Scientific normalization already establishes the first significant position. A helper used only
+by these mantissas therefore omits concatenating and searching the digits again. Its compiled
+integer-width bound also removes unreachable integer-rounding branches. Input-derived fraction
+limits remain checked when any ordinary caller needs the same dynamic rounding helper.
+
+When the only significant rounding precision has a one-digit normalized mantissa, the canonical
+fraction-rounding template emits its literal precision directly, without a dynamic helper.
+Padded result records, fresh zero records, and frozen input behavior are preserved. Ordinary
+unit-rounding helpers continue reusing unchanged canonical records. The proof is conservative
+for mixed callers and independent of their order; no runtime shape flag or CLDR data is added.
+
+The 800 independent ICU expectations execute both with all requests sharing helpers and with
+each request emitted alone. Additional mixed-precision checks retain ordinary tiny-fraction
+rounding, zero/significant padding, immutable inputs, and the 8,192-digit expansion error.
+Operation spies observe no first-digit search during normalized rounding/padding. This does
+not remove input parsing or the first significant search needed to normalize tiny input values.
+
+Complete consumers compared with `9f9d204` on Node 24.13.1 retain one `render` export/chunk,
+no imports, and identical results. Sizes are minified/gzip/Brotli bytes:
+
+| Vite | Selected pattern | Before | After |
+| --- | --- | --- | --- |
+| 7.3.3 | `##0.00E0` | 2357/1047/987 | 2111/978/916 |
+| 8.0.13 | `##0.00E0` | 2308/1030/956 | 2068/958/886 |
+
+Fixed `000.00E0`, unlimited `###E0`, quantum `##0.7E0`, the ordinary significant and scientific
+consumers of `decimal-separator.js`, and the Latin scientific consumer of `scientific.js` retain
+their previous bundle bytes on both Vite versions. A new explicit three-significant-digit
+scientific consumer costs 1979/924/863 and 1938/904/838 bytes respectively; it has no prior
+checked-fixture counterpart, so these are absolute sizes. No execution-time or retained-heap
+improvement is claimed. Multiple significant precisions retain their shared dynamic helper
+rather than duplicating a literal rounding body for every precision.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

@@ -4,7 +4,7 @@
  * @property {string} integer
  * @property {string} fraction
  */
-const MAX_GENERATED_DECIMAL_DIGITS = 8192;
+const MAX_GENERATED_DECIMAL_DIGITS = {{ max_decimal_digits }};
 
 /**
  * @param {__lgl_Numeric} value
@@ -124,16 +124,20 @@ function shiftScientificMantissa(decimal, shift) {
   };
 }
 
-{% endif %}{% for plan in significant_plans %}/**
+{% endif %}{% for entry in significant_plans %}{% set plan = entry.plan %}{% if entry.fixed_fraction is not none %}{% with fraction_digits=entry.fixed_fraction, increment="1", name=entry.name, normalized_significant=true %}{% include "number_rounding" %}{% endwith %}
+{% else %}/**
  * @param {__lgl_Decimal} decimal
  * @returns {{ "{{" }} integer: string, fraction: string }}
  */
 function roundTo{{ plan.max_significant }}SignificantDigits(decimal) {
-  const combined = `${decimal.integer}${decimal.fraction}`;
+{% if entry.integer_width is not none %}  if (decimal.integer === "0") return { integer: "0", fraction: "" };
+{% if entry.integer_width <= plan.max_significant %}  return roundGeneratedFraction(decimal, {% if entry.integer_width == 1 %}{{ plan.max_significant - 1 }}{% else %}{{ plan.max_significant }} - decimal.integer.length{% endif %});
+{% else %}  const cut = {{ plan.max_significant }};
+{% endif %}{% else %}  const combined = `${decimal.integer}${decimal.fraction}`;
   const first = combined.search(/[1-9]/);
   if (first < 0) return { integer: "0", fraction: "" };
   const cut = first + {{ plan.max_significant }};
-  if (cut >= decimal.integer.length) {
+{% endif %}{% if entry.integer_width is none or entry.integer_width > plan.max_significant %}  if (cut >= decimal.integer.length) {
     return roundGeneratedFraction(decimal, cut - decimal.integer.length);
   }
 
@@ -143,29 +147,31 @@ function roundTo{{ plan.max_significant }}SignificantDigits(decimal) {
     integer: `${rounded}${"0".repeat(decimal.integer.length - cut)}`,
     fraction: "",
   };
+{% endif -%}
 }
 
-{% endfor %}{% for plan in padding_plans %}/**
+{% endif %}{% endfor %}{% for entry in padding_plans %}{% set plan = entry.plan %}/**
  * @param {string} integer
  * @param {string} fraction
  * @returns {string}
  */
 function padTo{{ plan.min_significant }}SignificantDigits(integer, fraction) {
-  const combined = `${integer}${fraction}`;
+{% if entry.normalized %}  const current = integer === "0" ? 1 : integer.length + fraction.length;
+{% else %}  const combined = `${integer}${fraction}`;
   const first = combined.search(/[1-9]/);
   const current = first < 0 ? 1 : combined.length - first;
-  return fraction.padEnd(fraction.length + Math.max(0, {{ plan.min_significant }} - current), "0");
+{% endif %}  return fraction.padEnd(fraction.length + Math.max(0, {{ plan.min_significant }} - current), "0");
 }
 
 {% endfor %}{% for plan in rounding_plans %}{% with fraction_digits=plan.max_fraction, increment=plan.rounding, half=plan.rounding_half, half_fraction=plan.rounding_half_fraction, name=plan.rounding_helper %}{% include "number_rounding" %}{% endwith %}
-{% endfor %}{% if significant_plans %}/**
+{% endfor %}{% if significant_fraction_rounding %}/**
  * @param {__lgl_Decimal} decimal
  * @param {number} fractionDigits
  * @returns {{ "{{" }} integer: string, fraction: string }}
  */
 function roundGeneratedFraction(decimal, fractionDigits) {
-  if (fractionDigits > MAX_GENERATED_DECIMAL_DIGITS) throwInvalidNumber();
-  const fraction = decimal.fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0");
+{% if not significant_fraction_bounded %}  if (fractionDigits > MAX_GENERATED_DECIMAL_DIGITS) throwInvalidNumber();
+{% endif %}  const fraction = decimal.fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0");
   if (decimal.fraction.length <= fractionDigits || decimal.fraction[fractionDigits] < "5") return { integer: decimal.integer, fraction };
   const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(fractionDigits + 1, "0");
   return fractionDigits === 0

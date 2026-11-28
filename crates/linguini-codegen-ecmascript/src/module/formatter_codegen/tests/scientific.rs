@@ -10,6 +10,7 @@ fn scientific_and_engineering_widths_match_exact_icu_results() {
     let mut digit_bindings = DigitBindings::default();
     let mut plans = Vec::new();
     let mut script = String::from("import assert from 'node:assert/strict';\n");
+    let mut isolated = script.clone();
     let mut checks = String::new();
     let mut checked = crate::templates::render(
         "formatters/types",
@@ -49,24 +50,33 @@ fn scientific_and_engineering_widths_match_exact_icu_results() {
             ));
             checked_plans.push(plan.clone());
         }
-        script.push_str(&crate::templates::render(
+        let function = crate::templates::render(
             "formatters/number",
             minijinja::context! {name, plan => plan.clone(), exported => false},
-        ));
+        );
+        script.push_str(&function);
+        isolated.push_str("{\n");
+        isolated.push_str(&function);
+        isolated.push_str(&number_helpers(std::slice::from_ref(&plan)));
         plans.push(plan);
         for sample in case["samples"].as_array().unwrap() {
-            checks.push_str(&format!(
+            let check = format!(
                 "assert.equal({name}({input}), {expected}, {label});\n",
                 input = sample["input"],
                 expected = sample["expected"],
                 label = serde_json::json!(format!("{}: {}", case["pattern"], sample["input"]))
-            ));
+            );
+            checks.push_str(&check);
+            isolated.push_str(&check);
         }
+        isolated.push_str("}\n");
     }
     script.push_str(&number_helpers(&plans));
     script.push_str(&checks);
     script.push_str("console.log('ok');\n");
     assert_eq!(execute(&script), "ok");
+    isolated.push_str("console.log('ok');\n");
+    assert_eq!(execute(&isolated), "ok");
     checked.push_str(&number_helpers(&checked_plans));
     assert_eq!(
         checked
@@ -241,6 +251,19 @@ fn scientific_runtime_snapshot_is_strict_checked() {
         ));
         plans.push(plan);
     }
+    let numbers = compiled_number_formatting("en").unwrap();
+    let mut pattern = numbers.decimal_pattern;
+    pattern.positive.primary_group_size = None;
+    pattern.positive.secondary_group_size = None;
+    pattern.positive.exponent_digits = Some(1);
+    pattern.positive.min_significant_digits = Some(3);
+    pattern.positive.max_significant_digits = Some(3);
+    let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
+    output.push_str(&crate::templates::render(
+        "formatters/number",
+        minijinja::context! {name => "scientificSignificant", plan => plan.clone(), exported => true},
+    ));
+    plans.push(plan);
     output.push_str(&number_helpers(&plans));
     let snapshot = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/golden/snapshots/js-runtime/scientific.js");

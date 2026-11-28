@@ -1,6 +1,117 @@
 use super::*;
 
 #[test]
+fn significant_helpers_require_normalized_inputs_from_every_caller() {
+    let numbers = compiled_number_formatting("en").unwrap();
+    for (width, ordinary_precision, reverse) in [
+        (1, None, false),
+        (3, None, false),
+        (4, None, false),
+        (3, Some(3), false),
+        (3, Some(3), true),
+        (3, Some(4), false),
+        (3, Some(4), true),
+    ] {
+        let mut bindings = DigitBindings::default();
+        let mut scientific = numbers.decimal_pattern;
+        scientific.positive.max_integer_digits = Some(width);
+        scientific.positive.exponent_digits = Some(1);
+        scientific.positive.min_fraction_digits = 2;
+        scientific.positive.max_fraction_digits = 2;
+        if width == 1 {
+            scientific.positive.min_significant_digits = Some(3);
+            scientific.positive.max_significant_digits = Some(3);
+        }
+        let mut plans = vec![number_plan(
+            &scientific,
+            None,
+            &numbers,
+            None,
+            &mut bindings,
+        )];
+        if let Some(precision) = ordinary_precision {
+            let mut ordinary = numbers.decimal_pattern;
+            ordinary.positive.min_significant_digits = Some(precision);
+            ordinary.positive.max_significant_digits = Some(precision);
+            plans.push(number_plan(&ordinary, None, &numbers, None, &mut bindings));
+        } else {
+            // Sharing the unit-rounding template must retain ordinary record reuse.
+            plans.push(number_plan(
+                &numbers.decimal_pattern,
+                None,
+                &numbers,
+                None,
+                &mut bindings,
+            ));
+        }
+        if reverse {
+            plans.reverse();
+        }
+        let helpers = number_helpers(&plans);
+        let normalized = ordinary_precision != Some(3);
+        assert_eq!(
+            helpers.contains("function roundGeneratedFraction("),
+            width != 1,
+            "only a single one-digit normalized precision can use literal fraction rounding"
+        );
+        if width != 1 {
+            assert_eq!(
+                helpers.contains("if (fractionDigits > MAX_GENERATED_DECIMAL_DIGITS)"),
+                ordinary_precision.is_some(),
+                "ordinary significant inputs require the expansion guard"
+            );
+        }
+        let ordinary_checks = if let Some(precision) = ordinary_precision {
+            format!(
+                r#"
+const tiny = Object.freeze({{integer:'0',fraction:'00123456'}});
+assert.deepEqual(roundTo{precision}SignificantDigits(tiny),{{integer:'0',fraction:{fraction:?}}});
+assert.equal(padTo{precision}SignificantDigits('0','001'),{padded:?});
+assert.throws(()=>roundTo{precision}SignificantDigits({{integer:'0',fraction:'0'.repeat(8190)+'1'}}),RangeError);
+"#,
+                fraction = if precision == 3 { "00123" } else { "001235" },
+                padded = if precision == 3 { "00100" } else { "001000" },
+            )
+        } else {
+            "const ordinary=Object.freeze(parseGeneratedDecimal('1.25')); assert.equal(roundTo3FractionDigits(ordinary),ordinary);".to_owned()
+        };
+        let samples = match width {
+            1 => "[['0','','0',''],['1','','1','00'],['1','23456','1','23'],['9','995','10','00']]",
+            3 => "[['0','','0',''],['1','','1','00'],['12','3456','12','3'],['123','45','123',''],['999','5','1000','']]",
+            4 => "[['0','','0',''],['1','','1','00'],['1234','5','1230',''],['9999','5','10000','']]",
+            _ => unreachable!(),
+        };
+        let script = format!(
+            r#"{helpers}
+import assert from 'node:assert/strict';
+const originalSearch=String.prototype.search;
+let searches=0;
+String.prototype.search=function(pattern){{searches++;return originalSearch.call(this,pattern);}};
+for (const [integer,fraction,expectedInteger,expectedFraction] of {samples}) {{
+  const decimal=Object.freeze({{integer,fraction}});
+  const result=roundTo3SignificantDigits(decimal);
+  assert.deepEqual(result,{{integer:expectedInteger,fraction:expectedFraction}});
+  assert.deepEqual(decimal,{{integer,fraction}},'rounding mutated its input');
+  assert.notEqual(result,decimal,'significant rounding retains its fresh padded record');
+}}
+assert.equal(padTo3SignificantDigits('1',''),'00');
+assert.equal(padTo3SignificantDigits('0',''),'00');
+assert.equal(padTo3SignificantDigits('12','3'),'3');
+assert.equal(searches===0,{normalized},'all callers must support the normalized shape proof');
+{ordinary_checks}
+String.prototype.search=originalSearch;
+console.log('ok');
+"#
+        );
+        assert_eq!(
+            execute(&script),
+            "ok",
+            "width={width}, ordinary={ordinary_precision:?}, reverse={reverse}"
+        );
+    }
+}
+
+#[test]
 fn unchanged_rounding_reuses_canonical_records_without_padding_or_mutation() {
     let mut digit_bindings = DigitBindings::default();
     let numbers = compiled_number_formatting("en").unwrap();
