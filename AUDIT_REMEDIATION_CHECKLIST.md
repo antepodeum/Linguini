@@ -770,8 +770,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       Significant precision, decimal scaling, and Unicode padding render through a dedicated
       numeric module. The same 800 exact ICU scientific/engineering results pass natively;
       decimal-visibility and optional-integer corpora verify previously rejected compiled styles.
-      The native u16 quantum bound and broader date-input parity remain open.
-      now honor localized negative affixes, minimum grouping thresholds, and pinned currency
+      Native previews now also support wide decimal rounding increments (GEN-A89). Small
+      increments retain integer arithmetic; larger ones use exact decimal remainder/addition
+      with the shared compiled half-way threshold. Nineteen plans and 506 independent rational
+      expectations execute in both native and generated output, including an 8,000-digit input.
+      Significant precision ignores inactive fraction quanta. Broader date-input parity remains open.
+      Numeric previews honor localized negative affixes, minimum grouping thresholds, and pinned currency
       symbols. Date-only previews now reuse production request/pattern/symbol/day-period/week
       plans for exact skeletons, time-only output, and composed styles. All source-selectable
       skeletons across 508 resolved locales render; 2,880 comparisons across 12 locales and 30

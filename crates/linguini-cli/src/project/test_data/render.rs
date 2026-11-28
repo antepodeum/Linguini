@@ -1117,93 +1117,6 @@ fn parse_decimal(value: &str) -> Result<DecimalParts, RenderError> {
     })
 }
 
-fn round_fraction(
-    integer: &mut String,
-    fraction: &mut String,
-    max_digits: usize,
-    rounding_increment: u16,
-) {
-    let source_fraction = std::mem::take(fraction);
-    let mut kept_fraction = source_fraction
-        .get(..max_digits.min(source_fraction.len()))
-        .unwrap_or_default()
-        .to_owned();
-    kept_fraction.extend(std::iter::repeat_n(
-        '0',
-        max_digits.saturating_sub(kept_fraction.len()),
-    ));
-    let discarded = source_fraction
-        .get(max_digits.min(source_fraction.len())..)
-        .unwrap_or_default();
-    let scaled = format!("{integer}{kept_fraction}");
-    let quantum = u32::from(rounding_increment.max(1));
-    let (mut quotient, remainder) = divide_decimal_by_u32(&scaled, quantum);
-    if should_round_up(remainder, discarded, quantum) {
-        increment_integer(&mut quotient);
-    }
-    let mut rounded = multiply_decimal_by_u32(&quotient, quantum);
-    let required_length = max_digits.saturating_add(1);
-    if rounded.len() < required_length {
-        rounded.insert_str(0, &"0".repeat(required_length - rounded.len()));
-    }
-    if max_digits == 0 {
-        *integer = rounded;
-        return;
-    }
-    let split = rounded.len() - max_digits;
-    *integer = rounded[..split].to_owned();
-    *fraction = rounded[split..].to_owned();
-}
-
-fn divide_decimal_by_u32(value: &str, divisor: u32) -> (String, u32) {
-    debug_assert_ne!(divisor, 0);
-    let mut quotient = String::with_capacity(value.len());
-    let mut remainder = 0_u32;
-    for byte in value.bytes() {
-        let current = u64::from(remainder) * 10 + u64::from(byte - b'0');
-        let digit = u32::try_from(current / u64::from(divisor)).expect("quotient digit fits");
-        remainder = u32::try_from(current % u64::from(divisor)).expect("remainder fits");
-        if !quotient.is_empty() || digit != 0 {
-            quotient.push(char::from(
-                b'0' + u8::try_from(digit).expect("single decimal digit"),
-            ));
-        }
-    }
-    if quotient.is_empty() {
-        quotient.push('0');
-    }
-    (quotient, remainder)
-}
-
-fn should_round_up(remainder: u32, discarded: &str, quantum: u32) -> bool {
-    if discarded.is_empty() {
-        return remainder * 2 >= quantum;
-    }
-    let exact_remainder = format!("{remainder}{discarded}");
-    let doubled = multiply_decimal_by_u32(&exact_remainder, 2);
-    let threshold = format!("{quantum}{}", "0".repeat(discarded.len()));
-    compare_decimal(&doubled, &threshold).is_ge()
-}
-
-fn multiply_decimal_by_u32(value: &str, multiplier: u32) -> String {
-    let mut reversed = Vec::with_capacity(value.len() + 5);
-    let mut carry = 0_u64;
-    for byte in value.bytes().rev() {
-        let product = u64::from(byte - b'0') * u64::from(multiplier) + carry;
-        reversed.push(b'0' + u8::try_from(product % 10).expect("single decimal digit"));
-        carry = product / 10;
-    }
-    while carry != 0 {
-        reversed.push(b'0' + u8::try_from(carry % 10).expect("single decimal digit"));
-        carry /= 10;
-    }
-    while reversed.len() > 1 && reversed.last() == Some(&b'0') {
-        reversed.pop();
-    }
-    reversed.reverse();
-    String::from_utf8(reversed).expect("ASCII decimal digits")
-}
-
 fn compare_decimal(left: &str, right: &str) -> std::cmp::Ordering {
     let left = left.trim_start_matches('0');
     let right = right.trim_start_matches('0');
@@ -1228,6 +1141,7 @@ fn increment_integer(integer: &mut String) {
 mod tests {
     mod currency_affixes;
     mod decimal_separator;
+    mod number_rounding;
     mod optional_integer;
     mod plural_inputs;
     mod scientific;
@@ -1496,22 +1410,27 @@ mod tests {
             format_number_pattern("123456789.25", &pattern, &numbers, None, None).unwrap(),
             "12,34,56,789.25"
         );
-        for mutation in 0..4 {
+        for mutation in 0..3 {
             let mut pattern = numbers.decimal_pattern;
             match mutation {
                 0 => pattern.positive.primary_group_size = Some(0),
                 1 => pattern.positive.scale = 2,
-                2 => pattern.positive.rounding_increment = Some("invalid"),
-                _ => pattern.positive.rounding_increment = Some("65536"),
+                _ => pattern.positive.rounding_increment = Some("invalid"),
             }
             assert!(
                 matches!(
                     format_number_pattern("123", &pattern, &numbers, None, None),
                     Err(RenderError::Unsupported { .. })
                 ),
-                "invalid or unsupported preview plans must fail explicitly"
+                "invalid preview plans must fail explicitly"
             );
         }
+        let mut pattern = numbers.decimal_pattern;
+        pattern.positive.rounding_increment = Some("65536");
+        assert_eq!(
+            format_number_pattern("123", &pattern, &numbers, None, None).unwrap(),
+            "131.072"
+        );
     }
 
     #[test]

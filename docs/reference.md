@@ -234,6 +234,10 @@ The shared planner resolves fragments before target rendering, preserving their 
 explicit negative affixes. Code markers are letters for `alphaNextToNumber` selection; mixed
 slots use the marker nearest the number. Other currency display widths remain unsupported.
 
+Native numeric previews accept the shared rounding plan's decimal increment without the former
+`u16` limit. Fraction precision uses the selected quantum; significant precision uses unit
+rounding. Input expansion limits remain enforced independently of the increment's width.
+
 Schema path selection, locale-to-schema projection, root/nested namespace projection, and the
 documented nested message tree also live in `linguini-codegen`. Declaration order and source
 identity survive projection; target backends render the resulting messages/types themselves.

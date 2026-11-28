@@ -135,6 +135,14 @@ Padded number and currency output retains its existing Unicode width and placeme
 output to use specialized width calculations without constructing a character array; no API or
 configuration changes are required.
 
+## Native wide rounding increments
+
+Native numeric previews now accept compiled decimal rounding increments beyond the former
+65,535 bound, matching generated JavaScript. Small increments retain their integer arithmetic;
+larger increments use exact decimal arithmetic and the shared half-way threshold. Significant
+precision ignores an inactive fraction increment. Existing malformed-plan and input-size errors
+remain enforced. No application configuration or generated API changes are required.
+
 ## Vite 5 projects without a package name
 
 Page-demand analysis supports projects whose `package.json` omits `name`, including

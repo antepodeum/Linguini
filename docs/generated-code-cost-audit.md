@@ -1092,5 +1092,22 @@ imports or unselected affix literals. These are absolute minified/gzip/Brotli co
 No execution-time or retained-heap improvement is claimed. Other currency display widths and
 the broader exact page/helper requirements remain open.
 
+## Native wide rounding increments
+
+GEN-A89 removes the native preview's `u16` increment bound. A private numeric-rounding module
+retains the small-integer arithmetic path and adds exact decimal remainder/subtraction/addition
+for larger increments, using the shared compiled half-way threshold. Significant precision
+selects unit rounding before inspecting the inactive fraction quantum. Small half-way decisions
+also use the integer remainder and first discarded digit, removing their temporary remainder/
+threshold strings. No new dependency or application runtime implementation is introduced.
+
+Nineteen plans have 506 exact rational expectations, verified independently by
+`tests/support/number-quantum-oracle.py`. Native and generated formatters execute the same corpus,
+including odd/even ties, 16/32/64-bit boundaries, 255-digit increments, and an 8,000-digit input.
+The existing native numeric/scientific/padding/affix/input-limit corpora remain covered. Invalid
+plans still fail explicitly; 65,536 now has an actual formatted-result assertion. Generated
+production JavaScript and application payloads are unchanged, so no transfer-size, application
+speed, or measured retained-heap improvement is attributed to this native-only correction.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

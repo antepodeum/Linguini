@@ -1,13 +1,16 @@
 //! Exact numeric previews from shared compiled formatter plans.
 
+mod rounding;
+
 use super::{
-    increment_integer, missing_cldr_data, parse_decimal, round_fraction, DecimalParts, RenderError,
+    increment_integer, missing_cldr_data, parse_decimal, DecimalParts, RenderError,
     MAX_DECIMAL_DIGITS,
 };
 use linguini_cldr::{NumberFormatData, NumberPaddingPosition, NumberPattern};
 use linguini_codegen::{
     NumberFormatPlan, NumberGroupingPlan, NumberPrecisionPlan, NumberScientificPlan,
 };
+use rounding::{round_fraction, RoundingQuantum};
 
 pub(super) fn format_number_pattern(
     value: &str,
@@ -34,14 +37,13 @@ pub(super) fn format_number_plan(
     plan: &NumberFormatPlan,
     locale: &str,
 ) -> Result<String, RenderError> {
-    let rounding_increment =
-        plan.rounding
-            .increment
-            .parse::<u16>()
-            .map_err(|_| RenderError::Unsupported {
-                detail: "numeric preview rounding increment exceeds its arithmetic bound"
-                    .to_owned(),
-            })?;
+    let rounding_increment = if plan.precision() == NumberPrecisionPlan::Fraction {
+        RoundingQuantum::for_plan(&plan.rounding).ok_or_else(|| RenderError::Unsupported {
+            detail: "invalid compiled numeric rounding plan".to_owned(),
+        })?
+    } else {
+        RoundingQuantum::Small(1)
+    };
     let mut decimal = parse_decimal(value)?;
     decimal
         .fraction
@@ -209,7 +211,7 @@ fn normalize_scientific(
 fn round_precision(
     decimal: &mut DecimalParts,
     plan: &NumberFormatPlan,
-    increment: u16,
+    increment: RoundingQuantum<'_>,
     original: &str,
 ) -> Result<(), RenderError> {
     let digits = match plan.precision() {
@@ -251,7 +253,7 @@ fn round_precision(
         &mut decimal.fraction,
         digits,
         if matches!(plan.precision(), NumberPrecisionPlan::Significant { .. }) {
-            1
+            RoundingQuantum::Small(1)
         } else {
             increment
         },

@@ -1,6 +1,53 @@
 use super::*;
 
 #[test]
+fn wide_numeric_quanta_match_independent_exact_half_up_results() {
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/codegen/wide-number-quantum.json"
+    )))
+    .unwrap();
+    let numbers = compiled_number_formatting("en").unwrap();
+    let mut bindings = DigitBindings::default();
+    let mut plans = Vec::new();
+    let mut source = String::from("import assert from 'node:assert/strict';\n");
+    let mut checks = String::new();
+    for (index, case) in corpus["cases"].as_array().unwrap().iter().enumerate() {
+        let mut pattern = numbers.decimal_pattern;
+        pattern.positive.primary_group_size = None;
+        pattern.positive.secondary_group_size = None;
+        pattern.positive.min_fraction_digits = case["fraction_digits"].as_u64().unwrap() as u8;
+        pattern.positive.max_fraction_digits = pattern.positive.min_fraction_digits;
+        let compiled = linguini_codegen::NumberFormatPlan::new(
+            &pattern,
+            None,
+            &numbers,
+            case["quantum"].as_str(),
+        )
+        .unwrap();
+        let plan = number_plan_context(&compiled, &mut bindings);
+        let name = format!("wideQuantum{index}");
+        source.push_str(&crate::templates::render(
+            "formatters/number",
+            minijinja::context! {
+                name, plan => plan.clone(), exported => false,
+            },
+        ));
+        plans.push(plan);
+        for sample in case["samples"].as_array().unwrap() {
+            checks.push_str(&format!(
+                "assert.equal({name}({}),{});\n",
+                sample["input"], sample["expected"]
+            ));
+        }
+    }
+    source.push_str(&number_helpers(&plans));
+    source.push_str(&checks);
+    source.push_str("console.log('ok');\n");
+    assert_eq!(execute(&source), "ok");
+}
+
+#[test]
 fn significant_helpers_require_normalized_inputs_from_every_caller() {
     let numbers = compiled_number_formatting("en").unwrap();
     for (width, minimum, ordinary_precision, reverse) in [
