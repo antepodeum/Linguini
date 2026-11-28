@@ -877,5 +877,20 @@ Minified/gzip/Brotli bytes change from 925/537/485 to 963/545/492. The added sel
 trades 38 minified and 7 Brotli bytes for avoiding fractional-input text work. This establishes
 operation removal, without an execution-time or retained-heap claim.
 
+## Declaration provenance lookup
+
+GEN-A80 completes a separate source-map rendering follow-up: shared type declarations and
+message namespace types no longer recount the complete preceding output or search all schema
+origins for each member. A borrowed-name index preserves declaration-kind separation and the
+last matching origin. Each scope tracks its current line and maps newly appended fragments.
+Nested group documentation/opening lines and descendant/sibling offsets preserve their owners.
+
+For S distinct origins, the ordered index takes O(S) compiler scratch storage and O(S log S)
+construction; individual lookups take O(log S). Text counting no longer revisits growing prefixes
+within a scope. Nested type rendering still traverses the rendered child text at its ancestors;
+this is not a claim that every compiler traversal is eliminated. Generated code, declarations,
+and source-map bytes retain their existing snapshots. No runtime bytes or operations change,
+and no compiler timing or retained-heap measurement is claimed.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

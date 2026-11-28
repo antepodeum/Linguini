@@ -16,8 +16,10 @@ companions.
 ## Source-map generation
 
 Source-map generation now resolves source positions incrementally and counts newly emitted lines
-without rescanning the existing module. JavaScript, declarations, map contents, and public APIs
-retain their existing behavior; no application changes are required.
+without rescanning the existing module. Schema declaration rendering also indexes origins once
+and tracks each scope's emitted lines incrementally, preserving the last override's provenance.
+JavaScript, declarations, map contents, and public APIs retain their existing behavior; no
+application changes are required.
 
 ## Native fractional plural inputs
 

@@ -6,27 +6,27 @@ use linguini_syntax::Span;
 use crate::ecmascript::EcmaModuleKind;
 
 use super::names::{emit_docs, property_key, safe_identifier};
-use super::provenance::map_symbol_lines;
+use super::provenance::DeclarationOrigins;
 use super::signature::MessageCallSignature;
 use super::tree::MessageTree;
 
 pub(super) struct MessageTreeType<'a> {
     target: EcmaModuleKind,
-    schema: Option<&'a IrModule>,
+    origins: Option<DeclarationOrigins<'a>>,
 }
 
 impl<'a> MessageTreeType<'a> {
     pub(super) fn locale_declaration() -> Self {
         Self {
             target: EcmaModuleKind::Declaration,
-            schema: None,
+            origins: None,
         }
     }
 
     pub(super) fn schema(schema: &'a IrModule, target: EcmaModuleKind) -> Self {
         Self {
             target,
-            schema: Some(schema),
+            origins: Some(DeclarationOrigins::new(schema)),
         }
     }
 
@@ -35,7 +35,7 @@ impl<'a> MessageTreeType<'a> {
     }
 
     fn key(&self, name: &str, depth: usize) -> String {
-        if self.schema.is_some() && depth == 0 {
+        if self.origins.is_some() && depth == 0 {
             safe_identifier(name)
         } else {
             property_key(name)
@@ -46,12 +46,12 @@ impl<'a> MessageTreeType<'a> {
         &self,
         kind: IrSymbolKind,
         name: &str,
-        start: usize,
+        first_line: usize,
         body: &str,
         mappings: &mut Vec<(usize, Span)>,
     ) {
-        if let Some(schema) = self.schema {
-            map_symbol_lines(schema, kind, name, start, body, mappings);
+        if let Some(origins) = &self.origins {
+            origins.map_lines(kind, name, first_line, body, mappings);
         }
     }
 
@@ -65,6 +65,7 @@ impl<'a> MessageTreeType<'a> {
         let child_indent = "  ".repeat(depth + 1);
         let mut body = String::new();
         let mut mappings = Vec::new();
+        let mut next_line = 0;
         for entry in &tree.messages {
             let start = body.len();
             let signature = MessageCallSignature::from_message(&entry.signature);
@@ -85,10 +86,11 @@ impl<'a> MessageTreeType<'a> {
             self.map(
                 IrSymbolKind::Message,
                 &entry.signature.name,
-                start,
-                &body,
+                next_line,
+                &body[start..],
                 &mut mappings,
             );
+            next_line += body[start..].bytes().filter(|byte| *byte == b'\n').count();
         }
         for (name, child) in &tree.children {
             let start = body.len();
@@ -100,7 +102,8 @@ impl<'a> MessageTreeType<'a> {
             if self.target.is_declaration() {
                 emit_docs(&child.docs, &child_indent, &mut body);
             }
-            let first_line = body.bytes().filter(|byte| *byte == b'\n').count();
+            let first_line =
+                next_line + body[start..].bytes().filter(|byte| *byte == b'\n').count();
             let (ty, child_mappings) = self.render_tree(child, &path, depth + 1);
             let property = crate::templates::render(
                 "declarations/property",
@@ -115,10 +118,11 @@ impl<'a> MessageTreeType<'a> {
             self.map(
                 IrSymbolKind::Group,
                 &path,
-                start,
-                &body[..group_end],
+                next_line,
+                &body[start..group_end],
                 &mut mappings,
             );
+            next_line = first_line + property.bytes().filter(|byte| *byte == b'\n').count();
             mappings.extend(
                 child_mappings
                     .into_iter()

@@ -5,7 +5,7 @@ use crate::ecmascript::{EcmaModule, EcmaModuleOutput, EcmaStatement};
 
 use super::emit::{emit_enum, emit_type_alias};
 use super::names::{emit_docs_with_tags, safe_type_identifier, JsDocTag};
-use super::provenance::map_symbol_lines;
+use super::provenance::DeclarationOrigins;
 use super::shared_runtime::{shared_declarations, shared_runtime};
 use super::type_model::{render_jsdoc_type, render_string_union, TypeModel};
 
@@ -18,33 +18,35 @@ pub(super) fn shared_module(schema: &IrModule, output: EcmaModuleOutput) -> Ecma
     let mut module = EcmaModule::new(output);
     let mut types = String::new();
     let mut mappings = Vec::new();
+    let origins = DeclarationOrigins::new(schema);
+    let mut next_line = 0;
     if target.is_declaration() {
         for item in schema.enums() {
             let start = types.len();
             emit_enum(item, &mut types);
-            map_symbol_lines(
-                schema,
+            origins.map_lines(
                 IrSymbolKind::Enum,
                 &item.name,
-                start,
-                &types,
+                next_line,
+                &types[start..],
                 &mut mappings,
             );
+            next_line += types[start..].bytes().filter(|byte| *byte == b'\n').count();
         }
         for item in schema.type_aliases() {
             let start = types.len();
             emit_type_alias(item, &mut types);
-            map_symbol_lines(
-                schema,
+            origins.map_lines(
                 IrSymbolKind::TypeAlias,
                 &item.name,
-                start,
-                &types,
+                next_line,
+                &types[start..],
                 &mut mappings,
             );
+            next_line += types[start..].bytes().filter(|byte| *byte == b'\n').count();
         }
     } else {
-        emit_jsdoc_schema_types(schema, &mut types, &mut mappings);
+        emit_jsdoc_schema_types(schema, &origins, &mut types, &mut mappings);
     }
     let has_types = !types.trim().is_empty();
     if has_types {
@@ -72,9 +74,11 @@ pub(super) fn shared_module(schema: &IrModule, output: EcmaModuleOutput) -> Ecma
 
 fn emit_jsdoc_schema_types(
     schema: &IrModule,
+    origins: &DeclarationOrigins<'_>,
     output: &mut String,
     mappings: &mut Vec<(usize, Span)>,
 ) {
+    let mut next_line = 0;
     for item in schema.enums() {
         let start = output.len();
         let ty = render_string_union(&item.variants);
@@ -87,14 +91,17 @@ fn emit_jsdoc_schema_types(
             "",
             output,
         );
-        map_symbol_lines(
-            schema,
+        origins.map_lines(
             IrSymbolKind::Enum,
             &item.name,
-            start,
-            output,
+            next_line,
+            &output[start..],
             mappings,
         );
+        next_line += output[start..]
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count();
     }
     for item in schema.type_aliases() {
         let start = output.len();
@@ -107,14 +114,17 @@ fn emit_jsdoc_schema_types(
             "",
             output,
         );
-        map_symbol_lines(
-            schema,
+        origins.map_lines(
             IrSymbolKind::TypeAlias,
             &item.name,
-            start,
-            output,
+            next_line,
+            &output[start..],
             mappings,
         );
+        next_line += output[start..]
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count();
     }
 }
 

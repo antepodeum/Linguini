@@ -1539,6 +1539,10 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       No generated JS/TS runtime sources belong under Rust `src/`; generation happens during builds.
       Backend-independent type models, requirement analysis, and message dependency slicing
       live in `linguini-codegen`; ECMAScript rendering stays in `linguini-codegen-ecmascript`.
+      Declaration provenance now indexes schema origins once and counts only newly appended
+      fragments within each scope (GEN-A80). Last overrides, kind separation, nested group and
+      sibling positions retain their decoded source-map contracts. This compiler improvement
+      preserves output bytes and does not close remaining syntax/helper specialization work.
 
 - [x] ESM-M13 — Emit one JavaScript runtime plus declarations from the shared semantic plan.
       Remove TypeScript implementation generation and per-template TypeScript runtime branches.
