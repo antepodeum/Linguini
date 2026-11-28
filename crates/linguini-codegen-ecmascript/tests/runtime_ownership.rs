@@ -78,6 +78,30 @@ fn production_runtime_ownership_excludes_paired_sources_and_retired_emitters() {
                     path.display()
                 );
             }
+            if matches!(
+                path.file_name().and_then(|name| name.to_str()),
+                Some(
+                    "entry.rs"
+                        | "runtime.rs"
+                        | "globals.rs"
+                        | "locale.rs"
+                        | "semantic.rs"
+                        | "message.rs"
+                        | "project_output.rs"
+                )
+            ) {
+                for retired in [
+                    "target: EcmaModuleKind",
+                    "import_path_for_target",
+                    "strip_suffix(\".ts\")",
+                ] {
+                    assert!(
+                        !production.contains(retired),
+                        "runtime artifacts must have one canonical JavaScript path: {} ({retired})",
+                        path.display()
+                    );
+                }
+            }
         }
         if path.parent()
             == Some(

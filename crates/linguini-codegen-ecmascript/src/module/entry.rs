@@ -22,20 +22,12 @@ pub fn compile_project_artifact_module(
     project: &ValidatedEcmaProject<'_>,
     artifact: &EcmaProjectArtifact,
 ) -> CompiledEcmaProjectModule {
-    compile_project_artifact_module_impl(project, artifact, EcmaModuleKind::JavaScript)
-}
-
-fn compile_project_artifact_module_impl(
-    project: &ValidatedEcmaProject<'_>,
-    artifact: &EcmaProjectArtifact,
-    target: EcmaModuleKind,
-) -> CompiledEcmaProjectModule {
     let output_path = artifact.module_path.clone();
     let module = project_module(
         &project.locales,
         project.options.base_locale.as_deref(),
         artifact.kind,
-        EcmaModuleOutput::new(target, output_path, None),
+        EcmaModuleOutput::new(EcmaModuleKind::JavaScript, output_path, None),
     );
     let rendered = module.render(&[]);
     CompiledEcmaProjectModule {
@@ -143,7 +135,7 @@ mod tests {
                 javascript
                     .code
                     .strip_suffix(&format!("//# sourceMappingURL={map_name}\n"))
-                    .expect("TypeScript source-map trailer"),
+                    .expect("JavaScript source-map trailer"),
                 project_file.contents
             );
             assert!(javascript

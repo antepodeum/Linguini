@@ -287,6 +287,11 @@ Custom Rust codegen callers configure an embedded plural implementation through
 JavaScript export scope; callers use `plural_import` only when the plural
 function is supplied by another module.
 
+Runtime artifact descriptors carry canonical `.js` module paths. Use descriptors returned by the
+validated project; manually constructed records must follow the same path contract. Runtime
+artifact compilers enforce this suffix. Declaration companions are generated separately from
+the shared type and signature models.
+
 Bundler integrations enumerate `locale_runtime_artifacts` from a validated project, then compile
 each artifact with `compile_locale_runtime_artifact_module`. Runtime artifacts share helper-demand analysis,
 canonical CLDR inputs, artifact source identities, and source-map ownership.

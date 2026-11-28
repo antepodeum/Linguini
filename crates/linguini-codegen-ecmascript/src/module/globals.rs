@@ -10,7 +10,7 @@ use super::emit::{
     emit_variables, module_imports,
 };
 use super::message::ordered_sources;
-use super::names::import_path_for_target;
+use super::names::javascript_import_path;
 use super::{
     locale_global_value_names, locale_globals, locale_module_for_schema, locale_runtime_import,
     project_locale_options, visible_schema, EcmaCodegenError, EcmaLocaleGlobalsArtifact,
@@ -44,26 +44,13 @@ impl CompiledEcmaLocaleGlobalsModule {
     }
 }
 
+/// Compile a canonical `.js` locale-global artifact from the validated project plan.
 pub fn compile_locale_globals_artifact_module(
     project: &ValidatedEcmaProject<'_>,
     artifact: &EcmaLocaleGlobalsArtifact,
     sources: &[EcmaSource],
 ) -> Result<CompiledEcmaLocaleGlobalsModule, EcmaCodegenError> {
-    compile_locale_globals_artifact_module_impl(
-        project,
-        artifact,
-        sources,
-        EcmaModuleKind::JavaScript,
-    )
-}
-
-fn compile_locale_globals_artifact_module_impl(
-    project: &ValidatedEcmaProject<'_>,
-    artifact: &EcmaLocaleGlobalsArtifact,
-    sources: &[EcmaSource],
-    target: EcmaModuleKind,
-) -> Result<CompiledEcmaLocaleGlobalsModule, EcmaCodegenError> {
-    let module = locale_globals_artifact_module(project, artifact, target)?;
+    let module = locale_globals_artifact_module(project, artifact)?;
     let source_records = ordered_sources(&artifact.source_ids, sources)?;
     let rendered = module.render(&source_records);
     Ok(CompiledEcmaLocaleGlobalsModule {
@@ -77,7 +64,6 @@ fn compile_locale_globals_artifact_module_impl(
 pub(super) fn locale_globals_artifact_module(
     project: &ValidatedEcmaProject<'_>,
     artifact: &EcmaLocaleGlobalsArtifact,
-    target: EcmaModuleKind,
 ) -> Result<EcmaModule, EcmaCodegenError> {
     let locale = project
         .locales
@@ -89,15 +75,12 @@ pub(super) fn locale_globals_artifact_module(
     let options = project_locale_options(&locale.locale, &project.options);
     let schema = visible_schema(project.schema, &options);
     let locale_module = locale_module_for_schema(&locale.module, &schema);
-    let output_path = artifact
-        .module_path
-        .strip_suffix(".ts")
-        .map_or_else(|| artifact.module_path.clone(), |path| format!("{path}.js"));
+    let output_path = artifact.module_path.clone();
     let module = locale_globals_module(
         &schema,
         &locale_module,
         &options,
-        EcmaModuleOutput::new(target, output_path, None),
+        EcmaModuleOutput::new(EcmaModuleKind::JavaScript, output_path, None),
     );
     Ok(module)
 }
@@ -108,16 +91,15 @@ pub(super) fn locale_globals_module(
     options: &EcmaOptions,
     output: EcmaModuleOutput,
 ) -> EcmaModule {
-    let target = output.target();
     let globals_schema = IrModuleBuilder::seeded(schema)
         .retain_symbols(|kind, _| !matches!(kind, IrSymbolKind::Message | IrSymbolKind::Group))
         .build()
         .expect("globals schema projection preserves unique declaration names");
     let globals = locale_globals(locale);
     let facts = super::facts::ExpressionFacts::for_module(schema, locale);
-    let shared_import_path = import_path_for_target("../../shared", target);
+    let shared_import_path = javascript_import_path("../../shared");
     let mut imports = module_imports(&globals_schema, &globals, options, &shared_import_path);
-    let runtime_import_path = import_path_for_target("./_runtime", target);
+    let runtime_import_path = javascript_import_path("./_runtime");
     if let Some(runtime_import) =
         locale_runtime_import(&globals_schema, &globals, options, &runtime_import_path)
     {
@@ -126,9 +108,7 @@ pub(super) fn locale_globals_module(
 
     let mut body = String::new();
     emit_schema_jsdoc_types(&globals_schema, &shared_import_path, &mut body);
-    {
-        emit_locale_enum_jsdoc_types(&globals_schema, &globals, &mut body);
-    }
+    emit_locale_enum_jsdoc_types(&globals_schema, &globals, &mut body);
     emit_variables(&globals, options, false, &mut body, &facts);
     emit_forms(schema, &globals, options, false, &mut body, &facts);
     emit_local_functions(schema, &globals, options, false, &mut body, &facts);
@@ -219,6 +199,12 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
         ];
         let javascript = compile_locale_globals_artifact_module(&project, artifact, &sources)
             .expect("JavaScript globals");
+        let mut legacy = artifact.clone();
+        legacy.module_path = legacy.module_path.trim_end_matches(".js").to_owned() + ".ts";
+        assert!(std::panic::catch_unwind(|| {
+            compile_locale_globals_artifact_module(&project, &legacy, &sources)
+        })
+        .is_err());
         let project_files = generate_project_files(&project).expect("project files");
         let project_globals = project_files
             .iter()
@@ -228,7 +214,7 @@ summary = {Render(fruit.Gender, count)}: {fruit.label(count)}\n";
             javascript
                 .code()
                 .strip_suffix("//# sourceMappingURL=_globals.js.map\n")
-                .expect("TypeScript source-map trailer"),
+                .expect("JavaScript source-map trailer"),
             project_globals.contents
         );
 

@@ -718,7 +718,7 @@ pub fn generate_project_files(
 
 /// Generates the schema-owned JavaScript/JSDoc root and its TypeScript declaration companions.
 ///
-/// Locale and project runtime artifacts join this surface in their ordered migration stages.
+/// Locale and project runtime artifacts use the same canonical JavaScript module model.
 pub fn generate_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedFile> {
     let module = schema.as_module();
     vec![
@@ -731,7 +731,6 @@ pub fn generate_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedFile> {
                     "shared.js",
                     Some("shared.d.ts".to_owned()),
                 ),
-                false,
             ),
         },
         EcmaGeneratedFile {
@@ -751,7 +750,6 @@ pub fn generate_schema_files(schema: &SchemaIr) -> Vec<EcmaGeneratedFile> {
             contents: generate_shared_module(
                 module,
                 EcmaModuleOutput::new(EcmaModuleKind::Declaration, "shared.d.ts", None),
-                true,
             ),
         },
         EcmaGeneratedFile {

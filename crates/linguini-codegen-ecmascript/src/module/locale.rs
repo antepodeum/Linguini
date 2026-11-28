@@ -9,7 +9,7 @@ use super::emit::{
 };
 use super::exports::{default_context, ValueExport};
 use super::message::ordered_sources;
-use super::names::{import_path_for_target, safe_file_stem, safe_identifier};
+use super::names::{javascript_import_path, safe_file_stem, safe_identifier};
 use super::{
     locale_global_import, locale_has_globals, locale_module_for_schema, locale_runtime_import,
     locale_without_globals, namespace_module, project_locale_options, root_module,
@@ -25,21 +25,13 @@ pub struct CompiledEcmaLocaleModule {
     pub source_map: String,
 }
 
+/// Compile a canonical `.js` namespace or barrel artifact from the validated project plan.
 pub fn compile_locale_artifact_module(
     project: &ValidatedEcmaProject<'_>,
     artifact: &EcmaLocaleArtifact,
     sources: &[EcmaSource],
 ) -> Result<CompiledEcmaLocaleModule, EcmaCodegenError> {
-    compile_locale_artifact_module_impl(project, artifact, sources, EcmaModuleKind::JavaScript)
-}
-
-fn compile_locale_artifact_module_impl(
-    project: &ValidatedEcmaProject<'_>,
-    artifact: &EcmaLocaleArtifact,
-    sources: &[EcmaSource],
-    target: EcmaModuleKind,
-) -> Result<CompiledEcmaLocaleModule, EcmaCodegenError> {
-    let module = locale_artifact_module(project, artifact, target)?;
+    let module = locale_artifact_module(project, artifact)?;
     let source_records = ordered_sources(&artifact.source_ids, sources)?;
     let rendered = module.render(&source_records);
     Ok(CompiledEcmaLocaleModule {
@@ -65,7 +57,6 @@ pub(super) struct LocaleModuleRequest<'a> {
 pub(super) fn locale_artifact_module(
     project: &ValidatedEcmaProject<'_>,
     artifact: &EcmaLocaleArtifact,
-    target: EcmaModuleKind,
 ) -> Result<EcmaModule, EcmaCodegenError> {
     let configured_locale = project
         .locales
@@ -132,10 +123,7 @@ pub(super) fn locale_artifact_module(
             )
         }
     };
-    let output_path = artifact
-        .module_path
-        .strip_suffix(".ts")
-        .map_or_else(|| artifact.module_path.clone(), |path| format!("{path}.js"));
+    let output_path = artifact.module_path.clone();
     let module = locale_module(LocaleModuleRequest {
         schema: &schema,
         import_locale: &import_locale,
@@ -146,23 +134,24 @@ pub(super) fn locale_artifact_module(
         runtime_import_path: &runtime_path,
         global_import_path: globals_path.as_deref(),
         namespace_alias: alias,
-        output: EcmaModuleOutput::new(target, output_path, None),
+        output: EcmaModuleOutput::new(EcmaModuleKind::JavaScript, output_path, None),
     });
     Ok(module)
 }
 
 pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
     let facts = super::facts::ExpressionFacts::for_module(request.schema, request.import_locale);
-    let target = request.output.target();
-    let shared_import_path = import_path_for_target(request.shared_import_path, target);
-    let runtime_import_path = import_path_for_target(request.runtime_import_path, target);
+    let shared_import_path = javascript_import_path(request.shared_import_path);
+    let runtime_import_path = javascript_import_path(request.runtime_import_path);
     let mut imports = Vec::new();
     for namespace in request.namespaces {
         let file_stem = safe_file_stem(namespace);
-        imports.push(ValueExport::new(namespace).import(import_path_for_target(
-            &format!("./{}/{file_stem}", request.options.locale),
-            target,
-        )));
+        imports.push(
+            ValueExport::new(namespace).import(javascript_import_path(&format!(
+                "./{}/{file_stem}",
+                request.options.locale
+            ))),
+        );
     }
     imports.extend(module_imports(
         request.schema,
@@ -183,7 +172,7 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
             request.schema,
             request.locale,
             request.import_locale,
-            &import_path_for_target(global_import_path, target),
+            &javascript_import_path(global_import_path),
         ) {
             imports.push(global_import);
         }
@@ -191,9 +180,7 @@ pub(super) fn locale_module(request: LocaleModuleRequest<'_>) -> EcmaModule {
 
     let mut body = String::new();
     emit_schema_jsdoc_types(request.schema, &shared_import_path, &mut body);
-    {
-        emit_locale_enum_jsdoc_types(request.schema, request.locale, &mut body);
-    }
+    emit_locale_enum_jsdoc_types(request.schema, request.locale, &mut body);
     for namespace in request.namespaces {
         body.push_str(&ValueExport::new(namespace).statement(true));
     }
@@ -337,6 +324,12 @@ mod tests {
         for artifact in [namespace, barrel] {
             let javascript = compile_locale_artifact_module(&project, artifact, &sources)
                 .expect("JavaScript locale artifact");
+            let mut legacy = artifact.clone();
+            legacy.module_path = legacy.module_path.trim_end_matches(".js").to_owned() + ".ts";
+            assert!(std::panic::catch_unwind(|| {
+                compile_locale_artifact_module(&project, &legacy, &sources)
+            })
+            .is_err());
             let project_file = project_files
                 .iter()
                 .find(|file| file.path == artifact.module_path)
@@ -349,7 +342,7 @@ mod tests {
                 javascript
                     .code
                     .strip_suffix(&format!("//# sourceMappingURL={map_name}.map\n"))
-                    .expect("TypeScript source-map trailer"),
+                    .expect("JavaScript source-map trailer"),
                 project_file.contents
             );
             assert!(!javascript.code.contains("import type"));

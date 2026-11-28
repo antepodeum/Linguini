@@ -106,7 +106,6 @@ mod tests {
                         super::super::shared::shared_module(
                             &schema,
                             EcmaModuleOutput::new(target, format!("shared.{extension}"), None),
-                            declaration,
                         ),
                     ),
                     (

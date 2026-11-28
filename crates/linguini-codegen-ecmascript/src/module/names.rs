@@ -4,8 +4,6 @@ use linguini_ir::{
     IrExpression, IrExpressionKind, IrFunctionBranchValue, IrInlineFunctionInput, IrTextPart,
 };
 
-use crate::ecmascript::EcmaModuleKind;
-
 mod compiler;
 
 /// Stable readable names for source selectors declared by type instead of by name.
@@ -210,8 +208,8 @@ pub fn safe_file_stem(name: &str) -> String {
     encoded_name("__lgl_path_", name)
 }
 
-pub(super) fn import_path_for_target(path: &str, target: EcmaModuleKind) -> String {
-    if target.is_declaration() || path.ends_with(".js") {
+pub(super) fn javascript_import_path(path: &str) -> String {
+    if path.ends_with(".js") {
         path.to_owned()
     } else {
         format!("{path}.js")

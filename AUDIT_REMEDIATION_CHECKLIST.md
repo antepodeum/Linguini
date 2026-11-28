@@ -1306,7 +1306,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       native Linux VSIX packages successfully; both development and extracted-archive extension
       hosts pass activation, restart, and real LSP hover checks against VS Code 1.120.0.
       Cross-platform final coverage is recorded in ESM-M11.
-- [-] ESM-M10 — Finish removing direct implementation assembly: obsolete functions,
+- [x] ESM-M10 — Finish removing direct implementation assembly: obsolete functions,
       templates, adapters, compatibility branches, tests that only exercise the removed path, and
       misleading compatibility-path terminology. Repository-wide absence checks must prove one
       production ECMAScript runtime implementation and one target renderer family. Shared schema
@@ -1329,6 +1329,15 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       The unused `selectBranch` implementation, declarations, generic helper annotation path,
       and text-based import detection are removed. Literal helper spellings execute identically
       through ordinary and physical message/semantic modules without false runtime imports.
+      The final native emitter cleanup removes constant JavaScript target parameters, private
+      language-selection wrappers, the independent schema declaration flag, legacy `.ts` artifact
+      path rewriting, and identity filename conversion (GEN-A78). Runtime builders construct
+      JavaScript directly; declarations retain the shared module/type model. Ownership checks
+      reject the retired paths, and public artifact tests verify canonical path enforcement.
+      All 210 emitter tests, the ownership guard, and strict crate Clippy pass; existing code,
+      declaration, and map goldens remain unchanged. Manual SDK artifact records must use `.js`
+      paths, with the prerelease behavior change documented. Remaining CLDR specialization,
+      exact page delivery, and final integration remain separate open criteria.
 - [-] ESM-M11 — Rerun final non-regression gates for the completed architecture: full locked Rust
       workspace tests and strict Clippy;
       formatter/parser properties; generated snapshot and source-map review; checked JS/JSDoc and

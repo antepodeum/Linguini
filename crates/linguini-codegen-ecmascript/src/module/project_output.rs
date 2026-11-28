@@ -1,6 +1,6 @@
 //! Project-wide ECMAScript artifact ownership and deterministic rendering.
 
-use super::names::import_path_for_target;
+use super::names::javascript_import_path;
 use super::{
     artifacts, decl, entry, globals, locale, messages, runtime, shared, EcmaCodegenError,
     EcmaGeneratedFile, EcmaLocaleArtifactKind, EcmaOptions, ValidatedEcmaProject,
@@ -71,7 +71,7 @@ fn append_rendered(files: &mut Vec<EcmaGeneratedFile>, module: RenderedEcmaModul
 pub(super) fn generate_project_files(
     project: &ValidatedEcmaProject<'_>,
 ) -> Result<Vec<EcmaGeneratedFile>, EcmaCodegenError> {
-    let files = project_files(project, EcmaModuleKind::JavaScript)?
+    let files = project_files(project)?
         .into_iter()
         .map(ProjectFile::source_only)
         .collect::<Vec<_>>();
@@ -87,7 +87,7 @@ pub fn compile_ecmascript_project_files(
     sources: &[EcmaSource],
 ) -> Result<Vec<EcmaGeneratedFile>, EcmaCodegenError> {
     let mut files = Vec::new();
-    for artifact in project_files(project, EcmaModuleKind::JavaScript)? {
+    for artifact in project_files(project)? {
         artifact.with_sources(sources, &mut files)?;
     }
     super::validate_generated_output_collisions(&files)?;
@@ -108,33 +108,19 @@ fn module(files: &mut Vec<ProjectFile>, module: EcmaModule, source_ids: Vec<Sour
     };
     files.push(ProjectFile::Module { module, source_ids });
 }
-fn output(stem: &str, target: EcmaModuleKind) -> EcmaModuleOutput {
-    EcmaModuleOutput::new(
-        target,
-        format!(
-            "{stem}.{}",
-            if target.is_declaration() { "ts" } else { "js" }
-        ),
-        None,
-    )
+fn javascript_output(stem: &str) -> EcmaModuleOutput {
+    EcmaModuleOutput::new(EcmaModuleKind::JavaScript, format!("{stem}.js"), None)
 }
 
-fn project_files(
-    project: &ValidatedEcmaProject<'_>,
-    target: EcmaModuleKind,
-) -> Result<Vec<ProjectFile>, EcmaCodegenError> {
+fn project_files(project: &ValidatedEcmaProject<'_>) -> Result<Vec<ProjectFile>, EcmaCodegenError> {
     let mut files = Vec::new();
-    append_schema(project, target, &mut files);
-    append_locales(project, target, &mut files)?;
-    append_entries(project, target, &mut files);
+    append_schema(project, &mut files);
+    append_locales(project, &mut files)?;
+    append_entries(project, &mut files);
     Ok(files)
 }
 
-fn append_schema(
-    project: &ValidatedEcmaProject<'_>,
-    target: EcmaModuleKind,
-    files: &mut Vec<ProjectFile>,
-) {
+fn append_schema(project: &ValidatedEcmaProject<'_>, files: &mut Vec<ProjectFile>) {
     let options = &project.options;
     let schema = project.schema.as_module();
     let selected_schema = super::visible_schema(
@@ -150,15 +136,15 @@ fn append_schema(
     );
     module(
         files,
-        shared::shared_module(schema, output("shared", target), false),
+        shared::shared_module(schema, javascript_output("shared")),
         vec![],
     );
     module(
         files,
         messages::messages_module(
             &selected_schema,
-            output("messages", target),
-            &import_path_for_target("./shared", target),
+            javascript_output("messages"),
+            &javascript_import_path("./shared"),
         ),
         vec![],
     );
@@ -175,7 +161,6 @@ fn append_schema(
             shared::shared_module(
                 schema,
                 EcmaModuleOutput::new(EcmaModuleKind::Declaration, "shared.d.ts", None),
-                true,
             ),
             vec![],
         );
@@ -184,7 +169,7 @@ fn append_schema(
             messages::messages_module(
                 &selected_schema,
                 EcmaModuleOutput::new(EcmaModuleKind::Declaration, "messages.d.ts", None),
-                &import_path_for_target("./shared", EcmaModuleKind::JavaScript),
+                &javascript_import_path("./shared"),
             ),
             vec![],
         );
@@ -193,7 +178,6 @@ fn append_schema(
 
 fn append_locales(
     project: &ValidatedEcmaProject<'_>,
-    target: EcmaModuleKind,
     files: &mut Vec<ProjectFile>,
 ) -> Result<(), EcmaCodegenError> {
     let options = &project.options;
@@ -208,7 +192,7 @@ fn append_locales(
             .expect("effective locale runtime");
         module(
             files,
-            runtime::locale_runtime_artifact_module(project, runtime_artifact, target)?,
+            runtime::locale_runtime_artifact_module(project, runtime_artifact)?,
             runtime_artifact.source_ids.clone(),
         );
         if let Some(artifact) = globals
@@ -217,7 +201,7 @@ fn append_locales(
         {
             module(
                 files,
-                globals::locale_globals_artifact_module(project, artifact, target)?,
+                globals::locale_globals_artifact_module(project, artifact)?,
                 artifact.source_ids.clone(),
             );
         }
@@ -227,7 +211,7 @@ fn append_locales(
         {
             module(
                 files,
-                locale::locale_artifact_module(project, artifact, target)?,
+                locale::locale_artifact_module(project, artifact)?,
                 artifact.source_ids.clone(),
             );
             if options.declaration {
@@ -241,7 +225,7 @@ fn append_locales(
                         let declaration = decl::generate_locale_declaration_with_shared_import(
                             &schema,
                             &path,
-                            &import_path_for_target("../../shared", target),
+                            &javascript_import_path("../../shared"),
                             Some(namespace),
                         );
                         (path, declaration)
@@ -270,11 +254,7 @@ fn append_locales(
     Ok(())
 }
 
-fn append_entries(
-    project: &ValidatedEcmaProject<'_>,
-    target: EcmaModuleKind,
-    files: &mut Vec<ProjectFile>,
-) {
+fn append_entries(project: &ValidatedEcmaProject<'_>, files: &mut Vec<ProjectFile>) {
     let options = &project.options;
     for artifact in artifacts::project_artifacts() {
         let stem = artifact.module_path.trim_end_matches(".js");
@@ -284,7 +264,7 @@ fn append_entries(
                 &project.locales,
                 options.base_locale.as_deref(),
                 artifact.kind,
-                output(stem, target),
+                javascript_output(stem),
             ),
             vec![],
         );

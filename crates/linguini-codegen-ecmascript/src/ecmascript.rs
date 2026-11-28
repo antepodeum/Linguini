@@ -341,8 +341,8 @@ impl EcmaModule {
 
     /// Renders one ESM module without attaching a source-map trailer.
     ///
-    /// Project generators use this during the structured-backend migration; source-mapped
-    /// physical leaves call [`Self::render`] with their ordered source records.
+    /// Project generators use this for source-only output. Source-mapped artifacts call
+    /// [`Self::render`] with their ordered source records.
     pub fn render_code(&self) -> String {
         let mut code = String::new();
         render_module_body(self, &mut code, |_| {});

@@ -13,7 +13,7 @@ use crate::ecmascript::{
 use super::emit::{self, emit_forms, emit_local_functions, emit_variables};
 use super::formatters::{formatter_helper_names, plural_required};
 use super::names::{
-    form_binding_name, import_path_for_target, private_value_name, safe_type_identifier,
+    form_binding_name, javascript_import_path, private_value_name, safe_type_identifier,
 };
 use super::{project_locale_options, EcmaCodegenError, EcmaModuleKind, ValidatedEcmaProject};
 
@@ -204,15 +204,6 @@ pub fn compile_bundler_semantic_module(
     artifact: &EcmaSemanticArtifact,
     sources: &[EcmaSource],
 ) -> Result<CompiledEcmaSemanticModule, EcmaCodegenError> {
-    compile_bundler_semantic_module_impl(project, artifact, sources, EcmaModuleKind::JavaScript)
-}
-
-fn compile_bundler_semantic_module_impl(
-    project: &ValidatedEcmaProject<'_>,
-    artifact: &EcmaSemanticArtifact,
-    sources: &[EcmaSource],
-    target: EcmaModuleKind,
-) -> Result<CompiledEcmaSemanticModule, EcmaCodegenError> {
     let locale = &project
         .locales
         .iter()
@@ -240,7 +231,7 @@ fn compile_bundler_semantic_module_impl(
         .iter()
         .filter(|dependency| !dependency.type_only)
         .map(|dependency| EcmaImport {
-            specifier: import_path_for_target(&dependency.import_path, target),
+            specifier: javascript_import_path(&dependency.import_path),
             bindings: dependency.ecmascript_bindings(),
         })
         .collect::<Vec<_>>();
@@ -285,7 +276,7 @@ fn compile_bundler_semantic_module_impl(
         emit::emit_locale_enum_jsdoc_types(project.schema, &locale_enums, &mut typedefs);
         let schema_typedefs = crate::templates::render(
             "module/import_typedefs",
-            minijinja::context! { names => type_names, module => import_path_for_target(&artifact.shared_import_path, target) },
+            minijinja::context! { names => type_names, module => javascript_import_path(&artifact.shared_import_path) },
         );
         if !schema_typedefs.is_empty() {
             typedefs.push_str(&schema_typedefs);
@@ -302,7 +293,7 @@ fn compile_bundler_semantic_module_impl(
     }
     if !helpers.is_empty() {
         imports.push(EcmaImport::named(
-            import_path_for_target(&artifact.runtime_import_path, target),
+            javascript_import_path(&artifact.runtime_import_path),
             helpers
                 .into_iter()
                 .map(|name| EcmaNamedImport::new(&name, &name))
@@ -316,13 +307,11 @@ fn compile_bundler_semantic_module_impl(
         Some(span) => EcmaStatement::mapped(output, span),
         None => EcmaStatement::generated(output),
     };
-    let output_file_name = {
-        artifact.output_file_name.strip_suffix(".js").map_or_else(
-            || artifact.output_file_name.clone(),
-            |stem| format!("{stem}.js"),
-        )
-    };
-    let mut module = EcmaModule::new(EcmaModuleOutput::new(target, &output_file_name, None));
+    let mut module = EcmaModule::new(EcmaModuleOutput::new(
+        EcmaModuleKind::JavaScript,
+        &artifact.output_file_name,
+        None,
+    ));
     module.extend_imports(imports);
     module.push_statement(statement);
     let source_records = ordered_sources(&artifact.source_ids, sources)?;

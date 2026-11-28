@@ -44,26 +44,13 @@ impl CompiledEcmaLocaleRuntimeModule {
 /// Checked-JavaScript locale runtime emitted from the common ECMAScript model.
 ///
 /// Compiles one canonical checked-JavaScript locale runtime artifact.
+/// Its module path must end in `.js`, as produced by the validated project artifact plan.
 pub fn compile_locale_runtime_artifact_module(
     project: &ValidatedEcmaProject<'_>,
     artifact: &EcmaLocaleRuntimeArtifact,
     sources: &[EcmaSource],
 ) -> Result<CompiledEcmaLocaleRuntimeModule, EcmaCodegenError> {
-    compile_locale_runtime_artifact_module_impl(
-        project,
-        artifact,
-        sources,
-        EcmaModuleKind::JavaScript,
-    )
-}
-
-fn compile_locale_runtime_artifact_module_impl(
-    project: &ValidatedEcmaProject<'_>,
-    artifact: &EcmaLocaleRuntimeArtifact,
-    sources: &[EcmaSource],
-    target: EcmaModuleKind,
-) -> Result<CompiledEcmaLocaleRuntimeModule, EcmaCodegenError> {
-    let module = locale_runtime_artifact_module(project, artifact, target)?;
+    let module = locale_runtime_artifact_module(project, artifact)?;
     let source_records = ordered_sources(&artifact.source_ids, sources)?;
     let rendered = module.render(&source_records);
 
@@ -78,7 +65,6 @@ fn compile_locale_runtime_artifact_module_impl(
 pub(super) fn locale_runtime_artifact_module(
     project: &ValidatedEcmaProject<'_>,
     artifact: &EcmaLocaleRuntimeArtifact,
-    target: EcmaModuleKind,
 ) -> Result<EcmaModule, EcmaCodegenError> {
     let locale = project
         .locales
@@ -90,15 +76,12 @@ pub(super) fn locale_runtime_artifact_module(
     let options = project_locale_options(&locale.locale, &project.options);
     let schema = visible_schema(project.schema, &options);
     let locale_module = locale_module_for_schema(&locale.module, &schema);
-    let output_path = artifact
-        .module_path
-        .strip_suffix(".ts")
-        .map_or_else(|| artifact.module_path.clone(), |path| format!("{path}.js"));
+    let output_path = artifact.module_path.clone();
     let module = locale_runtime_module(
         &schema,
         &locale_module,
         &options,
-        EcmaModuleOutput::new(target, output_path, None),
+        EcmaModuleOutput::new(EcmaModuleKind::JavaScript, output_path, None),
     );
     Ok(module)
 }
@@ -179,6 +162,12 @@ mod tests {
         ];
         let javascript = compile_locale_runtime_artifact_module(&project, &artifact, &sources)
             .expect("JavaScript runtime");
+        let mut legacy = artifact.clone();
+        legacy.module_path = legacy.module_path.trim_end_matches(".js").to_owned() + ".ts";
+        assert!(std::panic::catch_unwind(|| {
+            compile_locale_runtime_artifact_module(&project, &legacy, &sources)
+        })
+        .is_err());
         let project_runtime = generate_project_files(&project)
             .expect("project files")
             .into_iter()
@@ -189,7 +178,7 @@ mod tests {
             javascript
                 .code
                 .strip_suffix(source_map_trailer)
-                .expect("TypeScript source-map trailer"),
+                .expect("JavaScript source-map trailer"),
             project_runtime.contents
         );
 

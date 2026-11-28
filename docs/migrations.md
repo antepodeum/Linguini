@@ -4,6 +4,15 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Canonical runtime artifact paths in the Rust SDK
+
+Manually constructed locale, locale-global, and locale-runtime artifact records must now use
+`.js` module paths. Their compilers enforce the canonical output path instead of rewriting a
+legacy `.ts` suffix. Prefer artifact descriptors returned by `ValidatedEcmaProject`, which already
+use `.js`. This is a prerelease SDK behavior change; invalid runtime paths fail the module model's
+path assertion. Application builds and TypeScript consumers retain their APIs and declaration
+companions.
+
 ## Source-map generation
 
 Source-map generation now resolves source positions incrementally and counts newly emitted lines

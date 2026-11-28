@@ -15,7 +15,7 @@ use crate::ecmascript::{
 use super::deps::MessageDependencyClosure;
 use super::emit::{self, emit_formatter_data, emit_forms, emit_local_functions, emit_variables};
 use super::formatters::{formatter_helper_names, plural_required};
-use super::names::{emit_docs, import_path_for_target};
+use super::names::{emit_docs, javascript_import_path};
 use super::semantic::EcmaSemanticImport;
 use super::{
     EcmaCodegenError, EcmaMessageArtifact, EcmaModuleKind, EcmaOptions, ValidatedEcmaProject,
@@ -78,7 +78,6 @@ pub fn compile_message_module(
             emission: MessageModuleEmission::Standalone,
             runtime_import_path: None,
             semantic_imports: None,
-            target: EcmaModuleKind::JavaScript,
         },
         sources,
     )
@@ -107,7 +106,6 @@ pub fn compile_bundler_message_module(
             emission: MessageModuleEmission::Bundler,
             runtime_import_path: Some(runtime_import_path),
             semantic_imports: None,
-            target: EcmaModuleKind::JavaScript,
         },
         sources,
     )
@@ -130,7 +128,6 @@ pub fn compile_bundler_message_artifact_module(
             emission: MessageModuleEmission::Bundler,
             runtime_import_path: Some(&artifact.runtime_import_path),
             semantic_imports: Some(&artifact.semantic_imports),
-            target: EcmaModuleKind::JavaScript,
         },
         sources,
     )
@@ -150,7 +147,6 @@ struct MessageModuleRequest<'a> {
     emission: MessageModuleEmission,
     runtime_import_path: Option<&'a str>,
     semantic_imports: Option<&'a [EcmaSemanticImport]>,
-    target: EcmaModuleKind,
 }
 
 fn compile_message_module_impl(
@@ -166,7 +162,6 @@ fn compile_message_module_impl(
         emission,
         runtime_import_path,
         semantic_imports,
-        target,
     } = request;
     let project_locale = project
         .locales
@@ -210,7 +205,7 @@ fn compile_message_module_impl(
         emission,
         runtime_import_path,
         &semantic_imports,
-        EcmaModuleOutput::new(target, output_file_name, None),
+        EcmaModuleOutput::new(EcmaModuleKind::JavaScript, output_file_name, None),
     );
     let rendered = module.render(&source_records);
 
@@ -261,7 +256,6 @@ fn emit_message_module(
     semantic_imports: &[EcmaSemanticImport],
     output: EcmaModuleOutput,
 ) -> EcmaModule {
-    let target = output.target();
     let schema = closure.schema();
     let complete_locale = closure.locale_module();
     let facts = if runtime_import_path.is_some() {
@@ -403,21 +397,20 @@ fn emit_message_module(
         uses_named_message_args,
         uses_plural,
         runtime_helpers: runtime_helpers.as_deref().unwrap_or_default(),
-        target,
     }));
     for dependency in semantic_imports {
         if dependency.type_only {
             continue;
         }
         module.push_import(EcmaImport {
-            specifier: import_path_for_target(&dependency.import_path, target),
+            specifier: javascript_import_path(&dependency.import_path),
             bindings: dependency.ecmascript_bindings(),
         });
     }
     {
         let typedefs = crate::templates::render(
             "module/import_typedefs",
-            minijinja::context! { names => emit::schema_type_names(schema), module => import_path_for_target(shared_import_path, target) },
+            minijinja::context! { names => emit::schema_type_names(schema), module => javascript_import_path(shared_import_path) },
         );
         push_statement(&mut module, typedefs, None);
     }
@@ -439,14 +432,13 @@ struct MessageImportRequest<'a> {
     uses_named_message_args: bool,
     uses_plural: bool,
     runtime_helpers: &'a [String],
-    target: EcmaModuleKind,
 }
 
 fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
     let mut imports = Vec::new();
     if request.uses_named_message_args {
         imports.push(EcmaImport::named(
-            import_path_for_target(request.shared_import_path, request.target),
+            javascript_import_path(request.shared_import_path),
             vec![EcmaNamedImport::new(
                 "normalizeMessageArgs",
                 "normalizeMessageArgs",
@@ -460,7 +452,7 @@ fn message_imports(request: MessageImportRequest<'_>) -> Vec<EcmaImport> {
         }
         if !helpers.is_empty() {
             imports.push(EcmaImport::named(
-                import_path_for_target(runtime_import_path, request.target),
+                javascript_import_path(runtime_import_path),
                 helpers
                     .into_iter()
                     .map(|name| EcmaNamedImport::new(&name, &name))
@@ -918,7 +910,7 @@ mod tests {
             .output_file_name
             .strip_suffix(".js")
             .map(|stem| format!("//# sourceMappingURL={stem}.js.map"))
-            .expect("TypeScript artifact name");
+            .expect("JavaScript artifact name");
         assert!(artifact_compiled.code.contains(&javascript_map));
     }
 

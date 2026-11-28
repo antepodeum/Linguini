@@ -9,19 +9,11 @@ use super::provenance::map_symbol_lines;
 use super::shared_runtime::{shared_declarations, shared_runtime};
 use super::type_model::{render_jsdoc_type, render_string_union, TypeModel};
 
-pub fn generate_shared_module(
-    schema: &IrModule,
-    output: EcmaModuleOutput,
-    declaration: bool,
-) -> String {
-    shared_module(schema, output, declaration).render_code()
+pub fn generate_shared_module(schema: &IrModule, output: EcmaModuleOutput) -> String {
+    shared_module(schema, output).render_code()
 }
 
-pub(super) fn shared_module(
-    schema: &IrModule,
-    output: EcmaModuleOutput,
-    declaration: bool,
-) -> EcmaModule {
+pub(super) fn shared_module(schema: &IrModule, output: EcmaModuleOutput) -> EcmaModule {
     let target = output.target();
     let mut module = EcmaModule::new(output);
     let mut types = String::new();
@@ -65,7 +57,7 @@ pub(super) fn shared_module(
             mappings,
         );
     }
-    let runtime = if declaration {
+    let runtime = if target.is_declaration() {
         shared_declarations()
     } else {
         shared_runtime()
@@ -190,7 +182,6 @@ console.log('ok');
                 "shared.js",
                 Some("shared.d.ts".to_owned()),
             ),
-            false,
         );
 
         assert!(output.contains("@typedef {\"warm\" | \"cool\"} Tone"));
