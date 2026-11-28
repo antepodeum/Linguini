@@ -1155,8 +1155,8 @@ mod tests {
     mod currency_affixes;
     mod decimal_separator;
     mod number_rounding;
+    mod number_styles;
     mod optional_integer;
-    mod percent;
     mod plural_inputs;
     mod scientific;
 

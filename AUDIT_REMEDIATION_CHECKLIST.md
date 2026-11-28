@@ -570,7 +570,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       (GEN-A88). Mixed symbol/code boundaries use the marker nearest the number; missing code
       context fails before emission. The affix corpus now covers 17 patterns and 34 independent
       ICU outcomes across parsing, planning, native previews, and generated execution. Other
-      currency display widths and source-selectable scientific styles retain their open scope.
+      currency display widths and additional source-selectable styles retain their open scope.
       Source-selectable percent formatting now uses those shared compiled plans (GEN-A91).
       Static `@number(style = "percent")` works in aliases, annotations, nested calls, inline
       inputs/defaults, callable forms, previews, and SSR. Explicit decimal shares the default
@@ -578,6 +578,13 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       source comparisons and separate ordinary/physical/standalone execution. Unused runtime
       styles and an unused Date alias are absent; complete Vite 7/8 consumers retain one chunk.
       Other numeric styles and currency widths remain open.
+      Standard scientific style is now source-selectable through the same planner (GEN-A92).
+      Profile v13 adds 766 compiled scientific patterns; removing those fields exactly restores
+      the previous artifact. Pinned brackets and Lao/Sinhala exponent omission are preserved.
+      Seventeen locales have 340 independent ICU arithmetic/layout results, with full Unicode
+      exponent digits; shared percent/scientific source harnesses execute 4,592 comparisons.
+      Existing goldens retain their bytes, selected helper/digit demand is verified, and complete
+      Vite 7/8 formatter consumers remain single chunks. Additional styles/currency widths stay open.
       Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
       Native fraction previews and generated fixed/significant/scientific formatters preserve it;
       templates fold the choice into selected concatenation without a runtime flag or parser.
@@ -1889,6 +1896,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       runtime interpreter or parse CLDR syntax after generation. Parsing actual input values such
       as numeric strings or dates is a separate, demand-selected runtime operation.
 - [-] OPT-A2 — Emit specialized formatter implementations for the actual statically used requests.
+      Source scientific style now also selects the pinned standard pattern during compilation
+      (GEN-A92), retaining literal brackets, exponent omission, selected precision, and localized
+      exponent symbols/digits. Shared source/SDK/native tests and complete Vite consumers verify
+      operation demand; unused styles do not change existing output. Broader style/date/page
+      requirements remain open.
       Percent style is now selectable from source and resolves through shared common planning
       (GEN-A91). Scaling, percent placement/spacing, precision, grouping thresholds, and digit
       symbols use the pinned percent pattern; generated code contains no style dispatcher or

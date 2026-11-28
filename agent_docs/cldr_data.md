@@ -64,6 +64,14 @@ fixed widths, engineering exponent steps, effective precision, and carried-manti
 Both ECMAScript templates and native numeric previews consume that plan. Application output
 receives the selected operations and constants rather than pattern metadata or a CLDR parser.
 
+Profile v13 adds the standard scientific pattern for every one of the 766 number records.
+The same offline parser compiles `#E0`, bracketed forms, and the exponent-free Lao/Sinhala
+patterns from their default numbering system. Removing the 766 new fields reproduces the
+v12 artifact byte for byte; source identities, input hashes, and coverage counts are unchanged.
+`NumberFormatPlan::number` selects decimal, percent, or scientific patterns for both generated
+code and native previews. Explicit decimal requests share the implicit default. Only selected
+plan operations and literal symbols reach application output.
+
 The calendar profile covers Gregorian, Buddhist, ROC, and Japanese data: 3,060 locale/calendar
 pairs, contextual symbols, eras, skeletons, day periods, week rules, and GMT formats. Equal
 symbol tables share storage. Hawaiian retains its explicit unsupported Roman-month exclusion.

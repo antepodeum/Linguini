@@ -536,14 +536,15 @@ surface. Current guarantees are:
   the exact input by 100 before rounding, retaining localized percent placement, spacing, signs,
   grouping, and digits. For example, English `0.125` becomes `13%`; the input is a ratio.
   The numeric expansion limit also applies after scaling. `style = "decimal"` is equivalent
-  to plain `@number` and shares its generated formatter. Styles must be static `decimal` or
-  `percent` values; other styles and unknown options fail validation. Both styles work in
-  aliases, explicit annotations, nested call arguments, inline bindings, native previews,
-  and SSR. Compact, scientific, significant-digit, and caller-selected numbering-system
-  styles are not exposed.
-  Internal scientific lowering compiles the locale's `exponential`, `plusSign`, and `minusSign`
-  symbols as literals. Digit substitution applies separately to mantissa and exponent digits,
-  preserving digits embedded in those symbols. This does not add a public scientific style.
+  to plain `@number` and shares its generated formatter. `@number(style = "scientific")`
+  selects the locale's pinned standard scientific pattern; English `1234.5` becomes `1.2345E3`.
+  The usual `#E0` pattern preserves the input's mantissa precision, with localized exponent
+  symbols, signs, and digits. Pinned locale differences are retained: some patterns surround
+  the result with brackets, while Lao and Sinhala omit the exponent. Styles must be static
+  `decimal`, `percent`, or `scientific` values; other styles and unknown options fail validation.
+  All three work in aliases, annotations, nested call arguments, inline bindings, previews,
+  and SSR. Compact, engineering, caller-selected significant precision, and caller-selected
+  numbering-system styles are not exposed.
 - `@currency` requires a three-letter code. It applies CLDR standard or
   accounting affixes, currency fraction digits, rounding increments, spacing,
   and currency-specific decimal/group separators, falling back to ordinary number symbols

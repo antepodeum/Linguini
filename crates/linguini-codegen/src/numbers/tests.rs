@@ -20,6 +20,7 @@ fn number_styles_select_complete_pinned_patterns_and_reject_unsupported_requests
         for (style, pattern, scale) in [
             ("decimal", numbers.decimal_pattern, 1),
             ("percent", numbers.percent_pattern, 100),
+            ("scientific", numbers.scientific_pattern, 1),
         ] {
             let plan = NumberFormatPlan::number(locale, style).unwrap();
             assert_eq!(
@@ -30,7 +31,7 @@ fn number_styles_select_complete_pinned_patterns_and_reject_unsupported_requests
             assert_eq!(plan.scale, scale, "{locale}/{style}");
         }
     }
-    for style in ["", "Percent", "scientific", "compact", "percent "] {
+    for style in ["", "Percent", "engineering", "compact", "percent "] {
         assert!(NumberFormatPlan::number("en", style).is_none(), "{style}");
     }
     assert!(NumberFormatPlan::number("zz", "percent").is_none());
@@ -243,7 +244,11 @@ fn all_reachable_pinned_number_percent_and_currency_patterns_have_shared_plans()
         if !seen.insert(numbers.locale) {
             continue;
         }
-        for pattern in [numbers.decimal_pattern, numbers.percent_pattern] {
+        for pattern in [
+            numbers.decimal_pattern,
+            numbers.percent_pattern,
+            numbers.scientific_pattern,
+        ] {
             assert!(
                 NumberFormatPlan::new(&pattern, None, &numbers, None).is_some(),
                 "{locale}"

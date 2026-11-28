@@ -52,7 +52,7 @@ pub fn generate(source_root: &Path, output_dir: &Path, check: bool) -> Result<()
             "license": "Unicode-3.0"
         },
         "inputs": {
-            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+decimal-separator-visibility+currency-affix-parts+currency-alpha-patterns+borrowed-formatting-lookups+scientific-integer-widths+four-calendars+day-periods+week-data+week-preference-validity+subdivision-aliases+subdivision-validity+zone-formats+layout-v12",
+            "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+decimal-separator-visibility+currency-affix-parts+currency-alpha-patterns+borrowed-formatting-lookups+scientific-integer-widths+standard-scientific-patterns+four-calendars+day-periods+week-data+week-preference-validity+subdivision-aliases+subdivision-validity+zone-formats+layout-v13",
             "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
             "tree_sha256": source.source_tree_sha256(),
             "file_count": source.input_file_count(),
@@ -150,9 +150,9 @@ mod tests {
     const CHECKED_MANIFEST: &[u8] =
         include_bytes!("../../linguini-cldr/src/data/generated/manifest.json");
     const GOLDEN_ARTIFACT_SHA256: &str =
-        "5d3f0882b485adffa5a0a6b6a20748856bbea020b3b159152c90a13f43e20ef0";
+        "95181a895f4d0d593336bb7af3b58017d7b0d8c574d048266d0389d02d944e22";
     const GOLDEN_MANIFEST_SHA256: &str =
-        "387db5a366220856f8e1b5fcd0c62b455b353e488c52ebf14a4dc07048e4d4d8";
+        "cb4551eb1de38f92385f69ca29db64010e500d8fba9bda158c65f5604ea574b6";
 
     #[test]
     fn checked_artifact_matches_full_pinned_manifest_and_golden_hash() {

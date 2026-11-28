@@ -135,15 +135,24 @@ Padded number and currency output retains its existing Unicode width and placeme
 output to use specialized width calculations without constructing a character array; no API or
 configuration changes are required.
 
-## Percent number style
+## Number styles
 
 Use `@number(style = "percent")` for ratios: English `0.125` renders as `13%` under the
-existing half-up rounding rule and pinned percent precision. Aliases may carry the same
-annotation. Formatting selects locale-specific percent affixes, spacing, grouping, and digits;
-the decimal expansion limit remains enforced after scaling. Native previews and SSR use the
-same selected plan. Existing `@number` output is unchanged, and explicit
-`@number(style = "decimal")` shares that default implementation. Unknown styles/options fail
-validation. No runtime style switch or host `Intl.NumberFormat` is introduced.
+existing half-up rounding rule and pinned percent precision. Formatting retains locale-specific
+percent placement, spacing, grouping, and digits; expansion limits also apply after scaling.
+
+Use `@number(style = "scientific")` for the pinned standard scientific form: English `1234.5`
+renders as `1.2345E3`. The usual `#E0` pattern retains mantissa precision. Localized exponent
+symbols/signs/digits and pinned exceptions, including brackets or exponent omission, are preserved.
+
+Aliases, native previews, and SSR support these annotations. Existing `@number` output is
+unchanged, and explicit `@number(style = "decimal")` shares that default implementation.
+Unknown styles/options fail validation.
+
+Rust SDK: `NumberFormatData` now requires a `scientific_pattern` field. Update external struct
+literals with the selected scientific pattern, or obtain a complete record through
+`compiled_number_formatting`. `NumberFormatPlan::number(locale, "scientific")` resolves the
+standard plan. Existing decimal and percent fields retain their values.
 
 ## Shared ISO date parsing
 

@@ -62,6 +62,8 @@ pub struct NumberFormatData {
     pub minimum_grouping_digits: u8,
     pub decimal_pattern: NumberPattern,
     pub percent_pattern: NumberPattern,
+    /// Locale standard scientific form, including any pinned literal affixes or exponent omission.
+    pub scientific_pattern: NumberPattern,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

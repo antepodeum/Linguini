@@ -33,8 +33,10 @@ A schema file is a sequence of these declarations:
 Primitive types are exactly `String`, `Number`, `Decimal`, `Date`, and `Boolean`. `Plural` is a
 selector type produced from numeric values, not a host-language primitive. Formatter annotations
 are `@number`, `@currency(code = "AAA")`, and `@date(...)`. Number formatting accepts the
-static option `style = "decimal|percent"`; omitting it selects decimal. Percent input is a ratio
-scaled by 100 using the locale's pinned percent pattern before rounding. Date formatting accepts
+static option `style = "decimal|percent|scientific"`; omitting it selects decimal. Percent input
+is a ratio scaled by 100 using the locale's pinned percent pattern before rounding. Scientific
+style uses the locale's pinned standard scientific pattern and exponent symbols. Date formatting
+accepts
 `style = "full|long|medium|short"` and/or `time_style = "full|long|medium|short"`, or an exclusive
 `skeleton = "yMMMd"` selecting an exact pinned Gregorian `availableFormats` ID. Unknown IDs
 and unsupported fields fail generation. Exact quarter IDs such as `yQQQ` and `yQQQQ` are supported.

@@ -1813,11 +1813,14 @@ fn validate_formatters(
             }
             match (formatter.kind.as_str(), argument.name.as_str()) {
                 ("number", "style")
-                    if !matches!(argument.value.as_str(), "decimal" | "percent") =>
+                    if !matches!(
+                        argument.value.as_str(),
+                        "decimal" | "percent" | "scientific"
+                    ) =>
                 {
                     errors.push(IrReferenceError::new(
                         "IR031",
-                        "number formatter option `style` must be decimal or percent",
+                        "number formatter option `style` must be decimal, percent, or scientific",
                         span,
                     ));
                 }

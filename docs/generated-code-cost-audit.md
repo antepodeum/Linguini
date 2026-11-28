@@ -1171,5 +1171,47 @@ These are costs of a newly selectable style, not before/after savings. Existing 
 code/declaration/map goldens retain their bytes; no timing, retained-heap, broader numeric-style,
 or exact page-delivery completion is claimed.
 
+## Source-selectable standard scientific patterns
+
+GEN-A92 retains the pinned standard scientific pattern in each of 766 number records and
+exposes it through `@number(style = "scientific")`. The common selector feeds the existing
+canonical number template and demand-selected helpers. No application-side style dispatcher,
+pattern parser, or host formatter is added. The usual `#E0` form retains unlimited mantissa
+precision; bracketed patterns and the exponent-free Lao/Sinhala patterns retain their own form.
+Removing the new fields from the compiler artifact reproduces v12 byte for byte. Source inputs,
+identities, and coverage counts are unchanged.
+
+The generic maintainer oracle now serves both number styles. ICU 78.3 truncates supplementary
+digits in multi-digit exponents, so it formats numeric fields with ASCII digits and then uses
+its integer/fraction/exponent field positions to substitute complete localized digit strings.
+Affixes, separators, signs, and digits embedded in literal symbols remain outside that operation.
+This corrects eight scientific expectations containing broken surrogate output while retaining
+all 234 percent expectations exactly. Seventeen scientific locales contribute 340 independent
+arithmetic/layout outcomes; shared source harnesses execute 4,592 native/generated comparisons
+across both styles and decimal controls. Exact large/fractional inputs, signed zero, positive/
+negative exponents, bounds, coercion observations, and error identity remain covered.
+
+The checked scientific fixture shares one parser and one normalizer, retaining integer rounding
+only for the two exponent-free locale patterns. Mixed ordinary/physical/standalone execution
+shares decimal defaults and the selected percent/scientific helpers, excluding an unused Date
+alias's runtime. Existing code/declaration/map goldens, including the percent fixture, retain
+their bytes. Complete formatter consumers run the independent results, each emitting one
+import-free chunk; rendered exports and digit-system sentinels verify pruning.
+
+Absolute minified / gzip / Brotli bytes on Node 24.13.1:
+
+| Selected locale | Vite 7.3.3 | Vite 8.0.13 |
+| --- | --- | --- |
+| English | 1464 / 752 / 688 | 1441 / 734 / 672 |
+| Hindi, bracketed | 1470 / 761 / 696 | 1447 / 745 / 680 |
+| Persian | 1580 / 843 / 766 | 1557 / 832 / 748 |
+| Adlam Fula | 1569 / 811 / 746 | 1546 / 798 / 734 |
+| Chakma | 1565 / 798 / 734 | 1542 / 786 / 719 |
+| Lao, exponent-free | 1175 / 644 / 598 | 1154 / 629 / 569 |
+
+These are new-style costs, not measured before/after reductions or general application sizes.
+No timing, retained-heap, engineering/precision-option, calendar/zone, or exact page-delivery
+completion is claimed.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

@@ -57,13 +57,14 @@ pub struct NumberFormatPlan {
 }
 
 impl NumberFormatPlan {
-    /// Resolve a statically selected decimal or percent style from pinned locale data.
+    /// Resolve a statically selected decimal, percent, or scientific style from pinned locale data.
     /// Unsupported locales/styles or invalid compiled patterns return `None`.
     pub fn number(locale: &str, style: &str) -> Option<Self> {
         let numbers = linguini_cldr::compiled_number_formatting(locale)?;
         let pattern = match style {
             "decimal" => &numbers.decimal_pattern,
             "percent" => &numbers.percent_pattern,
+            "scientific" => &numbers.scientific_pattern,
             _ => return None,
         };
         Self::new(pattern, None, &numbers, None)

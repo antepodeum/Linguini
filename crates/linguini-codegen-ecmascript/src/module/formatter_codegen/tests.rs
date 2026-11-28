@@ -4,9 +4,9 @@ mod decimal_separator;
 mod digit_callbacks;
 mod month_weeks;
 mod number_inputs;
+mod number_styles;
 mod optional_integer;
 mod padding;
-mod percent;
 mod rounding;
 mod scientific;
 mod week_year;
@@ -364,6 +364,7 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         minimum_grouping_digits: 1,
         decimal_pattern: pattern,
         percent_pattern: pattern,
+        scientific_pattern: pattern,
     };
 
     let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);

@@ -208,6 +208,7 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
     let minimum_grouping_digits = numbers.minimum_grouping_digits;
     let decimal_pattern = number_pattern_tokens(&numbers.decimal_pattern);
     let percent_pattern = number_pattern_tokens(&numbers.percent_pattern);
+    let scientific_pattern = number_pattern_tokens(&numbers.scientific_pattern);
     quote! {
         #locale => {
             static DATA: NumberFormatData = NumberFormatData {
@@ -222,6 +223,7 @@ fn number_arm(locale: &str, numbers: NumberData) -> TokenStream {
                 minimum_grouping_digits: #minimum_grouping_digits,
                 decimal_pattern: #decimal_pattern,
                 percent_pattern: #percent_pattern,
+                scientific_pattern: #scientific_pattern,
             };
             Some(&DATA)
         },
@@ -305,6 +307,7 @@ struct NumberData {
     minimum_grouping_digits: u8,
     decimal_pattern: NumberPattern,
     percent_pattern: NumberPattern,
+    scientific_pattern: NumberPattern,
 }
 
 struct CurrencyData {
@@ -406,8 +409,14 @@ fn extract_numbers(
         &format!("percentFormats-numberSystem-{numbering_system}"),
         "numbers",
     )?;
+    let scientific_formats = required_field(
+        numbers,
+        &format!("scientificFormats-numberSystem-{numbering_system}"),
+        "numbers",
+    )?;
     let decimal_pattern = string_field(decimal_formats, "standard", "decimal formats")?;
     let percent_pattern = string_field(percent_formats, "standard", "percent formats")?;
+    let scientific_pattern = string_field(scientific_formats, "standard", "scientific formats")?;
     let affix_symbols = NumberAffixSymbols::extract(symbols)?;
     let minimum_grouping_digits = string_field(numbers, "minimumGroupingDigits", "numbers")?
         .parse::<std::num::NonZeroU8>()
@@ -424,6 +433,7 @@ fn extract_numbers(
         minimum_grouping_digits,
         decimal_pattern: parse_number_pattern(&decimal_pattern, &affix_symbols)?,
         percent_pattern: parse_number_pattern(&percent_pattern, &affix_symbols)?,
+        scientific_pattern: parse_number_pattern(&scientific_pattern, &affix_symbols)?,
     })
 }
 
@@ -1544,7 +1554,8 @@ mod tests {
             "defaultNumberingSystem": "latn", "minimumGroupingDigits": "2",
             "symbols-numberSystem-latn": {"decimal": ".", "group": ",", "minusSign": "-", "plusSign": "+", "exponential": "E", "percentSign": "%", "perMille": "‰"},
             "decimalFormats-numberSystem-latn": {"standard": "#,##0.###"},
-            "percentFormats-numberSystem-latn": {"standard": "#,##0%"}
+            "percentFormats-numberSystem-latn": {"standard": "#,##0%"},
+            "scientificFormats-numberSystem-latn": {"standard": "#E0"}
         }}}});
         let systems = std::collections::BTreeMap::from([("latn".into(), "0123456789".into())]);
         let mut missing_exponent = input.clone();
@@ -1562,6 +1573,44 @@ mod tests {
                 .minimum_grouping_digits,
             2
         );
+        for (text, exponent, prefix, suffix) in [
+            ("#E0", Some(1), "", ""),
+            ("[#E0]", Some(1), "[", "]"),
+            ("#", None, "", ""),
+        ] {
+            let mut sample = input.clone();
+            sample["main"]["en"]["numbers"]["scientificFormats-numberSystem-latn"]["standard"] =
+                json!(text);
+            let result = super::extract_numbers(&sample, "en", &systems).unwrap();
+            let pattern = result.scientific_pattern.positive;
+            assert_eq!(pattern.exponent_digits, exponent, "{text}");
+            assert_eq!(pattern.min_integer_digits, 0, "{text}");
+            assert_eq!(pattern.max_fraction_digits, 0, "{text}");
+            assert_eq!(pattern.prefix, literal_affix(prefix), "{text}");
+            assert_eq!(pattern.suffix, literal_affix(suffix), "{text}");
+        }
+        let mut missing_scientific = input.clone();
+        missing_scientific["main"]["en"]["numbers"]
+            .as_object_mut()
+            .unwrap()
+            .remove("scientificFormats-numberSystem-latn");
+        assert!(super::extract_numbers(&missing_scientific, "en", &systems)
+            .err()
+            .unwrap()
+            .contains("scientificFormats-numberSystem-latn"));
+        for invalid in [
+            json!(null),
+            json!(1),
+            json!(false),
+            json!([]),
+            json!({}),
+            json!("#E"),
+        ] {
+            let mut sample = input.clone();
+            sample["main"]["en"]["numbers"]["scientificFormats-numberSystem-latn"]["standard"] =
+                invalid;
+            assert!(super::extract_numbers(&sample, "en", &systems).is_err());
+        }
         for value in ["0", "256", "-1", "auto", ""] {
             input["main"]["en"]["numbers"]["minimumGroupingDigits"] = json!(value);
             assert!(

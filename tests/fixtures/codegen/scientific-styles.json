@@ -1,0 +1,1484 @@
+{
+  "oracle": "ICU 78.3, exact decimal input, pinned scientific patterns/grouping, half-up rounding; full Unicode digit strings applied only to ICU integer/fraction/exponent fields",
+  "cases": [
+    {
+      "locale": "en",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "0.0049",
+          "expected": "4.9E-3"
+        },
+        {
+          "input": "0.005",
+          "expected": "5E-3"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-5E-3"
+        },
+        {
+          "input": "0.015",
+          "expected": "1.5E-2"
+        },
+        {
+          "input": "9.99995",
+          "expected": "9.99995E0"
+        },
+        {
+          "input": "99.99995",
+          "expected": "9.999995E1"
+        },
+        {
+          "input": "999.99995",
+          "expected": "9.9999995E2"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1.234567E3"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1.234567E3"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "1.2345678901234567890123456E19"
+        },
+        {
+          "input": "1e-7",
+          "expected": "1E-7"
+        },
+        {
+          "input": "1e6",
+          "expected": "1E6"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-1E6"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "1.2345678901234567890123456789E-17"
+        },
+        {
+          "input": "1e100",
+          "expected": "1E100"
+        },
+        {
+          "input": "1e-100",
+          "expected": "1E-100"
+        }
+      ]
+    },
+    {
+      "locale": "fr",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "0.0049",
+          "expected": "4,9E-3"
+        },
+        {
+          "input": "0.005",
+          "expected": "5E-3"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-5E-3"
+        },
+        {
+          "input": "0.015",
+          "expected": "1,5E-2"
+        },
+        {
+          "input": "9.99995",
+          "expected": "9,99995E0"
+        },
+        {
+          "input": "99.99995",
+          "expected": "9,999995E1"
+        },
+        {
+          "input": "999.99995",
+          "expected": "9,9999995E2"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1,234567E3"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1,234567E3"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "1,2345678901234567890123456E19"
+        },
+        {
+          "input": "1e-7",
+          "expected": "1E-7"
+        },
+        {
+          "input": "1e6",
+          "expected": "1E6"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-1E6"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "1,2345678901234567890123456789E-17"
+        },
+        {
+          "input": "1e100",
+          "expected": "1E100"
+        },
+        {
+          "input": "1e-100",
+          "expected": "1E-100"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "0.0049",
+          "expected": "4,9E-3"
+        },
+        {
+          "input": "0.005",
+          "expected": "5E-3"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-5E-3"
+        },
+        {
+          "input": "0.015",
+          "expected": "1,5E-2"
+        },
+        {
+          "input": "9.99995",
+          "expected": "9,99995E0"
+        },
+        {
+          "input": "99.99995",
+          "expected": "9,999995E1"
+        },
+        {
+          "input": "999.99995",
+          "expected": "9,9999995E2"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1,234567E3"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1,234567E3"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "1,2345678901234567890123456E19"
+        },
+        {
+          "input": "1e-7",
+          "expected": "1E-7"
+        },
+        {
+          "input": "1e6",
+          "expected": "1E6"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-1E6"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "1,2345678901234567890123456789E-17"
+        },
+        {
+          "input": "1e100",
+          "expected": "1E100"
+        },
+        {
+          "input": "1e-100",
+          "expected": "1E-100"
+        }
+      ]
+    },
+    {
+      "locale": "ar",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "‎-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "‎-1E0"
+        },
+        {
+          "input": "0.0049",
+          "expected": "4.9E‎-3"
+        },
+        {
+          "input": "0.005",
+          "expected": "5E‎-3"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎-5E‎-3"
+        },
+        {
+          "input": "0.015",
+          "expected": "1.5E‎-2"
+        },
+        {
+          "input": "9.99995",
+          "expected": "9.99995E0"
+        },
+        {
+          "input": "99.99995",
+          "expected": "9.999995E1"
+        },
+        {
+          "input": "999.99995",
+          "expected": "9.9999995E2"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1.234567E3"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎-1.234567E3"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "1.2345678901234567890123456E19"
+        },
+        {
+          "input": "1e-7",
+          "expected": "1E‎-7"
+        },
+        {
+          "input": "1e6",
+          "expected": "1E6"
+        },
+        {
+          "input": "-1e6",
+          "expected": "‎-1E6"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "1.2345678901234567890123456789E‎-17"
+        },
+        {
+          "input": "1e100",
+          "expected": "1E100"
+        },
+        {
+          "input": "1e-100",
+          "expected": "1E‎-100"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "٠أس٠"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-٠أس٠"
+        },
+        {
+          "input": "1",
+          "expected": "١أس٠"
+        },
+        {
+          "input": "-1",
+          "expected": "؜-١أس٠"
+        },
+        {
+          "input": "0.0049",
+          "expected": "٤٫٩أس؜-٣"
+        },
+        {
+          "input": "0.005",
+          "expected": "٥أس؜-٣"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-٥أس؜-٣"
+        },
+        {
+          "input": "0.015",
+          "expected": "١٫٥أس؜-٢"
+        },
+        {
+          "input": "9.99995",
+          "expected": "٩٫٩٩٩٩٥أس٠"
+        },
+        {
+          "input": "99.99995",
+          "expected": "٩٫٩٩٩٩٩٥أس١"
+        },
+        {
+          "input": "999.99995",
+          "expected": "٩٫٩٩٩٩٩٩٥أس٢"
+        },
+        {
+          "input": "1234.567",
+          "expected": "١٫٢٣٤٥٦٧أس٣"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-١٫٢٣٤٥٦٧أس٣"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "١٫٢٣٤٥٦٧٨٩٠١٢٣٤٥٦٧٨٩٠١٢٣٤٥٦أس١٩"
+        },
+        {
+          "input": "1e-7",
+          "expected": "١أس؜-٧"
+        },
+        {
+          "input": "1e6",
+          "expected": "١أس٦"
+        },
+        {
+          "input": "-1e6",
+          "expected": "؜-١أس٦"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "١٫٢٣٤٥٦٧٨٩٠١٢٣٤٥٦٧٨٩٠١٢٣٤٥٦٧٨٩أس؜-١٧"
+        },
+        {
+          "input": "1e100",
+          "expected": "١أس١٠٠"
+        },
+        {
+          "input": "1e-100",
+          "expected": "١أس؜-١٠٠"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "۰×۱۰^۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎−۰×۱۰^۰"
+        },
+        {
+          "input": "1",
+          "expected": "۱×۱۰^۰"
+        },
+        {
+          "input": "-1",
+          "expected": "‎−۱×۱۰^۰"
+        },
+        {
+          "input": "0.0049",
+          "expected": "۴٫۹×۱۰^‎−۳"
+        },
+        {
+          "input": "0.005",
+          "expected": "۵×۱۰^‎−۳"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎−۵×۱۰^‎−۳"
+        },
+        {
+          "input": "0.015",
+          "expected": "۱٫۵×۱۰^‎−۲"
+        },
+        {
+          "input": "9.99995",
+          "expected": "۹٫۹۹۹۹۵×۱۰^۰"
+        },
+        {
+          "input": "99.99995",
+          "expected": "۹٫۹۹۹۹۹۵×۱۰^۱"
+        },
+        {
+          "input": "999.99995",
+          "expected": "۹٫۹۹۹۹۹۹۵×۱۰^۲"
+        },
+        {
+          "input": "1234.567",
+          "expected": "۱٫۲۳۴۵۶۷×۱۰^۳"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎−۱٫۲۳۴۵۶۷×۱۰^۳"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "۱٫۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶×۱۰^۱۹"
+        },
+        {
+          "input": "1e-7",
+          "expected": "۱×۱۰^‎−۷"
+        },
+        {
+          "input": "1e6",
+          "expected": "۱×۱۰^۶"
+        },
+        {
+          "input": "-1e6",
+          "expected": "‎−۱×۱۰^۶"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "۱٫۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹×۱۰^‎−۱۷"
+        },
+        {
+          "input": "1e100",
+          "expected": "۱×۱۰^۱۰۰"
+        },
+        {
+          "input": "1e-100",
+          "expected": "۱×۱۰^‎−۱۰۰"
+        }
+      ]
+    },
+    {
+      "locale": "sv",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0×10^0"
+        },
+        {
+          "input": "-0",
+          "expected": "−0×10^0"
+        },
+        {
+          "input": "1",
+          "expected": "1×10^0"
+        },
+        {
+          "input": "-1",
+          "expected": "−1×10^0"
+        },
+        {
+          "input": "0.0049",
+          "expected": "4,9×10^−3"
+        },
+        {
+          "input": "0.005",
+          "expected": "5×10^−3"
+        },
+        {
+          "input": "-0.005",
+          "expected": "−5×10^−3"
+        },
+        {
+          "input": "0.015",
+          "expected": "1,5×10^−2"
+        },
+        {
+          "input": "9.99995",
+          "expected": "9,99995×10^0"
+        },
+        {
+          "input": "99.99995",
+          "expected": "9,999995×10^1"
+        },
+        {
+          "input": "999.99995",
+          "expected": "9,9999995×10^2"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1,234567×10^3"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "−1,234567×10^3"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "1,2345678901234567890123456×10^19"
+        },
+        {
+          "input": "1e-7",
+          "expected": "1×10^−7"
+        },
+        {
+          "input": "1e6",
+          "expected": "1×10^6"
+        },
+        {
+          "input": "-1e6",
+          "expected": "−1×10^6"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "1,2345678901234567890123456789×10^−17"
+        },
+        {
+          "input": "1e100",
+          "expected": "1×10^100"
+        },
+        {
+          "input": "1e-100",
+          "expected": "1×10^−100"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "0.0049",
+          "expected": "4.9E-3"
+        },
+        {
+          "input": "0.005",
+          "expected": "5E-3"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-5E-3"
+        },
+        {
+          "input": "0.015",
+          "expected": "1.5E-2"
+        },
+        {
+          "input": "9.99995",
+          "expected": "9.99995E0"
+        },
+        {
+          "input": "99.99995",
+          "expected": "9.999995E1"
+        },
+        {
+          "input": "999.99995",
+          "expected": "9.9999995E2"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1.234567E3"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1.234567E3"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "1.2345678901234567890123456E19"
+        },
+        {
+          "input": "1e-7",
+          "expected": "1E-7"
+        },
+        {
+          "input": "1e6",
+          "expected": "1E6"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-1E6"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "1.2345678901234567890123456789E-17"
+        },
+        {
+          "input": "1e100",
+          "expected": "1E100"
+        },
+        {
+          "input": "1e-100",
+          "expected": "1E-100"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "0.0049",
+          "expected": "4,9E-3"
+        },
+        {
+          "input": "0.005",
+          "expected": "5E-3"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-5E-3"
+        },
+        {
+          "input": "0.015",
+          "expected": "1,5E-2"
+        },
+        {
+          "input": "9.99995",
+          "expected": "9,99995E0"
+        },
+        {
+          "input": "99.99995",
+          "expected": "9,999995E1"
+        },
+        {
+          "input": "999.99995",
+          "expected": "9,9999995E2"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1,234567E3"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1,234567E3"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "1,2345678901234567890123456E19"
+        },
+        {
+          "input": "1e-7",
+          "expected": "1E-7"
+        },
+        {
+          "input": "1e6",
+          "expected": "1E6"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-1E6"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "1,2345678901234567890123456789E-17"
+        },
+        {
+          "input": "1e100",
+          "expected": "1E100"
+        },
+        {
+          "input": "1e-100",
+          "expected": "1E-100"
+        }
+      ]
+    },
+    {
+      "locale": "tr",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "0.0049",
+          "expected": "4,9E-3"
+        },
+        {
+          "input": "0.005",
+          "expected": "5E-3"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-5E-3"
+        },
+        {
+          "input": "0.015",
+          "expected": "1,5E-2"
+        },
+        {
+          "input": "9.99995",
+          "expected": "9,99995E0"
+        },
+        {
+          "input": "99.99995",
+          "expected": "9,999995E1"
+        },
+        {
+          "input": "999.99995",
+          "expected": "9,9999995E2"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1,234567E3"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1,234567E3"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "1,2345678901234567890123456E19"
+        },
+        {
+          "input": "1e-7",
+          "expected": "1E-7"
+        },
+        {
+          "input": "1e6",
+          "expected": "1E6"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-1E6"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "1,2345678901234567890123456789E-17"
+        },
+        {
+          "input": "1e100",
+          "expected": "1E100"
+        },
+        {
+          "input": "1e-100",
+          "expected": "1E-100"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "pattern": "[#E0]",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "[0E0]"
+        },
+        {
+          "input": "-0",
+          "expected": "-[0E0]"
+        },
+        {
+          "input": "1",
+          "expected": "[1E0]"
+        },
+        {
+          "input": "-1",
+          "expected": "-[1E0]"
+        },
+        {
+          "input": "0.0049",
+          "expected": "[4.9E-3]"
+        },
+        {
+          "input": "0.005",
+          "expected": "[5E-3]"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-[5E-3]"
+        },
+        {
+          "input": "0.015",
+          "expected": "[1.5E-2]"
+        },
+        {
+          "input": "9.99995",
+          "expected": "[9.99995E0]"
+        },
+        {
+          "input": "99.99995",
+          "expected": "[9.999995E1]"
+        },
+        {
+          "input": "999.99995",
+          "expected": "[9.9999995E2]"
+        },
+        {
+          "input": "1234.567",
+          "expected": "[1.234567E3]"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-[1.234567E3]"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "[1.2345678901234567890123456E19]"
+        },
+        {
+          "input": "1e-7",
+          "expected": "[1E-7]"
+        },
+        {
+          "input": "1e6",
+          "expected": "[1E6]"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-[1E6]"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "[1.2345678901234567890123456789E-17]"
+        },
+        {
+          "input": "1e100",
+          "expected": "[1E100]"
+        },
+        {
+          "input": "1e-100",
+          "expected": "[1E-100]"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "𞥐𞤉𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-𞥐𞤉𞥐"
+        },
+        {
+          "input": "1",
+          "expected": "𞥑𞤉𞥐"
+        },
+        {
+          "input": "-1",
+          "expected": "-𞥑𞤉𞥐"
+        },
+        {
+          "input": "0.0049",
+          "expected": "𞥔.𞥙𞤉-𞥓"
+        },
+        {
+          "input": "0.005",
+          "expected": "𞥕𞤉-𞥓"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-𞥕𞤉-𞥓"
+        },
+        {
+          "input": "0.015",
+          "expected": "𞥑.𞥕𞤉-𞥒"
+        },
+        {
+          "input": "9.99995",
+          "expected": "𞥙.𞥙𞥙𞥙𞥙𞥕𞤉𞥐"
+        },
+        {
+          "input": "99.99995",
+          "expected": "𞥙.𞥙𞥙𞥙𞥙𞥙𞥕𞤉𞥑"
+        },
+        {
+          "input": "999.99995",
+          "expected": "𞥙.𞥙𞥙𞥙𞥙𞥙𞥙𞥕𞤉𞥒"
+        },
+        {
+          "input": "1234.567",
+          "expected": "𞥑.𞥒𞥓𞥔𞥕𞥖𞥗𞤉𞥓"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-𞥑.𞥒𞥓𞥔𞥕𞥖𞥗𞤉𞥓"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "𞥑.𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙𞥐𞥑𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙𞥐𞥑𞥒𞥓𞥔𞥕𞥖𞤉𞥑𞥙"
+        },
+        {
+          "input": "1e-7",
+          "expected": "𞥑𞤉-𞥗"
+        },
+        {
+          "input": "1e6",
+          "expected": "𞥑𞤉𞥖"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-𞥑𞤉𞥖"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "𞥑.𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙𞥐𞥑𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙𞥐𞥑𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙𞤉-𞥑𞥗"
+        },
+        {
+          "input": "1e100",
+          "expected": "𞥑𞤉𞥑𞥐𞥐"
+        },
+        {
+          "input": "1e-100",
+          "expected": "𞥑𞤉-𞥑𞥐𞥐"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "pattern": "#E0",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "𑄶E𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-𑄶E𑄶"
+        },
+        {
+          "input": "1",
+          "expected": "𑄷E𑄶"
+        },
+        {
+          "input": "-1",
+          "expected": "-𑄷E𑄶"
+        },
+        {
+          "input": "0.0049",
+          "expected": "𑄺.𑄿E-𑄹"
+        },
+        {
+          "input": "0.005",
+          "expected": "𑄻E-𑄹"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-𑄻E-𑄹"
+        },
+        {
+          "input": "0.015",
+          "expected": "𑄷.𑄻E-𑄸"
+        },
+        {
+          "input": "9.99995",
+          "expected": "𑄿.𑄿𑄿𑄿𑄿𑄻E𑄶"
+        },
+        {
+          "input": "99.99995",
+          "expected": "𑄿.𑄿𑄿𑄿𑄿𑄿𑄻E𑄷"
+        },
+        {
+          "input": "999.99995",
+          "expected": "𑄿.𑄿𑄿𑄿𑄿𑄿𑄿𑄻E𑄸"
+        },
+        {
+          "input": "1234.567",
+          "expected": "𑄷.𑄸𑄹𑄺𑄻𑄼𑄽E𑄹"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-𑄷.𑄸𑄹𑄺𑄻𑄼𑄽E𑄹"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "𑄷.𑄸𑄹𑄺𑄻𑄼𑄽𑄾𑄿𑄶𑄷𑄸𑄹𑄺𑄻𑄼𑄽𑄾𑄿𑄶𑄷𑄸𑄹𑄺𑄻𑄼E𑄷𑄿"
+        },
+        {
+          "input": "1e-7",
+          "expected": "𑄷E-𑄽"
+        },
+        {
+          "input": "1e6",
+          "expected": "𑄷E𑄼"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-𑄷E𑄼"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "𑄷.𑄸𑄹𑄺𑄻𑄼𑄽𑄾𑄿𑄶𑄷𑄸𑄹𑄺𑄻𑄼𑄽𑄾𑄿𑄶𑄷𑄸𑄹𑄺𑄻𑄼𑄽𑄾𑄿E-𑄷𑄽"
+        },
+        {
+          "input": "1e100",
+          "expected": "𑄷E𑄷𑄶𑄶"
+        },
+        {
+          "input": "1e-100",
+          "expected": "𑄷E-𑄷𑄶𑄶"
+        }
+      ]
+    },
+    {
+      "locale": "lo",
+      "pattern": "#",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0"
+        },
+        {
+          "input": "1",
+          "expected": "1"
+        },
+        {
+          "input": "-1",
+          "expected": "-1"
+        },
+        {
+          "input": "0.0049",
+          "expected": "0"
+        },
+        {
+          "input": "0.005",
+          "expected": "0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0"
+        },
+        {
+          "input": "0.015",
+          "expected": "0"
+        },
+        {
+          "input": "9.99995",
+          "expected": "10"
+        },
+        {
+          "input": "99.99995",
+          "expected": "100"
+        },
+        {
+          "input": "999.99995",
+          "expected": "1000"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1235"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12345678901234567890"
+        },
+        {
+          "input": "1e-7",
+          "expected": "0"
+        },
+        {
+          "input": "1e6",
+          "expected": "1000000"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-1000000"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "0"
+        },
+        {
+          "input": "1e100",
+          "expected": "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "input": "1e-100",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "locale": "si",
+      "pattern": "#",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0"
+        },
+        {
+          "input": "1",
+          "expected": "1"
+        },
+        {
+          "input": "-1",
+          "expected": "-1"
+        },
+        {
+          "input": "0.0049",
+          "expected": "0"
+        },
+        {
+          "input": "0.005",
+          "expected": "0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0"
+        },
+        {
+          "input": "0.015",
+          "expected": "0"
+        },
+        {
+          "input": "9.99995",
+          "expected": "10"
+        },
+        {
+          "input": "99.99995",
+          "expected": "100"
+        },
+        {
+          "input": "999.99995",
+          "expected": "1000"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1235"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12345678901234567890"
+        },
+        {
+          "input": "1e-7",
+          "expected": "0"
+        },
+        {
+          "input": "1e6",
+          "expected": "1000000"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-1000000"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "0"
+        },
+        {
+          "input": "1e100",
+          "expected": "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "input": "1e-100",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "locale": "mr",
+      "pattern": "[#E0]",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "[०E०]"
+        },
+        {
+          "input": "-0",
+          "expected": "-[०E०]"
+        },
+        {
+          "input": "1",
+          "expected": "[१E०]"
+        },
+        {
+          "input": "-1",
+          "expected": "-[१E०]"
+        },
+        {
+          "input": "0.0049",
+          "expected": "[४.९E-३]"
+        },
+        {
+          "input": "0.005",
+          "expected": "[५E-३]"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-[५E-३]"
+        },
+        {
+          "input": "0.015",
+          "expected": "[१.५E-२]"
+        },
+        {
+          "input": "9.99995",
+          "expected": "[९.९९९९५E०]"
+        },
+        {
+          "input": "99.99995",
+          "expected": "[९.९९९९९५E१]"
+        },
+        {
+          "input": "999.99995",
+          "expected": "[९.९९९९९९५E२]"
+        },
+        {
+          "input": "1234.567",
+          "expected": "[१.२३४५६७E३]"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-[१.२३४५६७E३]"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "[१.२३४५६७८९०१२३४५६७८९०१२३४५६E१९]"
+        },
+        {
+          "input": "1e-7",
+          "expected": "[१E-७]"
+        },
+        {
+          "input": "1e6",
+          "expected": "[१E६]"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-[१E६]"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "[१.२३४५६७८९०१२३४५६७८९०१२३४५६७८९E-१७]"
+        },
+        {
+          "input": "1e100",
+          "expected": "[१E१००]"
+        },
+        {
+          "input": "1e-100",
+          "expected": "[१E-१००]"
+        }
+      ]
+    },
+    {
+      "locale": "gu",
+      "pattern": "[#E0]",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "[0E0]"
+        },
+        {
+          "input": "-0",
+          "expected": "-[0E0]"
+        },
+        {
+          "input": "1",
+          "expected": "[1E0]"
+        },
+        {
+          "input": "-1",
+          "expected": "-[1E0]"
+        },
+        {
+          "input": "0.0049",
+          "expected": "[4.9E-3]"
+        },
+        {
+          "input": "0.005",
+          "expected": "[5E-3]"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-[5E-3]"
+        },
+        {
+          "input": "0.015",
+          "expected": "[1.5E-2]"
+        },
+        {
+          "input": "9.99995",
+          "expected": "[9.99995E0]"
+        },
+        {
+          "input": "99.99995",
+          "expected": "[9.999995E1]"
+        },
+        {
+          "input": "999.99995",
+          "expected": "[9.9999995E2]"
+        },
+        {
+          "input": "1234.567",
+          "expected": "[1.234567E3]"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-[1.234567E3]"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "[1.2345678901234567890123456E19]"
+        },
+        {
+          "input": "1e-7",
+          "expected": "[1E-7]"
+        },
+        {
+          "input": "1e6",
+          "expected": "[1E6]"
+        },
+        {
+          "input": "-1e6",
+          "expected": "-[1E6]"
+        },
+        {
+          "input": "1.2345678901234567890123456789e-17",
+          "expected": "[1.2345678901234567890123456789E-17]"
+        },
+        {
+          "input": "1e100",
+          "expected": "[1E100]"
+        },
+        {
+          "input": "1e-100",
+          "expected": "[1E-100]"
+        }
+      ]
+    }
+  ]
+}

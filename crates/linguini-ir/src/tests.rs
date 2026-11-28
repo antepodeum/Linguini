@@ -736,13 +736,14 @@ fn numeric_styles_are_static_validated_options_on_aliases_and_nested_inputs() {
         "{value}",
         "{value @number(style = \"percent\")}",
         "{value @number(style = \"decimal\")}",
+        "{value @number(style = \"scientific\")}",
         "{Echo(value @number(style = \"percent\"))}",
         "{fn(copy: value @number(style = \"percent\")) { _ => {copy} }}",
     ] {
         validate_ir(&schema, &locale(body)).unwrap();
     }
     for (body, code) in [
-        ("{value @number(style = \"scientific\")}", "IR031"),
+        ("{value @number(style = \"engineering\")}", "IR031"),
         ("{value @number(style = \"Percent\")}", "IR031"),
         ("{Echo(value @number(style = \"\"))}", "IR031"),
         ("{value @number(max_fraction = \"2\")}", "IR030"),
