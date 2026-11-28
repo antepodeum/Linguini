@@ -14,6 +14,7 @@ mod locale;
 mod message;
 mod messages;
 mod names;
+mod plural_runtime;
 mod project_output;
 mod provenance;
 mod runtime;
@@ -353,6 +354,9 @@ pub use locale::{compile_locale_artifact_module, CompiledEcmaLocaleModule};
 pub use message::{
     compile_bundler_message_artifact_module, compile_bundler_message_module,
     compile_message_module, CompiledEcmaMessageModule,
+};
+pub use plural_runtime::{
+    compile_plural_runtime_variants, EcmaPluralRuntimePlan, EcmaPluralRuntimeVariant,
 };
 pub use project_output::compile_ecmascript_project_files;
 pub use runtime::{compile_locale_runtime_artifact_module, CompiledEcmaLocaleRuntimeModule};

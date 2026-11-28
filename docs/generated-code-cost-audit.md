@@ -365,7 +365,7 @@ explains why disabling them can remove getters and invalid-access errors.
 
 | ID | Status | Verified evidence | Required remediation |
 | --- | --- | --- | --- |
-| GEN-A15 | Partial | GEN-A94 adds shared selector-category demand and ordered predicate reduction, used by standalone message closures. Consumers union their demand into one classifier; full public category values and observable errors retain their rules. Complete single/mixed/public consumers execute on Vite 7/8, with costs recorded below. Physical runtimes still request the complete classifier. | Integrate combined demand into exact composed-page delivery without duplicating classifiers or changing sparse-fallback origin semantics. Resolve repeated normalization/provenance and assess whole-page costs. Public category strings and raw count semantics must remain intact. |
+| GEN-A15 | Partial | GEN-A94 adds shared selector-category demand and ordered predicate reduction, used by standalone message closures. Consumers union their demand into one classifier; full public category values and observable errors retain their rules. Complete single/mixed/public consumers execute on Vite 7/8, with costs recorded below. GEN-A95 now selects one native-compiled union per locale-runtime owner in composed-page and lazy payloads, preserving formatter exports and sparse fallback. | Resolve equivalent category-outcome merging and repeated normalization/provenance. Continue assessing the complete configuration/helper matrix and whole-page costs. Public category strings and raw count semantics must remain intact. |
 | GEN-A16 | Fixed | `shared.jinja::normalizeMessageArgs` requests `.filter(...).map(String).sort()` over own keys even when a valid named argument has no unknown keys. This shape occurs in eight scanned fixture copies. | Unknown keys are collected lazily; conversion and sorting occur only on errors. Successful named calls retain only the own-key snapshot and result array. Executed arities 0–128 count collection operations, and observation tests preserve separate classification/conversion phases, sorted errors, symbols/non-enumerable keys, getter/Proxy order, missing-key positional fallback, and frozen inputs. A local seven-batch Node comparison covered arities 1, 2, 8, 32, and 128; it does not establish a general speed improvement. No persistent sets/tables are added. |
 | GEN-A17 | Fixed | `codegen-js-formatters-ru.js` tested `fraction ? ... : integer` after a fixed two-digit currency round. Integer-only plans also retained fraction/formatted scaffolding. Owner: `formatters/number.jinja`. | Mandatory fractions now concatenate directly; non-scientific integer-only plans omit fraction/formatted bindings and localize/group the integer directly. Identical sign prefixes are selected during generation. Executed USD/JPY/KWD, optional/significant fractions, negative zero, localized digits, equal prefixes, and the existing grouping/padding/rounding corpus cover the change. |
 | GEN-A18 | Fixed | `date_helpers.jinja` validates an ISO date-time's calendar fields by constructing a `Date` it then discards, before constructing the final date-time. Instrumented generated code constructs two dates for `2024-01-02T13:04:05Z`, one for a date-only value, and one before rejecting February 30. | Gregorian field validation now uses arithmetic before constructing the returned date. Executed tests cover all 10,000 four-digit years against native calendar rollover, three host time zones, year zero, leap centuries, offsets, midnight rollover, malformed/time-invalid inputs, and observable supplied Date methods. Valid text values construct one Date; invalid calendar fields construct none; supplied Date objects retain identity and construct none. |
@@ -1285,3 +1285,42 @@ remaining predicates already match the previous exhaustive-tail optimization; re
 unobserved final category grows minified output by one byte while compressed output shrinks
 slightly. Public-category consumers are byte-identical. No timing, retained-heap, repeated
 normalization, physical-runtime, or composed-page completion is claimed. GEN-A15 stays partial.
+
+## Page payload plural-category demand
+
+GEN-A95 supplies Vite with native-compiled message-category demand and only the reachable unions
+of those demands. Variant files live in owned generated build output. Page compilation chooses
+one classifier per actual locale-runtime owner, retaining formatter exports from their original
+module. Full-category results and distinct explicit-other branches retain complete classifiers.
+Category-name inputs remain valid even when that category has no numeric rule in the locale.
+Neither compiler metadata nor inactive variants enter application payloads.
+
+A native project exercises ordinary physical references against page and lazy payloads on Vite
+7.3.3 and 8.0.13, Node 24.13.1, Russian, sparse regional Russian, and French. Five initial pages
+and one lazy closure each produce one self-contained file per locale. All four source-map modes
+retain executable results and readable sources. The minified baseline uses the same freshly
+compiled project with only the optional plural metadata omitted, exercising older prebuilt
+manifest compatibility through the public plugin API. Both paths preserve category passthrough,
+coercion hints/counts, thrown error identity, formatter results, and exact message sets.
+
+| Russian page/payload | Vite | Full minified / gzip / Brotli bytes | Scoped minified / gzip / Brotli bytes |
+| --- | --- | ---: | ---: |
+| One-category message plus number formatter | 7 | 2,971 / 1,371 / 1,249 | 2,931 / 1,346 / 1,222 |
+| One-category message plus number formatter | 8 | 2,890 / 1,325 / 1,201 | 2,851 / 1,298 / 1,177 |
+| Mixed one/few functions and named/direct forms | 7 | 1,901 / 975 / 856 | 1,902 / 974 / 853 |
+| Mixed one/few functions and named/direct forms | 8 | 1,852 / 950 / 837 | 1,853 / 949 / 836 |
+| One message plus public category | 7 | 1,547 / 846 / 745 | 1,547 / 846 / 745 |
+| One message plus public category | 8 | 1,506 / 828 / 731 | 1,506 / 828 / 731 |
+| Distinct explicit-other fallback | 7 | 1,540 / 861 / 763 | 1,540 / 861 / 763 |
+| Distinct explicit-other fallback | 8 | 1,503 / 839 / 740 | 1,503 / 839 / 740 |
+| Static message | 7 | 51 / 71 / 55 | 51 / 71 / 55 |
+| Static message | 8 | 44 / 64 / 48 | 44 / 64 / 48 |
+| Lazy few-category message | 7 | 1,480 / 832 / 730 | 1,461 / 819 / 716 |
+| Lazy few-category message | 8 | 1,443 / 810 / 710 | 1,424 / 796 / 697 |
+
+The rebuilt site passes its production graph gate across nine locales and all nine SSR/browser
+tests. Selected-locale preloads, no-JavaScript rendering, concurrent request isolation, and lazy
+request/cache behavior remain intact. No additional classifier request is introduced. These
+checks establish this category-selection boundary, without a speed/heap claim or completion of
+equivalent-outcome merging, repeated normalization, opaque callable-form properties, unselected
+adapter capabilities, or the complete composed-page configuration matrix.

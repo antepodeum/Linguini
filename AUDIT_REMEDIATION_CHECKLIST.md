@@ -2021,6 +2021,16 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       category passthrough. Vite 7/8 complete standalone consumers save 30/29 Brotli bytes for
       one-category output; mixed consumers save 1/3 Brotli bytes with one extra minified byte.
       Physical runtimes, composed-page specialization, and repeated normalization remain open.
+      GEN-A95 integrates that category demand into Vite page and lazy payload compilation.
+      The native build emits only reachable category unions as owned build artifacts; Vite
+      selects one per actual locale-runtime owner and preserves formatter exports. No category
+      policy table, CLDR interpreter, or extra request enters the payload. Native sparse/regional
+      fallback, mixed functions and named/direct forms, public categories, explicit-other arms,
+      named arguments, coercion, and every source-map mode execute on Vite 7/8. Legacy manifests
+      retain full classifiers. The rebuilt site passes production graph and nine SSR/browser
+      checks, preserving selected-locale preload, no-JavaScript rendering, and lazy request counts.
+      Repeated normalization, opaque callable-form attributes, remaining helper/capability demand,
+      and the full composed-page configuration matrix remain open.
       Namespace/barrel global imports now follow shared direct semantic edges; static namespaces
       and re-export-only barrels omit them. Project and physical-leaf execution covers captured
       globals, alias-typed callable forms, simultaneous inline-input scope, named/positional calls,

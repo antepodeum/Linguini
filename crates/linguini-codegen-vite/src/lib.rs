@@ -6,6 +6,8 @@ use linguini_codegen_ecmascript::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
+mod plurals;
+
 #[derive(Debug)]
 pub struct ViteCodegenError(String);
 impl std::fmt::Display for ViteCodegenError {
@@ -179,6 +181,7 @@ impl<'project, 'schema> VitePlan<'project, 'schema> {
             "effective_locales": effective_locales,
             "sources": source_table,
             "messages": messages,
+            "plural_runtimes": plurals::plural_artifacts(self, &mut files)?,
         });
         if let Some(application_plan) = options.applications {
             let manifest = manifest.as_object_mut().expect("manifest is an object");

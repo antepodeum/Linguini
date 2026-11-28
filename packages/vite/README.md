@@ -72,7 +72,10 @@ standalone Svelte. Runtime routing and persistence are configured through their 
 An optional `linkModule` selects a project helper for static-link transforms.
 
 Framework adapters can select `pageMessages` and call `plugin.api.compilePages` once their
-transformed graph is available. The compiler re-shakes each supplied page independently, accepts selected
+transformed graph is available. Page payloads share a plural classifier specialized to their
+selected messages and dependencies, including payloads loaded by lazy actions. Rebuild generated
+output after upgrading to enable this optimization; older prebuilt output remains usable.
+The compiler re-shakes each supplied page independently, accepts selected
 nested export paths, and bundles only the surviving messages and their transitive compiled
 dependencies. The host adapter owns route discovery, request locale selection, and page
 publication. Normal, hidden, inline, and disabled source maps follow the Vite build setting.

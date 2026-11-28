@@ -158,8 +158,10 @@ validation, and category passthrough keep their existing contract.
 The Rust SDK's `compile_message_module` specializes its private classifier to the category
 distinctions used by that message and its dependencies. Consumers share one combined classifier.
 Explicit `Plural(value)` results retain all categories; input validation and category-name
-inputs retain their meaning. This applies to standalone message closures. Physical modules
-and Vite page payloads still use their shared locale classifier.
+inputs retain their meaning. Vite page payloads combine the demand of their selected message
+closures in the same way, including additional payloads loaded by lazy actions. Each locale
+runtime contributes one selected classifier. Physical modules retain shared runtime imports;
+the page compiler selects their private classifier while preserving formatter exports.
 
 Programmatically constructed IR can contain type names outside native syntax's PascalCase
 rules. The ECMAScript backend allocates separate type identifiers for

@@ -10,6 +10,7 @@ import { localeBuildConfig } from "./build-target.js";
 import { frameworkAdapter,validatePageRuntime } from "./framework.js";
 import { compilePagePayloads, compilePageBundles, pageMessageIndex } from "./page-payloads.js";
 import { toVitePath, scopedPhysicalModuleId, resolvePayloadDependency } from "./paths.js";
+import { validatePluralRuntimes } from "./plural-payloads.js";
 
 const DEFAULT_SCHEMA_DIR = DEFAULT_PATHS.schema;
 const DEFAULT_LOCALE_DIR = DEFAULT_PATHS.locale;
@@ -798,6 +799,12 @@ function validateManifest(raw, layout, manifestPath, adapter) {
     }
     messages.set(canonical, { arity: rawMessage.arity, locales });
   }
+  const pluralRuntimes = validatePluralRuntimes(raw.plural_runtimes, {
+    messages,
+    runtimes: messageRuntimes,
+    resolvePath: (value, field) => resolveGeneratedPath(layout.generatedRoot, value, field),
+    context,
+  });
   if (!isRecord(raw.applications)) {
     throw new Error(`${context}.applications must be an object`);
   }
@@ -836,6 +843,7 @@ function validateManifest(raw, layout, manifestPath, adapter) {
     effectsHelper,
     sourceIdsByFile,
     messageRuntimes,
+    pluralRuntimes,
     messageSemantics,
     messages,
     applicationsByFile,
@@ -1336,7 +1344,10 @@ function manifestContractFingerprint(manifest) {
     configuredLocales: manifest.configuredLocales,
     effectiveLocales: manifest.effectiveLocales,
     localeHelper: manifest.localeHelper,
-    effectsHelper: manifest.effectsHelper
+    effectsHelper: manifest.effectsHelper,
+    pluralRuntimes: [...manifest.pluralRuntimes ?? []].map(([locale, plan]) => [
+      locale, plan.module, plan.binding, [...plan.messages], [...plan.variants]
+    ])
   });
 }
 

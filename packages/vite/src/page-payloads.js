@@ -3,6 +3,7 @@ import path from "node:path";
 import { build, version as viteVersion } from "vite";
 
 import { toVitePath } from "./paths.js";
+import { pagePluralPlugin } from "./plural-payloads.js";
 
 const singleChunk = Number(viteVersion.split(".")[0]) >= 8
   ? { codeSplitting: false }
@@ -78,7 +79,7 @@ async function compileClosure(context,names,manifest,config,label) {
       configFile: false,
       root: config.root,
       logLevel: "silent",
-      plugins: [{
+      plugins: [pagePluralPlugin(manifest,names,locale), {
         name: "linguini-page-payload",
         resolveId(id) { if (id === ENTRY) return id; },
         load(id) { if (id === ENTRY) return source; }

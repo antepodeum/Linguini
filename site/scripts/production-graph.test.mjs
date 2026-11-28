@@ -9,6 +9,7 @@ import {build} from 'vite';
 import {verifySetterGraph} from './setter-graph.mjs';
 import {verifyDeferredDemand} from '../../packages/vite/test-support/deferred-demand.mjs';
 import {verifyFormDemand} from '../../packages/vite/test-support/form-demand.mjs';
+import {verifyPluralDemand} from '../../packages/vite/test-support/plural-demand.mjs';
 
 const siteRoot = join(fileURLToPath(new URL('..', import.meta.url)));
 await verifySetterGraph(siteRoot);
@@ -16,6 +17,12 @@ const require = createRequire(import.meta.url);
 const viteEntry = pathToFileURL(require.resolve('@antepodeum/linguini-vite'));
 const {pageMessagePlan} = await import(new URL('./page-demand.js',viteEntry));
 const {compilePageBundles} = await import(new URL('./page-payloads.js',viteEntry));
+const {linguini} = await import(viteEntry);
+const {validatePluralRuntimes} = await import(new URL('./plural-payloads.js',viteEntry));
+await verifyPluralDemand({
+  build,linguini,validatePluralRuntimes,
+  compiler:join(siteRoot,'../target/debug',process.platform === 'win32' ? 'linguini.exe' : 'linguini'),
+});
 await verifyDeferredDemand({build,pageMessagePlan,compilePageBundles});
 await verifyFormDemand({
   build,compilePageBundles,
