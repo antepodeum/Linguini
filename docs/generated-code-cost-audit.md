@@ -847,5 +847,19 @@ requests padding, so this arithmetic is absent from their generated implementati
 application code, declarations, and maps remain unchanged; curated padding fixtures exercise
 the selected implementations.
 
+## Compiler source-map traversal
+
+GEN-A77 removes growing-prefix rescans from module framing and original-position resolution.
+New statements contribute their newline count once. Requested source offsets are sorted and
+resolved through disjoint byte intervals, retaining the original generated-map order and UTF-16
+column semantics. This includes multiple mappings within a single long source line.
+
+The encoder uses O(M log M) sorting and O(M) temporary storage for M mappings. Text traversal
+is proportional to emitted statement text and the used source prefixes. This exchanges compiler
+scratch storage for removal of repeated text work; it makes no execution-time or retained-heap
+claim. Complete-project JavaScript, declarations, and source maps retain their existing golden
+bytes. Focused Unicode/map/provenance tests and strict crate Clippy pass. Application runtime
+code and payload costs are unchanged.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

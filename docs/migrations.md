@@ -4,6 +4,12 @@ This file records required application changes when a public Linguini contract c
 contract gate requires source changes to public configuration, CLI, generated API, Vite, LSP, or
 editor boundaries to update this file, public documentation, and executable tests together.
 
+## Source-map generation
+
+Source-map generation now resolves source positions incrementally and counts newly emitted lines
+without rescanning the existing module. JavaScript, declarations, map contents, and public APIs
+retain their existing behavior; no application changes are required.
+
 ## Native date type annotations
 
 Generated native date annotations now use `globalThis.Date`, preserving native `Date` arguments

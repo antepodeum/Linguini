@@ -1,13 +1,12 @@
 mod edges;
 mod literals;
+mod source_map;
 use edges::{render_import, render_re_export};
 #[cfg(test)]
 pub(crate) use literals::escape_string;
-use literals::string_literal as json_string;
 pub(crate) use literals::string_literal;
 
 use linguini_syntax::{SourceId, Span};
-use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EcmaModuleKind {
@@ -363,7 +362,7 @@ impl EcmaModule {
         RenderedEcmaModule {
             output: self.output.clone(),
             code,
-            source_map: render_source_map(self.output.path(), sources, &mappings),
+            source_map: source_map::render(self.output.path(), sources, &mappings),
         }
     }
 }
@@ -388,6 +387,7 @@ fn render_module_body(
         output.push('\n');
     }
 
+    let mut generated_line = output.bytes().filter(|byte| *byte == b'\n').count();
     for item in &module.statements {
         let statement = &item.statement;
         if !module.output.target.is_declaration()
@@ -395,122 +395,16 @@ fn render_module_body(
         {
             continue;
         }
-        let generated_line = output.bytes().filter(|byte| *byte == b'\n').count();
         if let Some(span) = statement.source_span {
             record_mapping((generated_line, span));
         }
         for (offset, span) in &item.line_mappings {
             record_mapping((generated_line + offset, *span));
         }
-        output.push_str(statement.code.trim_end_matches('\n'));
+        let code = statement.code.trim_end_matches('\n');
+        generated_line += code.bytes().filter(|byte| *byte == b'\n').count() + 1;
+        output.push_str(code);
         output.push('\n');
-    }
-}
-
-fn render_source_map(
-    file_name: &str,
-    sources: &[EcmaSource],
-    mappings: &[(usize, Span)],
-) -> String {
-    let source_indexes = sources
-        .iter()
-        .enumerate()
-        .map(|(index, source)| (source.id, index))
-        .collect::<BTreeMap<_, _>>();
-    let last_generated_line = mappings
-        .iter()
-        .map(|(line, _)| *line)
-        .max()
-        .unwrap_or_default();
-    let mut encoded = String::new();
-    let mut mapping_index = 0;
-    let mut previous_source = 0_i64;
-    let mut previous_original_line = 0_i64;
-    let mut previous_original_column = 0_i64;
-
-    for generated_line in 0..=last_generated_line {
-        if generated_line > 0 {
-            encoded.push(';');
-        }
-        while let Some((line, span)) = mappings.get(mapping_index) {
-            if *line != generated_line {
-                break;
-            }
-            let Some(source_index) = source_indexes.get(&span.source).copied() else {
-                mapping_index += 1;
-                continue;
-            };
-            let Some((original_line, original_column)) =
-                source_position(&sources[source_index], *span)
-            else {
-                mapping_index += 1;
-                continue;
-            };
-            encode_vlq(0, &mut encoded);
-            encode_vlq(source_index as i64 - previous_source, &mut encoded);
-            encode_vlq(original_line as i64 - previous_original_line, &mut encoded);
-            encode_vlq(
-                original_column as i64 - previous_original_column,
-                &mut encoded,
-            );
-            previous_source = source_index as i64;
-            previous_original_line = original_line as i64;
-            previous_original_column = original_column as i64;
-            mapping_index += 1;
-        }
-    }
-
-    let source_paths = sources
-        .iter()
-        .map(|source| json_string(&source.path))
-        .collect::<Vec<_>>()
-        .join(",");
-    let source_contents = sources
-        .iter()
-        .map(|source| json_string(&source.contents))
-        .collect::<Vec<_>>()
-        .join(",");
-    format!(
-        "{{\"version\":3,\"file\":{},\"sources\":[{}],\"sourcesContent\":[{}],\"names\":[],\"mappings\":{}}}\n",
-        json_string(file_name),
-        source_paths,
-        source_contents,
-        json_string(&encoded)
-    )
-}
-
-fn source_position(source: &EcmaSource, span: Span) -> Option<(usize, usize)> {
-    if span.source != source.id || span.start > source.contents.len() {
-        return None;
-    }
-    let prefix = source.contents.get(..span.start)?;
-    let line_start = prefix.rfind('\n').map_or(0, |index| index + 1);
-    let line = prefix.bytes().filter(|byte| *byte == b'\n').count();
-    let column = source
-        .contents
-        .get(line_start..span.start)?
-        .encode_utf16()
-        .count();
-    Some((line, column))
-}
-
-fn encode_vlq(value: i64, output: &mut String) {
-    const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut value = if value < 0 {
-        ((-value) as u64) << 1 | 1
-    } else {
-        (value as u64) << 1
-    };
-    loop {
-        let mut digit = (value & 31) as usize;
-        value >>= 5;
-        if value != 0 {
-            digit |= 32;
-        }
-        output.push(BASE64[digit] as char);
-        if value == 0 {
-            break;
-        }
     }
 }
 
