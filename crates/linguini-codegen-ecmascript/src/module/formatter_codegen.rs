@@ -186,6 +186,16 @@ fn number_plan_context(
             "scientificGeneratedDecimal".to_owned()
         }
     });
+    // Significant rounding already pads nonzero mantissas. Zero alone needs a
+    // literal suffix; engineering carries may shorten the remaining fraction.
+    let fixed_significant_zero = scientific
+        .and(significant)
+        .filter(|(minimum, maximum)| {
+            minimum == maximum
+                && *maximum > 0
+                && plan.minimum_significant_digits() == Some(*minimum)
+        })
+        .map(|(_, maximum)| "0".repeat(usize::from(maximum) - 1));
     let padding = number_padding_context(plan);
     let rounding_helper = if rounding.increment == "1" {
         format!("roundTo{}FractionDigits", rounding.fraction_digits)
@@ -208,6 +218,7 @@ fn number_plan_context(
         scale => plan.scale, scale_shift => plan.scale_shift,
         min_significant => plan.minimum_significant_digits(),
         max_significant => significant.map(|(_, maximum)| maximum),
+        fixed_significant_zero,
         rounding_helper, rounding => &rounding.increment, rounding_half => &rounding.half_integer,
         rounding_half_fraction => rounding.half_fraction,
         exponent_digits => scientific.map(|scientific| scientific.exponent_digits),

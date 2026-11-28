@@ -110,9 +110,8 @@ export function scientificSignificant(value) {
     rounded = { integer: "1", fraction: "00" };
   }
   const integer = rounded.integer;
-  let fraction = rounded.fraction.replace(/0+$/, "");
-  fraction = padTo3SignificantDigits(integer, fraction);
-  const formatted = fraction ? integer + "." + fraction : integer;
+  const fraction = rounded.integer === "0" ? "00" : rounded.fraction;
+  const formatted = integer + "." + fraction;
   const exponentDigits = String(Math.abs(exponent));
   const scientific = formatted + "E" + (exponent < 0 ? "-" : "") + exponentDigits;
   const prefix = decimal.negative ? "-" : "";
@@ -223,16 +222,6 @@ function roundTo3SignificantDigits(decimal) {
   if (decimal.fraction.length <= 2 || decimal.fraction[2] < "5") return { integer: decimal.integer, fraction };
   const digits = (BigInt(`${decimal.integer}${fraction}`) + 1n).toString().padStart(3, "0");
   return { integer: digits.slice(0, -2), fraction: digits.slice(-2) };
-}
-
-/**
- * @param {string} integer
- * @param {string} fraction
- * @returns {string}
- */
-function padTo3SignificantDigits(integer, fraction) {
-  const current = integer === "0" ? 1 : integer.length + fraction.length;
-  return fraction.padEnd(fraction.length + Math.max(0, 3 - current), "0");
 }
 
 /**

@@ -51,6 +51,8 @@ Regenerated significant rounding and padding helpers omit repeated leading-digit
 their callers supply normalized scientific mantissas. Ordinary callers retain general rounding
 and input-expansion checks. Formatted results, accepted inputs, and public APIs are unchanged;
 no application changes are required.
+Fixed significant scientific requests also retain required fraction zeros directly instead of
+trimming and padding them again; engineering carries preserve the selected total digit count.
 
 ## Native date type annotations
 

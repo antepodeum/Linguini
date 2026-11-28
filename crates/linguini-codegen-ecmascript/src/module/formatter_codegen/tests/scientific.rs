@@ -54,6 +54,23 @@ fn scientific_and_engineering_widths_match_exact_icu_results() {
             "formatters/number",
             minijinja::context! {name, plan => plan.clone(), exported => false},
         );
+        if !plan.get_attr("fixed_significant_zero").unwrap().is_none() {
+            assert!(!function.contains("replace(/0+$/"));
+            assert!(!function.contains("padTo"));
+            if plan
+                .get_attr("max_significant")
+                .unwrap()
+                .as_usize()
+                .unwrap()
+                > plan
+                    .get_attr("scientific_carry_width")
+                    .unwrap()
+                    .as_usize()
+                    .unwrap()
+            {
+                assert!(!function.contains("fraction ? integer"));
+            }
+        }
         script.push_str(&function);
         isolated.push_str("{\n");
         isolated.push_str(&function);

@@ -3,6 +3,14 @@
 #}{% set unpadded_rounding = plan.rounding == "1" and plan.max_significant is none -%}
 {% if plan.unlimited_precision -%}
 {% set fraction_value = "mantissa.fraction" -%}
+{% elif plan.fixed_significant_zero is not none -%}
+{# Significant rounders pad before carries; engineering carries can add an integer digit
+   without changing the exponent. Keep exactly the required remaining fraction digits.
+   Wider integer-only rounding already has an empty fraction, including negative slice bounds.
+-#}
+{% set fraction_value -%}
+{% if plan.fixed_significant_zero %}rounded.integer === "0" ? {{ plan.fixed_significant_zero|js }} : {% endif %}rounded.fraction{% if plan.scientific_exponent_step > 1 %}.slice(0, {{ plan.max_significant }} - rounded.integer.length){% endif %}
+{%- endset -%}
 {% elif plan.max_significant is none and plan.min_fraction == plan.max_fraction -%}
 {% set fraction_value -%}
 rounded.fraction{% if unpadded_rounding and plan.min_fraction > 0 %}.padEnd({{ plan.min_fraction }}, "0"){% endif %}
@@ -18,6 +26,7 @@ rounded.fraction.replace(/0+$/, "")
 rounded.fraction.slice(0, {{ plan.min_fraction }}) + rounded.fraction.slice({{ plan.min_fraction }}).replace(/0+$/, "")
 {%- endset -%}
 {% endif -%}
-{% if plan.min_significant is not none %}  let{% else %}  const{% endif %} fraction = {{ fraction_value }};
-{% if plan.min_significant is not none %}  fraction = padTo{{ plan.min_significant }}SignificantDigits(integer, fraction);
+{% set significant_padding = plan.min_significant is not none and plan.fixed_significant_zero is none -%}
+{% if significant_padding %}  let{% else %}  const{% endif %} fraction = {{ fraction_value }};
+{% if significant_padding %}  fraction = padTo{{ plan.min_significant }}SignificantDigits(integer, fraction);
 {% endif -%}

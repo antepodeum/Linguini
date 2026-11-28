@@ -41,7 +41,10 @@ fn groups(plans: &[Value], key: &str) -> Vec<(Value, Option<usize>)> {
     let mut groups = BTreeMap::<String, (Value, Option<usize>)>::new();
     for plan in plans {
         let precision = plan.get_attr(key).expect("compiled precision field");
-        if precision.is_none() {
+        if precision.is_none()
+            || (key == "min_significant"
+                && !plan.get_attr("fixed_significant_zero").unwrap().is_none())
+        {
             continue;
         }
         let width = if !plan.get_attr("exponent_digits").unwrap().is_none()

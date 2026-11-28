@@ -38,8 +38,7 @@ export function engineering3(value) {
     rounded = { integer: "1", fraction: "00" };
   }
   const integer = rounded.integer;
-  let fraction = rounded.fraction.replace(/0+$/, "");
-  fraction = padTo3SignificantDigits(integer, fraction);
+  const fraction = rounded.integer === "0" ? "00" : rounded.fraction.slice(0, 3 - rounded.integer.length);
   const formatted = fraction ? integer + "." + fraction : integer;
   const exponentDigits = String(Math.abs(exponent));
   const scientific = formatted + "E" + (exponent < 0 ? "-" : "") + exponentDigits;
@@ -239,16 +238,6 @@ function shiftScientificMantissa(decimal, shift) {
 function roundTo3SignificantDigits(decimal) {
   if (decimal.integer === "0") return { integer: "0", fraction: "" };
   return roundGeneratedFraction(decimal, 3 - decimal.integer.length);
-}
-
-/**
- * @param {string} integer
- * @param {string} fraction
- * @returns {string}
- */
-function padTo3SignificantDigits(integer, fraction) {
-  const current = integer === "0" ? 1 : integer.length + fraction.length;
-  return fraction.padEnd(fraction.length + Math.max(0, 3 - current), "0");
 }
 
 /**

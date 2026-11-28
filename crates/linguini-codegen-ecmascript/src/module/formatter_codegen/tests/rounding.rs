@@ -3,23 +3,26 @@ use super::*;
 #[test]
 fn significant_helpers_require_normalized_inputs_from_every_caller() {
     let numbers = compiled_number_formatting("en").unwrap();
-    for (width, ordinary_precision, reverse) in [
-        (1, None, false),
-        (3, None, false),
-        (4, None, false),
-        (3, Some(3), false),
-        (3, Some(3), true),
-        (3, Some(4), false),
-        (3, Some(4), true),
+    for (width, minimum, ordinary_precision, reverse) in [
+        (1, 3, None, false),
+        (3, 3, None, false),
+        (4, 3, None, false),
+        (1, 2, None, false),
+        (3, 2, None, false),
+        (4, 2, None, false),
+        (3, 3, Some(3), false),
+        (3, 3, Some(3), true),
+        (3, 3, Some(4), false),
+        (3, 3, Some(4), true),
     ] {
         let mut bindings = DigitBindings::default();
         let mut scientific = numbers.decimal_pattern;
         scientific.positive.max_integer_digits = Some(width);
         scientific.positive.exponent_digits = Some(1);
-        scientific.positive.min_fraction_digits = 2;
+        scientific.positive.min_fraction_digits = minimum - 1;
         scientific.positive.max_fraction_digits = 2;
         if width == 1 {
-            scientific.positive.min_significant_digits = Some(3);
+            scientific.positive.min_significant_digits = Some(minimum);
             scientific.positive.max_significant_digits = Some(3);
         }
         let mut plans = vec![number_plan(
@@ -49,6 +52,22 @@ fn significant_helpers_require_normalized_inputs_from_every_caller() {
         }
         let helpers = number_helpers(&plans);
         let normalized = ordinary_precision != Some(3);
+        let needs_padding = minimum < 3 || ordinary_precision == Some(3);
+        assert_eq!(
+            helpers.contains(&format!("function padTo{minimum}SignificantDigits(")),
+            needs_padding,
+            "fixed scientific precision must not select an unused padding helper"
+        );
+        let padding_checks = if needs_padding {
+            format!(
+                "assert.equal(padTo{minimum}SignificantDigits('1',''),{zeros:?});\n\
+                 assert.equal(padTo{minimum}SignificantDigits('0',''),{zeros:?});\n\
+                 assert.equal(padTo{minimum}SignificantDigits('12','3'),'3');",
+                zeros = "0".repeat(usize::from(minimum) - 1)
+            )
+        } else {
+            String::new()
+        };
         assert_eq!(
             helpers.contains("function roundGeneratedFraction("),
             width != 1,
@@ -94,9 +113,7 @@ for (const [integer,fraction,expectedInteger,expectedFraction] of {samples}) {{
   assert.deepEqual(decimal,{{integer,fraction}},'rounding mutated its input');
   assert.notEqual(result,decimal,'significant rounding retains its fresh padded record');
 }}
-assert.equal(padTo3SignificantDigits('1',''),'00');
-assert.equal(padTo3SignificantDigits('0',''),'00');
-assert.equal(padTo3SignificantDigits('12','3'),'3');
+{padding_checks}
 assert.equal(searches===0,{normalized},'all callers must support the normalized shape proof');
 {ordinary_checks}
 String.prototype.search=originalSearch;

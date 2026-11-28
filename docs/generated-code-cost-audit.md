@@ -992,5 +992,32 @@ checked-fixture counterpart, so these are absolute sizes. No execution-time or r
 improvement is claimed. Multiple significant precisions retain their shared dynamic helper
 rather than duplicating a literal rounding body for every precision.
 
+## Required significant fraction digits
+
+GEN-A85 removes trim/scan/pad work when a scientific request has equal significant minimum and
+maximum precision. One-digit mantissas retain the padded rounding fraction; engineering results
+keep only the fraction digits left by their rounded integer width. This accounts for carries
+within an exponent group: `10.00` at three significant digits must become `10.0`. Zero uses its
+compiled zero suffix. Helpers are selected only for callers still needing significant padding.
+When precision exceeds the maximum mantissa integer width, the fraction is proven nonempty
+and concatenates directly. Ordinary and optional significant requests retain their existing path.
+
+The same 800 ICU results pass with shared and isolated helper sets, including wide integer-only
+rounding and engineering carries. Mixed caller ordering, minimums below maximum precision,
+and normalized-padding operation checks remain covered. Executed complete consumers compare
+with `f717a83` on Node 24.13.1; each has one `render` export/chunk and no imports. Sizes are
+minified/gzip/Brotli bytes:
+
+| Vite | Consumer | Before | After |
+| --- | --- | --- | --- |
+| 7.3.3 | Engineering three significant digits | 2111/978/916 | 2025/944/880 |
+| 8.0.13 | Engineering three significant digits | 2068/958/886 | 1990/926/859 |
+| 7.3.3 | Fixed three significant digits | 1979/924/863 | 1861/880/815 |
+| 8.0.13 | Fixed three significant digits | 1938/904/838 | 1828/865/796 |
+
+The other six consumers from GEN-A84 retain their previous bytes on both Vite versions.
+These changes remove the selected source operations and helper; no execution-time or
+retained-heap improvement is claimed.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

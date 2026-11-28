@@ -1935,6 +1935,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Known mandatory fractions now omit empty-fraction tests; non-scientific integer-only plans
       omit fraction/formatted bindings. Executed currency precision, optional/significant fraction,
       negative-zero, digit-localization, equal-prefix, grouping, and padding cases verify this.
+      Fixed significant scientific output now retains required zeros without trim/scan/pad work
+      (GEN-A85). Engineering carries select the remaining fraction width; zero uses a literal.
+      Unused padding helpers and proven unnecessary fraction-presence branches disappear.
+      The 800 shared/isolated ICU cases pass, and complete Vite 7/8 consumers save 27–48 Brotli
+      bytes while ordinary/optional consumers retain their existing behavior and bundle bytes.
       A 45-plan exact rational oracle covers precision/increment combinations, carries, huge
       values, and 8,000-digit fractions alongside the locale, currency, and scientific corpora.
       Plural decision/operand demand is shared through `linguini-codegen`; generated predicates use
