@@ -9,6 +9,7 @@ use std::path::Path;
 
 mod bindings;
 mod constant_week_dates;
+mod currency_display;
 mod date_types;
 mod export_bindings;
 mod form_demand;

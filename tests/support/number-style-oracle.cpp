@@ -1,5 +1,7 @@
 // Maintainer oracle: compile with pkg-config --cflags --libs icu-i18n icu-uc.
 // Input: locale<TAB>pinned number pattern<TAB>minimum grouping digits<TAB>exact input.
+// Optional arguments: currency code, then symbol/code display. Currency spacing is
+// disabled because the supplied pinned pattern already selects its letter-boundary variant.
 #include <unicode/decimfmt.h>
 #include <unicode/dcfmtsym.h>
 #include <unicode/fpositer.h>
@@ -12,7 +14,11 @@
 #include <string>
 #include <vector>
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc != 1 && argc != 3) return 2;
+    const std::string currency = argc == 3 ? argv[1] : "";
+    const std::string display = argc == 3 ? argv[2] : "";
+    if (argc == 3 && (currency.size() != 3 || (display != "symbol" && display != "code"))) return 2;
     std::string line;
     while (std::getline(std::cin, line)) {
         std::array<std::string, 4> fields;
@@ -39,7 +45,24 @@ int main() {
         for (int digit = 0; digit < 10; digit++) {
             symbols->setSymbol(digitSymbol(digit), icu::UnicodeString(static_cast<UChar>('0' + digit)));
         }
+        if (!currency.empty()) {
+            for (UBool before : {false, true}) {
+                symbols->setPatternForCurrencySpacing(UNUM_CURRENCY_MATCH, before,
+                    icu::UnicodeString::fromUTF8("[]"));
+            }
+        }
         icu::DecimalFormat formatter(icu::UnicodeString::fromUTF8(fields[1]), symbols, status);
+        if (!currency.empty()) {
+            const UChar code[] = {static_cast<UChar>(currency[0]), static_cast<UChar>(currency[1]),
+                static_cast<UChar>(currency[2]), 0};
+            formatter.setCurrency(code, status);
+            if (display == "code") {
+                auto selected = *formatter.getDecimalFormatSymbols();
+                selected.setSymbol(icu::DecimalFormatSymbols::kCurrencySymbol,
+                    icu::UnicodeString::fromUTF8(currency));
+                formatter.setDecimalFormatSymbols(selected);
+            }
+        }
         formatter.setMinimumGroupingDigits(std::stoi(fields[2]));
         formatter.setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
         icu::UnicodeString result;

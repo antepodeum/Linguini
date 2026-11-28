@@ -12,11 +12,26 @@ impl NumberFormatPlan {
     /// Resolve currency style, symbol-boundary pattern, precision, rounding, and separators.
     /// Unsupported locales, malformed currency codes, or invalid numeric plans return `None`.
     pub fn currency(locale: &str, code: &str, accounting: bool) -> Option<Self> {
+        Self::currency_with_display(locale, code, accounting, "symbol")
+    }
+
+    /// Resolve a localized symbol or ISO-code display before selecting the complete pattern.
+    /// Unsupported displays, locales, malformed codes, or invalid plans return `None`.
+    pub fn currency_with_display(
+        locale: &str,
+        code: &str,
+        accounting: bool,
+        display: &str,
+    ) -> Option<Self> {
         let code = code.to_ascii_uppercase();
         let numbers = compiled_number_formatting(locale)?;
         let currency = compiled_currency_formatting(locale)?;
         let fraction = compiled_currency_fraction(&code)?;
-        let symbol = compiled_currency_symbol(locale, &code).unwrap_or(&code);
+        let symbol = match display {
+            "symbol" => compiled_currency_symbol(locale, &code).unwrap_or(&code),
+            "code" => &code,
+            _ => return None,
+        };
         let mut pattern = select_pattern(&currency, symbol, accounting);
         pattern.positive.min_fraction_digits = fraction.digits;
         pattern.positive.max_fraction_digits = fraction.digits;

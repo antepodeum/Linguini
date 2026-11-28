@@ -40,8 +40,10 @@ accepts
 `style = "full|long|medium|short"` and/or `time_style = "full|long|medium|short"`, or an exclusive
 `skeleton = "yMMMd"` selecting an exact pinned Gregorian `availableFormats` ID. Unknown IDs
 and unsupported fields fail generation. Exact quarter IDs such as `yQQQ` and `yQQQQ` are supported.
-Type restrictions and the remaining skeleton-matching
-limits are documented in the reference.
+Currency formatting accepts static `display = "symbol|code"` and `accounting = "true|false"`
+options alongside its three-letter `code`. Omitted display selects the localized symbol;
+code display uses uppercase ISO text with the selected locale's currency pattern and precision.
+Type restrictions and the remaining skeleton-matching limits are documented in the reference.
 
 Sibling message and group names share one namespace. Duplicate declarations, duplicate enum
 variants, duplicate parameters, alias cycles, unknown types, and message/group collisions are

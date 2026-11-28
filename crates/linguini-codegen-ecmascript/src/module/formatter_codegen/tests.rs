@@ -1,3 +1,4 @@
+mod currency_display;
 mod currency_symbols;
 mod date_composition;
 mod decimal_separator;

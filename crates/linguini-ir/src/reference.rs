@@ -1779,7 +1779,7 @@ fn validate_formatters(
     for formatter in formatters {
         let (allowed, expected_type): (&[&str], Option<&str>) = match &formatter.kind {
             FormatterKind::Number => (&["style"], Some("numeric")),
-            FormatterKind::Currency => (&["code", "accounting"], Some("numeric")),
+            FormatterKind::Currency => (&["code", "accounting", "display"], Some("numeric")),
             FormatterKind::Date => (&["style", "time_style", "skeleton"], Some("Date")),
             FormatterKind::Unknown(name) => {
                 errors.push(IrReferenceError::new(
@@ -1852,6 +1852,15 @@ fn validate_formatters(
                     errors.push(IrReferenceError::new(
                         "IR031",
                         "currency formatter option `accounting` must be `true` or `false`",
+                        span,
+                    ));
+                }
+                ("currency", "display")
+                    if !matches!(argument.value.as_str(), "symbol" | "code") =>
+                {
+                    errors.push(IrReferenceError::new(
+                        "IR031",
+                        "currency formatter option `display` must be symbol or code",
                         span,
                     ));
                 }

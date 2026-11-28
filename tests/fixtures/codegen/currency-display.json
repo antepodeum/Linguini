@@ -1,0 +1,3613 @@
+{
+  "oracle": "ICU 78.3 exact decimal, pinned selected alpha-next-to-number pattern, ISO-code symbol override, standard currency precision, half-up rounding; legacy spacing disabled; full numeric field digit strings",
+  "cases": [
+    {
+      "locale": "en",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 1,234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 1,234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 1,000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 12,345,678,901,234,567,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00;(¤ #,##0.00)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "(USD 0.00)"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "(USD 0.01)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 1,234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "(USD 1,234.57)"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 1,000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 12,345,678,901,234,567,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 1,235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 1,235"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 1,000"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 12,345,678,901,234,567,890"
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "¤ #,##0.00;(¤ #,##0.00)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0",
+          "expected": "(JPY 0)"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "(JPY 0)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 1,235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "(JPY 1,235)"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 1,000"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 12,345,678,901,234,567,890"
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 0.000"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 0.000"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 0.005"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 0.005"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 1,234.567"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 1,234.567"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 999.995"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 12,345,678,901,234,567,890.123"
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00;(¤ #,##0.00)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 0.000"
+        },
+        {
+          "input": "-0",
+          "expected": "(KWD 0.000)"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 0.005"
+        },
+        {
+          "input": "-0.005",
+          "expected": "(KWD 0.005)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 1,234.567"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "(KWD 1,234.567)"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 999.995"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 12,345,678,901,234,567,890.123"
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 1,234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 1,234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 1,000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 12,345,678,901,234,567,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "¤ #,##0.00;(¤ #,##0.00)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "(ZZZ 0.00)"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "(ZZZ 0.01)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 1,234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "(ZZZ 1,234.57)"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 1,000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 12,345,678,901,234,567,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,00 USD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,00 USD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,01 USD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,01 USD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1 234,57 USD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1 234,57 USD"
+        },
+        {
+          "input": "999.995",
+          "expected": "1 000,00 USD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12 345 678 901 234 567 890,12 USD"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,00 USD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,00 USD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,01 USD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,01 USD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1 234,57 USD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1 234,57 USD"
+        },
+        {
+          "input": "999.995",
+          "expected": "1 000,00 USD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12 345 678 901 234 567 890,12 USD"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "0.005",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1 235 JPY"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1 235 JPY"
+        },
+        {
+          "input": "999.995",
+          "expected": "1 000 JPY"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12 345 678 901 234 567 890 JPY"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "0.005",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1 235 JPY"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1 235 JPY"
+        },
+        {
+          "input": "999.995",
+          "expected": "1 000 JPY"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12 345 678 901 234 567 890 JPY"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,000 KWD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,000 KWD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,005 KWD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,005 KWD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1 234,567 KWD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1 234,567 KWD"
+        },
+        {
+          "input": "999.995",
+          "expected": "999,995 KWD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12 345 678 901 234 567 890,123 KWD"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,000 KWD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,000 KWD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,005 KWD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,005 KWD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1 234,567 KWD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1 234,567 KWD"
+        },
+        {
+          "input": "999.995",
+          "expected": "999,995 KWD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12 345 678 901 234 567 890,123 KWD"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,00 ZZZ"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,00 ZZZ"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,01 ZZZ"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,01 ZZZ"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1 234,57 ZZZ"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1 234,57 ZZZ"
+        },
+        {
+          "input": "999.995",
+          "expected": "1 000,00 ZZZ"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12 345 678 901 234 567 890,12 ZZZ"
+        }
+      ]
+    },
+    {
+      "locale": "ru",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,00 ZZZ"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,00 ZZZ"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,01 ZZZ"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,01 ZZZ"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1 234,57 ZZZ"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1 234,57 ZZZ"
+        },
+        {
+          "input": "999.995",
+          "expected": "1 000,00 ZZZ"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12 345 678 901 234 567 890,12 ZZZ"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "‏#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‏٠٫٠٠ USD"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-‏٠٫٠٠ USD"
+        },
+        {
+          "input": "0.005",
+          "expected": "‏٠٫٠١ USD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-‏٠٫٠١ USD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‏١٬٢٣٤٫٥٧ USD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-‏١٬٢٣٤٫٥٧ USD"
+        },
+        {
+          "input": "999.995",
+          "expected": "‏١٬٠٠٠٫٠٠ USD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‏١٢٬٣٤٥٬٦٧٨٬٩٠١٬٢٣٤٬٥٦٧٬٨٩٠٫١٢ USD"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "‏#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‏٠٫٠٠ USD"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-‏٠٫٠٠ USD"
+        },
+        {
+          "input": "0.005",
+          "expected": "‏٠٫٠١ USD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-‏٠٫٠١ USD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‏١٬٢٣٤٫٥٧ USD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-‏١٬٢٣٤٫٥٧ USD"
+        },
+        {
+          "input": "999.995",
+          "expected": "‏١٬٠٠٠٫٠٠ USD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‏١٢٬٣٤٥٬٦٧٨٬٩٠١٬٢٣٤٬٥٦٧٬٨٩٠٫١٢ USD"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "‏#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‏٠ JPY"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-‏٠ JPY"
+        },
+        {
+          "input": "0.005",
+          "expected": "‏٠ JPY"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-‏٠ JPY"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‏١٬٢٣٥ JPY"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-‏١٬٢٣٥ JPY"
+        },
+        {
+          "input": "999.995",
+          "expected": "‏١٬٠٠٠ JPY"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‏١٢٬٣٤٥٬٦٧٨٬٩٠١٬٢٣٤٬٥٦٧٬٨٩٠ JPY"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "‏#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‏٠ JPY"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-‏٠ JPY"
+        },
+        {
+          "input": "0.005",
+          "expected": "‏٠ JPY"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-‏٠ JPY"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‏١٬٢٣٥ JPY"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-‏١٬٢٣٥ JPY"
+        },
+        {
+          "input": "999.995",
+          "expected": "‏١٬٠٠٠ JPY"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‏١٢٬٣٤٥٬٦٧٨٬٩٠١٬٢٣٤٬٥٦٧٬٨٩٠ JPY"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "‏#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‏٠٫٠٠٠ KWD"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-‏٠٫٠٠٠ KWD"
+        },
+        {
+          "input": "0.005",
+          "expected": "‏٠٫٠٠٥ KWD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-‏٠٫٠٠٥ KWD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‏١٬٢٣٤٫٥٦٧ KWD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-‏١٬٢٣٤٫٥٦٧ KWD"
+        },
+        {
+          "input": "999.995",
+          "expected": "‏٩٩٩٫٩٩٥ KWD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‏١٢٬٣٤٥٬٦٧٨٬٩٠١٬٢٣٤٬٥٦٧٬٨٩٠٫١٢٣ KWD"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "‏#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‏٠٫٠٠٠ KWD"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-‏٠٫٠٠٠ KWD"
+        },
+        {
+          "input": "0.005",
+          "expected": "‏٠٫٠٠٥ KWD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-‏٠٫٠٠٥ KWD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‏١٬٢٣٤٫٥٦٧ KWD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-‏١٬٢٣٤٫٥٦٧ KWD"
+        },
+        {
+          "input": "999.995",
+          "expected": "‏٩٩٩٫٩٩٥ KWD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‏١٢٬٣٤٥٬٦٧٨٬٩٠١٬٢٣٤٬٥٦٧٬٨٩٠٫١٢٣ KWD"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "‏#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‏٠٫٠٠ ZZZ"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-‏٠٫٠٠ ZZZ"
+        },
+        {
+          "input": "0.005",
+          "expected": "‏٠٫٠١ ZZZ"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-‏٠٫٠١ ZZZ"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‏١٬٢٣٤٫٥٧ ZZZ"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-‏١٬٢٣٤٫٥٧ ZZZ"
+        },
+        {
+          "input": "999.995",
+          "expected": "‏١٬٠٠٠٫٠٠ ZZZ"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‏١٢٬٣٤٥٬٦٧٨٬٩٠١٬٢٣٤٬٥٦٧٬٨٩٠٫١٢ ZZZ"
+        }
+      ]
+    },
+    {
+      "locale": "ar-EG",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "‏#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‏٠٫٠٠ ZZZ"
+        },
+        {
+          "input": "-0",
+          "expected": "؜-‏٠٫٠٠ ZZZ"
+        },
+        {
+          "input": "0.005",
+          "expected": "‏٠٫٠١ ZZZ"
+        },
+        {
+          "input": "-0.005",
+          "expected": "؜-‏٠٫٠١ ZZZ"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‏١٬٢٣٤٫٥٧ ZZZ"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "؜-‏١٬٢٣٤٫٥٧ ZZZ"
+        },
+        {
+          "input": "999.995",
+          "expected": "‏١٬٠٠٠٫٠٠ ZZZ"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‏١٢٬٣٤٥٬٦٧٨٬٩٠١٬٢٣٤٬٥٦٧٬٨٩٠٫١٢ ZZZ"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "‎¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‎USD ۰٫۰۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎−‎USD ۰٫۰۰"
+        },
+        {
+          "input": "0.005",
+          "expected": "‎USD ۰٫۰۱"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎−‎USD ۰٫۰۱"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‎USD ۱٬۲۳۴٫۵۷"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎−‎USD ۱٬۲۳۴٫۵۷"
+        },
+        {
+          "input": "999.995",
+          "expected": "‎USD ۱٬۰۰۰٫۰۰"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‎USD ۱۲٬۳۴۵٬۶۷۸٬۹۰۱٬۲۳۴٬۵۶۷٬۸۹۰٫۱۲"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "‎¤ #,##0.00;‎(¤ #,##0.00)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‎USD ۰٫۰۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎(USD ۰٫۰۰)"
+        },
+        {
+          "input": "0.005",
+          "expected": "‎USD ۰٫۰۱"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎(USD ۰٫۰۱)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‎USD ۱٬۲۳۴٫۵۷"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎(USD ۱٬۲۳۴٫۵۷)"
+        },
+        {
+          "input": "999.995",
+          "expected": "‎USD ۱٬۰۰۰٫۰۰"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‎USD ۱۲٬۳۴۵٬۶۷۸٬۹۰۱٬۲۳۴٬۵۶۷٬۸۹۰٫۱۲"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "‎¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‎JPY ۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎−‎JPY ۰"
+        },
+        {
+          "input": "0.005",
+          "expected": "‎JPY ۰"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎−‎JPY ۰"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‎JPY ۱٬۲۳۵"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎−‎JPY ۱٬۲۳۵"
+        },
+        {
+          "input": "999.995",
+          "expected": "‎JPY ۱٬۰۰۰"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‎JPY ۱۲٬۳۴۵٬۶۷۸٬۹۰۱٬۲۳۴٬۵۶۷٬۸۹۰"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "‎¤ #,##0.00;‎(¤ #,##0.00)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‎JPY ۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎(JPY ۰)"
+        },
+        {
+          "input": "0.005",
+          "expected": "‎JPY ۰"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎(JPY ۰)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‎JPY ۱٬۲۳۵"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎(JPY ۱٬۲۳۵)"
+        },
+        {
+          "input": "999.995",
+          "expected": "‎JPY ۱٬۰۰۰"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‎JPY ۱۲٬۳۴۵٬۶۷۸٬۹۰۱٬۲۳۴٬۵۶۷٬۸۹۰"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "‎¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‎KWD ۰٫۰۰۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎−‎KWD ۰٫۰۰۰"
+        },
+        {
+          "input": "0.005",
+          "expected": "‎KWD ۰٫۰۰۵"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎−‎KWD ۰٫۰۰۵"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‎KWD ۱٬۲۳۴٫۵۶۷"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎−‎KWD ۱٬۲۳۴٫۵۶۷"
+        },
+        {
+          "input": "999.995",
+          "expected": "‎KWD ۹۹۹٫۹۹۵"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‎KWD ۱۲٬۳۴۵٬۶۷۸٬۹۰۱٬۲۳۴٬۵۶۷٬۸۹۰٫۱۲۳"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "‎¤ #,##0.00;‎(¤ #,##0.00)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‎KWD ۰٫۰۰۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎(KWD ۰٫۰۰۰)"
+        },
+        {
+          "input": "0.005",
+          "expected": "‎KWD ۰٫۰۰۵"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎(KWD ۰٫۰۰۵)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‎KWD ۱٬۲۳۴٫۵۶۷"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎(KWD ۱٬۲۳۴٫۵۶۷)"
+        },
+        {
+          "input": "999.995",
+          "expected": "‎KWD ۹۹۹٫۹۹۵"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‎KWD ۱۲٬۳۴۵٬۶۷۸٬۹۰۱٬۲۳۴٬۵۶۷٬۸۹۰٫۱۲۳"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "‎¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‎ZZZ ۰٫۰۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎−‎ZZZ ۰٫۰۰"
+        },
+        {
+          "input": "0.005",
+          "expected": "‎ZZZ ۰٫۰۱"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎−‎ZZZ ۰٫۰۱"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‎ZZZ ۱٬۲۳۴٫۵۷"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎−‎ZZZ ۱٬۲۳۴٫۵۷"
+        },
+        {
+          "input": "999.995",
+          "expected": "‎ZZZ ۱٬۰۰۰٫۰۰"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‎ZZZ ۱۲٬۳۴۵٬۶۷۸٬۹۰۱٬۲۳۴٬۵۶۷٬۸۹۰٫۱۲"
+        }
+      ]
+    },
+    {
+      "locale": "fa",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "‎¤ #,##0.00;‎(¤ #,##0.00)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "‎ZZZ ۰٫۰۰"
+        },
+        {
+          "input": "-0",
+          "expected": "‎(ZZZ ۰٫۰۰)"
+        },
+        {
+          "input": "0.005",
+          "expected": "‎ZZZ ۰٫۰۱"
+        },
+        {
+          "input": "-0.005",
+          "expected": "‎(ZZZ ۰٫۰۱)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "‎ZZZ ۱٬۲۳۴٫۵۷"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "‎(ZZZ ۱٬۲۳۴٫۵۷)"
+        },
+        {
+          "input": "999.995",
+          "expected": "‎ZZZ ۱٬۰۰۰٫۰۰"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "‎ZZZ ۱۲٬۳۴۵٬۶۷۸٬۹۰۱٬۲۳۴٬۵۶۷٬۸۹۰٫۱۲"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 1234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 1234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 1000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 12,345,678,901,234,567,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 1234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 1234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 1000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 12,345,678,901,234,567,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 1235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 1235"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 1000"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 12,345,678,901,234,567,890"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 1235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 1235"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 1000"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 12,345,678,901,234,567,890"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 0.000"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 0.000"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 0.005"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 0.005"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 1234.567"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 1234.567"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 999.995"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 12,345,678,901,234,567,890.123"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 0.000"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 0.000"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 0.005"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 0.005"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 1234.567"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 1234.567"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 999.995"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 12,345,678,901,234,567,890.123"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 1234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 1234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 1000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 12,345,678,901,234,567,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "ee",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 3,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 1234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 1234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 1000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 12,345,678,901,234,567,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,00 USD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,00 USD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,01 USD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,01 USD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1234,57 USD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1234,57 USD"
+        },
+        {
+          "input": "999.995",
+          "expected": "1000,00 USD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12.345.678.901.234.567.890,12 USD"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,00 USD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,00 USD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,01 USD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,01 USD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1234,57 USD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1234,57 USD"
+        },
+        {
+          "input": "999.995",
+          "expected": "1000,00 USD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12.345.678.901.234.567.890,12 USD"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "0.005",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1235 JPY"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1235 JPY"
+        },
+        {
+          "input": "999.995",
+          "expected": "1000 JPY"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12.345.678.901.234.567.890 JPY"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "0.005",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1235 JPY"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1235 JPY"
+        },
+        {
+          "input": "999.995",
+          "expected": "1000 JPY"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12.345.678.901.234.567.890 JPY"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,000 KWD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,000 KWD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,005 KWD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,005 KWD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1234,567 KWD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1234,567 KWD"
+        },
+        {
+          "input": "999.995",
+          "expected": "999,995 KWD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12.345.678.901.234.567.890,123 KWD"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,000 KWD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,000 KWD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,005 KWD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,005 KWD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1234,567 KWD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1234,567 KWD"
+        },
+        {
+          "input": "999.995",
+          "expected": "999,995 KWD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12.345.678.901.234.567.890,123 KWD"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,00 ZZZ"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,00 ZZZ"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,01 ZZZ"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,01 ZZZ"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1234,57 ZZZ"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1234,57 ZZZ"
+        },
+        {
+          "input": "999.995",
+          "expected": "1000,00 ZZZ"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12.345.678.901.234.567.890,12 ZZZ"
+        }
+      ]
+    },
+    {
+      "locale": "es",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 2,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0,00 ZZZ"
+        },
+        {
+          "input": "-0",
+          "expected": "-0,00 ZZZ"
+        },
+        {
+          "input": "0.005",
+          "expected": "0,01 ZZZ"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0,01 ZZZ"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1234,57 ZZZ"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1234,57 ZZZ"
+        },
+        {
+          "input": "999.995",
+          "expected": "1000,00 ZZZ"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12.345.678.901.234.567.890,12 ZZZ"
+        }
+      ]
+    },
+    {
+      "locale": "de-AT",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 0,00"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 0,00"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 0,01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 0,01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 1.234,57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 1.234,57"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 1.000,00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 12.345.678.901.234.567.890,12"
+        }
+      ]
+    },
+    {
+      "locale": "de-AT",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 0,00"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 0,00"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 0,01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 0,01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 1.234,57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 1.234,57"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 1.000,00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 12.345.678.901.234.567.890,12"
+        }
+      ]
+    },
+    {
+      "locale": "de-AT",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 1.235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 1.235"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 1.000"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 12.345.678.901.234.567.890"
+        }
+      ]
+    },
+    {
+      "locale": "de-AT",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 1.235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 1.235"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 1.000"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 12.345.678.901.234.567.890"
+        }
+      ]
+    },
+    {
+      "locale": "de-AT",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 0,000"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 0,000"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 0,005"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 0,005"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 1.234,567"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 1.234,567"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 999,995"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 12.345.678.901.234.567.890,123"
+        }
+      ]
+    },
+    {
+      "locale": "de-AT",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 0,000"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 0,000"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 0,005"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 0,005"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 1.234,567"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 1.234,567"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 999,995"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 12.345.678.901.234.567.890,123"
+        }
+      ]
+    },
+    {
+      "locale": "de-AT",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 0,00"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 0,00"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 0,01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 0,01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 1.234,57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 1.234,57"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 1.000,00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 12.345.678.901.234.567.890,12"
+        }
+      ]
+    },
+    {
+      "locale": "de-AT",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 0,00"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 0,00"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 0,01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 0,01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 1.234,57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 1.234,57"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 1.000,00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 12.345.678.901.234.567.890,12"
+        }
+      ]
+    },
+    {
+      "locale": "fr-CH",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00 USD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00 USD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0.01 USD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0.01 USD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1'234.57 USD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1'234.57 USD"
+        },
+        {
+          "input": "999.995",
+          "expected": "1'000.00 USD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12'345'678'901'234'567'890.12 USD"
+        }
+      ]
+    },
+    {
+      "locale": "fr-CH",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤;(#,##0.00 ¤)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00 USD"
+        },
+        {
+          "input": "-0",
+          "expected": "(0.00 USD)"
+        },
+        {
+          "input": "0.005",
+          "expected": "0.01 USD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "(0.01 USD)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1'234.57 USD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "(1'234.57 USD)"
+        },
+        {
+          "input": "999.995",
+          "expected": "1'000.00 USD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12'345'678'901'234'567'890.12 USD"
+        }
+      ]
+    },
+    {
+      "locale": "fr-CH",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "0.005",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0 JPY"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1'235 JPY"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1'235 JPY"
+        },
+        {
+          "input": "999.995",
+          "expected": "1'000 JPY"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12'345'678'901'234'567'890 JPY"
+        }
+      ]
+    },
+    {
+      "locale": "fr-CH",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤;(#,##0.00 ¤)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0",
+          "expected": "(0 JPY)"
+        },
+        {
+          "input": "0.005",
+          "expected": "0 JPY"
+        },
+        {
+          "input": "-0.005",
+          "expected": "(0 JPY)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1'235 JPY"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "(1'235 JPY)"
+        },
+        {
+          "input": "999.995",
+          "expected": "1'000 JPY"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12'345'678'901'234'567'890 JPY"
+        }
+      ]
+    },
+    {
+      "locale": "fr-CH",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.000 KWD"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.000 KWD"
+        },
+        {
+          "input": "0.005",
+          "expected": "0.005 KWD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0.005 KWD"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1'234.567 KWD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1'234.567 KWD"
+        },
+        {
+          "input": "999.995",
+          "expected": "999.995 KWD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12'345'678'901'234'567'890.123 KWD"
+        }
+      ]
+    },
+    {
+      "locale": "fr-CH",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤;(#,##0.00 ¤)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.000 KWD"
+        },
+        {
+          "input": "-0",
+          "expected": "(0.000 KWD)"
+        },
+        {
+          "input": "0.005",
+          "expected": "0.005 KWD"
+        },
+        {
+          "input": "-0.005",
+          "expected": "(0.005 KWD)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1'234.567 KWD"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "(1'234.567 KWD)"
+        },
+        {
+          "input": "999.995",
+          "expected": "999.995 KWD"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12'345'678'901'234'567'890.123 KWD"
+        }
+      ]
+    },
+    {
+      "locale": "fr-CH",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "#,##0.00 ¤",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00 ZZZ"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00 ZZZ"
+        },
+        {
+          "input": "0.005",
+          "expected": "0.01 ZZZ"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-0.01 ZZZ"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1'234.57 ZZZ"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-1'234.57 ZZZ"
+        },
+        {
+          "input": "999.995",
+          "expected": "1'000.00 ZZZ"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12'345'678'901'234'567'890.12 ZZZ"
+        }
+      ]
+    },
+    {
+      "locale": "fr-CH",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "#,##0.00 ¤;(#,##0.00 ¤)",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00 ZZZ"
+        },
+        {
+          "input": "-0",
+          "expected": "(0.00 ZZZ)"
+        },
+        {
+          "input": "0.005",
+          "expected": "0.01 ZZZ"
+        },
+        {
+          "input": "-0.005",
+          "expected": "(0.01 ZZZ)"
+        },
+        {
+          "input": "1234.567",
+          "expected": "1'234.57 ZZZ"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "(1'234.57 ZZZ)"
+        },
+        {
+          "input": "999.995",
+          "expected": "1'000.00 ZZZ"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "12'345'678'901'234'567'890.12 ZZZ"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "¤ #,##,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 1,234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 1,234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 1,000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 1,23,45,67,89,01,23,45,67,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "¤ #,##,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 1,234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 1,234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 1,000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 1,23,45,67,89,01,23,45,67,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "¤ #,##,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 1,235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 1,235"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 1,000"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 1,23,45,67,89,01,23,45,67,890"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "¤ #,##,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 0"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 0"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 1,235"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 1,235"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 1,000"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 1,23,45,67,89,01,23,45,67,890"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "¤ #,##,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 0.000"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 0.000"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 0.005"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 0.005"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 1,234.567"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 1,234.567"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 999.995"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 1,23,45,67,89,01,23,45,67,890.123"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "¤ #,##,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 0.000"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 0.000"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 0.005"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 0.005"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 1,234.567"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 1,234.567"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 999.995"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 1,23,45,67,89,01,23,45,67,890.123"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "¤ #,##,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 1,234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 1,234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 1,000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 1,23,45,67,89,01,23,45,67,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "hi",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "¤ #,##,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 0.00"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 0.00"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 0.01"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 0.01"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 1,234.57"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 1,234.57"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 1,000.00"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 1,23,45,67,89,01,23,45,67,890.12"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 𞥐.𞥐𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 𞥐.𞥐𞥐"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 𞥐.𞥐𞥑"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 𞥐.𞥐𞥑"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 𞥑⹁𞥒𞥓𞥔.𞥕𞥗"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 𞥑⹁𞥒𞥓𞥔.𞥕𞥗"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 𞥑⹁𞥐𞥐𞥐.𞥐𞥐"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 𞥑𞥒⹁𞥓𞥔𞥕⹁𞥖𞥗𞥘⹁𞥙𞥐𞥑⹁𞥒𞥓𞥔⹁𞥕𞥖𞥗⹁𞥘𞥙𞥐.𞥑𞥒"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 𞥐.𞥐𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 𞥐.𞥐𞥐"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 𞥐.𞥐𞥑"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 𞥐.𞥐𞥑"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 𞥑⹁𞥒𞥓𞥔.𞥕𞥗"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 𞥑⹁𞥒𞥓𞥔.𞥕𞥗"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 𞥑⹁𞥐𞥐𞥐.𞥐𞥐"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 𞥑𞥒⹁𞥓𞥔𞥕⹁𞥖𞥗𞥘⹁𞥙𞥐𞥑⹁𞥒𞥓𞥔⹁𞥕𞥖𞥗⹁𞥘𞥙𞥐.𞥑𞥒"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 𞥐"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 𞥐"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 𞥐"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 𞥑⹁𞥒𞥓𞥕"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 𞥑⹁𞥒𞥓𞥕"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 𞥑⹁𞥐𞥐𞥐"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 𞥑𞥒⹁𞥓𞥔𞥕⹁𞥖𞥗𞥘⹁𞥙𞥐𞥑⹁𞥒𞥓𞥔⹁𞥕𞥖𞥗⹁𞥘𞥙𞥐"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 𞥐"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 𞥐"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 𞥐"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 𞥑⹁𞥒𞥓𞥕"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 𞥑⹁𞥒𞥓𞥕"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 𞥑⹁𞥐𞥐𞥐"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 𞥑𞥒⹁𞥓𞥔𞥕⹁𞥖𞥗𞥘⹁𞥙𞥐𞥑⹁𞥒𞥓𞥔⹁𞥕𞥖𞥗⹁𞥘𞥙𞥐"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 𞥐.𞥐𞥐𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 𞥐.𞥐𞥐𞥐"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 𞥐.𞥐𞥐𞥕"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 𞥐.𞥐𞥐𞥕"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 𞥑⹁𞥒𞥓𞥔.𞥕𞥖𞥗"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 𞥑⹁𞥒𞥓𞥔.𞥕𞥖𞥗"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 𞥙𞥙𞥙.𞥙𞥙𞥕"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 𞥑𞥒⹁𞥓𞥔𞥕⹁𞥖𞥗𞥘⹁𞥙𞥐𞥑⹁𞥒𞥓𞥔⹁𞥕𞥖𞥗⹁𞥘𞥙𞥐.𞥑𞥒𞥓"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 𞥐.𞥐𞥐𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 𞥐.𞥐𞥐𞥐"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 𞥐.𞥐𞥐𞥕"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 𞥐.𞥐𞥐𞥕"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 𞥑⹁𞥒𞥓𞥔.𞥕𞥖𞥗"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 𞥑⹁𞥒𞥓𞥔.𞥕𞥖𞥗"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 𞥙𞥙𞥙.𞥙𞥙𞥕"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 𞥑𞥒⹁𞥓𞥔𞥕⹁𞥖𞥗𞥘⹁𞥙𞥐𞥑⹁𞥒𞥓𞥔⹁𞥕𞥖𞥗⹁𞥘𞥙𞥐.𞥑𞥒𞥓"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 𞥐.𞥐𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 𞥐.𞥐𞥐"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 𞥐.𞥐𞥑"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 𞥐.𞥐𞥑"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 𞥑⹁𞥒𞥓𞥔.𞥕𞥗"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 𞥑⹁𞥒𞥓𞥔.𞥕𞥗"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 𞥑⹁𞥐𞥐𞥐.𞥐𞥐"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 𞥑𞥒⹁𞥓𞥔𞥕⹁𞥖𞥗𞥘⹁𞥙𞥐𞥑⹁𞥒𞥓𞥔⹁𞥕𞥖𞥗⹁𞥘𞥙𞥐.𞥑𞥒"
+        }
+      ]
+    },
+    {
+      "locale": "ff-Adlm",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 𞥐.𞥐𞥐"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 𞥐.𞥐𞥐"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 𞥐.𞥐𞥑"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 𞥐.𞥐𞥑"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 𞥑⹁𞥒𞥓𞥔.𞥕𞥗"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 𞥑⹁𞥒𞥓𞥔.𞥕𞥗"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 𞥑⹁𞥐𞥐𞥐.𞥐𞥐"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 𞥑𞥒⹁𞥓𞥔𞥕⹁𞥖𞥗𞥘⹁𞥙𞥐𞥑⹁𞥒𞥓𞥔⹁𞥕𞥖𞥗⹁𞥘𞥙𞥐.𞥑𞥒"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "code": "USD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 𑄶.𑄶𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 𑄶.𑄶𑄶"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 𑄶.𑄶𑄷"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 𑄶.𑄶𑄷"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 𑄷,𑄸𑄹𑄺.𑄻𑄽"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 𑄷,𑄸𑄹𑄺.𑄻𑄽"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 𑄷,𑄶𑄶𑄶.𑄶𑄶"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 𑄷𑄸,𑄹𑄺𑄻,𑄼𑄽𑄾,𑄿𑄶𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽,𑄾𑄿𑄶.𑄷𑄸"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "code": "USD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "USD 𑄶.𑄶𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-USD 𑄶.𑄶𑄶"
+        },
+        {
+          "input": "0.005",
+          "expected": "USD 𑄶.𑄶𑄷"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-USD 𑄶.𑄶𑄷"
+        },
+        {
+          "input": "1234.567",
+          "expected": "USD 𑄷,𑄸𑄹𑄺.𑄻𑄽"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-USD 𑄷,𑄸𑄹𑄺.𑄻𑄽"
+        },
+        {
+          "input": "999.995",
+          "expected": "USD 𑄷,𑄶𑄶𑄶.𑄶𑄶"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "USD 𑄷𑄸,𑄹𑄺𑄻,𑄼𑄽𑄾,𑄿𑄶𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽,𑄾𑄿𑄶.𑄷𑄸"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "code": "JPY",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 𑄶"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 𑄶"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 𑄶"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 𑄷,𑄸𑄹𑄻"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 𑄷,𑄸𑄹𑄻"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 𑄷,𑄶𑄶𑄶"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 𑄷𑄸,𑄹𑄺𑄻,𑄼𑄽𑄾,𑄿𑄶𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽,𑄾𑄿𑄶"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "code": "JPY",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "JPY 𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-JPY 𑄶"
+        },
+        {
+          "input": "0.005",
+          "expected": "JPY 𑄶"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-JPY 𑄶"
+        },
+        {
+          "input": "1234.567",
+          "expected": "JPY 𑄷,𑄸𑄹𑄻"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-JPY 𑄷,𑄸𑄹𑄻"
+        },
+        {
+          "input": "999.995",
+          "expected": "JPY 𑄷,𑄶𑄶𑄶"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "JPY 𑄷𑄸,𑄹𑄺𑄻,𑄼𑄽𑄾,𑄿𑄶𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽,𑄾𑄿𑄶"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "code": "KWD",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 𑄶.𑄶𑄶𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 𑄶.𑄶𑄶𑄶"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 𑄶.𑄶𑄶𑄻"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 𑄶.𑄶𑄶𑄻"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 𑄷,𑄸𑄹𑄺.𑄻𑄼𑄽"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 𑄷,𑄸𑄹𑄺.𑄻𑄼𑄽"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 𑄿𑄿𑄿.𑄿𑄿𑄻"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 𑄷𑄸,𑄹𑄺𑄻,𑄼𑄽𑄾,𑄿𑄶𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽,𑄾𑄿𑄶.𑄷𑄸𑄹"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "code": "KWD",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "KWD 𑄶.𑄶𑄶𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-KWD 𑄶.𑄶𑄶𑄶"
+        },
+        {
+          "input": "0.005",
+          "expected": "KWD 𑄶.𑄶𑄶𑄻"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-KWD 𑄶.𑄶𑄶𑄻"
+        },
+        {
+          "input": "1234.567",
+          "expected": "KWD 𑄷,𑄸𑄹𑄺.𑄻𑄼𑄽"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-KWD 𑄷,𑄸𑄹𑄺.𑄻𑄼𑄽"
+        },
+        {
+          "input": "999.995",
+          "expected": "KWD 𑄿𑄿𑄿.𑄿𑄿𑄻"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "KWD 𑄷𑄸,𑄹𑄺𑄻,𑄼𑄽𑄾,𑄿𑄶𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽,𑄾𑄿𑄶.𑄷𑄸𑄹"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "code": "ZZZ",
+      "accounting": false,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 𑄶.𑄶𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 𑄶.𑄶𑄶"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 𑄶.𑄶𑄷"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 𑄶.𑄶𑄷"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 𑄷,𑄸𑄹𑄺.𑄻𑄽"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 𑄷,𑄸𑄹𑄺.𑄻𑄽"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 𑄷,𑄶𑄶𑄶.𑄶𑄶"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 𑄷𑄸,𑄹𑄺𑄻,𑄼𑄽𑄾,𑄿𑄶𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽,𑄾𑄿𑄶.𑄷𑄸"
+        }
+      ]
+    },
+    {
+      "locale": "ccp",
+      "code": "ZZZ",
+      "accounting": true,
+      "pattern": "¤ #,##0.00",
+      "minimum_grouping_digits": 1,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "ZZZ 𑄶.𑄶𑄶"
+        },
+        {
+          "input": "-0",
+          "expected": "-ZZZ 𑄶.𑄶𑄶"
+        },
+        {
+          "input": "0.005",
+          "expected": "ZZZ 𑄶.𑄶𑄷"
+        },
+        {
+          "input": "-0.005",
+          "expected": "-ZZZ 𑄶.𑄶𑄷"
+        },
+        {
+          "input": "1234.567",
+          "expected": "ZZZ 𑄷,𑄸𑄹𑄺.𑄻𑄽"
+        },
+        {
+          "input": "-1234.567",
+          "expected": "-ZZZ 𑄷,𑄸𑄹𑄺.𑄻𑄽"
+        },
+        {
+          "input": "999.995",
+          "expected": "ZZZ 𑄷,𑄶𑄶𑄶.𑄶𑄶"
+        },
+        {
+          "input": "12345678901234567890.123456",
+          "expected": "ZZZ 𑄷𑄸,𑄹𑄺𑄻,𑄼𑄽𑄾,𑄿𑄶𑄷,𑄸𑄹𑄺,𑄻𑄼𑄽,𑄾𑄿𑄶.𑄷𑄸"
+        }
+      ]
+    }
+  ]
+}

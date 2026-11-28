@@ -8,7 +8,7 @@ use linguini_ir::{
 use std::collections::{BTreeMap, BTreeSet};
 
 /// A canonical formatter request. Argument order never changes its identity;
-/// an explicit decimal number style shares the default request.
+/// explicit decimal number styles and symbol currency displays share their default requests.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormatterRequest {
     pub formatter: IrFormatter,
@@ -17,10 +17,15 @@ pub struct FormatterRequest {
 impl FormatterRequest {
     pub fn new(formatter: &IrFormatter) -> Self {
         let mut formatter = formatter.clone();
-        if formatter.kind == IrFormatterKind::Number {
+        let default = match formatter.kind {
+            IrFormatterKind::Number => Some(("style", "decimal")),
+            IrFormatterKind::Currency => Some(("display", "symbol")),
+            _ => None,
+        };
+        if let Some((name, value)) = default {
             formatter
                 .arguments
-                .retain(|argument| argument.name != "style" || argument.value != "decimal");
+                .retain(|argument| argument.name != name || argument.value != value);
         }
         formatter.arguments.sort_by(|a, b| a.name.cmp(&b.name));
         Self { formatter }
@@ -259,6 +264,31 @@ mod tests {
         assert_eq!(requests[0].argument("style"), None);
         assert_eq!(requests[1].argument("style"), Some("percent"));
         assert_ne!(requests[0].key(), requests[1].key());
+    }
+
+    #[test]
+    fn explicit_symbol_display_shares_the_default_currency_request() {
+        let schema=lower_schema(&parse_schema("type Money = Decimal @currency(code = \"USD\", display = \"code\")\nmessage(value: Money)\n").unwrap());
+        let locale=lower_locale(&parse_locale("message = {value} {value @currency(code = \"USD\")} {value @currency(display = \"symbol\", code = \"USD\")}\n").unwrap());
+        let requests = formatter_requests(&schema, &locale);
+        assert_eq!(requests.len(), 2);
+        assert!(requests
+            .iter()
+            .all(|request| request.formatter.kind == IrFormatterKind::Currency));
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|request| request.argument("display").is_none())
+                .count(),
+            1
+        );
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|request| request.argument("display") == Some("code"))
+                .count(),
+            1
+        );
     }
 
     #[test]

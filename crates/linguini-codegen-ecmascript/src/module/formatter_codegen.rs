@@ -40,10 +40,11 @@ pub(super) fn formatter_data_declaration(
         match request.formatter.kind {
             linguini_ir::IrFormatterKind::Number | linguini_ir::IrFormatterKind::Currency => {
                 let plan = if request.formatter.kind == linguini_ir::IrFormatterKind::Currency {
-                    let selected = linguini_codegen::NumberFormatPlan::currency(
+                    let selected = linguini_codegen::NumberFormatPlan::currency_with_display(
                         locale,
                         request.argument("code").unwrap_or("USD"),
                         request.argument("accounting") == Some("true"),
+                        request.argument("display").unwrap_or("symbol"),
                     )
                     .expect("validated CLDR currency formatting plan");
                     number_plan_context(&selected, &mut digit_bindings)

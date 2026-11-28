@@ -770,6 +770,54 @@ fn numeric_styles_are_static_validated_options_on_aliases_and_nested_inputs() {
 }
 
 #[test]
+fn currency_displays_are_static_options_and_formatted_call_arguments_are_strings() {
+    let schema=lower_schema(&parse_schema("type Money = Decimal @currency(code = \"USD\", display = \"code\")\nmessage(value: Money)\n").unwrap());
+    let locale = |body: &str| {
+        lower_locale(
+            &parse_locale(&format!(
+                "fn Echo(value: String) {{ _ => {{value}} }}\nmessage = {body}\n"
+            ))
+            .unwrap(),
+        )
+    };
+    for body in [
+        "{value}",
+        "{value @currency(code = \"USD\", display = \"code\")}",
+        "{value @currency(code = \"USD\", display = \"symbol\", accounting = \"true\")}",
+        "{Echo(value @currency(code = \"USD\", display = \"code\"))}",
+        "{fn(copy: value @currency(code = \"USD\", display = \"code\")) { _ => {copy} }}",
+    ] {
+        validate_ir(&schema, &locale(body)).unwrap();
+    }
+    for display in ["", "Code", "name", "narrowSymbol"] {
+        let errors = validate_ir(
+            &schema,
+            &locale(&format!(
+                "{{value @currency(code = \"USD\", display = \"{display}\")}}"
+            )),
+        )
+        .unwrap_err();
+        assert!(errors.iter().any(|error| error.code == "IR031"
+            && error.message == "currency formatter option `display` must be symbol or code"));
+    }
+    let duplicate = parse_locale(
+        "message = {value @currency(code = \"USD\", display = \"symbol\", display = \"code\")}\n",
+    )
+    .unwrap_err();
+    assert!(duplicate.iter().any(|error| error
+        .message
+        .contains("duplicate annotation argument `display`")));
+    let strings = lower_schema(&parse_schema("message(value: String)\n").unwrap());
+    assert!(validate_ir(
+        &strings,
+        &locale("{value @currency(code = \"USD\", display = \"code\")}")
+    )
+    .unwrap_err()
+    .iter()
+    .any(|error| error.code == "IR032"));
+}
+
+#[test]
 fn validated_ir_accepts_date_time_styles_and_rejects_unknown_widths() {
     let schema = lower_schema(&parse_schema("message(value: Date)\n").expect("schema parses"));
     let valid = lower_locale(

@@ -38,6 +38,53 @@ fn number_styles_select_complete_pinned_patterns_and_reject_unsupported_requests
 }
 
 #[test]
+fn currency_displays_preserve_default_symbols_and_select_code_letter_boundaries() {
+    for locale in [
+        "en", "ru", "ar-EG", "fa", "ee", "es", "de-AT", "fr-CH", "hi", "ff-Adlm", "ccp",
+    ] {
+        for code in ["USD", "JPY", "KWD", "ZZZ"] {
+            for accounting in [false, true] {
+                assert_eq!(
+                    NumberFormatPlan::currency(locale, code, accounting),
+                    NumberFormatPlan::currency_with_display(locale, code, accounting, "symbol")
+                );
+                let plan =
+                    NumberFormatPlan::currency_with_display(locale, code, accounting, "code")
+                        .unwrap();
+                assert!(
+                    plan.affixes.prefix.contains(code) || plan.affixes.suffix.contains(code),
+                    "{locale}/{code}"
+                );
+                assert_eq!(
+                    plan,
+                    NumberFormatPlan::currency_with_display(
+                        locale,
+                        &code.to_ascii_lowercase(),
+                        accounting,
+                        "code"
+                    )
+                    .unwrap()
+                );
+            }
+        }
+    }
+    let standard = NumberFormatPlan::currency_with_display("en", "usd", false, "code").unwrap();
+    assert_eq!(standard.affixes.prefix, "USD\u{a0}");
+    assert_eq!(standard.min_fraction_digits, 2);
+    assert_eq!(standard.max_fraction_digits, 2);
+    let accounting = NumberFormatPlan::currency_with_display("en", "USD", true, "code").unwrap();
+    assert_eq!(accounting.affixes.negative_prefix, "(USD\u{a0}");
+    assert_eq!(accounting.affixes.negative_suffix, ")");
+    for display in ["", "Code", "name", "narrowSymbol"] {
+        assert!(NumberFormatPlan::currency_with_display("en", "USD", false, display).is_none());
+    }
+    for code in ["US", "USDD", "US1", "ÜSD", " USD"] {
+        assert!(NumberFormatPlan::currency_with_display("en", code, false, "code").is_none());
+    }
+    assert!(NumberFormatPlan::currency_with_display("zz", "USD", false, "code").is_none());
+}
+
+#[test]
 fn currency_substitution_preserves_literal_affix_fragments() {
     let numbers = compiled_number_formatting("en").unwrap();
     for case in currency_affix_cases::CASES {

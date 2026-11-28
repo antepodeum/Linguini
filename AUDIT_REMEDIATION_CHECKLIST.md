@@ -585,6 +585,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       exponent digits; shared percent/scientific source harnesses execute 4,592 comparisons.
       Existing goldens retain their bytes, selected helper/digit demand is verified, and complete
       Vite 7/8 formatter consumers remain single chunks. Additional styles/currency widths stay open.
+      Source currency annotations now select ISO-code display too (GEN-A93), using shared
+      whole-pattern letter-boundary selection and precision. Explicit symbol display shares
+      the default request. Eighty-eight plans have 704 independent ICU results; native previews,
+      1,408 source comparisons, and ordinary/physical/standalone modules preserve semantics.
+      Selected precision/digit helpers share owners; complete Vite 7/8 consumers exclude other
+      currencies/digit systems in one chunk. Other displays/cash choices remain open.
       Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
       Native fraction previews and generated fixed/significant/scientific formatters preserve it;
       templates fold the choice into selected concatenation without a runtime flag or parser.
@@ -1896,6 +1902,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       runtime interpreter or parse CLDR syntax after generation. Parsing actual input values such
       as numeric strings or dates is a separate, demand-selected runtime operation.
 - [-] OPT-A2 — Emit specialized formatter implementations for the actual statically used requests.
+      Currency code display is now selected statically through the existing shared currency
+      planner (GEN-A93). Precision, accounting, letter-boundary spacing, separators, and ISO text
+      resolve before emission; default-symbol requests deduplicate. ICU/source/SDK/native/type/
+      bundle checks cover the new surface without expanding existing output. Other currency,
+      numeric, calendar/zone, and exact page-delivery criteria remain open.
       Source scientific style now also selects the pinned standard pattern during compilation
       (GEN-A92), retaining literal brackets, exponent omission, selected precision, and localized
       exponent symbols/digits. Shared source/SDK/native tests and complete Vite consumers verify

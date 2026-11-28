@@ -638,10 +638,11 @@ impl<'a> Renderer<'a> {
     ) -> Result<String, RenderError> {
         let code = formatter_argument(arguments, "code").unwrap_or("USD");
         let accounting = formatter_argument(arguments, "accounting") == Some("true");
-        let plan = NumberFormatPlan::currency(self.locale, code, accounting).ok_or_else(|| {
+        let display = formatter_argument(arguments, "display").unwrap_or("symbol");
+        let plan = NumberFormatPlan::currency_with_display(self.locale, code, accounting, display).ok_or_else(|| {
             RenderError::Unsupported {
                 detail: format!(
-                    "missing required CLDR currency formatting or fraction data for preview locale `{}` and currency `{code}`",
+                    "missing required CLDR currency formatting or fraction data for preview locale `{}` and currency `{code}` with display `{display}`",
                     self.locale
                 ),
             }
@@ -1153,6 +1154,7 @@ fn increment_integer(integer: &mut String) {
 #[cfg(test)]
 mod tests {
     mod currency_affixes;
+    mod currency_display;
     mod decimal_separator;
     mod number_rounding;
     mod number_styles;

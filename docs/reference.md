@@ -545,7 +545,12 @@ surface. Current guarantees are:
   All three work in aliases, annotations, nested call arguments, inline bindings, previews,
   and SSR. Compact, engineering, caller-selected significant precision, and caller-selected
   numbering-system styles are not exposed.
-- `@currency` requires a three-letter code. It applies CLDR standard or
+- `@currency` requires a three-letter code. The optional static `display = "code"` uses the
+  uppercase ISO code; `display = "symbol"` shares the default localized-symbol formatter.
+  For example, English `@currency(code = "USD", display = "code")` formats `1.005` as
+  `USD 1.01`. Code display retains the currency's fraction precision and the complete
+  letter-boundary pattern, including spacing and accounting negatives. It works in aliases,
+  annotations, calls, inline bindings, previews, and SSR. It applies CLDR standard or
   accounting affixes, currency fraction digits, rounding increments, spacing,
   and currency-specific decimal/group separators, falling back to ordinary number symbols
   during compilation. Austrian German currency groups with `.`, and Swiss French currency

@@ -154,6 +154,17 @@ literals with the selected scientific pattern, or obtain a complete record throu
 `compiled_number_formatting`. `NumberFormatPlan::number(locale, "scientific")` resolves the
 standard plan. Existing decimal and percent fields retain their values.
 
+## Currency code display
+
+Use `@currency(code = "USD", display = "code")` to render an ISO code with the locale's
+currency pattern and currency-specific precision. English `1.005` becomes `USD 1.01`;
+`accounting = "true"` retains accounting negatives. Aliases, nested calls, inline bindings,
+previews, and SSR support the same annotation. Explicit `display = "symbol"` shares the
+existing default implementation. Other display values fail validation.
+
+Rust SDK callers can use `NumberFormatPlan::currency_with_display`; the existing `currency`
+constructor retains localized-symbol behavior.
+
 ## Shared ISO date parsing
 
 Generated date formatters now recognize ISO input and its timezone in one pass, reducing their

@@ -1213,5 +1213,43 @@ These are new-style costs, not measured before/after reductions or general appli
 No timing, retained-heap, engineering/precision-option, calendar/zone, or exact page-delivery
 completion is claimed.
 
+## Source-selectable ISO currency display
+
+GEN-A93 exposes `display = "code"` on currency annotations. Common planning selects uppercase
+ISO text before choosing the complete pinned letter-boundary pattern, retaining its spacing,
+negative/accounting affixes, separators, grouping, and supplemental fraction precision. The
+canonical numeric template receives the resolved plan; application code contains no display
+selector, currency lookup table, CLDR parser, or host formatter. Explicit symbol display shares
+the omitted default request.
+
+The existing generic ICU oracle adds optional currency/display arguments, applying standard
+currency precision and the selected code symbol. Legacy spacing is disabled to isolate the
+already selected pinned pattern. All 234 percent and 340 scientific expectations replay exactly.
+Eighty-eight currency plans across eleven locales contribute 704 exact outcomes. Native previews
+execute those results directly; six source code-display paths plus two symbol controls add
+1,408 native/generated comparisons. JPY/KWD precision, unknown-code fallback, separator overrides,
+minimum grouping thresholds, bidi/supplementary digits, exact large values, carries, signed zero,
+coercion count/error identity, and validation remain covered.
+
+Ordinary, physical, and standalone module execution verifies named/positional calls and one
+shared default-symbol request. The checked fixture shares one parser and the selected zero-,
+two-, and three-fraction rounding helpers. Existing code/declaration/map goldens retain their
+bytes. Complete executed formatter consumers each emit one import-free chunk; export metadata,
+currency-code sentinels, and digit-system checks verify that unselected data is absent.
+
+Absolute minified / gzip / Brotli bytes on Node 24.13.1:
+
+| Selected formatter | Vite 7.3.3 | Vite 8.0.13 |
+| --- | --- | --- |
+| English USD standard | 1455 / 780 / 719 | 1416 / 759 / 689 |
+| English USD accounting | 1480 / 789 / 728 | 1441 / 765 / 700 |
+| Egyptian Arabic USD | 1545 / 859 / 785 | 1504 / 841 / 765 |
+| Swiss French JPY | 1291 / 708 / 650 | 1268 / 689 / 629 |
+| Hindi KWD | 1469 / 788 / 724 | 1430 / 767 / 705 |
+| Adlam Fula unknown ZZZ | 1542 / 832 / 765 | 1503 / 812 / 743 |
+
+These are costs of the new display option, not measured before/after savings. No timing,
+retained-heap, other currency display/cash-option, or exact page-delivery completion is claimed.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.
