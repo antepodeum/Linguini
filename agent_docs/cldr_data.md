@@ -16,19 +16,22 @@ Rounding digits contribute to mandatory widths as ordinary zero placeholders do.
 the shared `linguini_cldr::NumberPadding` model consumed by the common number-format plan.
 Significant precision starts at the first `@`; earlier hashes only position grouping. Required
 digits must precede optional digits in fractions and follow them in fixed integer patterns.
-Significant digits form one contiguous required run. Empty integer groups, grouped scientific
+Significant digits form one contiguous required run. Empty interior/trailing integer groups, grouped scientific
 mantissas, and mixed significant/fixed decimal syntax are rejected by the offline compiler.
 The skeleton scanner reserves `+` for an exponent sign only immediately after `E`; a later plus
 belongs to the localized affix. A final empty negative subpattern preserves implicit negation.
 Affix quoting is checked before symbol substitution, preventing numeric metacharacters outside
-the skeleton from silently becoming literals. Leading decimal/grouping forms require additional
-model support and currently fail. Padding escapes remain opaque to these checks.
+the skeleton from silently becoming literals. Leading decimal/grouping forms compile into
+numeric metadata; fraction-only scientific mantissas use zero integer width and literal fraction
+precision. Padding escapes remain opaque to these checks.
 Affix lexing and symbol substitution live in `formatting/affix.rs`. Literal text and currency
 slots use the shared `NumberAffixPart` model with owned text during compilation and borrowed
 text in the checked tables. Compact `NumberAffix` values distinguish literals, single slots,
 and composite fragments. The common number plan resolves only explicit slots to currency text;
-quoted currency marks remain opaque literals. Wider currency display markers fail explicitly
-until their semantics are implemented.
+quoted currency marks remain opaque literals. ISO-code `¤¤` markers use `CurrencyCode` slots,
+resolved independently of localized symbols through `NumberFormatPlan::new_with_currency_code`.
+Missing code context fails during planning. Other currency display widths fail explicitly until
+their semantics are implemented.
 
 Profile v8 added decimal-separator visibility in the shared numeric pattern metadata. A
 trailing decimal in the mantissa sets `decimal_separator_always`; quoted punctuation and optional

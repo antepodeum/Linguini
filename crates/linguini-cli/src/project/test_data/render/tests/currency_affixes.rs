@@ -25,9 +25,12 @@ fn numeric_previews_replace_only_compiled_currency_slots() {
                 suffix,
                 ..pattern.positive
             });
+        let plan =
+            NumberFormatPlan::new_with_currency_code(&pattern, Some("$"), "usd", &numbers, None)
+                .unwrap();
         for (input, expected) in [("1", case.positive), ("-1", case.negative_text)] {
             assert_eq!(
-                format_number_pattern(input, &pattern, &numbers, Some("$"), None).unwrap(),
+                format_number_plan(input, &plan, numbers.locale).unwrap(),
                 expected,
                 "{}: {}",
                 case.name,

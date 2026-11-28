@@ -121,18 +121,49 @@ impl NumberFormatPlan {
         numbers: &NumberFormatData,
         rounding: Option<&str>,
     ) -> Option<Self> {
+        Self::compile(pattern, symbol, None, numbers, rounding)
+    }
+
+    /// Resolve code markers independently of localized currency-symbol markers.
+    /// The code must contain exactly three ASCII letters; it is canonicalized to uppercase.
+    pub fn new_with_currency_code(
+        pattern: &NumberPattern,
+        symbol: Option<&str>,
+        code: &str,
+        numbers: &NumberFormatData,
+        rounding: Option<&str>,
+    ) -> Option<Self> {
+        if code.len() != 3 || !code.bytes().all(|byte| byte.is_ascii_alphabetic()) {
+            return None;
+        }
+        Self::compile(
+            pattern,
+            symbol,
+            Some(&code.to_ascii_uppercase()),
+            numbers,
+            rounding,
+        )
+    }
+
+    fn compile(
+        pattern: &NumberPattern,
+        symbol: Option<&str>,
+        code: Option<&str>,
+        numbers: &NumberFormatData,
+        rounding: Option<&str>,
+    ) -> Option<Self> {
         let positive = &pattern.positive;
-        let affix = |value| resolve_affix(value, symbol);
-        let prefix = affix(positive.prefix);
-        let suffix = affix(positive.suffix);
+        let affix = |value| resolve_affix(value, symbol, code);
+        let prefix = affix(positive.prefix)?;
+        let suffix = affix(positive.suffix)?;
         let negative_prefix = pattern.negative.as_ref().map_or_else(
-            || format!("{}{prefix}", numbers.minus_sign),
+            || Some(format!("{}{prefix}", numbers.minus_sign)),
             |negative| affix(negative.prefix),
-        );
+        )?;
         let negative_suffix = pattern
             .negative
             .as_ref()
-            .map_or_else(|| suffix.clone(), |negative| affix(negative.suffix));
+            .map_or_else(|| Some(suffix.clone()), |negative| affix(negative.suffix))?;
         let grouping = match positive.primary_group_size {
             Some(primary) => {
                 let secondary = positive.secondary_group_size.unwrap_or(primary);
@@ -186,15 +217,17 @@ impl NumberFormatPlan {
     }
 }
 
-fn resolve_affix(affix: NumberAffix, symbol: Option<&str>) -> String {
+fn resolve_affix(affix: NumberAffix, symbol: Option<&str>, code: Option<&str>) -> Option<String> {
     match affix {
-        NumberAffix::Literal(text) => text.to_owned(),
-        NumberAffix::CurrencySymbol => symbol.unwrap_or("¤").to_owned(),
+        NumberAffix::Literal(text) => Some(text.to_owned()),
+        NumberAffix::CurrencySymbol => Some(symbol.unwrap_or("¤").to_owned()),
+        NumberAffix::CurrencyCode => code.map(str::to_owned),
         NumberAffix::Parts(parts) => parts
             .iter()
             .map(|part| match part {
-                NumberAffixPart::Literal(text) => *text,
-                NumberAffixPart::CurrencySymbol => symbol.unwrap_or("¤"),
+                NumberAffixPart::Literal(text) => Some(*text),
+                NumberAffixPart::CurrencySymbol => Some(symbol.unwrap_or("¤")),
+                NumberAffixPart::CurrencyCode => code,
             })
             .collect(),
     }

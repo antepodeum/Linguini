@@ -179,6 +179,7 @@ pub struct NumberPattern {
 pub enum NumberAffix {
     Literal(&'static str),
     CurrencySymbol,
+    CurrencyCode,
     Parts(&'static [NumberAffixPart]),
 }
 
@@ -187,6 +188,7 @@ pub enum NumberAffix {
 pub enum NumberAffixPart<Text = &'static str> {
     Literal(Text),
     CurrencySymbol,
+    CurrencyCode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

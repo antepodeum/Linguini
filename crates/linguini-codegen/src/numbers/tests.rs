@@ -25,7 +25,9 @@ fn currency_substitution_preserves_literal_affix_fragments() {
                 suffix,
                 ..pattern.positive
             });
-        let plan = NumberFormatPlan::new(&pattern, Some("$"), &numbers, None).unwrap();
+        let plan =
+            NumberFormatPlan::new_with_currency_code(&pattern, Some("$"), "usd", &numbers, None)
+                .unwrap();
         for (prefix, suffix, expected) in [
             (&plan.affixes.prefix, &plan.affixes.suffix, case.positive),
             (
@@ -43,6 +45,37 @@ fn currency_substitution_preserves_literal_affix_fragments() {
             );
         }
     }
+}
+
+#[test]
+fn currency_code_slots_require_context_and_preserve_symbol_resolution() {
+    let numbers = compiled_number_formatting("en").unwrap();
+    let mut pattern = numbers.decimal_pattern;
+    pattern.positive.prefix = NumberAffix::CurrencyCode;
+    assert!(NumberFormatPlan::new(&pattern, Some("$"), &numbers, None).is_none());
+    for code in ["usd", "uSd", "USD", "ZZZ"] {
+        let plan =
+            NumberFormatPlan::new_with_currency_code(&pattern, Some("$"), code, &numbers, None)
+                .unwrap();
+        assert_eq!(plan.affixes.prefix, code.to_ascii_uppercase());
+    }
+    for code in ["", "US", "USDD", "US1", "ÜSD", " USD", "USＤ"] {
+        assert!(
+            NumberFormatPlan::new_with_currency_code(&pattern, Some("$"), code, &numbers, None)
+                .is_none(),
+            "{code}"
+        );
+    }
+    pattern.positive.prefix = NumberAffix::Literal("literal");
+    pattern.negative = Some(linguini_cldr::NumberPatternPart {
+        suffix: NumberAffix::CurrencyCode,
+        ..pattern.positive
+    });
+    assert!(NumberFormatPlan::new(&pattern, Some("$"), &numbers, None).is_none());
+    let plan = NumberFormatPlan::new_with_currency_code(&pattern, Some("$"), "usd", &numbers, None)
+        .unwrap();
+    assert_eq!(plan.affixes.prefix, "literal");
+    assert_eq!(plan.affixes.negative_suffix, "USD");
 }
 
 #[test]

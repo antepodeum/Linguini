@@ -58,7 +58,7 @@ pub(super) fn compile_affix(
                         chars.next();
                         width += 1;
                     }
-                    if width != 1 {
+                    if width > 2 {
                         return Err(format!(
                             "unsupported currency marker width {width} in affix `{affix}`"
                         ));
@@ -66,7 +66,11 @@ pub(super) fn compile_affix(
                     if !literal.is_empty() {
                         parts.push(NumberAffixPart::Literal(std::mem::take(&mut literal)));
                     }
-                    parts.push(NumberAffixPart::CurrencySymbol);
+                    parts.push(if width == 1 {
+                        NumberAffixPart::CurrencySymbol
+                    } else {
+                        NumberAffixPart::CurrencyCode
+                    });
                 }
                 '#' | '@' | '0'..='9' | '.' | ',' | '*' | ';' if !quoted => {
                     return Err(format!(
@@ -98,10 +102,12 @@ pub(super) fn affix_tokens(parts: &[NumberAffixPart<String>]) -> TokenStream {
         [] => quote! { NumberAffix::Literal("") },
         [NumberAffixPart::Literal(text)] => quote! { NumberAffix::Literal(#text) },
         [NumberAffixPart::CurrencySymbol] => quote! { NumberAffix::CurrencySymbol },
+        [NumberAffixPart::CurrencyCode] => quote! { NumberAffix::CurrencyCode },
         parts => {
             let parts = parts.iter().map(|part| match part {
                 NumberAffixPart::Literal(text) => quote! { NumberAffixPart::Literal(#text) },
                 NumberAffixPart::CurrencySymbol => quote! { NumberAffixPart::CurrencySymbol },
+                NumberAffixPart::CurrencyCode => quote! { NumberAffixPart::CurrencyCode },
             });
             quote! { NumberAffix::Parts(&[#(#parts),*]) }
         }

@@ -1064,5 +1064,33 @@ Node 24.13.1; each executes its oracle samples and has one `render` export/chunk
 These are new supported semantics, not a measured speed or retained-heap improvement. Pinned
 compiler artifacts retain their bytes; existing public source formatter options are unchanged.
 
+## Currency-code affixes
+
+GEN-A88 resolves `¤¤` independently of `¤` through shared typed affix planning. Code validation,
+uppercase conversion, symbol/code substitution, and letter-boundary selection happen in Rust.
+Generated functions contain selected prefix/suffix literals, without currency-slot tags,
+replacement loops, code normalization, or new runtime options. Missing code context fails
+before emission. Existing application code/declaration/map goldens retain their bytes.
+
+The shared 17-pattern corpus has 34 exact ICU 78.3 expectations, including quoted marks,
+mixed symbol/code positions, suffixes, and explicit negative affixes. Its oracle disables
+legacy currency-spacing insertion at integer precision, isolating affix resolution from
+independent spacing/precision policy. The oracle also reproduces all 1,075 prior scientific
+expectations with its unchanged default mode. Native/generated execution and the strict-JS
+fixture preserve input representations and coercion/error observations.
+
+New complete consumers execute on Node 24.13.1 and emit one `render` export/chunk without
+imports or unselected affix literals. These are absolute minified/gzip/Brotli costs:
+
+| Vite | Consumer | Bytes |
+| --- | --- | --- |
+| 7.3.3 | ISO-code prefix | 1181/650/611 |
+| 8.0.13 | ISO-code prefix | 1160/635/601 |
+| 7.3.3 | Mixed symbol/code prefix | 1185/652/586 |
+| 8.0.13 | Mixed symbol/code prefix | 1164/637/578 |
+
+No execution-time or retained-heap improvement is claimed. Other currency display widths and
+the broader exact page/helper requirements remain open.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

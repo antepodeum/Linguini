@@ -565,8 +565,12 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       precision (GEN-A87), with static carried fractions where proven and original-input
       rerounding otherwise. The corpus now covers 43 patterns and 1,075 exact ICU expectations
       in both generated and native output, including bare `.E0` unlimited precision. Unused
-      integer bindings and significant helpers are omitted. Currency-marker widths remain
-      explicitly unsupported; source-selectable scientific styles retain their separate scope.
+      integer bindings and significant helpers are omitted. ISO-code `¤¤` markers now have
+      distinct typed slots and resolve from explicit code context in the shared planner
+      (GEN-A88). Mixed symbol/code boundaries use the marker nearest the number; missing code
+      context fails before emission. The affix corpus now covers 17 patterns and 34 independent
+      ICU outcomes across parsing, planning, native previews, and generated execution. Other
+      currency display widths and source-selectable scientific styles retain their open scope.
       Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
       Native fraction previews and generated fixed/significant/scientific formatters preserve it;
       templates fold the choice into selected concatenation without a runtime flag or parser.
@@ -584,7 +588,7 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       across raw-pattern parsing, planning, native preview, and generated execution, matching
       twenty independent ICU 78.3 outcomes. All 6,876 typed affixes flatten to the exact previous
       compiler artifact. Current pinned literals contain no currency marks, preserving existing
-      substitutions. Wider currency display markers remain explicitly unsupported. Rust prefix
+      substitutions. GEN-A88 adds ISO-code slots; other display widths remain unsupported. Rust prefix
       and suffix fields now require typed affixes; migration notes document that source break.
       All 71 local full-profile gates pass. Separate Node 20/24, Rust 1.87 native/WASM,
       and eight byte-identical native Vite 7/8 consumers verify the changed boundary.

@@ -1336,11 +1336,13 @@ mod tests {
         match affix {
             NumberAffix::Literal(text) => literal_affix(text),
             NumberAffix::CurrencySymbol => vec![NumberAffixPart::CurrencySymbol],
+            NumberAffix::CurrencyCode => vec![NumberAffixPart::CurrencyCode],
             NumberAffix::Parts(parts) => parts
                 .iter()
                 .map(|part| match part {
                     NumberAffixPart::Literal(text) => NumberAffixPart::Literal((*text).to_owned()),
                     NumberAffixPart::CurrencySymbol => NumberAffixPart::CurrencySymbol,
+                    NumberAffixPart::CurrencyCode => NumberAffixPart::CurrencyCode,
                 })
                 .collect(),
         }
@@ -1635,7 +1637,7 @@ mod tests {
 
     #[test]
     fn unsupported_currency_display_widths_fail_instead_of_repeating_symbols() {
-        for width in 2..=6 {
+        for width in 3..=6 {
             let marker = "¤".repeat(width);
             for source in [format!("{marker}0"), format!("0{marker}")] {
                 let error = parse_number_pattern(&source).err().unwrap();

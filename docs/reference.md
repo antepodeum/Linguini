@@ -225,12 +225,14 @@ boundary facing the number is a Unicode letter. Selection happens before target 
 no symbol classification or pattern selection runs in the generated formatter. No ECMAScript
 syntax or template engine belongs to this plan.
 
-Numeric pattern affixes use `NumberAffix::Literal`, `CurrencySymbol`, or `Parts`. Composite parts
-distinguish `NumberAffixPart::Literal` from `CurrencySymbol`; a literal `¤` stays literal even
-when a currency symbol is supplied. The shared planner resolves these fragments before target
-rendering, preserving their order and explicit negative affixes. The current offline profile
-supports the single-character currency-symbol marker; code/name/narrow marker widths remain
-unsupported.
+Numeric pattern affixes use `NumberAffix::Literal`, `CurrencySymbol`, `CurrencyCode`, or `Parts`.
+Composite `NumberAffixPart` entries preserve the same distinctions. A quoted `¤` or `¤¤` stays
+literal; unquoted `¤` resolves to the localized symbol, and `¤¤` resolves to the currency code.
+`NumberFormatPlan::new_with_currency_code` accepts a separate three-letter ASCII code and
+canonicalizes it to uppercase. `new` returns `None` for a code slot without code context.
+The shared planner resolves fragments before target rendering, preserving their order and
+explicit negative affixes. Code markers are letters for `alphaNextToNumber` selection; mixed
+slots use the marker nearest the number. Other currency display widths remain unsupported.
 
 Schema path selection, locale-to-schema projection, root/nested namespace projection, and the
 documented nested message tree also live in `linguini-codegen`. Declaration order and source

@@ -31,10 +31,18 @@ fn generated_currency_substitution_preserves_literal_marks() {
             ..pattern.positive
         });
         let name = format!("affix_{}", case.name);
-        let plan = number_plan(&pattern, Some("$"), &numbers, None, &mut bindings);
+        let compiled = linguini_codegen::NumberFormatPlan::new_with_currency_code(
+            &pattern,
+            Some("$"),
+            "usd",
+            &numbers,
+            None,
+        )
+        .unwrap();
+        let plan = number_plan_context(&compiled, &mut bindings);
         source.push_str(&crate::templates::render(
             "formatters/number",
-            minijinja::context! { name, plan => plan.clone(), exported => false },
+            minijinja::context! { name, plan => plan.clone(), exported => true },
         ));
         plans.push(plan);
         for (input, expected) in [("1", case.positive), ("-1", case.negative_text)] {
@@ -51,6 +59,13 @@ fn generated_currency_substitution_preserves_literal_marks() {
     source.push_str(&number_helpers(&plans));
     assert!(!source.contains("NumberAffix"));
     assert!(!source.contains("CurrencySymbol"));
+    assert!(!source.contains("CurrencyCode"));
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/golden/snapshots/js-runtime/currency-code.js");
+    if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&path, &source).unwrap();
+    }
+    assert_eq!(source, std::fs::read_to_string(path).unwrap());
     source.push_str(&checks);
     source.push_str("console.log('ok');\n");
     assert_eq!(execute(&source), "ok");

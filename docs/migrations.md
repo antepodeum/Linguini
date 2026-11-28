@@ -89,8 +89,13 @@ prerelease Rust source compatibility change; the `NumberFormatPlan::new` signatu
 
 Currency expansion preserves literal `¤` characters, including quoted CLDR text, and replaces
 only explicit slots. Native previews and generated formatters share the resolved affixes.
-Multi-character currency marker widths remain unsupported and fail during offline compilation
-instead of producing repeated symbols. JavaScript APIs and application configuration are unchanged.
+Both affix enums now also include `CurrencyCode`, representing an unquoted `¤¤` marker.
+Rust consumers with exhaustive matches must handle that variant. Use
+`NumberFormatPlan::new_with_currency_code` for custom code-bearing patterns; provide the symbol
+and code separately. The existing `new` signature is unchanged and returns `None` when a code
+slot has no code context. Codes must be three ASCII letters and are uppercased during planning.
+Other currency display widths still fail during offline compilation instead of repeating symbols.
+JavaScript APIs and application configuration are unchanged.
 
 ## Currency letter-boundary patterns
 

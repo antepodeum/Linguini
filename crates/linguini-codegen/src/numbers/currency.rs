@@ -25,9 +25,10 @@ impl NumberFormatPlan {
             group_symbol: currency.group_symbol,
             ..numbers
         };
-        Self::new(
+        Self::compile(
             &pattern,
             Some(symbol),
+            Some(&code),
             &numbers,
             Some(&fraction.rounding.to_string()),
         )
@@ -45,21 +46,35 @@ fn select_pattern(currency: &CurrencyFormatData, symbol: &str, accounting: bool)
     alternative
         .copied()
         .filter(|_| {
-            (has_currency_slot(base.positive.prefix)
-                && symbol.chars().next_back().is_some_and(is_letter))
-                || (has_currency_slot(base.positive.suffix)
-                    && symbol.chars().next().is_some_and(is_letter))
+            currency_boundary_is_letter(base.positive.prefix, symbol, true)
+                || currency_boundary_is_letter(base.positive.suffix, symbol, false)
         })
         .unwrap_or(base)
 }
 
-fn has_currency_slot(affix: NumberAffix) -> bool {
+fn currency_boundary_is_letter(affix: NumberAffix, symbol: &str, prefix: bool) -> bool {
+    let symbol_is_letter = if prefix {
+        symbol.chars().next_back()
+    } else {
+        symbol.chars().next()
+    }
+    .is_some_and(is_letter);
+    let slot = |part: &NumberAffixPart| match part {
+        NumberAffixPart::Literal(_) => None,
+        NumberAffixPart::CurrencySymbol => Some(symbol_is_letter),
+        // Resolved ISO currency codes consist of three ASCII letters.
+        NumberAffixPart::CurrencyCode => Some(true),
+    };
     match affix {
         NumberAffix::Literal(_) => false,
-        NumberAffix::CurrencySymbol => true,
-        NumberAffix::Parts(parts) => parts
-            .iter()
-            .any(|part| matches!(part, NumberAffixPart::CurrencySymbol)),
+        NumberAffix::CurrencySymbol => symbol_is_letter,
+        NumberAffix::CurrencyCode => true,
+        NumberAffix::Parts(parts) => if prefix {
+            parts.iter().rev().find_map(slot)
+        } else {
+            parts.iter().find_map(slot)
+        }
+        .unwrap_or(false),
     }
 }
 
@@ -77,6 +92,54 @@ fn is_letter(character: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn currency_codes_use_the_slot_nearest_the_number_for_letter_boundaries() {
+        for (affix, prefix, suffix) in [
+            (NumberAffix::CurrencyCode, true, true),
+            (NumberAffix::CurrencySymbol, false, false),
+            (NumberAffix::Literal("¤¤"), false, false),
+            (
+                NumberAffix::Parts(&[
+                    NumberAffixPart::CurrencyCode,
+                    NumberAffixPart::CurrencySymbol,
+                ]),
+                false,
+                true,
+            ),
+            (
+                NumberAffix::Parts(&[
+                    NumberAffixPart::CurrencySymbol,
+                    NumberAffixPart::CurrencyCode,
+                ]),
+                true,
+                false,
+            ),
+        ] {
+            let mut currency = compiled_currency_formatting("en").unwrap();
+            let alternative = *currency.standard_alpha_next_to_number.unwrap();
+            currency.standard_pattern.positive.prefix = affix;
+            currency.standard_pattern.positive.suffix = NumberAffix::Literal("");
+            assert_eq!(
+                select_pattern(&currency, "$", false),
+                if prefix {
+                    alternative
+                } else {
+                    currency.standard_pattern
+                }
+            );
+            currency.standard_pattern.positive.prefix = NumberAffix::Literal("");
+            currency.standard_pattern.positive.suffix = affix;
+            assert_eq!(
+                select_pattern(&currency, "$", false),
+                if suffix {
+                    alternative
+                } else {
+                    currency.standard_pattern
+                }
+            );
+        }
+    }
 
     #[test]
     fn currency_selection_uses_category_l_at_the_correct_symbol_end() {
