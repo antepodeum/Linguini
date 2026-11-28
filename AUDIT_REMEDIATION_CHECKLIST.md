@@ -1531,7 +1531,7 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       Backend-independent type models, requirement analysis, and message dependency slicing
       live in `linguini-codegen`; ECMAScript rendering stays in `linguini-codegen-ecmascript`.
 
-- [-] ESM-M13 — Emit one JavaScript runtime plus declarations from the shared semantic plan.
+- [x] ESM-M13 — Emit one JavaScript runtime plus declarations from the shared semantic plan.
       Remove TypeScript implementation generation and per-template TypeScript runtime branches.
       Preserve strict TypeScript consumer typing without `allowJs`; integrate plain `tsc`
       builds so generated JavaScript and owned companions reach the emitted application.
@@ -1541,10 +1541,15 @@ flags, fallback dispatch, duplicated templates, or two production emitters behin
       destinations prepare types while preserving prior runtime. `@antepodeum/linguini-tsc` uses
       public compiler/build/watch APIs and covers strict consumers, incremental references,
       message-only updates, separate declaration output, and an installed package.
-      Linux integration tests pass with TypeScript 5.8.3 and 6.0.3; the cross-platform CI matrix
-      is configured but requires a run against the final migration. Complete
-      module/configuration migration and the final bundler/framework/platform matrix before
-      closing this transition.
+      The module/configuration migration is complete under MOD-A1–A3. Production module kinds
+      are only JavaScript and declarations; the ownership regression rejects paired runtime
+      APIs, Rust-source JS/TS files, and per-template TS runtime branches. Source `09394e6`
+      passes all 71 local full-profile gates and all 24 enabled jobs in hosted run 46069622892,
+      including TypeScript 5.8.3/6.0.3, Windows/macOS/Linux TypeScript integration, Vite 5–8,
+      adapters, and production SvelteKit. Installed plain-tsc consumers cover build/watch,
+      references, separate declarations, message-only refresh, and runtime copying without
+      `allowJs`. This closes the single-runtime migration; exact page/helper delivery,
+      remaining syntax extraction, and native distribution coverage retain their own open criteria.
 
 ### Reusable backend and framework modules
 
