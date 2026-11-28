@@ -1,7 +1,9 @@
 {# Parsing, scaling, and scientific normalization strip trailing fraction zeros.
    Only unchanged unit-rounding results can reuse those canonical digits directly.
 #}{% set unpadded_rounding = plan.rounding == "1" and plan.max_significant is none -%}
-{% if plan.max_significant is none and plan.min_fraction == plan.max_fraction -%}
+{% if plan.unlimited_precision -%}
+{% set fraction_value = "mantissa.fraction" -%}
+{% elif plan.max_significant is none and plan.min_fraction == plan.max_fraction -%}
 {% set fraction_value -%}
 rounded.fraction{% if unpadded_rounding and plan.min_fraction > 0 %}.padEnd({{ plan.min_fraction }}, "0"){% endif %}
 {%- endset -%}

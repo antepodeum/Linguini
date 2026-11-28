@@ -329,6 +329,7 @@ fn generated_number_runtime_receives_complete_pattern_semantics() {
         prefix: NumberAffix::Literal("pre"),
         suffix: NumberAffix::Literal("%"),
         min_integer_digits: 1,
+        max_integer_digits: Some(1),
         min_fraction_digits: 0,
         max_fraction_digits: 2,
         decimal_separator_always: false,
@@ -449,7 +450,10 @@ fn numeric_operations_are_selected_independently_and_execute_without_unused_help
         let mut pattern = numbers.decimal_pattern;
         match operation {
             "scale" => pattern.positive.scale = 100,
-            "scientific" => pattern.positive.exponent_digits = Some(2),
+            "scientific" => {
+                pattern.positive.max_integer_digits = Some(1);
+                pattern.positive.exponent_digits = Some(2);
+            }
             "significant" => pattern.positive.max_significant_digits = Some(3),
             "significant_padding" => {
                 pattern.positive.min_significant_digits = Some(4);
@@ -505,6 +509,7 @@ fn scientific_rounding_carry_preserves_compiled_precision() {
     for precision in 0..=6 {
         for mode in ["Fixed", "Optional", "Minimum", "Significant", "Increment"] {
             let mut pattern = numbers.decimal_pattern;
+            pattern.positive.max_integer_digits = Some(1);
             pattern.positive.exponent_digits = Some(2);
             pattern.positive.min_fraction_digits = match mode {
                 "Optional" | "Significant" => 0,
@@ -527,6 +532,10 @@ fn scientific_rounding_carry_preserves_compiled_precision() {
             );
             assert!(!formatter.contains("const shift"));
             assert!(!formatter.contains("rounded.integer.slice"));
+            assert_eq!(
+                formatter.contains("shiftScientificMantissa"),
+                mode == "Increment" && precision == 0
+            );
             if precision == 0 && mode != "Significant" {
                 assert!(!formatter.contains("const fraction"));
                 assert!(!formatter.contains("fraction ?"));
@@ -545,11 +554,25 @@ fn scientific_rounding_carry_preserves_compiled_precision() {
                 format!(".{zeros}")
             };
             let carry = format!("9.{}", "9".repeat(usize::from(precision) + 1));
+            let carried_integer = if mode == "Increment" && precision == 0 {
+                "0"
+            } else {
+                "1"
+            };
             for (input, expected) in [
-                (carry.clone(), format!("1{fraction}E01")),
-                (format!("-{carry}"), format!("-1{fraction}E01")),
-                (format!("{carry}e10"), format!("1{fraction}E11")),
-                (format!("{carry}e-10"), format!("1{fraction}E-09")),
+                (carry.clone(), format!("{carried_integer}{fraction}E01")),
+                (
+                    format!("-{carry}"),
+                    format!("-{carried_integer}{fraction}E01"),
+                ),
+                (
+                    format!("{carry}e10"),
+                    format!("{carried_integer}{fraction}E11"),
+                ),
+                (
+                    format!("{carry}e-10"),
+                    format!("{carried_integer}{fraction}E-09"),
+                ),
                 ("0".to_owned(), format!("0{fraction}E00")),
                 ("-0".to_owned(), format!("-0{fraction}E00")),
                 (

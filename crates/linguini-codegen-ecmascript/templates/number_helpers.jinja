@@ -78,11 +78,11 @@ function scaleBy{{ plan.scale }}(decimal) {
   return { negative: decimal.negative, integer, fraction };
 }
 
-{% endfor %}{% if scientific %}/**
+{% endfor %}{% for plan in scientific_plans %}/**
  * @param {__lgl_Decimal} decimal
  * @returns {__lgl_Decimal & {{ "{" }} exponent: number }}
  */
-function scientificGeneratedDecimal(decimal) {
+function {{ plan.scientific_helper }}(decimal) {
   if (decimal.integer === "0" && decimal.fraction === "") {
     return { negative: decimal.negative, integer: "0", fraction: "", exponent: 0 };
   }
@@ -98,11 +98,29 @@ function scientificGeneratedDecimal(decimal) {
     source = decimal.fraction.slice(first);
     exponent = -first - 1;
   }
+{% if plan.scientific_exponent_step > 1 %}  const integerDigits = exponent - Math.floor(exponent / {{ plan.scientific_exponent_step }}) * {{ plan.scientific_exponent_step }} + 1;
+  exponent -= integerDigits - 1;
+{% elif plan.scientific_integer_digits > 1 %}  exponent -= {{ plan.scientific_integer_digits - 1 }};
+{% endif %}  return {
+    negative: decimal.negative,
+    integer: {% if plan.scientific_exponent_step > 1 %}source.slice(0, integerDigits).padEnd(integerDigits, "0"){% elif plan.scientific_integer_digits > 1 %}source.slice(0, {{ plan.scientific_integer_digits }}).padEnd({{ plan.scientific_integer_digits }}, "0"){% else %}source[0]{% endif %},
+    fraction: source.slice({% if plan.scientific_exponent_step > 1 %}integerDigits{% else %}{{ plan.scientific_integer_digits }}{% endif %}).replace(/0+$/, ""),
+    exponent,
+  };
+}
+
+{% endfor %}{% if scientific_shift %}/**
+ * @param {__lgl_Decimal} decimal
+ * @param {number} shift
+ * @returns {__lgl_Decimal}
+ */
+function shiftScientificMantissa(decimal, shift) {
+  const source = `${decimal.integer}${decimal.fraction}`;
+  const decimalPosition = decimal.integer.length - shift;
   return {
     negative: decimal.negative,
-    integer: source[0],
-    fraction: source.slice(1).replace(/0+$/, ""),
-    exponent,
+    integer: decimalPosition > 0 ? source.slice(0, decimalPosition) : "0",
+    fraction: decimalPosition > 0 ? source.slice(decimalPosition) : "0".repeat(-decimalPosition) + source,
   };
 }
 

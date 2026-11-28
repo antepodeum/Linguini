@@ -369,7 +369,7 @@ explains why disabling them can remove getters and invalid-access errors.
 | GEN-A16 | Fixed | `shared.jinja::normalizeMessageArgs` requests `.filter(...).map(String).sort()` over own keys even when a valid named argument has no unknown keys. This shape occurs in eight scanned fixture copies. | Unknown keys are collected lazily; conversion and sorting occur only on errors. Successful named calls retain only the own-key snapshot and result array. Executed arities 0–128 count collection operations, and observation tests preserve separate classification/conversion phases, sorted errors, symbols/non-enumerable keys, getter/Proxy order, missing-key positional fallback, and frozen inputs. A local seven-batch Node comparison covered arities 1, 2, 8, 32, and 128; it does not establish a general speed improvement. No persistent sets/tables are added. |
 | GEN-A17 | Fixed | `codegen-js-formatters-ru.js` tested `fraction ? ... : integer` after a fixed two-digit currency round. Integer-only plans also retained fraction/formatted scaffolding. Owner: `formatters/number.jinja`. | Mandatory fractions now concatenate directly; non-scientific integer-only plans omit fraction/formatted bindings and localize/group the integer directly. Identical sign prefixes are selected during generation. Executed USD/JPY/KWD, optional/significant fractions, negative zero, localized digits, equal prefixes, and the existing grouping/padding/rounding corpus cover the change. |
 | GEN-A18 | Fixed | `date_helpers.jinja` validates an ISO date-time's calendar fields by constructing a `Date` it then discards, before constructing the final date-time. Instrumented generated code constructs two dates for `2024-01-02T13:04:05Z`, one for a date-only value, and one before rejecting February 30. | Gregorian field validation now uses arithmetic before constructing the returned date. Executed tests cover all 10,000 four-digit years against native calendar rollover, three host time zones, year zero, leap centuries, offsets, midnight rollover, malformed/time-invalid inputs, and observable supplied Date methods. Valid text values construct one Date; invalid calendar fields construct none; supplied Date objects retain identity and construct none. |
-| GEN-A19 | Fixed for proven carry plans | An executed scientific number-plan probe renders `9.9` as `1.0E01` with zero allowed fraction digits. Owner: `formatters/number.jinja`. | Shared `NumberRoundingPlan` proves when rounding a normalized mantissa can only carry to ten: significant rounding, unit rounding, and increments dividing the scaled ten boundary. The emitter uses a literal one and compiled zero suffix, preserving selected precision without runtime digit slicing/concatenation or shift calculation. Executed fixed/optional/minimum/significant/increment plans cover precisions 0–6, signed carries, positive/negative exponents, zero, and number/bigint/string inputs. The build-time proof is checked against exact powers for 38 scales × 256 increments and at 255 fraction digits. Unproven increments retain their general normalization path; this does not establish full engineering-notation support. |
+| GEN-A19 | Fixed for proven carry plans | An executed scientific number-plan probe renders `9.9` as `1.0E01` with zero allowed fraction digits. Owner: `formatters/number.jinja`. | Shared `NumberRoundingPlan` compiles literal carry results. GEN-A82 corrects its quantum proof to require divisibility of the carried mantissa itself; dividing the pre-shift ten boundary was insufficient. The emitter uses a literal one and compiled zero suffix, preserving selected precision without runtime digit slicing/concatenation or shift calculation. Executed fixed/optional/minimum/significant/increment plans cover precisions 0–6, signed carries, positive/negative exponents, zero, and number/bigint/string inputs. The build-time proof is checked against exact powers for 38 scales × 256 increments and at 255 fraction digits. GEN-A82 also replaces unproven normalization with original-mantissa rerounding and adds fixed/engineering width plans. |
 | GEN-A20 | Fixed | Russian plural output tested the complete `many` predicate and then returned `other`, although its earlier fraction guard and one/few branches leave only many. | Shared plural planning proves exhaustive integer-modulo coverage across a complete finite period, with a conservative 4,096-residue build budget. The emitter replaces the final test with a return and recomputes operand/modulus demand after removing it. A mixed-modulus execution probe drops an unused modulo-30 operation while preserving 1,001 counts across number, bigint, string, negative, and fractional representations, category-name passthrough, and invalid-input rejection. Mixed/noninteger/unbounded operands and excessive periods retain their original test. The existing 24-locale/operator and huge/exponent-input corpus passes. |
 
 The allocation changes pass all 746 workspace Rust tests on stable 1.99.1, strict workspace
@@ -919,7 +919,42 @@ Brotli bytes:
 
 This removes one object construction in the normalization source. It is not a measured
 retained-heap or execution-time claim. Non-scientific implementations emit no new code.
-Engineering notation and its integer-width metadata remain separate, unfinished work.
+GEN-A82 below supplies scientific integer-width metadata and fixed/engineering lowering.
+
+## Scientific width and precision specialization
+
+GEN-A82 retains scientific-only integer widths in compiler metadata and resolves fixed widths,
+engineering exponent steps, and fraction/significant/unlimited precision in shared Rust plans.
+Normalizers are emitted once per selected layout. The checked fixture shares its engineering
+normalizer across finite, unlimited, and quantum requests and emits no default one-digit
+normalizer. Unlimited precision emits no rounding call or record alias, and minimum exponent
+width one emits no padding call. Unproven quantum carries alone select the numeric shift helper;
+its arguments describe actual input shifting rather than CLDR pattern interpretation.
+
+The carry proof now checks whether the carried mantissa is a multiple of the quantum.
+When that proof fails, exponent adjustment rerounds the original mantissa. The independent
+oracle uses ICU 78.3 `DecimalFormat`, exact `StringPiece` inputs, and half-up rounding. Its 800
+results across 32 patterns execute in both generated functions and native numeric previews.
+Existing application code/declaration/map goldens retain their bytes. The additional metadata
+belongs to the offline compiler input and is absent from application JavaScript.
+
+Complete consumers built and executed on Node 24.13.1 each emit one `render` export/chunk,
+no imports, and the selected oracle results. Sizes are minified/gzip/Brotli bytes:
+
+| Vite | Selected pattern | Bytes |
+| --- | --- | --- |
+| 7.3.3 | `000.00E0` | 1846/887/822 |
+| 7.3.3 | `##0.00E0` | 2357/1047/987 |
+| 7.3.3 | `###E0` | 1524/787/719 |
+| 7.3.3 | `##0.7E0` | 2092/971/904 |
+| 8.0.13 | `000.00E0` | 1813/868/800 |
+| 8.0.13 | `##0.00E0` | 2308/1030/956 |
+| 8.0.13 | `###E0` | 1499/766/700 |
+| 8.0.13 | `##0.7E0` | 2057/954/879 |
+
+These are absolute costs for corrected selected implementations. No execution-time or
+retained-heap improvement is claimed. GEN-A83 brings native previews onto these shared plans,
+including scaling, significant precision, and padding; it adds no application runtime code.
 
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

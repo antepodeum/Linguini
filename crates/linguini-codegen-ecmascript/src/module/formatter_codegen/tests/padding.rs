@@ -188,6 +188,7 @@ fn padding_width_uses_compiled_scalar_widths_without_iterating_text() {
             }
         }
         if scientific {
+            pattern.positive.max_integer_digits = Some(1);
             pattern.positive.exponent_digits = Some(2);
             pattern.positive.exponent_sign_always = style == "scientific";
             pattern.positive.primary_group_size = None;

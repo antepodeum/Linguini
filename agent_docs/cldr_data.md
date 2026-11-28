@@ -52,6 +52,15 @@ large records in every unoptimized match arm. A 256 KiB thread exercises the for
 families across the supported locale candidates. Compiler-table storage stays separate from
 application output; the borrowing change preserves every previous record value.
 
+Profile v12 adds optional scientific integer-width metadata. Fixed-digit scientific patterns
+retain their integer placeholders as `max_integer_digits: Some(width)`; ordinary and explicit
+significant-digit patterns use `None`. Leading hashes in those other patterns remain unrestricted
+by scientific width limits. Removing the 5,265 added fields reproduces the v11 artifact byte for
+byte; source inputs and all previous metadata are unchanged. Shared scientific plans resolve
+fixed widths, engineering exponent steps, effective precision, and carried-mantissa proofs.
+Both ECMAScript templates and native numeric previews consume that plan. Application output
+receives the selected operations and constants rather than pattern metadata or a CLDR parser.
+
 The calendar profile covers Gregorian, Buddhist, ROC, and Japanese data: 3,060 locale/calendar
 pairs, contextual symbols, eras, skeletons, day periods, week rules, and GMT formats. Equal
 symbol tables share storage. Hawaiian retains its explicit unsupported Roman-month exclusion.

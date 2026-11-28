@@ -24,6 +24,7 @@ pub(super) fn inline_name(name: &str) -> bool {
                 | "MAX_GENERATED_DECIMAL_DIGITS"
                 | "parseGeneratedDecimal"
                 | "scientificGeneratedDecimal"
+                | "shiftScientificMantissa"
                 | "roundGeneratedFraction"
                 | "throwInvalidNumber"
                 | "padNumber"
@@ -34,7 +35,15 @@ pub(super) fn inline_name(name: &str) -> bool {
                 | "getWeekYear"
                 | "localizeDigit"
         )
-        || ["scaleBy", "roundTo", "padTo"].iter().any(|prefix| {
+        || [
+            "scaleBy",
+            "roundTo",
+            "padTo",
+            "scientificWith",
+            "engineeringWith",
+        ]
+        .iter()
+        .any(|prefix| {
             name.strip_prefix(prefix)
                 .is_some_and(|tail| tail.as_bytes().first().is_some_and(u8::is_ascii_digit))
         })

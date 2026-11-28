@@ -1,8 +1,8 @@
 {
   "artifact": {
-    "bytes": 17945640,
+    "bytes": 18093060,
     "path": "cldr_tables.rs",
-    "sha256": "2f4ec52895bd160e64ae1afba98893fb7889450ea5dfc2dd7ad3c73c8431ce02"
+    "sha256": "5d3f0882b485adffa5a0a6b6a20748856bbea020b3b159152c90a13f43e20ef0"
   },
   "coverage": {
     "calendar_locale_pairs": 3060,
@@ -72,7 +72,7 @@
     ],
     "bytes": 153382007,
     "file_count": 6162,
-    "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+decimal-separator-visibility+currency-affix-parts+currency-alpha-patterns+borrowed-formatting-lookups+four-calendars+day-periods+week-data+week-preference-validity+subdivision-aliases+subdivision-validity+zone-formats+layout-v11",
+    "profile": "locale-aliases+parent-locales+likely-subtags+bcp47-extension-aliases+plurals+currency-fractions+default-numbering-systems+default-numbers+default-currency+decimal-separator-visibility+currency-affix-parts+currency-alpha-patterns+borrowed-formatting-lookups+scientific-integer-widths+four-calendars+day-periods+week-data+week-preference-validity+subdivision-aliases+subdivision-validity+zone-formats+layout-v12",
     "tree_hash_algorithm": "sha256; domain=linguini-cldr-source-tree-v1\\0; repeated=u64be(path_len)||path||u64be(file_len)||file_bytes",
     "tree_sha256": "1ec46e47a5bdebb45bf829d3349d765271c67680bf9816bd585438ed57750019"
   },

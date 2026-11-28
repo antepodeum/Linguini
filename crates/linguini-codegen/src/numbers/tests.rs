@@ -89,6 +89,12 @@ fn selected_pattern_compiles_affixes_grouping_quantum_scientific_symbols_and_pad
     assert_eq!(
         plan.scientific,
         Some(NumberScientificPlan {
+            integer_digits: 1,
+            exponent_step: 1,
+            precision: NumberPrecisionPlan::Significant {
+                minimum: 2,
+                maximum: 4
+            },
             exponent_digits: 2,
             separator: "×۱۰^",
             positive_sign: "\u{200e}+",

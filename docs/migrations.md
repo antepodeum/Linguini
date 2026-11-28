@@ -28,11 +28,24 @@ Regenerated classifiers whose shared rules require zero visible fractional digit
 visible digits, and invalid inputs retain their errors. Public APIs and application configuration
 are unchanged; no application changes are required.
 
-## Scientific formatter internals
+## Scientific formatter plans
 
 Regenerated scientific formatters use a single normalized mantissa/exponent record. Input
 representations, sign handling, rounding, localized symbols, and public signatures are unchanged.
-This removes an intermediate result wrapper; no application changes are required.
+This removes an intermediate result wrapper.
+
+Rust `NumberPatternPart` literals must initialize `max_integer_digits: Option<u8>`. Use `None`
+for ordinary decimal and explicit significant-digit patterns, and `Some(width)` for fixed-digit
+scientific patterns, counting required and optional integer placeholders. `NumberScientificPlan`
+literals must also initialize `integer_digits`, `exponent_step`, and `precision`; prefer
+`NumberFormatPlan::new`, which derives these choices. These are prerelease Rust source changes.
+
+Scientific lowering now preserves fixed mantissa widths and engineering exponent groups.
+For `12345`, `000.00E0` produces `123.45E2`, and `##0.00E0` produces `12.3E3`. Patterns with
+unlimited precision retain their digits. Quantum rounding that changes magnitude reevaluates
+the original input at the new exponent, fixing outputs such as `000.7E0` with `999.95`.
+Native numeric previews share these plans and also support compiled significant precision,
+decimal scaling, and padding. Source-level number formatter options retain their existing surface.
 
 ## Native date type annotations
 

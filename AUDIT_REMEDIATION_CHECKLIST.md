@@ -529,8 +529,8 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       compilation, independently of ordinary number symbols. Generated/native comparisons cover
       Austrian German and Swiss French alongside the existing digit-system corpus.
       Internal scientific lowering also compiles localized exponent separators and signs,
-      preserving bidirectional marks and literal digits within those symbols. Broader scientific
-      and engineering patterns remain part of OPT-A1/A2 rather than a completed surface.
+      preserving bidirectional marks and literal digits within those symbols. Source-selectable scientific
+      and engineering styles remain part of OPT-A1/A2 rather than a completed surface.
       Offline numeric-pattern parsing now honors padding escape characters, restricts padding
       to the four component boundaries, and treats rounding digits 1–9 as mandatory digits
       (GEN-A65). It reuses the shared padding model. All 24 maintainer, 60 common planner, and
@@ -549,8 +549,15 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
       rather than becoming literal prefixes. Existing Cyrillic padding expectations retain
       valid quoted punctuation, and padding rejection checks require their specific error.
       All 30 maintainer tests and workspace Clippy pass; pinned data reproduces byte for byte.
-      Remaining model gaps include currency-marker widths and integer-width/engineering semantics.
-      Leading decimal/grouping forms are explicitly unsupported pending that model work.
+      Fixed scientific widths, engineering exponent groups, inferred/explicit significant
+      precision, and unlimited precision now compile through shared plans (GEN-A82). Scientific
+      width metadata preserves unrestricted hashes in other patterns. The carried-result proof
+      and original-mantissa rerounding correct quantum magnitude changes. Thirty-two parser
+      cases and 800 exact ICU expectations execute in generated functions and native previews;
+      51 formatter tests and strict JS pass. Eight complete Vite 7/8 consumers retain their
+      reference results in one import-free chunk, with costs recorded in the audit. Existing
+      generated goldens remain unchanged. Rust SDK field additions are documented in migrations.
+      Currency-marker widths and leading decimal/grouping forms remain explicitly unsupported.
       Decimal-separator visibility now belongs to the shared CLDR pattern/number plan (GEN-A70).
       Native fraction previews and generated fixed/significant/scientific formatters preserve it;
       templates fold the choice into selected concatenation without a runtime flag or parser.
@@ -746,6 +753,11 @@ paired-runtime design. Preserve the tested behavior while replacing those owners
 - [x] #303 — Reject unrelated nearest-config associations.
 - [x] #304 — Enforce document, project, file, recursion, and nesting limits.
 - [-] #305 — Share preview semantics with the production evaluator. Native numeric previews
+      now also consume shared scientific width/step and effective precision plans (GEN-A83).
+      Significant precision, decimal scaling, and Unicode padding render through a dedicated
+      numeric module. The same 800 exact ICU scientific/engineering results pass natively;
+      decimal-visibility and optional-integer corpora verify previously rejected compiled styles.
+      The native u16 quantum bound and broader date-input parity remain open.
       now honor localized negative affixes, minimum grouping thresholds, and pinned currency
       symbols. Date-only previews now reuse production request/pattern/symbol/day-period/week
       plans for exact skeletons, time-only output, and composed styles. All source-selectable
@@ -1853,6 +1865,10 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       runtime interpreter or parse CLDR syntax after generation. Parsing actual input values such
       as numeric strings or dates is a separate, demand-selected runtime operation.
 - [-] OPT-A2 — Emit specialized formatter implementations for the actual statically used requests.
+      Scientific layouts and precision now specialize normalizers, exponent steps, rounding,
+      minimum digits, and carry proofs at build time (GEN-A82). Fixed, engineering, and unlimited
+      patterns retain their distinct behavior; quantum magnitude changes reround the original
+      mantissa. The runtime contains selected arithmetic and symbols, without pattern parsing.
       Fixed/flexible day-period rules and label fallback now lower through the shared build-time
       plan into direct conditions; executed coverage checks 483,840 locale/width/time combinations
       against raw pinned rules, plus display precision and missing-label/merged-span cases.
@@ -2090,7 +2106,7 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       reuse; signs and frozen inputs retain their behavior. All 50 formatter tests and strict
       checked JS pass. Eight complete Vite 7/8 consumers preserve results and one import-free
       chunk, saving 13/21 minified and 7–19 Brotli bytes. No timing or heap-size claim is made;
-      engineering integer widths and broader allocation/delivery requirements remain open.
+      GEN-A82 supplies engineering integer widths; broader allocation/delivery work remains open.
       Proven zero-visible-fraction guards now reject finite native fractions before String/regex
       parsing (GEN-A79). Safe integer operations are unchanged. Executed Russian/Ukrainian cases
       disable text parsing, including subnormals; permissive/modular synthetic rules retain their
@@ -2137,7 +2153,8 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       Scientific rounding carries now use shared build-time proofs and compiled literal digits
       when the result is known. Fixed/optional/minimum/significant/increment precision, signed
       exponents, and numeric input representations execute with exact expectations; unproven
-      increments retain the general path, and full engineering notation remains outside this receipt.
+      increments now reround the original mantissa after exponent adjustment (GEN-A82), which also
+      supplies fixed and engineering width plans.
       Shared integer-modulo exhaustiveness proofs also replace redundant final category tests
       with direct returns and remove operands/moduli no longer demanded. Complete finite periods
       establish the result during generation; no residue table or CLDR evaluator is shipped.

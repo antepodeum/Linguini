@@ -5,6 +5,17 @@ use linguini_cldr::{NumberAffix, NumberAffixPart, NumberFormatData, NumberPaddin
 use crate::NumberRoundingPlan;
 
 mod currency;
+mod scientific;
+
+pub use scientific::NumberScientificPlan;
+
+/// Rounding selected from a compiled numeric pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumberPrecisionPlan {
+    Fraction,
+    Significant { minimum: u16, maximum: u16 },
+    Unlimited,
+}
 
 /// Literal affixes after currency replacement and implicit negative-sign expansion.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,16 +33,6 @@ pub struct NumberGroupingPlan {
     pub secondary_size: u8,
     /// Group only when the integer's length exceeds this value.
     pub threshold: u16,
-}
-
-/// Selected scientific symbols and a proven carry result, when one is available.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NumberScientificPlan {
-    pub exponent_digits: u8,
-    pub separator: &'static str,
-    pub positive_sign: &'static str,
-    pub negative_sign: &'static str,
-    pub carry_fraction: Option<String>,
 }
 
 /// Semantic number-format choices with no target syntax or runtime helper names.
@@ -56,6 +57,42 @@ pub struct NumberFormatPlan {
 }
 
 impl NumberFormatPlan {
+    /// Effective precision, including significant precision implied by scientific patterns.
+    pub fn precision(&self) -> NumberPrecisionPlan {
+        if let Some(scientific) = &self.scientific {
+            scientific.precision
+        } else if let Some(maximum) = self.max_significant_digits {
+            NumberPrecisionPlan::Significant {
+                minimum: u16::from(self.min_significant_digits.unwrap_or(1)),
+                maximum: u16::from(maximum),
+            }
+        } else {
+            NumberPrecisionPlan::Fraction
+        }
+    }
+
+    /// Scientific patterns with derived significant precision pad total digits instead.
+    pub fn minimum_fraction_digits(&self) -> u8 {
+        if self.scientific.is_some()
+            && self.max_significant_digits.is_none()
+            && matches!(self.precision(), NumberPrecisionPlan::Significant { .. })
+        {
+            0
+        } else {
+            self.min_fraction_digits
+        }
+    }
+
+    /// Minimum significant padding can be requested independently of rounding precision.
+    pub fn minimum_significant_digits(&self) -> Option<u16> {
+        self.min_significant_digits
+            .map(u16::from)
+            .or_else(|| match self.precision() {
+                NumberPrecisionPlan::Significant { minimum, .. } if minimum > 1 => Some(minimum),
+                _ => None,
+            })
+    }
+
     /// Whether a fixed-fraction pattern may omit its sole integer zero.
     pub fn can_omit_integer_zero(&self) -> bool {
         self.min_integer_digits == 0
@@ -110,19 +147,7 @@ impl NumberFormatPlan {
             positive.max_fraction_digits,
             rounding.or(positive.rounding_increment).unwrap_or("1"),
         )?;
-        let scientific = positive
-            .exponent_digits
-            .map(|exponent_digits| NumberScientificPlan {
-                exponent_digits,
-                separator: numbers.exponential_symbol,
-                positive_sign: if positive.exponent_sign_always {
-                    numbers.plus_sign
-                } else {
-                    ""
-                },
-                negative_sign: numbers.minus_sign,
-                carry_fraction: rounding.scientific_carry_fraction(positive.max_significant_digits),
-            });
+        let scientific = NumberScientificPlan::for_pattern(positive, numbers, &rounding);
         Some(Self {
             affixes: NumberAffixPlan {
                 prefix,
@@ -130,7 +155,9 @@ impl NumberFormatPlan {
                 negative_prefix,
                 negative_suffix,
             },
-            min_integer_digits: positive.min_integer_digits,
+            min_integer_digits: scientific
+                .as_ref()
+                .map_or(positive.min_integer_digits, |plan| plan.integer_digits),
             min_fraction_digits: positive.min_fraction_digits,
             max_fraction_digits: positive.max_fraction_digits,
             decimal_separator_always: positive.decimal_separator_always,

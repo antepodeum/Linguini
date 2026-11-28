@@ -774,6 +774,7 @@ fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
     let prefix = affix_tokens(&part.prefix);
     let suffix = affix_tokens(&part.suffix);
     let min_integer_digits = part.min_integer_digits;
+    let max_integer_digits = option_u8_tokens(part.max_integer_digits);
     let min_fraction_digits = part.min_fraction_digits;
     let max_fraction_digits = part.max_fraction_digits;
     let decimal_separator_always = part.decimal_separator_always;
@@ -815,6 +816,7 @@ fn number_pattern_part_tokens(part: &NumberPatternPart) -> TokenStream {
             prefix: #prefix,
             suffix: #suffix,
             min_integer_digits: #min_integer_digits,
+            max_integer_digits: #max_integer_digits,
             min_fraction_digits: #min_fraction_digits,
             max_fraction_digits: #max_fraction_digits,
             decimal_separator_always: #decimal_separator_always,
@@ -844,6 +846,7 @@ struct NumberPatternPart {
     prefix: CompiledAffix,
     suffix: CompiledAffix,
     min_integer_digits: u8,
+    max_integer_digits: Option<u8>,
     min_fraction_digits: u8,
     max_fraction_digits: u8,
     decimal_separator_always: bool,
@@ -981,6 +984,18 @@ fn parse_number_pattern_part(
             "minimum integer digits",
             original,
         )?,
+        max_integer_digits: (exponent.is_some() && !significant)
+            .then(|| {
+                checked_u8(
+                    integer
+                        .chars()
+                        .filter(|character| matches!(character, '#' | '0'..='9'))
+                        .count(),
+                    "maximum integer digits",
+                    original,
+                )
+            })
+            .transpose()?,
         min_fraction_digits: checked_u8(
             fraction.chars().filter(char::is_ascii_digit).count(),
             "minimum fraction digits",
@@ -1409,6 +1424,41 @@ mod tests {
                 per_mille: "‰".into(),
             },
         )
+    }
+
+    #[test]
+    fn scientific_integer_and_precision_metadata_matches_the_icu_corpus() {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/codegen/scientific-widths.json"
+        ))
+        .unwrap();
+        for case in corpus["cases"].as_array().unwrap() {
+            let pattern = case["pattern"].as_str().unwrap();
+            let part = parse_number_pattern(pattern).unwrap().positive;
+            assert_eq!(
+                serde_json::json!({
+                    "min_integer": part.min_integer_digits,
+                    "max_integer": part.max_integer_digits,
+                    "min_fraction": part.min_fraction_digits,
+                    "max_fraction": part.max_fraction_digits,
+                    "min_significant": part.min_significant_digits,
+                    "max_significant": part.max_significant_digits,
+                    "rounding_increment": part.rounding_increment,
+                    "exponent_digits": part.exponent_digits,
+                    "exponent_sign_always": part.exponent_sign_always,
+                    "decimal_separator_always": part.decimal_separator_always,
+                }),
+                serde_json::Value::Object(
+                    case.as_object()
+                        .unwrap()
+                        .iter()
+                        .filter(|(key, _)| !matches!(key.as_str(), "pattern" | "samples"))
+                        .map(|(key, value)| (key.clone(), value.clone()))
+                        .collect()
+                ),
+                "{pattern}"
+            );
+        }
     }
 
     #[test]

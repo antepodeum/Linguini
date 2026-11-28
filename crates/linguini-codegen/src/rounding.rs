@@ -10,20 +10,31 @@ pub struct NumberRoundingPlan {
 }
 
 impl NumberRoundingPlan {
-    /// Compile the fraction after a normalized scientific mantissa carries to ten.
-    /// Significant rounding, or a fraction increment dividing the ten boundary,
-    /// can only carry to a one followed by zeros. Unproven increments retain the
-    /// general normalization path. All arithmetic here runs during generation.
+    /// Compile the fraction after a one-digit scientific mantissa carries.
+    /// The carried result must itself be a multiple of the rounding quantum.
     pub fn scientific_carry_fraction(&self, significant_digits: Option<u8>) -> Option<String> {
+        self.scientific_carry_fraction_for_width(significant_digits, 1)
+    }
+
+    /// Prove the carried mantissa for a fixed integer width during generation.
+    /// Unproven increments require rounding the original input at the new exponent.
+    pub(crate) fn scientific_carry_fraction_for_width(
+        &self,
+        significant_digits: Option<u8>,
+        integer_digits: u8,
+    ) -> Option<String> {
+        if integer_digits == 0 {
+            return None;
+        }
         let digits = match significant_digits {
             Some(0) => return None,
-            Some(digits) => digits - 1,
+            Some(digits) => digits.saturating_sub(integer_digits),
             None if self.increment == "1" => self.fraction_digits,
             None => {
                 let increment = self.increment.parse::<u128>().ok().filter(|&n| n > 0)?;
                 let mut remainder = 1_u128;
-                // Ten is 10^(fraction_digits + 1) in the rounder's scaled units.
-                for _ in 0..=self.fraction_digits {
+                // The carried mantissa is 10^(integer_digits - 1), in scaled units.
+                for _ in 0..u16::from(self.fraction_digits) + u16::from(integer_digits) - 1 {
                     remainder = remainder.checked_mul(10)? % increment;
                 }
                 if remainder != 0 {
@@ -106,8 +117,8 @@ mod tests {
             (2, "1", Some(1), Some("")),
             (2, "5", Some(4), Some("000")),
             (2, "5", None, Some("00")),
-            (2, "125", None, Some("00")),
-            (2, "1000", None, Some("00")),
+            (2, "125", None, None),
+            (2, "1000", None, None),
             (2, "6", None, None),
             (2, "1005", None, None),
             (2, "18446744073709551617", None, None),
@@ -120,18 +131,33 @@ mod tests {
             );
         }
         for fraction_digits in 0..=37 {
-            let ten = 10_u128.pow(u32::from(fraction_digits) + 1);
+            let one = 10_u128.pow(u32::from(fraction_digits));
             for increment in 1..=256_u128 {
                 let plan =
                     NumberRoundingPlan::new(fraction_digits, &increment.to_string()).unwrap();
                 assert_eq!(
                     plan.scientific_carry_fraction(None).is_some(),
-                    ten.is_multiple_of(increment),
+                    one.is_multiple_of(increment),
                     "{fraction_digits}/{increment}"
                 );
             }
         }
         let wide = NumberRoundingPlan::new(255, "5").unwrap();
         assert_eq!(wide.scientific_carry_fraction(None), Some("0".repeat(255)));
+        let quantum = NumberRoundingPlan::new(1, "25").unwrap();
+        assert_eq!(quantum.scientific_carry_fraction_for_width(None, 1), None);
+        assert_eq!(
+            quantum.scientific_carry_fraction_for_width(None, 3),
+            Some("0".into())
+        );
+        assert_eq!(
+            quantum.scientific_carry_fraction_for_width(Some(4), 3),
+            Some("0".into())
+        );
+        assert_eq!(
+            quantum.scientific_carry_fraction_for_width(Some(1), 3),
+            Some(String::new())
+        );
+        assert_eq!(quantum.scientific_carry_fraction_for_width(None, 0), None);
     }
 }

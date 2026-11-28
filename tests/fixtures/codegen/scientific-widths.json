@@ -1,0 +1,3685 @@
+{
+  "oracle": "ICU 78.3 DecimalFormat; exact StringPiece inputs; en-US; half-up",
+  "cases": [
+    {
+      "pattern": "0.00E0",
+      "min_integer": 1,
+      "max_integer": 1,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.00E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.00E0"
+        },
+        {
+          "input": "12",
+          "expected": "1.20E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-1.20E1"
+        },
+        {
+          "input": "12345",
+          "expected": "1.23E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.23E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.23E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.23E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "9.88E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "1.00E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "1.00E1"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.01E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1.23E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.23E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.70E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "1.00E-7"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "1.00E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1.23E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.00E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.00E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "00.00E0",
+      "min_integer": 2,
+      "max_integer": 2,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "00.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-00.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "10.00E-1"
+        },
+        {
+          "input": "-1",
+          "expected": "-10.00E-1"
+        },
+        {
+          "input": "12",
+          "expected": "12.00E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.00E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.35E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.35E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "12.30E-4"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-12.30E-4"
+        },
+        {
+          "input": "98760",
+          "expected": "98.76E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "10.00E2"
+        },
+        {
+          "input": "999.99",
+          "expected": "10.00E2"
+        },
+        {
+          "input": "99.99",
+          "expected": "99.99E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "99.90E-1"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.00E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "10.05E-1"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.30E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.30E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "17.00E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "10.00E-8"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "10.00E73"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.35E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "10.00E299"
+        },
+        {
+          "input": "1e-300",
+          "expected": "10.00E-301"
+        }
+      ]
+    },
+    {
+      "pattern": "000.00E0",
+      "min_integer": 3,
+      "max_integer": 3,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "000.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-000.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "100.00E-2"
+        },
+        {
+          "input": "-1",
+          "expected": "-100.00E-2"
+        },
+        {
+          "input": "12",
+          "expected": "120.00E-1"
+        },
+        {
+          "input": "-12",
+          "expected": "-120.00E-1"
+        },
+        {
+          "input": "12345",
+          "expected": "123.45E2"
+        },
+        {
+          "input": "-12345",
+          "expected": "-123.45E2"
+        },
+        {
+          "input": "0.00123",
+          "expected": "123.00E-5"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-123.00E-5"
+        },
+        {
+          "input": "98760",
+          "expected": "987.60E2"
+        },
+        {
+          "input": "999.95",
+          "expected": "999.95E0"
+        },
+        {
+          "input": "999.99",
+          "expected": "999.99E0"
+        },
+        {
+          "input": "99.99",
+          "expected": "999.90E-1"
+        },
+        {
+          "input": "9.99",
+          "expected": "999.00E-2"
+        },
+        {
+          "input": "9.9999",
+          "expected": "999.99E-2"
+        },
+        {
+          "input": "1.005",
+          "expected": "100.50E-2"
+        },
+        {
+          "input": "12.3012",
+          "expected": "123.01E-1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "123.01E2"
+        },
+        {
+          "input": "0.017",
+          "expected": "170.00E-4"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.00E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.00E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "123.45E-67"
+        },
+        {
+          "input": "1e300",
+          "expected": "100.00E298"
+        },
+        {
+          "input": "1e-300",
+          "expected": "100.00E-302"
+        }
+      ]
+    },
+    {
+      "pattern": "#0.00E0",
+      "min_integer": 1,
+      "max_integer": 2,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.00E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.00E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.0E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.0E0"
+        },
+        {
+          "input": "12345",
+          "expected": "1.23E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.23E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "12.3E-4"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-12.3E-4"
+        },
+        {
+          "input": "98760",
+          "expected": "9.88E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "10.0E2"
+        },
+        {
+          "input": "999.99",
+          "expected": "10.0E2"
+        },
+        {
+          "input": "99.99",
+          "expected": "1.00E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.01E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.3E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.23E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.70E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "10.0E-8"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "1.00E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.3E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.00E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.00E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "##0.00E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.00E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.00E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.0E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.0E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.3E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.3E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.23E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.23E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "98.8E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "100E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.01E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.3E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.3E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "17.0E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.3E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.00E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.00E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "##00.00E0",
+      "min_integer": 2,
+      "max_integer": 4,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.00E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.00E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.0E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.0E0"
+        },
+        {
+          "input": "12345",
+          "expected": "1.235E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.235E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "12.3E-4"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-12.3E-4"
+        },
+        {
+          "input": "98760",
+          "expected": "9.876E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "1000E0"
+        },
+        {
+          "input": "999.99",
+          "expected": "1000E0"
+        },
+        {
+          "input": "99.99",
+          "expected": "99.99E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.005E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.3E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.23E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "170E-4"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "10.0E-8"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1235E-68"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.00E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.00E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "###.##E0",
+      "min_integer": 0,
+      "max_integer": 3,
+      "min_fraction": 0,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "12",
+          "expected": "12E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.3E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.3E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.23E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.23E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "98.8E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "1E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "100E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.01E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.3E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.3E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "17E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.3E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "#.0#E0",
+      "min_integer": 0,
+      "max_integer": 1,
+      "min_fraction": 1,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "12",
+          "expected": "1.2E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-1.2E1"
+        },
+        {
+          "input": "12345",
+          "expected": "1.2E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.2E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.2E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.2E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "9.9E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "1E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "1E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "1E1"
+        },
+        {
+          "input": "9.9999",
+          "expected": "1E1"
+        },
+        {
+          "input": "1.005",
+          "expected": "1E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1.2E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.2E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.7E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "1E-7"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "1E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1.2E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "1E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "#E0",
+      "min_integer": 0,
+      "max_integer": 1,
+      "min_fraction": 0,
+      "max_fraction": 0,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "12",
+          "expected": "1.2E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-1.2E1"
+        },
+        {
+          "input": "12345",
+          "expected": "1.2345E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.2345E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.23E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.23E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "9.876E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "9.9995E2"
+        },
+        {
+          "input": "999.99",
+          "expected": "9.9999E2"
+        },
+        {
+          "input": "99.99",
+          "expected": "9.999E1"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "9.9999E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.005E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1.23012E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.23012E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.7E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "9.99999E-8"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "9.9999999999999999999999999999999999999999999999999999999999999999999999999E73"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1.2345E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "1E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "###E0",
+      "min_integer": 0,
+      "max_integer": 3,
+      "min_fraction": 0,
+      "max_fraction": 0,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "12",
+          "expected": "12E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.345E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.345E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.23E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.23E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "98.76E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "999.95E0"
+        },
+        {
+          "input": "999.99",
+          "expected": "999.99E0"
+        },
+        {
+          "input": "99.99",
+          "expected": "99.99E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "9.9999E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.005E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.3012E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.3012E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "17E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "99.9999E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "99.999999999999999999999999999999999999999999999999999999999999999999999999E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.345E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "##0E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 0,
+      "max_fraction": 0,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1E0"
+        },
+        {
+          "input": "12",
+          "expected": "10E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-10E0"
+        },
+        {
+          "input": "12345",
+          "expected": "10E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-10E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "100E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "1E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "100E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "10E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "10E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "10E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "20E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "10E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "##0.000#E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 3,
+      "max_fraction": 4,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.000E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.000E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.000E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.000E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.00E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.00E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.345E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.345E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.230E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.230E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "98.76E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "999.95E0"
+        },
+        {
+          "input": "999.99",
+          "expected": "999.99E0"
+        },
+        {
+          "input": "99.99",
+          "expected": "99.99E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.990E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "9.9999E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.005E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.301E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.301E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "17.00E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.0E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.0E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.345E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.000E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.000E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "000.05E0",
+      "min_integer": 3,
+      "max_integer": 3,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "5",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "000.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-000.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "100.00E-2"
+        },
+        {
+          "input": "-1",
+          "expected": "-100.00E-2"
+        },
+        {
+          "input": "12",
+          "expected": "120.00E-1"
+        },
+        {
+          "input": "-12",
+          "expected": "-120.00E-1"
+        },
+        {
+          "input": "12345",
+          "expected": "123.45E2"
+        },
+        {
+          "input": "-12345",
+          "expected": "-123.45E2"
+        },
+        {
+          "input": "0.00123",
+          "expected": "123.00E-5"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-123.00E-5"
+        },
+        {
+          "input": "98760",
+          "expected": "987.60E2"
+        },
+        {
+          "input": "999.95",
+          "expected": "999.95E0"
+        },
+        {
+          "input": "999.99",
+          "expected": "100.00E1"
+        },
+        {
+          "input": "99.99",
+          "expected": "999.90E-1"
+        },
+        {
+          "input": "9.99",
+          "expected": "999.00E-2"
+        },
+        {
+          "input": "9.9999",
+          "expected": "100.00E-1"
+        },
+        {
+          "input": "1.005",
+          "expected": "100.50E-2"
+        },
+        {
+          "input": "12.3012",
+          "expected": "123.00E-1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "123.00E2"
+        },
+        {
+          "input": "0.017",
+          "expected": "170.00E-4"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.00E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.00E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "123.45E-67"
+        },
+        {
+          "input": "1e300",
+          "expected": "100.00E298"
+        },
+        {
+          "input": "1e-300",
+          "expected": "100.00E-302"
+        }
+      ]
+    },
+    {
+      "pattern": "##0.05E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "5",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.00E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.00E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.00E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.00E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.35E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.35E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.25E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.25E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "98.75E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "999.95E0"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "100.00E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "10.00E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.00E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.00E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.30E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.30E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "17.00E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.00E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.00E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.35E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.00E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.00E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "##0.5E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "5",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.0E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.0E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.0E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.0E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.5E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.5E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.0E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.0E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "99.0E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "1.0E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.0E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "100.0E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.0E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.5E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.5E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "17.0E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.0E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.0E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.5E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.0E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.0E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "000.7E0",
+      "min_integer": 3,
+      "max_integer": 3,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "7",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "000.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-000.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "100.1E-2"
+        },
+        {
+          "input": "-1",
+          "expected": "-100.1E-2"
+        },
+        {
+          "input": "12",
+          "expected": "119.7E-1"
+        },
+        {
+          "input": "-12",
+          "expected": "-119.7E-1"
+        },
+        {
+          "input": "12345",
+          "expected": "123.2E2"
+        },
+        {
+          "input": "-12345",
+          "expected": "-123.2E2"
+        },
+        {
+          "input": "0.00123",
+          "expected": "123.2E-5"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-123.2E-5"
+        },
+        {
+          "input": "98760",
+          "expected": "987.7E2"
+        },
+        {
+          "input": "999.95",
+          "expected": "100.1E1"
+        },
+        {
+          "input": "999.99",
+          "expected": "100.1E1"
+        },
+        {
+          "input": "99.99",
+          "expected": "999.6E-1"
+        },
+        {
+          "input": "9.99",
+          "expected": "998.9E-2"
+        },
+        {
+          "input": "9.9999",
+          "expected": "100.1E-1"
+        },
+        {
+          "input": "1.005",
+          "expected": "100.8E-2"
+        },
+        {
+          "input": "12.3012",
+          "expected": "123.2E-1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "123.2E2"
+        },
+        {
+          "input": "0.017",
+          "expected": "170.1E-4"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.1E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.1E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "123.2E-67"
+        },
+        {
+          "input": "1e300",
+          "expected": "100.1E298"
+        },
+        {
+          "input": "1e-300",
+          "expected": "100.1E-302"
+        }
+      ]
+    },
+    {
+      "pattern": "##0.7E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "7",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "0.7E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-0.7E0"
+        },
+        {
+          "input": "12",
+          "expected": "11.9E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-11.9E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.6E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.6E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.4E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.4E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "98.7E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "0.7E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "0.7E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "100.1E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.8E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "9.8E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "0.7E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.6E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.6E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "16.8E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.1E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.1E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.6E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "0.7E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "0.7E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "0.7E0",
+      "min_integer": 1,
+      "max_integer": 1,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "7",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "0.0E1"
+        },
+        {
+          "input": "-1",
+          "expected": "-0.0E1"
+        },
+        {
+          "input": "12",
+          "expected": "1.4E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-1.4E1"
+        },
+        {
+          "input": "12345",
+          "expected": "1.4E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.4E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.4E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.4E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "9.8E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "9.8E2"
+        },
+        {
+          "input": "999.99",
+          "expected": "9.8E2"
+        },
+        {
+          "input": "99.99",
+          "expected": "9.8E1"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.8E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "9.8E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "0.0E1"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1.4E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.4E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.4E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "9.8E-8"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "9.8E73"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1.4E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "0.0E301"
+        },
+        {
+          "input": "1e-300",
+          "expected": "0.0E-299"
+        }
+      ]
+    },
+    {
+      "pattern": "00.###E+00",
+      "min_integer": 2,
+      "max_integer": 2,
+      "min_fraction": 0,
+      "max_fraction": 3,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 2,
+      "exponent_sign_always": true,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "00E+00"
+        },
+        {
+          "input": "-0",
+          "expected": "-00E+00"
+        },
+        {
+          "input": "1",
+          "expected": "10E-01"
+        },
+        {
+          "input": "-1",
+          "expected": "-10E-01"
+        },
+        {
+          "input": "12",
+          "expected": "12E+00"
+        },
+        {
+          "input": "-12",
+          "expected": "-12E+00"
+        },
+        {
+          "input": "12345",
+          "expected": "12.345E+03"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.345E+03"
+        },
+        {
+          "input": "0.00123",
+          "expected": "12.3E-04"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-12.3E-04"
+        },
+        {
+          "input": "98760",
+          "expected": "98.76E+03"
+        },
+        {
+          "input": "999.95",
+          "expected": "99.995E+01"
+        },
+        {
+          "input": "999.99",
+          "expected": "99.999E+01"
+        },
+        {
+          "input": "99.99",
+          "expected": "99.99E+00"
+        },
+        {
+          "input": "9.99",
+          "expected": "99.9E-01"
+        },
+        {
+          "input": "9.9999",
+          "expected": "99.999E-01"
+        },
+        {
+          "input": "1.005",
+          "expected": "10.05E-01"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.301E+00"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.301E+03"
+        },
+        {
+          "input": "0.017",
+          "expected": "17E-03"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "10E-08"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "10E+73"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.345E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "10E+299"
+        },
+        {
+          "input": "1e-300",
+          "expected": "10E-301"
+        }
+      ]
+    },
+    {
+      "pattern": "@@@E0",
+      "min_integer": 0,
+      "max_integer": null,
+      "min_fraction": 0,
+      "max_fraction": 0,
+      "min_significant": 3,
+      "max_significant": 3,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.00E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.00E0"
+        },
+        {
+          "input": "12",
+          "expected": "1.20E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-1.20E1"
+        },
+        {
+          "input": "12345",
+          "expected": "1.23E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.23E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.23E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.23E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "9.88E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "1.00E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "1.00E1"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.01E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1.23E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.23E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.70E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "1.00E-7"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "1.00E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1.23E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.00E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.00E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "@@@#E0",
+      "min_integer": 0,
+      "max_integer": null,
+      "min_fraction": 0,
+      "max_fraction": 0,
+      "min_significant": 3,
+      "max_significant": 4,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.00E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.00E0"
+        },
+        {
+          "input": "12",
+          "expected": "1.20E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-1.20E1"
+        },
+        {
+          "input": "12345",
+          "expected": "1.235E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.235E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.23E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.23E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "9.876E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.00E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "9.999E1"
+        },
+        {
+          "input": "9.99",
+          "expected": "9.99E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "1.00E1"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.005E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1.23E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.23E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.70E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "1.00E-7"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "1.00E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1.235E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.00E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.00E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "0.6E0",
+      "min_integer": 1,
+      "max_integer": 1,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "6",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.2E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.2E0"
+        },
+        {
+          "input": "12",
+          "expected": "1.2E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-1.2E1"
+        },
+        {
+          "input": "12345",
+          "expected": "1.2E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.2E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.2E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.2E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "9.6E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "1.2E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.2E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "1.2E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "1.2E1"
+        },
+        {
+          "input": "9.9999",
+          "expected": "1.2E1"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.2E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1.2E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.2E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.8E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "1.2E-7"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "1.2E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1.2E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.2E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.2E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "##0.6E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "6",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.2E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.2E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.0E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.0E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.6E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.6E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.2E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.2E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "99.0E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "1.2E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.2E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "100.2E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "10.2E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.2E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.2E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.6E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.6E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "16.8E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.2E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.2E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.6E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.2E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.2E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "000.6E0",
+      "min_integer": 3,
+      "max_integer": 3,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "6",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "000.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-000.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "100.2E-2"
+        },
+        {
+          "input": "-1",
+          "expected": "-100.2E-2"
+        },
+        {
+          "input": "12",
+          "expected": "120.0E-1"
+        },
+        {
+          "input": "-12",
+          "expected": "-120.0E-1"
+        },
+        {
+          "input": "12345",
+          "expected": "123.6E2"
+        },
+        {
+          "input": "-12345",
+          "expected": "-123.6E2"
+        },
+        {
+          "input": "0.00123",
+          "expected": "123.0E-5"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-123.0E-5"
+        },
+        {
+          "input": "98760",
+          "expected": "987.6E2"
+        },
+        {
+          "input": "999.95",
+          "expected": "100.2E1"
+        },
+        {
+          "input": "999.99",
+          "expected": "100.2E1"
+        },
+        {
+          "input": "99.99",
+          "expected": "100.2E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "999.0E-2"
+        },
+        {
+          "input": "9.9999",
+          "expected": "100.2E-1"
+        },
+        {
+          "input": "1.005",
+          "expected": "100.8E-2"
+        },
+        {
+          "input": "12.3012",
+          "expected": "123.0E-1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "123.0E2"
+        },
+        {
+          "input": "0.017",
+          "expected": "169.8E-4"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.2E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.2E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "123.6E-67"
+        },
+        {
+          "input": "1e300",
+          "expected": "100.2E298"
+        },
+        {
+          "input": "1e-300",
+          "expected": "100.2E-302"
+        }
+      ]
+    },
+    {
+      "pattern": "1.25E0",
+      "min_integer": 1,
+      "max_integer": 1,
+      "min_fraction": 2,
+      "max_fraction": 2,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "125",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.00E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.00E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.25E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.25E0"
+        },
+        {
+          "input": "12",
+          "expected": "1.25E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-1.25E1"
+        },
+        {
+          "input": "12345",
+          "expected": "1.25E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.25E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1.25E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1.25E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "1.25E5"
+        },
+        {
+          "input": "999.95",
+          "expected": "1.25E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "1.25E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "1.25E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "1.25E1"
+        },
+        {
+          "input": "9.9999",
+          "expected": "1.25E1"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.25E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1.25E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.25E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "1.25E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "1.25E-7"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "1.25E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1.25E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.25E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.25E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "2.5E0",
+      "min_integer": 1,
+      "max_integer": 1,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "25",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "12",
+          "expected": "0.0E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-0.0E1"
+        },
+        {
+          "input": "12345",
+          "expected": "0.0E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-0.0E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "0.0E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-0.0E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "0.0E5"
+        },
+        {
+          "input": "999.95",
+          "expected": "0.0E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "0.0E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "0.0E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "0.0E1"
+        },
+        {
+          "input": "9.9999",
+          "expected": "0.0E1"
+        },
+        {
+          "input": "1.005",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "0.0E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "0.0E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "2.5E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "0.0E-7"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "0.0E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "0.0E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "0.0E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "0.0E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "#2.5E0",
+      "min_integer": 1,
+      "max_integer": 2,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "25",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.5E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.5E0"
+        },
+        {
+          "input": "12345",
+          "expected": "0.0E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-0.0E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "12.5E-4"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-12.5E-4"
+        },
+        {
+          "input": "98760",
+          "expected": "10.0E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "10.0E2"
+        },
+        {
+          "input": "999.99",
+          "expected": "10.0E2"
+        },
+        {
+          "input": "99.99",
+          "expected": "0.0E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.5E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "0.0E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "2.5E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "10.0E-8"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "0.0E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.5E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "0.0E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "0.0E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "##2.5E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "25",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "12",
+          "expected": "12.5E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12.5E0"
+        },
+        {
+          "input": "12345",
+          "expected": "12.5E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-12.5E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "0.0E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-0.0E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "100.0E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "0.0E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "0.0E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "100.0E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10.0E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12.5E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "12.5E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "17.5E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "100.0E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100.0E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "12.5E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "0.0E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "0.0E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "##7E0",
+      "min_integer": 1,
+      "max_integer": 3,
+      "min_fraction": 0,
+      "max_fraction": 0,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "7",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "0E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-0E0"
+        },
+        {
+          "input": "12",
+          "expected": "14E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-14E0"
+        },
+        {
+          "input": "12345",
+          "expected": "14E3"
+        },
+        {
+          "input": "-12345",
+          "expected": "-14E3"
+        },
+        {
+          "input": "0.00123",
+          "expected": "0E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-0E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "98E3"
+        },
+        {
+          "input": "999.95",
+          "expected": "0E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "0E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "98E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "7E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "7E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "0E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "14E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "14E3"
+        },
+        {
+          "input": "0.017",
+          "expected": "14E-3"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "98E-9"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "98E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "14E-66"
+        },
+        {
+          "input": "1e300",
+          "expected": "0E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "0E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "5E0",
+      "min_integer": 1,
+      "max_integer": 1,
+      "min_fraction": 0,
+      "max_fraction": 0,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": "5",
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0E0"
+        },
+        {
+          "input": "1",
+          "expected": "0E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-0E0"
+        },
+        {
+          "input": "12",
+          "expected": "0E1"
+        },
+        {
+          "input": "-12",
+          "expected": "-0E1"
+        },
+        {
+          "input": "12345",
+          "expected": "0E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-0E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "0E-3"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-0E-3"
+        },
+        {
+          "input": "98760",
+          "expected": "0E5"
+        },
+        {
+          "input": "999.95",
+          "expected": "0E3"
+        },
+        {
+          "input": "999.99",
+          "expected": "0E3"
+        },
+        {
+          "input": "99.99",
+          "expected": "0E2"
+        },
+        {
+          "input": "9.99",
+          "expected": "0E1"
+        },
+        {
+          "input": "9.9999",
+          "expected": "0E1"
+        },
+        {
+          "input": "1.005",
+          "expected": "0E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "0E1"
+        },
+        {
+          "input": "12301.2",
+          "expected": "0E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "0E-2"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "0E-7"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "0E74"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "0E-65"
+        },
+        {
+          "input": "1e300",
+          "expected": "0E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "0E-300"
+        }
+      ]
+    },
+    {
+      "pattern": "0000.0E0",
+      "min_integer": 4,
+      "max_integer": 4,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0000.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0000.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1000.0E-3"
+        },
+        {
+          "input": "-1",
+          "expected": "-1000.0E-3"
+        },
+        {
+          "input": "12",
+          "expected": "1200.0E-2"
+        },
+        {
+          "input": "-12",
+          "expected": "-1200.0E-2"
+        },
+        {
+          "input": "12345",
+          "expected": "1234.5E1"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1234.5E1"
+        },
+        {
+          "input": "0.00123",
+          "expected": "1230.0E-6"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-1230.0E-6"
+        },
+        {
+          "input": "98760",
+          "expected": "9876.0E1"
+        },
+        {
+          "input": "999.95",
+          "expected": "9999.5E-1"
+        },
+        {
+          "input": "999.99",
+          "expected": "9999.9E-1"
+        },
+        {
+          "input": "99.99",
+          "expected": "9999.0E-2"
+        },
+        {
+          "input": "9.99",
+          "expected": "9990.0E-3"
+        },
+        {
+          "input": "9.9999",
+          "expected": "9999.9E-3"
+        },
+        {
+          "input": "1.005",
+          "expected": "1005.0E-3"
+        },
+        {
+          "input": "12.3012",
+          "expected": "1230.1E-2"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1230.1E1"
+        },
+        {
+          "input": "0.017",
+          "expected": "1700.0E-5"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "1000.0E-10"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "1000.0E71"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1234.5E-68"
+        },
+        {
+          "input": "1e300",
+          "expected": "1000.0E297"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1000.0E-303"
+        }
+      ]
+    },
+    {
+      "pattern": "###0.0E0",
+      "min_integer": 1,
+      "max_integer": 4,
+      "min_fraction": 1,
+      "max_fraction": 1,
+      "min_significant": null,
+      "max_significant": null,
+      "rounding_increment": null,
+      "exponent_digits": 1,
+      "exponent_sign_always": false,
+      "decimal_separator_always": false,
+      "samples": [
+        {
+          "input": "0",
+          "expected": "0.0E0"
+        },
+        {
+          "input": "-0",
+          "expected": "-0.0E0"
+        },
+        {
+          "input": "1",
+          "expected": "1.0E0"
+        },
+        {
+          "input": "-1",
+          "expected": "-1.0E0"
+        },
+        {
+          "input": "12",
+          "expected": "12E0"
+        },
+        {
+          "input": "-12",
+          "expected": "-12E0"
+        },
+        {
+          "input": "12345",
+          "expected": "1.2E4"
+        },
+        {
+          "input": "-12345",
+          "expected": "-1.2E4"
+        },
+        {
+          "input": "0.00123",
+          "expected": "12E-4"
+        },
+        {
+          "input": "-0.00123",
+          "expected": "-12E-4"
+        },
+        {
+          "input": "98760",
+          "expected": "9.9E4"
+        },
+        {
+          "input": "999.95",
+          "expected": "1000E0"
+        },
+        {
+          "input": "999.99",
+          "expected": "1000E0"
+        },
+        {
+          "input": "99.99",
+          "expected": "100E0"
+        },
+        {
+          "input": "9.99",
+          "expected": "10E0"
+        },
+        {
+          "input": "9.9999",
+          "expected": "10E0"
+        },
+        {
+          "input": "1.005",
+          "expected": "1.0E0"
+        },
+        {
+          "input": "12.3012",
+          "expected": "12E0"
+        },
+        {
+          "input": "12301.2",
+          "expected": "1.2E4"
+        },
+        {
+          "input": "0.017",
+          "expected": "170E-4"
+        },
+        {
+          "input": "0.0000000999999",
+          "expected": "10E-8"
+        },
+        {
+          "input": "99999999999999999999999999999999999999999999999999999999999999999999999999",
+          "expected": "100E72"
+        },
+        {
+          "input": "0.000000000000000000000000000000000000000000000000000000000000000012345",
+          "expected": "1200E-68"
+        },
+        {
+          "input": "1e300",
+          "expected": "1.0E300"
+        },
+        {
+          "input": "1e-300",
+          "expected": "1.0E-300"
+        }
+      ]
+    }
+  ]
+}

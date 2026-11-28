@@ -1,6 +1,89 @@
 use super::*;
 
 #[test]
+fn scientific_and_engineering_widths_match_exact_icu_results() {
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../../tests/fixtures/codegen/scientific-widths.json"
+    ))
+    .unwrap();
+    let numbers = compiled_number_formatting("en").unwrap();
+    let mut digit_bindings = DigitBindings::default();
+    let mut plans = Vec::new();
+    let mut script = String::from("import assert from 'node:assert/strict';\n");
+    let mut checks = String::new();
+    let mut checked = crate::templates::render(
+        "formatters/types",
+        minijinja::context! {needs_number => true},
+    );
+    let mut checked_plans = Vec::new();
+    for (index, case) in corpus["cases"].as_array().unwrap().iter().enumerate() {
+        let mut pattern = numbers.decimal_pattern;
+        pattern.negative = None;
+        let part = &mut pattern.positive;
+        part.primary_group_size = None;
+        part.secondary_group_size = None;
+        part.min_integer_digits = case["min_integer"].as_u64().unwrap() as u8;
+        part.max_integer_digits = case["max_integer"].as_u64().map(|value| value as u8);
+        part.min_fraction_digits = case["min_fraction"].as_u64().unwrap() as u8;
+        part.max_fraction_digits = case["max_fraction"].as_u64().unwrap() as u8;
+        part.min_significant_digits = case["min_significant"].as_u64().map(|value| value as u8);
+        part.max_significant_digits = case["max_significant"].as_u64().map(|value| value as u8);
+        part.rounding_increment = case["rounding_increment"]
+            .as_str()
+            .map(|value| &*Box::leak(value.to_owned().into_boxed_str()));
+        part.exponent_digits = Some(case["exponent_digits"].as_u64().unwrap() as u8);
+        part.exponent_sign_always = case["exponent_sign_always"].as_bool().unwrap();
+        part.decimal_separator_always = case["decimal_separator_always"].as_bool().unwrap();
+        let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
+        let name = format!("scientificCase{index}");
+        if let Some(name) = match case["pattern"].as_str().unwrap() {
+            "000.00E0" => Some("scientificFixed3"),
+            "##0.00E0" => Some("engineering3"),
+            "###E0" => Some("engineeringUnlimited"),
+            "##0.7E0" => Some("engineeringIncrement"),
+            _ => None,
+        } {
+            checked.push_str(&crate::templates::render(
+                "formatters/number",
+                minijinja::context! {name, plan => plan.clone(), exported => true},
+            ));
+            checked_plans.push(plan.clone());
+        }
+        script.push_str(&crate::templates::render(
+            "formatters/number",
+            minijinja::context! {name, plan => plan.clone(), exported => false},
+        ));
+        plans.push(plan);
+        for sample in case["samples"].as_array().unwrap() {
+            checks.push_str(&format!(
+                "assert.equal({name}({input}), {expected}, {label});\n",
+                input = sample["input"],
+                expected = sample["expected"],
+                label = serde_json::json!(format!("{}: {}", case["pattern"], sample["input"]))
+            ));
+        }
+    }
+    script.push_str(&number_helpers(&plans));
+    script.push_str(&checks);
+    script.push_str("console.log('ok');\n");
+    assert_eq!(execute(&script), "ok");
+    checked.push_str(&number_helpers(&checked_plans));
+    assert_eq!(
+        checked
+            .matches("function engineeringWith3IntegerDigits(")
+            .count(),
+        1
+    );
+    assert!(!checked.contains("function scientificGeneratedDecimal("));
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/golden/snapshots/js-runtime/engineering.js");
+    if std::env::var_os("LINGUINI_UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&path, &checked).unwrap();
+    }
+    assert_eq!(checked, std::fs::read_to_string(path).unwrap());
+}
+
+#[test]
 fn scientific_symbols_and_numeric_digits_are_compiled_independently() {
     let mut digit_bindings = DigitBindings::default();
     let mut script = String::from(
@@ -52,6 +135,7 @@ fn scientific_symbols_and_numeric_digits_are_compiled_independently() {
             pattern.positive.secondary_group_size = None;
             pattern.positive.min_fraction_digits = 2;
             pattern.positive.max_fraction_digits = 2;
+            pattern.positive.max_integer_digits = Some(1);
             pattern.positive.exponent_digits = Some(2);
             pattern.positive.exponent_sign_always = always_sign;
             let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);
@@ -147,6 +231,7 @@ fn scientific_runtime_snapshot_is_strict_checked() {
         let mut pattern = numbers.decimal_pattern;
         pattern.positive.primary_group_size = None;
         pattern.positive.secondary_group_size = None;
+        pattern.positive.max_integer_digits = Some(1);
         pattern.positive.exponent_digits = Some(2);
         pattern.positive.exponent_sign_always = true;
         let plan = number_plan(&pattern, None, &numbers, None, &mut digit_bindings);

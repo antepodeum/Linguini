@@ -126,11 +126,12 @@ fn number_helpers(plans: &[minijinja::Value]) -> String {
     let mut output = crate::templates::render(
         "number_helpers",
         context! {
-            rounding_plans => unique("rounding_helper", &|plan| !present(plan, "max_significant")),
+            rounding_plans => unique("rounding_helper", &|plan| !present(plan, "max_significant") && plan.get_attr("unlimited_precision").unwrap() != minijinja::Value::from(true)),
             scale_plans => unique("scale", &|plan| plan.get_attr("scale").unwrap() != minijinja::Value::from(1)),
             significant_plans => unique("max_significant", &|plan| present(plan, "max_significant")),
             padding_plans => unique("min_significant", &|plan| present(plan, "min_significant")),
-            scientific => plans.iter().any(|plan| present(plan, "exponent_digits")),
+            scientific_plans => unique("scientific_helper", &|plan| present(plan, "exponent_digits")),
+            scientific_shift => plans.iter().any(|plan| present(plan, "exponent_digits") && !present(plan, "carry_fraction") && plan.get_attr("unlimited_precision").unwrap() != minijinja::Value::from(true)),
         },
     );
     for plan in unique("digit_helper", &|plan| present(plan, "digit_helper")) {
@@ -162,6 +163,21 @@ fn number_plan_context(
     let rounding = &plan.rounding;
     let grouping = plan.grouping;
     let scientific = plan.scientific.as_ref();
+    let significant = match plan.precision() {
+        linguini_codegen::NumberPrecisionPlan::Significant { minimum, maximum } => {
+            Some((minimum, maximum))
+        }
+        _ => None,
+    };
+    let scientific_helper = scientific.map(|scientific| {
+        if scientific.exponent_step > 1 {
+            format!("engineeringWith{}IntegerDigits", scientific.exponent_step)
+        } else if scientific.integer_digits > 1 {
+            format!("scientificWith{}IntegerDigits", scientific.integer_digits)
+        } else {
+            "scientificGeneratedDecimal".to_owned()
+        }
+    });
     let padding = number_padding_context(plan);
     let rounding_helper = if rounding.increment == "1" {
         format!("roundTo{}FractionDigits", rounding.fraction_digits)
@@ -174,7 +190,7 @@ fn number_plan_context(
     context! {
         prefix => &plan.affixes.prefix, suffix => &plan.affixes.suffix,
         negative_prefix => &plan.affixes.negative_prefix, negative_suffix => &plan.affixes.negative_suffix,
-        min_integer => plan.min_integer_digits, min_fraction => plan.min_fraction_digits,
+        min_integer => plan.min_integer_digits, min_fraction => plan.minimum_fraction_digits(),
         omit_integer_zero => plan.can_omit_integer_zero(),
         max_fraction => plan.max_fraction_digits, primary_group => grouping.map(|group| group.primary_size),
         grouping_threshold => grouping.map(|group| group.threshold), secondary_group => grouping.map(|group| group.secondary_size),
@@ -182,7 +198,8 @@ fn number_plan_context(
         decimal_separator_always => plan.decimal_separator_always,
         digit_helper => digit_bindings.binding(plan.digits),
         scale => plan.scale, scale_shift => plan.scale_shift,
-        min_significant => plan.min_significant_digits, max_significant => plan.max_significant_digits,
+        min_significant => plan.minimum_significant_digits(),
+        max_significant => significant.map(|(_, maximum)| maximum),
         rounding_helper, rounding => &rounding.increment, rounding_half => &rounding.half_integer,
         rounding_half_fraction => rounding.half_fraction,
         exponent_digits => scientific.map(|scientific| scientific.exponent_digits),
@@ -190,6 +207,12 @@ fn number_plan_context(
         minus_sign => scientific.map(|scientific| scientific.negative_sign),
         exponent_plus => scientific.map(|scientific| scientific.positive_sign),
         carry_fraction => scientific.and_then(|scientific| scientific.carry_fraction.as_deref()), padding,
+        scientific_helper,
+        scientific_integer_digits => scientific.map_or(1, |scientific| scientific.integer_digits),
+        scientific_exponent_step => scientific.map_or(1, |scientific| scientific.exponent_step),
+        scientific_carry_width => scientific.map_or(1, |scientific| scientific.integer_digits.max(scientific.exponent_step)),
+        scientific_carry_integer => scientific.map(|scientific| "1".to_owned() + &"0".repeat(usize::from(scientific.integer_digits) - 1)),
+        unlimited_precision => plan.precision() == linguini_codegen::NumberPrecisionPlan::Unlimited,
     }
 }
 

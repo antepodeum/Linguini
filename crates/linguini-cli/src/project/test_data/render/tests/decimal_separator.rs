@@ -22,10 +22,9 @@ fn numeric_preview_decimal_visibility_matches_the_generated_contract_corpus() {
             part.max_significant_digits = case["max_significant"].as_u64().map(|n| n as u8);
             part.decimal_separator_always = visible;
             if case["scientific"].as_bool().unwrap() {
+                part.max_integer_digits = Some(1);
                 part.exponent_digits = Some(2);
             }
-            let unsupported =
-                part.max_significant_digits.is_some() || part.exponent_digits.is_some();
             for sample in case["samples"].as_array().unwrap() {
                 let result = format_number_pattern(
                     sample["input"].as_str().unwrap(),
@@ -34,18 +33,14 @@ fn numeric_preview_decimal_visibility_matches_the_generated_contract_corpus() {
                     None,
                     None,
                 );
-                if unsupported {
-                    assert!(matches!(result, Err(RenderError::Unsupported { .. })));
-                } else {
-                    assert_eq!(
-                        result.unwrap(),
-                        sample[if visible { "visible" } else { "ordinary" }]
-                            .as_str()
-                            .unwrap(),
-                        "{}: {sample}",
-                        case["name"]
-                    );
-                }
+                assert_eq!(
+                    result.unwrap(),
+                    sample[if visible { "visible" } else { "ordinary" }]
+                        .as_str()
+                        .unwrap(),
+                    "{}: {sample}",
+                    case["name"]
+                );
             }
         }
     }

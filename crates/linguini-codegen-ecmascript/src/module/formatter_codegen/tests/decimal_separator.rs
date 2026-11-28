@@ -26,6 +26,7 @@ fn decimal_visibility_specializes_fixed_significant_and_scientific_output() {
             part.max_significant_digits = case["max_significant"].as_u64().map(|n| n as u8);
             part.decimal_separator_always = visible;
             if case["scientific"].as_bool().unwrap() {
+                part.max_integer_digits = Some(1);
                 part.exponent_digits = Some(2);
                 part.primary_group_size = None;
                 part.secondary_group_size = None;

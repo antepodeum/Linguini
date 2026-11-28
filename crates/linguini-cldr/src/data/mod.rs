@@ -194,6 +194,9 @@ pub struct NumberPatternPart {
     pub prefix: NumberAffix,
     pub suffix: NumberAffix,
     pub min_integer_digits: u8,
+    /// Fixed-digit scientific mantissa width, including optional placeholders.
+    /// Ordinary decimal and significant-digit patterns use `None`.
+    pub max_integer_digits: Option<u8>,
     pub min_fraction_digits: u8,
     pub max_fraction_digits: u8,
     /// Retain the decimal separator even when the formatted fraction is empty.

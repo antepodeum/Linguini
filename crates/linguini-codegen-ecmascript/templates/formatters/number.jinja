@@ -1,4 +1,4 @@
-{% set fraction_empty = plan.max_fraction == 0 and plan.max_significant is none and plan.min_significant is none and (plan.exponent_digits is none or plan.carry_fraction is not none) -%}
+{% set fraction_empty = not plan.unlimited_precision and plan.max_fraction == 0 and plan.max_significant is none and plan.min_significant is none -%}
 {% set inline_decimal = fraction_empty and plan.decimal_separator_always and plan.digits == "0123456789" and plan.exponent_digits is none and plan.padding is none -%}
 {% set formatted_value = "integer" if fraction_empty and plan.exponent_digits is none and (not plan.decimal_separator_always or inline_decimal) else "formatted" -%}
 {% set numeric_value = "localized" if plan.digits != "0123456789" else formatted_value -%}
@@ -12,17 +12,20 @@
   {% if plan.scale != 1 %}let{% else %}const{% endif %} decimal = parseGeneratedDecimal(value);
   if (!decimal) return String(value);
 {% if plan.scale != 1 %}  decimal = scaleBy{{ plan.scale }}(decimal);
-{% endif %}{% if plan.exponent_digits is not none %}  const mantissa = scientificGeneratedDecimal(decimal);
-  let exponent = mantissa.exponent;
-{% endif %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} rounded = {% if plan.max_significant is not none %}roundTo{{ plan.max_significant }}SignificantDigits({{ rounding_input }}){% else %}{{ plan.rounding_helper }}({{ rounding_input }}){% endif %};
-{% if plan.exponent_digits is not none %}  if (rounded.integer.length > 1) {
-{% if plan.carry_fraction is not none %}    exponent++;
-    rounded = { integer: "1", fraction: {{ plan.carry_fraction|js }} };
-{% else %}    const shift = rounded.integer.length - 1;
-    exponent += shift;
-    rounded = { integer: rounded.integer[0], fraction: `${rounded.integer.slice(1)}${rounded.fraction}` };
+{% endif %}{% if plan.exponent_digits is not none %}  const mantissa = {{ plan.scientific_helper }}(decimal);
+  {{ "const" if plan.unlimited_precision else "let" }} exponent = mantissa.exponent;
+{% endif %}{% if not plan.unlimited_precision %}  {% if plan.exponent_digits is not none %}let{% else %}const{% endif %} rounded = {% if plan.max_significant is not none %}roundTo{{ plan.max_significant }}SignificantDigits({{ rounding_input }}){% else %}{{ plan.rounding_helper }}({{ rounding_input }}){% endif %};
+{% endif %}{% if plan.exponent_digits is not none and not plan.unlimited_precision %}  if ({% if plan.carry_fraction is not none %}rounded.integer.length > {{ plan.scientific_carry_width }}{% else %}
+{% if plan.scientific_exponent_step > 1 %}    mantissa.integer.length === {{ plan.scientific_exponent_step }} &&
+{% endif %}    (rounded.integer.length !== mantissa.integer.length || (rounded.integer === "0" && mantissa.integer !== "0")) &&
+    (rounded.integer !== "0" || /[1-9]/.test(rounded.fraction))
+  {% endif %}) {
+{% if plan.carry_fraction is not none %}    {% if plan.scientific_exponent_step == 1 %}exponent++{% else %}exponent += {{ plan.scientific_exponent_step }}{% endif %};
+    rounded = { integer: {{ plan.scientific_carry_integer|js }}, fraction: {{ plan.carry_fraction|js }} };
+{% else %}    {% if plan.scientific_exponent_step == 1 %}exponent++{% else %}exponent += {{ plan.scientific_exponent_step }}{% endif %};
+    rounded = {{ plan.rounding_helper }}(shiftScientificMantissa(mantissa, {{ plan.scientific_exponent_step }}));
 {% endif %}  }
-{% endif %}  {% if plan.primary_group is not none %}let{% else %}const{% endif %} integer = {% if plan.omit_integer_zero %}rounded.integer === "0" ? "" : {% endif %}rounded.integer{% if plan.min_integer > 1 %}.padStart({{ plan.min_integer }}, "0"){% endif %};
+{% endif %}  {% if plan.primary_group is not none %}let{% else %}const{% endif %} integer = {% if plan.omit_integer_zero %}rounded.integer === "0" ? "" : {% endif %}{{ "mantissa" if plan.unlimited_precision else "rounded" }}.integer{% if plan.min_integer > 1 %}.padStart({{ plan.min_integer }}, "0"){% endif %};
 {% if not fraction_empty %}{% include "formatters/number_fraction" %}{% endif %}{% if plan.primary_group is not none %}{% if plan.padding is not none and plan.padding.group_surrogates > 0 %}  let groupPaddingCorrection = 0;
 {% endif %}  if (integer.length > {{ plan.grouping_threshold }}) {
 {% if plan.padding is not none and plan.padding.group_surrogates > 0 %}    groupPaddingCorrection = Math.ceil((integer.length - {{ plan.primary_group }}) / {{ plan.secondary_group }}){% if plan.padding.group_surrogates != 1 %} * {{ plan.padding.group_surrogates }}{% endif %};
@@ -36,7 +39,7 @@
   }
 {% endif %}{% if not inline_decimal and (not fraction_empty or plan.exponent_digits is not none or plan.decimal_separator_always) %}  const formatted = {% if fraction_empty %}integer{% if plan.decimal_separator_always %} + {{ plan.decimal_symbol|js }}{% endif %}{% elif plan.decimal_separator_always or (plan.max_significant is none and plan.min_fraction > 0) %}integer + {{ plan.decimal_symbol|js }} + fraction{% else %}fraction ? integer + {{ plan.decimal_symbol|js }} + fraction : integer{% endif %};
 {% endif %}{% if plan.digits != "0123456789" %}  const localized = {{ formatted_value }}.replace(/\d/g, {{ plan.digit_helper }});
-{% endif %}{% if plan.exponent_digits is not none %}  const exponentDigits = String(Math.abs(exponent)).padStart({{ plan.exponent_digits }}, "0");
+{% endif %}{% if plan.exponent_digits is not none %}  const exponentDigits = String(Math.abs(exponent)){% if plan.exponent_digits > 1 %}.padStart({{ plan.exponent_digits }}, "0"){% endif %};
   const scientific = {{ numeric_value }} + {{ plan.exponential_symbol|js }} + (exponent < 0 ? {{ plan.minus_sign|js }} : {{ plan.exponent_plus|js }}) + {% if plan.digits == "0123456789" %}exponentDigits{% else %}exponentDigits.replace(/\d/g, {{ plan.digit_helper }}){% endif %};
 {% endif %}  const prefix = {% if plan.negative_prefix == plan.prefix %}{{ plan.prefix|js }}{% else %}decimal.negative ? {{ plan.negative_prefix|js }} : {{ plan.prefix|js }}{% endif %};
 {% if plan.suffix == plan.negative_suffix %}{% if plan.suffix %}  const suffix = {{ plan.suffix|js }};
