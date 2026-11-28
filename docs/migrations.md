@@ -135,6 +135,13 @@ Padded number and currency output retains its existing Unicode width and placeme
 output to use specialized width calculations without constructing a character array; no API or
 configuration changes are required.
 
+## Shared ISO date parsing
+
+Generated date formatters now recognize ISO input and its timezone in one pass, reducing their
+shared helper code. Accepted date strings, timezone-free UTC interpretation, numeric inputs,
+supplied Date objects, validation errors, and formatter APIs retain their existing behavior.
+No application changes are required.
+
 ## Native wide rounding increments
 
 Native numeric previews now accept compiled decimal rounding increments beyond the former

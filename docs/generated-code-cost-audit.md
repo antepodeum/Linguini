@@ -1109,5 +1109,33 @@ plans still fail explicitly; 65,536 now has an actual formatted-result assertion
 production JavaScript and application payloads are unchanged, so no transfer-size, application
 speed, or measured retained-heap improvement is attributed to this native-only correction.
 
+## One ISO input parse
+
+GEN-A90 consolidates date-only/date-time recognition and timezone extraction into one anchored
+ISO match. The date-only branch constructs its returned Date directly instead of calling a
+single-use wrapper. Calendar validation, timezone-free UTC interpretation, numeric TimeClip,
+and supplied-Date identity and observations remain unchanged. These are application input
+operations, not CLDR pattern parsing.
+
+Executed spies require one regex execution per string and zero for non-string inputs. The
+10,000-year calendar oracle, three host zones, malformed inputs, construction counts, supplied
+Date methods, and thrown error identity remain covered. All 214 ECMAScript unit tests pass;
+strict checked JavaScript covers date, week, and current runtime fixtures.
+
+Five complete before/after consumers execute strings, numbers, and Date objects, reject invalid
+calendar/clock/offset inputs, and each emit one self-contained chunk with no dynamic imports.
+Node 24.13.1, minified / gzip / Brotli bytes; baseline `8349f67`:
+
+| Consumer | Vite 7.3.3 before → after | Vite 8.0.13 before → after |
+| --- | --- | --- |
+| Flexible time period | 1170 / 632 / 565 → 1009 / 594 / 530 | 1117 / 592 / 523 → 979 / 576 / 510 |
+| Localized date/clock digits | 1165 / 637 / 564 → 1004 / 599 / 531 | 1122 / 600 / 530 → 984 / 586 / 516 |
+| Year and era | 960 / 538 / 478 → 799 / 500 / 443 | 921 / 499 / 442 → 783 / 484 / 432 |
+| Week year | 1349 / 720 / 663 → 1188 / 688 / 628 | 1304 / 687 / 631 → 1166 / 675 / 612 |
+| Constant week wording | 1176 / 675 / 628 → 1015 / 636 / 583 | 1128 / 648 / 592 → 990 / 625 / 544 |
+
+No elapsed-time or retained-heap improvement is claimed. No source syntax, formatter API,
+calendar/zone coverage, or page-delivery criterion changes in this receipt.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

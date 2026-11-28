@@ -2129,6 +2129,14 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       stay unchanged. Complete Vite 7/8 consumers execute with byte-identical before/after bundles.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
+      ISO date coercion now uses one match for calendar fields and timezone instead of three
+      date-time regex scans (GEN-A90). The single-use date-only wrapper is inlined into its
+      selected branch. Executed spies require one regex for strings, none for non-strings, and
+      preserve construction counts, supplied-Date methods, and error identity. Calendar/year/
+      timezone oracles and all 214 ECMAScript unit tests pass. Five complete consumers execute
+      on Vite 7/8, remain single chunks, and save 161/138 minified bytes; the cost audit records
+      compressed sizes and makes no timing/retained-heap claim. Broader representation and
+      page-demand acceptance remains open.
       Scientific normalization now returns one flat mantissa/exponent record instead of two
       nested objects (GEN-A81). Its caller uses that same mantissa for rounding and fraction
       reuse; signs and frozen inputs retain their behavior. All 50 formatter tests and strict

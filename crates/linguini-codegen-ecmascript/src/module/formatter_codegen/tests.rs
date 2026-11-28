@@ -1528,9 +1528,23 @@ globalThis.Date = new Proxy(NativeDate, {
   },
 });
 const invalid = {name: 'RangeError', message: 'Linguini: invalid date value'};
+function countedDate(value) {
+  const nativeExec = RegExp.prototype.exec;
+  let patterns = 0;
+  RegExp.prototype.exec = function(text) {
+    patterns++;
+    return nativeExec.call(this, text);
+  };
+  try {
+    return coerceDate(value);
+  } finally {
+    RegExp.prototype.exec = nativeExec;
+    assert.equal(patterns, typeof value === 'string' ? 1 : 0, 'one ISO parse, no non-string regex');
+  }
+}
 function check(input, expected, count = 1) {
   constructions = 0;
-  assert.equal(coerceDate(input).toISOString(), expected, String(input));
+  assert.equal(countedDate(input).toISOString(), expected, String(input));
   assert.equal(constructions, count, String(input));
 }
 for (const zone of ['UTC', 'America/Los_Angeles', 'Asia/Kolkata']) {
@@ -1548,7 +1562,7 @@ for (const zone of ['UTC', 'America/Los_Angeles', 'Asia/Kolkata']) {
   for (const date of ['0001-02-29', '1900-02-29', '2100-02-29', '2024-02-30', '2024-04-31', '2024-00-01', '2024-13-01', '2024-01-00', '2024-01-32']) {
     for (const suffix of ['', 'T12:00:00Z', 'T12:00+01:00', 'T12:00']) {
       constructions = 0;
-      assert.throws(() => coerceDate(date + suffix), invalid, date + suffix);
+      assert.throws(() => countedDate(date + suffix), invalid, date + suffix);
       assert.equal(constructions, 0, 'invalid calendar fields need no Date');
     }
   }
@@ -1559,28 +1573,28 @@ for (let year = 0; year <= 9999; year++) {
   oracle.setUTCFullYear(year, 1, 29);
   constructions = 0;
   if (oracle.getUTCMonth() === 1) {
-    assert.equal(coerceDate(text).getTime(), oracle.getTime(), text);
+    assert.equal(countedDate(text).getTime(), oracle.getTime(), text);
     assert.equal(constructions, 1);
   } else {
-    assert.throws(() => coerceDate(text), invalid, text);
+    assert.throws(() => countedDate(text), invalid, text);
     assert.equal(constructions, 0);
   }
 }
 for (const input of ['2024-01-01T25:00Z', '2024-01-01T12:60Z', '2024-01-01T12:00:60Z', '2024-01-01T24:01Z', '2024-01-01T12:00+24:00']) {
   constructions = 0;
-  assert.throws(() => coerceDate(input), invalid, input);
+  assert.throws(() => countedDate(input), invalid, input);
   assert.equal(constructions, 1);
 }
 for (const input of ['', 'invalid', '2024-1-01', '2024-01-01junk', ' 2024-01-01', '2024-01-01 ']) {
   constructions = 0;
-  assert.throws(() => coerceDate(input), invalid, input);
+  assert.throws(() => countedDate(input), invalid, input);
   assert.equal(constructions, 0);
 }
 check(0, '1970-01-01T00:00:00.000Z');
 check(-1, '1969-12-31T23:59:59.999Z');
 for (const input of [NaN, Infinity, -Infinity]) {
   constructions = 0;
-  assert.throws(() => coerceDate(input), invalid);
+  assert.throws(() => countedDate(input), invalid);
   assert.equal(constructions, 1);
 }
 const supplied = new NativeDate('2024-01-02T03:04:05Z');
@@ -1590,12 +1604,12 @@ for (const getter of ['getUTCFullYear', 'getUTCMonth', 'getUTCDate']) {
   supplied[getter] = () => { throw Error('supplied Date must not be calendar-validated'); };
 }
 constructions = 0;
-assert.equal(coerceDate(supplied), supplied);
+assert.equal(countedDate(supplied), supplied);
 assert.deepEqual(observations, ['getTime']);
 assert.equal(constructions, 0);
 const failure = new Error('custom date failure');
 supplied.getTime = () => { throw failure; };
-assert.throws(() => coerceDate(supplied), error => error === failure);
+assert.throws(() => countedDate(supplied), error => error === failure);
 console.log('ok');
 "#;
     assert_eq!(execute(&format!("{helpers}{script}")), "ok");
@@ -1606,9 +1620,8 @@ fn generated_date_runtime_rejects_invalid_values() {
     let emitted = formatter_data_declaration("en", &[request(IrFormatterKind::Date, &[])], false);
 
     assert!(emitted.contains("function coerceDate(value)"));
-    assert!(emitted.contains("date = createUTCDate(year, month, day);"));
-    assert!(emitted.contains("date = new Date(hasTimeZone ? value : `${value}Z`);"));
-    assert!(emitted.contains("function createUTCDate(year, month, day)"));
+    assert!(!emitted.contains("createUTCDate"));
+    assert!(emitted.contains("date = new Date(fields[4] ? value : `${value}Z`);"));
     assert!(emitted.contains("date.setUTCFullYear(year, month - 1, day);"));
     assert!(emitted.contains("function validateDateFields(year, month, day)"));
     assert!(!emitted.contains("date.getUTCFullYear() !== year"));

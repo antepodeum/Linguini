@@ -20,19 +20,17 @@ function coerceDate(value) {
   if (value instanceof Date) {
     date = value;
   } else if (typeof value === "string") {
-    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-    if (dateOnly) {
-      const year = Number(dateOnly[1]);
-      const month = Number(dateOnly[2]);
-      const day = Number(dateOnly[3]);
-      date = createUTCDate(year, month, day);
+    const fields = /^(\d{4})-(\d{2})-(\d{2})(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$/.exec(value);
+    if (!fields) throwInvalidDate();
+    const year = Number(fields[1]);
+    const month = Number(fields[2]);
+    const day = Number(fields[3]);
+    validateDateFields(year, month, day);
+    if (value.length === 10) {
+      date = new Date(0);
+      date.setUTCFullYear(year, month - 1, day);
     } else {
-      const dateTime =
-        /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/.exec(value);
-      if (!dateTime) throwInvalidDate();
-      validateDateFields(Number(dateTime[1]), Number(dateTime[2]), Number(dateTime[3]));
-      const hasTimeZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
-      date = new Date(hasTimeZone ? value : `${value}Z`);
+      date = new Date(fields[4] ? value : `${value}Z`);
     }
   } else {
     date = new Date(value);
@@ -40,19 +38,6 @@ function coerceDate(value) {
   if (!Number.isFinite(date.getTime())) {
     throwInvalidDate();
   }
-  return date;
-}
-
-/**
- * @param {number} year
- * @param {number} month
- * @param {number} day
- * @returns {globalThis.Date}
- */
-function createUTCDate(year, month, day) {
-  validateDateFields(year, month, day);
-  const date = new Date(0);
-  date.setUTCFullYear(year, month - 1, day);
   return date;
 }
 
