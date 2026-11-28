@@ -10,6 +10,27 @@ pub struct PluralDecisionPlan {
 }
 
 impl PluralDecisionPlan {
+    /// Every non-default category requires a value with no visible fractional digits.
+    /// Modulo and negated guards do not prove this restriction.
+    pub fn requires_zero_visible_fraction(&self) -> bool {
+        self.guards.iter().any(|relation| {
+            relation.expression.operand == Operand::V
+                && relation.expression.modulo.is_none()
+                && matches!(
+                    relation.operator,
+                    linguini_cldr::RelationOperator::Equal
+                        | linguini_cldr::RelationOperator::In
+                        | linguini_cldr::RelationOperator::Within
+                )
+                && !relation.ranges.ranges.is_empty()
+                && relation
+                    .ranges
+                    .ranges
+                    .iter()
+                    .all(|range| range.start == 0 && range.end == 0)
+        })
+    }
+
     /// A native integer with zero fractional/compact operands can use this suffix directly.
     /// Backends must bound their input representation and supported modulus precision.
     pub fn integer_input_suffix_modulus(&self) -> Option<u64> {
@@ -195,6 +216,33 @@ fn decimal_modulo_digits(modulo: Option<u64>) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zero_visible_fraction_proof_rejects_permissive_or_negated_guards() {
+        for (source, expected) in [
+            ("v = 0", true),
+            ("v in 0", true),
+            ("v within 0..0", true),
+            ("e = 0 and v = 0", true),
+            ("v within 0..1", false),
+            ("v != 0", false),
+            ("v not in 0", false),
+            ("v % 2 = 0", false),
+            ("f = 0", false),
+            ("", false),
+        ] {
+            let plan = PluralDecisionPlan {
+                guards: linguini_cldr::parse_plural_rule(source)
+                    .unwrap()
+                    .conditions
+                    .into_iter()
+                    .flat_map(|condition| condition.relations)
+                    .collect(),
+                categories: vec![],
+            };
+            assert_eq!(plan.requires_zero_visible_fraction(), expected, "{source}");
+        }
+    }
 
     #[test]
     fn proves_native_integer_suffixes_only_when_zero_fractional_guards_hold() {

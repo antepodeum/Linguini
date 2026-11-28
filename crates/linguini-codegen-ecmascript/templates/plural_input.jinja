@@ -1,4 +1,8 @@
 {% if constant_numeric_result %}  if (typeof value === "number") throwInvalidPluralNumber();
+{% elif native_fractional_other %}  if (typeof value === "number" && !Number.isInteger(value)) {
+    if (!Number.isFinite(value)) throwInvalidPluralNumber();
+    return "other";
+  }
 {% else %}  if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
 {% endif %}  const source = String(value).trim();
 {% if constant_numeric_result %}  const match = /^([+-]?)(\d+)(?:\.(\d*))?(?:c(\d+))?$/.exec(source);

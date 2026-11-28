@@ -240,7 +240,10 @@ export function pluralRu(value) {
     integerTail = Math.abs(value) % 100;
   } else {
     if (value === "zero" || value === "one" || value === "two" || value === "few" || value === "many" || value === "other") return value;
-    if (typeof value === "number" && !Number.isFinite(value)) throwInvalidPluralNumber();
+    if (typeof value === "number" && !Number.isInteger(value)) {
+      if (!Number.isFinite(value)) throwInvalidPluralNumber();
+      return "other";
+    }
     const source = String(value).trim();
     // Canonical CLDR input uses lowercase c for a non-negative compact-decimal
     // exponent. Native numbers may stringify with JavaScript's signed e/E

@@ -861,5 +861,21 @@ claim. Complete-project JavaScript, declarations, and source maps retain their e
 bytes. Focused Unicode/map/provenance tests and strict crate Clippy pass. Application runtime
 code and payload costs are unchanged.
 
+## Native fractional plural inputs
+
+GEN-A79 adds a conservative shared-plan proof that every category requires `v = 0`.
+For classifiers already using the native integer-suffix path, finite fractional numbers now
+return `other` before string conversion or regex parsing. Safe integer operations are unchanged.
+Permissive, negated, and modular guards retain their ordinary evaluation; string visible digits,
+compact exponents, BigInts, object coercion, and invalid-input errors preserve their contracts.
+Executed Russian/Ukrainian cases disable String conversion and regex matching on proven paths,
+including subnormals and the native fractional precision boundary.
+
+A complete Vite 7.3.3 consumer compared with `cf65806`, built and executed on Node 24.13.1,
+retains one `render` export in one import-free chunk and identical representative results.
+Minified/gzip/Brotli bytes change from 925/537/485 to 963/545/492. The added selected branch
+trades 38 minified and 7 Brotli bytes for avoiding fractional-input text work. This establishes
+operation removal, without an execution-time or retained-heap claim.
+
 This audit supplements the [fixture review](./generated-code-review.md). It does not close the
 remaining optimization, payload-delivery, or calendar/time-zone/skeleton requirements.

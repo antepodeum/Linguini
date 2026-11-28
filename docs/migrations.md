@@ -19,6 +19,13 @@ Source-map generation now resolves source positions incrementally and counts new
 without rescanning the existing module. JavaScript, declarations, map contents, and public APIs
 retain their existing behavior; no application changes are required.
 
+## Native fractional plural inputs
+
+Regenerated classifiers whose shared rules require zero visible fractional digits return
+`other` directly for finite native fractional numbers. Canonical string inputs still preserve
+visible digits, and invalid inputs retain their errors. Public APIs and application configuration
+are unchanged; no application changes are required.
+
 ## Native date type annotations
 
 Generated native date annotations now use `globalThis.Date`, preserving native `Date` arguments

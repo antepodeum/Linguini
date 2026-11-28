@@ -126,7 +126,7 @@ for (const value of [NaN, Infinity, -Infinity]) {{
 }
 
 #[test]
-fn safe_native_integer_suffixes_skip_parsing_and_preserve_other_input_semantics() {
+fn native_integer_suffixes_and_proven_fractions_skip_parsing_preserving_other_inputs() {
     let samples = (-200_i64..=200)
         .chain(9_007_199_254_740_980..=9_007_199_254_740_991)
         .chain(-9_007_199_254_740_991..=-9_007_199_254_740_980)
@@ -147,19 +147,28 @@ fn safe_native_integer_suffixes_skip_parsing_and_preserve_other_input_semantics(
         execute(&format!(
             r#"{generated}
 const cases = [{cases}, [-0, "many"]];
+const fractions = [0.1, -0.1, 1.5, 1.0000000000000002, 1e-7, -1e-7,
+  Number.MIN_VALUE, -Number.MIN_VALUE, 1e-308, 4503599627370495.5];
+for (let exponent = -324; exponent <= 15; exponent++) {{
+  for (const mantissa of [1, 1.2345678901234567, 9]) {{
+    const value = Number(`${{mantissa}}e${{exponent}}`);
+    if (Number.isFinite(value) && !Number.isInteger(value)) fractions.push(value, -value);
+  }}
+}}
+for (const value of fractions) cases.push([value, "other"]);
 const originalString = globalThis.String;
 const originalExec = RegExp.prototype.exec;
 let conversions = 0, matches = 0;
 let actual;
 try {{
-  globalThis.String = value => {{ conversions++; return originalString(value); }};
-  RegExp.prototype.exec = function(value) {{ matches++; return originalExec.call(this, value); }};
+  globalThis.String = () => {{ conversions++; throw new Error("unexpected string conversion"); }};
+  RegExp.prototype.exec = () => {{ matches++; throw new Error("unexpected regex parsing"); }};
   actual = cases.map(([value]) => plural(value));
 }} finally {{
   globalThis.String = originalString;
   RegExp.prototype.exec = originalExec;
 }}
-if (conversions || matches) throw new Error("safe integer inputs parsed text");
+if (conversions || matches) throw new Error("proven native inputs parsed text");
 for (let index = 0; index < cases.length; index++) {{
   if (actual[index] !== cases[index][1]) throw new Error(JSON.stringify([cases[index], actual[index]]));
 }}
@@ -185,6 +194,33 @@ for (const value of ["1".repeat(8193), BigInt("1".repeat(8193)), "1c8193", "inva
   let rejected = false;
   try {{ plural(value); }} catch (error) {{ rejected = error instanceof RangeError; }}
   if (!rejected) throw new Error("input validation bypassed");
+}}
+"#
+        ));
+    }
+    // An integer suffix shortcut alone does not prove fractions are always `other`.
+    for guard in ["v within 0..1", "v % 2 = 0"] {
+        let rules = linguini_cldr::PluralRules {
+            locale: "fraction-probe".to_owned(),
+            categories: [("one", 1), ("few", 2)]
+                .map(|(category, residue)| {
+                    let source = format!("{guard} and i % 10 = {residue}");
+                    linguini_cldr::PluralCategoryRule {
+                        category: category.to_owned(),
+                        rule: linguini_cldr::parse_plural_rule(&source).unwrap(),
+                        source,
+                    }
+                })
+                .to_vec(),
+        };
+        let generated = generate_plural_function("plural", &rules);
+        let cases = ["1.5", "2.5", "1.25", "2.25"]
+            .map(|value| format!("[{value}, {:?}]", rules.category_for(value).unwrap()))
+            .join(",");
+        execute(&format!(
+            r#"{generated}
+for (const [value, expected] of [{cases}]) {{
+  if (plural(value) !== expected) throw new Error("permissive fractional guard bypassed");
 }}
 "#
         ));

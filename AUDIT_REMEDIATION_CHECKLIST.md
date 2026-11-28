@@ -2081,6 +2081,11 @@ remain part of OPT-A1–A6 and MOD-A4–A5; the inventory is not a completion re
       stay unchanged. Complete Vite 7/8 consumers execute with byte-identical before/after bundles.
 
 - [-] OPT-A7 — Audit internal representations and allocation costs from current generator output.
+      Proven zero-visible-fraction guards now reject finite native fractions before String/regex
+      parsing (GEN-A79). Safe integer operations are unchanged. Executed Russian/Ukrainian cases
+      disable text parsing, including subnormals; permissive/modular synthetic rules retain their
+      fractional categories. The complete Vite 7 consumer adds 38 minified/7 Brotli bytes, recorded
+      in the cost audit without a timing or heap claim. Broader allocation criteria remain open.
       Numeric padding now compiles scalar-width arithmetic (GEN-A76), removing full-result
       concatenation, character arrays, and extra text traversal. Affix/scientific widths are
       static; selected separator corrections follow actual grouping and fraction visibility.

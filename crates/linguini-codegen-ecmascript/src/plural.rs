@@ -40,6 +40,8 @@ pub(crate) fn generate_plural_function_with_visibility(
     let native_integer_modulus = plan
         .integer_input_suffix_modulus()
         .filter(|_| integer_tail_digits.is_some_and(|digits| digits <= 15));
+    let native_fractional_other =
+        native_integer_modulus.is_some() && plan.requires_zero_visible_fraction();
     let mut defined_moduli = Vec::new();
     let mut defined_operations = Vec::new();
     let mut take_operations = |requirements: &linguini_codegen::PluralRequirements| {
@@ -127,7 +129,7 @@ pub(crate) fn generate_plural_function_with_visibility(
     crate::templates::render(
         "plural",
         context! {
-            name => function_name, exported, categories, guards, integer_tail_digits, fallback, constant_numeric_result, native_integer_modulus, integer_input_operations,
+            name => function_name, exported, categories, guards, integer_tail_digits, fallback, constant_numeric_result, native_integer_modulus, native_fractional_other, integer_input_operations,
         },
     )
 }
